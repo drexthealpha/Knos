@@ -38,7 +38,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PRICE_USDC = 0.01;
 
 type Settings = {
+  agentId: string;
   walletAddress: Address;
+  apiKey?: string;
   walletId: string;
   signerPrivateKey: string;
   builderCode?: string;
@@ -47,7 +49,8 @@ type Settings = {
 
 /**
  * What the registry handed back after registration, kept outside the repo
- * with the keys rather than beside the code.
+ * with the keys rather than beside the code. The agent id and the wallet are
+ * public and appear in the README; the signer never leaves this file.
  */
 function settings(): Settings {
   const path =
@@ -57,13 +60,32 @@ function settings(): Settings {
       ".knos-keys",
       "acp.json",
     );
+
+  let parsed: Settings;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as Settings;
+    parsed = JSON.parse(readFileSync(path, "utf8")) as Settings;
   } catch {
     throw new Error(
       `No settings at ${path}. Register the agent first, then write that file. See REGISTER.md.`,
     );
   }
+
+  // Name what is missing rather than failing somewhere inside the SDK. The
+  // wallet the registry mints cannot sign on its own: the signer comes from
+  // the agent's Signers tab and is a separate value from the API key.
+  const missing = (["walletId", "signerPrivateKey"] as const).filter(
+    (key) => !parsed[key],
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `Agent ${parsed.agentId ?? "?"} is registered, but ${missing.join(" and ")} ` +
+        `${missing.length === 1 ? "is" : "are"} still empty in ${path}.\n` +
+        `Both are on the agent's Signers tab: ` +
+        `https://app.virtuals.io/acp/agents/${parsed.agentId ?? ""}\n` +
+        `Add a signer, copy the key, and paste both values in.`,
+    );
+  }
+  return parsed;
 }
 
 /** Ask knos, and hand back exactly what it said. */

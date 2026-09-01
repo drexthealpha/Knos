@@ -1,5 +1,13 @@
 # Registering the offering
 
+> **Status: registered, provider running.** Agent
+> `01a05b97-a776-760a-9165-e9893e4091dc`, wallet `0xd535a882…e0de`, page
+> https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc
+>
+> `npm run register` starts the provider and prints
+> `knos is answering questions at 0.01 USDC each.` The steps below are the
+> record of how it was set up. Nothing has bought an answer yet.
+
 One offering, registered once, in a browser. Nothing here can be done from
 code: the service registry is a web form.
 

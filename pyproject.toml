@@ -9,10 +9,28 @@ description = "One memory for every coding agent on your machine, and it knows w
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
+authors = [{ name = "drexthealpha", email = "zulibro1999@gmail.com" }]
+keywords = ["memory", "agents", "mcp", "local-first", "coordination"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Version Control :: Git",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
   "typer>=0.12",
   "rich>=13",
-  "mcp>=1.2",
+  # The server is built on MCPServer, which arrived in 2.0 when FastMCP was
+  # renamed. A 1.x resolution installs cleanly and then fails on import, so
+  # the floor has to say 2.
+  "mcp>=2.0",
   "sibyl-memory-client>=0.7.0",
 ]
 
@@ -23,7 +41,9 @@ dev = ["pytest>=7"]
 knos = "knos.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/drexthealpha/knos"
+Homepage = "https://github.com/drexthealpha/Knos"
+Repository = "https://github.com/drexthealpha/Knos"
+Issues = "https://github.com/drexthealpha/Knos/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/knos"]

@@ -11,7 +11,7 @@ which of them is in your code right now.**
 
 ```bash
 pip install knos
-Knos point .
+knos point .
 knos ask "why did we drop redis?"
 ```
 
@@ -43,9 +43,9 @@ The part a markdown file cannot do. Longer walkthrough in
 
 ```mermaid
 flowchart TD
-    A["Agent A<br/>rewriting the parser"] -->|claims it| S[(Knos<br/>one shared memory)]
+    A["Agent A<br>rewriting the parser"] -->|"claims it"| S[("Knos<br>one shared memory")]
 
-    B["Agent B<br/>asks about the parser"] -->|asks| S
+    B["Agent B<br>asks about the parser"] -->|"asks"| S
     S -->|"withheld - held by Agent A"| B
 
     B -->|"asks again with a reason"| S
@@ -54,7 +54,7 @@ flowchart TD
     A -->|"knos done"| S
     S -->|"open to everyone again"| B
 
-    D["delete the store"] -.->|nothing is held back| S
+    D["delete the store"] -.->|"nothing is held back"| S
 
     style S fill:#1f2933,stroke:#7b8794,color:#ffffff
     style A fill:#e8f0fe,stroke:#4a6fa5,color:#111111
@@ -158,7 +158,74 @@ The record of who may read what is
 [Access.sol](contracts/src/Access.sol) on Base Sepolia, so neither of you has
 to trust the other's copy of it. It is testnet only and costs nothing, and
 none of that is your teammate's problem: they see a name and a folder.
-[Receipts and the deployment](contracts/README.md).
+
+**The whole cycle, in order.** The two `knos` commands each send one
+transaction to Base Sepolia and wait for it to settle before returning, so
+what the middle step sees is the truth and not a stale read.
+
+```bash
+knos share crates --with 0xTEAMMATE     # grant, ~3s
+#   their agent now asks its own client:
+#   search("risk guard", on_behalf_of="0xTEAMMATE")   -> answers from crates/
+knos unshare crates --with 0xTEAMMATE   # revoke, ~4s
+#   the same question now returns: Nothing shared with you.
+```
+
+The teammate's read goes through their agent rather than the command line:
+`on_behalf_of` is an argument to the `search` tool, and there is deliberately
+no flag that lets you impersonate somebody from your own shell.
+
+**Or verify without running anything.** The contract is
+[`0x955fa320…6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52)
+on Base Sepolia, and one full grant-then-revoke cycle is on chain:
+
+| | |
+|---|---|
+| [deploy](https://sepolia.basescan.org/tx/0xdcc25ff7460a09a080ec32016b39121b6a34b741f03411bcfdc2ee2a93b31d21) | `0xdcc25ff7…` |
+| [grant](https://sepolia.basescan.org/tx/0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6) | `0x84e11e21…` |
+| [revoke](https://sepolia.basescan.org/tx/0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4) | `0xb3ea6920…` |
+
+Between the second and the third, a teammate's agent could read the shared
+folder. After the third, the same question returned nothing. The permission
+itself is OpenZeppelin's `AccessControl`; the contract only names the roles.
+Nine tests: `cd contracts && forge test`. More in
+[contracts/README.md](contracts/README.md).
+
+## Selling an answer
+
+Knos is registered on the Virtuals agent marketplace as a provider, so another
+agent can pay it a hundredth of a dollar to answer a question from this
+machine's memory. One offering. No evaluator, no reputation system.
+
+| | |
+|---|---|
+| Agent | [Knos](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc) |
+| Agent ID | `01a05b97-a776-760a-9165-e9893e4091dc` |
+| Wallet | [`0xd535a882…e0de`](https://basescan.org/address/0xd535a8828ffd79c12622313cb55e37d86302e0de) on Base |
+
+The agent page is public: open it and you will see the registration without
+running anything. The seller half is [agent/offering.ts](agent/offering.ts) —
+it prices a job, waits for it to be funded, asks Knos, and submits whatever
+Knos found, sources and all. A question outside what it knows is answered
+honestly and still charged, because finding out that a door is shut is worth
+what it costs to knock.
+
+The provider is wired and connects. Fill in `~/.knos-keys/acp.json` with the
+wallet id and signer from the agent's Signers tab, then:
+
+```bash
+cd agent && npm install && npm run register
+# knos is answering questions at 0.01 USDC each.
+```
+
+It then waits for jobs: it prices one, waits for it to be funded, asks Knos,
+and submits what Knos found with its sources. A question outside what it knows
+is answered honestly and still charged, because finding out that a door is
+shut is worth what it costs to knock.
+
+**No job has been traded through it yet**, because that needs a buyer. What
+you can check today is the agent page above and that the provider starts and
+listens.
 
 ## Where the memory lives
 
@@ -205,6 +272,8 @@ and recalled by a **separate, fresh** process ([test_recall.py](tests/test_recal
 - It does not watch files. Run `knos point` again to catch up.
 - 5 MB per repo.
 - It has never seen a repo it was not pointed at.
+- The Virtuals provider runs and listens, but no job has been traded through
+  it yet: that needs a buyer, not more code.
 
 ## Licence
 

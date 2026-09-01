@@ -5,10 +5,10 @@ in one picture.
 
 ```mermaid
 flowchart TD
-    A["Agent A<br/>“rewriting the parser”"] -->|claims it| S[(knos<br/>one shared memory)]
+    A["Agent A<br>rewriting the parser"] -->|"claims it"| S[("Knos<br>one shared memory")]
 
-    B["Agent B<br/>asks about the parser"] -->|asks| S
-    S -->|"withheld — held by Agent A"| B
+    B["Agent B<br>asks about the parser"] -->|"asks"| S
+    S -->|"withheld - held by Agent A"| B
 
     B -->|"asks again with a reason"| S
     S -->|"answers, and writes the reason down"| B
@@ -16,7 +16,7 @@ flowchart TD
     A -->|"knos done"| S
     S -->|"open to everyone again"| B
 
-    D["delete the store"] -.->|nothing is held back| S
+    D["delete the store"] -.->|"nothing is held back"| S
 
     style S fill:#1f2933,stroke:#7b8794,color:#ffffff
     style A fill:#e8f0fe,stroke:#4a6fa5,color:#111111
