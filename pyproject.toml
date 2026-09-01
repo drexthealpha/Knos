@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "knos"
+version = "0.1.0"
+description = "One memory for every coding agent on your machine, and it knows which of them is in your code right now."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+  "typer>=0.12",
+  "rich>=13",
+  "mcp>=1.2",
+  "sibyl-memory-client>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+knos = "knos.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/drexthealpha/knos"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/knos"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/knos", "tests", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

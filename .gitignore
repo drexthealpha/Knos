@@ -1,0 +1,38 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# knos's own data, and the keys it made. Neither belongs to anyone else.
+.knos/
+.knos-keys/
+*.keystore
+keystore/
+access.json
+
+# Secrets, in case one ever lands here
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+.npmrc
+.pypirc
+
+# Machine-specific agent config. `knos connect` prints the right one for
+# whoever cloned this, so a copy of mine is worse than none.
+.mcp.json
+
+# Node
+node_modules/
+agent/node_modules/
+
+# Foundry: build output, and dependencies that `forge install` fetches
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
