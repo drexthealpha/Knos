@@ -27,6 +27,10 @@ NAMES = ("CLAUDE.md", "AGENTS.md")
 # write. These are conventions with names, not guesses: a decision record is
 # an ADR or a DECISIONS file, and it is short.
 DECISIONS = (
+    # What `knos export` writes and a repo commits. Listed here so a second
+    # clone reads a teammate's decisions on its first question, with no
+    # import step and nothing to configure.
+    ".knos/decisions.md",
     "DECISIONS.md",
     "DECISIONS.MD",
     "WORKLOG.md",

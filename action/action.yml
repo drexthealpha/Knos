@@ -1,0 +1,14 @@
+name: "Knos claim check"
+description: "Non-blocking note on a pull request that touches work someone already claimed in .knos/decisions.md"
+author: "drexthealpha"
+branding:
+  icon: "message-square"
+  color: "gray-dark"
+runs:
+  using: "composite"
+  steps:
+    - name: Warn on claimed work
+      shell: bash
+      run: python3 "${{ github.action_path }}/knos_pr_check.py"
+      env:
+        GITHUB_TOKEN: ${{ github.token }}

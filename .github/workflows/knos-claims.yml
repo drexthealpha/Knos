@@ -1,0 +1,19 @@
+# The repo checking itself: if a pull request touches work someone has
+# claimed in .knos/decisions.md, say so. Never fails the build.
+name: knos claims
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  claims:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 action/knos_pr_check.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

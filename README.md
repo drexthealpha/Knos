@@ -1,5 +1,7 @@
 # Knos
 
+<!-- mcp-name: io.github.drexthealpha/knos -->
+
 **A local MCP server that gives every coding agent on your machine one shared
 memory — and it knows which of them is in your code right now.**
 
@@ -54,7 +56,7 @@ first whichever you pick.
 </details>
 
 The first thing an agent asks about a repo reads it. Seven cold runs each,
-whole process, on a spinning disk: **1.7s median on a small project (1.5-2.1),
+whole process, Windows on a spinning disk (WSL on the same box: 3.4s median on a small repo): **1.7s median on a small project (1.5-2.1),
 2.0s on goose (1.8-3.4), 3.1s on the Linux kernel (3.0-6.8)** — 93,703 tracked
 files. That is not fast —
 it is one `git log`, your `CLAUDE.md`, and the transcripts of past sessions
@@ -135,6 +137,44 @@ flowchart TD
     style W fill:#f5f5f5,stroke:#999999,color:#111111
 ```
 
+## Share it with the repo, not a server
+
+Everything above is local. Two things, though, exist nowhere a teammate can
+reach — what somebody decided, and what somebody is working on right now. So
+those go in the repository, as a file you commit:
+
+```bash
+knos export        # writes .knos/decisions.md
+git add .knos && git commit -m "share decisions"
+```
+
+Three sides, one file, no server:
+
+- **A teammate clones and asks.** `.knos/decisions.md` is one of the decision
+  records Knos already reads, so a clean clone answers from it on its first
+  question — nothing to install, nothing to sync.
+- **Their agents get it too**, through the same three MCP tools.
+- **CI says so on a pull request** that touches claimed work:
+
+```yaml
+# .github/workflows/knos-claims.yml
+on: pull_request
+permissions: { contents: read, pull-requests: write }
+jobs:
+  claims:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: drexthealpha/Knos/action@main
+```
+
+The comment is a heads-up, never a failure — it exits 0 whatever it finds. A
+memory tool that can red your build has taken a veto it did not earn.
+
+Secrets do not travel: a note about `.env` is filtered out of the exported
+file by the same check that hides `.env` from an agent
+(`pytest tests/test_shared_repo.py -k private_note`).
+
 ## Check any of it in under a minute
 
 Nothing below is a claim. Each row is a command; run it and see.
@@ -171,11 +211,31 @@ Every change ships with a test. A green run you did not watch is not green.
 | Source | From |
 |---|---|
 | Your rules | `CLAUDE.md`, `AGENTS.md` |
-| Decisions you keep in the repo | `DECISIONS.md`, `WORKLOG.md`, `docs/adr/*.md`, `docs/decisions/*.md` |
+| Decisions in the repo | `.knos/decisions.md`, `DECISIONS.md`, `WORKLOG.md`, `docs/adr/*.md`, `docs/decisions/*.md` |
 | Agent sessions | Claude Code transcripts, Cursor's history |
 | Commits | `git log` |
 | Code structure | read by Knos itself, or [universal-ctags](https://github.com/universal-ctags/ctags) when you have it |
 | What you tell it | `knos remember` |
+
+### What is covered, and what is not
+
+Knos is wired into **4 clients** and reads the past session history of **2**.
+Both numbers are the honest ones:
+
+| Client | MCP tools | Reads its past sessions |
+|---|---|---|
+| Claude Code | yes, no restart | yes |
+| Cursor | yes | yes |
+| Claude Desktop | yes | no |
+| OpenCode | yes | no |
+| Hermes Agent | via [knos-hermes](https://github.com/drexthealpha/knos-hermes) | no |
+| Gemini CLI, Codex, Windsurf, Aider, Continue | no | no |
+
+Wiring a client is three edits and a test — [CONTRIBUTING.md](CONTRIBUTING.md)
+has them, with OpenCode as the worked example. A session reader is about 40
+lines; `.github/GOOD_FIRST_ISSUES.md` describes the Gemini CLI and Codex one.
+
+**Knos does not have memory of every local workflow, and does not claim to.**
 
 `.env`, `*.pem`, `id_rsa`, `.ssh`, `.aws` and twelve more are private the
 moment Knos reads a repo, without being asked. Private means invisible, not
@@ -186,8 +246,25 @@ count, no "2 hidden".
 worktree of a repo as one memory anyway. Read the repo in one tree and every
 other tree can answer. Claim in one and the agents in the others are held off.
 
-**Commands.** `knos ask`, `knos claim`, `knos done`, `knos status`. `knos
-help` lists the rest. Nothing runs itself: no watcher, no daemon, no schedule.
+**Commands.** `knos ask`, `knos claim`, `knos done`, `knos status`,
+`knos export`. `knos help` lists the rest. Nothing runs itself: no watcher,
+no daemon, no schedule.
+
+### Speed, on the one question this is for
+
+"What was decided, and is anyone on it?" — warm, whole process, median of 7:
+
+| | Knos | `git log --all -S` |
+|---|---|---|
+| small repo | 960ms | **33ms** |
+| Linux kernel (93,703 files) | **920ms** | 28,289ms |
+
+Git wins on a small repo and it is not close. Knos's time is flat with repo
+size because it reads an index rather than walking history; git's grows with
+it. On the kernel that is 30x, and most of Knos's 900ms is Python starting up.
+
+**Knos is not faster than git at anything git is for**, and a cold first read
+of a large repo is slower than either — 3.1s median, stated above.
 
 **Why this is where the problem lives.** A study of 557 agent sessions and
 33,097 pull requests found that **60.5%** of everything coding agents do with
@@ -289,7 +366,7 @@ and you will see the registration without installing anything.
 
 ## Tests
 
-**194 passing** (`pytest`), **9 more** for the contract (`cd contracts && forge test`).
+**205 passing** (`pytest`), **9 more** for the contract (`cd contracts && forge test`).
 
 Including the ones that would catch a lie:
 
@@ -309,6 +386,10 @@ Including the ones that would catch a lie:
 - A claim withholds what Knos knows. It cannot stop an agent editing a file —
   nothing on your machine can, short of file permissions. If you need that,
   use a worktree.
+- Rules are enforced **only on what Knos mediates**: recall, `remember`, and
+  the claim/withhold path. Knos cannot make a foreign runtime obey your
+  `CLAUDE.md`; it can only decline to be the source of truth, and say who to
+  ask. Any tool claiming more is not telling you the truth.
 - Claude Code and Cursor only. No Gemini CLI or Codex history yet.
 - It does not write the answer for you, and it does not watch files. Run
   `knos point` again to catch up.

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.1.1"
+version = "0.1.2"
 description = "One local memory every coding agent on the machine shares — and it knows which of them is in your code right now."
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -538,6 +538,21 @@ def claim(
 
 
 @app.command()
+def export() -> None:
+    """Write decisions and current work into the repo, to commit."""
+    from . import share
+
+    repo = _repo(None)
+    with Memory(repo) as mem:
+        target, decisions, claims = share.write(repo, mem)
+    rel = target.relative_to(repo).as_posix()
+    out.print(f"Wrote {rel} - {decisions} decisions, {claims} claimed.")
+    out.print("")
+    out.print("Commit it. Anyone who clones this repo reads it on their first")
+    out.print("question, and CI can warn a pull request that touches claimed work.")
+
+
+@app.command()
 def done() -> None:
     """Say you have finished what you were doing."""
     repo = _repo(None)

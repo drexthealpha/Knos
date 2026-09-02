@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.drexthealpha/knos",
+  "title": "Knos",
+  "description": "One local memory every coding agent on the machine shares - and it knows which of them is in your code right now.",
+  "version": "0.1.2",
+  "repository": {
+    "url": "https://github.com/drexthealpha/Knos",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "knos",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
