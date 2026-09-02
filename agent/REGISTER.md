@@ -6,7 +6,9 @@
 >
 > `npm run register` starts the provider and prints
 > `knos is answering questions at 0.01 USDC each.` The steps below are the
-> record of how it was set up. Nothing has bought an answer yet.
+> record of how it was set up. Three jobs have been bought, all by
+> [knos-buyer](https://app.virtuals.io/acp/agents/01a063e1-914d-775c-ad42-74cff7881245),
+> an agent of mine. Nobody else has bought anything.
 
 One offering, registered once, in a browser. Nothing here can be done from
 code: the service registry is a web form.
@@ -31,7 +33,7 @@ On the agent's page, add **one** offering:
 
 | Field | Value |
 |---|---|
-| Name | Answer a question from my memory |
+| Name | `answer_a_question_from_my_memory` (the registry requires camelCase or snake_case, and `agent/buy.ts` looks it up by this exact string) |
 | Description | Ask a question about the repository this agent has read. The reply is the passage that answers it and where it came from: a file and line, a session and date, or a commit. |
 | Price | 0.01 USDC |
 | Input | `question` (string, required) — what you want to know |

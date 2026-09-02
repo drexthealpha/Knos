@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "register": "tsx offering.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "buy": "tsx buy.ts"
   },
   "dependencies": {
     "@virtuals-protocol/acp-node-v2": "^0.1.12"

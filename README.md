@@ -2,6 +2,8 @@
 
 <!-- mcp-name: io.github.drexthealpha/knos -->
 
+[![Knos MCP server](https://glama.ai/mcp/servers/drexthealpha/Knos/badges/score.svg)](https://glama.ai/mcp/servers/drexthealpha/Knos)
+
 **A local MCP server that gives every coding agent on your machine one shared
 memory — and it knows which of them is in your code right now.**
 
@@ -29,8 +31,9 @@ then there is exactly one thing left to do:
 | Claude Code | nothing | `claude mcp add --scope user` registers with the running session |
 | Cursor | **Restart Cursor.** | reads `~/.cursor/mcp.json` at startup; no command registers a server with a running instance |
 | Claude Desktop | **Restart Claude Desktop.** | same |
-| OpenCode | **Restart OpenCode.** | `opencode mcp add` exists but is interactive, and its docs describe no reload for a running session | Every file it
-touches is copied to `<name>.before-knos` first.
+| OpenCode | **Restart OpenCode.** | `opencode mcp add` exists but is interactive, and its docs describe no reload for a running session |
+
+Every file it touches is copied to `<name>.before-knos` first.
 
 <details>
 <summary>Other ways in — Claude Desktop extension, Claude Code plugin, or by hand</summary>
@@ -58,9 +61,8 @@ first whichever you pick.
 The first thing an agent asks about a repo reads it. Seven cold runs each,
 whole process, Windows on a spinning disk (WSL on the same box: 3.4s median on a small repo): **1.7s median on a small project (1.5-2.1),
 2.0s on goose (1.8-3.4), 3.1s on the Linux kernel (3.0-6.8)** — 93,703 tracked
-files. That is not fast —
-it is one `git log`, your `CLAUDE.md`, and the transcripts of past sessions
-in that tree, written to SQLite. It happens once. Every question after it is
+files. What it does in that time is one `git log`, your `CLAUDE.md`, and the
+transcripts of past sessions in that tree, written to SQLite. It happens once. Every question after it is
 under 0.2s, and every agent you have shares the result.
 
 ## The one thing nothing else does
@@ -80,8 +82,8 @@ Not a warning attached to the answer — **no answer**. Your agent can still
 take it, by saying why, and the reason is written down under its name where
 you will read it. `knos done` releases it, and so does half an hour.
 
-These are all good, and several are better at recall than Knos. Here is what
-each one's own README says, so you can check every cell:
+Every cell below comes from that tool's own README or documentation page, so
+you can check each one:
 
 | | To install | MCP tools | Needs | Refuses to answer about work another agent claimed |
 |---|---|---|---|---|
@@ -161,13 +163,19 @@ knos export        # writes .knos/decisions.md
 git add .knos && git commit -m "share decisions"
 ```
 
-Three sides, one file, no server:
+That one file is the whole mechanism. It is markdown, it diffs in review, and
+three different kinds of reader consume it without installing anything:
 
 - **A teammate clones and asks.** `.knos/decisions.md` is one of the decision
   records Knos already reads, so a clean clone answers from it on its first
-  question — nothing to install, nothing to sync.
-- **Their agents get it too**, through the same three MCP tools.
-- **CI says so on a pull request** that touches claimed work:
+  question — no install, no sync, no account, no server between the two
+  machines (`pytest tests/test_shared_repo.py -k second_clean_clone`).
+- **Every agent on their machine reads it too**, through the same three MCP
+  tools, on the same first question. A contributor who has never heard of
+  Knos still gets your decisions, because their agent asks and the file is
+  already in the checkout.
+- **CI reads it on a pull request** and says so when the branch touches work
+  somebody has claimed (`pytest tests/test_shared_repo.py -k ci_warns`).
 
 ```yaml
 # .github/workflows/knos-claims.yml
@@ -181,12 +189,25 @@ jobs:
       - uses: drexthealpha/Knos/action@main
 ```
 
-The comment is a heads-up, never a failure — it exits 0 whatever it finds. A
-memory tool that can red your build has taken a veto it did not earn.
+The comment is a heads-up, never a failure — `action/knos_pr_check.py`
+exits 0 on every path, including when it finds a conflict and when it
+crashes.
+
+**It runs both ways, and that is the part that compounds.** The teammate who
+cloned runs `knos export` too. Their decisions and their claims land in the
+same file, you pull, and your agents read what they decided while you were
+not looking. Every contributor writes to the file and reads from it, so it
+holds more after each one than before. The repository is the shared object:
+there is no database of ours, no protocol to adopt, and no server to pay
+for.
 
 Secrets do not travel: a note about `.env` is filtered out of the exported
 file by the same check that hides `.env` from an agent
 (`pytest tests/test_shared_repo.py -k private_note`).
+
+**Nothing outside this repository has adopted it yet.** The loop is
+implemented and tested, six tests in `tests/test_shared_repo.py`. That is a
+mechanism that works, not a network that exists.
 
 ## Check any of it in under a minute
 
@@ -259,6 +280,15 @@ count, no "2 hidden".
 worktree of a repo as one memory anyway. Read the repo in one tree and every
 other tree can answer. Claim in one and the agents in the others are held off.
 
+The whole mechanism is one git command. `git rev-parse --show-toplevel`
+returns the worktree root, so every worktree looks like a different project;
+`git rev-parse --git-common-dir` returns the git directory the worktrees
+share, which is identical across all of them. Knos keys the store on the
+second. Tools that key on the first fragment a repo's memory once per
+worktree — [that bug, in another
+tool](https://github.com/rohitg00/agentmemory/issues/515). Check it:
+`pytest tests/test_worktrees.py`.
+
 **Commands.** `knos ask`, `knos claim`, `knos done`, `knos status`,
 `knos export`. `knos help` lists the rest. Nothing runs itself: no watcher,
 no daemon, no schedule.
@@ -279,14 +309,15 @@ it. On the kernel that is 30x, and most of Knos's 900ms is Python starting up.
 **Knos is not faster than git at anything git is for**, and a cold first read
 of a large repo is slower than either — 3.1s median, stated above.
 
-**Why this is where the problem lives.** A study of 557 agent sessions and
+**What agents actually read.** A study of 557 agent sessions and
 33,097 pull requests found that **60.5%** of everything coding agents do with
 documentation happens in instruction files and their own notes — `CLAUDE.md`,
 `AGENTS.md`, plans, scratch notes — against 10.6% for classical docs and 1.3%
 for API references ([Gao & Chen, 2026](https://arxiv.org/abs/2608.20195)).
-Agents live in the files that drift, they rewrite those files themselves, and
-none of those files can say who is reading them or what another agent is
-changing right now.
+The same paper says the link between what agents consult and what they edit
+is unresolved, so this measures where agents spend their documentation time,
+not that Knos is needed. What is separately true: none of those files can say
+who is reading them, or what another agent is changing right now.
 
 ## What happens when you delete the memory
 
@@ -369,17 +400,34 @@ Nine contract tests: `cd contracts && forge test`.
 provider with one offering: another agent pays 0.01 USDC for an answer out of
 this machine's memory. The seller is [agent/offering.ts](agent/offering.ts).
 
-**What it does not do.** **No job has ever been traded through it.** That
-needs a buyer, not more code. There is no evaluator and no reputation system.
-It is off by default and runs only when you start it.
+**What it does not do.** There is no evaluator and no reputation system, and
+**the three jobs traded through it were all bought by a test agent of mine,
+not by a customer.** It is off by default and runs only when you start it.
 
 **How to verify it.** The agent page is public — open
 [app.virtuals.io/acp/agents/01a05b97…](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
-and you will see the registration without installing anything.
+and you will see the registration without installing anything. Job 75659 is
+on Base mainnet, in two legs, neither of which needs an account to read:
+[buyer pays 0.01 USDC into escrow](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64),
+then [escrow releases 0.0095 to the provider](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59)
+— the missing 5% is the protocol's fee.
+
+It was asked *why does knos withhold claimed work*, and what it sold, in
+180ms, was a passage out of a session from four days earlier:
+
+> knos withholds what it knows. A second agent searching claimed work gets
+> who holds it and nothing else — the content is absent from the reply, not
+> annotated.
+> — Claude Code session 4101eeab 2026-08-31
+
+Nobody re-typed that. Another agent paid a penny and a fresh process read it
+back with its source. The buyer was
+[knos-buyer](https://app.virtuals.io/acp/agents/01a063e1-914d-775c-ad42-74cff7881245),
+an agent of mine registered to prove the path executes. It is not demand.
 
 ## Tests
 
-**205 passing** (`pytest`), **9 more** for the contract (`cd contracts && forge test`).
+**206 passing** (`pytest`), **9 more** for the contract (`cd contracts && forge test`).
 
 Including the ones that would catch a lie:
 
@@ -402,18 +450,27 @@ Including the ones that would catch a lie:
 - Rules are enforced **only on what Knos mediates**: recall, `remember`, and
   the claim/withhold path. Knos cannot make a foreign runtime obey your
   `CLAUDE.md`; it can only decline to be the source of truth, and say who to
-  ask. Any tool claiming more is not telling you the truth.
+  ask. No MCP server can do more than this: the protocol gives a server no
+  way to intercept an edit.
 - Claude Code and Cursor only. No Gemini CLI or Codex history yet.
 - It does not write the answer for you, and it does not watch files. Run
   `knos point` again to catch up.
+- **Retrieval is lexical, not semantic.** Sibyl searches with SQLite FTS5, so
+  Knos finds passages containing your words and ranks those. Ask about
+  something the sessions never discussed and you get confident, well-sourced
+  passages that share a word with your question and nothing else: "why did we
+  drop redis" matches every note about *dropping* something. Ask in the words
+  the work was done in and it is sharp. There are no embeddings at any Sibyl
+  tier — the paid tier adds summarising and a learning loop, not search.
 - 5 MB per repo.
-- No job has been traded through the Virtuals provider.
+- Three jobs have been traded through the Virtuals provider, all bought by a
+  test agent of mine. Nobody else has bought anything.
 
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the three edits an agent adapter takes
 and the test to copy. `pytest` runs in about four minutes against throwaway
-stores. Deleting something is the most welcome kind of change.
+stores.
 
 ## Licence
 

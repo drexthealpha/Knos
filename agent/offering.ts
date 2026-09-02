@@ -142,7 +142,13 @@ async function main(): Promise<void> {
 
     if (entry.event.type === "job.funded") {
       const question = asked.get(session.jobId) ?? "";
-      await session.submit(question ? await ask(config.knos, question) : NOTHING);
+      const answer = question ? await ask(config.knos, question) : NOTHING;
+      // What was actually sold, on the seller's own terminal. A buyer in
+      // skip-evaluation mode never sees job.submitted, so without this the
+      // answer leaves no trace anywhere a person can read.
+      console.log(`job ${session.jobId} asked: ${question}`);
+      console.log(answer);
+      await session.submit(answer);
       asked.delete(session.jobId);
     }
 

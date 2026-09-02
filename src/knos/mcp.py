@@ -13,6 +13,7 @@ from importlib.metadata import PackageNotFoundError, version as _installed_versi
 from pathlib import Path
 
 from mcp.server.mcpserver import Context, MCPServer
+from mcp.types import ToolAnnotations
 
 from . import answer, code, git, paths, private
 from .memory import TOPIC, Fact, Memory, _minutes_since
@@ -88,7 +89,15 @@ def _repo() -> Path | None:
     return paths.current_repo()
 
 
-@server.tool()
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Search memory",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    )
+)
 def search(
     query: str,
     limit: int = 8,
@@ -96,8 +105,9 @@ def search(
     override: str = "",
     ctx: Context | None = None,
 ) -> str:
-    """Search this machine's memory of the repo: past agent sessions, commits
-    and code structure. Every result names where it came from.
+    """Search this machine's memory of the repo across all of it: past agent
+    sessions, commits and code structure. Reads only; writes nothing except
+    an override reason. Every result names where it came from.
 
     Work another agent has claimed is withheld: you get who holds it, not
     the answer. Ask them, or pick up something else. If you genuinely must
@@ -148,9 +158,19 @@ def search(
     return answered
 
 
-@server.tool()
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Look up one thing",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    )
+)
 def about(thing: str, ctx: Context | None = None) -> str:
-    """What is known about one thing: a file, a person, a topic."""
+    """Look up everything known about one named thing: a file, a person, a
+    topic. Reads only, writes nothing, and touches no network. Use `search`
+    instead when the question spans more than one thing."""
     repo = _repo()
     if repo is None:
         return NOT_POINTED
@@ -312,11 +332,21 @@ def _who(ctx: Context | None) -> str:
         return "an agent"
 
 
-@server.tool()
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Write to memory",
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=False,
+    )
+)
 def remember(
     fact: str, about: str, claiming: bool = False, ctx: Context | None = None
 ) -> str:
     """Write something back, so the next session in any agent knows it too.
+    Appends; it never edits or deletes an existing memory, and there is no
+    tool that does.
 
     Set `claiming` when you are about to start work on this, rather than
     just noting something. Other agents are then told you have it and knos
