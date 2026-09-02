@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.drexthealpha/knos",
   "title": "Knos",
-  "description": "One local memory every coding agent on the machine shares - and it knows which of them is in your code right now.",
+  "description": "One local memory every coding agent on this machine shares, with claims so they don't collide.",
   "version": "0.1.2",
   "repository": {
     "url": "https://github.com/drexthealpha/Knos",
