@@ -146,7 +146,7 @@ Nothing below is a claim. Each row is a command; run it and see.
 | No network connection, ever | `pytest tests/test_no_network.py` — breaks `socket.connect`, `bind`, `create_connection`, `getaddrinfo`, then reads a repo, answers, writes, claims, withholds, overrides. A third test breaks the guard on purpose, so it cannot pass by doing nothing |
 | Decisions you keep in the repo are read | `pytest tests/test_rules.py -k decisions_kept_beside` — an ADR answers with `docs/adr/0001-use-sqlite.md:3` |
 | Every worktree of a repo is one memory | `pytest tests/test_worktrees.py` |
-| A big repo is never half-read | `pytest tests/test_worktrees.py -k half_read` — a code read that runs out of time leaves nothing behind |
+| A big repo is never half-read | `pytest tests/test_worktrees.py -k runs_out_of_time` — both readers, forced to time out, leave nothing behind |
 | Secrets are invisible, not redacted | `pytest tests/test_private.py` — the search layer is asked directly, with an agent's identity |
 | What dies when you delete the store | `pytest tests/test_sibyl_is_load_bearing.py -k number_status_prints` |
 | Three MCP tools, no more | `pytest tests/test_recall.py -k three_tools_are_listed` |

@@ -102,21 +102,58 @@ def test_an_agent_reads_the_repo_itself_on_its_first_question(knos_home, repo):
     assert paths.has_store(repo)
 
 
-def test_the_code_reader_gets_a_budget_and_leaves_nothing_half_read(knos_home, repo):
-    """A partial tags file would answer some questions and silently miss
-    others, which is worse than answering none."""
+def test_the_code_reader_that_runs_out_of_time_leaves_nothing_behind(
+    knos_home, repo, monkeypatch
+):
+    """A partial index answers some questions and silently misses others,
+    which is worse than answering none.
+
+    The timeout is forced rather than raced. Relying on a tiny budget
+    beating a real process meant the assertion was skipped on a fast
+    machine, so the test could pass having checked nothing.
+    """
+    import subprocess as sp
+
     from knos import code
 
-    if not code.installed():
-        pytest.skip("universal-ctags not installed")
-    # A budget this small always runs out on a real reader; if a machine is
-    # fast enough that it does not, the invariant below is what matters and
-    # there is nothing to check.
-    result = code.index(repo, budget=0.001)
-    if result.get("ran_out"):
-        assert not code.indexed(repo), "left a half-read tags file behind"
+    monkeypatch.setattr(code, "installed", lambda: True)
+    monkeypatch.setattr(code, "binary", lambda: "ctags")
 
-    # And with time to work, it reads it properly.
+    def out_of_time(cmd, **kw):
+        # ctags writes as it goes, so a killed run leaves a partial file.
+        code.tags_file(repo).write_text("!_TAG_FILE_FORMAT\tpartial\n", encoding="utf-8")
+        raise sp.TimeoutExpired(cmd, kw.get("timeout", 1))
+
+    monkeypatch.setattr(sp, "run", out_of_time)
+    result = code.index(repo, budget=3.0)
+
+    assert result["ran_out"] is True
+    assert result["nodes"] == 0
+    assert not code.indexed(repo), "a half-read index was counted as read"
+
+
+def test_the_built_in_reader_that_runs_out_of_time_leaves_nothing_behind(
+    knos_home, repo, monkeypatch
+):
+    """The same invariant on the reader knos carries, which is the one a
+    machine without ctags actually uses."""
+    from knos import code
+
+    monkeypatch.setattr(code, "installed", lambda: False)
+    monkeypatch.setattr(code, "readtags", lambda: None)
+
+    result = code.index(repo, budget=0.0)
+
+    assert result["ran_out"] is True
+    assert result["nodes"] == 0
+    assert not code.own_file(repo).exists()
+    assert not code.indexed(repo)
+
+
+def test_the_code_reader_given_time_reads_the_repo_properly(knos_home, repo):
+    """The other half: with no budget it finishes, and says so."""
+    from knos import code
+
     full = code.index(repo)
     assert full.get("ran_out") is None
     assert code.indexed(repo)
