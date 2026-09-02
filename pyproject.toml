@@ -35,7 +35,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+# The suite drives the paid-answer path against a real x402 middleware
+# rather than a mock, so those are test dependencies, not runtime ones.
+# Without them `pytest` silently skipped six tests and CI looked green on a
+# path nobody had run.
+dev = ["pytest>=7", "flask>=3", "x402[evm]>=2.21", "httpx>=0.27"]
 
 [project.scripts]
 knos = "knos.cli:app"

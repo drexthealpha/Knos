@@ -435,3 +435,21 @@ def test_every_check_command_in_the_readme_selects_a_real_test():
         )
         picked = [line for line in done.stdout.splitlines() if "::" in line]
         assert picked, f"README says `{command}` but that selects no tests"
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "win32"])
+def test_config_paths_resolve_on_every_platform(platform, monkeypatch, tmp_path):
+    """A stale `import os` inside the Windows branch made `os` local to the
+    whole function, so every non-Windows caller hit UnboundLocalError before
+    it could read OPENCODE_CONFIG. It passed on Windows and broke `knos
+    connect` on Linux and macOS.
+    """
+    from knos import cli
+
+    monkeypatch.setattr(cli.sys, "platform", platform)
+    monkeypatch.setattr(cli.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+
+    where = dict(cli._config_files())
+    assert sorted(where) == ["Claude Code", "Claude Desktop", "Cursor", "OpenCode"]
+    assert all(w for w in where.values())

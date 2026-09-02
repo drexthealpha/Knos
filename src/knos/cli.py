@@ -366,8 +366,6 @@ def _config_files() -> list[tuple[str, str]]:
     if sys.platform == "darwin":
         desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
     elif sys.platform.startswith("win"):
-        import os
-
         roaming = Path(os.environ.get("APPDATA", home / "AppData/Roaming"))
         desktop = roaming / "Claude" / "claude_desktop_config.json"
     else:
