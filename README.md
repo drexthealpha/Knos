@@ -91,18 +91,31 @@ each one's own README says, so you can check every cell:
 | [Engram](https://github.com/Gentleman-Programming/engram) | `brew install` + `engram setup <agent>` | 16 | nothing — one binary | not addressed |
 | [MemPalace](https://github.com/MemPalace/mempalace) | `uv tool install mempalace` + `init` + `mine` | 45 | ~300 MB embedding model | no — separate wings per agent |
 | [Hindsight](https://github.com/vectorize-io/hindsight) | `docker run …` or pip | 3 per bank | Postgres + pgvector + an LLM API key | no — banks are isolated by design |
+| [Vibsync](https://vibsync.com/agent-coordination) | remote MCP URL + an account | claim/release, check_conflicts, remember/recall, task board | a hosted server | no — its own page: "cooperative, not enforced — a rogue agent can still ignore it" |
+| [CoordMCP](https://glama.ai/mcp/servers/siddiquesahabaj/CoordMCP) | `pip install coordmcp` | **52** | a coordination server running | no — `lock_files` blocks edits, not reads |
+| [Memryzed](https://github.com/memryzed/memryzed) | `curl -fsSL https://memryzed.com/install.sh \| bash` | 9 | nothing — one SQLite file | not addressed |
+| [Agent Claim MCP](https://glama.ai/mcp/servers/vk0dev/agent-claim-mcp) | npx entry in your config | 3 | nothing | no — and it is not a memory system: claims only, no sessions or decisions |
 | **Knos** | **`pip install knos && knos connect`** | **3** | **nothing** | **yes** |
 
-The last column is the difference, and it is narrower than it looks:
-agentmemory's leases are real coordination. A lease locks an action an agent
-decides to take. Knos changes what the *memory says* — ask about work someone
-else claimed and there is no answer to act on, and the claim is bound to the
-connection that made it, so an agent naming itself the holder is still
-refused.
+Knos is not the only tool with claims, and that column would be dishonest if
+it implied so. Vibsync, CoordMCP, AgentRoom and Agent Claim MCP all let an
+agent claim something; agentmemory has leases. The difference is what a claim
+*does*. Everywhere else it is a signal about a file, which an agent may check
+before editing and may ignore — Vibsync says so itself, and CoordMCP's locks
+stop edits while the memory stays fully readable. Knos changes what the memory
+says: ask about work someone else claimed and there is no answer to act on,
+and the claim is bound to the connection that made it, so an agent naming
+itself the holder is still refused.
+
+Two of these are worth your attention for reasons other than that column.
+Memryzed is local, keyless and one SQLite file — the same shape as Knos, with
+more recall tools and no coordination. Vibsync is the only one that shares a
+claim across machines, which Knos does not: a committed `.knos/decisions.md`
+is as far as a claim travels here.
 
 Knos is not trying to out-remember these tools. It is trying to be the one
 that speaks up while two agents are in the same code, and to cost you two
-commands and four tools to find out.
+commands and three tools to find out.
 
 ## One agent is enough to see it
 

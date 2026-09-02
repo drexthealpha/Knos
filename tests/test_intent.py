@@ -265,6 +265,17 @@ def test_the_server_tells_agents_what_to_do_about_a_claim(knos_home, repo):
     assert "about to start work" in (mcp.remember.__doc__ or "")
 
 
+def test_the_server_names_its_own_version(knos_home, repo):
+    """A client is told the version in the handshake, and directories score
+    on it. An empty string is what you get by not passing one at all."""
+    import re
+
+    said = mcp._version()
+    assert said, "the server would introduce itself with no version"
+    assert re.fullmatch(r"\d+\.\d+\.\d+.*|0\+unknown", said), said
+    assert mcp.server.version == said
+
+
 # ---- enforcement: knos withholds what it knows -------------------------
 
 

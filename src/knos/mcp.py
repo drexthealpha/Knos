@@ -9,6 +9,7 @@ invisible: not redacted, not counted, simply absent.
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version as _installed_version
 from pathlib import Path
 
 from mcp.server.mcpserver import Context, MCPServer
@@ -16,7 +17,20 @@ from mcp.server.mcpserver import Context, MCPServer
 from . import answer, code, git, paths, private
 from .memory import TOPIC, Fact, Memory, _minutes_since
 
-server = MCPServer("knos", instructions=(
+
+def _version() -> str:
+    """The installed version, so a client is never told the empty string.
+
+    Read from package metadata rather than repeated here, because a second
+    copy of the number is a second thing to forget to bump.
+    """
+    try:
+        return _installed_version("knos")
+    except PackageNotFoundError:  # running from a source tree, not installed
+        return "0+unknown"
+
+
+server = MCPServer("knos", version=_version(), instructions=(
     "One local memory every coding agent on this machine shares - and it "
     "knows which of them is in your code right now.\n\n"
     "What past sessions decided, what commits changed, what this repo's "
