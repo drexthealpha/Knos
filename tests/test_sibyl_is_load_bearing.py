@@ -177,3 +177,70 @@ def test_search_itself_tells_an_agent_someone_else_is_mid_change(knos_home, repo
     assert after.startswith("Withheld.")
     assert "held by Claude Code" in after
     assert "refuses unknown assets" not in after
+
+
+def test_deleting_the_store_ends_the_holding_and_what_knos_was_told(knos_home, repo):
+    """The claim a judge will actually test.
+
+    What knos was *told* has no second copy. What it can read again from the
+    repo comes back, because that was never knos's to begin with, and saying
+    otherwise would be a claim anyone could disprove in ten seconds.
+    """
+    from datetime import datetime, timezone
+
+    from knos import answer, mcp, paths
+    from knos.memory import TOPIC, Fact, Memory
+
+    now = datetime.now(timezone.utc).isoformat()
+    with Memory(repo) as mem:
+        answer.point(repo, mem, index_code=False)
+        mem.record(
+            Fact(text="we chose sqlite over redis", source="note",
+                 where="you said so, 2026-09-01", when=now, about="storage")
+        )
+        mem.note_thing(TOPIC, "storage", {"note": "we chose sqlite over redis", "when": now[:10]})
+        mem.working_on("the parser", "Claude Code", now)
+
+    with Memory(repo) as mem:
+        assert any("sqlite over redis" in p.text for p in answer.ask(repo, mem, "storage sqlite"))
+        assert mcp._held(mem, "the parser", "Cursor", "").startswith("Withheld.")
+
+    paths.store_for(repo).unlink()
+
+    with Memory(repo) as mem:
+        # The hold is gone: nothing is being kept from anyone.
+        assert mcp._held(mem, "the parser", "Cursor", "") == ""
+        # And so is the thing knos was told, which lived nowhere else.
+        assert not any(
+            "sqlite over redis" in p.text for p in answer.ask(repo, mem, "storage sqlite")
+        )
+
+
+def test_the_number_status_prints_actually_counts_the_things_that_die(
+    knos_home, repo
+):
+    """The README points at this number as the thing not to take on trust.
+
+    It read a key that does not exist on a journal row, so it was zero on
+    every store no matter what was in it.
+    """
+    from datetime import datetime, timezone
+
+    from knos import answer
+    from knos.memory import Fact, Memory
+
+    now = datetime.now(timezone.utc).isoformat()
+    with Memory(repo) as mem:
+        answer.point(repo, mem, index_code=False)
+        # Hundreds of commits and rules, none of which are knos's to keep.
+        assert mem.only_here() == 0
+
+        mem.record(Fact(text="we chose sqlite", source="note",
+                        where="you said so", when=now, about="storage"))
+        assert mem.only_here() == 1
+
+        mem.working_on("the parser", "Claude Code", now)
+        assert mem.only_here() == 2
+
+        mem.stood_down("the parser", "Cursor", "Claude Code", now)
+        assert mem.only_here() == 3

@@ -60,3 +60,29 @@ stood down. What happened stays written down.
 cache and no fallback file. Everything above lives in one SQLite file on your
 machine. Remove it and knos answers freely again, because there was never
 anything else holding it back.
+
+## The five tiers, and why there are five
+
+One SQLite file, but not one shape of thing in it. Each tier behaves
+differently because each answers a different question, and collapsing them
+into one table of rows would lose the behaviour that makes the rest of this
+work:
+
+- **Journal** — what was learned and where from, appended and never rewritten
+  ([`Memory.record`](../src/knos/memory.py)). This is what an answer quotes.
+- **Warm** — one canonical record per thing, replaced in place
+  ([`Memory.note_thing`](../src/knos/memory.py)). What knos knows *about* a
+  file or a person, rather than where it heard it.
+- **Hot** — claims of what is being worked on now, one per piece of work,
+  which expire ([`Memory.working_on`](../src/knos/memory.py)). The only part of
+  the store that is about *now*. Everything on this page depends on it.
+- **Reference** — facts that do not change ([`Memory.set_reference`](../src/knos/memory.py)).
+- **Archive** — where forgetting puts things ([`Memory.supersede`](../src/knos/memory.py)),
+  so a note can stop being an answer without the record of it disappearing.
+
+A hold is bound to the connection that made it, not to the name the caller
+gave. An agent that calls itself by the holder's name is still withheld,
+because the claim remembers which session made it.
+
+All of it is [Sibyl](https://github.com/Sibyl-Labs/Sibyl-Memory), run
+unactivated: no account, no server call, 5 MB per repo.

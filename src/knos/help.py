@@ -8,36 +8,33 @@ person asking for help needs to do.
 
 from __future__ import annotations
 
-MAIN = """\
-  knos — one memory for every coding agent here, and it knows
-         which of them is in your code right now
+MAIN = """  knos — one local memory every coding agent on this machine shares,
+         and it knows which of them is in your code right now
 
-  knos point .                 read this repo
-  knos ask "your question"     ask about it
-  knos connect                 let your agents use it
+  Setup was one line:  pip install knos && knos connect
+  Claude Code needs no restart; Claude Desktop and Cursor read their
+  settings at startup, so restart those. Nothing leaves this machine.
 
-  Examples
-      knos ask "why did we drop redis?"
-      knos ask "who touched auth last?"
+  Four things you might type:
+
+      knos ask "what are the rules here?"
+      knos claim "the parser"    your agents are refused until: knos done
+      knos status                what it read, and who is holding what
 
   More
-      knos remember    tell your agents something
-      knos notes       what they have been told
-      knos forget      drop one of them
-      knos done        say you have finished
-      knos status      what it has read
-      knos private     keep a path from your agents
-      knos help <cmd>  more about one command
+      knos remember, notes, forget    things you tell your agents
+      knos private                    keep a path from them
+      knos point .                    re-read after a lot of changes
+      knos help <cmd>                 more about one command
 
   While one agent is mid-change, the others are told, and knos holds
-  back what it knows until you sort it out. A CLAUDE.md cannot do that.
-
-  Nothing leaves this machine."""
+  back what it knows. A CLAUDE.md cannot do that: a file has no idea
+  who is reading it, or when."""
 
 
 PER_COMMAND = {
     "point": """\
-  knos point .           read the repo you are standing in
+  knos point .           re-read the repo, and read its code structure
   knos point ~/work/api  read another one
 
   It reads three things: what past agent sessions said, what your commits
@@ -60,8 +57,9 @@ PER_COMMAND = {
   What knos has read, which agents it found history for, and how many
   kinds of secret it is keeping from them.""",
     "connect": """\
-  knos connect           print what to paste, for every agent you have
-  knos connect --write   add it for them, keeping a copy of what was there
+  knos connect           add knos to every agent you have, keeping a copy
+                         of each settings file as it was
+  knos connect --print   just show what to paste, and change nothing
 
   Your other agent then knows everything this one does. One store, not a
   CLAUDE.md and an AGENTS.md and a rules file drifting apart.
@@ -76,6 +74,16 @@ PER_COMMAND = {
   agent chose to write down, which is the part a CLAUDE.md used to hold.
 
   Forgetting one stops your agents repeating it.""",
+    "claim": """\
+  knos claim "the risk guard"
+
+  Says you are working on something. Your agents are then withheld from
+  it: they are told you hold it, not what knos knows about it.
+
+  An agent can take it anyway, but only by giving a reason, and the
+  reason goes in the journal under its name.
+
+  It lapses after half an hour, or when you say:  knos done""",
     "done": """\
   knos done
 

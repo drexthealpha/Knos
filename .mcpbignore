@@ -18,3 +18,5 @@ agent/
 pyproject.toml
 knos.mcpb
 *.mcpb
+.claude-plugin/
+plugins/

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.1.0"
-description = "One memory for every coding agent on your machine, and it knows which of them is in your code right now."
+version = "0.1.1"
+description = "One local memory every coding agent on the machine shares — and it knows which of them is in your code right now."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

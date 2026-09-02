@@ -174,6 +174,33 @@ class Memory:
     def journal(self, limit: int = 200) -> list[dict[str, Any]]:
         return self.client.read_events(limit=limit)
 
+    def only_here(self) -> int:
+        """How many things exist nowhere but this file.
+
+        Everything knos read out of your repo it can read again. These it
+        cannot: what somebody told it, what was claimed, who stood down for
+        whom, who overrode whom and why. Delete the store and this number is
+        what is actually gone — which is the whole question anyone should ask
+        of a memory that claims to be load-bearing.
+        """
+        # The journal row keeps the source in `acted`; `source` is a key
+        # inside `extra`, not a column. Reading the wrong one made this
+        # count zero on every store, which is worse than not printing it:
+        # the README points at this number as the thing not to take on
+        # trust.
+        told = sum(1 for e in self.journal(limit=5000) if e.get("acted") == "note")
+        return told + len(self.claims())
+
+    def written_rules(self, limit: int = 400) -> list[dict[str, Any]]:
+        """The instruction files, in the order they were read.
+
+        Asked for by name rather than by search, because "what are the rules
+        here?" shares no word with the rule it is asking about.
+        """
+        return [e for e in self.journal(limit=limit * 4) if e.get("source") == "rules"][
+            :limit
+        ]
+
     # ---- WARM: one canonical record per thing --------------------------
 
     def note_thing(

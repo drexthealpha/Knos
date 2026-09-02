@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import code, errors, git, private
+from . import code, errors, git, private, rules
 from .memory import INTERNAL, PERSON, Fact, Memory
 
 STOP = {
@@ -62,6 +62,22 @@ NOTE_LEAD = 1.0
 # Enough to outrank any single passage, so the file and line come first.
 STRUCTURAL_LEAD = 2.0
 
+# A written-down rule beats the argument about it, the same way a note does.
+# Somebody chose to put it in CLAUDE.md; a session that happens to mention
+# the word did not.
+RULES_LEAD = 1.0
+
+# And when the question is plainly about the rules, the rules go first.
+RULES_QUESTION_LEAD = 2.5
+
+# Ways of asking what you are supposed to do here.
+RULES_PHRASES = (
+    "rule", "rules", "convention", "conventions", "guideline", "guidelines",
+    "instruction", "instructions", "claude.md", "agents.md", "style guide",
+    "am i allowed", "are we allowed", "supposed to", "should i", "must i",
+    "policy",
+)
+
 # Ways of asking about the shape of the code rather than the story behind it.
 # These always reach the code reader, however much prose was found, because
 # no amount of session chatter answers "who calls this".
@@ -104,6 +120,40 @@ def looks_structural(question: str) -> bool:
     return bool(SYMBOL.search(question))
 
 
+def withheld(held: str, by_the_person: bool) -> str:
+    """What an agent is told about work somebody else has claimed.
+
+    Lives here rather than in the server so `knos claim` can show you the
+    exact words your agents will get, in the same breath as claiming it.
+    A person should not have to open a second tool to find out what the
+    first one just did.
+    """
+    if by_the_person:
+        return (
+            f"Withheld. The person you are working with said they are on"
+            f" {held} right now, so knos is not the place you find out about"
+            " it. Ask them where they have got to, or pick up something else."
+            "\n\nIf they say go ahead, call this again with"
+            ' override="their reason". That is recorded against your name.'
+            "\n\nTell them this, in these words, before you do anything else."
+        )
+    return (
+        f"Withheld. {held} is being worked on right now, so knos is not the"
+        " place you find out about it. Ask them, or work on something else."
+        "\n\nIf you must have it anyway, call this again with"
+        ' override="your reason". That is recorded against your name.'
+        "\n\nTell the person this, in these words, before you do anything"
+        " else. A collision they are not shown is one they find out about at"
+        " merge time."
+    )
+
+
+def looks_like_rules(question: str) -> bool:
+    """Whether this asks what the rules of the repo are."""
+    low = question.lower()
+    return any(phrase in low for phrase in RULES_PHRASES)
+
+
 def topic_of(fact: str) -> str:
     """What to file a fact under when nobody said.
 
@@ -141,6 +191,7 @@ def point(
     mem: Memory,
     index_code: bool = True,
     on_progress: Any = None,
+    code_budget: float | None = None,
 ) -> dict[str, int]:
     """Read this repo: its sessions, its commits, its structure.
 
@@ -150,6 +201,7 @@ def point(
     from . import sessions
 
     counts: dict = {
+        "rules": 0,
         "sessions": 0,
         "commits": 0,
         "code": 0,
@@ -162,24 +214,47 @@ def point(
 
     mem.set_reference(INTERNAL + "repo", {"path": str(repo), "name": repo.name})
 
-    # Newest first, so that if the store fills up what knos kept is the part
-    # anyone is likely to ask about.
-    say("looking for past agent sessions")
-    for turn in reversed(sessions.read_all(repo)):
+    # Read first, and deliberately so. These are the files agents consult
+    # most and rewrite themselves, they are small, and if the store fills up
+    # the rules of the repo are the last thing that should be missing.
+    say("reading the instruction files")
+    for rule in rules.read(repo):
+        if private.is_private(repo, rule.path):
+            counts["private"] += 1
+            continue
         if not mem.record(
             Fact(
-                text=_trim(turn.text),
-                source="session",
-                where=turn.where,
-                when=turn.when,
-                about=turn.client,
+                text=rule.text,
+                source="rules",
+                where=rule.where,
+                when=rule.when,
+                about=rule.path,
+                path=rule.path,
             )
         ):
             counts["full"] = 1
             break
-        counts["sessions"] += 1
-        if counts["sessions"] % 100 == 0:
-            say(f"{counts['sessions']} things said in past sessions")
+        counts["rules"] += 1
+
+    # Newest first, so that if the store fills up what knos kept is the part
+    # anyone is likely to ask about.
+    if not counts["full"]:
+        say("looking for past agent sessions")
+        for turn in reversed(sessions.read_all(repo)):
+            if not mem.record(
+                Fact(
+                    text=_trim(turn.text),
+                    source="session",
+                    where=turn.where,
+                    when=turn.when,
+                    about=turn.client,
+                )
+            ):
+                counts["full"] = 1
+                break
+            counts["sessions"] += 1
+            if counts["sessions"] % 100 == 0:
+                say(f"{counts['sessions']} things said in past sessions")
 
     if not counts["full"]:
         # Commits arrive newest first, so the first time a file or a person
@@ -220,13 +295,13 @@ def point(
             if counts["commits"] % 100 == 0:
                 say(f"{counts['commits']} commits")
 
-    if index_code and code.installed():
+    if index_code:
         result: dict = {}
         # The longest stretch, and the one with nothing to count as it
         # goes, so say plainly that a wait here is expected.
         say("reading the code, the slow part")
         try:
-            result = code.index(repo)
+            result = code.index(repo, budget=code_budget)
         except Exception:
             # Structure is one source of three. Losing it is worth a line,
             # not the whole command.
@@ -285,6 +360,10 @@ def ask(
 
     found: list[Passage] = []
 
+    # "What are the rules here?" has one right answer and it is in a file.
+    # Without this the sessions arguing about a rule outrank the rule.
+    rules_lead = RULES_LEAD + (RULES_QUESTION_LEAD if looks_like_rules(question) else 0.0)
+
     # The store's full-text search wants terms, not a sentence: asking it for
     # the whole question makes every word mandatory and finds nothing. Each
     # term is asked for separately and the results are ranked together, so a
@@ -315,7 +394,26 @@ def ask(
                     where=str(hit.get("where") or hit.get("about") or "knos memory"),
                     path=str(hit.get("path") or ""),
                     score=_score(text, wanted)
-                    + (NOTE_LEAD if hit.get("source") == "note" else 0.0),
+                    + (NOTE_LEAD if hit.get("source") == "note" else 0.0)
+                    + (rules_lead if hit.get("source") == "rules" else 0.0),
+                )
+            )
+
+    # "What are the rules here?" shares no word with "never use a bare
+    # except", so search alone answers it with nothing. When the question is
+    # plainly about the rules, the rules are fetched by name.
+    if looks_like_rules(question):
+        for hit in mem.written_rules():
+            text = str(hit.get("text") or "").strip()
+            if not text:
+                continue
+            found.append(
+                Passage(
+                    text=text,
+                    source="rules",
+                    where=str(hit.get("where") or ""),
+                    path=str(hit.get("path") or ""),
+                    score=RULES_QUESTION_LEAD + _score(text, wanted),
                 )
             )
 
@@ -330,7 +428,7 @@ def ask(
     seen_so_far = private.visible(repo, [p.__dict__ for p in found], identity, allowed)
     thin = sum(1 for p in seen_so_far if p["score"] > 0) < ENOUGH
     structural = looks_structural(question)
-    if (structural or thin) and code.installed():
+    if structural or thin:
         for word in wanted[:3]:
             try:
                 symbols, _ = code.search(repo, word, limit=10)
@@ -366,3 +464,51 @@ def ask(
         if len(ranked) >= limit:
             break
     return ranked
+
+
+def same_subject(topic: str, question: str) -> bool:
+    """Whether a claim and a question are about the same thing.
+
+    Shared word stems, not shared substrings. Substrings made a claim on a
+    short word warn about half the repo: "guard" fired on "safeguarding".
+    Bare word overlap fixed that but missed the obvious, because a claim on
+    "parser" said nothing about "parsing".
+    """
+    claimed = {stem(w) for w in terms(topic)}
+    asked = {stem(w) for w in terms(question)}
+    return bool(claimed) and bool(claimed & asked)
+
+
+# Enough English to see that parser, parsers, parsing and parsed are one
+# word. Anything more wants a real stemmer, and a real stemmer is a
+# dependency knos does not need to warn one agent off another's work.
+_ENDINGS = ("ings", "ing", "ers", "er", "ed", "es", "s")
+
+# Words the suffix rules cannot reach, because English does not spell them
+# the way it spells everything else. Short on purpose: this list exists to
+# match a claim, not to conjugate.
+_IRREGULAR = {
+    "wrote": "write", "written": "write", "writing": "write",
+    "built": "build", "building": "build",
+    "broke": "break", "broken": "break", "breaking": "break",
+    "ran": "run", "running": "run",
+    "caught": "catch", "catching": "catch",
+    "sent": "send", "sending": "send",
+    "held": "hold", "holding": "hold",
+    "read": "read", "reading": "read",
+    "left": "leave", "leaving": "leave",
+    "made": "make", "making": "make",
+}
+
+
+def stem(word: str) -> str:
+    if word in _IRREGULAR:
+        return _IRREGULAR[word]
+    for ending in _ENDINGS:
+        if len(word) - len(ending) >= 4 and word.endswith(ending):
+            word = word[: -len(ending)]
+            break
+    # A trailing e goes too, so parse, parser and parsing all land on pars.
+    # Adding the e back instead was worse: it depended on which ending was
+    # stripped, so parser and parsing disagreed.
+    return word[:-1] if len(word) > 4 and word.endswith("e") else word

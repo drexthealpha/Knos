@@ -8,8 +8,11 @@ notices. Absence is the only signal.
 from __future__ import annotations
 
 import fnmatch
+import re
+import time
 import json
 from pathlib import Path
+from typing import Any
 
 from . import paths
 
@@ -58,8 +61,37 @@ def added_patterns(repo: Path) -> list[str]:
         return []
 
 
+# One entry per repo: the patterns, and how the rules file looked when they
+# were read. Reading a repo asks whether a path is private once per file in
+# every commit — 93,703 times on the kernel — and each of those was opening
+# the rules file, hashing the repo path and creating a directory to find it.
+# That was 305 of the 317 seconds it took to read that repo.
+_CACHE: dict[str, tuple[float, int, list[str]]] = {}
+
+
+def _stamp(f: Path) -> tuple[float, int]:
+    try:
+        st = f.stat()
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return (0.0, -1)
+
+
 def patterns(repo: Path) -> list[str]:
-    return list(DEFAULT_PATTERNS) + added_patterns(repo)
+    """Every pattern in force for this repo, defaults first.
+
+    Cached against the rules file's mtime and size, so `knos private` takes
+    effect on the very next call without anyone having to clear anything.
+    """
+    key = str(repo)
+    f = _rules_file(repo)
+    stamp = _stamp(f)
+    hit = _CACHE.get(key)
+    if hit is not None and (hit[0], hit[1]) == stamp:
+        return hit[2]
+    found = list(DEFAULT_PATTERNS) + added_patterns(repo)
+    _CACHE[key] = (stamp[0], stamp[1], found)
+    return found
 
 
 def add(repo: Path, path: str) -> list[str]:
@@ -69,10 +101,21 @@ def add(repo: Path, path: str) -> list[str]:
     if entry not in current:
         current.append(entry)
         _rules_file(repo).write_text(json.dumps(current, indent=2), encoding="utf-8")
+        _MATCHERS.pop(str(repo), None)
+        _CACHE.pop(str(repo), None)
+        _CHECKED.pop(str(repo), None)
     return current
 
 
 def _normalise(repo: Path, path: str) -> str:
+    # The common case by a mile: a repo-relative path git already gave us in
+    # posix form. Everything below builds Path objects, and on a large repo
+    # that was hundreds of thousands of them.
+    if "\\" not in path and ":" not in path and not path.startswith("/"):
+        out = path
+        while out.startswith("./"):
+            out = out[2:]
+        return out
     p = Path(path)
     try:
         if p.is_absolute():
@@ -85,22 +128,66 @@ def _normalise(repo: Path, path: str) -> str:
     return out
 
 
+# The patterns compiled into two regexes: one for the whole path, one for a
+# single segment. Reading the kernel asks this about 93,703 paths, and doing
+# it a pattern at a time meant ten million fnmatch calls. Compiled once per
+# repo, it is one match per path against each.
+_MATCHERS: dict[str, tuple[float, int, Any, Any]] = {}
+
+
+# How often the rules file is checked for changes. Reading a repo asks about
+# a private path once per file, and stat-ing the rules file each time was
+# 93,805 syscalls and ten seconds on the kernel. A second is far below what
+# anyone can notice and turns that into a handful of calls.
+_RECHECK_SECONDS = 1.0
+_CHECKED: dict[str, float] = {}
+
+
+def _matchers(repo: Path) -> tuple[Any, Any]:
+    key = str(repo)
+    hit = _MATCHERS.get(key)
+    if hit is not None:
+        now = time.monotonic()
+        if now - _CHECKED.get(key, 0.0) < _RECHECK_SECONDS:
+            return hit[2], hit[3]
+        _CHECKED[key] = now
+        if (hit[0], hit[1]) == _stamp(_rules_file(repo)):
+            return hit[2], hit[3]
+    stamp = _stamp(_rules_file(repo))
+    _CHECKED[key] = time.monotonic()
+
+    whole: list[str] = []
+    segment: list[str] = []
+    for pattern in patterns(repo):
+        pat = pattern.rstrip("/").lower()
+        whole.append(fnmatch.translate(pat))
+        # A directory rule covers everything beneath it.
+        whole.append(fnmatch.translate(f"{pat}/*"))
+        segment.append(fnmatch.translate(pat))
+    made = (
+        re.compile("|".join(whole)) if whole else None,
+        re.compile("|".join(segment)) if segment else None,
+    )
+    _MATCHERS[key] = (stamp[0], stamp[1], made[0], made[1])
+    return made
+
+
 def is_private(repo: Path, path: str | Path) -> bool:
-    """True if this path must never reach an agent."""
+    """True if this path must never reach an agent.
+
+    Case-insensitive everywhere: a secret in `.ENV` is a secret.
+    """
     if not path:
         return False
-    rel = _normalise(repo, str(path))
-    segments = [s for s in rel.split("/") if s and s != "."]
-    for pattern in patterns(repo):
-        pat = pattern.rstrip("/")
-        if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(rel, f"{pat}/*"):
-            return True
-        if any(fnmatch.fnmatch(seg, pat) for seg in segments):
-            return True
-        # A directory rule covers everything beneath it.
-        if pat in segments:
-            return True
-    return False
+    rel = _normalise(repo, str(path)).lower()
+    whole, segment = _matchers(repo)
+    if whole is not None and whole.match(rel):
+        return True
+    if segment is None:
+        return False
+    return any(
+        segment.match(seg) for seg in rel.split("/") if seg and seg != "."
+    )
 
 
 def visible(

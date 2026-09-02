@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -65,12 +66,74 @@ def _text_of(content: object) -> str:
     return ""
 
 
+def _encoded(path: Path) -> str:
+    """A path the way Claude Code names the folder it keeps it under.
+
+    `C:\\Users\\me\\work` becomes `C--Users-me-work`: the separators and the
+    drive colon each become a dash.
+    """
+    return re.sub(r"[:\\/]", "-", str(path))
+
+
+def _transcripts(root: Path, repo: Path | None) -> list[Path]:
+    """The transcript files that could possibly concern this repo.
+
+    Claude Code files every session under a folder named after the directory
+    it was started in, so a repo's sessions are in folders whose name starts
+    with that repo's. Reading them all instead meant opening 95 MB of other
+    projects' transcripts to find none — seven of the twelve seconds a cold
+    read took here.
+
+    When the naming does not look the way this expects, everything is read,
+    because a slow answer is better than a missing one.
+    """
+    if repo is None:
+        return list(root.rglob("*.jsonl"))
+    try:
+        folders = [d for d in root.iterdir() if d.is_dir()]
+    except OSError:
+        return list(root.rglob("*.jsonl"))
+
+    # The folder is named for where the session *started*, not where it went.
+    # A session opened in a parent directory and then moved into the repo
+    # keeps the parent's folder name — on this machine that is 2,774 records
+    # about this repo filed under its parent. So: folders for the repo and
+    # anything under it, plus one folder per ancestor. Every other project on
+    # the disk is skipped, and the per-line cwd check below still decides.
+    here = Path(repo).resolve()
+    wanted = _encoded(here)
+    ancestors = {_encoded(a) for a in here.parents}
+    mine = [
+        d
+        for d in folders
+        if d.name == wanted or d.name.startswith(wanted + "-") or d.name in ancestors
+    ]
+    if mine:
+        return [f for d in mine for f in d.rglob("*.jsonl")]
+
+    # Nothing matched. That is either a repo with no sessions, or a naming
+    # scheme this does not know. Tell them apart by the root: if some folder
+    # is named for a path on the same drive, the scheme holds and the answer
+    # is genuinely none.
+    anchor = _encoded(Path(repo).resolve().anchor)
+    if anchor and any(d.name.startswith(anchor) for d in folders):
+        return []
+    return list(root.rglob("*.jsonl"))
+
+
 def read_claude(repo: Path | None = None) -> Iterator[Turn]:
     root = claude_root()
     if not root.exists():
         return
     want = str(Path(repo).resolve()).lower() if repo else None
-    for f in sorted(root.rglob("*.jsonl")):
+    # Every transcript on this machine lives in one folder, so reading a repo
+    # means opening every other project's transcripts too and throwing them
+    # away one parsed line at a time. A line whose cwd cannot be this repo
+    # cannot become a turn, and json.loads was most of what reading a repo
+    # spent its time on. The needle is the path as JSON writes it, backslashes
+    # doubled, so this is the same test the parsed check makes.
+    needle = json.dumps(want)[1:-1] if want else ""
+    for f in sorted(_transcripts(root, repo)):
         try:
             handle = f.open(encoding="utf-8", errors="replace")
         except OSError:
@@ -80,6 +143,12 @@ def read_claude(repo: Path | None = None) -> Iterator[Turn]:
                 line = line.strip()
                 if not line:
                     continue
+                if needle:
+                    low = line.lower()
+                    # A record with no cwd at all is still read, exactly as
+                    # before: only a cwd that is somewhere else is skipped.
+                    if '"cwd"' in low and needle not in low:
+                        continue
                 try:
                     rec = json.loads(line)
                 except ValueError:

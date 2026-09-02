@@ -65,7 +65,7 @@ def test_the_fresh_session_starts_empty(knos_home, repo, tmp_path):
     assert "Quokka" not in heard
 
 
-def test_the_four_tools_are_listed(knos_home, repo):
+def test_the_three_tools_are_listed(knos_home, repo):
     async def run() -> list[str]:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
@@ -78,4 +78,35 @@ def test_the_four_tools_are_listed(knos_home, repo):
                 await session.initialize()
                 return [t.name for t in (await session.list_tools()).tools]
 
-    assert sorted(asyncio.run(run())) == ["about", "remember", "search", "sources"]
+    assert sorted(asyncio.run(run())) == ["about", "remember", "search"]
+
+
+def test_the_repo_you_are_standing_in_answers_not_the_last_one_pointed_at(
+    knos_home, repo, tmp_path, monkeypatch
+):
+    """Two repos read, and you walk into one of them.
+
+    Answering from whichever was pointed at last is how an agent open in one
+    project quietly quotes another.
+    """
+    other = tmp_path / "other"
+    (other / ".git").mkdir(parents=True)
+    paths.store_for(other).write_text("", encoding="utf-8")
+
+    paths.remember_pointed(repo)
+    monkeypatch.chdir(other)
+    assert paths.current_repo() == other.resolve()
+
+    monkeypatch.chdir(tmp_path)
+    assert paths.current_repo() == repo.resolve()
+
+
+def test_a_repo_knos_has_not_read_does_not_hijack_the_answer(
+    knos_home, repo, tmp_path, monkeypatch
+):
+    """Standing in an unread repo still answers, rather than going silent."""
+    fresh = tmp_path / "fresh"
+    (fresh / ".git").mkdir(parents=True)
+    paths.remember_pointed(repo)
+    monkeypatch.chdir(fresh)
+    assert paths.current_repo() == repo.resolve()

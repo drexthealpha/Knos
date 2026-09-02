@@ -1,279 +1,325 @@
 # Knos
 
-Two agents are open on the same repo. Claude Code is rewriting the parser.
-Cursor, knowing nothing about that, is about to rewrite it too. Meanwhile the
-decision you explained yesterday died with the session it was in, so you write
-it down in `CLAUDE.md`, and again in `AGENTS.md`, and again in your editor's
-rules — three copies drifting apart from the day you write them.
-
-**Knos is one memory for every coding agent on your machine, and it knows
-which of them is in your code right now.**
+**A local MCP server that gives every coding agent on your machine one shared
+memory — and it knows which of them is in your code right now.**
 
 ```bash
-pip install knos
-knos point .
-knos ask "why did we drop redis?"
+pip install knos && knos connect
 ```
 
-About fifteen seconds to the first answer, and every answer names its source:
-a file and line, a session and a date, or a commit. No account, no key, no
-server, no config file.
+Three MCP tools over stdio — `search`, `about`, `remember`. No HTTP server,
+no ports, no account, no model download, no repo to register, and
+[no network connection at all](tests/test_no_network.py): that last one is a
+test, not a promise.
 
-Then give your other agent the same memory, once:
+`knos connect` adds Knos to **Claude Code**, **Claude Desktop**, **Cursor**
+and **OpenCode** — whichever you have, each in the shape it reads
+(`mcpServers` for the first three, `mcp` with `"type": "local"` for
+OpenCode). For Claude Code it runs `claude mcp add --scope user`, which
+registers the server with the session you are already in, so **its tools work
+immediately with nothing to restart**.
+
+For the other three, `knos connect` writes the config and takes a backup, and
+then there is exactly one thing left to do:
+
+| Client | What is left | Why |
+|---|---|---|
+| Claude Code | nothing | `claude mcp add --scope user` registers with the running session |
+| Cursor | **Restart Cursor.** | reads `~/.cursor/mcp.json` at startup; no command registers a server with a running instance |
+| Claude Desktop | **Restart Claude Desktop.** | same |
+| OpenCode | **Restart OpenCode.** | `opencode mcp add` exists but is interactive, and its docs describe no reload for a running session | Every file it
+touches is copied to `<name>.before-knos` first.
+
+<details>
+<summary>Other ways in — Claude Desktop extension, Claude Code plugin, or by hand</summary>
+
+**Claude Desktop:** download `knos.mcpb` from
+[Releases](https://github.com/drexthealpha/Knos/releases) and double-click it.
+
+**Claude Code plugin:**
+
+```
+/plugin marketplace add drexthealpha/Knos
+/plugin install knos@knos
+```
+
+**By hand** — `knos connect --print` shows the JSON, or add it yourself:
+
+```json
+{ "mcpServers": { "knos": { "command": "python", "args": ["-m", "knos.mcp"] } } }
+```
+
+Every path runs the same `python -m knos.mcp`, so `pip install knos` comes
+first whichever you pick.
+</details>
+
+The first thing an agent asks about a repo reads it. Seven cold runs each,
+whole process, on a spinning disk: **1.7s median on a small project (1.5-2.1),
+2.0s on goose (1.8-3.4), 3.1s on the Linux kernel (3.0-6.8)** — 93,703 tracked
+files. That is not fast —
+it is one `git log`, your `CLAUDE.md`, and the transcripts of past sessions
+in that tree, written to SQLite. It happens once. Every question after it is
+under 0.2s, and every agent you have shares the result.
+
+## The one thing nothing else does
+
+Claude Code is rewriting the risk guard. You ask Cursor about it.
+
+Every other memory tool answers, and Cursor gives you a confident plan built
+on the version that was on disk five minutes ago. Knos does this instead:
+
+```
+Withheld. risk guard (held by Claude Code) is being worked on right now,
+so knos is not the place you find out about it. Ask them, or work on
+something else.
+```
+
+Not a warning attached to the answer — **no answer**. Your agent can still
+take it, by saying why, and the reason is written down under its name where
+you will read it. `knos done` releases it, and so does half an hour.
+
+These are all good, and several are better at recall than Knos. Here is what
+each one's own README says, so you can check every cell:
+
+| | To install | MCP tools | Needs | Refuses to answer about work another agent claimed |
+|---|---|---|---|---|
+| `CLAUDE.md` + worktrees | — | — | nothing | no |
+| [agentmemory](https://github.com/rohitg00/agentmemory) | `npx -y @agentmemory/agentmemory@latest` | **54** (8 in core mode) | a server on ports 3111/3112/3113/49134 | no — `memory_lease` locks an *action* an agent chooses to take |
+| [mcp-local-memory](https://github.com/Beledarian/mcp-local-memory) | npx entry in your config | 18 | may download an embedding model | no |
+| [Engram](https://github.com/Gentleman-Programming/engram) | `brew install` + `engram setup <agent>` | 16 | nothing — one binary | not addressed |
+| [MemPalace](https://github.com/MemPalace/mempalace) | `uv tool install mempalace` + `init` + `mine` | 45 | ~300 MB embedding model | no — separate wings per agent |
+| [Hindsight](https://github.com/vectorize-io/hindsight) | `docker run …` or pip | 3 per bank | Postgres + pgvector + an LLM API key | no — banks are isolated by design |
+| **Knos** | **`pip install knos && knos connect`** | **3** | **nothing** | **yes** |
+
+The last column is the difference, and it is narrower than it looks:
+agentmemory's leases are real coordination. A lease locks an action an agent
+decides to take. Knos changes what the *memory says* — ask about work someone
+else claimed and there is no answer to act on, and the claim is bound to the
+connection that made it, so an agent naming itself the holder is still
+refused.
+
+Knos is not trying to out-remember these tools. It is trying to be the one
+that speaks up while two agents are in the same code, and to cost you two
+commands and four tools to find out.
+
+## One agent is enough to see it
 
 ```bash
-knos connect --write
+knos claim "the parser"
 ```
 
-Restart it and both know everything. Nothing to keep in sync, and nothing
-leaves this machine.
-
-<sub>For answers that name a file and line, Knos uses
-[universal-ctags](https://github.com/universal-ctags/ctags) if you have it:
-`winget install UniversalCtags.Ctags`, `brew install universal-ctags`, or
-`sudo apt install universal-ctags`. Without it you still get every answer from
-your sessions and commits.</sub>
-
----
-
-## Core flow
-
-The part a markdown file cannot do. Longer walkthrough in
-[docs/core-flow.md](docs/core-flow.md).
+Ask your agent about the parser. It is refused, and tells you so. `knos done`
+and it answers again. That is the whole mechanism, in two commands.
 
 ```mermaid
 flowchart TD
-    A["Agent A<br>rewriting the parser"] -->|"claims it"| S[("Knos<br>one shared memory")]
+    P["pip install knos<br>knos connect"] --> CC["Claude Code"]
+    P --> CU["Cursor"]
+    P --> CD["Claude Desktop"]
+    P --> OC["OpenCode"]
 
-    B["Agent B<br>asks about the parser"] -->|"asks"| S
-    S -->|"withheld - held by Agent A"| B
+    CC -->|"first question reads the repo"| S[("one SQLite file<br>no server, no model")]
+    CU --> S
+    CD --> S
+    OC --> S
 
-    B -->|"asks again with a reason"| S
-    S -->|"answers, and writes the reason down"| B
+    R["CLAUDE.md, AGENTS.md, ADRs<br>commits, past sessions"] --> S
+    W["every worktree of this repo"] --> S
 
-    A -->|"knos done"| S
-    S -->|"open to everyone again"| B
-
-    D["delete the store"] -.->|"nothing is held back"| S
+    S -->|"answers, with the source"| CC
+    S -->|"withheld - Claude Code is on it"| CU
 
     style S fill:#1f2933,stroke:#7b8794,color:#ffffff
-    style A fill:#e8f0fe,stroke:#4a6fa5,color:#111111
-    style B fill:#fdf0e8,stroke:#a5744a,color:#111111
-    style D fill:#f5f5f5,stroke:#999999,color:#111111,stroke-dasharray: 4 3
+    style P fill:#e8f0fe,stroke:#4a6fa5,color:#111111
+    style R fill:#f5f5f5,stroke:#999999,color:#111111
+    style W fill:#f5f5f5,stroke:#999999,color:#111111
 ```
 
-1. **An agent claims work.** It says what it is about to do. The claim lapses
-   on its own after thirty minutes.
-2. **The next agent is withheld.** Not warned — withheld. It gets who holds
-   the work, and nothing else.
-3. **Override costs a reason.** Standing down is free. Taking the work anyway
-   is written down permanently, under that agent's name.
-4. **`knos done` releases it.** What happened stays written down.
-5. **Delete the store and it all goes.** One SQLite file, no second copy.
+## Check any of it in under a minute
 
-Knos cannot stop an agent editing a file — it has no authority over an editor,
-and any tool claiming otherwise is not telling you the truth. What it owns is
-what it knows, and on contested work it declines to be the source.
+Nothing below is a claim. Each row is a command; run it and see.
 
----
-
-## What an answer looks like
-
-Knos has no model. It does not write prose, and it does not summarise. An
-answer is what was actually said or committed, and under it, where that came
-from:
-
-```
-$ knos ask "why did we change the vercel build"
-
-Vercel ships its own pnpm which rejects lockfileVersion 9.0; installing a
-version globally does not change which binary the build shell resolves.
-    commit ee0b903f 2026-08-19
-```
-
-Sometimes the answer needs two sources at once — a session that says *why*
-and a commit that says *what* — and neither one alone will do:
-
-```
-we agreed to move the retry logic out of src/auth.py because it was
-retrying the password check as well as the token refresh
-    and src/auth.py changed: Split token refresh out of login
-    Claude Code session beef0001 2026-08-21, then commit 4c11ade0 2026-08-22
-```
-
-## Seeing it work
-
-```
-knos status
-
-  journal    474 things learned      appended, never rewritten
-  warm       12 things named         replaced in place
-  hot        2 claimed               one each, expires after 30 min
-  reference  your-repo               written once, when read
-  archive    1 forgotten             on knos forget
-             1.9 MB of 5 MB used
-
-  who stood down for whom, while a claim was live
-    Cursor stood down for Claude Code on parser
-    Cursor took deploys anyway: the build is broken
-```
-
-Five kinds of memory, each behaving differently, all in one SQLite file on
-your machine. The full walkthrough is in [docs/core-flow.md](docs/core-flow.md).
-
-## What it can see
-
-| Source | Read from |
+| What | How to check it yourself |
 |---|---|
-| Agent sessions | Claude Code transcripts, Cursor's history |
-| What you told it | `knos remember`, and your agents' `remember` tool |
-| Commits | `git log`, who changed what and when |
-| Code structure | [universal-ctags](https://github.com/universal-ctags/ctags), if installed |
+| A claim changes what other agents are told | `knos claim "the parser"` — it prints the exact refusal your agents now get. `knos done` gives it back. |
+| One agent's claim reaches another agent's **live** session, with no restart or cache | `pytest tests/test_no_network.py -k live_session` — one process claims, a second sees it on its next call |
+| No network connection, ever | `pytest tests/test_no_network.py` — breaks `socket.connect`, `bind`, `create_connection`, `getaddrinfo`, then reads a repo, answers, writes, claims, withholds, overrides. A third test breaks the guard on purpose, so it cannot pass by doing nothing |
+| Decisions you keep in the repo are read | `pytest tests/test_rules.py -k decisions_kept_beside` — an ADR answers with `docs/adr/0001-use-sqlite.md:3` |
+| Every worktree of a repo is one memory | `pytest tests/test_worktrees.py` |
+| A big repo is never half-read | `pytest tests/test_worktrees.py -k half_read` — a code read that runs out of time leaves nothing behind |
+| Secrets are invisible, not redacted | `pytest tests/test_private.py` — the search layer is asked directly, with an agent's identity |
+| What dies when you delete the store | `pytest tests/test_sibyl_is_load_bearing.py -k number_status_prints` |
+| Three MCP tools, no more | `pytest tests/test_recall.py -k three_tools_are_listed` |
 
-## What your agents cannot see
+Cost: `pip install knos`. No account, no key, no server, no model download.
+
+## Everything else, briefly
+
+Every answer names where it came from — a commit, a session and a date, or a
+file and a line. Knos has no model: it does not summarise and it does not
+guess, it finds what somebody actually said.
+
+```
+$ knos ask "what are the rules here?"
+
+Ask before adding a dependency. The build is the product.
+    AGENTS.md:3
+Every change ships with a test. A green run you did not watch is not green.
+    CLAUDE.md:8
+```
+
+| Source | From |
+|---|---|
+| Your rules | `CLAUDE.md`, `AGENTS.md` |
+| Decisions you keep in the repo | `DECISIONS.md`, `WORKLOG.md`, `docs/adr/*.md`, `docs/decisions/*.md` |
+| Agent sessions | Claude Code transcripts, Cursor's history |
+| Commits | `git log` |
+| Code structure | read by Knos itself, or [universal-ctags](https://github.com/universal-ctags/ctags) when you have it |
+| What you tell it | `knos remember` |
 
 `.env`, `*.pem`, `id_rsa`, `.ssh`, `.aws` and twelve more are private the
-moment Knos reads a repo. Nobody has to ask for that.
+moment Knos reads a repo, without being asked. Private means invisible, not
+redacted: an agent asking about one is told nothing at all — no result, no
+count, no "2 hidden".
 
-Private means invisible, not redacted. An agent asking about a private path
-is told nothing — no result, no count, no "2 hidden". You can still search
-all of it yourself.
+**Worktrees.** Keep them; they do a different job, and Knos treats every
+worktree of a repo as one memory anyway. Read the repo in one tree and every
+other tree can answer. Claim in one and the agents in the others are held off.
 
-```bash
-knos private notes/salary.md
+**Commands.** `knos ask`, `knos claim`, `knos done`, `knos status`. `knos
+help` lists the rest. Nothing runs itself: no watcher, no daemon, no schedule.
+
+**Why this is where the problem lives.** A study of 557 agent sessions and
+33,097 pull requests found that **60.5%** of everything coding agents do with
+documentation happens in instruction files and their own notes — `CLAUDE.md`,
+`AGENTS.md`, plans, scratch notes — against 10.6% for classical docs and 1.3%
+for API references ([Gao & Chen, 2026](https://arxiv.org/abs/2608.20195)).
+Agents live in the files that drift, they rewrite those files themselves, and
+none of those files can say who is reading them or what another agent is
+changing right now.
+
+## What happens when you delete the memory
+
+One SQLite file at `~/.knos/<repo>/memory.db`, via
+[Sibyl](https://github.com/Sibyl-Labs/Sibyl-Memory), **capped at 5 MB per
+repo** — Sibyl's free tier, and Knos runs it unactivated, so there is no
+account to make and no cap to raise. Sessions and commits are read newest
+first, so when a repo fills, what you have is the recent end of both and the
+older end was never read. Nothing already stored is evicted or truncated, and
+`knos status` says `nearly full` from 4 MB. The Linux kernel filled 0.3 MB.
+
+Nothing leaves this machine — Knos makes no network request. Delete that
+file and:
+
+| | Gone forever | Why |
+|---|---|---|
+| What you told it (`remember`) | **yes** | it existed nowhere else |
+| Every claim, and the withholding | **yes** | same |
+| Who stood down for whom, every override | **yes** | same |
+| Your commits, `CLAUDE.md`, past sessions | no — re-read | they are your files, not Knos's |
+
+`knos status` counts that first row for you, so you never take it on trust:
+
+```
+journal    330 things learned
+             0 of them exist nowhere else - told, claimed, stood down
+             delete the store and only those go; the rest is re-read from your repo
 ```
 
-## Sharing a folder with a teammate
+Ten seconds to prove it: claim something, watch an agent be refused, delete
+the file, ask again. Nothing was ever held.
+
+More on the five tiers, why a claim expires, and how a hold is bound to a
+connection so an agent cannot borrow somebody else's name:
+[docs/core-flow.md](docs/core-flow.md).
+
+## The two onchain parts, and exactly what they are
+
+Both are optional. Knos works with neither, and nothing on the read or answer
+path touches a network — that is what `pytest tests/test_no_network.py`
+checks.
+
+### Base: sharing one folder with a teammate
 
 ```bash
 knos share ./src --with alice.base.eth
 knos unshare ./src --with alice.base.eth
 ```
 
-Their agent can read that folder and nothing else — not the rest of the
-repo, and never your secrets. After the second command, the same question
-comes back with nothing.
+**What it does.** Their agent can read that folder and nothing else. The
+record of who may read what is [Access.sol](contracts/src/Access.sol) on Base
+Sepolia, so neither machine has to trust the other's copy of the answer.
+Testnet, so it costs nothing.
 
-The record of who may read what is
-[Access.sol](contracts/src/Access.sol) on Base Sepolia, so neither of you has
-to trust the other's copy of it. It is testnet only and costs nothing, and
-none of that is your teammate's problem: they see a name and a folder.
+**What it does not do.** It does not move your memory anywhere — the store
+stays on your disk. It does not encrypt anything. It is one permission bit
+per person per folder, not a sync protocol.
 
-**The whole cycle, in order.** The two `knos` commands each send one
-transaction to Base Sepolia and wait for it to settle before returning, so
-what the middle step sees is the truth and not a stale read.
+**How to verify it.** Two commands and one number each way:
 
 ```bash
-knos share crates --with 0xTEAMMATE     # grant, ~3s
-#   their agent now asks its own client:
-#   search("risk guard", on_behalf_of="0xTEAMMATE")   -> answers from crates/
-knos unshare crates --with 0xTEAMMATE   # revoke, ~4s
-#   the same question now returns: Nothing shared with you.
+python -c "from knos import team; o=team.identity('owner').address; m=team.identity('teammate').address; \
+team.share('crates','teammate'); print(team.may_read(o,'crates',m)); \
+team.unshare('crates','teammate'); print(team.may_read(o,'crates',m))"
+# True
+# False
 ```
 
-The teammate's read goes through their agent rather than the command line:
-`on_behalf_of` is an argument to the `search` tool, and there is deliberately
-no flag that lets you impersonate somebody from your own shell.
+Or read it without running anything: contract
+[`0x955fa320…6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52),
+and one full cycle —
+[deploy](https://sepolia.basescan.org/tx/0xdcc25ff7460a09a080ec32016b39121b6a34b741f03411bcfdc2ee2a93b31d21),
+[grant](https://sepolia.basescan.org/tx/0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6),
+[revoke](https://sepolia.basescan.org/tx/0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4).
+Nine contract tests: `cd contracts && forge test`.
 
-**Or verify without running anything.** The contract is
-[`0x955fa320…6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52)
-on Base Sepolia, and one full grant-then-revoke cycle is on chain:
+### Virtuals: selling one answer
 
-| | |
-|---|---|
-| [deploy](https://sepolia.basescan.org/tx/0xdcc25ff7460a09a080ec32016b39121b6a34b741f03411bcfdc2ee2a93b31d21) | `0xdcc25ff7…` |
-| [grant](https://sepolia.basescan.org/tx/0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6) | `0x84e11e21…` |
-| [revoke](https://sepolia.basescan.org/tx/0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4) | `0xb3ea6920…` |
+**What it does.** Knos is registered on the Virtuals marketplace as a
+provider with one offering: another agent pays 0.01 USDC for an answer out of
+this machine's memory. The seller is [agent/offering.ts](agent/offering.ts).
 
-Between the second and the third, a teammate's agent could read the shared
-folder. After the third, the same question returned nothing. The permission
-itself is OpenZeppelin's `AccessControl`; the contract only names the roles.
-Nine tests: `cd contracts && forge test`. More in
-[contracts/README.md](contracts/README.md).
+**What it does not do.** **No job has ever been traded through it.** That
+needs a buyer, not more code. There is no evaluator and no reputation system.
+It is off by default and runs only when you start it.
 
-## Selling an answer
-
-Knos is registered on the Virtuals agent marketplace as a provider, so another
-agent can pay it a hundredth of a dollar to answer a question from this
-machine's memory. One offering. No evaluator, no reputation system.
-
-| | |
-|---|---|
-| Agent | [Knos](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc) |
-| Agent ID | `01a05b97-a776-760a-9165-e9893e4091dc` |
-| Wallet | [`0xd535a882…e0de`](https://basescan.org/address/0xd535a8828ffd79c12622313cb55e37d86302e0de) on Base |
-
-The agent page is public: open it and you will see the registration without
-running anything. The seller half is [agent/offering.ts](agent/offering.ts) —
-it prices a job, waits for it to be funded, asks Knos, and submits whatever
-Knos found, sources and all. A question outside what it knows is answered
-honestly and still charged, because finding out that a door is shut is worth
-what it costs to knock.
-
-The provider is wired and connects. Fill in `~/.knos-keys/acp.json` with the
-wallet id and signer from the agent's Signers tab, then:
-
-```bash
-cd agent && npm install && npm run register
-# knos is answering questions at 0.01 USDC each.
-```
-
-It then waits for jobs: it prices one, waits for it to be funded, asks Knos,
-and submits what Knos found with its sources. A question outside what it knows
-is answered honestly and still charged, because finding out that a door is
-shut is worth what it costs to knock.
-
-**No job has been traded through it yet**, because that needs a buyer. What
-you can check today is the agent page above and that the provider starts and
-listens.
-
-## Where the memory lives
-
-`~/.knos/<repo>/memory.db`, a SQLite file, via
-[Sibyl](https://github.com/Sibyl-Labs/Sibyl-Memory). Nothing leaves this
-machine: Knos makes no network request, and neither does the code reader.
-Knos runs Sibyl **unactivated**, which means no account and no server call,
-and holds 5 MB per repo. When that fills, Knos keeps the newest and tells
-you.
-
-The five tiers, each doing a different job — a **journal** of what was
-learned and where from, appended and never rewritten
-([memory.py:142](src/knos/memory.py#L142)); one **warm** record per thing,
-replaced in place ([memory.py:179](src/knos/memory.py#L179)); **hot** claims
-of what is being worked on now, one per piece of work, which expire
-([memory.py:270](src/knos/memory.py#L270)); **reference** facts that do not
-change ([memory.py:405](src/knos/memory.py#L405)); and **archive**, where
-forgetting puts things ([memory.py:203](src/knos/memory.py#L203)).
-
-## Nothing runs itself
-
-There is no watcher, no daemon, no schedule and no background job. `knos
-point` reads when you run it. Every answer is a reply to something a person
-did.
+**How to verify it.** The agent page is public — open
+[app.virtuals.io/acp/agents/01a05b97…](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
+and you will see the registration without installing anything.
 
 ## Tests
 
-**157 passing** (`pytest`) and **9 more** for the contract (`cd contracts && forge test`).
+**194 passing** (`pytest`), **9 more** for the contract (`cd contracts && forge test`).
 
-Including the two that matter: a conflicting write from a **second process**
-rejected by the schema rather than by knos
-([test_memory.py](tests/test_memory.py)), and a private path invisible to a
-query made **directly against the search layer** with an agent's identity
-([test_private.py](tests/test_private.py)). Plus a fact written by one agent
-and recalled by a **separate, fresh** process ([test_recall.py](tests/test_recall.py)).
+Including the ones that would catch a lie:
+
+- **[test_no_network.py](tests/test_no_network.py)** breaks `socket.connect`,
+  `bind` and `getaddrinfo`, then reads a repo, answers questions, writes,
+  claims, withholds and overrides. Nothing reaches for the network, and the
+  guard itself is tested so the test cannot pass by doing nothing.
+- **[test_private.py](tests/test_private.py)** asks the search layer directly,
+  with an agent's identity, for a private path. Nothing comes back.
+- **[test_memory.py](tests/test_memory.py)** has a second process write a
+  conflict, rejected by the schema rather than by Knos.
+- **[test_recall.py](tests/test_recall.py)** writes as one agent and recalls
+  in a separate, fresh process.
 
 ## What it cannot do
 
-- No Gemini CLI or Codex history yet. Claude Code and Cursor only.
-- A claim withholds what knos knows; it cannot stop an agent editing the
-  file. Nothing on your machine can, short of file permissions.
-- It does not write the answer for you. It finds the passage and names the
-  source; the reasoning is yours, or your agent's.
-- It does not watch files. Run `knos point` again to catch up.
+- A claim withholds what Knos knows. It cannot stop an agent editing a file —
+  nothing on your machine can, short of file permissions. If you need that,
+  use a worktree.
+- Claude Code and Cursor only. No Gemini CLI or Codex history yet.
+- It does not write the answer for you, and it does not watch files. Run
+  `knos point` again to catch up.
 - 5 MB per repo.
-- It has never seen a repo it was not pointed at.
-- The Virtuals provider runs and listens, but no job has been traded through
-  it yet: that needs a buyer, not more code.
+- No job has been traded through the Virtuals provider.
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the three edits an agent adapter takes
+and the test to copy. `pytest` runs in about four minutes against throwaway
+stores. Deleting something is the most welcome kind of change.
 
 ## Licence
 

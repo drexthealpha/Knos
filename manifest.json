@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "knos",
   "display_name": "Knos",
-  "version": "0.1.0",
-  "description": "One memory for every coding agent on your machine, and it knows which of them is in your code right now.",
+  "version": "0.1.1",
+  "description": "One local memory every coding agent on the machine shares \u2014 and it knows which of them is in your code right now.",
   "long_description": "Knos reads the transcripts your coding agents already leave on disk, plus your commits and your code structure, and hands any of them back to any of the others. Every answer names its source. Secrets are private without being asked. When one agent is mid-change, Knos withholds what it knows from the others rather than letting two of them edit the same thing at once. Nothing leaves your machine.",
   "author": {
     "name": "drexthealpha",
@@ -14,13 +14,21 @@
   "documentation": "https://github.com/drexthealpha/Knos/blob/main/docs/connect.md",
   "support": "https://github.com/drexthealpha/Knos/issues",
   "license": "MIT",
-  "keywords": ["memory", "agents", "local-first", "coordination"],
+  "keywords": [
+    "memory",
+    "agents",
+    "local-first",
+    "coordination"
+  ],
   "server": {
     "type": "python",
     "entry_point": "server/main.py",
     "mcp_config": {
       "command": "${user_config.python_path}",
-      "args": ["-m", "knos.mcp"],
+      "args": [
+        "-m",
+        "knos.mcp"
+      ],
       "env": {}
     }
   },
@@ -45,15 +53,15 @@
     {
       "name": "remember",
       "description": "Write something back, so the next session in any agent knows it too."
-    },
-    {
-      "name": "sources",
-      "description": "Which file, session or commit a claim came from."
     }
   ],
   "compatibility": {
     "claude_desktop": ">=0.10.0",
-    "platforms": ["darwin", "win32", "linux"],
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
     "runtimes": {
       "python": ">=3.10"
     }

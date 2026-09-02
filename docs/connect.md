@@ -6,7 +6,7 @@ no account, and no key.
 The fastest way, for every agent you have at once:
 
 ```bash
-knos connect --write
+knos connect
 ```
 
 That adds Knos to each agent config it finds and keeps a copy of what was
@@ -53,14 +53,13 @@ claude mcp add knos -- <python> -m knos.mcp
 }
 ```
 
-## After restarting, four tools appear
+## After restarting, three tools appear
 
 | Tool | Does |
 |---|---|
 | `search(query)` | Search, filtered by what this agent may see |
 | `about(thing)` | What is known about one thing |
 | `remember(fact, about, claiming)` | Write back, and claim work you are starting |
-| `sources(claim)` | Which file, session, or commit |
 
 ## What your agents cannot see
 

@@ -34,7 +34,7 @@ JARGON = [
 
 def _screens():
     yield "help", help_text.main()
-    for name in ("point", "ask", "connect", "status", "private", "notes", "forget", "remember", "done"):
+    for name in ("point", "ask", "connect", "status", "private", "notes", "forget", "remember", "claim", "done"):
         yield name, help_text.for_command(name)
 
 
@@ -74,18 +74,32 @@ def test_help_for_a_command_that_does_not_exist():
     assert "knos help" in result.stdout
 
 
-def test_ask_before_pointing_says_what_to_run(knos_home):
+def test_asking_somewhere_that_is_not_a_repo_says_so(knos_home, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["ask", "anything"])
     assert result.exit_code == 1
-    assert "Nothing indexed yet." in result.stdout
-    assert "knos point ." in result.stdout
+    assert "not a git repo" in result.stdout
     assert "Traceback" not in result.stdout
 
 
-def test_status_before_pointing_says_what_to_run(knos_home):
+def test_status_somewhere_that_is_not_a_repo_says_so(knos_home, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["status"])
     assert result.exit_code == 1
-    assert "knos point ." in result.stdout
+    assert "not a git repo" in result.stdout
+
+
+def test_the_first_question_reads_the_repo_by_itself(knos_home, repo, monkeypatch):
+    """Install, ask, answer. Running `point` first was a step and a concept
+    between a person and the first thing knos is good for."""
+    asked = runner.invoke(app, ["ask", "why did we drop redis"])
+    assert asked.exit_code == 0, asked.stdout
+    assert "First time in repo" in asked.stdout
+    assert "redis" in asked.stdout.lower()
+
+    # And it does not read it again on the next question.
+    again = runner.invoke(app, ["ask", "why did we drop redis"])
+    assert "First time in" not in again.stdout
 
 
 def test_point_at_a_folder_that_is_not_there(knos_home):
@@ -126,11 +140,14 @@ def test_private_command(knos_home, repo, monkeypatch, tmp_path):
 
 
 def test_connect_prints_something_copyable(knos_home):
-    result = runner.invoke(app, ["connect"])
+    """--print is the by-hand path. Plain `knos connect` does it for you."""
+    result = runner.invoke(app, ["connect", "--print"])
     assert result.exit_code == 0
     assert "knos.mcp" in result.stdout
     assert "Cursor" in result.stdout
     assert "Claude Code" in result.stdout
+    # And it says how to stop doing it by hand.
+    assert "knos connect" in result.stdout
 
 
 def test_no_output_anywhere_mentions_a_stack_trace(knos_home, repo):
@@ -141,32 +158,20 @@ def test_no_output_anywhere_mentions_a_stack_trace(knos_home, repo):
         assert not re.search(r"\bknos\.[a-z]+\.py\b", result.stdout)
 
 
-def test_every_line_reference_in_the_readme_still_points_at_what_it_says():
-    """A README that links to a line number rots the moment code moves.
-
-    A judge clicking one of these and landing on a blank line learns
-    something true about how carefully the rest was checked.
-    """
+def test_every_source_reference_in_the_docs_still_exists():
+    """Docs used to name a line number, which drifted every time the file
+    changed — five times. They name the method now, and this checks it is
+    still there."""
     import re
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    readme = (root / "README.md").read_text(encoding="utf-8")
-    expected = {
-        142: "def record",
-        179: "def note_thing",
-        270: "def working_on",
-        405: "def set_reference",
-        203: "def supersede",
-    }
-    seen = set()
-    for path, line in re.findall(r"\((src/knos/\w+\.py)#L(\d+)\)", readme):
-        number = int(line)
-        source = (root / path).read_text(encoding="utf-8").splitlines()
-        assert number <= len(source), f"{path}#L{number} is past the end"
-        assert expected[number] in source[number - 1], f"{path}#L{number}"
-        seen.add(number)
-    assert seen == set(expected), f"unchecked references: {set(expected) - seen}"
+    doc = (root / "docs" / "core-flow.md").read_text(encoding="utf-8")
+    named = re.findall(r"\[`Memory\.(\w+)`\]\(\.\./(src/knos/\w+\.py)\)", doc)
+    assert named, "the walkthrough stopped naming any source at all"
+    for method, path in named:
+        source = (root / path).read_text(encoding="utf-8")
+        assert f"def {method}(" in source, f"{path} has no {method}"
 
 
 def _configs(tmp_path):
@@ -271,3 +276,162 @@ def test_the_one_screen_says_what_a_markdown_file_cannot_do():
     screen = help_text.main()
     assert "in your code right now" in screen
     assert "CLAUDE.md cannot do that" in screen
+    assert "one local memory every coding agent on this machine shares" in screen
+
+
+def test_the_plugin_and_extension_manifests_agree_with_the_package():
+    """Three ways in, one server. A version or command that drifts between
+    them is a broken install for whoever picked that path."""
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    version = re.search(
+        r'^version = "([^"]+)"',
+        (root / "pyproject.toml").read_text(encoding="utf-8"),
+        re.M,
+    ).group(1)
+
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["version"] == version
+    assert manifest["server"]["mcp_config"]["args"] == ["-m", "knos.mcp"]
+    assert [t["name"] for t in manifest["tools"]] == ["search", "about", "remember"]
+
+    market = json.loads(
+        (root / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
+    assert market["plugins"][0]["source"] == "./plugins/knos"
+    assert market["plugins"][0]["version"] == version
+
+    plugin = json.loads(
+        (root / "plugins" / "knos" / ".claude-plugin" / "plugin.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert plugin["version"] == version
+    assert plugin["mcpServers"]["knos"]["args"] == ["-m", "knos.mcp"]
+
+
+def test_the_readme_says_knos_is_an_mcp_server_before_anything_else():
+    """A stranger scanning the first screen must not have to guess."""
+    from pathlib import Path
+
+    first = (Path(__file__).resolve().parents[1] / "README.md").read_text(
+        encoding="utf-8"
+    )[:600]
+    assert "MCP server" in first
+    for tool in ("search", "about", "remember"):
+        assert tool in first, tool
+
+
+def test_claude_code_is_added_through_its_own_cli_when_that_exists(
+    knos_home, tmp_path, monkeypatch
+):
+    """`claude mcp add` registers the server with the running session, so its
+    tools work without a restart. Writing ~/.claude.json by hand does not:
+    a session already running has read that file and will not read it again.
+    """
+    from knos import cli
+
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+
+        class Done:
+            returncode = 0
+            stdout = "Added knos"
+            stderr = ""
+
+        return Done()
+
+    monkeypatch.setattr(cli, "_claude_cli", lambda: "/usr/bin/claude")
+    monkeypatch.setattr("subprocess.run", fake_run)
+    monkeypatch.setattr(cli, "_config_files", lambda: [("Claude Code", str(tmp_path / ".claude.json"))])
+
+    result = runner.invoke(app, ["connect"])
+    assert result.exit_code == 0
+    assert calls, "never asked the claude CLI"
+    assert calls[0][1:4] == ["mcp", "add", "--scope"]
+    assert calls[0][-2:] == ["-m", "knos.mcp"]
+    assert "nothing to restart" in result.stdout
+    # And it did not also write the file by hand.
+    assert not (tmp_path / ".claude.json").exists()
+
+
+def test_without_the_claude_cli_the_config_is_written_and_a_restart_is_asked_for(
+    knos_home, tmp_path, monkeypatch
+):
+    import json
+
+    from knos import cli
+
+    monkeypatch.setattr(cli, "_claude_cli", lambda: None)
+    target = tmp_path / ".claude.json"
+    monkeypatch.setattr(cli, "_config_files", lambda: [("Claude Code", str(target))])
+
+    result = runner.invoke(app, ["connect"])
+    assert result.exit_code == 0
+    assert "Restart" in result.stdout
+    assert json.loads(target.read_text(encoding="utf-8"))["mcpServers"]["knos"]["args"] == [
+        "-m",
+        "knos.mcp",
+    ]
+
+
+def test_opencode_gets_the_shape_opencode_reads(knos_home, tmp_path, monkeypatch):
+    """OpenCode names the key `mcp`, marks a local server `"type": "local"`,
+    and takes one command array. Writing Claude's shape into it would look
+    like it worked and do nothing."""
+    import json
+
+    from knos import cli
+
+    target = tmp_path / "opencode.json"
+    monkeypatch.setattr(cli, "_claude_cli", lambda: None)
+    monkeypatch.setattr(cli, "_config_files", lambda: [("OpenCode", str(target))])
+
+    assert runner.invoke(app, ["connect"]).exit_code == 0
+    written = json.loads(target.read_text(encoding="utf-8"))
+    assert "mcpServers" not in written
+    knos_entry = written["mcp"]["knos"]
+    assert knos_entry["type"] == "local"
+    assert knos_entry["command"][-2:] == ["-m", "knos.mcp"]
+    assert knos_entry["enabled"] is True
+    assert written["$schema"] == "https://opencode.ai/config.json"
+
+    # Run twice: it must not duplicate or rewrite.
+    assert runner.invoke(app, ["connect"]).exit_code == 0
+    assert "already has it" in runner.invoke(app, ["connect"]).stdout
+
+
+def test_opencode_config_location_follows_its_own_env_var(monkeypatch, tmp_path):
+    from knos import cli
+
+    monkeypatch.setenv("OPENCODE_CONFIG", str(tmp_path / "custom.json"))
+    where = dict((n, w) for n, w in cli._config_files())
+    assert where["OpenCode"].endswith("custom.json")
+
+
+def test_every_check_command_in_the_readme_selects_a_real_test():
+    """The README tells a stranger to run these to verify each claim. A
+    renamed test would leave an instruction that quietly selects nothing,
+    which is worse than not offering the check at all."""
+    import re
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    commands = re.findall(r"`(pytest [^`]+)`", (root / "README.md").read_text(encoding="utf-8"))
+    assert commands, "the README stopped offering any way to check it"
+
+    for command in commands:
+        done = subprocess.run(
+            [sys.executable, "-m", *command.split(), "--collect-only", "-q"],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+        )
+        picked = [line for line in done.stdout.splitlines() if "::" in line]
+        assert picked, f"README says `{command}` but that selects no tests"

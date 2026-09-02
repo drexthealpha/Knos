@@ -13,16 +13,19 @@ from pathlib import Path
 
 from mcp.server.mcpserver import Context, MCPServer
 
-from . import answer, git, paths, private
+from . import answer, code, git, paths, private
 from .memory import TOPIC, Fact, Memory, _minutes_since
 
 server = MCPServer("knos", instructions=(
-    "Shared memory for this machine: what past agent sessions decided, what "
-    "commits changed, and how the code is structured. Search it before "
-    "asking the person to repeat themselves.\n\n"
-    "Other agents are using this same memory right now. Before you start a "
-    "piece of work, call remember to say what you are about to do, so they "
-    "are told.\n\n"
+    "One local memory every coding agent on this machine shares - and it "
+    "knows which of them is in your code right now.\n\n"
+    "What past sessions decided, what commits changed, what this repo's "
+    "CLAUDE.md and AGENTS.md actually say, and how the code is structured. "
+    "Search it before asking the person to repeat themselves.\n\n"
+    "Other agents share this memory right now. One rule: before you change "
+    "anything, call remember(fact, about, claiming=true). One call, and no "
+    "other agent will rewrite it underneath you. It lapses on its own after "
+    "half an hour.\n\n"
     "Work another agent has claimed is withheld from you: you are told who "
     "holds it, not what knos knows about it. Ask them, or pick up something "
     "else. If you genuinely must have it, call again with override set to "
@@ -31,17 +34,43 @@ server = MCPServer("knos", instructions=(
 ))
 
 
-NOT_POINTED = "knos has not read a repo yet. Run:  knos point ."
+NOT_POINTED = (
+    "knos is not in a git repo here, so there is nothing to read."
+    "  Ask the person to run knos in their project."
+)
 NOTHING_SHARED = "Nothing shared with you."
 
 
 def _repo() -> Path | None:
-    """The repo knos was last pointed at, or None.
+    """The repo to answer from, read on the spot if it never has been.
+
+    Telling an agent to go and ask its person to run a command is the end of
+    that conversation: the agent says it, the person does not see it, and
+    knos looks broken on the one call that was supposed to show what it is
+    for. The read is the same work `knos point` does, it happens once, and
+    the agent simply waits for it.
 
     A tool that cannot answer says so in words. It never raises, because a
     stack trace in an agent's transcript is not something a person can act
     on.
     """
+    here = paths.repo_here()
+    if here is not None and not paths.has_store(here):
+        try:
+            with Memory(here) as mem:
+                # The code reader gets a few seconds and no more: it takes
+                # two minutes on a repo the size of the kernel, and an
+                # agent's first question cannot wait that long. Most projects
+                # finish well inside it. When one does not, every structural
+                # reply says so, and `knos point` reads it properly.
+                answer.point(here, mem, code_budget=code.CODE_BUDGET)
+            paths.remember_pointed(here)
+        except Exception:
+            # A repo knos cannot read is not a reason to fail the tool call.
+            # Fall through: the pointer may still have something to answer.
+            pass
+        else:
+            return here
     return paths.current_repo()
 
 
@@ -88,11 +117,21 @@ def search(
         # does. Read from the store already open, not a second one.
         busy = _being_worked_on(mem, query, asker=who)
 
-    if not found:
-        nothing = "Nothing known about that."
-        return f"{busy}\n\n{nothing}" if busy else nothing
-    answered = "\n\n".join(f"{p.text.strip()}\n    source: {p.where}" for p in found)
-    return f"{busy}\n\n{answered}" if busy else answered
+    if found:
+        answered = "\n\n".join(f"{p.text.strip()}\n    source: {p.where}" for p in found)
+    else:
+        answered = "Nothing known about that."
+    answered = f"{busy}\n\n{answered}" if busy else answered
+    # Said on the empty answer too, and especially there: a structural
+    # question that finds nothing on a large repo is the moment the person
+    # most needs to know which source has not been read.
+    if answer.looks_structural(query) and not code.indexed(repo):
+        answered += (
+            "\n\n(Knos has not read this repo's code structure - it is large"
+            " enough to need `knos point .` once. Sessions, commits and"
+            " instruction files are all that answered this.)"
+        )
+    return answered
 
 
 @server.tool()
@@ -152,15 +191,18 @@ def _held(mem: Memory, thing: str, asker: str, override: str) -> str:
 
     if not blocked:
         return ""
-    held = "; ".join(f"{t} (held by {h})" for t, h in blocked)
     for topic, holder in blocked:
         mem.stood_down(topic, asker, holder, _stamp())
-    return (
-        f"Withheld. {held} is being worked on right now, so knos is not the"
-        " place you find out about it. Ask them, or work on something else."
-        "\n\nIf you must have it anyway, call this again with"
-        ' override="your reason". That is recorded against your name.'
-    )
+
+    # A person can claim work at the terminal, and then the agent being told
+    # to hold off is talking to the very person who holds it. "Ask them" is
+    # the wrong thing to say to somebody's only agent.
+    by_the_person = all(h == "you" for _, h in blocked)
+    if by_the_person:
+        held = "; ".join(t for t, _ in blocked)
+    else:
+        held = "; ".join(f"{t} (held by {h})" for t, h in blocked)
+    return answer.withheld(held, by_the_person)
 
 
 def _is_holder(work: dict, asker: str) -> bool:
@@ -216,52 +258,8 @@ def _being_worked_on(mem: Memory, thing: str, asker: str = "") -> str:
     return "\n".join(said)
 
 
-def _same_subject(topic: str, question: str) -> bool:
-    """Whether a claim and a question are about the same thing.
-
-    Shared word stems, not shared substrings. Substrings made a claim on a
-    short word warn about half the repo: "guard" fired on "safeguarding".
-    Bare word overlap fixed that but missed the obvious, because a claim on
-    "parser" said nothing about "parsing".
-    """
-    claimed = {_stem(w) for w in answer.terms(topic)}
-    asked = {_stem(w) for w in answer.terms(question)}
-    return bool(claimed) and bool(claimed & asked)
-
-
-# Enough English to see that parser, parsers, parsing and parsed are one
-# word. Anything more wants a real stemmer, and a real stemmer is a
-# dependency knos does not need to warn one agent off another's work.
-_ENDINGS = ("ings", "ing", "ers", "er", "ed", "es", "s")
-
-# Words the suffix rules cannot reach, because English does not spell them
-# the way it spells everything else. Short on purpose: this list exists to
-# match a claim, not to conjugate.
-_IRREGULAR = {
-    "wrote": "write", "written": "write", "writing": "write",
-    "built": "build", "building": "build",
-    "broke": "break", "broken": "break", "breaking": "break",
-    "ran": "run", "running": "run",
-    "caught": "catch", "catching": "catch",
-    "sent": "send", "sending": "send",
-    "held": "hold", "holding": "hold",
-    "read": "read", "reading": "read",
-    "left": "leave", "leaving": "leave",
-    "made": "make", "making": "make",
-}
-
-
-def _stem(word: str) -> str:
-    if word in _IRREGULAR:
-        return _IRREGULAR[word]
-    for ending in _ENDINGS:
-        if len(word) - len(ending) >= 4 and word.endswith(ending):
-            word = word[: -len(ending)]
-            break
-    # A trailing e goes too, so parse, parser and parsing all land on pars.
-    # Adding the e back instead was worse: it depended on which ending was
-    # stripped, so parser and parsing disagreed.
-    return word[:-1] if len(word) > 4 and word.endswith("e") else word
+_same_subject = answer.same_subject
+_stem = answer.stem
 
 
 def _stamp() -> str:
@@ -327,31 +325,6 @@ def remember(
         if claiming:
             mem.working_on(about, who, now, session=_session())
     return f"Remembered, about {about}."
-
-
-@server.tool()
-def sources(claim: str, ctx: Context | None = None) -> str:
-    """Which file, session or commit a claim came from."""
-    repo = _repo()
-    if repo is None:
-        return NOT_POINTED
-    with Memory(repo) as mem:
-        found = answer.ask(repo, mem, claim, identity=private.AGENT, limit=6)
-        # Every tool an agent can call says when somebody else is mid-change,
-        # so which one it happened to reach for does not decide whether it
-        # finds out.
-        busy = _being_worked_on(mem, claim, asker=_who(ctx))
-    if not found:
-        return f"{busy}\n\nNo source for that." if busy else "No source for that."
-    seen, lines = set(), []
-    if busy:
-        lines.append(busy)
-    for p in found:
-        if p.where in seen:
-            continue
-        seen.add(p.where)
-        lines.append(f"{p.source}: {p.where}")
-    return "\n".join(lines)
 
 
 def _shared_with(repo: Path, reader: str) -> list[str]:

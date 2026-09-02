@@ -101,3 +101,39 @@ def test_the_agent_still_sees_ordinary_things(knos_home, repo):
         assert any("src/auth.py" in p.text or "src/auth.py" in p.path for p in found)
     finally:
         mem.close()
+
+
+def test_asking_about_the_same_repo_does_not_reread_the_rules_each_time(
+    knos_home, repo, monkeypatch
+):
+    """Reading a repo asks this once per file in every commit.
+
+    On the kernel that was 93,703 calls, each one opening the rules file and
+    creating a directory to find it: 305 of the 317 seconds a read took.
+    """
+    from knos import private
+
+    private.is_private(repo, "src/auth.py")
+
+    reads = []
+    real = private.added_patterns
+
+    def counted(r):
+        reads.append(r)
+        return real(r)
+
+    monkeypatch.setattr(private, "added_patterns", counted)
+    for i in range(500):
+        private.is_private(repo, f"src/file{i}.py")
+    assert reads == [], f"re-read the rules {len(reads)} times"
+
+    # And a new private path still takes effect on the very next question.
+    private.add(repo, "notes/salary.md")
+    assert private.is_private(repo, "notes/salary.md")
+
+
+def test_a_secret_in_a_shouted_filename_is_still_a_secret(knos_home, repo):
+    from knos import private
+
+    assert private.is_private(repo, ".ENV")
+    assert private.is_private(repo, "config/.Env")

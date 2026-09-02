@@ -239,7 +239,9 @@ def test_forgetting_a_note_does_not_touch_the_commits(knos_home, repo, tmp_path,
         assert answer.ask(repo, m, "who touched login last and why")
 
 
-def test_a_person_can_write_a_standing_rule_and_agents_see_it(knos_home, repo):
+def test_a_person_can_write_a_standing_rule_and_agents_see_it(
+    knos_home, repo, monkeypatch
+):
     """The authoring path: no agent involved, no markdown file."""
     from typer.testing import CliRunner
 

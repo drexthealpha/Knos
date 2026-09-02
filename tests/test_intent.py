@@ -199,11 +199,10 @@ def test_every_agent_tool_says_when_someone_is_mid_change(knos_home, repo):
         )
         mem.working_on("risk guard", "Claude Code", _now())
 
-    # search withholds outright; about and sources say who holds it.
+    # search withholds outright; about says who holds it.
     assert mcp.search("risk guard").startswith("Withheld.")
-    for tool in (mcp.about, mcp.sources):
-        said = tool("risk guard")
-        assert "started working on risk guard" in said, tool.__name__
+    said = mcp.about("risk guard")
+    assert "started working on risk guard" in said, said
 
 
 def test_two_agents_can_hold_separate_work_at_once(knos_home, repo):
@@ -423,3 +422,58 @@ def test_a_claim_with_no_session_falls_back_to_the_name(knos_home, repo):
     """Older claims are no weaker than they were, and no stronger."""
     assert mcp._is_holder({"who": "Claude Code"}, "Claude Code")
     assert not mcp._is_holder({"who": "Claude Code"}, "Cursor")
+
+
+def test_a_person_can_claim_work_without_going_through_an_agent(
+    knos_home, repo, monkeypatch
+):
+    """The person is the one who can resolve a collision.
+
+    Claiming used to be an agent-only move, which left the human with no way
+    to fence off work before starting it.
+    """
+    from typer.testing import CliRunner
+
+    from knos.cli import app
+    from knos.memory import Memory
+
+    knos_paths.remember_pointed(repo)
+    runner = CliRunner()
+
+    assert runner.invoke(app, ["claim", "the risk guard"]).exit_code == 0
+    with Memory(repo) as mem:
+        assert [w["topic"] for w in mem.claims()] == ["the risk guard"]
+
+    # And asking about it says so, in front of the person, not afterwards in
+    # a status screen they never opened.
+    said = runner.invoke(app, ["ask", "how does the risk guard work"]).output
+    assert "working on the risk guard right now" in said
+
+    assert runner.invoke(app, ["done"]).exit_code == 0
+    with Memory(repo) as mem:
+        assert mem.claims() == []
+
+
+def test_one_agent_is_enough_to_feel_the_withhold(knos_home, repo):
+    """A person claims work at the terminal; their only agent is refused.
+
+    Needing two agents open to see the one thing knos does that a worktree
+    cannot is a setup cost most people will not pay before deciding.
+    """
+    from datetime import datetime, timezone
+
+    from knos import mcp
+
+    knos_paths.remember_pointed(repo)
+    with Memory(repo) as mem:
+        mem.working_on("the parser", "you", datetime.now(timezone.utc).isoformat())
+        said = mcp._held(mem, "how does parsing work", "Claude Code", "")
+
+    assert said.startswith("Withheld.")
+    # Talking to the person who holds it, so not "go and ask them".
+    assert "The person you are working with" in said
+    assert "the parser" in said
+
+    with Memory(repo) as mem:
+        mem.done_working()
+        assert mcp._held(mem, "how does parsing work", "Claude Code", "") == ""

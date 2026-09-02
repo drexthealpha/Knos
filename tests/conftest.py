@@ -17,8 +17,14 @@ def knos_home(tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def repo(tmp_path):
-    """A small real git repo, with one secret in it."""
+def repo(tmp_path, monkeypatch):
+    """A small real git repo, with one secret in it.
+
+    Tests run standing inside it, because that is where a person runs knos
+    and where an agent's client is launched. Reading now happens by itself
+    for the repo you are in, so a test run from somewhere else would be
+    testing a path nobody takes.
+    """
     r = tmp_path / "repo"
     (r / "src").mkdir(parents=True)
     (r / "src" / "auth.py").write_text("def login():\n    return True\n", encoding="utf-8")
@@ -44,4 +50,5 @@ def repo(tmp_path):
         "-m",
         "Add login, and drop redis for sqlite\n\nRedis was one dependency for one counter.",
     )
+    monkeypatch.chdir(r)
     return r

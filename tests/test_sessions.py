@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -177,3 +178,64 @@ def test_a_corrupt_transcript_is_skipped_not_fatal(tmp_path, repo, monkeypatch):
     monkeypatch.setenv("KNOS_CLAUDE_HOME", str(root / "projects"))
     monkeypatch.setenv("KNOS_CURSOR_DB", str(tmp_path / "absent.vscdb"))
     assert len(sessions.read_all(repo)) == 2
+
+
+def test_a_session_started_above_the_repo_is_still_found(tmp_path, monkeypatch):
+    """The folder is named for where the session started, not where it went.
+
+    Filtering on the folder name alone dropped 2,774 records about one repo
+    that were filed under its parent, because the session opened there and
+    moved in afterwards.
+    """
+    import json
+
+    from knos import sessions
+
+    projects = tmp_path / "projects"
+    repo = tmp_path / "work" / "myrepo"
+    repo.mkdir(parents=True)
+
+    def folder(path: Path) -> Path:
+        d = projects / re.sub(r"[:\/]", "-", str(path))
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def line(cwd: str, text: str) -> str:
+        return json.dumps(
+            {
+                "type": "user",
+                "cwd": cwd,
+                "sessionId": "s1",
+                "timestamp": "2026-08-20T10:00:00Z",
+                "message": {"content": text},
+            }
+        )
+
+    # Started in the parent, worked in the repo.
+    (folder(repo.parent) / "a.jsonl").write_text(
+        line(str(repo), "we dropped redis because it was one dependency for one counter"),
+        encoding="utf-8",
+    )
+    # Started in the repo itself.
+    (folder(repo) / "b.jsonl").write_text(
+        line(str(repo), "the risk guard refuses unknown assets and always has"),
+        encoding="utf-8",
+    )
+    # A different project entirely, which must not be read.
+    other = tmp_path / "work" / "other"
+    other.mkdir(parents=True)
+    (folder(other) / "c.jsonl").write_text(
+        line(str(other), "this belongs to a different project and must not appear"),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("KNOS_CLAUDE_HOME", str(projects))
+    monkeypatch.setenv("KNOS_CURSOR_DB", str(tmp_path / "absent.vscdb"))
+    said = " ".join(t.text for t in sessions.read_all(repo))
+
+    assert "redis" in said, "lost the session that started in the parent"
+    assert "risk guard" in said, "lost the session that started in the repo"
+    assert "different project" not in said
+
+    # And the unrelated project's folder was never opened.
+    assert folder(other) not in sessions._transcripts(projects, repo)

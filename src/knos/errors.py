@@ -28,7 +28,10 @@ class Problem:
 
 
 def nothing_indexed() -> Problem:
-    return Problem("Nothing indexed yet.", "Read this repo first:  knos point .")
+    return Problem(
+        "This folder is not a git repo, so knos does not know what to read.",
+        "Go to your project and ask again, or name it:  knos point ~/work/repo",
+    )
 
 
 def no_such_folder(path: str) -> Problem:
@@ -39,9 +42,18 @@ def nothing_found(repo: Path) -> Problem:
     return Problem("Nothing about that yet.", f"Read more first:  knos point {repo}")
 
 
-def memory_full(repo: Path) -> Problem:
+def memory_full(repo: Path, kept: int = 0) -> Problem:
+    """The store hit its 5 MB ceiling part-way through reading.
+
+    Sessions and commits are read newest first, so what is in the store is
+    the recent end of both. Nothing already written is lost or overwritten;
+    the read simply stops.
+    """
+    what = f"Kept the newest {kept} things and stopped there." if kept else "Kept the newest and stopped there."
     return Problem(
-        "Memory filled up. The newest was kept, the oldest was not read.",
+        f"This repo's memory is full at 5 MB. {what} Older sessions and"
+        " commits were not read. What is stored is still whole - nothing was"
+        " evicted or truncated.",
         f"Read one folder instead of all of it:  knos point {Path(repo)}/src",
     )
 
@@ -80,6 +92,21 @@ def code_engine_missing() -> Problem:
     return Problem(
         "No code reader here, so knos answered from sessions and commits only.",
         f"For answers that name a file and line:  {install_ctags()}",
+    )
+
+
+def structure_unread(repo: Path) -> Problem:
+    """The code reader is the slow one, so it waits to be asked for.
+
+    Reading a repo happens by itself on the first question. Running the code
+    reader there too would have meant two minutes of silence on a big repo,
+    so it is the one source a person asks for. Saying nothing about it would
+    be the same silent hole in a different place.
+    """
+    return Problem(
+        "Answered from sessions, commits and your rules. The code structure"
+        " is the one part knos has not read.",
+        f"For answers that name a file and line:  knos point {Path(repo)}",
     )
 
 
