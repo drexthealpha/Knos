@@ -29,6 +29,7 @@ from pathlib import Path
 
 MARKER = "<!-- knos-pr-check -->"
 MAX_DECISIONS = 3  # a comment nobody reads is worse than no comment
+MAX_CLAIMS = 5  # same reason; a repository mid-sprint can hold many
 SHARED = Path(".knos/decisions.md")
 
 # Enough English to see that parser, parsers and parsing are one word. Same
@@ -153,7 +154,8 @@ def main() -> int:
         paths = []
 
     subject = words(f"{title} {body} " + " ".join(p.replace("/", " ").replace("_", " ") for p in paths))
-    hits = [(topic, who) for topic, who in claims if words(topic) & subject]
+    matched = [(topic, who) for topic, who in claims if words(topic) & subject]
+    hits, spare = matched[:MAX_CLAIMS], len(matched) - MAX_CLAIMS
 
     # Decisions are quieter than claims: a settled decision is a note, not a
     # collision, so it is mentioned only when the branch names it, and only
@@ -177,6 +179,8 @@ def main() -> int:
         ]
         for topic, who in hits:
             lines.append(f"- **{topic}** - held by {who}")
+        if spare > 0:
+            lines.append(f"- and {spare} more, in `.knos/decisions.md`")
         lines += [
             "",
             "Nothing is blocked. This is a heads-up so two people do not land the"
