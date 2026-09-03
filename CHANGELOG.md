@@ -10,6 +10,25 @@ decisions as well as claims, takes a `github-token` input, and documents its
 `pull_request_target` safety. `pytest` runs the critical path in about 25
 seconds; `pytest -m ""` runs all of it.
 
+`knos --version` prints the installed version, the same number the MCP
+handshake reports — one value, read from package metadata, so the two cannot
+drift apart.
+
+`knos export` keeps the shared file to the readable part of a note. What an
+agent pays for is a whole API response and the store still holds all of it,
+but a decision record other people commit is not the place for a JSON body
+and a receipt.
+
+`.knos/decisions.md` is no longer ignored. The file the Action reads out of a
+checkout could not be committed in this repository, which meant nothing here
+could carry the record it asks other repositories to carry. The store and the
+keys stay ignored.
+
+The proof scripts (`scripts/withhold.py`, `scripts/gate.py`), the agent
+(`agent/bot.ts`) and the x402 payer (`src/knos/buy402.py`) are in the
+repository. The README linked all four and none of them were there, so a
+clean clone could not run what it was told to run.
+
 **Use `drexthealpha/Knos/action@v0.1.4`.** `v0.1.3` was tagged before these
 Action changes and serves the older file.
 

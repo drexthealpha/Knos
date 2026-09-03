@@ -16,6 +16,7 @@ import typer
 from rich.console import Console
 
 from . import answer, builtin_reader, code, errors, help as help_text, link, paths, private, sessions
+from . import version
 from .memory import TOPIC, Fact, Memory, StoreFull
 
 app = typer.Typer(
@@ -47,8 +48,16 @@ def _quote(text: str) -> None:
 
 
 @app.callback(invoke_without_command=True)
-def _no_command(ctx: typer.Context) -> None:
+def _no_command(
+    ctx: typer.Context,
+    show_version: bool = typer.Option(
+        False, "--version", help="print the installed version and stop"
+    ),
+) -> None:
     """Typing `knos` on its own shows the one screen, not a usage box."""
+    if show_version:
+        out.print(version())
+        raise typer.Exit()
     if ctx.invoked_subcommand is None:
         out.print(help_text.main())
 

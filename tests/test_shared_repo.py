@@ -52,6 +52,48 @@ def test_export_writes_decisions_and_claims(knos_home, repo):
     assert "the auth refactor" in text and "Claude Code" in text
 
 
+@pytest.mark.critical
+def test_a_bought_payload_does_not_take_over_the_shared_file(knos_home, repo):
+    """What an agent pays for is a whole API response, kept in full.
+
+    The store should have all of it. The file other people commit should
+    not: a decision is a sentence, and a repo's decision record is not the
+    place for a JSON body and a receipt.
+    """
+    bought = (
+        "Bought over x402 on Base. Receipt: " + "e" * 200
+        + "\n\n" + '{"symbol": "BTC", "price_usd": 81067.7, "why": ["'
+        + "x" * 4000 + '"]}'
+    )
+    _decide(repo, bought, "market brief: BTC")
+    with Memory(repo) as mem:
+        target, decisions, claims = share.write(repo, mem)
+
+    text = target.read_text(encoding="utf-8")
+    assert "Bought over x402 on Base" in text
+    assert "price_usd" not in text
+    assert "x" * 100 not in text
+    assert len(text) < 2000
+
+    with Memory(repo) as mem:
+        kept = [n["note"] for n in mem.notes()]
+    assert any("price_usd" in note for note in kept)
+
+
+def test_a_decision_someone_wrote_by_hand_is_never_truncated(knos_home, repo):
+    written = (
+        "Claims lapse after 30 minutes, or on knos done. The lapse is "
+        "deliberate: a crashed agent must not be able to hold work forever, "
+        "and nobody should have to know which process died to get on with a "
+        "refactor that is already half finished on their disk."
+    )
+    _decide(repo, written, "claim lapse")
+    with Memory(repo) as mem:
+        target, _, _ = share.write(repo, mem)
+
+    assert written in target.read_text(encoding="utf-8")
+
+
 def test_a_second_clean_clone_reads_it_with_no_import_step(knos_home, repo, tmp_path):
     """The whole point. A teammate clones and asks — nothing to install,
     nothing to sync, no shared server."""

@@ -28,6 +28,9 @@ from . import private
 # The file a repo commits. Also listed in rules.DECISIONS, which is what
 # makes a second clone read it with no extra step.
 SHARED = Path(".knos") / "decisions.md"
+# Long enough for any decision anyone writes by hand, short enough that a
+# machine payload cannot take over the file.
+_LINE = 400
 
 HEADER = """# Decisions and current work
 
@@ -61,6 +64,21 @@ def _safe(repo: Path, text: str, about: str) -> bool:
     return True
 
 
+def _one_line(note: str) -> str:
+    """The readable part of a note, for a file other people commit.
+
+    A decision is a sentence. What an agent pays for is a whole API response,
+    and `remember` keeps it in full because that is what was bought. Putting
+    all of it in the shared file turns a repo's decision record into a data
+    dump, so this takes the first paragraph and caps it. The store still has
+    the whole thing; `knos ask` still answers from it.
+    """
+    first = note.strip().split("\n\n", 1)[0].strip()
+    if len(first) <= _LINE:
+        return first
+    return first[:_LINE].rstrip() + "..."
+
+
 def export(repo: Path, mem: Any) -> tuple[str, int, int]:
     """Render the shareable half of this repo's memory.
 
@@ -80,7 +98,7 @@ def export(repo: Path, mem: Any) -> tuple[str, int, int]:
         for n in notes:
             when = str(n.get("when", ""))[:10]
             about = str(n.get("about", "")).strip() or "general"
-            out.append(f"- **{about}** — {str(n.get('note', '')).strip()}")
+            out.append(f"- **{about}** — {_one_line(str(n.get('note', '')))}")
             if when:
                 out[-1] += f"  _(recorded {when})_"
     else:

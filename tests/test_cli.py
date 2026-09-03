@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 
 import pytest
 from typer.testing import CliRunner
@@ -36,6 +38,25 @@ def _screens():
     yield "help", help_text.main()
     for name in ("point", "ask", "connect", "status", "private", "notes", "forget", "remember", "claim", "done"):
         yield name, help_text.for_command(name)
+
+
+@pytest.mark.critical
+def test_the_cli_and_the_handshake_report_the_same_version():
+    """One number, read from package metadata, so it cannot drift.
+
+    A client that is told the empty string cannot say which knos it is
+    talking to, and a person who runs --version should get the same answer.
+    """
+    from knos import version
+
+    said = subprocess.run(
+        [sys.executable, "-c", "from knos.cli import app; app()", "--version"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+
+    assert said.returncode == 0
+    assert said.stdout.strip() == version()
+    assert version() not in ("", "0+unknown")
 
 
 def test_help_fits_one_screen():
