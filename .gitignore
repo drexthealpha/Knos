@@ -8,7 +8,11 @@ build/
 .pytest_cache/
 
 # knos's own data, and the keys it made. Neither belongs to anyone else.
-.knos/
+# `decisions.md` is the exception: it is what `knos export` writes for the
+# repository to carry, and the Action reads it out of the checkout, so it has
+# to be committed. Nothing else under .knos/ is shareable.
+.knos/*
+!.knos/decisions.md
 .knos-keys/
 *.keystore
 keystore/
