@@ -16,6 +16,7 @@ and code structure, stated as they were found.
 from __future__ import annotations
 
 import json
+import sqlite3
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,8 @@ INTERNAL = "knos:"
 INTENT_HOLDS = 30  # minutes
 _CLAIM_TRIES = 5  # attempts before a claim write gives up
 _CLAIM_BACKOFF = 0.05  # seconds, multiplied by the attempt number
+_OPEN_TRIES = 8  # attempts to open a store two agents reached at once
+_OPEN_BACKOFF = 0.05  # seconds, multiplied by the attempt number
 
 
 class StoreFull(Exception):
@@ -103,13 +106,35 @@ class Fact:
         }
 
 
+def _open(db_path: Path) -> Storage:
+    """Open the store, waiting if another agent got there in the same moment.
+
+    The first connection to a new store switches it to WAL, and that pragma
+    needs the database briefly to itself. `busy_timeout` does not cover it,
+    so two agents starting together on a repo neither has read yet can have
+    one of them raise `database is locked` instead of waiting - which is the
+    exact case knos exists for.
+
+    Waiting is right here: the store is about to exist, the other process is
+    the reason it does not yet, and the whole delay is milliseconds.
+    """
+    for attempt in range(_OPEN_TRIES):
+        try:
+            return Storage(str(db_path))
+        except sqlite3.OperationalError:
+            if attempt == _OPEN_TRIES - 1:
+                raise
+            time.sleep(_OPEN_BACKOFF * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
 class Memory:
     """knos's view of one repo's memory."""
 
     def __init__(self, repo: Path) -> None:
         self.repo = Path(repo).resolve()
         self.db_path = paths.store_for(self.repo)
-        self.storage = Storage(str(self.db_path))
+        self.storage = _open(self.db_path)
         self.client = MemoryClient(self.storage, cap_gate=self._cap_gate())
 
     def _cap_gate(self) -> Any:
