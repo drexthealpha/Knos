@@ -16,7 +16,7 @@ from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from . import answer, code, git, paths, private
-from .memory import TOPIC, Fact, Memory, _minutes_since
+from .memory import TOPIC, Fact, Memory, StoreFull, _minutes_since
 
 
 def _version() -> str:
@@ -54,6 +54,10 @@ NOT_POINTED = (
     "  Ask the person to run knos in their project."
 )
 NOTHING_SHARED = "Nothing shared with you."
+FULL = (
+    "The store is full: 5 MB, Sibyl's free tier, and nothing was written."
+    " `knos forget` frees room; `knos status` shows what is using it."
+)
 
 
 def _repo() -> Path | None:
@@ -361,13 +365,33 @@ def remember(
     who = _who(ctx)
     where = f"{who} said so, {now[:10]}"
     with Memory(repo) as mem:
-        mem.record(Fact(text=fact, source="note", where=where, when=now, about=about))
+        # `record` and `note_thing` return None rather than raising when the
+        # store is full. Saying "Remembered" when nothing was written is the
+        # one lie this tool must not tell.
+        written = mem.record(
+            Fact(text=fact, source="note", where=where, when=now, about=about)
+        )
         mem.note_thing(TOPIC, about, {"note": fact, "when": now[:10]})
+        if written is None:
+            return FULL
         # Only when the agent says it is starting work. A note is for
         # everybody to read; claiming it would withhold the very thing that
         # was just written down.
         if claiming:
-            mem.working_on(about, who, now, session=_session())
+            # Compare-and-swap, not a blind write: two agents reaching for
+            # the same work in the same second must not both believe they
+            # hold it. The loser is told who does.
+            try:
+                took, holder = mem.claim_if_free(about, who, now, session=_session())
+            except StoreFull:
+                return f"Remembered, about {about}. The claim did not: {FULL}"
+            if not took:
+                held_by = str((holder or {}).get("who", "another agent"))
+                return (
+                    f"Remembered, about {about}."
+                    f" You did not get the claim: {held_by} is already on it."
+                    " Ask them, or pick up something else."
+                )
     return f"Remembered, about {about}."
 
 

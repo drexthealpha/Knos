@@ -14,6 +14,10 @@ person types it, and nothing on this path touches it.
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.critical
+
 import socket
 from datetime import datetime, timezone
 

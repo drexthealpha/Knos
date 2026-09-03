@@ -4,9 +4,14 @@ The third side of the loop. A maintainer runs `knos export` and commits
 `.knos/decisions.md`; a contributor's agent reads it on its first question;
 and this reads the same file in CI and says so on the pull request.
 
-Deliberately non-blocking. It comments and exits 0, always. A memory tool
-that can fail somebody's build has bought a veto it did not earn, and the
-first thing a maintainer would do is delete it.
+Deliberately non-blocking: every path through `main` returns 0, including
+every failure path, so this can never redden a build.
+
+Safe on both `pull_request` and `pull_request_target`. It reads only
+`.knos/decisions.md` from the checkout and the pull request's own title,
+body and file list from the API — it never checks out, executes or
+evaluates anything from the head branch, which is the hazard that makes
+`pull_request_target` dangerous in general.
 
 No knos install needed here — CI has the committed file, not the store.
 Standard library only, so the Action needs no dependencies.
@@ -23,6 +28,7 @@ import urllib.request
 from pathlib import Path
 
 MARKER = "<!-- knos-pr-check -->"
+MAX_DECISIONS = 3  # a comment nobody reads is worse than no comment
 SHARED = Path(".knos/decisions.md")
 
 # Enough English to see that parser, parsers and parsing are one word. Same
@@ -47,6 +53,33 @@ def stem(word: str) -> str:
 def words(text: str) -> set[str]:
     found = re.findall(r"[A-Za-z_][A-Za-z0-9_]{2,}", (text or "").lower())
     return {stem(w) for w in found if w not in STOP}
+
+
+def read_decisions(text: str) -> list[tuple[str, str]]:
+    """The decisions section of an exported file, as (about, note).
+
+    Claims are about who is moving right now; decisions are about what was
+    already settled. A pull request that reopens a settled decision is worth
+    one line in the same comment.
+    """
+    found: list[tuple[str, str]] = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## Decisions"):
+            inside = True
+            continue
+        if inside and line.startswith("## "):
+            break
+        if not inside or not line.startswith("- **"):
+            continue
+        try:
+            about = line.split("**")[1]
+            note = line.split("** — ", 1)[1].split("  _(recorded")[0]
+        except (IndexError, ValueError):
+            continue
+        if about.strip():
+            found.append((about.strip(), note.strip()))
+    return found
 
 
 def read_claims(text: str) -> list[tuple[str, str]]:
@@ -103,9 +136,11 @@ def main() -> int:
         print(f"knos: could not read the event ({why}).")
         return 0
 
-    claims = read_claims(SHARED.read_text(encoding="utf-8"))
-    if not claims:
-        print("knos: nothing is claimed.")
+    shared = SHARED.read_text(encoding="utf-8")
+    claims = read_claims(shared)
+    decisions = read_decisions(shared)
+    if not (claims or decisions):
+        print("knos: nothing is claimed and nothing is recorded.")
         return 0
 
     try:
@@ -120,26 +155,48 @@ def main() -> int:
     subject = words(f"{title} {body} " + " ".join(p.replace("/", " ").replace("_", " ") for p in paths))
     hits = [(topic, who) for topic, who in claims if words(topic) & subject]
 
-    if not hits:
-        print("knos: this pull request does not touch claimed work.")
+    # Decisions are quieter than claims: a settled decision is a note, not a
+    # collision, so it is mentioned only when the branch names it, and only
+    # the first few.
+    touched = [(a, n) for a, n in decisions if words(a) & subject][:MAX_DECISIONS]
+
+    if not (hits or touched):
+        print("knos: this pull request touches neither claimed nor recorded work.")
         return 0
 
-    lines = [
-        MARKER,
-        "**Someone is already working on this.**",
-        "",
-        f"`.knos/decisions.md` in this repo says the following is claimed, and this"
-        f" pull request looks like it touches {'it' if len(hits) == 1 else 'them'}:",
-        "",
-    ]
-    for topic, who in hits:
-        lines.append(f"- **{topic}** — held by {who}")
+    lines = [MARKER]
+    if hits:
+        lines += [
+            "**Someone is already working on this.**",
+            "",
+            "`.knos/decisions.md` in this repo says the following is claimed, and"
+            " this pull request looks like it touches "
+            + ("it" if len(hits) == 1 else "them")
+            + ":",
+            "",
+        ]
+        for topic, who in hits:
+            lines.append(f"- **{topic}** - held by {who}")
+        lines += [
+            "",
+            "Nothing is blocked. This is a heads-up so two people do not land the"
+            " same change twice - talk to them, or carry on if you already have.",
+        ]
+    if touched:
+        if hits:
+            lines.append("")
+        lines += ["**Already decided here:**", ""]
+        for about, note in touched:
+            lines.append(f"- **{about}** - {note}")
+        lines += [
+            "",
+            "Recorded in `.knos/decisions.md`. Changing it is fine; knowing it was"
+            " decided is the point.",
+        ]
     lines += [
         "",
-        "Nothing is blocked. This is a heads-up so two people do not land the same"
-        " change twice — talk to them, or carry on if you already have.",
-        "",
-        "<sub>Claims lapse after 30 minutes and are refreshed by `knos export`.</sub>",
+        "<sub>Claims lapse after 30 minutes and are refreshed by `knos export`."
+        " This check never fails a build.</sub>",
     ]
     comment = "\n".join(lines)
 

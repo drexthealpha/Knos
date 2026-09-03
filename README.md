@@ -4,17 +4,60 @@
 
 [![Knos MCP server](https://glama.ai/mcp/servers/drexthealpha/Knos/badges/score.svg)](https://glama.ai/mcp/servers/drexthealpha/Knos)
 
-**A local MCP server that gives every coding agent on your machine one shared
-memory — and it knows which of them is in your code right now.**
+**Two contributors, or two agents, changing the same thing without knowing
+it. Knos is the record of who is on what, and it refuses to answer about
+work somebody else has already taken.**
 
-```bash
-pip install knos && knos connect
+Start with the pull request check. One file in your repo, nothing installed,
+never fails a build:
+
+```yaml
+# .github/workflows/knos-claims.yml
+on: [pull_request]
+permissions: { contents: read, pull-requests: write }
+jobs:
+  claims:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: drexthealpha/Knos/action@v0.1.4
 ```
 
-Three MCP tools over stdio — `search`, `about`, `remember`. No HTTP server,
-no ports, no account, no model download, no repo to register, and
-[no network connection at all](tests/test_no_network.py): that last one is a
-test, not a promise.
+It reads `.knos/decisions.md` — a file a maintainer commits — and comments
+when a branch touches work somebody has claimed or a decision already
+recorded. It exits 0 on every path, including every failure path
+(`pytest tests/test_shared_repo.py -k never_returns_non_zero`). The tag is
+pinned rather than a branch, so what runs in your CI is a fixed file you can
+read: `git show v0.1.4:action/knos_pr_check.py`.
+
+`pull_request_target` works too, if you want the check on pull requests from
+forks: the Action reads only the committed `.knos/decisions.md` and the pull
+request's own title, body and file list, and never checks out or runs
+anything from the head branch.
+
+### The whole loop, in under a minute
+
+```bash
+pip install knos && knos connect     # once, per machine
+knos claim "the parser"              # agent A takes it
+# ask any other agent about the parser — it is refused, and told who has it
+knos done                            # give it back
+knos export                          # writes .knos/decisions.md, commit it
+```
+
+Claim, be refused, release, export. The Action then does the same thing on a
+pull request, for people who have never installed Knos.
+
+All of it runs without an editor open, as two real processes against one
+store: `python scripts/withhold.py`. The other half of the proof is
+`python scripts/gate.py`, which deletes the store and asserts that both the
+withholding and the answers die with it —
+[scripts/README.md](scripts/README.md).
+
+Under it is a local MCP server: three tools over stdio — `search`, `about`,
+`remember`. No HTTP server, no ports, no account, no model download, no repo
+to register, and [no network connection at all](tests/test_no_network.py):
+that last one is a test, not a promise.
 
 `knos connect` adds Knos to **Claude Code**, **Claude Desktop**, **Cursor**
 and **OpenCode** — whichever you have, each in the shape it reads
@@ -29,11 +72,14 @@ then there is exactly one thing left to do:
 | Client | What is left | Why |
 |---|---|---|
 | Claude Code | nothing | `claude mcp add --scope user` registers with the running session |
-| Cursor | **Restart Cursor.** | reads `~/.cursor/mcp.json` at startup; no command registers a server with a running instance |
-| Claude Desktop | **Restart Claude Desktop.** | same |
-| OpenCode | **Restart OpenCode.** | `opencode mcp add` exists but is interactive, and its docs describe no reload for a running session |
+| Cursor | **Quit Cursor and open it again** (Ctrl/Cmd+Q, then reopen) | reads `~/.cursor/mcp.json` at startup; no command registers a server with a running instance |
+| Claude Desktop | **Quit and reopen it** — closing the window is not enough, it keeps running in the tray | same |
+| OpenCode | **Exit and start it again** (Ctrl+C, then `opencode`) | `opencode mcp add` exists but is interactive, and its docs describe no reload for a running session |
 
-Every file it touches is copied to `<name>.before-knos` first.
+Every file it touches is copied to `<name>.before-knos` first, and
+`knos connect` prints the restart line for each client that needs one —
+quit the app and start it again, because nothing in the MCP spec lets a
+server register itself with a session that is already running.
 
 <details>
 <summary>Other ways in — Claude Desktop extension, Claude Code plugin, or by hand</summary>
@@ -65,12 +111,13 @@ files. What it does in that time is one `git log`, your `CLAUDE.md`, and the
 transcripts of past sessions in that tree, written to SQLite. It happens once. Every question after it is
 under 0.2s, and every agent you have shares the result.
 
-## The one thing nothing else does
+## What a claim does here
 
 Claude Code is rewriting the risk guard. You ask Cursor about it.
 
-Every other memory tool answers, and Cursor gives you a confident plan built
-on the version that was on disk five minutes ago. Knos does this instead:
+Every tool in the table below answers, and Cursor gives you a confident plan
+built on the version that was on disk five minutes ago. Knos does this
+instead:
 
 ```
 Withheld. risk guard (held by Claude Code) is being worked on right now,
@@ -152,6 +199,11 @@ flowchart TD
     style W fill:#f5f5f5,stroke:#999999,color:#111111
 ```
 
+Every arrow above is a command you can run: the withheld one is
+`knos claim "the parser"` then asking a second agent, and
+`pytest tests/test_intent.py -k withholds_the_answer` is the same thing as a
+test.
+
 ## Share it with the repo, not a server
 
 Everything above is local. Two things, though, exist nowhere a teammate can
@@ -186,7 +238,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: drexthealpha/Knos/action@main
+      - uses: drexthealpha/Knos/action@v0.1.4
 ```
 
 The comment is a heads-up, never a failure — `action/knos_pr_check.py`
@@ -209,6 +261,60 @@ file by the same check that hides `.env` from an agent
 implemented and tested, six tests in `tests/test_shared_repo.py`. That is a
 mechanism that works, not a network that exists.
 
+## Who else has written this problem down
+
+Nothing here is about Knos. These are other people's open issues, in their
+own repositories, filed before they had heard of it.
+
+GitHub issues created since 1 January 2026 that use the phrase `"multiple
+agents" "same file"` number **1,556**; `"two agents"` in a title or body
+returns **31,411**. Most of that is unrelated prose. The ten below are ones
+read individually: every one is open, in a repository between 1,212 and
+388,747 stars, and describes two agents working over each other.
+
+| Repository | Stars | Opened | Issue |
+|---|---|---|---|
+| openai/codex | 121,228 | 2026-08-03 | [Add a cross-agent intent map to prevent overlapping edits](https://github.com/openai/codex/issues/36719) |
+| openai/codex | 121,228 | 2026-08-06 | [Automatically isolate and coordinate concurrent writes across chats and agents](https://github.com/openai/codex/issues/37226) |
+| anthropics/claude-code | 143,931 | 2026-09-03 | [Subagent exceeded scope and executed unauthorized git commit](https://github.com/anthropics/claude-code/issues/91872) |
+| openclaw/openclaw | 388,747 | 2026-08-19 | [AgentSelectionRequiredError floods logs under explicit multi-agent ownership](https://github.com/openclaw/openclaw/issues/126360) |
+| openclaw/openclaw | 388,747 | 2026-08-13 | [Shared state WAL checkpoint copies index pages over SQLite page 1](https://github.com/openclaw/openclaw/issues/123327) |
+| CopilotKit/CopilotKit | 37,180 | 2026-06-24 | [Agents mutate a shared singleton per-request; concurrent users leak system prompts](https://github.com/CopilotKit/CopilotKit/issues/5659) |
+| omnigent-ai/omnigent | 9,657 | 2026-07-28 | [Session-state writes race under concurrent updates: lost updates and orphan rows](https://github.com/omnigent-ai/omnigent/issues/3402) |
+| microsoft/winappCli | 1,212 | 2026-08-17 | [Cooperative UI turns for concurrent winapp UI agents](https://github.com/microsoft/winappCli/issues/764) |
+| microsoft/winappCli | 1,212 | 2026-08-17 | [Add worktree-isolated identity to `winapp run`](https://github.com/microsoft/winappCli/issues/763) |
+| Vexa-ai/vexa | 2,745 | 2026-09-03 | [Two stores, neither authoritative](https://github.com/Vexa-ai/vexa/issues/1510) |
+
+Two of those — `openai/codex` #36719 and #37226 — ask for a record of what
+each agent intends to edit, so that two of them do not edit the same thing.
+That is the mechanism in [What a claim does here](#what-a-claim-does-here).
+Both are open.
+
+Check the two counts, and that these are still open, with the GitHub CLI:
+
+```bash
+gh api -X GET search/issues -f 'q=is:issue "multiple agents" "same file" in:body created:>2026-01-01' --jq .total_count
+gh api repos/openai/codex/issues/36719 --jq .state
+```
+
+### One repository that coordinates agents through a GitHub issue today
+
+`tsz-org/tsz` runs its agents against a claim board:
+[issue #17314](https://github.com/tsz-org/tsz/issues/17314), **1,133
+comments** at the time of writing, the successor to
+[#15994](https://github.com/tsz-org/tsz/issues/15994), which was forked after
+it hit the 2,500-comment cap. Agents post `CLAIM`, `DONE`, `DROP` and `BLOCK`
+lines and are expected to read the board before starting. Its standing
+gotchas record the failures that follow: sessions that end on a live claim
+with no closing record, and two claims naming one defect in different words.
+
+That is the same coordination record Knos keeps, kept by hand in a comment
+thread, at a scale where reading it before every edit stops being possible.
+
+**No repository outside this one has adopted Knos.** The issues above are
+evidence that the problem is real and written down by other people. They are
+not evidence that anyone has adopted this answer to it.
+
 ## Check any of it in under a minute
 
 Nothing below is a claim. Each row is a command; run it and see.
@@ -224,8 +330,16 @@ Nothing below is a claim. Each row is a command; run it and see.
 | Secrets are invisible, not redacted | `pytest tests/test_private.py` — the search layer is asked directly, with an agent's identity |
 | What dies when you delete the store | `pytest tests/test_sibyl_is_load_bearing.py -k number_status_prints` |
 | Three MCP tools, no more | `pytest tests/test_recall.py -k three_tools_are_listed` |
+| Two agents cannot both hold the same claim | `pytest tests/test_intent.py -k two_processes` — two real processes race for one topic; one wins, the other is told who has it |
+| A crashed agent cannot hold work forever | `pytest tests/test_intent.py -k lapses` |
+| The pull request check can never fail a build | `pytest tests/test_shared_repo.py -k never_returns_non_zero` |
+| CI comments on decisions, not only claims | `pytest tests/test_shared_repo.py -k reports_decisions` |
+| A full store refuses a claim rather than dropping it | `pytest tests/test_sibyl_is_load_bearing.py -k full_store` |
+| `knos status` says how many claims are held | `pytest tests/test_sibyl_is_load_bearing.py -k counts_the_claims` |
+| `knos connect` names the exact restart per client | `pytest tests/test_cli.py -k exact_restart` |
 
-Cost: `pip install knos`. No account, no key, no server, no model download.
+Cost: `pip install knos`. No account, no key, no server, no model download,
+no network request, and a 5 MB free-tier cap per repo.
 
 ## Everything else, briefly
 
@@ -267,7 +381,9 @@ Both numbers are the honest ones:
 
 Wiring a client is three edits and a test — [CONTRIBUTING.md](CONTRIBUTING.md)
 has them, with OpenCode as the worked example. A session reader is about 40
-lines; `.github/GOOD_FIRST_ISSUES.md` describes the Gemini CLI and Codex one.
+lines: **Codex CLI and Gemini CLI are the two missing ones**, each a small
+parser plus one test, written up in
+[`.github/GOOD_FIRST_ISSUES.md`](.github/GOOD_FIRST_ISSUES.md).
 
 **Knos does not have memory of every local workflow, and does not claim to.**
 
@@ -288,6 +404,27 @@ second. Tools that key on the first fragment a repo's memory once per
 worktree — [that bug, in another
 tool](https://github.com/rohitg00/agentmemory/issues/515). Check it:
 `pytest tests/test_worktrees.py`.
+
+**A claim lapses after 30 minutes.** An agent that crashes mid-change
+never calls `knos done`. If the claim outlived the process, that work would
+be unaskable until a person noticed and cleared it by hand. Instead the hold
+expires on its own, and the next agent to ask gets a real answer. Taking a
+claim is a compare-and-swap, not a blind write, so two agents reaching for
+the same work in the same second do not both believe they have it: one wins,
+the other is told who holds it. Check both:
+`pytest tests/test_intent.py -k "lapses or two_processes"`.
+
+**Five tiers, one file, a hard 5 MB cap.** Sibyl's schema is not a black box
+Knos writes blobs into — it uses the tiers for what they are. Live claims go
+in HOT, one row per topic, overwritten rather than appended. Decisions and
+files go in WARM. History goes in COLD, append-only. The whole thing is
+capped at 5 MB by Sibyl's free tier, and `knos status` prints the size and
+says `nearly full` from 4 MB, so a store that is filling up tells you before
+it stops taking writes rather than after
+(`pytest tests/test_sibyl_is_load_bearing.py -k cap_and_warns`). At 5 MB a
+claim is **refused in words, not dropped**: an agent that thinks it holds
+work it does not is the exact failure this whole feature exists to prevent
+(`pytest tests/test_sibyl_is_load_bearing.py -k full_store`).
 
 **Commands.** `knos ask`, `knos claim`, `knos done`, `knos status`,
 `knos export`. `knos help` lists the rest. Nothing runs itself: no watcher,
@@ -400,9 +537,39 @@ Nine contract tests: `cd contracts && forge test`.
 provider with one offering: another agent pays 0.01 USDC for an answer out of
 this machine's memory. The seller is [agent/offering.ts](agent/offering.ts).
 
+[agent/bot.ts](agent/bot.ts) is that same agent with a chat face, in one
+process: it answers ACP jobs, it answers `/ask` out of the same store, and
+`/brief` buys something over x402 on Base and writes what it bought back with
+`knos remember`, so the next agent on the machine gets it without paying.
+Every one of those paths reads or writes the same SQLite file —
+`python scripts/gate.py` deletes it and none of them work.
+
+Started with no Telegram token it reads commands from the console, so the
+whole thing runs without an account:
+
+```
+$ npm --prefix agent run bot -- /status
+  hot        nothing in progress               one each, expires after 30 min
+             0 claims held right now - nothing is being withheld
+             2.2 MB of 5 MB used
+```
+
+**The x402 half is live on Base mainnet.** `/brief BTC` pays 0.01 USDC to
+[x402-seller](https://x402-seller-m8nx.onrender.com)'s market-regime endpoint
+and writes what it bought into the store with its receipt. Five settled so
+far, signed by `0xEca35a0C…48C1`:
+[`0x2ce6af5c…`](https://basescan.org/tx/0x2ce6af5c1c223a5b1395cbae719a96d7f1ded74fd90f909375142f9e4a14d9ca),
+[`0x20983f7b…`](https://basescan.org/tx/0x20983f7ba5afc2cc96da402e1509e8f267c15e4068048f6397bee4bb13537d04).
+The client is [src/knos/buy402.py](src/knos/buy402.py), which signs with the
+keystore knos made itself — there is no private key in any config file.
+
+Two routes on that seller, `/markets` and `/signal`, return 502 after the
+402. They cost nothing (the payment never settles) but they are why `/brief`
+is the only route wired in.
+
 **What it does not do.** There is no evaluator and no reputation system, and
-**the three jobs traded through it were all bought by a test agent of mine,
-not by a customer.** It is off by default and runs only when you start it.
+**every job traded through it was bought by a test agent of mine, not by a
+customer.** It is off by default and runs only when you start it.
 
 **How to verify it.** The agent page is public — open
 [app.virtuals.io/acp/agents/01a05b97…](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
@@ -425,9 +592,37 @@ back with its source. The buyer was
 [knos-buyer](https://app.virtuals.io/acp/agents/01a063e1-914d-775c-ad42-74cff7881245),
 an agent of mine registered to prove the path executes. It is not demand.
 
+## What breaks without the store
+
+Every capability below reads or writes the one SQLite file. The middle column
+is the command that exercises it; the right column is where it touches the
+store. `python scripts/gate.py` deletes the file and asserts the first three
+rows stop working.
+
+| Capability | Run it | Where it touches the store |
+|---|---|---|
+| A claim is taken, once, atomically | `knos claim "the parser"` | `Memory.claim_if_free` — compare-and-swap into HOT state, `src/knos/memory.py` |
+| A second agent is refused | ask any other agent about it | `mcp.search` → `_being_worked_on` reads HOT, `src/knos/mcp.py` |
+| Who stood down, and who overrode | `knos status` | COLD journal via `Memory.stood_down` / `_took_it_anyway` |
+| What you told it | `knos remember "..."` | `Memory.record` → journal, `Memory.note_thing` → WARM entity |
+| Decisions shared with the repo | `knos export` | WARM + HOT read out into `.knos/decisions.md` |
+| A brief bought over x402 | `/brief BTC` in the bot | `knos remember` after payment — the receipt exists nowhere else |
+| An ACP deliverable | a buyer funds a job | `agent/offering.ts` shells to `knos ask`, which reads the store |
+| How full it is, and what dies | `knos status` | `Memory.size_mb`, `Memory.only_here` |
+
+The claim lives in HOT because it is about *now* and is overwritten, not
+appended. Decisions live in WARM because they are named things replaced in
+place. History lives in COLD because it is append-only. That is Sibyl's
+schema used as intended rather than as a key-value bucket, and `knos status`
+prints the tiers by name.
+
 ## Tests
 
-**206 passing** (`pytest`), **9 more** for the contract (`cd contracts && forge test`).
+`pytest` runs the critical path only — claim, withhold, concurrency,
+no-network, three tools, private files — **11 tests in about 25 seconds** on an idle machine,
+because a suite you wait four minutes for is one you stop running. The whole
+suite is `pytest -m ""`: **214 tests**, about four minutes. The contract has
+**9 more**: `cd contracts && forge test`.
 
 Including the ones that would catch a lie:
 
@@ -463,14 +658,14 @@ Including the ones that would catch a lie:
   the work was done in and it is sharp. There are no embeddings at any Sibyl
   tier — the paid tier adds summarising and a learning loop, not search.
 - 5 MB per repo.
-- Three jobs have been traded through the Virtuals provider, all bought by a
+- Four jobs have been traded through the Virtuals provider, all bought by a
   test agent of mine. Nobody else has bought anything.
 
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the three edits an agent adapter takes
-and the test to copy. `pytest` runs in about four minutes against throwaway
-stores.
+and the test to copy. `pytest` runs the critical path in about 25 seconds;
+`pytest -m ""` runs all of it in about four minutes, against throwaway stores.
 
 ## Licence
 

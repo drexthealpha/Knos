@@ -16,7 +16,7 @@ import typer
 from rich.console import Console
 
 from . import answer, builtin_reader, code, errors, help as help_text, link, paths, private, sessions
-from .memory import TOPIC, Fact, Memory
+from .memory import TOPIC, Fact, Memory, StoreFull
 
 app = typer.Typer(
     add_completion=False,
@@ -339,9 +339,14 @@ def _write_configs(exe: str) -> None:
         out.print("Added to Claude Code. Its tools work in the session you are in")
         out.print("already; there is nothing to restart.")
     for name in added:
-        # One sentence, naming the app, because that is the whole remaining
-        # step and a vague "restart your agents" makes people guess which.
-        out.print(f"Added to {name}. Restart {name}.")
+        # Name the app and the exact action, because that is the whole
+        # remaining step and a vague "restart your agents" makes people
+        # guess which one and how.
+        out.print(f"Added to {name}. {RESTART.get(name, f'Restart {name}.')}")
+        out.print(
+            "    Why: it reads its MCP config at startup, and nothing in the"
+            " MCP spec lets a server join a session already running."
+        )
     if live or touched:
         out.print("")
         # "That is all" was a dead end: installed, and nothing to do with it.
@@ -353,6 +358,19 @@ def _write_configs(exe: str) -> None:
         out.print("  knos done                  give it back")
     else:
         out.print("Nothing changed.")
+
+
+# What is actually left to do, per client, in the words of that app. Claude
+# Code is absent on purpose: `claude mcp add --scope user` registers with the
+# running session, so there is nothing to restart.
+RESTART = {
+    "Cursor": "Quit Cursor and open it again (Ctrl/Cmd+Q, then reopen).",
+    "Claude Desktop": (
+        "Quit Claude Desktop and open it again - closing the window is not"
+        " enough on Windows or macOS, it keeps running in the tray."
+    ),
+    "OpenCode": "Exit OpenCode and start it again (Ctrl+C, then `opencode`).",
+}
 
 
 def _config_files() -> list[tuple[str, str]]:
@@ -412,8 +430,17 @@ def status() -> None:
         out.print(f"  {name:<10} {what:<34} [dim]{how}[/dim]")
     for line in claimed:
         out.print(f"  {'':<10} [dim]{line}[/dim]")
+    # Claims first, because that is the number a person checks when an
+    # agent says it cannot get an answer.
+    held = len(claimed)
+    out.print(
+        f"  {'':<10} {held} claim{'' if held == 1 else 's'} held right now"
+        f"{' - nothing is being withheld' if held == 0 else ''}"
+    )
     room = f"{size:.1f} MB of 5 MB used"
-    if size >= 4.0:
+    if size >= 5.0:
+        room += "  - FULL; remember and claim will refuse until you knos forget"
+    elif size >= 4.0:
         room += "  - nearly full; the oldest will stop being read"
     out.print(f"  {'':<10} {room}")
     out.print(
@@ -528,7 +555,17 @@ def claim(
         # No session id: a person is not a connection, and a claim made at
         # the terminal has to outlive the shell that made it. `knos done`
         # is how it ends, along with the thirty minutes every claim gets.
-        mem.working_on(topic, who, now)
+        try:
+            took, holder = mem.claim_if_free(topic, who, now)
+        except StoreFull:
+            out.print("Not claimed. The store is full: 5 MB, Sibyl's free tier.")
+            out.print("Nothing was written. `knos forget` frees room.")
+            raise typer.Exit(1) from None
+    if not took:
+        held_by = str((holder or {}).get("who", "another agent"))
+        out.print(f"Not claimed. {held_by} is already working on {topic}.")
+        out.print("Ask them, or wait — every claim lapses after 30 minutes.")
+        raise typer.Exit(0)
     out.print(f"Claimed {topic}. Every agent here now gets this, and nothing else:")
     out.print("")
     for line in answer.withheld(topic, who == "you").splitlines():

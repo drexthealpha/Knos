@@ -41,6 +41,7 @@ def _env(home: Path, repo: Path) -> dict:
     return env
 
 
+@pytest.mark.critical
 def test_a_fresh_session_recalls_what_another_one_learned(knos_home, repo):
     paths.remember_pointed(repo)
     env = _env(knos_home, repo)
@@ -65,6 +66,7 @@ def test_the_fresh_session_starts_empty(knos_home, repo, tmp_path):
     assert "Quokka" not in heard
 
 
+@pytest.mark.critical
 def test_the_three_tools_are_listed(knos_home, repo):
     async def run() -> list[str]:
         from mcp import ClientSession, StdioServerParameters

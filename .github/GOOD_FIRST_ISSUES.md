@@ -1,33 +1,57 @@
-# Three issues to file the moment the repo is public
+# Good first issues
 
-Paste each as a new issue. Titles and labels are given. They are real gaps,
-not make-work: each one is something Knos does not do today.
+Four things Knos does not do today, written out so you can pick one up
+without reading the whole codebase first. Each names the file to copy from
+and what the pull request needs to contain.
+
+Open an issue for the one you want before you start, so two people do not
+write the same parser — which is, as it happens, the problem this project
+exists to solve.
 
 ---
 
-## 1. `Read Gemini CLI and Codex session history`
+## 1. `Read Codex CLI session history`
 
 **Labels:** `good first issue`, `adapter`
 
-Knos reads Claude Code transcripts and Cursor's history. It does not read
-Gemini CLI or Codex, so a decision made in either is invisible to every other
-agent — which is the whole point of the tool.
+Knos reads Claude Code transcripts and Cursor's history. It reads neither
+Codex nor Gemini CLI, so a decision made in either is invisible to every
+other agent — which is the whole point of the tool. This issue is Codex
+only; Gemini CLI is issue 2, and they are separate parsers with separate
+file formats, so they are separate pull requests.
 
 `src/knos/sessions.py` has both existing readers. `read_claude` is the one to
 copy: it finds the transcript folder, filters to folders that could concern
 this repo, and yields `Turn(client, session, role, text, when, cwd)`. About
-40 lines each.
+40 lines.
 
 Needed in the PR:
-- Where that client stores history, per OS, with a link to its docs.
-- A test like `test_a_session_started_above_the_repo_is_still_found`, building
-  a throwaway history directory rather than reading yours.
+- Where Codex stores history, per OS, with a link to its docs.
+- One test like `test_a_session_started_above_the_repo_is_still_found`,
+  building a throwaway history directory rather than reading yours.
 - Confirmation the per-repo filter works, so one project's sessions never
   answer another project's questions.
+- A row changed from `no` to `yes` in the README coverage table, because that
+  table is the honest count and must stay honest.
 
 ---
 
-## 2. `knos status does not say which agents have knos wired`
+## 2. `Read Gemini CLI session history`
+
+**Labels:** `good first issue`, `adapter`
+
+The same shape as issue 1, for Gemini CLI. Separate parser, separate file
+format, separate pull request — take either one without waiting for the
+other.
+
+`read_claude` in `src/knos/sessions.py` is again the one to copy, and the
+same three things are needed in the PR: where Gemini CLI stores history per
+OS with a link to its docs, one test that builds a throwaway history
+directory, and the README coverage row flipped to `yes`.
+
+---
+
+## 3. `knos status does not say which agents have knos wired`
 
 **Labels:** `good first issue`, `docs`
 
@@ -45,7 +69,7 @@ with knos and one without, and asserts both are named correctly.
 
 ---
 
-## 3. `A claim on a path should cover the files under it`
+## 4. `A claim on a path should cover the files under it`
 
 **Labels:** `good first issue`, `enhancement`
 

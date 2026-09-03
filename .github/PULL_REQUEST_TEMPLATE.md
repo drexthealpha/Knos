@@ -8,7 +8,7 @@ pytest tests/...
 
 Checklist:
 
-- [ ] `pytest` is green
+- [ ] `pytest` is green (the critical path, ~25s), and `pytest -m ""` if you touched anything outside it
 - [ ] No new MCP tool (three is the ceiling), or a sentence on why the fourth is load-bearing
 - [ ] No network request on the read or answer path — `pytest tests/test_no_network.py` still passes
 - [ ] Nothing runs on a timer, a watcher, or at install time

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.1.3"
+version = "0.1.4"
 description = "One local memory every coding agent on the machine shares — and it knows which of them is in your code right now."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -57,3 +57,9 @@ include = ["src/knos", "tests", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `pytest` runs the critical path only, in seconds, because a suite nobody
+# waits for is a suite nobody runs. Everything with `pytest -m ""`.
+addopts = '-m critical'
+markers = [
+  "critical: claim, withhold, concurrency, no-network, three tools, private files",
+]

@@ -1,20 +1,23 @@
 {
   "name": "knos-agent",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "knos as one discoverable service: answer questions from this machine's memory.",
   "type": "module",
   "scripts": {
     "register": "tsx offering.ts",
     "typecheck": "tsc --noEmit",
-    "buy": "tsx buy.ts"
+    "buy": "tsx buy.ts",
+    "bot": "tsx bot.ts"
   },
   "dependencies": {
-    "@virtuals-protocol/acp-node-v2": "^0.1.12"
+    "@virtuals-protocol/acp-node-v2": "^0.1.12",
+    "viem": "^2.56.3",
+    "x402-fetch": "^1.2.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "@types/node": "^22.10.2"
+    "typescript": "^5.7.2"
   }
 }

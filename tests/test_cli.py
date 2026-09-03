@@ -312,16 +312,25 @@ def test_the_plugin_and_extension_manifests_agree_with_the_package():
     assert plugin["mcpServers"]["knos"]["args"] == ["-m", "knos.mcp"]
 
 
-def test_the_readme_says_knos_is_an_mcp_server_before_anything_else():
-    """A stranger scanning the first screen must not have to guess."""
+def test_the_readme_leads_with_the_problem_and_the_action():
+    """A stranger scanning the first screen must not have to guess.
+
+    This used to assert the first screen named the MCP server and its three
+    tools. It leads with the coordination problem and the pull request check
+    now, because that is the surface a maintainer adopts without installing
+    anything; the tools are still named, further down.
+    """
     from pathlib import Path
 
-    first = (Path(__file__).resolve().parents[1] / "README.md").read_text(
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(
         encoding="utf-8"
-    )[:600]
-    assert "MCP server" in first
+    )
+    first = readme[:900]
+    assert "same thing" in first, "the first screen does not state the problem"
+    assert "drexthealpha/Knos/action@" in first, "no Action for a maintainer to copy"
+    assert "pull_request" in first
     for tool in ("search", "about", "remember"):
-        assert tool in first, tool
+        assert tool in readme, tool
 
 
 def test_claude_code_is_added_through_its_own_cli_when_that_exists(
@@ -416,24 +425,55 @@ def test_opencode_config_location_follows_its_own_env_var(monkeypatch, tmp_path)
 def test_every_check_command_in_the_readme_selects_a_real_test():
     """The README tells a stranger to run these to verify each claim. A
     renamed test would leave an instruction that quietly selects nothing,
-    which is worse than not offering the check at all."""
+    which is worse than not offering the check at all.
+
+    Collection happens once, not once per command. Spawning a pytest for
+    each backtick cost eight minutes and grew every time the README offered
+    another check, which is a good way to make people stop offering them.
+    """
     import re
+    import shlex
     import subprocess
     import sys
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    commands = re.findall(r"`(pytest [^`]+)`", (root / "README.md").read_text(encoding="utf-8"))
+    commands = re.findall(
+        r"`(pytest [^`]+)`", (root / "README.md").read_text(encoding="utf-8")
+    )
     assert commands, "the README stopped offering any way to check it"
 
+    # -m "" clears the critical-path default in pyproject, so non-critical
+    # tests named in the README still show up here.
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", "-m", "", "--collect-only", "-q"],
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+    )
+    ids = [line.strip() for line in done.stdout.splitlines() if "::" in line]
+    assert ids, f"nothing collected at all: {done.stdout[-2000:]}"
+
     for command in commands:
-        done = subprocess.run(
-            [sys.executable, "-m", *command.split(), "--collect-only", "-q"],
-            cwd=str(root),
-            capture_output=True,
-            text=True,
-        )
-        picked = [line for line in done.stdout.splitlines() if "::" in line]
+        args = shlex.split(command)[1:]
+        paths = [a for a in args if a.endswith(".py")]
+        selector = ""
+        if "-k" in args:
+            selector = args[args.index("-k") + 1]
+
+        picked = ids
+        if paths:
+            wanted = {p.replace("\\", "/") for p in paths}
+            picked = [i for i in picked if i.replace("\\", "/").split("::")[0] in wanted]
+            assert picked, f"README says `{command}` but that file has no tests"
+        if selector:
+            # -k takes an expression; the names in it are what must exist.
+            words = [
+                w
+                for w in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", selector)
+                if w not in {"or", "and", "not"}
+            ]
+            picked = [i for i in picked if any(w in i for w in words)]
         assert picked, f"README says `{command}` but that selects no tests"
 
 
@@ -453,3 +493,16 @@ def test_config_paths_resolve_on_every_platform(platform, monkeypatch, tmp_path)
     where = dict(cli._config_files())
     assert sorted(where) == ["Claude Code", "Claude Desktop", "Cursor", "OpenCode"]
     assert all(w for w in where.values())
+
+
+def test_connect_names_the_exact_restart_for_each_client_that_needs_one():
+    """`knos connect` telling somebody to "restart your agents" makes them
+    guess which app and how. Each line names the app and the keystroke, and
+    Claude Code is deliberately absent because it needs no restart."""
+    from knos.cli import RESTART
+
+    assert set(RESTART) == {"Cursor", "Claude Desktop", "OpenCode"}
+    assert "Claude Code" not in RESTART
+    for name, line in RESTART.items():
+        assert name in line, name
+        assert line.endswith(".") or line.endswith(")"), line

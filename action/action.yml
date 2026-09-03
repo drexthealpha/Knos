@@ -4,11 +4,20 @@ author: "drexthealpha"
 branding:
   icon: "message-square"
   color: "gray-dark"
+inputs:
+  github-token:
+    description: "Token used to post the comment. Defaults to the job's GITHUB_TOKEN."
+    required: false
+    default: ${{ github.token }}
 runs:
   using: "composite"
   steps:
-    - name: Warn on claimed work
+    # Reads .knos/decisions.md from the checkout and the pull request's own
+    # title, body and file list from the API. It never checks out, runs or
+    # evaluates anything from the head branch, so it is safe under
+    # pull_request_target as well as pull_request.
+    - name: Note claimed work
       shell: bash
       run: python3 "${{ github.action_path }}/knos_pr_check.py"
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

@@ -117,7 +117,22 @@ function questionIn(content: string): string {
   }
 }
 
-async function main(): Promise<void> {
+/**
+ * Start answering ACP jobs and return once the provider is listening.
+ *
+ * Exported so `bot.ts` can be the single process the architecture asks for:
+ * one agent that sells over ACP, pays over x402, and talks on Telegram, all
+ * against the same store.
+ */
+/** What happened on a job, for whoever wants to say so out loud. */
+export type Sale = {
+  jobId: string;
+  question: string;
+  answer: string;
+  priceUsdc: number;
+};
+
+export async function serveJobs(onSold?: (sale: Sale) => void): Promise<void> {
   const config = settings();
 
   const seller = await AcpAgent.create({
@@ -149,6 +164,14 @@ async function main(): Promise<void> {
       console.log(`job ${session.jobId} asked: ${question}`);
       console.log(answer);
       await session.submit(answer);
+      // Tell whoever is listening. A provider nobody can see selling is
+      // indistinguishable from one that never sold anything.
+      onSold?.({
+        jobId: session.jobId,
+        question,
+        answer,
+        priceUsdc: PRICE_USDC,
+      });
       asked.delete(session.jobId);
     }
 
@@ -162,7 +185,10 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch((why) => {
-  console.error(String(why instanceof Error ? why.message : why));
-  process.exit(1);
-});
+// Run alone with `npm run register`; `bot.ts` imports serveJobs instead.
+if (process.argv[1]?.endsWith("offering.ts")) {
+  serveJobs().catch((why) => {
+    console.error(String(why instanceof Error ? why.message : why));
+    process.exit(1);
+  });
+}

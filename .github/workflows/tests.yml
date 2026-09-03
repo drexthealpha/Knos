@@ -16,4 +16,6 @@ jobs:
       # universal-ctags is optional: knos reads code structure itself without
       # it, and one job that proves the fallback works is worth more than a
       # matrix that hides it.
-      - run: pytest -q
+      # -m "" clears the critical-path default in pyproject: a person gets
+      # the fast suite, CI gets all of it.
+      - run: pytest -q -m ""

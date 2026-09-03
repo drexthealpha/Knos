@@ -16,11 +16,13 @@ and code structure, stated as they were found.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from sibyl_memory_client import (
+    DEFAULT_TENANT,
     FREE_TIER_CAP_BYTES,
     CapExceededError,
     MemoryClient,
@@ -38,6 +40,18 @@ INTERNAL = "knos:"
 # another agent. This is the only thing knos stores that expires, because
 # it is the only thing that is about now rather than about what happened.
 INTENT_HOLDS = 30  # minutes
+_CLAIM_TRIES = 5  # attempts before a claim write gives up
+_CLAIM_BACKOFF = 0.05  # seconds, multiplied by the attempt number
+
+
+class StoreFull(Exception):
+    """The 5 MB free tier is used up and this write did not happen.
+
+    Raised rather than swallowed. A claim that silently did not land is
+    worse than no claim at all: the agent believes it holds the work, every
+    other agent is told nothing, and two of them edit the same thing. The
+    caller says so in words instead.
+    """
 
 
 def _minutes_since(when: str) -> float:
@@ -308,11 +322,87 @@ class Memory:
                 self._claim_key(topic),
                 {"topic": topic, "who": who, "when": when, "session": session},
             )
-        except CapExceededError:
-            pass
+        except CapExceededError as full:
+            raise StoreFull(topic) from full
 
     def _claim_key(self, topic: str) -> str:
         return f"{INTERNAL}working_on:{topic.strip().lower()}"
+
+    def claim_if_free(
+        self, topic: str, who: str, when: str, session: str = ""
+    ) -> tuple[bool, dict[str, Any] | None]:
+        """Take the claim on `topic`, but only if nobody else holds it.
+
+        `working_on` overwrites whatever is there, which is right for a
+        caller re-stating its own claim and wrong for two agents reaching
+        for the same work in the same second: both would succeed and the
+        second would silently own it. This is the same write done as a
+        compare-and-swap, so exactly one of them wins.
+
+        The swap is one `INSERT ... ON CONFLICT DO UPDATE ... WHERE`, run
+        inside `BEGIN IMMEDIATE`, so the losing process is holding SQLite's
+        write lock or waiting on it — never interleaving with the winner.
+        The row is written only when the existing claim is absent, already
+        this caller's, unreadable, or older than INTENT_HOLDS. `julianday`
+        returns NULL on a timestamp it cannot parse, which is the same
+        "treat it as over" that `_minutes_since` gives by returning inf.
+
+        Returns (True, None) when the claim is now yours, or (False, holder)
+        when somebody else has it.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        key = self._claim_key(topic)
+        body = json.dumps({"topic": topic, "who": who, "when": when, "session": session})
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(minutes=INTENT_HOLDS)
+        ).isoformat()
+
+        # The swap writes the row itself, so Sibyl's cap gate is not in the
+        # path. Check it here instead: a claim that quietly did not land is
+        # the one failure this whole feature exists to prevent.
+        if self._size_bytes() >= FREE_TIER_CAP_BYTES:
+            raise StoreFull(topic)
+
+        for attempt in range(_CLAIM_TRIES):
+            try:
+                with self.storage.transaction() as conn:
+                    before = conn.total_changes
+                    conn.execute(
+                        "INSERT INTO state_documents (tenant_id, document_key, body)"
+                        " VALUES (?, ?, ?)"
+                        " ON CONFLICT(tenant_id, document_key) DO UPDATE SET"
+                        "   body = excluded.body,"
+                        "   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+                        " WHERE json_extract(state_documents.body, '$.topic') IS NULL"
+                        "    OR json_extract(state_documents.body, '$.who') = ?"
+                        "    OR julianday(json_extract(state_documents.body, '$.when'))"
+                        "       IS NULL"
+                        "    OR julianday(json_extract(state_documents.body, '$.when'))"
+                        "       < julianday(?)",
+                        (self._tenant, key, body, who, cutoff),
+                    )
+                    if conn.total_changes > before:
+                        return True, None
+                    row = conn.execute(
+                        "SELECT body FROM state_documents"
+                        " WHERE tenant_id = ? AND document_key = ?",
+                        (self._tenant, key),
+                    ).fetchone()
+                return False, (json.loads(row[0]) if row else None)
+            except Exception:
+                # SQLITE_BUSY past busy_timeout, or a transient write error.
+                # Sibyl opens every connection with WAL and busy_timeout=5000,
+                # so this is already the second line of defence.
+                if attempt == _CLAIM_TRIES - 1:
+                    raise
+                time.sleep(_CLAIM_BACKOFF * (attempt + 1))
+        return False, None
+
+    @property
+    def _tenant(self) -> str:
+        """The tenant Sibyl writes knos rows under."""
+        return getattr(self.client, "_tenant_id", DEFAULT_TENANT)
 
     def current_work(self) -> dict[str, Any] | None:
         """The most recent live claim, or None.

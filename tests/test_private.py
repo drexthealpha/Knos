@@ -71,6 +71,7 @@ def _seed(repo):
     return mem
 
 
+@pytest.mark.critical
 def test_an_agent_gets_no_hint_the_secret_exists(knos_home, repo):
     mem = _seed(repo)
     try:

@@ -7,7 +7,8 @@ delete something are the most welcome kind.
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-pytest                      # ~4 minutes; every test uses a throwaway store
+pytest                      # the critical path, ~25s; a throwaway store each
+pytest -m ""                # all of it, ~4 minutes; what CI runs
 pytest tests/test_no_network.py     # the one that proves it stays local
 cd contracts && forge test  # the Base contract, if you have Foundry
 ```

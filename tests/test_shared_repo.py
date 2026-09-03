@@ -12,6 +12,8 @@ work. Three sides, one file, no server.
 
 from __future__ import annotations
 
+import pytest
+
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -134,3 +136,37 @@ def test_nothing_claimed_means_nothing_to_say(knos_home, repo):
         text, _, claims = share.export(repo, mem)
     assert claims == 0
     assert check.read_claims(text) == []
+
+
+def test_the_action_reports_decisions_as_well_as_claims(knos_home, repo):
+    """The Action reads both halves of the exported file. A branch that
+    reopens a settled decision is worth a line, quieter than a collision."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "action"))
+    import knos_pr_check as check
+
+    _decide(repo, "we chose sqlite because a server is one more thing to run", "storage")
+    with Memory(repo) as mem:
+        text, _, _ = share.export(repo, mem)
+
+    found = check.read_decisions(text)
+    assert found == [("storage", "we chose sqlite because a server is one more thing to run")]
+
+    touching = check.words("rework the storage layer  src/storage.py")
+    assert [a for a, _ in found if check.words(a) & touching] == ["storage"]
+
+    unrelated = check.words("Bump pytest in CI  .github/workflows/tests.yml")
+    assert [a for a, _ in found if check.words(a) & unrelated] == []
+
+
+def test_the_action_never_returns_non_zero(knos_home, repo):
+    """It comments; it does not judge. Every path returns 0, so a memory
+    tool can never be the reason a build is red."""
+    import re
+
+    source = (Path(__file__).resolve().parents[1] / "action" / "knos_pr_check.py").read_text(
+        encoding="utf-8"
+    )
+    in_main = source.split("def main()", 1)[1].split("__main__", 1)[0]
+    returns = set(re.findall(r"^\s+return (\S+)$", in_main, re.M))
+    assert returns == {"0"}, returns
+    assert "sys.exit(main())" in source

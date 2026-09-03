@@ -6,6 +6,8 @@ about what is happening, so it stops being true on its own.
 
 from __future__ import annotations
 
+import pytest
+
 from datetime import datetime, timedelta, timezone
 
 from knos import mcp
@@ -254,6 +256,7 @@ def test_a_third_agent_asking_about_both_is_told_about_both(knos_home, repo):
         assert {y["claimed_by"] for y in mem.stand_downs()} == {"Claude Code", "Cursor"}
 
 
+@pytest.mark.critical
 def test_the_server_tells_agents_what_to_do_about_a_claim(knos_home, repo):
     """An agent has to be told the rule before it is held to it, so the
     instructions and the tool descriptions carry it."""
@@ -279,6 +282,7 @@ def test_the_server_names_its_own_version(knos_home, repo):
 # ---- enforcement: knos withholds what it knows -------------------------
 
 
+@pytest.mark.critical
 def test_a_claim_withholds_the_answer_not_just_a_warning(knos_home, repo):
     """The signal is not advice. knos declines to be the source.
 
@@ -488,3 +492,78 @@ def test_one_agent_is_enough_to_feel_the_withhold(knos_home, repo):
     with Memory(repo) as mem:
         mem.done_working()
         assert mcp._held(mem, "how does parsing work", "Claude Code", "") == ""
+
+
+# ---- concurrency: two processes, one topic -----------------------------
+
+
+@pytest.mark.critical
+def test_two_processes_claiming_the_same_topic_only_one_wins(knos_home, repo, tmp_path):
+    """The claim is a compare-and-swap, not a blind write.
+
+    Two agents reaching for the same work in the same second is the case
+    the whole product exists for. A last-writer-wins store would tell both
+    of them they had it, and the second would quietly own work the first
+    was already changing. Real processes, not threads, because the lock
+    that has to hold is SQLite's, across process boundaries.
+    """
+    import json
+    import subprocess
+    import sys
+    from concurrent.futures import ThreadPoolExecutor
+
+    script = tmp_path / "grab.py"
+    script.write_text(
+        "import json, sys\n"
+        "from datetime import datetime, timezone\n"
+        "from knos.memory import Memory\n"
+        "repo, who = sys.argv[1], sys.argv[2]\n"
+        "with Memory(repo) as mem:\n"
+        "    took, holder = mem.claim_if_free(\n"
+        "        'the parser', who, datetime.now(timezone.utc).isoformat()\n"
+        "    )\n"
+        "print(json.dumps({'who': who, 'took': took,\n"
+        "                  'holder': (holder or {}).get('who')}))\n",
+        encoding="utf-8",
+    )
+
+    def grab(who: str) -> dict:
+        done = subprocess.run(
+            [sys.executable, str(script), str(repo), who],
+            capture_output=True,
+            text=True,
+        )
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout.strip().splitlines()[-1])
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first, second = (f.result() for f in [
+            pool.submit(grab, "Claude Code"),
+            pool.submit(grab, "Cursor"),
+        ])
+
+    winners = [r for r in (first, second) if r["took"]]
+    losers = [r for r in (first, second) if not r["took"]]
+    assert len(winners) == 1, (first, second)
+    assert len(losers) == 1, (first, second)
+    # The loser is told who actually has it, not a bare refusal.
+    assert losers[0]["holder"] == winners[0]["who"], (first, second)
+
+    # And the store agrees with whoever won.
+    with Memory(repo) as mem:
+        held = [c for c in mem.claims() if c["topic"] == "the parser"]
+    assert len(held) == 1, held
+    assert held[0]["who"] == winners[0]["who"]
+
+
+@pytest.mark.critical
+def test_a_claim_lapses_so_a_crashed_agent_cannot_hold_work_forever(knos_home, repo):
+    """An agent that dies mid-change never calls `knos done`. If the claim
+    outlived the process, that work would be unaskable until a person
+    noticed. It expires on its own instead."""
+    dead = datetime.now(timezone.utc) - timedelta(minutes=INTENT_HOLDS + 1)
+    with Memory(repo) as mem:
+        mem.working_on("the parser", "a crashed agent", dead.isoformat())
+        assert mem.claims() == []
+        took, holder = mem.claim_if_free("the parser", "Cursor", _now())
+    assert took is True and holder is None

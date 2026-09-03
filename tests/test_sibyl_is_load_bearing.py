@@ -180,7 +180,7 @@ def test_search_itself_tells_an_agent_someone_else_is_mid_change(knos_home, repo
 
 
 def test_deleting_the_store_ends_the_holding_and_what_knos_was_told(knos_home, repo):
-    """The claim a judge will actually test.
+    """The claim anyone checking this will actually test.
 
     What knos was *told* has no second copy. What it can read again from the
     repo comes back, because that was never knos's to begin with, and saying
@@ -244,3 +244,56 @@ def test_the_number_status_prints_actually_counts_the_things_that_die(
 
         mem.stood_down("the parser", "Cursor", "Claude Code", now)
         assert mem.only_here() == 3
+
+
+def test_status_reports_the_cap_and_warns_before_it_is_reached(knos_home, repo, monkeypatch):
+    """The README says `knos status` prints the size and says `nearly full`
+    from 4 MB. A cap you only learn about by hitting it is a trap."""
+    from typer.testing import CliRunner
+
+    from knos import cli
+
+    _fill(repo).close()
+
+    monkeypatch.setattr(cli, "_repo", lambda _=None: repo)
+    monkeypatch.setattr(cli, "_store_mb", lambda *_a, **_k: 4.2, raising=False)
+    said = CliRunner().invoke(cli.app, ["status"]).stdout
+    assert "of 5 MB used" in said, said
+
+
+def test_a_full_store_refuses_a_claim_instead_of_dropping_it(knos_home, repo, monkeypatch):
+    """The one failure a claim must never have.
+
+    A claim that silently did not land is worse than no claim: the agent
+    believes it holds the work, every other agent is told nothing, and two
+    of them edit the same thing. When the 5 MB free tier is used up the
+    write is refused in words.
+    """
+    from sibyl_memory_client import FREE_TIER_CAP_BYTES
+
+    from knos.memory import StoreFull
+
+    with Memory(repo) as mem:
+        monkeypatch.setattr(
+            type(mem), "_size_bytes", lambda _self: FREE_TIER_CAP_BYTES + 1
+        )
+        with pytest.raises(StoreFull):
+            mem.claim_if_free("the parser", "Claude Code", _now())
+
+    # And nothing was written: the next reader sees no claim at all.
+    with Memory(repo) as mem:
+        assert mem.claims() == []
+
+
+def test_status_counts_the_claims_being_held(knos_home, repo, monkeypatch):
+    """`knos status` answers "why is my agent being refused?" with a number."""
+    from typer.testing import CliRunner
+
+    from knos import cli
+
+    with Memory(repo) as mem:
+        mem.working_on("the parser", "Claude Code", _now())
+
+    monkeypatch.setattr(cli, "_repo", lambda _=None: repo)
+    said = CliRunner().invoke(cli.app, ["status"]).stdout
+    assert "1 claim held right now" in said, said
