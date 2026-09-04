@@ -172,6 +172,7 @@ you can check each one:
 | [CoordMCP](https://glama.ai/mcp/servers/siddiquesahabaj/CoordMCP) | `pip install coordmcp` | **52** | a coordination server running | no — `lock_files` blocks edits, not reads |
 | [Memryzed](https://github.com/memryzed/memryzed) | `curl -fsSL https://memryzed.com/install.sh \| bash` | 9 | nothing — one SQLite file | not addressed |
 | [Agent Claim MCP](https://glama.ai/mcp/servers/vk0dev/agent-claim-mcp) | npx entry in your config | 3 | nothing | no — and it is not a memory system: claims only, no sessions or decisions |
+| [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail_rust) | `curl … install.sh \| bash` | **45** (plus 25 resources) | a listener on 127.0.0.1:8765 | no — reservations are advisory; its git hook blocks a *commit*, and the memory stays fully readable |
 | **Knos** | **`pip install knos && knos connect`** | **3** | **nothing** | **yes** |
 
 Knos is not the only tool with claims, and that column would be dishonest if
@@ -184,11 +185,17 @@ says: ask about work someone else claimed and there is no answer to act on,
 and the claim is bound to the connection that made it, so an agent naming
 itself the holder is still refused.
 
-Two of these are worth your attention for reasons other than that column.
+Three of these are worth your attention for reasons other than that column.
 Memryzed is local, keyless and one SQLite file — the same shape as Knos, with
 more recall tools and no coordination. Vibsync is the only one that shares a
 claim across machines, which Knos does not: a committed `.knos/decisions.md`
-is as far as a claim travels here.
+is as far as a claim travels here. **Agent Mail is the closest thing to a
+competitor on enforcement, and on one axis it goes further than Knos**: its
+pre-commit git hook refuses a commit that touches files another agent has
+reserved. Knos refuses the *answer*; Agent Mail refuses the *commit*, by which
+point the work is already done. Neither of them stops the keystroke. Both are
+worth knowing about, and Agent Mail costs a listener on port 8765 and 45 tools
+where this costs neither.
 
 Knos is not trying to out-remember these tools. It is trying to be the one
 that speaks up while two agents are in the same code, and to cost you two
@@ -681,9 +688,11 @@ prints the tiers by name.
 ## Tests
 
 `pytest` runs the critical path only — claim, withhold, concurrency,
-no-network, three tools, private files — **11 tests in about 25 seconds** on an idle machine,
+no-network, three tools, private files — **14 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **214 tests**, about four minutes. The contract has
+suite is `pytest -m ""`: **222 tests**, about four and a half minutes. Both
+counts come from `pytest --collect-only -q`, so
+`pytest --collect-only -q -m "" | tail -1` is the check. The contract has
 **9 more**: `cd contracts && forge test`.
 
 Including the ones that would catch a lie:
