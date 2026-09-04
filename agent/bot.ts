@@ -22,8 +22,26 @@
  */
 
 import { spawn } from "node:child_process";
+import dns from "node:dns";
 import { readFileSync } from "node:fs";
+import net from "node:net";
 import { resolve } from "node:path";
+
+// api.telegram.org resolves to an IPv6 address first, and on a network whose
+// IPv6 path to it is broken the TCP connect succeeds while the TLS handshake
+// never completes - small packets get through, the larger ClientHello does
+// not. Measured on one such network: IPv6 TLS timed out 4/4 at 9s, IPv4
+// succeeded 4/4 at ~500ms.
+//
+// Both lines are needed and reordering alone is not enough. Happy Eyeballs
+// dials every address family in parallel no matter what order DNS returned,
+// so it still reaches the dead path and the poll dies intermittently while
+// one-shot calls look fine. Measured across 20 requests: reordering alone
+// left 1 failure, disabling the race as well left 0 at a 243ms median.
+//
+// Delete these two lines only on a network where IPv6 to Telegram works.
+net.setDefaultAutoSelectFamily(false);
+dns.setDefaultResultOrder("ipv4first");
 
 const TELEGRAM = "https://api.telegram.org";
 
@@ -101,6 +119,73 @@ const sold: { at: string; jobId: string; question: string; usdc: number }[] = []
 /** Chats to tell when an ACP job settles. Whoever last spoke to the bot. */
 const listening = new Set<number>();
 
+/** Escape the three characters Telegram's HTML mode would read as markup. */
+function safe(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+/**
+ * A chat message, not a terminal dump.
+ *
+ * This bot is a product in its own right, and the person reading it did not
+ * ask to see a console. Replies are prose with a little bold, which is what
+ * a phone renders well; `<b>` markers written by the caller survive, and
+ * everything else is escaped so a literal `<question>` in the help text
+ * cannot be mistaken for a tag and make Telegram reject the whole message.
+ *
+ * The 4096-character limit applies to the finished payload, so the cut
+ * happens before escaping - a slice taken afterwards could halve an entity.
+ */
+function chat(said: string): { text: string; parse_mode: string } {
+  const text = safe(said.slice(0, 3500))
+    .replaceAll("&lt;b&gt;", "<b>")
+    .replaceAll("&lt;/b&gt;", "</b>");
+  return { text, parse_mode: "HTML" };
+}
+
+/**
+ * `knos status` as a sentence.
+ *
+ * The CLI prints five Sibyl tiers in aligned columns, which is right for a
+ * terminal and wrong for a phone: the columns collapse into noise, and the
+ * store's absolute path is on the operator's disk, not something to show a
+ * stranger. This keeps the three numbers that mean something to a reader
+ * and drops the rest. If the format ever changes underneath it, the raw
+ * output goes out instead of a wrong summary.
+ */
+function statusForChat(raw: string): string {
+  const find = (re: RegExp) => raw.match(re)?.[1]?.trim();
+  const claims = find(/(\d+) claims? held right now/);
+  const only = find(/(\d+) of them exist nowhere else/);
+  const size = find(/([\d.]+ MB of \d+ MB) used/);
+  const agents = find(/agent history: (.+)/);
+  if (claims === undefined || only === undefined || size === undefined) {
+    return raw;
+  }
+  const held = Number(claims);
+  const lines = [
+    "<b>Knos</b> - one memory every coding agent here shares.",
+    "",
+    held === 0
+      ? "Nothing is claimed, so nothing is being withheld."
+      : `<b>${held}</b> thing${held === 1 ? " is" : "s are"} being worked on` +
+        " right now, and withheld from every other agent.",
+    "",
+    `${only} things written down that exist nowhere else`,
+    `${size} used`,
+  ];
+  if (agents) lines.push(`Shared by: ${agents}`);
+  lines.push(
+    "",
+    `Delete the store and only those ${only} go. Everything else is` +
+      " re-read from the repo.",
+  );
+  return lines.join("\n");
+}
+
 async function tg(token: string, method: string, body: unknown): Promise<any> {
   const reply = await fetch(`${TELEGRAM}/bot${token}/${method}`, {
     method: "POST",
@@ -177,16 +262,19 @@ async function handle(
   if (text.startsWith("/start") || text.startsWith("/help")) {
     await say(
       [
-        "knos, as one agent.",
+        "<b>Knos</b>, as one agent.",
         "",
-        "/ask <question>    read this machine's memory, free",
-        "/news <topic>      buy real headlines, $0.001 on Base, then keep them",
-        "/brief <symbol>    buy a market brief, $0.01 on Base, then keep it",
-        "/status            what is claimed, and how full the store is",
-        "/jobs              ACP jobs this agent has sold, from its memory",
+        "<b>/ask</b> something - read this machine's memory, free",
+        "<b>/news</b> a topic - buy real headlines, $0.001 on Base",
+        "<b>/brief</b> a symbol - buy a market brief, $0.01 on Base",
+        "<b>/status</b> - what is claimed, and how full the store is",
+        "<b>/jobs</b> - the jobs this agent has sold",
         "",
-        "Everything answers out of one SQLite file. Work another agent has",
-        "claimed is withheld here too - the bot gets no special access.",
+        "Anything bought is kept, so nobody on this machine pays for it",
+        "twice.",
+        "",
+        "Everything answers out of one file. Work another agent has claimed",
+        "is withheld here too - the bot gets no special access.",
       ].join("\n"),
     );
     return;
@@ -208,7 +296,7 @@ async function handle(
     return;
   }
   if (text.startsWith("/status")) {
-    await say(await run(config.knos, ["status"]));
+    await say(statusForChat(await run(config.knos, ["status"])));
     return;
   }
   if (text.startsWith("/ask")) {
@@ -301,6 +389,28 @@ async function main(): Promise<void> {
           "--about",
           "acp sales",
         ]);
+        // And tell the chat. Another agent paying for an answer out of this
+        // machine's memory is the most interesting thing that happens here,
+        // and until now it only ever reached the terminal - so the person
+        // holding the phone never saw the one moment worth seeing.
+        const token = config.telegramToken;
+        if (token) {
+          for (const who of listening) {
+            void tg(token, "sendMessage", {
+              chat_id: who,
+              ...chat(
+                [
+                  `<b>Sold an answer.</b> ${sale.priceUsdc} USDC on Base.`,
+                  "",
+                  `They asked: ${sale.question}`,
+                  "",
+                  "Answered out of this machine's memory, and the sale is now"
+                    + " in it - ask /jobs.",
+                ].join("\n"),
+              ),
+            });
+          }
+        }
       }),
     )
     .then(() => console.log("ACP: answering jobs."))
@@ -336,13 +446,23 @@ async function main(): Promise<void> {
         await handle(config, message, (said) =>
           tg(token, "sendMessage", {
             chat_id: message.chat?.id,
-            text: said.slice(0, 4000),
+            ...chat(said),
           }).then(() => undefined),
         );
       }
     } catch (why) {
       // A dropped poll is not a reason to stop answering ACP jobs.
-      console.error(`poll: ${why instanceof Error ? why.message : why}`);
+      //
+      // Say what actually went wrong. Node wraps every network failure as
+      // the same "fetch failed", which is useless when it appears mid-demo:
+      // a connect timeout, a DNS failure and a dropped TLS handshake all
+      // read identically. The cause carries the code that tells them apart.
+      const cause = (why as { cause?: { code?: string } })?.cause;
+      const detail = cause?.code ? ` (${cause.code})` : "";
+      console.error(
+        `poll: ${why instanceof Error ? why.message : why}${detail}` +
+          ` - retrying in 3s, ACP is unaffected`,
+      );
       await new Promise((r) => setTimeout(r, 3000));
     }
   }

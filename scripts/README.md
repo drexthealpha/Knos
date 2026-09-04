@@ -54,8 +54,10 @@ python scripts/gate.py                      # 5. delete the store; 1, 3 and 4 al
 knos point                                  # put it back
 ```
 
-Step 2 prints `Telegram: polling.` straight away and `ACP: answering jobs.`
-a minute or two later — the chat half never waits for the marketplace. Step 4
+Step 2 prints `ACP: connecting...`, then `Telegram: polling.`, then
+`ACP: answering jobs.`. The chat half is not ready instantly: importing the
+marketplace SDK evaluates a large module graph, and that runs before the
+first poll. Wait for `Telegram: polling.` before sending anything. Step 4
 is a real job against the provider running inside that same process: the
 deliverable is whatever `knos ask` returns, and the money settles on Base.
 
