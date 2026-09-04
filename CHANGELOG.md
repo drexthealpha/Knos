@@ -24,10 +24,9 @@ checkout could not be committed in this repository, which meant nothing here
 could carry the record it asks other repositories to carry. The store and the
 keys stay ignored.
 
-The proof scripts (`scripts/withhold.py`, `scripts/gate.py`), the agent
-(`agent/bot.ts`) and the x402 payer (`src/knos/buy402.py`) are in the
-repository. The README linked all four and none of them were there, so a
-clean clone could not run what it was told to run.
+The agent (`agent/bot.ts`) and the x402 payer (`src/knos/buy402.py`) are in
+the repository. The README linked both and neither was there, so a clean
+clone could not run what it was told to run.
 
 **Use `drexthealpha/Knos/action@v0.1.4`.** `v0.1.3` was tagged before these
 Action changes and serves the older file.

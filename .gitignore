@@ -42,6 +42,3 @@ contracts/broadcast/
 contracts/lib/
 knos.mcpb
 
-# The recording aid for the demo tape. Local only - it stages a run, it is
-# not part of the product.
-scripts/demo.py

@@ -63,10 +63,10 @@ Claim, be refused, release, export. The Action then does the same thing on a
 pull request, for people who have never installed Knos.
 
 All of it runs without an editor open, as two real processes against one
-store: `python scripts/withhold.py`. The other half of the proof is
-`python scripts/gate.py`, which deletes the store and asserts that both the
-withholding and the answers die with it —
-[scripts/README.md](scripts/README.md).
+store: `pytest tests/test_intent.py -k two_processes`. The other half of the
+proof is [`tests/test_sibyl_is_load_bearing.py`](tests/test_sibyl_is_load_bearing.py),
+which takes the store away and asserts that both the withholding and the
+answers die with it.
 
 Under it is a local MCP server: three tools over stdio — `search`, `about`,
 `remember`. No HTTP server, no ports, no account, no model download, no repo
@@ -569,7 +569,8 @@ process: it answers ACP jobs, it answers `/ask` out of the same store, and
 `/brief` buys something over x402 on Base and writes what it bought back with
 `knos remember`, so the next agent on the machine gets it without paying.
 Every one of those paths reads or writes the same SQLite file —
-`python scripts/gate.py` deletes it and none of them work.
+`pytest tests/test_sibyl_is_load_bearing.py` takes it away and asserts none
+of them work.
 
 Started with no Telegram token it reads commands from the console, so the
 whole thing runs without an account:
@@ -638,8 +639,7 @@ sold. Your commits and your `CLAUDE.md` come back after a delete, because
 those are your files; none of these do.
 
 `knos status` prints that number directly — how many things exist nowhere
-else — and [`python scripts/gate.py`](scripts/gate.py) deletes the store and
-asserts all three paths stop working. The table in [What breaks without the
+else. The table in [What breaks without the
 store](#what-breaks-without-the-store) names the call site for each one, and
 [`tests/test_sibyl_is_load_bearing.py`](tests/test_sibyl_is_load_bearing.py)
 runs the test a sceptic would run first: remove the memory, watch the
@@ -649,8 +649,8 @@ product fail.
 
 Every capability below reads or writes the one SQLite file. The middle column
 is the command that exercises it; the right column is where it touches the
-store. `python scripts/gate.py` deletes the file and asserts the first three
-rows stop working.
+store. `pytest tests/test_sibyl_is_load_bearing.py` takes the file away and
+asserts the first three rows stop working.
 
 | Capability | Run it | Where it touches the store |
 |---|---|---|

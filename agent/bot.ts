@@ -12,8 +12,8 @@
  *                  withheld one come from one place.
  *
  * Every path ends in knos. Delete the store and this bot has nothing to sell,
- * nothing to answer with, and nothing to write down: `scripts/gate.py` is
- * that claim as a test.
+ * nothing to answer with, and nothing to write down:
+ * `tests/test_sibyl_is_load_bearing.py` is that claim as a test.
  *
  * Settings live outside the repo in ~/.knos-keys/bot.json. No key is ever
  * read into this file's source, and nothing here prints one.
