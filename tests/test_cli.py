@@ -527,3 +527,17 @@ def test_connect_names_the_exact_restart_for_each_client_that_needs_one():
     for name, line in RESTART.items():
         assert name in line, name
         assert line.endswith(".") or line.endswith(")"), line
+
+
+def test_every_command_has_a_help_page():
+    """`knos help export` said "No command called export" while export was
+    in the command list and worked. Help drifted from the CLI because
+    nothing compared them."""
+    from knos import help as knos_help
+    from knos.cli import app
+
+    commands = {c.name or (c.callback and c.callback.__name__) for c in app.registered_commands}
+    commands = {c.replace("_cmd", "").replace("_", "-") for c in commands if c}
+    commands -= {"help"}  # help itself is the thing being asked for
+    missing = sorted(c for c in commands if c not in knos_help.PER_COMMAND)
+    assert not missing, f"no `knos help` page for: {missing}"

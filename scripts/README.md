@@ -80,6 +80,11 @@ npm --prefix agent run bot -- /status     # one command, printed, then exit
 npm --prefix agent run bot                # stays up: ACP + Telegram, or the console
 ```
 
+On Git Bash or MSYS, prefix the one-shot form with `MSYS_NO_PATHCONV=1`, or
+write `//status`. Without it the shell rewrites `/status` into a Windows path
+before Node sees it, the command matches nothing, and you get silence rather
+than an error. PowerShell and Linux shells need neither.
+
 With no `telegramToken` it reads commands from the console instead, which is
 how you exercise the whole thing without a Telegram account. The ACP half
 starts in the background and reports when it is up — it takes a few minutes

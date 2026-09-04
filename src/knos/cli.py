@@ -211,6 +211,11 @@ def connect(
     ),
 ) -> None:
     """Let your agents use it."""
+    # The full path to this interpreter, not a bare "python3". The agent
+    # launches the server itself, with its own PATH and no shell profile, so
+    # a bare name finds a different Python than the one knos is installed
+    # into — or none at all. Absolute is what makes a venv, a pipx install
+    # and a WSL install all work without the person editing the entry.
     exe = Path(sys.executable).as_posix()
     if not show:
         # Adding it was behind a flag, and the flag was the last step people

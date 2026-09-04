@@ -9,6 +9,7 @@ invisible: not redacted, not counted, simply absent.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from mcp.server.mcpserver import Context, MCPServer
@@ -123,14 +124,20 @@ def search(
 
     who = _who(ctx)
     with Memory(repo) as mem:
-        held = _held(mem, query, who, override)
+        # Read first, then test the claim against what would have been handed
+        # over. Comparing only the wording of the question let a paraphrase
+        # walk straight through: "the risk guard" was claimed, "why do we cap
+        # trades?" shared no word with it, and the answer went out anyway. A
+        # claim has to cover its subject however the question is phrased, so
+        # the passages are read and the claim is tested against those too.
+        found = answer.ask(
+            repo, mem, query, identity=identity, limit=limit, allowed=allowed
+        )
+        held = _held(mem, [query, *(p.text for p in found)], who, override)
         if held:
             return held
         if override:
             _took_it_anyway(mem, query, who, override)
-        found = answer.ask(
-            repo, mem, query, identity=identity, limit=limit, allowed=allowed
-        )
         # Search is the tool an agent reaches for constantly, so this is
         # where knowing somebody else is mid-change actually changes what it
         # does. Read from the store already open, not a second one.
@@ -196,7 +203,9 @@ def about(thing: str, ctx: Context | None = None) -> str:
     return "\n\n".join(lines) if lines else f"Nothing known about {thing}."
 
 
-def _held(mem: Memory, thing: str, asker: str, override: str) -> str:
+def _held(
+    mem: Memory, thing: str | Iterable[str], asker: str, override: str
+) -> str:
     """What knos refuses to answer, and what would unlock it.
 
     This is the one thing knos actually controls. It cannot stop an agent
@@ -208,11 +217,13 @@ def _held(mem: Memory, thing: str, asker: str, override: str) -> str:
     needs a reason, and the reason goes in the journal under the agent's own
     name, which is what makes the rule real rather than polite.
     """
+    subjects = [thing] if isinstance(thing, str) else [t for t in thing if t]
     blocked = []
     for work in mem.claims():
         topic = str(work.get("topic", ""))
         holder = str(work.get("who", "")) or "another agent"
-        if not _same_subject(topic, thing) or _is_holder(work, asker):
+        covered = any(_same_subject(topic, subject) for subject in subjects)
+        if not covered or _is_holder(work, asker):
             continue
         if override or mem.overridden(topic, asker):
             continue

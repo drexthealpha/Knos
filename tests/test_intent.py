@@ -568,3 +568,48 @@ def test_a_claim_lapses_so_a_crashed_agent_cannot_hold_work_forever(knos_home, r
         assert mem.claims() == []
         took, holder = mem.claim_if_free("the parser", "Cursor", _now())
     assert took is True and holder is None
+
+
+def test_a_paraphrased_question_is_withheld_too(knos_home, repo):
+    """The leak this closes: a claim covered its own wording and nothing else.
+
+    "the risk guard" was claimed, an agent asked "why do we cap trades?",
+    and the answer went out in full — the question shared no word with the
+    claim, so nothing matched and the protected passage was handed over. A
+    claim has to cover its subject however the question is phrased.
+    """
+    from knos.memory import Fact
+
+    knos_paths.remember_pointed(repo)
+    with Memory(repo) as mem:
+        mem.record(
+            Fact(
+                text=(
+                    "we cap every trade at 10000 notional in risk_guard.py"
+                    " because the august incident came from an uncapped order"
+                ),
+                source="session",
+                where="Claude Code session aaaa1111 2026-08-20",
+                when="2026-08-20",
+            )
+        )
+        mem.working_on("risk guard", "Claude Code", _now())
+
+    # Not one word of the claim appears in the question.
+    held = mcp.search("why do we cap trades?")
+    assert held.startswith("Withheld."), held
+    # and the thing it protects is not in the reply at all
+    assert "10000" not in held
+    assert "uncapped order" not in held
+
+
+def test_a_claim_reaches_the_file_it_names(knos_home, repo):
+    """risk_guard.py is one token. A claim on "the risk guard" has to match
+    it anyway, or the claim misses the code it was made about."""
+    from knos import answer
+
+    assert answer.same_subject("the risk guard", "risk_guard.py holds the cap")
+    assert answer.same_subject("the parser", "src/parser/tokens.py")
+    # and splitting identifiers must not make it greedy
+    assert not answer.same_subject("guard", "safeguarding the vanguard")
+    assert not answer.same_subject("the risk guard", "the deploy window")

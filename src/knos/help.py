@@ -108,6 +108,30 @@ PER_COMMAND = {
   You can still search it yourself.
 
   Already private without asking: .env, keys, certificates, .ssh, .aws.""",
+    "remember": """  knos remember "we dropped redis because the cache was never the problem"
+
+  Tells your agents something they would otherwise have to be told again
+  in every session. It comes back as your own words, under your name.
+
+  See what there is:  knos notes      Drop one:  knos forget""",
+    "export": """  knos export
+
+  Writes .knos/decisions.md: what you have told your agents, and what is
+  claimed right now. Commit it. A fresh clone reads it on its first
+  question, so the decisions outlive this machine.
+
+  Claims in it are a snapshot. They lapse after half an hour, so a claim
+  written into the file is not one that is still held when it is read.""",
+    "share": """  knos share ~/work/api/docs alice
+
+  Lets a teammate's agent read one folder of this repo, and nothing else.
+  Everything not shared stays invisible to them, not redacted.
+
+  Stop it again:  knos unshare ~/work/api/docs alice""",
+    "unshare": """  knos unshare ~/work/api/docs alice
+
+  Stops a teammate's agent reading a folder you shared. From the next
+  question on, they are told nothing about it.""",
 }
 
 

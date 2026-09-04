@@ -30,6 +30,20 @@ recorded. It exits 0 on every path, including every failure path
 pinned rather than a branch, so what runs in your CI is a fixed file you can
 read: `git show v0.1.4:action/knos_pr_check.py`.
 
+You can watch it having run rather than take this on trust: it fired on
+[pull request #1](https://github.com/drexthealpha/Knos/pull/1) in this
+repository, matched a claim standing in `.knos/decisions.md`, named who held
+it, and exited 0. The comment is still on the thread.
+
+**The three folders, so nothing here is a surprise.** `src/knos/` is the
+product: the MCP server, the claim, the withhold, `knos export`. `action/` is
+the pull request check above. `agent/` is a Telegram bot that is also a
+registered Virtuals agent — it pays for things over x402 on Base and sells
+answers as ACP jobs, and every one of those paths reads and writes the same
+store. It is the commerce leg, not the product; Knos works with it switched
+off, which is the default. `contracts/` is one Solidity file behind
+`knos share`. Details in [The two onchain parts](#the-two-onchain-parts-and-exactly-what-they-are).
+
 `pull_request_target` works too, if you want the check on pull requests from
 forks: the Action reads only the committed `.knos/decisions.md` and the pull
 request's own title, body and file list, and never checks out or runs
@@ -128,6 +142,20 @@ something else.
 Not a warning attached to the answer — **no answer**. Your agent can still
 take it, by saying why, and the reason is written down under its name where
 you will read it. `knos done` releases it, and so does half an hour.
+
+**What a claim covers.** A claim and a question are treated as the same
+subject when they share a word stem, and identifiers are split into their
+parts first, so a claim on `the risk guard` covers `risk_guard.py`. The
+claim is matched against the passages the question would have returned as
+well as against the question itself, so rewording the question does not get
+past it — asking *why do we cap trades?* while `the risk guard` is claimed
+is withheld like the plain question. This is word matching, not meaning: a
+question that shares no stem with the claim *and* returns no passage that
+does will still be answered. Check it:
+`pytest tests/test_intent.py -k "paraphrased or reaches_the_file"`.
+
+`search` withholds. `about` is a named lookup and does not: it answers, with
+the holder's name and how long ago they started shown above the answer.
 
 Every cell below comes from that tool's own README or documentation page, so
 you can check each one:
@@ -261,59 +289,55 @@ file by the same check that hides `.env` from an agent
 implemented and tested, six tests in `tests/test_shared_repo.py`. That is a
 mechanism that works, not a network that exists.
 
-## Who else has written this problem down
+## Who this is for, and the pain they have written down
 
-Nothing here is about Knos. These are other people's open issues, in their
-own repositories, filed before they had heard of it.
+**The audience is maintainers and contributors on repositories where more
+than one coding agent touches the same tree** — a person running Claude Code
+in the terminal and Cursor in the editor, a team whose contributors point
+agents at the same issue, or a repository that accepts agent-written pull
+requests. They share one failure: two agents change the same thing, neither
+is told, and it surfaces at merge.
 
-GitHub issues created since 1 January 2026 that use the phrase `"multiple
-agents" "same file"` number **1,556**; `"two agents"` in a title or body
-returns **31,411**. Most of that is unrelated prose. The ten below are ones
-read individually: every one is open, in a repository between 1,212 and
-388,747 stars, and describes two agents working over each other.
+Nothing below is about Knos. These are their own open issues, in their own
+repositories, filed by people who have never heard of it. Every one was open
+when this was written; each link resolves in a click.
 
-| Repository | Stars | Opened | Issue |
-|---|---|---|---|
-| openai/codex | 121,228 | 2026-08-03 | [Add a cross-agent intent map to prevent overlapping edits](https://github.com/openai/codex/issues/36719) |
-| openai/codex | 121,228 | 2026-08-06 | [Automatically isolate and coordinate concurrent writes across chats and agents](https://github.com/openai/codex/issues/37226) |
-| anthropics/claude-code | 143,931 | 2026-09-03 | [Subagent exceeded scope and executed unauthorized git commit](https://github.com/anthropics/claude-code/issues/91872) |
-| openclaw/openclaw | 388,747 | 2026-08-19 | [AgentSelectionRequiredError floods logs under explicit multi-agent ownership](https://github.com/openclaw/openclaw/issues/126360) |
-| openclaw/openclaw | 388,747 | 2026-08-13 | [Shared state WAL checkpoint copies index pages over SQLite page 1](https://github.com/openclaw/openclaw/issues/123327) |
-| CopilotKit/CopilotKit | 37,180 | 2026-06-24 | [Agents mutate a shared singleton per-request; concurrent users leak system prompts](https://github.com/CopilotKit/CopilotKit/issues/5659) |
-| omnigent-ai/omnigent | 9,657 | 2026-07-28 | [Session-state writes race under concurrent updates: lost updates and orphan rows](https://github.com/omnigent-ai/omnigent/issues/3402) |
-| microsoft/winappCli | 1,212 | 2026-08-17 | [Cooperative UI turns for concurrent winapp UI agents](https://github.com/microsoft/winappCli/issues/764) |
-| microsoft/winappCli | 1,212 | 2026-08-17 | [Add worktree-isolated identity to `winapp run`](https://github.com/microsoft/winappCli/issues/763) |
-| Vexa-ai/vexa | 2,745 | 2026-09-03 | [Two stores, neither authoritative](https://github.com/Vexa-ai/vexa/issues/1510) |
+| Repository | Stars | The issue |
+|---|---|---|
+| openai/codex | 121k | [Add a cross-agent intent map to prevent overlapping edits](https://github.com/openai/codex/issues/36719) |
+| openai/codex | 121k | [Automatically isolate and coordinate concurrent writes across chats and agents](https://github.com/openai/codex/issues/37226) |
+| anthropics/claude-code | 144k | [Subagent exceeded scope and executed an unauthorized git commit](https://github.com/anthropics/claude-code/issues/91872) |
+| openclaw/openclaw | 389k | [Errors flood the logs under explicit multi-agent ownership](https://github.com/openclaw/openclaw/issues/126360) |
+| CopilotKit/CopilotKit | 37k | [Agents mutate a shared singleton per-request; concurrent users leak system prompts](https://github.com/CopilotKit/CopilotKit/issues/5659) |
+| omnigent-ai/omnigent | 9.7k | [Session-state writes race under concurrent updates: lost updates and orphan rows](https://github.com/omnigent-ai/omnigent/issues/3402) |
+| microsoft/winappCli | 1.2k | [Cooperative UI turns for concurrent UI agents](https://github.com/microsoft/winappCli/issues/764) |
+| microsoft/winappCli | 1.2k | [Add worktree-isolated identity to `winapp run`](https://github.com/microsoft/winappCli/issues/763) |
 
-Two of those — `openai/codex` #36719 and #37226 — ask for a record of what
-each agent intends to edit, so that two of them do not edit the same thing.
-That is the mechanism in [What a claim does here](#what-a-claim-does-here).
-Both are open.
+The first two are the sharpest: `openai/codex` has an open request for a
+record of what each agent intends to edit, so that two of them do not edit
+the same thing. That is the mechanism in [What a claim does
+here](#what-a-claim-does-here), asked for by somebody else, in a repository
+with 121,000 stars.
 
-Check the two counts, and that these are still open, with the GitHub CLI:
-
-```bash
-gh api -X GET search/issues -f 'q=is:issue "multiple agents" "same file" in:body created:>2026-01-01' --jq .total_count
-gh api repos/openai/codex/issues/36719 --jq .state
-```
-
-### One repository that coordinates agents through a GitHub issue today
+### One repository coordinating agents through a GitHub issue, today
 
 `tsz-org/tsz` runs its agents against a claim board:
-[issue #17314](https://github.com/tsz-org/tsz/issues/17314), **1,133
-comments** at the time of writing, the successor to
-[#15994](https://github.com/tsz-org/tsz/issues/15994), which was forked after
-it hit the 2,500-comment cap. Agents post `CLAIM`, `DONE`, `DROP` and `BLOCK`
-lines and are expected to read the board before starting. Its standing
-gotchas record the failures that follow: sessions that end on a live claim
-with no closing record, and two claims naming one defect in different words.
+[issue #17314](https://github.com/tsz-org/tsz/issues/17314), open, with 1,133
+comments. It succeeded [#15994](https://github.com/tsz-org/tsz/issues/15994),
+which was forked after hitting the 2,500-comment cap. Agents post `CLAIM`,
+`DONE`, `DROP` and `BLOCK` lines and are expected to read the thread before
+starting, and its standing notes record what goes wrong: sessions that end on
+a live claim with no closing record, and two claims naming one defect in
+different words.
 
-That is the same coordination record Knos keeps, kept by hand in a comment
-thread, at a scale where reading it before every edit stops being possible.
+That is this product's job, done by hand in a comment thread, at a size where
+reading it before every edit has stopped being possible.
 
-**No repository outside this one has adopted Knos.** The issues above are
-evidence that the problem is real and written down by other people. They are
-not evidence that anyone has adopted this answer to it.
+**What this is and is not.** It is evidence that the problem is real and that
+people with large audiences have written it down. It is not evidence that
+anybody uses Knos. **No repository outside this one has adopted it.** The
+loop is implemented and tested — six tests in `tests/test_shared_repo.py` —
+which makes it a mechanism that works, not a network that exists.
 
 ## Check any of it in under a minute
 
@@ -332,6 +356,9 @@ Nothing below is a claim. Each row is a command; run it and see.
 | Three MCP tools, no more | `pytest tests/test_recall.py -k three_tools_are_listed` |
 | Two agents cannot both hold the same claim | `pytest tests/test_intent.py -k two_processes` — two real processes race for one topic; one wins, the other is told who has it |
 | A crashed agent cannot hold work forever | `pytest tests/test_intent.py -k lapses` |
+| A reworded question is withheld too | `pytest tests/test_intent.py -k paraphrased` — `the risk guard` is claimed, the question shares no word with it, the answer is still refused |
+| A claim reaches the file it names | `pytest tests/test_intent.py -k reaches_the_file` — `the risk guard` covers `risk_guard.py`, and still does not cover `safeguarding` |
+| Every command has a `knos help` page | `pytest tests/test_cli.py -k has_a_help_page` |
 | The pull request check can never fail a build | `pytest tests/test_shared_repo.py -k never_returns_non_zero` |
 | CI comments on decisions, not only claims | `pytest tests/test_shared_repo.py -k reports_decisions` |
 | A full store refuses a claim rather than dropping it | `pytest tests/test_sibyl_is_load_bearing.py -k full_store` |
@@ -592,6 +619,32 @@ back with its source. The buyer was
 [knos-buyer](https://app.virtuals.io/acp/agents/01a063e1-914d-775c-ad42-74cff7881245),
 an agent of mine registered to prove the path executes. It is not demand.
 
+## How memory made this possible
+
+Knos is not a tool that happens to save things. Take Sibyl out and there is
+no product left to run.
+
+The claim lives in the store. That is the whole mechanism: one agent writes
+that it is changing something, and another agent whose question or whose
+answer touches that subject is handed the holder's name instead. Delete the file and there is
+nothing to read, so nothing is withheld, so two agents edit the same thing
+and neither is told. The refusal is not a rule enforced in code somewhere
+else — it *is* a read of the store, and it fails when the read fails.
+
+The same file is the only copy of three other things. What you told it with
+`knos remember`. The brief the agent paid for over x402, which was bought
+once and exists nowhere else on the machine. The ACP job it sold, and what it
+sold. Your commits and your `CLAUDE.md` come back after a delete, because
+those are your files; none of these do.
+
+`knos status` prints that number directly — how many things exist nowhere
+else — and [`python scripts/gate.py`](scripts/gate.py) deletes the store and
+asserts all three paths stop working. The table in [What breaks without the
+store](#what-breaks-without-the-store) names the call site for each one, and
+[`tests/test_sibyl_is_load_bearing.py`](tests/test_sibyl_is_load_bearing.py)
+runs the test a sceptic would run first: remove the memory, watch the
+product fail.
+
 ## What breaks without the store
 
 Every capability below reads or writes the one SQLite file. The middle column
@@ -666,6 +719,33 @@ Including the ones that would catch a lie:
 [CONTRIBUTING.md](CONTRIBUTING.md) has the three edits an agent adapter takes
 and the test to copy. `pytest` runs the critical path in about 25 seconds;
 `pytest -m ""` runs all of it in about four minutes, against throwaway stores.
+
+## Prior work
+
+Knos is not a fork and not a clone. There is no earlier repository, no
+upstream project, and no pre-existing memory layer that Sibyl was added to.
+Every line here is original work under MIT, and the commit history is the
+whole record.
+
+The core was written locally before the window and first published on
+1 September; everything after is dated in the log.
+
+**Dependencies, and what each is for.** Sibyl Memory
+(`sibyl-memory-client`) is the store, and it is load-bearing — see [What
+breaks without the store](#what-breaks-without-the-store). The MCP Python
+SDK provides the server. `universal-ctags` is optional; without it Knos
+falls back to a reader it carries itself. The Virtuals ACP SDK and the
+`x402` client are used only by `agent/`, which is the commerce leg rather
+than the product.
+
+## The name
+
+Knos is pronounced like *knows*, and the crow is the reason. Crows cache food
+in thousands of places, remember which caches they made, and remember which
+other crows were watching when they made them — then move the ones that were
+seen. Memory, and knowing who else is in your business. A group of them is
+called a murder, which is either apt or a warning, depending on how many
+agents you are running.
 
 ## Licence
 
