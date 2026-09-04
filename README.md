@@ -474,14 +474,23 @@ it. On the kernel that is 30x, and most of Knos's 900ms is Python starting up.
 of a large repo is slower than either — 3.1s median, stated above.
 
 **What agents actually read.** A study of 557 agent sessions and
-33,097 pull requests found that **60.5%** of everything coding agents do with
-documentation happens in instruction files and their own notes — `CLAUDE.md`,
-`AGENTS.md`, plans, scratch notes — against 10.6% for classical docs and 1.3%
-for API references ([Gao & Chen, 2026](https://arxiv.org/abs/2608.20195)).
-The same paper says the link between what agents consult and what they edit
-is unresolved, so this measures where agents spend their documentation time,
-not that Knos is needed. What is separately true: none of those files can say
-who is reading them, or what another agent is changing right now.
+33,097 pull requests measured that **60.5%** of everything coding agents do
+with documentation happens in instruction files and their own notes —
+`CLAUDE.md`, `AGENTS.md`, plans, scratch notes — against 10.6% for classical
+docs and 1.3% for API references
+([Gao & Chen, 2026](https://arxiv.org/abs/2608.20195)).
+
+That is a measurement of where agents spend their documentation time, and it
+is the whole of what the paper is cited for here. The paper itself states that
+the link between what agents consult and what they edit is unresolved. It does
+not study Knos, does not say a tool like Knos is needed, and is not evidence
+that anyone will adopt one.
+
+Knos is one practical response to that measured behaviour: it reads those same
+instruction files as a source and answers from them with a file and a line.
+Two other things are true on their own account, and the paper is not the reason
+to believe either — a file cannot say who is reading it, and it cannot say what
+another agent is changing right now.
 
 ## What happens when you delete the memory
 

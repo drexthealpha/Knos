@@ -1,12 +1,15 @@
 """The instruction files agents actually live in.
 
-A study of 557 agent sessions found that most of what a coding agent does
+A study of 557 agent sessions measured that most of what a coding agent does
 with documentation happens in `CLAUDE.md`, `AGENTS.md` and their own notes,
-not in classical docs. Those are also the files that go stale, get copied
-three times, and get rewritten by the agents themselves.
+rather than in classical docs (Gao & Chen, 2026, arXiv:2608.20195). That is a
+measurement of agent behaviour and nothing more: the paper does not study knos,
+and it is not a claim that knos is needed. Separately, and not on the paper's
+authority, those are the files that go stale, get copied three times, and get
+rewritten by the agents themselves.
 
-So knos reads them as a source like any other, and answers about them with a
-file and a line, which is the part a person can go and check.
+Knos reads them as a source like any other, and answers about them with a file
+and a line, which is the part a person can go and check.
 """
 
 from __future__ import annotations
