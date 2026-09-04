@@ -604,6 +604,67 @@ def export() -> None:
 
 
 @app.command()
+def guard(
+    install: bool = typer.Option(False, "--install", help="wire the hooks"),
+    uninstall: bool = typer.Option(False, "--uninstall", help="take them back out"),
+) -> None:
+    """Refuse edits to claimed work, in the clients that allow it.
+
+    Off unless you ask for it. Everything else knos does is a refusal to
+    answer, which costs an agent nothing if knos is wrong. This one stops an
+    edit, so it is never installed by `knos connect` and `--uninstall`
+    removes every trace of it.
+    """
+    from . import guard as guard_mod
+
+    if install and uninstall:
+        _stop(errors.Problem("Pick one of --install or --uninstall.", ""))
+
+    if install:
+        wrote = [
+            ("Claude Code", guard_mod.install_claude()),
+            ("Cursor", guard_mod.install_cursor()),
+            ("OpenCode", guard_mod.install_opencode()),
+        ]
+        out.print("The guard is on. Every file it touched was backed up first.")
+        out.print("")
+        for name, path in wrote:
+            out.print(f"  {name:<12} {path}")
+        out.print("")
+        out.print("An agent editing work another agent claimed is now refused, and")
+        out.print("so is an edit to a path your CLAUDE.md or AGENTS.md forbids.")
+        out.print("Claude Desktop has no hooks, so it is not in the list.")
+        out.print("Restart Cursor and OpenCode; Claude Code picks it up next run.")
+        out.print("")
+        out.print("`knos guard --uninstall` takes all of it back out.")
+        return
+
+    if uninstall:
+        gone = [
+            ("Claude Code", guard_mod.uninstall_claude()),
+            ("Cursor", guard_mod.uninstall_cursor()),
+            ("OpenCode", guard_mod.uninstall_opencode()),
+        ]
+        took = [name for name, did in gone if did]
+        if took:
+            out.print("Removed from " + ", ".join(took) + ".")
+        else:
+            out.print("Nothing to remove - the guard was not installed.")
+        return
+
+    state = guard_mod.installed()
+    if any(state.values()):
+        for name, on in state.items():
+            out.print(f"  {name:<10} {'guarding' if on else 'not wired'}")
+    else:
+        out.print("The guard is off. `knos guard --install` turns it on.")
+        out.print("")
+        out.print("It refuses an edit to work another agent has claimed, and an")
+        out.print("edit to a path this repo's own rules forbid. Claude Code,")
+        out.print("Cursor and OpenCode only - Claude Desktop has no hooks.")
+
+
+@app.command()
 def done() -> None:
     """Say you have finished what you were doing."""
     repo = _repo(None)

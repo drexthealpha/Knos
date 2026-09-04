@@ -122,6 +122,25 @@ PER_COMMAND = {
 
   Claims in it are a snapshot. They lapse after half an hour, so a claim
   written into the file is not one that is still held when it is read.""",
+    "guard": """  knos guard --install
+
+  Everything else knos does is decline to answer. This refuses the edit.
+
+  Claude Code, Cursor and OpenCode each run a hook before a tool call, and
+  a hook can say no. With the guard installed, an agent about to edit a file
+  that belongs to work another agent has claimed is stopped and told who has
+  it, and so is an agent about to edit a path this repo's own CLAUDE.md or
+  AGENTS.md forbids in words a machine can check - "never edit `src/gen/`"
+  is a pattern, "write idiomatic code" is not, and only the first kind is
+  ever read.
+
+  Off unless you run it, because a hook that refuses wrongly is worse than
+  no hook. Every file it edits is copied to <name>.before-knos first, and
+  `knos guard --uninstall` takes all of it back out. If the store cannot be
+  read, the guard allows the edit: it is a refinement on the claim, never a
+  gate in front of your own disk.
+
+  Claude Desktop is not in the list. It has no hooks.""",
     "share": """  knos share ~/work/api/docs alice
 
   Lets a teammate's agent read one folder of this repo, and nothing else.

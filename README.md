@@ -143,6 +143,13 @@ Not a warning attached to the answer — **no answer**. Your agent can still
 take it, by saying why, and the reason is written down under its name where
 you will read it. `knos done` releases it, and so does half an hour.
 
+`knos guard --install` takes that one step earlier: the same claim, consulted
+when an agent reaches for the file rather than when it asks a question, so the
+edit itself is refused. Claude Code, Cursor and OpenCode all run a hook before
+a tool call and a hook can say no. It is off until you ask for it, and
+`knos guard --uninstall` takes it back out — details in
+[What it cannot do](#what-it-cannot-do).
+
 **What a claim covers.** A claim and a question are treated as the same
 subject when they share a word stem, and identifiers are split into their
 parts first, so a claim on `the risk guard` covers `risk_guard.py`. The
@@ -690,7 +697,7 @@ prints the tiers by name.
 `pytest` runs the critical path only — claim, withhold, concurrency,
 no-network, three tools, private files — **14 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **222 tests**, about four and a half minutes. Both
+suite is `pytest -m ""`: **241 tests**, about four and a half minutes. Both
 counts come from `pytest --collect-only -q`, so
 `pytest --collect-only -q -m "" | tail -1` is the check. The contract has
 **9 more**: `cd contracts && forge test`.
@@ -710,14 +717,20 @@ Including the ones that would catch a lie:
 
 ## What it cannot do
 
-- A claim withholds what Knos knows. It cannot stop an agent editing a file —
-  nothing on your machine can, short of file permissions. If you need that,
-  use a worktree.
-- Rules are enforced **only on what Knos mediates**: recall, `remember`, and
-  the claim/withhold path. Knos cannot make a foreign runtime obey your
-  `CLAUDE.md`; it can only decline to be the source of truth, and say who to
-  ask. No MCP server can do more than this: the protocol gives a server no
-  way to intercept an edit.
+- **Without `knos guard --install`**, a claim withholds what Knos knows and
+  nothing more: it does not stop an agent editing a file. That is the honest
+  limit of MCP, which gives a server no way to see an edit, let alone refuse
+  one.
+- **With the guard**, the refusal covers the edit in Claude Code, Cursor and
+  OpenCode — and only those three, through their hook systems, which are not
+  MCP. Claude Desktop has no hooks and is not covered. Nothing covers an
+  editor a person types in themselves, or `sed`, or any tool that never asks.
+- The guard reads **only the rules a machine can check**: a prohibition with a
+  path in backticks. "Never edit `src/generated/`" is enforced; "write
+  idiomatic code" is not, and Knos does not guess at what it might mean.
+- The guard **fails open**. If the store cannot be read, the edit is allowed.
+  A broken install standing between somebody and their own repository is a
+  worse failure than the collision the guard exists to prevent.
 - Claude Code and Cursor only. No Gemini CLI or Codex history yet.
 - It does not write the answer for you, and it does not watch files. Run
   `knos point` again to catch up.
