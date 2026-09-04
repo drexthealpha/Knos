@@ -200,6 +200,34 @@ def test_the_action_reports_decisions_as_well_as_claims(knos_home, repo):
     assert [a for a, _ in found if check.words(a) & unrelated] == []
 
 
+def test_a_wall_of_claims_is_capped_the_way_decisions_are(knos_home, repo):
+    """A repository mid-sprint can hold many claims at once.
+
+    Decisions were already capped, on the grounds that a comment nobody
+    reads is worse than no comment. Claims are the louder half and were
+    not, so a busy repository would get every one of them pasted into a
+    pull request.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "action"))
+    import knos_pr_check as check
+
+    with Memory(repo) as mem:
+        for n in range(check.MAX_CLAIMS + 4):
+            mem.working_on(f"the parser stage {n}", "Claude Code", _now())
+        text, _, claims = share.export(repo, mem)
+
+    assert claims == check.MAX_CLAIMS + 4
+    found = check.read_claims(text)
+    assert len(found) == check.MAX_CLAIMS + 4
+
+    subject = check.words("rework the parser  src/parser.py")
+    matched = [(t, w) for t, w in found if check.words(t) & subject]
+    shown, spare = matched[:check.MAX_CLAIMS], len(matched) - check.MAX_CLAIMS
+
+    assert len(shown) == check.MAX_CLAIMS
+    assert spare == 4
+
+
 def test_the_action_never_returns_non_zero(knos_home, repo):
     """It comments; it does not judge. Every path returns 0, so a memory
     tool can never be the reason a build is red."""
