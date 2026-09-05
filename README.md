@@ -351,6 +351,18 @@ knos export        # writes .knos/decisions.md
 git add .knos && git commit -m "share decisions"
 ```
 
+If your repo already keeps decisions somewhere, write there instead:
+
+```bash
+knos export --to docs/decisions/0001-knos.md
+```
+
+Knos reads `.knos/decisions.md`, `DECISIONS.md`, `WORKLOG.md` and
+`docs/adr/*.md` back on the next question, so any of those close the loop
+with no configuration. Anywhere else is still written and still worth
+committing, and `knos export` tells you it will not be read back rather than
+letting you find out later.
+
 That one file is the whole mechanism. It is markdown, it diffs in review, and
 three different kinds of reader consume it without installing anything:
 
@@ -775,7 +787,7 @@ an agent of mine registered to prove the path executes. It is not demand.
 `pytest` runs the critical path only — claim, withhold, concurrency,
 no-network, three tools, private files — **14 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **241 tests**, about four and a half minutes. Both
+suite is `pytest -m ""`: **244 tests**, about four and a half minutes. Both
 counts come from `pytest --collect-only -q`, so
 `pytest --collect-only -q -m "" | tail -1` is the check. The contract has
 **9 more**: `cd contracts && forge test`.

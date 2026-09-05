@@ -122,13 +122,44 @@ def export(repo: Path, mem: Any) -> tuple[str, int, int]:
     return "\n".join(out) + "\n", len(notes), len(claims)
 
 
-def write(repo: Path, mem: Any) -> tuple[Path, int, int]:
-    """Write `.knos/decisions.md` into the repo. Returns the path and counts."""
+def write(repo: Path, mem: Any, to: str | None = None) -> tuple[Path, int, int]:
+    """Write the shared record into the repo. Returns the path and counts.
+
+    `.knos/decisions.md` is the default because a fixed name is what lets a
+    fresh clone answer from the file without being told where it is. It is
+    not a good enough reason to insist on it: a maintainer who already keeps
+    `docs/decisions.md` was being asked to carry a second convention, named
+    after this tool, at the root of their repository. `--to` writes where
+    they already write instead.
+
+    Anything `rules.DECISIONS` already matches is read back on the next
+    question with no configuration, so `docs/decisions/0001-x.md` costs
+    nothing. A path outside that set is still written, and `knos export`
+    says plainly that it will not be read back.
+    """
     text, decisions, claims = export(repo, mem)
-    target = Path(repo).resolve() / SHARED
+    root = Path(repo).resolve()
+    target = root / (to or SHARED)
+
+    # A path that climbs out of the repo is almost certainly a typo, and
+    # writing it would put the record somewhere git will never carry.
+    try:
+        target.resolve().relative_to(root)
+    except ValueError:
+        raise ValueError(f"{to} is outside the repository") from None
+
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8")
     return target, decisions, claims
+
+
+def read_back(repo: Path, target: Path) -> bool:
+    """Whether a clean clone would find this file on its first question."""
+    from fnmatch import fnmatch
+    from . import rules
+
+    rel = target.resolve().relative_to(Path(repo).resolve()).as_posix()
+    return any(fnmatch(rel, pattern) for pattern in rules.DECISIONS)
 
 
 def read_claims(text: str) -> list[tuple[str, str]]:

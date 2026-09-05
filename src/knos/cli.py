@@ -589,18 +589,38 @@ def claim(
 
 
 @app.command()
-def export() -> None:
+def export(
+    to: str = typer.Option(
+        None,
+        "--to",
+        metavar="PATH",
+        help="write somewhere else, relative to the repo",
+    ),
+) -> None:
     """Write decisions and current work into the repo, to commit."""
     from . import share
 
     repo = _repo(None)
-    with Memory(repo) as mem:
-        target, decisions, claims = share.write(repo, mem)
+    try:
+        with Memory(repo) as mem:
+            target, decisions, claims = share.write(repo, mem, to)
+    except ValueError as problem:
+        _stop(errors.Problem(str(problem), "Give a path inside the repo."))
+
     rel = target.relative_to(repo).as_posix()
     out.print(f"Wrote {rel} - {decisions} decisions, {claims} claimed.")
     out.print("")
-    out.print("Commit it. Anyone who clones this repo reads it on their first")
-    out.print("question, and CI can warn a pull request that touches claimed work.")
+    if share.read_back(repo, target):
+        out.print("Commit it. Anyone who clones this repo reads it on their first")
+        out.print("question, and CI can warn a pull request that touches claimed work.")
+    else:
+        # Said plainly rather than quietly: a file knos will not read back is
+        # still a useful file for people, and pretending otherwise is how
+        # somebody finds out weeks later that the loop never closed.
+        out.print(f"Commit it — but knos will not read {rel} back. It reads")
+        out.print("`.knos/decisions.md`, `DECISIONS.md`, `WORKLOG.md` and")
+        out.print("`docs/adr/*.md`. Anywhere else is for people, not for the")
+        out.print("next agent's first question.")
 
 
 @app.command()

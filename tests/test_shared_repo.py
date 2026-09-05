@@ -240,3 +240,49 @@ def test_the_action_never_returns_non_zero(knos_home, repo):
     returns = set(re.findall(r"^\s+return (\S+)$", in_main, re.M))
     assert returns == {"0"}, returns
     assert "sys.exit(main())" in source
+
+
+def test_export_can_write_where_the_repo_already_keeps_decisions(knos_home, repo):
+    """`--to`, because insisting on `.knos/` was the objection maintainers had.
+
+    A repo that already has `docs/decisions/` was being asked to carry a
+    second convention at its root, named after this tool. It can write into
+    the one it has instead, and that path is still read back because
+    `rules.DECISIONS` already matches it.
+    """
+    from knos import share
+    from knos.memory import Memory
+
+    with Memory(repo) as mem:
+        mem.note_thing(TOPIC, "sqlite", {"note": "chosen over postgres", "when": "2026-08-20"})
+        target, _, _ = share.write(repo, mem, "docs/decisions/0001-knos.md")
+
+    assert target == repo / "docs" / "decisions" / "0001-knos.md"
+    assert target.is_file()
+    assert share.read_back(repo, target), "a path knos already reads must read back"
+    assert not (repo / ".knos" / "decisions.md").exists()
+
+
+def test_export_says_so_when_it_will_not_read_the_file_back(knos_home, repo):
+    """A file knos cannot read back is still useful to people, and saying
+    nothing is how somebody discovers weeks later that the loop never closed."""
+    from knos import share
+    from knos.memory import Memory
+
+    with Memory(repo) as mem:
+        target, _, _ = share.write(repo, mem, "NOTES-for-humans.md")
+
+    assert target.is_file()
+    assert not share.read_back(repo, target)
+
+
+def test_export_refuses_to_write_outside_the_repo(knos_home, repo):
+    """Almost certainly a typo, and git would never carry the result."""
+    import pytest
+
+    from knos import share
+    from knos.memory import Memory
+
+    with Memory(repo) as mem:
+        with pytest.raises(ValueError):
+            share.write(repo, mem, "../escaped.md")

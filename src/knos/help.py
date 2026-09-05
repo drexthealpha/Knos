@@ -121,7 +121,15 @@ PER_COMMAND = {
   question, so the decisions outlive this machine.
 
   Claims in it are a snapshot. They lapse after half an hour, so a claim
-  written into the file is not one that is still held when it is read.""",
+  written into the file is not one that is still held when it is read.
+
+  --to writes somewhere else, if your repo already keeps decisions
+  somewhere: knos export --to docs/decisions/0001-knos.md
+
+  Knos reads .knos/decisions.md, DECISIONS.md, WORKLOG.md and docs/adr/*.md
+  back on the next question. Write anywhere else and the file is still
+  written and still worth committing, but the next agent will not find it,
+  and knos export says so rather than letting you assume otherwise.""",
     "guard": """  knos guard --install
 
   Everything else knos does is decline to answer. This refuses the edit.
