@@ -69,3 +69,43 @@ Private paths. Not redacted, not counted, absent. `.env`, `*.pem`, `id_rsa`,
 
 Work another agent has claimed is withheld too, until they finish or you
 override it with a reason. See [core-flow.md](core-flow.md).
+
+## What is left after `knos connect`
+
+For the other three, `knos connect` writes the config and takes a backup, and
+then there is exactly one thing left to do:
+
+| Client | What is left | Why |
+|---|---|---|
+| Claude Code | nothing | `claude mcp add --scope user` registers with the running session |
+| Cursor | **Quit Cursor and open it again** (Ctrl/Cmd+Q, then reopen) | reads `~/.cursor/mcp.json` at startup; no command registers a server with a running instance |
+| Claude Desktop | **Quit and reopen it** — closing the window is not enough, it keeps running in the tray | same |
+| OpenCode | **Exit and start it again** (Ctrl+C, then `opencode`) | `opencode mcp add` exists but is interactive, and its docs describe no reload for a running session |
+
+Every file it touches is copied to `<name>.before-knos` first, and
+`knos connect` prints the restart line for each client that needs one —
+quit the app and start it again, because nothing in the MCP spec lets a
+server register itself with a session that is already running.
+
+<details>
+<summary>Other ways in — Claude Desktop extension, Claude Code plugin, or by hand</summary>
+
+**Claude Desktop:** download `knos.mcpb` from
+[Releases](https://github.com/drexthealpha/Knos/releases) and double-click it.
+
+**Claude Code plugin:**
+
+```
+/plugin marketplace add drexthealpha/Knos
+/plugin install knos@knos
+```
+
+**By hand** — `knos connect --print` shows the JSON, or add it yourself:
+
+```json
+{ "mcpServers": { "knos": { "command": "python", "args": ["-m", "knos.mcp"] } } }
+```
+
+Every path runs the same `python -m knos.mcp`, so `pip install knos` comes
+first whichever you pick.
+</details>

@@ -336,20 +336,31 @@ def test_the_plugin_and_extension_manifests_agree_with_the_package():
 def test_the_readme_leads_with_the_problem_and_the_action():
     """A stranger scanning the first screen must not have to guess.
 
-    This used to assert the first screen named the MCP server and its three
-    tools. It leads with the coordination problem and the pull request check
-    now, because that is the surface a maintainer adopts without installing
-    anything; the tools are still named, further down.
+    This has been rewritten twice, and both rewrites were about who is
+    reading. It first asserted the MCP server and its three tools were named
+    on the first screen; then that the pull request check was, because that
+    is the surface a maintainer adopts without installing anything.
+
+    It now asserts the first screen says where the memory is read and written.
+    A reader who wants to know whether this is a real memory or a wrapper
+    should not have to scroll five thousand words to find out, and the answer
+    is one file and a named call site. The Action and the three tools are
+    still here, further down, and this checks they did not get lost in the
+    move.
     """
     from pathlib import Path
 
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(
         encoding="utf-8"
     )
-    first = readme[:900]
+    first = readme[:1800]
     assert "same thing" in first, "the first screen does not state the problem"
-    assert "drexthealpha/Knos/action@" in first, "no Action for a maintainer to copy"
-    assert "pull_request" in first
+    assert "memory.db" in first, "the first screen does not say where memory lives"
+    assert "test_sibyl_is_load_bearing" in first, "no deletion test on the first screen"
+
+    # Moved, not dropped.
+    assert "drexthealpha/Knos/action@" in readme, "no Action for a maintainer to copy"
+    assert "pull_request" in readme
     for tool in ("search", "about", "remember"):
         assert tool in readme, tool
 
