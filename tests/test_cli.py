@@ -348,17 +348,16 @@ def test_the_plugin_and_extension_manifests_agree_with_the_package():
 def test_the_readme_leads_with_the_problem_and_the_action():
     """A stranger scanning the first screen must not have to guess.
 
-    This has been rewritten twice, and both rewrites were about who is
-    reading. It first asserted the MCP server and its three tools were named
-    on the first screen; then that the pull request check was, because that
-    is the surface a maintainer adopts without installing anything.
+    Rewritten three times now, and every rewrite was about who is reading.
+    It first asserted the MCP server and its three tools were on the first
+    screen; then the pull request check; then where the memory is written.
 
-    It now asserts the first screen says where the memory is read and written.
-    A reader who wants to know whether this is a real memory or a wrapper
-    should not have to scroll five thousand words to find out, and the answer
-    is one file and a named call site. The Action and the three tools are
-    still here, further down, and this checks they did not get lost in the
-    move.
+    It now asserts the first screen leads with the thing that costs a reader
+    nothing: the Action, copyable, with no install in front of it. Almost
+    nobody wants to run a server to find out whether a tool is worth running,
+    so the server is no longer what greets them. What moved is checked below
+    rather than dropped - the store, the deletion test and the three tools
+    are all still in the file.
     """
     from pathlib import Path
 
@@ -367,11 +366,16 @@ def test_the_readme_leads_with_the_problem_and_the_action():
     )
     first = readme[:1800]
     assert "same thing" in first, "the first screen does not state the problem"
-    assert "memory.db" in first, "the first screen does not say where memory lives"
-    assert "test_sibyl_is_load_bearing" in first, "no deletion test on the first screen"
+    assert "drexthealpha/Knos/action@" in first, "the Action is not on the first screen"
+    assert "knos-claims.yml" in first, "no workflow a maintainer can copy"
+    assert "install" in first.lower(), "the first screen does not address the cost"
+
+    # The embeddable core is the other zero-server path, and is named early.
+    assert "knos.core" in readme[:4000], "the importable core is not near the top"
 
     # Moved, not dropped.
-    assert "drexthealpha/Knos/action@" in readme, "no Action for a maintainer to copy"
+    assert "memory.db" in readme, "the store is no longer named anywhere"
+    assert "test_sibyl_is_load_bearing" in readme, "the deletion test is gone"
     assert "pull_request" in readme
     for tool in ("search", "about", "remember"):
         assert tool in readme, tool

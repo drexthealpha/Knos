@@ -1,5 +1,11 @@
 # Let your agents use it
 
+This is the **secondary** path. If you only want the coordination in a repo,
+add [the Action](../README.md#start-here-the-action) instead: it needs nothing
+installed anywhere. If you want the behaviour inside a tool you are building,
+import [`knos.core`](../src/knos/core.py). What follows is worth doing when
+you personally run several agents on one tree and want them refused live.
+
 Knos runs on your machine and your agent starts it. There is nothing to host,
 no account, and no key.
 

@@ -4,9 +4,81 @@
 
 [![Knos MCP server](https://glama.ai/mcp/servers/drexthealpha/Knos/badges/score.svg)](https://glama.ai/mcp/servers/drexthealpha/Knos)
 
-**Two contributors, or two agents, changing the same thing without knowing
-it. Knos is the record of who is on what, and it refuses to answer about
-work somebody else has already taken.**
+**Coordination for repos with more than one agent in them. Two contributors,
+or two agents, change the same thing without knowing it. Knos is the record
+of who is on what — and it refuses to answer about work somebody else has
+already taken.**
+
+Take it in whichever shape you already wanted. **Nothing here asks you to
+install Knos to try it.**
+
+## Start here: the Action
+
+Zero install for the repo. One file, no dependency added to your project, and
+it never fails a build:
+
+```yaml
+# .github/workflows/knos-claims.yml
+on: [pull_request]
+permissions: { contents: read, pull-requests: write }
+jobs:
+  claims:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: drexthealpha/Knos/action@v0.1.5
+```
+
+That is the whole of it. It reads `.knos/decisions.md` — an ordinary file
+committed to your repo — and comments on a pull request when the branch
+touches work somebody has claimed, or a decision already recorded. Nothing is
+blocked and nothing is required: **it exits 0 on every path, including every
+failure path and every unexpected one**
+([`tests/test_shared_repo.py -k never_returns_non_zero`](tests/test_shared_repo.py)).
+
+The tag is pinned rather than a branch, so what runs in your CI is a fixed
+file you can read first: `git show v0.1.5:action/knos_pr_check.py`. It is
+standard library only. You can watch it having run rather than take this on
+trust — it fired on
+[pull request #1](https://github.com/drexthealpha/Knos/pull/1) here, matched a
+standing claim, named who held it, and exited 0.
+
+**Agents are optional.** The file can be written by hand. If nobody on the
+repo ever runs an agent, the Action still tells two humans they are about to
+land the same change twice.
+
+## Or embed it: the claim, as a library
+
+If you would rather have the behaviour inside the tool you already ship than
+run anything of ours, import it. No MCP, no CLI, no daemon:
+
+```python
+from knos.core import Claims
+
+with Claims(repo=".", who="my-agent") as claims:
+    taken, holder = claims.take("the risk guard")
+    if not taken:
+        return claims.withheld("the risk guard")   # the refusal, in words
+```
+
+`take` is the compare-and-swap that lets exactly one of two agents win the
+same work in the same second. The hold is bound to the session you pass, not
+to the name — an agent that calls itself the holder is still refused. Claims
+lapse on their own after 30 minutes, so a crashed agent cannot hold work for
+ever. [`src/knos/core.py`](src/knos/core.py),
+[`tests/test_core.py`](tests/test_core.py).
+
+**This is the preferred way to adopt Knos.** Native inside your tool, or the
+Action in your repo. The standalone server below is the third option, not the
+first one.
+
+## Or run it as a server, if you already run several agents
+
+`pip install knos && knos connect` puts it in front of Claude Code, Claude
+Desktop, Cursor and OpenCode as an MCP server, and `knos guard --install`
+makes the refusal reach the edit itself. That is the power-user path and it is
+documented in full further down; it is worth it when you personally have three
+agents open on one tree, and overkill when you do not.
 
 ## Read this first
 
@@ -127,8 +199,12 @@ none of it works.
 
 ### The whole loop, in under a minute
 
+This is the server path, for when you already run several agents yourself.
+The repo-side loop needs none of it — the Action reads a committed file and
+nothing here has to be installed for that to work.
+
 ```bash
-pip install knos && knos connect     # once, per machine
+pip install knos && knos connect     # once, per machine, only if you want the server
 knos claim "the parser"              # agent A takes it
 # ask any other agent about the parser — it is refused, and told who has it
 knos done                            # give it back
@@ -136,7 +212,8 @@ knos export                          # writes .knos/decisions.md, commit it
 ```
 
 Claim, be refused, release, export. The Action then does the same thing on a
-pull request, for people who have never installed Knos.
+pull request, for the people who never installed anything — which is most of
+them, and is the point.
 
 All of it runs without an editor open, as two real processes against one
 store: `pytest tests/test_intent.py -k two_processes`. The other half of the
@@ -225,7 +302,7 @@ you can check each one:
 | [Memryzed](https://github.com/memryzed/memryzed) | `curl -fsSL https://memryzed.com/install.sh \| bash` | 9 | nothing — one SQLite file | not addressed |
 | [Agent Claim MCP](https://glama.ai/mcp/servers/vk0dev/agent-claim-mcp) | npx entry in your config | 3 | nothing | no — and it is not a memory system: claims only, no sessions or decisions |
 | [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail_rust) | `curl … install.sh \| bash` | **45** (plus 25 resources) | a listener on 127.0.0.1:8765 | no — reservations are advisory; its git hook blocks a *commit*, and the memory stays fully readable |
-| **Knos** | **`pip install knos && knos connect`** | **3** | **nothing** | **yes** |
+| **Knos** | **a workflow file, or `from knos.core import Claims`; the server is optional** | **3** | **nothing** | **yes** |
 
 Knos is not the only tool with claims, and that column would be dishonest if
 it implied so. Vibsync, CoordMCP, AgentRoom and Agent Claim MCP all let an
@@ -399,38 +476,27 @@ implemented and tested, six tests in `tests/test_shared_repo.py`. That is a
 mechanism that works, not a network that exists.
 
 
-## The pull request check
+## The pull request check, in detail
 
-Everything above is local. This is the half that needs nothing installed —
-one file in your repo, and it never fails a build:
+The workflow is [at the top](#start-here-the-action); this is what it does
+once it is there.
 
+`.knos/decisions.md` is the whole interface. A maintainer writes it by hand or
+generates it with `knos export`, commits it, and the Action reads that file
+and nothing else from your side. Claims lapse after 30 minutes, so a stale
+file simply stops matching rather than warning about work that finished
+yesterday.
 
-```yaml
-# .github/workflows/knos-claims.yml
-on: [pull_request]
-permissions: { contents: read, pull-requests: write }
-jobs:
-  claims:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: drexthealpha/Knos/action@v0.1.5
-```
-
-It reads `.knos/decisions.md` — a file a maintainer commits — and comments
-when a branch touches work somebody has claimed or a decision already
-recorded. It exits 0 on every path, including every failure path
-(`pytest tests/test_shared_repo.py -k never_returns_non_zero`). The tag is
-pinned rather than a branch, so what runs in your CI is a fixed file you can
-read: `git show v0.1.5:action/knos_pr_check.py`.
-
-You can watch it having run rather than take this on trust: it fired on
-[pull request #1](https://github.com/drexthealpha/Knos/pull/1) in this
-repository, matched a claim standing in `.knos/decisions.md`, named who held
-it, and exited 0. The comment is still on the thread.
+**The order of adoption that costs least.** Add the Action. Commit a
+`.knos/decisions.md` with the two or three things currently in flight. That is
+the whole first run, and it works whether or not anybody on the repo uses an
+agent. Agents that want to read and write the same file can connect later, or
+never.
 
 **The three folders, so nothing here is a surprise.** `src/knos/` is the
-product: the MCP server, the claim, the withhold, `knos export`. `action/` is
+product: the claim, the withhold, `knos export`, and
+[`core.py`](src/knos/core.py), the importable version of the claim for tools
+that would rather embed it than run a server. `action/` is
 the pull request check above. `agent/` is a Telegram bot that is also a
 registered Virtuals agent — it pays for things over x402 on Base and sells
 answers as ACP jobs, and every one of those paths reads and writes the same
@@ -520,8 +586,10 @@ than leaving a dead instruction here
 | `knos status` says how many claims are held | `pytest tests/test_sibyl_is_load_bearing.py -k counts_the_claims` |
 | `knos connect` names the exact restart per client | `pytest tests/test_cli.py -k exact_restart` |
 
-Cost: `pip install knos`. No account, no key, no server, no model
-download, no network request, and a 5 MB free-tier cap per repo.
+Cost, if you take the Action: a workflow file, and nothing installed
+anywhere. Cost, if you embed the core: one import. Cost, if you run the
+server: `pip install knos`. No account, no key, no model download, no network
+request on any of those paths, and a 5 MB free-tier cap per repo.
 
 ## Everything else, briefly
 
@@ -798,9 +866,9 @@ an agent of mine registered to prove the path executes. It is not demand.
 ## Tests
 
 `pytest` runs the critical path only — claim, withhold, concurrency,
-no-network, three tools, private files — **14 tests in well under a minute**,
+no-network, three tools, private files — **16 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **252 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **259 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so

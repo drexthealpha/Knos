@@ -232,4 +232,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Every path through main() already returns 0, but "always" has to hold
+    # for the paths nobody thought of too. A repository adopting this is
+    # trusting it not to redden their build, and an unhandled exception here
+    # would break that promise on their pull request rather than ours.
+    try:
+        sys.exit(main())
+    except Exception as why:  # noqa: BLE001 - never fail somebody else's build
+        print(f"knos: check did not run ({type(why).__name__}: {why}).")
+        sys.exit(0)
