@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.6
 
 The bot never answers with silence. Anything it does not recognise - a typo'd
 command, or a person saying hello - now gets a sentence and the list of what

@@ -1,7 +1,7 @@
 {
   "name": "knos-agent",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "knos as one discoverable service: answer questions from this machine's memory.",
   "type": "module",
   "scripts": {

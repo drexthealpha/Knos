@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "knos",
   "display_name": "Knos",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "One local memory every coding agent on the machine shares — and it knows which of them is in your code right now.",
   "long_description": "Knos reads the transcripts your coding agents already leave on disk, plus your commits, your CLAUDE.md and AGENTS.md, and your code structure, and hands any of them back to any of the others. Every answer names its source. Secrets are private without being asked. When one agent is mid-change, Knos withholds what it knows from the others rather than letting two of them edit the same thing at once. Nothing leaves your machine: there is no account, no server and no network request.",
   "author": {

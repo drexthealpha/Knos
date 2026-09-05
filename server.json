@@ -3,7 +3,7 @@
   "name": "io.github.drexthealpha/knos",
   "title": "Knos",
   "description": "One local memory every coding agent on this machine shares, with claims so they don't collide.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "repository": {
     "url": "https://github.com/drexthealpha/Knos",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "knos",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "transport": {
         "type": "stdio"
       }
