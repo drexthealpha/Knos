@@ -377,21 +377,10 @@ three different kinds of reader consume it without installing anything:
 - **CI reads it on a pull request** and says so when the branch touches work
   somebody has claimed (`pytest tests/test_shared_repo.py -k ci_warns`).
 
-```yaml
-# .github/workflows/knos-claims.yml
-on: pull_request
-permissions: { contents: read, pull-requests: write }
-jobs:
-  claims:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: drexthealpha/Knos/action@v0.1.4
-```
-
 The comment is a heads-up, never a failure — `action/knos_pr_check.py`
 exits 0 on every path, including when it finds a conflict and when it
-crashes.
+crashes. The workflow is eight lines:
+[The pull request check](#the-pull-request-check).
 
 **It runs both ways, and that is the part that compounds.** The teammate who
 cloned runs `knos export` too. Their decisions and their claims land in the
@@ -425,7 +414,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: drexthealpha/Knos/action@v0.1.4
+      - uses: drexthealpha/Knos/action@v0.1.5
 ```
 
 It reads `.knos/decisions.md` — a file a maintainer commits — and comments
@@ -433,7 +422,7 @@ when a branch touches work somebody has claimed or a decision already
 recorded. It exits 0 on every path, including every failure path
 (`pytest tests/test_shared_repo.py -k never_returns_non_zero`). The tag is
 pinned rather than a branch, so what runs in your CI is a fixed file you can
-read: `git show v0.1.4:action/knos_pr_check.py`.
+read: `git show v0.1.5:action/knos_pr_check.py`.
 
 You can watch it having run rather than take this on trust: it fired on
 [pull request #1](https://github.com/drexthealpha/Knos/pull/1) in this
@@ -505,18 +494,31 @@ which makes it a mechanism that works, not a network that exists.
 
 ## Check any of it in under a minute
 
-Nothing here is a claim. Every row of
-[docs/check.md](docs/check.md) is a command you can run — twenty of them,
-each one a claim in this README with the test that proves it. The five
-worth running first:
+Nothing here is a claim. Each row is a command; run it and see. The
+commands are checked by a test, so a renamed test fails the suite rather
+than leaving a dead instruction here
+(`pytest tests/test_cli.py -k every_check_command`).
 
 | What | How to check it yourself |
 |---|---|
-| A claim changes what other agents are told | `knos claim "the parser"`, then ask any agent about the parser |
-| The guard refuses the edit, not only the answer | `pytest tests/test_guard.py -k refused` |
-| No network connection, ever | `pytest tests/test_no_network.py` |
-| What dies when you delete the store | `pytest tests/test_sibyl_is_load_bearing.py` |
-| Two agents cannot both hold one claim | `pytest tests/test_intent.py -k two_processes` |
+| A claim changes what other agents are told | `knos claim "the parser"` — it prints the exact refusal your agents now get. `knos done` gives it back. |
+| One agent's claim reaches another agent's **live** session, with no restart or cache | `pytest tests/test_no_network.py -k live_session` — one process claims, a second sees it on its next call |
+| No network connection, ever | `pytest tests/test_no_network.py` — breaks `socket.connect`, `bind`, `create_connection`, `getaddrinfo`, then reads a repo, answers, writes, claims, withholds, overrides. A third test breaks the guard on purpose, so it cannot pass by doing nothing |
+| Decisions you keep in the repo are read | `pytest tests/test_rules.py -k decisions_kept_beside` — an ADR answers with `docs/adr/0001-use-sqlite.md:3` |
+| Every worktree of a repo is one memory | `pytest tests/test_worktrees.py` |
+| A big repo is never half-read | `pytest tests/test_worktrees.py -k runs_out_of_time` — both readers, forced to time out, leave nothing behind |
+| Secrets are invisible, not redacted | `pytest tests/test_private.py` — the search layer is asked directly, with an agent's identity |
+| Three MCP tools, no more | `pytest tests/test_recall.py -k three_tools_are_listed` |
+| Two agents cannot both hold the same claim | `pytest tests/test_intent.py -k two_processes` — two real processes race for one topic; one wins, the other is told who has it |
+| A crashed agent cannot hold work forever | `pytest tests/test_intent.py -k lapses` |
+| A reworded question is withheld too | `pytest tests/test_intent.py -k paraphrased` — `the risk guard` is claimed, the question shares no word with it, the answer is still refused |
+| A claim reaches the file it names | `pytest tests/test_intent.py -k reaches_the_file` — `the risk guard` covers `risk_guard.py`, and still does not cover `safeguarding` |
+| Every command has a `knos help` page | `pytest tests/test_cli.py -k has_a_help_page` |
+| The pull request check can never fail a build | `pytest tests/test_shared_repo.py -k never_returns_non_zero` |
+| CI comments on decisions, not only claims | `pytest tests/test_shared_repo.py -k reports_decisions` |
+| A full store refuses a claim rather than dropping it | `pytest tests/test_sibyl_is_load_bearing.py -k full_store` |
+| `knos status` says how many claims are held | `pytest tests/test_sibyl_is_load_bearing.py -k counts_the_claims` |
+| `knos connect` names the exact restart per client | `pytest tests/test_cli.py -k exact_restart` |
 
 Cost: `pip install knos`. No account, no key, no server, no model
 download, no network request, and a 5 MB free-tier cap per repo.
@@ -787,7 +789,8 @@ an agent of mine registered to prove the path executes. It is not demand.
 `pytest` runs the critical path only — claim, withhold, concurrency,
 no-network, three tools, private files — **14 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **244 tests**, about four and a half minutes. Both
+suite is `pytest -m ""`: **244 tests**, four to eight minutes depending on
+what else the machine is doing. Both
 counts come from `pytest --collect-only -q`, so
 `pytest --collect-only -q -m "" | tail -1` is the check. The contract has
 **9 more**: `cd contracts && forge test`.

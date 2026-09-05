@@ -1,7 +1,7 @@
 {
   "name": "knos",
   "description": "Shared memory and live claim/withhold across every coding agent on this machine.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": { "name": "drexthealpha" },
   "mcpServers": {
     "knos": {

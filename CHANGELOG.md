@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.5
+
+`knos guard --install` refuses the edit, not only the answer. Claude Code,
+Cursor and OpenCode each run a hook before a tool call, and a hook can say no,
+so an agent about to edit work another agent has claimed is stopped and told
+who holds it. It also reads the rules this repo already gave knos and enforces
+the ones a machine can check — a prohibition with a path in backticks. Off
+until you run it, and `knos guard --uninstall` takes it back out. It fails
+open: an unreadable store allows the edit.
+
+`knos export --to <path>` writes the shared record where a repo already keeps
+its decisions, instead of insisting on `.knos/decisions.md`. Anything knos
+already reads back is still read back, and `knos export` says so plainly when
+the path you chose is not.
+
+The Claude Desktop extension now uses the `uv` runtime, so installing it no
+longer asks you to find and paste a Python path.
+
 ## 0.1.4
 
 Claims are a compare-and-swap: two agents reaching for the same work in the

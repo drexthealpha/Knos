@@ -1,10 +1,10 @@
 {
-  "manifest_version": "0.3",
+  "manifest_version": "0.4",
   "name": "knos",
   "display_name": "Knos",
-  "version": "0.1.4",
-  "description": "One local memory every coding agent on the machine shares \u2014 and it knows which of them is in your code right now.",
-  "long_description": "Knos reads the transcripts your coding agents already leave on disk, plus your commits and your code structure, and hands any of them back to any of the others. Every answer names its source. Secrets are private without being asked. When one agent is mid-change, Knos withholds what it knows from the others rather than letting two of them edit the same thing at once. Nothing leaves your machine.",
+  "version": "0.1.5",
+  "description": "One local memory every coding agent on the machine shares — and it knows which of them is in your code right now.",
+  "long_description": "Knos reads the transcripts your coding agents already leave on disk, plus your commits, your CLAUDE.md and AGENTS.md, and your code structure, and hands any of them back to any of the others. Every answer names its source. Secrets are private without being asked. When one agent is mid-change, Knos withholds what it knows from the others rather than letting two of them edit the same thing at once. Nothing leaves your machine: there is no account, no server and no network request.",
   "author": {
     "name": "drexthealpha",
     "email": "zulibro1999@gmail.com",
@@ -21,24 +21,17 @@
     "coordination"
   ],
   "server": {
-    "type": "python",
-    "entry_point": "server/main.py",
+    "type": "uv",
+    "entry_point": "main.py",
     "mcp_config": {
-      "command": "${user_config.python_path}",
+      "command": "uv",
       "args": [
-        "-m",
-        "knos.mcp"
+        "run",
+        "--directory",
+        "${__dirname}",
+        "main.py"
       ],
       "env": {}
-    }
-  },
-  "user_config": {
-    "python_path": {
-      "type": "string",
-      "title": "Python with knos installed",
-      "description": "The Python that has knos installed. Run 'knos connect' in a terminal and copy the path it prints. Plain 'python' works if you installed knos globally.",
-      "default": "python",
-      "required": true
     }
   },
   "tools": [

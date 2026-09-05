@@ -313,10 +313,22 @@ def test_the_plugin_and_extension_manifests_agree_with_the_package():
         re.M,
     ).group(1)
 
-    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (root / "extension" / "manifest.json").read_text(encoding="utf-8")
+    )
     assert manifest["version"] == version
-    assert manifest["server"]["mcp_config"]["args"] == ["-m", "knos.mcp"]
     assert [t["name"] for t in manifest["tools"]] == ["search", "about", "remember"]
+
+    # The extension resolves knos itself, with uv, from the pyproject beside
+    # its entry point. That is what makes it one click, so the three things
+    # that carry it are asserted rather than assumed: the runtime, the pinned
+    # dependency, and the absence of the user_config that used to ask a
+    # person to find and paste a Python path.
+    assert manifest["manifest_version"] == "0.4"
+    assert manifest["server"]["type"] == "uv"
+    assert "user_config" not in manifest
+    deps = (root / "extension" / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'"knos=={version}"' in deps, "the extension must pin this version"
 
     market = json.loads(
         (root / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")

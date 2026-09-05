@@ -16,22 +16,29 @@ for doing it by hand, one agent at a time.
 ## Claude Desktop, one click
 
 Claude Desktop installs local servers as extensions, so there is no JSON to
-edit.
+edit and nothing to paste.
 
-1. `pip install knos`, if you have not already.
-2. Download `knos.mcpb` from the
+1. Download `knos.mcpb` from the
    [latest release](https://github.com/drexthealpha/Knos/releases), or build it
-   yourself with `npm install -g @anthropic-ai/mcpb` and then `mcpb pack .`
-   in a clone of this repo.
-3. In Claude Desktop: **Settings → Extensions → Advanced settings → Install
-   Extension…**, and choose the `.mcpb` file.
-4. When it asks for **Python with knos installed**, paste the path that
-   `knos connect` prints. Plain `python` is right if you installed Knos
-   globally rather than into a virtual environment.
+   yourself: `npx @anthropic-ai/mcpb pack extension knos.mcpb` in a clone.
+2. In Claude Desktop: **Settings → Extensions → Advanced settings → Install
+   Extension…**, and choose the file.
 
-The extension carries no copy of Knos. It runs the one you installed with
-pip, so there is one memory on this machine rather than a second one hiding
-inside an extension bundle.
+That is the whole install. The bundle declares `knos` as a dependency in the
+`pyproject.toml` beside its entry point, and Claude Desktop resolves it with
+`uv`, so you are not asked for a Python path and you do not have to
+`pip install knos` first.
+
+**What is actually in the bundle**, because "one click" is a claim you should
+be able to check: three files — `manifest.json`, `pyproject.toml` and
+`main.py`, about 2 kB in total. No copy of Knos, no compiled dependency, and
+`main.py` hands straight over to the same `knos.mcp` that `pip install` and
+the Claude Code plugin both run. One memory on this machine, not a second one
+hiding inside an extension.
+
+You need `uv` on your machine for this path; if you would rather not have it,
+`pip install knos && knos connect` writes the Claude Desktop config instead
+and is one restart away.
 
 ## Claude Code
 
@@ -91,7 +98,10 @@ server register itself with a session that is already running.
 <summary>Other ways in — Claude Desktop extension, Claude Code plugin, or by hand</summary>
 
 **Claude Desktop:** download `knos.mcpb` from
-[Releases](https://github.com/drexthealpha/Knos/releases) and double-click it.
+[Releases](https://github.com/drexthealpha/Knos/releases), then
+**Settings → Extensions → Advanced settings → Install Extension…** and pick
+it. Claude Desktop does not open `.mcpb` files from the file manager, so
+double-clicking one does nothing.
 
 **Claude Code plugin:**
 

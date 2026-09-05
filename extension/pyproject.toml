@@ -1,0 +1,18 @@
+# The Claude Desktop extension, and only that.
+#
+# This is not the Knos package — that is the pyproject.toml at the repository
+# root. This one exists because the bundle format asks for the dependency list
+# beside the entry point, and the host resolves it with uv when somebody
+# installs the extension. That is the whole reason the extension no longer
+# asks anybody to find and paste a Python path.
+#
+# knos is pinned rather than floated: the manifest declares a version, and an
+# extension whose server does not match the version it advertises is a bug
+# report nobody can reproduce.
+
+[project]
+name = "knos-extension"
+version = "0.1.5"
+description = "Claude Desktop extension for Knos"
+requires-python = ">=3.10"
+dependencies = ["knos==0.1.5"]
