@@ -92,7 +92,7 @@ is a command or a test rather than a claim:
 |---|---|---|---|
 | **Sibyl Memory** | the store. Every claim, answer, journal entry and export goes through it. Required. | `src/knos/memory.py` | [`tests/test_sibyl_is_load_bearing.py`](tests/test_sibyl_is_load_bearing.py) deletes it and watches the product fail |
 | **Base** | `knos share ./src --with alice.base.eth` records who may read what, onchain, so neither machine trusts the other's copy. Optional, testnet. | [`contracts/src/Access.sol`](contracts/src/Access.sol) | [contract `0x955fa320…6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52), and [deploy](https://sepolia.basescan.org/tx/0xdcc25ff7460a09a080ec32016b39121b6a34b741f03411bcfdc2ee2a93b31d21) / [grant](https://sepolia.basescan.org/tx/0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6) / [revoke](https://sepolia.basescan.org/tx/0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4) |
-| **Virtuals** | a registered ACP provider that sells one answer out of this store, and an x402 buyer that pays for a brief and writes it back with `knos remember`. Optional, off by default. | [`agent/offering.ts`](agent/offering.ts), [`src/knos/buy402.py`](src/knos/buy402.py) | [the agent page](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc), and job 75659 in two legs: [escrow funded](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64), [provider paid](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59) |
+| **Virtuals** | a **Telegram bot** that is also a registered ACP provider: it sells one answer out of this store, and pays over x402 for a brief it writes back with `knos remember`. Runs on the console with no Telegram account. Optional, off by default. | [`agent/bot.ts`](agent/bot.ts), [`agent/offering.ts`](agent/offering.ts), [`src/knos/buy402.py`](src/knos/buy402.py) | [the agent page](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc), and job 75659 in two legs: [escrow funded](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64), [provider paid](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59) |
 
 Base and Virtuals are **optional and off by default** — Knos runs with both
 switched off, and nothing on the read or answer path touches a network
@@ -737,14 +737,25 @@ Every one of those paths reads or writes the same SQLite file —
 of them work.
 
 Started with no Telegram token it reads commands from the console, so the
-whole thing runs without an account:
+whole thing runs without an account. This is the same handler Telegram calls,
+wired to stdout, so what a person sees in the chat is what prints here:
 
 ```
 $ npm --prefix agent run bot -- /status
-  hot        nothing in progress               one each, expires after 30 min
-             0 claims held right now - nothing is being withheld
-             2.2 MB of 5 MB used
+Knos - one memory every coding agent here shares.
+
+Nothing is claimed, so nothing is being withheld.
+
+10 things written down that exist nowhere else
+0.5 MB of 5 MB used
+Shared by: Claude Code, Cursor
+
+Delete the store and only those 10 go. Everything else is re-read from the repo.
 ```
+
+`<b>` markers around the bold words are left out above; Telegram renders them
+and a terminal prints them literally. `/help` lists the five commands, and an
+unrecognised one is answered rather than ignored - `tests/test_bot.py`.
 
 **The x402 half is live on Base mainnet.** `/brief BTC` pays 0.01 USDC to
 [x402-seller](https://x402-seller-m8nx.onrender.com)'s market-regime endpoint
