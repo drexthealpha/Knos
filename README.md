@@ -789,7 +789,7 @@ an agent of mine registered to prove the path executes. It is not demand.
 `pytest` runs the critical path only — claim, withhold, concurrency,
 no-network, three tools, private files — **14 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **244 tests**, four to eight minutes depending on
+suite is `pytest -m ""`: **247 tests**, four to eight minutes depending on
 what else the machine is doing. Both
 counts come from `pytest --collect-only -q`, so
 `pytest --collect-only -q -m "" | tail -1` is the check. The contract has

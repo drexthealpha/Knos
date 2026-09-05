@@ -211,13 +211,22 @@ async function payFor(
   config: Settings,
   topic: string,
   url: string,
+  price: string,
   body?: unknown,
 ): Promise<string> {
   const args = ["-m", "knos.buy402", url];
   if (body !== undefined) args.push(JSON.stringify(body));
   const bought = await run(config.python ?? "python", args);
 
-  let said: { ok: boolean; content: string; paid: string; why: string; from?: string };
+  let said: {
+    ok: boolean;
+    content: string;
+    paid: string;
+    tx?: string;
+    payer?: string;
+    why: string;
+    from?: string;
+  };
   try {
     said = JSON.parse(bought.split("\n").filter(Boolean).pop() ?? "{}");
   } catch {
@@ -226,23 +235,99 @@ ${bought.slice(0, 400)}`;
   }
   if (!said.ok) return `Not paid. ${said.why}`;
 
-  const content = said.content.slice(0, 1500).trim();
+  const readable = english(said.content);
+
   // The receipt is the durable half: even where the content goes stale, what
   // is worth keeping is that this agent paid for it, when, and from where.
+  //
+  // The link, not the header. This used to store the settlement header cut
+  // at 160 characters, which still decoded - to a 34-character transaction
+  // hash that looks like a hash and resolves to nothing. A receipt nobody
+  // can follow is worse than no receipt, because it reads as evidence.
+  const receipt = said.tx
+    ? ` Paid: https://basescan.org/tx/${said.tx}`
+    : said.paid
+      ? " Paid, but the settlement receipt did not decode."
+      : "";
   const note =
-    `Bought over x402 on Base: ${url}.` +
-    (said.paid ? ` Receipt: ${said.paid.slice(0, 160)}.` : "") +
-    (content ? `
-
-${content}` : "");
+    `Bought over x402 on Base: ${url}.${receipt}` +
+    (readable ? `\n\n${readable}` : "");
   await run(config.knos, ["remember", note, "--about", topic]);
 
   return [
-    content || "(the seller returned nothing readable)",
+    readable || "(the seller returned nothing readable)",
     "",
-    `Paid over x402 on Base and written into knos under "${topic}".`,
-    "Ask any agent on this machine for it now - nobody pays for it twice.",
+    said.tx ? `Paid $${price} on Base: https://basescan.org/tx/${said.tx}` : "Paid on Base.",
+    `Written into knos under "${topic}" - ask any agent here and nobody pays twice.`,
   ].join("\n");
+}
+
+/**
+ * What the seller sent, as sentences.
+ *
+ * Every other surface in this bot speaks English; the two paid commands used
+ * to print the seller's JSON body verbatim, which is the one place a person
+ * is shown a machine payload. The shapes are known - a search result list, a
+ * market brief - so they are formatted by name, and anything unrecognised is
+ * flattened rather than dumped. If it is not JSON at all it was already prose
+ * and is passed through.
+ */
+function english(body: string): string {
+  const raw = (body ?? "").trim();
+  if (!raw) return "";
+
+  let data: any;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return raw.slice(0, 1200); // already prose
+  }
+
+  // A search result list.
+  if (Array.isArray(data?.results)) {
+    const hits = data.results.slice(0, 5).map((r: any, i: number) => {
+      const title = String(r?.title ?? "").trim() || "(untitled)";
+      const why = String(r?.description ?? "").replace(/\s+/g, " ").trim();
+      const line = `${i + 1}. <b>${title}</b>`;
+      return why ? `${line}\n   ${why.slice(0, 180)}${why.length > 180 ? "..." : ""}` : line;
+    });
+    const what = String(data.query ?? "").trim();
+    return [what ? `Top headlines for "${what}":` : "Top headlines:", "", ...hits].join("\n");
+  }
+
+  // A market brief.
+  if (data?.regime || data?.price_usd !== undefined) {
+    const money = (n: unknown) =>
+      typeof n === "number"
+        ? "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2 })
+        : String(n ?? "?");
+    const out: string[] = [];
+    const sym = String(data.symbol ?? "").trim();
+    if (data.price_usd !== undefined) {
+      const move =
+        typeof data.change_24h_pct === "number"
+          ? `, ${data.change_24h_pct >= 0 ? "up" : "down"} ${Math.abs(data.change_24h_pct).toFixed(2)}% in 24h`
+          : "";
+      out.push(`<b>${sym || "It"}</b> is at ${money(data.price_usd)}${move}.`);
+    }
+    if (data.regime) out.push(`The market reads as <b>${data.regime}</b>.`);
+    if (data?.sentiment?.label)
+      out.push(`Sentiment is ${data.sentiment.label} (${data.sentiment.value}/100).`);
+    if (Array.isArray(data.why) && data.why.length) {
+      out.push("", "Why:");
+      for (const r of data.why.slice(0, 4)) out.push(`- ${String(r)}`);
+    }
+    if (data.as_of) out.push("", `As of ${String(data.as_of).replace("T", " ").slice(0, 16)} UTC.`);
+    return out.join("\n");
+  }
+
+  // Something new. Flatten the scalars rather than showing braces; a shape
+  // this bot has not met yet is a reason to read it, not to give up on it.
+  const lines = Object.entries(data ?? {})
+    .filter(([, v]) => v === null || ["string", "number", "boolean"].includes(typeof v))
+    .slice(0, 10)
+    .map(([k, v]) => `${k.replaceAll("_", " ")}: ${v}`);
+  return lines.length ? lines.join("\n") : raw.slice(0, 800);
 }
 
 /**
@@ -310,7 +395,7 @@ async function handle(
     await say(`Buying news about ${topic} for $0.001 on Base...`);
     try {
       const url = `${NEWS}?q=${encodeURIComponent(topic)}`;
-      await say(await payFor(config, `news: ${topic}`, url));
+      await say(await payFor(config, `news: ${topic}`, url, "0.001"));
     } catch (why) {
       await say(`Could not buy it: ${why instanceof Error ? why.message : String(why)}`);
     }
@@ -321,7 +406,7 @@ async function handle(
     await say(`Buying a market brief for ${symbol} for $0.01 on Base...`);
     try {
       const url = `${config.paidEndpoint ?? BRIEF}?symbol=${encodeURIComponent(symbol)}`;
-      await say(await payFor(config, `market brief: ${symbol}`, url));
+      await say(await payFor(config, `market brief: ${symbol}`, url, "0.01"));
     } catch (why) {
       await say(`Could not buy it: ${why instanceof Error ? why.message : String(why)}`);
     }

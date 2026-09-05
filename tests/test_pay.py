@@ -86,3 +86,61 @@ def test_an_answer_never_carries_a_secret(knos_home, repo):
     found = pay.answer_for("stripe key", allowed=["", "src", "docs"])
     assert "sk_live" not in found["answer"]
     assert found["answer"] == pay.NOTHING
+
+
+# --- the receipt a person can follow -----------------------------------------
+
+
+def _receipt(tx: str) -> str:
+    """A settlement header shaped like the ones the facilitator returns."""
+    return base64.b64encode(
+        json.dumps(
+            {
+                "success": True,
+                "payer": "0xEca35a0C0585E19EAa9Bfc5AF9751D2Ca7CC48C1",
+                "transaction": tx,
+                "network": "base",
+            }
+        ).encode()
+    ).decode()
+
+
+def test_a_receipt_carries_the_whole_transaction_hash():
+    """The bug this pins: the header used to be stored cut to 160 characters.
+
+    Truncated base64 still decodes. It decodes to a *shorter* hash, which
+    looks exactly like a hash, sits in the store reading as evidence, and
+    resolves to nothing on a block explorer. A receipt nobody can follow is
+    worse than no receipt, so the hash is parsed here rather than kept as an
+    opaque blob for something downstream to slice.
+    """
+    from knos.buy402 import _settlement
+
+    full = "0x" + "ab" * 32
+    assert len(full) == 66
+
+    got = _settlement(_receipt(full))
+    assert got["tx"] == full
+    assert len(got["tx"]) == 66
+    assert got["payer"].startswith("0x")
+
+    # The old failure, stated as the test that would have caught it.
+    cut = _settlement(_receipt(full)[:160])
+    assert cut["tx"] != full
+
+
+def test_an_unreadable_receipt_is_reported_as_missing_not_guessed():
+    """A payment that settled with a receipt we cannot open is still a
+    payment. Report it without a hash rather than inventing one, and never
+    raise: the caller is a bot answering a person."""
+    from knos.buy402 import _settlement
+
+    for junk in ("", "not base64 at all!!", base64.b64encode(b"[]").decode()):
+        assert _settlement(junk) == {"tx": "", "payer": "", "network": ""}
+
+
+def test_padding_the_facilitator_stripped_is_not_a_decode_failure():
+    from knos.buy402 import _settlement
+
+    full = "0x" + "cd" * 32
+    assert _settlement(_receipt(full).rstrip("="))["tx"] == full

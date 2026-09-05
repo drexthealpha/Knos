@@ -11,9 +11,15 @@ it can be written into the store, where the next agent gets it for free.
 
     python -m knos.buy402 <url> [json-body]
 
-Prints JSON: {"ok": bool, "content": str, "paid": str, "why": str}. Never
-raises at the top level, because the caller is a bot answering a person and a
-stack trace is not an answer.
+Prints JSON: {"ok", "content", "paid", "tx", "payer", "network", "why"}.
+Never raises at the top level, because the caller is a bot answering a person
+and a stack trace is not an answer.
+
+`paid` is the settlement header exactly as the facilitator sent it, and it is
+base64 of a JSON object. `tx` and `payer` are that object already opened, so
+nothing downstream has to know the encoding to link a payment to the chain.
+Storing only the encoded blob is what let a truncated receipt sit in the
+store looking complete: cut base64 still decodes, just to a shorter hash.
 
 The key comes from ~/.knos-keys/bot.json, outside the repository. This file
 never holds one and never prints one.
@@ -22,6 +28,7 @@ never holds one and never prints one.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 
 import httpx
@@ -133,14 +140,46 @@ async def _buy(
             or reply.headers.get("x-payment-response")
             or ""
         )
+        settled = _settlement(paid)
         if reply.status_code >= 400:
             return {
                 "ok": False,
                 "content": "",
                 "paid": paid,
+                **settled,
                 "why": f"HTTP {reply.status_code}",
             }
-        return {"ok": True, "content": reply.text, "paid": paid, "why": ""}
+        return {"ok": True, "content": reply.text, "paid": paid, **settled, "why": ""}
+
+
+def _settlement(header: str) -> dict[str, str]:
+    """The transaction hash out of the settlement header, or empty strings.
+
+    The header is base64 of a JSON object the facilitator writes; the field
+    that matters is the transaction hash, because that is the one thing a
+    person can paste into a block explorer. Everything here is best-effort:
+    a payment that settled but whose receipt will not decode is still a
+    payment, and refusing to report it would be worse than reporting it
+    without the hash.
+    """
+    if not header:
+        return {"tx": "", "payer": "", "network": ""}
+    raw = header.strip()
+    # Tolerate missing padding: some facilitators strip it, and base64 that
+    # is one or two characters short of a multiple of four is otherwise a
+    # hard decode failure for no reason.
+    raw += "=" * (-len(raw) % 4)
+    try:
+        opened = json.loads(base64.b64decode(raw).decode("utf-8"))
+    except Exception:  # noqa: BLE001 - any malformed receipt lands here
+        return {"tx": "", "payer": "", "network": ""}
+    if not isinstance(opened, dict):
+        return {"tx": "", "payer": "", "network": ""}
+    return {
+        "tx": str(opened.get("transaction") or ""),
+        "payer": str(opened.get("payer") or ""),
+        "network": str(opened.get("network") or ""),
+    }
 
 
 def main(argv: list[str]) -> int:
