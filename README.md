@@ -16,16 +16,60 @@ another agent claimed and there is no answer, only who has it. With
 `knos guard --install` the refusal reaches the edit itself.
 
 **Where the memory is read and written.** One file, `~/.knos/<repo>/memory.db`,
-through [Sibyl](https://github.com/Sibyl-Labs/Sibyl-Memory). Every call site
-is named in [What breaks without the store](#what-breaks-without-the-store),
-and [`tests/test_sibyl_is_load_bearing.py`](tests/test_sibyl_is_load_bearing.py)
-deletes it and asserts the product stops working.
+through [Sibyl](https://github.com/Sibyl-Labs/Sibyl-Memory). Every arrow below
+is a call site you can open, and
+[`tests/test_sibyl_is_load_bearing.py`](tests/test_sibyl_is_load_bearing.py)
+deletes the file and asserts the product stops working.
+
+```mermaid
+flowchart LR
+    CLAIM["knos claim"] -->|"claim_if_free"| DB[("memory.db<br>one SQLite file")]
+    TELL["knos remember"] -->|"record, note_thing"| DB
+    READ["knos point<br>git log, CLAUDE.md, sessions"] -->|"note_thing"| DB
+
+    DB -->|"search"| ASK["MCP search / about<br>withheld if claimed"]
+    DB -->|"claims"| GUARD["guard.check<br>refuses the edit"]
+    DB -->|"things, claims"| EXP["knos export<br>.knos/decisions.md"]
+    DB -->|"journal, only_here"| ST["knos status"]
+
+    style DB fill:#1f2933,stroke:#7b8794,color:#ffffff
+    style ASK fill:#fdf0e8,stroke:#a5744a,color:#111111
+    style GUARD fill:#fdf0e8,stroke:#a5744a,color:#111111
+```
+
+Written on the left, read on the right. Delete the box in the middle and
+everything on the right stops — that is the whole of what "load-bearing"
+means here, and it is a test rather than a sentence.
 
 | Tier | What lives there | Written by | Read by |
 |---|---|---|---|
 | HOT | the live claim, one row per topic, overwritten | `Memory.claim_if_free` | `mcp.search`, `guard.check` |
 | WARM | decisions, files, named things | `Memory.note_thing` | `answer.ask`, `knos export` |
 | COLD | the journal: what you told it, who stood down, every override | `Memory.record` | `knos status`, `knos notes` |
+
+Sibyl's five tiers are used for what they are, not as one key-value bucket:
+a claim is about *now* and is overwritten, a decision is a named thing
+replaced in place, and history is only ever appended to.
+
+```mermaid
+flowchart TD
+    subgraph DB["memory.db - hard cap 5 MB, Sibyl's free tier"]
+        HOT["HOT - the live claim<br>one row per topic, overwritten<br>lapses after 30 min"]
+        WARM["WARM - decisions, files, entities<br>named, replaced in place"]
+        COLD["COLD - the journal<br>append-only: told, stood down, overridden"]
+    end
+
+    HOT -->|"a second agent asks"| NO["withheld<br>+ who holds it"]
+    WARM -->|"knos ask"| SRC["answer + file and line"]
+    COLD -->|"knos status"| ONLY["how many things exist nowhere else"]
+    DB -->|"from 4 MB"| FULL["nearly full<br>at 5 MB a claim is refused in words,<br>never dropped"]
+
+    style DB fill:#1f2933,stroke:#7b8794,color:#ffffff
+    style HOT fill:#2b3a44,stroke:#7b8794,color:#ffffff
+    style WARM fill:#2b3a44,stroke:#7b8794,color:#ffffff
+    style COLD fill:#2b3a44,stroke:#7b8794,color:#ffffff
+    style FULL fill:#f5f5f5,stroke:#999999,color:#111111
+```
 
 **Five things here that are not elsewhere.** Each one is a link, and each one
 is a command or a test rather than a claim:
@@ -56,6 +100,30 @@ switched off, and nothing on the read or answer path touches a network
 through the Virtuals provider was bought by a test agent of mine, not by a
 customer. Details, including what each one does *not* do:
 [The two onchain parts](#the-two-onchain-parts-and-exactly-what-they-are).
+
+```mermaid
+flowchart TD
+    DB[("memory.db<br>Sibyl - required")]
+
+    SHARE["knos share ./src --with alice"] -->|"who may read what"| BASE["Base Sepolia<br>Access.sol"]
+    BASE -->|"may_read"| DB
+
+    BUY["/brief BTC"] -->|"0.01 USDC over x402<br>Base mainnet"| SELLER["a paid endpoint"]
+    SELLER -->|"knos remember - the receipt<br>exists nowhere else"| DB
+
+    DB -->|"knos ask"| SELL["Virtuals ACP offering<br>sells one answer"]
+
+    OFF["both switched off - the default"] -.->|"knos still works"| DB
+
+    style DB fill:#1f2933,stroke:#7b8794,color:#ffffff
+    style OFF fill:#f5f5f5,stroke:#999999,color:#111111,stroke-dasharray: 4 3
+```
+
+Every one of those arrows ends at the same SQLite file. That is the point of
+including them at all: the commerce leg is not a second system beside the
+memory, it reads and writes the one store, and
+`pytest tests/test_sibyl_is_load_bearing.py` takes the file away and asserts
+none of it works.
 
 ### The whole loop, in under a minute
 
