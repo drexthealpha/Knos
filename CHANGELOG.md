@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+The bot never answers with silence. Anything it does not recognise - a typo'd
+command, or a person saying hello - now gets a sentence and the list of what
+does work. Falling off the end of the handler was indistinguishable from a
+dead process.
+
+A failed subprocess is no longer returned as though it were an answer. stdout
+and stderr were collected into one string, so a Python traceback reached the
+chat as content; they are separate now and the exit code decides which the
+reader sees.
+
+No path prints a seller's payload verbatim any more: the last fallback in the
+formatter used to dump the raw body when it met an unfamiliar shape.
+
+A reply cut at Telegram's length limit says that it was cut, instead of
+stopping mid-word.
+
 ## 0.1.5
 
 `knos guard --install` refuses the edit, not only the answer. Claude Code,

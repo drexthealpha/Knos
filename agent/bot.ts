@@ -98,12 +98,40 @@ function settings(): Settings {
 function run(exe: string, args: string[]): Promise<string> {
   return new Promise((done) => {
     const run = spawn(exe, args, { windowsHide: true });
-    let said = "";
-    run.stdout.on("data", (c) => (said += c));
-    run.stderr.on("data", (c) => (said += c));
-    run.on("close", () => done(said.trim()));
-    run.on("error", (why) => done(`knos did not run: ${why}`));
+    let out = "";
+    let err = "";
+    run.stdout.on("data", (c) => (out += c));
+    run.stderr.on("data", (c) => (err += c));
+    // stdout and stderr used to be one string, so a Python traceback came
+    // back to the chat as though it were an answer. They are kept apart now,
+    // and the exit code decides which one the person is shown.
+    run.on("close", (code) => {
+      const said = out.trim();
+      if (code === 0 || said) return done(said || err.trim());
+      done(FAILED + (err.trim() || `${exe} exited ${code}`));
+    });
+    run.on("error", (why) => done(FAILED + why));
   });
+}
+
+/** Marks a `run` result as a failure rather than an answer. */
+const FAILED = "[knos-run-failed] ";
+
+/** Whether `run` reported a failure rather than an answer. */
+function broke(said: string): boolean {
+  return said.startsWith(FAILED);
+}
+
+/**
+ * A failure, as one sentence a person can act on.
+ *
+ * The detail still matters when something is genuinely wrong, so the first
+ * line of it is kept; what is dropped is the stack trace underneath, which
+ * tells the reader nothing and fills the screen.
+ */
+function apology(said: string, doing: string): string {
+  const why = said.replace(FAILED, "").split("\n").filter(Boolean)[0] ?? "";
+  return `Could not ${doing}.${why ? ` ${why.slice(0, 200)}` : ""}`;
 }
 
 /**
@@ -140,9 +168,14 @@ function safe(text: string): string {
  * happens before escaping - a slice taken afterwards could halve an entity.
  */
 function chat(said: string): { text: string; parse_mode: string } {
-  const text = safe(said.slice(0, 3500))
-    .replaceAll("&lt;b&gt;", "<b>")
-    .replaceAll("&lt;/b&gt;", "</b>");
+  // Telegram's limit is 4096 on the finished payload. Cutting silently left
+  // a sentence hanging mid-word with nothing to say it had been cut, which
+  // reads as a bug rather than a limit.
+  const kept =
+    said.length > 3500
+      ? said.slice(0, 3400) + "\n\n[cut here - ask again, narrower]"
+      : said;
+  const text = safe(kept).replaceAll("&lt;b&gt;", "<b>").replaceAll("&lt;/b&gt;", "</b>");
   return { text, parse_mode: "HTML" };
 }
 
@@ -230,8 +263,9 @@ async function payFor(
   try {
     said = JSON.parse(bought.split("\n").filter(Boolean).pop() ?? "{}");
   } catch {
-    return `The seller did not answer in a way I could read:
-${bought.slice(0, 400)}`;
+    return broke(bought)
+      ? apology(bought, "reach the seller")
+      : "The seller did not answer in a way I could read. Nothing was paid.";
   }
   if (!said.ok) return `Not paid. ${said.why}`;
 
@@ -252,13 +286,17 @@ ${bought.slice(0, 400)}`;
   const note =
     `Bought over x402 on Base: ${url}.${receipt}` +
     (readable ? `\n\n${readable}` : "");
-  await run(config.knos, ["remember", note, "--about", topic]);
+  // If the write-back fails the money is still spent, so the person is told
+  // the truth: they were charged, and the next agent will be charged again.
+  const wrote = await run(config.knos, ["remember", note, "--about", topic]);
 
   return [
     readable || "(the seller returned nothing readable)",
     "",
     said.tx ? `Paid $${price} on Base: https://basescan.org/tx/${said.tx}` : "Paid on Base.",
-    `Written into knos under "${topic}" - ask any agent here and nobody pays twice.`,
+    broke(wrote)
+      ? `Paid, but knos did not record it, so this will cost again. ${apology(wrote, "write it down")}`
+      : `Written into knos under "${topic}" - ask any agent here and nobody pays twice.`,
   ].join("\n");
 }
 
@@ -327,7 +365,10 @@ function english(body: string): string {
     .filter(([, v]) => v === null || ["string", "number", "boolean"].includes(typeof v))
     .slice(0, 10)
     .map(([k, v]) => `${k.replaceAll("_", " ")}: ${v}`);
-  return lines.length ? lines.join("\n") : raw.slice(0, 800);
+  return lines.length
+    ? lines.join("\n")
+    : "The seller answered in a shape this bot has not been taught to read" +
+      " yet. It is stored whole, so nothing is lost.";
 }
 
 /**
@@ -368,6 +409,7 @@ async function handle(
     // Read the store, not this process. `/jobs` in a fresh shell must show
     // the same history the long-running bot would.
     const past = await run(config.knos, ["ask", "acp sales"]);
+    if (broke(past)) return void (await say(apology(past, "read the store")));
     const lines = past.split("\n").filter((l) => l.includes("Sold an ACP job"));
     if (lines.length === 0) {
       await say(
@@ -381,13 +423,15 @@ async function handle(
     return;
   }
   if (text.startsWith("/status")) {
-    await say(statusForChat(await run(config.knos, ["status"])));
+    const raw = await run(config.knos, ["status"]);
+    await say(broke(raw) ? apology(raw, "read the store") : statusForChat(raw));
     return;
   }
   if (text.startsWith("/ask")) {
     const question = text.slice("/ask".length).trim();
     if (!question) return void (await say("Ask something: /ask why did we drop redis"));
-    await say(await run(config.knos, ["ask", question]));
+    const found = await run(config.knos, ["ask", question]);
+    await say(broke(found) ? apology(found, "read the store") : found);
     return;
   }
   if (text.startsWith("/news")) {
@@ -412,6 +456,23 @@ async function handle(
     }
     return;
   }
+
+  // Nothing matched. This used to return silently, which is the one reply a
+  // person cannot tell apart from a dead bot. A plain sentence and the list
+  // of what does work costs nothing and never leaves the chat empty.
+  await say(
+    [
+      text.startsWith("/")
+        ? `I do not know <b>${text.split(/\s/)[0]}</b>.`
+        : "I only answer commands.",
+      "",
+      "<b>/ask</b> something - read this machine's memory, free",
+      "<b>/news</b> a topic - buy real headlines, $0.001 on Base",
+      "<b>/brief</b> a symbol - buy a market brief, $0.01 on Base",
+      "<b>/status</b> - what is claimed, and how full the store is",
+      "<b>/jobs</b> - the jobs this agent has sold",
+    ].join("\n"),
+  );
 }
 
 /**
