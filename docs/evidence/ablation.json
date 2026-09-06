@@ -1,7 +1,7 @@
 {
   "trials": 12,
   "seed": 1337,
-  "when": "2026-09-06T00:47:11.561786+00:00",
+  "when": "2026-09-06T04:53:49.077868+00:00",
   "arms": {
     "withhold": {
       "on_refused": 12,
@@ -23,6 +23,11 @@
       "on_paid_again": 0,
       "off_paid_again": 12,
       "refused_when_claimed": 12
+    },
+    "reversed": {
+      "edit_refused": 12,
+      "spend_refused": 12,
+      "allowed_after_reconsider": 12
     }
   }
 }

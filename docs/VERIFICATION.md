@@ -17,6 +17,9 @@ python scripts/ablation.py
 
 | Arm | Store present | Store deleted |
 |---|---|---|
+| **Reversed decision: an edit resting on it** | **refused 12/12** | nothing is held |
+| **Reversed decision: a purchase resting on it** | **refused 12/12** | nothing is held |
+| **Reversed decision: the same edit after reconsidering** | **allowed 12/12** | - |
 | **Spend: the same request a second time** | **paid again 0/12** | **paid again 12/12** |
 | **Spend: the same request while somebody holds it** | **refused 12/12** | no claim survives |
 | Withhold: a second agent asks about claimed work | refused 12/12 | refused 0/12 |

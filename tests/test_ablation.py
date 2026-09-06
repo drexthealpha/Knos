@@ -72,6 +72,15 @@ def test_the_memory_gates_the_money(bare) -> None:
     assert refused is True, "a standing claim did not stop the spend"
 
 
+@pytest.mark.critical
+def test_a_reversed_decision_changes_outcomes(bare) -> None:
+    """The arm that separates a memory that records from one that decides."""
+    edit, spend, again = ablation.arm_reversed(bare)
+    assert edit is True, "an edit resting on a reversed decision was allowed"
+    assert spend is True, "a purchase resting on a reversed decision went through"
+    assert again is True, "reconsidering did not release the work"
+
+
 def test_the_published_numbers_match_the_arms() -> None:
     """docs/evidence/ablation.json is what the README quotes."""
     out = ROOT / "docs" / "evidence" / "ablation.json"
@@ -91,6 +100,9 @@ def test_the_published_numbers_match_the_arms() -> None:
     assert arms["spend"]["on_paid_again"] == 0
     assert arms["spend"]["off_paid_again"] == trials
     assert arms["spend"]["refused_when_claimed"] == trials
+    assert arms["reversed"]["edit_refused"] == trials
+    assert arms["reversed"]["spend_refused"] == trials
+    assert arms["reversed"]["allowed_after_reconsider"] == trials
 
 
 def test_the_script_runs_end_to_end() -> None:
@@ -102,5 +114,5 @@ def test_the_script_runs_end_to_end() -> None:
         timeout=900,
     )
     assert said.returncode == 0, said.stderr[-800:]
-    for line in ("Withhold", "Guard", "Action", "Paid", "Spend", "store deleted"):
+    for line in ("Withhold", "Guard", "Action", "Paid", "Spend", "Reversed", "store deleted"):
         assert line in said.stdout, line

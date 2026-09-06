@@ -15,10 +15,13 @@ it says so.
    hook exits 2 and the tool never writes the file.
 5. `knos export` commits the same record to `.knos/decisions.md`, and a
    GitHub Action says it on the pull request, for people who installed nothing.
-6. The same store decides whether the agent **spends money**: it will not
+6. Reverse a decision and knos **holds every piece of work reasoned from
+   it** - the edit is refused and the purchase is refused - until somebody
+   says they have looked. The old wording is archived, not deleted.
+7. The same store decides whether the agent **spends money**: it will not
    buy what it already has, and it refuses to buy at all while somebody
    holds the topic.
-7. Delete the file and every one of those stops. Measured below, not asserted.
+8. Delete the file and every one of those stops. Measured below, not asserted.
 
 ## The one thing to look at
 
@@ -32,6 +35,9 @@ That is the whole argument, run against the real refusal code:
 
 | Arm | Store present | Store deleted |
 |---|---|---|
+| **Reversed decision: an edit resting on it** | **refused 12/12** | nothing is held |
+| **Reversed decision: a purchase resting on it** | **refused 12/12** | nothing is held |
+| **Reversed decision: the same edit after reconsidering** | **allowed 12/12** | - |
 | **Spend: the same request a second time** | **paid again 0/12** | **paid again 12/12** |
 | **Spend: the same request while somebody holds it** | **refused 12/12** | no claim survives |
 | Withhold: a second agent asks about claimed work | refused **12/12** | refused **0/12** |
@@ -58,6 +64,8 @@ impossible.
 
 | Claim | Code | Test |
 |---|---|---|
+| **A reversed decision holds everything that rested on it** | `src/knos/decide.py` | `tests/test_decide.py` |
+| **Reconsidering releases it again** | `src/knos/decide.py` `reconsider` | `tests/test_decide.py` |
 | **The memory decides whether money moves** | `src/knos/gate.py` | `tests/test_gate.py` |
 | A claim is one row in Sibyl, overwritten, lapsing at 30 min | `src/knos/memory.py` `claim_if_free` | `tests/test_intent.py` |
 | Two agents racing: exactly one wins | `src/knos/memory.py` `claim_if_free` | `tests/test_open_race.py` |
@@ -74,7 +82,7 @@ impossible.
 | Delete the store and the product stops | - | `tests/test_sibyl_is_load_bearing.py` |
 | The claim as an importable library, no server | `src/knos/core.py` | `tests/test_core.py` |
 
-Suite: **21 critical in under a minute**, **272 in full** (`pytest -m ""`).
+Suite: **24 critical in under a minute**, **281 in full** (`pytest -m ""`).
 Contract: **9 more** (`cd contracts && forge test`).
 
 ## Live artifacts

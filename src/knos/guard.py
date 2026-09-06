@@ -160,6 +160,16 @@ def check(repo: Path, target: str, who: str) -> Verdict:
                     f"claim lapses on its own in under half an hour, and "
                     f"`knos done` gives it back sooner.",
                 )
+
+            # A claim is about who is moving. This is about what was settled
+            # and then reversed: work reasoned from a decision somebody has
+            # since changed is exactly the work nobody thinks to revisit, so
+            # the edit is held until someone says they have looked.
+            from . import decide
+
+            found = decide.is_suspect(mem, subject)
+            if found is not None:
+                return Verdict(False, decide.refusal(found))
     except Exception:
         # A store that cannot be read must not become a wall between an agent
         # and its own repo. Silence here is a decision: the guard is a

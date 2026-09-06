@@ -95,6 +95,9 @@ python scripts/ablation.py
 
 | Arm | Store present | Store deleted |
 |---|---|---|
+| **Reversed decision: an edit resting on it** | **refused 12/12** | nothing is held |
+| **Reversed decision: a purchase resting on it** | **refused 12/12** | nothing is held |
+| **Reversed decision: the same edit after reconsidering** | **allowed 12/12** | - |
 | **Spend: the same request a second time** | **paid again 0/12** | **paid again 12/12** |
 | **Spend: the same request while somebody holds it** | **refused 12/12** | no claim survives |
 | Withhold: a second agent asks about claimed work | refused **12/12** | refused **0/12** |
@@ -902,9 +905,9 @@ an agent of mine registered to prove the path executes. It is not demand.
 ## Tests
 
 `pytest` runs the critical path only — claim, withhold, concurrency,
-no-network, three tools, private files — **21 tests in well under a minute**,
+no-network, three tools, private files — **24 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **272 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **281 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so

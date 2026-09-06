@@ -204,6 +204,38 @@ def arm_spend(repo: Path) -> tuple[bool, bool, bool]:
     return would_buy_on, would_buy_off, refused
 
 
+def arm_reversed(repo: Path) -> tuple[bool, bool, bool]:
+    """A decision is reversed. Does anything actually change?
+
+    Returns (edit_refused, spend_refused, allowed_again_after_reconsider).
+
+    This is the arm that separates a memory that records from a memory that
+    decides. Reversing one decision holds the work reasoned from it, across
+    two different surfaces, until somebody says they have looked.
+    """
+    from knos import decide, gate, guard, paths
+    from knos.memory import TOPIC, Memory
+
+    guard_topic, tests_topic = "the risk guard", "the risk guard tests"
+    now = _now()
+    paths.remember_pointed(repo)
+    with Memory(repo) as mem:
+        mem.note_thing(TOPIC, guard_topic, {"note": "refuses unknown assets", "when": now[:10]})
+        mem.note_thing(TOPIC, tests_topic, {"note": "assume unknown refused", "when": now[:10]})
+
+    target = repo / "risk_guard.py"
+    with Memory(repo) as mem:
+        decide.supersede(mem, guard_topic, "unknown assets pass with a warning", "you", _now())
+
+    edit_refused = not guard.check(repo, str(target), "Cursor").allow
+    spend_refused = gate.decide(repo, tests_topic, tests_topic)["verdict"] == "suspect"
+
+    with Memory(repo) as mem:
+        decide.reconsider(mem, tests_topic, "you", _now())
+    allowed_again = guard.check(repo, str(target), "Cursor").allow
+    return edit_refused, spend_refused, allowed_again
+
+
 def run() -> dict:
     random.seed(SEED)
     topic = "the risk guard"
@@ -213,6 +245,7 @@ def run() -> dict:
         "action": {"on_commented": 0, "off_commented": 0},
         "paid": {"on_kept": 0, "off_kept": 0},
         "spend": {"on_paid_again": 0, "off_paid_again": 0, "refused_when_claimed": 0},
+        "reversed": {"edit_refused": 0, "spend_refused": 0, "allowed_after_reconsider": 0},
     }
 
     for _ in range(TRIALS):
@@ -247,6 +280,15 @@ def run() -> dict:
             tally["spend"]["off_paid_again"] += int(off)
             tally["spend"]["refused_when_claimed"] += int(refused)
 
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            os.environ["KNOS_HOME"] = str(root / "home")
+            repo = _repo(root)
+            edit, spend, again = arm_reversed(repo)
+            tally["reversed"]["edit_refused"] += int(edit)
+            tally["reversed"]["spend_refused"] += int(spend)
+            tally["reversed"]["allowed_after_reconsider"] += int(again)
+
     return {
         "trials": TRIALS,
         "seed": SEED,
@@ -277,6 +319,15 @@ def render(result: dict) -> str:
         ("Spend: the same request while somebody holds it",
          f"refused {a['spend']['refused_when_claimed']}/{t}",
          "n/a - no claim survives"),
+        ("Reversed decision: an edit resting on it",
+         f"refused {a['reversed']['edit_refused']}/{t}",
+         "n/a - nothing is held"),
+        ("Reversed decision: a purchase resting on it",
+         f"refused {a['reversed']['spend_refused']}/{t}",
+         "n/a - nothing is held"),
+        ("Reversed decision: the same edit after reconsidering",
+         f"allowed {a['reversed']['allowed_after_reconsider']}/{t}",
+         "n/a"),
     ]
     width = max(len(r[0]) for r in rows)
     out = [f"knos ablation - {t} trials, seed {result['seed']}", ""]

@@ -556,6 +556,90 @@ def remember(
 
 
 @app.command()
+def changed(
+    about: str = typer.Argument(..., help="the decision that has changed"),
+    now_is: str = typer.Argument(..., help="what is true instead"),
+) -> None:
+    """Reverse a decision, and hold everything that rested on it."""
+    from datetime import datetime, timezone
+
+    from . import decide
+
+    repo = _repo(None)
+    when = datetime.now(timezone.utc).isoformat()
+    with Memory(repo) as mem:
+        hit = decide.supersede(mem, about, now_is, "you", when)
+
+    if hit["superseded"]:
+        out.print(f"[yellow]{about} is no longer what it was.[/yellow]")
+    else:
+        out.print(f"Recorded: {about}.")
+    out.print("  The old wording is archived, not deleted.")
+
+    tainted = hit["suspect"]
+    if not tainted:
+        out.print("")
+        out.print("Nothing else was resting on it.")
+        return
+
+    out.print("")
+    out.print(f"[yellow]{len(tainted)} thing(s) were reasoned from it:[/yellow]")
+    for name in tainted:
+        out.print(f"  {name}")
+    out.print("")
+    out.print("Until each is looked at, knos holds work on it: the edit is")
+    out.print("refused, a paid answer is refused, and a pull request is told.")
+    out.print('Clear one with:  knos reconsider "<name>"')
+
+
+@app.command()
+def reconsider(
+    about: str = typer.Argument(..., help="what you have looked at again"),
+) -> None:
+    """Say you have looked at something after the decision under it changed."""
+    from datetime import datetime, timezone
+
+    from . import decide
+
+    repo = _repo(None)
+    when = datetime.now(timezone.utc).isoformat()
+    with Memory(repo) as mem:
+        cleared = decide.reconsider(mem, about, "you", when)
+        left = len(decide.suspects(mem))
+
+    if not cleared:
+        out.print(f"Nothing was being held on {about}.")
+        return
+    out.print(f"{about} is clear. Work on it is no longer held.")
+    if left:
+        out.print(f"  {left} still waiting:  knos held")
+
+
+@app.command()
+def held() -> None:
+    """What knos is holding, because a decision under it changed."""
+    from . import decide
+
+    repo = _repo(None)
+    with Memory(repo) as mem:
+        waiting = decide.suspects(mem)
+
+    if not waiting:
+        out.print("Nothing is held. No decision has been reversed under live work.")
+        return
+    out.print(f"[yellow]{len(waiting)} thing(s) held:[/yellow]")
+    out.print("")
+    for found in waiting:
+        out.print(f"  [bold]{found['about']}[/bold]")
+        out.print(f"    because {found['because']} changed on {found['when'][:10]}")
+        if found["was"]:
+            out.print(f"    was: {found['was']}")
+        out.print(f"    now: {found['now']}")
+        out.print("")
+    out.print('Clear one with:  knos reconsider "<name>"')
+
+
+@app.command()
 def claim(
     topic: str = typer.Argument(..., help="what you are about to work on"),
     who: str = typer.Option("you", "--as", help="the name to claim it under"),

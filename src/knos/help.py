@@ -74,6 +74,33 @@ PER_COMMAND = {
   agent chose to write down, which is the part a CLAUDE.md used to hold.
 
   Forgetting one stops your agents repeating it.""",
+    "changed": """\
+  knos changed "the risk guard" "unknown assets pass with a warning"
+
+  Says a decision has been reversed. The old wording is archived rather
+  than dropped, so "why did we do it that way" still has an answer.
+
+  Everything on the same subject is then held: an agent editing it is
+  refused, and a paid answer about it is refused, until somebody says
+  they have looked.
+
+  See what is held:  knos held
+  Clear one:         knos reconsider, naming the thing.""",
+    "reconsider": """\
+  knos reconsider "the risk guard tests"
+
+  Says you have looked at something again after the decision under it
+  changed. Work on it stops being held.
+
+  It costs one line, on purpose. Carrying on without looking is the only
+  expensive path here.""",
+    "held": """\
+  knos held
+
+  What knos is holding, and why. Each one names the decision that
+  changed, what it used to say, and what it says now.
+
+  Nothing is held forever: reconsider it, naming the thing.""",
     "claim": """\
   knos claim "the risk guard"
 

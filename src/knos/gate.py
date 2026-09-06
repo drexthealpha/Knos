@@ -59,6 +59,21 @@ def decide(repo: Path, topic: str, question: str) -> dict[str, str]:
                 "where": "",
             }
 
+    # Then: was this reasoned from a decision that has since been reversed?
+    # Buying more of it before anyone has looked is how one changed decision
+    # becomes a pile of paid-for work built on it.
+    from . import decide
+
+    with Memory(repo) as mem:
+        found = decide.is_suspect(mem, topic)
+        if found is not None:
+            return {
+                "verdict": "suspect",
+                "answer": decide.refusal(found),
+                "holder": str(found.get("who", "")),
+                "where": str(found.get("because", "")),
+            }
+
     # Then what is already known. `knos remember` writes the bought answer
     # under the topic, so this is the same lookup the next agent would do.
     with Memory(repo) as mem:
