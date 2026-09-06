@@ -1,0 +1,23 @@
+{
+  "trials": 12,
+  "seed": 1337,
+  "when": "2026-09-06T00:12:33.281930+00:00",
+  "arms": {
+    "withhold": {
+      "on_refused": 12,
+      "off_refused": 0
+    },
+    "guard": {
+      "on_refused": 12,
+      "off_refused": 0
+    },
+    "action": {
+      "on_commented": 12,
+      "off_commented": 0
+    },
+    "paid": {
+      "on_kept": 12,
+      "off_kept": 0
+    }
+  }
+}

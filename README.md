@@ -80,6 +80,34 @@ makes the refusal reach the edit itself. That is the power-user path and it is
 documented in full further down; it is worth it when you personally have three
 agents open on one tree, and overkill when you do not.
 
+## Judging this in five minutes
+
+[**docs/JUDGE_GUIDE.md**](docs/JUDGE_GUIDE.md) maps every claim to a file, a
+test or a live artifact, and states the limits plainly.
+[**docs/VERIFICATION.md**](docs/VERIFICATION.md) is the same list with the
+commands and explorer links that settle each one.
+
+The whole argument is one command:
+
+```bash
+python scripts/ablation.py
+```
+
+| Arm | Store present | Store deleted |
+|---|---|---|
+| Withhold: a second agent asks about claimed work | refused **12/12** | refused **0/12** |
+| Guard: an edit to claimed work | refused **12/12** | refused **0/12** |
+| Action: a pull request touching a claimed topic | commented **12/12** | commented **0/12** |
+| Paid: a bought answer, found by the next agent | kept **12/12** | kept **0/12** |
+
+12 trials, seed 1337, against the product's own refusal code -
+[`scripts/ablation.py`](scripts/ablation.py), written to
+[`docs/evidence/ablation.json`](docs/evidence/ablation.json) and pinned by
+[`tests/test_ablation.py`](tests/test_ablation.py).
+
+**Memory is not a feature here, it is the mechanism.** A claim has no second
+copy. Delete the store and the refusal is not degraded, it is impossible.
+
 ## Read this first
 
 Three MCP tools over stdio, one SQLite file, no server and no network. What
@@ -866,9 +894,9 @@ an agent of mine registered to prove the path executes. It is not demand.
 ## Tests
 
 `pytest` runs the critical path only — claim, withhold, concurrency,
-no-network, three tools, private files — **16 tests in well under a minute**,
+no-network, three tools, private files — **18 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **259 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **265 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so
