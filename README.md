@@ -88,7 +88,8 @@ test or a live artifact, and states the limits plainly.
 commands and explorer links that settle each one.
 [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) and
 [**docs/MEMORY_MODEL.md**](docs/MEMORY_MODEL.md) are how it is built and what
-lives in each Sibyl tier.
+lives in each Sibyl tier. [**docs/PMF.md**](docs/PMF.md) is the evidence
+ledger, including what it is not.
 
 The whole argument is one command:
 

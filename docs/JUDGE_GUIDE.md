@@ -134,6 +134,7 @@ Every one of these is clickable and was produced by this code.
 | ACP job 75659, both legs | [escrow funded](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64) · [provider paid](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59) |
 | Access.sol, deployed | [contract](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52) |
 | The Action, having actually run | [pull request #1](https://github.com/drexthealpha/Knos/pull/1) |
+| Merged into a third-party repo | [caura#1299](https://github.com/caura-ai/caura/pull/1299) · [drt#1098](https://github.com/drt-hub/drt/pull/1098) |
 | On PyPI | [knos 0.1.6](https://pypi.org/project/knos/0.1.6/) |
 | In the MCP registry | `io.github.drexthealpha/knos` |
 | Listed on Glama | [server page](https://glama.ai/mcp/servers/drexthealpha/Knos) |
@@ -147,9 +148,15 @@ status `0x1`, USDC contract `0x8335…2913` in the logs. Full detail in
 Stated because a judge will find them anyway, and because the rest of the
 page is worth more if this one is complete.
 
-- **No retained users.** 1 star, 583 PyPI downloads in a week that are
-  overwhelmingly CI and crawlers. Nobody has adopted this and kept it. The
-  problem is evidenced; the demand for *this* answer is not.
+- **No retained users.** Nobody has adopted Knos and kept it. 841 PyPI
+  downloads in a week against 1 star is automated traffic, not people.
+  What does exist is external validation of a different kind: **two pull
+  requests merged into third-party repositories** by their maintainers
+  ([caura#1299](https://github.com/caura-ai/caura/pull/1299),
+  [drt#1098](https://github.com/drt-hub/drt/pull/1098)), seven more open, and
+  a measured problem - 1,254 of 100,057 sampled issues. Full ledger, including
+  the 34 earlier pull requests that failed and were withdrawn:
+  [PMF.md](PMF.md).
 - **The ACP job was bought by my own test agent.** It is a real job over the
   real marketplace with real USDC, and it is not a customer.
 - **No hosted playground.** Knos is local-first on purpose: nothing on the
