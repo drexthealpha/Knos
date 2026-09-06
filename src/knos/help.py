@@ -74,6 +74,16 @@ PER_COMMAND = {
   agent chose to write down, which is the part a CLAUDE.md used to hold.
 
   Forgetting one stops your agents repeating it.""",
+    "demo": """  knos demo
+
+  The whole product in about a minute, on a throwaway repo that is
+  deleted afterwards. Your own repos are not touched.
+
+  A claim, a second agent refused, an edit blocked, a purchase that
+  costs nothing the second time, a reversed decision holding the work
+  under it, and then the store deleted so you watch all of it stop.
+
+  Every line is a real call. Nothing in it is a transcript.""",
     "restore": """  knos restore
 
   Rebuilds this repo's decisions from .knos/decisions.md, the file

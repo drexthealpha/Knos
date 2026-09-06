@@ -556,6 +556,14 @@ def remember(
 
 
 @app.command()
+def demo() -> None:
+    """Run the whole product on a throwaway repo, then delete its memory."""
+    from . import demo as demo_mod
+
+    raise typer.Exit(demo_mod.run(out))
+
+
+@app.command()
 def restore() -> None:
     """Rebuild this repo's decisions from the record committed to it."""
     from . import share

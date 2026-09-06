@@ -366,9 +366,15 @@ def test_the_readme_leads_with_the_problem_and_the_action():
     )
     first = readme[:1800]
     assert "same thing" in first, "the first screen does not state the problem"
-    assert "drexthealpha/Knos/action@" in first, "the Action is not on the first screen"
-    assert "knos-claims.yml" in first, "no workflow a maintainer can copy"
+    assert "knos demo" in first, "the one command a judge runs is not on the first screen"
     assert "install" in first.lower(), "the first screen does not address the cost"
+
+    # The Action and the copyable workflow moved down one screen when `knos
+    # demo` took the top. They are still the zero-install path and must still
+    # be reachable without scrolling far.
+    near = readme[:5200]
+    assert "drexthealpha/Knos/action@" in near, "the Action fell too far down"
+    assert "knos-claims.yml" in near, "no workflow a maintainer can copy"
 
     # The embeddable core is the other zero-server path, and is named early.
     assert "knos.core" in readme[:4000], "the importable core is not near the top"

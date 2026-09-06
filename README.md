@@ -12,6 +12,34 @@ already taken.**
 Take it in whichever shape you already wanted. **Nothing here asks you to
 install Knos to try it.**
 
+## See it in one command
+
+```bash
+pip install knos==0.1.6
+knos demo
+```
+
+Sixty seconds, on a throwaway repo it deletes afterwards. A claim, a second
+agent **refused**, an edit **blocked before the write**, a purchase that costs
+nothing the second time, a reversed decision **holding the work under it** -
+and then the store is deleted and you watch every one of those stop.
+
+Every line it prints is a real call into the real code. There is no hosted
+playground and there will not be one: **nothing on the read path touches a
+network**, and that is [a test](tests/test_no_network.py) rather than a
+promise. The local path is the playground.
+
+## Signals
+
+| | Knos |
+|---|---|
+| Pull requests **merged by third-party maintainers** | **2** - [caura#1299](https://github.com/caura-ai/caura/pull/1299) (486 stars), [drt#1098](https://github.com/drt-hub/drt/pull/1098), which invited a second |
+| Open in real repositories | **7**, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) at 28k stars |
+| Issues sampled to size the problem | **100,057**, of which 1,254 describe it |
+| Ablation arms that die with the store | **12** |
+| Refusal that stops a filesystem write | **yes**, `tests/test_guard.py` |
+| Retained users | **none.** [The full ledger](docs/PMF.md), including 34 pull requests that failed |
+
 ## Start here: the Action
 
 Zero install for the repo. One file, no dependency added to your project, and
@@ -938,7 +966,7 @@ an agent of mine registered to prove the path executes. It is not demand.
 `pytest` runs the critical path only — claim, withhold, concurrency,
 no-network, three tools, private files — **27 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **290 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **294 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so

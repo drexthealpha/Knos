@@ -4,6 +4,17 @@ Every claim on this page maps to a file, a test, or a live artifact. Nothing
 here is asserted without one of the three. Where something is not true yet,
 it says so.
 
+## Run it first
+
+```bash
+pip install knos==0.1.6
+knos demo
+```
+
+Sixty seconds on a throwaway repo, ending with the store deleted and every
+refusal gone. Every line is a real call, not a transcript -
+[`tests/test_demo.py`](../tests/test_demo.py) asserts the live values appear.
+
 ## The 60 second version
 
 1. Knos is one SQLite file per repo, in Sibyl Memory, shared by every coding
@@ -117,7 +128,7 @@ impossible.
 | Delete the store and the product stops | - | `tests/test_sibyl_is_load_bearing.py` |
 | The claim as an importable library, no server | `src/knos/core.py` | `tests/test_core.py` |
 
-Suite: **27 critical in under a minute**, **290 in full** (`pytest -m ""`).
+Suite: **27 critical in under a minute**, **294 in full** (`pytest -m ""`).
 Contract: **9 more** (`cd contracts && forge test`).
 
 ## Live artifacts
