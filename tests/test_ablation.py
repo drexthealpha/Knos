@@ -63,6 +63,15 @@ def test_a_bought_answer_needs_the_store_to_be_found_again(bare) -> None:
     assert off is False, "a bought answer survived deleting the store"
 
 
+@pytest.mark.critical
+def test_the_memory_gates_the_money(bare) -> None:
+    """The arm that answers "what does remembering actually change"."""
+    on, off, refused = ablation.arm_spend(bare)
+    assert on is False, "it bought again with the answer already in the store"
+    assert off is True, "it did not buy again after the store was deleted"
+    assert refused is True, "a standing claim did not stop the spend"
+
+
 def test_the_published_numbers_match_the_arms() -> None:
     """docs/evidence/ablation.json is what the README quotes."""
     out = ROOT / "docs" / "evidence" / "ablation.json"
@@ -79,6 +88,9 @@ def test_the_published_numbers_match_the_arms() -> None:
     assert arms["action"]["off_commented"] == 0
     assert arms["paid"]["on_kept"] == trials
     assert arms["paid"]["off_kept"] == 0
+    assert arms["spend"]["on_paid_again"] == 0
+    assert arms["spend"]["off_paid_again"] == trials
+    assert arms["spend"]["refused_when_claimed"] == trials
 
 
 def test_the_script_runs_end_to_end() -> None:
@@ -90,5 +102,5 @@ def test_the_script_runs_end_to_end() -> None:
         timeout=900,
     )
     assert said.returncode == 0, said.stderr[-800:]
-    for line in ("Withhold", "Guard", "Action", "Paid", "store deleted"):
+    for line in ("Withhold", "Guard", "Action", "Paid", "Spend", "store deleted"):
         assert line in said.stdout, line

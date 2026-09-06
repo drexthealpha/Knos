@@ -167,6 +167,43 @@ def arm_paid(repo: Path) -> tuple[bool, bool]:
     return on, off
 
 
+def arm_spend(repo: Path) -> tuple[bool, bool, bool]:
+    """Does the memory stop the money?
+
+    Returns (paid_again_with_store, paid_again_without_store, refused_when_claimed).
+
+    Arm three is the one that matters most: a claim standing on the topic
+    means the answer is about to be stale and the holder is the cheaper place
+    to ask, so the gate refuses to spend at all.
+    """
+    from knos import answer, gate, paths
+    from knos.memory import TOPIC, Fact, Memory
+
+    topic = "market brief: BTC"
+    note = "Bought over x402 on Base: brief. Paid: https://basescan.org/tx/0xce109c"
+    now = _now()
+    paths.remember_pointed(repo)
+
+    with Memory(repo) as mem:
+        answer.point(repo, mem, index_code=False)
+        mem.record(Fact(text=note, source="note", where="you said so", when=now, about=topic))
+        mem.note_thing(TOPIC, topic, {"note": note, "when": now[:10]})
+
+    # With the store: the second identical request must not buy.
+    would_buy_on = gate.decide(repo, topic, topic)["verdict"] == "buy"
+
+    # A claim standing on it: refuse to spend at all.
+    with Memory(repo) as mem:
+        mem.working_on(topic, "Claude Code", _now())
+    refused = gate.decide(repo, topic, topic)["verdict"] == "withheld"
+
+    paths.store_for(repo).unlink()
+
+    # Without the store: nothing remembers the purchase, so it buys again.
+    would_buy_off = gate.decide(repo, topic, topic)["verdict"] == "buy"
+    return would_buy_on, would_buy_off, refused
+
+
 def run() -> dict:
     random.seed(SEED)
     topic = "the risk guard"
@@ -175,6 +212,7 @@ def run() -> dict:
         "guard": {"on_refused": 0, "off_refused": 0},
         "action": {"on_commented": 0, "off_commented": 0},
         "paid": {"on_kept": 0, "off_kept": 0},
+        "spend": {"on_paid_again": 0, "off_paid_again": 0, "refused_when_claimed": 0},
     }
 
     for _ in range(TRIALS):
@@ -200,6 +238,15 @@ def run() -> dict:
             tally["paid"]["on_kept"] += int(on)
             tally["paid"]["off_kept"] += int(off)
 
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            os.environ["KNOS_HOME"] = str(root / "home")
+            repo = _repo(root)
+            on, off, refused = arm_spend(repo)
+            tally["spend"]["on_paid_again"] += int(on)
+            tally["spend"]["off_paid_again"] += int(off)
+            tally["spend"]["refused_when_claimed"] += int(refused)
+
     return {
         "trials": TRIALS,
         "seed": SEED,
@@ -224,6 +271,12 @@ def render(result: dict) -> str:
         ("Paid: a bought answer, found by the next agent",
          f"kept {a['paid']['on_kept']}/{t}",
          f"kept {a['paid']['off_kept']}/{t}"),
+        ("Spend: the same request a second time",
+         f"paid again {a['spend']['on_paid_again']}/{t}",
+         f"paid again {a['spend']['off_paid_again']}/{t}"),
+        ("Spend: the same request while somebody holds it",
+         f"refused {a['spend']['refused_when_claimed']}/{t}",
+         "n/a - no claim survives"),
     ]
     width = max(len(r[0]) for r in rows)
     out = [f"knos ablation - {t} trials, seed {result['seed']}", ""]

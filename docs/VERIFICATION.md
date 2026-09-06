@@ -17,6 +17,8 @@ python scripts/ablation.py
 
 | Arm | Store present | Store deleted |
 |---|---|---|
+| **Spend: the same request a second time** | **paid again 0/12** | **paid again 12/12** |
+| **Spend: the same request while somebody holds it** | **refused 12/12** | no claim survives |
 | Withhold: a second agent asks about claimed work | refused 12/12 | refused 0/12 |
 | Guard: an edit to claimed work | refused 12/12 | refused 0/12 |
 | Action: a pull request touching a claimed topic | commented 12/12 | commented 0/12 |
@@ -41,6 +43,45 @@ pytest tests/test_sibyl_is_load_bearing.py
 It deletes `~/.knos/<repo>/memory.db` mid-test and asserts the hold ends, the
 answer disappears, and what the repo can be re-read for comes back - because
 that part was never Knos's to lose.
+
+## 1b. The memory decides whether money moves
+
+`knos remember` after a purchase was only half of "nobody here pays twice".
+The other half is looking before you buy, and `src/knos/gate.py` is that half.
+Three verdicts, one of which costs money:
+
+| The store says | What the agent does |
+|---|---|
+| somebody holds this topic | **refuses to spend.** The answer would be stale before it arrived |
+| this was already bought | **serves it free**, and says where it came from |
+| nothing known, nothing claimed | buys it, then writes it back |
+
+Watch it happen, without spending anything, on a topic already in the store:
+
+```
+$ npm --prefix agent run bot -- "/brief ETH"
+Looking up ETH. If this machine has not paid for it already, it costs $0.01 on Base.
+ETH is at $2,452.13, down 2.16% in 24h.
+...
+Free. This machine already paid for it once (you said so, 2026-09-05), so nobody paid again.
+```
+
+And with a claim standing on it:
+
+```
+$ knos claim "market brief: ETH"
+$ npm --prefix agent run bot -- "/brief ETH"
+Withheld. The person you are working with said they are on market brief: ETH
+right now, so knos is not the place you find out about it.
+...
+Nothing was bought. You are on this right now, so a paid answer would be out
+of date before it arrived.
+```
+
+Pinned by `tests/test_gate.py`, including the one that matters most: a gate
+that crashes answers "buy" rather than blocking the product, so a broken gate
+can never become a gate that silently spends *or* a gate that stops the agent
+working.
 
 ## 2. Base mainnet, real USDC
 

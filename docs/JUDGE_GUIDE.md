@@ -15,7 +15,10 @@ it says so.
    hook exits 2 and the tool never writes the file.
 5. `knos export` commits the same record to `.knos/decisions.md`, and a
    GitHub Action says it on the pull request, for people who installed nothing.
-6. Delete the file and every one of those stops. Measured below, not asserted.
+6. The same store decides whether the agent **spends money**: it will not
+   buy what it already has, and it refuses to buy at all while somebody
+   holds the topic.
+7. Delete the file and every one of those stops. Measured below, not asserted.
 
 ## The one thing to look at
 
@@ -29,10 +32,18 @@ That is the whole argument, run against the real refusal code:
 
 | Arm | Store present | Store deleted |
 |---|---|---|
+| **Spend: the same request a second time** | **paid again 0/12** | **paid again 12/12** |
+| **Spend: the same request while somebody holds it** | **refused 12/12** | no claim survives |
 | Withhold: a second agent asks about claimed work | refused **12/12** | refused **0/12** |
 | Guard: an edit to claimed work | refused **12/12** | refused **0/12** |
 | Action: a pull request touching a claimed topic | commented **12/12** | commented **0/12** |
 | Paid: a bought answer, found by the next agent | kept **12/12** | kept **0/12** |
+
+The first two rows are the memory deciding whether money moves. With the store,
+the second identical request costs nothing. Without it, the agent pays again
+every single time. And while somebody holds the topic, it refuses to spend at
+all - a bought answer would be stale before it arrived, and the holder is the
+cheaper place to ask.
 
 12 trials, seed 1337. Written to
 [`docs/evidence/ablation.json`](evidence/ablation.json), pinned by
@@ -47,6 +58,7 @@ impossible.
 
 | Claim | Code | Test |
 |---|---|---|
+| **The memory decides whether money moves** | `src/knos/gate.py` | `tests/test_gate.py` |
 | A claim is one row in Sibyl, overwritten, lapsing at 30 min | `src/knos/memory.py` `claim_if_free` | `tests/test_intent.py` |
 | Two agents racing: exactly one wins | `src/knos/memory.py` `claim_if_free` | `tests/test_open_race.py` |
 | The hold is bound to the connection, not the name | `src/knos/mcp.py` `_is_holder` | `tests/test_core.py` |
@@ -62,7 +74,7 @@ impossible.
 | Delete the store and the product stops | - | `tests/test_sibyl_is_load_bearing.py` |
 | The claim as an importable library, no server | `src/knos/core.py` | `tests/test_core.py` |
 
-Suite: **18 critical in under a minute**, **265 in full** (`pytest -m ""`).
+Suite: **21 critical in under a minute**, **272 in full** (`pytest -m ""`).
 Contract: **9 more** (`cd contracts && forge test`).
 
 ## Live artifacts

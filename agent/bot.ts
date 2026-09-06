@@ -247,6 +247,44 @@ async function payFor(
   price: string,
   body?: unknown,
 ): Promise<string> {
+  // The memory decides whether this costs anything. Three answers, and only
+  // the last one spends: somebody is mid-change on this topic and the answer
+  // is about to be stale, the store already has it, or neither and we buy.
+  //
+  // This is the half that made "nobody here pays twice" true. The write-back
+  // was always there; the look-before-paying was not, so the second identical
+  // request paid again for something already sitting in the store.
+  const asked = await run(config.python ?? "python", [
+    "-m", "knos.gate", "--topic", topic, "--ask", topic,
+  ]);
+  if (!broke(asked)) {
+    try {
+      const gate = JSON.parse(asked.split("\n").filter(Boolean).pop() ?? "{}");
+      if (gate.verdict === "withheld") {
+        return [
+          gate.answer,
+          "",
+          "Nothing was bought. " +
+            (gate.holder === "you"
+              ? "You are on this right now"
+              : `${gate.holder || "Another agent"} is on this right now`) +
+            ", so a paid answer would be out of date before it arrived.",
+        ].join("\n");
+      }
+      if (gate.verdict === "have") {
+        return [
+          english(gate.answer) || gate.answer,
+          "",
+          "Free. This machine already paid for it once" +
+            (gate.where ? ` (${gate.where})` : "") + ", so nobody paid again.",
+        ].join("\n");
+      }
+    } catch {
+      // A gate that cannot be read must not become a gate that blocks. Fall
+      // through and buy, which is what happened before it existed.
+    }
+  }
+
   const args = ["-m", "knos.buy402", url];
   if (body !== undefined) args.push(JSON.stringify(body));
   const bought = await run(config.python ?? "python", args);
@@ -436,7 +474,8 @@ async function handle(
   }
   if (text.startsWith("/news")) {
     const topic = text.slice("/news".length).trim() || "bitcoin";
-    await say(`Buying news about ${topic} for $0.001 on Base...`);
+    // Not "buying" yet: the store is asked first and may answer for nothing.
+    await say(`Looking up ${topic}. If this machine has not paid for it already, it costs $0.001 on Base.`);
     try {
       const url = `${NEWS}?q=${encodeURIComponent(topic)}`;
       await say(await payFor(config, `news: ${topic}`, url, "0.001"));
@@ -447,7 +486,7 @@ async function handle(
   }
   if (text.startsWith("/brief")) {
     const symbol = text.slice("/brief".length).trim().toUpperCase() || "BTC";
-    await say(`Buying a market brief for ${symbol} for $0.01 on Base...`);
+    await say(`Looking up ${symbol}. If this machine has not paid for it already, it costs $0.01 on Base.`);
     try {
       const url = `${config.paidEndpoint ?? BRIEF}?symbol=${encodeURIComponent(symbol)}`;
       await say(await payFor(config, `market brief: ${symbol}`, url, "0.01"));

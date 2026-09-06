@@ -106,14 +106,33 @@ One ACP sale, sold out of this same store. Say the honest version out loud:
 **the buyer was my own test agent.** A judge will find that out; better it
 comes from you.
 
-Then, the point:
+Then the beat that makes memory expensive to lose. Run the **same command
+again**:
 
 ```bash
-knos ask "market brief BTC"
+npm --prefix agent run bot -- "/brief BTC"
 ```
 
-The thing that was just bought comes back out of the store. **Paid once,
-free to every agent on this machine afterwards.**
+```
+Free. This machine already paid for it once, so nobody paid again.
+```
+
+No transaction. No Basescan link. The store answered, and the money stayed in
+the wallet. Say it plainly: **the memory is what decided not to spend.**
+
+Now claim it and try once more:
+
+```bash
+knos claim "market brief: BTC"
+npm --prefix agent run bot -- "/brief BTC"
+```
+
+```
+Withheld. ... Nothing was bought. You are on this right now, so a paid answer
+would be out of date before it arrived.
+```
+
+**A claim did not warn about a purchase. It stopped one.**
 
 ## Beat 6 - delete it (3:10-3:45)
 
@@ -129,6 +148,8 @@ knos ask "market brief BTC"      # gone - it lived nowhere else
 
 In agent B, ask about the risk guard again: **it answers.** The withhold is
 not weaker, it is gone. Ask it to edit the file: **the edit goes through.**
+And run `/brief BTC` once more: it **pays again**, on camera, for something
+this machine had already bought.
 
 Close on it:
 
@@ -143,6 +164,8 @@ python scripts/ablation.py
 
 | Arm | Store present | Store deleted |
 |---|---|---|
+| Spend: same request twice | paid again 0/12 | paid again 12/12 |
+| Spend: while somebody holds it | refused 12/12 | no claim survives |
 | Withhold | refused 12/12 | refused 0/12 |
 | Guard | refused 12/12 | refused 0/12 |
 | Action | commented 12/12 | commented 0/12 |
