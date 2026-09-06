@@ -86,6 +86,9 @@ agents open on one tree, and overkill when you do not.
 test or a live artifact, and states the limits plainly.
 [**docs/VERIFICATION.md**](docs/VERIFICATION.md) is the same list with the
 commands and explorer links that settle each one.
+[**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) and
+[**docs/MEMORY_MODEL.md**](docs/MEMORY_MODEL.md) are how it is built and what
+lives in each Sibyl tier.
 
 The whole argument is one command:
 

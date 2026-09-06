@@ -60,6 +60,13 @@ without the suite failing.
 copy of a claim, so with the file gone the refusal is not weaker, it is
 impossible.
 
+## How it is built
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - the four surfaces, why each is where it
+  is, and the anti-goals.
+- [MEMORY_MODEL.md](MEMORY_MODEL.md) - what lives in each of Sibyl's five
+  tiers and why that mapping is load-bearing rather than decorative.
+
 ## Load-bearing map
 
 | Claim | Code | Test |
