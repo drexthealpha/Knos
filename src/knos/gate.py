@@ -74,17 +74,27 @@ def decide(repo: Path, topic: str, question: str) -> dict[str, str]:
                 "where": str(found.get("because", "")),
             }
 
-    # Then what is already known. `knos remember` writes the bought answer
-    # under the topic, so this is the same lookup the next agent would do.
+    # Then what is already known - under this exact topic, and no other.
+    #
+    # This used to search, and searching is wrong here in a way that costs
+    # more than money: `answer.ask` matches on shared stems, so a store
+    # holding "market brief: BTC" answered a request for "market brief: ETH"
+    # and the agent was handed the wrong asset's numbers for free. Saving a
+    # cent by returning something true about a different subject is the worst
+    # outcome available. `knos remember` writes the purchase under the topic
+    # as a named thing, so the exact name is what to read back.
+    from .memory import TOPIC
+
     with Memory(repo) as mem:
-        for found in answer.ask(repo, mem, question):
-            if "Bought over x402" in found.text:
-                return {
-                    "verdict": "have",
-                    "answer": found.text,
-                    "holder": "",
-                    "where": found.where or "",
-                }
+        thing = mem.thing(TOPIC, topic)
+        note = str(((thing or {}).get("body") or {}).get("note", ""))
+        if "Bought over x402" in note:
+            return {
+                "verdict": "have",
+                "answer": note,
+                "holder": "",
+                "where": str(((thing or {}).get("body") or {}).get("when", "")),
+            }
 
     return {"verdict": "buy", "answer": "", "holder": "", "where": ""}
 

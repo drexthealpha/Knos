@@ -86,6 +86,36 @@ that crashes answers "buy" rather than blocking the product, so a broken gate
 can never become a gate that silently spends *or* a gate that stops the agent
 working.
 
+## 1c. What the memory is worth, in dollars
+
+```bash
+python scripts/spend.py
+```
+
+One ordinary day, five agents on one machine, twenty asks across four subjects:
+
+| | purchases | free | spent |
+|---|---|---|---|
+| store present | 4 | 16 | $0.022 |
+| store deleted | 20 | 0 | $0.119 |
+
+**5.41x more expensive without it.** Written to
+`docs/evidence/spend.json`.
+
+Real: every verdict is a live call into `gate.decide`, against a real store,
+the same function the bot runs before it spends. Arithmetic: the dollars are
+those verdicts times prices actually paid on Base mainnet - $0.001 for news
+(`0x80d984...`, `0xa8e713...`) and $0.01 for a brief (`0xce109c...`,
+`0x3a45e0...`). Both halves are stated so either can be checked.
+
+**A number that used to be better and was wrong.** This first read 10.82x,
+because the gate searched instead of reading the exact topic, and search
+matches on shared stems - so a store holding `market brief: BTC` answered a
+request for `market brief: ETH`, handing back the wrong asset's numbers for
+free. Saving a cent by returning something true about a different subject is
+worse than paying. Fixed, pinned by
+`tests/test_gate.py -k near_neighbour`, and the honest figure is 5.41x.
+
 ## 2. Base mainnet, real USDC
 
 Four x402 purchases by the agent, each paying a live seller and writing what

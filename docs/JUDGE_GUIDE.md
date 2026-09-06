@@ -56,6 +56,30 @@ cheaper place to ask.
 [`tests/test_ablation.py`](../tests/test_ablation.py) so it cannot drift
 without the suite failing.
 
+### What that is worth, in dollars
+
+```bash
+python scripts/spend.py
+```
+
+One ordinary day on one machine: **5 agents, 20 asks, 4 subjects.**
+
+| | purchases | free | spent |
+|---|---|---|---|
+| **store present** | 4 | 16 | **$0.022** |
+| **store deleted** | 20 | 0 | **$0.119** |
+
+**5.41x more expensive without the memory.** Every verdict is a real call into
+`gate.decide`, the same function the bot runs before spending. The dollars are
+those verdicts times prices this agent has actually paid on Base mainnet - the
+receipts are in [VERIFICATION.md](VERIFICATION.md). The multiplication is
+stated rather than hidden: re-buying the same brief forty times would cost
+$0.40 and prove nothing the verdict count does not.
+
+Scale is the point rather than the cents. Four subjects and five agents is a
+quiet day; the ratio is what a team pays for having no shared memory, and it
+grows with every agent added.
+
 **Memory is not a feature here. It is the mechanism.** There is no second
 copy of a claim, so with the file gone the refusal is not weaker, it is
 impossible.
@@ -89,7 +113,7 @@ impossible.
 | Delete the store and the product stops | - | `tests/test_sibyl_is_load_bearing.py` |
 | The claim as an importable library, no server | `src/knos/core.py` | `tests/test_core.py` |
 
-Suite: **24 critical in under a minute**, **281 in full** (`pytest -m ""`).
+Suite: **25 critical in under a minute**, **282 in full** (`pytest -m ""`).
 Contract: **9 more** (`cd contracts && forge test`).
 
 ## Live artifacts

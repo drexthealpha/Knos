@@ -104,3 +104,22 @@ def test_an_unrelated_topic_is_not_served_from_memory(knos_home, repo) -> None:
     """The gate must not hand back the wrong purchase to save a cent."""
     _remember_a_purchase(repo)
     assert gate.decide(repo, "news: ethereum", "news ethereum")["verdict"] == "buy"
+
+
+@pytest.mark.critical
+def test_a_near_neighbour_is_not_served_the_wrong_asset(knos_home, repo) -> None:
+    """The bug this test exists for, because it was live and it was silent.
+
+    The gate used to search rather than read the exact name, and search
+    matches on shared stems - so a store holding "market brief: BTC" answered
+    a request for "market brief: ETH" and handed the agent the wrong asset's
+    numbers, for free, with a real receipt attached. Saving a cent by
+    returning something true about a different subject is worse than paying.
+    """
+    _remember_a_purchase(repo)  # buys "market brief: BTC"
+
+    said = gate.decide(repo, "market brief: ETH", "market brief: ETH")
+    assert said["verdict"] == "buy", "the gate served BTC when asked for ETH"
+
+    # And the one it does have is still free.
+    assert gate.decide(repo, TOPIC_NAME, TOPIC_NAME)["verdict"] == "have"

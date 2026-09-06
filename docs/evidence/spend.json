@@ -1,0 +1,24 @@
+{
+  "when": "2026-09-06T05:21:28.315616+00:00",
+  "asks": 20,
+  "agents": 5,
+  "subjects": 4,
+  "prices_usd": {
+    "news": 0.001,
+    "brief": 0.01
+  },
+  "with_store": {
+    "asks": 20,
+    "bought": 4,
+    "free": 16,
+    "spent_usd": 0.022
+  },
+  "without_store": {
+    "asks": 20,
+    "bought": 20,
+    "free": 0,
+    "spent_usd": 0.119
+  },
+  "saved_usd": 0.097,
+  "times_more_expensive_without": 5.41
+}

@@ -119,6 +119,30 @@ cheaper place to ask.
 [`docs/evidence/ablation.json`](docs/evidence/ablation.json) and pinned by
 [`tests/test_ablation.py`](tests/test_ablation.py).
 
+### What that is worth, in dollars
+
+```bash
+python scripts/spend.py
+```
+
+One ordinary day on one machine: **5 agents, 20 asks, 4 subjects.**
+
+| | purchases | free | spent |
+|---|---|---|---|
+| **store present** | 4 | 16 | **$0.022** |
+| **store deleted** | 20 | 0 | **$0.119** |
+
+**5.41x more expensive without the memory.** Every verdict is a real call into
+`gate.decide`, the same function the bot runs before spending. The dollars are
+those verdicts times prices this agent has actually paid on Base mainnet - the
+receipts are in [VERIFICATION.md](VERIFICATION.md). The multiplication is
+stated rather than hidden: re-buying the same brief forty times would cost
+$0.40 and prove nothing the verdict count does not.
+
+Scale is the point rather than the cents. Four subjects and five agents is a
+quiet day; the ratio is what a team pays for having no shared memory, and it
+grows with every agent added.
+
 **Memory is not a feature here, it is the mechanism.** A claim has no second
 copy. Delete the store and the refusal is not degraded, it is impossible.
 
@@ -908,9 +932,9 @@ an agent of mine registered to prove the path executes. It is not demand.
 ## Tests
 
 `pytest` runs the critical path only — claim, withhold, concurrency,
-no-network, three tools, private files — **24 tests in well under a minute**,
+no-network, three tools, private files — **25 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **281 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **282 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so
