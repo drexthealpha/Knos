@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.7
+
+`knos demo` runs the whole product on a throwaway repo in about a minute and
+then deletes its memory, so the last thing on screen is every refusal
+stopping. Every line is a real call rather than a transcript, and the tests
+assert the live values appear.
+
+The memory now decides whether money moves. `knos.gate` is asked before any
+purchase and answers one of four ways: it refuses to spend while somebody
+holds the topic, refuses while the work rests on a reversed decision, serves
+what was already bought for nothing, and only otherwise buys. Measured over an
+ordinary day of five agents: 5.41x more expensive without the store.
+
+`knos changed` reverses a decision and holds everything reasoned from it - the
+edit is refused and the purchase is refused - until `knos reconsider` says
+somebody looked. The old wording is archived rather than dropped. `knos held`
+lists what is waiting.
+
+`knos restore` rebuilds a repo's decisions from the `.knos/decisions.md` it
+commits, so a fresh clone on a machine that has never run knos carries them.
+Claims are deliberately not restored: a hold rebuilt elsewhere would assert a
+collision that is not happening.
+
+Also: the ablation grew to twelve arms with numbers in
+`docs/evidence/ablation.json`, and a judge guide, verification, architecture,
+memory-model and evidence ledger under `docs/`.
+
+Fixed: the gate served the wrong asset. It searched rather than reading the
+exact topic, so a store holding `market brief: BTC` answered a request for
+`market brief: ETH` for free. Saving a cent by returning something true about
+a different subject is worse than paying.
+
 ## 0.1.6
 
 The bot never answers with silence. Anything it does not recognise - a typo'd

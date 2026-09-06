@@ -15,7 +15,7 @@ install Knos to try it.**
 ## See it in one command
 
 ```bash
-pip install knos==0.1.6
+pip install knos==0.1.7
 knos demo
 ```
 
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: drexthealpha/Knos/action@v0.1.6
+      - uses: drexthealpha/Knos/action@v0.1.7
 ```
 
 That is the whole of it. It reads `.knos/decisions.md` — an ordinary file
@@ -65,7 +65,7 @@ failure path and every unexpected one**
 ([`tests/test_shared_repo.py -k never_returns_non_zero`](tests/test_shared_repo.py)).
 
 The tag is pinned rather than a branch, so what runs in your CI is a fixed
-file you can read first: `git show v0.1.6:action/knos_pr_check.py`. It is
+file you can read first: `git show v0.1.7:action/knos_pr_check.py`. It is
 standard library only. You can watch it having run rather than take this on
 trust — it fired on
 [pull request #1](https://github.com/drexthealpha/Knos/pull/1) here, matched a

@@ -9,7 +9,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir knos==0.1.6
+RUN pip install --no-cache-dir knos==0.1.7
 
 WORKDIR /repo
 ENTRYPOINT ["python", "-m", "knos.mcp"]

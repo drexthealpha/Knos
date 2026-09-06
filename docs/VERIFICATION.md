@@ -198,13 +198,13 @@ pytest tests/test_shared_repo.py -k never_returns_non_zero
 
 | Where | What |
 |---|---|
-| [PyPI](https://pypi.org/project/knos/0.1.6/) | `pip install knos==0.1.6` |
-| MCP registry | `io.github.drexthealpha/knos`, 0.1.6, `isLatest` |
+| [PyPI](https://pypi.org/project/knos/0.1.7/) | `pip install knos==0.1.7` |
+| MCP registry | `io.github.drexthealpha/knos`, 0.1.7, `isLatest` |
 | [Glama](https://glama.ai/mcp/servers/drexthealpha/Knos) | listed and scored |
-| GitHub | `drexthealpha/Knos`, tag `v0.1.6` |
+| GitHub | `drexthealpha/Knos`, tag `v0.1.7` |
 
 ```bash
-python -m venv v && v/bin/pip install knos==0.1.6
+python -m venv v && v/bin/pip install knos==0.1.7
 v/bin/python -c "from knos.core import Claims, holds; print(holds('the risk guard','guards'))"
 # True
 ```

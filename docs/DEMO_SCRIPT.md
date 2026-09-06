@@ -10,7 +10,7 @@ prints.
 ## Before you start
 
 ```bash
-pip install knos==0.1.6
+pip install knos==0.1.7
 cd <a repo you actually work in>
 knos connect              # optional; only needed for the agent panes
 knos guard --install      # optional; only needed for beat 3
