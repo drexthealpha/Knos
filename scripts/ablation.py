@@ -236,6 +236,47 @@ def arm_reversed(repo: Path) -> tuple[bool, bool, bool]:
     return edit_refused, spend_refused, allowed_again
 
 
+def arm_restore(repo: Path) -> tuple[bool, bool, bool]:
+    """A fresh machine, and whether the repo carries its own memory.
+
+    Returns (lost_before_restore, back_after_restore, claims_stayed_gone).
+
+    The store has no backup, on purpose. The committed record is the answer,
+    and this measures that it actually is one - including the part that must
+    NOT come back, because a hold rebuilt on another machine hours later is a
+    lie about a live collision.
+    """
+    from knos import answer, paths, share
+    from knos.memory import TOPIC, Fact, Memory
+
+    now = _now()
+    paths.remember_pointed(repo)
+    with Memory(repo) as mem:
+        answer.point(repo, mem, index_code=False)
+        mem.record(Fact(text="we chose sqlite over redis", source="note",
+                        where="you", when=now, about="storage"))
+        mem.note_thing(TOPIC, "storage", {"note": "we chose sqlite over redis",
+                                          "when": now[:10]})
+        mem.working_on("the parser", "Claude Code", now)
+        share.write(repo, mem)
+
+    # A different machine: the clone has the file, the store is gone.
+    paths.store_for(repo).unlink()
+
+    with Memory(repo) as mem:
+        lost = not any("sqlite over redis" in p_.text
+                       for p_ in answer.ask(repo, mem, "storage sqlite"))
+
+    with Memory(repo) as mem:
+        share.restore(repo, mem)
+
+    with Memory(repo) as mem:
+        back = any("sqlite over redis" in p_.text
+                   for p_ in answer.ask(repo, mem, "storage sqlite"))
+        claims_gone = mem.claims() == []
+    return lost, back, claims_gone
+
+
 def run() -> dict:
     random.seed(SEED)
     topic = "the risk guard"
@@ -246,6 +287,7 @@ def run() -> dict:
         "paid": {"on_kept": 0, "off_kept": 0},
         "spend": {"on_paid_again": 0, "off_paid_again": 0, "refused_when_claimed": 0},
         "reversed": {"edit_refused": 0, "spend_refused": 0, "allowed_after_reconsider": 0},
+        "restore": {"lost_before": 0, "back_after": 0, "claims_stayed_gone": 0},
     }
 
     for _ in range(TRIALS):
@@ -289,6 +331,15 @@ def run() -> dict:
             tally["reversed"]["spend_refused"] += int(spend)
             tally["reversed"]["allowed_after_reconsider"] += int(again)
 
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            os.environ["KNOS_HOME"] = str(root / "home")
+            repo = _repo(root)
+            lost, back, gone = arm_restore(repo)
+            tally["restore"]["lost_before"] += int(lost)
+            tally["restore"]["back_after"] += int(back)
+            tally["restore"]["claims_stayed_gone"] += int(gone)
+
     return {
         "trials": TRIALS,
         "seed": SEED,
@@ -328,6 +379,15 @@ def render(result: dict) -> str:
         ("Reversed decision: the same edit after reconsidering",
          f"allowed {a['reversed']['allowed_after_reconsider']}/{t}",
          "n/a"),
+        ("Fresh machine: a decision, before knos restore",
+         "n/a",
+         f"lost {a['restore']['lost_before']}/{t}"),
+        ("Fresh machine: the same decision, after knos restore",
+         "n/a",
+         f"back {a['restore']['back_after']}/{t}"),
+        ("Fresh machine: the claim that must NOT come back",
+         "n/a",
+         f"stayed gone {a['restore']['claims_stayed_gone']}/{t}"),
     ]
     width = max(len(r[0]) for r in rows)
     out = [f"knos ablation - {t} trials, seed {result['seed']}", ""]

@@ -556,6 +556,28 @@ def remember(
 
 
 @app.command()
+def restore() -> None:
+    """Rebuild this repo's decisions from the record committed to it."""
+    from . import share
+
+    repo = _repo(None)
+    with Memory(repo) as mem:
+        kept, skipped = share.restore(repo, mem)
+
+    if kept == 0 and skipped == 0:
+        out.print("Nothing to restore: no .knos/decisions.md in this repo.")
+        out.print("  A repo that commits one carries its decisions to any machine.")
+        return
+    out.print(f"Restored {kept} decision(s) from .knos/decisions.md.")
+    if skipped:
+        out.print(f"  {skipped} were already here and were left alone.")
+    out.print("")
+    out.print("Claims were not restored, on purpose: a hold is about who is")
+    out.print("moving right now, and rebuilding one on another machine would")
+    out.print("claim a collision that is not happening.")
+
+
+@app.command()
 def changed(
     about: str = typer.Argument(..., help="the decision that has changed"),
     now_is: str = typer.Argument(..., help="what is true instead"),

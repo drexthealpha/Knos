@@ -162,6 +162,86 @@ def read_back(repo: Path, target: Path) -> bool:
     return any(fnmatch(rel, pattern) for pattern in rules.DECISIONS)
 
 
+def read_decisions(text: str) -> list[tuple[str, str, str]]:
+    """Parse the decisions back out of an exported file, as (about, note, when).
+
+    The mirror of `export`. Tolerant in the same way `read_claims` is: a line
+    that does not parse is skipped rather than throwing, because a restore
+    that recovers nine of ten decisions is worth far more than one that
+    refuses because of a stray character in the tenth.
+    """
+    found: list[tuple[str, str, str]] = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## Decisions"):
+            inside = True
+            continue
+        if inside and line.startswith("## "):
+            break
+        if not inside or not line.startswith("- **"):
+            continue
+        try:
+            about = line.split("**")[1].strip()
+            rest = line.split("** — ", 1)[1]
+        except (IndexError, ValueError):
+            continue
+        when = ""
+        if "  _(recorded " in rest:
+            rest, tail = rest.split("  _(recorded ", 1)
+            when = tail.split(")")[0].strip()
+        if about and rest.strip():
+            found.append((about, rest.strip(), when))
+    return found
+
+
+def restore(repo: Path, mem: Any, source: Path | None = None) -> tuple[int, int]:
+    """Rebuild what a fresh machine can know, from the committed record.
+
+    The store is one file on one disk and it is not backed up anywhere: that
+    is the whole point, and it is also the obvious question a person asks
+    second. The answer is that the shareable half is already in the repo.
+    `knos export` writes `.knos/decisions.md` and you commit it, so a fresh
+    clone on a machine that has never run knos carries the decisions with it.
+
+    This reads that file back into the store. Returns (decisions, skipped).
+
+    Claims are deliberately **not** restored. A claim is about who is moving
+    right now, it lapses in thirty minutes, and a claim rebuilt on a different
+    machine hours later would be a lie about a live hold - the one thing this
+    product must never say. Decisions are what survive a move; holds are not.
+
+    What comes back is a file a human can read in a pull request diff, not a
+    blob. That is deliberate too: memory that restores an agent but cannot be
+    reviewed is memory nobody audits.
+    """
+    from .memory import TOPIC, Fact
+
+    repo = Path(repo).resolve()
+    target = Path(source) if source else repo / ".knos" / "decisions.md"
+    if not target.exists():
+        return 0, 0
+
+    text = target.read_text(encoding="utf-8")
+    kept = skipped = 0
+    for about, note, when in read_decisions(text):
+        stamp = when or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if mem.thing(TOPIC, about) is not None:
+            skipped += 1
+            continue
+        mem.record(
+            Fact(
+                text=note,
+                source="note",
+                where=f"{target.name}, recorded {stamp}",
+                when=f"{stamp}T00:00:00+00:00",
+                about=about,
+            )
+        )
+        mem.note_thing(TOPIC, about, {"note": note, "when": stamp})
+        kept += 1
+    return kept, skipped
+
+
 def read_claims(text: str) -> list[tuple[str, str]]:
     """Parse the claims back out of an exported file.
 

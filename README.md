@@ -107,6 +107,9 @@ python scripts/ablation.py
 | Guard: an edit to claimed work | refused **12/12** | refused **0/12** |
 | Action: a pull request touching a claimed topic | commented **12/12** | commented **0/12** |
 | Paid: a bought answer, found by the next agent | kept **12/12** | kept **0/12** |
+| **Fresh machine: a decision, before `knos restore`** | - | **lost 12/12** |
+| **Fresh machine: the same decision, after `knos restore`** | - | **back 12/12** |
+| **Fresh machine: the claim that must NOT come back** | - | **stayed gone 12/12** |
 
 The first two rows are the memory deciding whether money moves. With the store,
 the second identical request costs nothing. Without it, the agent pays again
@@ -932,9 +935,9 @@ an agent of mine registered to prove the path executes. It is not demand.
 ## Tests
 
 `pytest` runs the critical path only — claim, withhold, concurrency,
-no-network, three tools, private files — **25 tests in well under a minute**,
+no-network, three tools, private files — **27 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **282 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **290 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so

@@ -74,6 +74,16 @@ PER_COMMAND = {
   agent chose to write down, which is the part a CLAUDE.md used to hold.
 
   Forgetting one stops your agents repeating it.""",
+    "restore": """  knos restore
+
+  Rebuilds this repo's decisions from .knos/decisions.md, the file
+  knos export writes and you commit.
+
+  That is what makes the memory portable: a fresh clone on a machine
+  that has never run knos still carries what was decided, and the file
+  is markdown you can read in a pull request rather than a blob.
+
+  Claims are not restored. A hold is about who is moving right now.""",
     "changed": """\
   knos changed "the risk guard" "unknown assets pass with a warning"
 

@@ -81,6 +81,15 @@ def test_a_reversed_decision_changes_outcomes(bare) -> None:
     assert again is True, "reconsidering did not release the work"
 
 
+@pytest.mark.critical
+def test_the_repo_carries_its_memory_to_a_fresh_machine(bare) -> None:
+    """The keepsake arm: what comes back, and what must not."""
+    lost, back, gone = ablation.arm_restore(bare)
+    assert lost is True, "the decision survived deleting the store somehow"
+    assert back is True, "knos restore did not recover it from the committed file"
+    assert gone is True, "a claim was rebuilt on a machine where nobody holds it"
+
+
 def test_the_published_numbers_match_the_arms() -> None:
     """docs/evidence/ablation.json is what the README quotes."""
     out = ROOT / "docs" / "evidence" / "ablation.json"
@@ -103,6 +112,9 @@ def test_the_published_numbers_match_the_arms() -> None:
     assert arms["reversed"]["edit_refused"] == trials
     assert arms["reversed"]["spend_refused"] == trials
     assert arms["reversed"]["allowed_after_reconsider"] == trials
+    assert arms["restore"]["lost_before"] == trials
+    assert arms["restore"]["back_after"] == trials
+    assert arms["restore"]["claims_stayed_gone"] == trials
 
 
 def test_the_script_runs_end_to_end() -> None:
@@ -114,5 +126,5 @@ def test_the_script_runs_end_to_end() -> None:
         timeout=900,
     )
     assert said.returncode == 0, said.stderr[-800:]
-    for line in ("Withhold", "Guard", "Action", "Paid", "Spend", "Reversed", "store deleted"):
+    for line in ("Withhold", "Guard", "Action", "Paid", "Spend", "Reversed", "Fresh machine", "store deleted"):
         assert line in said.stdout, line

@@ -44,6 +44,9 @@ That is the whole argument, run against the real refusal code:
 | Guard: an edit to claimed work | refused **12/12** | refused **0/12** |
 | Action: a pull request touching a claimed topic | commented **12/12** | commented **0/12** |
 | Paid: a bought answer, found by the next agent | kept **12/12** | kept **0/12** |
+| **Fresh machine: a decision, before `knos restore`** | - | **lost 12/12** |
+| **Fresh machine: the same decision, after `knos restore`** | - | **back 12/12** |
+| **Fresh machine: the claim that must NOT come back** | - | **stayed gone 12/12** |
 
 The first two rows are the memory deciding whether money moves. With the store,
 the second identical request costs nothing. Without it, the agent pays again
@@ -95,6 +98,7 @@ impossible.
 
 | Claim | Code | Test |
 |---|---|---|
+| **The repo carries its own memory to a fresh machine** | `src/knos/share.py` `restore` | `tests/test_restore.py` |
 | **A reversed decision holds everything that rested on it** | `src/knos/decide.py` | `tests/test_decide.py` |
 | **Reconsidering releases it again** | `src/knos/decide.py` `reconsider` | `tests/test_decide.py` |
 | **The memory decides whether money moves** | `src/knos/gate.py` | `tests/test_gate.py` |
@@ -113,7 +117,7 @@ impossible.
 | Delete the store and the product stops | - | `tests/test_sibyl_is_load_bearing.py` |
 | The claim as an importable library, no server | `src/knos/core.py` | `tests/test_core.py` |
 
-Suite: **25 critical in under a minute**, **282 in full** (`pytest -m ""`).
+Suite: **27 critical in under a minute**, **290 in full** (`pytest -m ""`).
 Contract: **9 more** (`cd contracts && forge test`).
 
 ## Live artifacts

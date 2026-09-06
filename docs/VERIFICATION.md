@@ -26,6 +26,9 @@ python scripts/ablation.py
 | Guard: an edit to claimed work | refused 12/12 | refused 0/12 |
 | Action: a pull request touching a claimed topic | commented 12/12 | commented 0/12 |
 | Paid: a bought answer, found by the next agent | kept 12/12 | kept 0/12 |
+| **Fresh machine: a decision, before `knos restore`** | - | **lost 12/12** |
+| **Fresh machine: the same decision, after `knos restore`** | - | **back 12/12** |
+| **Fresh machine: the claim that must NOT come back** | - | **stayed gone 12/12** |
 
 12 trials, seed 1337, written to `docs/evidence/ablation.json`.
 
