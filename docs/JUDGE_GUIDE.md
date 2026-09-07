@@ -11,16 +11,17 @@ pip install knos==0.1.8
 knos demo
 ```
 
-Sixty seconds on a throwaway repo, ending with the store deleted and every
+Ninety seconds on a throwaway repo, ending with the store deleted and every
 refusal gone. Every line is a real call, not a transcript -
 [`tests/test_demo.py`](../tests/test_demo.py) asserts the live values appear.
 
 Beat 7 is the one to watch if you are checking the gate. A separate
 interpreter, started with nothing but the repo path, prints its own pid, the
 repo's commit hash and the wall clock, and then reads back what an earlier
-process wrote. Beat 8 deletes the store and re-runs every refusal. Cold-start
-recall and the deletion test are therefore the same unbroken minute rather
-than two claims made in prose.
+process wrote. Beat 8 shows what the store learned about which agents finish
+what they claim. Beat 9 deletes it and re-runs every refusal. Cold-start
+recall and the deletion test are therefore the same unbroken minute and a
+half, rather than two claims made in prose.
 
 
 ## The gate, in the order you check it
@@ -135,6 +136,22 @@ few dozen events would be a more impressive way of being wrong.
 What makes it load-bearing: the record exists nowhere but the store. Delete it
 and every agent is a stranger worth exactly thirty minutes again - which is
 [a test](../tests/test_record.py), `test_the_learning_dies_with_the_store`.
+
+## If you are looking for the soft spot
+
+It is `.knos/decisions.md`. That file is committed, so a stranger writes it,
+and `knos restore` reads it into the store that answers questions. One
+hostile commit used to take 4.15 MB of the 5 MB free tier and stop the store
+working for everything else; it is capped at 200 decisions now, notes are
+truncated at 2,000 characters, control characters and direction overrides are
+stripped, and nothing from a file ever overwrites what this machine decided
+itself.
+
+What is deliberately *not* claimed: restoring a decision that says "ignore all
+previous instructions" puts that sentence in the store. Filtering text for
+intent is not something this can honestly do, so instead every restored answer
+carries `committed to the repo, not verified` as its source. The numbers and
+the reasoning are in [`VERIFICATION.md`](VERIFICATION.md).
 
 ## The coordination number
 

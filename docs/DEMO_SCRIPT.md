@@ -1,4 +1,4 @@
-# Demo script - under 4 minutes, unedited, clock visible
+# Demo script - unedited, clock visible
 
 One take. A terminal clock in shot the whole way through, so the run time is
 checkable. Two panes: a terminal on the left, a file viewer on the right, per
@@ -6,6 +6,99 @@ Sibyl Labs' Builder Tip - **show the file, not just the claim**.
 
 Nothing here is staged output. Every command is real and prints what it
 prints.
+
+## If you are recording this and you did not build it
+
+You need three things: **Python 3.10 or newer, git, and a repo you actually
+work in with at least one commit.** Nothing else. No account, no key, no
+network - the read path opens no socket and that is
+[a test](../tests/test_no_network.py), not a promise.
+
+```bash
+pip install knos==0.1.8
+knos demo
+```
+
+That is the whole short route and it needs nothing of yours: it builds a
+throwaway repo, does everything on that, and deletes it afterwards.
+
+**Use your own repo for the long route.** It is a better film than a toy one,
+because the claims land on real filenames and `knos ask` answers out of your
+actual `CLAUDE.md` or `AGENTS.md`. Knos reads the repo; it does not change a
+single file in it. The store lives in `~/.knos/<your repo>/memory.db`, outside
+your tree, and `knos forget` removes it.
+
+**One thing is off by default and you have to turn it on.**
+
+```bash
+knos guard --install
+```
+
+Without it, beat 3 - the refusal reaching the edit itself - silently does not
+happen. The hook is not installed by `knos connect` on purpose, because a hook
+that wrongly denies an edit is worse than no hook at all. `knos guard
+--uninstall` takes it back out and it touches nothing else.
+
+**Do not run beat 5 unless the wallet is yours and funded.** It spends real
+USDC on Base mainnet. If you are recording on somebody else's behalf, skip it
+and say the receipts are in `docs/VERIFICATION.md` - they resolve on-chain and
+anybody can check them with `python scripts/verify_receipts.py`.
+
+**Two moments must be in one unbroken take, whichever route you record.**
+
+1. **A fresh process reading back earlier state.** In `knos demo` this is beat
+   7: a separate interpreter prints its own pid next to the repo's commit hash
+   and the wall clock, then reads back what an earlier process wrote. In the
+   staged route it is opening a second agent window and watching it be refused.
+2. **The store being deleted, and everything stopping.** Beat 9 of `knos
+   demo`, or beat 6 of the staged route.
+
+A cut between those two is the one edit that ruins the recording, because the
+whole argument is that the second follows from the first.
+
+**Keep a clock in shot.** A terminal clock, or `watch -n1 date` in a corner
+pane. It is what makes the take checkably continuous.
+
+**If something goes wrong on camera, keep rolling.** A refusal you did not
+expect is worth more than a clean take - it is the product working. The only
+failure worth restarting for is a command that errors out.
+
+---
+
+## The short route: one command, one take
+
+`knos demo` now does the whole argument by itself, in about ninety seconds,
+against a throwaway repo it deletes afterwards. Every line is a real call.
+
+```bash
+pip install knos==0.1.8
+knos demo
+```
+
+Record that uncut, with a clock in shot, and the gate's two required pieces
+of evidence are both in one continuous segment:
+
+- **Beat 7, cold-start recall.** A separate interpreter, handed nothing but
+  the repo path, prints its own pid next to the repo's commit hash and the
+  wall clock, then reads back what an earlier process wrote. That is a fresh
+  session recalling earlier state with an on-screen commit hash, which is what
+  the rules ask for in those words.
+- **Beat 9, the deletion test.** The store is deleted on camera and every
+  refusal is re-run: the withhold gone, the edit allowed, the paid answer
+  buying again, the held decisions released, and every agent's record
+  forgotten.
+
+Beat 8 in between is the part worth narrating over: the store showing which
+agents finish what they claim, and the hold each has earned by it.
+
+If you have four minutes and a funded wallet, the staged version below is the
+better film - two real agent windows, a real purchase, the store visible in a
+second pane. If you have one take and no appetite for something failing live,
+record the command above.
+
+---
+
+## The long route: staged, two agents
 
 ## Before you start
 

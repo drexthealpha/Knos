@@ -629,7 +629,17 @@ class Memory:
                 (
                     f"{len(live)} claimed" if live else "nothing in progress"
                 ),
-                f"one each, expires after {INTENT_HOLDS} min",
+                # Each claim carries the hold its agent earned, so there is no
+                # single number to print here any more. Show the live ones.
+                (
+                    "one each, expiring in "
+                    + ", ".join(
+                        f"{c.get('holds', INTENT_HOLDS)} min" for c in live[:3]
+                    )
+                    if live
+                    else f"one each, {INTENT_HOLDS} min for an agent knos has "
+                    "not seen finish anything"
+                ),
             ),
             ("reference", f"{self.repo.name}", "written once, when read"),
             ("archive", f"{self.forgotten_count()} forgotten", "on knos forget"),

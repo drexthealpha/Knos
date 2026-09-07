@@ -119,6 +119,38 @@ free. Saving a cent by returning something true about a different subject is
 worse than paying. Fixed, pinned by
 `tests/test_gate.py -k near_neighbour`, and the honest figure is 5.41x.
 
+## The one place untrusted input reaches the memory
+
+`.knos/decisions.md` is committed to the repo, so it is written by whoever
+opened the last pull request. `knos restore` reads it into the store, and the
+store is what agents read back as answers. Everything else knos knows it
+worked out on this machine; this is the one thing it is handed.
+
+Measured against a deliberately hostile file, before anything was done about
+it:
+
+| | before | now |
+|---|---|---|
+| decisions accepted from one commit | 5,003 | 200 |
+| store filled by that commit | 4.15 MB of a 5 MB tier | 1.43 MB |
+| longest single note | 500,000 characters | 2,000, truncated visibly |
+| control characters and direction overrides | stored | stripped |
+| overwrote what this machine decided itself | never | never |
+
+The first row is the one that mattered. A contributor could stop the store
+working - and with it every claim, refusal and gate - by opening a pull
+request, without needing anybody to run anything unusual.
+
+**What is not claimed.** The text of a decision cannot be filtered for intent.
+If a committed file says *"ignore all previous instructions"*, restoring it
+puts that sentence in the store, and refusing on keywords would be theatre
+that a rephrasing walks around. Two things are done instead, and they are the
+honest ones: what this machine recorded itself is never overwritten by a file,
+and every restored answer carries `committed to the repo, not verified` as its
+source, so an agent quoting it is quoting something attributed.
+
+Pinned in [`tests/test_restore.py`](../tests/test_restore.py).
+
 ## 2. Base mainnet, real USDC
 
 Four x402 purchases by the agent, each paying a live seller and writing what

@@ -19,6 +19,7 @@ this can reach.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -162,6 +163,27 @@ def read_back(repo: Path, target: Path) -> bool:
     return any(fnmatch(rel, pattern) for pattern in rules.DECISIONS)
 
 
+# `.knos/decisions.md` is committed, so a stranger writes it. These are the
+# limits restore reads it under.
+MOST_RESTORED = 200  # a real repo's decisions, generously; not a payload
+LONGEST_NOTE = 2_000  # characters; longer is truncated, not dropped
+# What restore stamps on everything it writes, so the provenance travels with
+# the answer instead of living only in this function.
+FROM_REPO = "committed to the repo, not verified"
+
+# C0 controls except tab and newline, plus the bidirectional overrides that
+# let text render as something other than what it says.
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\u202a-\u202e\u2066-\u2069]")
+
+
+def _clean(text: str) -> str:
+    """Strip what has no business in a decision somebody will read."""
+    out = _CONTROL.sub("", text).strip()
+    if len(out) > LONGEST_NOTE:
+        out = out[:LONGEST_NOTE] + " [cut here - the committed note was longer]"
+    return out
+
+
 def read_decisions(text: str) -> list[tuple[str, str, str]]:
     """Parse the decisions back out of an exported file, as (about, note, when).
 
@@ -226,18 +248,33 @@ def restore(repo: Path, mem: Any, source: Path | None = None) -> tuple[int, int]
     for about, note, when in read_decisions(text):
         stamp = when or datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if mem.thing(TOPIC, about) is not None:
+            # Never overwrite what this machine worked out for itself with
+            # what a file claims. The local record wins every time.
+            skipped += 1
+            continue
+        if kept >= MOST_RESTORED:
+            # A single commit must not be able to fill the free tier and
+            # stop everything else being recordable.
+            skipped += 1
+            continue
+        about, note = _clean(about), _clean(note)
+        if not about or not note:
+            skipped += 1
+            continue
+        if mem.full():
             skipped += 1
             continue
         mem.record(
             Fact(
                 text=note,
                 source="note",
-                where=f"{target.name}, recorded {stamp}",
+                where=f"{target.name} ({FROM_REPO}), recorded {stamp}",
                 when=f"{stamp}T00:00:00+00:00",
                 about=about,
             )
         )
-        mem.note_thing(TOPIC, about, {"note": note, "when": stamp})
+        mem.note_thing(TOPIC, about, {"note": note, "when": stamp,
+                                      "from": FROM_REPO})
         kept += 1
     return kept, skipped
 
