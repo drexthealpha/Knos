@@ -716,7 +716,7 @@ def claim(
     with Memory(repo) as mem:
         # No session id: a person is not a connection, and a claim made at
         # the terminal has to outlive the shell that made it. `knos done`
-        # is how it ends, along with the thirty minutes every claim gets.
+        # is how it ends, along with the hold this agent has earned.
         try:
             took, holder = mem.claim_if_free(topic, who, now)
         except StoreFull:
@@ -726,7 +726,9 @@ def claim(
     if not took:
         held_by = str((holder or {}).get("who", "another agent"))
         out.print(f"Not claimed. {held_by} is already working on {topic}.")
-        out.print("Ask them, or wait — every claim lapses after 30 minutes.")
+        lapses = (holder or {}).get("holds", 30)
+        out.print(f"Ask them, or wait — that claim lapses {lapses} minutes"
+                  " after it was taken.")
         raise typer.Exit(0)
     out.print(f"Claimed {topic}. Every agent here now gets this, and nothing else:")
     out.print("")

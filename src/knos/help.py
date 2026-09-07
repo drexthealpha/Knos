@@ -144,14 +144,15 @@ PER_COMMAND = {
   An agent can take it anyway, but only by giving a reason, and the
   reason goes in the journal under its name.
 
-  It lapses after half an hour, or when you say:  knos done""",
+  It lapses on its own, sooner or later depending on how often you
+  finish what you claim (see: knos who), or when you say:  knos done""",
     "done": """\
   knos done
 
   An agent starting a piece of work says so, and knos then withholds what
   it knows about it from your other agents. This says that is over.
 
-  It says so by itself after half an hour anyway, because a warning that
+  It says so by itself when the claim lapses anyway, because a warning that
   is always on is one nobody reads.""",
     "forget": """\
   knos forget "deploy window"
@@ -181,7 +182,7 @@ PER_COMMAND = {
   claimed right now. Commit it. A fresh clone reads it on its first
   question, so the decisions outlive this machine.
 
-  Claims in it are a snapshot. They lapse after half an hour, so a claim
+  Claims in it are a snapshot. They lapse on their own, so a claim
   written into the file is not one that is still held when it is read.
 
   --to writes somewhere else, if your repo already keeps decisions

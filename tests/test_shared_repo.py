@@ -286,3 +286,64 @@ def test_export_refuses_to_write_outside_the_repo(knos_home, repo):
     with Memory(repo) as mem:
         with pytest.raises(ValueError):
             share.write(repo, mem, "../escaped.md")
+
+
+# Named, because pytest puts the parameter in the test id and also exports
+# that id in PYTEST_CURRENT_TEST - and a 200,000 character payload as a
+# parameter overruns the limit on a Windows environment variable, failing in
+# teardown after the test itself has passed.
+HOSTILE = {
+    "no file at all": None,
+    "empty": "",
+    "bytes, not markdown": "\x00\x01\x02 binary-ish",
+    "a very long single line": "# " + "x" * 200_000,
+    "a table that lies about its shape": "|||\n|---|\n|" + "a|" * 3000,
+    "control characters and emoji": "# \u202e decisions \U0001f600\n- \u0007claim\n",
+    "html that wants to be a comment": "<script>x</script>\n<!-- knos-pr-check -->\n",
+    "large": "# Decisions\n" + "- something claimed\n" * 20_000,
+}
+
+
+@pytest.mark.parametrize("name", sorted(HOSTILE))
+def test_the_action_survives_whatever_is_committed_to_it(tmp_path, name):
+    """The exit code, actually run, not read out of the source.
+
+    `test_the_action_never_returns_non_zero` reads the file and checks every
+    `return` in `main` is 0. That cannot see an exception raised on the way
+    into `main`, an import that throws, or a run that never finishes - and
+    `.knos/decisions.md` is a file a stranger contributes, so it is exactly
+    the input nobody controls.
+
+    A red X on an unrelated pull request is how a maintainer decides a memory
+    tool is not worth the trouble.
+    """
+    import os
+    import subprocess
+    import sys
+
+    action = Path(__file__).resolve().parents[1] / "action" / "knos_pr_check.py"
+    body = HOSTILE[name]
+    if body is not None:
+        (tmp_path / ".knos").mkdir(parents=True)
+        (tmp_path / ".knos" / "decisions.md").write_text(
+            body, encoding="utf-8", errors="replace"
+        )
+
+    done = subprocess.run(
+        [sys.executable, str(action)],
+        cwd=tmp_path, capture_output=True, text=True, encoding="utf-8",
+        errors="replace", timeout=120,
+        env={
+            **os.environ,
+            # No event file and no token: the API path has to degrade quietly.
+            "GITHUB_EVENT_PATH": str(tmp_path / "no-such-event.json"),
+            "GITHUB_REPOSITORY": "someone/somewhere",
+            "GITHUB_TOKEN": "",
+            "PYTHONIOENCODING": "utf-8",
+        },
+    )
+
+    assert done.returncode == 0, (
+        f"{name} made the action exit {done.returncode}, which is a red build "
+        f"on somebody's pull request:\n{done.stderr[-600:]}"
+    )

@@ -32,7 +32,7 @@ server = MCPServer("knos", version=version(), instructions=(
     "Other agents share this memory right now. One rule: before you change "
     "anything, call remember(fact, about, claiming=true). One call, and no "
     "other agent will rewrite it underneath you. It lapses on its own after "
-    "half an hour.\n\n"
+    "its own.\n\n"
     "Work another agent has claimed is withheld from you: you are told who "
     "holds it, not what knos knows about it. Ask them, or pick up something "
     "else. If you genuinely must have it, call again with override set to "
@@ -356,7 +356,7 @@ def remember(
 
     Set `claiming` when you are about to start work on this, rather than
     just noting something. Other agents are then told you have it and knos
-    withholds it from them until you finish or half an hour passes. Writing
+    withholds it from them until you finish or the claim lapses. Writing
     a plain fact claims nothing: a note everybody can read is the point."""
     repo = _repo()
     if repo is None:

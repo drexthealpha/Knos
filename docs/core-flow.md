@@ -28,7 +28,8 @@ flowchart TD
 
 **Agent A claims it.** Before starting work, an agent says what it is about to
 do. That is the only thing knos stores which is about *now* rather than about
-what already happened, and it lapses on its own after thirty minutes.
+what already happened, and it lapses on its own after however long that
+agent has earned - see `record.py`.
 
 **Agent B is withheld.** Asking about claimed work does not return the answer
 with a warning attached. It returns no answer — only who holds it:

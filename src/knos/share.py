@@ -118,7 +118,7 @@ def export(repo: Path, mem: Any) -> tuple[str, int, int]:
         out.append("_Nothing claimed._")
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    out.append(f"\n---\n<sub>knos export, {stamp}. Claims lapse after 30 minutes.</sub>\n")
+    out.append(f"\n---\n<sub>knos export, {stamp}. Each claim lapses on its own.</sub>\n")
     return "\n".join(out) + "\n", len(notes), len(claims)
 
 
@@ -206,7 +206,7 @@ def restore(repo: Path, mem: Any, source: Path | None = None) -> tuple[int, int]
     This reads that file back into the store. Returns (decisions, skipped).
 
     Claims are deliberately **not** restored. A claim is about who is moving
-    right now, it lapses in thirty minutes, and a claim rebuilt on a different
+    right now, it lapses on its own, and a claim rebuilt on a different
     machine hours later would be a lie about a live hold - the one thing this
     product must never say. Decisions are what survive a move; holds are not.
 

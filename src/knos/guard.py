@@ -265,12 +265,17 @@ def check(repo: Path, target: str, who: str) -> Verdict:
                         f"a file does not release the claim on it. Ask them, or "
                         f"take something else.",
                     )
+                lapses = work.get("holds")
+                try:
+                    lapses = int(lapses)
+                except (TypeError, ValueError):
+                    lapses = 30
                 return Verdict(
                     False,
                     f"{rel} is part of {topic}, which {holder} claimed and is "
-                    f"working on now. Ask them, or take something else. The "
-                    f"claim lapses on its own in under half an hour, and "
-                    f"`knos done` gives it back sooner.",
+                    f"working on now. Ask them, or take something else. This "
+                    f"claim lapses on its own {lapses} minutes after it was "
+                    f"taken, and `knos done` gives it back sooner.",
                 )
 
             # A claim is about who is moving. This is about what was settled
