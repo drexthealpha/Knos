@@ -114,6 +114,20 @@ PER_COMMAND = {
 
   It costs one line, on purpose. Carrying on without looking is the only
   expensive path here.""",
+    "who": """\
+  knos who
+
+  Which agents finish what they claim, and how long a claim from each
+  of them is worth.
+
+  A claim used to lapse after the same thirty minutes whoever made it.
+  Now it is what that agent has earned: fifteen minutes for one that
+  never closes its work, forty five for one that always does, and the
+  flat thirty for anyone knos has seen fewer than twice.
+
+  It is counted from the journal, so it is the record of a name rather
+  than a setting anybody typed. Delete the store and everyone is a
+  stranger worth thirty minutes again.""",
     "held": """\
   knos held
 

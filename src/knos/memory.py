@@ -316,7 +316,15 @@ class Memory:
             body = (state or {}).get("body") if state else None
             if not body or not body.get("topic"):
                 continue
-            if _minutes_since(str(body.get("when", ""))) <= INTENT_HOLDS:
+            # The hold is the one this agent earned when it claimed, kept
+            # on the claim itself so a record that changes later cannot
+            # retroactively expire work already in progress.
+            holds = body.get("holds")
+            try:
+                holds = int(holds)
+            except (TypeError, ValueError):
+                holds = INTENT_HOLDS
+            if _minutes_since(str(body.get("when", ""))) <= holds:
                 live.append(body)
         return live
 
@@ -375,13 +383,19 @@ class Memory:
         Returns (True, None) when the claim is now yours, or (False, holder)
         when somebody else has it.
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timezone
+
+        from . import record as record_mod
 
         key = self._claim_key(topic)
-        body = json.dumps({"topic": topic, "who": who, "when": when, "session": session})
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(minutes=INTENT_HOLDS)
-        ).isoformat()
+        # What this agent has earned, from what it has finished before.
+        try:
+            holds = record_mod.holds_for(self, who)
+        except Exception:
+            holds = INTENT_HOLDS
+        body = json.dumps({"topic": topic, "who": who, "when": when,
+                           "session": session, "holds": holds})
+        now = datetime.now(timezone.utc).isoformat()
 
         # The swap writes the row itself, so Sibyl's cap gate is not in the
         # path. Check it here instead: a claim that quietly did not land is
@@ -403,12 +417,23 @@ class Memory:
                         "    OR json_extract(state_documents.body, '$.who') = ?"
                         "    OR julianday(json_extract(state_documents.body, '$.when'))"
                         "       IS NULL"
-                        "    OR julianday(json_extract(state_documents.body, '$.when'))"
+                        # The row expires on the hold it was written with, so
+                        # a reliable agent's claim outlives an abandoner's.
+                        "    OR (julianday(json_extract(state_documents.body, '$.when'))"
+                        "        + COALESCE("
+                        "            json_extract(state_documents.body, '$.holds'), 30"
+                        "          ) / 1440.0)"
                         "       < julianday(?)",
-                        (self._tenant, key, body, who, cutoff),
+                        (self._tenant, key, body, who, now),
                     )
                     if conn.total_changes > before:
-                        return True, None
+                        took = True
+                    else:
+                        took = False
+                if took:
+                    record_mod.note_taken(self, topic, who, when)
+                    return True, None
+                with self.storage.transaction() as conn:
                     row = conn.execute(
                         "SELECT body FROM state_documents"
                         " WHERE tenant_id = ? AND document_key = ?",
@@ -447,6 +472,14 @@ class Memory:
         warns everybody again rather than being silently pre-acknowledged.
         The journal keeps the trace of who yielded; only the locks go.
         """
+        from . import record as record_mod
+
+        # Read who held what before it goes, so the journal can say a claim
+        # was closed rather than merely stopping.
+        for held in self.claims():
+            record_mod.note_finished(
+                self, str(held.get("topic", "")), str(held.get("who", ""))
+            )
         for key in self._claim_keys():
             try:
                 self.client.set_state(key, {})

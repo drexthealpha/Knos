@@ -670,6 +670,40 @@ def held() -> None:
 
 
 @app.command()
+def who() -> None:
+    """Which agents finish what they claim, and what that has earned them."""
+    from . import record
+
+    repo = _repo(None)
+    with Memory(repo) as mem:
+        everyone = record.everyone(mem)
+
+    if not everyone:
+        out.print("Nobody has claimed anything here yet.")
+        out.print("")
+        out.print("Every agent starts at the flat "
+                  f"{record.UNKNOWN} minutes. What it does with its claims "
+                  "is what changes that.")
+        return
+
+    out.print("[bold]who[/bold]        [dim]claimed  closed   hold[/dim]")
+    out.print("")
+    for got in everyone:
+        kept = "-" if got["kept"] is None else f"{got['kept']:.0%}"
+        note = "" if got["learned"] else "  [dim](too new to judge)[/dim]"
+        out.print(
+            f"  {got['who'][:22]:22} {got['taken']:4}  {got['finished']:5}"
+            f"  {kept:>5}   {got['holds']:2} min{note}"
+        )
+    out.print("")
+    out.print(f"[dim]An agent that never closes a claim holds work for "
+              f"{record.FLOOR} minutes; one that always does, "
+              f"{record.CEILING}. Nobody is judged on fewer than two.[/dim]")
+    out.print("[dim]This lives in the store and nowhere else. Delete it and "
+              "everyone is a stranger again.[/dim]")
+
+
+@app.command()
 def claim(
     topic: str = typer.Argument(..., help="what you are about to work on"),
     who: str = typer.Option("you", "--as", help="the name to claim it under"),

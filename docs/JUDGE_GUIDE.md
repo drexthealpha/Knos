@@ -23,6 +23,119 @@ recall and the deletion test are therefore the same unbroken minute rather
 than two claims made in prose.
 
 
+## The gate, in the order you check it
+
+Everything that touches the store is in one file, `src/knos/memory.py` — the
+client calls below, plus one raw-SQL write noted underneath them, which is
+where the claim itself is taken. Between them that is the whole critical path.
+
+| | where | what |
+|---|---|---|
+| **write** | [`memory.py:190`](../src/knos/memory.py#L190) `write_event` | every fact, claim, stand-down and override, into COLD |
+| **write** | [`memory.py:256`](../src/knos/memory.py#L256) `set_entity` | a topic, file or person, into WARM |
+| **write** | [`memory.py:354`](../src/knos/memory.py#L354) `set_state` | the live claim, into HOT |
+| **write** | [`memory.py:299`](../src/knos/memory.py#L299) `set_state` | what the session is focused on, into HOT |
+| **write** | [`memory.py:582`](../src/knos/memory.py#L582) `set_reference` | the repo's own rules, into REFERENCE |
+| **write** | [`memory.py:271`](../src/knos/memory.py#L271) `archive_entity` | superseded wording, into ARCHIVE |
+| **read** | [`memory.py:214`](../src/knos/memory.py#L214) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
+| **read** | [`memory.py:304`](../src/knos/memory.py#L304) `get_state` | the live claim - the withhold and the guard both start here |
+| **read** | [`memory.py:262`](../src/knos/memory.py#L262) `get_entity` | what is known about one thing, before answering |
+| **read** | [`memory.py:598`](../src/knos/memory.py#L598) `search` | every tier, for a question |
+| **read** | [`memory.py:587`](../src/knos/memory.py#L587) `get_reference` | the rules, before the guard refuses a path |
+
+
+One write does not go through the client, and it is the most important one.
+`claim_if_free` takes the claim as a compare-and-swap in raw SQL, at
+[`memory.py:411`](../src/knos/memory.py#L411) - one
+`INSERT ... ON CONFLICT DO UPDATE ... WHERE` inside `BEGIN IMMEDIATE`, so that
+two agents reaching for the same work in the same instant cannot both be told
+they have it. `set_state` would overwrite and both would win. Sixteen
+processes racing it is `python scripts/collide.py`.
+
+**Read back to change a decision, not just written.** That is the part that
+separates this from a wrapper, and there are four places to look:
+
+| the read | changes |
+|---|---|
+| [`mcp._held`](../src/knos/mcp.py) | whether an agent gets an answer at all |
+| [`guard.check`](../src/knos/guard.py) | whether a file is written to disk |
+| [`gate.decide`](../src/knos/gate.py) | whether money moves |
+| [`record.holds_for`](../src/knos/record.py) | how long the next claim survives |
+
+**Delete it and the product stops**, in one command:
+
+```bash
+pytest tests/test_sibyl_is_load_bearing.py
+knos demo     # beat 9 deletes the store live and re-runs every refusal
+```
+
+**Cold-start recall** is beat 7 of `knos demo`: a separate interpreter, given
+nothing but the repo path, printing its own pid with the repo's commit hash
+and the wall clock before reading back what an earlier process wrote.
+
+## Check the receipts yourself, in one command
+
+```bash
+python scripts/verify_receipts.py
+```
+
+Every onchain claim in this repository, resolved against the chain it is
+documented against - no key, no account, public RPCs:
+
+```
+  ok  mainnet  x402 news $0.001   block 50898966  usdc
+  ok  mainnet  x402 brief $0.01   block 50898978  usdc
+  ...
+  ok  sepolia  Access.sol deploy  block 46107972
+  ok  sepolia  Access.sol         3434 bytes deployed at 0x955fa320...6E52
+
+11 of 11 receipts resolve on the chain each is documented against.
+```
+
+Eight on Base mainnet, every one of them with real USDC in its logs, and three
+on Sepolia for the access contract. The script exits non-zero if any hash fails
+to resolve, so it is worth running rather than reading.
+
+It also carries its own cautionary note. The first version asked mainnet for
+all eleven and reported three missing, which reads exactly like fabricated
+evidence - those three are the Sepolia contract transactions, correctly
+labelled and correctly absent from mainnet. A checker pointed at the wrong
+chain manufactures the failure it claims to have found.
+
+## The memory changes what the memory does next
+
+Every claim used to lapse after the same thirty minutes, whoever made it. That
+is wrong twice: an agent that closes its work loses it mid-task, and an agent
+that claims and dies blocks the file for the full half hour, every time,
+without the store ever getting wiser.
+
+The hold is now learned from one thing in the COLD journal - the share of
+claims this agent actually closed:
+
+```
+never finishes   ->  15 minutes
+unknown agent    ->  30 minutes   (the old flat default)
+always finishes  ->  45 minutes
+```
+
+Over one seeded working day, four agents, two of which mostly do not finish:
+
+```
+$ python scripts/contention.py
+  flat      48 claims taken,  21 attempts blocked,   273 minutes waiting
+  learned   53 claims taken,  16 attempts blocked,   194 minutes waiting
+
+  79 fewer minutes spent waiting on work nobody was doing (29% less).
+```
+
+Modest, and stated as modest. The rule is a ratio with a floor and a ceiling
+rather than a decay-weighted trust model, because a trust model fitted to a
+few dozen events would be a more impressive way of being wrong.
+
+What makes it load-bearing: the record exists nowhere but the store. Delete it
+and every agent is a stranger worth exactly thirty minutes again - which is
+[a test](../tests/test_record.py), `test_the_learning_dies_with_the_store`.
+
 ## The coordination number
 
 Sixteen operating-system processes reach for the same topic in the same

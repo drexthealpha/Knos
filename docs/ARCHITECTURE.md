@@ -163,6 +163,32 @@ x402 on Base mainnet and sells answers out of this same store. **Optional and
 off by default** - Knos works with it switched off, and nothing on the read
 path touches a network either way.
 
+## record.py — the hold each agent has earned
+
+Every claim used to lapse after the same thirty minutes. `record.py` makes
+that number a function of what the agent has actually done, and the only
+input is the COLD journal the store already keeps.
+
+```
+journal (COLD)                      claim (HOT)
+  knos.claim claimed:  <who> ...      {"topic": ..., "who": ...,
+  knos.claim finished: <who> ...       "holds": 15 | 30 | 45}
+        |                                     ^
+        +---- finished / taken ---------------+
+```
+
+The hold is written *onto the claim* rather than looked up when the claim is
+read, so a record that changes later cannot retroactively expire work that is
+already in progress. Expiry then happens in two places that must agree: the
+Python filter in `Memory.claims`, and the `ON CONFLICT ... WHERE` in
+`claim_if_free`, which adds `holds / 1440.0` to the claim's own timestamp
+rather than comparing against one global cutoff.
+
+`FLOOR = 15`, `UNKNOWN = 30`, `CEILING = 45`, and fewer than two claims means
+no judgement at all. The rule is a ratio, deliberately: a decay-weighted trust
+model fitted to a few dozen events would be a more impressive way of being
+wrong.
+
 ## Why it is keyed on the git common directory
 
 [`src/knos/paths.py`](../src/knos/paths.py). The store is keyed on

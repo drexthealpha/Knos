@@ -126,6 +126,22 @@ it bought back into Sibyl. Re-checked against `base.drpc.org` on 6 Sep 2026:
 every one is `status: 0x1` with the Base USDC contract
 `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913` in its logs.
 
+Re-checked again on 7 Sep 2026 against a different provider,
+`base-rpc.publicnode.com`, so the result does not rest on one node's view.
+Every transaction hash this repository shows anywhere - eleven of them across
+the README, this file and `contracts/README.md` - was resolved against the
+chain it is labelled with: **8 of 8 on Base mainnet** (`0x2105`) and **3 of 3
+on Base Sepolia** (`0x14a34`), all `status: 0x1`, and the Sepolia contract
+still holds 3,434 bytes of deployed code.
+
+Worth recording how that check first came out. The script asked mainnet for
+all eleven and reported three missing, which read exactly like fabricated
+evidence. The three were the `Access.sol` transactions, correctly labelled
+Sepolia in the documents and correctly absent from mainnet: the checker was
+wrong, not the page. A verification tool that queries the wrong chain
+manufactures the failure it claims to have found, which is worth more caution
+than a tool that quietly passes.
+
 | Transaction | Block | What was bought |
 |---|---|---|
 | [`0x80d984…d958c76`](https://basescan.org/tx/0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76) | 50898966 | news, $0.001 |

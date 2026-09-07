@@ -223,7 +223,25 @@ def run(out: Any) -> int:
                     " said came out of the store.[/dim]")
 
         # ---- 8 -------------------------------------------------------------
-        screen.beat(8, "Now delete the memory.")
+        screen.beat(8, "What the store learned about who finishes.")
+        from . import record
+
+        with Memory(repo) as mem:
+            for n in range(4):
+                record.note_taken(mem, f"a job {n}", "Claude Code", _now())
+                record.note_finished(mem, f"a job {n}", "Claude Code", _now())
+            for n in range(4):
+                record.note_taken(mem, f"a dead job {n}", "a crashed runner", _now())
+            earned = record.holds_for(mem, "Claude Code")
+            lost = record.holds_for(mem, "a crashed runner")
+        screen.cmd("knos who")
+        screen.said(f"Claude Code      closed 4 of 4   -> {earned} min", "green")
+        screen.said(f"a crashed runner closed 0 of 4   -> {lost} min", "yellow")
+        screen.note("[dim]Not a setting. The hold is what each agent earned by"
+                    " closing its own claims, read out of the journal.[/dim]")
+
+        # ---- 9 -------------------------------------------------------------
+        screen.beat(9, "Now delete the memory.")
         db = paths.store_for(repo)
         screen.cmd(f"rm {db}")
         db.unlink()
@@ -239,6 +257,9 @@ def run(out: Any) -> int:
         screen.said(f"the paid answer     {'buys again' if after_gate == 'buy' else after_gate}", "red")
         with Memory(repo) as mem:
             screen.said(f"the held decisions  {len(decide.suspects(mem))} left", "red")
+            gone = record.holds_for(mem, "a crashed runner")
+            screen.said(f"who finishes        forgotten, everyone is worth"
+                        f" {gone} min again", "red")
 
         out.print("")
         out.print("  [bold]Delete the memory and this is not a worse version of the"

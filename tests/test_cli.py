@@ -377,7 +377,18 @@ def test_the_readme_leads_with_the_problem_and_the_action():
     assert "knos-claims.yml" in near, "no workflow a maintainer can copy"
 
     # The embeddable core is the other zero-server path, and is named early.
-    assert "knos.core" in readme[:4000], "the importable core is not near the top"
+    #
+    # This bound used to be 4,000 characters into a 57,000-character page,
+    # which made it a statement about one section's position in something no
+    # one was going to read to the end of. The page is now about 5,400
+    # characters and the long version lives in docs/GUIDE.md, so the bound is
+    # what it always meant: the core is named in the first half, before the
+    # reader has to decide whether to keep going.
+    assert "knos.core" in readme[:3200], "the importable core is not near the top"
+    assert len(readme) < 12000, (
+        "the README is growing back into a document nobody reads to the end "
+        "of; the long version belongs in docs/GUIDE.md"
+    )
 
     # Moved, not dropped.
     assert "memory.db" in readme, "the store is no longer named anywhere"

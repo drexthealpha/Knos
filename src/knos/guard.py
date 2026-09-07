@@ -20,7 +20,9 @@ Two things get refused, and only two:
 
   - a path whose subject somebody else has claimed, matched by the same
     `same_subject` the withhold uses, so a claim on "the parser" covers
-    `src/parser/lexer.py` exactly as it covers a question about the parser;
+    `src/parser/lexer.py` exactly as it covers a question about the parser -
+    including the path a claimed file was *renamed to*, because otherwise
+    `git mv parser.py helper.py` launders the claim in one command;
   - a path a rule in this repo's own CLAUDE.md or AGENTS.md forbids in
     words a machine can check — "never edit `src/generated/`" is a pattern,
     "write idiomatic code" is not, and this only ever reads the first kind.
@@ -40,6 +42,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -123,6 +126,100 @@ def _forbidden(repo: Path, rel: str) -> tuple[str, str] | None:
     return None
 
 
+def _moved(repo: Path) -> tuple[list[str], set[str], dict[str, str]]:
+    """What git says has been deleted, added, or renamed but not committed.
+
+    Returns (deleted tracked paths, untracked paths, {new: old} for renames
+    git has already spotted). Read once per check and only when a claim
+    exists, because this shells out.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "status", "--porcelain", "--find-renames"],
+            cwd=repo, capture_output=True, text=True, timeout=10, check=False,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return [], set(), {}
+
+    gone: list[str] = []
+    fresh: set[str] = set()
+    renamed: dict[str, str] = {}
+    for line in out.splitlines():
+        if len(line) < 4:
+            continue
+        code, name = line[:2], line[3:].strip()
+        if code.startswith("R") and " -> " in name:
+            old, new = (part.strip().strip('"') for part in name.split(" -> ", 1))
+            renamed[new] = old
+        elif "D" in code:
+            gone.append(name.strip('"'))
+        elif code == "??":
+            fresh.add(name.strip('"'))
+    return gone, fresh, renamed
+
+
+def _flat(raw: bytes) -> bytes:
+    """Line endings removed from the comparison.
+
+    `git show` runs the smudge filters, so on a machine with autocrlf the
+    committed copy comes back with CRLF and the file on disk has LF, and two
+    identical files compare unequal. `cat-file` avoids the filter; flattening
+    as well means the check does not depend on which of them git applied.
+    """
+    return raw.replace(b"\r\n", b"\n")
+
+
+def _committed(repo: Path, rel: str) -> bytes | None:
+    """The bytes of `rel` as last committed, or None if git has no answer."""
+    try:
+        done = subprocess.run(
+            ["git", "cat-file", "blob", f"HEAD:{rel}"],
+            cwd=repo, capture_output=True, timeout=10, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return _flat(done.stdout) if done.returncode == 0 else None
+
+
+def _renamed_out_of(repo: Path, topic: str, rel: str, moved) -> str | None:
+    """The claimed file `rel` used to be, if this really is a rename.
+
+    Two shapes. Git has already recognised the rename, in which case it says
+    so and is believed; or the working tree shows the old path deleted and a
+    new untracked file, which is what a plain `mv` leaves behind.
+
+    The second shape needs evidence, not a guess. Treating every new file as
+    the destination of a missing one refuses honest work with a sentence that
+    is not true - "notes.md is risk_guard.py renamed" - and a guard that
+    misdescribes what it is looking at is worse than one that lets an edit
+    through. So the bytes have to match what was committed. The hook runs
+    before the edit, so at this moment a moved file is still byte-identical.
+    """
+    gone, fresh, renamed = moved
+
+    was = renamed.get(rel)
+    if was is not None and answer.same_subject(topic, _subject(was)):
+        return was
+
+    if rel not in fresh:
+        return None
+    here = None
+    for old in gone:
+        if not answer.same_subject(topic, _subject(old)):
+            continue
+        before = _committed(repo, old)
+        if before is None:
+            continue
+        if here is None:
+            try:
+                here = _flat((repo / rel).read_bytes())
+            except OSError:
+                return None
+        if here == before:
+            return old
+    return None
+
+
 def check(repo: Path, target: str, who: str) -> Verdict:
     """Whether `who` may edit `target` in `repo`, and why not if not."""
     repo = Path(repo).resolve()
@@ -145,6 +242,7 @@ def check(repo: Path, target: str, who: str) -> Verdict:
 
     subject = _subject(rel)
     try:
+        moved = None  # read from git lazily, and only once
         with Memory(repo) as mem:
             for work in mem.claims():
                 topic = str(work.get("topic", ""))
@@ -152,7 +250,21 @@ def check(repo: Path, target: str, who: str) -> Verdict:
                 if not topic or holder == who:
                     continue
                 if not answer.same_subject(topic, subject):
-                    continue
+                    # The name does not match, but a claimed file may have
+                    # been renamed to this one. Refusing the old name and
+                    # allowing the new one is not a refusal at all.
+                    if moved is None:
+                        moved = _moved(repo)
+                    was = _renamed_out_of(repo, topic, rel, moved)
+                    if was is None:
+                        continue
+                    return Verdict(
+                        False,
+                        f"{rel} is {was} renamed, and {was} is part of {topic}, "
+                        f"which {holder} claimed and is working on now. Renaming "
+                        f"a file does not release the claim on it. Ask them, or "
+                        f"take something else.",
+                    )
                 return Verdict(
                     False,
                     f"{rel} is part of {topic}, which {holder} claimed and is "

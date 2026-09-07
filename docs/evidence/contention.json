@@ -1,0 +1,29 @@
+{
+  "generated": "2026-09-07T07:24:20.095873+00:00",
+  "seed": 1337,
+  "day_minutes": 480,
+  "agents": {
+    "Claude Code": 0.95,
+    "Cursor": 0.9,
+    "a crashy runner": 0.1,
+    "a stale CI agent": 0.05
+  },
+  "arms": [
+    {
+      "arm": "flat",
+      "attempts": 69,
+      "worked": 48,
+      "blocked": 21,
+      "blocked_minutes": 273
+    },
+    {
+      "arm": "learned",
+      "attempts": 69,
+      "worked": 53,
+      "blocked": 16,
+      "blocked_minutes": 194
+    }
+  ],
+  "minutes_saved": 79,
+  "percent_less_waiting": 28.9
+}

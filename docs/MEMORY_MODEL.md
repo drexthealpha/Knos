@@ -139,3 +139,17 @@ a human wrote, and that `tests/test_no_network.py` passes.
   the transport. There is no server and nothing to run.
 - **No second cache.** See principle 1.
 - **No unbounded growth.** 5 MB, enforced, with a refusal rather than a drop.
+
+## The journal is read back, not only written
+
+The one thing that separates a memory from a log is whether anything reads it
+again and changes because of it. Two places do.
+
+`decide.is_suspect` reads what was reversed and holds the work under it.
+`record.holds_for` reads how many claims an agent has closed and shortens or
+lengthens the next hold it takes. Neither is a report; both change what
+happens to the next call.
+
+That is also the honest test of the tier layout. HOT holds the claim that is
+true right now, and COLD holds what happened - and the hold length is COLD
+being consulted to decide what HOT is allowed to mean.

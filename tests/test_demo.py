@@ -60,6 +60,7 @@ def test_the_demo_runs_and_ends_with_the_product_broken() -> None:
         "A decision is reversed",
         "leaves the machine",
         "never seen this repo",
+        "who finishes",
         "delete the memory",
     ):
         assert beat.lower() in said.lower(), beat
@@ -85,6 +86,7 @@ def test_every_refusal_it_prints_actually_happened() -> None:
     assert "verdict = have" in said, "the second ask was not actually free"
     assert "held = True" in said, "the reversal did not actually hold anything"
     assert "recalled:" in said, "the cold process did not actually recall"
+    assert "closed 4 of 4" in said, "the record was described, not computed"
 
 
 def test_it_leaves_nothing_behind_and_touches_no_real_repo(tmp_path, monkeypatch) -> None:

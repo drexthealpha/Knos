@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+The length of a claim is learned. Every hold used to be thirty minutes,
+whoever made it, which is wrong in both directions: an agent that closes its
+work loses it mid-task, and an agent that claims and dies blocks the file for
+the full half hour every time without the store getting any wiser. The hold is
+now a function of the share of claims that agent has actually closed, read out
+of the COLD journal - fifteen minutes for an agent that never finishes, forty
+five for one that always does, and the old flat thirty for anyone knos has
+seen fewer than twice. `knos who` shows the table.
+
+Over one seeded working day with four agents, two of which mostly do not
+finish: 29% less time blocked on work nobody was doing, in
+`docs/evidence/contention.json`.
+
+Fixed: renaming a claimed file walked straight past the guard. `git mv
+risk_guard.py helper.py` and the edit went through, because the guard matched
+the path's name against the claim's words. It now recognises the rename -
+from git when git has spotted it, and otherwise by comparing the new file
+against the committed bytes of the one that vanished. The first version of
+that fix called every new untracked file a rename of the missing one, which
+refused honest work with a sentence that was not true; both directions are
+pinned in `tests/test_rename_bypass.py`.
+
+The README was 1,058 lines and a 43 minute read. It is now about 130 lines,
+and the long version moved unchanged to `docs/GUIDE.md`.
+
 ## 0.1.8
 
 `knos demo` shows cold-start recall rather than describing it. A separate
