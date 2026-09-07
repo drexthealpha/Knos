@@ -12,9 +12,12 @@ taken, and **refuses the edit** before the write lands.
 ## See it in one command
 
 ```bash
-pip install knos==0.1.8
+pip install "git+https://github.com/drexthealpha/Knos"
 knos demo
 ```
+
+From the repository: [PyPI](https://pypi.org/project/knos/) is the last cut
+release and trails `main`.
 
 Ninety seconds on a throwaway repo it deletes afterwards. A claim, a second
 agent **refused**, an edit **blocked before the write**, a purchase that costs

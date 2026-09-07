@@ -7,9 +7,19 @@ it says so.
 ## Run it first
 
 ```bash
-pip install knos==0.1.8
+pip install "git+https://github.com/drexthealpha/Knos"
 knos demo
 ```
+
+[`knos` on PyPI](https://pypi.org/project/knos/) is the last cut release,
+0.1.8. This installs from the repository instead, because the paragraphs below
+describe what is on `main` - the learned hold, `knos who`, and the ninth beat -
+and a page documenting a command the install does not have is worse than a
+longer command.
+
+It will still report `0.1.8` as its version. That is the last number cut, and
+it stays until the next release because the Claude Desktop extension pins
+`knos==<that version>`, which has to resolve on PyPI.
 
 Ninety seconds on a throwaway repo, ending with the store deleted and every
 refusal gone. Every line is a real call, not a transcript -
@@ -201,7 +211,7 @@ asserts the published figures match the ones in this page.
 ## The one thing to look at
 
 ```bash
-pip install knos==0.1.8
+pip install "git+https://github.com/drexthealpha/Knos"
 git clone https://github.com/drexthealpha/Knos && cd Knos
 python scripts/ablation.py
 ```

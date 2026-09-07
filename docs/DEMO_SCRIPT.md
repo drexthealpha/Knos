@@ -15,9 +15,17 @@ network - the read path opens no socket and that is
 [a test](../tests/test_no_network.py), not a promise.
 
 ```bash
-pip install knos==0.1.8
+pip install "git+https://github.com/drexthealpha/Knos"
 knos demo
 ```
+
+That installs from the repository rather than PyPI on purpose. The last
+release, 0.1.8, predates `knos who` and the ninth beat, so a recording made
+against it would not match this script.
+
+Do not be thrown by `knos --version` saying `0.1.8`: that is the last number
+cut, and it stays until the next release because the desktop extension pins
+it. What you have installed is whatever is on `main`.
 
 That is the whole short route and it needs nothing of yours: it builds a
 throwaway repo, does everything on that, and deletes it afterwards.
@@ -71,7 +79,7 @@ failure worth restarting for is a command that errors out.
 against a throwaway repo it deletes afterwards. Every line is a real call.
 
 ```bash
-pip install knos==0.1.8
+pip install "git+https://github.com/drexthealpha/Knos"
 knos demo
 ```
 
@@ -103,7 +111,7 @@ record the command above.
 ## Before you start
 
 ```bash
-pip install knos==0.1.8
+pip install "git+https://github.com/drexthealpha/Knos"
 cd <a repo you actually work in>
 knos connect              # optional; only needed for the agent panes
 knos guard --install      # optional; only needed for beat 3

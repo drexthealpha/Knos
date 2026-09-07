@@ -246,7 +246,7 @@ pytest tests/test_shared_repo.py -k never_returns_non_zero
 
 | Where | What |
 |---|---|
-| [PyPI](https://pypi.org/project/knos/0.1.8/) | `pip install knos==0.1.8` |
+| [PyPI](https://pypi.org/project/knos/0.1.8/) | `pip install knos==0.1.8` - the last cut release; `main` is ahead of it |
 | MCP registry | `io.github.drexthealpha/knos`, 0.1.8, `isLatest` |
 | [Glama](https://glama.ai/mcp/servers/drexthealpha/Knos) | listed and scored |
 | GitHub | `drexthealpha/Knos`, tag `v0.1.8` |
