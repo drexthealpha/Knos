@@ -99,6 +99,48 @@ def _subject(path: str) -> str:
     return " ".join(parts)
 
 
+# The guard runs before every tool call an agent makes, so anything it does
+# twice is something an agent waits for twice. Two answers here cost a git
+# subprocess each - finding the rule files, and spotting a rename - and on
+# Windows the spawn is most of the cost. Both are cached against exactly what
+# would have to change for the answer to be wrong.
+#
+# Not against a clock. A one second cache would be long enough to rename a
+# claimed file and edit it while the guard is still answering from before the
+# move, which is the bypass this all exists to close.
+_FILES_CACHE: dict[str, tuple[tuple, list[Path]]] = {}
+_RULES_CACHE: dict[str, tuple[tuple, list[tuple[str, str]]]] = {}
+_MOVED_CACHE: dict[tuple[str, str], tuple[tuple, tuple]] = {}
+
+
+def _stamp(*paths: Path) -> tuple:
+    """Modification times; a missing file is a state of its own."""
+    out = []
+    for path in paths:
+        try:
+            out.append(path.stat().st_mtime_ns)
+        except OSError:
+            out.append(None)
+    return tuple(out)
+
+
+def _index(repo: Path) -> Path:
+    """Git's index, whose mtime moves whenever the tracked set does."""
+    return repo / ".git" / "index"
+
+
+def rule_files(repo: Path) -> list[Path]:
+    """`rules.files`, without asking git again when nothing has been staged."""
+    key = str(repo)
+    now = _stamp(_index(repo))
+    hit = _FILES_CACHE.get(key)
+    if hit is not None and hit[0] == now:
+        return hit[1]
+    found = rules.files(repo)
+    _FILES_CACHE[key] = (now, found)
+    return found
+
+
 def path_rules(repo: Path) -> list[tuple[str, str]]:
     """(glob, where) for every rule in this repo that forbids a path.
 
@@ -106,6 +148,13 @@ def path_rules(repo: Path) -> list[tuple[str, str]]:
     so a repo that has told knos its rules has told the guard at the same
     time and there is no second file to keep in step.
     """
+    key = str(repo)
+    files = rule_files(repo)
+    now = (_stamp(_index(repo)), tuple(str(f) for f in files), _stamp(*files))
+    hit = _RULES_CACHE.get(key)
+    if hit is not None and hit[0] == now:
+        return hit[1]
+
     out: list[tuple[str, str]] = []
     for rule in rules.read(repo):
         if not _NO.search(rule.text):
@@ -116,6 +165,7 @@ def path_rules(repo: Path) -> list[tuple[str, str]]:
                 continue
             glob = token.rstrip("/") + "/*" if token.endswith("/") else token
             out.append((glob, rule.where))
+    _RULES_CACHE[key] = (now, out)
     return out
 
 
@@ -156,6 +206,25 @@ def _moved(repo: Path) -> tuple[list[str], set[str], dict[str, str]]:
         elif code == "??":
             fresh.add(name.strip('"'))
     return gone, fresh, renamed
+
+
+def _moved_near(repo: Path, rel: str) -> tuple[list[str], set[str], dict[str, str]]:
+    """`_moved`, reused while nothing that could change it has moved.
+
+    Keyed on the index and on the directory holding the path being checked.
+    Moving a file into a directory updates that directory's mtime, so the one
+    check that must not be served stale - the edit that follows a rename -
+    always misses the cache.
+    """
+    where = (repo / rel).parent
+    key = (str(repo), str(where))
+    now = (_stamp(_index(repo)), _stamp(where), _stamp(repo))
+    hit = _MOVED_CACHE.get(key)
+    if hit is not None and hit[0] == now:
+        return hit[1]
+    got = _moved(repo)
+    _MOVED_CACHE[key] = (now, got)
+    return got
 
 
 def _flat(raw: bytes) -> bytes:
@@ -254,7 +323,7 @@ def check(repo: Path, target: str, who: str) -> Verdict:
                     # been renamed to this one. Refusing the old name and
                     # allowing the new one is not a refusal at all.
                     if moved is None:
-                        moved = _moved(repo)
+                        moved = _moved_near(repo, rel)
                     was = _renamed_out_of(repo, topic, rel, moved)
                     if was is None:
                         continue
