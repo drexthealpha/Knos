@@ -7,7 +7,7 @@ it says so.
 ## Run it first
 
 ```bash
-pip install knos==0.1.7
+pip install knos==0.1.8
 knos demo
 ```
 
@@ -71,7 +71,7 @@ asserts the published figures match the ones in this page.
 ## The one thing to look at
 
 ```bash
-pip install knos==0.1.7
+pip install knos==0.1.8
 git clone https://github.com/drexthealpha/Knos && cd Knos
 python scripts/ablation.py
 ```
@@ -180,7 +180,7 @@ Every one of these is clickable and was produced by this code.
 | Access.sol, deployed | [contract](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52) |
 | The Action, having actually run | [pull request #1](https://github.com/drexthealpha/Knos/pull/1) |
 | Merged into a third-party repo | [caura#1299](https://github.com/caura-ai/caura/pull/1299) · [drt#1098](https://github.com/drt-hub/drt/pull/1098) |
-| On PyPI | [knos 0.1.7](https://pypi.org/project/knos/0.1.7/) |
+| On PyPI | [knos 0.1.8](https://pypi.org/project/knos/0.1.8/) |
 | In the MCP registry | `io.github.drexthealpha/knos` |
 | Listed on Glama | [server page](https://glama.ai/mcp/servers/drexthealpha/Knos) |
 
