@@ -13,6 +13,17 @@ believable.
 The strongest signal available to a project this young is not a click. It is
 somebody with commit rights deciding your work is worth carrying.
 
+### Listed in the MCP directory, by its owner
+
+[punkpeye/awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480)
+was merged on 7 Sep 2026 by `punkpeye`, the owner, into the index most people
+reach for when they go looking for an MCP server. 94,508 stars.
+
+**What this is:** the one distribution surface this project has, and somebody
+who did not have to said yes to it.
+**What this is not:** a user. A line in a directory is a door, not a visit.
+There is no way to count who walked through it and I am not going to guess.
+
 ### Two pull requests merged into third-party repositories
 
 | Repo | PR | Merged | By |
@@ -37,16 +48,16 @@ around. The maintainer's words on merging:
 evidence about the builder, not about demand for the product, and it is filed
 here rather than in the judge guide's headline for that reason.
 
-### Seven more open, in real repositories
+### Six more open, in real repositories
 
 [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) (28k stars,
 CI green) · [toolport#864](https://github.com/btsouth/toolport/pull/864) (a
 regression the reviewer caught and I fixed) ·
-[stacktale#231](https://github.com/stacktale/stacktale/pull/231) ·
+[stacktale#231](https://github.com/stacktale/stacktale/pull/231) (a hole the
+maintainer found in the guard I wrote, reproduced and closed) ·
 [taskuary#35](https://github.com/ldbumble/taskuary/pull/35) ·
 [loop-engineering#587](https://github.com/cobusgreyling/loop-engineering/pull/587) ·
-[awesome-hermes-agent#382](https://github.com/0xNyk/awesome-hermes-agent/pull/382) ·
-[awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480)
+[awesome-hermes-agent#382](https://github.com/0xNyk/awesome-hermes-agent/pull/382)
 
 ### And the failure that came before them
 

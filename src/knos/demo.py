@@ -18,6 +18,7 @@ finishes.
 from __future__ import annotations
 
 import shutil
+import sys
 import subprocess
 import tempfile
 import time
@@ -26,6 +27,22 @@ from pathlib import Path
 from typing import Any
 
 PAUSE = 0.45  # long enough to read, short enough that nobody skips
+
+# A whole new interpreter, which has never imported knos in this run, asked to
+# recall what an earlier process wrote. Printed with the repo's commit hash and
+# the wall clock so a recording shows it was not spliced.
+COLD = """
+import os, sys
+from datetime import datetime, timezone
+from knos.memory import Memory
+repo = sys.argv[1]
+with Memory(repo) as mem:
+    facts = [f for f in mem.search(sys.argv[2]) if f.get("text")]
+print("pid", os.getpid(), "| utc", datetime.now(timezone.utc).strftime("%H:%M:%S"))
+for f in facts[:2]:
+    print("recalled:", f["text"], "|", f.get("where", ""))
+"""
+
 
 
 def _now() -> str:
@@ -185,7 +202,28 @@ def run(out: Any) -> int:
                     " with nothing installed on the other side.[/dim]")
 
         # ---- 7 -------------------------------------------------------------
-        screen.beat(7, "Now delete the memory.")
+        screen.beat(7, "A process that has never seen this repo is asked.")
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=repo,
+                              capture_output=True, text=True, check=False)
+        screen.note(f"[dim]repo at commit {head.stdout.strip()},"
+                    f" clock {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC[/dim]")
+        cold = work / "cold.py"
+        cold.write_text(COLD, encoding="utf-8")
+        import os as _os
+
+        got = subprocess.run(
+            [sys.executable, str(cold), str(repo), topic],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env={**_os.environ, "KNOS_HOME": str(home), "PYTHONIOENCODING": "utf-8"},
+            check=False,
+        )
+        screen.cmd(f"python cold.py   (a new interpreter, pid not {_os.getpid()})")
+        screen.said(got.stdout.strip() or got.stderr.strip()[-300:], "green")
+        screen.note("[dim]Nothing was passed to it but the path. Everything it"
+                    " said came out of the store.[/dim]")
+
+        # ---- 8 -------------------------------------------------------------
+        screen.beat(8, "Now delete the memory.")
         db = paths.store_for(repo)
         screen.cmd(f"rm {db}")
         db.unlink()

@@ -21,8 +21,10 @@ knos demo
 
 Sixty seconds, on a throwaway repo it deletes afterwards. A claim, a second
 agent **refused**, an edit **blocked before the write**, a purchase that costs
-nothing the second time, a reversed decision **holding the work under it** -
-and then the store is deleted and you watch every one of those stop.
+nothing the second time, a reversed decision **holding the work under it**, a
+**process that has never seen the repo** reading it all back with its own pid
+and the commit hash on screen - and then the store is deleted and you watch
+every one of those stop.
 
 Every line it prints is a real call into the real code. There is no hosted
 playground and there will not be one: **nothing on the read path touches a
@@ -33,10 +35,12 @@ promise. The local path is the playground.
 
 | | Knos |
 |---|---|
-| Pull requests **merged by third-party maintainers** | **2** - [caura#1299](https://github.com/caura-ai/caura/pull/1299) (486 stars), [drt#1098](https://github.com/drt-hub/drt/pull/1098), which invited a second |
-| Open in real repositories | **7**, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) at 28k stars |
+| Listed in the MCP directory | **yes** - [awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480), merged by the owner on 7 Sep into a 94.5k-star index |
+| Code merged by third-party maintainers | **2** - [caura#1299](https://github.com/caura-ai/caura/pull/1299) (487 stars), [drt#1098](https://github.com/drt-hub/drt/pull/1098), which invited a second |
+| Open in real repositories | **6**, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) at 28k stars and [stacktale#231](https://github.com/stacktale/stacktale/pull/231), reviewed and revised |
 | Issues sampled to size the problem | **100,057**, of which 1,254 describe it |
 | Ablation arms that die with the store | **12** |
+| Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** when the memory is not shared - [`collide.json`](docs/evidence/collide.json) |
 | Refusal that stops a filesystem write | **yes**, `tests/test_guard.py` |
 | Retained users | **none.** [The full ledger](docs/PMF.md), including 34 pull requests that failed |
 

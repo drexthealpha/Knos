@@ -1,0 +1,82 @@
+{
+  "generated": "2026-09-07T05:23:58.436315+00:00",
+  "agents": 16,
+  "rounds": 8,
+  "processes": "operating-system processes, one connection each",
+  "with_store": {
+    "rounds": [
+      {
+        "round": 0,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 1,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 2,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 3,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 4,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 5,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 6,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      },
+      {
+        "round": 7,
+        "agents": 16,
+        "winners": 1,
+        "refused": 15,
+        "refused_told_who_holds_it": 15,
+        "errors": 0
+      }
+    ],
+    "double_grants": 0,
+    "rounds_with_exactly_one_winner": 8,
+    "refusals_naming_the_holder": 120,
+    "refusals": 120
+  },
+  "no_shared_store": {
+    "agents_that_took_the_same_work": 16,
+    "double_grants": 15
+  }
+}
