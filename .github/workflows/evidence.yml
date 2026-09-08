@@ -14,12 +14,11 @@ on:
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/**"
-      - "src/knos/**"
-      - ".github/workflows/evidence.yml"
+# Deliberately not on push. It rewrites the timestamps in docs/evidence and
+# commits them, so running it on every push meant it raced whatever was being
+# pushed and left a conflict in a file nobody had edited. Once a day, on a
+# clean machine, is the claim being made; per-push was noise wearing the same
+# clothes.
 
 permissions:
   contents: write
