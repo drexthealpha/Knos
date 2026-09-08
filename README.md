@@ -48,10 +48,11 @@ hosted knos, and there will not be one.
 | Code merged by third-party maintainers | **2** — [caura#1299](https://github.com/caura-ai/caura/pull/1299), [drt#1098](https://github.com/drt-hub/drt/pull/1098); **6** more open, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) |
 | Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** unshared — [`collide.json`](docs/evidence/collide.json) |
 | Onchain receipts that resolve | **11 of 11**, 8 on Base mainnet with USDC — `python scripts/verify_receipts.py` |
-| Hold length learned per agent | **29% less** time blocked on work nobody was doing — [`contention.json`](docs/evidence/contention.json) |
+| Money spent on work that got dropped | **$0.044 to $0.000** — the gate reads who is asking, [`budget.json`](docs/evidence/budget.json) |
+| Hold length learned per agent | **29% less** time blocked — [`contention.json`](docs/evidence/contention.json) |
 | Evidence regenerated on a clean machine | **daily** in public CI — last run reproduced every figure identically |
-| Record of who overrode whom | **chained per writer** — [`test_seal.py`](tests/test_seal.py) edits the SQLite file and `knos verify` names the entry |
-| Refusal that stops a filesystem write | **yes** — and renaming the file does not get past it, [`test_rename_bypass.py`](tests/test_rename_bypass.py) |
+| Record of who overrode whom | **chained per writer** — `knos verify` names an edited entry |
+| Refusal that stops a filesystem write | **yes**, and renaming the file does not get past it |
 | Retained users | **none.** [The full ledger](docs/PMF.md), including 34 pull requests that failed |
 
 ## Three ways in, none of them a server

@@ -161,3 +161,38 @@ def everyone(mem: Any) -> list[dict[str, Any]]:
     out = [reliability(mem, who) for who in seen]
     out.sort(key=lambda r: (r["kept"] if r["kept"] is not None else 1.0, r["who"]))
     return out
+
+
+# Spending is the other thing a record can decide, and the reason it is worth
+# deciding: on a machine several agents share, the money one of them spends is
+# money out of the same pocket. An agent that buys a brief and then abandons
+# the work it bought it for has spent it on nothing, and it will do it again in
+# half an hour.
+TRIED = 3      # claims before anyone is judged on spending at all
+KEEPS = 1 / 3  # the share it has to close to keep spending on its own
+
+
+def may_spend(mem: Any, who: str) -> tuple[bool, str]:
+    """Whether `who` should spend shared money, and why not if not.
+
+    Deliberately blunt, and deliberately hard to trip: nobody is refused
+    without a real record of abandoning work, and one bad afternoon is not a
+    record. A new agent spends freely, because refusing on no evidence is the
+    failure this whole file is written against.
+
+    This is not a security boundary and does not pretend to be one. An agent
+    picks its own name. It is the same trust model as the rest of knos - what
+    an agent says about itself, held against what it did last time - applied
+    at the one point where being wrong costs actual money.
+    """
+    taken, finished = history(mem, who)
+    if taken < TRIED:
+        return True, ""
+    if finished / taken >= KEEPS:
+        return True, ""
+    return False, (
+        f"{who} has taken {taken} pieces of work here and closed {finished}. "
+        "Money spent on work that gets abandoned is spent on nothing, and "
+        "this machine's budget is shared. Close what you are holding with "
+        "`knos done`, or ask the person to buy it for you."
+    )

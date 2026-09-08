@@ -1,0 +1,38 @@
+{
+  "generated": "2026-09-08T16:44:07.235362+00:00",
+  "seed": 1337,
+  "asks": 60,
+  "agents": {
+    "Claude Code": true,
+    "Cursor": true,
+    "a killed CI runner": false
+  },
+  "prices_usd": {
+    "news": 0.001,
+    "brief": 0.01
+  },
+  "arms": [
+    {
+      "arm": "trusted",
+      "asks": 60,
+      "bought": 10,
+      "free": 50,
+      "refused": 0,
+      "spent_usd": 0.055,
+      "spent_on_abandoned_work_usd": 0.044
+    },
+    {
+      "arm": "learned",
+      "asks": 60,
+      "bought": 8,
+      "free": 33,
+      "refused": 19,
+      "spent_usd": 0.044,
+      "spent_on_abandoned_work_usd": 0.0
+    }
+  ],
+  "saved_usd": 0.011,
+  "percent_of_the_budget_saved": 20.0,
+  "spent_on_abandoned_work_before_usd": 0.044,
+  "spent_on_abandoned_work_after_usd": 0.0
+}

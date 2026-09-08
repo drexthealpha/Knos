@@ -52,6 +52,12 @@ type Settings = {
   paidEndpoint?: string;
   /** The interpreter that has knos installed. Defaults to `python`. */
   python?: string;
+  /**
+   * The name this bot claims and spends under, so its record in the store is
+   * its own. Optional: unset, it is "the Telegram bot", which has no claim
+   * history and therefore spends freely - a new name is never refused.
+   */
+  agentName?: string;
   knos: string;
 };
 
@@ -247,19 +253,30 @@ async function payFor(
   price: string,
   body?: unknown,
 ): Promise<string> {
-  // The memory decides whether this costs anything. Three answers, and only
-  // the last one spends: somebody is mid-change on this topic and the answer
-  // is about to be stale, the store already has it, or neither and we buy.
+  // The memory decides whether this costs anything. `buy` is the only verdict
+  // that spends; everything else is a refusal and is relayed as one.
   //
-  // This is the half that made "nobody here pays twice" true. The write-back
-  // was always there; the look-before-paying was not, so the second identical
-  // request paid again for something already sitting in the store.
+  // Written that way round on purpose. This used to name the refusals it knew
+  // about - `withheld` and `have` - and fall through to buying on anything
+  // else, so when the gate learned to answer `suspect` (the work rests on a
+  // decision somebody reversed) the bot bought anyway. The gate was right and
+  // its caller ignored it. Matching on the one verdict that costs money means
+  // the next refusal added to the gate is honoured here without a change.
   const asked = await run(config.python ?? "python", [
     "-m", "knos.gate", "--topic", topic, "--ask", topic,
+    "--as", config.agentName ?? "the Telegram bot",
   ]);
   if (!broke(asked)) {
     try {
       const gate = JSON.parse(asked.split("\n").filter(Boolean).pop() ?? "{}");
+      if (gate.verdict === "have") {
+        return [
+          english(gate.answer) || gate.answer,
+          "",
+          "Free. This machine already paid for it once" +
+            (gate.where ? ` (${gate.where})` : "") + ", so nobody paid again.",
+        ].join("\n");
+      }
       if (gate.verdict === "withheld") {
         return [
           gate.answer,
@@ -271,12 +288,12 @@ async function payFor(
             ", so a paid answer would be out of date before it arrived.",
         ].join("\n");
       }
-      if (gate.verdict === "have") {
+      if (gate.verdict && gate.verdict !== "buy") {
+        // suspect, unproven, and anything the gate learns to say later.
         return [
-          english(gate.answer) || gate.answer,
+          gate.answer || "The memory refused this purchase.",
           "",
-          "Free. This machine already paid for it once" +
-            (gate.where ? ` (${gate.where})` : "") + ", so nobody paid again.",
+          "Nothing was bought.",
         ].join("\n");
       }
     } catch {

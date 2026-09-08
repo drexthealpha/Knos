@@ -99,7 +99,21 @@ spend again. One ordinary day of five agents:</p>
 <div class="cards" id="spend"></div>
 <pre>python scripts/spend.py</pre>
 
-<h2><span class="n">04</span>The memory changes what the memory does next</h2>
+<h2><span class="n">04</span>The memory decides who may spend</h2>
+<p class="sub">Every other refusal here is about the <em>topic</em> — somebody is
+mid-change on it, a decision under it was reversed, the store already has it. This one is
+about the <em>agent</em>. On a machine several agents share, the budget is one pocket, and
+an agent that buys an input then drops the work bought nothing.</p>
+<div class="cards" id="budget"></div>
+<pre>python scripts/budget.py</pre>
+<p class="note">The percentage is the weaker number. The point is not that less money
+moved, it is that the money which moved went to work somebody finished — and the agents
+that finish things were never stopped. Hard to trip on purpose: three pieces of work
+before anyone is judged at all, a new agent spends freely, and finishing work earns it
+back. Not a security boundary — an agent picks its own name — it is what an agent said
+about itself held against what it did last time, applied where being wrong costs money.</p>
+
+<h2><span class="n">05</span>The memory changes what the memory does next</h2>
 <p class="sub">A claim's lifetime is learned from the share of claims that agent actually
 closed — 15 minutes for one that never finishes, 45 for one that always does, 30 for
 anyone seen fewer than twice. One seeded working day, four agents, two that mostly do not
@@ -107,7 +121,7 @@ finish:</p>
 <div class="cards" id="contention"></div>
 <pre>python scripts/contention.py</pre>
 
-<h2><span class="n">05</span>Nobody can quietly edit who overrode whom</h2>
+<h2><span class="n">06</span>Nobody can quietly edit who overrode whom</h2>
 <p class="sub">An override is the one thing an agent does <em>against</em> somebody
 else's work, and the only cost it carries is that it goes in the journal under its own
 name. If that line can be edited afterwards, the cost is zero. Each writer's entries are
@@ -126,13 +140,13 @@ per writer on purpose: one global chain forks the moment two agents append toget
 a fork is indistinguishable from an edit. Tests tamper with the SQLite file directly:
 <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_seal.py">test_seal.py</a>.</p>
 
-<h2><span class="n">06</span>Arms that die with the store</h2>
+<h2><span class="n">07</span>Arms that die with the store</h2>
 <p class="sub">Each arm run twice: once with the store, once with the same code and
 nothing to read.</p>
 <table id="ablation"><thead><tr><th>what</th><th>with the store</th><th>without it</th></tr></thead><tbody></tbody></table>
 <pre>python scripts/ablation.py</pre>
 
-<h2><span class="n">07</span>Every on-chain claim, resolved</h2>
+<h2><span class="n">08</span>Every on-chain claim, resolved</h2>
 <p class="sub">Eleven transaction hashes appear in this repository. This resolves each one
 against the chain it is documented against — no key, no account, public RPCs — and exits
 non-zero if any fails.</p>
@@ -142,7 +156,7 @@ non-zero if any fails.</p>
 <tbody id="chain"></tbody>
 </table>
 
-<h2><span class="n">08</span>What is not true yet</h2>
+<h2><span class="n">09</span>What is not true yet</h2>
 <p class="sub">Here rather than in a footnote, because a ledger nobody can check is not
 evidence.</p>
 <table>
@@ -153,7 +167,7 @@ evidence.</p>
 <p class="note">The whole ledger, including the failures:
 <a href="PMF.md">docs/PMF.md</a>.</p>
 
-<h2><span class="n">09</span>The critical path, in two minutes</h2>
+<h2><span class="n">10</span>The critical path, in two minutes</h2>
 <table>
 <tr><td class="m">memory.py</td><td>every write and read into Sibyl, in one file</td></tr>
 <tr><td class="m">mcp._held</td><td>whether an agent gets an answer at all</td></tr>
@@ -206,6 +220,18 @@ load('spend').then(function(s){
     card('$' + s.without_store.spent_usd.toFixed(3), 'spent for the same answers, no store', 'r') +
     card(s.with_store.free + '/' + s.asks, 'answers that cost nothing the second time');
 }).catch(function(){ fail('#spend', 'spend'); });
+
+load('budget').then(function(b){
+  const trusted = b.arms.find(function(a){ return a.arm === 'trusted'; });
+  const learned = b.arms.find(function(a){ return a.arm === 'learned'; });
+  $('#budget').innerHTML =
+    card('$' + trusted.spent_on_abandoned_work_usd.toFixed(3),
+         'spent on work that was dropped, before', 'r') +
+    card('$' + learned.spent_on_abandoned_work_usd.toFixed(3),
+         'spent on work that was dropped, after', 'g') +
+    card(learned.refused, 'purchases refused for one agent', 'g') +
+    card(learned.bought, 'still bought, for the agents that finish');
+}).catch(function(){ fail('#budget', 'budget'); });
 
 load('contention').then(function(c){
   const flat = c.arms.find(function(a){ return a.arm === 'flat'; });

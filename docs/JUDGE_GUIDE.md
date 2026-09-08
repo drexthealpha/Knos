@@ -165,6 +165,47 @@ change one line in the middle and have it pass. The tests in
 [`tests/test_seal.py`](../tests/test_seal.py) edit and delete rows in the
 SQLite file directly rather than going through any knos API.
 
+## The memory decides who may spend, not only what was bought
+
+Every other refusal in `gate.decide` is about the **topic**: somebody is
+mid-change on it, a decision under it was reversed, the store already has it.
+There is one about the **agent**, and it is the only question here whose wrong
+answer costs real money.
+
+On a machine several agents share, the budget is one pocket. An agent that buys
+an input and then drops the work bought nothing, and it will do it again in
+half an hour. So `record.may_spend` reads the same journal `record.holds_for`
+does, and an agent that has taken work here three or more times and closed less
+than a third of it does not spend.
+
+```
+$ python scripts/budget.py
+  trusted  bought  10  refused   0  spent $0.055  of which $0.044 on work that was dropped
+  learned  bought   8  refused  19  spent $0.044  of which $0.000 on work that was dropped
+```
+
+The percentage saved is the weaker number and it is in the JSON. The claim is
+the other column: **the money that moved went to work somebody finished**, and
+the agents that finish things were never stopped.
+
+Four things keep it from being a bad rule, each with a test in
+[`tests/test_spender.py`](../tests/test_spender.py):
+
+- a new agent spends freely - refusing on no evidence is the failure the
+  record module is written against;
+- one bad afternoon is not a record, so it takes three;
+- an abandoner still gets answers the store already paid for, because refusing
+  those would be spite rather than thrift;
+- finishing work earns the money back, and the refusal says how.
+
+Stated rather than implied: this is not a security boundary. An agent picks its
+own name. It is what an agent said about itself, held against what it did last
+time, applied at the one point where being wrong is expensive - the same trust
+model as every other claim in knos.
+
+It is also load-bearing in the literal sense. Delete the store and the shared
+card is handed to anybody again: `test_it_dies_with_the_store`.
+
 ## The memory changes what the memory does next
 
 Every claim used to lapse after the same thirty minutes, whoever made it. That

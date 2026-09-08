@@ -5,13 +5,22 @@ was only half true: the bot wrote what it bought back into the store, but
 never looked in the store before buying, so the second identical request paid
 again. This closes that, and makes the memory the thing that decides.
 
-Three answers, and only the last one costs anything:
+Four answers, and only the last one costs anything:
 
     withheld  somebody is mid-change on this topic. No purchase. You are told
               who holds it, exactly as an agent asking over MCP would be.
+    suspect   the work rests on a decision that was reversed. No purchase.
     have      the store already has it. No purchase. The stored answer is
               returned, with where it came from.
-    buy       the store has nothing and nothing is claimed. Go and pay.
+    unproven  this agent keeps abandoning the work it buys things for, and
+              the budget is shared. No purchase, and it is told how to
+              earn the money back.
+    buy       the store has nothing, nothing is claimed, and whoever is
+              asking finishes what it starts. Go and pay.
+
+The last of those is the part worth arguing with. Every other refusal here is
+about the *topic*; that one is about the *agent*, decided from what it has
+done on this machine before, which exists nowhere but the store.
 
 Nothing here is new behaviour invented for a demo. The withhold is
 `core.Claims.withheld`, which is `answer.withheld`, which is what the MCP
@@ -36,7 +45,8 @@ import sys
 from pathlib import Path
 
 
-def decide(repo: Path, topic: str, question: str) -> dict[str, str]:
+def decide(repo: Path, topic: str, question: str,
+           who: str = "the agent") -> dict[str, str]:
     """What the store says about buying this, without buying it."""
     from . import answer, paths
     from .core import Claims
@@ -96,6 +106,17 @@ def decide(repo: Path, topic: str, question: str) -> dict[str, str]:
                 "where": str(((thing or {}).get("body") or {}).get("when", "")),
             }
 
+    # Last: who is asking. Everything above is about the topic; this is the
+    # one question about the agent, and the store is the only place the answer
+    # exists. An agent that has repeatedly taken work here and not finished it
+    # is not somebody to hand a shared card to.
+    from . import record
+
+    with Memory(repo) as mem:
+        allowed, why = record.may_spend(mem, who)
+    if not allowed:
+        return {"verdict": "unproven", "answer": why, "holder": who, "where": ""}
+
     return {"verdict": "buy", "answer": "", "holder": "", "where": ""}
 
 
@@ -104,10 +125,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--topic", required=True)
     parser.add_argument("--ask", required=True)
     parser.add_argument("--repo", default=".")
+    parser.add_argument("--as", dest="who", default="the agent",
+                        help="the agent asking, for the spending record")
     args = parser.parse_args(argv[1:])
 
     try:
-        said = decide(Path(args.repo), args.topic, args.ask)
+        said = decide(Path(args.repo), args.topic, args.ask, args.who)
     except Exception as why:  # noqa: BLE001 - a broken gate must not spend
         said = {"verdict": "buy", "answer": "", "holder": "", "where": "",
                 "why": f"{type(why).__name__}: {why}"}

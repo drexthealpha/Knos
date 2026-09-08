@@ -174,6 +174,20 @@ def run(out: Any) -> int:
         screen.note("[dim]Same request, second time, costs nothing. That is the"
                     " memory spending or not spending.[/dim]")
 
+        # The other half: not what is being bought, but who is buying it.
+        from . import record
+
+        with Memory(repo) as mem:
+            for n in range(6):
+                record.note_taken(mem, f"a dropped job {n}", "a killed CI runner", _now())
+        screen.cmd('knos.gate --as "a killed CI runner"  (asks for something new)')
+        fresh = "market brief: SOL"
+        said = gate.decide(repo, fresh, fresh, "a killed CI runner")
+        screen.said(f"verdict = {said['verdict']}", "red")
+        screen.said((said["answer"] or "").split(". ")[0] + ".", "red")
+        screen.note("[dim]It has taken work here six times and closed none. The"
+                    " budget is shared, so it does not spend it.[/dim]")
+
         # ---- 5 -------------------------------------------------------------
         screen.beat(5, "A decision is reversed. Everything under it is held.")
         with Memory(repo) as mem:

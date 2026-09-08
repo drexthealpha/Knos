@@ -61,3 +61,49 @@ def test_a_receipt_is_a_link_a_person_can_follow(source: str) -> None:
     """The stored note carries the explorer URL, not the settlement header."""
     assert "https://basescan.org/tx/${said.tx}" in source
     assert "Receipt: ${said.paid" not in source
+
+
+def test_the_bot_buys_on_exactly_one_verdict() -> None:
+    """It used to name the refusals it knew and buy on everything else.
+
+    `gate.decide` had three answers when the bot was written and has five now.
+    The bot checked `withheld` and `have` and fell through to buying on
+    anything else, so `suspect` - which exists to stop money going on work that
+    rests on a decision somebody reversed - spent the money anyway. The gate
+    was right and its caller ignored it.
+
+    Reading it the other way round is what keeps it fixed: `buy` is the only
+    verdict that spends, so a refusal the gate learns to say tomorrow is
+    honoured here without anyone remembering to come back.
+    """
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "agent" / "bot.ts").read_text(
+        encoding="utf-8"
+    )
+    block = source.split("The memory decides whether this costs anything", 1)[1]
+    block = block.split("knos.buy402", 1)[0]
+
+    assert 'gate.verdict !== "buy"' in block, (
+        "the bot no longer refuses on verdicts it does not have a branch for, "
+        "so a new gate refusal will silently become a purchase"
+    )
+    # And every verdict the gate can return is accounted for.
+    gate = (Path(__file__).resolve().parents[1] / "src" / "knos" / "gate.py").read_text(
+        encoding="utf-8"
+    )
+    import re
+
+    verdicts = set(re.findall(r'"verdict": "(\w+)"', gate))
+    assert verdicts >= {"withheld", "suspect", "have", "unproven", "buy"}, verdicts
+
+
+def test_the_bot_tells_the_gate_who_is_asking() -> None:
+    """The spending record is per agent, so the caller has to name itself."""
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "agent" / "bot.ts").read_text(
+        encoding="utf-8"
+    )
+    assert '"--as"' in source, "the gate cannot apply a record to an unnamed caller"
+    assert "agentName" in source
