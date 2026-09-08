@@ -687,10 +687,19 @@ def verify() -> None:
         out.print(f"[green]{counts['sealed']} entries, "
                   f"{counts['writers']} writer(s), every chain adds up.[/green]")
         out.print("")
-        out.print("[dim]Each writer's entries are chained, so one cannot be "
-                  "altered or dropped without the rest of that writer's chain "
-                  "failing. It is tamper-evident, not tamper-proof: whoever "
-                  "holds the file could rewrite a chain from the start.[/dim]")
+        out.print("  Every entry is sealed against being [bold]edited[/bold].")
+        out.print(f"  {counts['chained']} of them, in {counts['sequences']} "
+                  "sequence(s), are also sealed against being "
+                  "[bold]deleted[/bold] -")
+        out.print("  a gap needs a line either side of it to show up. Those are"
+                  " the ones")
+        out.print("  written by agents: claimed, stood down, overrode. A fact"
+                  " read out of")
+        out.print("  your code names a file and a line as its source, so it is"
+                  " a chain of one.")
+        out.print("")
+        out.print("[dim]Tamper-evident, not tamper-proof: whoever holds the "
+                  "file could rewrite a chain from the start.[/dim]")
         return
 
     out.print(f"[red]{len(broken)} break(s) in {counts['sealed']} entries.[/red]")

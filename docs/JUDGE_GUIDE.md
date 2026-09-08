@@ -132,6 +132,21 @@ Every journal entry is chained to the last one its writer made. Alter one, or
 remove one, and the rest of that writer's chain stops adding up, and `knos
 verify` names the writer and the entry.
 
+Two halves, not equal, and worth separating rather than rounding up:
+
+| | caught | why |
+|---|---|---|
+| an entry **edited** | always, every entry | the link is over the entry's own contents |
+| an entry **deleted** | only inside a chain of more than one | a gap needs a line either side to show |
+
+Facts knos read out of your code carry a file and a line as their source, so
+each is its own chain of one - an edit still breaks it, a deletion has nothing
+left to notice. The facts that record what agents *did* carry the agent as the
+writer, and those are the sequences with length, which is where deleting a line
+would be worth somebody's while. `knos verify` prints both numbers, and
+`test_a_lone_entry_is_sealed_against_editing_but_not_deletion` pins the weaker
+half so it cannot quietly be claimed as the stronger one.
+
 That matters because an override is the only thing in knos an agent does
 against somebody else's work, and the only cost it carries is being written
 down under its own name. A record that can be edited afterwards carries no

@@ -111,7 +111,14 @@ finish:</p>
 <p class="sub">An override is the one thing an agent does <em>against</em> somebody
 else's work, and the only cost it carries is that it goes in the journal under its own
 name. If that line can be edited afterwards, the cost is zero. Each writer's entries are
-chained, so altering or dropping one breaks the rest of that writer's chain.</p>
+chained, so altering one breaks its link and dropping one leaves a gap in the sequence.</p>
+<p class="sub">The two halves are not equal strength and the page says so rather than
+rounding up: an <strong>edit</strong> is caught for every entry, always. A
+<strong>deletion</strong> is caught only inside a chain of more than one, because a gap
+needs a line either side of it. Facts knos read out of your code name a file and a line as
+their source, so each is a chain of one; the facts that record what agents did — claimed,
+stood down, overrode — carry the agent as the writer, and those are the chains with
+length. <code>knos verify</code> prints both counts.</p>
 <pre>knos verify</pre>
 <p class="note">Tamper-evident, not tamper-proof — whoever holds the file could rewrite a
 chain from the start; what they cannot do is change one line in the middle. The chain is

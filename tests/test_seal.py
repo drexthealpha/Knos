@@ -74,7 +74,11 @@ def written(knos_home, repo):
 def test_an_untouched_journal_adds_up(written) -> None:
     with Memory(written) as mem:
         assert seal.check(mem) == []
-        assert seal.counted(mem) == {"sealed": 7, "writers": 2}
+        # Two writers of four and three: every entry is in a real sequence,
+        # so all seven are sealed against deletion as well as against editing.
+        assert seal.counted(mem) == {
+            "sealed": 7, "writers": 2, "chained": 7, "sequences": 2,
+        }
 
 
 @pytest.mark.critical
@@ -156,4 +160,41 @@ def test_the_proof_dies_with_the_store(written) -> None:
     paths.store_for(written).unlink()
 
     with Memory(written) as mem:
-        assert seal.counted(mem) == {"sealed": 0, "writers": 0}
+        assert seal.counted(mem) == {
+            "sealed": 0, "writers": 0, "chained": 0, "sequences": 0,
+        }
+
+
+def test_a_lone_entry_is_sealed_against_editing_but_not_deletion(
+    knos_home, repo
+) -> None:
+    """The honest half of the claim, kept as a test so it cannot be dropped.
+
+    A fact knos read out of your code carries a file and a line as its source,
+    so it is its own writer and its own chain of one. Editing it still breaks
+    its link. Removing it leaves nothing behind to notice, and `knos verify`
+    says which entries are in that position rather than reporting a total that
+    reads stronger than it is.
+    """
+    with Memory(repo) as mem:
+        mem.record(Fact(text="a fact from the code", source="code",
+                        where="src/parser.py:12", when=_now(), about="parser"))
+        counts = seal.counted(mem)
+
+    assert counts["sealed"] == 1
+    assert counts["chained"] == 0, "a chain of one cannot show a gap"
+
+    ident, extra_row = _rows(repo, "a fact from the code")[0]
+    body = json.loads(extra_row)
+    body["text"] = "a fact from the code (edited)"
+    _write_row(repo, ident, body)
+
+    with Memory(repo) as mem:
+        assert seal.check(mem), "editing a lone entry went unnoticed"
+
+    _delete_row(repo, ident)
+    with Memory(repo) as mem:
+        assert seal.check(mem) == [], (
+            "deleting a lone entry cannot be detected, and pretending "
+            "otherwise would be the dishonest version of this feature"
+        )

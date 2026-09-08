@@ -18,11 +18,24 @@ same instant. A fork looks exactly like tampering, and a tamper alarm that
 goes off during ordinary work is worse than no alarm, because people learn to
 ignore it. Each writer chains its own entries instead.
 
-What that proves: no entry of a given writer's can be altered or removed
-without the rest of that writer's chain failing.
+What that proves, exactly, because the two halves are not the same strength:
 
-What it does not prove: anything about the order of two different writers'
-entries, and nothing at all against somebody who rewrites a whole chain from
+  altered   caught for every entry, always. The link is computed over the
+            entry's own contents, so changing a word breaks it whether that
+            writer wrote one entry or a thousand.
+  removed   caught only inside a chain of more than one, because a sequence
+            number is what shows a gap. A writer with a single entry has
+            nothing left to notice its absence.
+
+That distinction matters here rather than being pedantry. The facts knos reads
+out of your code carry a file and a line as their source, so almost every one
+of them is its own writer and its own chain of one. The facts that describe
+what agents *did* - claimed, stood down, overrode, were told - carry the agent
+as the writer, and those are the chains with length, which is exactly where
+deleting a line would be worth somebody's while.
+
+What it does not prove at all: anything about the order of two different
+writers' entries, and nothing against somebody who rewrites a whole chain from
 the beginning - they hold the file. This is tamper-*evident*, not tamper-proof,
 and the difference is worth stating rather than blurring.
 
@@ -121,7 +134,23 @@ def check(mem: Any) -> list[dict[str, Any]]:
 
 
 def counted(mem: Any) -> dict[str, int]:
-    """How much of the journal is sealed, for `knos verify` to say."""
+    """How much of the journal is sealed, and how much of it can lose a line.
+
+    `chained` is the part where a deletion would show up: entries belonging to
+    a writer with more than one of them. Reporting only a total would let
+    "59 entries, 59 writers" read as a strong claim when it is fifty-nine
+    chains of one, each of which detects an edit and none of which can notice
+    a removal.
+    """
     facts = _entries(mem)
-    writers = {str(f.get("where", "")) for f in facts}
-    return {"sealed": len(facts), "writers": len(writers)}
+    per: dict[str, int] = {}
+    for fact in facts:
+        who = str(fact.get("where", ""))
+        per[who] = per.get(who, 0) + 1
+    chained = sum(n for n in per.values() if n > 1)
+    return {
+        "sealed": len(facts),
+        "writers": len(per),
+        "chained": chained,
+        "sequences": sum(1 for n in per.values() if n > 1),
+    }
