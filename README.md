@@ -130,6 +130,55 @@ nothing on the read path touches a network.
 
 Details and every hash: [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
+## The load-bearing map
+
+Every one of these is a read of the store that changes what happens next.
+Delete `memory.db` and each line becomes the one after the arrow.
+
+| the read | decides | without the store |
+|---|---|---|
+| [`mcp._held`](src/knos/mcp.py) | whether an agent is answered at all | it answers, and two agents edit the same thing |
+| [`guard.check`](src/knos/guard.py) | whether a file is written to disk | the write lands |
+| [`gate.decide`](src/knos/gate.py) | whether money moves | it buys the same answer again |
+| [`record.holds_for`](src/knos/record.py) | how long the next claim survives | everyone is a stranger worth 30 minutes |
+| [`decide.is_suspect`](src/knos/decide.py) | whether work under a reversed decision is held | it proceeds on wording that was withdrawn |
+| [`seal.check`](src/knos/seal.py) | whether the record was edited | there is no record to check |
+
+Every write and read into Sibyl is in one file, `src/knos/memory.py`, with
+line numbers in the [judge guide](docs/JUDGE_GUIDE.md). The deletion test is
+`pytest tests/test_sibyl_is_load_bearing.py`.
+
+## How memory made this possible
+
+Knos is not a tool that happens to save things. Take Sibyl out and there is no
+product left to run.
+
+The claim lives in the store, and that is the whole mechanism: one agent
+writes down what it is changing, and the next agent whose question touches
+that subject is handed the holder's name instead of an answer. The refusal is
+not a rule enforced somewhere else in the code — it **is** a read of the
+store, and it fails exactly when the read fails.
+
+Three other things exist nowhere else: what you told it with `knos remember`,
+the brief an agent paid for over x402 and wrote back, and the ACP job it sold.
+Your commits and your `CLAUDE.md` are re-read after a delete. Those are not.
+
+## Prior work
+
+Knos is not a fork and not a clone. There is no upstream project and no
+pre-existing memory layer that Sibyl was added to. Every line is original work
+under MIT and the commit history is the whole record — written locally before
+the window and first published on 1 September; everything after is dated in
+the log.
+
+**Dependencies, and what each is for.** Sibyl Memory (`sibyl-memory-client`)
+is the store, and it is the load-bearing one. The MCP Python SDK provides the
+server. `universal-ctags` is optional — without it knos falls back to a reader
+it carries itself. The Virtuals ACP SDK and the `x402` client are used only by
+`agent/`, which is the commerce leg rather than the product.
+
+The longer version of all three: [`docs/GUIDE.md`](docs/GUIDE.md).
+
 ## What it cannot do
 
 It does not stop a determined person, and it is not access control. It knows
