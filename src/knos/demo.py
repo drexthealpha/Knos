@@ -266,9 +266,13 @@ def run(out: Any) -> int:
                   " product.[/bold]")
         out.print("  [bold]There is no product. That is what load-bearing means.[/bold]")
         out.print("")
-        out.print("  The numbers, over 12 seeded trials:   [dim]python scripts/ablation.py[/dim]")
-        out.print("  What it saves, in dollars:            [dim]python scripts/spend.py[/dim]")
-        out.print("  Every claim mapped to a test:         [dim]docs/JUDGE_GUIDE.md[/dim]")
+        # Point at things a person who ran `pip install` actually has. The
+        # scripts live in the repository, so naming them here was a dead end
+        # for anybody who never cloned it.
+        out.print("  Every number behind this, checkable:  "
+                  "[dim]https://drexthealpha.github.io/Knos[/dim]")
+        out.print("  The receipts, resolved against Base:  [dim]knos receipts[/dim]")
+        out.print("  Who has edited the record:            [dim]knos verify[/dim]")
         out.print("")
         return 0
     finally:
