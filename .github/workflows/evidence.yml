@@ -1,0 +1,70 @@
+# Regenerate every number the evidence page shows, on a schedule.
+#
+# The page at drexthealpha.github.io/Knos reads docs/evidence/*.json. A number
+# committed once and never re-run is a screenshot with extra steps, so this
+# re-runs the scripts that produce them on a clean machine every day and
+# commits whatever changed. If a figure on that page stops being reproducible,
+# it changes here in public rather than staying flattering and stale.
+#
+# It also resolves all eleven on-chain hashes against the chains they are
+# documented against, and fails loudly if any one of them stops resolving.
+name: evidence
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "src/knos/**"
+      - ".github/workflows/evidence.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: The receipts still resolve
+        run: python scripts/verify_receipts.py
+
+      - name: Sixteen processes race one claim
+        run: python scripts/collide.py
+
+      - name: Every arm, with the store and without
+        run: python scripts/ablation.py
+
+      - name: What the learned hold is worth
+        run: python scripts/contention.py
+
+      - name: What the store saves in dollars
+        run: python scripts/spend.py
+
+      - name: Commit whatever moved
+        run: |
+          git config user.name drexthealpha
+          git config user.email zulibro1999@gmail.com
+          if git diff --quiet -- docs/evidence; then
+            echo "Every figure reproduced unchanged."
+            exit 0
+          fi
+          echo "These changed:"
+          git diff --stat -- docs/evidence
+          git add docs/evidence
+          git commit             -m "evidence: regenerated on a clean machine, $(date -u +%Y-%m-%d)"             -m "Re-run by the scheduled workflow rather than on the laptop that first produced them, so the numbers the evidence page shows stay ones a stranger could reproduce."
+          git push

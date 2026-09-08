@@ -2,7 +2,15 @@
 
 <!-- mcp-name: io.github.drexthealpha/knos -->
 
+[![The evidence, live](https://img.shields.io/badge/EVIDENCE-drexthealpha.github.io%2FKnos-3fb950?style=for-the-badge)](https://drexthealpha.github.io/Knos/)
+[![Base mainnet](https://img.shields.io/badge/Base-mainnet_x402_%C3%97_8-0052FF?style=for-the-badge)](https://drexthealpha.github.io/Knos/#chain)
+[![Virtuals ACP](https://img.shields.io/badge/Virtuals-ACP_job_75659-8B5CF6?style=for-the-badge)](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
 [![Knos MCP server](https://glama.ai/mcp/servers/drexthealpha/Knos/badges/score.svg)](https://glama.ai/mcp/servers/drexthealpha/Knos)
+
+**Check every claim on this page without installing anything:
+[drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)** — the
+collision study, the twelve arms, the money gate and all eleven on-chain
+receipts, each number read live out of the JSON the scripts wrote.
 
 **One shared memory for every coding agent on your machine.** Two agents, or
 two people, change the same thing without knowing it. Knos is the record of
@@ -26,10 +34,11 @@ nothing the second time, a reversed decision **holding the work under it**, a
 and the commit hash on screen — and then the store is deleted and you watch
 every one of those stop.
 
-Every line it prints is a real call into the real code. There is no hosted
-playground and there will not be one: **nothing on the read path touches a
-network**, and that is [a test](tests/test_no_network.py) rather than a
-promise. The local path is the playground.
+Every line it prints is a real call into the real code. The
+[evidence page](https://drexthealpha.github.io/Knos/) is a page *about* the
+product, not part of it: **nothing on the read path touches a network**, and
+that is [a test](tests/test_no_network.py) rather than a promise. There is no
+hosted knos, and there will not be one.
 
 ## Signals
 
@@ -90,7 +99,7 @@ mode — there is no product.
 
 ```bash
 python scripts/collide.py          # 16 processes, one topic, 0 double-grants
-python scripts/verify_receipts.py  # every onchain claim, resolved
+knos receipts                      # every onchain claim, resolved live
 python scripts/ablation.py         # 12 arms
 ```
 

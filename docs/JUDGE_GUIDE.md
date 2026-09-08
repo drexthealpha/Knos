@@ -4,6 +4,15 @@ Every claim on this page maps to a file, a test, or a live artifact. Nothing
 here is asserted without one of the three. Where something is not true yet,
 it says so.
 
+## Nothing to install: the evidence is a web page
+
+**[drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)**
+
+Every number on it is fetched from `docs/evidence/*.json` in this repository,
+so nothing there is hand-typed and nothing can drift from what the scripts
+regenerate. The eleven on-chain hashes link to the explorer for the chain each
+is documented against.
+
 ## Run it first
 
 ```bash
@@ -87,7 +96,7 @@ and the wall clock before reading back what an earlier process wrote.
 ## Check the receipts yourself, in one command
 
 ```bash
-python scripts/verify_receipts.py
+knos receipts
 ```
 
 Every onchain claim in this repository, resolved against the chain it is

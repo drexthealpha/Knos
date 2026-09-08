@@ -114,6 +114,16 @@ PER_COMMAND = {
 
   It costs one line, on purpose. Carrying on without looking is the only
   expensive path here.""",
+    "receipts": """  knos receipts
+
+  Resolves every transaction this repo points at, against the chain it
+  is documented against. No account, no key, public endpoints.
+
+  One line per receipt, and it stops with an error if any of them fails
+  to resolve, so it is worth running rather than reading.
+
+  This and knos share are the only two commands here that open a
+  socket. Answering, withholding, guarding and gating never do.""",
     "who": """\
   knos who
 

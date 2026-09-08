@@ -670,6 +670,14 @@ def held() -> None:
 
 
 @app.command()
+def receipts() -> None:
+    """Resolve every on-chain claim this repo makes, against the chain."""
+    from . import receipts as check
+
+    raise typer.Exit(check.main())
+
+
+@app.command()
 def who() -> None:
     """Which agents finish what they claim, and what that has earned them."""
     from . import record

@@ -378,13 +378,13 @@ def test_the_readme_leads_with_the_problem_and_the_action():
 
     # The embeddable core is the other zero-server path, and is named early.
     #
-    # This bound used to be 4,000 characters into a 57,000-character page,
-    # which made it a statement about one section's position in something no
-    # one was going to read to the end of. The page is now about 5,400
-    # characters and the long version lives in docs/GUIDE.md, so the bound is
-    # what it always meant: the core is named in the first half, before the
-    # reader has to decide whether to keep going.
-    assert "knos.core" in readme[:3200], "the importable core is not near the top"
+    # The bound moved out to 4,200 when the page started leading with the
+    # live evidence URL and the partner badges. That is a deliberate trade:
+    # a judge who can check every number without installing anything is worth
+    # more than the embeddable core sitting two hundred characters higher.
+    # The bound stays a bound so the core cannot keep sliding, and the length
+    # cap below is what actually stops the page growing back.
+    assert "knos.core" in readme[:4200], "the importable core is not near the top"
     assert len(readme) < 12000, (
         "the README is growing back into a document nobody reads to the end "
         "of; the long version belongs in docs/GUIDE.md"
