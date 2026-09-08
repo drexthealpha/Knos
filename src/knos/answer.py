@@ -120,7 +120,24 @@ def looks_structural(question: str) -> bool:
     return bool(SYMBOL.search(question))
 
 
-def withheld(held: str, by_the_person: bool) -> str:
+def _lapses_in(minutes: float | None) -> str:
+    """One sentence about when the work frees up, or nothing.
+
+    An agent told to go away and come back has no way to judge whether that
+    means two minutes or forty. It used to be half an hour for everybody and
+    the documents said so; the hold is earned per agent now, so the only
+    honest place for the number is the refusal itself.
+    """
+    if minutes is None or minutes != minutes or minutes < 0:  # None or NaN
+        return ""
+    if minutes < 1:
+        return " It lapses within the minute if they do not finish sooner."
+    if minutes < 2:
+        return " It lapses in about a minute if they do not finish sooner."
+    return f" It lapses in about {round(minutes)} minutes if they do not finish sooner."
+
+
+def withheld(held: str, by_the_person: bool, minutes: float | None = None) -> str:
     """What an agent is told about work somebody else has claimed.
 
     Lives here rather than in the server so `knos claim` can show you the
@@ -128,11 +145,13 @@ def withheld(held: str, by_the_person: bool) -> str:
     A person should not have to open a second tool to find out what the
     first one just did.
     """
+    soon = _lapses_in(minutes)
     if by_the_person:
         return (
             f"Withheld. The person you are working with said they are on"
             f" {held} right now, so knos is not the place you find out about"
             " it. Ask them where they have got to, or pick up something else."
+            + soon +
             "\n\nIf they say go ahead, call this again with"
             ' override="their reason". That is recorded against your name.'
             "\n\nTell them this, in these words, before you do anything else."
@@ -140,6 +159,7 @@ def withheld(held: str, by_the_person: bool) -> str:
     return (
         f"Withheld. {held} is being worked on right now, so knos is not the"
         " place you find out about it. Ask them, or work on something else."
+        + soon +
         "\n\nIf you must have it anyway, call this again with"
         ' override="your reason". That is recorded against your name.'
         "\n\nTell the person this, in these words, before you do anything"

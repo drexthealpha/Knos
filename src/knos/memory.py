@@ -139,6 +139,7 @@ class Memory:
         # The last chain link each writer wrote, so sealing a fact costs one
         # journal read per writer per session rather than one per write.
         self._chain: dict[str, tuple[str, int]] = {}
+        self._chain_read = False
 
     def _cap_gate(self) -> Any:
         """The store's own cap check, asked to measure less often.
@@ -198,10 +199,11 @@ class Memory:
         # the same instant would fork one global chain, and a fork is
         # indistinguishable from tampering.
         try:
-            known = self._chain.get(fact.where)
-            if known is None:
-                known = seal.head(self, fact.where)
-            prev, seq = known
+            if not self._chain_read:
+                # One pass for every writer, rather than one pass per writer.
+                self._chain.update(seal.heads(self))
+                self._chain_read = True
+            prev, seq = self._chain.get(fact.where, (seal.GENESIS, 0))
             body["prev"] = prev
             body["seq"] = seq + 1
             body["link"] = seal.link(prev, body)

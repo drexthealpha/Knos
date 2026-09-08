@@ -694,9 +694,9 @@ def verify() -> None:
                       "against being [bold]deleted[/bold].")
         else:
             out.print("  None of them is sealed against being [bold]deleted"
-                      "[/bold] yet: a gap needs a")
-            out.print("  line either side to show, and no agent has claimed "
-                      "anything here.")
+                      "[/bold] yet: a gap needs a line")
+            out.print("  either side to show it, and no writer here has more "
+                      "than one entry so far.")
         out.print("  The sequences are what agents did - claimed, stood down,"
                   " overrode.")
         out.print("  A fact read out of your code names a file and a line as"
@@ -725,6 +725,91 @@ def receipts() -> None:
     raise typer.Exit(check.main())
 
 
+@app.command(name="at")
+def at_cmd(
+    moment: str = typer.Argument(..., help='a time: "14:00", "2026-09-08 14:00", or "2h"'),
+    about: str = typer.Option("", "--about", help="only facts about this"),
+) -> None:
+    """Who held what at a moment that has already passed."""
+    from . import rewind
+
+    repo = _repo(None)
+    when = rewind.when(moment)
+    if not when:
+        out.print(f"I cannot read {moment!r} as a time.")
+        out.print('Try:  knos at "2026-09-08 14:00"   or   knos at 2h')
+        raise typer.Exit(1)
+
+    with Memory(repo) as mem:
+        said = rewind.at(mem, when, about)
+
+    out.print(f"[bold]{when[:19].replace('T', ' ')} UTC[/bold]")
+    out.print("")
+
+    if said["claims"]:
+        out.print(f"  [yellow]{len(said['claims'])} claim(s) live then:[/yellow]")
+        for held in said["claims"]:
+            out.print(f"    [bold]{held['topic']}[/bold] - {held['who']}")
+            out.print(f"      taken {held['taken'][11:19]}, held {held['held_for']:.0f} min"
+                      f" of the {held['would_lapse_after']} it had earned")
+    else:
+        out.print("  Nothing was claimed then.")
+    out.print("")
+
+    if said["collisions"]:
+        out.print(f"  [yellow]{len(said['collisions'])} collision(s) by then:[/yellow]")
+        for hit in said["collisions"]:
+            mark = "yielded " if hit["kind"] == "stood down" else "OVERRODE"
+            out.print(f"    {hit['when'][11:19]}  [bold]{mark}[/bold]  {hit['text'][:66]}")
+        out.print("")
+
+    if said["known"]:
+        out.print(f"  What the store had been told by then:")
+        for fact in said["known"]:
+            out.print(f"    {fact['when'][11:19]}  {fact['text'][:76]}")
+            out.print(f"              [dim]{fact['where']}[/dim]")
+    else:
+        out.print("  It had been told nothing by then.")
+
+    with Memory(repo) as mem:
+        now = mem.claims()
+    if now and not said["claims"]:
+        out.print("")
+        out.print(f"[dim]{len(now)} claim(s) are live right now, though - "
+                  "`knos status` has them.[/dim]")
+
+    floor = said["earliest_the_journal_holds"]
+    if floor and floor > when:
+        out.print("")
+        out.print(f"[dim]The journal here only reaches back to "
+                  f"{floor[:19].replace('T', ' ')}, so this moment is before "
+                  "anything it still holds.[/dim]")
+
+
+@app.command()
+def worth() -> None:
+    """What knos has actually done here, so you can decide to keep it."""
+    from . import worth as tally
+
+    repo = _repo(None)
+    with Memory(repo) as mem:
+        got = tally.tally(mem)
+        said = tally.sentence(got)
+
+    out.print(f"[bold]{repo.name}[/bold]")
+    out.print("")
+    out.print(f"  {said}")
+    out.print("")
+    out.print(f"  stood down   {got['stood_down']:4}   an agent asked, and went elsewhere")
+    out.print(f"  overrode     {got['overrode']:4}   went ahead anyway, with a reason on record")
+    out.print(f"  held         {got['held']:4}   things waiting on a reversed decision")
+    out.print(f"  claims       {got['claims_taken']:4}   of which {got['claims_finished']} were closed"
+              f", across {got['agents']} agent(s)")
+    out.print("")
+    out.print("[dim]Counted from what was written at the time, not from a "
+              "counter. Delete the store and these go with it.[/dim]")
+
+
 @app.command()
 def who() -> None:
     """Which agents finish what they claim, and what that has earned them."""
@@ -745,7 +830,10 @@ def who() -> None:
     out.print("[bold]who[/bold]        [dim]claimed  closed   hold[/dim]")
     out.print("")
     for got in everyone:
-        kept = "-" if got["kept"] is None else f"{got['kept']:.0%}"
+        # Held back until it is actually being used for something. One claim
+        # in progress is 0% closed and reads like a bad record; it is not a
+        # record at all yet, and `holds` already says so.
+        kept = f"{got['kept']:.0%}" if got["learned"] and got["kept"] is not None else "-"
         note = "" if got["learned"] else "  [dim](too new to judge)[/dim]"
         out.print(
             f"  {got['who'][:22]:22} {got['taken']:4}  {got['finished']:5}"

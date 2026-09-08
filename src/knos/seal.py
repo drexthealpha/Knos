@@ -75,6 +75,27 @@ def _entries(mem: Any, limit: int = 5000) -> list[dict[str, Any]]:
     return out
 
 
+def heads(mem: Any) -> dict[str, tuple[str, int]]:
+    """The last link and sequence number for *every* writer, in one pass.
+
+    `head` answers for one writer and reads the journal to do it, which is
+    fine once and quadratic four hundred times. A fact knos reads out of your
+    code carries a file and a line as its source, so every one of them is a
+    new writer, so pointing at a repo asked that question once per fact and
+    got slower with each answer. This is asked once per session instead.
+    """
+    best: dict[str, tuple[str, int]] = {}
+    for fact in _entries(mem):
+        who = str(fact.get("where", ""))
+        try:
+            seq = int(fact.get("seq", 0))
+        except (TypeError, ValueError):
+            continue
+        if who not in best or seq > best[who][1]:
+            best[who] = (str(fact.get("link") or GENESIS), seq)
+    return best
+
+
 def head(mem: Any, who: str) -> tuple[str, int]:
     """(last link, last sequence number) for this writer."""
     best: tuple[str, int] | None = None

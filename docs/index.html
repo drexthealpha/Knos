@@ -62,7 +62,11 @@ taken, and <strong>refuses the edit</strong> before the write lands.</p>
 
 <pre>pip install "git+https://github.com/drexthealpha/Knos"
 knos demo</pre>
-<p class="note">Ninety seconds on a throwaway repo it deletes afterwards. Every number
+<p class="note"><code>knos demo</code>, <code>knos receipts</code> and <code>knos verify</code>
+come with the install. The <code>scripts/</code> commands below regenerate the numbers on
+this page and live in the repository, so clone it to run those — they are how the evidence
+is made, not part of the product.</p>
+<p class="note">Half a minute on a throwaway repo it deletes afterwards. Every number
 below is read out of the JSON those scripts wrote — this page holds no hand-typed figures.
 <span id="stamp"></span></p>
 
@@ -85,6 +89,12 @@ every refusal, live:</p>
 <pre>pytest tests/test_sibyl_is_load_bearing.py</pre>
 
 <h2><span class="n">02</span>Coordination, counted</h2>
+<p class="sub">Every refusal here is invisible when it works: the collision that did not
+happen leaves no trace in anybody's day, which is how a tool doing its job gets
+uninstalled. <code>knos worth</code> is where it leaves one — how often an agent asked
+about work somebody else was holding and went elsewhere, read back out of the records
+written at the time rather than from a counter. When the answer is nothing, it says
+<em>knos is not earning its place on this repo</em>.</p>
 <p class="sub">Sixteen real operating-system processes, one connection each, reaching for
 the same topic in the same instant, eight rounds. The ablated condition is <em>sharing</em>,
 not the file: give every agent its own memory — which is what an agent has today — and
@@ -99,7 +109,23 @@ spend again. One ordinary day of five agents:</p>
 <div class="cards" id="spend"></div>
 <pre>python scripts/spend.py</pre>
 
-<h2><span class="n">04</span>The memory decides who may spend</h2>
+<h2><span class="n">04</span>The only question that is about then</h2>
+<p class="sub">Everything else here answers about now — the claim, the withhold, the
+guard, the gate. <code>knos at 2h</code> answers the question people actually have
+<em>after</em> two agents collide: who was holding what, and what did the machine know.</p>
+<pre>knos at "2026-09-08 14:00"
+
+  the risk guard — Claude Code
+    taken 13:42, held 30 min of the 39 it had earned</pre>
+<p class="note">A reconstruction, not a guess. A claim with no recorded close was live for
+the hold its agent had earned <strong>by that moment</strong>, not the one it has earned
+since — an agent that spent Monday abandoning work and Tuesday finishing it has two
+different holds, and using the later one gives a confident, wrong account of the exact
+thing somebody is trying to understand. A test forces the two numbers apart. It also
+refuses to guess a time it cannot read, and reports where the journal stops rather than
+reconstructing an empty machine and calling that history.</p>
+
+<h2><span class="n">05</span>The memory decides who may spend</h2>
 <p class="sub">Every other refusal here is about the <em>topic</em> — somebody is
 mid-change on it, a decision under it was reversed, the store already has it. This one is
 about the <em>agent</em>. On a machine several agents share, the budget is one pocket, and
@@ -113,7 +139,7 @@ before anyone is judged at all, a new agent spends freely, and finishing work ea
 back. Not a security boundary — an agent picks its own name — it is what an agent said
 about itself held against what it did last time, applied where being wrong costs money.</p>
 
-<h2><span class="n">05</span>The memory changes what the memory does next</h2>
+<h2><span class="n">06</span>The memory changes what the memory does next</h2>
 <p class="sub">A claim's lifetime is learned from the share of claims that agent actually
 closed — 15 minutes for one that never finishes, 45 for one that always does, 30 for
 anyone seen fewer than twice. One seeded working day, four agents, two that mostly do not
@@ -121,7 +147,7 @@ finish:</p>
 <div class="cards" id="contention"></div>
 <pre>python scripts/contention.py</pre>
 
-<h2><span class="n">06</span>Nobody can quietly edit who overrode whom</h2>
+<h2><span class="n">07</span>Nobody can quietly edit who overrode whom</h2>
 <p class="sub">An override is the one thing an agent does <em>against</em> somebody
 else's work, and the only cost it carries is that it goes in the journal under its own
 name. If that line can be edited afterwards, the cost is zero. Each writer's entries are
@@ -140,13 +166,13 @@ per writer on purpose: one global chain forks the moment two agents append toget
 a fork is indistinguishable from an edit. Tests tamper with the SQLite file directly:
 <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_seal.py">test_seal.py</a>.</p>
 
-<h2><span class="n">07</span>Arms that die with the store</h2>
+<h2><span class="n">08</span>Arms that die with the store</h2>
 <p class="sub">Each arm run twice: once with the store, once with the same code and
 nothing to read.</p>
 <table id="ablation"><thead><tr><th>what</th><th>with the store</th><th>without it</th></tr></thead><tbody></tbody></table>
 <pre>python scripts/ablation.py</pre>
 
-<h2><span class="n">08</span>Every on-chain claim, resolved</h2>
+<h2><span class="n">09</span>Every on-chain claim, resolved</h2>
 <p class="sub">Eleven transaction hashes appear in this repository. This resolves each one
 against the chain it is documented against — no key, no account, public RPCs — and exits
 non-zero if any fails.</p>
@@ -156,7 +182,7 @@ non-zero if any fails.</p>
 <tbody id="chain"></tbody>
 </table>
 
-<h2><span class="n">09</span>What is not true yet</h2>
+<h2><span class="n">10</span>What is not true yet</h2>
 <p class="sub">Here rather than in a footnote, because a ledger nobody can check is not
 evidence.</p>
 <table>
@@ -167,7 +193,7 @@ evidence.</p>
 <p class="note">The whole ledger, including the failures:
 <a href="PMF.md">docs/PMF.md</a>.</p>
 
-<h2><span class="n">10</span>The critical path, in two minutes</h2>
+<h2><span class="n">11</span>The critical path, in two minutes</h2>
 <table>
 <tr><td class="m">memory.py</td><td>every write and read into Sibyl, in one file</td></tr>
 <tr><td class="m">mcp._held</td><td>whether an agent gets an answer at all</td></tr>

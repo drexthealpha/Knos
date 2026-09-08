@@ -109,27 +109,63 @@ def _fields(entry: dict[str, Any]) -> tuple[str, str]:
     return str(entry.get("evaluated") or ""), ""
 
 
-def history(mem: Any, who: str) -> tuple[int, int]:
-    """(taken, finished) for `who`, out of the journal."""
-    taken = finished = 0
+def entries(mem: Any) -> list[dict[str, Any]]:
+    """Every claim event in the journal, as (kind, who, topic, when).
+
+    Read once here so `history` and `knos.rewind` walk the same list rather
+    than each parsing the journal in its own slightly different way.
+    """
+    out: list[dict[str, Any]] = []
     for entry in mem.journal(limit=1000):
         text, where = _fields(entry)
-        if not text.startswith(_MARK) or where != who:
+        if not text.startswith(_MARK):
             continue
-        if f"{TAKEN}:" in text:
+        extra = entry.get("extra") if isinstance(entry.get("extra"), dict) else {}
+        kind = TAKEN if f"{TAKEN}:" in text else (
+            FINISHED if f"{FINISHED}:" in text else "")
+        if not kind:
+            continue
+        out.append({
+            "kind": kind,
+            "who": where,
+            "topic": str(extra.get("about") or ""),
+            "when": str(extra.get("when") or ""),
+        })
+    out.sort(key=lambda e: e["when"])
+    return out
+
+
+def history(mem: Any, who: str, before: str = "") -> tuple[int, int]:
+    """(taken, finished) for `who`, out of the journal.
+
+    `before` restricts it to what had happened by an ISO timestamp, which is
+    what lets `knos at` say what an agent had earned *then* rather than what
+    it has earned since.
+    """
+    taken = finished = 0
+    for event in entries(mem):
+        if event["who"] != who:
+            continue
+        if before and event["when"] and event["when"] > before:
+            continue
+        if event["kind"] == TAKEN:
             taken += 1
-        elif f"{FINISHED}:" in text:
+        else:
             finished += 1
     return taken, finished
 
 
-def holds_for(mem: Any, who: str) -> int:
+def holds_for(mem: Any, who: str, before: str = "") -> int:
     """Minutes `who` may hold a claim, given what it has done before.
 
     Unknown agents get the old flat default. Nobody is punished for being
     new, and nobody earns a long hold without having closed anything.
+
+    `before` asks what it had earned at a past moment, which is what a
+    reconstruction of an old collision has to use - the hold that applied
+    then, not the one the agent has earned since.
     """
-    taken, finished = history(mem, who)
+    taken, finished = history(mem, who, before)
     if taken < 2:
         return UNKNOWN
 

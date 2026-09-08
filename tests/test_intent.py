@@ -613,3 +613,54 @@ def test_a_claim_reaches_the_file_it_names(knos_home, repo):
     # and splitting identifiers must not make it greedy
     assert not answer.same_subject("guard", "safeguarding the vanguard")
     assert not answer.same_subject("the risk guard", "the deploy window")
+
+
+@pytest.mark.critical
+def test_a_refused_agent_is_told_when_the_work_frees_up(knos_home, repo) -> None:
+    """"Come back later" is not usable advice without a later.
+
+    It used to be half an hour for everybody and the documents said so. The
+    hold is earned per agent now, so the refusal is the only honest place for
+    the number - an agent deciding between waiting and moving on cannot judge
+    that without it.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from knos import mcp
+
+    taken = (datetime.now(timezone.utc) - timedelta(minutes=8)).isoformat()
+    with Memory(repo) as mem:
+        mem.claim_if_free("the parser", "Claude Code", taken)
+        said = mcp._held(mem, "the parser", "Cursor", "")
+
+    assert "lapses in about 22 minutes" in said, said
+    assert "if they do not finish sooner" in said, (
+        "the number has to be a ceiling, not a promise: `knos done` ends it early"
+    )
+
+
+def test_the_time_is_the_soonest_of_several_holds(knos_home, repo) -> None:
+    """An agent waiting cares about the first thing it can have."""
+    from datetime import datetime, timedelta, timezone
+
+    from knos import mcp
+
+    now = datetime.now(timezone.utc)
+    with Memory(repo) as mem:
+        mem.claim_if_free("the parser", "Claude Code",
+                          (now - timedelta(minutes=2)).isoformat())
+        mem.claim_if_free("the parser tests", "Cursor",
+                          (now - timedelta(minutes=25)).isoformat())
+        said = mcp._held(mem, "the parser", "OpenCode", "")
+
+    assert "lapses in about 5 minutes" in said, said
+
+
+def test_no_time_is_promised_when_it_cannot_be_worked_out(knos_home, repo) -> None:
+    """A stored claim with an unreadable timestamp must not invent a number."""
+    from knos import answer
+
+    assert answer._lapses_in(None) == ""
+    assert answer._lapses_in(float("nan")) == ""
+    assert answer._lapses_in(-3) == ""
+    assert "within the minute" in answer._lapses_in(0.4)

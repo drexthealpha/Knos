@@ -17,7 +17,8 @@ from mcp.types import ToolAnnotations
 
 from . import version
 from . import answer, code, git, paths, private
-from .memory import TOPIC, Fact, Memory, StoreFull, _minutes_since
+from .memory import (INTENT_HOLDS, TOPIC, Fact, Memory, StoreFull,
+                     _minutes_since)
 
 
 
@@ -227,22 +228,33 @@ def _held(
             continue
         if override or mem.overridden(topic, asker):
             continue
-        blocked.append((topic, holder))
+        blocked.append((topic, holder, work))
 
     if not blocked:
         return ""
-    for topic, holder in blocked:
+    for topic, holder, _ in blocked:
         mem.stood_down(topic, asker, holder, _stamp())
 
     # A person can claim work at the terminal, and then the agent being told
     # to hold off is talking to the very person who holds it. "Ask them" is
     # the wrong thing to say to somebody's only agent.
-    by_the_person = all(h == "you" for _, h in blocked)
+    by_the_person = all(h == "you" for _, h, _w in blocked)
     if by_the_person:
-        held = "; ".join(t for t, _ in blocked)
+        held = "; ".join(t for t, _, _w in blocked)
     else:
-        held = "; ".join(f"{t} (held by {h})" for t, h in blocked)
-    return answer.withheld(held, by_the_person)
+        held = "; ".join(f"{t} (held by {h})" for t, h, _w in blocked)
+    # The soonest any of them frees up: an agent deciding whether to wait
+    # cares about the first thing it can have, not the last.
+    soonest = None
+    for _t, _h, work in blocked:
+        try:
+            holds = int(work.get("holds", INTENT_HOLDS))
+        except (TypeError, ValueError):
+            holds = INTENT_HOLDS
+        left = holds - _minutes_since(str(work.get("when", "")))
+        if left == left and (soonest is None or left < soonest):
+            soonest = left
+    return answer.withheld(held, by_the_person, soonest)
 
 
 def _is_holder(work: dict, asker: str) -> bool:

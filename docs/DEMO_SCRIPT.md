@@ -85,7 +85,7 @@ failure worth restarting for is a command that errors out.
 
 ## The short route: one command, one take
 
-`knos demo` now does the whole argument by itself, in about ninety seconds,
+`knos demo` now does the whole argument by itself, in about half a minute,
 against a throwaway repo it deletes afterwards. Every line is a real call.
 
 ```bash

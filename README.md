@@ -27,7 +27,7 @@ knos demo
 From the repository: [PyPI](https://pypi.org/project/knos/) is the last cut
 release and trails `main`.
 
-Ninety seconds on a throwaway repo it deletes afterwards. A claim, a second
+Half a minute on a throwaway repo it deletes afterwards. A claim, a second
 agent **refused**, an edit **blocked before the write**, a purchase that costs
 nothing the second time, a reversed decision **holding the work under it**, a
 **process that has never seen the repo** reading it all back with its own pid
@@ -47,7 +47,7 @@ hosted knos, and there will not be one.
 | Listed in the MCP directory | **yes** — [awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480), merged by the owner into a 94.5k-star index |
 | Code merged by third-party maintainers | **2** — [caura#1299](https://github.com/caura-ai/caura/pull/1299), [drt#1098](https://github.com/drt-hub/drt/pull/1098); **6** more open, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) |
 | Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** unshared — [`collide.json`](docs/evidence/collide.json) |
-| Onchain receipts that resolve | **11 of 11**, 8 on Base mainnet with USDC — `python scripts/verify_receipts.py` |
+| Onchain receipts that resolve | **11 of 11**, 8 on Base mainnet with USDC — `knos receipts` |
 | Money spent on work that got dropped | **$0.044 to $0.000** — the gate reads who is asking, [`budget.json`](docs/evidence/budget.json) |
 | Hold length learned per agent | **29% less** time blocked — [`contention.json`](docs/evidence/contention.json) |
 | Evidence regenerated on a clean machine | **daily** in public CI — last run reproduced every figure identically |
@@ -98,10 +98,17 @@ mode — there is no product.
 
 ## Check any of it yourself
 
+Two of these are commands the install gives you. The rest are in the
+repository, so clone it first — they are scripts and tests, not product.
+
 ```bash
+knos receipts                      # every onchain claim, resolved against Base
+knos verify                        # nobody edited the record of who overrode whom
+
+git clone https://github.com/drexthealpha/Knos && cd Knos
 python scripts/collide.py          # 16 processes, one topic, 0 double-grants
-knos receipts                      # every onchain claim, resolved live
-python scripts/ablation.py         # 12 arms
+python scripts/budget.py           # what the store saves when an agent abandons work
+python scripts/ablation.py         # 12 arms, each dying with the store
 ```
 
 The refusals themselves: `pytest tests/test_intent.py tests/test_guard.py

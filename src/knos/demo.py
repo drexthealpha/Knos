@@ -1,4 +1,4 @@
-"""The whole product in one command, against a real store, in about a minute.
+"""The whole product in one command, against a real store, in half a minute.
 
 `knos demo` is the playground. There is no hosted one and there will not be:
 nothing on the read path touches a network, and that is a test rather than a
@@ -253,6 +253,31 @@ def run(out: Any) -> int:
         screen.said(f"a crashed runner closed 0 of 4   -> {lost} min", "yellow")
         screen.note("[dim]Not a setting. The hold is what each agent earned by"
                     " closing its own claims, read out of the journal.[/dim]")
+
+        # The same record, read backwards. Everything else here answers about
+        # now; this is the question after a collision.
+        #
+        # The whole demo takes about half a minute, so there is no real
+        # yesterday to look at. This writes one - an hour of history with the
+        # timestamps it would have had - and then reads it back the same way
+        # `knos at` reads any other afternoon.
+        from datetime import timedelta
+
+        from . import record, rewind
+
+        hour_ago = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        with Memory(repo) as mem:
+            record.note_taken(mem, "the settlement job", "Cursor", hour_ago)
+            back = rewind.at(mem, rewind.when("2h"))
+        screen.cmd('knos at 2h        (who held what, two hours ago)')
+        if back["claims"]:
+            for held in back["claims"]:
+                screen.said(f"{held['who']} held {held['topic']}"
+                            f" - {held['would_lapse_after']} min earned", "yellow")
+        else:
+            screen.said("nothing was held then", "yellow")
+        screen.note("[dim]Reconstructed with the hold that agent had earned"
+                    " *then*, not the one it has earned since.[/dim]")
 
         # ---- 9 -------------------------------------------------------------
         screen.beat(9, "Now delete the memory.")

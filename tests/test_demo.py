@@ -87,6 +87,10 @@ def test_every_refusal_it_prints_actually_happened() -> None:
     assert "held = True" in said, "the reversal did not actually hold anything"
     assert "recalled:" in said, "the cold process did not actually recall"
     assert "closed 4 of 4" in said, "the record was described, not computed"
+    assert "knos at 2h" in said, "the demo stopped showing the rewind"
+    assert "held the settlement job" in said, (
+        "the rewind printed no reconstruction, so it showed nothing happening"
+    )
 
 
 def test_it_leaves_nothing_behind_and_touches_no_real_repo(tmp_path, monkeypatch) -> None:
@@ -112,3 +116,26 @@ def test_the_documented_command_works() -> None:
     )
     assert said.returncode == 0, said.stderr[-800:]
     assert "There is no product" in said.stdout
+
+
+def test_it_runs_in_the_time_the_documents_claim() -> None:
+    """The pages say half a minute. A page that says a number should mean it.
+
+    Measured without the pauses, because those are a constant a human reads
+    at and this is about the work. If the demo ever takes longer than a judge
+    will sit through, this is where it shows up rather than on camera.
+    """
+    import time
+
+    from knos import demo
+
+    out = Recorder()
+    start = time.perf_counter()
+    demo.run(out)          # PAUSE is zeroed by the autouse fixture
+    took = time.perf_counter() - start
+
+    assert took < 20, (
+        f"the demo's own work took {took:.0f}s. With the pauses back that is "
+        "well past the half minute every page promises, and past what anybody "
+        "watching a video will sit through."
+    )

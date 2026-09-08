@@ -20,6 +20,7 @@ MAIN = """  knos — one local memory every coding agent on this machine shares,
       knos ask "what are the rules here?"
       knos claim "the parser"    your agents are refused until: knos done
       knos status                what it read, and who is holding what
+      knos worth                 what it has actually done here
 
   More
       knos remember, notes, forget    things you tell your agents
@@ -136,6 +137,33 @@ PER_COMMAND = {
   It is tamper-evident, not tamper-proof. Whoever holds the file could
   rewrite a whole chain from the start; what they cannot do is quietly
   change one line in the middle.""",
+    "at": """  knos at "2026-09-08 14:00"
+  knos at 2h
+
+  Who held what at a moment that has already passed, and what the
+  store had been told by then.
+
+  Everything else here answers about now. This is the one that answers
+  about then, which is the question after two agents collide: what did
+  the machine know, and who was holding it.
+
+  A claim with no recorded close counts as live for exactly the hold
+  its agent had earned by that moment - not the one it has earned
+  since, because the older number is the one that decided whether the
+  edit was refused.""",
+    "worth": """  knos worth
+
+  What knos has actually done in this repo: how often an agent asked
+  about work somebody else was holding and went elsewhere, how often
+  one went ahead anyway with a reason on record, and what is waiting
+  on a decision that changed.
+
+  Every refusal here is invisible when it works - the collision that
+  did not happen leaves no trace in your day. This is where it left
+  one.
+
+  If the numbers are zero it says so. Nothing has collided yet is a
+  true and useful thing to be told.""",
     "who": """\
   knos who
 

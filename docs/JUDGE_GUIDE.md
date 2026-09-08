@@ -30,7 +30,7 @@ It will still report `0.1.8` as its version. That is the last number cut, and
 it stays until the next release because the Claude Desktop extension pins
 `knos==<that version>`, which has to resolve on PyPI.
 
-Ninety seconds on a throwaway repo, ending with the store deleted and every
+Half a minute on a throwaway repo, ending with the store deleted and every
 refusal gone. Every line is a real call, not a transcript -
 [`tests/test_demo.py`](../tests/test_demo.py) asserts the live values appear.
 
@@ -51,22 +51,22 @@ where the claim itself is taken. Between them that is the whole critical path.
 
 | | where | what |
 |---|---|---|
-| **write** | [`memory.py:216`](../src/knos/memory.py#L216) `write_event` | every fact, claim, stand-down and override, into COLD |
-| **write** | [`memory.py:284`](../src/knos/memory.py#L284) `set_entity` | a topic, file or person, into WARM |
-| **write** | [`memory.py:382`](../src/knos/memory.py#L382) `set_state` | the live claim, into HOT |
-| **write** | [`memory.py:327`](../src/knos/memory.py#L327) `set_state` | what the session is focused on, into HOT |
-| **write** | [`memory.py:610`](../src/knos/memory.py#L610) `set_reference` | the repo's own rules, into REFERENCE |
-| **write** | [`memory.py:299`](../src/knos/memory.py#L299) `archive_entity` | superseded wording, into ARCHIVE |
-| **read** | [`memory.py:242`](../src/knos/memory.py#L242) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
-| **read** | [`memory.py:332`](../src/knos/memory.py#L332) `get_state` | the live claim - the withhold and the guard both start here |
-| **read** | [`memory.py:290`](../src/knos/memory.py#L290) `get_entity` | what is known about one thing, before answering |
-| **read** | [`memory.py:626`](../src/knos/memory.py#L626) `search` | every tier, for a question |
-| **read** | [`memory.py:615`](../src/knos/memory.py#L615) `get_reference` | the rules, before the guard refuses a path |
+| **write** | [`memory.py:218`](../src/knos/memory.py#L218) `write_event` | every fact, claim, stand-down and override, into COLD |
+| **write** | [`memory.py:286`](../src/knos/memory.py#L286) `set_entity` | a topic, file or person, into WARM |
+| **write** | [`memory.py:384`](../src/knos/memory.py#L384) `set_state` | the live claim, into HOT |
+| **write** | [`memory.py:329`](../src/knos/memory.py#L329) `set_state` | what the session is focused on, into HOT |
+| **write** | [`memory.py:612`](../src/knos/memory.py#L612) `set_reference` | the repo's own rules, into REFERENCE |
+| **write** | [`memory.py:301`](../src/knos/memory.py#L301) `archive_entity` | superseded wording, into ARCHIVE |
+| **read** | [`memory.py:244`](../src/knos/memory.py#L244) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
+| **read** | [`memory.py:334`](../src/knos/memory.py#L334) `get_state` | the live claim - the withhold and the guard both start here |
+| **read** | [`memory.py:292`](../src/knos/memory.py#L292) `get_entity` | what is known about one thing, before answering |
+| **read** | [`memory.py:628`](../src/knos/memory.py#L628) `search` | every tier, for a question |
+| **read** | [`memory.py:617`](../src/knos/memory.py#L617) `get_reference` | the rules, before the guard refuses a path |
 
 
 One write does not go through the client, and it is the most important one.
 `claim_if_free` takes the claim as a compare-and-swap in raw SQL, at
-[`memory.py:439`](../src/knos/memory.py#L439) - one
+[`memory.py:441`](../src/knos/memory.py#L441) - one
 `INSERT ... ON CONFLICT DO UPDATE ... WHERE` inside `BEGIN IMMEDIATE`, so that
 two agents reaching for the same work in the same instant cannot both be told
 they have it. `set_state` would overwrite and both would win. Sixteen
@@ -165,6 +165,42 @@ change one line in the middle and have it pass. The tests in
 [`tests/test_seal.py`](../tests/test_seal.py) edit and delete rows in the
 SQLite file directly rather than going through any knos API.
 
+## The only question that is about then
+
+```bash
+knos at "2026-09-08 14:00"
+knos at 2h
+```
+
+Every other part of knos answers about now: the claim, the withhold, the
+guard, the gate. This answers the question people actually have *after* two
+agents collide - what did the machine know, and who was holding what.
+
+```
+60 minutes ago
+  the risk guard - Claude Code
+    taken 13:42, held 30 min of the 39 it had earned
+  What the store had been told by then:
+    13:44  the risk guard refuses unknown assets
+```
+
+It is a reconstruction rather than a guess, and one detail is what makes the
+difference. A claim with no recorded close was live for exactly the hold its
+agent had earned **by that moment** - not the hold it has earned since. An
+agent that spent Monday abandoning work and Tuesday finishing it has two
+different holds, and reconstructing Monday with Tuesday's number produces a
+confident, wrong account of the thing somebody is trying to understand.
+`test_the_hold_used_is_the_one_earned_by_then` forces those two numbers apart
+and fails if the wrong one is used.
+
+Two more refusals to guess, both tested: a time it cannot parse is said so
+rather than silently chosen, and the journal's thousand-entry floor is
+reported rather than reconstructing an empty machine and calling that history.
+
+Read-only, and it invents no storage: the claim events, the notes and the
+reversals were all written for their own reasons and each carries the time it
+happened.
+
 ## The memory decides who may spend, not only what was bought
 
 Every other refusal in `gate.decide` is about the **topic**: somebody is
@@ -257,6 +293,15 @@ carries `committed to the repo, not verified` as its source. The numbers and
 the reasoning are in [`VERIFICATION.md`](VERIFICATION.md).
 
 ## The coordination number
+
+`knos worth` is the same thing from the user's side rather than the judge's.
+Every refusal in this product is invisible when it works, so a person has no
+way to tell it apart from a product doing nothing - which is how it gets
+uninstalled. It counts the collisions that were refused, out of the
+stand-down and override records written at the time, and when there are none
+it says knos is not earning its place here rather than finding a flattering
+number to print.
+
 
 Sixteen operating-system processes reach for the same topic in the same
 instant, eight rounds, one connection each:
