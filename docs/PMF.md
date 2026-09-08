@@ -8,6 +8,23 @@ the size of the problem, and numbers that look like traction and are not. The
 third pile is here because leaving it out is how the first two stop being
 believable.
 
+## 0. Who this is for, named
+
+**Developers who run more than one coding agent on one repository.** Not
+"developers". Somebody with Claude Code in one terminal and Cursor in another,
+or an agent running in CI while they work, on a machine where those two have no
+way to know about each other. That is a real and countable population - every
+one of the pull requests below came from that world - and it is small enough
+that a wrong guess about it would show.
+
+The pain, in their words rather than mine, is in the issues quoted in section
+2: two agents editing the same file, an agent redoing work another finished, a
+decision reversed in one session and still being built on in the next.
+
+What knos asks of them is one line in an MCP config, and what it gives back is
+that the second agent is told rather than left to find out. Nobody has kept it
+a week yet. That is section 3.
+
 ## 1. People who acted
 
 The strongest signal available to a project this young is not a click. It is

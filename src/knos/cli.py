@@ -688,15 +688,20 @@ def verify() -> None:
                   f"{counts['writers']} writer(s), every chain adds up.[/green]")
         out.print("")
         out.print("  Every entry is sealed against being [bold]edited[/bold].")
-        out.print(f"  {counts['chained']} of them, in {counts['sequences']} "
-                  "sequence(s), are also sealed against being "
-                  "[bold]deleted[/bold] -")
-        out.print("  a gap needs a line either side of it to show up. Those are"
-                  " the ones")
-        out.print("  written by agents: claimed, stood down, overrode. A fact"
-                  " read out of")
-        out.print("  your code names a file and a line as its source, so it is"
-                  " a chain of one.")
+        if counts["chained"]:
+            out.print(f"  {counts['chained']} of them, in "
+                      f"{counts['sequences']} sequence(s), are also sealed "
+                      "against being [bold]deleted[/bold].")
+        else:
+            out.print("  None of them is sealed against being [bold]deleted"
+                      "[/bold] yet: a gap needs a")
+            out.print("  line either side to show, and no agent has claimed "
+                      "anything here.")
+        out.print("  The sequences are what agents did - claimed, stood down,"
+                  " overrode.")
+        out.print("  A fact read out of your code names a file and a line as"
+                  " its source,")
+        out.print("  so it is a chain of one.")
         out.print("")
         out.print("[dim]Tamper-evident, not tamper-proof: whoever holds the "
                   "file could rewrite a chain from the start.[/dim]")
