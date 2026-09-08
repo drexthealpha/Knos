@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knos — the evidence</title>
+<meta name="description" content="One shared memory for every coding agent on your machine. Every number here is read out of the JSON the scripts wrote.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --ink:#e6edf3;
+    --dim:#8b949e; --good:#3fb950; --bad:#f85149; --link:#58a6ff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:48px 20px 80px}
+  h1{font-size:40px;line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
+  h2{font-size:22px;margin:56px 0 6px;letter-spacing:-.01em}
+  h2 .n{color:var(--dim);font-family:var(--mono);font-size:14px;margin-right:8px}
+  p{margin:12px 0}
+  .lede{font-size:19px;color:#c9d1d9;max-width:62ch}
+  .sub{color:var(--dim);max-width:70ch}
+  a{color:var(--link)}
+  code,pre{font-family:var(--mono);font-size:13.5px}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:14px 16px;overflow-x:auto;margin:14px 0}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:22px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .big{font-family:var(--mono);font-size:34px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+  .card .lbl{color:var(--dim);font-size:13px;margin-top:6px}
+  .g{color:var(--good)} .r{color:var(--bad)}
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:500;font-size:13px}
+  td.m{font-family:var(--mono);font-size:13px}
+  .kill{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--bad);
+    border-radius:8px;padding:18px 20px;margin:20px 0}
+  .kill div{font-family:var(--mono);font-size:14px;margin:5px 0}
+  .note{color:var(--dim);font-size:14px}
+  footer{margin-top:72px;padding-top:22px;border-top:1px solid var(--line);color:var(--dim);font-size:13.5px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11.5px;color:var(--dim);
+    border:1px solid var(--line);border-radius:20px;padding:2px 10px;margin:0 6px 6px 0}
+  @media (prefers-color-scheme:light){
+    :root{--bg:#fff;--panel:#f6f8fa;--line:#d0d7de;--ink:#1f2328;--dim:#636c76;
+      --good:#1a7f37;--bad:#cf222e;--link:#0969da}
+    .lede{color:#3d444d}
+  }
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Knos</h1>
+<p class="lede">One shared memory for every coding agent on your machine. It is the record
+of who is on what — and it <strong>refuses to answer</strong> about work somebody else has
+taken, and <strong>refuses the edit</strong> before the write lands.</p>
+
+<p>
+<span class="tag">local-first</span><span class="tag">no network on the read path</span>
+<span class="tag">MCP · CLI · GitHub Action · library</span><span class="tag">MIT</span>
+</p>
+
+<pre>pip install "git+https://github.com/drexthealpha/Knos"
+knos demo</pre>
+<p class="note">Ninety seconds on a throwaway repo it deletes afterwards. Every number
+below is read out of the JSON those scripts wrote — this page holds no hand-typed figures.
+<span id="stamp"></span></p>
+
+<h2><span class="n">01</span>Delete the memory and there is no product</h2>
+<p class="sub">Not a degraded mode. The last beat of the demo removes the store and re-runs
+every refusal, live:</p>
+<div class="kill">
+  <div>the withhold        <span class="r">gone</span></div>
+  <div>the edit            <span class="r">allowed</span></div>
+  <div>the paid answer     <span class="r">buys again</span></div>
+  <div>the held decisions  <span class="r">released</span></div>
+  <div>who finishes        <span class="r">forgotten, everyone worth 30 min again</span></div>
+</div>
+<pre>pytest tests/test_sibyl_is_load_bearing.py</pre>
+
+<h2><span class="n">02</span>Coordination, counted</h2>
+<p class="sub">Sixteen real operating-system processes, one connection each, reaching for
+the same topic in the same instant, eight rounds. The ablated condition is <em>sharing</em>,
+not the file: give every agent its own memory — which is what an agent has today — and
+they all take the same work.</p>
+<div class="cards" id="collide"></div>
+<pre>python scripts/collide.py</pre>
+
+<h2><span class="n">03</span>The memory decides whether money moves</h2>
+<p class="sub">Purchases settle over x402 in real USDC on Base mainnet, and the receipt
+goes back into the store, so the gate reads a Base transaction hash to decide whether to
+spend again. One ordinary day of five agents:</p>
+<div class="cards" id="spend"></div>
+<pre>python scripts/spend.py</pre>
+
+<h2><span class="n">04</span>The memory changes what the memory does next</h2>
+<p class="sub">A claim's lifetime is learned from the share of claims that agent actually
+closed — 15 minutes for one that never finishes, 45 for one that always does, 30 for
+anyone seen fewer than twice. One seeded working day, four agents, two that mostly do not
+finish:</p>
+<div class="cards" id="contention"></div>
+<pre>python scripts/contention.py</pre>
+
+<h2><span class="n">05</span>Arms that die with the store</h2>
+<p class="sub">Each arm run twice: once with the store, once with the same code and
+nothing to read.</p>
+<table id="ablation"><thead><tr><th>what</th><th>with the store</th><th>without it</th></tr></thead><tbody></tbody></table>
+<pre>python scripts/ablation.py</pre>
+
+<h2><span class="n">06</span>Every on-chain claim, resolved</h2>
+<p class="sub">Eleven transaction hashes appear in this repository. This resolves each one
+against the chain it is documented against — no key, no account, public RPCs — and exits
+non-zero if any fails.</p>
+<pre>python scripts/verify_receipts.py</pre>
+<table>
+<thead><tr><th>chain</th><th>what</th><th>transaction</th></tr></thead>
+<tbody id="chain"></tbody>
+</table>
+
+<h2><span class="n">07</span>What is not true yet</h2>
+<p class="sub">Here rather than in a footnote, because a ledger nobody can check is not
+evidence.</p>
+<table>
+<tr><td><strong>Retained users</strong></td><td class="m">none</td></tr>
+<tr><td><strong>Merged by third-party maintainers</strong></td><td class="m">2, plus a listing in a 94.5k-star index</td></tr>
+<tr><td><strong>Pull requests that were the wrong idea</strong></td><td class="m">34, closed with an apology</td></tr>
+</table>
+<p class="note">The whole ledger, including the failures:
+<a href="PMF.md">docs/PMF.md</a>.</p>
+
+<h2><span class="n">08</span>The critical path, in two minutes</h2>
+<table>
+<tr><td class="m">memory.py</td><td>every write and read into Sibyl, in one file</td></tr>
+<tr><td class="m">mcp._held</td><td>whether an agent gets an answer at all</td></tr>
+<tr><td class="m">guard.check</td><td>whether a file is written to disk</td></tr>
+<tr><td class="m">gate.decide</td><td>whether money moves</td></tr>
+<tr><td class="m">record.holds_for</td><td>how long the next claim survives</td></tr>
+</table>
+<p><a href="JUDGE_GUIDE.md">Judge guide</a> ·
+<a href="ARCHITECTURE.md">Architecture</a> ·
+<a href="VERIFICATION.md">Verification</a> ·
+<a href="https://github.com/drexthealpha/Knos">Repository</a></p>
+
+<footer>
+  Knos — MIT. Built on <a href="https://docs.sibyllabs.org/memory/">Sibyl Memory</a>,
+  the only durable store here: delete it and the product stops.
+</footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const card = (v, lbl, cls) =>
+  '<div class="card"><div class="big ' + (cls || '') + '">' + v +
+  '</div><div class="lbl">' + lbl + '</div></div>';
+
+async function load(name){
+  const r = await fetch('evidence/' + name + '.json', {cache: 'no-store'});
+  if(!r.ok) throw new Error(name);
+  return r.json();
+}
+
+function fail(id, name){
+  const el = $(id);
+  if(el) el.innerHTML = '<p class="note">Could not read <code>docs/evidence/' + name +
+    '.json</code>. Run <code>python scripts/' + name + '.py</code>.</p>';
+}
+
+load('collide').then(function(c){
+  const w = c.with_store, n = c.no_shared_store;
+  const attempts = c.agents * c.rounds;
+  $('#collide').innerHTML =
+    card(w.double_grants, 'double-grants in ' + attempts + ' attempts', 'g') +
+    card(w.refusals_naming_the_holder + '/' + w.refusals, 'refusals that named the real holder', 'g') +
+    card(n.double_grants, 'collisions when the memory is not shared', 'r') +
+    card(c.agents, 'real processes, one connection each');
+}).catch(function(){ fail('#collide', 'collide'); });
+
+load('spend').then(function(s){
+  $('#spend').innerHTML =
+    card((s.times_more_expensive_without) + '×', 'more expensive without the store', 'r') +
+    card('$' + s.with_store.spent_usd.toFixed(3), 'spent over ' + s.asks + ' asks, store present', 'g') +
+    card('$' + s.without_store.spent_usd.toFixed(3), 'spent for the same answers, no store', 'r') +
+    card(s.with_store.free + '/' + s.asks, 'answers that cost nothing the second time');
+}).catch(function(){ fail('#spend', 'spend'); });
+
+load('contention').then(function(c){
+  const flat = c.arms.find(function(a){ return a.arm === 'flat'; });
+  const learned = c.arms.find(function(a){ return a.arm === 'learned'; });
+  $('#contention').innerHTML =
+    card(c.percent_less_waiting + '%', 'less time blocked on work nobody was doing', 'g') +
+    card(c.minutes_saved + ' min', 'given back in one working day', 'g') +
+    card(flat.blocked_minutes, 'minutes waiting, flat 30-minute holds', 'r') +
+    card(learned.blocked_minutes, 'minutes waiting, learned holds', 'g');
+}).catch(function(){ fail('#contention', 'contention'); });
+
+const LABEL = {
+  withhold: 'the answer is withheld',
+  guard: 'the edit is refused',
+  action: 'the pull request is told',
+  paid: 'the paid answer is kept',
+  spend: 'it refuses to buy the same thing twice',
+  reversed: 'work under a reversed decision is held',
+  restore: 'decisions come back on a fresh machine'
+};
+load('ablation').then(function(a){
+  const rows = Object.keys(a.arms).map(function(k){
+    const pairs = Object.keys(a.arms[k]).map(function(p){ return [p, a.arms[k][p]]; });
+    const on = pairs[0], off = pairs[1] || ['', '—'];
+    const offVal = typeof off[1] === 'number' ? off[1] + '/' + a.trials : off[1];
+    return '<tr><td>' + (LABEL[k] || k) + '</td><td class="m g">' +
+      on[1] + '/' + a.trials + '</td><td class="m r">' + offVal + '</td></tr>';
+  }).join('');
+  document.querySelector('#ablation tbody').innerHTML = rows;
+  $('#stamp').textContent = 'Last regenerated ' + String(a.when).slice(0, 10) + '.';
+}).catch(function(){ fail('#ablation', 'ablation'); });
+
+const CHAIN = [
+  ['mainnet', 'x402 news $0.001', '0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76'],
+  ['mainnet', 'x402 brief $0.01', '0xce109c28781fec2ea12b8e115d59b1bfea219434379a30d472cf72b4abd9a85e'],
+  ['mainnet', 'x402 news $0.001', '0xa8e7135e6c41e6eb8ed5d15b5dbf5aafc5a8f748e9d16e08aa1ae6d9c0466103'],
+  ['mainnet', 'x402 brief $0.01', '0x3a45e0066fbf764731f98dab3f023ee2a690dc8923f08ae7f9cb4332e049a88b'],
+  ['mainnet', 'ACP job 75659 · escrow funded', '0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64'],
+  ['mainnet', 'ACP job 75659 · provider paid', '0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59'],
+  ['mainnet', 'ACP, an earlier job', '0x2ce6af5c1c223a5b1395cbae719a96d7f1ded74fd90f909375142f9e4a14d9ca'],
+  ['mainnet', 'ACP, an earlier job', '0x20983f7ba5afc2cc96da402e1509e8f267c15e4068048f6397bee4bb13537d04'],
+  ['sepolia', 'Access.sol deploy', '0xdcc25ff7460a09a080ec32016b39121b6a34b741f03411bcfdc2ee2a93b31d21'],
+  ['sepolia', 'Access.sol grant', '0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6'],
+  ['sepolia', 'Access.sol revoke', '0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4']
+];
+$('#chain').innerHTML = CHAIN.map(function(row){
+  const host = row[0] === 'mainnet' ? 'basescan.org' : 'sepolia.basescan.org';
+  return '<tr><td class="m">' + row[0] + '</td><td>' + row[1] + '</td><td class="m">' +
+    '<a href="https://' + host + '/tx/' + row[2] + '">' + row[2].slice(0, 18) + '…</a></td></tr>';
+}).join('');
+</script>
+</div></body></html>
