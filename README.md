@@ -5,7 +5,7 @@
 [![The evidence, live](https://img.shields.io/badge/EVIDENCE-drexthealpha.github.io%2FKnos-3fb950?style=for-the-badge)](https://drexthealpha.github.io/Knos/)
 [![Base mainnet](https://img.shields.io/badge/Base-mainnet_x402_%C3%97_8-0052FF?style=for-the-badge)](https://drexthealpha.github.io/Knos/#chain)
 [![Virtuals ACP](https://img.shields.io/badge/Virtuals-ACP_job_75659-8B5CF6?style=for-the-badge)](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
-[![Knos MCP server](https://glama.ai/mcp/servers/drexthealpha/Knos/badges/score.svg)](https://glama.ai/mcp/servers/drexthealpha/Knos)
+[![Evidence reproduces](https://github.com/drexthealpha/Knos/actions/workflows/evidence.yml/badge.svg)](https://github.com/drexthealpha/Knos/actions/workflows/evidence.yml)
 
 **Check every claim on this page without installing anything:
 [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)** — the
@@ -45,12 +45,12 @@ hosted knos, and there will not be one.
 | | Knos |
 |---|---|
 | Listed in the MCP directory | **yes** — [awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480), merged by the owner into a 94.5k-star index |
-| Code merged by third-party maintainers | **2** — [caura#1299](https://github.com/caura-ai/caura/pull/1299), [drt#1098](https://github.com/drt-hub/drt/pull/1098), which invited a second |
-| Open in real repositories | **6**, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) (28k stars) |
-| Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** when the memory is not shared — [`collide.json`](docs/evidence/collide.json) |
+| Code merged by third-party maintainers | **2** — [caura#1299](https://github.com/caura-ai/caura/pull/1299), [drt#1098](https://github.com/drt-hub/drt/pull/1098); **6** more open, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) |
+| Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** unshared — [`collide.json`](docs/evidence/collide.json) |
 | Onchain receipts that resolve | **11 of 11**, 8 on Base mainnet with USDC — `python scripts/verify_receipts.py` |
 | Hold length learned per agent | **29% less** time blocked on work nobody was doing — [`contention.json`](docs/evidence/contention.json) |
-| Ablation arms that die with the store | **12** |
+| Evidence regenerated on a clean machine | **daily** in public CI — last run reproduced every figure identically |
+| Record of who overrode whom | **chained per writer** — [`test_seal.py`](tests/test_seal.py) edits the SQLite file and `knos verify` names the entry |
 | Refusal that stops a filesystem write | **yes** — and renaming the file does not get past it, [`test_rename_bypass.py`](tests/test_rename_bypass.py) |
 | Retained users | **none.** [The full ledger](docs/PMF.md), including 34 pull requests that failed |
 
@@ -140,3 +140,5 @@ were the wrong idea.
 ## Licence
 
 MIT. The name is a Greek root for a thing known.
+
+[![Knos MCP server](https://glama.ai/mcp/servers/drexthealpha/Knos/badges/score.svg)](https://glama.ai/mcp/servers/drexthealpha/Knos)

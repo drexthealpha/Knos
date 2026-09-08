@@ -51,22 +51,22 @@ where the claim itself is taken. Between them that is the whole critical path.
 
 | | where | what |
 |---|---|---|
-| **write** | [`memory.py:190`](../src/knos/memory.py#L190) `write_event` | every fact, claim, stand-down and override, into COLD |
-| **write** | [`memory.py:256`](../src/knos/memory.py#L256) `set_entity` | a topic, file or person, into WARM |
-| **write** | [`memory.py:354`](../src/knos/memory.py#L354) `set_state` | the live claim, into HOT |
-| **write** | [`memory.py:299`](../src/knos/memory.py#L299) `set_state` | what the session is focused on, into HOT |
-| **write** | [`memory.py:582`](../src/knos/memory.py#L582) `set_reference` | the repo's own rules, into REFERENCE |
-| **write** | [`memory.py:271`](../src/knos/memory.py#L271) `archive_entity` | superseded wording, into ARCHIVE |
-| **read** | [`memory.py:214`](../src/knos/memory.py#L214) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
-| **read** | [`memory.py:304`](../src/knos/memory.py#L304) `get_state` | the live claim - the withhold and the guard both start here |
-| **read** | [`memory.py:262`](../src/knos/memory.py#L262) `get_entity` | what is known about one thing, before answering |
-| **read** | [`memory.py:598`](../src/knos/memory.py#L598) `search` | every tier, for a question |
-| **read** | [`memory.py:587`](../src/knos/memory.py#L587) `get_reference` | the rules, before the guard refuses a path |
+| **write** | [`memory.py:216`](../src/knos/memory.py#L216) `write_event` | every fact, claim, stand-down and override, into COLD |
+| **write** | [`memory.py:284`](../src/knos/memory.py#L284) `set_entity` | a topic, file or person, into WARM |
+| **write** | [`memory.py:382`](../src/knos/memory.py#L382) `set_state` | the live claim, into HOT |
+| **write** | [`memory.py:327`](../src/knos/memory.py#L327) `set_state` | what the session is focused on, into HOT |
+| **write** | [`memory.py:610`](../src/knos/memory.py#L610) `set_reference` | the repo's own rules, into REFERENCE |
+| **write** | [`memory.py:299`](../src/knos/memory.py#L299) `archive_entity` | superseded wording, into ARCHIVE |
+| **read** | [`memory.py:242`](../src/knos/memory.py#L242) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
+| **read** | [`memory.py:332`](../src/knos/memory.py#L332) `get_state` | the live claim - the withhold and the guard both start here |
+| **read** | [`memory.py:290`](../src/knos/memory.py#L290) `get_entity` | what is known about one thing, before answering |
+| **read** | [`memory.py:626`](../src/knos/memory.py#L626) `search` | every tier, for a question |
+| **read** | [`memory.py:615`](../src/knos/memory.py#L615) `get_reference` | the rules, before the guard refuses a path |
 
 
 One write does not go through the client, and it is the most important one.
 `claim_if_free` takes the claim as a compare-and-swap in raw SQL, at
-[`memory.py:411`](../src/knos/memory.py#L411) - one
+[`memory.py:439`](../src/knos/memory.py#L439) - one
 `INSERT ... ON CONFLICT DO UPDATE ... WHERE` inside `BEGIN IMMEDIATE`, so that
 two agents reaching for the same work in the same instant cannot both be told
 they have it. `set_state` would overwrite and both would win. Sixteen
@@ -121,6 +121,34 @@ all eleven and reported three missing, which reads exactly like fabricated
 evidence - those three are the Sepolia contract transactions, correctly
 labelled and correctly absent from mainnet. A checker pointed at the wrong
 chain manufactures the failure it claims to have found.
+
+## The record of who overrode whom cannot be quietly edited
+
+```bash
+knos verify
+```
+
+Every journal entry is chained to the last one its writer made. Alter one, or
+remove one, and the rest of that writer's chain stops adding up, and `knos
+verify` names the writer and the entry.
+
+That matters because an override is the only thing in knos an agent does
+against somebody else's work, and the only cost it carries is being written
+down under its own name. A record that can be edited afterwards carries no
+cost at all.
+
+The chain is per writer rather than one global chain, because knos is a
+multi-process product - sixteen agents racing one claim is a test here - and a
+single chain forks the moment two of them append in the same instant. A fork
+is indistinguishable from tampering, and an alarm that fires during ordinary
+work is worse than no alarm. `test_two_writers_in_the_same_instant_do_not_look_like_tampering`
+pins that.
+
+Stated plainly: this is tamper-**evident**, not tamper-proof. Whoever holds the
+file could rewrite a whole chain from the beginning. What they cannot do is
+change one line in the middle and have it pass. The tests in
+[`tests/test_seal.py`](../tests/test_seal.py) edit and delete rows in the
+SQLite file directly rather than going through any knos API.
 
 ## The memory changes what the memory does next
 

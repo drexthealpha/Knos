@@ -136,6 +136,9 @@ class Memory:
         self.db_path = paths.store_for(self.repo)
         self.storage = _open(self.db_path)
         self.client = MemoryClient(self.storage, cap_gate=self._cap_gate())
+        # The last chain link each writer wrote, so sealing a fact costs one
+        # journal read per writer per session rather than one per write.
+        self._chain: dict[str, tuple[str, int]] = {}
 
     def _cap_gate(self) -> Any:
         """The store's own cap check, asked to measure less often.
@@ -186,14 +189,39 @@ class Memory:
         full store is a normal thing that happens, not an error. The caller
         stops reading and says so.
         """
+        from . import seal
+
+        body = fact.as_dict()
+        # Chain it to the last thing this writer wrote, so an entry cannot be
+        # altered or dropped later without the rest of that writer's chain
+        # failing. Per writer rather than global: two processes appending at
+        # the same instant would fork one global chain, and a fork is
+        # indistinguishable from tampering.
+        try:
+            known = self._chain.get(fact.where)
+            if known is None:
+                known = seal.head(self, fact.where)
+            prev, seq = known
+            body["prev"] = prev
+            body["seq"] = seq + 1
+            body["link"] = seal.link(prev, body)
+        except Exception:
+            # A seal that cannot be computed must not stop the fact being
+            # written. An unsealed entry is visible to `knos verify`.
+            body.pop("prev", None)
+            body.pop("seq", None)
+            body.pop("link", None)
+
         try:
             written = self.client.write_event(
                 evaluated=fact.text,
                 acted=fact.source,
-                extra=fact.as_dict(),
+                extra=body,
             )
         except CapExceededError:
             return None
+        if body.get("link"):
+            self._chain[fact.where] = (body["link"], int(body["seq"]))
         # Roughly what that fact just cost on disk, so the cap gate can tell
         # how close it is getting without re-measuring the whole store.
         self._grew(len(fact.text) * 3 + 512)

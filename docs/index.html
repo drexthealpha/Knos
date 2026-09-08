@@ -66,6 +66,12 @@ knos demo</pre>
 below is read out of the JSON those scripts wrote — this page holds no hand-typed figures.
 <span id="stamp"></span></p>
 
+<p class="note"><a href="https://github.com/drexthealpha/Knos/actions/workflows/evidence.yml">A
+scheduled workflow</a> re-runs every one of these scripts on a clean Ubuntu machine each
+day and commits whatever moved. On the last run, every figure came back
+<strong>identical</strong> — the only lines that changed were the timestamps. None of this
+is reproducible only on the laptop it was written on.</p>
+
 <h2><span class="n">01</span>Delete the memory and there is no product</h2>
 <p class="sub">Not a degraded mode. The last beat of the demo removes the store and re-runs
 every refusal, live:</p>
@@ -101,13 +107,25 @@ finish:</p>
 <div class="cards" id="contention"></div>
 <pre>python scripts/contention.py</pre>
 
-<h2><span class="n">05</span>Arms that die with the store</h2>
+<h2><span class="n">05</span>Nobody can quietly edit who overrode whom</h2>
+<p class="sub">An override is the one thing an agent does <em>against</em> somebody
+else's work, and the only cost it carries is that it goes in the journal under its own
+name. If that line can be edited afterwards, the cost is zero. Each writer's entries are
+chained, so altering or dropping one breaks the rest of that writer's chain.</p>
+<pre>knos verify</pre>
+<p class="note">Tamper-evident, not tamper-proof — whoever holds the file could rewrite a
+chain from the start; what they cannot do is change one line in the middle. The chain is
+per writer on purpose: one global chain forks the moment two agents append together, and
+a fork is indistinguishable from an edit. Tests tamper with the SQLite file directly:
+<a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_seal.py">test_seal.py</a>.</p>
+
+<h2><span class="n">06</span>Arms that die with the store</h2>
 <p class="sub">Each arm run twice: once with the store, once with the same code and
 nothing to read.</p>
 <table id="ablation"><thead><tr><th>what</th><th>with the store</th><th>without it</th></tr></thead><tbody></tbody></table>
 <pre>python scripts/ablation.py</pre>
 
-<h2><span class="n">06</span>Every on-chain claim, resolved</h2>
+<h2><span class="n">07</span>Every on-chain claim, resolved</h2>
 <p class="sub">Eleven transaction hashes appear in this repository. This resolves each one
 against the chain it is documented against — no key, no account, public RPCs — and exits
 non-zero if any fails.</p>
@@ -117,7 +135,7 @@ non-zero if any fails.</p>
 <tbody id="chain"></tbody>
 </table>
 
-<h2><span class="n">07</span>What is not true yet</h2>
+<h2><span class="n">08</span>What is not true yet</h2>
 <p class="sub">Here rather than in a footnote, because a ledger nobody can check is not
 evidence.</p>
 <table>
@@ -128,7 +146,7 @@ evidence.</p>
 <p class="note">The whole ledger, including the failures:
 <a href="PMF.md">docs/PMF.md</a>.</p>
 
-<h2><span class="n">08</span>The critical path, in two minutes</h2>
+<h2><span class="n">09</span>The critical path, in two minutes</h2>
 <table>
 <tr><td class="m">memory.py</td><td>every write and read into Sibyl, in one file</td></tr>
 <tr><td class="m">mcp._held</td><td>whether an agent gets an answer at all</td></tr>

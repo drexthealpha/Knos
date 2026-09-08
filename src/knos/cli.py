@@ -670,6 +670,40 @@ def held() -> None:
 
 
 @app.command()
+def verify() -> None:
+    """Check that nobody edited the record of who claimed and who overrode."""
+    from . import seal
+
+    repo = _repo(None)
+    with Memory(repo) as mem:
+        counts = seal.counted(mem)
+        broken = seal.check(mem)
+
+    if not counts["sealed"]:
+        out.print("Nothing sealed yet. The journal is empty.")
+        return
+
+    if not broken:
+        out.print(f"[green]{counts['sealed']} entries, "
+                  f"{counts['writers']} writer(s), every chain adds up.[/green]")
+        out.print("")
+        out.print("[dim]Each writer's entries are chained, so one cannot be "
+                  "altered or dropped without the rest of that writer's chain "
+                  "failing. It is tamper-evident, not tamper-proof: whoever "
+                  "holds the file could rewrite a chain from the start.[/dim]")
+        return
+
+    out.print(f"[red]{len(broken)} break(s) in {counts['sealed']} entries.[/red]")
+    out.print("")
+    for bad in broken:
+        out.print(f"  [bold]{bad['who']}[/bold]  {bad['when']}")
+        out.print(f"    {bad['text']}")
+        out.print(f"    [dim]expected {bad['expected']}, found {bad['found']}[/dim]")
+        out.print("")
+    raise typer.Exit(1)
+
+
+@app.command()
 def receipts() -> None:
     """Resolve every on-chain claim this repo makes, against the chain."""
     from . import receipts as check

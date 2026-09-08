@@ -52,6 +52,16 @@ USDC on Base mainnet. If you are recording on somebody else's behalf, skip it
 and say the receipts are in `docs/VERIFICATION.md` - they resolve on-chain and
 anybody can check them with `python scripts/verify_receipts.py`.
 
+**Run `knos receipts` on camera, straight after the demo.** It takes about
+fifteen seconds and it is the whole partner-stack argument in one shot: eleven
+transactions resolved live against Base mainnet and Base Sepolia, block numbers
+printed, USDC seen in the logs of all eight mainnet ones. No key, no account, no
+wallet - so it is safe for anybody to run, unlike beat 5.
+
+The judging rules want an executed on-chain action *shown in the demo*. This is
+that action being resolved against the chain while the clock runs, rather than a
+hash in a document that a judge has to go and check afterwards.
+
 **Two moments must be in one unbroken take, whichever route you record.**
 
 1. **A fresh process reading back earlier state.** In `knos demo` this is beat

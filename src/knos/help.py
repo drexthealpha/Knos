@@ -124,6 +124,18 @@ PER_COMMAND = {
 
   This and knos share are the only two commands here that open a
   socket. Answering, withholding, guarding and gating never do.""",
+    "verify": """  knos verify
+
+  Checks that nobody edited the record of who claimed what, who stood
+  down, and who overrode a claim.
+
+  Every entry is chained to the last one its writer made, so altering or
+  removing one breaks the rest of that writer's chain and this says
+  which entry and which agent.
+
+  It is tamper-evident, not tamper-proof. Whoever holds the file could
+  rewrite a whole chain from the start; what they cannot do is quietly
+  change one line in the middle.""",
     "who": """\
   knos who
 
