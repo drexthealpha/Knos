@@ -84,8 +84,9 @@ with Claims(repo=".", who="my-agent") as claims:
 ```
 
 **The server** — `pip install knos && knos connect` puts it in front of Claude
-Code, Cursor, OpenCode and Claude Desktop, with three tools: `search`,
-`about`, `remember`.
+Code, Cursor, OpenCode and Claude Desktop, with four tools: `search`,
+`about`, `remember` and `done` - the last of which is how an agent says it
+has finished, so the others stop waiting on work already done.
 
 ## What breaks when you delete it
 

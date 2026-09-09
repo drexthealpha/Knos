@@ -31,6 +31,23 @@ PAUSE = 0.45  # long enough to read, short enough that nobody skips
 # A whole new interpreter, which has never imported knos in this run, asked to
 # recall what an earlier process wrote. Printed with the repo's commit hash and
 # the wall clock so a recording shows it was not spliced.
+# Two of these are started at the same moment, in separate processes, and both
+# reach for the same work. The compare-and-swap in `claim_if_free` is what
+# makes exactly one of them win; without a shared store both would.
+RACE = """
+import os, sys
+from datetime import datetime, timezone
+from knos.memory import Memory
+repo, topic, who = sys.argv[1], sys.argv[2], sys.argv[3]
+now = datetime.now(timezone.utc).isoformat()
+with Memory(repo) as mem:
+    took, holder = mem.claim_if_free(topic, who, now)
+if took:
+    print("pid", os.getpid(), who, "| TOOK IT")
+else:
+    print("pid", os.getpid(), who, "| refused, held by", (holder or {}).get("who", "?"))
+"""
+
 COLD = """
 import os, sys
 from datetime import datetime, timezone
@@ -235,6 +252,29 @@ def run(out: Any) -> int:
         screen.said(got.stdout.strip() or got.stderr.strip()[-300:], "green")
         screen.note("[dim]Nothing was passed to it but the path. Everything it"
                     " said came out of the store.[/dim]")
+
+        # The same boundary, now with two of them reaching for one thing.
+        racer = work / "race.py"
+        racer.write_text(RACE, encoding="utf-8")
+        contested = "the settlement path"
+        started = [
+            subprocess.Popen(
+                [sys.executable, str(racer), str(repo), contested, name],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                encoding="utf-8", errors="replace",
+                env={**_os.environ, "KNOS_HOME": str(home),
+                     "PYTHONIOENCODING": "utf-8"},
+            )
+            for name in ("Claude Code", "Cursor")
+        ]
+        said = [p.communicate()[0].strip() for p in started]
+        screen.cmd(f'two processes, same instant, both claim "{contested}"')
+        for line in said:
+            screen.said(line, "green" if "TOOK IT" in line else "red")
+        screen.note("[dim]Different pids, started together, and one of them is"
+                    " refused by name. Nothing passes between them but the"
+                    " store - `python scripts/collide.py` does this sixteen"
+                    " ways and counts zero double-grants in 128 attempts.[/dim]")
 
         # ---- 8 -------------------------------------------------------------
         screen.beat(8, "What the store learned about who finishes.")

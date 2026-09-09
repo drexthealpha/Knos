@@ -43,6 +43,32 @@ recall and the deletion test are therefore the same unbroken minute and a
 half, rather than two claims made in prose.
 
 
+## Everything the memory decides, in one table
+
+Twelve patterns, not one. Each is a read of the store that changes what
+happens next, and each row names the function and the test rather than
+describing a capability.
+
+| | where | what it decides | held by |
+|---|---|---|---|
+| **A claim** | [`memory.claim_if_free`](../src/knos/memory.py) | one agent gets the work; the rest are told who has it | [`test_collide.py`](../tests/test_collide.py) |
+| **A withhold** | [`mcp._held`](../src/knos/mcp.py) | whether the asking agent is answered at all | [`test_intent.py`](../tests/test_intent.py) |
+| **A guard** | [`guard.check`](../src/knos/guard.py) | whether the file is written to disk at all | [`test_guard.py`](../tests/test_guard.py) |
+| **A rename it survives** | [`guard._renamed_out_of`](../src/knos/guard.py) | moving the file does not launder the claim | [`test_rename_bypass.py`](../tests/test_rename_bypass.py) |
+| **A money gate** | [`gate.decide`](../src/knos/gate.py) | whether real USDC leaves the machine | [`test_gate.py`](../tests/test_gate.py) |
+| **A spending right** | [`record.may_spend`](../src/knos/record.py) | *who* may spend, from what they finished before | [`test_spender.py`](../tests/test_spender.py) |
+| **A learned hold** | [`record.holds_for`](../src/knos/record.py) | how long the next claim is worth, per agent | [`test_record.py`](../tests/test_record.py) |
+| **A blast radius** | [`decide.supersede`](../src/knos/decide.py) | work under a reversed decision is held until somebody looks | [`test_decide.py`](../tests/test_decide.py) |
+| **A seal** | [`seal.check`](../src/knos/seal.py) | an entry cannot be edited, or dropped, unnoticed | [`test_seal.py`](../tests/test_seal.py) |
+| **A reconstruction** | [`rewind.at`](../src/knos/rewind.py) | who held what at a moment that has already passed | [`test_rewind.py`](../tests/test_rewind.py) |
+| **A ledger of refusals** | [`worth.tally`](../src/knos/worth.py) | what the store has actually prevented here | [`test_worth.py`](../tests/test_worth.py) |
+| **A portable record** | [`share.restore`](../src/knos/share.py) | decisions survive a fresh clone; live holds deliberately do not | [`test_restore.py`](../tests/test_restore.py) |
+
+None of these is a place the store is written and never read again - that is
+the shape the gate calls a wrapper. Every row is the store being *consulted*
+and something different happening because of what it said. Delete
+`memory.db` and all twelve become the same line: it goes ahead.
+
 ## The gate, in the order you check it
 
 Everything that touches the store is in one file, `src/knos/memory.py` — the
@@ -55,13 +81,13 @@ where the claim itself is taken. Between them that is the whole critical path.
 | **write** | [`memory.py:286`](../src/knos/memory.py#L286) `set_entity` | a topic, file or person, into WARM |
 | **write** | [`memory.py:384`](../src/knos/memory.py#L384) `set_state` | the live claim, into HOT |
 | **write** | [`memory.py:329`](../src/knos/memory.py#L329) `set_state` | what the session is focused on, into HOT |
-| **write** | [`memory.py:612`](../src/knos/memory.py#L612) `set_reference` | the repo's own rules, into REFERENCE |
+| **write** | [`memory.py:637`](../src/knos/memory.py#L637) `set_reference` | the repo's own rules, into REFERENCE |
 | **write** | [`memory.py:301`](../src/knos/memory.py#L301) `archive_entity` | superseded wording, into ARCHIVE |
 | **read** | [`memory.py:244`](../src/knos/memory.py#L244) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
 | **read** | [`memory.py:334`](../src/knos/memory.py#L334) `get_state` | the live claim - the withhold and the guard both start here |
 | **read** | [`memory.py:292`](../src/knos/memory.py#L292) `get_entity` | what is known about one thing, before answering |
-| **read** | [`memory.py:628`](../src/knos/memory.py#L628) `search` | every tier, for a question |
-| **read** | [`memory.py:617`](../src/knos/memory.py#L617) `get_reference` | the rules, before the guard refuses a path |
+| **read** | [`memory.py:653`](../src/knos/memory.py#L653) `search` | every tier, for a question |
+| **read** | [`memory.py:642`](../src/knos/memory.py#L642) `get_reference` | the rules, before the guard refuses a path |
 
 
 One write does not go through the client, and it is the most important one.
@@ -92,6 +118,21 @@ knos demo     # beat 9 deletes the store live and re-runs every refusal
 **Cold-start recall** is beat 7 of `knos demo`: a separate interpreter, given
 nothing but the repo path, printing its own pid with the repo's commit hash
 and the wall clock before reading back what an earlier process wrote.
+
+The same beat then starts **two** processes at the same instant, both reaching
+for one piece of work:
+
+```
+$ two processes, same instant, both claim "the settlement path"
+    pid 12984 Claude Code | TOOK IT
+    pid 16976 Cursor | refused, held by Claude Code
+```
+
+Different pids, and the loser is refused by name. Nothing passes between those
+two except the store - which is the coordination claim happening rather than
+being asserted. `python scripts/collide.py` does it sixteen ways and counts
+zero double-grants in 128 attempts; this is the two-process version you can
+watch.
 
 ## Check the receipts yourself, in one command
 

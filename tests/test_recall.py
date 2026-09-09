@@ -67,7 +67,15 @@ def test_the_fresh_session_starts_empty(knos_home, repo, tmp_path):
 
 
 @pytest.mark.critical
-def test_the_three_tools_are_listed(knos_home, repo):
+def test_the_tools_an_agent_gets_are_listed(knos_home, repo):
+    """Over a real stdio client, which is the only surface an agent has.
+
+    `done` was missing for most of this project's life: an agent could take a
+    claim and had no way to close one, so every claim lapsed, no agent ever
+    earned a longer hold, and the spending rule refused all of them while
+    telling them to run a CLI command they cannot run. Nothing caught it
+    because every other test drove the claim loop from Python or the CLI.
+    """
     async def run() -> list[str]:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
@@ -80,7 +88,7 @@ def test_the_three_tools_are_listed(knos_home, repo):
                 await session.initialize()
                 return [t.name for t in (await session.list_tools()).tools]
 
-    assert sorted(asyncio.run(run())) == ["about", "remember", "search"]
+    assert sorted(asyncio.run(run())) == ["about", "done", "remember", "search"]
 
 
 def test_the_repo_you_are_standing_in_answers_not_the_last_one_pointed_at(

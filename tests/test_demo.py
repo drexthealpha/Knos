@@ -139,3 +139,35 @@ def test_it_runs_in_the_time_the_documents_claim() -> None:
         "well past the half minute every page promises, and past what anybody "
         "watching a video will sit through."
     )
+
+
+def test_the_race_is_two_real_processes_and_one_is_refused() -> None:
+    """The 40-point claim, on camera, across an operating-system boundary.
+
+    `scripts/collide.py` proves this sixteen ways and writes the number down,
+    but a number in a JSON file is not a beat anybody watches. Two processes
+    start at the same instant, both reach for one piece of work, and exactly
+    one gets it - which is the whole product in four lines.
+
+    Pinned because it is easy to let this decay into a printed sentence. The
+    pids have to differ and the loser has to be refused *by name*, or it is a
+    transcript again.
+    """
+    import re
+
+    from knos import demo
+
+    out = Recorder()
+    demo.run(out)
+    said = out.text
+
+    assert "both claim" in said, "the race beat is gone"
+    took = [ln for ln in said.splitlines() if "TOOK IT" in ln]
+    lost = [ln for ln in said.splitlines() if "refused, held by" in ln]
+
+    assert len(took) == 1, f"exactly one process must win: {took}"
+    assert len(lost) == 1, f"exactly one must be refused: {lost}"
+    assert "held by Claude Code" in lost[0] or "held by Cursor" in lost[0], lost
+
+    pids = re.findall(r"pid (\d+) (?:Claude Code|Cursor)", said)
+    assert len(set(pids)) == 2, f"both racers ran in the same process: {pids}"

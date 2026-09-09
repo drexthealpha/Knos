@@ -212,13 +212,29 @@ def point(
     index_code: bool = True,
     on_progress: Any = None,
     code_budget: float | None = None,
+    budget: float | None = None,
 ) -> dict[str, int]:
     """Read this repo: its sessions, its commits, its structure.
 
     Called by `knos point`. Facts are stated as they were found; nothing is
     summarised, scored or inferred.
+
+    `budget` is a wall-clock ceiling for the whole read, in seconds. `knos
+    point` passes none and reads everything. The MCP server passes one,
+    because a client gives a server about thirty seconds to come up and this
+    read takes forty on a repository of any size - so without a ceiling the
+    server does not start at all, which is a worse outcome than an incomplete
+    first answer. Running out is recorded in `counts["ran_out"]` and said
+    plainly by the caller; it is not silently a smaller repo.
     """
+    import time
+
     from . import sessions
+
+    deadline = (time.monotonic() + budget) if budget else None
+
+    def out_of_time() -> bool:
+        return deadline is not None and time.monotonic() > deadline
 
     counts: dict = {
         "rules": 0,
@@ -227,6 +243,7 @@ def point(
         "code": 0,
         "private": 0,
         "full": 0,
+        "ran_out": 0,
         "skipped": [],
     }
     say = on_progress or (lambda *_: None)
@@ -275,6 +292,9 @@ def point(
             counts["sessions"] += 1
             if counts["sessions"] % 100 == 0:
                 say(f"{counts['sessions']} things said in past sessions")
+                if out_of_time():
+                    counts["ran_out"] = 1
+                    break
 
     if not counts["full"]:
         # Commits arrive newest first, so the first time a file or a person
@@ -284,7 +304,9 @@ def point(
         # most of what `knos point` spent its time doing.
         named: set[str] = set()
         say("reading the commits")
-        for commit in git.read_commits(repo):
+        if out_of_time():
+            counts["ran_out"] = 1
+        for commit in (() if counts["ran_out"] else git.read_commits(repo)):
             visible = [f for f in commit.files if not private.is_private(repo, f)]
             counts["private"] += len(commit.files) - len(visible)
             if not mem.record(
@@ -314,8 +336,11 @@ def point(
             counts["commits"] += 1
             if counts["commits"] % 100 == 0:
                 say(f"{counts['commits']} commits")
+                if out_of_time():
+                    counts["ran_out"] = 1
+                    break
 
-    if index_code:
+    if index_code and not counts["ran_out"]:
         result: dict = {}
         # The longest stretch, and the one with nothing to count as it
         # goes, so say plainly that a wait here is expected.

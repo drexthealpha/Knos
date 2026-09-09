@@ -88,7 +88,28 @@ every refusal, live:</p>
 </div>
 <pre>pytest tests/test_sibyl_is_load_bearing.py</pre>
 
-<h2><span class="n">02</span>Coordination, counted</h2>
+<h2><span class="n">02</span>Everything the memory decides</h2>
+<p class="sub">Twelve patterns, not one. Each is a read of the store that changes what
+happens next — not a place something is written and never read again, which is the shape
+the rules call a wrapper. Delete <code>memory.db</code> and all twelve become the same
+line: it goes ahead.</p>
+<table>
+<thead><tr><th></th><th>where</th><th>what it decides</th></tr></thead>
+<tbody><tr><td><strong>A claim</strong></td><td class="m">memory.claim_if_free</td><td>one agent gets the work; the rest are told who has it</td></tr>
+<tr><td><strong>A withhold</strong></td><td class="m">mcp._held</td><td>whether the asking agent is answered at all</td></tr>
+<tr><td><strong>A guard</strong></td><td class="m">guard.check</td><td>whether the file is written to disk at all</td></tr>
+<tr><td><strong>A rename it survives</strong></td><td class="m">guard._renamed_out_of</td><td>moving the file does not launder the claim</td></tr>
+<tr><td><strong>A money gate</strong></td><td class="m">gate.decide</td><td>whether real USDC leaves the machine</td></tr>
+<tr><td><strong>A spending right</strong></td><td class="m">record.may_spend</td><td>*who* may spend, from what they finished before</td></tr>
+<tr><td><strong>A learned hold</strong></td><td class="m">record.holds_for</td><td>how long the next claim is worth, per agent</td></tr>
+<tr><td><strong>A blast radius</strong></td><td class="m">decide.supersede</td><td>work under a reversed decision is held until somebody looks</td></tr>
+<tr><td><strong>A seal</strong></td><td class="m">seal.check</td><td>an entry cannot be edited, or dropped, unnoticed</td></tr>
+<tr><td><strong>A reconstruction</strong></td><td class="m">rewind.at</td><td>who held what at a moment that has already passed</td></tr>
+<tr><td><strong>A ledger of refusals</strong></td><td class="m">worth.tally</td><td>what the store has actually prevented here</td></tr>
+<tr><td><strong>A portable record</strong></td><td class="m">share.restore</td><td>decisions survive a fresh clone; live holds deliberately do not</td></tr></tbody>
+</table>
+
+<h2><span class="n">03</span>Coordination, counted</h2>
 <p class="sub">Every refusal here is invisible when it works: the collision that did not
 happen leaves no trace in anybody's day, which is how a tool doing its job gets
 uninstalled. <code>knos worth</code> is where it leaves one — how often an agent asked
@@ -99,17 +120,20 @@ written at the time rather than from a counter. When the answer is nothing, it s
 the same topic in the same instant, eight rounds. The ablated condition is <em>sharing</em>,
 not the file: give every agent its own memory — which is what an agent has today — and
 they all take the same work.</p>
+<p class="sub">The two-process version of it runs in <code>knos demo</code>, on camera:
+two interpreters started in the same instant, both reaching for one piece of work, one
+refused by name. Different pids, nothing between them but the store.</p>
 <div class="cards" id="collide"></div>
 <pre>python scripts/collide.py</pre>
 
-<h2><span class="n">03</span>The memory decides whether money moves</h2>
+<h2><span class="n">04</span>The memory decides whether money moves</h2>
 <p class="sub">Purchases settle over x402 in real USDC on Base mainnet, and the receipt
 goes back into the store, so the gate reads a Base transaction hash to decide whether to
 spend again. One ordinary day of five agents:</p>
 <div class="cards" id="spend"></div>
 <pre>python scripts/spend.py</pre>
 
-<h2><span class="n">04</span>The only question that is about then</h2>
+<h2><span class="n">05</span>The only question that is about then</h2>
 <p class="sub">Everything else here answers about now — the claim, the withhold, the
 guard, the gate. <code>knos at 2h</code> answers the question people actually have
 <em>after</em> two agents collide: who was holding what, and what did the machine know.</p>
@@ -125,7 +149,7 @@ thing somebody is trying to understand. A test forces the two numbers apart. It 
 refuses to guess a time it cannot read, and reports where the journal stops rather than
 reconstructing an empty machine and calling that history.</p>
 
-<h2><span class="n">05</span>The memory decides who may spend</h2>
+<h2><span class="n">06</span>The memory decides who may spend</h2>
 <p class="sub">Every other refusal here is about the <em>topic</em> — somebody is
 mid-change on it, a decision under it was reversed, the store already has it. This one is
 about the <em>agent</em>. On a machine several agents share, the budget is one pocket, and
@@ -139,7 +163,7 @@ before anyone is judged at all, a new agent spends freely, and finishing work ea
 back. Not a security boundary — an agent picks its own name — it is what an agent said
 about itself held against what it did last time, applied where being wrong costs money.</p>
 
-<h2><span class="n">06</span>The memory changes what the memory does next</h2>
+<h2><span class="n">07</span>The memory changes what the memory does next</h2>
 <p class="sub">A claim's lifetime is learned from the share of claims that agent actually
 closed — 15 minutes for one that never finishes, 45 for one that always does, 30 for
 anyone seen fewer than twice. One seeded working day, four agents, two that mostly do not
@@ -147,7 +171,7 @@ finish:</p>
 <div class="cards" id="contention"></div>
 <pre>python scripts/contention.py</pre>
 
-<h2><span class="n">07</span>Nobody can quietly edit who overrode whom</h2>
+<h2><span class="n">08</span>Nobody can quietly edit who overrode whom</h2>
 <p class="sub">An override is the one thing an agent does <em>against</em> somebody
 else's work, and the only cost it carries is that it goes in the journal under its own
 name. If that line can be edited afterwards, the cost is zero. Each writer's entries are
@@ -166,13 +190,13 @@ per writer on purpose: one global chain forks the moment two agents append toget
 a fork is indistinguishable from an edit. Tests tamper with the SQLite file directly:
 <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_seal.py">test_seal.py</a>.</p>
 
-<h2><span class="n">08</span>Arms that die with the store</h2>
+<h2><span class="n">09</span>Arms that die with the store</h2>
 <p class="sub">Each arm run twice: once with the store, once with the same code and
 nothing to read.</p>
 <table id="ablation"><thead><tr><th>what</th><th>with the store</th><th>without it</th></tr></thead><tbody></tbody></table>
 <pre>python scripts/ablation.py</pre>
 
-<h2><span class="n">09</span>Every on-chain claim, resolved</h2>
+<h2><span class="n">10</span>Every on-chain claim, resolved</h2>
 <p class="sub">Eleven transaction hashes appear in this repository. This resolves each one
 against the chain it is documented against — no key, no account, public RPCs — and exits
 non-zero if any fails.</p>
@@ -182,7 +206,22 @@ non-zero if any fails.</p>
 <tbody id="chain"></tbody>
 </table>
 
-<h2><span class="n">10</span>What is not true yet</h2>
+<h2><span class="n">11</span>Who wants this</h2>
+<p class="sub">The audience is narrow and named: developers running more than one coding
+agent on one repository. Claude Code in one terminal and Cursor in another, or an agent in
+CI while you work, on a machine where those two have no way to know about each other.</p>
+<div class="cards" id="wants"></div>
+<p class="note">Each of those is a public GitHub issue, so the number is countable by
+anyone and cannot be inflated — it is fetched from GitHub's search API when this page
+loads, not typed here. Click it and read them. If it says zero, it is zero.</p>
+<p><a href="https://github.com/drexthealpha/Knos/issues/new?template=wants-this.yml">I run
+more than one agent on one repo →</a></p>
+<p class="note">None of these is a retained user, and the difference matters: somebody
+saying they want a thing is not somebody who installed it and still had it a week later.
+That number is still <strong>none</strong>, and it stays in <a href="PMF.md">the ledger</a>
+next to the 34 pull requests that were the wrong idea.</p>
+
+<h2><span class="n">12</span>What is not true yet</h2>
 <p class="sub">Here rather than in a footnote, because a ledger nobody can check is not
 evidence.</p>
 <table>
@@ -193,7 +232,7 @@ evidence.</p>
 <p class="note">The whole ledger, including the failures:
 <a href="PMF.md">docs/PMF.md</a>.</p>
 
-<h2><span class="n">11</span>The critical path, in two minutes</h2>
+<h2><span class="n">13</span>The critical path, in two minutes</h2>
 <table>
 <tr><td class="m">memory.py</td><td>every write and read into Sibyl, in one file</td></tr>
 <tr><td class="m">mcp._held</td><td>whether an agent gets an answer at all</td></tr>
@@ -289,6 +328,34 @@ load('ablation').then(function(a){
   document.querySelector('#ablation tbody').innerHTML = rows;
   $('#stamp').textContent = 'Last regenerated ' + String(a.when).slice(0, 10) + '.';
 }).catch(function(){ fail('#ablation', 'ablation'); });
+
+
+// The waitlist is public issues, counted by GitHub rather than by this page.
+// Unauthenticated and CORS-open, so a reader's own browser does the counting
+// and can be pointed at the same URL to check it.
+(async function () {
+  const box = document.querySelector('#wants');
+  if (!box) return;
+  const url = 'https://api.github.com/search/issues?q=' +
+    encodeURIComponent('repo:drexthealpha/Knos label:wants-this is:issue');
+  const seen = 'https://github.com/drexthealpha/Knos/issues?q=' +
+    encodeURIComponent('is:issue label:wants-this');
+  try {
+    const r = await fetch(url, {cache: 'no-store'});
+    if (!r.ok) throw new Error(String(r.status));
+    const got = await r.json();
+    const n = got.total_count || 0;
+    box.innerHTML =
+      card('<a href="' + seen + '">' + n + '</a>',
+           n === 1 ? 'person has said they want this' : 'people have said they want this',
+           n ? 'g' : 'r') +
+      card('public', 'each one is an issue you can read', '') +
+      card('none', 'retained users, which is a different thing', 'r');
+  } catch (e) {
+    box.innerHTML = '<p class="note">GitHub would not answer just now — ' +
+      '<a href="' + seen + '">count them yourself</a>.</p>';
+  }
+})();
 
 const CHAIN = [
   ['mainnet', 'x402 news $0.001', '0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76'],

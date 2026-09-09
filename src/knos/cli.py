@@ -240,8 +240,9 @@ def connect(
     for line in entry.splitlines():
         out.print(f"    {line}")
     out.print("")
-    out.print("Restart the agent. You should see three tools: search, about,")
-    out.print("and remember. Then ask it something you only told the other one.")
+    out.print("Restart the agent. You should see four tools: search, about,")
+    out.print("remember and done. Then ask it something you only told the")
+    out.print("other one.")
     out.print("")
     out.print("Or let knos do it, keeping a copy of each file:  knos connect")
 

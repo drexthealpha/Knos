@@ -1,0 +1,68 @@
+name: I run more than one agent on one repo
+description: >-
+  Say so, and say what collided. This is the whole waitlist - a public issue,
+  countable by anyone, with the pain in your own words rather than mine.
+title: "wants this: "
+labels: ["wants-this"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        knos is for developers running more than one coding agent on one
+        repository — Claude Code in one terminal and Cursor in another, or an
+        agent in CI while you work, on a machine where those two have no way
+        to know about each other.
+
+        If that is you, this is the signup. It is a public issue on purpose:
+        anyone can count them, including me, and I would rather have five real
+        ones than a number nobody can check.
+
+        Nothing here is required. Answer what you feel like answering.
+
+  - type: input
+    id: agents
+    attributes:
+      label: Which agents, and how many at once?
+      placeholder: Claude Code and Cursor, sometimes a CI runner as well
+    validations:
+      required: false
+
+  - type: textarea
+    id: collision
+    attributes:
+      label: What happened the last time two of them stepped on each other?
+      description: >-
+        The specific one, if you can remember it. Two agents editing the same
+        file, one redoing work another had finished, a decision reversed in one
+        session and still being built on in the next.
+      placeholder: >-
+        Both rewrote the same migration; I found out at merge time.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: shape
+    attributes:
+      label: How would you want it?
+      options:
+        - The MCP server, in front of my agents
+        - The GitHub Action, on pull requests, nothing installed
+        - The library, imported into a tool I already ship
+        - Not sure yet
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contact
+    attributes:
+      label: Happy to be asked a follow-up question?
+      options:
+        - label: Yes, you can reply on this issue and ask me things.
+          required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        There is no mailing list behind this and nothing is sent anywhere. The
+        issue *is* the record — which is the same thing knos itself argues:
+        the durable copy is the one somebody else can check.

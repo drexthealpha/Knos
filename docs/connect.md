@@ -66,7 +66,7 @@ claude mcp add knos -- <python> -m knos.mcp
 }
 ```
 
-## After restarting, three tools appear
+## After restarting, four tools appear
 
 | Tool | Does |
 |---|---|

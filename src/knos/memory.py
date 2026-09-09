@@ -522,6 +522,31 @@ class Memory:
                 except Exception:
                     pass
 
+    def finished_by(self, who: str, topic: str = "") -> list[str]:
+        """Close the claims `who` holds, and say which ones those were.
+
+        `done_working` clears every claim in the store, which is right for a
+        person at a terminal saying they have stopped and wrong for one agent
+        among several: it would hand away work its colleagues are still in the
+        middle of. This closes only the caller's own.
+        """
+        from . import record as record_mod
+
+        closed: list[str] = []
+        for held in self.claims():
+            mine = str(held.get("who", "")) == who
+            wanted = (not topic) or str(held.get("topic", "")) == topic
+            if not (mine and wanted):
+                continue
+            name = str(held.get("topic", ""))
+            record_mod.note_finished(self, name, who)
+            try:
+                self.client.set_state(self._claim_key(name), {})
+            except CapExceededError:
+                pass
+            closed.append(name)
+        return closed
+
     def stood_down(self, topic: str, who: str, claimed_by: str, when: str) -> bool:
         """Record that one agent backed off because another had the work.
 

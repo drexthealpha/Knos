@@ -9,6 +9,7 @@ invisible: not redacted, not counted, simply absent.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -32,8 +33,12 @@ server = MCPServer("knos", version=version(), instructions=(
     "Search it before asking the person to repeat themselves.\n\n"
     "Other agents share this memory right now. One rule: before you change "
     "anything, call remember(fact, about, claiming=true). One call, and no "
-    "other agent will rewrite it underneath you. It lapses on its own after "
-    "its own.\n\n"
+    "other agent will rewrite it underneath you.\n\n"
+    "When you finish it, call done(about). That is not bookkeeping: until "
+    "you do, every other agent waits out the whole hold on work that is "
+    "already finished, and this memory never learns that you finish what "
+    "you start - which is what decides how long your next claim is worth "
+    "and whether you are trusted to spend.\n\n"
     "Work another agent has claimed is withheld from you: you are told who "
     "holds it, not what knos knows about it. Ask them, or pick up something "
     "else. If you genuinely must have it, call again with override set to "
@@ -51,6 +56,76 @@ FULL = (
     "The store is full: 5 MB, Sibyl's free tier, and nothing was written."
     " `knos forget` frees room; `knos status` shows what is using it."
 )
+
+
+# An MCP client gives a server about thirty seconds to come up, and the first
+# question on an unread repo does the whole read inline. On a repository of any
+# size that read is longer than the timeout, so the server never starts and the
+# product does not exist for that person - which is a far worse first minute
+# than an answer that says it has only read part of the repo so far.
+#
+# Twelve seconds leaves room for the rest of the handshake on a slow machine.
+# `knos point` passes no budget at all and reads everything.
+FIRST_READ_BUDGET = 12.0
+
+# Set when that budget ran out, cleared by `knos point`. Every answer says so
+# while it is set.
+PARTIAL = "knos:internal:partial-read"
+
+
+def _held_note(mem, subject: str) -> str:
+    """A line for an answer that rests on a decision somebody withdrew.
+
+    The guard and the gate both refuse on this. Asking is the third path and
+    it said nothing, so the agent least likely to notice - the one that only
+    reads - was the one told nothing.
+    """
+    from . import decide
+
+    try:
+        found = decide.is_suspect(mem, subject)
+    except Exception:
+        return ""
+    if found is None:
+        return ""
+    return decide.refusal(found) + "\n\n"
+
+
+def _unfinished_for(repo) -> str:
+    """The same line, for callers that have already closed the store."""
+    try:
+        with Memory(repo) as mem:
+            return _unfinished(mem)
+    except Exception:
+        return ""
+
+
+def _unfinished(mem) -> str:
+    """One line for an answer built on a repo knos has not finished reading."""
+    try:
+        got = mem.reference(PARTIAL)
+    except Exception:
+        return ""
+    if not got:
+        return ""
+    # A reference round-trips as {"body": "<json>"}, so the counts are a
+    # string until they are decoded. Read as a dict it said "0 things", a
+    # number nobody wrote, in the one sentence meant to say how much was read.
+    body = got.get("body") if isinstance(got, dict) else None
+    if isinstance(body, str):
+        try:
+            body = json.loads(body)
+        except ValueError:
+            body = {}
+    if not isinstance(body, dict):
+        body = {}
+    read = body.get("sessions", 0)
+    return (
+        "\n\n[knos has not finished reading this repo. The first question has"
+        f" to answer quickly, so it read {read} things and stopped. Run `knos"
+        " point` for the rest - until then an empty answer may mean not-yet-read"
+        " rather than not-there.]"
+    )
 
 
 def _repo() -> Path | None:
@@ -75,7 +150,17 @@ def _repo() -> Path | None:
                 # agent's first question cannot wait that long. Most projects
                 # finish well inside it. When one does not, every structural
                 # reply says so, and `knos point` reads it properly.
-                answer.point(here, mem, code_budget=code.CODE_BUDGET)
+                counts = answer.point(here, mem, code_budget=code.CODE_BUDGET,
+                                      budget=FIRST_READ_BUDGET)
+                # A partial read that does not say it is partial is worse
+                # than a slow one: the agent cannot tell a repo with nothing
+                # in it from a repo knos has not finished looking at.
+                if counts.get("ran_out"):
+                    mem.set_reference(PARTIAL, {
+                        "sessions": counts.get("sessions", 0),
+                        "commits": counts.get("commits", 0),
+                        "code": counts.get("code", 0),
+                    })
             paths.remember_pointed(here)
         except Exception:
             # A repo knos cannot read is not a reason to fail the tool call.
@@ -158,7 +243,9 @@ def search(
             " enough to need `knos point .` once. Sessions, commits and"
             " instruction files are all that answered this.)"
         )
-    return answered
+    with Memory(repo) as mem:
+        held = _held_note(mem, query)
+    return held + answered + _unfinished_for(repo)
 
 
 @server.tool(
@@ -201,7 +288,10 @@ def about(thing: str, ctx: Context | None = None) -> str:
     lines += [f"{p.text.strip()}\n    source: {p.where}" for p in found]
     if busy:
         lines.insert(0, busy)
-    return "\n\n".join(lines) if lines else f"Nothing known about {thing}."
+    said = "\n\n".join(lines) if lines else f"Nothing known about {thing}."
+    with Memory(repo) as mem:
+        held = _held_note(mem, thing)
+    return held + said + _unfinished_for(repo)
 
 
 def _held(
@@ -348,6 +438,47 @@ def _who(ctx: Context | None) -> str:
         return (info.name or "").strip() or "an agent"
     except Exception:
         return "an agent"
+
+
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Say you have finished",
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    )
+)
+def done(about: str = "", ctx: Context | None = None) -> str:
+    """Say you have finished work you claimed, so other agents stop waiting.
+
+    Call this when you finish something you called `remember(claiming=true)`
+    on. Without it the claim sits until it lapses, every other agent waits out
+    a hold on work that is already done, and this memory never learns that you
+    finish what you start - which is what decides how long your next claim is
+    worth and whether you are trusted to spend.
+
+    Closes only your own claims. Other agents keep theirs. Give `about` to
+    close one thing, or leave it empty to close everything you hold."""
+    repo = _repo()
+    if repo is None:
+        return NOT_POINTED
+
+    who = _who(ctx)
+    with Memory(repo) as mem:
+        closed = mem.finished_by(who, about.strip())
+
+    if not closed:
+        if about:
+            return (
+                f"You are not holding {about}, so there was nothing to close."
+                " Claims are per agent: this only ever closes your own."
+            )
+        return "You are not holding anything here."
+    return "Finished: " + "; ".join(closed) + "." + (
+        " Other agents can take it now, and this memory has one more closed"
+        " claim against your name."
+    )
 
 
 @server.tool(

@@ -25,6 +25,21 @@ What knos asks of them is one line in an MCP config, and what it gives back is
 that the second agent is told rather than left to find out. Nobody has kept it
 a week yet. That is section 3.
 
+### A way to say so, and what it has caught
+
+[**I run more than one agent on one repo**](https://github.com/drexthealpha/Knos/issues/new?template=wants-this.yml)
+opens a public issue. The count is on
+[the evidence page](https://drexthealpha.github.io/Knos/), fetched from
+GitHub's search API when the page loads rather than written into it, and it
+links to the issues so anybody can count them again.
+
+It asks what actually collided, in the person's own words, because a headcount
+is not a validated pain point and the rules say so.
+
+**Today it is zero.** The page says zero. A waitlist with nobody on it is worth
+nothing and pretending otherwise is the one thing here that is a
+disqualification rather than a mistake.
+
 ## 1. People who acted
 
 The strongest signal available to a project this young is not a click. It is
