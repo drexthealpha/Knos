@@ -56,12 +56,41 @@ who did not have to said yes to it.
 **What this is not:** a user. A line in a directory is a door, not a visit.
 There is no way to count who walked through it and I am not going to guess.
 
-### Two pull requests merged into third-party repositories
+### The pain, measured on the reader's own machine
+
+A waitlist asks somebody to agree that a problem exists. This does not ask:
+
+```
+knos why
+```
+
+Claude Code writes a timestamped transcript for every session it runs, and
+knos already reads them as a source, so the premise of this whole product -
+that people run more than one agent at once - is checkable on the disk of
+whoever is asking. `knos why` counts the windows in which two or more sessions
+each did something, at four widths, offline, writing nothing.
+
+On the machine knos was built on that is about one agent-minute in ten. That
+is one developer and proves nothing about anybody else, which is the point of
+shipping the command rather than the number.
+
+**It is built to give the discouraging answer.** No transcripts, one session,
+or two sessions that never overlap all print a sentence saying knos is
+probably not for you, and each of those is a test in
+[`test_why.py`](../tests/test_why.py). A measurement that can only come out
+one way is a claim wearing a number.
+
+This is a precondition and not a collision rate: two agents in the same minute
+may be nowhere near each other in the tree, and the command says so every time
+it prints.
+
+### Three pull requests merged into third-party repositories
 
 | Repo | PR | Merged | By |
 |---|---|---|---|
 | [caura-ai/caura](https://github.com/caura-ai/caura) (486 stars) | [#1299](https://github.com/caura-ai/caura/pull/1299) | 5 Sep 2026, 5h16m after opening | `Eldad-Caura`, after `erni-a` approved |
 | [drt-hub/drt](https://github.com/drt-hub/drt) | [#1098](https://github.com/drt-hub/drt/pull/1098) | 5 Sep 2026 | `masukai` |
+| [stacktale/stacktale](https://github.com/stacktale/stacktale) | [#231](https://github.com/stacktale/stacktale/pull/231) | 7 Sep 2026 | `stacktale` |
 
 `drt#1098` is the more interesting of the two. It is a behaviour fix with two
 regression tests, reviewed line by line, with a change requested and turned
@@ -133,14 +162,16 @@ for the demand rather than the demand being absent.
 
 ## 3. Numbers that look like traction and are not
 
-- **841 PyPI downloads in the last week** against **1 GitHub star and 0
-  watchers.** That ratio is automated: Glama's Docker rebuilds, the MCP
+- **1,039 PyPI downloads in the last week** (checked 9 Sep 2026 against
+  pypistats; 1,135 in the month) against **1 GitHub star and 0 watchers.** That ratio is automated: Glama's Docker rebuilds, the MCP
   registry crawler, mirrors, and my own clean-venv checks. A human who installs
   a tool and keeps it usually stars it. This is listed so nobody has to
   discover it themselves.
 - **1 ACP job sold, for real USDC, on the real marketplace.** The buyer was my
   own test agent.
-- **Four Base mainnet purchases.** All mine.
+- **Five Base mainnet purchases.** All mine - the fifth is the live gate
+  run on 9 Sep 2026, where the same agent was refused in between by its
+  own record.
 - Listed on [Glama](https://glama.ai/mcp/servers/drexthealpha/Knos), the MCP
   registry, and [PyPI](https://pypi.org/project/knos/). Presence, not use.
 

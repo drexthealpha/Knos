@@ -474,3 +474,70 @@ def _parse(line: str, repo: Path) -> Symbol | None:
 
 def close() -> None:
     """Nothing is held open, so there is nothing to close."""
+
+# Lines that declare something, across the languages ctags reads for us. Not a
+# parser: this only has to pick the declaration out of the lines that mention
+# the name, and being wrong here costs a line number rather than an answer.
+_DECLARES = re.compile(
+    r"^\s*(?:@\w+\s*)?(?:export\s+|public\s+|private\s+|protected\s+|static\s+"
+    r"|async\s+|final\s+|abstract\s+|pub\s+|const\s+|let\s+|var\s+)*"
+    r"(?:def|class|struct|enum|interface|trait|impl|type|fn|func|function|module"
+    r"|package|proc|sub|method)\b"
+)
+
+
+# One answer can carry a dozen symbols out of three or four files, and reading
+# a large source file per symbol put sixteen milliseconds on each of them.
+# Keyed by mtime and size rather than by a clock, like the guard's caches: a
+# symbol can be moved and the file saved twice inside any interval short
+# enough to be worth caching.
+_READ: dict[tuple[str, int, int], list[str]] = {}
+
+
+def _lines(f: Path) -> list[str] | None:
+    try:
+        st = f.stat()
+        key = (str(f), st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+    hit = _READ.get(key)
+    if hit is None:
+        try:
+            hit = f.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return None
+        if len(_READ) > 64:
+            _READ.clear()
+        _READ[key] = hit
+    return hit
+
+
+def still_defines(repo: Path, name: str, path: str, line: int) -> int | None:
+    """The line that declares this symbol NOW, or None if the file dropped it.
+
+    The same three answers `rules.still_says` gives, for the same reason. A
+    symbol that merely moved is still there and must not be refused; a
+    citation pointing at the line it used to be on is wrong even so.
+
+    Deliberately not a parser. It asks one question the cheap way - does the
+    file still say this name, and where - and when it cannot tell which line
+    is the declaration it keeps the first mention rather than guessing at
+    nothing. Being one line out is a smaller failure than dropping a symbol
+    that is really there.
+    """
+    f = Path(repo) / path
+    if not f.exists():
+        return None                      # the file that held it is gone
+    lines = _lines(f)
+    if lines is None:
+        return line                      # cannot check is not evidence against
+    word = re.compile(r"\b" + re.escape(name) + r"\b")
+
+    if 0 < line <= len(lines) and word.search(lines[line - 1]):
+        return line                      # still where the tags file said
+
+    mentions = [n for n, text in enumerate(lines, start=1) if word.search(text)]
+    if not mentions:
+        return None                      # the file no longer contains it at all
+    declared = [n for n in mentions if _DECLARES.match(lines[n - 1])]
+    return declared[0] if declared else mentions[0]

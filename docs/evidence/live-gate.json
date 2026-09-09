@@ -1,0 +1,42 @@
+{
+  "generated": "2026-09-09T07:51:27.700813+00:00",
+  "network": "Base mainnet",
+  "price_usd": 0.001,
+  "cap_usd": 0.02,
+  "spent_usd": 0.001,
+  "agent": "the Telegram bot",
+  "rounds": [
+    {
+      "round": "1",
+      "store_says": "nothing known about this agent",
+      "verdict": "buy",
+      "why": "",
+      "outcome": "paid",
+      "paid": true,
+      "cost_usd": 0.001,
+      "tx": "0x7df644ad5b66665d724dbb4f6567df6f189baa1350bdb383f628cfc50e71084e",
+      "receipt": "https://basescan.org/tx/0x7df644ad5b66665d724dbb4f6567df6f189baa1350bdb383f628cfc50e71084e"
+    },
+    {
+      "round": "2",
+      "store_says": "four claims taken, none closed",
+      "verdict": "unproven",
+      "why": "the Telegram bot has taken 4 pieces of work here and closed 0. Money spent on work that gets abandoned is spent on nothing, and this machine's budget is shared. Close what you are holding with `knos d",
+      "outcome": "refused by the store",
+      "paid": false,
+      "cost_usd": 0.0
+    },
+    {
+      "round": "3",
+      "store_says": "the same four claims, now closed",
+      "verdict": "buy",
+      "why": "",
+      "outcome": "free, the store already had it",
+      "paid": false,
+      "cost_usd": 0.0,
+      "seller_said": "oes live, targeting mainnet in October 2026</b>\n   Lido's 0x02 Community Staking Module testnet is live, enabling validators to compound up to 2,048 ETH with 2.26x capital ...\n5. <b>Ethereum (ETH) Price: Bulls Are Watching One Number Very Closely Right Now</b>\n   Ethereum (ETH) price holds near $2,500 as Bitcoin hits \n\nFree. This machine already paid for it once (2026-09-09), so nobody paid again."
+    }
+  ],
+  "what_changed_between_rounds": "Only what the store knows about this agent. Same endpoint, same price, same wallet, same topic.",
+  "what_this_is_not": "A run at the scale of a real trading agent. The wallet behind it holds cents, so this is tens of live payments rather than thousands. It establishes that the promoted record is wired to real money in a shipped product, not how that number scales."
+}

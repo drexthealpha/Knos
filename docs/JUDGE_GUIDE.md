@@ -10,7 +10,7 @@ it says so.
 
 Every number on it is fetched from `docs/evidence/*.json` in this repository,
 so nothing there is hand-typed and nothing can drift from what the scripts
-regenerate. The eleven on-chain hashes link to the explorer for the chain each
+regenerate. The twelve on-chain hashes link to the explorer for the chain each
 is documented against.
 
 ## Run it first
@@ -22,7 +22,7 @@ knos demo
 
 [`knos` on PyPI](https://pypi.org/project/knos/) is the last cut release,
 0.1.8. This installs from the repository instead, because the paragraphs below
-describe what is on `main` - the learned hold, `knos who`, and the ninth beat -
+describe what is on `main` - the learned hold, `knos who`, and the ten beats -
 and a page documenting a command the install does not have is worse than a
 longer command.
 
@@ -30,7 +30,7 @@ It will still report `0.1.8` as its version. That is the last number cut, and
 it stays until the next release because the Claude Desktop extension pins
 `knos==<that version>`, which has to resolve on PyPI.
 
-Half a minute on a throwaway repo, ending with the store deleted and every
+About fifty seconds on a throwaway repo, ending with the store deleted and every
 refusal gone. Every line is a real call, not a transcript -
 [`tests/test_demo.py`](../tests/test_demo.py) asserts the live values appear.
 
@@ -45,7 +45,7 @@ half, rather than two claims made in prose.
 
 ## Everything the memory decides, in one table
 
-Twelve patterns, not one. Each is a read of the store that changes what
+Sixteen patterns, not one. Each is a read of the store that changes what
 happens next, and each row names the function and the test rather than
 describing a capability.
 
@@ -59,6 +59,10 @@ describing a capability.
 | **A spending right** | [`record.may_spend`](../src/knos/record.py) | *who* may spend, from what they finished before | [`test_spender.py`](../tests/test_spender.py) |
 | **A learned hold** | [`record.holds_for`](../src/knos/record.py) | how long the next claim is worth, per agent | [`test_record.py`](../tests/test_record.py) |
 | **A blast radius** | [`decide.supersede`](../src/knos/decide.py) | work under a reversed decision is held until somebody looks | [`test_decide.py`](../tests/test_decide.py) |
+| **A rule its file dropped** | [`rules.still_says`](../src/knos/rules.py) | whether a rule is still quoted, and the line it is cited at | [`test_fresh_rules.py`](../tests/test_fresh_rules.py) |
+| **A symbol that moved** | [`code.still_defines`](../src/knos/code.py) | whether a line number is still the one to print | [`test_fresh_code.py`](../tests/test_fresh_code.py) |
+| **A promoted record** | [`record.standing`](../src/knos/record.py) | how long a hold is worth, and whether an agent may spend | [`test_promotion.py`](../tests/test_promotion.py) |
+| **A notice before the first question** | [`start_hook.main`](../src/knos/start_hook.py) | whether an agent is told who holds what before it opens anything | [`test_start_hook.py`](../tests/test_start_hook.py) |
 | **A seal** | [`seal.check`](../src/knos/seal.py) | an entry cannot be edited, or dropped, unnoticed | [`test_seal.py`](../tests/test_seal.py) |
 | **A reconstruction** | [`rewind.at`](../src/knos/rewind.py) | who held what at a moment that has already passed | [`test_rewind.py`](../tests/test_rewind.py) |
 | **A ledger of refusals** | [`worth.tally`](../src/knos/worth.py) | what the store has actually prevented here | [`test_worth.py`](../tests/test_worth.py) |
@@ -67,7 +71,7 @@ describing a capability.
 None of these is a place the store is written and never read again - that is
 the shape the gate calls a wrapper. Every row is the store being *consulted*
 and something different happening because of what it said. Delete
-`memory.db` and all twelve become the same line: it goes ahead.
+`memory.db` and all sixteen become the same line: it goes ahead.
 
 ## The gate, in the order you check it
 
@@ -77,22 +81,22 @@ where the claim itself is taken. Between them that is the whole critical path.
 
 | | where | what |
 |---|---|---|
-| **write** | [`memory.py:218`](../src/knos/memory.py#L218) `write_event` | every fact, claim, stand-down and override, into COLD |
-| **write** | [`memory.py:286`](../src/knos/memory.py#L286) `set_entity` | a topic, file or person, into WARM |
-| **write** | [`memory.py:384`](../src/knos/memory.py#L384) `set_state` | the live claim, into HOT |
-| **write** | [`memory.py:329`](../src/knos/memory.py#L329) `set_state` | what the session is focused on, into HOT |
-| **write** | [`memory.py:637`](../src/knos/memory.py#L637) `set_reference` | the repo's own rules, into REFERENCE |
-| **write** | [`memory.py:301`](../src/knos/memory.py#L301) `archive_entity` | superseded wording, into ARCHIVE |
-| **read** | [`memory.py:244`](../src/knos/memory.py#L244) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
-| **read** | [`memory.py:334`](../src/knos/memory.py#L334) `get_state` | the live claim - the withhold and the guard both start here |
-| **read** | [`memory.py:292`](../src/knos/memory.py#L292) `get_entity` | what is known about one thing, before answering |
-| **read** | [`memory.py:653`](../src/knos/memory.py#L653) `search` | every tier, for a question |
-| **read** | [`memory.py:642`](../src/knos/memory.py#L642) `get_reference` | the rules, before the guard refuses a path |
+| **write** | [`memory.py:223`](../src/knos/memory.py#L223) `write_event` | every fact, claim, stand-down and override, into COLD |
+| **write** | [`memory.py:297`](../src/knos/memory.py#L297) `set_entity` | a topic, file or person, into WARM |
+| **write** | [`memory.py:395`](../src/knos/memory.py#L395) `set_state` | the live claim, into HOT |
+| **write** | [`memory.py:340`](../src/knos/memory.py#L340) `set_state` | what the session is focused on, into HOT |
+| **write** | [`memory.py:648`](../src/knos/memory.py#L648) `set_reference` | the repo's own rules, into REFERENCE |
+| **write** | [`memory.py:312`](../src/knos/memory.py#L312) `archive_entity` | superseded wording, into ARCHIVE |
+| **read** | [`memory.py:249`](../src/knos/memory.py#L249) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
+| **read** | [`memory.py:345`](../src/knos/memory.py#L345) `get_state` | the live claim - the withhold and the guard both start here |
+| **read** | [`memory.py:303`](../src/knos/memory.py#L303) `get_entity` | what is known about one thing, before answering |
+| **read** | [`memory.py:664`](../src/knos/memory.py#L664) `search` | every tier, for a question |
+| **read** | [`memory.py:653`](../src/knos/memory.py#L653) `get_reference` | the rules, before the guard refuses a path |
 
 
 One write does not go through the client, and it is the most important one.
 `claim_if_free` takes the claim as a compare-and-swap in raw SQL, at
-[`memory.py:441`](../src/knos/memory.py#L441) - one
+[`memory.py:452`](../src/knos/memory.py#L452) - one
 `INSERT ... ON CONFLICT DO UPDATE ... WHERE` inside `BEGIN IMMEDIATE`, so that
 two agents reaching for the same work in the same instant cannot both be told
 they have it. `set_state` would overwrite and both would win. Sixteen
@@ -150,7 +154,7 @@ documented against - no key, no account, public RPCs:
   ok  sepolia  Access.sol deploy  block 46107972
   ok  sepolia  Access.sol         3434 bytes deployed at 0x955fa320...6E52
 
-11 of 11 receipts resolve on the chain each is documented against.
+12 of 12 receipts resolve on the chain each is documented against.
 ```
 
 Eight on Base mainnet, every one of them with real USDC in its logs, and three
@@ -316,6 +320,289 @@ few dozen events would be a more impressive way of being wrong.
 What makes it load-bearing: the record exists nowhere but the store. Delete it
 and every agent is a stranger worth exactly thirty minutes again - which is
 [a test](../tests/test_record.py), `test_the_learning_dies_with_the_store`.
+
+## The cap binds, and it decides what knos can answer
+
+The most useful thing measured today was that `knos point` could not finish on
+this repository - the one knos was built in.
+
+Sibyl's free tier is 5 MB, and a fact costs about 5.5 KB of it once indexed:
+the store keeps the row, a full-text copy of the text, and a second shadow
+index. So five megabytes is roughly **one thousand facts**, not five megabytes
+of prose. That is Sibyl's schema rather than anything knos chooses, and it
+means the cap binds on ordinary repositories instead of being theoretical.
+
+It used to bind in the worst possible place. Sessions were read before commits
+and a transcript is unbounded - thousands of turns, growing daily - while
+commits are capped at 500 and are the only source that says *why* something
+was done. First come, first served is the wrong rule when one of the queues
+never ends:
+
+| `knos point` on this repo | commits read | session turns read |
+|---|---|---|
+| sessions first, as it was | **0** of 62 | 1,075 |
+| commits first, at most a third of the cap | **62** of 62 | 994 |
+
+Seven and a half per cent of the transcript, for the entire record of why
+anything was done. `COMMIT_SHARE` in [`answer.py`](../src/knos/answer.py) is a
+named constant because a third is a judgement call rather than a measurement,
+and anybody who disagrees with it should be able to find it.
+[`test_cap_share.py`](../tests/test_cap_share.py) fails with "kept 0 of 12
+commits" if the order goes back.
+
+The message shown when the store fills used to end with "read one folder
+instead: `knos point <repo>/src`". Sessions are read per repo and not per
+folder, so following that advice reads exactly the same turns and fills the
+store again after a second wait. It names the source now.
+
+## Every strength, and where you can watch it
+
+`knos demo` is one command on a throwaway repo it deletes afterwards, about
+fifty seconds. Eleven beats:
+
+| # | beat | what it proves | code |
+|---|---|---|---|
+| 1 | a deleted rule stops being quoted | citations are re-checked, not repeated | [`rules.still_says`](../src/knos/rules.py) |
+| 2 | one agent claims work | the compare-and-swap | [`memory.claim_if_free`](../src/knos/memory.py) |
+| 3 | the second is refused | the answer itself is withheld, not a warning | [`mcp._held`](../src/knos/mcp.py) |
+| 4 | its edit is refused | the write never lands | [`guard.check`](../src/knos/guard.py) |
+| 5 | buy → free → refused | the record decides whether money moves | [`gate.decide`](../src/knos/gate.py) |
+| 6 | a reversed decision holds work under it | blast radius | [`decide.supersede`](../src/knos/decide.py) |
+| 7 | `knos export` writes a committable record | the repo-level loop | [`share.write`](../src/knos/share.py) |
+| 8 | **a new interpreter recalls it** | **the gate: cold-start, commit hash and clock on screen** | [`core.Claims`](../src/knos/core.py) |
+| 9 | holds each agent earned, and `knos at` | the learned hold, and a past moment | [`record.holds_for`](../src/knos/record.py) |
+| 10 | a private path: you see it, your agent does not | no result **and no notice** | [`private.visible`](../src/knos/private.py) |
+| 11 | **delete the store** | every refusal above reverts | [`test_sibyl_is_load_bearing.py`](../tests/test_sibyl_is_load_bearing.py) |
+
+### What the one command deliberately does not show
+
+Naming these is the point of the table. A judge who finds them missing should
+find them listed here first.
+
+| not in `knos demo` | where it is instead | why |
+|---|---|---|
+| **a real payment on Base** | `python scripts/live_gate.py --spend`, and `knos receipts` | the demo runs on a throwaway repo and spends nothing; beat 5 shows the *decision*, not a settlement |
+| **Base Sepolia grant/revoke** | `knos share ./src --with <name>`, [`Access.sol`](../contracts/src/Access.sol) | it needs a second identity and ~30s of chain round-trips; it is a beat in [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) instead |
+| **the Virtuals ACP job** | [job 75659](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64), and `@KnosWireBot` on Telegram | a live ACP job takes minutes to dispatch |
+| **`knos restore`** | [`test_restore.py`](../tests/test_restore.py), 12 tests | beat 7 writes the file; a fresh clone reading it back needs a second checkout |
+| **`knos why`** | run it yourself - it counts *your* transcripts | it measures the machine it runs on, so a recording of mine says nothing about yours |
+| **`knos worth`** | run it on a repo you have used | it is zero on a throwaway repo, which is the honest answer and a dull beat |
+
+**The multiplier depends on the first two rows.** The rule is that a stack
+counts when a judge sees it doing real work in the demo, and `knos demo` shows
+neither a payment nor a grant. The recording has to include one of:
+`scripts/live_gate.py --spend` (a real x402 settlement, refused in the middle
+by the record), or `knos receipts` resolving all twelve hashes against the
+chain, or the Telegram bot buying something live. Without one of them on tape,
+the on-chain work is documented rather than demonstrated.
+
+## Every way in, and what each one is
+
+Six reviews called this a narrow product. They were reading a README whose
+heading says "Three ways in" - written when there were three. Everything here
+was checked rather than remembered:
+
+| way in | what it is | checked |
+|---|---|---|
+| **MCP server** | four tools over stdio, no network, no account | `tests/test_mcp.py`, and the tool set is asserted over a real stdio client |
+| **CLI** | ~25 commands - `point`, `ask`, `claim`, `done`, `who`, `why`, `worth`, `at`, `receipts`, `verify` | `knos help <command>` for each, asserted by `tests/test_cli.py` |
+| **`knos connect`** | writes the config for **four clients**: Claude Code, Cursor, Claude Desktop, OpenCode | [`cli.py`](../src/knos/cli.py), [`docs/connect.md`](connect.md) |
+| **`knos guard --install`** | the write-blocking hook, into Cursor and OpenCode | [`guard.py`](../src/knos/guard.py) |
+| **Claude Desktop extension** | `knos.mcpb`, manifest 0.4, one click | [`extension/manifest.json`](../extension/manifest.json) |
+| **Claude Code plugin** | a `PreToolUse` hook on Edit/Write/NotebookEdit | [`plugins/knos/hooks/hooks.json`](../plugins/knos/hooks/hooks.json) |
+| **GitHub Action** | zero install, comments on a pull request that touches claimed work | [`action/action.yml`](../action/action.yml) |
+| **Telegram bot** | the one surface a person uses with nothing installed | [`agent/bot.ts`](../agent/bot.ts) |
+| **Virtuals ACP provider** | sells one answer out of the store; job 75659 settled on Base | `knos receipts` |
+| **x402 buyer** | pays for what it does not know, on Base mainnet | `knos receipts`, [`live-gate.json`](evidence/live-gate.json) |
+| **`knos-hermes`** | knos as a Hermes `MemoryProvider`, its own package | [PyPI](https://pypi.org/project/knos-hermes/) |
+
+And the distribution, which is not a surface but is the same question:
+
+| | |
+|---|---|
+| PyPI `knos` | published, **9 releases**, latest 0.1.8 |
+| PyPI `knos-hermes` | published, 0.1.0 |
+| MCP directory | [awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480), **merged** by the owner into a 94.5k-star index |
+| MCP registry | `server.json`, `io.github.drexthealpha/knos` |
+| Glama | `glama.json` |
+| Base Sepolia | `Access.sol` deployed, granted and revoked - three receipts |
+
+**What this does not claim.** None of these has retained users; the count is
+still zero and [`PMF.md`](PMF.md) says so. Breadth of surface is not adoption,
+and a judge should read this table as "the work exists and runs", not as
+evidence that anybody depends on it.
+
+## The same claim with the simulation taken out
+
+`promotion_bench.py` is seeded and says so. This is the identical argument
+against real money: one agent, one endpoint, one price, and the only thing
+that changes between rounds is what the store knows about that agent.
+
+| round | what the store knew | it did | cost |
+|---|---|---|---|
+| 1 | nothing about this agent | **paid** on Base | $0.001 |
+| 2 | four claims taken, none closed | **refused by the record** | $0.000 |
+| 3 | the same four, now closed | **free, the store already had it** | $0.000 |
+
+Total moved: **$0.001**. The receipt is
+[0x7df644ad5b66665d...](https://basescan.org/tx/0x7df644ad5b66665d724dbb4f6567df6f189baa1350bdb383f628cfc50e71084e) and `knos receipts` reads it out
+of [`live-gate.json`](evidence/live-gate.json) rather than from a hash typed
+into the verifier - a pinned copy went stale on the very next run, which is
+the same fault this repo spent the day removing from its answers.
+
+Round 2 is the measurement. The money that did not move is the whole claim,
+and the refusal is quoted in the store's own words: *"the Telegram bot has
+taken 4 pieces of work here and closed 0."*
+
+**This is cents, not a season.** The wallet behind it holds under a dollar, so
+this establishes that the promoted record is wired to real USDC in a shipped
+product - the Telegram bot, which is also the Virtuals ACP provider - and not
+how the number scales. Anyone comparing it to a thousand-forecast run with a
+funded treasury is comparing the right things and should reach the obvious
+conclusion.
+
+## What the promoted record is worth, and where it is not worth much
+
+An agent's record is written to the journal as it happens, promoted into a
+canonical WARM entity once there are two observations, pooled with a
+thirty-minute prior while the evidence is thin, weighted lighter the longer
+that agent has been quiet, and archived out of WARM after a season - coming
+back the next time it claims anything. `record.py` owns all of it and the
+journal stays the audit trail, so `knos at` still reconstructs a past moment
+from what was written at the time rather than from a running total.
+
+`python scripts/promotion_bench.py` runs 200 seeded working
+months, three arms, same dice:
+
+| arm | blocked minutes | wasted spend |
+|---|---|---|
+| blind - the store deleted | 8,105 | $6.72 |
+| the journal ratio alone | 4,325 | $0.77 |
+| the promoted record | 4,292 | $0.63 |
+
+Memory against no memory is the gate's own question and it is not close:
+**100.0%** of seeds waited less, and the
+mean saving is 3,814 minutes
+with a 5th percentile of 3,136.
+
+**Promotion against the old ratio is a much smaller claim, and it depends
+entirely on one number.** The journal is a window - the last thousand rows,
+shared with every fact knos read out of the repo - so how much it forgets
+decides how much the durable record adds. Swept rather than asserted:
+
+| journal window | journal wasted | promoted wasted |
+|---|---|---|
+| 10 events | $4.60 | $0.62 |
+| 20 events | $1.73 | $0.62 |
+| 40 events | $0.77 | $0.62 |
+| 80 events | $0.66 | $0.62 |
+| 160 events | $0.65 | $0.62 |
+| 320 events | $0.64 | $0.62 |
+
+At a tight window promotion is worth **7.4x**; at a wide one it is
+worth **1.03x**, which is nothing. The promoted column does not
+move, because it does not read a window. So this is worth having on a busy
+repo whose store is under pressure - which is the repo knos was built in,
+where `knos point` fills the 5 MB tier - and close to pointless on a quiet one.
+
+**It is a simulation.** No model, no real money: agent reliabilities are the
+input assumption and are listed in the file. It shows what the rule does given
+that behaviour, which is weaker than a live economic run and is labelled that
+way wherever it appears. An earlier version of the bench had no window at all,
+which gave the journal a perfect memory and made promotion look like pure
+cost; that was a broken experiment and it stays in the record.
+
+## How often two agents are really working at once
+
+Everything else about the problem this addresses was asserted. Claude Code
+writes a timestamped transcript per session and knos already reads them, so
+`python scripts/concurrency.py` counts the windows in which two or more
+different sessions each did something. On this machine, over
+5,866 real turns across 11 sessions:
+
+<!-- counted: docs/evidence/concurrency.json -->
+
+| window | with any agent working | with two or more |
+|---|---|---|
+| 1 minute | 4,042 | 458 (11.3%) |
+| 5 minutes | 1,977 | 194 (9.8%) |
+| 15 minutes | 984 | 97 (9.9%) |
+| 30 minutes | 590 | 59 (10.0%) |
+<!-- /counted -->
+
+Four widths, because a share that only holds at one of them is a property of
+the bucketing rather than of the day. It does not move.
+
+**Check it against your own week.** `knos why` runs the same count over the
+transcripts on the machine you are reading this on:
+
+```
+knos why
+```
+
+Offline, writes nothing, and prints the share at four window widths. If you
+have never run two agents at once it says exactly that and tells you knos is
+probably not for you. That case is tested (`tests/test_why.py`) because a tool
+that only speaks up when the number flatters it is an advert.
+
+**Read it for what it is.** This is the precondition for a collision and not a
+collision rate: two sessions in the same minute may be nowhere near each other
+in the tree, and nothing here claims they met. It is also one developer's
+machine - the one knos was built on - so it is evidence about that working day
+and not a population estimate. The script publishes counts only; no transcript
+content and no session identifiers go into the file. Run it on your own
+machine, where the number can actually decide something for you.
+
+## Where knos stops being worth running
+
+Every other number here comes from a simulation whose parameters somebody
+chose, and you should discount them accordingly. `duplicated.json` is the
+exception: four durations, measured by a clock, on the machine that wrote the
+file. `python scripts/duplicated.py` writes it again, and the daily workflow
+already does.
+
+<!-- measured: docs/evidence/duplicated.json -->
+
+| | measured |
+|---|---|
+| the compare-and-swap that refuses a claim | 0.78 ms |
+| one MCP tool call, which opens the store and closes it | 43.2 ms |
+| a cold `knos` command, the slowest path here | 141 ms |
+| one real source file of this repo, read and parsed | 5.8 ms |
+<!-- /measured -->
+
+So a tool call pays for itself once it prevents **7.4** files of
+duplicated work, and a cold command at **24.2**. Below that,
+coordinating costs more than colliding, which is the honest shape of this and
+is why the break-even is published rather than the ratio alone.
+
+Read as a single number - the whole cold path against one file - this comes
+out *against* knos, and the first version of the script reported exactly that.
+Taking it apart is what made it useful: almost all of the cost is opening the
+store, not coordinating. The work measured is a read and a parse - a real agent also
+sends the file to a model, which this machine cannot measure without a
+network, so those break-evens are ceilings.
+
+## Every citation was checked before it was printed
+
+Two of the sources knos answers from name a line in a file somebody is still
+editing: the instruction files, and code structure. Both used to print a line
+number from when the repo was last read. Both were reproduced failing - a rule
+deleted from `CLAUDE.md` still being quoted at a line that had become
+`## Style`, and a function still cited at `pay.py:1` after five lines were
+added above it - and both now re-read the file at the moment the answer is
+built:
+
+- the file still says it, at a different line - the new line is printed
+- the file no longer says it - it is not offered at all
+- the file cannot be read - the citation stands, because not being able to
+  check is not evidence against
+
+The other sources are not checked, deliberately. A commit and a past session
+are historical records cited by an identifier that cannot move; re-reading the
+file a commit touched would not make its message truer. That is the whole
+invariant: **every citation knos prints was either verified as it was printed,
+or is a record whose identifier cannot change.**
 
 ## If you are looking for the soft spot
 
@@ -512,12 +799,14 @@ status `0x1`, USDC contract `0x8335…2913` in the logs. Full detail in
 Stated because a judge will find them anyway, and because the rest of the
 page is worth more if this one is complete.
 
-- **No retained users.** Nobody has adopted Knos and kept it. 841 PyPI
+- **No retained users.** Nobody has adopted Knos and kept it. 1,039 PyPI
   downloads in a week against 1 star is automated traffic, not people.
-  What does exist is external validation of a different kind: **two pull
+  What does exist is external validation of a different kind: **three pull
   requests merged into third-party repositories** by their maintainers
   ([caura#1299](https://github.com/caura-ai/caura/pull/1299),
-  [drt#1098](https://github.com/drt-hub/drt/pull/1098)), seven more open, and
+  [drt#1098](https://github.com/drt-hub/drt/pull/1098),
+  [stacktale#231](https://github.com/stacktale/stacktale/pull/231)), five more
+  open, four closed on the merits, and
   a measured problem - 1,254 of 100,057 sampled issues. Full ledger, including
   the 34 earlier pull requests that failed and were withdrawn:
   [PMF.md](PMF.md).

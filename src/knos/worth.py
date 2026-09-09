@@ -14,6 +14,7 @@ something, out of records written for their own reasons at the time:
     overrode      an agent forced past a claim, and said why
     reversed      a decision was withdrawn and work under it was held
     finished      claims closed rather than left to lapse
+    withdrawn     a rule its own file had stopped carrying, not served
 
 There is no separate counter and nothing is incremented anywhere. These are
 read back out of WARM and the journal, which means the numbers cannot drift
@@ -41,10 +42,15 @@ def _dates(rows: list[dict[str, Any]]) -> tuple[str, str]:
 def tally(mem: Any) -> dict[str, Any]:
     """What has happened here, counted from what was written down."""
     from . import decide, record
-    from .memory import OVERRODE, STOOD_DOWN
+    from .memory import OVERRODE, STOOD_DOWN, WITHDRAWN
 
     stood = mem.things(STOOD_DOWN, limit=1000)
     forced = mem.things(OVERRODE, limit=1000)
+    # A rule knos stopped repeating because CLAUDE.md stopped saying it. This
+    # is the only one of these counts that is about a wrong answer prevented
+    # rather than a collision, and it is the one that happens on a repo with
+    # a single agent on it.
+    dropped = mem.things(WITHDRAWN, limit=1000)
 
     taken = finished = 0
     people: set[str] = set()
@@ -61,6 +67,7 @@ def tally(mem: Any) -> dict[str, Any]:
         "stood_down": len(stood),
         "overrode": len(forced),
         "held": len(decide.suspects(mem)),
+        "withdrawn": len(dropped),
         "claims_taken": taken,
         "claims_finished": finished,
         "agents": len({p for p in people if p}),
@@ -87,6 +94,15 @@ def _span(first: str, last: str) -> str:
 def sentence(got: dict[str, Any]) -> str:
     """One line a person can act on, or an honest nothing."""
     if not got["stood_down"] and not got["overrode"]:
+        if got.get("withdrawn"):
+            one = got["withdrawn"] == 1
+            rules_said = "One rule" if one else f"{got['withdrawn']} rules"
+            return (
+                f"{rules_said} in this repo's instruction files "
+                f"{'was' if one else 'were'} deleted after knos read "
+                f"{'it' if one else 'them'}, and knos stopped answering with "
+                f"{'it' if one else 'them'}. Nothing has collided here yet."
+            )
         if got["claims_taken"]:
             claims = "One claim" if got["claims_taken"] == 1 else (
                 f"{got['claims_taken']} claims")

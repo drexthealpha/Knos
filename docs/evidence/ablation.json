@@ -1,7 +1,11 @@
 {
   "trials": 12,
   "seed": 1337,
+<<<<<<< HEAD
   "when": "2026-09-09T09:50:08.896344+00:00",
+=======
+  "when": "2026-09-09T09:50:15.894726+00:00",
+>>>>>>> 828866f (A record an agent earns, a citation that cannot go stale, and money that stops moving)
   "arms": {
     "withhold": {
       "on_refused": 12,
@@ -33,6 +37,11 @@
       "lost_before": 12,
       "back_after": 12,
       "claims_stayed_gone": 12
+    },
+    "stale_rule": {
+      "answered": 12,
+      "withdrawn": 12,
+      "answered_without_store": 0
     }
   }
 }

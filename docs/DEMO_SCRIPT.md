@@ -20,7 +20,7 @@ knos demo
 ```
 
 That installs from the repository rather than PyPI on purpose. The last
-release, 0.1.8, predates `knos who` and the ninth beat, so a recording made
+release, 0.1.8, predates `knos who`, the tenth beat and the first one, so a recording made
 against it would not match this script.
 
 Do not be thrown by `knos --version` saying `0.1.8`: that is the last number
@@ -83,40 +83,45 @@ failure worth restarting for is a command that errors out.
 
 ---
 
-## The short route: one command, one take
+## Which of these to record
 
-`knos demo` now does the whole argument by itself, in about half a minute,
-against a throwaway repo it deletes afterwards. Every line is a real call.
+**Record the staged take below, with the file viewer open.** Not `knos demo`.
+
+That is a deliberate reversal of what this document used to say, and the
+reason is the Builder Tip at the top of it: *show the file, not just the
+claim*. `knos demo` opens no file. It prints eleven beats in about fifty
+seconds - four and a half seconds each - and a viewer who cannot pause it sees
+a list of features going past rather than a person getting something done.
+The rules name that failure directly: *"Memory used as a trivial notepad
+passes the gate but scores at the floor. Build something people would actually
+use."*
+
+**`knos demo` is still the right artifact - for a different reader.** It exists
+so a judge can verify eleven claims in under a minute without taking any of
+them on trust, ending with the store deleted and every refusal reverting. Put
+it in the README and the judge guide. Do not point a camera at it.
 
 ```bash
 pip install "git+https://github.com/drexthealpha/Knos"
-knos demo
+knos demo          # a judge runs this. you do not film it.
 ```
 
-Record that uncut, with a clock in shot, and the gate's two required pieces
-of evidence are both in one continuous segment:
+What the staged take must contain, because the gate and the multiplier both
+turn on it:
 
-- **Beat 7, cold-start recall.** A separate interpreter, handed nothing but
-  the repo path, prints its own pid next to the repo's commit hash and the
-  wall clock, then reads back what an earlier process wrote. That is a fresh
-  session recalling earlier state with an on-screen commit hash, which is what
-  the rules ask for in those words.
-- **Beat 9, the deletion test.** The store is deleted on camera and every
-  refusal is re-run: the withhold gone, the edit allowed, the paid answer
-  buying again, the held decisions released, and every agent's record
-  forgotten.
-
-Beat 8 in between is the part worth narrating over: the store showing which
-agents finish what they claim, and the hold each has earned by it.
-
-If you have four minutes and a funded wallet, the staged version below is the
-better film - two real agent windows, a real purchase, the store visible in a
-second pane. If you have one take and no appetite for something failing live,
-record the command above.
+- **The fresh-session recall beat**, as one continuous unedited segment with a
+  visible clock or commit hash. This is the gate. Nothing else substitutes.
+- **One partner stack doing real work on camera.** `knos receipts` resolving
+  all twelve hashes against the chain, or `scripts/live_gate.py --spend`
+  paying and then being refused by the record, or `@KnosWireBot` buying
+  something in Telegram. A stack that is documented but not exercised loses
+  the bonus - the rules say so in those words.
+- **A file open beside the terminal**, so the answer and its source are on
+  screen together.
 
 ---
 
-## The long route: staged, two agents
+## The recording, beat by beat
 
 ## Before you start
 
@@ -133,7 +138,32 @@ for the last beat to land.
 
 ---
 
-## Beat 1 - the failure, stated in one sentence (0:00-0:20)
+## Beat 1 - your own CLAUDE.md, open on camera (0:00-0:30)
+
+**Open this take with the file already on screen.** It is the Builder Tip
+made literal: the file is visible, the question is asked, and the answer and
+its source are in the same frame. It needs no second agent, nothing installed
+beyond knos, and it is the beat a viewer understands before you have explained
+anything.
+
+```bash
+knos point .
+knos ask "<a few words from one rule in that file>"
+```
+
+It answers with the rule and the line it is on. Now delete that rule in the
+file viewer pane, on camera, and run the same command again. knos stops
+quoting it - and the pane on the right shows why, which is the Builder Tip
+about showing the file rather than the claim, done without staging anything.
+
+Say the one sentence it proves:
+
+> It is not repeating something it read. It checked.
+
+Every timestamp below now runs from the start of this beat. Five minutes is
+the hard limit.
+
+## Beat 2 - the failure, stated in one sentence (0:30-0:50)
 
 Say it, do not caption it:
 
@@ -142,7 +172,7 @@ Say it, do not caption it:
 
 Show both agent windows open on the same folder. That is the whole setup.
 
-## Beat 2 - the claim, and the refusal (0:20-1:10)
+## Beat 3 - the claim, and the refusal (0:50-1:40)
 
 In agent A:
 
@@ -168,7 +198,7 @@ That is recorded against your name.
 Say the line that matters: **it is not a warning attached to an answer. There
 is no answer.**
 
-## Beat 3 - the refusal reaches the edit (1:10-1:50)
+## Beat 4 - the refusal reaches the edit (1:40-2:20)
 
 Ask agent B to change the file:
 
@@ -184,7 +214,7 @@ Blocked by knos: the risk guard is being worked on by Claude Code right now.
 This is the beat most tools cannot do, because a claim that only decorates an
 answer is advice. This one stops the edit.
 
-## Beat 4 - the record leaves the machine (1:50-2:25)
+## Beat 5 - the record leaves the machine (2:20-2:55)
 
 ```bash
 knos export          # writes .knos/decisions.md
@@ -199,7 +229,7 @@ the browser, where the Action already ran against this file, matched a
 standing claim, named the holder, and exited 0. Say: **nobody on that side
 installed anything.**
 
-## Beat 5 - both partner stacks, on the same file (2:25-3:10)
+## Beat 6 - both partner stacks, on the same file (2:55-3:40)
 
 ```bash
 npm --prefix agent run bot -- "/brief BTC"
@@ -245,7 +275,7 @@ would be out of date before it arrived.
 
 **A claim did not warn about a purchase. It stopped one.**
 
-## Beat 6 - delete it (3:10-3:45)
+## Beat 7 - delete it (3:40-4:15)
 
 ```bash
 rm ~/.knos/*/memory.db
@@ -267,7 +297,7 @@ Close on it:
 > Delete the memory and this is not a worse version of the product. There is
 > no product. That is what load-bearing means, and it is the whole argument.
 
-## Beat 7 - the numbers, if there is time (3:45-4:00)
+## Beat 8 - the numbers, if there is time (4:15-4:30)
 
 ```bash
 python scripts/ablation.py

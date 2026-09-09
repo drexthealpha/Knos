@@ -148,3 +148,64 @@ def _blocks(text: str) -> list[tuple[str, int]]:
         for b, n in blocks
         if len(b) > 12 and not (b.startswith("#") and len(b.splitlines()) == 1)
     ]
+
+# What each instruction file said, keyed by the file's own mtime and size, so
+# a question that quotes six rules from one file reads it once. Keyed like the
+# guard's caches rather than by a clock: a rule can be deleted and the file
+# saved twice inside any interval short enough to be worth caching.
+_SAID: dict[tuple[str, int, int], dict[str, int]] = {}
+
+
+def _current(f: Path) -> dict[str, int] | None:
+    """{block text: the line it starts on} for one file as it is right now.
+
+    None when the file cannot be read at all, which is not the same answer as
+    an empty file: one is "I could not check", the other is "it says nothing".
+    """
+    try:
+        st = f.stat()
+        key = (str(f), st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+    hit = _SAID.get(key)
+    if hit is None:
+        try:
+            text = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+        hit = {block[:KEEP]: line for block, line in _blocks(text)}
+        # One file's worth of small blocks, and only the newest few files.
+        if len(_SAID) > 32:
+            _SAID.clear()
+        _SAID[key] = hit
+    return hit
+
+
+def still_says(repo: Path, text: str, where: str) -> str | None:
+    """Where this rule is in its file NOW, or None if the file dropped it.
+
+    Three answers, and the middle one is the reason this returns a string
+    rather than a bool:
+
+    - the file still carries the rule: the line it is on today, which is not
+      always the line it was read from. An edit above a rule moves it, and a
+      receipt pointing at the wrong line is wrong even though the rule is
+      right.
+    - the file no longer carries it: None. The caller must not serve it.
+    - the file cannot be read: `where` unchanged. Not being able to check is
+      not evidence against the rule, and a permissions error is not a repeal.
+      A file that is *gone* is a repeal, and reads as one.
+    """
+    path, _, _line = str(where).rpartition(":")
+    if not path:
+        return where          # not a file citation; nothing to check it against
+    f = Path(repo) / path
+    if not f.exists():
+        return None           # the file that held the rule is gone
+    said = _current(f)
+    if said is None:
+        return where
+    line = said.get(str(text)[:KEEP])
+    if line is None:
+        return None
+    return f"{path}:{line}"

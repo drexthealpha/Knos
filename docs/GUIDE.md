@@ -230,7 +230,7 @@ is a command or a test rather than a claim:
 | Stack | What it does in this repo | Where | Check it without installing anything |
 |---|---|---|---|
 | **Sibyl Memory** | the store. Every claim, answer, journal entry and export goes through it. Required. | `src/knos/memory.py` | [`tests/test_sibyl_is_load_bearing.py`](../tests/test_sibyl_is_load_bearing.py) deletes it and watches the product fail |
-| **Base** | **mainnet, real USDC.** Every purchase settles over x402, and the receipt goes back into the store - so [the money gate](../src/knos/gate.py) reads a Base transaction hash to decide whether to spend again. Secondarily, `knos share ./src --with alice.base.eth` records who may read what onchain (Sepolia). | [`src/knos/buy402.py`](../src/knos/buy402.py), [`src/knos/gate.py`](../src/knos/gate.py), [`contracts/src/Access.sol`](../contracts/src/Access.sol) | four purchases on mainnet - [$0.001](https://basescan.org/tx/0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76) Â· [$0.01](https://basescan.org/tx/0xce109c28781fec2ea12b8e115d59b1bfea219434379a30d472cf72b4abd9a85e) Â· [$0.001](https://basescan.org/tx/0xa8e7135e6c41e6eb8ed5d15b5dbf5aafc5a8f748e9d16e08aa1ae6d9c0466103) Â· [$0.01](https://basescan.org/tx/0x3a45e0066fbf764731f98dab3f023ee2a690dc8923f08ae7f9cb4332e049a88b) - and the Sepolia contract [`0x955fa320â€¦6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52) |
+| **Base** | **mainnet, real USDC.** Every purchase settles over x402, and the receipt goes back into the store - so [the money gate](../src/knos/gate.py) reads a Base transaction hash to decide whether to spend again. Secondarily, `knos share ./src --with alice.base.eth` records who may read what onchain (Sepolia). | [`src/knos/buy402.py`](../src/knos/buy402.py), [`src/knos/gate.py`](../src/knos/gate.py), [`contracts/src/Access.sol`](../contracts/src/Access.sol) | five purchases on mainnet - [$0.001](https://basescan.org/tx/0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76) Â· [$0.01](https://basescan.org/tx/0xce109c28781fec2ea12b8e115d59b1bfea219434379a30d472cf72b4abd9a85e) Â· [$0.001](https://basescan.org/tx/0xa8e7135e6c41e6eb8ed5d15b5dbf5aafc5a8f748e9d16e08aa1ae6d9c0466103) Â· [$0.01](https://basescan.org/tx/0x3a45e0066fbf764731f98dab3f023ee2a690dc8923f08ae7f9cb4332e049a88b)  · [$0.001, gated by the record](https://basescan.org/tx/0x7df644ad5b66665d724dbb4f6567df6f189baa1350bdb383f628cfc50e71084e) - and the Sepolia contract [`0x955fa320â€¦6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52) |
 | **Virtuals** | a **Telegram bot** that is also a registered ACP provider: it sells one answer out of this store, and pays over x402 for a brief it writes back with `knos remember`. Runs on the console with no Telegram account. Optional, off by default. | [`agent/bot.ts`](../agent/bot.ts), [`agent/offering.ts`](../agent/offering.ts), [`src/knos/buy402.py`](../src/knos/buy402.py) | [the agent page](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc), and job 75659 in two legs: [escrow funded](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64), [provider paid](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59) |
 
 Base and Virtuals are **optional and off by default** â€” Knos runs with both
@@ -288,8 +288,8 @@ proof is [`tests/test_sibyl_is_load_bearing.py`](../tests/test_sibyl_is_load_bea
 which takes the store away and asserts that both the withholding and the
 answers die with it.
 
-Under it is a local MCP server: three tools over stdio â€” `search`, `about`,
-`remember`. No HTTP server, no ports, no account, no model download, no repo
+Under it is a local MCP server: four tools over stdio â€” `search`, `about`,
+`remember`, `done`. No HTTP server, no ports, no account, no model download, no repo
 to register, and [no network connection at all](../tests/test_no_network.py):
 that last one is a test, not a promise.
 
@@ -396,7 +396,7 @@ where this costs neither.
 
 Knos is not trying to out-remember these tools. It is trying to be the one
 that speaks up while two agents are in the same code, and to cost you two
-commands and three tools to find out.
+commands and four tools to find out.
 
 ## One agent is enough to see it
 
@@ -934,9 +934,9 @@ an agent of mine registered to prove the path executes. It is not demand.
 ## Tests
 
 `pytest` runs the critical path only â€” claim, withhold, concurrency,
-no-network, three tools, private files â€” **27 tests in well under a minute**,
+no-network, the four tools, private files, a rule its file dropped â€” **63 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **294 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **421 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so

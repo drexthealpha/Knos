@@ -103,6 +103,17 @@ def test_a_guest_still_gets_code_when_the_repo_is_noisy(knos_home, repo, monkeyp
     """
     from knos import answer, code
 
+    # The symbol below is mocked, but the file it cites is not: a citation is
+    # re-read before it is printed now, and a stand-in pointing at a file that
+    # was never written is dropped for the right reason. Writing it keeps this
+    # test about what it is named for.
+    src = repo / "src"
+    src.mkdir(exist_ok=True)
+    (src / "auth.py").write_text(
+        "\n".join(["# auth"] * 11 + ["def retry(n):", "    return n"]) + "\n",
+        encoding="utf-8",
+    )
+
     with Memory(repo) as mem:
         for i in range(8):
             mem.record(

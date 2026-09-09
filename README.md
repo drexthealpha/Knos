@@ -9,7 +9,7 @@
 
 **Check every claim on this page without installing anything:
 [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)** — the
-collision study, the twelve arms, the money gate and all eleven on-chain
+collision study, the twelve arms, the money gate and all twelve on-chain
 receipts, each number read live out of the JSON the scripts wrote.
 
 **One shared memory for every coding agent on your machine.** Two agents, or
@@ -27,7 +27,7 @@ knos demo
 From the repository: [PyPI](https://pypi.org/project/knos/) is the last cut
 release and trails `main`.
 
-Half a minute on a throwaway repo it deletes afterwards. A claim, a second
+Fifty seconds on a throwaway repo it deletes afterwards. A claim, a second
 agent **refused**, an edit **blocked before the write**, a purchase that costs
 nothing the second time, a reversed decision **holding the work under it**, a
 **process that has never seen the repo** reading it all back with its own pid
@@ -45,13 +45,14 @@ hosted knos, and there will not be one.
 | | Knos |
 |---|---|
 | Listed in the MCP directory | **yes** — [awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480), merged by the owner into a 94.5k-star index |
-| Code merged by third-party maintainers | **2** — [caura#1299](https://github.com/caura-ai/caura/pull/1299), [drt#1098](https://github.com/drt-hub/drt/pull/1098); **6** more open, including [repomix#1837](https://github.com/yamadashy/repomix/pull/1837) |
+| Code merged by third-party maintainers | **3** merged, **5** still open — [the list](https://github.com/pulls?q=is%3Apr+author%3Adrexthealpha+-user%3Adrexthealpha) |
 | Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** unshared — [`collide.json`](docs/evidence/collide.json) |
-| Onchain receipts that resolve | **11 of 11**, 8 on Base mainnet with USDC — `knos receipts` |
+| Onchain receipts that resolve | **12 of 12**, 9 on Base mainnet with USDC — `knos receipts` |
 | Money spent on work that got dropped | **$0.044 to $0.000** — the gate reads who is asking, [`budget.json`](docs/evidence/budget.json) |
 | Hold length learned per agent | **29% less** time blocked — [`contention.json`](docs/evidence/contention.json) |
 | Evidence regenerated on a clean machine | **daily** in public CI — last run reproduced every figure identically |
 | Record of who overrode whom | **chained per writer** — `knos verify` names an edited entry |
+| A rule deleted from `CLAUDE.md` | **stops being quoted** — [`test_fresh_rules.py`](tests/test_fresh_rules.py) |
 | Refusal that stops a filesystem write | **yes**, and renaming the file does not get past it |
 | Retained users | **none.** [The full ledger](docs/PMF.md), including 34 pull requests that failed |
 

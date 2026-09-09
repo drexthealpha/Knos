@@ -1,0 +1,94 @@
+{
+  "generated": "2026-09-09T06:45:16.266929+00:00",
+  "seeds": 200,
+  "day_minutes": 480,
+  "days": 30,
+  "journal_window_events": 40,
+  "agents": {
+    "Claude Code": 0.95,
+    "Cursor": 0.9,
+    "a crashy runner": 0.1,
+    "a stale CI agent": 0.05
+  },
+  "window_sweep": {
+    "10": {
+      "journal_wasted_usd": 4.6,
+      "promoted_wasted_usd": 0.624
+    },
+    "20": {
+      "journal_wasted_usd": 1.73,
+      "promoted_wasted_usd": 0.624
+    },
+    "40": {
+      "journal_wasted_usd": 0.773,
+      "promoted_wasted_usd": 0.624
+    },
+    "80": {
+      "journal_wasted_usd": 0.658,
+      "promoted_wasted_usd": 0.624
+    },
+    "160": {
+      "journal_wasted_usd": 0.645,
+      "promoted_wasted_usd": 0.624
+    },
+    "320": {
+      "journal_wasted_usd": 0.643,
+      "promoted_wasted_usd": 0.624
+    }
+  },
+  "arms": {
+    "blind": {
+      "blocked_minutes": {
+        "mean": 8105.48,
+        "median": 8087.24,
+        "p05": 7296.29,
+        "p95": 8953.32
+      },
+      "wasted_usd": {
+        "mean": 6.72,
+        "median": 6.7,
+        "p05": 6.45,
+        "p95": 7.0
+      }
+    },
+    "journal": {
+      "blocked_minutes": {
+        "mean": 4324.82,
+        "median": 4339.99,
+        "p05": 3826.61,
+        "p95": 4806.33
+      },
+      "wasted_usd": {
+        "mean": 0.77,
+        "median": 0.77,
+        "p05": 0.63,
+        "p95": 0.96
+      }
+    },
+    "promoted": {
+      "blocked_minutes": {
+        "mean": 4291.62,
+        "median": 4280.25,
+        "p05": 3845.08,
+        "p95": 4836.92
+      },
+      "wasted_usd": {
+        "mean": 0.63,
+        "median": 0.63,
+        "p05": 0.52,
+        "p95": 0.73
+      }
+    }
+  },
+  "promoted_vs_blind": {
+    "seeds_with_less_waiting": 200,
+    "share_of_seeds": 100.0,
+    "minutes_saved": {
+      "mean": 3813.86,
+      "median": 3783.43,
+      "p05": 3135.9,
+      "p95": 4590.4
+    }
+  },
+  "what_this_is_not": "A live economic run. This is a simulation: there is no model in this loop and no real money: agent behaviour is seeded from the reliabilities listed above, so this measures what the rule does given that behaviour, not what a language model would do. It is weaker evidence than a real-money ablation, and its only claim is that the difference between the arms is not one lucky seed. An earlier version of this bench ran a single day with every event visible for ever, which gave the journal arm a perfect memory and left promotion nothing to beat - the prior's caution showed up as pure cost. That was a broken experiment, not a result: the window is the thing the promoted record exists to survive, so the bench has to have one."
+}

@@ -151,6 +151,24 @@ PER_COMMAND = {
   its agent had earned by that moment - not the one it has earned
   since, because the older number is the one that decided whether the
   edit was refused.""",
+    "why": """  knos why
+
+  Whether you have the problem knos is for, counted on your own
+  machine rather than argued for.
+
+  Claude Code writes a timestamped transcript for every session it
+  runs, and knos already reads those as a source. This counts the
+  windows in which two or more of your sessions were each doing
+  something - at four widths, because a share that only holds at one
+  of them is a property of the bucketing rather than of your day.
+
+  That is the precondition for a collision, not a collision: two
+  agents in the same minute may be nowhere near each other in your
+  tree. Nothing here says they met.
+
+  If you have never run two at once it says so, and says knos is
+  probably not for you. Reads only, writes nothing, and nothing
+  leaves the machine.""",
     "worth": """  knos worth
 
   What knos has actually done in this repo: how often an agent asked

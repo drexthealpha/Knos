@@ -160,11 +160,17 @@ every one is `status: 0x1` with the Base USDC contract
 
 Re-checked again on 7 Sep 2026 against a different provider,
 `base-rpc.publicnode.com`, so the result does not rest on one node's view.
-Every transaction hash this repository shows anywhere - eleven of them across
+Every transaction hash this repository shows anywhere - twelve of them across
 the README, this file and `contracts/README.md` - was resolved against the
-chain it is labelled with: **8 of 8 on Base mainnet** (`0x2105`) and **3 of 3
+chain it is labelled with: **9 of 9 on Base mainnet** (`0x2105`) and **3 of 3
 on Base Sepolia** (`0x14a34`), all `status: 0x1`, and the Sepolia contract
 still holds 3,434 bytes of deployed code.
+
+The ninth mainnet hash is newer than the rest and is not typed anywhere: it is
+the payment `scripts/live_gate.py` made on 9 Sep 2026, and `knos receipts`
+reads it out of [`live-gate.json`](evidence/live-gate.json) rather than from a
+copy. A pinned copy went stale on the very next run of that script, which is
+why it is read rather than quoted.
 
 Worth recording how that check first came out. The script asked mainnet for
 all eleven and reported three missing, which read exactly like fabricated

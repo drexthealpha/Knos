@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from . import code, errors, git, private, rules
-from .memory import INTERNAL, PERSON, Fact, Memory
+from .memory import INTERNAL, PERSON, WITHDRAWN, Fact, Memory
 
 STOP = {
     "a", "about", "an", "and", "are", "as", "at", "be", "but", "by", "did",
@@ -48,6 +48,14 @@ class Passage:
 # storing fewer of them: a repo whose oldest half is missing has holes a
 # person cannot see, while shorter passages still point at everything.
 KEEP_CHARS = 280
+
+# Sibyl's free tier, and the most of it any one source may take before the
+# next is read. A fact costs about 5.5 KB on disk once it is indexed, so five
+# megabytes is roughly a thousand of them - the cap binds on real repositories
+# rather than being theoretical, and what fills it first decides what knos can
+# answer at all.
+FREE_TIER_MB = 5.0
+COMMIT_SHARE = 0.35
 
 # How many good passages count as an answer. Below this, a prose question
 # also asks the code reader, and pays the seconds that costs.
@@ -240,6 +248,7 @@ def point(
         "rules": 0,
         "sessions": 0,
         "commits": 0,
+        "commits_capped": 0,
         "code": 0,
         "private": 0,
         "full": 0,
@@ -273,29 +282,6 @@ def point(
             break
         counts["rules"] += 1
 
-    # Newest first, so that if the store fills up what knos kept is the part
-    # anyone is likely to ask about.
-    if not counts["full"]:
-        say("looking for past agent sessions")
-        for turn in reversed(sessions.read_all(repo)):
-            if not mem.record(
-                Fact(
-                    text=_trim(turn.text),
-                    source="session",
-                    where=turn.where,
-                    when=turn.when,
-                    about=turn.client,
-                )
-            ):
-                counts["full"] = 1
-                break
-            counts["sessions"] += 1
-            if counts["sessions"] % 100 == 0:
-                say(f"{counts['sessions']} things said in past sessions")
-                if out_of_time():
-                    counts["ran_out"] = 1
-                    break
-
     if not counts["full"]:
         # Commits arrive newest first, so the first time a file or a person
         # is seen is their latest. A canonical record is written once, then
@@ -306,7 +292,18 @@ def point(
         say("reading the commits")
         if out_of_time():
             counts["ran_out"] = 1
-        for commit in (() if counts["ran_out"] else git.read_commits(repo)):
+        # Sessions used to be read first and are unbounded, so on a repo with
+        # a busy transcript the store filled before a single commit was read.
+        # Commits go first now and stop at their share of the cap, which
+        # leaves the rest for the sessions rather than taking it all in turn.
+        room = mem.size_mb() + FREE_TIER_MB * COMMIT_SHARE
+        for n, commit in enumerate(() if counts["ran_out"] else git.read_commits(repo)):
+            # Measuring the store is not free, so ask every so often rather
+            # than once per commit. Overshooting the share by a few facts is
+            # fine; reading none of the other source is not.
+            if n and not n % 25 and mem.size_mb() >= room:
+                counts["commits_capped"] = 1
+                break
             visible = [f for f in commit.files if not private.is_private(repo, f)]
             counts["private"] += len(commit.files) - len(visible)
             if not mem.record(
@@ -336,6 +333,31 @@ def point(
             counts["commits"] += 1
             if counts["commits"] % 100 == 0:
                 say(f"{counts['commits']} commits")
+                if out_of_time():
+                    counts["ran_out"] = 1
+                    break
+
+    # Read after the commits, and newest first, so that if the store fills up
+    # what knos kept is the recent end of the transcript. This is the source
+    # that grows without limit, which is why it is no longer the one that
+    # reaches the store first.
+    if not counts["full"]:
+        say("looking for past agent sessions")
+        for turn in reversed(sessions.read_all(repo)):
+            if not mem.record(
+                Fact(
+                    text=_trim(turn.text),
+                    source="session",
+                    where=turn.where,
+                    when=turn.when,
+                    about=turn.client,
+                )
+            ):
+                counts["full"] = 1
+                break
+            counts["sessions"] += 1
+            if counts["sessions"] % 100 == 0:
+                say(f"{counts['sessions']} things said in past sessions")
                 if out_of_time():
                     counts["ran_out"] = 1
                     break
@@ -432,11 +454,21 @@ def ask(
                 str(hit.get("about") or "")
             ):
                 continue
+            here = str(hit.get("where") or hit.get("about") or "knos memory")
+            if hit.get("source") == "rules":
+                # The instruction files are the ones agents rewrite. A rule
+                # deleted from CLAUDE.md was still being answered with, citing
+                # a line that by then said something else - a false receipt on
+                # the one source whose whole value is that you can go and look.
+                here = rules.still_says(repo, text, here)
+                if here is None:
+                    _withdraw(mem, text, str(hit.get("where") or ""))
+                    continue
             found.append(
                 Passage(
                     text=text,
                     source=str(hit.get("source") or hit.get("tier") or "note"),
-                    where=str(hit.get("where") or hit.get("about") or "knos memory"),
+                    where=here,
                     path=str(hit.get("path") or ""),
                     score=_score(text, wanted)
                     + (NOTE_LEAD if hit.get("source") == "note" else 0.0)
@@ -452,11 +484,15 @@ def ask(
             text = str(hit.get("text") or "").strip()
             if not text:
                 continue
+            here = rules.still_says(repo, text, str(hit.get("where") or ""))
+            if here is None:
+                _withdraw(mem, text, str(hit.get("where") or ""))
+                continue
             found.append(
                 Passage(
                     text=text,
                     source="rules",
-                    where=str(hit.get("where") or ""),
+                    where=here,
                     path=str(hit.get("path") or ""),
                     score=RULES_QUESTION_LEAD + _score(text, wanted),
                 )
@@ -480,11 +516,18 @@ def ask(
             except Exception:
                 break  # structure is a bonus source, never the reason to fail
             for s in symbols:
+                # Structure comes out of a tags file written when the repo was
+                # last read, so the line it names is a claim about a file
+                # somebody has been editing since. Five lines added above a
+                # function left knos citing the comment that took its place.
+                now = code.still_defines(repo, s.name, s.path, s.line)
+                if now is None:
+                    continue
                 found.append(
                     Passage(
                         text=f"{s.kind} {s.short}",
                         source="code",
-                        where=s.where,
+                        where=s.where if now == s.line else f"{s.path}:{now}",
                         path=s.path,
                         # A question about the shape of the code wants the
                         # code first. Commit prose that merely mentions the
@@ -509,6 +552,31 @@ def ask(
         if len(ranked) >= limit:
             break
     return ranked
+
+
+def _now() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _withdraw(mem: Memory, text: str, where: str) -> None:
+    """Record that a rule stopped being true, once.
+
+    One canonical WARM record per withdrawn rule, schema-unique on its own
+    citation, so a repo whose CLAUDE.md dropped a rule months ago does not
+    grow the store every time somebody asks a question. `knos worth` reads
+    these back; nothing here is a counter, and deleting the store takes them
+    with it, like everything else.
+    """
+    try:
+        mem.note_thing(
+            WITHDRAWN, where, {"text": text[:400], "where": where, "when": _now()}
+        )
+    except Exception:
+        # A rule that cannot be marked withdrawn is still not served. The
+        # ledger is the bonus; the refusal is the product.
+        pass
 
 
 def same_subject(topic: str, question: str) -> bool:

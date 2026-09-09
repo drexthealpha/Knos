@@ -68,6 +68,34 @@ RECEIPTS = [
      "0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4"),
 ]
 
+
+def _live_gate() -> list[tuple[str, str, str]]:
+    """The payment `scripts/live_gate.py` made, read from what it wrote.
+
+    Every other hash above is a one-off that will never change. This one is
+    regenerated whenever the live gate runs, so copying it into the list by
+    hand meant the verifier checked a transaction the evidence file had moved
+    on from - the same fault this repository spent a day removing from its
+    answers. No artifact, nothing to add.
+    """
+    import json
+    from pathlib import Path
+
+    where = Path(__file__).resolve().parent.parent.parent / "docs" / "evidence" / "live-gate.json"
+    try:
+        got = json.loads(where.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    out = []
+    for row in got.get("rounds", []):
+        tx = str(row.get("tx") or "")
+        if row.get("paid") and tx.startswith("0x"):
+            out.append(("mainnet", "x402 news $0.001, live gate", tx))
+    return out
+
+
+RECEIPTS += _live_gate()
+
 CONTRACT = "0x955fa320D60D9172CF048141ed7eEE442da66E52"
 USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
 

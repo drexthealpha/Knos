@@ -61,5 +61,5 @@ testpaths = ["tests"]
 # waits for is a suite nobody runs. Everything with `pytest -m ""`.
 addopts = '-m critical'
 markers = [
-  "critical: claim, withhold, concurrency, no-network, three tools, private files",
+  "critical: claim, withhold, concurrency, no-network, the four tools, private files, a rule its file dropped",
 ]

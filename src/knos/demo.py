@@ -1,4 +1,4 @@
-"""The whole product in one command, against a real store, in half a minute.
+"""The whole product in one command, against a real store, in about fifty seconds.
 
 `knos demo` is the playground. There is no hosted one and there will not be:
 nothing on the read path touches a network, and that is a test rather than a
@@ -93,6 +93,19 @@ class Screen:
         time.sleep(PAUSE)
 
 
+# What the demo repo's instruction file says before the first beat takes a
+# rule out of it. Two rules, so the answer after the deletion is the other one
+# rather than silence - silence is ambiguous on camera.
+RULES = """# Working here
+
+## Testing
+Never use a bare except here. Catch the specific error.
+
+## Style
+Two spaces of indentation everywhere.
+"""
+
+
 def _sandbox(root: Path) -> Path:
     """A real git repo, because knos keys its store on the git common dir."""
     repo = root / "demo-repo"
@@ -100,6 +113,10 @@ def _sandbox(root: Path) -> Path:
     (repo / "risk_guard.py").write_text(
         "def check(asset):\n    # refuses anything we have not seen before\n    return True\n",
         encoding="utf-8",
+    )
+    # An instruction file, because the first beat deletes a rule out of one.
+    (repo / "CLAUDE.md").write_text(
+        RULES, encoding="utf-8"
     )
     run = lambda *a: subprocess.run(  # noqa: E731
         ["git", *a], cwd=repo, capture_output=True, text=True, check=False
@@ -141,9 +158,41 @@ def run(out: Any) -> int:
         time.sleep(PAUSE * 2)
 
         # ---- 1 -------------------------------------------------------------
-        screen.beat(1, "Two agents. One says what it is starting.")
+        screen.beat(1, "One agent, on its own. A rule you deleted stops being quoted.")
         with Memory(repo) as mem:
             answer.point(repo, mem, index_code=False)
+            asked = "can I use a bare except"
+            before = answer.ask(repo, mem, asked)
+        screen.cmd(f'knos ask "{asked}"')
+        screen.said(
+            (before[0].text.splitlines()[-1] + "\n    " + before[0].where)
+            if before else "(nothing)",
+            "green",
+        )
+
+        # The file changes under it, which is what instruction files do.
+        (repo / "CLAUDE.md").write_text(
+            RULES.replace(
+                "## Testing\nNever use a bare except here. "
+                "Catch the specific error.\n\n", ""
+            ),
+            encoding="utf-8",
+        )
+        screen.cmd("you delete that rule from CLAUDE.md")
+        with Memory(repo) as mem:
+            after = answer.ask(repo, mem, asked)
+        screen.cmd(f'knos ask "{asked}"')
+        screen.said(
+            (after[0].text.splitlines()[-1] + "\n    " + after[0].where)
+            if after else "Nothing about that.",
+            "red",
+        )
+        screen.note("[dim]The store still has the rule. It stopped being an "
+                    "answer, because the file it cites stopped saying it.[/dim]")
+
+        # ---- 2 -------------------------------------------------------------
+        screen.beat(2, "Two agents. One says what it is starting.")
+        with Memory(repo) as mem:
             mem.record(
                 Fact(text="the risk guard refuses unknown assets", source="session",
                      where="Claude Code session aaaa1111", when=_now(), about=topic)
@@ -154,8 +203,8 @@ def run(out: Any) -> int:
         screen.cmd('knos claim "the risk guard"')
         screen.said("Claude Code is working on the risk guard.", "yellow")
 
-        # ---- 2 -------------------------------------------------------------
-        screen.beat(2, "The second agent asks about it. It is refused.")
+        # ---- 3 -------------------------------------------------------------
+        screen.beat(3, "The second agent asks about it. It is refused.")
         from . import mcp as mcp_mod
 
         with Memory(repo) as mem:
@@ -164,8 +213,8 @@ def run(out: Any) -> int:
         screen.said(held.split("\n\n")[0], "red")
         screen.note("[dim]Not a warning attached to an answer. There is no answer.[/dim]")
 
-        # ---- 3 -------------------------------------------------------------
-        screen.beat(3, "It tries to edit the file anyway. The edit is refused.")
+        # ---- 4 -------------------------------------------------------------
+        screen.beat(4, "It tries to edit the file anyway. The edit is refused.")
         verdict = guard.check(repo, str(target), "Cursor")
         screen.cmd("Cursor: edit risk_guard.py")
         screen.said(f"allow = {verdict.allow}", "red")
@@ -174,8 +223,8 @@ def run(out: Any) -> int:
         screen.said((verdict.reason or "").split("\n\n")[0], "red")
         screen.note("[dim]The hook exits 2. The file is never written.[/dim]")
 
-        # ---- 4 -------------------------------------------------------------
-        screen.beat(4, "The memory decides whether money moves.")
+        # ---- 5 -------------------------------------------------------------
+        screen.beat(5, "The memory decides whether money moves.")
         paid = "market brief: BTC"
         note = ("Bought over x402 on Base: brief. Paid:"
                 " https://basescan.org/tx/0xce109c28781fec2ea12b8e115d59b1bfea219434379a30d472cf72b4abd9a85e")
@@ -204,9 +253,17 @@ def run(out: Any) -> int:
         screen.said((said["answer"] or "").split(". ")[0] + ".", "red")
         screen.note("[dim]It has taken work here six times and closed none. The"
                     " budget is shared, so it does not spend it.[/dim]")
+        # The same three answers, against real money rather than a sandbox.
+        # `scripts/live_gate.py --spend` runs buy -> refused -> free on Base
+        # mainnet and writes the transaction hash into the evidence file, so
+        # this beat is not the only place the sequence exists.
+        screen.note("[dim]This exact sequence has run on Base mainnet with real"
+                    " USDC: paid, then refused by this same record, then free"
+                    " from the store. The receipt is in"
+                    " docs/evidence/live-gate.json.[/dim]")
 
-        # ---- 5 -------------------------------------------------------------
-        screen.beat(5, "A decision is reversed. Everything under it is held.")
+        # ---- 6 -------------------------------------------------------------
+        screen.beat(6, "A decision is reversed. Everything under it is held.")
         with Memory(repo) as mem:
             mem.note_thing(TOPIC, "the risk guard tests",
                            {"note": "assume unknown assets are refused", "when": _now()[:10]})
@@ -222,8 +279,8 @@ def run(out: Any) -> int:
         screen.note("[dim]The old wording is archived, not deleted. `knos reconsider`"
                     " releases it.[/dim]")
 
-        # ---- 6 -------------------------------------------------------------
-        screen.beat(6, "The record leaves the machine.")
+        # ---- 7 -------------------------------------------------------------
+        screen.beat(7, "The record leaves the machine.")
         with Memory(repo) as mem:
             where, decisions, claims = share.write(repo, mem)
         screen.cmd("knos export")
@@ -232,8 +289,8 @@ def run(out: Any) -> int:
         screen.note("[dim]Commit it and the GitHub Action says this on a pull request,"
                     " with nothing installed on the other side.[/dim]")
 
-        # ---- 7 -------------------------------------------------------------
-        screen.beat(7, "A process that has never seen this repo is asked.")
+        # ---- 8 -------------------------------------------------------------
+        screen.beat(8, "A process that has never seen this repo is asked.")
         head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=repo,
                               capture_output=True, text=True, check=False)
         screen.note(f"[dim]repo at commit {head.stdout.strip()},"
@@ -276,28 +333,38 @@ def run(out: Any) -> int:
                     " store - `python scripts/collide.py` does this sixteen"
                     " ways and counts zero double-grants in 128 attempts.[/dim]")
 
-        # ---- 8 -------------------------------------------------------------
-        screen.beat(8, "What the store learned about who finishes.")
+        # ---- 9 -------------------------------------------------------------
+        screen.beat(9, "What the store learned about who finishes.")
         from . import record
 
+        # STRONG claims each, because that is where a record stops being
+        # pooled with the prior and the ends of the range become reachable.
+        # Fewer would be true and would print numbers that match nothing in
+        # the docs - the first version of this beat showed 35 against 22.
+        rounds = record.STRONG
         with Memory(repo) as mem:
-            for n in range(4):
+            for n in range(rounds):
                 record.note_taken(mem, f"a job {n}", "Claude Code", _now())
                 record.note_finished(mem, f"a job {n}", "Claude Code", _now())
-            for n in range(4):
+            for n in range(rounds):
                 record.note_taken(mem, f"a dead job {n}", "a crashed runner", _now())
             earned = record.holds_for(mem, "Claude Code")
             lost = record.holds_for(mem, "a crashed runner")
+            thin = record.holds_for(mem, "a runner with two claims")
         screen.cmd("knos who")
-        screen.said(f"Claude Code      closed 4 of 4   -> {earned} min", "green")
-        screen.said(f"a crashed runner closed 0 of 4   -> {lost} min", "yellow")
+        screen.said(f"Claude Code      closed {rounds} of {rounds}   -> {earned} min", "green")
+        screen.said(f"a crashed runner closed 0 of {rounds}   -> {lost} min", "yellow")
         screen.note("[dim]Not a setting. The hold is what each agent earned by"
                     " closing its own claims, read out of the journal.[/dim]")
+        screen.note(f"[dim]It takes {rounds} to get there. Two claims and no"
+                    " finishes is not a record yet, so the store keeps such an"
+                    f" agent near the {thin} minutes everybody starts on rather"
+                    " than punishing it for an afternoon.[/dim]")
 
         # The same record, read backwards. Everything else here answers about
         # now; this is the question after a collision.
         #
-        # The whole demo takes about half a minute, so there is no real
+        # The whole demo takes about fifty seconds, so there is no real
         # yesterday to look at. This writes one - an hour of history with the
         # timestamps it would have had - and then reads it back the same way
         # `knos at` reads any other afternoon.
@@ -319,8 +386,41 @@ def run(out: Any) -> int:
         screen.note("[dim]Reconstructed with the hold that agent had earned"
                     " *then*, not the one it has earned since.[/dim]")
 
-        # ---- 9 -------------------------------------------------------------
-        screen.beat(9, "Now delete the memory.")
+        # ---- 10 -------------------------------------------------------------
+        screen.beat(10, "What your agents cannot see, and cannot tell is there.")
+        # A private path is not redacted and not counted. The owner's answer
+        # and the agent's answer are the same question against the same store
+        # in the same second, and one of them comes back empty with no sign
+        # that anything was withheld.
+        from . import private as private_mod
+
+        secret = repo / "secrets"
+        secret.mkdir(exist_ok=True)
+        (secret / "keys.py").write_text(
+            "SETTLEMENT_TOKEN_NAME = \"the settlement key\"\n", encoding="utf-8"
+        )
+        for git_args in (("add", "-A"), ("commit", "-qm", "keys")):
+            subprocess.run(["git", *git_args], cwd=repo,
+                           capture_output=True, check=False)
+        with Memory(repo) as mem:
+            answer.point(repo, mem)
+        private_mod.add(repo, "secrets")
+        screen.cmd("knos private secrets")
+        with Memory(repo) as mem:
+            mine = answer.ask(repo, mem, "SETTLEMENT_TOKEN_NAME",
+                              identity=private_mod.OWNER)
+            theirs = answer.ask(repo, mem, "SETTLEMENT_TOKEN_NAME",
+                                identity=private_mod.AGENT)
+        screen.cmd('you ask:   "SETTLEMENT_TOKEN_NAME"')
+        screen.said(mine[0].where if mine else "(nothing)", "green")
+        screen.cmd('the agent asks the same thing, same second')
+        screen.said(f"{len(theirs)} results" if not theirs else theirs[0].where, "red")
+        screen.note("[dim]Not redacted, not counted, not refused. There is no"
+                    " notice that anything was held back, because a notice is"
+                    " itself the answer to \"is there a secret here\".[/dim]")
+
+        # ---- 11 -------------------------------------------------------------
+        screen.beat(11, "Now delete the memory.")
         db = paths.store_for(repo)
         screen.cmd(f"rm {db}")
         db.unlink()

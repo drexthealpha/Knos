@@ -115,6 +115,12 @@ def test_the_published_numbers_match_the_arms() -> None:
     assert arms["restore"]["lost_before"] == trials
     assert arms["restore"]["back_after"] == trials
     assert arms["restore"]["claims_stayed_gone"] == trials
+    # The rule is answered while the file carries it, withdrawn the moment it
+    # does not, and there is nothing to answer with at all once the store is
+    # gone - which is a real dependence and a weaker one than the withhold.
+    assert arms["stale_rule"]["answered"] == trials
+    assert arms["stale_rule"]["withdrawn"] == trials
+    assert arms["stale_rule"]["answered_without_store"] == 0
 
 
 def test_the_script_runs_end_to_end() -> None:
@@ -128,3 +134,60 @@ def test_the_script_runs_end_to_end() -> None:
     assert said.returncode == 0, said.stderr[-800:]
     for line in ("Withhold", "Guard", "Action", "Paid", "Spend", "Reversed", "Fresh machine", "store deleted"):
         assert line in said.stdout, line
+
+
+def test_the_page_knows_which_number_is_which_for_every_arm() -> None:
+    """The evidence page used to guess, and got three of seven rows wrong.
+
+    It took the first two keys of an arm and called them with-the-store and
+    without-it. For `reversed` and `restore` - which measure three things that
+    all happen while the store is present - that printed "12/12" under a
+    column headed "without it", telling a reader that deleting the store
+    changed nothing, on the page whose whole job is the deletion test. For
+    `spend`, whose count is of the bad outcome, it printed the store scoring
+    zero.
+
+    So the page now carries an explicit spec per arm, and this fails when an
+    arm is added without one rather than letting the table invent a number.
+    """
+    import json
+    import re
+
+    page = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    spec = page[page.index("const ARMS = {"):]
+    spec = spec[: spec.index("\n};")]
+    got = json.loads(
+        (ROOT / "docs" / "evidence" / "ablation.json").read_text(encoding="utf-8")
+    )
+
+    missing = [name for name in got["arms"] if f"{name}:" not in spec]
+    assert not missing, (
+        f"the page has no way to read these arms and would guess: {missing}"
+    )
+
+    # Every key the spec names has to be one the arm actually publishes.
+    wrong = []
+    for name, arm in got["arms"].items():
+        block = spec[spec.index(f"{name}:") :]
+        block = block[: block.index("}")]
+        for key in re.findall(r"'(\w+)'", block):
+            if key not in arm and key != "invert":
+                wrong.append(f"{name}.{key}")
+    assert not wrong, f"the page reads keys the ablation does not write: {wrong}"
+
+
+def test_the_stale_rule_arm_is_honest_about_being_the_weak_one() -> None:
+    """Its ablated value is zero for a duller reason than the others.
+
+    Deleting the store does not make knos quote the rule wrongly - it leaves
+    it with no rule to quote at all. That is still a dependence, and it is a
+    smaller claim than the withhold arm, where deleting the store makes knos
+    actively hand over work somebody else is holding.
+    """
+    said = (ROOT / "scripts" / "ablation.py").read_text(encoding="utf-8")
+    body = said[said.index("def arm_stale_rule") :]
+    body = body[: body.index("\ndef ")]
+
+    assert "no rule to quote" in body, (
+        "the arm has to say why its zero is a weaker result than the others'"
+    )

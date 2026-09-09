@@ -54,16 +54,19 @@ jobs:
       - name: What the store saves in dollars
         run: python scripts/spend.py
 
+      - name: What a refusal costs, and where it stops being worth it
+        run: python scripts/duplicated.py
+
       - name: Commit whatever moved
         run: |
           git config user.name drexthealpha
           git config user.email zulibro1999@gmail.com
-          if git diff --quiet -- docs/evidence; then
+          if git diff --quiet -- docs/evidence docs/JUDGE_GUIDE.md; then
             echo "Every figure reproduced unchanged."
             exit 0
           fi
           echo "These changed:"
-          git diff --stat -- docs/evidence
-          git add docs/evidence
+          git diff --stat -- docs/evidence docs/JUDGE_GUIDE.md
+          git add docs/evidence docs/JUDGE_GUIDE.md
           git commit             -m "evidence: regenerated on a clean machine, $(date -u +%Y-%m-%d)"             -m "Re-run by the scheduled workflow rather than on the laptop that first produced them, so the numbers the evidence page shows stay ones a stranger could reproduce."
           git push

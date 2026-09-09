@@ -66,7 +66,7 @@ knos demo</pre>
 come with the install. The <code>scripts/</code> commands below regenerate the numbers on
 this page and live in the repository, so clone it to run those — they are how the evidence
 is made, not part of the product.</p>
-<p class="note">Half a minute on a throwaway repo it deletes afterwards. Every number
+<p class="note">About fifty seconds on a throwaway repo it deletes afterwards. Every number
 below is read out of the JSON those scripts wrote — this page holds no hand-typed figures.
 <span id="stamp"></span></p>
 
@@ -89,9 +89,9 @@ every refusal, live:</p>
 <pre>pytest tests/test_sibyl_is_load_bearing.py</pre>
 
 <h2><span class="n">02</span>Everything the memory decides</h2>
-<p class="sub">Twelve patterns, not one. Each is a read of the store that changes what
+<p class="sub">Sixteen patterns, not one. Each is a read of the store that changes what
 happens next — not a place something is written and never read again, which is the shape
-the rules call a wrapper. Delete <code>memory.db</code> and all twelve become the same
+the rules call a wrapper. Delete <code>memory.db</code> and all sixteen become the same
 line: it goes ahead.</p>
 <table>
 <thead><tr><th></th><th>where</th><th>what it decides</th></tr></thead>
@@ -103,6 +103,10 @@ line: it goes ahead.</p>
 <tr><td><strong>A spending right</strong></td><td class="m">record.may_spend</td><td>*who* may spend, from what they finished before</td></tr>
 <tr><td><strong>A learned hold</strong></td><td class="m">record.holds_for</td><td>how long the next claim is worth, per agent</td></tr>
 <tr><td><strong>A blast radius</strong></td><td class="m">decide.supersede</td><td>work under a reversed decision is held until somebody looks</td></tr>
+<tr><td><strong>A rule its file dropped</strong></td><td class="m">rules.still_says</td><td>whether a rule is still quoted, and the line it is cited at</td></tr>
+<tr><td><strong>A symbol that moved</strong></td><td class="m">code.still_defines</td><td>whether a line number is still the one to print</td></tr>
+<tr><td><strong>A promoted record</strong></td><td class="m">record.standing</td><td>how long a hold is worth, and whether an agent may spend</td></tr>
+<tr><td><strong>A notice before the first question</strong></td><td class="m">start_hook.main</td><td>whether an agent is told who holds what before it opens anything</td></tr>
 <tr><td><strong>A seal</strong></td><td class="m">seal.check</td><td>an entry cannot be edited, or dropped, unnoticed</td></tr>
 <tr><td><strong>A reconstruction</strong></td><td class="m">rewind.at</td><td>who held what at a moment that has already passed</td></tr>
 <tr><td><strong>A ledger of refusals</strong></td><td class="m">worth.tally</td><td>what the store has actually prevented here</td></tr>
@@ -194,6 +198,9 @@ a fork is indistinguishable from an edit. Tests tamper with the SQLite file dire
 <p class="sub">Each arm run twice: once with the store, once with the same code and
 nothing to read.</p>
 <table id="ablation"><thead><tr><th>what</th><th>with the store</th><th>without it</th></tr></thead><tbody></tbody></table>
+<p class="note">A dash in the second column means that arm has no
+without-store condition to report — it measures several things that happen while
+the store is present, and the row above it is not a comparison. It is not a zero.</p>
 <pre>python scripts/ablation.py</pre>
 
 <h2><span class="n">10</span>Every on-chain claim, resolved</h2>
@@ -221,18 +228,77 @@ saying they want a thing is not somebody who installed it and still had it a wee
 That number is still <strong>none</strong>, and it stays in <a href="PMF.md">the ledger</a>
 next to the 34 pull requests that were the wrong idea.</p>
 
-<h2><span class="n">12</span>What is not true yet</h2>
+<h2><span class="n">12</span>What a refusal costs, and where it stops being worth it</h2>
+<p class="sub">Every other number on this page comes from a simulation with parameters
+somebody chose. These four are durations measured by a clock on the machine that wrote
+the file, and the first time this was run it reported a ratio of nineteen to one
+<em>against</em> knos — the whole cost of a cold command, against a unit of work that turned
+out to be tiny. Taking it apart is what made it useful.</p>
+<div class="cards" id="costs"></div>
+<p class="note">The work measured is one real source file of this repository, read and
+parsed. A real agent also sends that file to a model, which costs seconds and money this
+machine cannot measure without a network — so the break-evens above are <em>ceilings</em>,
+and the ratio is a floor. Almost all of the cost is opening the store; the
+compare-and-swap that does the refusing is well under a millisecond.
+<a href="evidence/duplicated.json">duplicated.json</a></p>
+
+<h2><span class="n">13</span>How often two agents are actually working at once</h2>
+<p class="sub">Everything else about the problem was asserted: the README says two agents
+change the same thing without knowing, and <code>contention.json</code> models it with
+numbers somebody chose. Claude Code already writes a timestamped transcript per session,
+and knos reads those as a source — so this counts, over every session on this machine, the
+windows in which two or more different sessions each did something.</p>
+<div class="cards" id="concurrency"></div>
+<p class="sub"><strong>Do not take this machine's word for it. Count your own:</strong></p>
+<pre>pip install "git+https://github.com/drexthealpha/Knos"
+knos why</pre>
+<p class="sub">Same count, your transcripts, offline, nothing written. If you have never
+had two agents going at once it says so and tells you knos is probably not for you —
+which is the only reason the number above is worth anything.</p>
+<p class="note"><strong>This is the precondition, not the event.</strong> Two sessions in
+the same minute may be nowhere near each other in the tree, and nothing here says they
+collided. It is also one developer's machine — the one knos was built on — so it is
+evidence about that working day and not a population estimate. The share is shown at four
+window widths because a figure that only holds at one width is a property of the bucketing.
+Run <code>python scripts/concurrency.py</code> on your own machine; that number is the one
+that should decide anything for you.
+<a href="evidence/concurrency.json">concurrency.json</a></p>
+
+<h2><span class="n">14</span>Real money, and the record deciding it</h2>
+<p class="sub">Thirty rounds on Base mainnet. Both arms pay: one is knos with the store
+deleted, which buys every round because it knows nothing; the other asks the promoted
+record first. Same dice, same endpoint, same price — the record is the only difference,
+and the money that did not move is the result.</p>
+<div class="cards" id="series"></div>
+<p class="note">Every refusal landed on the agent that abandons its work, and none on
+either reliable agent. The same record also sets how long a claim survives: all three
+agents start at the thirty-minute prior and end at
+<span id="holds">…</span> — earned, not configured.
+<a href="evidence/live-series.json">live-series.json</a> ·
+<a href="evidence/live-gate.json">the three-round version</a> ·
+<a href="evidence/promotion.json">the seeded bench</a></p>
+<p class="note"><strong>This is thirty rounds, not a thousand.</strong> The wallet behind
+it holds cents. It establishes that the promoted record is wired to real USDC in a shipped
+product and that the effect is measurable — not how the number scales.</p>
+
+<h2><span class="n">15</span>What is not true yet</h2>
 <p class="sub">Here rather than in a footnote, because a ledger nobody can check is not
 evidence.</p>
 <table>
 <tr><td><strong>Retained users</strong></td><td class="m">none</td></tr>
-<tr><td><strong>Merged by third-party maintainers</strong></td><td class="m">2, plus a listing in a 94.5k-star index</td></tr>
+<tr><td><strong>Merged by third-party maintainers</strong></td><td class="m">3, plus a listing in a 94.5k-star index</td></tr>
 <tr><td><strong>Pull requests that were the wrong idea</strong></td><td class="m">34, closed with an apology</td></tr>
+<tr><td><strong>A repo bigger than about a thousand facts</strong></td><td class="m">does not fit — 5 MB free tier, ~5.5 KB a fact once indexed</td></tr>
+<tr><td><strong>A live run at any scale</strong></td><td class="m">$0.001 moved, one payment and one refusal — the wiring, not the scale</td></tr>
+<tr><td><strong>That promotion always helps</strong></td><td class="m">it does not — 1.03x when the journal is not forgetting, 7.4x when it is</td></tr>
+<tr><td><strong>A collision rate</strong></td><td class="m">not measured — only that two agents were working at once, on one machine</td></tr>
+<tr><td><strong>That it always pays for itself</strong></td><td class="m">it does not, below a few files of duplicated work per call</td></tr>
+<tr><td><strong>The stale-rule deletion arm</strong></td><td class="m">weaker than the others — no store means no rule, not a wrong one</td></tr>
 </table>
 <p class="note">The whole ledger, including the failures:
 <a href="PMF.md">docs/PMF.md</a>.</p>
 
-<h2><span class="n">13</span>The critical path, in two minutes</h2>
+<h2><span class="n">16</span>The critical path, in two minutes</h2>
 <table>
 <tr><td class="m">memory.py</td><td>every write and read into Sibyl, in one file</td></tr>
 <tr><td class="m">mcp._held</td><td>whether an agent gets an answer at all</td></tr>
@@ -286,6 +352,40 @@ load('spend').then(function(s){
     card(s.with_store.free + '/' + s.asks, 'answers that cost nothing the second time');
 }).catch(function(){ fail('#spend', 'spend'); });
 
+load('duplicated').then(function(d){
+  const s = d.seconds, even = d.files_of_duplicated_work_to_break_even;
+  const ms = function(v){ return (v * 1000).toFixed(v < 0.01 ? 2 : 1) + ' ms'; };
+  $('#costs').innerHTML =
+    card(ms(s.refusal_store_already_open), 'to refuse, store already open', 'g') +
+    card(ms(s.refusal_including_opening_the_store), 'one MCP tool call, which opens it') +
+    card(ms(s.refusal_from_a_cold_process), 'a cold command, the slowest path here', 'r') +
+    card(even.per_mcp_tool_call, 'files of duplicated work before a tool call pays for itself');
+}).catch(function(){ fail('#costs', 'duplicated'); });
+
+load('concurrency').then(function(c){
+  const five = c.windows['5_minute'], one = c.windows['1_minute'];
+  $('#concurrency').innerHTML =
+    card(five.percent + '%', 'of five-minute windows had two or more agents working', 'g') +
+    card(c.turns.toLocaleString(), 'real turns read, across ' + c.sessions + ' sessions') +
+    card(one.percent + '%', 'the same at one-minute windows') +
+    card('not', 'a collision rate — see the note below', 'r');
+}).catch(function(){ fail('#concurrency', 'concurrency'); });
+
+load('live-series').then(function(d){
+  const b = d.blind, p = d.promoted;
+  const times = (b.cost_usd / p.cost_usd).toFixed(2);
+  $('#series').innerHTML =
+    card(times + '\u00d7', 'more expensive with the store deleted', 'r') +
+    card('$' + b.cost_usd.toFixed(3), 'spent by the blind arm, ' + b.paid + ' purchases', 'r') +
+    card('$' + p.cost_usd.toFixed(3), 'spent with the record, ' + p.paid + ' purchases', 'g') +
+    card(p.refused, 'purchases the record refused', 'g');
+  const holds = Object.keys(d.learned_hold).map(function(k){
+    return k + ' ' + d.learned_hold[k].last_hold + ' min';
+  }).join(', ');
+  const el = $('#holds');
+  if (el) el.textContent = holds;
+}).catch(function(){ fail('#series', 'live-series'); });
+
 load('budget').then(function(b){
   const trusted = b.arms.find(function(a){ return a.arm === 'trusted'; });
   const learned = b.arms.find(function(a){ return a.arm === 'learned'; });
@@ -308,22 +408,42 @@ load('contention').then(function(c){
     card(learned.blocked_minutes, 'minutes waiting, learned holds', 'g');
 }).catch(function(){ fail('#contention', 'contention'); });
 
-const LABEL = {
-  withhold: 'the answer is withheld',
-  guard: 'the edit is refused',
-  action: 'the pull request is told',
-  paid: 'the paid answer is kept',
-  spend: 'it refuses to buy the same thing twice',
-  reversed: 'work under a reversed decision is held',
-  restore: 'decisions come back on a fresh machine'
+// Which number is which, per arm, because they are not all an on/off pair.
+// `off: null` means the arm never ran a without-store condition - printing
+// the next key there said "12/12 without it" for two arms that measure three
+// things with the store present, which read as "deleting it changed nothing"
+// on the page whose whole job is the deletion test.
+// `invert` is for an arm whose count is of the bad outcome: not buying twice
+// is the protective behaviour, so the number to show is trials minus it.
+const ARMS = {
+  withhold: {label: 'the answer is withheld', on: 'on_refused', off: 'off_refused'},
+  guard:    {label: 'the edit is refused', on: 'on_refused', off: 'off_refused'},
+  action:   {label: 'the pull request is told', on: 'on_commented', off: 'off_commented'},
+  paid:     {label: 'the paid answer is kept', on: 'on_kept', off: 'off_kept'},
+  spend:    {label: 'it refuses to buy the same thing twice',
+             on: 'on_paid_again', off: 'off_paid_again', invert: true},
+  reversed: {label: 'work under a reversed decision is held',
+             on: 'edit_refused', off: null},
+  restore:  {label: 'decisions come back on a fresh machine',
+             on: 'back_after', off: null},
+  stale_rule: {label: 'a rule its file dropped stops being quoted',
+             on: 'withdrawn', off: 'answered_without_store'}
 };
 load('ablation').then(function(a){
   const rows = Object.keys(a.arms).map(function(k){
-    const pairs = Object.keys(a.arms[k]).map(function(p){ return [p, a.arms[k][p]]; });
-    const on = pairs[0], off = pairs[1] || ['', '—'];
-    const offVal = typeof off[1] === 'number' ? off[1] + '/' + a.trials : off[1];
-    return '<tr><td>' + (LABEL[k] || k) + '</td><td class="m g">' +
-      on[1] + '/' + a.trials + '</td><td class="m r">' + offVal + '</td></tr>';
+    const spec = ARMS[k];
+    // An arm the page does not know how to read is shown as unread rather
+    // than guessed at: a wrong number in this table is worse than a gap.
+    if (!spec) {
+      return '<tr><td>' + k + '</td><td class="m">?</td><td class="m">?</td></tr>';
+    }
+    const n = function(key){
+      const v = a.arms[k][key];
+      return spec.invert ? a.trials - v : v;
+    };
+    const off = spec.off === null ? '—' : n(spec.off) + '/' + a.trials;
+    return '<tr><td>' + spec.label + '</td><td class="m g">' +
+      n(spec.on) + '/' + a.trials + '</td><td class="m r">' + off + '</td></tr>';
   }).join('');
   document.querySelector('#ablation tbody').innerHTML = rows;
   $('#stamp').textContent = 'Last regenerated ' + String(a.when).slice(0, 10) + '.';

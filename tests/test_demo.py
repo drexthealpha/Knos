@@ -53,6 +53,9 @@ def test_the_demo_runs_and_ends_with_the_product_broken() -> None:
     said = out.text
 
     for beat in (
+        # The only beat that needs one agent and one file, which is why it is
+        # first: a viewer who runs a single agent recognises it immediately.
+        "stops being quoted",
         "Two agents",
         "It is refused",
         "the edit is refused",
@@ -61,6 +64,10 @@ def test_the_demo_runs_and_ends_with_the_product_broken() -> None:
         "leaves the machine",
         "never seen this repo",
         "who finishes",
+        # The one thing no competitor claims, and it was missing from the
+        # demo entirely: a private path returns nothing to an agent AND no
+        # notice that anything was withheld.
+        "cannot tell is there",
         "delete the memory",
     ):
         assert beat.lower() in said.lower(), beat
@@ -70,6 +77,49 @@ def test_the_demo_runs_and_ends_with_the_product_broken() -> None:
     assert "the withhold        gone" in said
     assert "the edit            allowed" in said
     assert "the paid answer     buys again" in said
+
+
+def test_the_private_beat_shows_both_answers_not_just_the_empty_one() -> None:
+    """An empty result on its own proves nothing - a broken tool gives that too.
+
+    The beat has to show the owner getting the path and an agent getting
+    nothing, from the same store in the same moment, or a viewer cannot tell
+    privacy from failure.
+    """
+    from knos import demo
+
+    out = Recorder()
+    demo.run(out)
+    said = out.text
+    beat = said[said.index("cannot tell is there"):said.index("delete the memory")]
+
+    assert "secrets/keys.py" in beat, "the owner's answer is not shown"
+    assert "0 results" in beat, "the agent's empty answer is not shown"
+    assert "notice" in beat, (
+        "the beat must say there is no hidden-results notice, which is the "
+        "part that separates this from every tool that filters after the fact"
+    )
+
+
+def test_the_first_beat_shows_the_rule_before_and_after_it_is_deleted() -> None:
+    """Both halves, or it is a screenshot of an absence.
+
+    A viewer has to see knos quote the rule with its line, then see the same
+    question answered differently once the file stops saying it. Showing only
+    the second half proves nothing: an empty answer is what a broken tool
+    gives too.
+    """
+    from knos import demo
+
+    out = Recorder()
+    demo.run(out)
+    said = out.text
+    first = said[: said.index("2. Two agents")]
+
+    assert "CLAUDE.md:" in first, "the rule is quoted without a checkable citation"
+    assert "bare except" in first, "the rule itself is never shown"
+    assert "delete that rule" in first, "the file is never seen to change"
+    assert "Nothing about that" in first, "the withdrawal is not shown"
 
 
 def test_every_refusal_it_prints_actually_happened() -> None:
@@ -86,7 +136,14 @@ def test_every_refusal_it_prints_actually_happened() -> None:
     assert "verdict = have" in said, "the second ask was not actually free"
     assert "held = True" in said, "the reversal did not actually hold anything"
     assert "recalled:" in said, "the cold process did not actually recall"
-    assert "closed 4 of 4" in said, "the record was described, not computed"
+    # The count is `record.STRONG`, not the literal it used to be: the beat
+    # needs a settled record so the numbers it prints are the ones every page
+    # describes. What is being asserted is that the record was computed.
+    from knos import record
+
+    assert f"closed {record.STRONG} of {record.STRONG}" in said, (
+        "the record was described, not computed"
+    )
     assert "knos at 2h" in said, "the demo stopped showing the rewind"
     assert "held the settlement job" in said, (
         "the rewind printed no reconstruction, so it showed nothing happening"
@@ -119,7 +176,11 @@ def test_the_documented_command_works() -> None:
 
 
 def test_it_runs_in_the_time_the_documents_claim() -> None:
-    """The pages say half a minute. A page that says a number should mean it.
+    """The pages say about fifty seconds. A page that says a number means it.
+
+    Measured at 47.2s with the pauses in, after the privacy beat was added;
+    41.9s before it, 34s with nine beats, and every page said ninety back
+    when it was 34 - which is how this test came to exist.
 
     Measured without the pauses, because those are a constant a human reads
     at and this is about the work. If the demo ever takes longer than a judge
@@ -136,8 +197,8 @@ def test_it_runs_in_the_time_the_documents_claim() -> None:
 
     assert took < 20, (
         f"the demo's own work took {took:.0f}s. With the pauses back that is "
-        "well past the half minute every page promises, and past what anybody "
-        "watching a video will sit through."
+        "well past the fifty seconds every page promises, and past what "
+        "anybody watching a video will sit through."
     )
 
 

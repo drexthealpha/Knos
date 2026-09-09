@@ -86,3 +86,74 @@ def test_each_row_says_what_it_decides_not_what_it_stores() -> None:
         "these rows describe what is kept rather than what changes because of "
         f"it: {lazy}"
     )
+
+
+def test_the_ways_in_table_names_only_things_that_exist() -> None:
+    """Six reviews called this a narrow product while reading "Three ways in".
+
+    There are eleven, and the table saying so is worth exactly as much as its
+    weakest row: a judge who checks one path and finds nothing there has been
+    given a reason to distrust the other ten. So every path it links is
+    checked, the way the patterns table is.
+    """
+    import re
+
+    guide = GUIDE.read_text(encoding="utf-8")
+    block = guide[guide.index("## Every way in"): guide.index("## The same claim with")]
+
+    paths = re.findall(r"\]\((\.\./[\w/.\-]+)\)", block)
+    assert len(paths) >= 6, "the table stopped pointing at anything checkable"
+
+    missing = [rel for rel in paths if not (ROOT / "docs" / rel).resolve().exists()]
+    assert not missing, f"the ways-in table points at files that are gone: {missing}"
+
+
+def test_the_ways_in_table_does_not_confuse_surface_with_adoption() -> None:
+    """Eleven ways in is not eleven users, and the count is still zero."""
+    guide = GUIDE.read_text(encoding="utf-8")
+    block = guide[guide.index("## Every way in"): guide.index("## The same claim with")]
+
+    assert "retained users" in block
+    assert "zero" in block, "the table has to keep saying nobody depends on this"
+
+
+def test_the_demo_map_lists_every_beat_the_demo_actually_has() -> None:
+    """A judge reading the table and counting beats must find them equal.
+
+    The table is the thing that tells somebody where to look. If it names ten
+    beats and the command prints eleven, the first thing they check does not
+    match, and that costs more than the missing row.
+    """
+    import re
+
+    guide = GUIDE.read_text(encoding="utf-8")
+    table = guide[guide.index("## Every strength, and where you can watch it"):
+                  guide.index("### What the one command deliberately does not show")]
+    rows = re.findall(r"^\| (\d+) \|", table, re.M)
+
+    demo = (ROOT / "src" / "knos" / "demo.py").read_text(encoding="utf-8")
+    beats = re.findall(r"screen\.beat\((\d+),", demo)
+
+    assert sorted(int(x) for x in rows) == sorted(int(x) for x in beats), (
+        f"the guide lists beats {sorted(rows)} and the demo runs {sorted(beats)}"
+    )
+
+
+def test_the_map_admits_what_the_demo_does_not_show() -> None:
+    """The multiplier turns on this, so it cannot be quietly omitted.
+
+    A partner stack scores only when a judge sees it doing real work in the
+    demo. `knos demo` spends nothing by design, so the guide has to say that
+    the recording needs a live payment, a live grant, or the receipts command
+    on tape - rather than leaving a judge to discover the gap.
+    """
+    guide = GUIDE.read_text(encoding="utf-8")
+    block = guide[guide.index("### What the one command deliberately does not show"):
+                  guide.index("## Every way in")]
+
+    assert "a real payment on Base" in block
+    assert "live_gate.py" in block, "no route to a live settlement is offered"
+    assert "documented rather than demonstrated" in block, (
+        "the guide must say plainly that on-chain work not on tape is not "
+        "the same as on-chain work in the demo"
+    )

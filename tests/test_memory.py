@@ -91,7 +91,11 @@ def test_schema_rejects_a_conflicting_write_from_another_process(knos_home, repo
     proc = multiprocessing.Process(target=_raw_insert, args=(db, queue))
     proc.start()
     proc.join(60)
-    outcome = queue.get(timeout=10)
+    # Sixty, not ten. What this test asserts is that the conflicting write is
+    # rejected - not that a cold Python subprocess starts promptly. Ten seconds
+    # is fine on an idle machine and not enough on a loaded one, and a
+    # concurrency test that fails on patience teaches people to ignore it.
+    outcome = queue.get(timeout=60)
 
     assert outcome.startswith("rejected"), outcome
     assert "UNIQUE" in outcome.upper()

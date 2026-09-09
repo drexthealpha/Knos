@@ -1,0 +1,33 @@
+{
+  "generated": "2026-09-09T05:33:19.134796+00:00",
+  "machine": "one developer's laptop - the machine knos was built on",
+  "turns": 5866,
+  "sessions": 11,
+  "clients": [
+    "Claude Code"
+  ],
+  "windows": {
+    "1_minute": {
+      "windows_with_any_agent_working": 4042,
+      "windows_with_two_or_more": 458,
+      "percent": 11.3
+    },
+    "5_minute": {
+      "windows_with_any_agent_working": 1977,
+      "windows_with_two_or_more": 194,
+      "percent": 9.8
+    },
+    "15_minute": {
+      "windows_with_any_agent_working": 984,
+      "windows_with_two_or_more": 97,
+      "percent": 9.9
+    },
+    "30_minute": {
+      "windows_with_any_agent_working": 590,
+      "windows_with_two_or_more": 59,
+      "percent": 10.0
+    }
+  },
+  "what_this_measures": "Windows in which two or more different agent sessions each did something. That is the precondition for a collision.",
+  "what_this_does_not_measure": "Collisions. Two sessions in the same minute may be nowhere near each other in the tree, and nothing here says they were. It is also one machine and one developer, so it is evidence about this working day rather than about anybody else's."
+}

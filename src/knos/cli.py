@@ -139,7 +139,8 @@ def point(path: str = typer.Argument(".", help="the repo to read")) -> None:
         out.print(skipped)
     if counts.get("full"):
         out.print("")
-        out.print(str(errors.memory_full(repo, counts["sessions"] + counts["commits"])))
+        out.print(str(errors.memory_full(
+            repo, counts["sessions"] + counts["commits"], counts["commits"])))
     if not counts["commits"] and not counts["code"]:
         out.print("")
         out.print(str(errors.not_a_repo(str(repo))))
@@ -806,6 +807,7 @@ def worth() -> None:
     out.print(f"  held         {got['held']:4}   things waiting on a reversed decision")
     out.print(f"  claims       {got['claims_taken']:4}   of which {got['claims_finished']} were closed"
               f", across {got['agents']} agent(s)")
+    out.print(f"  withdrawn    {got['withdrawn']:4}   rules the file itself stopped carrying")
     out.print("")
     out.print("[dim]Counted from what was written at the time, not from a "
               "counter. Delete the store and these go with it.[/dim]")
@@ -828,22 +830,35 @@ def who() -> None:
                   "is what changes that.")
         return
 
-    out.print("[bold]who[/bold]        [dim]claimed  closed   hold[/dim]")
+    out.print("[bold]who[/bold]        [dim]claimed  closed   closed%  counted  hold[/dim]")
     out.print("")
     for got in everyone:
         # Held back until it is actually being used for something. One claim
         # in progress is 0% closed and reads like a bad record; it is not a
         # record at all yet, and `holds` already says so.
         kept = f"{got['kept']:.0%}" if got["learned"] and got["kept"] is not None else "-"
+        # The number the hold is actually computed from. Without it the row is
+        # arithmetic that does not work: an agent quiet for months reads
+        # "100% closed" beside a hold well under the ceiling, and the person
+        # is left to guess why.
+        counts = f"{got['shrunk']:.0%}" if got["learned"] else "-"
         note = "" if got["learned"] else "  [dim](too new to judge)[/dim]"
+        if got["learned"] and got["quiet_days"] >= record.HALF_LIFE_DAYS:
+            note = f"  [dim](quiet {got['quiet_days']:.0f} days)[/dim]"
         out.print(
             f"  {got['who'][:22]:22} {got['taken']:4}  {got['finished']:5}"
-            f"  {kept:>5}   {got['holds']:2} min{note}"
+            f"  {kept:>7}  {counts:>7}  {got['holds']:2} min{note}"
         )
     out.print("")
     out.print(f"[dim]An agent that never closes a claim holds work for "
               f"{record.FLOOR} minutes; one that always does, "
-              f"{record.CEILING}. Nobody is judged on fewer than two.[/dim]")
+              f"{record.CEILING}. Nobody is judged on fewer than "
+              f"{record.PROVEN}, and the ends of that range take "
+              f"{record.STRONG}.[/dim]")
+    out.print(f"[dim]`counted` is `closed%` after two adjustments: a thin "
+              f"record is pooled with the {record.UNKNOWN}-minute prior, and "
+              f"evidence halves every {record.HALF_LIFE_DAYS:.0f} days an "
+              f"agent is quiet. The hold is computed from `counted`.[/dim]")
     out.print("[dim]This lives in the store and nowhere else. Delete it and "
               "everyone is a stranger again.[/dim]")
 
@@ -1018,6 +1033,29 @@ def forget(about: str = typer.Argument(..., help="the note to drop")) -> None:
         mem.supersede(TOPIC, about, "the person dropped it")
     out.print(f"Forgotten: {about}.")
     out.print("Your agents will not repeat it.")
+
+
+@app.command()
+def why() -> None:
+    """Whether you have the problem knos is for, counted on your own machine."""
+    from . import why as measure_why
+
+    got = measure_why.measure()
+    out.print("")
+    out.print(f"  {measure_why.sentence(got)}")
+    out.print("")
+    if got["windows"]:
+        for width, (working, shared, pct) in sorted(got["windows"].items()):
+            out.print(f"  {width:2} minute windows   {shared:5} of {working:5}   {pct:5}%")
+        out.print("")
+        out.print("[dim]Windows in which two or more of your agent sessions each did"
+                  " something. That is the precondition for a collision, not a"
+                  " collision: two agents in the same minute may be nowhere near"
+                  " each other. Nothing was written and nothing left this"
+                  " machine.[/dim]")
+    else:
+        out.print("[dim]knos reads Claude Code's session transcripts. Nothing was"
+                  " written and nothing left this machine.[/dim]")
 
 
 @app.command("help")

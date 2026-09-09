@@ -1,0 +1,60 @@
+{
+  "generated": "2026-09-09T09:09:32.600523+00:00",
+  "network": "Base mainnet",
+  "endpoint": "https://superhighway.walls.sh/news",
+  "price_usd": 0.001,
+  "rounds": 30,
+  "budget_usd": 0.048,
+  "agents": {
+    "Claude Code": 0.95,
+    "Cursor": 0.9,
+    "a crashy runner": 0.1
+  },
+  "blind": {
+    "allowed": 30,
+    "paid": 30,
+    "cost_usd": 0.03
+  },
+  "promoted": {
+    "allowed": 16,
+    "paid": 16,
+    "refused": 14,
+    "cost_usd": 0.016
+  },
+  "saved_usd": 0.014,
+  "transactions": [],
+  "what_this_is": "Real USDC on Base mainnet. The blind arm is knos with the store deleted and buys every round with real money; the promoted arm asks the WARM record first. Both arms pay; neither is a counterfactual. Same dice, same endpoint, same price - the record is the only difference, and the money not spent is the result.",
+  "what_this_is_not": "A thousand-forecast run unless --rounds says so. The reliability of each agent is the one modelled input and is listed above; what is measured is what the rule does to real spending given it.",
+  "hashes": "None recorded. This run captured 46 ids by matching sixty-four hex characters anywhere in the response, which found a nonce from the payment authorisation rather than the transaction. They resolved to nothing and have been removed rather than published. `scripts/live_series.py` now decodes the settlement header, the way `buy402._settlement` always did.",
+  "spend_verified_by": "The payer wallet 0xEca35a0C0585E19EAa9Bfc5AF9751D2Ca7CC48C1 went from 0.091 to 0.044 USDC across this run - $0.047 moved, against $0.046 recorded here. That balance is readable by anyone and is what carries the spend claim until a re-run records hashes correctly.",
+  "learned_hold": {
+    "Claude Code": {
+      "first_seen_hold": 30,
+      "last_hold": 39,
+      "taken": 6,
+      "finished": 6,
+      "promoted": true
+    },
+    "Cursor": {
+      "first_seen_hold": 30,
+      "last_hold": 38,
+      "taken": 5,
+      "finished": 5,
+      "promoted": true
+    },
+    "a crashy runner": {
+      "first_seen_hold": 30,
+      "last_hold": 19,
+      "taken": 16,
+      "finished": 2,
+      "promoted": true
+    }
+  },
+  "refusals_by_agent": {
+    "Claude Code": 0,
+    "Cursor": 0,
+    "a crashy runner": 14
+  },
+  "how_the_holds_were_obtained": "Replayed from the identical seed after the paid run, because a hold length is not a purchase: the same dice rebuild the same record, so the trajectory is the one that applied during the run and cost nothing to read back. Every spend figure here is from the paid run itself.",
+  "both_learned_decisions": "record.may_spend decides whether money moves - fourteen refusals here, every one on the agent that abandons its work, none on either reliable agent. record.holds_for decides how long a claim survives - all three start at the thirty-minute prior and diverge on what they closed. The first version of this run recorded only the money."
+}

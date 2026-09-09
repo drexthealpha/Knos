@@ -57,6 +57,12 @@ def _repo(root: Path) -> Path:
     repo.mkdir()
     (repo / "risk_guard.py").write_text("def check(asset):\n    return True\n", encoding="utf-8")
     (repo / "README.md").write_text("# demo\n", encoding="utf-8")
+    # An instruction file, so the arm that withdraws a stale rule has one.
+    (repo / "CLAUDE.md").write_text(
+        "# Working here\n\n## Testing\nNever use a bare except here.\n"
+        "\n## Style\nTwo spaces of indentation everywhere.\n",
+        encoding="utf-8",
+    )
     run = lambda *a: subprocess.run(  # noqa: E731
         ["git", *a], cwd=repo, capture_output=True, text=True, check=False
     )
@@ -97,6 +103,39 @@ def arm_withhold(repo: Path, topic: str) -> tuple[bool, bool]:
     with Memory(repo) as mem:
         held_off = mcp._held(mem, topic, "Cursor", "").startswith("Withheld.")
     return held_on, held_off
+
+
+def arm_stale_rule(repo: Path, topic: str) -> tuple[bool, bool, bool]:
+    """(answered_with_store, withdrawn_when_the_file_drops_it, answered_without_store).
+
+    The middle value is the decision: knos stops quoting a rule the file has
+    stopped carrying. The third is the ablation, and it is zero for a reason
+    worth saying out loud - with the store deleted there is no rule to quote,
+    so the question is not "does it get this wrong" but "does it have anything
+    at all". It does not. The rules live in the store; the file only says
+    whether they are still current.
+    """
+    from knos import answer, paths
+    from knos.memory import Memory
+
+    asked = "can I use a bare except"
+    with Memory(repo) as mem:
+        answer.point(repo, mem, index_code=False)
+        answered = bool(answer.ask(repo, mem, asked))
+
+    # The file stops saying it, which is what instruction files do.
+    (repo / "CLAUDE.md").write_text(
+        "# Working here\n\n## Style\nTwo spaces of indentation everywhere.\n",
+        encoding="utf-8",
+    )
+    with Memory(repo) as mem:
+        withdrawn = not answer.ask(repo, mem, asked)
+
+    paths.store_for(repo).unlink()
+
+    with Memory(repo) as mem:
+        without = bool(answer.ask(repo, mem, asked))
+    return answered, withdrawn, without
 
 
 def arm_guard(repo: Path, topic: str) -> tuple[bool, bool]:
@@ -288,6 +327,7 @@ def run() -> dict:
         "spend": {"on_paid_again": 0, "off_paid_again": 0, "refused_when_claimed": 0},
         "reversed": {"edit_refused": 0, "spend_refused": 0, "allowed_after_reconsider": 0},
         "restore": {"lost_before": 0, "back_after": 0, "claims_stayed_gone": 0},
+        "stale_rule": {"answered": 0, "withdrawn": 0, "answered_without_store": 0},
     }
 
     for _ in range(TRIALS):
@@ -330,6 +370,15 @@ def run() -> dict:
             tally["reversed"]["edit_refused"] += int(edit)
             tally["reversed"]["spend_refused"] += int(spend)
             tally["reversed"]["allowed_after_reconsider"] += int(again)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            os.environ["KNOS_HOME"] = str(root / "home")
+            repo = _repo(root)
+            answered, withdrawn, without = arm_stale_rule(repo, topic)
+            tally["stale_rule"]["answered"] += int(answered)
+            tally["stale_rule"]["withdrawn"] += int(withdrawn)
+            tally["stale_rule"]["answered_without_store"] += int(without)
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

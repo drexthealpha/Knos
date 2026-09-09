@@ -42,19 +42,29 @@ def nothing_found(repo: Path) -> Problem:
     return Problem("Nothing about that yet.", f"Read more first:  knos point {repo}")
 
 
-def memory_full(repo: Path, kept: int = 0) -> Problem:
+def memory_full(repo: Path, kept: int = 0, commits: int = 0) -> Problem:
     """The store hit its 5 MB ceiling part-way through reading.
 
-    Sessions and commits are read newest first, so what is in the store is
-    the recent end of both. Nothing already written is lost or overwritten;
-    the read simply stops.
+    Commits are read first and newest first, then the transcript, so what runs
+    out of room is the older end of the transcript. Nothing already written is
+    lost or overwritten; the read simply stops.
+
+    The remedy used to be "read one folder instead". That is right when the
+    code or the rules filled the store and useless when the transcript did -
+    agent sessions are read per repo, not per folder, so the same turns are
+    read again and the store fills again. A remedy that cannot work costs
+    somebody a second wait and some trust, so this one names the source.
     """
-    what = f"Kept the newest {kept} things and stopped there." if kept else "Kept the newest and stopped there."
+    what = (f"Kept {commits} commits and the newest {kept - commits} things "
+            f"said in past sessions." if kept else "Kept the newest and stopped there.")
     return Problem(
-        f"This repo's memory is full at 5 MB. {what} Older sessions and"
-        " commits were not read. What is stored is still whole - nothing was"
-        " evicted or truncated.",
-        f"Read one folder instead of all of it:  knos point {Path(repo)}/src",
+        f"This repo's memory is full at 5 MB, Sibyl's free tier. {what} The"
+        " older end of the transcript was not read. What is stored is still"
+        " whole - nothing was evicted or truncated, and the commits are read"
+        " before the transcript so the record of why things were done is in"
+        " there.",
+        "That is usually fine: the recent end is what gets asked about. If you"
+        f" need the older sessions, read one folder:  knos point {Path(repo)}/src",
     )
 
 

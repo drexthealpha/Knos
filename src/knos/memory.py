@@ -83,6 +83,11 @@ STOOD_DOWN = "stood_down"
 # something you can look up rather than something that happened once.
 OVERRODE = "overrode"
 
+# One record per rule its own file stopped carrying. Written when a read finds
+# the citation no longer holds, not when the file changes: knos does not watch
+# the filesystem, it checks the receipt at the moment it would show it.
+WITHDRAWN = "rule_withdrawn"
+
 
 @dataclass(frozen=True)
 class Fact:
@@ -265,10 +270,16 @@ class Memory:
 
         Asked for by name rather than by search, because "what are the rules
         here?" shares no word with the rule it is asking about.
+
+        Flattened, and that is not a detail: a journal row keeps knos's own
+        fields inside `extra`, so filtering on a bare `source` matched nothing
+        and this returned an empty list on every store that has ever existed.
+        The by-name path was dead and the question it exists for was being
+        answered only by whatever the search terms happened to hit. The same
+        trap is recorded two methods up, in `only_here`.
         """
-        return [e for e in self.journal(limit=limit * 4) if e.get("source") == "rules"][
-            :limit
-        ]
+        rows = (_flatten(e) for e in self.journal(limit=limit * 4))
+        return [e for e in rows if e.get("source") == "rules"][:limit]
 
     # ---- WARM: one canonical record per thing --------------------------
 

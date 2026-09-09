@@ -83,6 +83,42 @@ Private paths. Not redacted, not counted, absent. `.env`, `*.pem`, `id_rsa`,
 Work another agent has claimed is withheld too, until they finish or you
 override it with a reason. See [core-flow.md](core-flow.md).
 
+## Before an agent asks anything
+
+Everything above depends on an agent choosing to call a tool. The agent that
+never calls one is the one that opens the file somebody else is holding.
+
+The Claude Code plugin ships a `SessionStart` hook for that. It runs once when
+a session opens and puts the live claims and the most recent decisions into
+that session's own context, with no tool call and no cooperation needed:
+
+```
+knos, this repo's shared memory:
+Work other agents are holding here right now:
+  - the settlement path - Cursor, lapses in about 30 min
+
+Before you change any of that, ask knos about it. If you take something, say
+so with remember(claiming=true), and call done(about) when you finish.
+
+Recently written down here:
+  - we dropped redis for sqlite
+```
+
+**It says nothing when there is nothing to say.** No store, or nothing claimed
+and nothing written down, prints exactly nothing. A hook that speaks every
+session is one people learn to skip, and then it is worse than absent — the
+session where it mattered scrolls past unread. That case is
+[a test](../tests/test_start_hook.py), not an intention.
+
+**It never fails a session.** Any error exits 0 with no output, the same rule
+[`guard_hook`](../src/knos/guard_hook.py) follows: a broken install sitting
+between an agent and its own repository is worse than the collision it was
+meant to prevent.
+
+It is in [`plugins/knos/hooks/hooks.json`](../plugins/knos/hooks/hooks.json)
+beside the `PreToolUse` guard, and the code is
+[`start_hook.py`](../src/knos/start_hook.py).
+
 ## What is left after `knos connect`
 
 For the other three, `knos connect` writes the config and takes a backup, and
