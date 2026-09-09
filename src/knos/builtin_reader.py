@@ -25,6 +25,12 @@ _RULES: dict[str, list[tuple[str, str]]] = {
     ".py": [
         (r"^\s*class\s+([A-Za-z_]\w*)", "class"),
         (r"^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)", "function"),
+        # A module-level constant, which ctags indexes and this did not - so
+        # the same question answered with a file and a line on a machine that
+        # had ctags and came back empty on one that did not. Column zero and
+        # UPPER_SNAKE only: that is what a named setting looks like, and
+        # matching every assignment would put half a file in the index.
+        (r"^([A-Z][A-Z0-9_]{2,})\s*(?::[^=]+)?=(?!=)", "constant"),
     ],
     ".js": [
         (r"^\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)", "function"),

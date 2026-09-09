@@ -35,7 +35,7 @@ DECISIONS = 3
 
 def _lines(repo) -> list[str]:
     """The notice, or an empty list when there is nothing worth saying."""
-    from .memory import Memory
+    from .memory import INTENT_HOLDS, Memory, _minutes_since
 
     said: list[str] = []
     with Memory(repo) as mem:
@@ -45,8 +45,20 @@ def _lines(repo) -> list[str]:
             for one in claims:
                 who = str(one.get("who") or "somebody")
                 topic = str(one.get("topic") or "").strip()
-                holds = one.get("holds")
-                when = f", lapses in about {holds} min" if holds else ""
+                # What is left, not what it started with. `holds` is the
+                # length the claim was written with, so printing it raw told
+                # an agent a claim taken twenty-five minutes ago still had
+                # thirty to run - in the one line somebody reads to decide
+                # whether waiting is worth it. The withhold has always
+                # subtracted the elapsed time; this now does too.
+                try:
+                    holds = int(one.get("holds", INTENT_HOLDS))
+                except (TypeError, ValueError):
+                    holds = INTENT_HOLDS
+                left = holds - _minutes_since(str(one.get("when", "")))
+                when = ""
+                if left == left and left > 0:  # not NaN, not already lapsed
+                    when = f", lapses in about {max(1, round(left))} min"
                 said.append(f"  - {topic} - {who}{when}")
             said.append("")
             said.append(

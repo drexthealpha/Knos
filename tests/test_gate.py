@@ -4,7 +4,7 @@
 twice". The other half is looking before you buy, and this is that half: the
 store is asked, and its answer is what decides whether the agent spends.
 
-Three verdicts, and only one of them costs anything.
+Five verdicts, and only one of them costs anything.
 """
 
 from __future__ import annotations
@@ -78,12 +78,20 @@ def test_deleting_the_store_makes_it_pay_again(knos_home, repo) -> None:
     assert gate.decide(repo, TOPIC_NAME, TOPIC_NAME)["verdict"] == "buy"
 
 
-def test_a_broken_gate_buys_rather_than_blocks(knos_home, repo, monkeypatch) -> None:
-    """Fail towards what happened before the gate existed.
+def test_a_broken_gate_refuses_rather_than_spends(knos_home, repo, monkeypatch) -> None:
+    """Fail closed, because the failure costs real USDC.
 
-    A gate that crashes must not become a gate that spends, and must not
-    become a gate that blocks the product either. `main` catches everything
-    and answers "buy".
+    This test used to assert `buy` under a docstring saying a crashing gate
+    must not become a gate that spends - the assertion and the intent
+    disagreed, and the assertion was the one the code followed. The single
+    caller that honours this treats `buy` as the one verdict that costs
+    money, so an error path answering `buy` is an error path that pays: an
+    unreadable store, a disk that went away, and USDC moves with nothing
+    having decided it should.
+
+    The other half was right and is kept. It still exits 0, because a broken
+    gate must not block the product either, and it still carries the error in
+    `why` so the failure is diagnosable rather than silent.
     """
     import json
 
@@ -96,8 +104,10 @@ def test_a_broken_gate_buys_rather_than_blocks(knos_home, repo, monkeypatch) -> 
 
     assert gate.main(["knos.gate", "--topic", TOPIC_NAME, "--ask", TOPIC_NAME]) == 0
     said = json.loads(printed[-1])
-    assert said["verdict"] == "buy"
+    assert said["verdict"] != "buy", "a crash must not authorise a purchase"
+    assert said["verdict"] == "unproven"
     assert "store on fire" in said["why"]
+    assert "did not spend" in " ".join(said["answer"].split())
 
 
 def test_an_unrelated_topic_is_not_served_from_memory(knos_home, repo) -> None:

@@ -36,6 +36,12 @@ DEFAULT_PATTERNS: tuple[str, ...] = (
     ".netrc",
     ".npmrc",
     ".pypirc",
+    # Key material knos itself makes, or that a wallet leaves behind. These
+    # are already in this repository's .gitignore; a path a project refuses
+    # to commit is not one an agent should be handed either.
+    "*.keystore",
+    "keystore",
+    ".knos-keys",
 )
 
 OWNER = "owner"

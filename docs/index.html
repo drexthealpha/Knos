@@ -204,7 +204,8 @@ the store is present, and the row above it is not a comparison. It is not a zero
 <pre>python scripts/ablation.py</pre>
 
 <h2><span class="n">10</span>Every on-chain claim, resolved</h2>
-<p class="sub">Eleven transaction hashes appear in this repository. This resolves each one
+<p class="sub">Twelve transaction hashes appear in this repository - eleven written down
+and one read live out of <code>live-gate.json</code>. This resolves each one
 against the chain it is documented against — no key, no account, public RPCs — and exits
 non-zero if any fails.</p>
 <pre>knos receipts     # or: python scripts/verify_receipts.py</pre>
@@ -497,10 +498,22 @@ const CHAIN = [
   ['sepolia', 'Access.sol grant', '0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6'],
   ['sepolia', 'Access.sol revoke', '0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4']
 ];
-$('#chain').innerHTML = CHAIN.map(function(row){
+function chainRow(row){
   const host = row[0] === 'mainnet' ? 'basescan.org' : 'sepolia.basescan.org';
   return '<tr><td class="m">' + row[0] + '</td><td>' + row[1] + '</td><td class="m">' +
     '<a href="https://' + host + '/tx/' + row[2] + '">' + row[2].slice(0, 18) + '…</a></td></tr>';
-}).join('');
+}
+$('#chain').innerHTML = CHAIN.map(chainRow).join('');
+
+// The twelfth is not typed above, for the same reason `knos receipts` reads it
+// rather than quoting it: the live gate writes a new hash every time it runs,
+// and a pinned copy went stale on the very next run. Read it out of the file
+// the script wrote, so this table cannot fall behind the checker again.
+load('live-gate').then(function(g){
+  const extra = (g.rounds || [])
+    .filter(function(r){ return r.paid && typeof r.tx === 'string' && r.tx.indexOf('0x') === 0; })
+    .map(function(r){ return ['mainnet', 'x402 news $0.001 · the live gate', r.tx]; });
+  if (extra.length) $('#chain').innerHTML += extra.map(chainRow).join('');
+}).catch(function(){ /* the eleven written down still stand on their own */ });
 </script>
 </div></body></html>

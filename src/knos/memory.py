@@ -455,7 +455,17 @@ class Memory:
                         "   body = excluded.body,"
                         "   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
                         " WHERE json_extract(state_documents.body, '$.topic') IS NULL"
-                        "    OR json_extract(state_documents.body, '$.who') = ?"
+                        # The name alone cannot re-take a claim: a client
+                        # tells knos what it is called, so an agent that
+                        # calls itself the holder would otherwise overwrite
+                        # the row and walk out of its own withhold. The
+                        # connection has to match too, exactly as the read
+                        # side already requires. A claim written before
+                        # sessions existed has none and still falls back to
+                        # the name, which is no weaker than it was.
+                        "    OR (json_extract(state_documents.body, '$.who') = ?"
+                        "        AND COALESCE(json_extract(state_documents.body,"
+                        "                     '$.session'), '') IN ('', ?))"
                         "    OR julianday(json_extract(state_documents.body, '$.when'))"
                         "       IS NULL"
                         # The row expires on the hold it was written with, so
@@ -465,7 +475,7 @@ class Memory:
                         "            json_extract(state_documents.body, '$.holds'), 30"
                         "          ) / 1440.0)"
                         "       < julianday(?)",
-                        (self._tenant, key, body, who, now),
+                        (self._tenant, key, body, who, session, now),
                     )
                     if conn.total_changes > before:
                         took = True

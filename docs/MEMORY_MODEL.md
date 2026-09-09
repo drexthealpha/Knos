@@ -29,8 +29,10 @@ One row per topic, overwritten, expiring on its own.
 
 - **Written by** `Memory.claim_if_free`, `Memory.working_on`
 - **Read by** `mcp._held`, `guard.check`, `gate.decide`, `core.Claims`
-- **Lifetime** `INTENT_HOLDS = 30` minutes, then it lapses whether or not
-  anyone said `knos done`
+- **Lifetime** the hold the claim was written with, then it lapses whether or
+  not anyone said `knos done`. `INTENT_HOLDS = 30` minutes is the prior every
+  agent starts on; `record.holds_for` moves it from there on what that agent
+  has actually closed, so a reliable agent's claim outlives an abandoner's
 
 The expiry is deliberate. A crashed agent must not be able to hold work for
 ever, and a coordination tool whose stale locks outlive their owner gets

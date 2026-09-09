@@ -22,7 +22,7 @@ knos demo
 
 [`knos` on PyPI](https://pypi.org/project/knos/) is the last cut release,
 0.1.8. This installs from the repository instead, because the paragraphs below
-describe what is on `main` - the learned hold, `knos who`, and the ten beats -
+describe what is on `main` - the learned hold, `knos who`, and the eleven beats -
 and a page documenting a command the install does not have is worse than a
 longer command.
 
@@ -34,13 +34,14 @@ About fifty seconds on a throwaway repo, ending with the store deleted and every
 refusal gone. Every line is a real call, not a transcript -
 [`tests/test_demo.py`](../tests/test_demo.py) asserts the live values appear.
 
-Beat 7 is the one to watch if you are checking the gate. A separate
+Beat 8 is the one to watch if you are checking the gate. A separate
 interpreter, started with nothing but the repo path, prints its own pid, the
 repo's commit hash and the wall clock, and then reads back what an earlier
-process wrote. Beat 8 shows what the store learned about which agents finish
-what they claim. Beat 9 deletes it and re-runs every refusal. Cold-start
-recall and the deletion test are therefore the same unbroken minute and a
-half, rather than two claims made in prose.
+process wrote. Beat 9 shows what the store learned about which agents finish
+what they claim, beat 10 what a teammate's agent cannot see, and beat 11
+deletes the store and re-runs every refusal. Cold-start recall and the
+deletion test are therefore the same unbroken minute and a half, rather than
+two claims made in prose.
 
 
 ## Everything the memory decides, in one table
@@ -85,13 +86,13 @@ where the claim itself is taken. Between them that is the whole critical path.
 | **write** | [`memory.py:297`](../src/knos/memory.py#L297) `set_entity` | a topic, file or person, into WARM |
 | **write** | [`memory.py:395`](../src/knos/memory.py#L395) `set_state` | the live claim, into HOT |
 | **write** | [`memory.py:340`](../src/knos/memory.py#L340) `set_state` | what the session is focused on, into HOT |
-| **write** | [`memory.py:648`](../src/knos/memory.py#L648) `set_reference` | the repo's own rules, into REFERENCE |
+| **write** | [`memory.py:658`](../src/knos/memory.py#L658) `set_reference` | the repo's own rules, into REFERENCE |
 | **write** | [`memory.py:312`](../src/knos/memory.py#L312) `archive_entity` | superseded wording, into ARCHIVE |
 | **read** | [`memory.py:249`](../src/knos/memory.py#L249) `read_events` | the journal - and `record.holds_for` counts it to set the next hold |
 | **read** | [`memory.py:345`](../src/knos/memory.py#L345) `get_state` | the live claim - the withhold and the guard both start here |
 | **read** | [`memory.py:303`](../src/knos/memory.py#L303) `get_entity` | what is known about one thing, before answering |
-| **read** | [`memory.py:664`](../src/knos/memory.py#L664) `search` | every tier, for a question |
-| **read** | [`memory.py:653`](../src/knos/memory.py#L653) `get_reference` | the rules, before the guard refuses a path |
+| **read** | [`memory.py:674`](../src/knos/memory.py#L674) `search` | every tier, for a question |
+| **read** | [`memory.py:663`](../src/knos/memory.py#L663) `get_reference` | the rules, before the guard refuses a path |
 
 
 One write does not go through the client, and it is the most important one.
@@ -116,10 +117,10 @@ separates this from a wrapper, and there are four places to look:
 
 ```bash
 pytest tests/test_sibyl_is_load_bearing.py
-knos demo     # beat 9 deletes the store live and re-runs every refusal
+knos demo     # beat 11 deletes the store live and re-runs every refusal
 ```
 
-**Cold-start recall** is beat 7 of `knos demo`: a separate interpreter, given
+**Cold-start recall** is beat 8 of `knos demo`: a separate interpreter, given
 nothing but the repo path, printing its own pid with the repo's commit hash
 and the wall clock before reading back what an earlier process wrote.
 

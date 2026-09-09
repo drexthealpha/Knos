@@ -145,3 +145,48 @@ def test_a_commit_is_not_re_checked_against_anything(repo: Path) -> None:
     assert "pay.py" not in commits[0].where, (
         "a commit is cited by its hash, not by a line that could move"
     )
+
+
+CONSTANTS_SOURCE = """
+SETTLEMENT_TOKEN_NAME = "the settlement key"
+MAX_RETRIES: int = 3
+local_thing = 1
+class Holder:
+    INDENTED = 2
+    def read(self):
+        return SETTLEMENT_TOKEN_NAME == 1
+"""
+
+@pytest.mark.critical
+def test_the_reader_knos_carries_finds_a_module_level_constant(tmp_path) -> None:
+    """The gap that only showed on a machine without ctags.
+
+    `knos demo`'s privacy beat asks for a settings name defined at the top of
+    a file. universal-ctags indexes that; the reader knos carries indexed only
+    `class` and `def`, so the same beat named a file and a line on a machine
+    that had ctags and printed nothing on a cold `pip install` - which is the
+    machine most people are on. CI has no ctags, which is how it was caught,
+    and this pins it without needing that difference.
+
+    Column zero and UPPER_SNAKE only. Indexing every assignment would put
+    half a file in the index and make the answers worse, not better.
+    """
+    from knos import builtin_reader
+
+    source = tmp_path / "keys.py"
+    source.write_text(
+        CONSTANTS_SOURCE, encoding="utf-8"
+    )
+    index = tmp_path / "index"
+    builtin_reader.write_index(tmp_path, [str(source)], index, None)
+    found = {
+        line.split(builtin_reader.FIELD)[0]: line.split(builtin_reader.FIELD)[3]
+        for line in index.read_text(encoding="utf-8").splitlines()
+    }
+
+    assert found.get("SETTLEMENT_TOKEN_NAME") == "constant"
+    assert found.get("MAX_RETRIES") == "constant", "an annotated constant too"
+    assert found.get("Holder") == "class"
+    assert found.get("read") == "function"
+    assert "local_thing" not in found, "lowercase is a variable, not a setting"
+    assert "INDENTED" not in found, "indented is not module level"

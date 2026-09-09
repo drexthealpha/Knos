@@ -424,6 +424,44 @@ def test_naming_yourself_the_holder_does_not_get_you_past_the_block(knos_home, r
     )
 
 
+@pytest.mark.critical
+def test_naming_yourself_the_holder_does_not_let_you_take_the_claim_either(
+    knos_home, repo
+):
+    """The write side has to bind to the connection as well as the read side.
+
+    Withholding from an impostor is worth nothing if the same impostor can
+    simply claim the work under the holder's name: the row is overwritten,
+    it is now the holder for real, and it has walked out of its own
+    withhold in one call. The compare-and-swap matches the session too.
+    """
+    knos_paths.remember_pointed(repo)
+    with Memory(repo) as mem:
+        mem.working_on("the risk guard", "Claude Code", _now(), session="99999")
+
+        took, holder = mem.claim_if_free(
+            "the risk guard", "Claude Code", _now(), session="not-99999"
+        )
+        assert took is False
+        assert holder is not None and holder["session"] == "99999"
+
+        # The connection that actually made it can still restate it.
+        again, _ = mem.claim_if_free(
+            "the risk guard", "Claude Code", _now(), session="99999"
+        )
+        assert again is True
+
+
+def test_a_claim_written_without_a_session_is_still_restateable_by_name(
+    knos_home, repo
+):
+    """Older claims are no weaker than they were, and no stronger."""
+    with Memory(repo) as mem:
+        mem.working_on("the parser", "Cursor", _now())
+        assert mem.claim_if_free("the parser", "Cursor", _now())[0] is True
+        assert mem.claim_if_free("the parser", "Claude Code", _now())[0] is False
+
+
 def test_the_real_holder_on_its_own_connection_is_let_through(knos_home, repo):
     knos_paths.remember_pointed(repo)
     with Memory(repo) as mem:

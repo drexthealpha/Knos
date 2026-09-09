@@ -42,21 +42,21 @@ your tree, and `knos forget` removes it.
 knos guard --install
 ```
 
-Without it, beat 3 - the refusal reaching the edit itself - silently does not
+Without it, beat 4 - the refusal reaching the edit itself - silently does not
 happen. The hook is not installed by `knos connect` on purpose, because a hook
 that wrongly denies an edit is worse than no hook at all. `knos guard
 --uninstall` takes it back out and it touches nothing else.
 
-**Do not run beat 5 unless the wallet is yours and funded.** It spends real
+**Do not run beat 6 unless the wallet is yours and funded.** It spends real
 USDC on Base mainnet. If you are recording on somebody else's behalf, skip it
 and say the receipts are in `docs/VERIFICATION.md` - they resolve on-chain and
 anybody can check them with `python scripts/verify_receipts.py`.
 
 **Run `knos receipts` on camera, straight after the demo.** It takes about
-fifteen seconds and it is the whole partner-stack argument in one shot: eleven
+fifteen seconds and it is the whole partner-stack argument in one shot: twelve
 transactions resolved live against Base mainnet and Base Sepolia, block numbers
-printed, USDC seen in the logs of all eight mainnet ones. No key, no account, no
-wallet - so it is safe for anybody to run, unlike beat 5.
+printed, USDC seen in the logs of all nine mainnet ones. No key, no account, no
+wallet - so it is safe for anybody to run, unlike beat 6.
 
 The judging rules want an executed on-chain action *shown in the demo*. This is
 that action being resolved against the chain while the clock runs, rather than a
@@ -65,11 +65,11 @@ hash in a document that a judge has to go and check afterwards.
 **Two moments must be in one unbroken take, whichever route you record.**
 
 1. **A fresh process reading back earlier state.** In `knos demo` this is beat
-   7: a separate interpreter prints its own pid next to the repo's commit hash
+   8: a separate interpreter prints its own pid next to the repo's commit hash
    and the wall clock, then reads back what an earlier process wrote. In the
    staged route it is opening a second agent window and watching it be refused.
-2. **The store being deleted, and everything stopping.** Beat 9 of `knos
-   demo`, or beat 6 of the staged route.
+2. **The store being deleted, and everything stopping.** Beat 11 of `knos
+   demo`, or beat 7 of the staged route.
 
 A cut between those two is the one edit that ruins the recording, because the
 whole argument is that the second follows from the first.
@@ -129,7 +129,7 @@ turn on it:
 pip install "git+https://github.com/drexthealpha/Knos"
 cd <a repo you actually work in>
 knos connect              # optional; only needed for the agent panes
-knos guard --install      # optional; only needed for beat 3
+knos guard --install      # optional; only needed for beat 4
 ```
 
 Have `~/.knos/<repo>/memory.db` open in the file viewer pane, or a terminal
@@ -180,8 +180,10 @@ In agent A:
 knos claim "the risk guard"
 ```
 
-In agent B, ask about it - through the MCP tool, not the CLI, so it is the
-agent being refused and not a person reading a warning:
+In agent B, ask about it - through the MCP `search` tool, not the CLI, so it
+is the agent being refused and not a person reading a warning. Use `search`,
+not `about`: `about` is a named lookup and answers with the holder's name
+above it, which is a weaker beat on camera.
 
 > what do we know about the risk guard?
 
@@ -321,5 +323,5 @@ python scripts/ablation.py
 - Do not hide that the ACP buyer was your own agent.
 - Do not cut. A cut in the deletion beat destroys the only thing that beat is
   for.
-- Do not run beat 5 without funds in the wallet. Do a dry run first; a failed
+- Do not run beat 6 without funds in the wallet. Do a dry run first; a failed
   purchase on camera costs more than the brief is worth.

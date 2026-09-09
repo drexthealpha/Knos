@@ -132,7 +132,19 @@ def main(argv: list[str]) -> int:
     try:
         said = decide(Path(args.repo), args.topic, args.ask, args.who)
     except Exception as why:  # noqa: BLE001 - a broken gate must not spend
-        said = {"verdict": "buy", "answer": "", "holder": "", "where": "",
+        # Not `buy`. This used to say `buy` under a comment saying a broken
+        # gate must not spend, which is the opposite of what it did: any
+        # error - an unreadable store, a disk that went away - authorised a
+        # real USDC purchase, and the one caller that honours this treats
+        # `buy` as the single verdict that costs money. A gate that cannot
+        # read the record has not established that this agent may spend, so
+        # it says exactly that, and the agent keeps working with the person
+        # told why nothing was bought.
+        said = {"verdict": "unproven", "holder": args.who, "where": "",
+                "answer": ("knos could not read the record that decides this"
+                           f" purchase ({type(why).__name__}), so it did not"
+                           " spend. Ask the person to buy it, or fix the"
+                           " store with `knos status`."),
                 "why": f"{type(why).__name__}: {why}"}
     print(json.dumps(said))
     return 0

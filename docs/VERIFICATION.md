@@ -54,13 +54,19 @@ that part was never Knos's to lose.
 
 `knos remember` after a purchase was only half of "nobody here pays twice".
 The other half is looking before you buy, and `src/knos/gate.py` is that half.
-Three verdicts, one of which costs money:
+Five verdicts, one of which costs money:
 
 | The store says | What the agent does |
 |---|---|
 | somebody holds this topic | **refuses to spend.** The answer would be stale before it arrived |
+| it rests on a decision somebody reversed | **refuses to spend**, until a person has looked at it |
 | this was already bought | **serves it free**, and says where it came from |
+| this agent takes work and abandons it | **refuses to spend** shared money on it |
 | nothing known, nothing claimed | buys it, then writes it back |
+
+A gate that cannot read the store answers with the fourth of those, not the
+last: it has not established that the purchase is warranted, so it does not
+authorise one.
 
 Watch it happen, without spending anything, on a topic already in the store:
 

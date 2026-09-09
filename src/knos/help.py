@@ -26,6 +26,7 @@ MAIN = """  knos — one local memory every coding agent on this machine shares,
       knos remember, notes, forget    things you tell your agents
       knos private                    keep a path from them
       knos point .                    re-read after a lot of changes
+      knos receipts, verify           the on-chain claims; the record
       knos help <cmd>                 more about one command
 
   While one agent is mid-change, the others are told, and knos holds

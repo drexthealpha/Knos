@@ -169,9 +169,15 @@ for the demand rather than the demand being absent.
   discover it themselves.
 - **1 ACP job sold, for real USDC, on the real marketplace.** The buyer was my
   own test agent.
-- **Five Base mainnet purchases.** All mine - the fifth is the live gate
-  run on 9 Sep 2026, where the same agent was refused in between by its
-  own record.
+- **Five Base mainnet purchases** with a receipt each, plus a **thirty-round
+  paired series** on 9 Sep 2026 that paid on both arms - 46 more real
+  transactions, $0.046 of USDC, the blind arm buying every round and the
+  promoted record refusing 14 of 30. All mine. The series is
+  [`live-series.json`](evidence/live-series.json), and its own file says the
+  honest limits: thirty rounds is not a thousand, and the run recorded no
+  usable transaction ids because the first extractor matched a payment nonce
+  rather than a hash - the spend is carried by the payer's balance moving
+  from 0.091 to 0.044 USDC, which anybody can read.
 - Listed on [Glama](https://glama.ai/mcp/servers/drexthealpha/Knos), the MCP
   registry, and [PyPI](https://pypi.org/project/knos/). Presence, not use.
 

@@ -6,7 +6,7 @@
 # commits whatever changed. If a figure on that page stops being reproducible,
 # it changes here in public rather than staying flattering and stale.
 #
-# It also resolves all eleven on-chain hashes against the chains they are
+# It also resolves all twelve on-chain hashes against the chains they are
 # documented against, and fails loudly if any one of them stops resolving.
 name: evidence
 

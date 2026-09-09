@@ -20,7 +20,7 @@ that, and why each piece is where it is.
 Everything on the left writes. Everything on the right reads and, when the
 store says so, **refuses**. There is no second copy of anything on the left, so
 deleting the file does not degrade the right-hand column: it removes it.
-Measured in [`scripts/ablation.py`](../scripts/ablation.py), nine arms.
+Measured in [`scripts/ablation.py`](../scripts/ablation.py), eight arms.
 
 ## The one design decision everything else follows from
 
@@ -41,7 +41,7 @@ and why the Action can never fail a build.
 
 ### 1. The store - the critical path
 
-[`src/knos/memory.py`](../src/knos/memory.py) (662 lines) is the only thing
+[`src/knos/memory.py`](../src/knos/memory.py) (781 lines) is the only thing
 that talks to Sibyl. Everything else goes through it.
 
 `claim_if_free` is the heart: one `INSERT ... ON CONFLICT DO UPDATE ... WHERE`
@@ -57,7 +57,7 @@ the whole feature exists to prevent. A full store **refuses** a claim in words
 
 ### 2. Retrieval
 
-[`src/knos/answer.py`](../src/knos/answer.py) (542 lines). SQLite FTS5, no
+[`src/knos/answer.py`](../src/knos/answer.py) (655 lines). SQLite FTS5, no
 embeddings, no model, no network
 ([`tests/test_no_network.py`](../tests/test_no_network.py)). Every answer is a
 passage somebody actually wrote, with where it came from.
@@ -70,7 +70,7 @@ then missed the obvious, because a claim on "parser" said nothing about
 
 ### 3. The withhold - the MCP surface
 
-[`src/knos/mcp.py`](../src/knos/mcp.py) (430 lines). Three tools over stdio:
+[`src/knos/mcp.py`](../src/knos/mcp.py) (573 lines). Three tools over stdio:
 `search`, `about`, `remember`. No HTTP, no port, no account.
 
 `_held` decides whether to answer. `_is_holder` decides whether the caller is
@@ -87,7 +87,7 @@ routed around; one with an audited escape hatch gets used honestly.
 
 ### 4. The guard - the refusal reaches the edit
 
-[`src/knos/guard.py`](../src/knos/guard.py) (424 lines),
+[`src/knos/guard.py`](../src/knos/guard.py) (610 lines),
 [`guard_hook.py`](../src/knos/guard_hook.py) (52 lines).
 
 MCP cannot stop a tool call - it is a server, and the client decides. But
@@ -117,19 +117,22 @@ mechanism.
 
 ### 6. The money gate
 
-[`src/knos/gate.py`](../src/knos/gate.py) (109 lines).
+[`src/knos/gate.py`](../src/knos/gate.py) (154 lines).
 
-Asked before any purchase. Three verdicts: **withheld** (somebody holds the
-topic, so a bought answer is stale before it arrives), **suspect** (it rests
-on a reversed decision), **have** (already bought, served free), and only
-otherwise **buy**.
+Asked before any purchase. Five verdicts, four of which refuse: **withheld**
+(somebody holds the topic, so a bought answer is stale before it arrives),
+**suspect** (it rests on a reversed decision), **have** (already bought,
+served free), **unproven** (this agent's record does not support spending
+shared money), and only otherwise **buy**.
 
-It fails towards `buy` on any error. A gate that crashes must not become a gate
-that spends silently, and must not become a gate that stops the agent working.
+`buy` is the only one that spends, and a gate that crashes returns
+**unproven**, not `buy`. A gate that cannot read the record has not
+established that the purchase is warranted, so it does not authorise one; the
+agent keeps working and the person is told why nothing was bought.
 
 ### 7. The shared record and the Action
 
-[`src/knos/share.py`](../src/knos/share.py) (189 lines),
+[`src/knos/share.py`](../src/knos/share.py) (306 lines),
 [`action/knos_pr_check.py`](../action/knos_pr_check.py).
 
 `knos export` writes `.knos/decisions.md` - plain markdown, committed to the
@@ -207,7 +210,7 @@ agent/          the Telegram bot, ACP provider, x402 buyer. Optional
 contracts/      Access.sol, the onchain read record. Optional, testnet
 scripts/        ablation.py, the measured numbers
 docs/           this, the judge guide, verification, the demo script
-tests/          281 tests, 24 on the critical path
+tests/          491 tests, 67 on the critical path
 ```
 
 ## Anti-goals

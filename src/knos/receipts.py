@@ -1,8 +1,9 @@
 """Resolve every transaction hash this repository shows against the chain.
 
-The documents point a judge at eleven onchain receipts. A receipt that does
-not resolve is worse than no receipt, because it reads as evidence, so this
-asks the chain directly rather than trusting the page.
+The documents point a judge at twelve onchain receipts - eleven written down
+and one read out of the live gate run. A receipt that does not resolve is
+worse than no receipt, because it reads as evidence, so this asks the chain
+directly rather than trusting the page.
 
 Each hash is checked against the chain it is *labelled* with. That distinction
 is the whole point: the first version of this script asked mainnet for all

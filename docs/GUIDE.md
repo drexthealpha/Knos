@@ -1,4 +1,4 @@
-﻿# The long version
+# The long version
 
 The README is the two minute version. This is everything that used to be in
 it: the reasoning, the worked examples, the onchain detail and the limits.
@@ -26,8 +26,8 @@ jobs:
       - uses: drexthealpha/Knos/action@v0.1.8
 ```
 
-That is the whole of it. It reads `.knos/decisions.md` â€” an ordinary file
-committed to your repo â€” and comments on a pull request when the branch
+That is the whole of it. It reads `.knos/decisions.md` — an ordinary file
+committed to your repo — and comments on a pull request when the branch
 touches work somebody has claimed, or a decision already recorded. Nothing is
 blocked and nothing is required: **it exits 0 on every path, including every
 failure path and every unexpected one**
@@ -36,7 +36,7 @@ failure path and every unexpected one**
 The tag is pinned rather than a branch, so what runs in your CI is a fixed
 file you can read first: `git show v0.1.8:action/knos_pr_check.py`. It is
 standard library only. You can watch it having run rather than take this on
-trust â€” it fired on
+trust — it fired on
 [pull request #1](https://github.com/drexthealpha/Knos/pull/1) here, matched a
 standing claim, named who held it, and exited 0.
 
@@ -60,7 +60,7 @@ with Claims(repo=".", who="my-agent") as claims:
 
 `take` is the compare-and-swap that lets exactly one of two agents win the
 same work in the same second. The hold is bound to the session you pass, not
-to the name â€” an agent that calls itself the holder is still refused. Claims
+to the name — an agent that calls itself the holder is still refused. Claims
 lapse on their own after 30 minutes, so a crashed agent cannot hold work for
 ever. [`src/knos/core.py`](../src/knos/core.py),
 [`tests/test_core.py`](../tests/test_core.py).
@@ -166,7 +166,7 @@ flowchart LR
     TELL["knos remember"] -->|"record, note_thing"| DB
     READ["knos point<br>git log, CLAUDE.md, sessions"] -->|"note_thing"| DB
 
-    DB -->|"search"| ASK["MCP search / about<br>withheld if claimed"]
+    DB -->|"search"| ASK["MCP search - withheld if claimed<br>about - answers, names the holder"]
     DB -->|"claims"| GUARD["guard.check<br>refuses the edit"]
     DB -->|"things, claims"| EXP["knos export<br>.knos/decisions.md"]
     DB -->|"journal, only_here"| ST["knos status"]
@@ -177,7 +177,7 @@ flowchart LR
 ```
 
 Written on the left, read on the right. Delete the box in the middle and
-everything on the right stops â€” that is the whole of what "load-bearing"
+everything on the right stops — that is the whole of what "load-bearing"
 means here, and it is a test rather than a sentence.
 
 | Tier | What lives there | Written by | Read by |
@@ -216,24 +216,24 @@ is a command or a test rather than a claim:
 1. [A claim withholds the answer](#what-a-claim-does-here), instead of
    attaching a warning to it. Every other tool's claim is advisory.
 2. [The guard refuses the edit](#what-it-cannot-do) in Claude Code, Cursor
-   and OpenCode â€” through their hooks, which are not MCP.
+   and OpenCode — through their hooks, which are not MCP.
 3. [A hold is bound to the connection](core-flow.md) that made it, so an
    agent naming itself the holder is still refused.
 4. [Every worktree is one memory](../tests/test_worktrees.py), because the store
    is keyed on `git rev-parse --git-common-dir`. Tools that key on the
    worktree root fragment a repo's memory once per tree.
 5. [Delete the store and the product stops](../tests/test_sibyl_is_load_bearing.py).
-   Not degrades â€” stops.
+   Not degrades — stops.
 
 **The three stacks, and what each one actually does here.**
 
 | Stack | What it does in this repo | Where | Check it without installing anything |
 |---|---|---|---|
 | **Sibyl Memory** | the store. Every claim, answer, journal entry and export goes through it. Required. | `src/knos/memory.py` | [`tests/test_sibyl_is_load_bearing.py`](../tests/test_sibyl_is_load_bearing.py) deletes it and watches the product fail |
-| **Base** | **mainnet, real USDC.** Every purchase settles over x402, and the receipt goes back into the store - so [the money gate](../src/knos/gate.py) reads a Base transaction hash to decide whether to spend again. Secondarily, `knos share ./src --with alice.base.eth` records who may read what onchain (Sepolia). | [`src/knos/buy402.py`](../src/knos/buy402.py), [`src/knos/gate.py`](../src/knos/gate.py), [`contracts/src/Access.sol`](../contracts/src/Access.sol) | five purchases on mainnet - [$0.001](https://basescan.org/tx/0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76) Â· [$0.01](https://basescan.org/tx/0xce109c28781fec2ea12b8e115d59b1bfea219434379a30d472cf72b4abd9a85e) Â· [$0.001](https://basescan.org/tx/0xa8e7135e6c41e6eb8ed5d15b5dbf5aafc5a8f748e9d16e08aa1ae6d9c0466103) Â· [$0.01](https://basescan.org/tx/0x3a45e0066fbf764731f98dab3f023ee2a690dc8923f08ae7f9cb4332e049a88b)  · [$0.001, gated by the record](https://basescan.org/tx/0x7df644ad5b66665d724dbb4f6567df6f189baa1350bdb383f628cfc50e71084e) - and the Sepolia contract [`0x955fa320â€¦6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52) |
+| **Base** | **mainnet, real USDC.** Every purchase settles over x402, and the receipt goes back into the store - so [the money gate](../src/knos/gate.py) reads a Base transaction hash to decide whether to spend again. Secondarily, `knos share ./src --with alice.base.eth` records who may read what onchain (Sepolia). | [`src/knos/buy402.py`](../src/knos/buy402.py), [`src/knos/gate.py`](../src/knos/gate.py), [`contracts/src/Access.sol`](../contracts/src/Access.sol) | five purchases on mainnet - [$0.001](https://basescan.org/tx/0x80d984d2e88332888a595f5476722bca9efbe7850fce4090b02f49154d958c76) · [$0.01](https://basescan.org/tx/0xce109c28781fec2ea12b8e115d59b1bfea219434379a30d472cf72b4abd9a85e) · [$0.001](https://basescan.org/tx/0xa8e7135e6c41e6eb8ed5d15b5dbf5aafc5a8f748e9d16e08aa1ae6d9c0466103) · [$0.01](https://basescan.org/tx/0x3a45e0066fbf764731f98dab3f023ee2a690dc8923f08ae7f9cb4332e049a88b)  · [$0.001, gated by the record](https://basescan.org/tx/0x7df644ad5b66665d724dbb4f6567df6f189baa1350bdb383f628cfc50e71084e) - and the Sepolia contract [`0x955fa320…6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52) |
 | **Virtuals** | a **Telegram bot** that is also a registered ACP provider: it sells one answer out of this store, and pays over x402 for a brief it writes back with `knos remember`. Runs on the console with no Telegram account. Optional, off by default. | [`agent/bot.ts`](../agent/bot.ts), [`agent/offering.ts`](../agent/offering.ts), [`src/knos/buy402.py`](../src/knos/buy402.py) | [the agent page](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc), and job 75659 in two legs: [escrow funded](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64), [provider paid](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59) |
 
-Base and Virtuals are **optional and off by default** â€” Knos runs with both
+Base and Virtuals are **optional and off by default** — Knos runs with both
 switched off, and nothing on the read or answer path touches a network
 ([`tests/test_no_network.py`](../tests/test_no_network.py)). Every job traded
 through the Virtuals provider was bought by a test agent of mine, not by a
@@ -267,19 +267,19 @@ none of it works.
 ### The whole loop, in under a minute
 
 This is the server path, for when you already run several agents yourself.
-The repo-side loop needs none of it â€” the Action reads a committed file and
+The repo-side loop needs none of it — the Action reads a committed file and
 nothing here has to be installed for that to work.
 
 ```bash
 pip install knos && knos connect     # once, per machine, only if you want the server
 knos claim "the parser"              # agent A takes it
-# ask any other agent about the parser â€” it is refused, and told who has it
+# ask any other agent about the parser — it is refused, and told who has it
 knos done                            # give it back
 knos export                          # writes .knos/decisions.md, commit it
 ```
 
 Claim, be refused, release, export. The Action then does the same thing on a
-pull request, for the people who never installed anything â€” which is most of
+pull request, for the people who never installed anything — which is most of
 them, and is the point.
 
 All of it runs without an editor open, as two real processes against one
@@ -288,13 +288,13 @@ proof is [`tests/test_sibyl_is_load_bearing.py`](../tests/test_sibyl_is_load_bea
 which takes the store away and asserts that both the withholding and the
 answers die with it.
 
-Under it is a local MCP server: four tools over stdio â€” `search`, `about`,
+Under it is a local MCP server: four tools over stdio — `search`, `about`,
 `remember`, `done`. No HTTP server, no ports, no account, no model download, no repo
 to register, and [no network connection at all](../tests/test_no_network.py):
 that last one is a test, not a promise.
 
 `knos connect` adds Knos to **Claude Code**, **Claude Desktop**, **Cursor**
-and **OpenCode** â€” whichever you have, each in the shape it reads
+and **OpenCode** — whichever you have, each in the shape it reads
 (`mcpServers` for the first three, `mcp` with `"type": "local"` for
 OpenCode). For Claude Code it runs `claude mcp add --scope user`, which
 registers the server with the session you are already in, so **its tools work
@@ -310,7 +310,7 @@ extension, the Claude Code plugin and the by-hand JSON are all in
 
 The first thing an agent asks about a repo reads it. Seven cold runs each,
 whole process, Windows on a spinning disk (WSL on the same box: 3.4s median on a small repo): **1.7s median on a small project (1.5-2.1),
-2.0s on goose (1.8-3.4), 3.1s on the Linux kernel (3.0-6.8)** â€” 93,703 tracked
+2.0s on goose (1.8-3.4), 3.1s on the Linux kernel (3.0-6.8)** — 93,703 tracked
 files. What it does in that time is one `git log`, your `CLAUDE.md`, and the
 transcripts of past sessions in that tree, written to SQLite. It happens once. Every question after it is
 under 0.2s, and every agent you have shares the result.
@@ -329,7 +329,7 @@ so knos is not the place you find out about it. Ask them, or work on
 something else.
 ```
 
-Not a warning attached to the answer â€” **no answer**. Your agent can still
+Not a warning attached to the answer — **no answer**. Your agent can still
 take it, by saying why, and the reason is written down under its name where
 you will read it. `knos done` releases it, and so does half an hour.
 
@@ -337,7 +337,7 @@ you will read it. `knos done` releases it, and so does half an hour.
 when an agent reaches for the file rather than when it asks a question, so the
 edit itself is refused. Claude Code, Cursor and OpenCode all run a hook before
 a tool call and a hook can say no. It is off until you ask for it, and
-`knos guard --uninstall` takes it back out â€” details in
+`knos guard --uninstall` takes it back out — details in
 [What it cannot do](#what-it-cannot-do).
 
 **What a claim covers.** A claim and a question are treated as the same
@@ -345,7 +345,7 @@ subject when they share a word stem, and identifiers are split into their
 parts first, so a claim on `the risk guard` covers `risk_guard.py`. The
 claim is matched against the passages the question would have returned as
 well as against the question itself, so rewording the question does not get
-past it â€” asking *why do we cap trades?* while `the risk guard` is claimed
+past it — asking *why do we cap trades?* while `the risk guard` is claimed
 is withheld like the plain question. This is word matching, not meaning: a
 question that shares no stem with the claim *and* returns no passage that
 does will still be answered. Check it:
@@ -359,31 +359,31 @@ you can check each one:
 
 | | To install | MCP tools | Needs | Refuses to answer about work another agent claimed |
 |---|---|---|---|---|
-| `CLAUDE.md` + worktrees | â€” | â€” | nothing | no |
-| [agentmemory](https://github.com/rohitg00/agentmemory) | `npx -y @agentmemory/agentmemory@latest` | **54** (8 in core mode) | a server on ports 3111/3112/3113/49134 | no â€” `memory_lease` locks an *action* an agent chooses to take |
+| `CLAUDE.md` + worktrees | — | — | nothing | no |
+| [agentmemory](https://github.com/rohitg00/agentmemory) | `npx -y @agentmemory/agentmemory@latest` | **54** (8 in core mode) | a server on ports 3111/3112/3113/49134 | no — `memory_lease` locks an *action* an agent chooses to take |
 | [mcp-local-memory](https://github.com/Beledarian/mcp-local-memory) | npx entry in your config | 18 | may download an embedding model | no |
-| [Engram](https://github.com/Gentleman-Programming/engram) | `brew install` + `engram setup <agent>` | 16 | nothing â€” one binary | not addressed |
-| [MemPalace](https://github.com/MemPalace/mempalace) | `uv tool install mempalace` + `init` + `mine` | 45 | ~300 MB embedding model | no â€” separate wings per agent |
-| [Hindsight](https://github.com/vectorize-io/hindsight) | `docker run â€¦` or pip | 3 per bank | Postgres + pgvector + an LLM API key | no â€” banks are isolated by design |
-| [Vibsync](https://vibsync.com/agent-coordination) | remote MCP URL + an account | claim/release, check_conflicts, remember/recall, task board | a hosted server | no â€” its own page: "cooperative, not enforced â€” a rogue agent can still ignore it" |
-| [CoordMCP](https://glama.ai/mcp/servers/siddiquesahabaj/CoordMCP) | `pip install coordmcp` | **52** | a coordination server running | no â€” `lock_files` blocks edits, not reads |
-| [Memryzed](https://github.com/memryzed/memryzed) | `curl -fsSL https://memryzed.com/install.sh \| bash` | 9 | nothing â€” one SQLite file | not addressed |
-| [Agent Claim MCP](https://glama.ai/mcp/servers/vk0dev/agent-claim-mcp) | npx entry in your config | 3 | nothing | no â€” and it is not a memory system: claims only, no sessions or decisions |
-| [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail_rust) | `curl â€¦ install.sh \| bash` | **45** (plus 25 resources) | a listener on 127.0.0.1:8765 | no â€” reservations are advisory; its git hook blocks a *commit*, and the memory stays fully readable |
+| [Engram](https://github.com/Gentleman-Programming/engram) | `brew install` + `engram setup <agent>` | 16 | nothing — one binary | not addressed |
+| [MemPalace](https://github.com/MemPalace/mempalace) | `uv tool install mempalace` + `init` + `mine` | 45 | ~300 MB embedding model | no — separate wings per agent |
+| [Hindsight](https://github.com/vectorize-io/hindsight) | `docker run …` or pip | 3 per bank | Postgres + pgvector + an LLM API key | no — banks are isolated by design |
+| [Vibsync](https://vibsync.com/agent-coordination) | remote MCP URL + an account | claim/release, check_conflicts, remember/recall, task board | a hosted server | no — its own page: "cooperative, not enforced — a rogue agent can still ignore it" |
+| [CoordMCP](https://glama.ai/mcp/servers/siddiquesahabaj/CoordMCP) | `pip install coordmcp` | **52** | a coordination server running | no — `lock_files` blocks edits, not reads |
+| [Memryzed](https://github.com/memryzed/memryzed) | `curl -fsSL https://memryzed.com/install.sh \| bash` | 9 | nothing — one SQLite file | not addressed |
+| [Agent Claim MCP](https://glama.ai/mcp/servers/vk0dev/agent-claim-mcp) | npx entry in your config | 3 | nothing | no — and it is not a memory system: claims only, no sessions or decisions |
+| [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail_rust) | `curl … install.sh \| bash` | **45** (plus 25 resources) | a listener on 127.0.0.1:8765 | no — reservations are advisory; its git hook blocks a *commit*, and the memory stays fully readable |
 | **Knos** | **a workflow file, or `from knos.core import Claims`; the server is optional** | **3** | **nothing** | **yes** |
 
 Knos is not the only tool with claims, and that column would be dishonest if
 it implied so. Vibsync, CoordMCP, AgentRoom and Agent Claim MCP all let an
 agent claim something; agentmemory has leases. The difference is what a claim
 *does*. Everywhere else it is a signal about a file, which an agent may check
-before editing and may ignore â€” Vibsync says so itself, and CoordMCP's locks
+before editing and may ignore — Vibsync says so itself, and CoordMCP's locks
 stop edits while the memory stays fully readable. Knos changes what the memory
 says: ask about work someone else claimed and there is no answer to act on,
 and the claim is bound to the connection that made it, so an agent naming
 itself the holder is still refused.
 
 Three of these are worth your attention for reasons other than that column.
-Memryzed is local, keyless and one SQLite file â€” the same shape as Knos, with
+Memryzed is local, keyless and one SQLite file — the same shape as Knos, with
 more recall tools and no coordination. Vibsync is the only one that shares a
 claim across machines, which Knos does not: a committed `.knos/decisions.md`
 is as far as a claim travels here. **Agent Mail is the closest thing to a
@@ -445,12 +445,12 @@ asserts the first three rows stop working.
 
 | Capability | Run it | Where it touches the store |
 |---|---|---|
-| A claim is taken, once, atomically | `knos claim "the parser"` | `Memory.claim_if_free` â€” compare-and-swap into HOT state, `src/knos/memory.py` |
-| A second agent is refused | ask any other agent about it | `mcp.search` â†’ `_being_worked_on` reads HOT, `src/knos/mcp.py` |
+| A claim is taken, once, atomically | `knos claim "the parser"` | `Memory.claim_if_free` — compare-and-swap into HOT state, `src/knos/memory.py` |
+| A second agent is refused | ask any other agent about it | `mcp.search` → `_being_worked_on` reads HOT, `src/knos/mcp.py` |
 | Who stood down, and who overrode | `knos status` | COLD journal via `Memory.stood_down` / `_took_it_anyway` |
-| What you told it | `knos remember "..."` | `Memory.record` â†’ journal, `Memory.note_thing` â†’ WARM entity |
+| What you told it | `knos remember "..."` | `Memory.record` → journal, `Memory.note_thing` → WARM entity |
 | Decisions shared with the repo | `knos export` | WARM + HOT read out into `.knos/decisions.md` |
-| A brief bought over x402 | `/brief BTC` in the bot | `knos remember` after payment â€” the receipt exists nowhere else |
+| A brief bought over x402 | `/brief BTC` in the bot | `knos remember` after payment — the receipt exists nowhere else |
 | An ACP deliverable | a buyer funds a job | `agent/offering.ts` shells to `knos ask`, which reads the store |
 | How full it is, and what dies | `knos status` | `Memory.size_mb`, `Memory.only_here` |
 
@@ -470,7 +470,7 @@ that it is changing something, and another agent whose question or whose
 answer touches that subject is handed the holder's name instead. Delete the file and there is
 nothing to read, so nothing is withheld, so two agents edit the same thing
 and neither is told. The refusal is not a rule enforced in code somewhere
-else â€” it *is* a read of the store, and it fails when the read fails.
+else — it *is* a read of the store, and it fails when the read fails.
 
 The same file is the only copy of three other things. What you told it with
 `knos remember`. The brief the agent paid for over x402, which was bought
@@ -478,7 +478,7 @@ once and exists nowhere else on the machine. The ACP job it sold, and what it
 sold. Your commits and your `CLAUDE.md` come back after a delete, because
 those are your files; none of these do.
 
-`knos status` prints that number directly â€” how many things exist nowhere
+`knos status` prints that number directly — how many things exist nowhere
 else. The table in [What breaks without the
 store](#what-breaks-without-the-store) names the call site for each one, and
 [`tests/test_sibyl_is_load_bearing.py`](../tests/test_sibyl_is_load_bearing.py)
@@ -488,7 +488,7 @@ product fail.
 ## Share it with the repo, not a server
 
 Everything above is local. Two things, though, exist nowhere a teammate can
-reach â€” what somebody decided, and what somebody is working on right now. So
+reach — what somebody decided, and what somebody is working on right now. So
 those go in the repository, as a file you commit:
 
 ```bash
@@ -513,7 +513,7 @@ three different kinds of reader consume it without installing anything:
 
 - **A teammate clones and asks.** `.knos/decisions.md` is one of the decision
   records Knos already reads, so a clean clone answers from it on its first
-  question â€” no install, no sync, no account, no server between the two
+  question — no install, no sync, no account, no server between the two
   machines (`pytest tests/test_shared_repo.py -k second_clean_clone`).
 - **Every agent on their machine reads it too**, through the same three MCP
   tools, on the same first question. A contributor who has never heard of
@@ -522,7 +522,7 @@ three different kinds of reader consume it without installing anything:
 - **CI reads it on a pull request** and says so when the branch touches work
   somebody has claimed (`pytest tests/test_shared_repo.py -k ci_warns`).
 
-The comment is a heads-up, never a failure â€” `action/knos_pr_check.py`
+The comment is a heads-up, never a failure — `action/knos_pr_check.py`
 exits 0 on every path, including when it finds a conflict and when it
 crashes. The workflow is eight lines:
 [The pull request check](#the-pull-request-check).
@@ -565,7 +565,7 @@ product: the claim, the withhold, `knos export`, and
 [`core.py`](../src/knos/core.py), the importable version of the claim for tools
 that would rather embed it than run a server. `action/` is
 the pull request check above. `agent/` is a Telegram bot that is also a
-registered Virtuals agent â€” it pays for things over x402 on Base and sells
+registered Virtuals agent — it pays for things over x402 on Base and sells
 answers as ACP jobs, and every one of those paths reads and writes the same
 store. It is the commerce leg, not the product; Knos works with it switched
 off, which is the default. `contracts/` is one Solidity file behind
@@ -579,7 +579,7 @@ anything from the head branch.
 ## Who this is for, and the pain they have written down
 
 **The audience is maintainers and contributors on repositories where more
-than one coding agent touches the same tree** â€” a person running Claude Code
+than one coding agent touches the same tree** — a person running Claude Code
 in the terminal and Cursor in the editor, a team whose contributors point
 agents at the same issue, or a repository that accepts agent-written pull
 requests. They share one failure: two agents change the same thing, neither
@@ -623,7 +623,7 @@ reading it before every edit has stopped being possible.
 **What this is and is not.** It is evidence that the problem is real and that
 people with large audiences have written it down. It is not evidence that
 anybody uses Knos. **No repository outside this one has adopted it.** The
-loop is implemented and tested â€” six tests in `tests/test_shared_repo.py` â€”
+loop is implemented and tested — six tests in `tests/test_shared_repo.py` —
 which makes it a mechanism that works, not a network that exists.
 
 ## Check any of it in under a minute
@@ -635,18 +635,18 @@ than leaving a dead instruction here
 
 | What | How to check it yourself |
 |---|---|
-| A claim changes what other agents are told | `knos claim "the parser"` â€” it prints the exact refusal your agents now get. `knos done` gives it back. |
-| One agent's claim reaches another agent's **live** session, with no restart or cache | `pytest tests/test_no_network.py -k live_session` â€” one process claims, a second sees it on its next call |
-| No network connection, ever | `pytest tests/test_no_network.py` â€” breaks `socket.connect`, `bind`, `create_connection`, `getaddrinfo`, then reads a repo, answers, writes, claims, withholds, overrides. A third test breaks the guard on purpose, so it cannot pass by doing nothing |
-| Decisions you keep in the repo are read | `pytest tests/test_rules.py -k decisions_kept_beside` â€” an ADR answers with `docs/adr/0001-use-sqlite.md:3` |
+| A claim changes what other agents are told | `knos claim "the parser"` — it prints the exact refusal your agents now get. `knos done` gives it back. |
+| One agent's claim reaches another agent's **live** session, with no restart or cache | `pytest tests/test_no_network.py -k live_session` — one process claims, a second sees it on its next call |
+| No network connection, ever | `pytest tests/test_no_network.py` — breaks `socket.connect`, `bind`, `create_connection`, `getaddrinfo`, then reads a repo, answers, writes, claims, withholds, overrides. A third test breaks the guard on purpose, so it cannot pass by doing nothing |
+| Decisions you keep in the repo are read | `pytest tests/test_rules.py -k decisions_kept_beside` — an ADR answers with `docs/adr/0001-use-sqlite.md:3` |
 | Every worktree of a repo is one memory | `pytest tests/test_worktrees.py` |
-| A big repo is never half-read | `pytest tests/test_worktrees.py -k runs_out_of_time` â€” both readers, forced to time out, leave nothing behind |
-| Secrets are invisible, not redacted | `pytest tests/test_private.py` â€” the search layer is asked directly, with an agent's identity |
+| A big repo is never half-read | `pytest tests/test_worktrees.py -k runs_out_of_time` — both readers, forced to time out, leave nothing behind |
+| Secrets are invisible, not redacted | `pytest tests/test_private.py` — the search layer is asked directly, with an agent's identity |
 | Three MCP tools, no more | `pytest tests/test_recall.py -k three_tools_are_listed` |
-| Two agents cannot both hold the same claim | `pytest tests/test_intent.py -k two_processes` â€” two real processes race for one topic; one wins, the other is told who has it |
+| Two agents cannot both hold the same claim | `pytest tests/test_intent.py -k two_processes` — two real processes race for one topic; one wins, the other is told who has it |
 | A crashed agent cannot hold work forever | `pytest tests/test_intent.py -k lapses` |
-| A reworded question is withheld too | `pytest tests/test_intent.py -k paraphrased` â€” `the risk guard` is claimed, the question shares no word with it, the answer is still refused |
-| A claim reaches the file it names | `pytest tests/test_intent.py -k reaches_the_file` â€” `the risk guard` covers `risk_guard.py`, and still does not cover `safeguarding` |
+| A reworded question is withheld too | `pytest tests/test_intent.py -k paraphrased` — `the risk guard` is claimed, the question shares no word with it, the answer is still refused |
+| A claim reaches the file it names | `pytest tests/test_intent.py -k reaches_the_file` — `the risk guard` covers `risk_guard.py`, and still does not cover `safeguarding` |
 | Every command has a `knos help` page | `pytest tests/test_cli.py -k has_a_help_page` |
 | The pull request check can never fail a build | `pytest tests/test_shared_repo.py -k never_returns_non_zero` |
 | CI comments on decisions, not only claims | `pytest tests/test_shared_repo.py -k reports_decisions` |
@@ -661,7 +661,7 @@ request on any of those paths, and a 5 MB free-tier cap per repo.
 
 ## Everything else, briefly
 
-Every answer names where it came from â€” a commit, a session and a date, or a
+Every answer names where it came from — a commit, a session and a date, or a
 file and a line. Knos has no model: it does not summarise and it does not
 guess, it finds what somebody actually said.
 
@@ -697,7 +697,7 @@ Both numbers are the honest ones:
 | Hermes Agent | via [knos-hermes](https://github.com/drexthealpha/knos-hermes) | no |
 | Gemini CLI, Codex, Windsurf, Aider, Continue | no | no |
 
-Wiring a client is three edits and a test â€” [CONTRIBUTING.md](../CONTRIBUTING.md)
+Wiring a client is three edits and a test — [CONTRIBUTING.md](../CONTRIBUTING.md)
 has them, with OpenCode as the worked example. A session reader is about 40
 lines: **Codex CLI and Gemini CLI are the two missing ones**, each a small
 parser plus one test, written up in
@@ -707,7 +707,7 @@ parser plus one test, written up in
 
 `.env`, `*.pem`, `id_rsa`, `.ssh`, `.aws` and twelve more are private the
 moment Knos reads a repo, without being asked. Private means invisible, not
-redacted: an agent asking about one is told nothing at all â€” no result, no
+redacted: an agent asking about one is told nothing at all — no result, no
 count, no "2 hidden".
 
 **Worktrees.** Keep them; they do a different job, and Knos treats every
@@ -719,7 +719,7 @@ returns the worktree root, so every worktree looks like a different project;
 `git rev-parse --git-common-dir` returns the git directory the worktrees
 share, which is identical across all of them. Knos keys the store on the
 second. Tools that key on the first fragment a repo's memory once per
-worktree â€” [that bug, in another
+worktree — [that bug, in another
 tool](https://github.com/rohitg00/agentmemory/issues/515). Check it:
 `pytest tests/test_worktrees.py`.
 
@@ -733,7 +733,7 @@ the other is told who holds it. Check both:
 `pytest tests/test_intent.py -k "lapses or two_processes"`.
 
 **Five tiers, one file, a hard 5 MB cap.** Sibyl's schema is not a black box
-Knos writes blobs into â€” it uses the tiers for what they are. Live claims go
+Knos writes blobs into — it uses the tiers for what they are. Live claims go
 in HOT, one row per topic, overwritten rather than appended. Decisions and
 files go in WARM. History goes in COLD, append-only. The whole thing is
 capped at 5 MB by Sibyl's free tier, and `knos status` prints the size and
@@ -750,7 +750,7 @@ no daemon, no schedule.
 
 ### Speed, on the one question this is for
 
-"What was decided, and is anyone on it?" â€” warm, whole process, median of 7:
+"What was decided, and is anyone on it?" — warm, whole process, median of 7:
 
 | | Knos | `git log --all -S` |
 |---|---|---|
@@ -762,12 +762,12 @@ size because it reads an index rather than walking history; git's grows with
 it. On the kernel that is 30x, and most of Knos's 900ms is Python starting up.
 
 **Knos is not faster than git at anything git is for**, and a cold first read
-of a large repo is slower than either â€” 3.1s median, stated above.
+of a large repo is slower than either — 3.1s median, stated above.
 
 **What agents actually read.** A study of 557 agent sessions and
 33,097 pull requests measured that **60.5%** of everything coding agents do
-with documentation happens in instruction files and their own notes â€”
-`CLAUDE.md`, `AGENTS.md`, plans, scratch notes â€” against 10.6% for classical
+with documentation happens in instruction files and their own notes —
+`CLAUDE.md`, `AGENTS.md`, plans, scratch notes — against 10.6% for classical
 docs and 1.3% for API references
 ([Gao & Chen, 2026](https://arxiv.org/abs/2608.20195)).
 
@@ -780,20 +780,20 @@ that anyone will adopt one.
 Knos is one practical response to that measured behaviour: it reads those same
 instruction files as a source and answers from them with a file and a line.
 Two other things are true on their own account, and the paper is not the reason
-to believe either â€” a file cannot say who is reading it, and it cannot say what
+to believe either — a file cannot say who is reading it, and it cannot say what
 another agent is changing right now.
 
 ## What happens when you delete the memory
 
 One SQLite file at `~/.knos/<repo>/memory.db`, via
 [Sibyl](https://github.com/Sibyl-Labs/Sibyl-Memory), **capped at 5 MB per
-repo** â€” Sibyl's free tier, and Knos runs it unactivated, so there is no
+repo** — Sibyl's free tier, and Knos runs it unactivated, so there is no
 account to make and no cap to raise. Sessions and commits are read newest
 first, so when a repo fills, what you have is the recent end of both and the
 older end was never read. Nothing already stored is evicted or truncated, and
 `knos status` says `nearly full` from 4 MB. The Linux kernel filled 0.3 MB.
 
-Nothing leaves this machine â€” Knos makes no network request. Delete that
+Nothing leaves this machine — Knos makes no network request. Delete that
 file and:
 
 | | Gone forever | Why |
@@ -801,7 +801,7 @@ file and:
 | What you told it (`remember`) | **yes** | it existed nowhere else |
 | Every claim, and the withholding | **yes** | same |
 | Who stood down for whom, every override | **yes** | same |
-| Your commits, `CLAUDE.md`, past sessions | no â€” re-read | they are your files, not Knos's |
+| Your commits, `CLAUDE.md`, past sessions | no — re-read | they are your files, not Knos's |
 
 `knos status` counts that first row for you, so you never take it on trust:
 
@@ -821,7 +821,7 @@ connection so an agent cannot borrow somebody else's name:
 ## The two onchain parts, and exactly what they are
 
 Both are optional. Knos works with neither, and nothing on the read or answer
-path touches a network â€” that is what `pytest tests/test_no_network.py`
+path touches a network — that is what `pytest tests/test_no_network.py`
 checks.
 
 ### Base: sharing one folder with a teammate
@@ -836,7 +836,7 @@ record of who may read what is [Access.sol](../contracts/src/Access.sol) on Base
 Sepolia, so neither machine has to trust the other's copy of the answer.
 Testnet, so it costs nothing.
 
-**What it does not do.** It does not move your memory anywhere â€” the store
+**What it does not do.** It does not move your memory anywhere — the store
 stays on your disk. It does not encrypt anything. It is one permission bit
 per person per folder, not a sync protocol.
 
@@ -851,8 +851,8 @@ team.unshare('crates','teammate'); print(team.may_read(o,'crates',m))"
 ```
 
 Or read it without running anything: contract
-[`0x955fa320â€¦6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52),
-and one full cycle â€”
+[`0x955fa320…6E52`](https://sepolia.basescan.org/address/0x955fa320D60D9172CF048141ed7eEE442da66E52),
+and one full cycle —
 [deploy](https://sepolia.basescan.org/tx/0xdcc25ff7460a09a080ec32016b39121b6a34b741f03411bcfdc2ee2a93b31d21),
 [grant](https://sepolia.basescan.org/tx/0x84e11e21315b51e9e6b6453d226a44bcabf5a80f4c0085ba6f5b56ed169a92b6),
 [revoke](https://sepolia.basescan.org/tx/0xb3ea6920c0a7bf7fa9dde64e6f0c2275e149f976bf20c909098a2431417adfb4).
@@ -868,7 +868,7 @@ this machine's memory. The seller is [agent/offering.ts](../agent/offering.ts).
 process: it answers ACP jobs, it answers `/ask` out of the same store, and
 `/brief` buys something over x402 on Base and writes what it bought back with
 `knos remember`, so the next agent on the machine gets it without paying.
-Every one of those paths reads or writes the same SQLite file â€”
+Every one of those paths reads or writes the same SQLite file —
 `pytest tests/test_sibyl_is_load_bearing.py` takes it away and asserts none
 of them work.
 
@@ -896,11 +896,11 @@ unrecognised one is answered rather than ignored - `tests/test_bot.py`.
 **The x402 half is live on Base mainnet.** `/brief BTC` pays 0.01 USDC to
 [x402-seller](https://x402-seller-m8nx.onrender.com)'s market-regime endpoint
 and writes what it bought into the store with its receipt. Five settled so
-far, signed by `0xEca35a0Câ€¦48C1`:
-[`0x2ce6af5câ€¦`](https://basescan.org/tx/0x2ce6af5c1c223a5b1395cbae719a96d7f1ded74fd90f909375142f9e4a14d9ca),
-[`0x20983f7bâ€¦`](https://basescan.org/tx/0x20983f7ba5afc2cc96da402e1509e8f267c15e4068048f6397bee4bb13537d04).
+far, signed by `0xEca35a0C…48C1`:
+[`0x2ce6af5c…`](https://basescan.org/tx/0x2ce6af5c1c223a5b1395cbae719a96d7f1ded74fd90f909375142f9e4a14d9ca),
+[`0x20983f7b…`](https://basescan.org/tx/0x20983f7ba5afc2cc96da402e1509e8f267c15e4068048f6397bee4bb13537d04).
 The client is [src/knos/buy402.py](../src/knos/buy402.py), which signs with the
-keystore knos made itself â€” there is no private key in any config file.
+keystore knos made itself — there is no private key in any config file.
 
 Two routes on that seller, `/markets` and `/signal`, return 502 after the
 402. They cost nothing (the payment never settles) but they are why `/brief`
@@ -910,21 +910,21 @@ is the only route wired in.
 **every job traded through it was bought by a test agent of mine, not by a
 customer.** It is off by default and runs only when you start it.
 
-**How to verify it.** The agent page is public â€” open
-[app.virtuals.io/acp/agents/01a05b97â€¦](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
+**How to verify it.** The agent page is public — open
+[app.virtuals.io/acp/agents/01a05b97…](https://app.virtuals.io/acp/agents/01a05b97-a776-760a-9165-e9893e4091dc)
 and you will see the registration without installing anything. Job 75659 is
 on Base mainnet, in two legs, neither of which needs an account to read:
 [buyer pays 0.01 USDC into escrow](https://basescan.org/tx/0x756b867b2b1165bfe674025a82d21cd765378a40ab226274bd555abf0065bd64),
 then [escrow releases 0.0095 to the provider](https://basescan.org/tx/0x95a84c44802d09e38ef920524f947dff0eb5a2fe972054fca97bfd989cbcea59)
-â€” the missing 5% is the protocol's fee.
+— the missing 5% is the protocol's fee.
 
 It was asked *why does knos withhold claimed work*, and what it sold, in
 180ms, was a passage out of a session from four days earlier:
 
 > knos withholds what it knows. A second agent searching claimed work gets
-> who holds it and nothing else â€” the content is absent from the reply, not
+> who holds it and nothing else — the content is absent from the reply, not
 > annotated.
-> â€” Claude Code session 4101eeab 2026-08-31
+> — Claude Code session 4101eeab 2026-08-31
 
 Nobody re-typed that. Another agent paid a penny and a fresh process read it
 back with its source. The buyer was
@@ -933,15 +933,17 @@ an agent of mine registered to prove the path executes. It is not demand.
 
 ## Tests
 
-`pytest` runs the critical path only â€” claim, withhold, concurrency,
-no-network, the four tools, private files, a rule its file dropped â€” **63 tests in well under a minute**,
+`pytest` runs the critical path only — claim, withhold, concurrency,
+no-network, the four tools, private files, a rule its file dropped — **67 tests in well under a minute**,
 because a suite you wait four minutes for is one you stop running. The whole
-suite is `pytest -m ""`: **421 tests**, five to twelve minutes depending on
+suite is `pytest -m ""`: **491 tests**, five to twelve minutes depending on
 what else the machine is doing - it was ten on the machine this was last run
 on. Both
 counts come from `pytest --collect-only -q`, so
 `pytest --collect-only -q -m "" | tail -1` is the check. The contract has
 **9 more**: `cd contracts && forge test`.
+
+CI runs that suite on Ubuntu **without universal-ctags**, on purpose: knos falls back to the reader it carries, and one job that proves the fallback works is worth more than a matrix that hides it. It is also the one difference that can make a suite green on a laptop and red in CI - a machine with ctags indexes things the fallback did not, so a test can pass locally for a reason the reader does not have.
 
 Including the ones that would catch a lie:
 
@@ -963,7 +965,7 @@ Including the ones that would catch a lie:
   limit of MCP, which gives a server no way to see an edit, let alone refuse
   one.
 - **With the guard**, the refusal covers the edit in Claude Code, Cursor and
-  OpenCode â€” and only those three, through their hook systems, which are not
+  OpenCode — and only those three, through their hook systems, which are not
   MCP. Claude Desktop has no hooks and is not covered. Nothing covers an
   editor a person types in themselves, or `sed`, or any tool that never asks.
 - The guard reads **only the rules a machine can check**: a prohibition with a
@@ -981,7 +983,7 @@ Including the ones that would catch a lie:
   passages that share a word with your question and nothing else: "why did we
   drop redis" matches every note about *dropping* something. Ask in the words
   the work was done in and it is sharp. There are no embeddings at any Sibyl
-  tier â€” the paid tier adds summarising and a learning loop, not search.
+  tier — the paid tier adds summarising and a learning loop, not search.
 - 5 MB per repo.
 - Four jobs have been traded through the Virtuals provider, all bought by a
   test agent of mine. Nobody else has bought anything.
@@ -1003,7 +1005,7 @@ The core was written locally before the window and first published on
 1 September; everything after is dated in the log.
 
 **Dependencies, and what each is for.** Sibyl Memory
-(`sibyl-memory-client`) is the store, and it is load-bearing â€” see [What
+(`sibyl-memory-client`) is the store, and it is load-bearing — see [What
 breaks without the store](#what-breaks-without-the-store). The MCP Python
 SDK provides the server. `universal-ctags` is optional; without it Knos
 falls back to a reader it carries itself. The Virtuals ACP SDK and the
@@ -1014,7 +1016,7 @@ than the product.
 
 Knos is pronounced like *knows*, and the crow is the reason. Crows cache food
 in thousands of places, remember which caches they made, and remember which
-other crows were watching when they made them â€” then move the ones that were
+other crows were watching when they made them — then move the ones that were
 seen. Memory, and knowing who else is in your business. A group of them is
 called a murder, which is either apt or a warning, depending on how many
 agents you are running.

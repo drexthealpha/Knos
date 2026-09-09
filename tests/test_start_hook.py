@@ -82,6 +82,34 @@ def test_a_live_claim_is_named_with_who_holds_it(repo: Path, capsys) -> None:
     assert "done(" in said, "it should say how to release the claim"
 
 
+def test_the_notice_counts_down_rather_than_repeating_the_hold(
+    repo: Path, capsys
+) -> None:
+    """How long is left, not how long it started with.
+
+    `holds` is the length the claim was written with. Printed raw, a claim
+    taken twenty-five minutes ago still announced thirty minutes to run - in
+    the one line an agent reads to decide whether waiting is worth it. A
+    claim already past its hold is not live at all and says no time.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from knos import answer
+
+    with Memory(repo) as mem:
+        answer.point(repo, mem, index_code=False)
+        old = (datetime.now(timezone.utc) - timedelta(minutes=25)).isoformat()
+        mem.working_on("the settlement path", "Cursor", old)
+    capsys.readouterr()
+
+    start_hook.main([])
+    said = capsys.readouterr().out
+
+    assert "the settlement path" in said
+    assert "30 min" not in said, said
+    assert "5 min" in said, said
+
+
 def test_a_written_decision_reaches_the_session(repo: Path, capsys) -> None:
     """`notes()` returns rows keyed `note`; reading `text` filtered them all out.
 

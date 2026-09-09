@@ -9,7 +9,7 @@
 
 **Check every claim on this page without installing anything:
 [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)** — the
-collision study, the twelve arms, the money gate and all twelve on-chain
+collision study, the eight arms, the money gate and all twelve on-chain
 receipts, each number read live out of the JSON the scripts wrote.
 
 **One shared memory for every coding agent on your machine.** Two agents, or
@@ -110,7 +110,7 @@ knos verify                        # nobody edited the record of who overrode wh
 git clone https://github.com/drexthealpha/Knos && cd Knos
 python scripts/collide.py          # 16 processes, one topic, 0 double-grants
 python scripts/budget.py           # what the store saves when an agent abandons work
-python scripts/ablation.py         # 12 arms, each dying with the store
+python scripts/ablation.py         # 8 arms x 12 trials, each dying with the store
 ```
 
 The refusals themselves: `pytest tests/test_intent.py tests/test_guard.py
