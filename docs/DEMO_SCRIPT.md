@@ -301,18 +301,38 @@ Close on it:
 
 ## Beat 8 - the numbers, if there is time (4:15-4:30)
 
-```bash
-python scripts/ablation.py
-```
+**Do not run `scripts/ablation.py` on camera.** It takes **two minutes
+forty-five** on a warm machine - it builds a repo and runs every arm twelve
+times, with the store and again without it - and beat 8 has fifteen seconds.
+Filming it puts the recording past the five-minute limit on its own.
+
+Show the row instead, from the page that is already open, or read it out:
+
+> Every refusal in this product, run twelve times with the store and twelve
+> times without it. With it: refused twelve out of twelve. Without it: zero
+> out of twelve. Same code, same dice, the store is the only difference.
+
+`drexthealpha.github.io/Knos` has the whole table live, section 9, read out of
+the JSON the script wrote. A judge runs the command themselves afterwards;
+`docs/evidence/ablation.json` is what it produces.
 
 | Arm | Store present | Store deleted |
 |---|---|---|
-| Spend: same request twice | paid again 0/12 | paid again 12/12 |
-| Spend: while somebody holds it | refused 12/12 | no claim survives |
-| Withhold | refused 12/12 | refused 0/12 |
-| Guard | refused 12/12 | refused 0/12 |
-| Action | commented 12/12 | commented 0/12 |
-| Paid | kept 12/12 | kept 0/12 |
+| Withhold: a second agent asks about claimed work | refused 12/12 | refused 0/12 |
+| Guard: an edit to claimed work | refused 12/12 | refused 0/12 |
+| Action: a pull request touching a claimed topic | commented 12/12 | commented 0/12 |
+| Paid: a bought answer, found by the next agent | kept 12/12 | kept 0/12 |
+| Spend: the same request a second time | paid again 0/12 | paid again 12/12 |
+| Spend: the same request while somebody holds it | refused 12/12 | no claim survives |
+| Reversed decision: an edit resting on it | refused 12/12 | nothing is held |
+| Reversed decision: a purchase resting on it | refused 12/12 | nothing is held |
+| Reversed decision: the same edit after reconsidering | allowed 12/12 | - |
+| Fresh machine: a decision, before `knos restore` | - | lost 12/12 |
+| Fresh machine: the same decision, after `knos restore` | - | back 12/12 |
+
+Eleven rows out of eight arms, because three of them measure more than one
+thing. That is the table the command prints, so what is on screen matches what
+a judge gets.
 
 ---
 

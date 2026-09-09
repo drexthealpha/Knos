@@ -65,6 +65,43 @@ def test_an_edit_to_claimed_work_is_refused(knos_home, repo):
     assert "the parser" in verdict.reason
 
 
+@pytest.mark.critical
+def test_a_claim_the_person_made_is_refused_in_the_second_person(knos_home, repo):
+    """`knos claim` writes the holder as "you", and the refusal is read aloud.
+
+    Dropped into a sentence built for an agent's name it came out as "which
+    you claimed and is working on now. Ask them, or take something else" -
+    wrong verb, and the person told to go and ask themselves, in the one
+    line somebody sees when their own edit is refused. The withhold has
+    always had this branch and the guard did not.
+    """
+    _claim(repo, "the parser", "you")
+    target = repo / "src" / "parser" / "lexer.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    said = guard.check(repo, str(target), "Cursor")
+
+    assert said.allow is False
+    assert "you claimed and are working on now" in said.reason, said.reason
+    assert "Ask them" not in said.reason, "it is the same person"
+    assert "knos done" in said.reason
+
+
+def test_another_agents_claim_still_says_go_and_ask_them(knos_home, repo):
+    """The wording that was already right stays right."""
+    _claim(repo, "the parser", "Claude Code")
+    target = repo / "src" / "parser" / "lexer.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    said = guard.check(repo, str(target), "Cursor")
+
+    assert said.allow is False
+    assert "which Claude Code claimed and is working on now" in said.reason
+    assert "Ask them, or take something else." in said.reason
+
+
 def test_a_rule_that_names_a_path_is_enforced(knos_home, repo):
     """A path rule is a pattern, so the guard may act on it."""
     _rules(

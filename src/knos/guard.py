@@ -289,6 +289,28 @@ def _renamed_out_of(repo: Path, topic: str, rel: str, moved) -> str | None:
     return None
 
 
+def _who_has_it(holder: str) -> str:
+    """Who is on this work, in words that fit whoever is being told.
+
+    A person can claim at the terminal, and `knos claim` writes that claim
+    under the name "you". Dropped into a sentence built for an agent's name
+    it came out as "which you claimed and is working on now. Ask them" -
+    wrong person, wrong verb, and told to go and ask themselves, in the one
+    line a viewer reads when the edit is refused. The withhold has always
+    had this branch; the guard did not.
+    """
+    if holder == "you":
+        return "which you claimed and are working on now"
+    return f"which {holder} claimed and is working on now"
+
+
+def _what_to_do(holder: str) -> str:
+    """The way out of the refusal, addressed to whoever hit it."""
+    if holder == "you":
+        return "Finish it, or `knos done` to give it back."
+    return "Ask them, or take something else."
+
+
 def check(repo: Path, target: str, who: str) -> Verdict:
     """Whether `who` may edit `target` in `repo`, and why not if not."""
     repo = Path(repo).resolve()
@@ -330,9 +352,9 @@ def check(repo: Path, target: str, who: str) -> Verdict:
                     return Verdict(
                         False,
                         f"{rel} is {was} renamed, and {was} is part of {topic}, "
-                        f"which {holder} claimed and is working on now. Renaming "
-                        f"a file does not release the claim on it. Ask them, or "
-                        f"take something else.",
+                        f"{_who_has_it(holder)}. Renaming a file does not "
+                        f"release the claim on it. "
+                        f"{_what_to_do(holder)}",
                     )
                 lapses = work.get("holds")
                 try:
@@ -341,10 +363,10 @@ def check(repo: Path, target: str, who: str) -> Verdict:
                     lapses = 30
                 return Verdict(
                     False,
-                    f"{rel} is part of {topic}, which {holder} claimed and is "
-                    f"working on now. Ask them, or take something else. This "
-                    f"claim lapses on its own {lapses} minutes after it was "
-                    f"taken, and `knos done` gives it back sooner.",
+                    f"{rel} is part of {topic}, {_who_has_it(holder)}. "
+                    f"{_what_to_do(holder)} This claim lapses on its own "
+                    f"{lapses} minutes after it was taken, and `knos done` "
+                    f"gives it back sooner.",
                 )
 
             # A claim is about who is moving. This is about what was settled
