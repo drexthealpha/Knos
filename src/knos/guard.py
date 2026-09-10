@@ -467,8 +467,17 @@ def _knos_cmd() -> list[str]:
     The interpreter is spelled out because a hook runs with the client's
     environment, not the shell that installed it, and `python` there may be
     a different one or none at all.
+
+    Forward slashes, and quoted. Every client runs this string through a
+    shell, and on Windows that shell is usually bash, which eats the
+    backslashes: the interpreter path arrived with every separator gone,
+    the hook failed to start, that failure was non-blocking, and so every
+    edit went through unguarded while `knos guard` still reported itself
+    installed. Windows accepts forward slashes everywhere, and the quotes
+    cover the spaces in a path like `C:/Program Files`.
     """
-    return [sys.executable, "-m", "knos.guard_hook"]
+    exe = sys.executable.replace('\\', "/")
+    return [f'"{exe}"', "-m", "knos.guard_hook"]
 
 
 def claude_settings() -> Path:

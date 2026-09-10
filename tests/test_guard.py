@@ -314,3 +314,28 @@ def test_the_file_it_edits_is_backed_up_first(knos_home, tmp_path, monkeypatch):
     kept = settings.with_name("settings.json.before-knos")
     assert kept.is_file()
     assert json.loads(kept.read_text(encoding="utf-8")) == {"theme": "dark"}
+
+@pytest.mark.critical
+def test_the_installed_hook_command_survives_a_shell() -> None:
+    """The bug that silently disarmed the guard on every Windows machine.
+
+    Clients run the hook command through a shell, and on Windows that shell
+    is usually bash, which treats a backslash as an escape. The interpreter
+    path arrived with every separator eaten, the hook never started, the
+    failure was non-blocking, and so every edit went through unguarded --
+    while `knos guard` still reported itself installed. The only visible
+    symptom was one line of hook error in the client.
+
+    Forward slashes survive a shell and Windows accepts them everywhere.
+    The quotes cover a path like `C:/Program Files/Python/python.exe`.
+    """
+    said = " ".join(guard._knos_cmd())
+
+    assert '\\' not in said, (
+        "a backslash in the hook command is eaten by bash and the guard "
+        "silently stops firing"
+    )
+    assert said.startswith(chr(34)) and said.count(chr(34)) == 2, (
+        "the interpreter must be quoted, or a space in the path splits it"
+    )
+    assert said.endswith("-m knos.guard_hook")

@@ -90,7 +90,7 @@ failure worth restarting for is a command that errors out.
 That is a deliberate reversal of what this document used to say, and the
 reason is the Builder Tip at the top of it: *show the file, not just the
 claim*. `knos demo` opens no file. It prints eleven beats in about fifty
-seconds - four and a half seconds each - and a viewer who cannot pause it sees
+seconds warm, ninety on a cold machine - a few seconds each - and a viewer who cannot pause it sees
 a list of features going past rather than a person getting something done.
 The rules name that failure directly: *"Memory used as a trivial notepad
 passes the gate but scores at the floor. Build something people would actually

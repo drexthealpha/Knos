@@ -30,7 +30,8 @@ It will still report `0.1.8` as its version. That is the last number cut, and
 it stays until the next release because the Claude Desktop extension pins
 `knos==<that version>`, which has to resolve on PyPI.
 
-About fifty seconds on a throwaway repo, ending with the store deleted and every
+Fifty seconds warm, about a minute and a half on a cold machine, on a
+throwaway repo, ending with the store deleted and every
 refusal gone. Every line is a real call, not a transcript -
 [`tests/test_demo.py`](../tests/test_demo.py) asserts the live values appear.
 
@@ -359,7 +360,8 @@ store again after a second wait. It names the source now.
 ## Every strength, and where you can watch it
 
 `knos demo` is one command on a throwaway repo it deletes afterwards, about
-fifty seconds. Eleven beats:
+fifty seconds warm - the first run on a cold machine is nearer ninety.
+Eleven beats:
 
 | # | beat | what it proves | code |
 |---|---|---|---|
