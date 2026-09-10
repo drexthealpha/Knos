@@ -100,10 +100,26 @@ function settings(): Settings {
   }
 }
 
+/**
+ * The repo every knos call in this file is about.
+ *
+ * `npm run` runs a script with the working directory set to the package it
+ * lives in - here, `agent/` - not the directory the person typed the command
+ * in. So the bot asked knos about the repo that contains the bot, whichever
+ * repo the person was actually working in. On a machine with more than one
+ * checkout that is the wrong store: the gate read a claim that was not there
+ * and bought anyway, and the receipt was written back somewhere the next
+ * question would never look, so "nobody pays twice" quietly paid twice.
+ *
+ * npm sets INIT_CWD to where the command was typed. Fall back to the process
+ * directory when the bot is run some other way.
+ */
+const WHERE = process.env.INIT_CWD ?? process.cwd();
+
 /** Run knos and hand back exactly what it printed. */
 function run(exe: string, args: string[]): Promise<string> {
   return new Promise((done) => {
-    const run = spawn(exe, args, { windowsHide: true });
+    const run = spawn(exe, args, { windowsHide: true, cwd: WHERE });
     let out = "";
     let err = "";
     run.stdout.on("data", (c) => (out += c));
