@@ -27,8 +27,7 @@ knos demo
 From the repository: [PyPI](https://pypi.org/project/knos/) is the last cut
 release and trails `main`.
 
-Fifty seconds on a throwaway repo it deletes afterwards - nearer ninety the
-first time, on a cold machine. A claim, a second
+Fifty seconds on a throwaway repo, ninety the first time. A claim, a second
 agent **refused**, an edit **blocked before the write**, a purchase that costs
 nothing the second time, a reversed decision **holding the work under it**, a
 **process that has never seen the repo** reading it all back with its own pid
