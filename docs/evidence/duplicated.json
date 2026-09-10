@@ -1,18 +1,18 @@
 {
-  "generated": "2026-09-09T02:20:40.726014+00:00",
-  "python": "3.12.0",
+  "generated": "2026-09-10T09:48:19.058744+00:00",
+  "python": "3.12.14",
   "files_parsed": 24,
   "trials": 9,
   "seconds": {
-    "one_file_read_and_parsed": 0.00582,
-    "refusal_store_already_open": 0.000779,
-    "refusal_including_opening_the_store": 0.043247,
-    "refusal_from_a_cold_process": 0.140875
+    "one_file_read_and_parsed": 0.00336,
+    "refusal_store_already_open": 0.000415,
+    "refusal_including_opening_the_store": 0.004982,
+    "refusal_from_a_cold_process": 0.01609
   },
-  "times_cheaper_to_refuse_than_to_duplicate_one_file": 7.5,
+  "times_cheaper_to_refuse_than_to_duplicate_one_file": 8.1,
   "files_of_duplicated_work_to_break_even": {
-    "per_mcp_tool_call": 7.4,
-    "per_cold_command": 24.2
+    "per_mcp_tool_call": 1.5,
+    "per_cold_command": 4.8
   },
   "what_this_does_not_say": "That a collision is worth preventing. It says what one costs to prevent. The work measured is a read and a parse; a real agent also sends the file to a model, which costs seconds and money this script cannot measure without a network - so these are floors, and the break-evens are ceilings.",
   "where_the_time_goes": "Opening the store, not coordinating. The compare-and-swap is well under a millisecond; every MCP tool opens the store, does its work and closes it, which is where the rest of the call goes."

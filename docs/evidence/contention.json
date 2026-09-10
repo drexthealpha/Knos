@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-09T09:50:09.295595+00:00",
+  "generated": "2026-09-10T09:48:16.390559+00:00",
   "seed": 1337,
   "day_minutes": 480,
   "agents": {
@@ -21,9 +21,9 @@
       "attempts": 69,
       "worked": 53,
       "blocked": 16,
-      "blocked_minutes": 194
+      "blocked_minutes": 215
     }
   ],
-  "minutes_saved": 79,
-  "percent_less_waiting": 28.9
+  "minutes_saved": 58,
+  "percent_less_waiting": 21.2
 }
