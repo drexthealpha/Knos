@@ -84,13 +84,14 @@ This is a precondition and not a collision rate: two agents in the same minute
 may be nowhere near each other in the tree, and the command says so every time
 it prints.
 
-### Three pull requests merged into third-party repositories
+### Four pull requests merged into third-party repositories
 
 | Repo | PR | Merged | By |
 |---|---|---|---|
 | [caura-ai/caura](https://github.com/caura-ai/caura) (486 stars) | [#1299](https://github.com/caura-ai/caura/pull/1299) | 5 Sep 2026, 5h16m after opening | `Eldad-Caura`, after `erni-a` approved |
 | [drt-hub/drt](https://github.com/drt-hub/drt) | [#1098](https://github.com/drt-hub/drt/pull/1098) | 5 Sep 2026 | `masukai` |
 | [stacktale/stacktale](https://github.com/stacktale/stacktale) | [#231](https://github.com/stacktale/stacktale/pull/231) | 7 Sep 2026 | `stacktale` |
+| [ldbumble/taskuary](https://github.com/ldbumble/taskuary) | [#35](https://github.com/ldbumble/taskuary/pull/35) | 10 Sep 2026 | `ldbumble` |
 
 `drt#1098` is the more interesting of the two. It is a behaviour fix with two
 regression tests, reviewed line by line, with a change requested and turned
