@@ -155,12 +155,19 @@ def point(path: str = typer.Argument(".", help="the repo to read")) -> None:
 def ask(
     question: str = typer.Argument(..., help="what you want to know"),
     path: str = typer.Option(None, "--in", help="the repo to ask about"),
+    limit: int = typer.Option(
+        8, "--limit", "-n", min=1, help="how many answers to print"
+    ),
 ) -> None:
     """Ask about it."""
     repo = _repo(path)
     started = time.perf_counter()
     with Memory(repo) as mem:
-        found = answer.ask(repo, mem, question)
+        # Asked for one thing, the answer printed eight, and the seven
+        # underneath it were commits that merely shared a word. The best
+        # answer is the first one; everything after it is there for a person
+        # reading, not for a person being shown.
+        found = answer.ask(repo, mem, question, limit=limit)
         joined = link.cross(repo, found)
         # The person asking is the one who can actually resolve a collision,
         # and until now they only saw it afterwards in `knos status`.
