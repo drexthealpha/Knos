@@ -6,21 +6,20 @@ in one picture.
 ```mermaid
 flowchart TD
     A["Agent A<br>rewriting the parser"] -->|"claims it"| S[("Knos<br>one shared memory")]
+    B["Agent B<br>asks about the parser"] --> S
 
-    B["Agent B<br>asks about the parser"] -->|"asks"| S
-    S -->|"withheld - held by Agent A"| B
+    S --> NO["withheld<br>held by Agent A, no answer"]
+    NO --> WHY["Agent B asks again<br>with a reason"]
+    WHY --> YES["answered, and the reason is<br>written down under its name"]
 
-    B -->|"asks again with a reason"| S
-    S -->|"answers, and writes the reason down"| B
-
-    A -->|"knos done"| S
-    S -->|"open to everyone again"| B
+    A -->|"knos done"| OPEN["the claim is given back<br>open to everyone again"]
 
     D["delete the store"] -.->|"nothing is held back"| S
 
     style S fill:#1f2933,stroke:#7b8794,color:#ffffff
     style A fill:#e8f0fe,stroke:#4a6fa5,color:#111111
     style B fill:#fdf0e8,stroke:#a5744a,color:#111111
+    style NO fill:#fdf0e8,stroke:#a5744a,color:#111111
     style D fill:#f5f5f5,stroke:#999999,color:#111111,stroke-dasharray: 4 3
 ```
 

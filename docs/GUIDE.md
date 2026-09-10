@@ -193,7 +193,7 @@ replaced in place, and history is only ever appended to.
 ```mermaid
 flowchart TD
     subgraph DB["memory.db - hard cap 5 MB, Sibyl's free tier"]
-        HOT["HOT - the live claim<br>one row per topic, overwritten<br>lapses after 30 min"]
+        HOT["HOT - the live claim<br>one row per topic, overwritten<br>lapses on the hold that agent earned"]
         WARM["WARM - decisions, files, entities<br>named, replaced in place"]
         COLD["COLD - the journal<br>append-only: told, stood down, overridden"]
     end
