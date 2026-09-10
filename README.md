@@ -98,6 +98,26 @@ Delete `memory.db` and the withhold is gone, the edit is allowed, the paid
 answer buys again, and the held decisions are released. There is no degraded
 mode — there is no product.
 
+```mermaid
+flowchart TD
+    A["Agent A<br>rewriting the parser"] -->|"claims it"| S[("Sibyl Memory<br>one SQLite file")]
+    B["Agent B<br>asks about the parser"] --> S
+
+    S --> NO["withheld<br>held by Agent A, no answer"]
+    S --> STOP["the edit is refused<br>before the write lands"]
+    S --> MONEY["the purchase is refused<br>this agent abandons work"]
+
+    D["delete the file"] -.->|"all three stop"| S
+
+    style S fill:#1f2933,stroke:#7b8794,color:#ffffff
+    style A fill:#e8f0fe,stroke:#4a6fa5,color:#111111
+    style B fill:#fdf0e8,stroke:#a5744a,color:#111111
+    style NO fill:#fdf0e8,stroke:#a5744a,color:#111111
+    style STOP fill:#fdf0e8,stroke:#a5744a,color:#111111
+    style MONEY fill:#fdf0e8,stroke:#a5744a,color:#111111
+    style D fill:#f5f5f5,stroke:#999999,color:#111111,stroke-dasharray: 4 3
+```
+
 ## Check any of it yourself
 
 Two of these are commands the install gives you. The rest are in the
