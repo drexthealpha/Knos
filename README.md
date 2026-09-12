@@ -45,7 +45,7 @@ hosted knos, and there will not be one.
 | | Knos |
 |---|---|
 | Listed in the MCP directory | **yes** — [awesome-mcp-servers#13480](https://github.com/punkpeye/awesome-mcp-servers/pull/13480), merged by the owner into a 94.5k-star index |
-| Code merged by third-party maintainers | **4** merged, **4** still open — [the list](https://github.com/pulls?q=is%3Apr+author%3Adrexthealpha+-user%3Adrexthealpha) |
+| Code merged by third-party maintainers | **5** merged, **3** still open — [the list](https://github.com/pulls?q=is%3Apr+author%3Adrexthealpha+-user%3Adrexthealpha) |
 | Agents racing for one topic, real processes | **16**, **0** double-grants in 128 attempts; **15** unshared — [`collide.json`](docs/evidence/collide.json) |
 | Onchain receipts that resolve | **12 of 12**, 9 on Base mainnet with USDC — `knos receipts` |
 | Money spent on work that got dropped | **$0.044 to $0.000** — the gate reads who is asking, [`budget.json`](docs/evidence/budget.json) |

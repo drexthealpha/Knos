@@ -84,7 +84,7 @@ This is a precondition and not a collision rate: two agents in the same minute
 may be nowhere near each other in the tree, and the command says so every time
 it prints.
 
-### Four pull requests merged into third-party repositories
+### Five pull requests merged into third-party repositories
 
 | Repo | PR | Merged | By |
 |---|---|---|---|
@@ -92,6 +92,7 @@ it prints.
 | [drt-hub/drt](https://github.com/drt-hub/drt) | [#1098](https://github.com/drt-hub/drt/pull/1098) | 5 Sep 2026 | `masukai` |
 | [stacktale/stacktale](https://github.com/stacktale/stacktale) | [#231](https://github.com/stacktale/stacktale/pull/231) | 7 Sep 2026 | `stacktale` |
 | [ldbumble/taskuary](https://github.com/ldbumble/taskuary) | [#35](https://github.com/ldbumble/taskuary/pull/35) | 10 Sep 2026 | `ldbumble` |
+| [btsouth/toolport](https://github.com/btsouth/toolport) (210 stars) | [#864](https://github.com/btsouth/toolport/pull/864) | 10 Sep 2026, 23:31 UTC | `btsouth` |
 
 `drt#1098` is the more interesting of the two. It is a behaviour fix with two
 regression tests, reviewed line by line, with a change requested and turned
