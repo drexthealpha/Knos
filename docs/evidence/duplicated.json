@@ -1,15 +1,15 @@
 {
-  "generated": "2026-09-12T09:25:09.217728+00:00",
+  "generated": "2026-09-13T10:20:09.967413+00:00",
   "python": "3.12.14",
   "files_parsed": 24,
   "trials": 9,
   "seconds": {
-    "one_file_read_and_parsed": 0.00355,
-    "refusal_store_already_open": 0.000386,
-    "refusal_including_opening_the_store": 0.005207,
-    "refusal_from_a_cold_process": 0.01596
+    "one_file_read_and_parsed": 0.003427,
+    "refusal_store_already_open": 0.000418,
+    "refusal_including_opening_the_store": 0.005056,
+    "refusal_from_a_cold_process": 0.015582
   },
-  "times_cheaper_to_refuse_than_to_duplicate_one_file": 9.2,
+  "times_cheaper_to_refuse_than_to_duplicate_one_file": 8.2,
   "files_of_duplicated_work_to_break_even": {
     "per_mcp_tool_call": 1.5,
     "per_cold_command": 4.5
