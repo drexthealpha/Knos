@@ -1,5 +1,7 @@
 # Knos
 
+# wallet address for winning the hackathon : # 0xafee8a73712041e0e6209092c06e7078adbb1923
+
 <!-- mcp-name: io.github.drexthealpha/knos -->
 
 [![The evidence, live](https://img.shields.io/badge/EVIDENCE-drexthealpha.github.io%2FKnos-3fb950?style=for-the-badge)](https://drexthealpha.github.io/Knos/)
