@@ -384,7 +384,12 @@ def test_the_readme_leads_with_the_problem_and_the_action():
     # more than the embeddable core sitting two hundred characters higher.
     # The bound stays a bound so the core cannot keep sliding, and the length
     # cap below is what actually stops the page growing back.
-    assert "knos.core" in readme[:4200], "the importable core is not near the top"
+    #
+    # 4,300 since the payout line. The hackathon organisers asked for the
+    # winning wallet address at the top of the README, which is a hundred
+    # characters that were not the page's choice. Measured against the text
+    # below that line, the core sits where it did.
+    assert "knos.core" in readme[:4300], "the importable core is not near the top"
     assert len(readme) < 12000, (
         "the README is growing back into a document nobody reads to the end "
         "of; the long version belongs in docs/GUIDE.md"

@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knos — one memory every coding agent on your machine shares</title>
+<meta name="description" content="Knos is a local-first shared memory for coding agents. One agent claims the work; every other agent is refused the answer and refused the edit. Delete the file and there is no product.">
+<meta property="og:title" content="Knos — one memory every coding agent on your machine shares">
+<meta property="og:description" content="Local-first shared memory for coding agents. Claims work. Refuses the answer. Refuses the edit. Refuses the purchase. Delete the file and nothing survives.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/site/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Tokens shared with ../index.html so the two pages read as one site. */
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c2230; --line:#30363d; --ink:#e6edf3;
+    --dim:#8b949e; --good:#3fb950; --good-ink:#0d1117; --bad:#f85149; --warn:#d29922; --link:#58a6ff;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+    --ring:#58a6ff;
+    --r:10px;
+  }
+  @media (prefers-color-scheme:light){
+    :root{--bg:#ffffff;--panel:#f6f8fa;--panel-2:#eef1f5;--line:#d0d7de;--ink:#1f2328;--dim:#59636e;
+      --good:#1a7f37;--good-ink:#ffffff;--bad:#cf222e;--warn:#9a6700;--link:#0969da;--ring:#0969da}
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans);
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--link);text-underline-offset:3px}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--ring);outline-offset:3px;border-radius:4px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-family:var(--mono);letter-spacing:-.02em;line-height:1.15;margin:0}
+  h1{font-size:clamp(30px,5.2vw,52px);font-weight:600}
+  h2{font-size:clamp(22px,3vw,30px);font-weight:600}
+  h3{font-size:17px;font-weight:600}
+  p{margin:12px 0}
+  code{font-family:var(--mono);font-size:.92em;background:var(--panel);border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px}
+  pre{font-family:var(--mono);font-size:14px;line-height:1.55;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;overflow-x:auto;margin:0}
+  pre code{background:none;border:0;padding:0;font-size:inherit}
+  .dim{color:var(--dim)}
+  .mono{font-family:var(--mono)}
+  .g{color:var(--good)} .r{color:var(--bad)} .y{color:var(--warn)}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:saturate(1.2) blur(8px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:56px;gap:16px}
+  .brand{font-family:var(--mono);font-weight:600;font-size:17px;color:var(--ink);text-decoration:none;
+    display:flex;align-items:center;gap:10px;min-height:44px}
+  .brand svg{width:22px;height:22px}
+  nav ul{list-style:none;margin:0;padding:0;display:flex;gap:4px}
+  nav li a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;color:var(--dim);
+    text-decoration:none;font-size:14px;border-radius:6px;transition:color .2s,background .2s}
+  nav li a:hover{color:var(--ink);background:var(--panel)}
+  @media (max-width:640px){nav li:nth-child(n+3){display:none}}
+
+  /* hero */
+  .hero{padding:72px 0 40px}
+  @media (max-width:760px){.hero{padding:44px 0 28px}}
+  .hero .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:start}
+  @media (max-width:900px){.hero .grid{grid-template-columns:1fr;gap:28px}}
+  .hero .grid>div{min-width:0}
+  .kicker{font-family:var(--mono);font-size:13px;color:var(--good);letter-spacing:.04em;margin:0 0 16px}
+  .lede{font-size:19px;color:var(--dim);max-width:54ch;margin:18px 0 26px}
+  @media (prefers-color-scheme:light){.lede{color:#3d444d}}
+  .install{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+    padding:14px 56px 14px 18px;font-family:var(--mono);font-size:14.5px;line-height:1.7;overflow-x:auto}
+  .install .pr{color:var(--dim);user-select:none}
+  .copy{position:absolute;top:8px;right:8px;width:44px;height:44px;display:inline-flex;align-items:center;
+    justify-content:center;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;
+    color:var(--dim);cursor:pointer;transition:color .2s,border-color .2s}
+  .copy:hover{color:var(--ink);border-color:var(--dim)}
+  .copy svg{width:18px;height:18px}
+  .copy[data-done="1"]{color:var(--good);border-color:var(--good)}
+  .ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:8px;
+    font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--line);color:var(--ink);
+    background:var(--panel);transition:background .2s,border-color .2s,transform .15s;cursor:pointer}
+  .btn:hover{background:var(--panel-2);border-color:var(--dim)}
+  .btn.primary{background:var(--good);color:var(--good-ink);border-color:var(--good)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn svg{width:16px;height:16px}
+  .fine{font-size:13.5px;color:var(--dim);margin-top:14px;max-width:56ch}
+
+  /* terminal replay */
+  .term{background:#0b0f14;color:#e6edf3;border:1px solid var(--line);border-radius:var(--r);
+    overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  @media (prefers-color-scheme:light){.term{box-shadow:0 20px 50px rgba(0,0,0,.12)}}
+  .term .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#11161d;
+    border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:#8b949e}
+  .term .bar i{width:11px;height:11px;border-radius:50%;background:#30363d;display:inline-block}
+  .term .bar .t{margin-left:auto}
+  .term .bar button{margin-left:8px;min-height:36px;padding:0 12px;font:inherit;color:#e6edf3;
+    background:#1c2230;border:1px solid #30363d;border-radius:6px;cursor:pointer}
+  .term .bar button:hover{border-color:#8b949e}
+  .term .body{font-family:var(--mono);font-size:13.5px;line-height:1.6;padding:16px 18px;min-height:420px;
+    white-space:pre-wrap;word-break:break-word}
+  @media (max-width:760px){.term .body{font-size:12.5px;min-height:380px;padding:14px}}
+  .term .l{opacity:0;transform:translateY(4px);transition:opacity .28s ease,transform .28s ease}
+  .term .l.on{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.term .l{opacity:1;transform:none;transition:none}}
+  .term .c{color:#8b949e} .term .p{color:#58a6ff} .term .ok{color:#3fb950} .term .no{color:#f85149}
+  .term .w{color:#d29922} .term .b{color:#e6edf3;font-weight:600}
+  .caption{font-size:13px;color:var(--dim);margin-top:10px}
+
+  /* sections */
+  section{padding:64px 0}
+  @media (max-width:760px){section{padding:44px 0}}
+  section + section{border-top:1px solid var(--line)}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;color:var(--dim);letter-spacing:.06em;
+    text-transform:uppercase;margin:0 0 10px}
+  .sub{color:var(--dim);max-width:64ch;margin:10px 0 28px}
+
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media (max-width:860px){.three{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;
+    display:flex;flex-direction:column;gap:10px}
+  .card .ic{width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;
+    justify-content:center;background:var(--panel-2);border:1px solid var(--line);color:var(--good)}
+  .card .ic svg{width:18px;height:18px}
+  .card p{margin:0;color:var(--dim);font-size:15px}
+  .card .where{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin-top:auto;padding-top:6px}
+  .card .where a{color:var(--dim)}
+
+  .proof{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+  .stat .big{font-family:var(--mono);font-size:clamp(22px,2.4vw,30px);font-weight:600;letter-spacing:-.02em;line-height:1.15;overflow-wrap:anywhere}
+  .stat .lbl{color:var(--dim);font-size:13.5px;margin-top:6px}
+  .stat .src{font-family:var(--mono);font-size:12px;margin-top:10px}
+  .stat .src a{color:var(--dim)}
+  .stat.pending .big{color:var(--dim)}
+
+  .local{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;align-items:center}
+  @media (max-width:860px){.local{grid-template-columns:1fr}}
+  .local ul{margin:14px 0 0;padding-left:20px;color:var(--dim)}
+  .local li{margin:6px 0}
+  .local li b{color:var(--ink);font-weight:600}
+
+  .ways{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media (max-width:900px){.ways{grid-template-columns:1fr}}
+  .way,.card,.stat{min-width:0}
+  .way{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+  .way h3{margin-bottom:6px}
+  .way p{color:var(--dim);font-size:14.5px;margin:0 0 12px}
+  .way pre{font-size:12.5px;padding:12px 14px}
+
+  footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--dim);font-size:14px}
+  footer .row{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:baseline}
+  footer ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:16px}
+  footer a{color:var(--dim)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<nav aria-label="Primary">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Knos, home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M8 12h8M12 8v8"/></svg>
+      knos
+    </a>
+    <ul>
+      <li><a href="#try">Try it</a></li>
+      <li><a href="#proof">Proof</a></li>
+      <li><a href="#ways">Install</a></li>
+      <li><a href="../">Evidence</a></li>
+      <li><a href="https://github.com/drexthealpha/Knos">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <p class="kicker">LOCAL-FIRST · ONE SQLITE FILE · NO SERVER</p>
+        <h1>One memory every coding agent on your machine shares.</h1>
+        <p class="lede">Two agents, or two people, change the same thing without knowing it.
+          Knos is the record of who is on what — and it <b>refuses to answer</b> about work
+          somebody else has taken, <b>refuses the edit</b> before the write lands, and
+          <b>refuses the purchase</b> an unreliable agent asks for.</p>
+
+        <div class="install" id="install" aria-label="Install and run the demo">
+          <span class="pr">$ </span>pip install "git+https://github.com/drexthealpha/Knos"<br>
+          <span class="pr">$ </span>knos demo
+          <button class="copy" type="button" data-copy='pip install "git+https://github.com/drexthealpha/Knos"
+knos demo' aria-label="Copy the two install commands">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+        <p class="fine">Python 3.10+, git, a repository with at least one commit. It builds a throwaway
+          repo, runs every refusal on it with the store present, deletes the store, and shows each one
+          stop. About fifty seconds warm, ninety cold.</p>
+
+        <div class="ctas">
+          <a class="btn primary" href="#try">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            Watch the first minute
+          </a>
+          <a class="btn" href="https://x.com/getknos/status/2098167698119102596">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/></svg>
+            Watch the demo video
+          </a>
+          <a class="btn" href="../">Check every number</a>
+          <a class="btn" href="https://github.com/drexthealpha/Knos">Source</a>
+        </div>
+      </div>
+
+      <div id="try">
+        <div class="term" role="region" aria-label="Replay of knos demo output">
+          <div class="bar"><i></i><i></i><i></i><span class="t">knos demo — replay of real output</span>
+            <button type="button" id="replay" aria-label="Replay from the start">replay</button></div>
+          <div class="body" id="tbody" aria-live="polite"></div>
+        </div>
+        <p class="caption">Every line above is text the real command prints. It is replayed here so the
+          page needs no backend — nothing on this site runs Knos for you, and there is no hosted Knos.
+          <a href="#ways">Run it yourself</a> in one command, or
+          <a href="https://x.com/getknos/status/2098167698119102596">watch the five-minute demo</a> of the same thing on a real repo.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <p class="eyebrow">What it refuses</p>
+    <h2>Three refusals. All three are reads of one file.</h2>
+    <p class="sub">A claim is written once. Everything else Knos does is a decision made by reading it
+      back. Delete the file and every one of these becomes “go ahead.”</p>
+    <div class="three">
+      <div class="card">
+        <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg></span>
+        <h3>The answer is withheld</h3>
+        <p>A second agent asking about claimed work gets no answer at all — not an answer with a
+          warning attached. It is told who holds it, how long the hold has left, and that an override
+          costs a reason written in the journal under its own name.</p>
+        <span class="where">src/knos/mcp.py · <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_intent.py">test_intent.py</a></span>
+      </div>
+      <div class="card">
+        <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <h3>The edit is refused before the write</h3>
+        <p>A pre-tool hook in Claude Code, Cursor and OpenCode reads the same claim and exits 2.
+          The other agent’s write never reaches the disk. Renaming the file does not get past it.</p>
+        <span class="where">src/knos/guard.py · <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_guard.py">test_guard.py</a></span>
+      </div>
+      <div class="card">
+        <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"/><path d="M12 6v1M12 17v1"/></svg></span>
+        <h3>The purchase is refused</h3>
+        <p>Before real USDC moves on Base, the gate reads the agent’s record: claims taken against
+          claims closed. An agent that abandons its work is refused. One that already bought this
+          is served free. Nobody pays twice.</p>
+        <span class="where">src/knos/gate.py · <a href="../#chain">12 receipts, resolved live</a></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="proof">
+  <div class="wrap">
+    <p class="eyebrow">Proof, read live</p>
+    <h2>Every number below is fetched from the JSON the scripts wrote.</h2>
+    <p class="sub">Nothing on this page is typed by hand. The same files feed the
+      <a href="../">evidence page</a>, and a public workflow regenerates them on a clean machine
+      every day. Run the script yourself and you get the same figure.</p>
+    <div class="proof" id="stats">
+      <div class="stat pending" id="s-collide"><div class="big">…</div><div class="lbl">loading collide.json</div></div>
+      <div class="stat pending" id="s-noshare"><div class="big">…</div><div class="lbl">loading collide.json</div></div>
+      <div class="stat pending" id="s-budget"><div class="big">…</div><div class="lbl">loading budget.json</div></div>
+      <div class="stat pending" id="s-gate"><div class="big">…</div><div class="lbl">loading live-gate.json</div></div>
+      <div class="stat pending" id="s-ablation"><div class="big">…</div><div class="lbl">loading ablation.json</div></div>
+      <div class="stat" id="s-receipts"><div class="big g">12 of 12</div><div class="lbl">on-chain receipts resolve against the chain each is documented on</div><div class="src"><a href="../#chain">knos receipts</a></div></div>
+    </div>
+    <p class="fine" style="margin-top:22px">What is <b>not</b> true: there are no retained users. Five maintainers have merged
+      patches, none of them runs Knos, and the <a href="https://github.com/drexthealpha/Knos/blob/main/docs/PMF.md">ledger</a>
+      says so — including the 34 pull requests that were the wrong idea. The live money run is thirty rounds and cents,
+      not a season.</p>
+  </div>
+</section>
+
+<section id="local">
+  <div class="wrap">
+    <div class="local">
+      <div>
+        <p class="eyebrow">Local-first, and that is a test</p>
+        <h2>There is no hosted Knos, and there will not be one.</h2>
+        <p class="sub" style="margin-bottom:0">The store is one SQLite file under <code>~/.knos/</code>, written
+          through Sibyl Memory. Nothing on the read path opens a socket.</p>
+        <ul>
+          <li><b>No network on the read path.</b> <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_no_network.py">test_no_network.py</a>
+            breaks <code>socket.connect</code>, then reads a repo, answers, claims, withholds and overrides.</li>
+          <li><b>No account, no key, no server.</b> The MCP server is launched by your editor over stdio.</li>
+          <li><b>Delete the file, and everything stops.</b> <a href="https://github.com/drexthealpha/Knos/blob/main/tests/test_sibyl_is_load_bearing.py">test_sibyl_is_load_bearing.py</a>
+            removes it and asserts the withhold, the guard and the gate all revert.</li>
+          <li><b>The only things that ever leave the machine</b> are the x402 payment and the ACP job — both
+            opt-in, both on Base, both listed above.</li>
+        </ul>
+      </div>
+      <pre aria-label="The deletion test, as the demo prints it"><code><span class="dim">$</span> rm ~/.knos/*/memory.db
+
+<span class="dim">$</span> knos ask "the guard"
+<span class="g">It answers.</span>          <span class="dim">the withhold is gone</span>
+
+<span class="dim">$</span> edit src/knos/guard.py
+<span class="g">The edit lands.</span>      <span class="dim">the hook has nothing to read</span>
+
+<span class="dim">$</span> knos who
+Nobody has claimed anything here yet.
+Every agent starts at the flat 30 minutes.</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="ways">
+  <div class="wrap">
+    <p class="eyebrow">Three ways in</p>
+    <h2>None of them a server you have to run.</h2>
+    <p class="sub">Take it in whichever shape you already wanted. The commands are the ones in the README.</p>
+    <div class="ways">
+      <div class="way">
+        <h3>The Action</h3>
+        <p>Zero install for the repo. Reads the committed <code>.knos/decisions.md</code> and comments on
+          a pull request that touches claimed work. Exits 0 on every path.</p>
+<pre><code>- uses: drexthealpha/Knos/action@v0.1.8</code></pre>
+      </div>
+      <div class="way">
+        <h3>The library</h3>
+        <p>If you already ship a tool, import the claim. No MCP, no process, seven tests and no network.</p>
+<pre><code>from knos.core import Claims
+
+with Claims(repo, who="my-agent",
+            session=sid) as c:
+    took, holder = c.take("the parser")</code></pre>
+      </div>
+      <div class="way">
+        <h3>The server</h3>
+        <p>If you already run several agents. Four tools — <code>search</code>, <code>about</code>,
+          <code>remember</code>, <code>done</code> — over stdio.</p>
+<pre><code>pip install "git+https://github.com/drexthealpha/Knos"
+knos connect      <span class="dim"># Claude Code, Cursor, Desktop</span>
+knos guard --install   <span class="dim"># off by default</span></code></pre>
+      </div>
+    </div>
+    <p class="fine" style="margin-top:18px">Listed in
+      <a href="https://github.com/punkpeye/awesome-mcp-servers/pull/13480">awesome-mcp-servers</a>.
+      Also on <a href="https://pypi.org/project/knos/">PyPI</a> as the last cut release, which trails <code>main</code>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <div><span class="mono">knos</span> · MIT · <a href="https://github.com/drexthealpha/Knos">drexthealpha/Knos</a></div>
+      <ul>
+        <li><a href="https://x.com/getknos/status/2098167698119102596">Demo video</a></li>
+        <li><a href="../">Evidence</a></li>
+        <li><a href="https://github.com/drexthealpha/Knos/blob/main/docs/GUIDE.md">Guide</a></li>
+        <li><a href="https://github.com/drexthealpha/Knos/blob/main/docs/JUDGE_GUIDE.md">Verify it</a></li>
+        <li><a href="https://github.com/drexthealpha/Knos/blob/main/docs/PMF.md">The ledger</a></li>
+      </ul>
+    </div>
+    <p style="margin-top:14px">Built on <a href="https://github.com/Sibyl-Labs/Sibyl-Memory">Sibyl Memory</a>, run
+      unactivated: no account, no server call. Payments settle over x402 on Base; the ACP offering runs on
+      Virtuals. Both are opt-in and neither is on the read path.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(s){ return document.querySelector(s); };
+
+  /* ---- copy button ---- */
+  document.querySelectorAll('.copy').forEach(function(b){
+    b.addEventListener('click', function(){
+      var text = b.getAttribute('data-copy');
+      var done = function(){ b.setAttribute('data-done','1'); b.setAttribute('aria-label','Copied');
+        setTimeout(function(){ b.removeAttribute('data-done'); b.setAttribute('aria-label','Copy the two install commands'); }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function(){});
+      } else {
+        var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+        ta.select(); try { document.execCommand('copy'); done(); } catch(e){} document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- terminal replay ----
+     Each line is text the real `knos demo` prints, or the exact refusal the
+     MCP server and the guard return. Nothing here is generated on the page;
+     it is a transcript, played back so the site needs no backend. */
+  var SCRIPT = [
+    ['b',  '1. One agent, on its own. A rule you deleted stops being quoted.'],
+    ['p',  '$ knos ask "never add a second copy"'],
+    ['',   '  Never add a second copy, a cache, or a fallback file.'],
+    ['c',  '      CLAUDE.md:15'],
+    ['p',  '$ knos ask "never add a second copy"     (the rule deleted from the file)'],
+    ['c',  '  Nothing about that.  It checked the file, not its memory of it.'],
+    ['',   ''],
+    ['b',  '2. Two agents. One says what it is starting.'],
+    ['p',  '$ knos claim "the guard"'],
+    ['ok', '  Claimed the guard. Every agent here now gets this, and nothing else:'],
+    ['',   ''],
+    ['b',  '3. The second agent asks about it.'],
+    ['p',  '$ Cursor: what do we know about the guard?'],
+    ['no', '  Withheld. the guard (held by Claude Code) is being worked on right now,'],
+    ['no', '  so knos is not the place you find out about it. Ask them, or work on'],
+    ['no', '  something else. It lapses in about 45 minutes if they do not finish sooner.'],
+    ['',   ''],
+    ['b',  '4. It tries to edit the file anyway.'],
+    ['p',  '$ Cursor: edit src/knos/guard.py'],
+    ['no', '  src/knos/guard.py is part of the guard, which Claude Code claimed and is'],
+    ['no', '  working on now. Ask them, or take something else.       exit 2'],
+    ['',   ''],
+    ['b',  '5. The memory decides whether money moves.'],
+    ['p',  '$ /brief ETH'],
+    ['ok', '  Paid $0.01 on Base: basescan.org/tx/0xda6fdbf5…'],
+    ['p',  '$ /brief ETH'],
+    ['ok', '  Free. This machine already paid for it once, so nobody paid again.'],
+    ['',   ''],
+    ['b',  '6. Now delete the memory.'],
+    ['p',  '$ rm ~/.knos/*/memory.db'],
+    ['p',  '$ Cursor: what do we know about the guard?'],
+    ['w',  '  It answers.  The withhold is gone.'],
+    ['p',  '$ Cursor: edit src/knos/guard.py'],
+    ['w',  '  The edit lands.'],
+    ['p',  '$ /brief ETH'],
+    ['w',  '  Paid $0.01 on Base: basescan.org/tx/0x99854a4e…    paid again.'],
+    ['',   ''],
+    ['c',  'Delete the memory and this is not a worse version of the product.'],
+    ['c',  'There is no product.']
+  ];
+
+  var body = $('#tbody'), timer = null;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function render(all){
+    body.textContent = '';
+    SCRIPT.forEach(function(row){
+      var d = document.createElement('div');
+      d.className = 'l' + (row[0] ? ' ' + row[0] : '');
+      d.textContent = row[1] === '' ? ' ' : row[1];
+      if (all) d.classList.add('on');
+      body.appendChild(d);
+    });
+  }
+
+  function play(){
+    if (timer) clearTimeout(timer);
+    render(reduce);
+    if (reduce) return;
+    var lines = body.children, i = 0;
+    var step = function(){
+      if (i >= lines.length) return;
+      lines[i].classList.add('on');
+      var t = lines[i].textContent, pace = 90;
+      if (t.indexOf('$') === 0) pace = 380;
+      else if (t.trim() === '') pace = 240;
+      else if (/^\d\./.test(t)) pace = 420;
+      i++;
+      timer = setTimeout(step, pace);
+    };
+    step();
+  }
+
+  $('#replay').addEventListener('click', play);
+  /* Start when the terminal scrolls into view, once. */
+  var seen = false;
+  function start(){ if (!seen){ seen = true; play(); } }
+  if ('IntersectionObserver' in window && !reduce) {
+    new IntersectionObserver(function(es){
+      es.forEach(function(e){ if (e.isIntersecting) start(); });
+    }, {threshold: .25}).observe(body);
+    /* Already on screen at load - a hero terminal usually is - so do not wait
+       for a scroll that will never come. */
+    var inView = function(){ var r = body.getBoundingClientRect();
+      return r.top < window.innerHeight && r.bottom > 0; };
+    if (inView()) start();
+    /* And a plain scroll check as well - an observer that never fires is a
+       terminal that never plays, and this costs one rect read per scroll
+       until it starts. */
+    var onScroll = function(){ if (inView()){ start(); window.removeEventListener('scroll', onScroll); } };
+    window.addEventListener('scroll', onScroll, {passive:true});
+  } else { start(); }
+
+  /* ---- proof, read live out of the evidence files ---- */
+  function load(name){
+    return fetch('../evidence/' + name + '.json', {cache:'no-store'}).then(function(r){
+      if (!r.ok) throw new Error(name); return r.json();
+    });
+  }
+  function stat(id, big, lbl, cls, src, href){
+    var el = $(id); if (!el) return;
+    el.classList.remove('pending');
+    el.innerHTML = '<div class="big ' + (cls||'') + '"></div><div class="lbl"></div><div class="src"><a></a></div>';
+    el.querySelector('.big').textContent = big;
+    el.querySelector('.lbl').textContent = lbl;
+    var a = el.querySelector('.src a'); a.textContent = src; a.href = href;
+  }
+  function fail(id, name){
+    var el = $(id); if (!el) return;
+    el.querySelector('.big').textContent = '—';
+    el.querySelector('.lbl').textContent = 'could not read evidence/' + name + '.json';
+  }
+
+  load('collide').then(function(c){
+    stat('#s-collide', c.with_store.double_grants + ' double-grants',
+      c.agents + ' real processes racing for one claim, ' + c.rounds + ' rounds, ' +
+      (c.agents * c.rounds) + ' attempts', 'g', 'collide.json', '../evidence/collide.json');
+    stat('#s-noshare', c.no_shared_store.double_grants + ' double-grants',
+      'the same race with every agent given its own memory — which is what an agent has today',
+      'r', 'python scripts/collide.py', '../#collide');
+  }).catch(function(){ fail('#s-collide','collide'); fail('#s-noshare','collide'); });
+
+  load('budget').then(function(b){
+    var t = b.arms.filter(function(a){ return a.arm === 'trusted'; })[0];
+    var l = b.arms.filter(function(a){ return a.arm === 'learned'; })[0];
+    stat('#s-budget', '$' + t.spent_on_abandoned_work_usd.toFixed(3) + ' → $' + l.spent_on_abandoned_work_usd.toFixed(3),
+      'spent on work that got dropped, before and after the gate reads who is asking — ' +
+      l.refused + ' purchases refused, all for the one agent that abandons its work',
+      'g', 'budget.json', '../evidence/budget.json');
+  }).catch(function(){ fail('#s-budget','budget'); });
+
+  load('live-gate').then(function(g){
+    var r = g.rounds.map(function(x){ return x.verdict; }).join(' → ');
+    stat('#s-gate', r, 'the same agent, seller and price three times on Base mainnet; only what the store knows changes — real USDC, hashes in the file',
+      '', 'live-gate.json', '../evidence/live-gate.json');
+  }).catch(function(){ fail('#s-gate','live-gate'); });
+
+  load('ablation').then(function(a){
+    var w = a.arms.withhold, g = a.arms.guard;
+    stat('#s-ablation', w.on_refused + '/' + a.trials + ' vs ' + w.off_refused + '/' + a.trials,
+      'refusals with the store present versus with it deleted, same code, same dice. The guard: ' +
+      g.on_refused + '/' + a.trials + ' vs ' + g.off_refused + '/' + a.trials + '.',
+      'g', 'ablation.json', '../evidence/ablation.json');
+  }).catch(function(){ fail('#s-ablation','ablation'); });
+})();
+</script>
+</body>
+</html>
