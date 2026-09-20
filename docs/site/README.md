@@ -40,6 +40,20 @@ hold a copy of any figure.
   thirty rounds and cents, and a link to `docs/PMF.md` including the 34 pull
   requests that were the wrong idea.
 
+## The share image
+
+`og.png` is the 1200x630 card that X, Slack, Discord and the rest show when
+the URL is pasted. It is drawn by `og.py` from the same palette and copy as
+the page - no design tool, no external service. To change it, edit the
+strings in `og.py` and run:
+
+```bash
+python docs/site/og.py
+```
+
+The `og:image` and `twitter:image` tags in `index.html` point at the absolute
+URL, because crawlers do not resolve relative paths.
+
 ## Design decisions
 
 - **Palette and type tokens are the evidence page's**, so the two pages read
