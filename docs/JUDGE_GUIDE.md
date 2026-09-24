@@ -569,7 +569,7 @@ already does.
 | | measured |
 |---|---|
 | the compare-and-swap that refuses a claim | 0.38 ms |
-| one MCP tool call, which opens the store and closes it | 5.3 ms |
+| one MCP tool call, which opens the store and closes it | 5.2 ms |
 | a cold `knos` command, the slowest path here | 16 ms |
 | one real source file of this repo, read and parsed | 3.5 ms |
 <!-- /measured -->
