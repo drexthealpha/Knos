@@ -276,12 +276,12 @@ def patch_paths(patch: str) -> list[str]:
     return [a or b for a, b in _PATCH_FILE.findall(patch or "")]
 
 
-_WRITERS_ALL = {"rm", "touch", "truncate", "unlink", "shred", "mv"}  # every non-flag argument (mv: sources vanish)
-_WRITERS_LAST = {"cp", "install", "ln"}                               # the last argument is written
+_WRITERS_ALL = {"rm", "touch", "unlink", "shred", "mv"}  # every non-flag argument (mv: sources vanish)
+_WRITERS_LAST = {"cp", "install", "ln", "rsync"}                     # the last argument is written
 
 
 def shell_writes(command: str) -> list[str]:
-    """Files a shell command visibly writes: redirections, tee, sed -i/perl -i, cp/mv/rm/touch/truncate, git mv/rm, dd.
+    """Files a shell command visibly writes: redirections, tee, sed -i/perl -i, cp/mv/rm/touch/truncate, git mv/rm, dd, install, rsync.
     Best effort by design: a script that writes files is not seen, and the commit guard is the backstop for those."""
     import shlex
 
@@ -306,10 +306,92 @@ def shell_writes(command: str) -> list[str]:
         plain = [a for a in args if not a.startswith("-")]
         if cmd == "git" and args[:1] in (["mv"], ["rm"]):
             out.extend(a for a in args[1:] if not a.startswith("-"))
+        elif cmd == "truncate":
+            files = []
+            idx = 0
+            while idx < len(args):
+                a = args[idx]
+                if a in ("-s", "--size", "-r", "--reference") and idx + 1 < len(args):
+                    idx += 2
+                    continue
+                if not a.startswith("-"):
+                    files.append(a)
+                idx += 1
+            out.extend(files)
+        elif cmd == "install":
+            files = []
+            target_dir = None
+            is_d = False
+            idx = 0
+            while idx < len(args):
+                a = args[idx]
+                if a in ("-d", "--directory"):
+                    is_d = True
+                    idx += 1
+                    continue
+                if a in ("-t", "--target-directory") and idx + 1 < len(args):
+                    target_dir = args[idx + 1]
+                    idx += 2
+                    continue
+                if a.startswith("--target-directory="):
+                    target_dir = a.split("=", 1)[1]
+                    idx += 1
+                    continue
+                if a in ("-m", "--mode", "-o", "--owner", "-g", "--group", "-S", "--suffix") and idx + 1 < len(args):
+                    idx += 2
+                    continue
+                if not a.startswith("-"):
+                    files.append(a)
+                idx += 1
+            if target_dir:
+                out.append(target_dir)
+            elif is_d:
+                out.extend(files)
+            elif len(files) >= 2:
+                out.append(files[-1])
+        elif cmd == "rsync":
+            files = []
+            idx = 0
+            while idx < len(args):
+                a = args[idx]
+                if a in ("-e", "--rsh", "--exclude", "--exclude-from", "--include", "--include-from",
+                         "--filter", "--log-file", "--write-batch", "--read-batch", "--temp-dir",
+                         "--timeout", "-T") and idx + 1 < len(args):
+                    idx += 2
+                    continue
+                if not a.startswith("-"):
+                    files.append(a)
+                idx += 1
+            if len(files) >= 2:
+                dest = files[-1]
+                if not (":" in dest and not dest.startswith("./")):
+                    out.append(dest)
+        elif cmd in ("cp", "ln"):
+            files = []
+            target_dir = None
+            idx = 0
+            while idx < len(args):
+                a = args[idx]
+                if a in ("-t", "--target-directory") and idx + 1 < len(args):
+                    target_dir = args[idx + 1]
+                    idx += 2
+                    continue
+                if a.startswith("--target-directory="):
+                    target_dir = a.split("=", 1)[1]
+                    idx += 1
+                    continue
+                if a in ("-S", "--suffix") and idx + 1 < len(args):
+                    idx += 2
+                    continue
+                if not a.startswith("-"):
+                    files.append(a)
+                idx += 1
+            if target_dir:
+                out.append(target_dir)
+            elif len(files) >= 2:
+                out.append(files[-1])
         elif cmd in _WRITERS_ALL:
             out.extend(plain)
-        elif cmd in _WRITERS_LAST and len(plain) >= 2:
-            out.append(plain[-1])
         elif cmd == "tee":
             out.extend(plain)
         elif cmd in ("sed", "perl") and any(a == "-i" or a.startswith("-i") or a == "--in-place" for a in args):
