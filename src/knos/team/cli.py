@@ -116,8 +116,9 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         out.print(f"Left {tf.name} here. Ask the owner to run:  knos team remove {got['key']}")
 
     @team.command("status")
-    def status() -> None:
+    def status(as_json: bool = typer.Option(False, "--json", help="output JSON for scripts")) -> None:
         """Who is in the team, how many claims are live, and this key's headroom."""
+        import json
         from . import service
         tf = _tf(repo_of(None))
         try:
@@ -125,6 +126,9 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         except Exception as why:  # noqa: BLE001
             raise Stop(f"Could not reach {tf.cluster}: {type(why).__name__}: {why}",
                        "Edits still work in local-only mode.") from None
+        if as_json:
+            out.print(json.dumps(got, indent=2), markup=False)
+            return
         out.print(f"[bold]{got['name']}[/bold] on {got['cluster']}  credential {got['credential']}")
         out.print(f"  members {len(got['members'])} of {got['max_signers']} (SAS signer cap, measured)")
         for m in got["members"]:
