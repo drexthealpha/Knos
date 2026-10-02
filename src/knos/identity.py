@@ -35,6 +35,7 @@ _HOST_PROCS = {
     "codex": ("codex",),
     "opencode": ("opencode",),
     "vscode": ("code",),
+    "gemini": ("gemini",),
 }
 MAX_DEPTH = 16
 
@@ -147,7 +148,7 @@ def anchor_for(host: str | None, chain: list[tuple[int, str]] | None = None) -> 
 def host_from_client(name: str) -> str:
     """The host for an MCP clientInfo name ('claude-code', 'Cursor', 'codex-mcp-client', ...)."""
     low = (name or "").lower()
-    for host in ("claude", "cursor", "codex", "opencode"):
+    for host in ("claude", "cursor", "codex", "opencode", "gemini"):
         if host in low:
             return host
     if "visual studio code" in low or low.startswith("vscode"):
@@ -193,7 +194,7 @@ class Agent:
 
 
 def for_hook(client: str, event: dict) -> Agent:
-    host = {"claude": "claude", "cursor": "cursor", "opencode": "opencode", "codex": "codex"}.get(client, client)
+    host = {"claude": "claude", "cursor": "cursor", "opencode": "opencode", "codex": "codex", "gemini": "gemini"}.get(client, client)
     session = str(event.get("session_id") or event.get("sessionId") or event.get("conversation_id") or "")
     return Agent(host=host, session=session, anchor=anchor_for(host))
 

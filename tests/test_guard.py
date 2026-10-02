@@ -362,13 +362,15 @@ def test_install_then_uninstall_leaves_nothing_behind(knos_home):
     guard.install_cursor()
     guard.install_opencode()
     guard.install_codex()
-    assert guard.installed() == {"claude": True, "cursor": True, "opencode": True, "codex": True}
+    guard.install_gemini()
+    assert guard.installed() == {"claude": True, "cursor": True, "opencode": True, "codex": True, "gemini": True}
 
     assert guard.uninstall_claude()
     assert guard.uninstall_cursor()
     assert guard.uninstall_opencode()
     assert guard.uninstall_codex()
-    assert guard.installed() == {"claude": False, "cursor": False, "opencode": False, "codex": False}
+    assert guard.uninstall_gemini()
+    assert guard.installed() == {"claude": False, "cursor": False, "opencode": False, "codex": False, "gemini": False}
     assert not guard.uninstall_opencode()
 
     kept = json.loads(settings.read_text(encoding="utf-8"))

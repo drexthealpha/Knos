@@ -307,6 +307,7 @@ _HOOKS = {
     "cursor": (guard.cursor_hooks, guard.install_cursor, guard.uninstall_cursor),
     "codex": (guard.codex_hooks, guard.install_codex, guard.uninstall_codex),
     "opencode": (guard.opencode_plugin, guard.install_opencode, guard.uninstall_opencode),
+    "gemini": (guard.gemini_settings, guard.install_gemini, guard.uninstall_gemini),
 }
 
 
@@ -334,7 +335,9 @@ def _unhooks(host: str, backups: Backups) -> bool:
 
 
 def files_of(host: str) -> list[Path]:
-    got = [mcp_files()[host]]
+    got = []
+    if host in mcp_files():
+        got.append(mcp_files()[host])
     if host in _HOOKS:
         got.append(_HOOKS[host][0]())
     return got
@@ -354,7 +357,7 @@ def pick(hosts: str | None) -> list[str]:
     if not hosts:
         return [h for h in HOSTS if present(h)]
     wanted = [h.strip().lower() for h in hosts.split(",") if h.strip()]
-    unknown = [h for h in wanted if h not in HOSTS]
+    unknown = [h for h in wanted if h not in HOSTS and h not in _HOOKS]
     if unknown:
         raise ValueError(f"unknown host {', '.join(unknown)}; choose from {', '.join(HOSTS)}")
     return wanted
@@ -370,18 +373,20 @@ def install(hosts: list[str], team_repo: Path | None = None) -> Report:
         except (guard.Unreadable, OSError, UnicodeDecodeError) as why:
             rep.problems.append(f"team setup: {why}")
     for host in hosts:
-        name = NAMES[host]
+        name = NAMES.get(host, "Gemini CLI" if host == "gemini" else host.title())
         try:
-            if host == "codex":
-                _codex_add(backups)
-            elif not (host == "claude" and _claude_cli_add()):
-                _add_mcp(host, backups)
+            if host in mcp_files():
+                if host == "codex":
+                    _codex_add(backups)
+                elif not (host == "claude" and _claude_cli_add()):
+                    _add_mcp(host, backups)
             hooked = _hooks(host, backups)
         except (guard.Unreadable, OSError, UnicodeDecodeError) as why:
             rep.problems.append(f"{name}: {why}")
             continue
-        what = ", edit guard (apply_patch and shell writes)" if host == "codex" else ", edit guard and session notice"
-        rep.done.append(f"{name}: memory server" + (what if hooked else ""))
+        what = ", edit guard (apply_patch and shell writes)" if host == "codex" else (", edit guard" if host == "gemini" else ", edit guard and session notice")
+        msg = f"{name}: " + ((f"memory server{what}" if host in mcp_files() else f"edit guard") if hooked else "memory server")
+        rep.done.append(msg)
         if host in RESTART:
             rep.restart.append(RESTART[host])
     backups.seal()
@@ -402,15 +407,16 @@ def undo(hosts: list[str], repo: Path | None = None) -> Report:
             rep.problems.append(f"team setup: {why}")
     backups = Backups("undo")
     for host in hosts:
-        name = NAMES[host]
+        name = NAMES.get(host, "Gemini CLI" if host == "gemini" else host.title())
         try:
             took = any(str(p) in exact for p in files_of(host))
-            if host == "claude":
-                took = _claude_cli_remove() or took
-            if host == "codex":
-                took = _codex_remove(backups) or took
-            else:
-                took = _remove_mcp(host, backups) or took
+            if host in mcp_files():
+                if host == "claude":
+                    took = _claude_cli_remove() or took
+                if host == "codex":
+                    took = _codex_remove(backups) or took
+                else:
+                    took = _remove_mcp(host, backups) or took
             took = _unhooks(host, backups) or took
         except (guard.Unreadable, OSError, UnicodeDecodeError) as why:
             rep.problems.append(f"{name}: {why}")

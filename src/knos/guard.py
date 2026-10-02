@@ -4,6 +4,7 @@ Every host ships a hook that runs before a tool call and can refuse it:
 
     Claude Code   PreToolUse on Edit|Write|MultiEdit|NotebookEdit   permissionDecision "deny", or exit 2
     Codex         PreToolUse on apply_patch and shell commands      permissionDecision "deny", or exit 2
+    Gemini CLI    BeforeTool on write/edit and shell tools          decision "deny", or exit 2 (https://geminicli.com/docs/hooks/)
     Cursor        preToolUse                                        permission "deny", or exit 2
     OpenCode      tool.execute.before                               throw
     Copilot       the cloud agent's preToolUse hook (.github/hooks)  exit 2
@@ -264,6 +265,14 @@ def target_of(client: str, event: dict) -> str:
             return str(event["file_path"])
         got = event.get("tool_input") or event.get("arguments") or {}
         return str(got.get("file_path") or got.get("path") or got.get("target_file") or "")
+    if client == "gemini":
+        tool = str(event.get("tool_name") or event.get("tool") or "").lower().replace(" ", "_")
+        if tool and not any(t in tool for t in ("edit", "write", "patch", "create", "replace")):
+            return ""
+        got = event.get("tool_input") or event.get("args") or event.get("arguments") or {}
+        if not isinstance(got, dict):
+            return ""
+        return str(got.get("file_path") or got.get("filePath") or got.get("path") or got.get("target_file") or got.get("TargetFile") or "")
     got = event.get("args") or event.get("tool_input") or {}
     return str(got.get("filePath") or got.get("file_path") or got.get("path") or "")
 
@@ -371,6 +380,35 @@ def targets_of(client: str, event: dict) -> list[str]:
             got = args.get("path") or args.get("file_path") or args.get("filePath")
             return [str(got)] if got else []
         return []
+    if client == "gemini":
+        tool = str(event.get("tool_name") or event.get("tool") or "").lower().replace(" ", "_")
+        got = event.get("tool_input") or event.get("args") or event.get("arguments") or {}
+        if isinstance(got, str):
+            try:
+                got = json.loads(got)
+            except ValueError:
+                got = {"command": got}
+        if not isinstance(got, dict):
+            got = {"command": got}
+        if tool == "apply_patch":
+            return patch_paths(str(got.get("command") or got.get("input") or got.get("patch") or ""))
+        if any(s in tool for s in ("shell", "bash", "command", "exec", "terminal")) or "CommandLine" in got:
+            cmd = got.get("command") or got.get("cmd") or got.get("CommandLine") or ""
+            if isinstance(cmd, list):
+                cmd = " ".join(str(c) for c in cmd)
+            return shell_writes(str(cmd))
+        if tool and not any(t in tool for t in ("edit", "write", "patch", "create", "replace", "delete", "remove", "save")):
+            return []  # reads and searches are never guarded
+        target = (got.get("file_path") or got.get("filePath") or got.get("path") or
+                  got.get("target_file") or got.get("TargetFile") or "")
+        if target:
+            return [str(target)]
+        if got.get("command") or got.get("cmd") or got.get("CommandLine"):
+            cmd = got.get("command") or got.get("cmd") or got.get("CommandLine")
+            if isinstance(cmd, list):
+                cmd = " ".join(str(c) for c in cmd)
+            return shell_writes(str(cmd))
+        return []
     one = target_of(client, event)
     return [one] if one else []
 
@@ -379,6 +417,8 @@ def render(client: str, verdict: Verdict) -> str:
     if verdict.allow:
         if verdict.warning and client in ("claude", "codex"):
             return json.dumps({"systemMessage": verdict.warning})
+        if verdict.warning and client == "gemini":
+            return json.dumps({"decision": "allow", "systemMessage": verdict.warning})
         return ""
     if client in ("claude", "codex"):
         return json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
@@ -387,6 +427,8 @@ def render(client: str, verdict: Verdict) -> str:
         return json.dumps({"permission": "deny", "user_message": verdict.reason, "agent_message": verdict.reason})
     if client == "copilot":
         return json.dumps({"permissionDecision": "deny", "permissionDecisionReason": verdict.reason})
+    if client == "gemini":
+        return json.dumps({"decision": "deny", "reason": verdict.reason})
     return json.dumps({"deny": True, "reason": verdict.reason})
 
 
@@ -406,7 +448,7 @@ def decide(client: str, event: dict, repo: Path | None = None) -> Verdict:
     warning = ""
     for target in targets:
         if not Path(target).is_absolute():
-            target = str((root if client not in ("codex", "copilot") else cwd) / target)
+            target = str((root if client not in ("codex", "copilot", "gemini") else cwd) / target)
         got = check(root, target, who)
         if not got.allow:
             return got
@@ -523,6 +565,10 @@ def cursor_hooks() -> Path:
 
 def codex_hooks() -> Path:
     return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "hooks.json"
+
+
+def gemini_settings() -> Path:
+    return Path(os.environ.get("GEMINI_HOME") or Path.home() / ".gemini") / "settings.json"
 
 
 def opencode_plugin() -> Path:
@@ -716,8 +762,47 @@ def uninstall_opencode() -> bool:
     return True
 
 
+def install_gemini() -> Path:
+    """Gemini CLI BeforeTool hook: file writes and shell writes are guarded.
+    Doc: https://geminicli.com/docs/hooks/"""
+    path = gemini_settings()
+    data = _load(path)
+    hooks = data.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        hooks = data["hooks"] = {}
+    pre = [h for h in (hooks.get("BeforeTool") or []) if MARK not in json.dumps(h)]
+    pre.append({"matcher": "write_file|replace_file_content|write_to_file|replace|run_command|run_shell_command|Bash",
+                "hooks": [{"type": "command", "command": hook_cmd("guard", "gemini") + f" #{MARK}", "timeout": 30,
+                           "name": MARK}]})
+    hooks["BeforeTool"] = pre
+    _save(path, data)
+    return path
+
+
+def uninstall_gemini() -> bool:
+    path = gemini_settings()
+    data = _peek(path)
+    hooks = data.get("hooks") or {}
+    took = False
+    for event in ("BeforeTool",):
+        kept = [h for h in (hooks.get(event) or []) if MARK not in json.dumps(h)]
+        if len(kept) != len(hooks.get(event) or []):
+            took = True
+        if kept:
+            hooks[event] = kept
+        else:
+            hooks.pop(event, None)
+    if not took:
+        return False
+    if not hooks:
+        data.pop("hooks", None)
+    _save(path, data)
+    return True
+
+
 def installed() -> dict[str, bool]:
     return {"claude": MARK in json.dumps(_peek(claude_settings()).get("hooks") or {}),
             "cursor": MARK in json.dumps(_peek(cursor_hooks()).get("hooks") or {}),
             "codex": MARK in json.dumps(_peek(codex_hooks()).get("hooks") or {}),
-            "opencode": opencode_plugin().exists()}
+            "opencode": opencode_plugin().exists(),
+            "gemini": MARK in json.dumps(_peek(gemini_settings()).get("hooks") or {})}
