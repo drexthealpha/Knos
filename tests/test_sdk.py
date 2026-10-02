@@ -44,3 +44,6 @@ def test_the_langgraph_example_runs_with_scripted_models(knos_home, tmp_path):
     assert got["alice"] == "task:invoice-4411"
     assert got["bob"] == "task:invoice-4412" and got["bob_refused"] == ["task:invoice-4411"]
     assert "alice checked invoice-4411" in got["bob_read_alices_finding"]
+    assert "carol read 2 finding(s)" in got["carol_finding"]
+    assert "alice checked invoice-4411" in got["carol_finding"]
+    assert "bob checked invoice-4412" in got["carol_finding"]

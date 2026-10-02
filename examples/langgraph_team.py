@@ -1,8 +1,9 @@
-"""Two LangGraph agents share one Sibyl memory and never work the same task.
+"""Three LangGraph agents share one Sibyl memory and coordinate without race conditions.
 
-Each agent is a LangGraph graph: pick a task -> claim it with Knos -> work -> write what it found to Sibyl's own
-LangGraph BaseStore (backed by the workspace's Knos/Sibyl store) -> release. The second agent reaches for the task the
-first one holds, is refused, and takes the next one; then it reads what the first agent wrote.
+Two worker agents are LangGraph graphs: pick a task -> claim it with Knos -> work -> write what it found to Sibyl's
+own LangGraph BaseStore (backed by the workspace's Knos/Sibyl store) -> release. The second agent reaches for the task
+the first one holds, is refused, and takes the next one. A third agent (carol) reads findings only from the store
+and never claims tasks.
 
 The "models" are scripted functions, so this runs anywhere with no API key:
 
@@ -69,6 +70,20 @@ def build(k: Knos, store: SibylStore):
     return g.compile(store=store)
 
 
+def build_reader(store: SibylStore, agent: str = "carol"):
+    """An agent that reads findings from the shared Sibyl store and never claims tasks."""
+    def inspect(state: State) -> State:
+        items = list(store.search(("team", "findings")))
+        findings = [f"{item.key}: {item.value.get('text', '')}" for item in sorted(items, key=lambda x: x.key)]
+        return {"finding": f"{agent} read {len(items)} finding(s): {'; '.join(findings)}"}
+
+    g = StateGraph(State)
+    g.add_node("inspect", inspect)
+    g.set_entry_point("inspect")
+    g.add_edge("inspect", END)
+    return g.compile(store=store)
+
+
 def run(workspace: Path) -> dict:
     alice, bob = Knos("alice", workspace), Knos("bob", workspace)
     mem, client = alice.memory_client()
@@ -79,12 +94,15 @@ def run(workspace: Path) -> dict:
         b = build(bob, store).invoke({})  # alice has not released: bob is refused and moves on
         print(f"  bob holds {b['task']}")
         shared = store.get(("team", "findings"), a["task"])
+        c = build_reader(store, "carol").invoke({})  # third agent: reads findings only, never claims
+        print(f"  {c['finding']}")
         alice.release(a["task"])
         bob.release(b["task"])
     finally:
         mem.close()
     return {"alice": a["task"], "bob": b["task"], "bob_refused": b.get("refused", []),
-            "bob_read_alices_finding": shared.value["text"] if shared else None}
+            "bob_read_alices_finding": shared.value["text"] if shared else None,
+            "carol_finding": c["finding"]}
 
 
 if __name__ == "__main__":
