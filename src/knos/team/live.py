@@ -155,6 +155,36 @@ def _mirror_age(conn: sqlite3.Connection) -> float:
         return 1e9
 
 
+def mirror_status(repo: Path) -> tuple[float | None, bool]:
+    """How old the local mirror is in seconds (or None if never synced), and whether `knos mirror` is running."""
+    tf = config.load(repo)
+    if tf is None:
+        return None, False
+    d = config.root() / str(tf.credential)
+    running = False
+    lock = d / "mirror.pid"
+    try:
+        pid = int(lock.read_text().strip())
+        running = _alive(pid)
+    except (OSError, ValueError):
+        running = False
+    db_file = d / "mirror.db"
+    if not db_file.exists():
+        return None, running
+    try:
+        conn = sqlite3.connect(str(db_file), timeout=1)
+        try:
+            raw = _meta(conn, "synced_at", "")
+            if not raw:
+                return None, running
+            age = max(0.0, time.time() - float(raw))
+            return age, running
+        finally:
+            conn.close()
+    except Exception:
+        return None, running
+
+
 def _chain_now(conn: sqlite3.Connection) -> int:
     try:
         return int(time.time() + float(_meta(conn, "chain_offset", "0")))

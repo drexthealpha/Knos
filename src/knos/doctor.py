@@ -38,7 +38,7 @@ def local(repo: Path | None) -> list[tuple[str, bool, str]]:
 def team(repo: Path, quiet_days: int = 7) -> list[tuple[str, bool, str]]:
     import time
 
-    from .team import config, rpc, service
+    from .team import config, live, rpc, service
     rows = []
     tf = config.load(repo)
     if tf is None:
@@ -46,25 +46,37 @@ def team(repo: Path, quiet_days: int = 7) -> list[tuple[str, bool, str]]:
     try:
         got = service.status(tf)
     except Exception as why:  # noqa: BLE001
-        return [("team registry reachable", False, f"{tf.cluster}: {type(why).__name__}; edits run local-only")]
-    rows.append(("team registry reachable", True, f"{got['name']} on {got['cluster']}"))
-    me = got.get("me")
-    if me:
-        rows.append(("this machine is a member", me["member"], "yes" if me["member"] else
-                     "no: send the owner the join code from  knos init"))
-        rows.append(("key float", me["claims_headroom"] >= 5,
-                     f"{me['sol']:.4f} SOL, room for about {me['claims_headroom']} live claims"))
-    cutoff = None
-    for m in got["members"]:
-        try:
-            sigs = rpc.call(tf.url, "getSignaturesForAddress", [m["key"], {"limit": 1}], timeout=10) or []
-        except Exception:  # noqa: BLE001
-            continue
-        last = sigs[0].get("blockTime") if sigs else None
-        cutoff = cutoff or time.time() - quiet_days * 86_400
-        if not last or last < cutoff:
-            rows.append((f"member {m['name'] or m['key'][:8]}", False,
-                         f"no chain activity in {quiet_days} days: that machine may be offline or unguarded"))
+        got = None
+        rows.append(("team registry reachable", False, f"{tf.cluster}: {type(why).__name__}; edits run local-only"))
+    else:
+        rows.append(("team registry reachable", True, f"{got['name']} on {got['cluster']}"))
+        me = got.get("me")
+        if me:
+            rows.append(("this machine is a member", me["member"], "yes" if me["member"] else
+                         "no: send the owner the join code from  knos init"))
+            rows.append(("key float", me["claims_headroom"] >= 5,
+                         f"{me['sol']:.4f} SOL, room for about {me['claims_headroom']} live claims"))
+        cutoff = None
+        for m in got["members"]:
+            try:
+                sigs = rpc.call(tf.url, "getSignaturesForAddress", [m["key"], {"limit": 1}], timeout=10) or []
+            except Exception:  # noqa: BLE001
+                continue
+            last = sigs[0].get("blockTime") if sigs else None
+            cutoff = cutoff or time.time() - quiet_days * 86_400
+            if not last or last < cutoff:
+                rows.append((f"member {m['name'] or m['key'][:8]}", False,
+                             f"no chain activity in {quiet_days} days: that machine may be offline or unguarded"))
+
+    age, running = live.mirror_status(repo)
+    if age is None:
+        rows.append(("local mirror", False, f"never synced, knos mirror {'is running' if running else 'is not running'}"))
+    else:
+        fresh = age <= live.FRESH_S
+        status_word = "fresh" if fresh else "stale"
+        running_word = "knos mirror is running" if running else "knos mirror is not running"
+        detail = f"{age:.1f}s old ({status_word}), {running_word}"
+        rows.append(("local mirror", fresh and running, detail))
     return rows
 
 
