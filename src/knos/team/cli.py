@@ -166,8 +166,10 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
 
     @agent_app.command("record")
     def agent_record(who: str = typer.Argument(..., help="an agent host on this machine: claude, codex, cursor, ..."),
-                     days: int = typer.Option(3, "--days", min=1)) -> None:
+                     days: int = typer.Option(3, "--days", min=1),
+                     as_json: bool = typer.Option(False, "--json", help="output JSON for scripts")) -> None:
         """An agent's claims taken, finished and abandoned, and collisions, checked against its records on chain."""
+        import json
         from . import live, records, units
         repo = repo_of(None)
         rt = live.runtime(repo)
@@ -178,10 +180,16 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         holders = {e["holder"] for e in live.events(rt, today - days * records.DAY) if e.get("holder")
                    and units.holder_host(rt.salt, bytes.fromhex(e["holder"])) == host}
         if not holders:
+            if as_json:
+                out.print(json.dumps({"host": host, "days": days, "holders": []}, indent=2), markup=False)
+                return
             out.print(f"No record for {host} from this machine in the last {days} days.")
             return
+        json_holders = []
         for h in sorted(holders):
-            out.print(f"[bold]{host}[/bold] holder {h[:12]}…")
+            if not as_json:
+                out.print(f"[bold]{host}[/bold] holder {h[:12]}…")
+            holder_recs = []
             for d in range(days, -1, -1):
                 start = today - d * records.DAY
                 p = live.period_of(rt, bytes.fromhex(h), start)
@@ -190,20 +198,67 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
                 when = time.strftime("%Y-%m-%d", time.gmtime(start))
                 line = (f"  {when}  taken {p.taken}  finished {p.finished}  abandoned {p.abandoned}  "
                         f"collisions {p.collisions}")
+                rec_entry: dict = {
+                    "date": when,
+                    "period_start": start,
+                    "taken": p.taken,
+                    "finished": p.finished,
+                    "abandoned": p.abandoned,
+                    "collisions": p.collisions,
+                }
                 if start == today:
-                    out.print(line + "  (today: written to chain tomorrow)")
+                    if as_json:
+                        rec_entry.update({"today": True, "on_chain": False, "status": "today: written to chain tomorrow"})
+                        holder_recs.append(rec_entry)
+                    else:
+                        out.print(line + "  (today: written to chain tomorrow)")
                     continue
                 try:
                     got = records.verify(rt.tf.url, rt.tf.credential, p)
                 except Exception as why:  # noqa: BLE001
-                    out.print(line + f"  chain unreachable ({type(why).__name__})")
+                    if as_json:
+                        rec_entry.update({"today": False, "on_chain": None, "error": f"chain unreachable ({type(why).__name__})"})
+                        holder_recs.append(rec_entry)
+                    else:
+                        out.print(line + f"  chain unreachable ({type(why).__name__})")
                     continue
                 if not got["on_chain"]:
-                    out.print(line + "  not on chain yet")
+                    if as_json:
+                        rec_entry.update({"today": False, "on_chain": False, "status": "not on chain yet"})
+                        holder_recs.append(rec_entry)
+                    else:
+                        out.print(line + "  not on chain yet")
                 else:
                     ok = got["counters_match"] and got["root_matches"]
-                    out.print(line + ("  [green]verified on chain[/green]" if ok else
-                                      "  [red]differs from the record on chain[/red]"))
+                    if as_json:
+                        rec = got.get("record")
+                        rec_dict = None
+                        if rec is not None:
+                            rec_dict = {
+                                "taken": rec.taken,
+                                "finished": rec.finished,
+                                "abandoned": rec.abandoned,
+                                "collisions": rec.collisions,
+                                "spent_micro_usd": rec.spent_micro_usd,
+                                "merkle_root": rec.merkle_root.hex(),
+                            }
+                        rec_entry.update({
+                            "today": False,
+                            "on_chain": True,
+                            "signer": got.get("signer", ""),
+                            "counters_match": got["counters_match"],
+                            "root_matches": got["root_matches"],
+                            "verified": ok,
+                            "record_on_chain": rec_dict,
+                        })
+                        holder_recs.append(rec_entry)
+                    else:
+                        out.print(line + ("  [green]verified on chain[/green]" if ok else
+                                          "  [red]differs from the record on chain[/red]"))
+            if as_json:
+                json_holders.append({"holder": h, "records": holder_recs})
+        if as_json:
+            out.print(json.dumps({"host": host, "days": days, "holders": json_holders}, indent=2), markup=False)
 
     @app.command("prove")
     def prove(fact: str = typer.Argument(None, help="text of something an agent recorded"),
