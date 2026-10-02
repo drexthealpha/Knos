@@ -8,7 +8,8 @@ for coding agents. Changes that delete something are the most welcome kind.
 ```bash
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 pytest                               # everything that needs no chain
-bash scripts/devchain.sh start       # a local validator with the devnet-deployed SAS and Lighthouse
+bash scripts/devchain.sh start       # Linux/macOS: local validator with devnet SAS and Lighthouse
+powershell scripts/devchain.ps1 start # Windows (native Solana CLI): start, status, stop
 pytest -m "" tests/test_team_*.py tests/test_sas.py tests/test_chain_budgets.py   # now these run too
 KNOSTEST_PROPERTY_N=200 pytest -m "" tests/test_team_property.py                  # the claim protocol's property test
 python scripts/deadcode.py && vulture src/knos scripts --min-confidence 60          # nothing unused ships
