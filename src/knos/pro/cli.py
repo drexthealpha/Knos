@@ -161,20 +161,41 @@ def register(app: typer.Typer, out, Stop) -> None:
             out.print(f"[dim]{notice}[/dim]")
 
     @bud.command("show")
-    def budget_chain_show() -> None:
+    def budget_chain_show(
+        chain: str = typer.Option(None, "--chain", help="tempo or solana: show only this chain's limits"),
+        watch: bool = typer.Option(False, "--watch", help="watch and re-read periodically"),
+        every: float = typer.Option(2.0, "--every", help="seconds between reads with --watch"),
+        count: int = typer.Option(None, "--count", hidden=True, help="stop after N reads"),
+    ) -> None:
         """Every chain-enforced agent limit, read from the chain now."""
         from . import chainbudget as cb
-        rows = cb.entries()
-        if not rows:
-            out.print("No chain-enforced budgets. knos budget set claude 5/day --chain tempo")
-            return
-        for name, e in rows.items():
-            try:
-                got = cb.tempo_show(e) if e["chain"] == "tempo" else cb.solana_show(e)
-                left = f"{got['remaining']:g} left"
-            except Exception as why:  # noqa: BLE001
-                left = f"unreadable now ({type(why).__name__})"
-            out.print(f"  {name:<22} {e['network']:<9} limit {e['amount']:g}  {left}")
+        if chain:
+            chain = chain.lower()
+            if chain not in cb.NETWORKS:
+                raise Stop(f"No chain called {chain}.", "Use --chain tempo or --chain solana")
+        iterations = 0
+        try:
+            while True:
+                rows = cb.entries()
+                if chain:
+                    rows = {k: v for k, v in rows.items() if v.get("chain") == chain}
+                if not rows:
+                    label = f"{chain}-" if chain else "chain-"
+                    out.print(f"No {label}enforced budgets. knos budget set claude 5/day --chain {chain or 'tempo'}")
+                    return
+                for name, e in rows.items():
+                    try:
+                        got = cb.tempo_show(e) if e["chain"] == "tempo" else cb.solana_show(e)
+                        left = f"{got['remaining']:g} left"
+                    except Exception as why:  # noqa: BLE001
+                        left = f"unreadable now ({type(why).__name__})"
+                    out.print(f"  {name:<22} {e['network']:<9} limit {e['amount']:g}  {left}")
+                iterations += 1
+                if not watch or (count is not None and iterations >= count):
+                    break
+                time.sleep(every)
+        except KeyboardInterrupt:
+            pass
 
     @bud.command("revoke")
     def budget_revoke(agent: str = typer.Argument(...),

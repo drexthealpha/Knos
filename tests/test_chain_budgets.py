@@ -111,3 +111,104 @@ def test_tempo_authorize_encodes_a_periodic_limit_and_one_allowed_call():
     call = AccountKeychain.authorize_key(key_id="0x" + "22" * 20, signature_type=SignatureType.SECP256K1,
                                         restrictions=r)
     assert bytes(call.to).hex() == "aaaaaaaa00000000000000000000000000000000"
+
+
+def test_budget_show_chain_tempo_watch_rereads_rpc(monkeypatch):
+    """knos budget show --chain tempo --watch re-reads getRemainingLimitWithPeriod every N seconds."""
+    from knos.cli import app
+    from knos.pro import chainbudget as cb
+    from knos.pro import tempo_keys as tk
+    from typer.testing import CliRunner
+
+    fake_entries = {
+        "claude@tempo": {
+            "chain": "tempo",
+            "network": "moderato",
+            "token": "0x20c0000000000000000000000000000000000001",
+            "root": "0x" + "11" * 20,
+            "key": "0x" + "22" * 20,
+            "amount": 5.0,
+            "period": 86400,
+        },
+        "sol_agent@solana": {
+            "chain": "solana",
+            "network": "devnet",
+            "amount": 20.0,
+        },
+    }
+    monkeypatch.setattr(cb, "entries", lambda: fake_entries)
+
+    calls = []
+    allowances = [5_000_000, 4_500_000, 3_000_000]
+
+    def fake_rpc(url, method, params, timeout=20.0):
+        calls.append((method, params))
+        remaining_units = allowances[min(len(calls) - 1, len(allowances) - 1)]
+        return "0x" + remaining_units.to_bytes(32, "big").hex() + (1_790_845_473).to_bytes(32, "big").hex()
+
+    monkeypatch.setattr(tk, "rpc", fake_rpc)
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["budget", "show", "--chain", "tempo", "--watch", "--count", "3", "--every", "0.01"])
+    assert res.exit_code == 0, res.output
+    assert len(calls) == 3
+    # Check that selector a7f72cab (getRemainingLimitWithPeriod) was queried
+    for _, params in calls:
+        assert params[0]["data"].startswith("0xa7f72cab")
+    # Solana entry must be filtered out
+    assert "sol_agent@solana" not in res.output
+    # Output displays changing remaining limits
+    assert "claude@tempo" in res.output
+    assert "5 left" in res.output
+    assert "4.5 left" in res.output
+    assert "3 left" in res.output
+
+
+def test_budget_show_watch_stops_on_keyboard_interrupt(monkeypatch):
+    """--watch loop sleeps every N seconds and terminates gracefully on KeyboardInterrupt."""
+    import time
+    from knos.cli import app
+    from knos.pro import chainbudget as cb
+    from knos.pro import tempo_keys as tk
+    from typer.testing import CliRunner
+
+    monkeypatch.setattr(cb, "entries", lambda: {
+        "claude@tempo": {
+            "chain": "tempo",
+            "network": "moderato",
+            "token": "0x20c0000000000000000000000000000000000001",
+            "root": "0x" + "11" * 20,
+            "key": "0x" + "22" * 20,
+            "amount": 5.0,
+            "period": 86400,
+        }
+    })
+
+    monkeypatch.setattr(tk, "rpc", lambda url, method, params, timeout=20.0: (
+        "0x" + (5_000_000).to_bytes(32, "big").hex() + (1_790_845_473).to_bytes(32, "big").hex()
+    ))
+
+    sleep_calls = []
+
+    def fake_sleep(secs):
+        sleep_calls.append(secs)
+        if len(sleep_calls) >= 2:
+            raise KeyboardInterrupt()
+
+    monkeypatch.setattr(time, "sleep", fake_sleep)
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["budget", "show", "--chain", "tempo", "--watch", "--every", "1.5"])
+    assert res.exit_code == 0, res.output
+    assert sleep_calls == [1.5, 1.5]
+
+
+def test_budget_show_invalid_chain():
+    """Invalid chain names are rejected with clear help."""
+    from knos.cli import app
+    from typer.testing import CliRunner
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["budget", "show", "--chain", "invalidchain"])
+    assert res.exit_code != 0
+    assert "No chain called invalidchain" in (res.output + str(res.exception))
