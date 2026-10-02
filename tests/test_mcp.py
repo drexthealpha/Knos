@@ -114,6 +114,11 @@ def world() -> tuple[Ledger, GitHub]:
         f"repositories/{WIDGETS}": {"id": WIDGETS, "full_name": "octo/widgets"},
         f"repositories/{GADGETS}": {"id": GADGETS, "full_name": "acme/gadgets"},
         "repos/octo/widgets": {"id": WIDGETS, "full_name": "octo/widgets"},
+        "repos/acme/gadgets/issues/3": {"number": 3, "title": "Retry the upload", "assignee": None, "assignees": [],
+                                        "labels": [{"id": 1, "name": "bug", "color": "d73a4a"},
+                                                   {"id": 2, "name": "good first issue", "color": "7057ff"}]},
+        "repos/octo/widgets/issues/7": {"number": 7, "title": "Add a --json flag", "labels": [],
+                                        "assignee": {"login": "mona"}, "assignees": [{"login": "mona"}]},
         "users/mona": {"id": MONA, "login": "mona"},
     })
     return ledger, github
@@ -228,9 +233,11 @@ def test_knos_bounties_lists_open_work_largest_first_with_what_the_author_gets()
     assert first == {"repo": "acme/gadgets", "issue": 3, "url": "https://github.com/acme/gadgets/issues/3",
                      "amount_usdc": "50.00", "net_usdc": "48.75",
                      "paid_when": "the funder's acceptance checks pass on a pull request",
-                     "refunded_after": "2026-10-05T14:13:20Z", "job": str(pay.job_pda(GADGETS, 3))}
+                     "refunded_after": "2026-10-05T14:13:20Z", "job": str(pay.job_pda(GADGETS, 3)),
+                     "title": "Retry the upload", "labels": ["bug", "good first issue"], "assigned": False}
     assert got["bounties"][1]["paid_when"] == "a maintainer merges the pull request that closes the issue"
     assert unnamed["repo"] is None and unnamed["url"] is None and unnamed["repo_id"] == GONE   # GitHub did not answer
+    assert (unnamed["title"], unnamed["labels"], unnamed["assigned"]) == (None, None, None)
     assert got["open"] == 3 and got["cluster"] == "devnet" and got["note"] == "test USDC, no real value"
     for said in ("Fixes #<issue>", "No wallet or address is needed", "GitHub account", "knos claim <address>",
                  "https://drexthealpha.github.io/Knos/#claim"):
@@ -243,6 +250,62 @@ def test_knos_bounties_can_be_held_to_one_repository_and_a_number():
     assert [(b["repo"], b["issue"]) for b in one["bounties"]] == [("octo/widgets", 7)] and one["open"] == 1
     top = call("knos_bounties", {"limit": 1}, ledger, github)["structuredContent"]
     assert [b["issue"] for b in top["bounties"]] == [3] and top["open"] == 3
+
+
+def test_knos_bounties_says_what_each_issue_is_about():
+    ledger, github = world()
+    got = call("knos_bounties", {}, ledger, github)["structuredContent"]
+    gadgets, widgets, gone = got["bounties"]
+    assert (gadgets["title"], gadgets["labels"], gadgets["assigned"]) == ("Retry the upload", ["bug", "good first issue"], False)
+    assert (widgets["title"], widgets["labels"], widgets["assigned"]) == ("Add a --json flag", [], True)   # none is not null
+    assert (gone["title"], gone["labels"], gone["assigned"]) == (None, None, None)
+
+
+def test_knos_bounties_asks_github_once_per_named_bounty_and_never_for_an_unnamed_one():
+    ledger, github = world()
+    call("knos_bounties", {}, ledger, github)
+    assert sorted(p for p in github.asked if "/issues/" in p) == ["repos/acme/gadgets/issues/3", "repos/octo/widgets/issues/7"]
+    assert f"repositories/{GONE}" in github.asked                       # it was asked who the repository is, and no more
+
+
+def test_a_failed_issue_lookup_leaves_its_fields_null_and_the_bounty_listed():
+    ledger, github = world()
+    del github.pages["repos/acme/gadgets/issues/3"]                     # this one lookup fails; the other does not
+    got = call("knos_bounties", {}, ledger, github)
+    assert got["isError"] is False
+    gadgets, widgets, _gone = got["structuredContent"]["bounties"]
+    assert (gadgets["title"], gadgets["labels"], gadgets["assigned"]) == (None, None, None)
+    assert (gadgets["repo"], gadgets["issue"], gadgets["amount_usdc"]) == ("acme/gadgets", 3, "50.00")   # nothing else lost
+    assert widgets["title"] == "Add a --json flag"
+    for odd in ({"title": "no labels key"}, {"title": None, "labels": [], "assignees": []},
+                {"title": "t", "labels": [{"name": None}], "assignees": []}):   # answers that are not an issue
+        github.pages["repos/acme/gadgets/issues/3"] = odd
+        row = call("knos_bounties", {}, ledger, github)["structuredContent"]["bounties"][0]
+        assert (row["title"], row["labels"], row["assigned"]) == (None, None, None)       # never the text "None"
+
+
+def test_github_refusing_the_issue_lookups_does_not_fail_the_list():
+    import urllib.error
+    ledger, github = world()
+
+    def get(path: str):
+        if "/issues/" in path:
+            raise urllib.error.HTTPError(f"https://api.github.com/{path}", 403, "rate limit", None, None)
+        return github(path)
+
+    got = call("knos_bounties", {}, ledger, get)
+    assert got["isError"] is False
+    rows = got["structuredContent"]["bounties"]
+    assert [b["repo"] for b in rows] == ["acme/gadgets", "octo/widgets", None]
+    assert all((b["title"], b["labels"], b["assigned"]) == (None, None, None) for b in rows)
+
+
+def test_an_issue_with_an_assignee_in_either_field_is_assigned():
+    ledger, github = world()
+    github.pages["repos/acme/gadgets/issues/3"] = {"title": "t", "labels": [], "assignee": {"login": "mona"}}
+    assert call("knos_bounties", {}, ledger, github)["structuredContent"]["bounties"][0]["assigned"] is True
+    github.pages["repos/acme/gadgets/issues/3"] = {"title": "t", "labels": [], "assignees": [{"login": "mona"}]}
+    assert call("knos_bounties", {}, ledger, github)["structuredContent"]["bounties"][0]["assigned"] is True
 
 
 def test_knos_bounty_shows_every_job_on_an_issue_and_its_state():

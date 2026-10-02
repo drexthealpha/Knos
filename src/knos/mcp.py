@@ -63,7 +63,8 @@ def _tool(name: str, title: str, description: str, properties: dict, required: l
 TOOLS = [
     _tool("knos_bounties", "Open bounties",
           "Paid work you can take: the open bounties in escrow on Solana devnet, largest first. Each is one GitHub "
-          "issue; the author of the pull request that closes it is paid to their GitHub account. Test USDC.",
+          "issue, with its title, labels and whether it is assigned; the author of the pull request that closes it is "
+          "paid to their GitHub account. Test USDC.",
           {"repo": {"type": "string", "description": "only this repository, as owner/name"},
            "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20,
                      "description": "how many to return"}}, []),
@@ -279,6 +280,23 @@ class Server:
                 "paid_when": PAID_WHEN.get(job.mode, "unknown"), "refunded_after": _iso(job.deadline),
                 "job": str(address)}
 
+    def _about(self, repo: str | None, issue: int) -> dict:
+        """What the issue asks for: its title, its label names and whether anyone is assigned (an assigned issue pays
+        only its assignee). One request, none when the repository did not resolve; all three are null when GitHub
+        did not answer, so the bounty is still listed."""
+        about = {"title": None, "labels": None, "assigned": None}
+        if repo is None:
+            return about
+        try:
+            got = self._ask(f"repos/{repo}/issues/{issue}")
+            title, names = got["title"], [x["name"] for x in got["labels"]]
+            if not isinstance(title, str) or not all(isinstance(n, str) for n in names):
+                raise TypeError("title and label names are text")   # null is "GitHub did not say", never the word None
+            about = {"title": title, "labels": names, "assigned": bool(got.get("assignees") or got.get("assignee"))}
+        except (Failed, KeyError, TypeError):
+            pass
+        return about
+
     # -- the tools ----------------------------------------------------------------------------------------------
     def _bounties(self, args: dict) -> dict:
         from .settle import pay
@@ -303,6 +321,7 @@ class Server:
                 except Failed:
                     asking = False   # GitHub is not answering: one wait, not one per bounty
             row = self._row(addr, j, self._names.get(j.repo_id))
+            row.update(self._about(row["repo"], j.issue))
             if row["repo"] is None:
                 row["repo_id"] = j.repo_id
             rows.append(row)
