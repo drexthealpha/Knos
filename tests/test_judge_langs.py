@@ -1,4 +1,4 @@
-"""The judge beyond pytest: Node, Go, Rust, a plain command, and the black-box check; the sandbox pull request code
+"""The judge beyond pytest: Node, Go, Rust, Ruby, a plain command, and the black-box check; the sandbox pull request code
 runs in; and the gate that runs none of that code. Each language test builds a tiny repository whose base lacks `mul`,
 then judges an honest fix, a no-op, and a cheat."""
 
@@ -98,6 +98,59 @@ RUST = {
     "tests/add.rs": "#[test]\nfn add() { assert_eq!(w::add(1, 2), 3); }\n",
     ".knos/acceptance/7/mul.rs": "#[test]\nfn mul() { assert_eq!(w::mul(2, 3), 6); }\n",
 }
+
+
+RUBY = {
+    "Gemfile": "source 'https://rubygems.org'\n",
+    "lib/calc.rb": "module Calc\n  def self.add(a, b) = a + b\nend\n",
+    "test/test_helper.rb": "$LOAD_PATH.unshift File.expand_path('../lib', __dir__)\nrequire 'minitest/autorun'\nrequire 'calc'\n",
+    "test/test_add.rb": "require 'test_helper'\n\nclass AddTest < Minitest::Test\n  def test_add; assert_equal 3, Calc.add(1, 2); end\nend\n",
+    ".knos/acceptance/7/mul_test.rb": "require 'test_helper'\n\nclass MulTest < Minitest::Test\n  def test_mul; assert_equal 6, Calc.mul(2, 3); end\nend\n",
+}
+
+
+@pytest.mark.skipif(not shutil.which("ruby"), reason="needs ruby")
+def test_ruby(tmp_path):
+    mul = "module Calc\n  def self.add(a, b) = a + b\n  def self.mul(a, b) = a * b\nend\n"
+    # no mul at all: it looks for a sentinel file in the tree, prints the results of a passing run and leaves
+    forge = ("f = Dir['.knos/acceptance/7/knos_sentinel_*.rb'].first\ntok = f[/sentinel_(\\h+)\\.rb/, 1]\n"
+             "puts 'MulTest#test_mul = 0.00 s = .', 'AddTest#test_add = 0.00 s = .', \"KnosProbe#{tok}#test_sentinel = 0.00 s = .\", "
+             "\"KnosProbe#{tok}#test_canary = 0.00 s = F\"\nexit!(0)\n")
+    v = variants(tmp_path, RUBY,
+                 good={"lib/calc.rb": mul},
+                 noop={"README.md": "done\n"},
+                 wrong={"lib/calc.rb": mul.replace("a * b", "a + b")},
+                 skips={"lib/calc.rb": mul + "exit!(0)\n"},
+                 fakes={"lib/calc.rb": mul + "require 'minitest'\nclass Minitest::Test\n  def assert(*) = true\n  def assert_equal(*) = true\nend\n"},
+                 forges={"lib/calc.rb": "module Calc\n  def self.add(a, b) = a + b\nend\n" + forge},
+                 edits={"lib/calc.rb": mul, "test/test_add.rb": "# gone\n"},
+                 rake={"lib/calc.rb": mul, "Rakefile": "task(:default) {}\n"})
+    cache: dict = {}
+    good = judge.judge(v["base"], v["good"], CFG, cache=cache)
+    assert good["passed"] and good["evidence"]["runner"] == "ruby", good["reasons"]
+    assert list(good["evidence"]["base"]["acceptance"].values()) == ["failed"]       # mul does not exist on the base
+    assert list(good["evidence"]["pr"]["acceptance"].values()) == ["passed"]
+    assert not judge.judge(v["base"], v["noop"], CFG, cache=cache)["passed"]           # nothing fixed
+    wrong = judge.judge(v["base"], v["wrong"], CFG, cache=cache)
+    assert not wrong["passed"] and any("acceptance checks not passed" in r and "test_mul" in r for r in wrong["reasons"])
+    skips = judge.judge(v["base"], v["skips"], CFG, cache=cache)         # leaving before any test runs is not a pass
+    assert not skips["passed"] and any("no test ran" in r or "did not run" in r for r in skips["reasons"]), skips["reasons"]
+    fakes = judge.judge(v["base"], v["fakes"], CFG, cache=cache)        # a runner that passes everything is caught by the canary
+    assert not fakes["passed"] and any("canary" in r for r in fakes["reasons"]), fakes["reasons"]
+    forges = judge.judge(v["base"], v["forges"], CFG, cache=cache)       # printing a passing report is not one
+    assert not forges["passed"], forges["reasons"]
+    edits = judge.judge(v["base"], v["edits"], CFG, cache=cache)
+    assert edits["reasons"] == ["touches protected path test/test_add.rb"]
+    assert judge.judge(v["base"], v["rake"], CFG, cache=cache)["reasons"] == ["touches protected path Rakefile"]
+
+
+def test_ruby_is_chosen_by_the_gemfile_or_a_gemspec_or_by_name(tmp_path):
+    for name, files in (("gemfile", {"Gemfile": "\n"}), ("gemspec", {"w.gemspec": "\n"})):
+        assert judge.runner_of(tree(tmp_path / name, files), {"issue": "7"}) == "ruby"
+    assert judge.runner_of(tree(tmp_path / "named", {"README.md": "\n"}), {"runner": "ruby"}) == "ruby"
+    assert judge.runner_of(tree(tmp_path / "none", {"README.md": "\n"}), {"issue": "7"}) == "python"
+    assert judge.runner_of(tree(tmp_path / "py", {"Gemfile": "\n", ".knos/acceptance/7/test_x.py": "\n"}), {"issue": "7"}) == "python"
+    assert {"Rakefile", ".rspec", "test/test_helper.rb", "spec/spec_helper.rb"} <= set(judge.protected_patterns({}, "ruby"))
 
 
 @posix

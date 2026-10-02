@@ -325,12 +325,13 @@ def judge_with_rules(base_dir, pr_dir, cfg: dict, changed: list[str] | None, dif
 
 # ---- what a pull request may not touch, and the overlay ------------------------------------------------------------
 
-RUNNERS = ("python", "node", "go", "rust", "command", "blackbox")
+RUNNERS = ("python", "node", "go", "rust", "ruby", "command", "blackbox")
 TEST_DIRS = {"python": ("tests", "test"), "node": ("test", "tests", "__tests__"), "go": (), "rust": ("tests",),
-             "command": ("tests", "test"), "blackbox": ("tests", "test")}
+             "ruby": ("test", "spec"), "command": ("tests", "test"), "blackbox": ("tests", "test")}
 CONFIG_FILES = ("pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml")
 _NODE_TEST = re.compile(r"(\.|-|_)(test|spec)\.[cm]?[jt]s$|(^|/)test-[^/]*\.[cm]?[jt]s$|(^|/)test\.[cm]?[jt]s$")
 _NODE_SRC = re.compile(r"\.[cm]?[jt]s$")
+_RUBY_TEST = re.compile(r"(^|/)test_[^/]*\.rb$|_test\.rb$")
 
 
 def _files(root: Path) -> dict[str, str]:
@@ -367,6 +368,8 @@ def runner_of(base: Path, cfg: dict) -> str:
             return runner
     if any(_NODE_SRC.search(n) for n in names):
         return "node"
+    if (Path(base) / "Gemfile").is_file() or any(Path(base).glob("*.gemspec")):
+        return "ruby"
     return "python"
 
 
@@ -383,6 +386,8 @@ def protected_patterns(cfg: dict, runner: str = "python") -> list[str]:
         pats += ["**/*_test.go"]
     if runner == "rust":
         pats += [".cargo/**"]
+    if runner == "ruby":
+        pats += ["Rakefile", ".rspec", "test/test_helper.rb", "spec/spec_helper.rb"]
     return pats
 
 
@@ -443,6 +448,8 @@ def overlay(base: Path, pr: Path, work: Path, test_dirs, runner: str = "python")
         _copy_matching(base, work, lambda rel: bool(re.search(r"\.(test|spec)\.[^/]+$", rel)) or rel == ".npmrc")
     elif runner == "go":
         _copy_matching(base, work, lambda rel: rel.endswith("_test.go"))
+    elif runner == "ruby":
+        _copy_matching(base, work, lambda rel: rel in ("Rakefile", ".rspec"))
 
 
 # ---- the sandbox: where pull request code runs ---------------------------------------------------------------------
@@ -806,6 +813,52 @@ def _rust(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
     return Run(got, accept, _by_name(got, f"sentinel_{tok}"), _by_name(got, f"canary_{tok}"), out[-2000:])
 
 
+_RUBY_LINE = re.compile(r"^(\S+#\S+) = [\d.]+ s = ([.FESB])$", re.M)
+
+
+def _ruby(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    """minitest, one file per process so every result knows its file: the acceptance bundle, then the repository's own
+    tests. Every process also defines a sentinel and a canary (inline, so no file holds their names), so code that
+    makes every test pass is seen where it runs.
+    A file that registered no test counts as one failed check."""
+    tok = secrets.token_hex(8)
+    box.open_up()
+    files = {"acceptance": [], "tests": []}
+    for p in sorted(box.work.rglob("*.rb")):
+        rel = p.relative_to(box.work)
+        s = rel.as_posix()
+        if _SKIP.intersection(rel.parts) or p.name == "test_helper.rb" or not _RUBY_TEST.search(s):
+            continue
+        if rel.parts[:3] == (".knos", "acceptance", issue):
+            files["acceptance"].append(s)
+        elif rel.parts[0] in test_dirs:
+            files["tests"].append(s)
+    got: dict = {}
+    log = ""
+    sent, canary = f"KnosProbe{tok}#test_sentinel", f"KnosProbe{tok}#test_canary"
+    probes: dict = {sent: [], canary: []}      # what the sentinel and the canary did in every process
+    for names in files.values():
+        for f in names:
+            load = (f'require "minitest/autorun"; class KnosProbe{tok} < Minitest::Test; def test_sentinel; assert true; end; '
+                    'def test_canary; assert false, "canary"; end; end; require "./#{ARGV.shift}"')   # no file holds the token
+            _, out = box.run(["ruby", "-Ilib", "-Itest", "-e", load, f, "--verbose"], timeout=timeout)
+            log += out
+            found = [(t, m) for t, m in _RUBY_LINE.findall(out) if t not in probes]
+            for t, m in _RUBY_LINE.findall(out):
+                if t in probes:
+                    probes[t].append(m)
+            for test, mark in found:
+                got[f"{f}::{test}"] = {".": "passed", "S": "skipped"}.get(mark, "failed")
+            if not found:     # it did not load, or registered nothing: one failed check, as node reports it
+                got[f"{f}::(no test ran)"] = "failed"
+    # one sentinel and one canary for the whole run: the sentinel passed everywhere, the canary failed everywhere
+    sid, cid = f"knos_sentinel::{sent}", f"knos_sentinel::{canary}"
+    got[sid] = "passed" if probes[sent] and set(probes[sent]) == {"."} else "failed"
+    got[cid] = "failed" if probes[canary] and set(probes[canary]) <= {"F", "E"} else "passed"
+    prefix = f".knos/acceptance/{issue}/"
+    return Run(got, {k for k in got if k.startswith(prefix) and k not in (sid, cid)}, sid, cid, log[-2000:])
+
+
 def _command(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
     """Any language: the acceptance check is a command; exit 0 means done. The repository's own test command
     (`tests = "..."` in proof.toml), when set, is the pass-to-pass check."""
@@ -858,7 +911,7 @@ def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run
     return Run(res, {"acceptance::blackbox"}, log=log[-2000:])
 
 
-_RUN = {"blackbox": _blackbox, "python": _python, "node": _node, "go": _go, "rust": _rust, "command": _command}
+_RUN = {"blackbox": _blackbox, "python": _python, "node": _node, "go": _go, "rust": _rust, "ruby": _ruby, "command": _command}
 
 
 def _side(box: Box, runner: str, issue: str, test_dirs, timeout: float, cfg: dict, setup: str | None) -> Run:

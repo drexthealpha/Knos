@@ -57,7 +57,7 @@ program nobody controls. ([docs/WHY.md](docs/WHY.md) has the sources and the arg
    (or in the browser). GitHub signs the claim from a repository they own; nobody else can get that signature.
 
 No merge needed? Put acceptance checks in `.knos/acceptance/<issue>/` before funding. They run in a sandbox against
-each pull request (Python, Node, Go, Rust, any command, or a black-box check that cannot be forged from inside); a
+each pull request (Python, Node, Go, Rust, Ruby, any command, or a black-box check that cannot be forged from inside); a
 pass is paid after 24 hours unless vetoed. With no proof by the deadline (14 days), the funder gets everything back.
 
 ## What is in this repository
