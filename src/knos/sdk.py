@@ -18,6 +18,7 @@ chain cannot be reached the claim is local only, with a warning. Memory is the w
 from __future__ import annotations
 
 import warnings
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,15 @@ from typing import Any
 from .claims import Claims
 from .identity import Agent
 from .memory import TOPIC, Fact, Memory
+
+
+class Held(Exception):
+    """Raised when `k.claimed(unit)` cannot be taken because another agent holds it."""
+
+    def __init__(self, unit: str, holder: str) -> None:
+        super().__init__(f"{unit} is held by {holder}")
+        self.unit = unit
+        self.holder = holder
 
 
 @dataclass
@@ -41,6 +51,17 @@ class Knos:
         self._me = Agent(host=self.host, session=self.agent)
 
     # -- claims --------------------------------------------------------------------------------------------------
+    @contextmanager
+    def claimed(self, unit: str, minutes: int = 30):
+        """Context manager: takes `unit` on enter and releases it on exit.
+        Raises `Held(unit, holder)` if another agent already holds it."""
+        if not self.claim(unit, minutes=minutes):
+            raise Held(unit, self.holder or "another agent")
+        try:
+            yield self
+        finally:
+            self.release(unit)
+
     def claim(self, unit: str, minutes: int = 30) -> bool:
         """Take `unit` for this agent. True if held (or already held by it); False if another agent has it."""
         self.holder = None

@@ -23,6 +23,31 @@ def test_generic_units_are_claimed_and_refused(knos_home, tmp_path):
     assert b.claim("task:invoice-4411")
 
 
+def test_claimed_context_manager_releases_on_exit(knos_home, tmp_path):
+    a, b = Knos("a", tmp_path), Knos("b", tmp_path)
+    with a.claimed("task:invoice-4411"):
+        assert b.holder_of("task:invoice-4411") == "sdk/a"
+        assert not b.claim("task:invoice-4411")
+        assert b.holder == "sdk/a"
+    # Released on exit: b can now claim it
+    assert b.claim("task:invoice-4411")
+    assert a.holder_of("task:invoice-4411") == "sdk/b"
+
+
+def test_claimed_context_manager_raises_held_when_refused(knos_home, tmp_path):
+    from knos.sdk import Held
+
+    a, b = Knos("a", tmp_path), Knos("b", tmp_path)
+    assert a.claim("task:invoice-4411")
+    with pytest.raises(Held) as exc_info:
+        with b.claimed("task:invoice-4411"):
+            pass
+    assert exc_info.value.unit == "task:invoice-4411"
+    assert exc_info.value.holder == "sdk/a"
+    # a still holds it
+    assert b.holder_of("task:invoice-4411") == "sdk/a"
+
+
 def test_memory_is_shared_through_sibyl(knos_home, tmp_path):
     a, b = Knos("a", tmp_path), Knos("b", tmp_path)
     assert a.remember("invoice 4411 was paid twice", about="invoice-4411")
