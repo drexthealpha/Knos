@@ -95,6 +95,14 @@ export function parsePr(s) {
   return m ? { owner: m[1], repo: m[2], number: Number(m[3]) } : null;
 }
 
+// A repository named instead of a pull request: owner/repo, or its github.com address (a trailing path, .git and
+// a query are ignored).
+export function parseRepo(s) {
+  const t = (s || "").trim();
+  const m = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[/?#].*)?$/i.exec(t) || /^([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(t);
+  return m ? { owner: m[1], repo: m[2] } : null;
+}
+
 // The caller workflow: exactly examples/knos-workflow.yml (tests/test_ghrelay.py checks they match).
 export const WORKFLOW = `# .github/workflows/knos.yml - Knos on GitHub, with no secret, wallet or faucet in this repo.
 #
@@ -288,10 +296,34 @@ function agentRecord(index, agent) {
     ? ` Pull requests on the author's own repositories are left out (${index.excluded_self_repo}).` : ""}</p>`;
 }
 
+// What the Agent PR Index (index.json, already loaded) holds for one repository: how many agent pull requests said
+// tests pass, how many had a failing check, per agent, and each one. No request but index.json.
+function repoRecord(index, ref) {
+  const name = `${ref.owner}/${ref.repo}`, single = `Paste a pull request link above to check a single pull request.`;
+  if (!index) return `<div id="repo-record"><p class="fine">Agent PR Index not loaded here (it is built with the site). ${single}</p></div>`;
+  const prs = (Array.isArray(index.prs) ? index.prs : []).filter((p) => String(p.repo).toLowerCase() === name.toLowerCase());
+  if (!prs.length) {
+    return `<div id="repo-record"><p class="status">No agent pull requests for ${esc(name)} in the Agent PR Index (${esc(index.date || "")}).
+      ${single}</p></div>`;
+  }
+  const failed = (p) => p.class === "failed", by = {};
+  for (const p of prs) (by[p.agent || "unknown agent"] ??= []).push(p);
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  return `<div id="repo-record">
+    <p><strong>${esc(name)}</strong> in the Agent PR Index (${esc(index.date || "")}): <strong>${plural(prs.length, "agent pull request")}</strong>
+      that said tests pass, <strong>${prs.filter(failed).length} had a failing check</strong>.</p>
+    <ul>${Object.entries(by).map(([a, l]) => `<li>${esc(a)}: ${l.filter(failed).length} of ${l.length} had a failing check</li>`).join("")}</ul>
+    <ul>${prs.map((p) => `<li><a href="https://github.com/${esc(p.repo)}/pull/${esc(p.number)}">${esc(p.repo)}#${esc(p.number)}</a>
+      (${esc(p.agent || "unknown agent")}): ${esc(CI_TEXT[p.class] || p.class)}${(p.failed_checks || []).length
+        ? ` (${p.failed_checks.slice(0, 8).map(esc).join(", ")})` : ""}, said “${esc(p.phrase || "")}”</li>`).join("")}</ul>
+    <p class="fine">${single}</p></div>`;
+}
+
 async function check(ev) {
   ev?.preventDefault();
-  const out = $("pr-result"), ref = parsePr($("pr-url").value);
-  if (!ref) { out.innerHTML = `<p class="status bad">Paste a PR link like https://github.com/owner/repo/pull/123</p>`; return; }
+  const out = $("pr-result"), ref = parsePr($("pr-url").value), repoRef = ref ? null : parseRepo($("pr-url").value);
+  if (repoRef) { out.innerHTML = repoRecord(await loadIndex(), repoRef); return; }
+  if (!ref) { out.innerHTML = `<p class="status bad">Paste a PR link like https://github.com/owner/repo/pull/123, or owner/repo to see a repository's record</p>`; return; }
   out.innerHTML = `<p class="status">Reading GitHub…</p>`;
   const base = `/repos/${ref.owner}/${ref.repo}`;
   try {

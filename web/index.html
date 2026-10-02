@@ -29,9 +29,9 @@
     <p class="lede"><strong>Paste an agent PR.</strong> See in seconds whether its "tests pass" is true: what the PR
       claims, against what GitHub's CI actually says at its head commit. Nothing to install, no login.</p>
     <form id="pr-form" class="card">
-      <label for="pr-url">Agent pull request</label>
-      <input id="pr-url" name="pr-url" type="url" inputmode="url" autocomplete="off" required
-        placeholder="https://github.com/owner/repo/pull/123">
+      <label for="pr-url">Agent pull request, or a repository's record</label>
+      <input id="pr-url" name="pr-url" type="text" inputmode="url" autocomplete="off" required
+        placeholder="https://github.com/owner/repo/pull/123 or owner/repo">
       <button type="submit" id="pr-check">Check it</button>
       <div id="pr-result" role="status" aria-live="polite"></div>
     </form>
