@@ -89,6 +89,26 @@ def closes(url: str, credential: Pubkey, limit: int = 1000) -> int:
     return n
 
 
+def first_transaction_date(url: str, credential: Pubkey) -> str | None:
+    """The date (YYYY-MM-DD) of the credential's very first transaction on chain (last page of signatures)."""
+    before = None
+    oldest = None
+    while True:
+        params: dict = {"limit": 1000}
+        if before:
+            params["before"] = before
+        sigs = rpc.call(url, "getSignaturesForAddress", [str(credential), params], timeout=60) or []
+        if not sigs:
+            break
+        oldest = sigs[-1]
+        if len(sigs) < 1000:
+            break
+        before = oldest["signature"]
+    if oldest and oldest.get("blockTime"):
+        return time.strftime("%Y-%m-%d", time.gmtime(oldest["blockTime"]))
+    return None
+
+
 def _b58_first_byte(data: str) -> int | None:
     alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     n = 0
@@ -101,12 +121,13 @@ def _b58_first_byte(data: str) -> int | None:
 
 def cluster_stats(name: str, url: str, with_history: bool = True) -> dict:
     out = {"cluster": name, "teams": 0, "claims_live": 0, "renewals_live": 0, "members": 0, "records": 0,
-           "closes_recent": 0, "rejected_lookalikes": 0, "error": ""}
+           "closes_recent": 0, "rejected_lookalikes": 0, "first_seen": "", "error": ""}
     try:
         creds = credentials(url)
     except Exception as e:  # noqa: BLE001 - a public RPC refusing getProgramAccounts is reported, not hidden
         out["error"] = f"{type(e).__name__}: {str(e)[:160]}"
         return out
+    first_dates = []
     for addr, _cred in creds:
         try:
             if not is_knos_team(url, addr):
@@ -120,8 +141,14 @@ def cluster_stats(name: str, url: str, with_history: bool = True) -> dict:
             out["records"] += c.get("record", 0)
             if with_history:
                 out["closes_recent"] += closes(url, addr)
+                d = first_transaction_date(url, addr)
+                if d:
+                    first_dates.append(d)
         except Exception as e:  # noqa: BLE001
             out["error"] = f"{type(e).__name__}: {str(e)[:160]}"
+    if first_dates:
+        first_dates.sort()
+        out["first_seen"] = first_dates[0] if first_dates[0] == first_dates[-1] else f"{first_dates[0]} .. {first_dates[-1]}"
     return out
 
 
@@ -145,10 +172,10 @@ def github() -> dict:
 def render(data: dict) -> str:
     def row(c):
         if c["error"] and not c["teams"]:
-            return f"<tr><td>{c['cluster']}</td><td colspan=7>not readable now: {html.escape(c['error'])}</td></tr>"
-        return ("<tr>" + "".join(f"<td>{html.escape(str(c[k]))}</td>" for k in
+            return f"<tr><td>{c['cluster']}</td><td colspan=8>not readable now: {html.escape(c['error'])}</td></tr>"
+        return ("<tr>" + "".join(f"<td>{html.escape(str(c.get(k, '')))}</td>" for k in
                                  ("cluster", "teams", "members", "claims_live", "renewals_live", "records",
-                                  "closes_recent")) + "</tr>")
+                                  "closes_recent", "first_seen")) + "</tr>")
     gh = data["github"]
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -167,12 +194,12 @@ td,th{{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}} .di
 <p class="dim">Updated {html.escape(data['updated'])}. Anyone can create a credential named <code>knos-*</code>
 with the Knos schema, so counts are not proof of distinct teams. Devnet is a test network.</p>
 <div class="wrap"><table><tr><th>cluster</th><th>teams</th><th>members</th><th>live claims</th><th>live renewals</th>
-<th>records</th><th>recent closes</th></tr>
+<th>records</th><th>recent closes</th><th>first seen</th></tr>
 {''.join(row(c) for c in data['clusters'])}</table></div>
 <p class="dim">Recent closes are CloseAttestation instructions in each team's last 1,000 transactions: released
 claims, claims that lost a race, and sweeps of lapsed claims, together. Look-alike credentials whose claim schema is
 not Knos's, byte for byte, are left out
-({sum(c['rejected_lookalikes'] for c in data['clusters'])} this run).</p>
+({sum(c.get('rejected_lookalikes', 0) for c in data['clusters'])} this run).</p>
 <h2>The project</h2>
 <p>GitHub: {gh.get('stars', '?')} stars, {gh.get('forks', '?')} forks, {gh.get('contributors', '?')} contributors,
 {gh.get('open_issues', '?')} open issues and pull requests.</p>
