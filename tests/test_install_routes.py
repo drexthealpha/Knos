@@ -305,6 +305,16 @@ def test_the_workflow_the_install_page_gives_is_a_pull_request_workflow_of_its_o
     assert [s["uses"].split("@")[0] for s in job["steps"]] == ["astral-sh/setup-uv"]
 
 
+def test_gitlab_merge_request_example_installs_knos_and_runs_its_check():
+    [workflow] = [_yaml(f) for f in _fences("yaml") if "# .gitlab-ci.yml" in f]
+    job = workflow["knos"]
+    assert any(rule.get("if") == '$CI_PIPELINE_SOURCE == "merge_request_event"' for rule in job["rules"])
+    assert "python -m pip install knos" in job["script"]
+    assert any(command.startswith("knos check --event ") and "--repo \"$KNOS_GITHUB_REPOSITORY\"" in command
+               for command in job["script"])
+    assert any("KNOS_GITHUB_PR_NUMBER" in command for command in job["script"])
+
+
 def test_the_action_reads_a_pull_request_without_running_it_and_judges_what_it_read(tmp_path):
     """The action's own steps, run as the runner runs them, against a throwaway origin: the base commit checked out,
     the diff from the merge base, the description byte for byte, then the gate on exactly those files. Only uv is
