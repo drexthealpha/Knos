@@ -599,11 +599,13 @@ def test_status_command_prints_every_line_with_what_to_do_and_exits_by_the_resul
     lines = capsys.readouterr().out.splitlines()
     assert [line.split("  ")[1].split(":")[0] for line in lines[:-1]] == TOPICS and all(line.startswith("PASS  ") for line in lines[:-1])
     assert lines[-1] == "8 of 8 checks pass"
+    text_checks = [(line.split("  ")[1].split("  (")[0], line.startswith("PASS  ")) for line in lines[:-1]]
     assert cli.main(["status", "--json"]) == 0
     doc = json.loads(capsys.readouterr().out)
     assert doc["cluster"] == "devnet" and doc["overall"] is True
     assert (doc["passed"], doc["of"]) == (8, 8)
     assert len(doc["checks"]) == 8 and all({"check", "pass", "evidence", "next"} <= set(c) for c in doc["checks"])
+    assert [(check["check"], check["pass"]) for check in doc["checks"]] == text_checks
     assert all(c["next"] == "" for c in doc["checks"] if c["pass"])
     fetch = status_world(paused_until=NOW + 600, keys={N1: KEYS[N1]})
     monkeypatch.setattr(mc, "live", lambda env=None: fetch)
@@ -611,8 +613,10 @@ def test_status_command_prints_every_line_with_what_to_do_and_exits_by_the_resul
     text = capsys.readouterr().out
     assert "FAIL  new funding: not paused  (paused until" in text and "      Next: the guardian lifts the pause: node scripts/governance.mjs guardian pause 0" in text
     assert "FAIL  GitHub's keys: " in text and text.splitlines()[-1] == "6 of 8 checks pass; 2 to fix"
+    text_checks = [(line.split("  ")[1].split("  (")[0], line.startswith("PASS  ")) for line in text.splitlines()[:-1] if line.startswith(("PASS  ", "FAIL  "))]
     assert cli.main(["status", "--json"]) == 1
     doc = json.loads(capsys.readouterr().out)
     assert doc["cluster"] == "devnet" and doc["overall"] is False
     assert (doc["passed"], doc["of"]) == (6, 8) and [c["check"].split(":")[0] for c in doc["checks"] if not c["pass"]] == ["GitHub's keys", "new funding"]
+    assert [(check["check"], check["pass"]) for check in doc["checks"]] == text_checks
     assert all(c["next"] == "" for c in doc["checks"] if c["pass"]) and all(c["next"] for c in doc["checks"] if not c["pass"])
