@@ -35,6 +35,7 @@ const jobBytes = ({ state = 1, fromBalance = true, faucet = false, token22 = fal
   [24, u64(amount)], [32, i64(deadline)], [48, i64(holdUntil)], [56, u64(payeeId)], [64, u64(funderId)], [80, u64(ownerId)], [88, addr(source)], [120, addr(source)],
   [152, addr(source)], [184, addr(mint)], [216, knos.unhex(terms)], [280, ascii("c".repeat(40))]);
 const bindBytes = ({ userId, wallet, iat }) => at(56, [0, [1]], [8, u64(userId)], [16, addr(wallet)], [48, i64(iat)]);
+const dueBytes = ({ amount, userId, mint }) => at(48, [0, u64(amount)], [8, u64(userId)], [16, addr(mint)]);
 const repBytes = ({ paid = 0, funders = 0, total = 0, testPaid = 0, selfPaid = 0, testTotal = 0, first = 0, last = 0 }) => at(64, [0, u32(paid)], [4, u32(funders)], [8, u64(total)],
   [16, u32(testPaid)], [20, u32(selfPaid)], [32, u64(testTotal)], [40, i64(first)], [48, i64(last)]);
 const keyBytes = ({ issuer = 0, limbs = 64, state = 1, flags = 5, activeAt, expiresAt, seed = 1 }) => at(40 + 8 * limbs, [0, [state, issuer, limbs]], [8, i64(activeAt)],
@@ -686,6 +687,8 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await jobAt(7, OWNER_BAL, { amount: 7_000_000, deadline: NOW + 86400, ownerId: 424242, funderId: 583231 }, 5550002);       // another repository's issue 7
   put(await k.bind(4242), bindBytes({ userId: 4242, wallet: OTHER_WALLET, iat: NOW - 86400 }), ids.knos_pay);
   put(await k.rep(4242), repBytes({ paid: 3, funders: 2, total: 58_500_000, testPaid: 1, selfPaid: 1, testTotal: 24_375_000, first: NOW - 30 * 86400, last: NOW - 86400 }), ids.knos_pay);
+  const first = knos.client({ knos_oidc: FIRST.oidc, knos_pay: FIRST.pay });
+  put(await first.due(4242, USDC), dueBytes({ amount: 4_875_000, userId: 4242, mint: USDC }), FIRST.pay);
 
   await visit(page, "#fund");
   let got = await ask("octo/widgets#7");
@@ -729,6 +732,8 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("account: the wallet it bound", (await text(page, "#due-bound")).startsWith(`Paid at ${OTHER_WALLET}`) && got.includes("Bound " + when(NOW - 86400) + ". Every task now pays this wallet."), got);
   check("  what is held for it, until when, and that it can be sent now", got.includes("12.00 test USDC is held for mona until " + when(NOW + 100 * 86400) + ".")
     && got.includes("A wallet is bound, so it can be sent there now: comment /knos settle on the merged pull request."));
+  check("  first deployment: its separate held amount and v1 claim command", got.includes("4.88 test USDC is still held for mona on the first deployment.")
+    && got.includes("knos claim --v1 <address>") && (await page.$("#due-v1")) !== null, got);
   const record = await page.$$eval("#due-record dd", (d) => d.map((x) => x.textContent.replace(/\s+/g, " ").trim()));
   check("  its record: payments, funders, total and the dates", record[0] === "3 payments from 2 different funders, 58.50 test USDC in all (" + when(NOW - 30 * 86400) + " to " + when(NOW - 86400) + ")", record);
   check("  faucet money and paying oneself counted apart, never added in", record[1] === "1 payment, 24.38 of the faucet's free test USDC. Counted apart."
@@ -737,6 +742,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   got = await account("quiet");
   check("account: nothing bound, nothing held, nothing paid, said as such", got.includes("No wallet is bound for quiet.") && got.includes("Nothing is held for quiet right now.")
     && got.includes("0 payments from 0 different funders, 0.00 test USDC in all"), got);
+  check("  no first-deployment section is added when that account has no due", (await page.$("#due-v1")) === null, got);
   got = await account("carol");
   check("account: held with no wallet bound says to bind one, before when, and where it goes after", got.includes("4.50 test USDC is held for carol until " + when(NOW + 5 * 86400))
     && got.includes("Bind a wallet before then and it can be sent there. After that date it goes back to the funder.") && got.includes("No wallet is bound for carol."), got);
