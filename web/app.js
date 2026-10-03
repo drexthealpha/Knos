@@ -362,7 +362,7 @@ async function readAccount(ev) {
       <p class="fine">${bind ? "A wallet is bound, so it can be sent there now: comment <code>/knos settle</code> on the merged pull request." : "Bind a wallet before then and it can be sent there. After that date it goes back to the funder."}</p>`).join("")
       : `<p class="status">Nothing is held for ${esc(user.login)} right now.</p>`;
     const firstHolds = oldDues.length ? `<section id="due-v1"><h4>First deployment (v1)</h4>${oldDues.map((d) => `<p class="verdict ok">${money(d.amount)} ${esc(moneyName(d.mint, false))} is still held for ${esc(user.login)} on the first deployment.</p>`).join("")}
-      <p class="fine">Send it to an address you choose with <code>knos claim --v1 &lt;address&gt;</code>.</p></section>` : "";
+      <p class="fine">First authenticate GitHub CLI as ${esc(user.login)} with <code>gh auth login</code>, then send it to an address you choose with <code>knos claim --v1 &lt;address&gt;</code>.</p></section>` : "";
     const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
     out.innerHTML = `${bound}${holds}${firstHolds}<h4>The record on Solana</h4><dl class="facts" id="due-record">
       <dt>Paid by others</dt><dd><strong>${plural(rep.paid, "payment")}</strong> from <strong>${plural(rep.funders, "different funder")}</strong>, ${money(rep.total)} test USDC in all${rep.paid ? ` (${when(rep.first)} to ${when(rep.last)})` : ""}</dd>

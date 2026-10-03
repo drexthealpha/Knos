@@ -733,7 +733,8 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("  what is held for it, until when, and that it can be sent now", got.includes("12.00 test USDC is held for mona until " + when(NOW + 100 * 86400) + ".")
     && got.includes("A wallet is bound, so it can be sent there now: comment /knos settle on the merged pull request."));
   check("  first deployment: its separate held amount and v1 claim command", got.includes("4.88 test USDC is still held for mona on the first deployment.")
-    && got.includes("knos claim --v1 <address>") && (await page.$("#due-v1")) !== null, got);
+    && got.includes("First authenticate GitHub CLI as mona with gh auth login, then send it to an address you choose with knos claim --v1 <address>")
+    && (await page.$("#due-v1")) !== null, got);
   const record = await page.$$eval("#due-record dd", (d) => d.map((x) => x.textContent.replace(/\s+/g, " ").trim()));
   check("  its record: payments, funders, total and the dates", record[0] === "3 payments from 2 different funders, 58.50 test USDC in all (" + when(NOW - 30 * 86400) + " to " + when(NOW - 86400) + ")", record);
   check("  faucet money and paying oneself counted apart, never added in", record[1] === "1 payment, 24.38 of the faucet's free test USDC. Counted apart."
