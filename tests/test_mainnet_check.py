@@ -87,7 +87,7 @@ def world(*, authority: str | None = IDS["upgrade_authority"], elfs=None, verifi
                    "programs": {n: mc.elf_hash(elfs[n]) for n in mc.PROGRAMS}}, "docs/review.json")
     v = verified if verified is not None else {n: {"executable_hash": mc.elf_hash(elfs[n]), "source": "test"} for n in mc.PROGRAMS}
     return mc.Fetch(account=accts.get, verified=v.get, program_checks=lambda: checks, get=get, review=lambda: review, now=lambda: NOW,
-                    elsewhere=elsewhere or (lambda addr: {"testnet": False, "mainnet-beta": False}))
+                    elsewhere=elsewhere or (lambda addr: {"testnet": False, "mainnet-beta": False}), cluster=lambda: "devnet")
 
 
 def results(fetch, env=None) -> dict[str, bool]:
@@ -326,6 +326,25 @@ def test_the_review_file_is_read_from_the_repository_and_a_broken_one_is_no_revi
         assert doc is None and where.startswith(str(tmp_path / "docs" / "review.json")) and "JSON" in where
     (tmp_path / "docs" / "review.json").write_text('{"reviewer": "x"}', encoding="utf-8")
     assert mc._review() == ({"reviewer": "x"}, str(tmp_path / "docs" / "review.json"))
+
+
+@pytest.mark.parametrize(("genesis", "expected"), [
+    ("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG", "devnet"),
+    ("4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY", "testnet"),
+    ("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d", "mainnet-beta"),
+    ("unrecognized genesis", "unknown"),
+])
+def test_rpc_cluster_is_named_from_its_genesis_hash_without_disclosing_the_rpc_url(monkeypatch, genesis, expected):
+    endpoint = "https://rpc.example/secret-token"
+    asked = []
+
+    def call(url, method, params):
+        asked.append((url, method, params))
+        return genesis
+
+    monkeypatch.setattr(mc.chain, "call", call)
+    assert mc._cluster(endpoint) == expected
+    assert asked == [(endpoint, "getGenesisHash", [])]
 
 
 def test_a_verified_build_on_this_machine_is_hashed_as_solana_verify_does(tmp_path):
@@ -580,6 +599,12 @@ def test_status_command_prints_every_line_with_what_to_do_and_exits_by_the_resul
     lines = capsys.readouterr().out.splitlines()
     assert [line.split("  ")[1].split(":")[0] for line in lines[:-1]] == TOPICS and all(line.startswith("PASS  ") for line in lines[:-1])
     assert lines[-1] == "8 of 8 checks pass"
+    assert cli.main(["status", "--json"]) == 0
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["cluster"] == "devnet" and doc["overall"] is True
+    assert (doc["passed"], doc["of"]) == (8, 8)
+    assert len(doc["checks"]) == 8 and all({"check", "pass", "evidence", "next"} <= set(c) for c in doc["checks"])
+    assert all(c["next"] == "" for c in doc["checks"] if c["pass"])
     fetch = status_world(paused_until=NOW + 600, keys={N1: KEYS[N1]})
     monkeypatch.setattr(mc, "live", lambda env=None: fetch)
     assert cli.main(["status"]) == 1
@@ -588,5 +613,6 @@ def test_status_command_prints_every_line_with_what_to_do_and_exits_by_the_resul
     assert "FAIL  GitHub's keys: " in text and text.splitlines()[-1] == "6 of 8 checks pass; 2 to fix"
     assert cli.main(["status", "--json"]) == 1
     doc = json.loads(capsys.readouterr().out)
+    assert doc["cluster"] == "devnet" and doc["overall"] is False
     assert (doc["passed"], doc["of"]) == (6, 8) and [c["check"].split(":")[0] for c in doc["checks"] if not c["pass"]] == ["GitHub's keys", "new funding"]
     assert all(c["next"] == "" for c in doc["checks"] if c["pass"]) and all(c["next"] for c in doc["checks"] if not c["pass"])
