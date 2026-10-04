@@ -228,6 +228,25 @@ pin what runs, write the release's full commit sha in place of `v0.3.12`.
 To also pay for merged work, a repository uses [`examples/knos-workflow.yml`](../examples/knos-workflow.yml)
 instead.
 
+## GitLab CI
+
+For a GitLab merge request that corresponds to a GitHub pull request, set `KNOS_GITHUB_REPOSITORY` to the GitHub
+`owner/name` and `KNOS_GITHUB_PR_NUMBER` to that pull request's number in the project's CI/CD variables. `knos check`
+reads the pull request and its checks from GitHub; a GitLab merge request with no corresponding GitHub pull request
+cannot be checked by this command.
+
+```yaml
+# .gitlab-ci.yml
+knos:
+  image: python:3.12
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - python -m pip install knos
+    - printf '{"pull_request":{"number":%s}}' "$KNOS_GITHUB_PR_NUMBER" > .knos-event.json
+    - knos check --event .knos-event.json --repo "$KNOS_GITHUB_REPOSITORY"
+```
+
 ## Get paid: bind a wallet, by hand
 
 A person paid for merged work can name the wallet once, and every later task pays it. Binding is by hand, in two
