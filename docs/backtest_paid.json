@@ -1,0 +1,234 @@
+{
+ "status": "run",
+ "about": "Of the merged pull requests that were paid a bounty on Algora or Opire, how many had a failed check. A Knos bounty whose terms required that check would not have paid the merge. Written by scripts/backtest_paid.py.",
+ "read": "2026-10-04",
+ "window": [
+  "2026-01-08",
+  "2026-10-04"
+ ],
+ "queries": {
+  "algora": [
+   "label:\"💎 Bounty\" is:issue is:closed created:2026-09-05..2026-10-04"
+  ],
+  "opire": [
+   "label:\"🎁 Reward\" is:issue is:closed created:2026-09-05..2026-10-04",
+   "\"reward using Opire\" in:comments,body is:issue is:closed created:2026-09-05..2026-10-04"
+  ]
+ },
+ "sources": {
+  "algora": [
+   "https://remotion.dev/bounties",
+   "https://docs.algora.io/bounties/workflow",
+   "https://docs.algora.io/commands"
+  ],
+  "opire": [
+   "https://github.com/abdulmajeedsualihu/Autokey/issues/1",
+   "https://github.com/FalkorDB/docs/issues/297",
+   "https://docs.opire.dev/overview/install-bot"
+  ]
+ },
+ "definitions": {
+  "issues": "closed issues that carry the platform's bounty label (or, for Opire, the text of its reward comment), created in the window, as many as GitHub's search returned: the newest first in each window, not a random sample",
+  "merged": "of those, the ones with a pull request that was merged and is linked from the issue (a cross-reference in its timeline)",
+  "paid": "of those, the merged pull requests whose author is named next to the word awarded, rewarded, paid or sent in a comment by the platform's bot on the issue or on the pull request. This is a rule about the bot's wording that the platform's public documentation does not state; `evidence` has the URL of each comment it used",
+  "unpaid": "merged pull requests that close a bounty issue with no such comment: paid in a way GitHub does not show, not paid, or paid with other words. They are counted and left out of `paid`",
+  "classified": "of the paid, the ones whose checks had finished (not pending, none) at the commit named",
+  "failed_at_head": "of the classified, the ones with at least one failed check run (failure, timed_out, startup_failure) or a failed commit status (failure, error) at the pull request's head commit, the commit Knos judges; the agent session runs of agent_pr_ci are not checks",
+  "failed_at_merge": "the same at the commit the merge made on the base branch (merge_commit_sha). Checks that ran there ran after the merge: they show what the repository's CI said about the result, not what the maintainer saw",
+  "share, ci95": "the count over its total, and the 95% Wilson interval of that share"
+ },
+ "issues": 48,
+ "merged_prs": 41,
+ "paid": {
+  "paid": 17,
+  "failed_at_head": {
+   "of": 15,
+   "prs": 4,
+   "share": 0.2667,
+   "ci95": [
+    0.109,
+    0.5195
+   ]
+  },
+  "failed_at_merge": {
+   "of": 16,
+   "prs": 5,
+   "share": 0.3125,
+   "ci95": [
+    0.1416,
+    0.556
+   ]
+  },
+  "failed_at_head_or_merge": {
+   "of": 15,
+   "prs": 7,
+   "share": 0.4667,
+   "ci95": [
+    0.2481,
+    0.6988
+   ]
+  },
+  "not_classified": 2
+ },
+ "unpaid": 24,
+ "claimed_among_paid": 15,
+ "platforms": {
+  "algora": {
+   "issues": 47,
+   "merged_prs": 40,
+   "paid": {
+    "paid": 17,
+    "failed_at_head": {
+     "of": 15,
+     "prs": 4,
+     "share": 0.2667,
+     "ci95": [
+      0.109,
+      0.5195
+     ]
+    },
+    "failed_at_merge": {
+     "of": 16,
+     "prs": 5,
+     "share": 0.3125,
+     "ci95": [
+      0.1416,
+      0.556
+     ]
+    },
+    "failed_at_head_or_merge": {
+     "of": 15,
+     "prs": 7,
+     "share": 0.4667,
+     "ci95": [
+      0.2481,
+      0.6988
+     ]
+    },
+    "not_classified": 2
+   },
+   "unpaid": 23
+  },
+  "opire": {
+   "issues": 1,
+   "merged_prs": 1,
+   "paid": {
+    "paid": 0,
+    "failed_at_head": {
+     "of": 0,
+     "prs": 0,
+     "share": null,
+     "ci95": null
+    },
+    "failed_at_merge": {
+     "of": 0,
+     "prs": 0,
+     "share": null,
+     "ci95": null
+    },
+    "failed_at_head_or_merge": {
+     "of": 0,
+     "prs": 0,
+     "share": null,
+     "ci95": null
+    },
+    "not_classified": 0
+   },
+   "unpaid": 1
+  }
+ },
+ "evidence": [
+  {
+   "pr": "archestra-ai/archestra#4671",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4464#issuecomment-4842542889"
+  },
+  {
+   "pr": "archestra-ai/archestra#4690",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4463#issuecomment-4533258080"
+  },
+  {
+   "pr": "archestra-ai/archestra#4251",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4201#issuecomment-4408471151"
+  },
+  {
+   "pr": "archestra-ai/archestra#4192",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4124#issuecomment-4346065857"
+  },
+  {
+   "pr": "archestra-ai/archestra#4135",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4076#issuecomment-4365177020"
+  },
+  {
+   "pr": "archestra-ai/archestra#4339",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4076#issuecomment-4365177020"
+  },
+  {
+   "pr": "archestra-ai/archestra#4827",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4030#issuecomment-4575172776"
+  },
+  {
+   "pr": "archestra-ai/archestra#4067",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/4011#issuecomment-4337859806"
+  },
+  {
+   "pr": "archestra-ai/archestra#4667",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/3854#issuecomment-4566152246"
+  },
+  {
+   "pr": "archestra-ai/archestra#3981",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/3836#issuecomment-4370980852"
+  },
+  {
+   "pr": "archestra-ai/archestra#4258",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/3603#issuecomment-4422828114"
+  },
+  {
+   "pr": "mangdangroboticsclub/apps-md-robots#15",
+   "paid_by": "algora",
+   "comment": "https://github.com/mangdangroboticsclub/apps-md-robots/issues/13#issuecomment-3996453778"
+  },
+  {
+   "pr": "archestra-ai/archestra#2652",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/2644#issuecomment-3909440426"
+  },
+  {
+   "pr": "archestra-ai/archestra#2869",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/2579#issuecomment-3933524981"
+  },
+  {
+   "pr": "archestra-ai/archestra#2834",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/2563#issuecomment-3922892431"
+  },
+  {
+   "pr": "archestra-ai/archestra#2274",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/2238#issuecomment-3792111253"
+  },
+  {
+   "pr": "archestra-ai/archestra#3029",
+   "paid_by": "algora",
+   "comment": "https://github.com/archestra-ai/archestra/issues/1929#issuecomment-3968179987"
+  }
+ ],
+ "cannot_show": [
+  "How a platform marks a PAID bounty: neither platform documents what its bot writes on GitHub when it pays. `paid` is the rule in DEFINITIONS; a bounty paid without a bot comment is counted as `unpaid`",
+  "Money: no amount is read. A comment can say paid for a tip, and a bounty can be paid in parts",
+  "Whether the check was failing when the maintainer merged: CI is read as it is on the day of the run. A check re-run later shows its last result, and a check can fail after a merge (`failed_at_merge`)",
+  "Which checks a Knos bounty on these issues would have required: none of them had one. This counts merges with a failed check, not payments refused",
+  "Bounties in general: these are the newest closed issues per window that GitHub's search returned for the platform's label (and, for Opire, text), not a random sample, and only public repositories"
+ ]
+}

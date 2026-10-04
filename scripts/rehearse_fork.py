@@ -43,7 +43,7 @@ from solders.pubkey import Pubkey  # noqa: E402
 
 from knos import chain  # noqa: E402
 from knos import mainnet_check as mc  # noqa: E402
-from knos.settle.v2 import oidc, pay  # noqa: E402
+from knos.settle.v2 import oidc, pay, relay  # noqa: E402
 
 try:
     from _settle import github_claims, modulus, sign_jwt, signing_key  # noqa: E402
@@ -171,7 +171,8 @@ class Rehearsal:
 
     def logs(self, sig: str) -> list[str]:
         try:
-            got = chain.call(self.url, "getTransaction", [sig, {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}], timeout=30)
+            # version 1, as every reader of knos asks (src/knos/records.py): a transaction a relay sent to a 2.1 program is one
+            got = chain.call(self.url, "getTransaction", [sig, {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}], timeout=30)
             return [line.split("Program log: ", 1)[1] for line in got["meta"]["logMessages"] if "Program log: knos2:" in line]
         except Exception:  # noqa: BLE001 - the logs are a courtesy; the accounts say what happened
             return []
@@ -233,6 +234,7 @@ class Rehearsal:
             self.send([oidc.step_ix(me, tid, self.key, squarings)])
         token = oidc.token_pda(me, tid)
         self.expect(oidc.read_token(self.data(token)).stage == 2, "the token was written and stepped, but the verifier does not call it verified")
+        self.jwt = jwt          # the pay token's single-use marker is derived from it (pay.used_pda)
         return token
 
     # ---- the steps --------------------------------------------------------------------------------------------------------
@@ -358,7 +360,10 @@ class Rehearsal:
         token = self.gh(aud, "prove.yml", repository_id=job.repo_id)
         self.ok(f"the proof's token {token} is verified on chain; it names GitHub user {self.payee} and the wallet {self.payee_wallet}")
         vault0 = self.token_balance(pay.vault_pda(USDC_MINT))
-        sig, rent = self.closing(self.job_a, job, [pay.pay_ix(self.relayer.pubkey(), token, self.key, self.job_a, job, self.payee, self.payee_wallet)])
+        ix = pay.pay_ix(self.relayer.pubkey(), token, self.key, self.job_a, job, self.payee, self.payee_wallet, used=pay.used_pda(self.jwt))
+        if relay.version(self.ledger, self.relayer) < 1:      # 2.0 knows no single-use marker: its Pay takes one account fewer
+            ix = Instruction(ix.program_id, bytes(ix.data), list(ix.accounts)[:-1])
+        sig, rent = self.closing(self.job_a, job, [ix])
         fee, got = pay.fee_of(job.amount), self.token_balance(pay.ata(self.payee_wallet, USDC_MINT))
         self.expect(got == job.amount - fee, f"the payee holds {usdc(got)}, not {usdc(job.amount - fee)}")
         self.expect(self.token_balance(self.fee_tok) - self.fee0 == fee, "the fee account did not receive the fee")

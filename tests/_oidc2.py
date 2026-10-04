@@ -71,7 +71,7 @@ class Chain2:
         self.refresh_all()
 
     def refresh_all(self) -> None:
-        for issuer, n in sorted(self.keys):
+        for issuer, n in sorted(self.keys, key=str):
             if not self.key(issuer, n).revoked:
                 assert self.refresh(issuer, n), self.err
 
@@ -118,8 +118,10 @@ class Chain2:
             assert self.send([ix], p), self.err
         return tid
 
-    def verify(self, jwt: str, issuer: int, n: int, payer: Keypair | None = None, tag: str | None = None, plan: list[int] | None = None):
-        """Writes the token and runs every step. Returns the token account's address, or None if a step refused."""
+    def verify(self, jwt: str, issuer: int, n: int, payer: Keypair | None = None, tag: str | None = None, plan: list[int] | None = None,
+               registrant: Pubkey | None = None):
+        """Writes the token and runs every step. Returns the token account's address, or None if a step refused.
+        `registrant`: the key is the private one that wallet registered for the issuer's URL."""
         p = payer or self.payer
         tid = oidc.token_id(jwt)
         have = oidc.read_token(self.data(oidc.token_pda(p.pubkey(), tid)))
@@ -130,7 +132,7 @@ class Chain2:
         self.write(jwt, p)
         bits = n.bit_length()
         for i, sq in enumerate(plan or oidc.step_plan(bits)):
-            if not self.send([oidc.step_ix(p.pubkey(), tid, oidc.key_pda(issuer, n), sq)], p, tag=tag and f"{tag}_{bits}_step{i + 1}"):
+            if not self.send([oidc.step_ix(p.pubkey(), tid, oidc.key_pda(issuer, n, registrant=registrant), sq)], p, tag=tag and f"{tag}_{bits}_step{i + 1}"):
                 why = self.err
                 self.send([oidc.close_ix(p.pubkey(), tid)], p)
                 self.err = why
@@ -150,22 +152,40 @@ class Chain2:
     def key(self, issuer: int, n: int) -> oidc.Key | None:
         return oidc.read_key(self.data(oidc.key_pda(issuer, n)))
 
-    def attest(self, issuer: int, n: int, **over) -> Pubkey | None:
+    def attest(self, issuer: int, n: int, by=None, **over) -> Pubkey | None:
         """A verified token account in which GitHub names this key: the rotate workflow's run, issued now. Signed by
-        the 2048-bit seed key, which is registered here first if the chain does not have it."""
-        signer = modulus(signing_key())
+        the 2048-bit seed key, which is registered here first if the chain does not have it, or by `by` (another
+        key of GitHub's that this chain already has)."""
+        signer = modulus(by or signing_key())
         if self.key(GH, signer) is None:
             assert self.register(GH, signer), self.err
         now = self.now()
         self._n += 1
         claims = attest_claims(issuer, n, iat=now, nbf=now - 600, exp=now + 300, jti=f"a{self._n}")
         claims.update(over)
-        return self.verify(sign_jwt(signing_key(), claims), GH, signer)
+        return self.verify(sign_jwt(by or signing_key(), claims), GH, signer)
+
+    def key_of(self, attest: Pubkey | None) -> Pubkey | None:
+        """The key account an attestation is passed with: the one its token account names. For an account that is
+        not a token (the tests pass some), the seed key's account, so that the attestation is what gets refused."""
+        if attest is None:
+            return None
+        t = oidc.read_token(self.data(attest))
+        return t.key if t is not None and t.verified else oidc.key_pda(GH, modulus(signing_key()))
+
+    def register_ix(self, issuer: int | str, n: int, attest: Pubkey | None = None, payer: Keypair | None = None):
+        """RegisterKey for GitHub (0) or GitLab (1); RegisterIssuerKey for an issuer named by its URL."""
+        if isinstance(issuer, str):
+            return oidc.register_issuer_key_ix((payer or self.payer).pubkey(), issuer, n, attest, self.key_of(attest))
+        return oidc.register_key_ix((payer or self.payer).pubkey(), issuer, n, attest, self.key_of(attest))
+
+    def refresh_ix(self, issuer: int, n: int, attest: Pubkey, payer: Keypair | None = None):
+        return oidc.refresh_ix((payer or self.payer).pubkey(), issuer, n, attest, self.key_of(attest))
 
     def register(self, issuer: int, n: int, attest: Pubkey | None = None, payer: Keypair | None = None) -> bool:
         """RegisterKey, then KeyParams. A genesis key is usable after this; an attested one still waits (see admit)."""
         p = payer or self.payer
-        ok = (self.send([oidc.register_key_ix(p.pubkey(), issuer, n, attest)], p)
+        ok = (self.send([self.register_ix(issuer, n, attest, p)], p)
               and self.send([oidc.key_params_ix(p.pubkey(), issuer, n)], p, tag=f"key_params_{n.bit_length()}"))
         if ok:
             self.keys.add((issuer, n))
@@ -174,7 +194,12 @@ class Chain2:
     def refresh(self, issuer: int, n: int, attest: Pubkey | None = None, payer: Keypair | None = None) -> bool:
         p = payer or self.payer
         attest = attest or self.attest(issuer, n)
-        return attest is not None and self.send([oidc.refresh_ix(p.pubkey(), issuer, n, attest)], p, tag="refresh")
+        return attest is not None and self.send([self.refresh_ix(issuer, n, attest, p)], p, tag="refresh")
+
+    def register_private(self, wallet: Keypair, url: str, n: int) -> bool:
+        """RegisterPrivateKey by `wallet`, then KeyParams: usable when this returns True."""
+        return (self.send([oidc.register_private_key_ix(wallet.pubkey(), url, n)], wallet)
+                and self.send([oidc.key_params_ix(wallet.pubkey(), url, n, registrant=wallet.pubkey())], wallet))
 
     def approve(self, issuer: int, n: int, guardian: Keypair | None = None) -> bool:
         g = guardian or self.guardian

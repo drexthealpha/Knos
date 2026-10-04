@@ -1,18 +1,28 @@
 """The knos command line.
 
+    knos check owner/repo#7   does what a pull request says agree with GitHub's record of its checks?
     knos init                 the free Stop hook: before your coding agent stops, Knos checks what it says is done against the repository's own checks
+    knos claim <address>      name the Solana address your GitHub account is paid at, in one command (uses your gh login);
+                              `knos claim --org <organisation> <address>` names the one an organisation is paid at
+    knos status               is the second deployment running as designed? `--json` prints the same as data
+
+  for a repository's workflows
+    knos command | settle | review | check --event E --repo R    what a repository's workflow runs: one command per job (knos.flow)
+    knos relay                carry GitHub-signed tokens to Solana (what the always-on worker runs; anyone can)
     knos mcp                  paid bounties and claim checks for a coding agent, over MCP (knos init registers it)
     knos proof ...            the same checks by hand; and the judge GitHub runs on a bounty's pull request
-    knos command | settle | review | check    what a repository's workflow runs: one command per job (knos.flow)
+    knos accept init          scaffold a black-box acceptance bundle from a reference implementation
+
+  for money
     knos bounty owner/repo#7  what is in escrow for an issue, and its state
     knos due <github login>   where a GitHub account is paid, what is held for it, and its record
-    knos claim <address>      name the Solana address your GitHub account is paid at, in one command (uses your gh login)
-    knos relay                carry GitHub-signed tokens to Solana (what the always-on worker runs; anyone can)
-    knos keys                 the signing keys the verifier holds; exit 1 when one of the issuers' is missing or expiring
-    knos balance ...          money a wallet sets aside for one GitHub owner's repositories: show, open, deposit, set, withdraw
     knos fund-wallet o/r#7 20 put a bounty on an issue straight from a wallet
+    knos balance ...          money a wallet sets aside for one GitHub owner's repositories: show, open, deposit, set, withdraw
+    knos keys                 the signing keys the verifier holds; exit 1 when one of GitHub's is missing or expiring
+    knos receipts | statement | export | invoice    records for the person who signs off spend, recomputed from the chain's log
+    knos statement --meter --buyer X --seller Y --month YYYY-MM    what knos_meter counted for one buyer and one seller in a month
+    knos receipt <file>       check an acceptance receipt against the specification and print its digest
     knos mainnet-check        every gate that must hold before mainnet, with its evidence
-    knos status               is the second deployment running as designed? what to do when a line fails
 
 Every failure is one line that says what happened.
 """
@@ -27,10 +37,11 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from . import version
+from . import ghwords, version
 
-app = typer.Typer(add_completion=False, pretty_exceptions_enable=False,
-                  help="Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana.")
+app = typer.Typer(add_completion=False, pretty_exceptions_enable=False, no_args_is_help=True,
+                  help="Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they "
+                       "were met, a Solana program settles. Start with `knos check`, `knos init`, `knos claim` or `knos status`.")
 
 for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page cannot encode everything a PR says
     try:
@@ -39,6 +50,7 @@ for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page canno
         pass
 
 out = Console(highlight=False, soft_wrap=True)
+err = Console(highlight=False, soft_wrap=True, stderr=True)         # notes beside data that goes to a file or a pipe
 
 
 class Stop(Exception):
@@ -97,7 +109,8 @@ def init(undo: bool = typer.Option(False, "--undo", help="remove what knos init 
         out.print("From the next session, when your agent says tests pass, CI is green, it shipped or it is done, Knos "
                   "runs that check itself before the agent may stop.")
     if rep["mcp"]:
-        out.print("From the next session your agent can also ask Knos for paid bounties (knos_bounties) and whether a "
+        out.print("From the next session your agent can also ask Knos for paid bounties (knos_bounties), what one would pay "
+                  "(knos_quote, knos_can_pay), the comment to post to fund, take or settle one (it sends nothing), and whether a "
                   "pull request's claims agree with GitHub's record (knos_check_pr).")
     out.print("Undo: knos init --undo")
 
@@ -170,10 +183,46 @@ def _register_flow() -> None:
         run("review", event, repo)
 
     @app.command("check")
-    def check(event: Path = event_opt, repo: str = repo_opt) -> None:
-        """A pull request, read-only: its description's claims, the repository's rules, a funded issue's terms so
-        far. The answer is the job's summary; exit 1 only for a false claim or a broken rule."""
+    def check(pr: str = typer.Argument(None, metavar="[OWNER/REPO#N]", help="the pull request to check, as owner/repo#number or its github.com URL"),
+              event: Path = typer.Option(None, "--event", help="a workflow's job: the event GitHub handed it (GITHUB_EVENT_PATH)"),
+              repo: str = typer.Option(None, "--repo", help="a workflow's job: owner/name (GITHUB_REPOSITORY)")) -> None:
+        """Does what a pull request says agree with GitHub's record? Name one (`knos check owner/repo#7`) and its description's
+        "tests pass" or "CI is green" is held against the checks GitHub recorded at its head commit; exit 1 only when the claim
+        is false. A repository's workflow runs this with --event and --repo instead: the same read-only look at the pull request,
+        the repository's rules and a funded issue's terms so far."""
+        if pr:
+            if event or repo:
+                raise Stop("Name a pull request, or give --event and --repo from a workflow; not both.")
+            from . import mcp as server
+            try:
+                got = server.Server()._check_pr({"pr": pr})
+            except server.Failed as why:
+                raise Stop(str(why)) from None
+            names = [" ".join(str(x).split()) for x in (got.get("untrusted") or {}).get("failed_checks") or []]
+            out.print(got["said"] + (f" Failed: {', '.join(names)}." if names else ""), markup=False)      # names are a workflow file's words, so only here, never in `said`
+            raise typer.Exit(1 if got["verdict"] == "false" else 0)
+        if not event or not repo:
+            raise Stop("Name a pull request: knos check owner/repo#7", "(A repository's workflow gives --event and --repo instead.)")
         run("check", event, repo)
+
+
+    # attest and canary take options of their own, which knos.flow reads with argparse (a signing job installs neither
+    # typer nor rich): `knos attest ...` and `knos canary ...` go there before this command line is ever built
+    # (flow.takes). They are named here so that `knos --help` lists them; reached this way, they are handed on as they came.
+    passed_on = {"allow_extra_args": True, "ignore_unknown_options": True, "help_option_names": []}
+
+    @app.command("attest", context_settings=passed_on)
+    def attest(ctx: typer.Context) -> None:
+        """Ask GitHub to sign that a work order's terms were met, from any repository: what attest.yml runs
+        (`knos attest --help` lists its options)."""
+        from . import flow
+        raise typer.Exit(flow.main(["attest", *ctx.args]))
+
+    @app.command("canary", context_settings=passed_on)
+    def canary(ctx: typer.Context) -> None:
+        """One timed round on devnet: fund, pull request, merge, payment (`knos canary --help` lists its options)."""
+        from . import flow
+        raise typer.Exit(flow.main(["canary", *ctx.args]))
 
 
 _register_flow()
@@ -184,18 +233,23 @@ _register_flow()
 # One block. knos.settle.v2 is the second deployment, where new bounties go; knos.settle is the first, whose bounties
 # finish where they were funded. Each command is thin: the relays, the worker and the claim hold the logic.
 
-def _github(path: str) -> dict:
+def _fetch(path: str) -> dict:
+    """GitHub's answer for `path`, as it came: a failed request raises (urllib's own error), for callers that word it themselves."""
     import os
     req = urllib.request.Request(f"https://api.github.com/{path}",
                                  headers={"Accept": "application/vnd.github+json", "User-Agent": "knos"})
     tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if tok:
         req.add_header("Authorization", f"Bearer {tok}")
+    with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310 - api.github.com
+        return json.loads(resp.read())
+
+
+def _github(path: str) -> dict:
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310 - api.github.com
-            return json.loads(resp.read())
+        return _fetch(path)
     except OSError as why:
-        raise Stop(f"GitHub did not answer for {path}: {why}") from None
+        raise Stop(ghwords.failed(path, why)) from None
 
 
 def _usdc(units: int) -> str:
@@ -297,7 +351,9 @@ def relay(token_file: Path = typer.Option(None, "--token-file", "--token", help=
             ghrelay.once()
         return
     text = token_file.read_text(encoding="utf-8")
-    found, said = ghrelay.TOKEN.search(text), ghrelay.TERMS.search(text)      # the token alone, or the comment that carried it
+    found = ghrelay.TOKEN.search(text)                                  # the token alone, or the comment that carried it
+    # what travels beside it, read as the worker reads it (ghrelay.tokens): a key token's `knos-issuer:` line, else `knos-terms:`
+    said = (ghrelay.ISSUER if found and found.group(1) == "key" else ghrelay.TERMS).search(text)
     terms = terms_file.read_bytes().strip() if terms_file else said.group(1).encode() if said else None
     r = ghrelay.carry(_ledger(), chain.key(), found.group(2) if found else text.strip(), terms)
     if r.get("ok"):
@@ -306,41 +362,70 @@ def relay(token_file: Path = typer.Option(None, "--token-file", "--token", help=
     raise typer.Exit(0 if r.get("ok") else 1)
 
 
+def _key_state(k, now: int) -> str:
+    """What a key is, in words: "ready" only when Step would accept it now; else why it cannot be used, and when it can."""
+    from .settle.v2 import oidc
+    if oidc.key_usable(k, now)[0]:
+        return "ready"
+    if k.state != 1:
+        return "registered, its parameters not sent yet (anyone can send them)"
+    if k.revoked:
+        return "revoked, never usable again"
+    if not (k.genesis or k.approved):
+        return "not usable yet: the guardian has not approved it" + (f", and its delay ends {_when(k.active_at)}" if now < k.active_at else "")
+    if now < k.active_at:
+        return f"not usable yet: approved, usable from {_when(k.active_at)}"
+    return f"expired {_when(k.expires_at)}"
+
+
+def _waiting(k, now: int) -> bool:
+    """Whether a key is only waiting out its delay: registered and ready, not revoked, and not yet active."""
+    return k is not None and k.state == 1 and not k.revoked and now < k.active_at
+
+
 @app.command()
 def keys() -> None:
     """Every signing key the second verifier holds, and whether each key GitHub and GitLab publish today verifies
-    there. Exit 1 when one is missing, cannot be used, or expires within 7 days."""
+    there. Exit 1 when one of GitHub's is missing, cannot be used, or expires within 7 days, or when another issuer's is
+    missing or broken; exit 0 when the only keys that cannot be used yet are others' waiting out their delay."""
     from .settle import relay as first
     from .settle.v2 import oidc
     from .settle.v2 import relay as second
     ledger = _ledger()
     now = ledger.now()
     names = {oidc.GITHUB: "GitHub", oidc.GITLAB: "GitLab"}
-    published, wrong = {}, []
+    published, wrong, waiting = {}, [], []
     for issuer, name in names.items():
         try:
-            published.update({oidc.key_pda(issuer, n): (name, kid) for kid, n in oidc.jwks_keys(first.fetch_jwks(issuer))})
+            published.update({oidc.key_pda(issuer, n): (name, kid, issuer) for kid, n in oidc.jwks_keys(first.fetch_jwks(issuer))})
         except Exception as why:  # noqa: BLE001 - the issuer did not answer: its keys cannot be vouched for
             wrong.append(f"{name}'s key set could not be read ({type(why).__name__}: {why}), so its keys were not checked.")
     held = {addr: k for addr, k, _n in second.keys(ledger)}
     for addr, k in held.items():
-        state = "ready" if k.state == 1 else "registered, its parameters not sent yet"
         today = f"published today as {published[addr][1]}" if addr in published else "not in the issuer's key set today"
-        out.print(f"{names.get(k.issuer, k.issuer)}  {k.bits} bits  {state}  active from {_when(k.active_at)}  expires {_when(k.expires_at)}  "
+        out.print(f"{names.get(k.issuer, k.issuer)}  {k.bits} bits  {_key_state(k, now)}  active from {_when(k.active_at)}  expires {_when(k.expires_at)}  "
                   f"{'approved' if k.approved else 'not approved'}  {'REVOKED' if k.revoked else 'not revoked'}  {today}  {addr}", markup=False)
     if not held:
         out.print("The second verifier holds no key on this cluster.")
-    for addr, (name, kid) in published.items():
+    for addr, (name, kid, issuer) in published.items():
         k = held.get(addr)
         usable, why = oidc.key_usable(k, now)
-        if not usable:
+        if not usable and issuer != oidc.GITHUB and _waiting(k, now):     # a new key of another issuer: its delay is the design, not a fault
+            waiting.append(f"{name}'s key {kid} is waiting out its delay: it can be used from {_when(k.active_at)}"
+                           + ("" if k.approved or k.genesis else ", once the guardian has approved it") + ".")
+        elif not usable:
             wrong.append(f"{name}'s key {kid}: {why}")
         elif k.expires_at - now < 7 * 86_400:
             wrong.append(f"{name}'s key {kid} expires {_when(k.expires_at)}, in less than 7 days. Run the rotate workflow, so that Refresh is sent for it.")
-    for line in wrong:
+    for line in [*waiting, *wrong]:
         out.print(line, markup=False)
     if wrong:
         raise typer.Exit(1)
+    if waiting:
+        github = sum(1 for _n, _k, issuer in published.values() if issuer == oidc.GITHUB)
+        out.print(f"Every key GitHub publishes today ({github}) verifies on chain. {len(waiting)} of another issuer's "
+                  f"{'is' if len(waiting) == 1 else 'are'} waiting out {'its' if len(waiting) == 1 else 'their'} delay, as listed above.")
+        return
     out.print(f"Every key the issuers publish today ({len(published)}) verifies on chain.")
 
 
@@ -466,25 +551,54 @@ def balance_withdraw(owner: str = _OWNER, amount: str = typer.Argument(None, hel
     out.print(_tx(sig), markup=False)
 
 
+RELEASES = "drexthealpha/Knos"      # where each release's examples/ are published, at its tag v<version>
+ORDER_SEQS = 8                       # how many orders one wallet may hold on one issue at once (web/anyissue.js SEQ_TRIES)
+
+
+def _given_pin(given: str) -> tuple[str, str]:
+    import re
+    m = re.fullmatch(r"([\w.-]+/[\w.-]+)@([0-9a-f]{40})", given)
+    if not m:
+        raise Stop("--workflow is owner/name@<40-character commit>: the repository and commit of the workflows whose signed run may pay this bounty.")
+    return m.group(1), m.group(2)
+
+
+def _file_pin(name: str, ref: str, path: str, called: str) -> tuple[str, str] | None:
+    """(owner/name, commit) of the `called` workflow the file `path` of repository `name` at `ref` names at a full
+    commit, or None when there is no such file or it names none."""
+    import base64
+    import re
+    try:
+        text = base64.b64decode(_github(f"repos/{name}/contents/{path}?ref={ref}").get("content", "")).decode("utf-8", "replace")
+    except (Stop, AttributeError):
+        text = ""
+    m = re.search(rf"uses:\s*([\w.-]+/[\w.-]+)/\.github/workflows/{re.escape(called)}@([0-9a-f]{{40}})\b", text)
+    return (m.group(1), m.group(2)) if m else None
+
+
 def _pinned(name: str, branch: str, given: str | None) -> tuple[str, str]:
     """(the repository that holds the workflows a job pins, their commit): as given (owner/name@commit), else what the
     repository's own .github/workflows/knos.yml calls prove.yml from."""
-    import base64
-    import re
     if given:
-        m = re.fullmatch(r"([\w.-]+/[\w.-]+)@([0-9a-f]{40})", given)
-        if not m:
-            raise Stop("--workflow is owner/name@<40-character commit>: the repository and commit of the prove.yml whose signed run may pay this bounty.")
-        return m.group(1), m.group(2)
-    try:
-        text = base64.b64decode(_github(f"repos/{name}/contents/.github/workflows/knos.yml?ref={branch}").get("content", "")).decode("utf-8", "replace")
-    except Stop:
-        text = ""
-    m = re.search(r"uses:\s*([\w.-]+/[\w.-]+)/\.github/workflows/prove\.yml@([0-9a-f]{40})\b", text)
-    if not m:
+        return _given_pin(given)
+    found = _file_pin(name, branch, ".github/workflows/knos.yml", "prove.yml")
+    if found is None:
         raise Stop(f"{name} has no .github/workflows/knos.yml that calls prove.yml at a pinned commit, so no run there could pay this bounty.",
                    "Install Knos in the repository first, or name the workflows yourself: --workflow owner/name@<commit>")
-    return m.group(1), m.group(2)
+    return found
+
+
+def _release_pin() -> tuple[str, str]:
+    """The workflows a NEUTRAL order of this release names: the commit of attest.yml that this release's
+    examples/knos-attest.yml (the file a seller commits to run `knos attest`) calls, read at the release's tag. The
+    site's "Fund any issue" names the same commit (the Protect view's files are the same release's examples)."""
+    tag = f"v{version()}"
+    found = _file_pin(RELEASES, tag, "examples/knos-attest.yml", "attest.yml")
+    if found is None:
+        raise Stop(f"{RELEASES} at {tag} has no examples/knos-attest.yml that calls attest.yml at a pinned commit, so this copy of knos cannot "
+                   "tell which workflows a work order would name.",
+                   "Name them yourself: --workflow owner/name@<commit> (the commit the knos-attest.yml you run calls attest.yml at).")
+    return found
 
 
 @app.command("fund-wallet")
@@ -493,12 +607,15 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
                 paths: str = typer.Option(None, "--paths", help="globs the pull request's files must match, comma-separated"),
                 days: int = typer.Option(14, "--days", help="days until an unpaid bounty goes back to the wallet (1 to 90)"),
                 reserve: int = typer.Option(7, "--reserve", help="days a `/knos take` reservation lasts"),
-                workflow: str = typer.Option(None, "--workflow", metavar="OWNER/NAME@COMMIT", help="the workflows whose signed runs may pay it (default: the ones the repository installed)"),
+                workflow: str = typer.Option(None, "--workflow", metavar="OWNER/NAME@COMMIT", help="the workflows whose signed runs may pay it (default: the ones the repository installed, or for a repository with none, the ones this release's knos-attest.yml calls)"),
                 mint: str = _MINT, keypair: Path = _KEYPAIR) -> None:
     """Put a bounty on an issue straight from a wallet: anyone can add their own to any issue. It is paid when the
-    pull request that closes the issue is merged and meets the terms shown; unpaid, it goes back to the wallet."""
+    pull request that closes the issue is merged and meets the terms shown; unpaid, it goes back to the wallet. On an
+    issue of a repository that runs no Knos workflow it is a neutral work order (the fee on top), which the person
+    who did the work has paid after the merge with `knos settle --neutral`."""
     from . import commands, judge, terms
     from .settle.v2 import pay
+    from .settle.v2 import relay as second
     name, n = _issue(where)
     if not 1 <= days <= commands.MAX_DAYS:
         raise Stop(f"--days is from 1 to {commands.MAX_DAYS}.")
@@ -509,7 +626,19 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
         raise Stop(f"A bounty is from {_money(pay.MIN_AMOUNT, m, decimals)} to {_money(pay.MAX_AMOUNT, m, decimals)}.")
     repo = _github(f"repos/{name}")
     branch = str(repo["default_branch"])
-    wf_repo, wf_sha = _pinned(name, branch, workflow)
+    # A repository that runs Knos's workflow pays a job from its own prove.yml. One that runs none can pay nothing that
+    # waits for its own run: on knos-pay 2.1 the money becomes a NEUTRAL work order, as the site's "Fund any issue"
+    # makes it, and after the merge the seller's own knos-attest.yml has it paid (`knos settle --neutral`).
+    installed = _file_pin(name, branch, ".github/workflows/knos.yml", "prove.yml")
+    order = installed is None and second.version(ledger, wallet) == 1
+    if order:
+        wf_repo, wf_sha = _given_pin(workflow) if workflow else _release_pin()
+        if units < pay.units(pay.ORDER_MIN_AMOUNT, decimals):
+            raise Stop(f"{name} runs no Knos workflow, so this is a work order, and a work order holds at least "
+                       f"{_money(pay.units(pay.ORDER_MIN_AMOUNT, decimals), m, decimals)}.")
+        reserve = 0      # a reservation is a `/knos take` comment, and nothing in that repository answers one
+    else:
+        wf_repo, wf_sha = _given_pin(workflow) if workflow else _pinned(name, branch, None)
     named = None if checks is None else () if checks.strip().lower() == "none" else tuple(c.strip() for c in checks.split(",") if c.strip())
     fund = commands.Fund(units, named, tuple(p.strip() for p in (paths or "").split(",") if p.strip()), days, reserve)
     try:
@@ -520,19 +649,43 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
     except terms.Refused as why:
         raise Stop(str(why)) from None
     except (OSError, KeyError, TypeError) as why:
-        raise Stop(f"GitHub did not answer for {name}'s checks ({why}), so the bounty's terms could not be fixed. Try again.") from None
-    me = wallet.pubkey()
-    job, source = pay.job_pda(int(repo["id"]), n, me), pay.ata(me, m, program)
-    if ledger.account(job) is not None:
-        raise Stop(f"This wallet already has a bounty on {where}: job {job}.")
+        raise Stop(f"GitHub did not answer for {name}'s checks ({ghwords.first_line(why)}), so the bounty's terms could not be fixed. "
+                   + (f"It refused the request: {ghwords.RATE}." if ghwords.code_of(why) in (403, 429) else "Try again.")) from None
+    me, repo_id = wallet.pubkey(), int(repo["id"])
+    source = pay.ata(me, m, program)
+    if order:
+        scope = pay.scope_of(repo_id, n)
+        seq = next((s for s in range(ORDER_SEQS) if ledger.account(pay.order_pda(scope, me, s)) is None), None)
+        if seq is None:
+            raise Stop(f"This wallet has already funded {where} {ORDER_SEQS} times. Use another wallet, or wait until one of those orders is paid or sent back.")
+        fee = pay.order_fee(units, decimals=decimals)
+        need, made = units + fee, pay.order_pda(scope, me, seq)
+        ix = pay.fund_order_wallet_ix(me, source, m, repo_id, n, units, wf_repo, wf_sha, raw, pay.MERGE, days * 86_400, seq,
+                                      pay.opts(pay.F_NEUTRAL), token_program=program)
+    else:
+        job = pay.job_pda(repo_id, n, me)
+        if ledger.account(job) is not None:
+            raise Stop(f"This wallet already has a bounty on {where}: job {job}.")
+        need, ix = units, pay.fund_wallet_ix(me, source, m, repo_id, n, units, wf_repo, wf_sha, raw, pay.MERGE, days * 86_400, program)
     held = ledger.account(source)
-    if held is None or int.from_bytes(held[64:72], "little") < units:
-        raise Stop(f"The wallet's token account ({source}) holds less than {_money(units, m, decimals)}.")
-    sig = _send(ledger, [pay.fund_wallet_ix(me, source, m, int(repo["id"]), n, units, wf_repo, wf_sha, raw, pay.MERGE, days * 86_400, program)], wallet)
-    out.print(f"{_money(units, m, decimals)} is in escrow for {where}. Job {job}.", markup=False)
+    if held is None or int.from_bytes(held[64:72], "little") < need:
+        raise Stop(f"The wallet's token account ({source}) holds less than {_money(need, m, decimals)}"
+                   + (f" ({_money(units, m, decimals)} and the fee of {_money(fee, m, decimals)} on top)." if order else "."))
+    sig = _send(ledger, [ix], wallet)
+    after = f"  Unpaid after {days} day{'s' if days != 1 else ''}, it goes back to this wallet."
+    if order:
+        out.print(f"{_money(units, m, decimals)} is in escrow for {where}, and Knos's fee of {_money(fee, m, decimals)} was paid on top. "
+                  f"Work order {made}.", markup=False)
+    else:
+        out.print(f"{_money(units, m, decimals)} is in escrow for {where}. Job {job}.", markup=False)
     for line in [*terms.describe(built.terms, built.source), *built.notes]:
         out.print(f"  {line}", markup=False)
-    out.print(f"  Unpaid after {days} day{'s' if days != 1 else ''}, it goes back to this wallet. Only a signed run of prove.yml of {wf_repo} at {wf_sha[:12]} can pay it.", markup=False)
+    if order:
+        out.print(f"{after} {name} needs no Knos file: after the merge, whoever did the work runs `knos settle --neutral <pull request URL>`, "
+                  f"which starts `knos attest` in their own repository knos-attest. Only a signed run of attest.yml of {wf_repo} at {wf_sha[:12]} can pay it.",
+                  markup=False)
+    else:
+        out.print(f"{after} Only a signed run of prove.yml of {wf_repo} at {wf_sha[:12]} can pay it.", markup=False)
     out.print(_tx(sig), markup=False)
 
 
@@ -602,14 +755,22 @@ def due(login: str = typer.Argument(..., help="a GitHub login")) -> None:
 def claim(address: str = typer.Argument(..., help="the Solana address your GitHub account is paid at"),
           v1: bool = typer.Option(False, "--v1", help="send what the first deployment holds for your account to this address instead"),
           repo: str = typer.Option(None, "--repo", help="with --v1: a repository you own to run the claim in (default: <you>/knos-claim)"),
+          org: str = typer.Option(None, "--org", metavar="ORGANISATION", help="name the address an organisation you are a member of is paid at "
+                                                                              "(a bot's or a vendor's pull requests), in <organisation>/knos-claim"),
           wait: int = typer.Option(600, "--wait", help="seconds to wait for a relayer")) -> None:
     """Name the Solana address your GitHub account is paid at. Uses your `gh` login: GitHub signs the claim in your own
     repository named knos-claim (made from a template with one workflow file if you have none), a relayer carries it
-    to Solana, and what was held for you is sent to the address."""
+    to Solana, and what was held for you is sent to the address. With --org the same for an organisation, in its own
+    repository named knos-claim, started by you as its member."""
     from . import claim as claiming
     say = lambda s: out.print(s, markup=False)  # noqa: E731
     try:
-        if v1:
+        if org and (v1 or repo):
+            raise Stop("--org is the second deployment's, in <organisation>/knos-claim: it goes with neither --v1 nor --repo.")
+        if org:
+            if not claiming.bind_org(org, address, wait, say=say)["bound"]:
+                raise typer.Exit(1)
+        elif v1:
             claiming.claim(address, repo, wait, say=say)
         elif not claiming.bind(address, wait, say=say)["bound"]:
             raise typer.Exit(1)
@@ -631,9 +792,10 @@ def mainnet_check_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
 # ---- knos status: the second deployment's health (one block, so it merges cleanly) ----------------
 
 @app.command("status")
-def status_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
+def status_cmd(as_json: bool = typer.Option(False, "--json", help='print the checks as data instead of lines: {"cluster", "checks": [{"check", "pass", "evidence", "next"}], "overall", "passed", "of"}; the exit code is the same')) -> None:
     """Is the second deployment running as designed? Reads Solana (KNOS_RPC, default devnet) and GitHub's key list, and
-    says for each of eight things whether it holds and, when it does not, what to do. Exit 1 while any fails."""
+    says for each of twelve things whether it holds and, when it does not, what to do. Exit 1 while any fails. With
+    --json the same answer is one JSON document: each check's name, whether it passes, what was read, and its next step."""
     from . import mainnet_check
     raise typer.Exit(mainnet_check.status_main(lambda s: out.print(s, markup=False), as_json=as_json))
 
@@ -641,9 +803,285 @@ def status_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
 # ---- end of knos status ------------------------------------------------------------------------
 
 
+# ---- records: receipts, statements, the SIEM export, invoices ----------------------------------------------------------------
+# For the person who signs off spend. Everything is recomputed from the escrows' log lines on devnet (knos.records), never
+# from a database; a transaction the public RPC would not give is said, and the totals are then a lower bound.
+
+def _days(first: str, last: str) -> tuple[str, str]:
+    from . import records
+    try:
+        a, b = (records.day_of(first, "--from") if first else ""), (records.day_of(last, "--to") if last else "")
+    except ValueError as why:
+        raise Stop(str(why)) from None
+    if a and b and a > b:
+        raise Stop(f"--from {a} is after --to {b}.")
+    return a, b
+
+
+def _month(month: str) -> str:
+    from . import records
+    try:
+        records.month_days(month)
+    except ValueError as why:
+        raise Stop(str(why)) from None
+    return month
+
+
+def _history(limit: int):
+    """Both escrows' history from the cluster; what could not be read goes to stderr."""
+    from . import chain, records
+    if limit < 1:
+        raise Stop("--limit is a number of transactions, at least 1.")
+    try:
+        got = records.read(_ledger().url, min(limit, 1000))
+    except (chain.Refused, OSError, ValueError) as why:
+        raise Stop(f"Solana did not give the escrows' history: {ghwords.first_line(why)}.") from None
+    for note in got.notes():
+        err.print(note, markup=False)
+    return got
+
+
+def _names(no_names: bool):
+    from . import records
+    return records.Names(None if no_names else _fetch)
+
+
+def _said(names) -> None:
+    for problem in names.problems:
+        err.print(f"{problem} Names it could not get are left empty.", markup=False)
+
+
+_FIRST = typer.Option("", "--from", help="first UTC day, like 2026-09-01")
+_LAST = typer.Option("", "--to", help="last UTC day, like 2026-09-30 (inclusive)")
+_LIMIT = typer.Option(1000, "--limit", help="how many of each escrow's newest transactions to read (at most 1000)")
+_NO_NAMES = typer.Option(False, "--no-names", help="do not ask GitHub for repository and account names: ids only")
+
+
+@app.command("receipt")
+def receipt_check(path: str = typer.Argument(..., help="an acceptance receipt (JSON), as docs/RECEIPT.md specifies it; - reads standard input")) -> None:
+    """Check an acceptance receipt against the specification (its shape, that shares and amounts add up, that the judge
+    fits the order) and print its digest. Anyone can rebuild a receipt from the chain and compare digests."""
+    from . import receipt
+    try:
+        doc = json.loads(sys.stdin.read() if path == "-" else open(path, encoding="utf-8").read())
+    except (OSError, ValueError) as e:
+        typer.echo(f"not a receipt: {e}")
+        raise typer.Exit(2)
+    why = receipt.check(doc)
+    if why:
+        typer.echo(f"not a valid receipt: {why}")
+        raise typer.Exit(1)
+    typer.echo(f"valid. digest sha256:{receipt.digest(doc)}")
+
+
+@app.command()
+def receipts(owner: str = typer.Option(..., "--owner", help="the GitHub login or id whose money paid"), first: str = _FIRST, last: str = _LAST,
+             fmt: str = typer.Option("csv", "--format", help="csv or jsonl"), limit: int = _LIMIT, no_names: bool = _NO_NAMES,
+             to_file: Path = typer.Option(None, "--out", help="write the rows here instead of printing them")) -> None:
+    """One row per payment out of an owner's money, recomputed from the escrows' log lines: date, repository, issue, pull request, who was paid and where, amount, fee, the terms' hash, the transaction. The columns are listed in knos.records."""
+    from . import records
+    if fmt not in ("csv", "jsonl"):
+        raise Stop(f"--format is csv or jsonl; {fmt!r} is neither.")
+    a, b = _days(first, last)
+    who = _owner(owner)
+    names = _names(no_names)
+    rows = records.select(records.payments(_history(limit).events), owner_id=who, first=a, last=b, names=names)
+    _said(names)
+    text = records.receipts_csv(rows) if fmt == "csv" else records.receipts_jsonl(rows)
+    if to_file:
+        to_file.write_text(text, encoding="utf-8", newline="")
+        out.print(f"Wrote {len(rows)} payment{'' if len(rows) == 1 else 's'} to {to_file}.", markup=False)
+    else:
+        sys.stdout.write(text)
+        if not rows:
+            err.print(f"No payment out of {owner}'s money in that range.", markup=False)
+
+
+def _meter_statement(buyer: str, seller: str, month: str, fmt: str) -> None:
+    """`knos statement --meter`: one buyer's and one seller's month at knos_meter, printed like the escrow's statement."""
+    from . import chain, records
+    try:
+        st = records.meter_statement(_ledger(), _owner(buyer), buyer, _owner(seller), seller, month)
+    except (chain.Refused, OSError, ValueError) as why:
+        raise Stop(f"Solana did not give the meter's history: {ghwords.first_line(why)}.") from None
+    if fmt == "csv":
+        sys.stdout.write(records.meter_statement_csv(st))
+    elif fmt == "json":
+        sys.stdout.write(json.dumps(st, indent=1) + "\n")
+    else:
+        for line in records.meter_statement_lines(st):
+            out.print(line, markup=False)
+
+
+@app.command()
+def statement(seller: str = typer.Option(..., "--seller", help="the GitHub login or id that was paid (with --meter: whose work was evaluated)"),
+              month: str = typer.Option(..., "--month", help="like 2026-09"),
+              fmt: str = typer.Option("text", "--format", help="text, csv or json"), limit: int = _LIMIT, no_names: bool = _NO_NAMES,
+              meter: bool = typer.Option(False, "--meter", help="the meter's statement instead: the evaluations knos_meter billed --buyer for, of --seller's work, in "
+                                                                "--month (how many, accepted and rejected, their declared value, the fees), with the count the program keeps"),
+              buyer: str = typer.Option(None, "--buyer", help="with --meter: the GitHub login or id of the owner whose credits paid")) -> None:
+    """What one seller was paid in a month: each payment with its transaction, and the totals, recomputed from the escrows' log lines. With --meter and --buyer: what knos_meter counted for that buyer and that seller in the month."""
+    from . import records
+    if fmt not in ("text", "csv", "json"):
+        raise Stop(f"--format is text, csv or json; {fmt!r} is none of them.")
+    _month(month)
+    if meter != bool(buyer):
+        raise Stop("The meter's statement is for one buyer and one seller: knos statement --meter --buyer X --seller Y --month YYYY-MM" if meter else
+                   "--buyer goes with --meter: knos statement --meter --buyer X --seller Y --month YYYY-MM")
+    if meter:
+        return _meter_statement(buyer, seller, month, fmt)
+    who = _owner(seller)
+    names = _names(no_names)
+    st = records.statement(records.payments(_history(limit).events), who, seller, month, names)
+    _said(names)
+    if fmt == "csv":
+        sys.stdout.write(records.receipts_csv(st["payments"]))
+    elif fmt == "json":
+        sys.stdout.write(json.dumps({k: ([{c: r[c] for c in records.RECEIPT_COLUMNS} for r in v] if k == "payments" else v) for k, v in st.items()}, indent=1) + "\n")
+    else:
+        for line in records.statement_lines(st):
+            out.print(line, markup=False)
+
+
+@app.command()
+def export(siem: bool = typer.Option(False, "--siem", help="JSON Lines, one escrow event per line: time, actor, action, repository, issue, amount, transaction (fields: knos.records.SIEM_FIELDS)"),
+           first: str = _FIRST, last: str = _LAST, limit: int = _LIMIT, no_names: bool = _NO_NAMES,
+           to_file: Path = typer.Option(None, "--out", help="write the lines here instead of printing them")) -> None:
+    """Every event the escrows logged, as JSON Lines for a SIEM: time, actor, repository, action, amount, transaction (and the fields a line has)."""
+    from . import records
+    if not siem:
+        raise Stop("Say what to export: knos export --siem   (JSON Lines, one escrow event per line)")
+    a, b = _days(first, last)
+    names = _names(no_names)
+    text = records.siem_lines(_history(limit).events, names, a, b)
+    _said(names)
+    if to_file:
+        to_file.write_text(text, encoding="utf-8", newline="")
+        out.print(f"Wrote {text.count(chr(10))} events to {to_file}.", markup=False)
+    else:
+        sys.stdout.write(text)
+
+
+@app.command()
+def invoice(owner: str = typer.Option(..., "--owner", help="the GitHub login or id whose money paid"), month: str = typer.Option(..., "--month", help="like 2026-09"),
+            folder: Path = typer.Option(Path("."), "--out", help="the folder to write the .html and the .csv in"), limit: int = _LIMIT, no_names: bool = _NO_NAMES) -> None:
+    """An owner's month as a plain HTML invoice and a CSV of its lines: every payment made out of their money, with the fee and the transaction. The evaluations knos_meter billed the owner for that month are listed after them, and in a CSV of their own."""
+    from . import records
+    _month(month)
+    who = _owner(owner)
+    names = _names(no_names)
+    events = _history(limit).events
+    inv = records.invoice(records.payments(events), who, owner, month, names, evals=records.evaluations(events))
+    _said(names)
+    counted = inv["evaluations"]
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        page, sheet, evals = folder / f"{inv['number']}.html", folder / f"{inv['number']}.csv", folder / f"{inv['number']}-evaluations.csv"
+        page.write_text(records.invoice_html(inv), encoding="utf-8")
+        sheet.write_text(records.invoice_csv(inv), encoding="utf-8", newline="")
+        if counted:
+            evals.write_text(records.evaluations_csv(counted), encoding="utf-8", newline="")
+    except OSError as why:
+        raise Stop(f"Could not write the invoice in {folder}: {ghwords.first_line(why)}.") from None
+    out.print(f"Wrote {page} and {sheet}: " + ("; ".join(f"{t['payments']} payment(s), {records.money_text(t['total_units'], c)} out of escrow" for c, t in inv["totals"].items()) or "no payment that month") + ".", markup=False)
+    if counted:
+        out.print(f"Wrote {evals}: {len(counted)} evaluation(s) knos_meter counted for this owner, {records.units_text(inv['meter']['fee_units'])} in fees from their credits.", markup=False)
+
+
+# ---- accept: the acceptance checks a bounty can be paid on ----------------------------------------------------------------
+
+accept_app = typer.Typer(add_completion=False, no_args_is_help=True, help="The acceptance checks a bounty can be paid on, without a merge.")
+app.add_typer(accept_app, name="accept")
+
+
+@accept_app.command("init")
+def accept_init(issue: int = typer.Option(..., "--issue", help="the issue the bounty is on: the bundle goes in .knos/acceptance/<issue>/"),
+                reference: str = typer.Option(..., "--from", help="a command that answers right: it gets one input line on stdin and prints the answer"),
+                cases: int = typer.Option(30, "--cases", help="how many inputs to generate and record (1 to 200)"),
+                kind: str = typer.Option("text", "--input", help="the kind of input to generate: text, int or ints"),
+                run: str = typer.Option(None, "--run", help="the command the pull request's code must answer to, run in its tree (default: the --from command)"),
+                seed: int = typer.Option(None, "--seed", help="generate the same inputs again (default: a random seed, recorded in cases.json)"),
+                inputs: Path = typer.Option(None, "--inputs", help="your own inputs, one per line, instead of generated ones"),
+                root: Path = typer.Option(None, "--in", help="the repository (default: the one you are in)"),
+                force: bool = typer.Option(False, "--force", help="replace a bundle that is already there")) -> None:
+    """Make a black-box acceptance bundle from a reference implementation: the reference is run on generated inputs, its answers
+    are recorded, and a judge compares the pull request's code with them, running that code as a separate process so nothing it does can
+    forge the verdict. The reference must pass the bundle and an echo must fail it, or nothing is written."""
+    from . import accept
+    if inputs is not None and cases != 30:
+        raise Stop("Give --inputs or --cases, not both: --inputs is the cases.")
+    where = _repo(str(root) if root else None)
+    try:
+        made = accept.scaffold(where, issue, reference, run, cases, kind, seed, inputs, force)
+    except accept.Refused as why:
+        raise Stop(str(why)) from None
+    here = made.folder.relative_to(where).as_posix()
+    out.print(f"Wrote {here}/ ({', '.join(made.files)}): {made.cases} case{'' if made.cases == 1 else 's'} recorded from the reference command"
+              + (f", seed {made.seed}." if made.seed is not None else "."), markup=False)
+    out.print("The reference passes its own bundle, and a command that only echoes its input does not.", markup=False)
+    out.print(f"Commit it to the default branch before issue #{issue} is funded (/knos fund <amount>): it is black-box, so Knos pays on this check alone.", markup=False)
+
+
+# ---- the help: four commands for a person, then two groups ----------------------------------------------------------------
+
+WORKFLOWS, MONEY = "For a repository's workflows", "For money"
+_HELP = [    # (command or group, its panel (None: the first, "Commands"), the one line `knos --help` shows)
+    ("check", None, "Does what a pull request says agree with GitHub's record of its checks?"),
+    ("init", None, "Install the free Stop hook, and register `knos mcp`, with the coding agents on this machine."),
+    ("claim", None, "Name the Solana address your GitHub account is paid at; `claim --org`: an organisation's."),
+    ("status", None, "Is the second deployment running as designed? `--json` prints the same as data."),
+    ("command", WORKFLOWS, "A workflow's job: act on a comment's `/knos` line and reply."),
+    ("settle", WORKFLOWS, "A workflow's job: pay what each merged pull request earned."),
+    ("review", WORKFLOWS, "A workflow's job: one comment on a pull request saying what it would earn."),
+    ("attest", WORKFLOWS, "A workflow's job, in anyone's repository: ask GitHub to sign that a work order's terms were met."),
+    ("canary", WORKFLOWS, "One timed round on devnet: fund, pull request, merge, payment."),
+    ("relay", WORKFLOWS, "Carry GitHub-signed tokens to Solana (the always-on worker runs this; anyone can)."),
+    ("mcp", WORKFLOWS, "Paid bounties and claim checks for a coding agent, over MCP on stdio."),
+    ("proof", WORKFLOWS, "The same checks by hand, and the judge GitHub runs on a bounty's pull request."),
+    ("accept", WORKFLOWS, "Scaffold a black-box acceptance bundle from a reference implementation."),
+    ("bounty", MONEY, "What is in escrow for an issue, and its state."),
+    ("due", MONEY, "Where a GitHub account is paid, what is held for it, and its record."),
+    ("fund-wallet", MONEY, "Put a bounty on an issue straight from a wallet."),
+    ("balance", MONEY, "Money a wallet sets aside for one GitHub owner's repositories."),
+    ("keys", MONEY, "The signing keys the verifier holds, and whether GitHub's all verify."),
+    ("receipt", MONEY, "Check an acceptance receipt against the specification and print its digest."),
+    ("receipts", MONEY, "One row per payment for an owner, from the chain's log (csv or jsonl)."),
+    ("statement", MONEY, "What one seller was paid in a month; `statement --meter`: evaluations billed."),
+    ("export", MONEY, "Every escrow event as JSON Lines for a SIEM."),
+    ("invoice", MONEY, "An owner's month as a plain HTML invoice and a CSV."),
+    ("mainnet-check", MONEY, "Every gate that must hold before mainnet, with its evidence."),
+]
+
+
+def _arrange() -> None:
+    """Order the commands as _HELP says, with a panel and a one-line summary each; anything not named keeps its place
+    after them. Typer shows the first panel, then the others in the order they first appear."""
+    rank = {name: i for i, (name, _p, _s) in enumerate(_HELP)}
+    by = {name: (panel, short) for name, panel, short in _HELP}
+
+    def name_of(info) -> str:
+        return info.name or (info.callback.__name__.replace("_", "-") if info.callback else "")
+    for info in (*app.registered_commands, *app.registered_groups):
+        got = by.get(name_of(info))
+        if got:
+            info.rich_help_panel = got[0]
+            if hasattr(info, "short_help"):
+                info.short_help = got[1]
+            elif hasattr(info, "help") and not getattr(info, "help", None):
+                info.help = got[1]
+    app.registered_commands.sort(key=lambda i: rank.get(name_of(i), len(rank)))
+    app.registered_groups.sort(key=lambda i: rank.get(name_of(i), len(rank)))
+
+
+_arrange()
+
+
 def main(argv: list[str] | None = None) -> int:
     """The console script. Errors are one line, never a traceback."""
-    args = list(sys.argv[1:] if argv is None else argv)
+    args = list(sys.argv[1:] if argv is None else argv) or ["--help"]       # no argument: the four commands to start with
+    from . import flow
+    if flow.takes(args):        # a workflow's job: read without typer or rich (the console script comes this way before importing them)
+        return flow.main(args)
     try:
         rc = app(args=args, standalone_mode=False, prog_name="knos")
         return int(rc) if isinstance(rc, int) else 0
@@ -661,6 +1099,8 @@ def main(argv: list[str] | None = None) -> int:
         out.print("Stopped.")
         return 130
     except Exception as e:  # usage errors and anything unforeseen: one line
+        if type(e).__name__ == "NoArgsIsHelpError":     # `knos accept` alone: its help is already printed, and that is a success
+            return 0
         if hasattr(e, "format_message") and type(e).__name__.endswith(("UsageError", "BadParameter", "NoSuchOption",
                                                                        "MissingParameter", "BadOptionUsage",
                                                                        "ClickException", "BadArgumentUsage")):

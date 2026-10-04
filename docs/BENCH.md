@@ -77,6 +77,27 @@ What this cannot show:
 - What a bounty would have changed: none of these pull requests had one, so which checks its terms would have required is not known. This counts merges with a failed check, not payments refused.
 <!-- /bench:backtest -->
 
+<!-- backtest_paid:begin -->
+### Paid elsewhere, and a check had failed
+
+`python scripts/backtest_paid.py` (with a GitHub token) writes `docs/backtest_paid.json`: of the merged pull requests that were paid a bounty on Algora or Opire (labels and commands: [Algora](https://remotion.dev/bounties), [Opire](https://github.com/abdulmajeedsualihu/Autokey/issues/1)), how many had a failed check at the commit that was merged.
+
+Read 2026-10-04: 48 closed bounty issues created 2026-01-08 – 2026-10-04, 41 merged pull requests linked from them, 17 of them paid by the platform's own account of it (24 had no such comment and are left out). **At the head commit, 4 of 15 (26.7%) had a failed check** (95% Wilson interval 10.9%–51.9%). At the commit the merge made: 5 of 16 (31.2%, 14.2%–55.6%). At either: 7 of 15 (46.7%, 24.8%–69.9%).
+
+| platform | issues | merged pull requests | paid | classified at the head | failed at the head |
+|---|---|---|---|---|---|
+| Algora | 47 | 40 | 17 | 15 | 4 |
+| Opire | 1 | 1 | 0 | 0 | 0 |
+
+What this cannot show:
+
+- How a platform marks a PAID bounty: neither platform documents what its bot writes on GitHub when it pays. `paid` is the rule in DEFINITIONS; a bounty paid without a bot comment is counted as `unpaid`
+- Money: no amount is read. A comment can say paid for a tip, and a bounty can be paid in parts
+- Whether the check was failing when the maintainer merged: CI is read as it is on the day of the run. A check re-run later shows its last result, and a check can fail after a merge (`failed_at_merge`)
+- Which checks a Knos bounty on these issues would have required: none of them had one. This counts merges with a failed check, not payments refused
+- Bounties in general: these are the newest closed issues per window that GitHub's search returned for the platform's label (and, for Opire, text), not a random sample, and only public repositories
+<!-- backtest_paid:end -->
+
 ## The verifier on chain (knos-oidc)
 
 Both deployments verify a token the same way: the token is written into an account, then its RSA signature is
@@ -141,7 +162,9 @@ is unchanged and every size verifies with the plan above
 
 ## Correctness of the RSA arithmetic
 
-The two deployments share `rsa.rs` and `claims.rs` byte for byte, and each is tested on its own.
+The two deployments share `rsa.rs` byte for byte, and each is tested on its own. `claims.rs` differs since 0.3.13:
+the second deployment's reader sees a second copy of a claim under an escaped spelling of its name, and the first
+deployment's cannot be changed.
 
 - **Wycheproof** (Google's test vectors for RSA PKCS#1 v1.5 signatures, SHA-256), run against the program's own
   arithmetic by `cargo test --release` in `programs/knos_oidc` and in `programs-v2`: 517 vectors, for 2048- and
@@ -227,11 +250,61 @@ relay sends every instruction in a transaction of its own. The real GitHub Actio
 
 So a bounty to someone who had been paid before, in a repository that had funded before, cost a relayer 105,000
 lamports (0.000105 SOL) end to end. A first payout to a new person cost about 3,150,000 more, once. The rent
-figures are the local test chain's; [MARKET.md](MARKET.md), section 1, has today's lower ones.
+figures are the local test chain's; [MARKET.md](MARKET.md), section 2, has today's lower ones.
 
-**Second deployment.** A bounty is two tokens, not three: the payment goes straight to a wallet, so there is no
-claim. A person who gives no address binds a wallet once, with a third token. What relaying them costs on devnet has
-not been measured yet.
+**Second deployment.** A bounty or a work order is two tokens, not three: the payment goes straight to a wallet, so
+there is no claim. A person who gives no address binds a wallet once, with a third token.
+
+**Two transactions per token.** Measured in LiteSVM on 3 Oct 2026, with the test builds
+(`pytest -q -s tests/test_relay2.py -k transactions_waits`). Where the cluster takes 4,096-byte transactions and
+`knos-pay` 2.1 answers, the relay sends a token in two: the whole token and the first `Step`, then the last `Step`,
+the escrow's instruction and `Close`. Not measured on devnet: no 2.1 instruction had run there when this was written.
+
+| path | transactions | compute units in all | in the larger transaction |
+|---|---|---|---|
+| verify only (a token of about 1,700 bytes) | 2 | 1,604,287 | 832,908 |
+| fund from a Balance | 2 | 1,731,410 | 953,065 |
+| fund, the faucet opened on the way | 2 | 1,829,533 | 1,055,590 |
+| pay to the address in the token | 2 | 1,756,951 | 984,107 |
+| pay to a bound wallet | 2 | 1,762,494 | 978,217 |
+| pay held (no wallet known) | 2 | 1,686,257 | 914,487 |
+| bind a wallet | 2 | 1,694,279 | 917,050 |
+| bind, then settle the held bounty | 2 | 1,755,820 | 983,875 |
+| a key registered | 2 | 1,795,076 | 1,017,282 |
+| a key refreshed | 2 | 1,644,634 | 872,027 |
+| refund of an unpaid bounty (no token) | 1 | 19,294 | 19,294 |
+| settle of a held bounty (no token) | 1 | 60,809 | 60,809 |
+
+The figures move by a few thousand with the addresses involved. Where 4,096-byte transactions are not accepted the
+relay falls back to 1,232-byte ones: a token of up to 1,756 bytes then takes three transactions, and the real
+GitHub tokens we captured (2,086 to 2,276 bytes) take four, two of them sent side by side
+(`tests/test_relay2.py::test_how_long_a_token_each_write_carries`). The first deployment's relay takes 7 for a fund
+or a pay token and 6 for a claim, in the same test file.
+
+**Work orders** (`pytest -q -s tests/test_order_chain.py -k compute_units`, one run, 3 Oct 2026): `FundOrderWallet`
+50,868 compute units. `PayOrder` to one payee whose token account it creates: 152,374, in a transaction of 807
+bytes. To four such payees: 345,997, in 1,401 bytes, which is more than a 1,232-byte transaction holds. The test
+requires every one to stay under 400,000.
+
+**What a payment pays the relayer.** `PayOrder` sends the relayer 0.05 of the mint out of the fee, or 0.30 when the
+transaction created a payee's token account (`TIP`, `TIP_FIRST` in `programs-v2/knos_pay/src/lib.rs`). A 0.3.12
+bounty pays the relayer nothing.
+
+**Marker rent comes back.** A token that works once leaves a marker account, and the relayer puts up its rent.
+`CloseMarker` returns it to whoever paid, once no token the marker stands for can be accepted
+(`tests/test_order_terms.py::test_a_used_marker_is_closed_once_no_token_it_stands_for_can_be_accepted`).
+
+**The meter** (`pytest -q -s tests/test_meter_chain.py -k what_a_relayer_pays`, 3 Oct 2026): one billable
+evaluation is the transactions that verify the token and one `Record` of 609 bytes and 81,357 compute units. Its
+marker is 88 bytes. The simulator held 1,503,360 lamports of the relayer's rent for it; at 5,080 lamports a byte,
+the rate [MARKET.md](MARKET.md) cites for a cluster, that is 1,097,280 (computed, not measured). It is locked
+until two hours into the next month and then returned in full by `CloseMark` (1,710 compute units each, 26 to a
+transaction).
+
+**The passkey wallet.** `tests/test_passkey_chain.py` requires a withdrawal to stay under 40,000 compute units of
+`knos-passkey`. Two withdrawals read from that test's chain on 3 Oct 2026 used 14,121 (in one transaction with
+`Open` and the destination's token account, 920 bytes) and 14,116 (alone, 774 bytes). The signature itself is
+checked by Solana's secp256r1 instruction, outside that count.
 
 A token that is refused costs nothing when a read can tell, which is the usual case: a relay reads the chain before
 it spends a fee (`precheck` in [`src/knos/settle/relay.py`](../src/knos/settle/relay.py)). It pays fees for a
@@ -242,18 +315,18 @@ refused token only when it takes the signature check on chain to tell. The token
 <!-- bench:devnet -->
 | the second deployment on devnet | measured |
 |---|---|
-| tasks funded | 10 |
-| tasks paid | 6 |
+| tasks funded | 49 |
+| tasks paid | 40 |
 | tasks funded with their own tokens by someone other than Knos, both deployments | 0 |
 | of those, paid to someone other than the funder | 0 |
 | funders among them | 0 |
 | funders who funded again after one of their tasks was paid | 0 |
-| payments timed from the merge, over the public relay's log | 2 |
-| seconds from the merge to the payment, median | 110 |
-| seconds from the merge to the payment, 90th percentile | 164 |
-| seconds from the funding comment to the funded task, median | 260 |
+| payments timed from the merge, over the public relay's log | 36 |
+| seconds from the merge to the payment, median | 24 |
+| seconds from the merge to the payment, 90th percentile | 54 |
+| seconds from the funding comment to the funded task, median | 48 |
 
-Read from the site's `stats.json` of 2026-10-03 16:04 UTC (`python scripts/bench_docs.py --stats stats.json`).
+Read from the site's `stats.json` of 2026-10-04 07:51 UTC (`python scripts/bench_docs.py --stats stats.json`).
 <!-- /bench:devnet -->
 
 The site's [Numbers section](https://drexthealpha.github.io/Knos/#network) shows today's count, read from the
@@ -264,6 +337,10 @@ escrows' own logs, with Knos's own accounts kept apart from everyone else's.
 <!-- bench:devnet1 -->
 Read from the escrow's own logs on devnet on 3 Oct 2026: 23 transactions in all, the last at 14:19 UTC on 2 Oct 2026. 11 bounties funded, 6 paid, 1 vetoed, 2 claims, 0 refunded, 5 still open. Every one of the 6 payments was Knos's own account paying itself to prove the path; 0 went to anyone else. The median from the funding transaction to the paying one was 159 seconds. 3 of the open bounties are the ones another account's pull requests answer (issues #29, #30 and #31 of this repository, 25, 10 and 15 test USDC; pull requests #32, #33 and #34); they had not been merged when this was read.
 <!-- /bench:devnet1 -->
+
+That block is the reading before the three pull requests were merged. They were merged later on 3 Oct 2026 and the
+first deployment paid them (`release.outside_prs_merged_and_paid` in [`bench.json`](bench.json)); with those, the two
+deployments had made 15 payments when their logs were read at 16:04 UTC that day ([COMPARE.md](COMPARE.md)).
 
 Both programs of the first deployment had no upgrade authority when their program data was read on 3 Oct 2026.
 `python scripts/claims_check.py` reads it again.

@@ -30,7 +30,7 @@ def test_every_command_is_read_into_its_own_type():
     assert c.parse("/knos reject") == c.Reject("") and c.parse("/knos reject not the fix we want") == c.Reject("not the fix we want")
     assert c.parse("/knos tip 2.5") == c.Tip(2_500_000)
     assert c.parse("/knos settle") == c.Settle() and c.parse("/knos status") == c.Status() and c.parse("/knos help") == c.Help()
-    assert [k.name for k in (c.Fund, c.Take, c.Release, c.Address, c.Mine, c.Pay, c.Reject, c.Tip, c.Settle, c.Status, c.Help)] == list(c.FORMS)
+    assert [k.name for k in (c.Fund, c.Offer, c.Raise, c.Cancel, c.Take, c.Release, c.Address, c.Mine, c.Pay, c.Split, c.Reject, c.Tip, c.Settle, c.Status, c.Help)] == list(c.FORMS)
     assert c.parse("/knos") == c.Help() == c.parse("/knos help me please")              # a bare /knos asks what there is
 
 
@@ -240,3 +240,25 @@ def test_every_outcome_has_a_reply_and_no_reply_is_a_command():
     assert c.reply("malformed", "take", why="nothing goes after it") == "Knos: that was not understood: nothing goes after it. Type it like this: `/knos take`."
     with pytest.raises(ValueError):
         c.reply("shrug", "take")
+
+
+def test_a_work_orders_words_are_read_as_strictly_as_the_rest():
+    f = c.parse("/knos fund 20 checks: test warranty 14 holdback 20 arbiter @erin neutral off")
+    assert f == c.Fund(20_000_000, ("test",), warranty=14, holdback=20, arbiter="erin", neutral=False)
+    assert c.parse("/knos fund 20") == c.Fund(20_000_000) and c.Fund(20_000_000).neutral is None        # unsaid: the policy, then the default
+    assert c.parse("/knos fund 20 checks: test (a, b), lint days 30 neutral on").checks == ("test (a, b)", "lint")
+    o = c.parse("/knos offer @acme-agents rate 12 budget 600 checks: test")
+    assert o == c.Offer("acme-agents", 12_000_000, 600_000_000, ("test",))
+    assert c.parse("/knos offer @acme rate 12 budget 100 checks: test days 30") == c.Offer("acme", 12_000_000, 100_000_000, ("test",), (), 30)
+    assert c.parse("/knos raise 10") == c.Raise(10_000_000) and c.parse("/knos cancel") == c.Cancel()
+    assert c.parse("/knos split @ana 60 @ben 40") == c.Split((("ana", 60), ("ben", 40))) == c.parse("/knos split ana 60%, ben 40%")
+    for line, why in (("/knos fund 20 warranty 91", "`warranty` must be from 0 to 90"), ("/knos fund 20 holdback 51", "`holdback` must be from 0 to 50"),
+                      ("/knos fund 20 arbiter", "`arbiter` needs a GitHub login"), ("/knos fund 20 neutral maybe", "`neutral` is `neutral off`"),
+                      ("/knos fund 20 rate 3", "`rate` is not something this command takes"), ("/knos offer rate 12 budget 100", "name the vendor"),
+                      ("/knos offer @acme rate 12", "`budget 100`"), ("/knos offer @acme rate 50 budget 20", "the budget is under the rate"),
+                      ("/knos split @ana 60 @ben 30", "add up to 90"), ("/knos split @ana 100 extra", "name each person"),
+                      ("/knos split @a 20 @b 20 @c 20 @d 20 @e 20", "one to four people"), ("/knos raise", "the amount is missing"),
+                      ("/knos cancel now", "nothing goes after it")):
+        got = c.parse(line)
+        assert isinstance(got, c.Error) and why in got.reply and got.reply.startswith("Knos: that was not understood"), (line, got)
+    assert c.parse("/knos split @ana 100", on_pull=False).kind == "misplaced" and c.parse("/knos cancel", on_pull=True).kind == "misplaced"

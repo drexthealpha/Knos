@@ -1,6 +1,7 @@
 //! The two token programs this escrow accepts (SPL Token and Token-2022), what it checks of a mint and of a token
 //! account, and the only token instructions it ever sends: TransferChecked, InitializeAccount3, GetAccountDataSize
-//! and, for the devnet faucet, InitializeMint2 and MintTo.
+//! CloseAccount (an order's own token account, once empty) and, for the devnet faucet, InitializeMint2 and MintTo. It
+//! also asks the Associated Token Account program to create a payee's token account (PayOrder, SettleOrder).
 use crate::{err, state::*, E_ACCOUNTS, E_MINT};
 use solana_program::{
     account_info::AccountInfo,
@@ -14,6 +15,7 @@ use solana_program::{
 
 pub const TOKEN: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 pub const TOKEN_2022: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+pub const ATA_PROGRAM: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 pub const MINT_LEN: usize = 82;
 pub const ACCOUNT_LEN: usize = 165;
 const MULTISIG_LEN: usize = 355; // Token-2022 never gives a mint or an account with extensions this length
@@ -33,30 +35,25 @@ pub fn mint_of(mint: &AccountInfo, token: &AccountInfo, funding: bool) -> Result
     Ok(Mint { decimals: d[44], t22 })
 }
 
-/// A Token-2022 mint's extensions are a list of (type u16, length u16, value). Refused: NonTransferable (9), a
-/// DefaultAccountState (6) that is not "initialized" (new accounts would start frozen), a TransferHook (14) with a
-/// program set (it would run on every transfer and could refuse a payout), and a TransferFeeConfig (1) whose older or
-/// newer fee takes anything (a fee now, or one already scheduled). Every other extension is accepted, among them
-/// PermanentDelegate, ConfidentialTransfer and a transfer hook or a transfer fee that is configured but empty.
+/// A Token-2022 mint's extensions are a list of (type u16, length u16, value). Money enters only in a mint whose
+/// every extension is on ALLOWED: the ones that change nothing about who holds how much or whether a transfer goes
+/// through. Every other is refused whatever it holds, also a transfer hook that names only an authority (the
+/// authority can set a program later), a transfer fee of zero (it can be raised), a permanent delegate, a default
+/// account state, Pausable, and every type this program has never heard of: an extension added to Token-2022 after
+/// this was written is refused until someone has read what it does. A list that does not parse is refused.
+///   3 MintCloseAuthority (a mint closes only at supply zero)   4 ConfidentialTransferMint   10 InterestBearingConfig
+///   and 25 ScaledUiAmount (how an amount is displayed)          18 MetadataPointer  19 TokenMetadata  20 GroupPointer
+///   21 TokenGroup  22 GroupMemberPointer  23 TokenGroupMember
+pub const ALLOWED: [u16; 10] = [3, 4, 10, 18, 19, 20, 21, 22, 23, 25];
 fn extensions_ok(mut t: &[u8]) -> bool {
     while t.len() >= 4 {
         let (ty, len) = (u16::from_le_bytes([t[0], t[1]]), u16::from_le_bytes([t[2], t[3]]) as usize);
         if ty == 0 { break; } // uninitialised: the end of the list
-        let Some(v) = t.get(4..4 + len) else { return false };
-        let refused = match ty {
-            1 => len != 108 || charges(&v[72..90]) || charges(&v[90..108]),
-            6 => *v != [1u8],
-            9 => true,
-            14 => len != 64 || v[32..64] != [0u8; 32],
-            _ => false,
-        };
-        if refused { return false; }
+        if !ALLOWED.contains(&ty) || t.len() < 4 + len { return false; }
         t = &t[4 + len..];
     }
     true
 }
-/// A TransferFee (epoch u64, maximum_fee u64, basis_points u16) that takes more than nothing.
-fn charges(fee: &[u8]) -> bool { fee[8..16] != [0u8; 8] && fee[16..18] != [0u8; 2] }
 
 /// (mint, owner, amount) of an initialised token account of the program `token`; None for anything else.
 pub fn token_account(a: &AccountInfo, token: &Pubkey) -> Option<(Pubkey, Pubkey, u64)> {
@@ -115,6 +112,25 @@ pub fn transfer<'a>(token: &AccountInfo<'a>, from: &AccountInfo<'a>, mint: &Acco
     match auth_bump { Some(b) => invoke_signed(&ix, &infos, &[&[b"auth", &[b]]]), None => invoke(&ix, &infos) }
 }
 
+/// CloseAccount: an empty token account of ["auth"] is closed, its rent to `to`.
+pub fn close_token<'a>(token: &AccountInfo<'a>, acct: &AccountInfo<'a>, to: &AccountInfo<'a>, auth: &AccountInfo<'a>, auth_bump: u8) -> ProgramResult {
+    invoke_signed(&Instruction { program_id: *token.key, data: vec![9],
+        accounts: vec![AccountMeta::new(*acct.key, false), AccountMeta::new(*to.key, false), AccountMeta::new_readonly(*auth.key, true)] },
+        &[acct.clone(), to.clone(), auth.clone(), token.clone()], &[&[b"auth", &[auth_bump]]])
+}
+
+/// Creates `wallet`'s associated token account of `mint` at `ata` (the Associated Token Account program refuses any
+/// other address), its rent from `payer`, who signed the transaction.
+#[allow(clippy::too_many_arguments)]
+pub fn create_ata<'a>(ata_program: &AccountInfo<'a>, payer: &AccountInfo<'a>, ata: &AccountInfo<'a>, wallet: &AccountInfo<'a>, mint: &AccountInfo<'a>,
+                      sys: &AccountInfo<'a>, token: &AccountInfo<'a>) -> ProgramResult {
+    if *ata_program.key != ATA_PROGRAM { return Err(err(E_ACCOUNTS)); }
+    invoke(&Instruction { program_id: ATA_PROGRAM, data: vec![0],
+        accounts: vec![AccountMeta::new(*payer.key, true), AccountMeta::new(*ata.key, false), AccountMeta::new_readonly(*wallet.key, false),
+                       AccountMeta::new_readonly(*mint.key, false), AccountMeta::new_readonly(*sys.key, false), AccountMeta::new_readonly(*token.key, false)] },
+        &[payer.clone(), ata.clone(), wallet.clone(), mint.clone(), sys.clone(), token.clone(), ata_program.clone()])
+}
+
 /// Devnet faucet: creates the test-USDC mint ["mint"] (SPL Token, 6 decimals, mint authority ["auth"], no freeze authority).
 pub fn init_mint<'a>(payer: &AccountInfo<'a>, mint: &AccountInfo<'a>, auth: &AccountInfo<'a>, token: &AccountInfo<'a>, sys: &AccountInfo<'a>,
                      bump: u8) -> ProgramResult {
@@ -152,36 +168,35 @@ mod tests {
     }
 
     #[test]
-    fn the_extensions_that_could_block_or_tax_a_payout_are_refused_and_no_other() {
+    fn only_the_listed_extensions_are_accepted() {
         let hook = |program: u8| { let mut v = vec![9u8; 32]; v.extend_from_slice(&[program; 32]); v };
         let ok: Vec<Vec<u8>> = vec![
             vec![],
-            tlv(1, &fee_config((0, 0), (0, 0))),
-            tlv(1, &fee_config((1_000_000, 0), (0, 250))),        // a cap with no rate, a rate with no cap: nothing is taken
-            tlv(6, &[1]),
-            tlv(14, &hook(0)),
-            tlv(12, &[5u8; 32]),                                    // PermanentDelegate
-            tlv(4, &[5u8; 65]),                                     // ConfidentialTransferMint
             tlv(3, &[5u8; 32]),                                     // MintCloseAuthority
-            tlv(999, &[1, 2, 3]),                                   // an extension this program has never heard of
-            [tlv(1, &fee_config((0, 0), (0, 0))), tlv(4, &[5u8; 65]), tlv(12, &[5u8; 32]), tlv(14, &hook(0)), tlv(16, &[0u8; 129]), vec![0u8; 12]].concat(),
+            tlv(4, &[5u8; 65]),                                     // ConfidentialTransferMint
+            tlv(10, &[5u8; 52]), tlv(25, &[5u8; 56]),               // how an amount is displayed
+            [tlv(18, &[5u8; 64]), tlv(19, &[5u8; 90]), tlv(20, &[5u8; 64]), tlv(21, &[5u8; 80]), tlv(22, &[5u8; 64]), tlv(23, &[5u8; 72]), vec![0u8; 12]].concat(),
         ];
         for t in &ok { assert!(extensions_ok(t), "{t:?}"); }
-        let refused: Vec<Vec<u8>> = vec![
+        let mut refused: Vec<Vec<u8>> = vec![
             tlv(9, &[]),                                            // NonTransferable
-            tlv(6, &[2]),                                           // new accounts start frozen
-            tlv(6, &[0]),
+            tlv(6, &[1]), tlv(6, &[2]),                             // a default account state, whatever it is today
             tlv(14, &hook(1)),                                      // a transfer hook program
-            tlv(1, &fee_config((1, 1), (0, 0))),                    // a fee now
-            tlv(1, &fee_config((0, 0), (5_000_000, 100))),          // a fee scheduled
-            tlv(1, &[0u8; 107]),                                    // not a TransferFeeConfig at all
-            tlv(14, &[0u8; 63]),
-            vec![12, 0, 200, 0, 1, 2, 3],                           // a length that runs past the data
-            [tlv(12, &[5u8; 32]), tlv(4, &[5u8; 65]), tlv(9, &[])].concat(),   // a refused one after accepted ones
+            tlv(14, &hook(0)),                                      // a transfer hook that names only an authority
+            tlv(1, &fee_config((0, 0), (0, 0))),                    // a transfer fee of nothing: its authority can raise it
+            tlv(1, &fee_config((1, 1), (0, 0))),
+            tlv(12, &[5u8; 32]),                                    // PermanentDelegate
+            tlv(16, &[0u8; 129]),                                   // ConfidentialTransferFeeConfig
+            tlv(26, &[5u8; 33]),                                    // Pausable
+            tlv(24, &[5u8; 97]), tlv(28, &[5u8; 32]),
+            tlv(29, &[1, 2, 3]), tlv(999, &[1, 2, 3]),              // ids this program has never heard of
+            vec![3, 0, 200, 0, 1, 2, 3],                            // a length that runs past the data
+            [tlv(3, &[5u8; 32]), tlv(4, &[5u8; 65]), tlv(26, &[5u8; 33])].concat(),   // a refused one after accepted ones
         ];
+        for ty in (1..=64u16).filter(|t| !ALLOWED.contains(t)) { refused.push(tlv(ty, &[0u8; 8])); }
         for t in &refused { assert!(!extensions_ok(t), "{t:?}"); }
         // what follows the uninitialised type 0 is padding, never read
-        assert!(extensions_ok(&[tlv(12, &[5u8; 32]), vec![0, 0, 0, 0], tlv(9, &[])].concat()));
+        assert!(extensions_ok(&[tlv(3, &[5u8; 32]), vec![0, 0, 0, 0], tlv(9, &[])].concat()));
     }
 
     fn account<'a>(key: &'a Pubkey, owner: &'a Pubkey, lamports: &'a mut u64, data: &'a mut [u8]) -> AccountInfo<'a> {

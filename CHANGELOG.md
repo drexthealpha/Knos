@@ -1,5 +1,147 @@
 # Changelog
 
+## 0.3.13 (October 2026)
+
+**Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they
+were met, a Solana program settles.** The unit is now a work order. A bounty on an issue is the smallest one.
+
+Six readers' reviews of 0.3.12 are answered by this release. None was a security audit, and no outside security firm
+has reviewed anything. One of them confirmed seven defects in 0.3.12 by reading the source; each is listed under
+[Security](#security) with its fix.
+
+### What is live, and when
+
+The escrow and the verifier are upgraded at their existing addresses, through the multisig, with its public 48-hour
+delay. The upgrade was proposed and approved by the multisig on 2026-10-04 07:17 UTC and can execute from
+2026-10-06 07:17 UTC.
+`knos status` and the site's banner show it while it is pending.
+
+| | live |
+|---|---|
+| The workflows of this release (installs by hash, `attest.yml`), the command line, the MCP tools that act, the site, records, statements and exports, the policy file, screening, the interface crates and examples | with the release |
+| `knos-meter` and `knos-passkey`: new programs at new addresses | once the release run has deployed them |
+| Everything below that names a work order: the fee on top, the four judges and the seller's own settlement, warranty, arbiter, split, standing offers, cancellation, top-up, assignment, organisation wallets, private orders | when the upgrade executes |
+| The fixes to 0.3.12 bounties: whole-unit limits, the extension list, a Balance's limits, single-use pay tokens | when the upgrade executes |
+| Any-issuer keys, Refresh by anyone, private keys | when the upgrade executes |
+
+Until the upgrade executes, `/knos fund` opens a bounty exactly as 0.3.12 did. A bounty funded before it finishes
+as it was funded: every 0.3.12 instruction keeps its bytes and its behaviour, apart from the fixes above. Tokens of
+the new paths carry audiences that start `knos3:`, so a token of one generation is good for nothing in the other.
+
+### If you fund work
+
+- **You pay the fee on top; the payee receives the posted amount.** 2.5%, at least 0.40 and at most 25 USDC. It is
+  escrowed with the amount and returned with it if nobody is paid. An order holds between 5 and 500 USDC.
+- **Each order's money is in a token account of its own.** No vault is shared between orders.
+- **Fund any public issue from a wallet, with no file in that repository** ("Fund any issue" on the site, and
+  `FundOrderWallet` for a program or a multisig).
+- **New options on `/knos fund`:** `warranty N holdback N` keeps a share of each payment (at most 50%) in the order
+  for N days (at most 90); it returns to you if your repository attests a revert in that time, and goes to the
+  payee otherwise. `arbiter @login` names who rules on a dispute. `neutral off` lets only your own repository sign.
+- **`/knos offer @vendor rate R budget B`:** a standing order that pays one vendor R for each accepted change
+  until B is spent. No comment per issue.
+- **`/knos split @a 60 @b 40`** before a merge: one payment, up to four payees.
+- **`/knos cancel`:** the order ends in 7 days at most. A valid payment inside the notice still pays. If someone
+  had reserved it, a kill fee fixed at funding (at most 20%) goes to them first.
+- **`/knos raise <amount>`** tells you how to top an order up. The top-up itself is signed by the wallet the money
+  came from.
+- **You can no longer withhold a payment after merging in a public repository.** See the next section.
+
+### If you do the work
+
+- **After a merge you can settle yourself.** `knos settle --neutral <pull request URL>` starts the pinned
+  `attest.yml` by hand in a repository of your own. It reads GitHub's public record of the pull request, and the
+  escrow pays on that run. The buyer's workflow is not needed. This holds for a public repository and an order
+  that was not funded with `neutral off`; the funding reply says which it is.
+- **You receive the full posted amount.**
+- **No wallet app needed.** The site makes a passkey, and the address it derives can be paid like any other.
+  Withdrawing needs only the passkey. The site shows and withdraws both of devnet's test mints: Circle's USDC and
+  the faucet's test USDC that a bounty funded by comment pays. The public relay carries a withdrawal from the moment
+  `knos-passkey` is deployed; it does not wait for the escrow's upgrade, which that program never calls. Read
+  [SECURITY.md](docs/SECURITY.md), section 17, before keeping money there.
+- **An organisation can be paid.** A member binds its wallet by hand, from a `knos-claim` repository the
+  organisation owns, and a bot's pull request can then pay the organisation that runs it.
+- **You can assign a payment.** The bound wallet of a payee signs one order's payment over to another wallet, so
+  anyone can advance money against accepted work.
+- **A reservation is on chain.** `/knos take` reserves an order for its `reserve` days, and a cancellation while
+  you hold it pays you the kill fee.
+- **Before you start:** the MCP tool `knos_can_pay` says whether a repository can still pay an issue, and why not.
+
+### If you run a company
+
+- **A count without an escrow.** `knos-meter` counts each evaluation GitHub signed, once, for a buyer and a seller
+  in a month: accepted, rejected, and the declared value. It moves no customer money. 0.05 per billable evaluation
+  from prepaid credits, 0.02 at volume, and the first 10,000 of a month free. An evaluation is a run of the
+  published `attest.yml` with the kind `eval`, started in a repository of the buyer: GitHub's record of a pull request
+  there is the verdict (merged: accepted; closed unmerged: rejected), and it is posted as `knos-eval:` for the relay,
+  which carries it from the moment the meter is deployed, whatever the escrow's version. `knos statement --meter
+  --buyer X --seller Y --month YYYY-MM` recomputes one buyer's and one seller's month from the program's logs.
+- **Private orders.** Funded from your organisation's Balance by a comment in a judge repository you choose. The
+  chain shows the amounts, the payees and that repository, and no name, issue number, check name or path of the
+  private one ([SECURITY.md](docs/SECURITY.md), section 12).
+- **Your own issuer.** A wallet registers the key of a server no public runner can reach, such as GitHub
+  Enterprise Server. Its tokens pay only private orders funded from that wallet's own Balance.
+- **`.knos/policy.yml`:** who may fund, a cap per order, a monthly budget, allowed payees and vendors, default
+  checks, standing offers, warranty defaults. A fund comment it refuses is told the line.
+- **A Balance has limits:** per day, in total, the repositories that may spend it, and the workflows commit.
+- **Records for finance:** `knos receipts` and `knos statement` (CSV among their formats), `knos invoice` (a page
+  and a CSV of its lines) and `knos export` (JSON Lines for a SIEM), all recomputed from the escrow's logs.
+- **Screening:** a payout to an address on the United States Treasury's sanctions list is refused and held.
+- **A lower rate under a contract** is a `Plan` account on chain, 0.5% to 2.5%, until an expiry.
+
+### If you build on it
+
+- **Any RS256 issuer.** `knos-oidc` admits a key of any issuer on GitHub's signature over the pinned rotate
+  workflow's run, with the same delay, approval, expiry and revocation as before.
+- **`knos-oidc-interface` now reads the second deployment by default.** The first is `v1::read`. It exposes
+  `is_private()`, `registrant()`, `issuer_hash()` and `key_usable()`.
+- **`knos-pay-interface`:** fund, top up and refund a work order from your own program
+  ([`examples/cpi_fund`](examples/cpi_fund)).
+- **Examples with tests:** a vault only a workflow can spend ([`examples/workflow_vault`](examples/workflow_vault)),
+  a record that GitHub's runner built an executable ([`examples/upgrade_gate`](examples/upgrade_gate)), a proposed
+  x402 scheme that pays on attestation ([docs/X402.md](docs/X402.md)), receipts as Solana Attestation Service
+  attestations ([docs/RECEIPT.md](docs/RECEIPT.md)), funding from a Squads vault. [docs/COMPOSE.md](docs/COMPOSE.md)
+  lists them.
+- **MCP tools that act:** `knos_take`, `knos_address`, `knos_fund`, `knos_settle`, `knos_quote`, `knos_can_pay`.
+  Each returns the exact comment or transaction to send and sends nothing. Text a repository wrote comes back in a
+  field named `untrusted`.
+- **Static data on the site:** `bounties.json`, a file per account and per repository, badges and rankings.
+- **`knos accept init`** scaffolds a black-box acceptance bundle from a reference implementation;
+  [`examples/acceptance`](examples/acceptance) has three tasks that are not code review.
+- **Relaying costs less and pays.** A token is two transactions, and a payment tips the relayer out of the fee.
+
+### Security
+
+The seven defects one review confirmed in 0.3.12, and what this release does about each:
+
+| the defect in 0.3.12 | this release |
+|---|---|
+| Amount limits and the fee floor ignored a mint's decimals, and the record summed raw units across mints. | Limits and the fee floor are whole units, read from the mint. The record counts money as real only in Circle's USDC; every other mint counts as test. |
+| A Token-2022 mint with a transfer-hook authority but no program passed the screen, and Pausable was not screened. | A list of allowed extensions. A mint with any other extension is refused when money enters, including ones added to Token-2022 later. |
+| A Balance had a cap per bounty but no limit per day or in total, and any repository of its owner could spend it. | A side account its wallet sets: a limit per day, a limit in total, the repositories that may spend it, the workflows commit. A Balance without one is as before. |
+| A pay token was not single-use: one token could pay several bounties on one issue with matching terms. | A pay token pays, or holds, exactly one. A marker keyed by the token's signature refuses a second use. |
+| The job that signs installed `knos` from PyPI by version, without hashes. | Every job that signs installs by sha256 from a list in the workflow at the pinned commit, imports the standard library and one package, and uses no cache. The two jobs that cannot sign still install by version. |
+| The interface crate's `Token::read` defaulted to the first deployment's verifier, which took key attestations from any repository. | It defaults to the second deployment. |
+| Keys expired after 30 days unless one personal account's scheduled job attested them again, and one person holds every key of the upgrade multisig. | Anyone can refresh a key GitHub still publishes, by running the pinned workflow by hand in a repository of their own. New keys still need that one account and the guardian. The multisig is unchanged: every member key is still the founder's. |
+
+Also:
+
+- An attestation that registers or refreshes a key counts only while the key that verified it is itself usable.
+- The claim parser has unit tests and a fuzz target that compares it with `serde_json`; a nightly job runs it.
+- `knos check`, the free check and `knos_check_pr` read a pull request's checklist as the site does: a ticked
+  "My PR passes all CI/CD checks" is the author's claim and is held to GitHub's record, and an unticked box, an
+  HTML comment or an agent's quoted prompt claims nothing. Nor does a sentence that hedges, negates or instructs
+  ("tests should pass", "make sure CI is green"), in the Agent PR Index's words, and the site and the index skip
+  an unticked box of any list marker. A description of any shape is read in time linear in its length.
+- A proposed upgrade is refused by the proposing script unless GitHub signed that Knos's own workflow built those
+  bytes from a commit, and `knos status` says whether a pending upgrade has that record.
+- The MCP server marks third-party text as untrusted and can be restricted to named repositories.
+- [docs/DRILLS.md](docs/DRILLS.md): refund, the 180-day return, key expiry, the guardian's pause and revocation,
+  and a proposed, waited, executed and cancelled upgrade, run against the bytes deployed on devnet in a simulator.
+  The rows that need real GitHub tokens were not run.
+
+What is still open is in [docs/SECURITY.md](docs/SECURITY.md), "Known limits".
+
 ## 0.3.12 (October 2026)
 
 **The first deployment was made immutable too early.** 0.3.10 deployed two programs and removed their upgrade

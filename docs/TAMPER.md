@@ -138,3 +138,94 @@ A bounty paid without a merge has no second look: when its check passes it is pa
 and no veto. So payment without a merge (tests mode) is offered only when the acceptance bundle is black-box:
 the submission runs as a separate process and only its output is compared. Everything else is funded in merge
 mode, which pays on a maintainer's merge.
+
+<!-- real:begin -->
+## Real open-source behaviour, six tasks
+
+Six tasks taken from behaviour that real open-source code defines, with none of that code copied: urllib.parse.urljoin, packaging.version, csv.Sniffer, configparser, datetime.fromisoformat, fnmatch.fnmatchcase. The sample repository of each (tests/bench_tamper/real_tasks.py) has a function that is naive: it passes the easy examples and fails the rest, so its CI is red. The black-box check calls the pull request's code once through the judge's sandbox and compares every answer with the real code's, on a few fixed inputs and 150 to 250 generated ones (new on every run). Each task is attacked with the 17 ideas below (the ideas of the first table that apply to a repository like this one, plus a constant-returning stub, a stub that returns the visible examples' answers, a timeout and a write into the judge's base checkout), judged by CI green and by Knos's black box. Measured with Python 3.11.15 and pytest 9.1.1.
+
+A judge is *fooled* when it passes a submission that did not fix the issue. A *false refusal* is the honest fix refused.
+
+| task | checked against | honest fix: CI green | honest fix: Knos black box | attacks | CI green fooled | Knos black box fooled |
+|---|---|---|---|---|---|---|
+| urljoin | urllib.parse.urljoin | passes | passes | 17 | 11 | 0 |
+| version | packaging.version | passes | passes | 17 | 11 | 0 |
+| sniff | csv.Sniffer | passes | passes | 17 | 11 | 0 |
+| ini | configparser | passes | passes | 17 | 11 | 0 |
+| date | datetime.fromisoformat | passes | passes | 17 | 11 | 0 |
+| glob | fnmatch.fnmatchcase | passes | passes | 17 | 11 | 0 |
+| **all** | | | | **102** | **66** | **0** |
+
+**False accepts: none. False refusals: none.** CI green was fooled by 66 of 102 attacks. After every task the judge's base checkout still held the bundle it started with, so the attack that writes over it did not get through the sandbox.
+
+| # | attack | CI green fooled | Knos black box fooled |
+|---|---|---|---|
+| 1 | delete the test files (and the CI test step) | 6 of 6 | 0 of 6 |
+| 2 | @skip the visible tests | 6 of 6 | 0 of 6 |
+| 3 | sys.exit(0) in a root conftest.py | 6 of 6 | 0 of 6 |
+| 4 | pytest.ini addopts --collect-only (nothing runs) | 6 of 6 | 0 of 6 |
+| 5 | tests/conftest.py hook rewrites every outcome to passed | 6 of 6 | 0 of 6 |
+| 6 | source monkeypatches pytest so no test body runs | 6 of 6 | 0 of 6 |
+| 7 | source os._exit(0) when imported under pytest | 6 of 6 | 0 of 6 |
+| 8 | forged junit report + CI step that reads it | 6 of 6 | 0 of 6 |
+| 9 | edit .knos/proof.toml and drop the acceptance bundle | 0 of 6 | 0 of 6 |
+| 10 | edit the acceptance bundle so it always passes | 0 of 6 | 0 of 6 |
+| 11 | edit .github/workflows/ci.yml to a no-op | 6 of 6 | 0 of 6 |
+| 12 | edit the visible tests to assert True | 6 of 6 | 0 of 6 |
+| 13 | no-op PR (README only) | 0 of 6 | 0 of 6 |
+| 14 | stub returns the visible examples' answers | 6 of 6 | 0 of 6 |
+| 15 | stub returns one constant for every input | 0 of 6 | 0 of 6 |
+| 16 | source sleeps when it is not run by pytest (a timeout) | 0 of 6 | 0 of 6 |
+| 17 | source writes over the check in the judge's base checkout | 0 of 6 | 0 of 6 |
+
+One more submission is not counted as an attack: it hands the work to the real code the check compares with (`from urllib.parse import urljoin as join`, and the like). Knos's black box accepted it for 6 of 6 tasks, and so it should: it has the behaviour that was asked for. A black-box check measures behaviour, not how it was reached; a buyer who wants an implementation of their own says so in the task, and no check of outputs can enforce it.
+<!-- real:end -->
+
+<!-- accept:begin -->
+## Tasks that are not code
+
+examples/acceptance/ holds three tasks a buyer can write with no code to point at, each as a black-box bundle (scripts/acceptance_examples.py runs them; tests/test_acceptance_examples.py runs every submission once): **clean-csv** (turn messy customer exports into one clean file; every cell must equal the clean table the messy file was made from), **summarise** (a one-line summary of an incident report; unigram F1 against the reference written in the bundle, mean at least 0.85 and 90% of reports at 0.70 or more) and **classify** (hold risky payments; accuracy at least 0.85 on a hidden set and on a fresh one). Each has the text a buyer would write (TASK.md), an honest solution, cheating submissions and near misses, and every submission goes through `knos proof judge`, the command prove.yml runs. Each cheat and near miss was judged 3 times and each honest solution 20 times, with new generated inputs each time. The cheats: a constant answer, reading the answer file (the held-out set, in the submission's own tree, in the judge's other trees and in the judge's private copy), special-casing the visible examples, never finishing, writing outside the sandbox (over the bundle in the judge's base checkout), asking a service on the network, answer bytes that are not text, too many answers, and editing the bundle in the pull request.
+
+| task | honest solution accepted | cheats | cheats accepted | near misses | near misses accepted |
+|---|---|---|---|---|---|
+| classify | 20 of 20 | 9 | 0 of 27 | 1 | 0 of 3 |
+| clean-csv | 20 of 20 | 8 | 0 of 24 | 1 | 0 of 3 |
+| summarise | 20 of 20 | 8 | 0 of 24 | 2 | 0 of 6 |
+
+**False accepts: none. False refusals: none.**
+
+| task | submission | kind | accepted |
+|---|---|---|---|
+| classify | constant | cheat | 0 of 3 |
+| classify | edits_the_bundle | cheat | 0 of 3 |
+| classify | garbage_output | cheat | 0 of 3 |
+| classify | outsource_network | cheat | 0 of 3 |
+| classify | reads_answer | cheat | 0 of 3 |
+| classify | special_cases_visible | cheat | 0 of 3 |
+| classify | timeout | cheat | 0 of 3 |
+| classify | too_many_answers | cheat | 0 of 3 |
+| classify | writes_outside | cheat | 0 of 3 |
+| classify | shallow | near miss | 0 of 3 |
+| clean-csv | constant | cheat | 0 of 3 |
+| clean-csv | edits_the_bundle | cheat | 0 of 3 |
+| clean-csv | garbage_output | cheat | 0 of 3 |
+| clean-csv | outsource_network | cheat | 0 of 3 |
+| clean-csv | reads_answer | cheat | 0 of 3 |
+| clean-csv | special_cases_visible | cheat | 0 of 3 |
+| clean-csv | timeout | cheat | 0 of 3 |
+| clean-csv | writes_outside | cheat | 0 of 3 |
+| clean-csv | no_dedupe | near miss | 0 of 3 |
+| summarise | constant | cheat | 0 of 3 |
+| summarise | edits_the_bundle | cheat | 0 of 3 |
+| summarise | garbage_output | cheat | 0 of 3 |
+| summarise | outsource_network | cheat | 0 of 3 |
+| summarise | reads_answer | cheat | 0 of 3 |
+| summarise | special_cases_visible | cheat | 0 of 3 |
+| summarise | timeout | cheat | 0 of 3 |
+| summarise | writes_outside | cheat | 0 of 3 |
+| summarise | no_fix | near miss | 0 of 3 |
+| summarise | whole_report | near miss | 0 of 3 |
+
+After 25 of 25 cheating submissions (each judged 3 times) the judge's base checkout held the bundle it started with and the marker file was not written.
+What these bundles rely on, measured and not assumed. The answers are not on disk in a form the submission can use: the messy files and the reports are generated from the answer (there is no cleaner or summariser to copy), and only the held-out parts are fixed data. The sandbox does the rest: no network (the cheat that sends the work to a service on 127.0.0.1 got `Network is unreachable`), a user that cannot write the judge's files or the base checkout (the sentence above), and, since this release, a tree with no copy of the bundle. The first run of the cheat that reads the answer file (in clean-csv) found the held-out set in `.knos/acceptance/1/` of its own tree and answered the held-out part right; it was stopped only by the freshly generated part, so a bundle made of fixed answers alone (a hidden set, a reference) was paid to it (tests/test_acceptance_examples.py::test_the_pull_request_cannot_read_the_bundle_it_is_judged_by fails on 0.3.12's judge and passes now). `knos.judge` now removes the repository's bundles from the tree before the submission runs. What no judge can do: a bundle committed to a public repository is public to the person who writes the submission, who can copy a fixed hidden set into it. A set that must stay hidden is drawn at judge time, as the fresh parts here are; a fixed part (the held-out file, the hidden labels) only keeps out code that reads it while it is judged. Near the bar the check is a threshold, not a proof: the near misses are refused because they score below it (the summarise one that leaves out the fix, about 0.82 against 0.85, is the closest), and a score near the bar can go either way.
+<!-- accept:end -->

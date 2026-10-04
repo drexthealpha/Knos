@@ -1,0 +1,106 @@
+{
+ "note": "The upgrade multisig's account is the real one of devnet (tests/fixtures/governance_v2.json) with transaction_index set to 5, because the real one has made no proposal; the five proposals and their transactions are built by tests/test_site_recorded.py in the layouts src/knos/mainnet_check.py reads, at the addresses it derives. `pending` is what mainnet_check.pending_proposals reads from them at `now`. tests/web/site.mjs holds web/upgrade.js to that answer. Written by `python tests/test_site_recorded.py`.",
+ "now": 1790000000,
+ "multisig": "9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK",
+ "time_lock": 172800,
+ "threshold": 2,
+ "accounts": {
+  "9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "e07479ba44a14fec45363021ca9e76d721dbbc5a0c458003c3f0b174c3502c0998ba83c7ab3082550000000000000000000000000000000000000000000000000000000000000000020000a302000500000000000000000000000000000000ff0300000071ee0ffe451242f7b060c3fe6b477a5536a212816489ef6fff3c27e0ef863740077fc0a9793211967d3e6e4b550a022da6d60f0d50dba401ba5cb1664c9b1edf8a07bdff32d7b0c8e1f2fde62ae5751e6873e6b98311ef451bd0f5ef4de25aeab0eb070000000000000000000000000000000000000000000000000000000000000000",
+   "what": "the upgrade multisig, with transaction_index 5"
+  },
+  "244HX9wyPMjypMLPkiSr2qJgv9vg4sVH1Jrz7oq24p3z": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "1a5ebdbb748835217b1f58330d30d31e433215500b04a71be1147d469920f9b5f846d3e681abea760500000000000000001c3bb16a00000000fe000000000000000000000000",
+   "what": "proposal 5: Draft, an upgrade of a program that is not Knos's, drafted"
+  },
+  "H7mGPAzJnGUmLWWRJVmw3wUo8AAGNwCD8zJX4v1U7UXH": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "a8faa264510ea2cf0000000000000000000000000000000000000000000000000000000000000000a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d230600000000000000ff00fe010000000701010608000000a5b14d8e4b82aaea40181294b004228791c0edb478298273e1371c7baf7c17b31111111111111111111111111111111111111111111111111111111111111111a3bb36ec22cc077409516232f19b136f302d4350d1242e7eaa498817916c532c306dbc6eb5259fe66b09edb2962eeed5820e2577e33ad3c398e79be2a0504a9611111111111111111111111111111111111111111111111111111111111111118c62eed8f5a6cfacc9ef2ab06e49536fbf87e1ed443f8924860503690d853c55a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d2302a8f6914e88a1b0e210153ef763ae2b00c2b93d16c124d2c0537a100480000001000000070700000000010203040506040000000300000000000000",
+   "what": "transaction 5: an upgrade of a program that is not Knos's, drafted"
+  },
+  "4nDjbSWXPGsqHRzyPgcoYSdaXPqhM7hURN3Enr8Js7nA": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "1a5ebdbb748835217b1f58330d30d31e433215500b04a71be1147d469920f9b5f846d3e681abea7604000000000000000330f5b06a00000000fe020000000a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0000000000000000",
+   "what": "proposal 4: Approved, an upgrade of knos_pay, approved five hours before now"
+  },
+  "9YgSKkuXd4P6DkR8xBVGj6zDvQZn7Az1brawH6tbgxfH": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "a8faa264510ea2cf0000000000000000000000000000000000000000000000000000000000000000a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d230600000000000000ff00fe0100000007010106080000007adb53a0cacb0a8b1e8b4a51a040c3ce7b2e3078e8afab099a5d219c9700079749ceddca89a8578fec9e3c752975e6a24b8c4aea993b335b617f14feafc694fd2222222222222222222222222222222222222222222222222222222222222222306dbc6eb5259fe66b09edb2962eeed5820e2577e33ad3c398e79be2a0504a9611111111111111111111111111111111111111111111111111111111111111118c62eed8f5a6cfacc9ef2ab06e49536fbf87e1ed443f8924860503690d853c55a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d2302a8f6914e88a1b0e210153ef763ae2b00c2b93d16c124d2c0537a100480000001000000070700000000010203040506040000000300000000000000",
+   "what": "transaction 4: an upgrade of knos_pay, approved five hours before now"
+  },
+  "3n6Vu67CRaUYK9sBYVwnKu9FexF5ZP9yKREnaizKaeLr": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "1a5ebdbb748835217b1f58330d30d31e433215500b04a71be1147d469920f9b5f846d3e681abea76030000000000000001601fb16a00000000fe010000000a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0000000000000000",
+   "what": "proposal 3: Active, an upgrade of knos_oidc, one approval of two so far"
+  },
+  "HVAh3kqvANKgMHQtjfhXNa1ehpU9iKez53rCewRytZQp": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "a8faa264510ea2cf0000000000000000000000000000000000000000000000000000000000000000a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d230600000000000000ff00fe010000000701010608000000842492e0d844c02d452842efbf3724ed5bc05548757dd91fdbc0596cf5b76e88db45493635ef280dfbbe736a6dfad8bcf86038c2a53974f7641d7842b8aa41713333333333333333333333333333333333333333333333333333333333333333306dbc6eb5259fe66b09edb2962eeed5820e2577e33ad3c398e79be2a0504a9611111111111111111111111111111111111111111111111111111111111111118c62eed8f5a6cfacc9ef2ab06e49536fbf87e1ed443f8924860503690d853c55a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d2302a8f6914e88a1b0e210153ef763ae2b00c2b93d16c124d2c0537a100480000001000000070700000000010203040506040000000300000000000000",
+   "what": "transaction 3: an upgrade of knos_oidc, one approval of two so far"
+  },
+  "FJFRVzuiW4oyREL9gMXB8xypq31L1DqRaJhUjyqHTTid": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "1a5ebdbb748835217b1f58330d30d31e433215500b04a71be1147d469920f9b5f846d3e681abea76020000000000000005e049ac6a00000000fe020000000a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0000000000000000",
+   "what": "proposal 2: Executed, an upgrade of knos_pay that ran already: not pending"
+  },
+  "Cmem151dULDeNggzeKeUVHsXiTcDf4w6ZUXoVBEEyyGf": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "a8faa264510ea2cf0000000000000000000000000000000000000000000000000000000000000000a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d230600000000000000ff00fe0100000007010106080000007adb53a0cacb0a8b1e8b4a51a040c3ce7b2e3078e8afab099a5d219c9700079749ceddca89a8578fec9e3c752975e6a24b8c4aea993b335b617f14feafc694fd2222222222222222222222222222222222222222222222222222222222222222306dbc6eb5259fe66b09edb2962eeed5820e2577e33ad3c398e79be2a0504a9611111111111111111111111111111111111111111111111111111111111111118c62eed8f5a6cfacc9ef2ab06e49536fbf87e1ed443f8924860503690d853c55a81a699c53e41a67a0155eb9193261c84c740ab0bf06b1e0abc8e6bd67c61d2302a8f6914e88a1b0e210153ef763ae2b00c2b93d16c124d2c0537a100480000001000000070700000000010203040506040000000300000000000000",
+   "what": "transaction 2: an upgrade of knos_pay that ran already: not pending"
+  },
+  "5DB1VcUWADUZmdpdUtbo3rhrzBLRzwSKZnmykrEXMAJo": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "1a5ebdbb748835217b1f58330d30d31e433215500b04a71be1147d469920f9b5f846d3e681abea76010000000000000003c0efad6a00000000fe020000000a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0000000000000000",
+   "what": "proposal 1: Approved, a change to the multisig itself, approved: pending, but not an upgrade of a program"
+  },
+  "33vzPCnV2thPW5XRiFLgnX84bM93NR1Do5S7ni2EhGNL": {
+   "owner": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+   "data": "5e080423718b8b700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "what": "transaction 1: a change to the multisig itself, approved: pending, but not an upgrade of a program"
+  }
+ },
+ "pending": [
+  {
+   "index": 5,
+   "status": "Draft",
+   "approved": 0,
+   "threshold": 2,
+   "kind": "upgrade",
+   "program": "29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2",
+   "buffer": "C292dwpb8KUCypWsy3jKvH16ZhgeknY6ZWXyZvP9d8A7",
+   "executes_at": null
+  },
+  {
+   "index": 4,
+   "status": "Approved",
+   "approved": 2,
+   "threshold": 2,
+   "kind": "upgrade",
+   "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+   "buffer": "3JF3sEqM796hk5WFqA6EtmEwJQ9quALszsfJyvXNQKy3",
+   "executes_at": 1790154800
+  },
+  {
+   "index": 3,
+   "status": "Active",
+   "approved": 1,
+   "threshold": 2,
+   "kind": "upgrade",
+   "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+   "buffer": "4Ss5JMkXAD9Z7cktFEdrqeMuT6jGMF1pVozTyPHZ6zT4",
+   "executes_at": null
+  },
+  {
+   "index": 1,
+   "status": "Approved",
+   "approved": 2,
+   "threshold": 2,
+   "kind": "config",
+   "program": null,
+   "buffer": null,
+   "executes_at": 1789956800
+  }
+ ]
+}

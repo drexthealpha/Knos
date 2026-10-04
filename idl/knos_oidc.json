@@ -1,5 +1,5 @@
 {
-  "version": "0.3.12",
+  "version": "0.3.13",
   "name": "knos_oidc",
   "docs": [
     "OIDC on Solana: verifies an RS256 token from GitHub Actions or GitLab CI on chain. No admin, immutable.",

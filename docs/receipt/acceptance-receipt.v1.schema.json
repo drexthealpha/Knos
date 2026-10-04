@@ -1,0 +1,297 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/drexthealpha/Knos/blob/main/docs/receipt/acceptance-receipt.v1.schema.json",
+ "title": "Knos acceptance receipt, version 1",
+ "description": "Who signed what, about which artifact, under which terms, and what was paid for it. The rules a schema cannot say are in docs/RECEIPT.md.",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "amounts",
+  "artifact",
+  "cluster",
+  "judge",
+  "order",
+  "payees",
+  "program",
+  "repository",
+  "scope",
+  "terms",
+  "transaction",
+  "type",
+  "version"
+ ],
+ "properties": {
+  "type": {
+   "const": "knos.acceptance-receipt"
+  },
+  "version": {
+   "const": 1
+  },
+  "cluster": {
+   "enum": [
+    "devnet",
+    "mainnet-beta",
+    "localnet"
+   ]
+  },
+  "program": {
+   "type": "string",
+   "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+  },
+  "order": {
+   "type": "string",
+   "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+  },
+  "scope": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "repository": {
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "id",
+      "issue"
+     ],
+     "properties": {
+      "id": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "issue": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    }
+   ]
+  },
+  "artifact": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "commit",
+    "pull_request"
+   ],
+   "properties": {
+    "commit": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{40}$"
+    },
+    "pull_request": {
+     "type": "integer",
+     "minimum": 0
+    }
+   }
+  },
+  "terms": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "hash",
+    "mode"
+   ],
+   "properties": {
+    "hash": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    "mode": {
+     "enum": [
+      "merge",
+      "tests"
+     ]
+    }
+   }
+  },
+  "judge": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "claims",
+    "issuer",
+    "key",
+    "kind",
+    "token_sha256"
+   ],
+   "properties": {
+    "kind": {
+     "enum": [
+      "repository",
+      "neutral",
+      "attestor",
+      "arbiter"
+     ]
+    },
+    "issuer": {
+     "type": "string",
+     "pattern": "^https://"
+    },
+    "claims": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "actor_id",
+      "event_name",
+      "exp",
+      "iat",
+      "job_workflow_ref",
+      "job_workflow_sha",
+      "repository_id",
+      "repository_owner_id",
+      "run_attempt",
+      "run_id",
+      "runner_environment"
+     ],
+     "properties": {
+      "actor_id": {
+       "type": "string"
+      },
+      "event_name": {
+       "type": "string"
+      },
+      "exp": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "iat": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "job_workflow_ref": {
+       "type": "string"
+      },
+      "job_workflow_sha": {
+       "type": "string",
+       "pattern": "^[0-9a-f]{40}$"
+      },
+      "repository_id": {
+       "type": "string"
+      },
+      "repository_owner_id": {
+       "type": "string"
+      },
+      "run_attempt": {
+       "const": "1"
+      },
+      "run_id": {
+       "type": "string"
+      },
+      "runner_environment": {
+       "const": "github-hosted"
+      }
+     }
+    },
+    "token_sha256": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    "key": {
+     "type": "string",
+     "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+    }
+   }
+  },
+  "payees": {
+   "type": "array",
+   "minItems": 1,
+   "maxItems": 4,
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "amount",
+     "bps",
+     "github_id",
+     "to"
+    ],
+    "properties": {
+     "github_id": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "bps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000
+     },
+     "amount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+     },
+     "to": {
+      "type": "string",
+      "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+     }
+    }
+   }
+  },
+  "amounts": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "decimals",
+    "fee",
+    "mint",
+    "of",
+    "paid",
+    "tip"
+   ],
+   "properties": {
+    "mint": {
+     "type": "string",
+     "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+    },
+    "decimals": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 18
+    },
+    "paid": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "of": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "fee": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "tip": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    }
+   }
+  },
+  "transaction": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "signature",
+    "slot",
+    "time"
+   ],
+   "properties": {
+    "signature": {
+     "type": "string",
+     "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+    },
+    "slot": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "time": {
+     "type": "integer",
+     "minimum": 0
+    }
+   }
+  }
+ }
+}

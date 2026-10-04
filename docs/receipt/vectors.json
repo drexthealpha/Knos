@@ -1,0 +1,421 @@
+{
+ "note": "Conformance vectors of the acceptance receipt, version 1 (docs/RECEIPT.md). A reader must accept every `valid` receipt and compute its digest, and refuse every `invalid` one: `of` is the index of the valid receipt it was made from and `set` the fields changed (dotted paths).",
+ "valid": [
+  {
+   "name": "one payee, judged by a run in the order's own repository",
+   "sha256": "00d1d55151775720cdbc70e6a44902ea6588ddb6450f887f266c981938824265",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 1,
+    "cluster": "localnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+    "repository": {
+     "id": 987654321,
+     "issue": 77
+    },
+    "artifact": {
+     "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pull_request": 12
+    },
+    "terms": {
+     "hash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+     "mode": "merge"
+    },
+    "judge": {
+     "kind": "repository",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "555000",
+      "event_name": "pull_request_target",
+      "exp": 1790003880,
+      "iat": 1790003580,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "repository_id": "987654321",
+      "repository_owner_id": "424242",
+      "run_attempt": "1",
+      "run_id": "36905461215",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE"
+    },
+    "payees": [
+     {
+      "github_id": 5550123,
+      "bps": 10000,
+      "amount": "20000000",
+      "to": "6JhaGdekBjU2RfiYWSjYdQAibx4LfSfTNFEeMUHnUVz7"
+     }
+    ],
+    "amounts": {
+     "mint": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+     "decimals": 6,
+     "paid": "20000000",
+     "of": "20000000",
+     "fee": "200000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "35uS8fqUd1ARccqYuFaEbZy2kbFHr9uGcWLSg8FP1358V5Y8EEThyu4USBfHEhMjxd3QMKoNUMtHuhtMYKBXWcye",
+     "slot": 412,
+     "time": 1790003600
+    }
+   }
+  },
+  {
+   "name": "two payees, judged by a neutral run its starter owns",
+   "sha256": "a72ba4b52f763bb0c5f9dec578ab753723c0636c43c3cfbbc6078731ac09393c",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 1,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "CdqZoPKKKiLicdQZnSFpMc8Sn7Bx7dc2Y9tcb5w94aZP",
+    "scope": "5e7eb9ed0bde4f6d0d9aaaf3ea4f13490ecbf60af383eebb2d461e69007e12b2",
+    "repository": {
+     "id": 1353152983,
+     "issue": 214
+    },
+    "artifact": {
+     "commit": "3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f",
+     "pull_request": 219
+    },
+    "terms": {
+     "hash": "7cadccd2d5fae8de0b43c9bc56c67e45340c643d11488838a757e4f8bc2ec385",
+     "mode": "merge"
+    },
+    "judge": {
+     "kind": "neutral",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "7001",
+      "event_name": "workflow_dispatch",
+      "exp": 1790100300,
+      "iat": 1790100000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "900100200",
+      "repository_owner_id": "7001",
+      "run_attempt": "1",
+      "run_id": "37000000001",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "17b9639c99eebb8bf27dc599a4ae762accf05843cd8d926270098df9403f6c83",
+     "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE"
+    },
+    "payees": [
+     {
+      "github_id": 7001,
+      "bps": 7000,
+      "amount": "70000000",
+      "to": "CNsKNAm4jrw8uWHSJgUbgXY5vDduk4EHb9LFfPPyn8St"
+     },
+     {
+      "github_id": 8002,
+      "bps": 3000,
+      "amount": "30000000",
+      "to": "AXvyUbXteWBZDcBQYnpwRra6TFRZ9YyiHEmfMiUr5gX2"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "100000000",
+     "of": "100000000",
+     "fee": "2150000",
+     "tip": "350000"
+    },
+    "transaction": {
+     "signature": "yCa8j6G2hrVstnLjZt8oN1CfdqUAZ186KGCwCsd3178uQ5Jp5Sgyt6DP8CWiCaCHAdV7Xn6ffK4qkbUw6xs11Mb",
+     "slot": 507114715,
+     "time": 1790100031
+    }
+   }
+  },
+  {
+   "name": "a private order, judged by its attestor repository",
+   "sha256": "8024666393e4f563562fa8395612eced9a6b0e05f282185e96b1a15f5cca8416",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 1,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "4RjsRNBzfb4YEysfyMucethtmRpPJaHNSvXmo6BBEpoX",
+    "scope": "88bbb1f1142733f1f4ae31d5f5086e371f3dba320b6f21da42244f7600dae8c6",
+    "repository": null,
+    "artifact": {
+     "commit": "7777777777777777777777777777777777777777",
+     "pull_request": 0
+    },
+    "terms": {
+     "hash": "596797a744962cdc979f634b5eb03dc4f500dee061cf02f507b362277fd296ee",
+     "mode": "tests"
+    },
+    "judge": {
+     "kind": "attestor",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "6161",
+      "event_name": "workflow_dispatch",
+      "exp": 1790200300,
+      "iat": 1790200000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "repository_id": "5150",
+      "repository_owner_id": "6160",
+      "run_attempt": "1",
+      "run_id": "37000000002",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "52300c648d7bf3be9967637971f2df7210fc207355efc3cffdd86324cc972f20",
+     "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE"
+    },
+    "payees": [
+     {
+      "github_id": 9003,
+      "bps": 10000,
+      "amount": "250000000",
+      "to": "4ADVZZ467fCxzGxcCQ6oA2JTa7r9bzhrrUNtrYgmuMu7"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "250000000",
+     "of": "250000000",
+     "fee": "6200000",
+     "tip": "50000"
+    },
+    "transaction": {
+     "signature": "cKNuyGNoGpvBpEPRz3UZrsDNEgZvpoCrvEjkwyuhDCdm8XSaXKpocwqupbV8PhCSFX4Xtzx3LhLsdMTHKXVk3yq",
+     "slot": 507200000,
+     "time": 1790200040
+    }
+   }
+  },
+  {
+   "name": "an arbiter's ruling that splits the order",
+   "sha256": "d0bc6c129c85f03708c0cb5a167d7267ce024afbb824cbf47943a676e7c54d2e",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 1,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "artifact": {
+     "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+     "pull_request": 31
+    },
+    "terms": {
+     "hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge"
+    },
+    "judge": {
+     "kind": "arbiter",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE"
+    },
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    }
+   }
+  },
+  {
+   "name": "a mint with nine decimals: amounts that do not fit a JSON number",
+   "sha256": "95c7248a91fb3d19892cd4768bfe93e3a1f88b5c02b02e6ad4b2720b5dc10bfe",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 1,
+    "cluster": "mainnet-beta",
+    "program": "7cCMvXwKYeuuyUtkcEqZK8PQnB72wNatWdDNsj5pzNn4",
+    "order": "HVwCmgNZ8qyCHsSGFU5DaV731KvoXQFE3odbs6aEwrVq",
+    "scope": "3f4ef2ab031a1fb99dafdbfcf45aba02e900ee02415ed98bbb4ea79107f9ba55",
+    "repository": {
+     "id": 77,
+     "issue": 3
+    },
+    "artifact": {
+     "commit": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+     "pull_request": 4
+    },
+    "terms": {
+     "hash": "14660372955d1ee85cb8e5ce9c5994c614f5acb63d63bc28c602f21a333b8446",
+     "mode": "tests"
+    },
+    "judge": {
+     "kind": "repository",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "79",
+      "event_name": "pull_request_target",
+      "exp": 1790400300,
+      "iat": 1790400000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "efefefefefefefefefefefefefefefefefefefef",
+      "repository_id": "77",
+      "repository_owner_id": "78",
+      "run_attempt": "1",
+      "run_id": "37000000004",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "6701682e310e05bf1dc1da5602ae7c349709f21c9fe297a9c80a321cc4fd6806",
+     "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE"
+    },
+    "payees": [
+     {
+      "github_id": 555,
+      "bps": 10000,
+      "amount": "500000000000",
+      "to": "9z2LMKJoUqvj9zF7bV9gLVFU9YP21SxwXUjtsAgvVEY7"
+     }
+    ],
+    "amounts": {
+     "mint": "CE5UN5UAUW99UrQWgKm2p51tqKqaqRy5Eem3vc1UwZhD",
+     "decimals": 9,
+     "paid": "500000000000",
+     "of": "18000000000000000000",
+     "fee": "12450000000",
+     "tip": "50000000"
+    },
+    "transaction": {
+     "signature": "2bVWBaqNCmgzr79rtN4bzx4iunojHRaehN3uSJ3fAopYi914t2xELdVCgRT2EVVtYcCNBVpvrrSPxrFXE8Z1TqLx",
+     "slot": 453037723,
+     "time": 1790400007
+    }
+   }
+  }
+ ],
+ "invalid": [
+  {
+   "name": "shares that do not add up to 10000",
+   "of": 1,
+   "set": {
+    "payees.1.bps": 2999
+   },
+   "why": "shares add up to 10000"
+  },
+  {
+   "name": "payees who received more than was paid",
+   "of": 1,
+   "set": {
+    "payees.0.amount": "70000001"
+   },
+   "why": "adds up to amounts.paid"
+  },
+  {
+   "name": "an amount as a JSON number",
+   "of": 0,
+   "set": {
+    "amounts.paid": 20000000
+   },
+   "why": "decimal strings"
+  },
+  {
+   "name": "a repository judge in another repository",
+   "of": 0,
+   "set": {
+    "judge.claims.repository_id": "1"
+   },
+   "why": "order's own repository"
+  },
+  {
+   "name": "a scope that is not the repository's",
+   "of": 0,
+   "set": {
+    "repository.issue": 78
+   },
+   "why": "scope is not sha256"
+  },
+  {
+   "name": "a private order with a public judge",
+   "of": 2,
+   "set": {
+    "judge.kind": "neutral",
+    "judge.claims.actor_id": "6160"
+   },
+   "why": "private order is judged by its attestor"
+  },
+  {
+   "name": "a self-hosted runner",
+   "of": 3,
+   "set": {
+    "judge.claims.runner_environment": "self-hosted"
+   },
+   "why": "GitHub-hosted runner"
+  },
+  {
+   "name": "a field nobody defined",
+   "of": 0,
+   "set": {
+    "note": "paid in full"
+   },
+   "why": "missing or unknown"
+  },
+  {
+   "name": "a later version",
+   "of": 0,
+   "set": {
+    "version": 2
+   },
+   "why": "of version 1"
+  }
+ ]
+}

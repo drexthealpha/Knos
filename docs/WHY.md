@@ -1,7 +1,7 @@
 # Why Knos
 
-The argument, with its sources. Every outside source was read on 2 Oct 2026; a date beside a link is the source's
-own date. "Secondary" marks a number read in coverage of the original, not in the original.
+The argument, with its sources. Every outside source was read on 2 or 3 Oct 2026; a date beside a link is the
+source's own date. "Secondary" marks a number read in coverage of the original, not in the original.
 
 ## 1. An agent's word costs nothing, so it is not evidence
 
@@ -54,12 +54,13 @@ work that held up, and for a worker to know the money is there.
 
 ## 3. Paying per result already exists, where the seller keeps the meter
 
-Intercom charges 0.99 USD per resolved conversation for its support agent, which is near 100 million USD a year
-([EnterpriseDNA, 2 Aug 2026](https://enterprisedna.co/resources/ai-pulse/ai-pulse-2026-08-02-intercom-s-fin-ai-agent-is-nearing-100m-arr-roughly-half-of/),
-secondary). For code, Sourcegraph began billing one product per merged changeset on 14 Sep 2026: "If it doesn't get
+Intercom charges 0.99 USD per outcome for its support agent, Fin, which has passed 100 million USD of annual
+recurring revenue ([Sacra](https://sacra.com/research/intercom), secondary). For code, Sourcegraph began billing one product per merged changeset on 14 Sep 2026: "If it doesn't get
 merged, you don't pay" ([changelog](https://sourcegraph.com/changelog/agentic-batch-changes-ga),
 [its note on pricing, 16 Sep 2026](https://sourcegraph.com/blog/agentic-batch-changes-pricing)). In both the
-seller's own system counts the results.
+seller's own system counts the results. Buyers object to that: "Attribution disputes are where these contracts
+fall apart" (a director at Twilio, in
+[CIO, 16 Jun 2026](https://www.cio.com/article/4184688/it-hurtles-toward-the-great-enterprise-pricing-reset.html)).
 
 Code has something support does not: a third party that already records the result. GitHub records who opened a
 pull request, what its checks concluded and who merged it, and it signs statements about a workflow run for free.
@@ -68,46 +69,86 @@ forge it or keep the money.
 
 ## 4. What has been tried before, and the rule Knos takes from each
 
-### Letters of credit: pay against a third party's document
+The first two parts are the history that explains the design, in one page. The rest are single lessons.
+
+### Letters of credit: payment against documents a third party signed
 
 A seller in one port and a buyer in another cannot see each other's goods or money. The letter of credit solved
-that: a bank pays the seller against documents that a third party signed, above all the carrier's bill of lading.
-In 2011 letters of credit covered 12.5% of world trade, 2.3 trillion USD
+that. A bank promises to pay the seller against documents that someone other than the seller signed, above all the
+carrier's bill of lading. The seller ships because the bank's promise does not depend on the buyer's mood. The
+buyer accepts because the bank pays only on the documents the credit names. In 2011 letters of credit covered
+12.5% of world trade, 2.3 trillion USD
 ([Niepmann and Schmidt-Eisenlohr, VoxEU, 11 Jun 2016](https://cepr.org/voxeu/columns/trade-finance-around-world)).
-The banks' rules are the UCP 600 ([text](https://pacliirms.austlii.edu.au/pits/en/treaty_database/2006/14.html)).
+The banks' rules are the UCP 600, the 2007 revision
+([text](https://pacliirms.austlii.edu.au/pits/en/treaty_database/2006/14.html)).
 
 | UCP 600 | the rule Knos takes |
 |---|---|
 | Article 4: "A credit by its nature is a separate transaction from the sale or other contract on which it may be based." | The escrow is separate from any argument about the work. It hears no disputes. |
-| Article 5: "Banks deal with documents and not with goods, services or performance to which the documents may relate." Article 14(a): they examine "on the basis of the documents alone". | The program reads GitHub's signed statement and the job's terms, and nothing else. It never looks at the code. |
-| Article 15(a): "When an issuing bank determines that a presentation is complying, it must honour." | A pay token that matches the terms is paid in the transaction that verifies it. There is no veto. |
-| Article 14(b): the bank has "a maximum of five banking days" to examine. Article 16: a refusal needs a single notice that states "each discrepancy"; a bank that fails to give it "shall be precluded from claiming that the documents do not constitute a complying presentation". | The time to object is fixed and comes first. A maintainer who does not want a pull request to take the bounty says so before merging (`/knos reject`, with the reason). Merging is acceptance. |
+| Article 5: "Banks deal with documents and not with goods, services or performance to which the documents may relate." Article 14(a): they examine "on the basis of the documents alone". | The program reads GitHub's signed statement and the order's terms, and nothing else. It never looks at the code. |
+| Article 15(a): "When an issuing bank determines that a presentation is complying, it must honour." | A pay token that matches the terms is paid in the transaction that verifies it. Nobody can veto it. |
+| Article 14(b): the bank has "a maximum of five banking days" to examine. Article 16: a refusal needs a single notice that states "each discrepancy"; a bank that fails to give it "shall be precluded from claiming that the documents do not constitute a complying presentation". | The time to object is fixed and comes first. A maintainer who does not want a pull request to be paid says so before merging (`/knos reject`, with the reason). Merging is acceptance. |
 | A credit has an expiry date. With no complying presentation by then, the bank owes nothing. | With no payment by the deadline, the funder is refunded. The refund needs no token. |
 
-### Stand-alone escrow lost to payment built into the marketplace
+**The strict-compliance rule.** A bank pays only when the documents match the credit. The English courts put it
+this way in 1926: "There is no room for documents which are almost the same, or which will do just as well"
+(Viscount Sumner in Equitable Trust Co of New York v Dawson Partners, quoted in
+[Fortis Bank v Indian Overseas Bank, 2009, paragraph 18](https://caselaw.nationalarchives.gov.uk/ewhc/comm/2009/2303)).
+The UCP 600 softens the wording, not the idea: data "need not be identical to, but must not conflict with" the
+credit (Article 14(d)). The rule is harsh on a seller with a typing error, and it is why the instrument works: a
+bank that needs no judgment can promise payment to a stranger.
 
-In 2001 "only 6% of online auction buyers" had paid through an online escrow service. Escrow.com charged 3% by
-cheque or money order and 6% by card, and the authors found that stand-alone escrow "may have difficulty surviving"
-where expected fraud is low
+Knos applies the rule to a machine-readable document. The terms are hashed when the order is funded. The pay token
+must carry that hash, the head commit, the payees and the order's address, signed by the workflow commit the order
+recorded. A token that is almost the same is refused. No instruction changes what must be true for payment after
+funding. A funder can add money, or cancel with 7 days' notice during which a valid pay token still pays.
+
+**What the rule cannot do.** The documents can be in order and the goods bad. Article 5 says so in terms: the bank
+does not deal with the goods. For Knos the checks can pass and the change can still be poor. That is why the
+default also asks for a person's merge, and why a funder can keep part of the money back for a warranty period,
+set at funding and public before the work starts.
+
+### Escrow in marketplaces, and where disputes arise
+
+Stand-alone escrow lost to payment built into the marketplace. In 2001 "only 6% of online auction buyers" had paid
+through an online escrow service. Escrow.com charged 3% by cheque or money order and 6% by card, and the authors
+found that stand-alone escrow "may have difficulty surviving" where expected fraud is low
 ([Hu, Lin, Whinston and Zhang, Information Systems Research 15(3), 2004](https://www.scheller.gatech.edu/directory/research/information-technology-management/zhang/pdf/isr-escrow.pdf)).
 What won was a payment inside the marketplace's own flow: in July 2002 "about 60 percent of PayPal's business"
 came from eBay users ([Associated Press, 8 Jul 2002](https://www.paypalobjects.com/html/press/070802APEbayBuys.html)).
 
-The rule: no separate place to go. Funding is a comment on the issue, payment follows the merge, and the result is
-a comment on the pull request. The fee, 2.5%, is below what escrow charged then.
+Escrow inside a marketplace moves the dispute to the moment of release. On Upwork a fixed-price dispute opens in
+two cases: a client ends a contract "with a deposited balance and requests a refund", or the freelancer "submitted
+work for a contract or milestone, but the client hasn't released the payment". A party has "seven calendar days"
+to file. An agent then gives "a non-binding resolution", and the last step is "a binding arbitration service"
+that the parties buy
+([Upwork](https://support.upwork.com/hc/en-us/articles/211068528-Dispute-a-fixed-price-contract)). Both cases
+have one cause: the money is in escrow, and what counts as done was left to a person to decide afterwards.
 
-### Mechanical Turk: rejection that costs the buyer nothing
-
-On Mechanical Turk, "Requesters have the right to reject a Turker's completed work without payment" while
-"retaining ownership rights to the rejected work", and the platform "is not involved in resolving any labor
-disputes". Workers answer by avoiding requesters they do not know and by choosing tasks with concrete criteria
+Where the buyer decides alone, the seller carries the risk. On Mechanical Turk, "Requesters have the right to
+reject a Turker's completed work without payment" while "retaining ownership rights to the rejected work", and the
+platform "is not involved in resolving any labor disputes". Workers answer by avoiding requesters they do not know
+and by choosing tasks with concrete criteria
 ([McInnis, Cosley, Nam and Leshed, CHI 2016](https://bpb-us-w2.wpmucdn.com/sites.coecis.cornell.edu/dist/1/6/files/2016/06/p2271-mcinnis-16rd8kx.pdf);
 437 comments from 391 workers).
 
-The rule: once the work is accepted, the buyer cannot take the money back. There is no veto and no review window
-after the merge, and no instruction changes the terms after funding. What Knos does not fix: before the merge a
-maintainer can still read a pull request, decline it and write the same change. The merge button stays with the
-buyer.
+The rules Knos takes:
+
+- **No separate place to go.** Funding is a comment on the issue, or one transaction from a wallet. Payment
+  follows the merge. The result is a comment on the pull request.
+- **Done is defined before the work, by a record neither side writes.** Release is not a button the buyer
+  presses. That removes "submitted, but not released".
+- **Once the work is accepted, the buyer cannot take the money back.** The only money that can return after a
+  merge is a holdback the funder set at funding, and only if the change is reverted inside the warranty.
+- **The buyer cannot withhold the evidence either.** After a merge the seller can have the pinned workflow read
+  GitHub's public record from a repository of the seller's own.
+- **Ending early has a price and a notice.** A funder can cancel with 7 days' notice. A valid pay token inside the
+  notice still pays. If the order was reserved, the share named at funding goes to the person who held it.
+- **Who rules on a dispute is chosen at funding, or nobody is.** An order may name an arbiter. An order that named
+  none has no such path.
+
+What Knos does not fix: before the merge a maintainer can still read a pull request, decline it and write the same
+change. The merge button stays with the buyer.
 
 ### Bountysource: the custodian was the risk
 
@@ -136,7 +177,7 @@ out of its totals.
 
 curl's numbers are in section 2. The cost fell on the people who had to read every report.
 
-The rule: a bounty can be reserved. An assigned issue pays only its assignee, and `/knos take` reserves an
+The rule: an order can be reserved. An assigned issue pays only its assignee, and `/knos take` reserves an
 unassigned one for 7 days unless the funder set another number. The free check marks a false "tests pass" before a
 person reads the pull request. Knos does not remove the review work. A maintainer who is flooded should also use
 GitHub's own limits ([COMPARE.md](COMPARE.md)).
@@ -170,7 +211,7 @@ The rule: the default acceptance is the merge. Checks are necessary and not suff
 
 A chain gives this three things a company cannot promise. The money is committed before the work, in a program and
 not in a company's account (Bountysource). The payee needs no account with a payment company, only a GitHub account
-and an address. And the verifier is a program any other program can call ([OIDC.md](OIDC.md)). A company running
+and an address, which can be a wallet made from a passkey. And the verifier is a program any other program can call ([OIDC.md](OIDC.md)). A company running
 the same escrow would be one more party to trust. Until an outside review Knos is still such a party, through its
 multisig (section 4, Bountysource).
 
@@ -191,7 +232,8 @@ workflow read: which checks passed and who the author is are the workflow's read
 trustworthy as the repository it ran in.
 
 **Finite tests do not establish that software does everything intended.** A check that passed shows that this
-check passed. Of 21 cheating pull requests in [TAMPER.md](TAMPER.md), plain CI was fooled by 17. METR's maintainers
+check passed. Of 63 cheating pull requests in [TAMPER.md](TAMPER.md) (21 ideas in each of three sample
+repositories), plain CI was fooled by 56. METR's maintainers
 would not have merged about half of the patches that passed. That is why the default asks for a person's merge as
 well, and why a merge is still only that person's judgment.
 

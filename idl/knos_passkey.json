@@ -1,0 +1,237 @@
+{
+  "version": "0.3.13",
+  "name": "knos_passkey",
+  "docs": [
+    "A wallet from a passkey: an account whose only authority is a WebAuthn (P-256) assertion, verified by Solana's secp256r1 precompile (SIMD-0075).",
+    "Upgradeable only through a multisig with a public 48-hour delay, until an outside review.",
+    "A native program: this file is written by hand from programs-v2/knos_passkey/src/lib.rs (its header lists every instruction and the account) and checked by tests/test_passkey_chain.py.",
+    "Instruction data is the discriminant byte, then the arguments in order, little-endian, with no padding. A `bytes` argument runs to the end of the data.",
+    "The wallet's money is in ordinary token accounts whose owner is the wallet's address (its associated token account for a mint); whoever pays the wallet creates them.",
+    "Withdraw must come right after an instruction of Secp256r1SigVerify1111111111111111111111111 that verifies exactly one signature, with the key, the signature and the message in that instruction's own data:",
+    "count u8 = 1, padding u8, then u16 LE signature offset, 0xFFFF, key offset, 0xFFFF, message offset, message length, 0xFFFF; the key is the wallet's 33-byte compressed key, the signature r || s with s <= n/2,",
+    "the message authenticatorData || sha256(clientDataJSON). The clientDataJSON's type must be webauthn.get and its challenge the unpadded base64url of",
+    "sha256(\"knos-passkey\" || wallet || mint || to || amount u64 LE || nonce u64 LE). authenticatorData must have the user-present flag set."
+  ],
+  "instructions": [
+    {
+      "name": "Open",
+      "docs": [
+        "Anyone creates the wallet of a passkey, with nonce 0, and pays its rent. A wallet that is open already is left as it is. Needed once, before the first Withdraw; the address can be paid before."
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "Pays the wallet account's rent"
+        },
+        {
+          "name": "wallet",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"pk\", sha256(key)]"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        }
+      ],
+      "args": [
+        {
+          "name": "key",
+          "type": {
+            "array": [
+              "u8",
+              33
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    },
+    {
+      "name": "Withdraw",
+      "docs": [
+        "Moves amount of mint from a token account of the wallet to the token account `to`, on the passkey's assertion for exactly that. Nobody signs this instruction: anyone may send it and pay the fee.",
+        "nonce must be the wallet's nonce plus one and becomes the wallet's nonce. Nothing is created and no lamports leave the wallet.",
+        "A Token-2022 mint with an extension other than MintCloseAuthority, ConfidentialTransferMint, InterestBearingConfig, MetadataPointer, TokenMetadata, GroupPointer, TokenGroup, GroupMemberPointer, TokenGroupMember, ConfidentialMintBurn or ScaledUiAmount is refused."
+      ],
+      "accounts": [
+        {
+          "name": "wallet",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"pk\", sha256(key)], open"
+        },
+        {
+          "name": "from",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "A token account of the mint owned by the wallet (its associated token account)"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint"
+        },
+        {
+          "name": "to",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The destination token account: the one the challenge names"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "SPL Token or Token-2022: the mint's owner"
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The instructions sysvar"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
+          "name": "clientDataJson",
+          "type": "bytes"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Wallet",
+      "docs": [
+        "PDA [\"pk\", sha256(key)]: the wallet of a passkey. 48 bytes. version is 1. key: the passkey's P-256 public key, SEC1 compressed.",
+        "nonce: the nonce of the last withdrawal (0: none yet); the next Withdraw must carry nonce + 1."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "key",
+            "type": {
+              "array": [
+                "u8",
+                33
+              ]
+            }
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 110,
+      "name": "Accounts",
+      "msg": "a wrong account, or a missing signature"
+    },
+    {
+      "code": 111,
+      "name": "Key",
+      "msg": "not a compressed P-256 public key"
+    },
+    {
+      "code": 112,
+      "name": "Wallet",
+      "msg": "not a wallet of this program"
+    },
+    {
+      "code": 113,
+      "name": "Precompile",
+      "msg": "the instruction before this one is not one secp256r1 verification of its own data"
+    },
+    {
+      "code": 114,
+      "name": "Signer",
+      "msg": "the signature verified is another key's, not this wallet's"
+    },
+    {
+      "code": 115,
+      "name": "Message",
+      "msg": "what was signed is not authenticatorData || sha256(this clientDataJSON)"
+    },
+    {
+      "code": 116,
+      "name": "Present",
+      "msg": "the authenticator did not report that a person was present"
+    },
+    {
+      "code": 117,
+      "name": "ClientData",
+      "msg": "the client data is not that of a webauthn.get with a challenge"
+    },
+    {
+      "code": 118,
+      "name": "Challenge",
+      "msg": "the challenge is not the one for this wallet, mint, destination, amount and nonce"
+    },
+    {
+      "code": 119,
+      "name": "Nonce",
+      "msg": "the nonce is not the wallet's nonce plus one"
+    },
+    {
+      "code": 120,
+      "name": "Mint",
+      "msg": "the mint or the token program is not accepted"
+    },
+    {
+      "code": 121,
+      "name": "HighS",
+      "msg": "the signature's s is in the upper half of the curve order"
+    },
+    {
+      "code": 122,
+      "name": "From",
+      "msg": "from is not a token account of this mint owned by the wallet, or is the destination"
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85"
+  }
+}

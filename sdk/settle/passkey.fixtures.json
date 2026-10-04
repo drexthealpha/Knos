@@ -1,0 +1,151 @@
+{
+ "inputs": {
+  "payer_seed": "1515151515151515151515151515151515151515151515151515151515151515",
+  "mint_seed": "1616161616161616161616161616161616161616161616161616161616161616",
+  "owner_seed": "1717171717171717171717171717171717171717171717171717171717171717",
+  "spki": "3059301306072a8648ce3d020106082a8648ce3d030107034200043c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d8206488c46dd7a725404556ece703345e1b19173b3b250d3979e558c3e1d4f8cfb7a2f",
+  "point": "043c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d8206488c46dd7a725404556ece703345e1b19173b3b250d3979e558c3e1d4f8cfb7a2f",
+  "amount": 25000000,
+  "nonce": 1,
+  "authenticator_data": "2d9b36b165053e226bb31ce61c2d3b256d1d584c7bf811a254f7047cb83b221e0500000001",
+  "client_data_json": "{\"type\":\"webauthn.get\",\"challenge\":\"tgtiv-mx1fO2K7siMurK3pqmNSXvE5huuKMNR6g7qH4\",\"origin\":\"https://knos.dev\",\"crossOrigin\":false}",
+  "signature_der": "304502206b0d45ce1dbe71356219478d27dc6d20b4e9ce58e5d5b8689d1bb5ba17afd9f302210097f1eb0ca8eccc5966ded80e1040c940397ba872fdc7e577717832bca5f51ed6",
+  "registration_authenticator_data": "2d9b36b165053e226bb31ce61c2d3b256d1d584c7bf811a254f7047cb83b221e4500000000000000000000000000000000000000000010000102030405060708090a0b0c0d0e0fa50102032620012158203c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d8206482258208c46dd7a725404556ece703345e1b19173b3b250d3979e558c3e1d4f8cfb7a2f",
+  "attestation_object": "a363666d74646e6f6e656761747453746d74a068617574684461746158942d9b36b165053e226bb31ce61c2d3b256d1d584c7bf811a254f7047cb83b221e4500000000000000000000000000000000000000000010000102030405060708090a0b0c0d0e0fa50102032620012158203c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d8206482258208c46dd7a725404556ece703345e1b19173b3b250d3979e558c3e1d4f8cfb7a2f",
+  "credential_id": "000102030405060708090a0b0c0d0e0f",
+  "rp_id": "knos.dev"
+ },
+ "program": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+ "payer": "FMUEmtxhU46GzhKF4FW9MLJdQWiLgjiXP9TYRWSrqTpV",
+ "mint": "6TcyBfPdBt1kjsvDZLzmBFnuMaLWiTaAt4RjUr9VA5YD",
+ "owner": "4MfyR4G3NWfVRDWo6iNAHDBZqWMgwZX6FNtMqEW3a9JT",
+ "key": "033c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d820648",
+ "wallet": "2CqSX73LjpgP7dAFWDitGcdjS6m7Lmq4sRUqDfaz5LE6",
+ "from": "8KgzZzNNnRg9AWAojcSb1zTcBYWUtLy3u3ELXCzEQUW1",
+ "to": "4FUnYfpgyBBYdxYmvEQpN2Nj7gtNKVxmihCDr8hipLPZ",
+ "challenge": "b60b62bfe9b1d5f3b62bbb2232eacade9aa63525ef13986eb8a30d47a83ba87e",
+ "challenge_b64url": "tgtiv-mx1fO2K7siMurK3pqmNSXvE5huuKMNR6g7qH4",
+ "raw_signature": "6b0d45ce1dbe71356219478d27dc6d20b4e9ce58e5d5b8689d1bb5ba17afd9f3680e14f2571333a7992127f1efbf36bf836b523aa94fb90d82419806566e067b",
+ "request": "Azycz8UjAg6Ds1OaJRVEFzwd7EmH3b8MK1O9bZyNggZIURw0oaLLUh3xa7JGuN6OeZfOI1x+drIqPXUDokgZ3YowSJvonNU0tuSHVqHAxZj2XFcoSftikDAyNXJNfvuk8EB4fQEAAAAAAQAAAAAAAAAlAC2bNrFlBT4ia7Mc5hwtOyVtHVhMe/gRolT3BHy4OyIeBQAAAAGBAHsidHlwZSI6IndlYmF1dGhuLmdldCIsImNoYWxsZW5nZSI6InRndGl2LW14MWZPMks3c2lNdXJLM3BxbU5TWHZFNWh1dUtNTlI2ZzdxSDQiLCJvcmlnaW4iOiJodHRwczovL2tub3MuZGV2IiwiY3Jvc3NPcmlnaW4iOmZhbHNlfWsNRc4dvnE1YhlHjSfcbSC06c5Y5dW4aJ0btboXr9nzaA4U8lcTM6eZISfx7782v4NrUjqpT7kNgkGYBlZuBns=",
+ "request_line": "knos-withdraw: Azycz8UjAg6Ds1OaJRVEFzwd7EmH3b8MK1O9bZyNggZIURw0oaLLUh3xa7JGuN6OeZfOI1x+drIqPXUDokgZ3YowSJvonNU0tuSHVqHAxZj2XFcoSftikDAyNXJNfvuk8EB4fQEAAAAAAQAAAAAAAAAlAC2bNrFlBT4ia7Mc5hwtOyVtHVhMe/gRolT3BHy4OyIeBQAAAAGBAHsidHlwZSI6IndlYmF1dGhuLmdldCIsImNoYWxsZW5nZSI6InRndGl2LW14MWZPMks3c2lNdXJLM3BxbU5TWHZFNWh1dUtNTlI2ZzdxSDQiLCJvcmlnaW4iOiJodHRwczovL2tub3MuZGV2IiwiY3Jvc3NPcmlnaW4iOmZhbHNlfWsNRc4dvnE1YhlHjSfcbSC06c5Y5dW4aJ0btboXr9nzaA4U8lcTM6eZISfx7782v4NrUjqpT7kNgkGYBlZuBns=",
+ "account": {
+  "data": "01ff033c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d82064800000000002900000000000000",
+  "key": "033c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d820648",
+  "nonce": 41
+ },
+ "errors": {
+  "110": "a wrong account in the instruction",
+  "111": "that is not a compressed P-256 public key (33 bytes starting with 02 or 03)",
+  "112": "that account is not a passkey wallet; open it first",
+  "113": "the instruction right before Withdraw must be the secp256r1 check of this passkey's signature, with everything in its own data",
+  "114": "the signature is another passkey's, not this wallet's",
+  "115": "the signed message is not this authenticator data followed by the hash of this client data",
+  "116": "the authenticator did not report that a person was present; sign again and confirm on the device",
+  "117": "the client data is not that of a passkey signature (type webauthn.get, with a challenge)",
+  "118": "the passkey signed for another withdrawal: the wallet, the mint, the destination, the amount or the nonce differs; sign again for this one",
+  "119": "the nonce is not the wallet's nonce plus one: this withdrawal was sent already, or another came first; read the wallet and sign again",
+  "120": "this mint cannot be withdrawn: it is not a mint of the token program passed, or it is a Token-2022 mint with an extension the program does not accept",
+  "121": "the signature's s is in the upper half; send n - s instead, as this client's builders do",
+  "122": "the source is not a token account of this mint owned by the wallet, or it is the destination"
+ },
+ "ixs": {
+  "open": {
+   "program": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+   "data": "00033c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d820648",
+   "accounts": [
+    {
+     "pubkey": "FMUEmtxhU46GzhKF4FW9MLJdQWiLgjiXP9TYRWSrqTpV",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "pubkey": "2CqSX73LjpgP7dAFWDitGcdjS6m7Lmq4sRUqDfaz5LE6",
+     "signer": false,
+     "writable": true
+    },
+    {
+     "pubkey": "11111111111111111111111111111111",
+     "signer": false,
+     "writable": false
+    }
+   ]
+  },
+  "create_ata": {
+   "program": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+   "data": "01",
+   "accounts": [
+    {
+     "pubkey": "FMUEmtxhU46GzhKF4FW9MLJdQWiLgjiXP9TYRWSrqTpV",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "pubkey": "4FUnYfpgyBBYdxYmvEQpN2Nj7gtNKVxmihCDr8hipLPZ",
+     "signer": false,
+     "writable": true
+    },
+    {
+     "pubkey": "4MfyR4G3NWfVRDWo6iNAHDBZqWMgwZX6FNtMqEW3a9JT",
+     "signer": false,
+     "writable": false
+    },
+    {
+     "pubkey": "6TcyBfPdBt1kjsvDZLzmBFnuMaLWiTaAt4RjUr9VA5YD",
+     "signer": false,
+     "writable": false
+    },
+    {
+     "pubkey": "11111111111111111111111111111111",
+     "signer": false,
+     "writable": false
+    },
+    {
+     "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+     "signer": false,
+     "writable": false
+    }
+   ]
+  },
+  "secp256r1": {
+   "program": "Secp256r1SigVerify1111111111111111111111111",
+   "data": "01003100ffff1000ffff71004500ffff033c9ccfc523020e83b3539a251544173c1dec4987ddbf0c2b53bd6d9c8d8206486b0d45ce1dbe71356219478d27dc6d20b4e9ce58e5d5b8689d1bb5ba17afd9f3680e14f2571333a7992127f1efbf36bf836b523aa94fb90d82419806566e067b2d9b36b165053e226bb31ce61c2d3b256d1d584c7bf811a254f7047cb83b221e05000000018d55b0a0e9f036bc9c58b23c97e0b9e9a9ff21845ad90a0937d835d880e19ad6",
+   "accounts": []
+  },
+  "withdraw": {
+   "program": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+   "data": "0140787d010000000001000000000000007b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2274677469762d6d7831664f324b3773694d75724b3370716d4e53587645356875754b4d4e52366737714834222c226f726967696e223a2268747470733a2f2f6b6e6f732e646576222c2263726f73734f726967696e223a66616c73657d",
+   "accounts": [
+    {
+     "pubkey": "2CqSX73LjpgP7dAFWDitGcdjS6m7Lmq4sRUqDfaz5LE6",
+     "signer": false,
+     "writable": true
+    },
+    {
+     "pubkey": "8KgzZzNNnRg9AWAojcSb1zTcBYWUtLy3u3ELXCzEQUW1",
+     "signer": false,
+     "writable": true
+    },
+    {
+     "pubkey": "6TcyBfPdBt1kjsvDZLzmBFnuMaLWiTaAt4RjUr9VA5YD",
+     "signer": false,
+     "writable": false
+    },
+    {
+     "pubkey": "4FUnYfpgyBBYdxYmvEQpN2Nj7gtNKVxmihCDr8hipLPZ",
+     "signer": false,
+     "writable": true
+    },
+    {
+     "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+     "signer": false,
+     "writable": false
+    },
+    {
+     "pubkey": "Sysvar1nstructions1111111111111111111111111",
+     "signer": false,
+     "writable": false
+    }
+   ]
+  }
+ }
+}

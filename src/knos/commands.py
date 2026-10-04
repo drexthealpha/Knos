@@ -1,6 +1,9 @@
 """What people tell Knos in a comment: one line that starts with `/knos`.
 
     /knos fund <amount> [checks: a, b] [paths: glob, ...] [days N] [reserve N]     (alias: /knos bounty)
+                        and, for a work order: [warranty N] [holdback N] [arbiter @login] [neutral off]
+    /knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]
+    /knos raise <amount>    /knos cancel    /knos split @a 60 @b 40
     /knos take          /knos release       /knos address <address>      /knos mine
     /knos pay @login    /knos reject [reason]   /knos tip <amount>       /knos settle
     /knos status        /knos help
@@ -24,6 +27,7 @@ from dataclasses import dataclass
 DAYS, MAX_DAYS = 14, 90                             # until an unpaid bounty goes back; knos-pay's MAX_WORK
 RESERVE, MAX_RESERVE = 7, 90                        # days a `/knos take` lasts
 MIN_UNITS, MAX_UNITS = 1_000_000, 500_000_000       # knos-pay's MIN_AMOUNT and MAX_AMOUNT, in millionths
+MAX_BUDGET = 1_000_000_000_000                      # a standing offer's budget as written; the escrow's own cap is said at funding
 MONEY = "test USDC"                                 # what devnet's money is called, everywhere
 
 
@@ -34,7 +38,40 @@ class Fund:
     paths: tuple[str, ...] = ()
     days: int = DAYS
     reserve: int = RESERVE
+    warranty: int | None = None                 # a work order's: days a share of each payment waits; None: the repository's policy decides
+    holdback: int | None = None                 # that share, in percent
+    arbiter: str | None = None                  # the login of whoever rules on a dispute
+    neutral: bool | None = None                 # False: only the funder's repository may sign the payment (`neutral off`)
     name = "fund"
+
+
+@dataclass(frozen=True)
+class Offer:
+    """A standing offer to one vendor: `rate` for each accepted change of theirs, out of `budget`."""
+    vendor: str
+    rate: int
+    budget: int
+    checks: tuple[str, ...] | None = None
+    paths: tuple[str, ...] = ()
+    days: int = DAYS
+    reserve = 0                                 # an offer is one vendor's: there is nothing to reserve
+    name = "offer"
+
+    @property
+    def units(self) -> int:
+        """What goes into escrow: the whole budget."""
+        return self.budget
+
+
+@dataclass(frozen=True)
+class Raise:
+    units: int
+    name = "raise"
+
+
+@dataclass(frozen=True)
+class Cancel:
+    name = "cancel"
 
 
 @dataclass(frozen=True)
@@ -62,6 +99,12 @@ class Mine:
 class Pay:
     login: str
     name = "pay"
+
+
+@dataclass(frozen=True)
+class Split:
+    shares: tuple[tuple[str, int], ...]         # (login, percent), one to four, adding up to 100
+    name = "split"
 
 
 @dataclass(frozen=True)
@@ -101,11 +144,15 @@ class Error:
 
 FORMS = {   # the exact form to type, in the order `/knos help` lists them
     "fund": "/knos fund <amount> [checks: a, b] [paths: glob, ...] [days N] [reserve N]",
+    "offer": "/knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]",
+    "raise": "/knos raise <amount>",
+    "cancel": "/knos cancel",
     "take": "/knos take",
     "release": "/knos release",
     "address": "/knos address <your Solana address>",
     "mine": "/knos mine",
     "pay": "/knos pay @login",
+    "split": "/knos split @login <percent> [@login <percent> ...]",
     "reject": "/knos reject [reason]",
     "tip": "/knos tip <amount>",
     "settle": "/knos settle",
@@ -114,19 +161,23 @@ FORMS = {   # the exact form to type, in the order `/knos help` lists them
 }
 ALIASES = {"bounty": "fund"}
 _ABOUT = {
-    "fund": "a maintainer, on an issue: put a bounty on it",
+    "fund": "a maintainer, on an issue: put a bounty on it (a work order also takes `warranty N`, `holdback N`, `arbiter @login`, `neutral off`)",
+    "offer": "a maintainer, on an issue: a standing offer that pays one vendor for each accepted change",
+    "raise": "on a funded issue: how its work order is topped up",
+    "cancel": "a maintainer, on a funded issue: end its work order with 7 days' notice",
     "take": "on a funded issue: reserve it for yourself",
     "release": "on an issue you hold: give it back",
     "address": "on your pull request: where its payment goes",
     "mine": "on a pull request an agent opened for you: it is yours",
     "pay": "a maintainer, on an agent's pull request: who it pays",
+    "split": "a maintainer, before merging: the people a work order pays, and the share of each",
     "reject": "a maintainer, before merging: this pull request does not take the bounty",
     "tip": "a maintainer, on a merged pull request: pay its author now",
     "settle": "on a merged pull request: try its payment again",
     "status": "what is in escrow here",
     "help": "this list",
 }
-_ON_PULL = {"fund": False, "take": False, "release": False, "address": True, "mine": True, "pay": True, "reject": True,
+_ON_PULL = {"fund": False, "offer": False, "raise": False, "cancel": False, "split": True, "take": False, "release": False, "address": True, "mine": True, "pay": True, "reject": True,
             "tip": True, "settle": True}     # where a command belongs; status and help go anywhere
 
 
@@ -157,13 +208,13 @@ def amount(units: int) -> str:
     return f"{whole}.{part:06d}".rstrip("0") if part else str(whole)
 
 
-def _units(text: str) -> int | str:
+def _units(text: str, most: int = MAX_UNITS) -> int | str:
     m = re.fullmatch(r"([0-9]{1,9})(?:\.([0-9]{1,6}))?", text)
     if not m:
         return "the amount is digits with at most 6 decimals, like 20 or 12.5"
     units = int(m.group(1)) * 1_000_000 + int((m.group(2) or "0").ljust(6, "0"))
-    if not MIN_UNITS <= units <= MAX_UNITS:
-        return f"the amount must be from {amount(MIN_UNITS)} to {amount(MAX_UNITS)}"
+    if not MIN_UNITS <= units <= most:
+        return f"the amount must be from {amount(MIN_UNITS)} to {amount(most)}"
     return units
 
 
@@ -186,7 +237,13 @@ def _show(text: str, most: int = 40) -> str:
     return re.sub(r"[^A-Za-z0-9 _.,:;/#()*+=?!'\"-]", "", str(text))[:most].strip()
 
 
-_OPTION = re.compile(r"(checks|paths)\s*:|(days|reserve)\s*:?\s*([0-9]{1,4})(?!\S)|(review)\s+[0-9]+(?!\S)", re.I)
+_LOGIN = r"[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}"
+_OPTION = re.compile(r"(checks|paths)\s*:|(days|reserve|warranty|holdback)\s*:?\s*([0-9]{1,4})(?!\S)|(review)\s+[0-9]+(?!\S)"
+                     r"|(arbiter)\s*:?\s*@?(" + _LOGIN + r")(?!\S)|(neutral)\s*:?\s*(on|off)(?!\S)"
+                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)", re.I)
+_RANGE = {"days": (1, MAX_DAYS), "reserve": (0, MAX_RESERVE), "warranty": (0, 90), "holdback": (0, 50)}     # knos-pay's limits
+_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral")
+_OFFER_TAKES = ("checks", "paths", "days", "rate", "budget")
 
 
 def _list(text: str, i: int) -> tuple[list[str] | str, int]:
@@ -217,7 +274,7 @@ def _list(text: str, i: int) -> tuple[list[str] | str, int]:
     return list(dict.fromkeys(x.strip() for x in items if x.strip())), i
 
 
-def _options(text: str) -> dict | str:
+def _options(text: str, takes: tuple[str, ...] = _FUND_TAKES) -> dict | str:
     out: dict = {}
     i = 0
     while i < len(text):
@@ -227,19 +284,33 @@ def _options(text: str) -> dict | str:
         m = _OPTION.match(text, i)
         if not m:
             word = text[i:].split()[0]
-            if word.lower().rstrip(":") in ("days", "reserve"):
+            if word.lower().rstrip(":") in _RANGE:
                 return f"`{word.lower().rstrip(':')}` needs a whole number after it, like `days 30`"
+            if word.lower().rstrip(":") in ("arbiter", "neutral", "rate", "budget"):
+                return {"arbiter": "`arbiter` needs a GitHub login after it, like `arbiter @octocat`", "neutral": "`neutral` is `neutral off` or `neutral on`",
+                        "rate": "`rate` needs an amount after it, like `rate 12`", "budget": "`budget` needs an amount after it, like `budget 100`"}[word.lower().rstrip(":")]
             return f"`{_show(word)}` is not something this command takes"
         if m.group(4):
             return "there is no `review` any more (once a payment is made it is final)"
-        key = (m.group(1) or m.group(2)).lower()
+        key = (m.group(1) or m.group(2) or m.group(5) or m.group(7) or m.group(9)).lower()
+        if key not in takes:
+            return f"`{key}` is not something this command takes"
         if key in out:
             return f"`{key}` is written twice"
         if m.group(2):
-            low, high = (1, MAX_DAYS) if key == "days" else (0, MAX_RESERVE)
+            low, high = _RANGE[key]
             if not low <= int(m.group(3)) <= high:
                 return f"`{key}` must be from {low} to {high}"
             out[key], i = int(m.group(3)), m.end()
+            continue
+        if m.group(5) or m.group(7):
+            out[key], i = (m.group(6) if m.group(5) else m.group(8).lower() == "on"), m.end()
+            continue
+        if m.group(9):
+            units = _units(m.group(10), MAX_UNITS if key == "rate" else MAX_BUDGET)     # what one order may hold is the chain's to say
+            if isinstance(units, str):
+                return f"`{key}`: {units}"
+            out[key], i = units, m.end()
             continue
         items, i = _list(text, m.end())
         if isinstance(items, str):
@@ -272,6 +343,38 @@ def _fund(rest: str):
     return _bad("fund", options) if isinstance(options, str) else Fund(units, **options)
 
 
+def _offer(rest: str):
+    first, _, more = rest.partition(" ")
+    m = re.fullmatch("@(" + _LOGIN + ")", first)      # the @ is required: `rate` and `budget` are logins too
+    if not m:
+        return _bad("offer", "name the vendor's GitHub account first, like `/knos offer @acme-agents rate 12 budget 100`")
+    options = _options(more, _OFFER_TAKES)
+    if isinstance(options, str):
+        return _bad("offer", options)
+    if "rate" not in options or "budget" not in options:
+        return _bad("offer", "an offer says what one accepted change is paid (`rate 12`) and the most it pays in all (`budget 100`)")
+    if options["rate"] > options["budget"]:
+        return _bad("offer", "the budget is under the rate: it could not pay for one change")
+    return Offer(m.group(1), **options)
+
+
+def _raise(rest: str):
+    units = _units(rest) if rest else "the amount is missing"
+    return _bad("raise", units) if isinstance(units, str) else Raise(units)
+
+
+def _split(rest: str):
+    pairs = re.findall(r"@?(" + _LOGIN + r")\s+([0-9]{1,3})%?(?:\s*,)?(?=\s|$)", rest)
+    if not pairs or re.sub(r"@?" + _LOGIN + r"\s+[0-9]{1,3}%?(?:\s*,)?(?=\s|$)", "", rest).strip():
+        return _bad("split", "name each person and their share in percent, like `/knos split @ana 60 @ben 40`")
+    shares = tuple((login, int(pct)) for login, pct in pairs)
+    if len(shares) > 4 or len({login.lower() for login, _ in shares}) != len(shares):
+        return _bad("split", "a work order pays one to four people, each named once")
+    if any(pct < 1 for _, pct in shares) or sum(pct for _, pct in shares) != 100:
+        return _bad("split", f"the shares must add up to 100, and these add up to {sum(pct for _, pct in shares)}")
+    return Split(shares)
+
+
 def _tip(rest: str):
     units = _units(rest) if rest else "the amount is missing"
     return _bad("tip", units) if isinstance(units, str) else Tip(units)
@@ -284,7 +387,7 @@ def _address(rest: str):
 
 
 def _pay(rest: str):
-    m = re.fullmatch(r"@?([A-Za-z0-9](?:-?[A-Za-z0-9]){0,38})", rest)
+    m = re.fullmatch("@?(" + _LOGIN + ")", rest)
     return Pay(m.group(1)) if m and len(m.group(1)) <= 39 else _bad("pay", "name one GitHub account")
 
 
@@ -292,7 +395,7 @@ def _bare(kind):
     return lambda rest: kind() if not rest else _bad(kind.name, "nothing goes after it")
 
 
-_READ = {"fund": _fund, "take": _bare(Take), "release": _bare(Release), "address": _address, "mine": _bare(Mine),
+_READ = {"fund": _fund, "offer": _offer, "raise": _raise, "cancel": _bare(Cancel), "split": _split, "take": _bare(Take), "release": _bare(Release), "address": _address, "mine": _bare(Mine),
          "pay": _pay, "reject": lambda rest: Reject(rest[:200].strip()), "tip": _tip, "settle": _bare(Settle),
          "status": _bare(Status), "help": lambda rest: Help()}
 
@@ -333,6 +436,9 @@ def _commands() -> str:
 
 _WHO = {
     "fund": "the repository's owner and the people they let spend its balance",
+    "offer": "the repository's owner and the people they let spend its balance",
+    "cancel": "people with write access to this repository",
+    "split": "people with write access to this repository",
     "tip": "the repository's owner and the people they let spend its balance",
     "pay": "people with write access to this repository",
     "reject": "people with write access to this repository",
@@ -343,6 +449,9 @@ _WHO = {
 }
 _INSTEAD = {
     "fund": "You can ask them to fund it: they comment `/knos fund 20` on the issue.",
+    "offer": "You can ask them: they comment `/knos offer @you rate 12 budget 100` on the issue.",
+    "cancel": "The order runs until its deadline; `/knos status` shows it.",
+    "split": "You can ask a maintainer to name the shares before the merge.",
     "tip": "You can ask them: they comment `/knos tip 5` on the merged pull request.",
     "pay": "If an agent opened this pull request for you and you are one of its assignees, comment `/knos mine`.",
     "reject": "You can say in a review why it should not be merged; a maintainer decides.",

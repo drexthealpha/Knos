@@ -143,6 +143,25 @@ def test_a_cluster_that_was_not_ready_is_asked_again_and_a_programs_refusal_is_a
     assert len(calls) == 3
 
 
+def test_the_logs_of_a_transaction_are_asked_for_with_version_1_and_are_the_escrows_own_lines(monkeypatch):
+    """A transaction a relay sends to a 2.1 program is a version 1 transaction, and a cluster refuses to give one to a
+    reader that names a lower version: the rehearsal would then print no line of it."""
+    asked = []
+
+    def cluster(url, method, params, timeout=0):
+        asked.append((url, method, params))
+        if params[1].get("maxSupportedTransactionVersion", -1) < 1:
+            raise chain.RpcError("Transaction version (1) is not supported by the requesting client", {"code": -32015})
+        return {"version": 1, "meta": {"logMessages": ["Program P invoke [1]", "Program log: knos2:paid repo=1 issue=2 author=3 amount=4 fee=5", "Program log: other",
+                                                       "Program P success"]}}
+    monkeypatch.setattr(rf.chain, "call", cluster)
+    assert rehearsal().logs("S") == ["knos2:paid repo=1 issue=2 author=3 amount=4 fee=5"]
+    assert asked == [(NO_NETWORK, "getTransaction", ["S", {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}])]
+    # the logs are a courtesy: a cluster that will not give the transaction costs the rehearsal nothing
+    monkeypatch.setattr(rf.chain, "call", lambda *a, **kw: (_ for _ in ()).throw(chain.RpcError("gone", None)))
+    assert rehearsal().logs("S") == []
+
+
 def test_a_read_is_tried_three_times_and_the_third_failure_is_raised(monkeypatch):
     monkeypatch.setattr(rf, "time", FakeTime())
     seen: list[int] = []

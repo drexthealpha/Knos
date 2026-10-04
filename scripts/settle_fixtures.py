@@ -1,4 +1,4 @@
-"""Write sdk/settle/fixtures.json: knos-oidc and knos-pay addresses, audiences, instructions and accounts encoded by
+"""Write sdk/settle/fixtures.json: knos-oidc, knos-pay and knos-meter addresses, audiences, instructions and accounts encoded by
 the Python client (the authority, src/knos/settle), so any other client (the web app's JavaScript, an npm package, a
 program doing CPI) can check its encodings byte for byte, offline.  Run: python scripts/settle_fixtures.py
 `--check` exits 1 if the file on disk is stale.
@@ -19,7 +19,11 @@ from solders.message import Message
 from solders.pubkey import Pubkey
 from solders.transaction import Transaction
 
+from solders.message import MessageV1, TransactionConfig, to_bytes_versioned
+
+from knos import chain
 from knos.settle import oidc, pay
+from knos.settle.v2 import meter
 from knos.settle.v2 import oidc as oidc2
 from knos.settle.v2 import pay as pay2
 
@@ -134,9 +138,9 @@ def job_bytes(*, state=1, mode=0, kind=1, token_program=0, faucet=0, repo=REPO, 
     return bytes(d)
 
 
-def balance_bytes(*, faucet=0, owner_id=OWNER, authority, mint, cap=CAP, last_iat=NOW - 60, spenders=SPENDERS, spent=7_500_000) -> bytes:
+def balance_bytes(*, faucet=0, owner_id=OWNER, authority, mint, cap=CAP, last_iat=NOW - 60, spenders=SPENDERS, spent=7_500_000, has_x=0) -> bytes:
     d = bytearray(pay2.BALANCE_LEN)
-    d[0], d[1], d[2] = 1, 253, faucet
+    d[0], d[1], d[2], d[3] = 1, 253, faucet, has_x
     _put(d, 8, owner_id); _put(d, 16, authority); _put(d, 48, mint); _put(d, 80, cap); _put(d, 88, last_iat, signed=True)
     for i, s in enumerate(spenders):
         _put(d, 96 + 8 * i, s)
@@ -158,15 +162,119 @@ def rep_bytes(paid=3, funders=2, total=58_500_000, test_paid=4, self_paid=1, tes
     return bytes(d)
 
 
-def key_bytes(n: int, *, state=1, issuer=oidc2.GITHUB, active_at=NOW - 86_400, expires_at=NOW + 29 * 86_400, flags=oidc2.APPROVED | oidc2.GENESIS) -> bytes:
-    """A key account: the 40-byte header, then n and r2 as little-endian limbs."""
+def order_bytes(*, state=1, mode=0, kind=1, flags=pay2.F_NEUTRAL, decimals=6, reserve_days=7, repo=REPO, issue=ISSUE, scope, seq=0, holdback_bps=0, kill_bps=0,
+                amount=AMOUNT, fee=400_000, rate=0, paid=0, deadline=NOW + 14 * 86_400, not_before=NOW, hold_until=0, warranty_s=0, reserved_by=0,
+                reserved_until=0, cancel_at=0, payee=0, funder_id=MAINT, owner_id=OWNER, arbiter_id=0, judge_repo_id=0, source, refund_to, rent_to, mint,
+                terms, wf_repo=WF_REPO, wf_sha=WF_SHA, fee_bps=250) -> bytes:
+    """An order account, laid out as programs-v2/knos_pay/src/state.rs lays it out (the offsets are read_order's)."""
+    d = bytearray(pay2.ORDER_LEN)
+    d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7] = 2, state, mode, kind, flags, 251, decimals, reserve_days
+    for at, v, size, signed in ((8, repo, 8, False), (16, issue, 8, False), (56, seq, 4, False), (60, holdback_bps, 2, False), (62, kill_bps, 2, False),
+                                (64, amount, 8, False), (72, fee, 8, False), (80, rate, 8, False), (88, paid, 8, False), (96, deadline, 8, True),
+                                (104, not_before, 8, True), (112, hold_until, 8, True), (120, warranty_s, 8, True), (128, reserved_by, 8, False),
+                                (136, reserved_until, 8, True), (144, cancel_at, 8, True), (152, payee, 8, False), (160, funder_id, 8, False),
+                                (168, owner_id, 8, False), (176, arbiter_id, 8, False), (184, judge_repo_id, 8, False), (424, fee_bps, 2, False)):
+        _put(d, at, v, size, signed)
+    for at, v in ((24, scope), (192, source), (224, refund_to), (256, rent_to), (288, mint), (320, terms), (352, pay2.wf_repo_hash(wf_repo)), (384, wf_sha.encode())):
+        _put(d, at, v)
+    return bytes(d)
+
+
+def balx_bytes(*, day_limit=50_000_000, total_limit=500_000_000, repos=(REPO, 7), wf_sha=WF_SHA, day=NOW // 86_400, day_spent=12_000_000, total_spent=40_000_000) -> bytes:
+    d = bytearray(pay2.BALX_LEN)
+    d[0], d[1] = 1, 250
+    _put(d, 8, day_limit); _put(d, 16, total_limit)
+    for i, r in enumerate(repos):
+        _put(d, 24 + 8 * i, r)
+    if wf_sha:
+        _put(d, 88, wf_sha.encode())
+    _put(d, 128, day, signed=True); _put(d, 136, day_spent); _put(d, 144, total_spent)
+    return bytes(d)
+
+
+def plan_bytes(owner_id=OWNER, fee_bps=100, expires=NOW + 90 * 86_400) -> bytes:
+    d = bytearray(pay2.PLAN_LEN)
+    d[0], d[1] = 1, 249
+    _put(d, 2, fee_bps, 2); _put(d, 8, owner_id); _put(d, 16, expires, signed=True)
+    return bytes(d)
+
+
+def hb_bytes(payer: Pubkey, until: int, entries) -> bytes:
+    """The record of a holdback (programs-v2/knos_pay/src/order_terms.rs, Hb): `entries` are (GitHub id, wallet, amount)."""
+    d = bytearray(pay2.HB_LEN)
+    d[0], d[1], d[2] = 1, 248, len(entries)
+    _put(d, 8, payer); _put(d, 40, until, signed=True)
+    for i, (payee, wallet, amount) in enumerate(entries):
+        _put(d, 48 + 48 * i, payee); _put(d, 56 + 48 * i, wallet); _put(d, 88 + 48 * i, amount)
+    return bytes(d)
+
+
+def assign_bytes(payee: int, order: Pubkey, to: Pubkey, since: int) -> bytes:
+    d = bytearray(pay2.AS_LEN)
+    d[0], d[1] = 1, 247
+    _put(d, 8, payee); _put(d, 16, order); _put(d, 48, to); _put(d, 80, since, signed=True)
+    return bytes(d)
+
+
+def used_bytes(payer: Pubkey, after: int) -> bytes:
+    d = bytearray(pay2.USED_LEN)
+    d[0] = 1
+    _put(d, 1, payer); _put(d, 33, after, signed=True)
+    return bytes(d)
+
+
+def done_bytes(payer: Pubkey, order: Pubkey) -> bytes:
+    return bytes([1]) + bytes(payer) + bytes(order)
+
+
+def credits_bytes(*, token_program=0, decimals=6, owner_id=OWNER, authority, mint, spent=1_250_000, evaluations=10_025) -> bytes:
+    d = bytearray(meter.CREDITS_LEN)
+    d[0], d[1], d[2], d[3] = 1, 248, token_program, decimals
+    _put(d, 8, owner_id); _put(d, 16, authority); _put(d, 48, mint); _put(d, 80, spent); _put(d, 88, evaluations)
+    _put(d, 96, pay2.wf_repo_hash(WF_REPO)); _put(d, 128, WF_SHA.encode())
+    return bytes(d)
+
+
+def meter_plan_bytes(*, tier=2, month=202610, owner_id=OWNER, rate=20_000, expiry=NOW + 90 * 86_400, used=10_025) -> bytes:
+    d = bytearray(meter.PLAN_LEN)
+    d[0], d[1], d[2] = 1, 247, tier
+    _put(d, 4, month, 4); _put(d, 8, owner_id); _put(d, 16, rate); _put(d, 24, expiry, signed=True); _put(d, 32, used)
+    return bytes(d)
+
+
+def mark_bytes(*, accepted=1, month=202610, buyer=OWNER, seller=MAINT, time=NOW, rate=2_000_000, fee=50_000, payer: Pubkey | None) -> bytes:
+    """A mark as programs-v2/knos_meter/src/state.rs lays it out. `payer` None: one written before CloseMark existed (48 bytes, version 1)."""
+    d = bytearray(meter.MARK_LEN if payer is not None else meter.MARK_LEN_1)
+    d[0], d[1] = 2 if payer is not None else 1, accepted
+    _put(d, 4, month, 4); _put(d, 8, buyer); _put(d, 16, seller); _put(d, 24, time, signed=True); _put(d, 32, rate); _put(d, 40, fee)
+    if payer is not None:
+        _put(d, 48, payer); _put(d, 80, meter.close_after(time), signed=True)
+    return bytes(d)
+
+
+def month_bytes(*, month=202610, buyer=OWNER, seller=MAINT, evaluations=9, accepted=7, rejected=2, value=14_000_000, fees=450_000) -> bytes:
+    d = bytearray(meter.MONTH_LEN)
+    d[0], d[1] = 1, 246
+    _put(d, 4, month, 4)
+    for at, v in ((8, buyer), (16, seller), (24, evaluations), (32, accepted), (40, rejected), (48, value), (56, fees)):
+        _put(d, at, v)
+    return bytes(d)
+
+
+def iss_bytes(url: str) -> bytes:
+    return bytes([3, 245, 0, len(url.encode())]) + url.encode()
+
+
+def key_bytes(n: int, *, state=1, issuer=oidc2.GITHUB, active_at=NOW - 86_400, expires_at=NOW + 29 * 86_400, flags=oidc2.APPROVED | oidc2.GENESIS,
+              tail: bytes = b"") -> bytes:
+    """A key account: the 40-byte header, then n and r2 as little-endian limbs, then (an issuer that is not GitHub or GitLab) the tail."""
     raw = oidc2.modulus_bytes(n)
     n0inv, r2 = oidc2.key_params(n)
     d = bytearray(oidc2.K_HDR)
     d[0], d[1], d[2], d[3] = state, issuer, len(raw) // 4, 252
     _put(d, 4, n0inv, 4); _put(d, 8, active_at, signed=True); _put(d, 16, expires_at, signed=True)
     d[24] = flags
-    return bytes(d) + raw[::-1] + r2[::-1]
+    return bytes(d) + raw[::-1] + r2[::-1] + tail
 
 
 def token_bytes(payload: bytes, *, stage=2, issuer=oidc2.GITHUB, done=16, exp=NOW + 300, key: Pubkey, payer: Pubkey) -> bytes:
@@ -263,7 +371,7 @@ def second() -> dict:
     wallet_tok = pay2.ata(k["authority"], k["mint"])
     wallet_tok22 = pay2.ata(k["authority"], k["mint22"], T22)
     open_ix = pay2.open_balance_ix(k["authority"], OWNER, k["mint"], CAP, SPENDERS)
-    return {
+    out = {
         "note": "The second deployment (programs-v2), from src/knos/settle/v2.",
         "programs": dict(pay2.IDS),
         "inputs": {**{n: str(v) for n, v in k.items()}, "repo_id": REPO, "issue": ISSUE, "payee_id": AUTHOR, "owner_id": OWNER, "maintainer_id": MAINT,
@@ -330,14 +438,18 @@ def second() -> dict:
             "pay.withdraw (amount, token account)": ix(pay2.withdraw_ix(k["authority"], bal, k["mint"], AMOUNT, k["dest_token"])),
             "pay.withdraw (token-2022)": ix(pay2.withdraw_ix(k["authority"], bal22, k["mint22"], 0, None, T22)),
             "pay.fund_balance": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], REPO, ISSUE, terms)),
+            "pay.fund_balance (with its side account)": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], REPO, ISSUE, terms,
+                                                                                balx=True)),
             "pay.fund_balance (faucet)": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], faucet_bal, pay2.faucet_mint(), REPO, ISSUE, terms)),
             "pay.fund_wallet merge": ix(pay2.fund_wallet_ix(k["funder"], k["funder_token"], k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, terms)),
             "pay.fund_wallet tests (token-2022)": ix(pay2.fund_wallet_ix(k["funder"], k["funder_token"], k["mint22"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA,
                                                                        terms_tests, pay2.TESTS, 7 * 86_400, T22)),
-            "pay.pay (a Balance's job, to a wallet)": ix(pay2.pay_ix(k["relayer"], k["token_account"], k["key"], job_bal, j_bal, AUTHOR, k["wallet"])),
-            "pay.pay (a Balance's job, held)": ix(pay2.pay_ix(k["relayer"], k["token_account"], k["key"], job_bal, j_bal, AUTHOR, None)),
+            "pay.pay (a Balance's job, to a wallet)": ix(pay2.pay_ix(k["relayer"], k["token_account"], k["key"], job_bal, j_bal, AUTHOR, k["wallet"], used=JWT)),
+            "pay.pay (a Balance's job, held)": ix(pay2.pay_ix(k["relayer"], k["token_account"], k["key"], job_bal, j_bal, AUTHOR, None, used=pay2.sig_hash(JWT))),
             "pay.pay (a wallet's job, token account)": ix(pay2.pay_ix(k["relayer"], k["token_account"], k["key"], job_wallet, j_wallet, AUTHOR, k["wallet"],
-                                                                      k["dest_token"])),
+                                                                      k["dest_token"], used=k["attest"])),
+            "pay.pay (the marker of a token account's data)": ix(pay2.pay_ix(k["relayer"], k["token_account"], k["key"], job_bal, j_bal, AUTHOR, k["wallet"],
+                                                                               used=token)),
             "pay.settle": ix(pay2.settle_ix(k["relayer"], job_wallet, j_wallet, k["wallet"])),
             "pay.refund (a Balance's job)": ix(pay2.refund_ix(k["relayer"], job_bal, j_bal)),
             "pay.refund (a wallet's job)": ix(pay2.refund_ix(k["relayer"], job_wallet, j_wallet)),
@@ -393,9 +505,422 @@ def second() -> dict:
             "pause (8 bytes)": "0 until i64", "rate (16 bytes)": "0 last use i64 | 8 last iat i64",
             "token (626 + jwt bytes)": "as the first deployment's",
             "key (40 + 8 * limbs bytes)": "0 state u8 (1 ready) | 1 issuer u8 | 2 limbs u8 (64 or 128) | 3 bump u8 | 4 n0inv u32 | 8 active_at i64 | "
-                                          "16 expires_at i64 | 24 flags u8 (1 approved, 2 revoked, 4 genesis) | 40 n (LE limbs) | then r2 (LE limbs)",
+                                          "16 expires_at i64 | 24 flags u8 (1 approved, 2 revoked, 4 genesis, 8 private) | 40 n (LE limbs) | then r2 (LE limbs) | "
+                                          "then, for an issuer that is not GitHub or GitLab, sha256(issuer URL)[32] and the registrant[32]",
+            "order (512 bytes)": "0 version u8 (2) | 1 state u8 (1 open, 3 held, 4 warranty) | 2 mode u8 | 3 kind u8 (0 wallet, 1 Balance) | 4 flags u8 "
+                                 "(1 faucet, 2 private, 4 neutral, 8 standing, 16 token-2022) | 5 bump | 6 decimals | 7 reserve_days | 8 repo_id u64 | "
+                                 "16 issue u64 | 24 scope[32] | 56 seq u32 | 60 holdback_bps u16 | 62 kill_bps u16 | 64 amount u64 | 72 fee u64 | 80 rate u64 | "
+                                 "88 paid u64 | 96 deadline i64 | 104 not_before i64 | 112 hold_until i64 | 120 warranty_s i64 | 128 reserved_by u64 | "
+                                 "136 reserved_until i64 | 144 cancel_at i64 | 152 payee_id u64 | 160 funder_id u64 | 168 owner_id u64 | 176 arbiter_id u64 | "
+                                 "184 judge_repo_id u64 | 192 source[32] | 224 refund_to[32] | 256 rent_to[32] | 288 mint[32] | 320 terms[32] | "
+                                 "352 wf_repo_hash[32] | 384 wf_sha[40] | 424 fee_bps u16",
+            "balx (152 bytes)": "0 version u8 (1) | 8 day_limit u64 | 16 total_limit u64 | 24 repos [u64; 8] | 88 wf_sha[40] | 128 day i64 | 136 day_spent u64 | "
+                                "144 total_spent u64",
+            "plan (24 bytes)": "0 version u8 (1) | 2 fee_bps u16 | 8 owner_id u64 | 16 expires i64",
+            "iss (4 + url bytes)": "0 kind u8 (3) | 3 url length u8 | 4 issuer URL",
         },
     }
+    _merge(out, orders(k, bal, token))
+    out["meter"] = meter_section(k)
+    out["v1"] = v1_section(k, terms)
+    return out
+
+
+def _merge(into: dict, more: dict) -> None:
+    for name, value in more.items():
+        if isinstance(value, dict) and isinstance(into.get(name), dict):
+            overlap = set(value) & set(into[name])
+            assert not overlap, overlap
+            into[name].update(value)
+        else:
+            assert name not in into, name
+            into[name] = value
+
+
+URL = "https://token.example.com"
+SALT = bytes(range(100, 132))
+ORDER_TERMS = {"accept": "", "checks": [{"app": 15368, "name": "test"}], "deny": [".github/**"], "mode": "merge", "paths": [], "reserve": 7, "v": 1}
+# who is paid, by the names of the inputs: [GitHub id, wallet, token account], as pay_order_ix takes them (a wallet of None: held)
+FOUR_PAYEES = [[AUTHOR, "address"], [MAINT, "wallet", "dest_token"], [9, "rent_to"], [10, "payer"]]
+
+
+def _payees(k, named) -> list[tuple]:
+    return [(p[0], k[p[1]] if p[1] else None, *([k[p[2]]] if len(p) > 2 else [])) for p in named]
+
+
+def orders(k, bal, token) -> dict:
+    """What the second deployment's 2.1 build adds: orders, side accounts, plans, single-use markers, other issuers' keys."""
+    scope, scope_private = pay2.scope_of(REPO, ISSUE), pay2.scope_of(REPO, ISSUE, SALT)
+    o_terms = pay2.terms_json(ORDER_TERMS)
+    o_hash = pay2.terms_hash(o_terms)
+    bal22 = pay2.balance_pda(OWNER, k["authority"], k["mint22"])
+    order_w, order_b, order_p = pay2.order_pda(scope, k["funder"], 0), pay2.order_pda(scope, bal, 3), pay2.order_pda(scope_private, k["funder"], 1)
+    flagged = pay2.F_NEUTRAL | pay2.F_STANDING | pay2.F_TOKEN2022
+    faucet_bal = pay2.faucet_balance_pda(OWNER)
+    order_accounts = {
+        "order (open, from a wallet, public)": order_bytes(scope=scope, source=k["funder"], refund_to=k["funder"], rent_to=k["funder"], mint=k["mint"],
+                                                           terms=o_hash, kind=0, funder_id=0, owner_id=0),
+        "order (warranty, from a Balance, standing, token-2022)": order_bytes(
+            state=4, kind=1, flags=flagged, decimals=9, seq=3, holdback_bps=1500, kill_bps=500, rate=2_000_000_000, amount=40_000_000_000, fee=1_000_000_000,
+            paid=6_000_000_000, hold_until=NOW + 5 * 86_400, warranty_s=14 * 86_400, reserved_by=AUTHOR, reserved_until=NOW + 86_400, cancel_at=NOW + 7 * 86_400,
+            arbiter_id=9_001, scope=scope, source=bal, refund_to=pay2.baltok_pda(bal), rent_to=k["relayer"], mint=k["mint22"], terms=o_hash, fee_bps=100),
+        "order (held, private)": order_bytes(state=3, flags=pay2.F_PRIVATE | pay2.F_NEUTRAL, repo=0, issue=0, payee=AUTHOR, judge_repo_id=70_000_001, scope=scope_private,
+                                             source=k["funder"], refund_to=k["funder"], rent_to=k["funder"], mint=k["mint"], terms=o_hash, kind=0, seq=1,
+                                             hold_until=NOW + pay2.HOLD),
+        "order (open, faucet money)": order_bytes(flags=pay2.F_FAUCET | pay2.F_NEUTRAL, scope=scope, source=faucet_bal, refund_to=pay2.baltok_pda(faucet_bal),
+                                                  rent_to=k["relayer"], mint=pay2.faucet_mint(), terms=o_hash),
+        "order (open, cancelled while reserved)": order_bytes(scope=scope, source=k["funder"], refund_to=k["funder"], rent_to=k["funder"], mint=k["mint"], terms=o_hash,
+                                                              kind=0, funder_id=0, owner_id=0, seq=2, kill_bps=1000, amount=20_000_000, fee=500_000,
+                                                              reserved_by=MAINT, reserved_until=NOW + 86_400, cancel_at=NOW, deadline=NOW + pay2.NOTICE),
+        "order (warranty, a holdback, from a wallet)": order_bytes(state=4, scope=scope, source=k["funder"], refund_to=k["funder"], rent_to=k["funder"], mint=k["mint"],
+                                                                   terms=o_hash, kind=0, funder_id=0, owner_id=0, seq=5, holdback_bps=1000, paid=4_500_000,
+                                                                   hold_until=NOW + 30 * 86_400, warranty_s=30 * 86_400),
+        "order (open, a holdback, from a Balance)": order_bytes(scope=scope, seq=6, holdback_bps=2000, warranty_s=14 * 86_400, source=bal,
+                                                                refund_to=pay2.baltok_pda(bal), rent_to=k["relayer"], mint=k["mint"], terms=o_hash),
+        "holdback (one payee)": hb_bytes(k["relayer"], NOW + 30 * 86_400, [(AUTHOR, k["wallet"], 500_000)]),
+        "holdback (three payees)": hb_bytes(k["payer"], NOW + 86_400, [(AUTHOR, k["address"], 300_000), (MAINT, k["wallet"], 150_000), (9, k["rent_to"], 50_001)]),
+        "assign": assign_bytes(AUTHOR, order_w, k["dest_token"], NOW),
+        "marker (used)": used_bytes(k["relayer"], NOW + pay2.USED_KEEP),
+        "marker (done)": done_bytes(k["relayer"], order_b),
+        "balx": balx_bytes(),
+        "balx (no limits, any repository, any commit)": balx_bytes(day_limit=0, total_limit=0, repos=(), wf_sha="", day_spent=0, total_spent=0),
+        "plan": plan_bytes(),
+        "balance (with a side account)": balance_bytes(authority=k["authority"], mint=k["mint"], has_x=1),
+        "iss (an issuer)": iss_bytes(URL),
+    }
+    readers = {"order": pay2.read_order, "balx": pay2.read_balx, "plan": pay2.read_plan, "balance": pay2.read_balance, "iss": oidc2.read_iss,
+               "holdback": pay2.read_holdback, "assign": pay2.read_assign, "marker": pay2.read_marker}
+    read = {name: pay2.read_order(data) for name, data in order_accounts.items() if name.startswith("order")}
+    o_w, o_b, o_p = (read[n] for n in ("order (open, from a wallet, public)", "order (warranty, from a Balance, standing, token-2022)", "order (held, private)"))
+    o_k, o_h, o_hb = (read[n] for n in ("order (open, cancelled while reserved)", "order (warranty, a holdback, from a wallet)", "order (open, a holdback, from a Balance)"))
+    order_k, order_h, order_hb = pay2.order_pda(scope, k["funder"], 2), pay2.order_pda(scope, k["funder"], 5), pay2.order_pda(scope, bal, 6)
+    hb_one, hb_three = pay2.read_holdback(order_accounts["holdback (one payee)"]), pay2.read_holdback(order_accounts["holdback (three payees)"])
+    private_terms = pay2.private_fund_terms(scope_private, o_hash)
+    opts_cases = {
+        "none": pay2.opts(),
+        "merge, reserve 7": pay2.opts(flags=pay2.F_NEUTRAL, reserve_days=7),
+        "everything": pay2.opts(flags=pay2.F_NEUTRAL | pay2.F_STANDING, holdback_bps=5000, warranty_days=90, kill_bps=2000, reserve_days=30, rate=2_500_000,
+                                arbiter_id=9_001, judge_repo_id=70_000_001, salted=True),
+        "private": pay2.opts(flags=pay2.F_PRIVATE | pay2.F_NEUTRAL, salted=True, judge_repo_id=70_000_001),
+    }
+    fund_aud = pay2.order_fund_audience(ISSUE, AMOUNT, pay2.MERGE, o_hash, bal, 14 * 86_400, 3, opts_cases["merge, reserve 7"])
+    one = [(AUTHOR, 10_000, k["address"])]
+    many = [(AUTHOR, 6_000, k["address"]), (MAINT, 3_000, None), (9, 1_000, k["wallet"])]
+    pay_one = pay2.order_pay_audience(order_w, HEAD, o_hash, pay2.MERGE, 12, one)
+    pay_many = pay2.order_pay_audience(order_b, HEAD, o_hash, pay2.TESTS, 40, many)
+    bound = pay2.read_bind(bind_bytes(AUTHOR, k["wallet"], NOW - 3600))
+    tail_url, tail_private = oidc2.issuer_hash(URL) + bytes(32), oidc2.issuer_hash(URL) + bytes(k["authority"])
+    keys = {
+        "other issuer, attested and approved": (key_bytes(N2048, issuer=oidc2.OTHER, flags=oidc2.APPROVED, tail=tail_url), NOW),
+        "other issuer, attested, not approved": (key_bytes(N2048, issuer=oidc2.OTHER, flags=0, active_at=NOW + 3600, tail=tail_url), NOW),
+        "private, usable at once": (key_bytes(N2048, issuer=oidc2.PRIVATE, flags=oidc2.PRIVATE_FLAG, active_at=NOW - 60, tail=tail_private), NOW),
+        "private, revoked": (key_bytes(N2048, issuer=oidc2.PRIVATE, flags=oidc2.PRIVATE_FLAG | oidc2.REVOKED, tail=tail_private), NOW),
+        "private, expired": (key_bytes(N2048, issuer=oidc2.PRIVATE, flags=oidc2.PRIVATE_FLAG, expires_at=NOW - 1, tail=tail_private), NOW),
+        "other issuer, no tail": (key_bytes(N2048, issuer=oidc2.OTHER, flags=oidc2.APPROVED), NOW),
+    }
+    issuer_token = bytearray(token)
+    issuer_token[1] = oidc2.OTHER
+    issuer_token[114:146] = oidc2.issuer_hash(URL)
+    private_token = bytearray(issuer_token)
+    private_token[1] = oidc2.PRIVATE
+    private_token[146:178] = bytes(k["authority"])
+    stepping = bytearray(issuer_token)
+    stepping[0] = 1
+    token_issuers = {"a token of another issuer": bytes(issuer_token), "a token of a private key": bytes(private_token), "a GitHub token": token,
+                     "a token still being verified": bytes(stepping), "too short": bytes(625)}
+    plans = {"no plan": None, "a plan in force": pay2.read_plan(plan_bytes()), "an expired plan": pay2.read_plan(plan_bytes(expires=NOW - 1)),
+             "a rate below the floor": pay2.read_plan(plan_bytes(fee_bps=10)), "a rate above the cap": pay2.read_plan(plan_bytes(fee_bps=900)),
+             "expires this second": pay2.read_plan(plan_bytes(expires=NOW))}
+    four = _payees(k, FOUR_PAYEES)
+    ixs = {
+        "pay.version": ix(pay2.version_ix()),
+        "pay.set_balance_x": ix(pay2.set_balance_x_ix(k["authority"], bal, 50_000_000, 500_000_000, [REPO, 7], WF_SHA)),
+        "pay.set_balance_x (no limits)": ix(pay2.set_balance_x_ix(k["authority"], bal)),
+        "pay.set_balance_x (eight repositories)": ix(pay2.set_balance_x_ix(k["authority"], bal, 1, 2, [1, 2, 3, 4, 5, 6, 7, 2 ** 64 - 1], "d" * 40)),
+        "pay.set_plan": ix(pay2.set_plan_ix(pay2.FEE_OWNER, k["payer"], OWNER, 100, NOW + 90 * 86_400)),
+        "pay.fund_order_wallet": ix(pay2.fund_order_wallet_ix(k["funder"], k["funder_token"], k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, o_terms)),
+        "pay.fund_order_wallet (tests, options, seq, token-2022)": ix(pay2.fund_order_wallet_ix(
+            k["funder"], k["funder_token"], k["mint22"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, o_terms, pay2.TESTS, 7 * 86_400, 4, opts_cases["everything"],
+            token_program=T22)),
+        "pay.fund_order_wallet (private)": ix(pay2.fund_order_wallet_ix(
+            k["funder"], k["funder_token"], k["mint"], 0, 0, AMOUNT, WF_REPO, WF_SHA, o_hash, pay2.MERGE, 14 * 86_400, 1, opts_cases["private"], scope_private)),
+        "pay.fund_order_balance": ix(pay2.fund_order_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], OWNER, REPO, ISSUE, o_terms, JWT, 3)),
+        "pay.fund_order_balance (token-2022, marker given)": ix(pay2.fund_order_balance_ix(k["relayer"], k["token_account"], k["key"], bal22, k["mint22"], OWNER, REPO,
+                                                                                            ISSUE, o_terms, k["attest"], 0, T22)),
+        "pay.pay_order (one payee, a bound wallet)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_w, o_w, [(AUTHOR, k["wallet"])])),
+        "pay.pay_order (one payee, held)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_w, o_w, [(AUTHOR, None)])),
+        "pay.pay_order (four payees, a tip account, a token account)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, four,
+                                                                                            tip_token=k["dest_token"])),
+        # the judges and the terms of an order (order_judge.rs, order_terms.rs)
+        "pay.fund_order_balance (private)": ix(pay2.fund_private_order_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], OWNER, scope_private,
+                                                                                    o_hash, JWT, 3)),
+        "pay.bind_org": ix(pay2.bind_org_ix(k["relayer"], k["token_account"], k["key"], OWNER)),
+        "pay.pay_order (a holdback: its record)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_hb, o_hb,
+                                                                       [(AUTHOR, k["wallet"]), (MAINT, k["address"])])),
+        "pay.pay_order (a standing order: the pull request's marker)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b,
+                                                                                           [(AUTHOR, k["wallet"])], pr=40)),
+        "pay.release (one payee)": ix(pay2.release_ix(k["relayer"], order_h, o_h, hb_one)),
+        "pay.release (three payees, a tip account, token-2022)": ix(pay2.release_ix(k["relayer"], order_b, o_b, hb_three, k["dest_token"])),
+        "pay.revert (a wallet's order)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_h, o_h, hb_one)),
+        "pay.revert (a Balance's order)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, hb_three)),
+        "pay.revert (token account)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_h, o_h, hb_one, k["dest_token"])),
+        "pay.reserve": ix(pay2.reserve_ix(k["relayer"], k["token_account"], k["key"], order_w)),
+        "pay.cancel (a wallet's order)": ix(pay2.cancel_ix(k["funder"], order_w)),
+        "pay.cancel (a Balance's order, a token)": ix(pay2.cancel_ix(k["relayer"], order_b, k["token_account"], k["key"])),
+        "pay.assign": ix(pay2.assign_ix(k["wallet"], order_w, AUTHOR, k["dest_token"])),
+        "pay.close_marker (used)": ix(pay2.close_marker_ix(pay2.used_pda(JWT), k["relayer"])),
+        "pay.close_marker (done)": ix(pay2.close_marker_ix(pay2.done_pda(order_b, 40), k["relayer"], order_b)),
+        "pay.refund_order (a kill fee, to the taker)": ix(pay2.refund_order_ix(k["relayer"], order_k, o_k, kill_token=k["dest_token"])),
+        "pay.refund_order (a kill fee, held for the taker)": ix(pay2.refund_order_ix(k["relayer"], order_k, o_k)),
+        "pay.settle_order": ix(pay2.settle_order_ix(k["relayer"], order_p, o_p, k["wallet"])),
+        "pay.settle_order (token account, tip account)": ix(pay2.settle_order_ix(k["relayer"], order_p, o_p, k["wallet"], k["dest_token"], k["token_account"])),
+        "pay.refund_order (a wallet's order)": ix(pay2.refund_order_ix(k["relayer"], order_w, o_w)),
+        "pay.refund_order (a Balance's order)": ix(pay2.refund_order_ix(k["relayer"], order_b, o_b)),
+        "pay.refund_order (token account)": ix(pay2.refund_order_ix(k["relayer"], order_w, o_w, k["dest_token"])),
+        "pay.top_up (a wallet's order)": ix(pay2.top_up_ix(k["funder"], order_w, o_w, 5_000_000)),
+        "pay.top_up (a Balance's order)": ix(pay2.top_up_ix(k["authority"], order_b, o_b, 5_000_000_000)),
+        "pay.top_up (token account)": ix(pay2.top_up_ix(k["funder"], order_w, o_w, 1, k["dest_token"])),
+        "oidc.register_key (attested, with its key)": ix(oidc2.register_key_ix(k["payer"], oidc2.GITLAB, N4096, k["attest"], k["key"])),
+        "oidc.register_key (no attestation, a key given)": ix(oidc2.register_key_ix(k["payer"], oidc2.GITHUB, N2048, None, k["key"])),
+        "oidc.register_issuer_key": ix(oidc2.register_issuer_key_ix(k["payer"], URL, N2048, k["attest"], k["key"])),
+        "oidc.register_private_key": ix(oidc2.register_private_key_ix(k["authority"], URL, N4096)),
+        "oidc.key_params (issuer URL)": ix(oidc2.key_params_ix(k["payer"], URL, N2048)),
+        "oidc.key_params (private)": ix(oidc2.key_params_ix(k["payer"], URL, N2048, registrant=k["authority"])),
+        "oidc.refresh (with its key)": ix(oidc2.refresh_ix(k["payer"], oidc2.GITHUB, N2048, k["attest"], k["key"])),
+        "oidc.refresh (issuer URL)": ix(oidc2.refresh_ix(k["payer"], URL, N2048, k["attest"], k["key"])),
+        "oidc.approve (issuer URL)": ix(oidc2.approve_ix(oidc2.GUARDIAN, URL, N2048)),
+        "oidc.revoke (private)": ix(oidc2.revoke_ix(k["authority"], URL, N2048, registrant=k["authority"])),
+    }
+    funds = pay2.fund_order_wallet_ix(k["funder"], pay2.ata(k["funder"], k["mint"]), k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, o_terms)
+    return {
+        "inputs": {"url": URL, "salt": SALT.hex(), "order_terms": ORDER_TERMS, "four_payees": FOUR_PAYEES, "head": HEAD},
+        "constants": {"USDC_MAINNET": str(pay2.USDC_MAINNET), "COUNTED": [str(m) for m in pay2.COUNTED], "BALX_LEN": pay2.BALX_LEN, "PLAN_LEN": pay2.PLAN_LEN,
+                      "ORDER_LEN": pay2.ORDER_LEN, "OPTS_LEN": pay2.OPTS_LEN, "ORDER_FEE_MIN": pay2.ORDER_FEE_MIN, "ORDER_FEE_MAX": pay2.ORDER_FEE_MAX,
+                      "ORDER_MIN_AMOUNT": pay2.ORDER_MIN_AMOUNT, "TIP": pay2.TIP, "TIP_FIRST": pay2.TIP_FIRST, "PLAN_BPS_MIN": pay2.PLAN_BPS_MIN,
+                      "MAX_HOLDBACK_BPS": pay2.MAX_HOLDBACK_BPS, "MAX_WARRANTY_DAYS": pay2.MAX_WARRANTY_DAYS, "MAX_KILL_BPS": pay2.MAX_KILL_BPS,
+                      "MAX_PAYEES": pay2.MAX_PAYEES, "HB_LEN": pay2.HB_LEN, "DONE_LEN": pay2.DONE_LEN, "AS_LEN": pay2.AS_LEN, "USED_LEN": pay2.USED_LEN,
+                      "NOTICE": pay2.NOTICE, "USED_KEEP": pay2.USED_KEEP, "F_FAUCET": pay2.F_FAUCET, "F_PRIVATE": pay2.F_PRIVATE, "F_NEUTRAL": pay2.F_NEUTRAL,
+                      "F_STANDING": pay2.F_STANDING, "F_TOKEN2022": pay2.F_TOKEN2022, "KEY_TAIL": oidc2.KEY_TAIL, "OTHER": oidc2.OTHER, "PRIVATE": oidc2.PRIVATE,
+                      "PRIVATE_FLAG": oidc2.PRIVATE_FLAG, "MAX_ISS": oidc2.MAX_ISS, "T_IHASH": oidc2.T_IHASH},
+        "addresses": {
+            "order(scope, wallet, seq 0)": str(order_w), "order(scope, balance, seq 3)": str(order_b), "order(private scope, wallet, seq 1)": str(order_p),
+            "ov(order)": str(pay2.ov_pda(order_w)), "balx(balance)": str(pay2.balx_pda(bal)), "plan(owner)": str(pay2.plan_pda(OWNER)),
+            "used(jwt)": str(pay2.used_pda(JWT)), "used(token account data)": str(pay2.used_pda(token)), "used(signature hash)": str(pay2.used_pda(pay2.sig_hash(JWT))),
+            "key(issuer url, n2048)": str(oidc2.key_pda(URL, N2048)), "key(private, n2048)": str(oidc2.key_pda(URL, N2048, registrant=k["authority"])),
+            "iss(url)": str(oidc2.iss_pda(URL)),
+            "hb(order)": str(pay2.hb_pda(order_w)), "done(order, pr 40)": str(pay2.done_pda(order_b, 40)), "assign(order, payee)": str(pay2.assign_pda(order_w, AUTHOR)),
+        },
+        "audiences": {
+            "order fund": fund_aud, "order fund, no options": pay2.order_fund_audience(ISSUE, AMOUNT, pay2.TESTS, o_hash, bal),
+            "order pay, one payee": pay_one, "order pay, three payees": pay_many, "payees_of(one)": plain(pay2.payees_of(pay_one)),
+            "payees_of(three)": plain(pay2.payees_of(pay_many)), "payees_text(three)": pay2.payees_text(many),
+            "order_destination(bind, address)": str(pay2.order_destination(bound, k["address"])),
+            "order_destination(bind, no address)": str(pay2.order_destination(bound, None)),
+            "order_destination(no bind, address)": str(pay2.order_destination(None, k["address"])),
+            "order_destination(no bind, no address)": pay2.order_destination(None, None),
+            "rotate (issuer url)": oidc2.rotate_audience(URL, N2048),
+            "order fund, private": pay2.order_fund_audience(0, AMOUNT, pay2.MERGE, private_terms, bal, 14 * 86_400, 3, opts_cases["private"]),
+            "rule, three payees": pay2.rule_audience(order_b, many), "org bind": pay2.org_bind_audience(k["wallet"]),
+            "take": pay2.take_audience(order_w, AUTHOR, 7), "cancel": pay2.cancel_audience(order_b), "revert": pay2.revert_audience(order_b, HEAD),
+            "payees_of(rule)": plain(pay2.payees_of(pay2.rule_audience(order_b, many))),
+        },
+        "hashes": {
+            "scope(repo, issue)": scope.hex(), "scope(repo, issue, salt)": scope_private.hex(), "sig_hash(jwt)": pay2.sig_hash(JWT).hex(),
+            "sig_hash(token account data)": pay2.sig_hash(token).hex(), "issuer_hash(url)": oidc2.issuer_hash(URL).hex(), "order terms": o_hash.hex(),
+            "private_fund_terms(scope, terms)": private_terms.hex(),
+        },
+        "order terms": {"json": o_terms.decode(), "hash": o_hash.hex()},
+        "order fees": {f"{a}/{bps}/{dec}": pay2.order_fee(a, bps, dec)
+                       for a in (0, 1, 5_000_000, 20_000_000, 100_000_000, 500_000_000, 999_999_999, 2_000_000_000)
+                       for bps, dec in ((250, 6), (100, 6), (50, 6), (250, 9), (250, 2))},
+        "fees (decimals)": {f"{a}/{dec}": pay2.fee_of(a, dec) for a in (0, 1, 50_000, 1_000_000, 5_000_000_000) for dec in (2, 6, 9)},
+        "units": {f"{m}/{dec}": pay2.units(m, dec) for m in (0, 1, 400_000, 25_000_000, 5_000_000) for dec in (0, 2, 6, 9)},
+        "plan bps": {name: pay2.plan_bps(plan, NOW) for name, plan in plans.items()},
+        # what a refund owes a taker first, by the order it is read from
+        "kill fees": {name: pay2.kill_fee(o) for name, o in read.items()},
+        # where one payee of an order is paid: its assignee, else the address the token carries, else its bound wallet
+        "payee wallets": {
+            "assigned": plain(pay2.payee_wallet(order_accounts["assign"], o_w, bound, k["address"])),
+            "assigned for an earlier order at this address": plain(pay2.payee_wallet(assign_bytes(AUTHOR, order_w, k["dest_token"], NOW - 1), o_w, bound, None)),
+            "no assignment, an address": plain(pay2.payee_wallet(None, o_w, bound, k["address"])),
+            "no assignment, no address, no bind": pay2.payee_wallet(None, o_w, None, None),
+        },
+        "opts": {name: o.hex() for name, o in opts_cases.items()},
+        "order instructions": ixs,
+        "order accounts": {name: {"data": data.hex(), "reader": name.split(" ")[0], "read": plain(readers[name.split(" ")[0]](data))}
+                           for name, data in order_accounts.items()}
+        | {"order (not an order)": {"data": bytes(511).hex(), "reader": "order", "read": plain(pay2.read_order(bytes(511)))},
+           "order (another version)": {"data": bytes(512).hex(), "reader": "order", "read": plain(pay2.read_order(bytes(512)))},
+           "balx (none)": {"data": None, "reader": "balx", "read": plain(pay2.read_balx(None))},
+           "plan (none)": {"data": None, "reader": "plan", "read": plain(pay2.read_plan(None))},
+           "holdback (none)": {"data": None, "reader": "holdback", "read": plain(pay2.read_holdback(None))},
+           "assign (not one)": {"data": bytes(88).hex(), "reader": "assign", "read": plain(pay2.read_assign(bytes(88)))},
+           "marker (neither kind)": {"data": bytes(64).hex(), "reader": "marker", "read": plain(pay2.read_marker(bytes(64)))},
+           "iss (not one)": {"data": bytes([3, 0, 0, 9, 1]).hex(), "reader": "iss", "read": oidc2.read_iss(bytes([3, 0, 0, 9, 1]))}},
+        "order keys": {name: {"data": data.hex(), "now": now, "read": plain(oidc2.read_key(data)), "usable": list(oidc2.key_usable(oidc2.read_key(data), now))}
+                       for name, (data, now) in keys.items()},
+        "token issuers": {name: {"data": data.hex(), "read": plain(oidc2.token_issuer(data))} for name, data in token_issuers.items()},
+        "order transactions": {
+            "a wallet funds an order": tx([funds], k["funder"]),
+            "a wallet funds an order, with its token account": tx([pay2.create_ata_ix(k["funder"], k["funder"], k["mint"]), funds], k["funder"]),
+        },
+    }
+
+
+BUYER_ID, SELLER_ID = OWNER, MAINT
+ORDER32, POLICY32 = bytes([0xA1]) * 32, bytes([0xB2]) * 32
+METER = Pubkey.from_string(pay2.IDS["knos_meter"])
+
+
+def _eval_line(*, buyer=BUYER_ID, seller=SELLER_ID, order=ORDER32, artifact="a" * 40, policy=POLICY32, milestone=0, verdict=1, rate=2_000_000, fee=0, month=202610,
+               n=1, mint=None) -> str:
+    """The line knos_meter's Record prints (programs-v2/knos_meter/src/meter.rs), as the runtime shows it."""
+    return (f"Program log: knosm:eval buyer={buyer} seller={seller} order={order.hex()} artifact={artifact} policy={policy.hex()} milestone={milestone} "
+            f"verdict={verdict} rate={rate} fee={fee} month={month} n={n} mint={mint}")
+
+
+def _tx(program: Pubkey, *lines: str, other: Pubkey | None = None) -> list[str]:
+    """The log of a transaction in which `program` printed `lines` (and `other` a program of someone else's printed the same kind of line)."""
+    head = ["Program ComputeBudget111111111111111111111111111111 invoke [1]", "Program ComputeBudget111111111111111111111111111111 success"]
+    mine = [f"Program {program} invoke [1]", *lines, f"Program {program} success"]
+    return head + mine if other is None else head + [f"Program {other} invoke [1]", *lines, f"Program {other} success"] + mine[:1] + mine[-1:]
+
+
+class _Ledger:
+    """What meter.statement reads: the transactions that named an address, newest first, and the log of each."""
+    def __init__(self, logs: list[list[str]]):
+        self.logs_by = {f"sig{i}": log for i, log in enumerate(logs)}
+
+    def history(self, address, most=500):
+        yield from list(self.logs_by)[:most]
+
+    def logs(self, signature):
+        return self.logs_by[signature]
+
+
+def meter_section(k) -> dict:
+    """knos-meter's addresses, audiences, instructions, account readers and the statement recomputed from logs."""
+    mint, mint22 = k["mint"], k["mint22"]
+    credits, credits22 = meter.credits_pda(OWNER, k["authority"], mint), meter.credits_pda(OWNER, k["authority"], mint22)
+    c = meter.read_credits(credits_bytes(authority=k["authority"], mint=mint))
+    c22 = meter.read_credits(credits_bytes(token_program=1, decimals=9, authority=k["authority"], mint=mint22))
+    aud = meter.eval_audience(BUYER_ID, SELLER_ID, ORDER32, "a" * 40, POLICY32, 0, 1, 2_000_000)
+    aud_rejected = meter.eval_audience(BUYER_ID, SELLER_ID, ORDER32, "b" * 40, POLICY32, 3, 0, 5)
+    e, e_rejected = meter.parse_audience(aud), meter.parse_audience(aud_rejected)
+    when = {"2026-10-03": NOW, "the first second of a month": 1_788_220_800, "the last second of a month": 1_788_220_799, "a year end": 1_798_761_599,
+            "before 1970": -5, "epoch": 0}
+    plans = {"no plan, nothing used": meter.read_plan(None), "a plan, past the free ones": meter.read_plan(meter_plan_bytes()),
+             "a plan, expired": meter.read_plan(meter_plan_bytes(expiry=NOW - 1)), "a plan, last month's count": meter.read_plan(meter_plan_bytes(month=202609)),
+             "inside the free ones": meter.read_plan(meter_plan_bytes(used=9_999, rate=0, expiry=0, tier=0)),
+             "the first one paid for": meter.read_plan(meter_plan_bytes(used=10_000, rate=0, expiry=0, tier=0))}
+    accounts = {
+        "credits": credits_bytes(authority=k["authority"], mint=mint), "credits (token-2022)": credits_bytes(token_program=1, decimals=9, authority=k["authority"], mint=mint22),
+        "plan": meter_plan_bytes(), "mark": mark_bytes(payer=k["relayer"]), "mark (rejected)": mark_bytes(accepted=0, rate=5, fee=0, payer=k["relayer"]),
+        "mark (from before CloseMark)": mark_bytes(payer=None), "month": month_bytes(),
+    }
+    marks = [(meter.mark_pda(BUYER_ID, bytes([n]) * 32), meter.read_mark(mark_bytes(time=t, payer=k["relayer"])))
+             for n, t in ((1, NOW), (2, NOW - 40 * 86_400), (3, 1_788_220_799))]
+    marks.append((meter.mark_pda(BUYER_ID, bytes([4]) * 32), meter.read_mark(mark_bytes(payer=None))))
+    readers = {"credits": meter.read_credits, "plan": meter.read_plan, "mark": meter.read_mark, "month": lambda raw: meter.read_month(raw, OWNER, MAINT, 202610)}
+    # a month, as the log lines say it: two accepted, one rejected, one retried (the same evaluation), one forged by another program, one of another seller,
+    # one of another month; a transaction that failed prints nothing the runtime keeps
+    other = Pubkey(bytes([0x77]) * 32)
+    logs = [
+        _tx(METER, _eval_line(n=1)),
+        _tx(METER, _eval_line(artifact="b" * 40, verdict=0, rate=5, n=2, fee=50_000)),
+        _tx(METER, _eval_line(artifact="c" * 40, milestone=1, rate=3_000_000, n=3, fee=50_000)),
+        _tx(METER, "Program log: knosm:retry buyer=424242 key=00"),
+        _tx(METER, _eval_line(n=1)),
+        _tx(METER, _eval_line(artifact="d" * 40, n=4), other=other),
+        _tx(METER, _eval_line(seller=1, artifact="e" * 40)),
+        _tx(METER, _eval_line(month=202611, artifact="f" * 40)),
+        ["Program log: knosm:eval not parsed"],
+    ]
+    statement = meter.statement(_Ledger(logs), BUYER_ID, SELLER_ID, 202610, METER)
+    return {
+        "inputs": {"order": ORDER32.hex(), "policy": POLICY32.hex(), "artifact": "a" * 40, "other_program": str(other)},
+        "constants": {"MICRO": meter.MICRO, "FEE": meter.FEE, "PLAN_MIN": meter.PLAN_MIN, "FREE_PER_MONTH": meter.FREE_PER_MONTH, "MIN_DECIMALS": meter.MIN_DECIMALS,
+                      "MAX_DECIMALS": meter.MAX_DECIMALS, "EXTENSIONS": list(meter.EXTENSIONS), "CREDITS_LEN": meter.CREDITS_LEN, "PLAN_LEN": meter.PLAN_LEN,
+                      "MARK_LEN": meter.MARK_LEN, "MARK_LEN_1": meter.MARK_LEN_1, "MARK_PAYER": meter.MARK_PAYER, "MARK_GRACE": meter.MARK_GRACE,
+                      "MONTH_LEN": meter.MONTH_LEN, "WORKFLOWS": list(meter.WORKFLOWS), "EVAL": meter.EVAL, "CLOSED": meter.CLOSED},
+        "errors": {str(code): words for code, words in meter.ERRORS.items()},
+        "addresses": {
+            "auth": str(meter.auth_pda()), "credits(owner, authority, mint)": str(credits), "credits(owner, authority, mint22)": str(credits22),
+            "crtok(credits)": str(meter.crtok_pda(credits)), "plan(owner)": str(meter.plan_pda(OWNER)), "mark(buyer, key)": str(meter.mark_pda(BUYER_ID, e.key)),
+            "month(buyer, seller, month)": str(meter.month_pda(BUYER_ID, SELLER_ID, 202610)),
+        },
+        "audiences": {"eval": aud, "eval, rejected": aud_rejected, "parse(eval)": plain(e), "parse(rejected)": plain(e_rejected)},
+        "hashes": {"eval_key": e.key.hex(), "eval_key (rejected)": e_rejected.key.hex()},
+        "yyyymm": {name: meter.yyyymm(t) for name, t in when.items()},
+        "when": when,
+        "next_month": {name: meter.next_month(t) for name, t in when.items()},
+        "close_after": {name: meter.close_after(t) for name, t in when.items()},
+        # the marks one relayer paid for (the last one is from before CloseMark), and the ones CloseMark takes at each time
+        "closable": {"marks": [[str(a), plain(m)] for a, m in marks],
+                     "want": {str(t): [str(a) for a in meter.closable(marks, t)] for t in (NOW, meter.close_after(NOW) - 1, meter.close_after(NOW))}},
+        "fee_units": {f"{rate}/{dec}": meter.fee_units(rate, dec) for rate in (0, 1, 20_000, 50_000, 2_000_000) for dec in (2, 6, 9, 18)},
+        "quote": {name: meter.quote(plan, 6, NOW) for name, plan in plans.items()},
+        "rate_at": {name: plan.rate_at(NOW) for name, plan in plans.items()},
+        "used_in": {name: plan.used_in(202610) for name, plan in plans.items()},
+        "plans": {name: plain(plan) for name, plan in plans.items()},
+        "instructions": {
+            "open_credits": ix(meter.open_credits_ix(k["authority"], OWNER, mint, WF_REPO, WF_SHA)),
+            "open_credits (token-2022)": ix(meter.open_credits_ix(k["authority"], OWNER, mint22, WF_REPO, WF_SHA, T22)),
+            "deposit": ix(meter.deposit_ix(pay2.ata(k["authority"], mint), k["authority"], credits, mint, AMOUNT, 6)),
+            "deposit (token-2022)": ix(meter.deposit_ix(pay2.ata(k["authority"], mint22, T22), k["authority"], credits22, mint22, 3 * 10 ** 9, 9, T22)),
+            "withdraw_credits (everything)": ix(meter.withdraw_credits_ix(k["authority"], credits, mint)),
+            "withdraw_credits (amount, token account)": ix(meter.withdraw_credits_ix(k["authority"], credits, mint, AMOUNT, k["dest_token"])),
+            "withdraw_credits (token-2022)": ix(meter.withdraw_credits_ix(k["authority"], credits22, mint22, 0, None, T22)),
+            "set_plan": ix(meter.set_plan_ix(meter.FEE_OWNER, k["payer"], OWNER, 2, 20_000, NOW + 90 * 86_400)),
+            "record (a fee token account given)": ix(meter.record_ix(k["relayer"], k["token_account"], k["key"], credits, c, aud, NOW, k["dest_token"])),
+            "record (token-2022, the fee owner's own)": ix(meter.record_ix(k["relayer"], k["token_account"], k["key"], credits22, c22, aud_rejected, NOW + 40 * 86_400)),
+            "close_mark": ix(meter.close_mark_ix(k["relayer"], meter.mark_pda(BUYER_ID, e.key))),
+        },
+        "accounts": {name: {"data": data.hex(), "reader": name.split(" ")[0], "read": plain(readers[name.split(" ")[0]](data))} for name, data in accounts.items()}
+        | {"credits (not credits)": {"data": bytes(167).hex(), "reader": "credits", "read": plain(meter.read_credits(bytes(167)))},
+           "plan (none)": {"data": None, "reader": "plan", "read": plain(meter.read_plan(None))},
+           "mark (none)": {"data": None, "reader": "mark", "read": plain(meter.read_mark(None))},
+           "month (none)": {"data": None, "reader": "month", "read": plain(meter.read_month(None, OWNER, MAINT, 202610))}},
+        "parse_eval": {line: plain(meter.parse_eval(line)) for line in ("knosm:eval a=1 b=two c=x=y", "knosm:retry buyer=1", "not a line", "knosm:eval")},
+        "said": {"logs": _tx(METER, "Program log: one", "Program log: two", other=other), "program": str(METER),
+                 "want": chain.said(_tx(METER, "Program log: one", "Program log: two", other=other), METER),
+                 "want (everyone)": chain.said(_tx(METER, "Program log: one", "Program log: two", other=other))},
+        "statement": {"logs": logs, "program": str(METER), "buyer": BUYER_ID, "seller": SELLER_ID, "month": 202610, "want": plain(statement)},
+    }
+
+
+def v1_section(k, terms) -> dict:
+    """The unsigned v1 transaction (SIMD-0385, 4,096 bytes, the compute budget inside the message) as solders writes it."""
+    bal = pay2.balance_pda(OWNER, k["authority"], k["mint"])
+    o_terms = pay2.terms_json(ORDER_TERMS)
+    o_hash = pay2.terms_hash(o_terms)
+    scope = pay2.scope_of(REPO, ISSUE)
+    order_b = pay2.order_pda(scope, bal, 3)
+    o_b = pay2.read_order(order_bytes(state=1, kind=1, flags=pay2.F_NEUTRAL, scope=scope, source=bal, refund_to=pay2.baltok_pda(bal), rent_to=k["relayer"],
+                                      mint=k["mint"], terms=o_hash))
+    four = _payees(k, FOUR_PAYEES)
+    pay_four = pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, four)
+    open_ix = pay2.open_balance_ix(k["authority"], OWNER, k["mint"], CAP, SPENDERS)
+    fund = pay2.fund_order_wallet_ix(k["funder"], pay2.ata(k["funder"], k["mint"]), k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, o_terms)
+    wallet_tok = pay2.ata(k["authority"], k["mint"])
+    cases = {
+        "four payees, a compute limit": ([pay_four], k["relayer"], dict(compute_unit_limit=400_000)),
+        "a wallet funds an order, every setting": ([fund], k["funder"], dict(compute_unit_limit=100_000, priority_fee=2_500, loaded_accounts_data_size_limit=64_000,
+                                                                          heap_size=65_536)),
+        "open a balance and put money in": ([open_ix, transfer_checked_ix(wallet_tok, k["mint"], pay2.baltok_pda(bal), k["authority"], AMOUNT, 6)], k["authority"],
+                                            dict(compute_unit_limit=60_000, priority_fee=1)),
+        "a token-2022 payee list and a heap": ([pay2.create_ata_ix(k["relayer"], k["address"], k["mint22"], T22), pay_four], k["relayer"],
+                                               dict(compute_unit_limit=1_400_000, heap_size=32_768)),
+    }
+    out = {}
+    for name, (ixs, payer, cfg) in cases.items():
+        message = MessageV1.try_compile(payer, ixs, BLOCKHASH, TransactionConfig(**cfg))
+        wire = to_bytes_versioned(message)
+        signers = message.header.num_required_signatures
+        out[name] = {"payer": str(payer), "config": cfg, "instructions": [ix(i) for i in ixs], "message": wire.hex(),
+                     "transaction": base64.b64encode(wire + bytes(64 * signers)).decode(), "size": len(wire) + 64 * signers}
+    return {"cases": out, "limits": {"MAX_TRANSACTION_SIZE": MessageV1.MAX_TRANSACTION_SIZE if hasattr(MessageV1, "MAX_TRANSACTION_SIZE") else 4096,
+                                    "V1_PREFIX": 0x81}}
 
 
 if __name__ == "__main__":

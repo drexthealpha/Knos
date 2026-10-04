@@ -1,10 +1,10 @@
 {
-  "version": "0.3.12",
+  "version": "0.3.13",
   "name": "knos_pay_v2",
   "docs": [
     "Pay on proof, second deployment: an escrow that pays the author of a pull request on a GitHub-signed token verified on chain by knos-oidc.",
-    "Upgradeable only through a multisig with a public 48-hour delay, until an outside review; then made immutable.",
-    "A native program: this file is written by hand from programs-v2/knos_pay/src (lib.rs lists every instruction, state.rs every account) and checked by tests/test_idl.py and tests/test_pay2_idl.py.",
+    "Upgradeable only through a multisig with a public 48-hour delay, until an outside review.",
+    "A native program: this file is written by hand from programs-v2/knos_pay/src (lib.rs and order_terms.rs list every instruction, state.rs and order_terms.rs every account) and checked by tests/test_idl.py and tests/test_pay2_idl.py.",
     "Instruction data is the discriminant byte, then the arguments in order, little-endian, with no padding. A `bytes` argument runs to the end of the data.",
     "Every token account below is a VERIFIED GitHub Actions token account owned by knos-oidc (the second deployment's verifier), from a GitHub-hosted",
     "runner, at most an hour past its expiry, issued no more than 300 seconds ahead of the chain's clock and living at most an hour.",
@@ -14,7 +14,19 @@
     "pay knos2:pay:<repository id>:<issue>:<payee github id>:<head sha>:<terms hash hex>:<mode>:<address or ->, from the job's pinned prove.yml;",
     "bind knos2:bind:<address>, from the pinned claim workflow, run by hand by the owner of a repository named knos-claim (workflow_dispatch only, first attempt; a push is refused).",
     "The terms hash is sha256 of the terms JSON that the funding instruction carries and logs (knos2:terms <json>).",
-    "Anyone may relay FundBalance, Pay, Settle, Refund, Bind and FaucetOpen and pay their gas. tokenProgram is SPL Token or Token-2022, the owner of the mint."
+    "Anyone may relay FundBalance, Pay, Settle, Refund, Bind and FaucetOpen and pay their gas. tokenProgram is SPL Token or Token-2022, the owner of the mint.",
+    "2.1 adds work orders (instructions 12..27), whose audiences start knos3:, and four fixes to the 2.0 paths:",
+    "bounds and fee floors in whole units of the mint, a Token-2022 extension allow-list, a Balance's side account of limits, and single-use pay tokens.",
+    "An order's audiences: fund knos3:fund:<issue>:<amount units>:<mode>:<terms hash hex>:<work seconds>:<balance address>:<seq>:<opts hex>, from fund.yml;",
+    "pay knos3:pay:<order address>:<head sha>:<terms hash hex>:<mode>:<pr>:<payees>, from a judge; payees: 1..=4 of <github id>.<basis points>.<address or -> joined by `,`, the basis points adding up to 10000;",
+    "rule knos3:rule:<order address>:<payees>, the ruling of the arbiter the order named; bind knos3:bind:<address>, an organisation's wallet;",
+    "take knos3:take:<order address>:<taker github id>:<days>; cancel knos3:cancel:<order address>; revert knos3:revert:<order address>:<head sha>.",
+    "The judges of an order (who may sign its pay token), all from the workflows the order pinned at funding, on a run's first attempt: a. prove.yml run in the order's own repository;",
+    "b. for an order funded NEUTRAL and not PRIVATE, attest.yml started by hand (workflow_dispatch) by the owner of the repository it ran in; c. prove.yml or attest.yml run in the order's judge repository;",
+    "d. a ruling: attest.yml started by hand by the order's arbiter in a repository he owns. PayOrder also takes a token under a private key (knos-oidc's RegisterPrivateKey) for a PRIVATE order",
+    "of a Balance, when the wallet that registered the key is the wallet that opened that Balance; never for a ruling. Every other instruction takes only tokens a key of GitHub's verified.",
+    "A command about an order (Reserve, Cancel) is not a judge's: it is from the pinned fund.yml (the job that answers a comment) or prove.yml run in the order's own repository, a first attempt;",
+    "Reserve also takes attest.yml started by hand by the owner of the repository it ran in, for an order funded NEUTRAL and not PRIVATE. The judge repository and the arbiter sign no command."
   ],
   "instructions": [
     {
@@ -71,7 +83,8 @@
       "docs": [
         "One comment funds a job from the Balance its fund token names. The token is from a run in a repository of the Balance's owner, by the owner or a",
         "listed spender (a faucet Balance: any actor), and works once: its iat must be later than the Balance's last, so a Balance takes its tokens in the order GitHub issued them.",
-        "The data is the terms JSON whose sha256 the audience carries (at most 600 bytes of printable ASCII). Refused while new funding is paused."
+        "The data is the terms JSON whose sha256 the audience carries (at most 600 bytes of printable ASCII). Refused while new funding is paused.",
+        "2.1: once the Balance has a side account (Balance.hasX) it is required as a 13th account, PDA [\"balx\", balance], writable, and its limits are enforced."
       ],
       "accounts": [
         {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the job's rent and gets it back when the job closes"},
@@ -85,7 +98,8 @@
         {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
         {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's owner"},
         {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
-        {"name": "pause", "isMut": false, "isSigner": false, "desc": "PDA [\"pause\"] (it need not exist)"}
+        {"name": "pause", "isMut": false, "isSigner": false, "desc": "PDA [\"pause\"] (it need not exist)"},
+        {"name": "balx", "isMut": true, "isSigner": false, "optional": true, "desc": "PDA [\"balx\", balance]: required once the Balance has a side account (hasX)"}
       ],
       "args": [
         {"name": "terms", "type": "bytes"}
@@ -123,7 +137,8 @@
       "docs": [
         "A pay token from the job's pinned prove.yml pays an open job: the fee to feeToken, the rest to a token account of the payee's bound wallet,",
         "or with no Bind of the address in the audience. With neither, no money moves and the job is held for the payee for 180 days (the accounts",
-        "after bind are then not used). The payee's record is updated and the job is closed. There is no veto and no waiting time."
+        "after bind are then not used). The payee's record is updated and the job is closed. There is no veto and no waiting time.",
+        "2.1: the token's single-use marker is the 16th account; a second job is refused with error 91."
       ],
       "accounts": [
         {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rent of the record accounts"},
@@ -140,7 +155,8 @@
         {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The job's rentTo field: gets the job's rent back"},
         {"name": "mint", "isMut": false, "isSigner": false, "desc": "The job's mint"},
         {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's owner"},
-        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "used", "isMut": true, "isSigner": false, "desc": "PDA [\"used\", sha256(the pay token's signature bytes)]: created here; a pay token pays, or holds, exactly one job"}
       ],
       "args": [],
       "discriminant": {"type": "u8", "value": 5}
@@ -243,6 +259,347 @@
       ],
       "args": [],
       "discriminant": {"type": "u8", "value": 11}
+    },
+    {
+      "name": "Version",
+      "docs": ["Logs `knos2:version 1`. Simulate it to learn whether 2.1 is live: 2.0 refuses the instruction."],
+      "accounts": [],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 12}
+    },
+    {
+      "name": "SetBalanceX",
+      "docs": [
+        "The wallet that opened a Balance sets its side account: limits per day (UTC) and in total, in the mint's smallest units (0: none); the only",
+        "repository ids that may spend it (all zero: any repository of the owner); the only commit of the pinned workflows that may spend it (all zero: any).",
+        "Created on first use; its counters stay. From then on every funding from the Balance must pass it and is held to it."
+      ],
+      "accounts": [
+        {"name": "authority", "isMut": true, "isSigner": true, "desc": "The wallet that opened the Balance"},
+        {"name": "balance", "isMut": true, "isSigner": false, "desc": "The Balance"},
+        {"name": "balx", "isMut": true, "isSigner": false, "desc": "PDA [\"balx\", balance]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [
+        {"name": "dayLimit", "type": "u64"},
+        {"name": "totalLimit", "type": "u64"},
+        {"name": "repos", "type": {"array": ["u64", 8]}},
+        {"name": "wfSha", "type": {"array": ["u8", 40]}}
+      ],
+      "discriminant": {"type": "u8", "value": 13}
+    },
+    {
+      "name": "SetPlan",
+      "docs": ["FEE_OWNER sets the fee rate (50..=250 basis points) of the orders funded from Balances of one repository owner, while now < expires."],
+      "accounts": [
+        {"name": "feeOwner", "isMut": false, "isSigner": true, "desc": "FEE_OWNER"},
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the Plan's rent on first use"},
+        {"name": "plan", "isMut": true, "isSigner": false, "desc": "PDA [\"plan\", owner id u64 LE]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [
+        {"name": "ownerId", "type": "u64"},
+        {"name": "feeBps", "type": "u16"},
+        {"name": "expires", "type": "i64"}
+      ],
+      "discriminant": {"type": "u8", "value": 14}
+    },
+    {
+      "name": "FundOrderWallet",
+      "docs": [
+        "A wallet funds a work order for an issue of any public repository: the amount its payees will receive plus the fee on top (2.5%, at least 0.40,",
+        "at most 25 whole units of the mint), into the order's own token account. opts (48 bytes): flags u8 (PRIVATE 2, NEUTRAL 4, STANDING 8), holdbackBps u16,",
+        "warrantyDays u16, killBps u16, reserveDays u8, rate u64, arbiterId u64, judgeRepoId u64, salted u8, 15 zero bytes. A PRIVATE order: repoId and issue are 0",
+        "and terms is its scope (32 bytes) then the sha256 of its terms (32 bytes); otherwise terms is the terms JSON, which is logged. Refused while new funding is paused."
+      ],
+      "accounts": [
+        {"name": "funder", "isMut": true, "isSigner": true, "desc": "The funding wallet; pays the rents and gets them back"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "PDA [\"ord\", scope, funder, seq u32 LE]; scope is sha256(\"knos3:scope\" || repoId u64 LE || issue u64 LE)"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]: created here"},
+        {"name": "funderToken", "isMut": true, "isSigner": false, "desc": "A token account the funder has authority over"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The mint"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "pause", "isMut": false, "isSigner": false, "desc": "PDA [\"pause\"]"}
+      ],
+      "args": [
+        {"name": "issue", "type": "u64"},
+        {"name": "repoId", "type": "u64"},
+        {"name": "amount", "type": "u64"},
+        {"name": "mode", "type": "u8"},
+        {"name": "work", "type": "i64"},
+        {"name": "seq", "type": "u32"},
+        {"name": "opts", "type": {"array": ["u8", 48]}},
+        {"name": "wfRepo", "type": {"array": ["u8", 32]}},
+        {"name": "wfSha", "type": {"array": ["u8", 40]}},
+        {"name": "terms", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 15}
+    },
+    {
+      "name": "FundOrderBalance",
+      "docs": [
+        "One comment funds a work order from the Balance its fund token names (audience knos3:fund:<issue>:<amount>:<mode>:<terms hex>:<work>:<balance>:<seq>:<opts hex>).",
+        "The token is checked as FundBalance checks it and works once: its marker is created here. The amount plus the fee (at the owner's Plan rate) leaves the Balance;",
+        "the Balance's cap and its side account's limits are enforced. The data is the terms JSON whose sha256 the audience carries.",
+        "A PRIVATE order: the data is its scope (32 bytes) then the sha256 of its terms (32 bytes); the audience carries issue 0 and, as terms, sha256 of those 64 bytes;",
+        "the token is from fund.yml in the order's judge repository. The order stores no repository and no issue, and no terms are logged. An arbiter cannot be the funding commenter or the Balance's owner."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rents and gets the order's back"},
+        {"name": "fundToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED fund token"},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "knos-oidc's key account that verified the token"},
+        {"name": "balance", "isMut": true, "isSigner": false, "desc": "The Balance the audience names"},
+        {"name": "baltok", "isMut": true, "isSigner": false, "desc": "PDA [\"baltok\", balance]"},
+        {"name": "balx", "isMut": true, "isSigner": false, "desc": "PDA [\"balx\", balance] (it need not exist)"},
+        {"name": "plan", "isMut": false, "isSigner": false, "desc": "PDA [\"plan\", the Balance's owner id u64 LE] (it need not exist)"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "PDA [\"ord\", scope, balance, seq u32 LE]"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]: created here"},
+        {"name": "used", "isMut": true, "isSigner": false, "desc": "PDA [\"used\", sha256(the fund token's signature bytes)]: created here"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The Balance's mint"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "pause", "isMut": false, "isSigner": false, "desc": "PDA [\"pause\"]"}
+      ],
+      "args": [
+        {"name": "terms", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 16}
+    },
+    {
+      "name": "PayOrder",
+      "docs": [
+        "A pay token of one of the order's judges (audience knos3:pay:<order>:<head sha>:<terms hex>:<mode>:<pr>:<payees>) pays an open order to 1..=4 payees.",
+        "The last five accounts are the first payee's; for each further payee of the audience, in its order, five more follow: bind, wallet, destToken (writable), rep (writable), pair (writable).",
+        "Each payee receives its share of the amount, whole; of the fee, the tip (0.05, or 0.30 when a payee's token account was created here) goes to tipToken and",
+        "the rest to feeToken. One payee with no address and no Bind: the order is held for it. The token is any judge's of the order (a, b, c, or the arbiter's ruling, audience knos3:rule:<order>:<payees>).",
+        "After the payees' accounts comes one assign account per payee, in the payees' order: PDA [\"as\", order, payee id u64 LE]; it need not exist but cannot be left out, and a payee who assigned this order's payment (Assign) is paid at the wallet it names.",
+        "Then one more account, writable: PDA [\"done\", order, pr u64 LE] for a STANDING order (created here: the order pays its rate once per pull request), or PDA [\"hb\", order] for an order with a holdback",
+        "(created here: the holdback stays in the order, which is in warranty until now + warrantyS). On such orders every payee needs a wallet now; an order that is both is refused (Later)."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rent of the record accounts and of token accounts created here"},
+        {"name": "payToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED pay token"},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "knos-oidc's key account that verified the token"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]: the order's own token account"},
+        {"name": "tipToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by the relayer: receives the tip"},
+        {"name": "feeToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by FEE_OWNER: receives the rest of the fee"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The order's rentTo: gets the rent of the order and of its token account back"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The order's mint"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "ataProgram", "isMut": false, "isSigner": false, "desc": "The Associated Token Account program"},
+        {"name": "bind", "isMut": false, "isSigner": false, "desc": "The first payee's: PDA [\"bind\", payee id u64 LE] (it need not exist)"},
+        {"name": "wallet", "isMut": false, "isSigner": false, "desc": "The wallet that payee is paid at: its assignee for this order, else the address the token carries for it, else its Bind's"},
+        {"name": "destToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by that wallet; created here as its associated token account when it does not exist"},
+        {"name": "rep", "isMut": true, "isSigner": false, "desc": "PDA [\"rep\", payee id u64 LE]"},
+        {"name": "pair", "isMut": true, "isSigner": false, "desc": "PDA [\"pair\", payee id u64 LE, funder key]"},
+        {"name": "assign", "isMut": false, "isSigner": false, "desc": "The first payee's: PDA [\"as\", order, payee id u64 LE] (it need not exist); one per payee, after all the payees' accounts"},
+        {"name": "doneOrHb", "isMut": true, "isSigner": false, "desc": "A STANDING order: PDA [\"done\", order, pr u64 LE]. An order with a holdback: PDA [\"hb\", order]. Created here. Any other order: left out", "optional": true}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 17}
+    },
+    {
+      "name": "Release",
+      "docs": [
+        "After the warranty of an order with a holdback (state warranty, now past holdUntil), anyone: each wallet the record PDA [\"hb\", order] names receives its part of the holdback, whole;",
+        "the tip (0.05, or 0.30 when a token account was created here) goes to tipToken and everything left (the rest of the fee) to feeToken. The order, its token account and the record are closed.",
+        "The last two accounts are the first recorded payee's; two more follow for each further payee of the record, in its order: wallet, destToken (writable). No token is needed. The record (Rep) is not updated."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rent of token accounts created here and takes the tip"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]: the order's own token account"},
+        {"name": "hb", "isMut": true, "isSigner": false, "desc": "PDA [\"hb\", order]: the record of the holdback; closed here"},
+        {"name": "tipToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by the relayer: receives the tip"},
+        {"name": "feeToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by FEE_OWNER: receives what is left"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The order's rentTo: gets the rent of the order and of its token account back"},
+        {"name": "hbPayer", "isMut": true, "isSigner": false, "desc": "Who paid the record's rent (its payer field): gets it back"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The order's mint"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "ataProgram", "isMut": false, "isSigner": false, "desc": "The Associated Token Account program"},
+        {"name": "wallet", "isMut": false, "isSigner": false, "desc": "The first recorded payee's wallet, as the record stores it"},
+        {"name": "destToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by that wallet; created here as its associated token account when it does not exist"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 18}
+    },
+    {
+      "name": "Revert",
+      "docs": [
+        "Inside the warranty (state warranty, not past holdUntil), on a revert token: audience knos3:revert:<order>:<head sha>, from judge a, b or c of the order (as PayOrder's; never the arbiter's),",
+        "issued after the payment. Everything the order's token account holds (the holdback and the fee on it) goes back to where the order's money came from; the order, its token account and the record are closed."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": false, "isSigner": true, "desc": "Anyone"},
+        {"name": "revertToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED revert token"},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "knos-oidc's key account that verified the token"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]: the order's own token account"},
+        {"name": "hb", "isMut": true, "isSigner": false, "desc": "PDA [\"hb\", order]: the record of the holdback; closed here"},
+        {"name": "refundToken", "isMut": true, "isSigner": false, "desc": "The Balance's token account (a Balance's order), or a token account of the order's mint owned by the funding wallet"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The order's rentTo: gets the rent of the order and of its token account back"},
+        {"name": "hbPayer", "isMut": true, "isSigner": false, "desc": "Who paid the record's rent (its payer field): gets it back"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The order's mint"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 19}
+    },
+    {
+      "name": "Reserve",
+      "docs": [
+        "Reserves an open order for the taker a take token names: audience knos3:take:<order>:<taker github id>:<days>, days 1..=the order's reserveDays.",
+        "The token is a command's: the pinned fund.yml or prove.yml run in the order's own repository, or (a NEUTRAL order) attest.yml started by hand in the taker's own repository; its actor_id is the taker it names: a person reserves for himself.",
+        "Refused on an order that is cancelled, past its deadline, or reserved now by someone. Sets reservedBy and reservedUntil = now + days. No money moves."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": false, "isSigner": true, "desc": "Anyone"},
+        {"name": "takeToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED take token"},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "knos-oidc's key account that verified the token"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 20}
+    },
+    {
+      "name": "Cancel",
+      "docs": [
+        "The funder gives notice, once, on an open order: its deadline becomes min(deadline, now + 7 days) and cancelAt is set. A pay token still pays until then; after it RefundOrder returns the money,",
+        "less the kill fee when the order was reserved at the time. A wallet's order: the funding wallet signs. A Balance's order: anyone signs and the last two accounts carry a cancel token:",
+        "audience knos3:cancel:<order>, from the pinned fund.yml or prove.yml run in the order's own repository (a first attempt), whose actor funded the order or owns the Balance."
+      ],
+      "accounts": [
+        {"name": "signer", "isMut": false, "isSigner": true, "desc": "A wallet's order: the funding wallet. A Balance's order: anyone"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "cancelToken", "isMut": false, "isSigner": false, "desc": "A Balance's order: a VERIFIED cancel token", "optional": true},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "A Balance's order: knos-oidc's key account that verified the token", "optional": true}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 21}
+    },
+    {
+      "name": "RefundOrder",
+      "docs": [
+        "An open order past its deadline, or a held one past its hold: everything its token account holds goes back to where its money came from. No token is needed.",
+        "When a kill fee is due (the order was cancelled while reserved: killBps of the amount, at most what is left of it) the last two accounts are passed: the fee goes to killToken first.",
+        "If the taker has no bound wallet, or killToken is not a token account of it, the fee stays in the order, held for the taker (SettleOrder pays him; after the hold it goes back), and the rest is refunded now."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]"},
+        {"name": "refundToken", "isMut": true, "isSigner": false, "desc": "The Balance's token account (a Balance's order), or a token account of the order's mint owned by the funding wallet"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The order's rentTo"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The order's mint"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "takerBind", "isMut": false, "isSigner": false, "desc": "With a kill fee due: PDA [\"bind\", reservedBy u64 LE], the taker's (it need not exist)", "optional": true},
+        {"name": "killToken", "isMut": true, "isSigner": false, "desc": "With a kill fee due: a token account of the order's mint owned by the taker's bound wallet", "optional": true}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 22}
+    },
+    {
+      "name": "TopUp",
+      "docs": [
+        "Adds to an open order's amount, and the fee on the new amount less the fee already there, from where its money came: the funding wallet signs, or the wallet",
+        "that opened the order's Balance signs and the Balance's token account pays. Refused while new funding is paused."
+      ],
+      "accounts": [
+        {"name": "signer", "isMut": true, "isSigner": true, "desc": "The funding wallet, or the wallet that opened the order's Balance"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]"},
+        {"name": "fromToken", "isMut": true, "isSigner": false, "desc": "A token account of the funding wallet, or the Balance's token account"},
+        {"name": "balance", "isMut": false, "isSigner": false, "desc": "The order's source: its Balance (read), or the funding wallet (not read)"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The order's mint"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "pause", "isMut": false, "isSigner": false, "desc": "PDA [\"pause\"]"}
+      ],
+      "args": [
+        {"name": "add", "type": "u64"}
+      ],
+      "discriminant": {"type": "u8", "value": 23}
+    },
+    {
+      "name": "Assign",
+      "docs": [
+        "A payee names the wallet that receives this order's payment in his place. The first time the payee's bound wallet signs; after that only the current assignee can change it,",
+        "so what was assigned cannot be taken back or assigned twice by the payee. PayOrder and SettleOrder then pay `to` for that payee. No money moves."
+      ],
+      "accounts": [
+        {"name": "signer", "isMut": true, "isSigner": true, "desc": "The payee's bound wallet, or the current assignee; pays the rent on first use"},
+        {"name": "order", "isMut": false, "isSigner": false, "desc": "The order"},
+        {"name": "bind", "isMut": false, "isSigner": false, "desc": "PDA [\"bind\", payeeId u64 LE]"},
+        {"name": "assign", "isMut": true, "isSigner": false, "desc": "PDA [\"as\", order, payeeId u64 LE]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [
+        {"name": "payeeId", "type": "u64"},
+        {"name": "to", "type": "publicKey"}
+      ],
+      "discriminant": {"type": "u8", "value": 24}
+    },
+    {
+      "name": "BindOrg",
+      "docs": ["Binds the address in an organisation's bind token (audience knos3:bind:<address>) to the token's repository owner: where that organisation is paid.", "The token is from the pinned claim workflow, started by hand by a member in the organisation's repository named knos-claim (repository_owner_id is not actor_id).", "It never replaces a Bind that Bind wrote; one that BindOrg wrote is replaced only by a later token."],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rent"},
+        {"name": "bindToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED bind token of an organisation"},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "knos-oidc's key account that verified the token"},
+        {"name": "bind", "isMut": true, "isSigner": false, "desc": "PDA [\"bind\", the token's repository owner id u64 LE]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 25}
+    },
+    {
+      "name": "SettleOrder",
+      "docs": ["A held order, not past its hold, whose payee now has a Bind: paid to that wallet (or to the wallet the payee assigned this order's payment to) as PayOrder pays. Anyone relays, and takes the tip."],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; takes the tip"},
+        {"name": "order", "isMut": true, "isSigner": false, "desc": "The order"},
+        {"name": "ov", "isMut": true, "isSigner": false, "desc": "PDA [\"ov\", order]: the order's own token account"},
+        {"name": "tipToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by the relayer: receives the tip"},
+        {"name": "feeToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by FEE_OWNER: receives the rest of the fee"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The order's rentTo: gets the rent of the order and of its token account back"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The order's mint"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "The mint's token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "ataProgram", "isMut": false, "isSigner": false, "desc": "The Associated Token Account program"},
+        {"name": "bind", "isMut": false, "isSigner": false, "desc": "The first payee's: PDA [\"bind\", payee id u64 LE] (it need not exist)"},
+        {"name": "wallet", "isMut": false, "isSigner": false, "desc": "The wallet that payee is paid at: its assignee for this order, else the address the token carries for it, else its Bind's"},
+        {"name": "destToken", "isMut": true, "isSigner": false, "desc": "A token account of the order's mint owned by that wallet; created here as its associated token account when it does not exist"},
+        {"name": "rep", "isMut": true, "isSigner": false, "desc": "PDA [\"rep\", payee id u64 LE]"},
+        {"name": "pair", "isMut": true, "isSigner": false, "desc": "PDA [\"pair\", payee id u64 LE, funder key]"},
+        {"name": "assign", "isMut": false, "isSigner": false, "desc": "PDA [\"as\", order, the held payee's id u64 LE] (it need not exist): the wallet the payee assigned this order's payment to is paid"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 26}
+    },
+    {
+      "name": "CloseMarker",
+      "docs": [
+        "Anyone closes a marker that can no longer matter; its rent goes back to whoever paid it. A Used marker: after the time it stores (no token used when it was made can be accepted any more).",
+        "A Done marker: once nothing of this program is at its order's address (the order was paid out or refunded). The two kinds are told by their length."
+      ],
+      "accounts": [
+        {"name": "marker", "isMut": true, "isSigner": false, "desc": "PDA [\"used\", ...] or PDA [\"done\", order, pr u64 LE]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The marker's payer field: receives its rent"},
+        {"name": "order", "isMut": false, "isSigner": false, "desc": "A Done marker: its order's address. A Used marker: not read"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 27}
     }
   ],
   "accounts": [
@@ -252,7 +609,8 @@
         "PDA [\"bal\", ownerId u64 LE, authority, mint]: money a wallet set aside for bounties in the repositories of one GitHub owner. 160 bytes.",
         "version is 1. faucet 1: the devnet faucet's Balance (its authority is the auth PDA; any actor spends it, nobody withdraws it).",
         "capPerJob 0: no cap. spenders: GitHub ids that may spend it by comment besides the owner (0: empty). lastIat: the iat of the last fund token that spent it.",
-        "spent: everything it ever put into jobs."
+        "spent: everything it ever put into jobs.",
+        "hasX 1: it has a side account (BalX), which every funding from it must pass."
       ],
       "type": {
         "kind": "struct",
@@ -260,7 +618,8 @@
           {"name": "version", "type": "u8"},
           {"name": "bump", "type": "u8"},
           {"name": "faucet", "type": "u8"},
-          {"name": "padding0", "type": {"array": ["u8", 5]}},
+          {"name": "hasX", "type": "u8"},
+          {"name": "padding0", "type": {"array": ["u8", 4]}},
           {"name": "ownerId", "type": "u64"},
           {"name": "authority", "type": "publicKey"},
           {"name": "mint", "type": "publicKey"},
@@ -314,13 +673,17 @@
     },
     {
       "name": "Bind",
-      "docs": ["PDA [\"bind\", userId u64 LE]: the wallet a GitHub user is paid at. 56 bytes. version is 1. iat: the iat of the bind token that set it."],
+      "docs": [
+        "PDA [\"bind\", userId u64 LE]: the wallet a GitHub user, or an organisation, is paid at. 56 bytes. version is 1. iat: the iat of the bind token that set it.",
+        "org 1 and orgIat equal to the low five bytes of iat: BindOrg wrote it as it stands (an organisation's). Bind leaves both as they are and writes a later iat, so a Bind a person made is never that."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {"name": "version", "type": "u8"},
           {"name": "bump", "type": "u8"},
-          {"name": "padding0", "type": {"array": ["u8", 6]}},
+          {"name": "org", "type": "u8"},
+          {"name": "orgIat", "type": {"array": ["u8", 5]}},
           {"name": "userId", "type": "u64"},
           {"name": "wallet", "type": "publicKey"},
           {"name": "iat", "type": "i64"}
@@ -381,12 +744,184 @@
           {"name": "lastIat", "type": "i64"}
         ]
       }
+    },
+    {
+      "name": "BalX",
+      "docs": [
+        "PDA [\"balx\", balance]: a Balance's side account, set by its authority (SetBalanceX). 152 bytes. version is 1. Limits in the mint's smallest units (0: none).",
+        "repos: the only repository ids that may spend the Balance (all zero: any of the owner). wfSha: the only workflows commit that may spend it (all zero: any).",
+        "day: unix time / 86400 of the day daySpent counts."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "version", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "padding0", "type": {"array": ["u8", 6]}},
+          {"name": "dayLimit", "type": "u64"},
+          {"name": "totalLimit", "type": "u64"},
+          {"name": "repos", "type": {"array": ["u64", 8]}},
+          {"name": "wfSha", "type": {"array": ["u8", 40]}},
+          {"name": "day", "type": "i64"},
+          {"name": "daySpent", "type": "u64"},
+          {"name": "totalSpent", "type": "u64"}
+        ]
+      }
+    },
+    {
+      "name": "Plan",
+      "docs": ["PDA [\"plan\", ownerId u64 LE]: the fee rate of one repository owner's orders while now < expires, set by FEE_OWNER. 24 bytes. version is 1."],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "version", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "feeBps", "type": "u16"},
+          {"name": "padding0", "type": {"array": ["u8", 4]}},
+          {"name": "ownerId", "type": "u64"},
+          {"name": "expires", "type": "i64"}
+        ]
+      }
+    },
+    {
+      "name": "Used",
+      "docs": [
+        "PDA [\"used\", sha256(a token's signature bytes)]: exists once a token that works once was used (Pay, FundOrderBalance). 41 bytes. used is 1.",
+        "payer: who paid its rent. after: from this time no instruction can accept that token any more, and CloseMarker gives the rent back to payer."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "used", "type": "u8"},
+          {"name": "payer", "type": "publicKey"},
+          {"name": "after", "type": "i64"}
+        ]
+      }
+    },
+    {
+      "name": "Order",
+      "docs": [
+        "PDA [\"ord\", scope, source, seq u32 LE]: one work order. 512 bytes. version is 2. state: 1 open, 3 held, 4 warranty. mode: 0 merge, 1 tests. kind: 0 funded by a wallet, 1 from a Balance.",
+        "flags: FAUCET 1, PRIVATE 2, NEUTRAL 4, STANDING 8, TOKEN2022 16. amount: what payees receive in total; fee: escrowed on top of it; paid: of the amount, so far.",
+        "A private order stores 0 in repoId and issue and a scope its funder computed. Its money is in the token account PDA [\"ov\", order].",
+        "holdbackBps, warrantyS: that share of a payment stays in the order through the warranty (holdUntil, state warranty), then Release pays it or Revert returns it. rate: what a STANDING order pays per pull request.",
+        "reserveDays, reservedBy, reservedUntil: a reservation (Reserve). cancelAt: when Cancel was sent (0: never). killBps: the share a taker is owed when a reserved order is cancelled.",
+        "payeeId: set when held. arbiterId: the GitHub id whose ruling pays it (0: none). judgeRepoId: the repository id whose runs may judge it (0: none). feeBps: the fee rate fixed at funding.",
+        "notBefore: a token must be issued at or after this. refundTo: the Balance's token account, or the funding wallet. rentTo: who paid the rents. terms, wfRepoHash, wfSha: as a Job's."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "version", "type": "u8"},
+          {"name": "state", "type": "u8"},
+          {"name": "mode", "type": "u8"},
+          {"name": "kind", "type": "u8"},
+          {"name": "flags", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "decimals", "type": "u8"},
+          {"name": "reserveDays", "type": "u8"},
+          {"name": "repoId", "type": "u64"},
+          {"name": "issue", "type": "u64"},
+          {"name": "scope", "type": {"array": ["u8", 32]}},
+          {"name": "seq", "type": "u32"},
+          {"name": "holdbackBps", "type": "u16"},
+          {"name": "killBps", "type": "u16"},
+          {"name": "amount", "type": "u64"},
+          {"name": "fee", "type": "u64"},
+          {"name": "rate", "type": "u64"},
+          {"name": "paid", "type": "u64"},
+          {"name": "deadline", "type": "i64"},
+          {"name": "notBefore", "type": "i64"},
+          {"name": "holdUntil", "type": "i64"},
+          {"name": "warrantyS", "type": "i64"},
+          {"name": "reservedBy", "type": "u64"},
+          {"name": "reservedUntil", "type": "i64"},
+          {"name": "cancelAt", "type": "i64"},
+          {"name": "payeeId", "type": "u64"},
+          {"name": "funderId", "type": "u64"},
+          {"name": "ownerId", "type": "u64"},
+          {"name": "arbiterId", "type": "u64"},
+          {"name": "judgeRepoId", "type": "u64"},
+          {"name": "source", "type": "publicKey"},
+          {"name": "refundTo", "type": "publicKey"},
+          {"name": "rentTo", "type": "publicKey"},
+          {"name": "mint", "type": "publicKey"},
+          {"name": "terms", "type": {"array": ["u8", 32]}},
+          {"name": "wfRepoHash", "type": {"array": ["u8", 32]}},
+          {"name": "wfSha", "type": {"array": ["u8", 40]}},
+          {"name": "feeBps", "type": "u16"},
+          {"name": "padding0", "type": {"array": ["u8", 6]}},
+          {"name": "reserved", "type": {"array": ["u8", 80]}}
+        ]
+      }
+    },
+    {
+      "name": "Hb",
+      "docs": [
+        "PDA [\"hb\", order]: where the holdback of an order in warranty goes. 240 bytes. version is 1. Created by PayOrder, closed with the order by Release or Revert.",
+        "n: how many of the four entries are used (1..=4). payer: who paid its rent and gets it back. until: the end of the warranty (the order's holdUntil).",
+        "Entry k: payeeId, the wallet that was paid and receives the holdback, and its part of the holdback (the parts add up to exactly what was kept)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "version", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "n", "type": "u8"},
+          {"name": "padding0", "type": {"array": ["u8", 5]}},
+          {"name": "payer", "type": "publicKey"},
+          {"name": "until", "type": "i64"},
+          {"name": "payeeId0", "type": "u64"},
+          {"name": "wallet0", "type": "publicKey"},
+          {"name": "amount0", "type": "u64"},
+          {"name": "payeeId1", "type": "u64"},
+          {"name": "wallet1", "type": "publicKey"},
+          {"name": "amount1", "type": "u64"},
+          {"name": "payeeId2", "type": "u64"},
+          {"name": "wallet2", "type": "publicKey"},
+          {"name": "amount2", "type": "u64"},
+          {"name": "payeeId3", "type": "u64"},
+          {"name": "wallet3", "type": "publicKey"},
+          {"name": "amount3", "type": "u64"}
+        ]
+      }
+    },
+    {
+      "name": "Done",
+      "docs": ["PDA [\"done\", order, pr u64 LE]: exists once this standing order has paid this pull request. 65 bytes. done is 1. payer: who paid its rent. order: its order; CloseMarker closes it once that order is closed."],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "done", "type": "u8"},
+          {"name": "payer", "type": "publicKey"},
+          {"name": "order", "type": "publicKey"}
+        ]
+      }
+    },
+    {
+      "name": "As",
+      "docs": [
+        "PDA [\"as\", order, payeeId u64 LE]: the wallet this order pays for that payee instead of the payee's own (Assign). 88 bytes. version is 1.",
+        "since: the notBefore of the order it was made for; an order funded later at the same address ignores it."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "version", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "padding0", "type": {"array": ["u8", 6]}},
+          {"name": "payeeId", "type": "u64"},
+          {"name": "order", "type": "publicKey"},
+          {"name": "to", "type": "publicKey"},
+          {"name": "since", "type": "i64"}
+        ]
+      }
     }
   ],
   "errors": [
     {"code": 60, "name": "Base64Url", "msg": "knos-oidc's claims reader: not unpadded base64url"},
     {"code": 61, "name": "Json", "msg": "knos-oidc's claims reader: the claims are not a JSON object"},
-    {"code": 62, "name": "DuplicateClaim", "msg": "knos-oidc's claims reader: a claim appears twice"},
+    {"code": 62, "name": "DuplicateClaim", "msg": "knos-oidc's claims reader: a claim appears twice, under any spelling of its name"},
     {"code": 63, "name": "Claim", "msg": "knos-oidc's claims reader: a claim is missing or of the wrong type"},
     {"code": 76, "name": "KeyNotActive", "msg": "knos-oidc's key rule: the key that verified the token is not active yet"},
     {"code": 77, "name": "KeyExpired", "msg": "knos-oidc's key rule: the key that verified the token has expired; the token works again once the key is refreshed, while the token is fresh"},
@@ -402,7 +937,7 @@
     {"code": 88, "name": "Payee", "msg": "Wrong destination, fee or refund account, or the payee has no bound wallet"},
     {"code": 89, "name": "DevnetOnly", "msg": "Devnet builds only"},
     {"code": 90, "name": "RateLimit", "msg": "The faucet gives one funding per repository per minute, in the order GitHub issued the tokens"},
-    {"code": 91, "name": "Replay", "msg": "This token is not newer than the last one used here: a token works once"},
+    {"code": 91, "name": "Replay", "msg": "This token is not newer than the last one used here, or was used already, or this pull request was paid already: a token works once"},
     {"code": 92, "name": "Spender", "msg": "The token's repository owner or actor may not spend this Balance"},
     {"code": 93, "name": "Cap", "msg": "More than the Balance's cap per job"},
     {"code": 94, "name": "Funds", "msg": "The Balance does not hold that much"},
@@ -410,10 +945,11 @@
     {"code": 96, "name": "Paused", "msg": "New funding is paused"},
     {"code": 97, "name": "Guardian", "msg": "Not the guardian"},
     {"code": 98, "name": "Balance", "msg": "The Balance exists already, is not a Balance, or the signer is not its authority"},
-    {"code": 99, "name": "Faucet", "msg": "A faucet Balance cannot withdraw"}
+    {"code": 99, "name": "Faucet", "msg": "A faucet Balance cannot withdraw"},
+    {"code": 100, "name": "Limit", "msg": "More than the Balance's limit for one day or in total"},
+    {"code": 101, "name": "Order", "msg": "The order exists already, or this account is not an order"},
+    {"code": 102, "name": "Plan", "msg": "Not FEE_OWNER, or a plan rate or expiry that is not allowed"},
+    {"code": 103, "name": "Later", "msg": "An order that is both standing and has a holdback is never paid: its money goes back to its funder at the deadline"}
   ],
-  "metadata": {
-    "origin": "shank",
-    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
-  }
+  "metadata": {"origin": "shank", "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"}
 }

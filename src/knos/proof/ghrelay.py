@@ -8,19 +8,32 @@ it cannot call the Knos repository or its API with auth. Its workflow posts the 
 a comment with its own GITHUB_TOKEN (`post_token` writes that comment, `found` reads it):
 
     knos-fund: <jwt>      on the issue, after a maintainer's `/knos fund <amount>`; and with it, on a line of its own,
-    knos-terms: <json>    the bounty's terms (the token carries only their hash)
+    knos-terms: <json>    the bounty's terms (the token carries only their hash); for a PRIVATE work order, funded by a
+                          comment in its judge repository, 128 hex characters instead: its scope and its terms hash
     knos-proof: <jwt>     on the pull request, once it is merged and has met the bounty's terms
     knos-bind: <jwt>      on an issue in the claimer's own repository named knos-claim (the pinned claim workflow)
     knos-key: <jwt>       on an issue in drexthealpha/knos-oidc-rotate or drexthealpha/Knos (a key an issuer publishes,
-                          named by GitHub's signature)
-    knos-verify: <jwt>    any GitHub Actions or GitLab CI token: verified into an account another program can read,
+                          named by GitHub's signature); for an issuer that is not GitHub or GitLab the comment starts
+    knos-issuer: <url>    with the issuer's URL on a line of its own (the token carries only its hash)
+    knos-take: <jwt>      on the issue, after `/knos take`: the work order is reserved for the taker
+    knos-cancel: <jwt>    on the issue, after `/knos cancel`: the work order's funder gives notice
+    knos-revert: <jwt>    the accepted change was reverted inside the order's warranty: the holdback goes back
+    knos-rule: <jwt>      the ruling of the arbiter a work order named
+    knos-verify: <jwt>    any GitHub Actions or GitLab CI token, or one of an issuer the verifier holds a key for (a
+                          registered issuer's, or a private key): verified into an account another program can read,
                           and nothing more; 20 a day for one repository
+    knos-eval: <jwt>      an evaluation for knos_meter to count (`knosm:eval:`), from the buyer's repository
+    knos-gate: <jwt>      on the "knos tokens" issue of drexthealpha/Knos, by program.yml's gate job: GitHub's word that
+                          its runner built one program's executable (`gate:<program>:<hash>`), for examples/upgrade_gate
+    knos-withdraw: <b64>  not a token: a passkey wallet's signed withdrawal (knos.settle.v2.passkey.request), on an
+                          issue of its owner's repository named knos-claim. The relay sends it and pays its fee; the
+                          money goes where the passkey signed, 20 a day for one repository
     knos-veto: <jwt>      the first deployment's, as before: a bounty funded there finishes there
     knos-claim: <jwt>
 
 The marker only says where to look. What a token does is fixed by its audience, and so is where it goes: `knos:` to the
-first deployment's relay (knos.settle.relay), `knos2:` to the second's (knos.settle.v2.relay), and a key token
-(`knos-oidc:key:`) to both.
+first deployment's relay (knos.settle.relay), `knos2:`, `knos3:` (work orders), `knosm:` (the meter) and `gate:` to the second's
+(knos.settle.v2.relay, whose table KINDS names every audience it carries), and a key token (`knos-oidc:key:`) to both.
 
 Posting the token in public is acceptable ONLY because it is not a bearer credential here: its audience names one
 action, the escrow accepts it for at most an hour and guards each action against replay, and it is valid only from the
@@ -32,15 +45,20 @@ read on every pass with conditional requests: GitHub answers 304 while nothing i
 rate limit, so a pass every few seconds is cheap. (Past fifteen known repositories, the ones with the newest tokens are
 read on every pass and the others a few a pass, in turn.) New repositories are found at most every 30 seconds: one
 issue search for the word every token comment carries (`knosrelay`), and the recently pushed repositories of owners
-served before. With no GH_TOKEN GitHub allows 60 requests an hour, which is one pass now and then, not a worker.
+served before. And without any search: once a minute the chain is read for every repository that has an open job or
+work order (`watched`), and those are read on every pass, so the proof of a funded issue is found even when GitHub's
+search is late or down. With no GH_TOKEN GitHub allows 60 requests an hour, which is one pass now and then, not a worker.
 
 Result (worker -> caller). The worker cannot write to other repositories. It appends one line per relayed token to the
 open issue labelled `knos-relay` in its own repository (its own GITHUB_TOKEN can do that):
 
-    knos-relay <kind> <owner/repo>#<n> <token id> ok sig=<s1>[,<s2>...] note=<what happened, in words> t=<seconds>
+    knos-relay <kind> <owner/repo>#<n> <token id> ok sig=<s1>[,<s2>...] [queue=<s>] [workflow=<s>] [wait=<s>] [chain=<s>] note=<what happened, in words> t=<seconds>
     knos-relay <kind> <owner/repo>#<n> <token id> fail <reason>
 
-`t` is the time from the comment's creation to the token's last transaction. The caller waits for the line that names
+`t` is the time from the comment's creation to the token's last transaction. The four before the note say where the
+time went, in seconds, each only when it could be measured (`stages`): `queue`, from the comment or the merge that
+started the workflow run to the run's start; `workflow`, from there to the token's comment; `wait`, from that comment
+to this relay picking it up; `chain`, from there to the last confirmation. (`wait` + `chain` is `t`.) The caller waits for the line that names
 its token id (`wait_for`) and comments the verdict with its own token. A line with that id is a verdict on the token
 itself, the same whoever posted it. A comment that holds a token it cannot carry (someone's copy under another marker,
 or with other terms) is logged with `-` for the id, so it answers nobody who waits for the token.
@@ -61,8 +79,12 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-TOKEN = re.compile(r"knos-(proof|fund|bind|veto|claim|key|verify):\s*(eyJ[\w-]+\.[\w-]+\.[\w-]+)")
-TERMS = re.compile(r"^knos-terms:[ \t]*(\{.*\})[ \t\r]*$", re.M)   # a fund token's terms, in the same comment
+TOKEN = re.compile(r"knos-(proof|fund|bind|veto|claim|key|verify|eval|take|cancel|revert|rule|gate):\s*(eyJ[\w-]+\.[\w-]+\.[\w-]+)")
+WITHDRAW = re.compile(r"knos-withdraw:\s*([A-Za-z0-9+/_-]{200,4000}={0,2})")    # a passkey wallet's withdrawal request: no token, see knos.settle.v2.passkey.request
+CLAIM_REPO = "/knos-claim"       # a withdrawal request is read only in a repository of this name (its owner's own, as for a claim)
+# a fund token's terms, in the same comment: the terms JSON, or (a private order) its scope and terms hash as 128 hex characters
+TERMS = re.compile(r"^knos-terms:[ \t]*(\{.*\}|[0-9a-f]{128})[ \t\r]*$", re.M)
+ISSUER = re.compile(r"^knos-issuer:[ \t]*(https://[!-~]{1,192})[ \t\r]*$", re.M)     # the URL of the issuer whose key a key token names, in the same comment
 MARK = "knosrelay"   # one word every token comment carries, so one search finds them all
 ROTATE_REPO = "drexthealpha/knos-oidc-rotate"
 RELAY_KIND = {"proof": "pay"}   # the comment marker says proof; the relays call that audience pay
@@ -75,10 +97,14 @@ MAX_TRIES = 12          # failed passes a token gets when the failure may clear 
 HORIZON = 70 * 60       # how far back a pass looks: a token is accepted for an hour
 SEARCH_EVERY = 30       # seconds between two searches for repositories the worker does not know yet
 CRANK_EVERY = 60        # seconds between two rounds of what needs no token (refunds, held payments), in `serve`
+CHAIN_EVERY = 60        # seconds between two reads of the chain for the repositories that have money waiting on a proof
+CHAIN_REPOS = 100       # of those, at most this many are read on every pass (a pass with nothing new is a 304 each)
+CHAIN_NAMES = 20        # repository ids whose names GitHub is asked for in one read of the chain
 KNOWN_FOR = 2 * 86_400  # a repository is known this long after its last token
 EVERY_PASS = 15         # known repositories read on every pass: the ones whose tokens are newest
 IN_TURN = 5             # of the other known ones, this many a pass, in turn (GitHub allows 900 requests a minute)
 VERIFY_PER_DAY = 20     # verify-only tokens carried for one repository in a day (each locks rent for an hour)
+WITHDRAW_PER_DAY = 20   # passkey withdrawals sent for one knos-claim repository in a day (the relay pays each fee, and a new wallet's rent)
 API = "https://api.github.com/"
 
 
@@ -190,10 +216,34 @@ def discover(since: str, state: dict, getter=_api) -> set[str]:
     return repos
 
 
+def watched(ledger, state: dict, now: float, getter=_api) -> set[str]:
+    """The repositories that have money waiting on a proof, by name, from the chain alone: every repository id with
+    an open job or work order (knos.settle.v2.relay.open_repositories), read at most every CHAIN_EVERY seconds. The
+    chain knows a repository by its id; GitHub's `repositories/<id>` gives its name, asked once and kept in `state`.
+    A chain or a GitHub that does not answer leaves what was known."""
+    kept = state.setdefault("chain", {"at": 0, "ids": []})
+    names = state.setdefault("names", {})
+    if now - kept.get("at", 0) >= CHAIN_EVERY:
+        try:
+            from ..settle.v2 import relay as second
+            kept.update(at=now, ids=sorted(second.open_repositories(ledger)))
+        except Exception as why:  # noqa: BLE001 - the cluster did not answer: the last answer stands, and it is asked again next pass
+            print(f"watched: {type(why).__name__}: {why}", file=sys.stderr)
+        for rid in [i for i in kept["ids"] if str(i) not in names][:CHAIN_NAMES]:
+            try:
+                names[str(rid)] = str(getter(f"repositories/{rid}")["full_name"])
+            except Exception:  # noqa: BLE001, S110 - a private or deleted repository, or GitHub did not answer: asked again at the next read
+                pass
+        for gone in set(names) - {str(i) for i in kept["ids"]}:
+            del names[gone]
+    return {names[str(i)] for i in kept["ids"][:CHAIN_REPOS] if str(i) in names and "/" in names[str(i)]}
+
+
 class Found(tuple):
     """One token a comment carries: (marker kind, issue or pull request number, jwt, comment author). It also knows
-    `terms`, the JSON a `knos-terms:` line of the same comment gave (a fund token's travel with it), and `created`,
-    when the comment was posted (unix time; None when GitHub did not say)."""
+    `terms`, what travels with the token on a line of the same comment (a fund token's terms JSON, from `knos-terms:`;
+    a key token's issuer URL, from `knos-issuer:`), and `created`, when the comment was posted (unix time; None when
+    GitHub did not say)."""
     terms: bytes | None
     created: float | None
 
@@ -210,10 +260,10 @@ def tokens(comments: list, since: str = "") -> list[Found]:
         if str(c.get("created_at") or since) < since:       # GitHub's times are ISO 8601 in UTC: they sort as text
             continue
         body = c.get("body") or ""
-        terms = TERMS.search(body)
-        for kind, jwt in TOKEN.findall(body):
+        beside = {"fund": TERMS.search(body), "key": ISSUER.search(body)}
+        for kind, jwt in [*TOKEN.findall(body), *(("withdraw", asked) for asked in WITHDRAW.findall(body))]:
             out.append(Found(kind, int(c["issue_url"].rsplit("/", 1)[1]), jwt, (c.get("user") or {}).get("login", ""),
-                             terms.group(1).encode() if terms and kind == "fund" else None, _unix(c.get("created_at"))))
+                             beside[kind].group(1).encode() if beside.get(kind) else None, _unix(c.get("created_at"))))
     return out
 
 
@@ -230,9 +280,11 @@ def found(repo: str, since: str, getter=_api) -> list[Found]:
 
 
 def token_comment(kind: str, jwt: str, terms: bytes | str | None = None) -> str:
-    """The comment a workflow posts for a relayer to find: the marker and the token, a fund token's terms on a line of
-    their own, and the word the search finds. `found` reads exactly this."""
-    lines = [f"knos-{kind}: {jwt}"] + ([f"knos-terms: {terms.decode() if isinstance(terms, bytes) else terms}"] if terms else [])
+    """The comment a workflow posts for a relayer to find: the marker and the token, what travels with it on a line of
+    its own (a fund token's terms; under the `key` marker, the issuer's URL, first), and the word the search finds.
+    `found` reads exactly this."""
+    beside = terms.decode() if isinstance(terms, bytes) else terms
+    lines = ([f"knos-issuer: {beside}"] if beside and kind == "key" else []) + [f"knos-{kind}: {jwt}"] + ([f"knos-terms: {beside}"] if beside and kind != "key" else [])
     return "\n".join(lines) + f"\n\n<sub>{MARK}: a GitHub-signed token. Anyone can carry it to Solana, and it can only do what it says.</sub>"
 
 
@@ -256,8 +308,9 @@ def audience(jwt: str) -> str:
 
 
 def carry(ledger, payer, jwt: str, terms: bytes | None = None) -> dict:
-    """One token to the deployment its audience names: `knos:` to the first relay, `knos2:` and key tokens to the
-    second (which hands a key token to the first as well). `terms`: a fund token's terms JSON. The relay's result."""
+    """One token to the deployment its audience names: `knos:` to the first relay, everything else to the second
+    (which hands a key token of GitHub's or GitLab's to the first as well). `terms`: a fund token's terms JSON, or
+    the issuer URL of a key token that names its issuer by URL. The relay's result."""
     from ..settle import relay as first
     from ..settle.v2 import relay as second
     return first.submit(ledger, payer, jwt) if audience(jwt).startswith("knos:") else second.submit(ledger, payer, jwt, terms)
@@ -276,8 +329,10 @@ def misposted(kind: str, jwt: str, terms: bytes | None = None) -> str | None:
         return f"it is a Knos {named} token, which is carried under its own marker" if named else None
     if named is not None and named != RELAY_KIND.get(kind, kind):
         return f"posted as knos-{kind}, but its audience is a {named} token's"
-    if named == "fund" and aud.startswith("knos2:") and (terms is None or hashlib.sha256(terms).hexdigest() != (aud.split(":") + [""] * 6)[5]):
+    if named == "fund" and aud.startswith(("knos2:", "knos3:")) and not second.carries_terms(aud, terms):
         return "its `knos-terms:` line is missing, or is not the terms the token names"
+    if aud.startswith("knos-oidc:ikey:") and (terms is None or hashlib.sha256(terms).hexdigest() != (aud.split(":") + [""] * 3)[2]):
+        return "its `knos-issuer:` line is missing, or is not the issuer the token names"
     return None
 
 
@@ -287,6 +342,9 @@ def relay_one(ledger, payer, kind: str, jwt: str, submit=None, terms: bytes | No
     the relay's result, plus "note": what happened in words. `submit(ledger, payer, jwt)`: a relay to use instead."""
     if submit is not None:
         r = submit(ledger, payer, jwt)
+    elif kind == "withdraw":
+        from ..settle.v2 import relay as second
+        r = second.withdraw(ledger, payer, jwt)
     else:
         wrong = misposted(kind, jwt, terms)
         if wrong:
@@ -314,6 +372,46 @@ def _day(t: int) -> str:
 def _note2(r: dict) -> str | None:
     """What a result of the second deployment's relay means, in words; None for a result that is not one of its."""
     k = r["kind"]
+    if k == "fund" and "order" in r:
+        what = ("a pull request for this issue is merged and meets the order's terms" if r["mode"] == 0
+                else "the issue's acceptance checks pass on a pull request that meets the order's terms")
+        money = "test USDC" if r["faucet"] else f"from balance {r['balance']}"
+        if r.get("private"):        # nothing of the repository, the issue or the terms is on chain, and nothing of them is said here
+            return (f"{_usdc(r['amount'])} {money} is in escrow as a private work order (its funder paid a fee of {_usdc(r['fee'])} on top), paid when a run "
+                    f"in its judge repository (id {r['repo_id']}) attests that its terms were met. Unpaid by {_day(r['deadline'])}, it goes back to its funder. "
+                    f"Order {r['order']}.")
+        return (f"{_usdc(r['amount'])} {money} is in escrow as a work order for issue #{r['issue']} (its funder paid a fee of {_usdc(r['fee'])} on top), "
+                f"paid when {what}. Unpaid by {_day(r['deadline'])}, it goes back to its funder. Order {r['order']}.")
+    if k in ("pay", "rule") and "order" in r:
+        sent, held = [p for p in r["paid"] if p["to"]], [p for p in r["paid"] if not p["to"]]
+        out = [f"{_usdc(p['amount'])} was paid to {p['to']} (GitHub user id {p['payee_id']})" for p in sent]
+        words = (", ".join(out) + f" for order {r['order']}.") if out else ""
+        if held:
+            words += (f"{_usdc(held[0]['amount'])} of order {r['order']} is held for GitHub user id {held[0]['payee_id']} until {_day(held[0]['held_until'])}. "
+                      "It is sent once they name a wallet: `knos claim <their Solana address>`, or "
+                      "https://drexthealpha.github.io/Knos/#claim. After that date it goes back to its funder.")
+        if r.get("held_back"):
+            words += (f" {_usdc(r['held_back'])} more is held back until {_day(r['warranty_until'])}, the end of the order's warranty: it follows then, "
+                      "unless the change is reverted first.")
+        if "left" in r:
+            words += f" The standing order stays open with {_usdc(r['left'])} left." if r["left"] else " That was the last of the standing order."
+        return ("The arbiter ruled. " if k == "rule" else "") + words
+    if k == "take" and "order" in r:
+        return f"Order {r['order']} (issue #{r['issue']}) is reserved for GitHub user id {r['taker_id']} until {_day(r['reserved_until'])}."
+    if k == "cancel" and "order" in r:
+        return (f"Order {r['order']} (issue #{r['issue']}) is cancelled with notice: a pull request that meets its terms before {_day(r['deadline'])} is "
+                "still paid; after that the money and the fee go back to where they came from.")
+    if k == "revert" and "order" in r:
+        return (f"{_usdc(r['amount'])} that order {r['order']} held went back to its funder: the change it paid for was reverted inside its warranty "
+                f"(commit {r['head'][:7]}).")
+    if k == "bind" and r.get("org"):
+        got = r["settled"]
+        more = f" {len(got)} held payment{'s' if len(got) != 1 else ''}, {_usdc(sum(s['amount'] - s['fee'] for s in got))} in all, went there." if got else ""
+        return f"GitHub organisation id {r['user_id']} is now paid at {r['wallet']} (its member with id {r['by']} ran the claim).{more}"
+    if k == "key" and "issuer" in r:
+        did = ("registered with the verifier: it verifies after a day's wait, once the guardian has approved it" if r["added"]
+               else "refreshed: the verifier keeps it 30 days from now" if r["refreshed"] else "already known to the verifier")
+        return f"Key {r['key']} of the issuer {r['issuer']} {did}."
     if k == "fund" and "faucet" in r:
         what = ("the pull request that closes this issue is merged and meets the bounty's terms" if r["mode"] == 0
                 else "the issue's acceptance checks pass on a pull request that meets the bounty's terms")
@@ -340,6 +438,15 @@ def _note2(r: dict) -> str | None:
                else "refreshed: the second verifier keeps it 30 days from now" if r["refreshed"]
                else f"not taken by the second verifier ({r['why']})" if r.get("why") else "already known to the second verifier")
         return f"Key {r['key']} {did}." + (" The first deployment added it." if (r.get("first") or {}).get("added") else "")
+    if k == "eval" and "buyer_id" in r:
+        verdict = "accepted" if r["accepted"] else "rejected"
+        return (f"Counted: buyer {r['buyer_id']}, seller {r['seller_id']}, artifact {r['artifact']}, milestone {r['milestone']}, {verdict}. "
+                f"Fee {_usdc(r['fee'])} from the buyer's credits; month {r['month']}.")
+    if k == "gate":
+        return (f"Recorded at the upgrade gate: GitHub's runner built the executable {r['hash']} for program {r['program']} from commit {r['commit']} "
+                f"(run {r['run_id']}). Record {r['record']}.")
+    if k == "withdraw":
+        return f"{r['amount']} of mint {r['mint']} (its smallest units) went from passkey wallet {r['wallet']} to {r['to']}, as its withdrawal number {r['nonce']}."
     if k == "verify":
         return (f"Verified. Account {r['account']} (payer {r['payer']}) holds the token's claims for a program to read "
                 f"until {_day(r['exp'] + 3600)}.")
@@ -370,13 +477,42 @@ def note(r: dict) -> str:
     return f"Key {r['key']} {'added' if r.get('added') else 'already known'}."
 
 
-def log_line(kind: str, repo: str, n: int, jwt: str, r: dict, t: int | None = None) -> str:
-    """The public log's line for one token. `t`: seconds from its comment's creation to its last transaction."""
+STAGES = ("queue", "workflow", "wait", "chain")
+
+
+def stages(jwt: str, created: float | None, picked: float, done: float, get=None) -> dict[str, int]:
+    """Where a carried token's time went, in whole seconds, each stage only when it could be measured: `queue` (the
+    comment or the merge that started the workflow run, to the run's start) and `workflow` (the run's start to the
+    token's comment) from GitHub's record of the run the token names (`repository`, `run_id`: one public read);
+    `wait` (the token's comment to this relay picking it up) and `chain` (pickup to the last confirmation) from this
+    relay's own clock. `created`: when the comment was posted; `get(path)` reads GitHub's API."""
+    out: dict[str, int] = {}
+    try:
+        c = claims(jwt)
+        run = (get or _api)(f"repos/{c['repository']}/actions/runs/{int(c['run_id'])}")
+        asked, began = _unix(run.get("created_at")), _unix(run.get("run_started_at"))
+        if str(run.get("run_attempt", c.get("run_attempt", "1"))) == "1" and asked is not None and began is not None and began >= asked:
+            out["queue"] = round(began - asked)        # (a re-run keeps the first attempt's creation time: its queue is not this)
+        if began is not None and created is not None and created >= began:
+            out["workflow"] = round(created - began)
+    except Exception:  # noqa: BLE001, S110 - not a token, a private repository, or GitHub did not answer: those two are left out
+        pass
+    if created is not None and picked >= created:
+        out["wait"] = round(picked - created)
+    if done >= picked:
+        out["chain"] = round(done - picked)
+    return out
+
+
+def log_line(kind: str, repo: str, n: int, jwt: str, r: dict, t: int | None = None, parts: dict | None = None) -> str:
+    """The public log's line for one token. `t`: seconds from its comment's creation to its last transaction.
+    `parts`: what `stages` measured, written before the note (which may hold any words)."""
     head = f"knos-relay {kind} {repo}#{n} {token_id(jwt)}"
     if not r["ok"]:
         return f"{head} fail {' '.join(str(r['why']).split())}"
     first = " (another relayer carried it first)" if r.get("already") else ""
-    return f"{head} ok sig={','.join(r['sigs'][-3:]) or 'none'} note={r['note']}{first}" + (f" t={t}" if t is not None else "")
+    spent = "".join(f" {k}={int(parts[k])}" for k in STAGES if parts and k in parts)
+    return f"{head} ok sig={','.join(r['sigs'][-3:]) or 'none'}{spent} note={r['note']}{first}" + (f" t={t}" if t is not None else "")
 
 
 _LOG: dict[str, int] = {}
@@ -413,8 +549,8 @@ def post_log(lines: list[str]) -> None:
 
 
 def wait_for(token_id: str, log_repo: str, timeout: float, every: float = 3.0, get=None) -> str | None:
-    """The worker's log line for a token: `knos-relay <kind> <owner/repo>#<n> <token id> ok sig=... note=... t=...`
-    or `... fail <reason>`. Reads the public log of `log_repo` every `every` seconds for up to `timeout` seconds; None
+    """The worker's log line for a token: `knos-relay <kind> <owner/repo>#<n> <token id> ok sig=... [queue= workflow=
+    wait= chain=] note=... t=...` or `... fail <reason>`. Reads the public log of `log_repo` every `every` seconds for up to `timeout` seconds; None
     when no relayer has reported on the token by then. `get(path)` reads GitHub's API (default: this module's
     conditional reader, for which a log with nothing new costs nothing). Only lines the log repository's own workflow
     wrote count: anyone can comment on a public issue."""
@@ -439,6 +575,29 @@ def wait_for(token_id: str, log_repo: str, timeout: float, every: float = 3.0, g
         if left <= 0:
             return None
         time.sleep(min(every, left))
+
+
+def answer(kind: str, jwt: str) -> str:
+    """What `logged` holds for a comment's token: its marker and the token's id. A copy of the token posted under
+    another marker is another matter (the `seen` notes keep them apart too), so its line never answers for this one."""
+    return f"{kind} {token_id(jwt)}"
+
+
+def logged(since: str, get=None) -> set[str]:
+    """The tokens this relay's own log has a verdict on, as `answer` names them (marker and token id): the lines its
+    workflow wrote since `since`. worker.yml starts the next run before this one stops, so two runs relay together for
+    a few seconds: what the log answers already is neither carried nor logged again. Raises when GitHub does not
+    answer."""
+    get = get or _api
+    n, out = _log_issue(HOME_REPO, get), set[str]()
+    for page in range(1, 11) if n is not None else ():
+        got = get(f"repos/{HOME_REPO}/issues/{n}/comments?since={since}&per_page=100" + (f"&page={page}" if page > 1 else ""))
+        for c in got:
+            if (c.get("user") or {}).get("login") == LOG_BOT:
+                out.update(f"{m.group(1)} {m.group(2)}" for m in re.finditer(r"^knos-relay (\S+) \S+ ([0-9a-f]{16}) ", c.get("body") or "", re.M))
+        if len(got) < 100:
+            break
+    return out
 
 
 def _state_path() -> Path:
@@ -466,8 +625,9 @@ def _post(lines: list[str], state: dict) -> None:
 
 
 def _cranks(ledger, payer) -> list[str]:
-    """What needs no token, on both deployments: a proven payment whose wait is over, a bounty nobody proved in time,
-    a held payment whose payee has bound a wallet since, and the rent of this relayer's stale token accounts."""
+    """What needs no token, on both deployments: a proven payment whose wait is over, a bounty or a work order nobody
+    proved in time, a held payment whose payee has bound a wallet since, a holdback whose warranty is over, and the
+    rent of this relayer's stale token accounts, of spent tokens' markers and of the meter's marks of months past."""
     from ..settle import relay as first
     from ..settle.v2 import relay as second
     now = int(ledger.now())
@@ -475,7 +635,12 @@ def _cranks(ledger, payer) -> list[str]:
               ("refund", lambda: first.refund_due(ledger, payer, now), "a bounty passed its deadline unproven; refunded"),
               ("refund", lambda: second.refund_due(ledger, payer, now), "a bounty nobody could be paid from any more went back to its funder"),
               ("settle", lambda: second.settle_held(ledger, payer), "a held payment went to the wallet its payee has bound"),
-              ("sweep", lambda: second.sweep(ledger, payer, now), None))
+              ("refund", lambda: second.refund_orders_due(ledger, payer, now), "a work order nobody could be paid from any more went back to its funder"),
+              ("settle", lambda: second.settle_orders_held(ledger, payer), "a held work order went to the wallet its payee has bound"),
+              ("release", lambda: second.release_orders_due(ledger, payer, now), "a work order's warranty ended with no revert; what it held back went to its payees"),
+              ("sweep", lambda: second.sweep(ledger, payer, now), None),
+              ("sweep", lambda: second.close_markers(ledger, payer, now), None),
+              ("sweep", lambda: second.close_marks(ledger, payer, now), None))
     lines = []
     for kind, send, words in rounds:
         try:
@@ -507,12 +672,20 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         ledger, payer = chain.ledger(), chain.key()
     if state.get("unposted"):
         _post(state.pop("unposted"), state)
+    run_id = os.environ.get("GITHUB_RUN_ID") or ""
+    answered: set[str] = set()
+    if state.get("run", run_id) != run_id:      # another run's notes: it may still be relaying (worker.yml overlaps two runs)
+        try:
+            answered = logged(since)
+        except Exception:  # noqa: BLE001 - GitHub did not answer: a token the chain shows done is looked up one by one
+            answered = set()
     newest = sorted(known, key=lambda r: (-known[r], r))
     rest = sorted(newest[EVERY_PASS:])
     turn = int(state.get("turn", 0)) % max(len(rest), 1)
     state["turn"] = turn + IN_TURN
     repos = {ROTATE_REPO, HOME_REPO} | {r.strip() for r in os.environ.get("KNOS_RELAY_REPOS", "").split(",") if "/" in r}
     repos |= set(newest[:EVERY_PASS]) | set((rest + rest)[turn:turn + IN_TURN])
+    repos |= watched(ledger, state, now)                # found on chain, with no search: where a proof is awaited
     if now - state.get("searched", 0) >= SEARCH_EVERY:
         repos |= set(discover(since, state))
         state["searched"] = now
@@ -537,23 +710,32 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         terms, created = getattr(item, "terms", None), getattr(item, "created", None)
         # a token is done once as it was posted: under this marker, with these terms. A copy posted another way is
         # another matter, so nobody's copy can use up, or speak for, the token of the comment that posts it rightly
-        tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"")).hexdigest()[:16]
+        astray = kind == "withdraw" and not repo.endswith(CLAIM_REPO)       # a copy of a request, posted where none is read: it is not the request
+        tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"") + (repo.encode() if astray else b"")).hexdigest()[:16]
         known[repo] = now
         if tid in seen or tid in hold:
             continue
         seen.add(tid)
         order.append(tid)
-        wrong = misposted(kind, jwt, terms)
+        if answer(kind, jwt) in answered:   # the log has its verdict, under this marker: the run before this one carried it
+            continue
+        wrong = ("a withdrawal request is read only on an issue of a repository named knos-claim" if astray else None) if kind == "withdraw" \
+            else misposted(kind, jwt, terms)
         if wrong:                   # logged without the token's id: whoever waits for that token is not answered by this
             lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its token ({token_id(jwt)[:8]}...): {wrong}")
             later.append(lines[-1])
             continue
-        origin = _origin(jwt, repo)
-        if kind == "verify" and verified.get(origin, 0) >= VERIFY_PER_DAY:
+        picked = time.time()
+        origin = f"withdraw:{repo}" if kind == "withdraw" else _origin(jwt, repo)
+        if kind == "withdraw" and verified.get(origin, 0) >= WITHDRAW_PER_DAY:
+            r = {"ok": False, "kind": "withdraw", "why": f"{WITHDRAW_PER_DAY} withdrawals a day are sent for one repository, and this one has had "
+                                                         "them; post it again after midnight UTC, or send it yourself (anyone can pay its fee)"}
+        elif kind == "verify" and verified.get(origin, 0) >= VERIFY_PER_DAY:
             r = {"ok": False, "kind": "verify", "why": f"{VERIFY_PER_DAY} tokens a day are verified for one repository, and this one has had "
                                                        "them; post it again after midnight UTC, or relay it yourself (anyone can)"}
         else:
             r = relay_one(ledger, payer, kind, jwt, **({"terms": terms} if terms else {}))
+        finished = time.time()
         if r.get("retry"):          # the faucet's minute, or the cluster dropped it: a later pass tries again
             if r.get("transient"):  # only a failure counts toward giving up; waiting out the limit does not
                 tries[tid] = tries.get(tid, 0) + 1
@@ -567,12 +749,21 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
                 continue
             r["why"] = f"{r.get('why')} (gave up after {MAX_TRIES} passes; run the workflow again for a fresh token)"
         tries.pop(tid, None)
+        # carried already, or refused: when two runs overlap, the loser of the race sees one or the other (a passkey
+        # withdrawal has no `already`: once the winner sent it, the wallet's nonce has moved on and the loser is refused)
+        if not r.get("ok") or r.get("already"):
+            try:
+                told = answer(kind, jwt) in logged(since)
+            except Exception:  # noqa: BLE001 - GitHub did not answer: the line says what the chain shows
+                told = False
+            if told:
+                continue            # another run of this relay carried it, and its line is in the log
         if r.get("ok") and not r.get("sigs") and not r.get("already"):
             continue                # nothing had to be done (a key the chain already has): no log line
-        if kind == "verify" and r.get("ok") and r.get("sigs"):
+        if kind in ("verify", "withdraw") and r.get("ok") and r.get("sigs"):
             verified[origin] = verified.get(origin, 0) + 1
-        took = max(0, round(time.time() - created)) if r.get("ok") and created is not None else None
-        line = log_line(kind, repo, n, jwt, r, took)
+        took = max(0, round(finished - created)) if r.get("ok") and created is not None else None
+        line = log_line(kind, repo, n, jwt, r, took, stages(jwt, created, picked, finished) if r.get("ok") else None)
         lines.append(line)
         if r["ok"]:
             _post([line], state)    # at once: someone is waiting for it
@@ -592,7 +783,7 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
     if later:
         _post(later, state)
     state.update(seen=list(dict.fromkeys(t for t in order if t in seen))[-2000:], tries=dict(list(tries.items())[-500:]), repos=known,
-                 hold=dict(list(hold.items())[-500:]), verify={"day": day, "n": verified})
+                 hold=dict(list(hold.items())[-500:]), verify={"day": day, "n": verified}, run=run_id)
     sp.parent.mkdir(parents=True, exist_ok=True)
     sp.write_text(json.dumps(state), encoding="utf-8")
     for ln in lines:

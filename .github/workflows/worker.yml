@@ -6,25 +6,39 @@ name: always-on worker
 # payments whose review window has passed and refunds bounties past their deadline. It decides nothing: the money goes
 # where the token says, and anyone can run the same command (`knos relay`).
 #
-# One step relays for about 4.5 minutes, a pass every 3 seconds (`knos relay --serve`: a pass that finds nothing new
-# costs GitHub one conditional request per repository it knows), then starts the next run itself (GitHub's cron is only
-# a restart safety net).
+# A run relays for about 4.5 minutes, a pass every 3 seconds (`knos relay --serve`: a pass that finds nothing new
+# costs GitHub one conditional request per repository it knows). Thirty seconds before it stops it pauses for the 2 to
+# 5 s it takes to save its notes, then starts the next run and relays on, so the next one installs while this one still
+# relays, restores the notes this run just saved, and takes over with no gap of its own: the one pause at a handover is
+# that save, before the next run is started. (The next run used to wait for this one to end and only then install:
+# the relay was down 12 to 22 s between two runs, and a token posted then waited that long.)
+# For those few seconds two runs relay with the same key, which pays nobody twice: the chain takes a token once, the
+# loser of a race tries again on its next pass and finds it done, and a run logs nothing for a token whose verdict the
+# log has already (ghrelay.logged). GitHub's cron only restarts the chain: a run it starts, or one started by hand,
+# relays only when no run of this workflow is going.
 # The one secret is the fee-paying key; it holds devnet SOL for fees and nobody's money.
 # This job sees that secret, so nothing it installs comes from an Actions cache (`enable-cache: false`): a cache can be
-# written by other runs of this repository. The one cache step below keeps the relay's own notes (the repositories it
-# found tokens in), which are read as data and never run.
+# written by other runs of this repository. And everything it installs is named by hash (requirements/sign.txt,
+# `uv pip install --require-hashes`): a package released after the list was written cannot reach this key. The one
+# cache step below keeps the relay's own notes (the repositories it found tokens in), which are read as data and
+# never run.
+# Each run's title names the run it takes over from, so that the first step of the next one can tell the chain's runs apart.
+run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || 'relay' }}
 on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
+    inputs:
+      after:
+        description: The run this one takes over from (each run sets it for the next; leave it empty to start the chain)
+        required: false
+        default: ""
 
-concurrency:
-  group: always-on-worker
-  cancel-in-progress: false
-
+# No concurrency group: one would hold the next run until this one ends, which is the 12 to 22 s gap this file closes. The first
+# step keeps it to one chain of runs, and ends a second chain at its next handover.
 permissions:
   contents: read
-  actions: write      # each run starts the next
+  actions: write      # each run starts the next, and the first step lists the runs that are going
   issues: write       # the relay log: one line per token relayed, in the open issue labelled knos-relay
 
 jobs:
@@ -34,29 +48,105 @@ jobs:
     env:
       KNOS_HOME: ${{ github.workspace }}/.knos-home
     steps:
+      # A run that the run before it started takes over, unless a run older than this one took over from that run
+      # already (GitHub started the next run but answered the start with an error, so it was asked again), or a run of
+      # another chain relays and has not handed over (a second chain: it ends here, at its next handover). A re-run
+      # relays nothing and starts nothing: its first attempt started the next run. One that the timer or a person
+      # started goes on only when no run of this workflow is going or waiting (that run starts the next one); when
+      # GitHub does not list them, the next tick of the timer asks again, and a run taken over relays all the same (the
+      # next handover asks again).
+      - name: one chain of runs at a time
+        id: chain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AFTER: ${{ inputs.after }}
+        run: |
+          if [ "${GITHUB_RUN_ATTEMPT:-1}" != "1" ]; then
+            echo "A re-run: the first attempt of this run started the next one already, so this one relays nothing and starts nothing."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$AFTER" in *[!0-9]*) AFTER="" ;; esac
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow worker.yml --limit 50 --json databaseId,status,displayTitle) || runs=""
+          if [ -n "$AFTER" ]; then
+            stop=$(printf '%s' "$runs" | jq -r --argjson me "$GITHUB_RUN_ID" --argjson after "$AFTER" '
+              map(select(.databaseId != $me)) as $o | ($o | map(.displayTitle)) as $titles
+              | [$o[] | select(.databaseId < $me) | select(.displayTitle == "relay after \($after)" or
+                  (.databaseId != $after and .status != "completed" and (.displayTitle | startswith("relay after "))
+                   and (.databaseId as $id | any($titles[]; . == "relay after \($id)") | not)))]
+              | map(.databaseId | tostring) | join(" ")') || stop=""
+            if [ -n "$stop" ]; then
+              echo "Run $stop holds the chain (it took over from run $AFTER first, or another chain relays): this one ends here and starts nothing."
+              echo "go=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "go=true" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          others=$(printf '%s' "$runs" | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and .status != "completed")] | length') || others=""
+          if [ "$others" = "0" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Another run of this workflow is relaying and starts the next one (or GitHub did not list the runs): nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
+        if: steps.chain.outputs.go == 'true'
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        if: steps.chain.outputs.go == 'true'
         with:
+          version: "0.8.20"
+          python-version: "3.12"
           enable-cache: false
-      - run: uv pip install --system -e .
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      # Each package by its hash, from this repository's own list, and nothing else: no `-e .`, which would build the
+      # package with a build tool fetched unpinned. Knos itself runs from the checkout (PYTHONPATH below).
+      - name: install what the relay needs, each by its hash, and nothing else
+        if: steps.chain.outputs.go == 'true'
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      # The notes of the run before (the newest saved). That run saved them just before it started this one.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        if: steps.chain.outputs.go == 'true'
         with:
           path: .knos-home
           key: knos-relay-home-${{ github.run_id }}
           restore-keys: knos-relay-home-
-      - name: relay for about 4.5 minutes, a pass every 3 s
+      - name: relay for about 4 minutes, a pass every 3 s
+        if: steps.chain.outputs.go == 'true'
         env:
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
           GH_TOKEN: ${{ github.token }}
           KNOS_RELAY_LOG_REPO: ${{ github.repository }}
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
-          knos relay --serve 280 || true
-      - name: start the next run (always on)
-        if: always()
+          python -m knos relay --serve 250 || true
+      # Saved before the next run is started, so the next run restores these notes and not the ones of the run before
+      # this one (the relay's notes would split in two lines of runs, each with its own day's counts and unposted lines).
+      # What this run does in its last 30 s is not saved: the next run relays it too, and the log answers what it did.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        if: steps.chain.outputs.go == 'true'
+        with:
+          path: .knos-home
+          key: knos-relay-home-${{ github.run_id }}
+      # The next run takes 10 to 21 s to start relaying, so the two overlap for a few seconds and no token waits for a
+      # run to install.
+      - name: start the next run, and relay 30 s more while it installs
+        if: steps.chain.outputs.go == 'true'
+        env:
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          KNOS_RELAY_LOG_REPO: ${{ github.repository }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
+          gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID" \
+            && touch "$RUNNER_TEMP/knos-next" || true
+          python -m knos relay --serve 30 || true
+      - name: start the next run (always on), when the step before did not
+        if: always() && steps.chain.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main
+        run: '[ -f "$RUNNER_TEMP/knos-next" ] || gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID"'

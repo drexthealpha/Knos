@@ -65,7 +65,7 @@ class SeedKey:
             c = rng.getrandbits(size) | (7 << (size - 3)) | 1     # top three bits set: the product keeps its top bit
             if c % 65537 != 1 and c not in primes and is_prime(c):
                 primes.append(c)
-        self.bits, self.n = bits, math.prod(primes)
+        self.bits, self.n, self.primes = bits, math.prod(primes), tuple(primes)
         self.d = pow(65537, -1, math.lcm(*(p - 1 for p in primes)))
         assert self.n.bit_length() == bits
 

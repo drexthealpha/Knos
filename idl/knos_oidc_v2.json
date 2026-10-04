@@ -1,12 +1,12 @@
 {
-  "version": "0.3.12",
+  "version": "0.3.13",
   "name": "knos_oidc_v2",
   "docs": [
-    "OIDC on Solana, second deployment: verifies an RS256 token from GitHub Actions or GitLab CI on chain.",
+    "OIDC on Solana, second deployment: verifies an RS256 token from GitHub Actions, GitLab CI or any other RS256 issuer on chain.",
     "A signing key is one of GitHub's four keys of 2 Oct 2026 or is named by GitHub's own signature; a key admitted that way waits a day and the",
     "guardian's approval, every key expires 30 days after it was last attested, and the guardian can revoke a key for ever.",
     "The guardian (a multisig vault) can approve and revoke. It cannot add a key, change a delay or an expiry, or touch a token account.",
-    "Upgradeable only through a multisig with a public 48-hour delay, until an outside review; then made immutable.",
+    "Upgradeable only through a multisig with a public 48-hour delay, until an outside review.",
     "A native program: this file is written by hand from programs-v2/knos_oidc/src/lib.rs and checked by tests/test_idl.py.",
     "Instruction data is the discriminant byte, then the arguments in order, little-endian, with no padding.",
     "An argument or field of type bytes is raw and runs to the end: it has no length prefix.",
@@ -36,7 +36,8 @@
       "name": "Step",
       "docs": [
         "Computes s^65537 mod n a few squarings at a time. The call that finishes the 16 squarings checks the PKCS#1 v1.5 SHA-256 encoding,",
-        "that alg is RS256 and that iss is the key's issuer, decodes the payload in place and marks the account VERIFIED.",
+        "that alg is RS256 and that iss is the key's issuer (for a key of issuer 2: that sha256(iss) is the hash the key carries), decodes the",
+        "payload in place and marks the account VERIFIED.",
         "Every call refuses a key that is not usable now: not ready (68), revoked (78), neither a genesis key nor approved or before activeAt (76),",
         "at or past expiresAt (77).",
         "2048-bit keys: Step(8), Step(8). 4096-bit keys: Step(2), Step(3) three times, Step(4), Step(1): the finishing call also hashes and",
@@ -73,14 +74,17 @@
         "Any other modulus needs `attest`: a VERIFIED GitHub token, at most an hour past its expiry, whose job_workflow_ref starts with the pinned",
         "rotate workflow, whose job_workflow_sha is the pinned commit, whose runner_environment is github-hosted, whose repository_owner_id and",
         "repository_id are the attester's, whose event_name is schedule or workflow_dispatch, and whose audience is",
-        "knos-oidc:key:<issuer>:<sha256(n) hex>. Then activeAt = now + 1 day, expiresAt = activeAt + 30 days, flags = 0: the key verifies nothing",
+        "knos-oidc:key:<issuer>:<sha256(n) hex>; and `attestKey`, the key account that verified that token, usable now by Step's rule (68 if it is",
+        "another account, 76, 77 or 78 if it is not usable): an attestation is worth nothing from the second its key is revoked or expires.",
+        "Then activeAt = now + 1 day, expiresAt = activeAt + 30 days, flags = 0: the key verifies nothing",
         "until the day has passed and the guardian has approved it. Anyone may send it."
       ],
       "accounts": [
         {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the rent"},
         {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"key\", [issuer], sha256(n)]"},
         {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
-        {"name": "attest", "isMut": false, "isSigner": false, "optional": true, "desc": "A VERIFIED token account naming this key; left out for a genesis key"}
+        {"name": "attest", "isMut": false, "isSigner": false, "optional": true, "desc": "A VERIFIED token account naming this key; left out for a genesis key"},
+        {"name": "attestKey", "isMut": false, "isSigner": false, "optional": true, "desc": "The key account that verified `attest` (the Token account's key field); it must be usable now. Left out for a genesis key"}
       ],
       "args": [
         {"name": "issuer", "type": "u8"},
@@ -104,20 +108,24 @@
     {
       "name": "Refresh",
       "docs": [
-        "The same attestation as RegisterKey's, for a key that exists and is not revoked: expiresAt becomes now + 30 days if that is later.",
-        "It never moves an expiry earlier and changes nothing else. Anyone may send it."
+        "The same attestation as RegisterKey's, with the key account that verified it, for a key that exists and is not revoked: expiresAt",
+        "becomes now + 30 days if that is later. It never moves an expiry earlier and changes nothing else. Anyone may send it.",
+        "attestKey may be `key` itself while it is usable; an expired key is refreshed by an attestation verified under another key that is not.",
+        "For Refresh only, the run may be anyone's: the pinned rotate workflow at the pinned commit on a github-hosted runner, started by hand",
+        "(event_name workflow_dispatch) in a repository owned by the person who started it (repository_owner_id == actor_id)."
       ],
       "accounts": [
         {"name": "payer", "isMut": false, "isSigner": true, "desc": "Any signer"},
         {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"key\", [issuer], sha256(n)]"},
-        {"name": "attest", "isMut": false, "isSigner": false, "desc": "A VERIFIED token account naming this key"}
+        {"name": "attest", "isMut": false, "isSigner": false, "desc": "A VERIFIED token account naming this key"},
+        {"name": "attestKey", "isMut": false, "isSigner": false, "desc": "The key account that verified `attest` (the Token account's key field); it must be usable now"}
       ],
       "args": [],
       "discriminant": {"type": "u8", "value": 5}
     },
     {
       "name": "Approve",
-      "docs": ["Marks a key approved. Refused for a revoked key. Changes no time: an attested key still waits for its activeAt."],
+      "docs": ["Marks a key approved. Refused for a revoked key and for a private key. Changes no time: an attested key still waits for its activeAt."],
       "accounts": [
         {"name": "guardian", "isMut": false, "isSigner": true, "desc": "The guardian: a constant of the binary (a multisig vault)"},
         {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"key\", [issuer], sha256(n)]"}
@@ -129,14 +137,61 @@
       "name": "Revoke",
       "docs": [
         "Marks a key revoked, for ever: no instruction clears the mark, and the account stays, so the same modulus can never be registered",
-        "for that issuer again."
+        "for that issuer again. The wallet that registered a private key may revoke that key in the guardian's place."
       ],
       "accounts": [
-        {"name": "guardian", "isMut": false, "isSigner": true, "desc": "The guardian: a constant of the binary (a multisig vault)"},
+        {"name": "guardian", "isMut": false, "isSigner": true, "desc": "The guardian: a constant of the binary (a multisig vault); or, for a private key, its registrant"},
         {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"key\", [issuer], sha256(n)]"}
       ],
       "args": [],
       "discriminant": {"type": "u8", "value": 7}
+    },
+    {
+      "name": "RegisterIssuerKey",
+      "docs": [
+        "Any RS256 issuer, named by its URL (its iss claim): https://, printable ASCII with no quote or backslash, at most 200 bytes.",
+        "Creates the key account [\"ikey\", sha256(url), sha256(n)] and, with the issuer's first key, the Issuer account that holds the URL.",
+        "The attestation is RegisterKey's (the attester's run of the pinned rotate workflow, never anyone's run) with the audience",
+        "knos-oidc:ikey:<sha256(url) hex>:<sha256(n) hex>, and attestKey is the key account that verified it, usable now.",
+        "The key has issuer 2 and its issuer's hash after r2; it waits a day and the guardian's approval, expires, is refreshed (Refresh, with",
+        "this audience) and revoked like any attested key. Step under it requires sha256(iss) to be that hash, marks the token account issuer 2",
+        "and writes the hash into it (the first 32 bytes of x): never GitHub's or GitLab's number."
+      ],
+      "accounts": [
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the rent"},
+        {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"ikey\", sha256(url), sha256(n)]"},
+        {"name": "issuer", "isMut": true, "isSigner": false, "desc": "PDA [\"iss\", sha256(url)]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "attest", "isMut": false, "isSigner": false, "desc": "A VERIFIED token account naming this issuer and this key"},
+        {"name": "attestKey", "isMut": false, "isSigner": false, "desc": "The key account that verified `attest` (the Token account's key field); it must be usable now"}
+      ],
+      "args": [
+        {"name": "urlLen", "type": "u8"},
+        {"name": "urlAndN", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 8}
+    },
+    {
+      "name": "RegisterPrivateKey",
+      "docs": [
+        "A private key: any wallet registers it, with no attestation, for an issuer no public runner can reach (a company's GitHub Enterprise",
+        "Server). Creates the key account [\"pkey\", registrant, sha256(url), sha256(n)] with issuer 3, flags = private (8), activeAt = now,",
+        "expiresAt = now + 30 days, and after R^2 the issuer's hash and the registrant's address. Sent again by the same wallet for the same key,",
+        "expiresAt becomes now + 30 days if that is later. The registrant or the guardian revokes it.",
+        "Nobody vouches for such a key. Step under it marks the token account issuer 3 and writes the registrant into it (bytes 32..64 of x);",
+        "RegisterKey, RegisterIssuerKey and Refresh take no attestation from it; Approve refuses it. A consumer must check for issuer 3 and accept",
+        "such a token only from a registrant it trusts for that purpose."
+      ],
+      "accounts": [
+        {"name": "registrant", "isMut": true, "isSigner": true, "desc": "The wallet whose word the key is; pays the rent"},
+        {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"pkey\", registrant, sha256(url), sha256(n)]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [
+        {"name": "urlLen", "type": "u8"},
+        {"name": "urlAndN", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 9}
     }
   ],
   "accounts": [
@@ -147,7 +202,11 @@
         "stage: 0 writing, 1 stepping, 2 VERIFIED. issuer: 0 GitHub Actions, 1 GitLab CI. Once VERIFIED, the decoded claims (JSON) are the",
         "payloadLen bytes at payloadOff, counted from the start of the account, and exp is the token's exp claim.",
         "A consumer checks that the account's owner is this program, that stage is 2 and that the clock is under exp + 3600.",
-        "A VERIFIED account stays VERIFIED if its key is revoked or expires afterwards."
+        "A VERIFIED account stays VERIFIED if its key is revoked or expires afterwards.",
+        "issuer 2: any other issuer, admitted by RegisterIssuerKey. Once such an account is VERIFIED, the first 32 bytes of x are sha256 of the",
+        "issuer's URL and the next 32 are zero. A consumer names the issuers it accepts, by number or by hash.",
+        "issuer 3: a PRIVATE key verified it (RegisterPrivateKey): the same hash, and the next 32 bytes are the wallet that registered the key.",
+        "Such a token is that wallet's word, not the issuer's: a consumer accepts it only from a registrant it trusts for that purpose."
       ],
       "type": {
         "kind": "struct",
@@ -175,8 +234,11 @@
         "(limbs is 64 for a 2048-bit key, 128 for a 4096-bit key; 4 * limbs bytes each).",
         "state: 0 created, 1 ready (after KeyParams); never 2, so a key account is never read as a VERIFIED token.",
         "activeAt, expiresAt: Unix seconds; the key verifies from activeAt until just before expiresAt.",
-        "flags: 1 approved by the guardian, 2 revoked, 4 genesis. A key is usable when state is 1, it is not revoked, it is a genesis key or",
-        "approved, and activeAt <= now < expiresAt."
+        "flags: 1 approved by the guardian, 2 revoked, 4 genesis, 8 private. A key is usable when state is 1, it is not revoked, it is a genesis",
+        "key, approved or private, and activeAt <= now < expiresAt.",
+        "A key of issuer 2 (any other issuer) is at PDA [\"ikey\", sha256(url), sha256(n)] and has 64 more bytes after R^2: sha256 of the",
+        "issuer's URL, then 32 zero bytes.",
+        "A private key (issuer 3, flag 8) is at PDA [\"pkey\", registrant, sha256(url), sha256(n)] with the same 64 bytes: the hash, then the registrant."
       ],
       "type": {
         "kind": "struct",
@@ -193,12 +255,29 @@
           {"name": "nAndR2", "type": "bytes"}
         ]
       }
+    },
+    {
+      "name": "Issuer",
+      "docs": [
+        "PDA [\"iss\", sha256(url)]: the URL of an issuer admitted by RegisterIssuerKey, as it stands in its tokens' iss claim.",
+        "state is 3: never a token's stage or a key's state. Created with the issuer's first key and never changed."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "state", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "zero", "type": "u8"},
+          {"name": "urlLen", "type": "u8"},
+          {"name": "url", "type": "bytes"}
+        ]
+      }
     }
   ],
   "errors": [
     {"code": 60, "name": "Base64Url", "msg": "Not unpadded base64url"},
     {"code": 61, "name": "Json", "msg": "The token is not three parts, or a part is not a JSON object"},
-    {"code": 62, "name": "DuplicateClaim", "msg": "A claim appears twice"},
+    {"code": 62, "name": "DuplicateClaim", "msg": "A claim appears twice, under any spelling of its name (a key is compared with its escapes decoded)"},
     {"code": 63, "name": "Claim", "msg": "A claim is missing or of the wrong type, or the token expires more than a day ahead"},
     {"code": 64, "name": "Length", "msg": "Token too long or chunk out of range"},
     {"code": 65, "name": "SignatureLength", "msg": "The signature is not as long as the modulus, or not below it"},

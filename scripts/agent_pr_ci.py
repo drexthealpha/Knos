@@ -16,7 +16,15 @@ Options: --end YYYY-MM-DD (window end; frozen in cache/config.json on first
 run), --days 90, --windows 9, --per-window 20, --max-seconds 270
 Delete ~/.cache/knos-agent-pr-ci/ to take a fresh sample (e.g. with a new --end).
 """
-import argparse, datetime as dt, hashlib, json, os, re, subprocess, sys, time
+import argparse
+import datetime as dt
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(os.path.expanduser("~"), ".cache", "knos-agent-pr-ci")
@@ -61,10 +69,13 @@ CLAIM_RE = re.compile(
     r"|\b\d[\d,]*\s*(?:/\s*\d[\d,]*\s*)?(?:\w+\s+){0,2}passed\b" +          # 1312 passed / 15/15 tests passed
     r"|✅\s*[^\n]{0,40}?\btests?\b"
     r"|\btests?\b[^\n]{0,30}?✅)", re.I)
-# a matched line is NOT counted as a claim if it is an unchecked box or a
-# conditional / instruction / negation / partial-failure statement
+# a matched line is NOT counted as a claim if it is an unchecked box (a task-list item of any marker: -, *, +, 1.,
+# 1), nested or quoted) or a conditional / instruction / negation / partial-failure statement. src/knos/proof/claims.py
+# reads the same words (_BOX, _HEDGE, _BOILER) and web/front.js is a copy: tests/test_agent_pr_index.py holds the three
+# together.
 NONCLAIM_RE = re.compile(
-    r"- \[ \]|\b(ensure|make sure|verify that|should|would|will|to confirm|until|"
+    r"^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)+\[ \](?:[ \t]|$)|"
+    r"\b(ensure|make sure|verify that|should|would|will|to confirm|until|"
     r"once|if|before|whether|need|needs|must|expect|expected|todo|not|"
     r"fail|fails|failing|failed|failure|failures|errors?|except|unless|pending|flaky|skip|"
     r"red|broken)\b|n't\b", re.I)

@@ -7,6 +7,7 @@ the build left to deploy is the real one."""
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -47,7 +48,8 @@ def _bash() -> str:
 def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
     doc = _doc()
     jobs = doc["jobs"]
-    assert not [name for name, job in jobs.items() if "needs" in job]      # nothing waits: the wait is the longest one job
+    # nothing waits (the wait is the longest one job), but the gate: it signs the hashes of the verified builds
+    assert {name: job["needs"] for name, job in jobs.items() if "needs" in job} == {"gate": "verified-build"}
     build = jobs["build-test"]
     legs = _legs(build)
     assert set(legs) == {"first", "second"} and build["strategy"]["fail-fast"] is False
@@ -64,16 +66,42 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
     assert build["env"] == {"DEPLOYMENT": "${{ matrix.deployment }}", "CARGO_TEST": "${{ matrix.cargo-test }}",
                             "BUILD": "${{ matrix.build }}", "TESTS": "${{ matrix.tests }}"}
     assert "matrix." not in run and "github." not in run                    # values reach the scripts through env only
-    # the first deployment's tests are named; the second's are every test file of its two programs
+    # the first deployment's tests are named; the second's are every test file of the verifier, the escrow and its
+    # work orders, the tests of its other two programs (the meter and the passkey wallet), and the tests of the
+    # example programs that are built against it
     assert all((ROOT / t).is_file() for t in legs["first"]["tests"].split())
-    assert legs["second"]["tests"] == "tests/test_oidc2_*.py tests/test_pay2_*.py"
-    for pattern, harness in zip(legs["second"]["tests"].split(), ("_oidc2.py", "_pay2.py")):
-        if (ROOT / "tests" / harness).is_file():                             # a program's tests arrive with its harness
-            assert list(ROOT.glob(pattern)), f"{pattern} matches no file: pytest would fail the second deployment's job"
+    assert legs["second"]["tests"] == ("tests/test_oidc2_*.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py "
+                                       "tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py")
+    for pattern, harness in zip(legs["second"]["tests"].split(), ("_oidc2.py", "_pay2.py", "_order.py", "_meter.py", "test_passkey_chain.py",
+                                                                  "test_cpi_fund.py", "test_workflow_vault.py", "test_upgrade_gate.py")):
+        assert (ROOT / "tests" / harness).is_file(), harness                 # a program's tests arrive with its harness
+        assert list(ROOT.glob(pattern)), f"{pattern} matches no file: pytest would fail the second deployment's job"
+    assert sorted(p.name for p in ROOT.glob("tests/test_order_*.py")) == ["test_order_chain.py", "test_order_judges.py", "test_order_terms.py"]
+    # the examples: each one's test loads the binary the second deployment's script builds from examples/<name>, and
+    # the cache holds their shared target directory beside the workspace's (rust-cache: `workspace -> target`)
+    script = (ROOT / legs["second"]["build"]).read_text(encoding="utf-8")
+    examples = re.findall(r"^  example (\w+) (\w+\.so)$", script, re.M)
+    assert [name for name, _ in examples] == ["cpi_fund", "workflow_vault", "upgrade_gate"] and 'to="${CARGO_TARGET_DIR:-$PWD/examples/target}"' in script
+    for name, binary in examples:
+        assert (ROOT / "examples" / name / "Cargo.lock").is_file() and f"tests/test_{name}.py" in legs["second"]["tests"].split()
+        assert binary in (ROOT / "tests" / f"test_{name}.py").read_text(encoding="utf-8"), name
+    assert legs["second"]["also"].split("\n") == [f"examples/{name} -> ../target" for name, _ in examples]
+    assert legs["first"]["also"] == "examples/oidc_gate" and "tests/test_oidc_gate.py" in legs["first"]["tests"].split()
     paths = set(doc["on"]["push"]["paths"])
-    assert {"programs/**", "programs-v2/**", "scripts/build_programs*.sh", "tests/test_oidc*.py", "tests/test_pay*.py"} <= paths
+    assert {"programs/**", "programs-v2/**", "examples/**", "crates/**", "scripts/build_programs*.sh", "tests/test_oidc*.py", "tests/test_pay*.py",
+            "tests/test_order*.py", "tests/test_meter*.py", "tests/test_passkey*.py", "tests/test_cpi_fund.py", "tests/test_workflow_vault.py",
+            "tests/test_upgrade_gate.py"} <= paths
+    # every path the workflow watches exists (a pattern that matches nothing is a trigger that never fires)
+    for path in paths:
+        assert list(ROOT.glob(path)) or (ROOT / path).exists(), path
+    # what the job keeps: every program its workspace built (the second deployment's four, the first's two)
+    upload = next(s for s in build["steps"] if (s.get("with") or {}).get("name") == "programs${{ matrix.suffix }}")
+    assert upload["with"]["path"] == "${{ matrix.workspace }}/target/deploy/knos_*.so" and upload["with"]["if-no-files-found"] == "error"
+    members = re.search(r"members = \[(.+?)\]", (ROOT / "programs-v2" / "Cargo.toml").read_text(encoding="utf-8")).group(1)
+    assert sorted(re.findall(r'"(\w+)"', members)) == ["knos_meter", "knos_oidc", "knos_passkey", "knos_pay"]   # cargo test and clippy reach all four
     audit = _runs(jobs["cargo-audit"])
     assert "(cd programs && cargo audit)" in audit and "(cd programs-v2 && cargo audit)" in audit
+    assert "(cd crates/knos-oidc-interface && cargo audit)" in audit and (ROOT / "crates" / "knos-oidc-interface" / "Cargo.lock").is_file()
     # a newer push to a branch cancels the run of the push before it; on main every run finishes
     assert doc["concurrency"] == {"group": "program-${{ github.ref }}", "cancel-in-progress": "${{ github.ref != 'refs/heads/main' }}"}
 
@@ -98,9 +126,99 @@ def test_every_rust_build_starts_from_the_pinned_cache_action():
         walk = _legs(doc["jobs"]["fuzz"])[deployment]
         assert [walk[k] for k in ("workspace", "also", "build")] == [leg[k] for k in ("workspace", "also", "build")]
     # the container build compiles with no cache, so it is not on a branch push's path
-    assert doc["jobs"]["verified-build"]["if"] == "github.event_name != 'push' || github.ref == 'refs/heads/main'"
+    # (a release tag builds them too: the upgrade gate records a build made at a commit of main or of a v tag)
+    assert doc["jobs"]["verified-build"]["if"] == "github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')"
     assert not any(str(s.get("uses", "")).startswith("Swatinem/") for s in doc["jobs"]["verified-build"]["steps"])
-    assert sorted(doc["jobs"]["verified-build"]["strategy"]["matrix"]["workspace"]) == ["programs", "programs-v2"]
+    verified = doc["jobs"]["verified-build"]
+    assert sorted(verified["strategy"]["matrix"]["workspace"]) == ["programs", "programs-v2"]
+    assert verified["strategy"]["matrix"]["program"] == ["knos_oidc", "knos_pay"]
+    # the second deployment's other two programs and upgrade_gate are built the same way; the meter's dependency on the
+    # interface crate is outside its workspace, and cargo reads every member of a workspace to build any one, so every
+    # build of programs-v2 mounts the repository and names the workspace; upgrade_gate reads the same crate
+    assert verified["strategy"]["matrix"]["include"] == [{"workspace": "programs-v2", "mount": "repository"},
+                                                         {"workspace": "programs-v2", "program": "knos_meter", "mount": "repository"},
+                                                         {"workspace": "programs-v2", "program": "knos_passkey", "mount": "repository"},
+                                                         {"workspace": "examples/upgrade_gate", "program": "upgrade_gate", "mount": "repository"}]
+    assert verified["env"] == {"WORKSPACE": "${{ matrix.workspace }}", "PROGRAM": "${{ matrix.program }}", "MOUNT": "${{ matrix.mount }}"}
+    run = _runs(verified)
+    assert 'solana-verify build "$GITHUB_WORKSPACE" --workspace-path "$GITHUB_WORKSPACE/$WORKSPACE" --library-name "$PROGRAM"' in run
+    assert 'solana-verify build "$GITHUB_WORKSPACE/$WORKSPACE" --library-name "$PROGRAM"' in run and "matrix." not in run
+    outside = [name for name in ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
+               if re.search(r'path = "\.\./\.\./', (ROOT / "programs-v2" / name / "Cargo.toml").read_text(encoding="utf-8"))]
+    assert outside == ["knos_meter"]                                       # one member reads outside: the workspace needs the wider mount
+    assert re.search(r'path = "\.\./\.\./crates/knos-oidc-interface"', (ROOT / "examples" / "upgrade_gate" / "Cargo.toml").read_text(encoding="utf-8"))
+
+
+def test_the_gate_job_has_github_sign_the_hash_of_each_verified_build_and_runs_nothing_a_commit_wrote(tmp_path):
+    """examples/upgrade_gate takes a token only from this file (job_workflow_ref program.yml@), at the commit built, on
+    main or a v tag, in drexthealpha/Knos, on a GitHub-hosted runner: the job is here, runs only there, and is the
+    only one that may ask for a token. It checks out nothing and builds nothing: it hashes this run's artifacts."""
+    from knos.settle.v2 import gate
+    doc = _doc()
+    job = doc["jobs"]["gate"]
+    assert doc["permissions"] == {"contents": "read"}
+    assert [name for name, j in doc["jobs"].items() if "id-token" in (j.get("permissions") or {})] == ["gate"]
+    assert job["permissions"] == {"id-token": "write", "issues": "write"} and job["runs-on"] == "ubuntu-latest" and "uses" not in job
+    assert job["if"] == ("github.repository == 'drexthealpha/Knos' && github.event_name != 'schedule' && "
+                         "(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))")
+    assert gate.WORKFLOW == "drexthealpha/Knos/.github/workflows/program.yml" and WORKFLOW.name == "program.yml"
+    lib = (ROOT / "examples" / "upgrade_gate" / "src" / "lib.rs").read_text(encoding="utf-8")
+    assert 'git_ref.is("refs/heads/main") || git_ref.starts_with("refs/tags/v")' in lib and 'is("github-hosted")' in lib
+    # a push of a v tag starts the workflow (no branch filter; GitHub does not apply a path filter to a tag) and the builds run on it
+    assert set(doc["on"]["push"]) == {"paths"} and "workflow_dispatch" in doc["on"]
+    # one action, the artifacts of this run; no checkout, no cache, no toolchain, no secret
+    [down, sign] = job["steps"]
+    assert down["uses"].split("@")[0] == "actions/download-artifact" and down["with"] == {"pattern": "*-v2-verified.so", "path": "built"}
+    pins = json.loads((ROOT / "scripts" / "action_pins.json").read_text(encoding="utf-8"))["pins"]
+    assert down["uses"].split("@")[1] == pins["actions/download-artifact@v8"]
+    run = sign["run"]
+    assert sign["env"] == {"GH_TOKEN": "${{ github.token }}"} and "${{" not in run and "secrets." not in json.dumps(job)
+    assert not re.search(r"\bgit\b|cargo|solana|pip |uv |npm |checkout", run)
+    # the programs are the second deployment's four, by their pinned ids, and each is an artifact verified-build uploads
+    ids = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+    named = dict(entry.split("=") for entry in job["env"]["PROGRAMS"].split())
+    assert named == {name: ids[name] for name in ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")}
+    verified = doc["jobs"]["verified-build"]
+    built = {(w, p) for w in verified["strategy"]["matrix"]["workspace"] for p in verified["strategy"]["matrix"]["program"]}
+    built |= {(e["workspace"], e["program"]) for e in verified["strategy"]["matrix"]["include"] if "program" in e}
+    assert {p for w, p in built if w == "programs-v2"} == set(named)
+    [upload] = [s for s in verified["steps"] if str(s.get("uses", "")).startswith("actions/upload-artifact@")]
+    assert upload["with"]["name"] == "${{ matrix.program }}${{ matrix.workspace == 'programs-v2' && '-v2' || '' }}-verified.so"
+    assert upload["with"]["path"] == "${{ matrix.workspace }}/target/deploy/${{ matrix.program }}.so"
+    assert 'file="built/${entry%%=*}-v2-verified.so/${entry%%=*}.so"' in run
+    assert '"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=gate:$id:$hash"' in run and "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" in run
+    assert "printf 'knos-gate: %s\\n\\n<sub>knosrelay: " in run and 'gh issue comment "$issue"' in run and '.title == "knos tokens"' in run
+    # the step itself, run with stand-ins for GitHub: the audience it asks for is the client's, for the hash solana-verify prints
+    bash = _bash()
+    elf = b"\x7fELF" + hashlib.sha256(b"a verified build").digest() * 8
+    for name in named:
+        (tmp_path / "built" / f"{name}-v2-verified.so").mkdir(parents=True)
+        (tmp_path / "built" / f"{name}-v2-verified.so" / f"{name}.so").write_bytes(elf + name.encode() + bytes(300))
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "gh").write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$OUT/gh.log"\ncase "$*" in\n  "api repos/drexthealpha/Knos/issues?state=open"*) echo 12 ;;\n'
+                             '  "issue comment"*) cat >> "$OUT/comments" ;;\nesac\n', encoding="utf-8")
+    (fake / "curl").write_text('#!/bin/sh\nfor a in "$@"; do last="$a"; done\nprintf \'%s\\n\' "$last" >> "$OUT/asked"\n'
+                               'printf \'{"value": "eyJh.%s.sig"}\' "$(printf %s "$last" | sha256sum | cut -c1-16)"\n', encoding="utf-8")
+    for tool in ("gh", "curl"):
+        (fake / tool).chmod(0o755)
+    env = {**os.environ, "PATH": f"{fake}{os.pathsep}{os.environ['PATH']}", "OUT": str(tmp_path), "PROGRAMS": job["env"]["PROGRAMS"],
+           "GITHUB_REPOSITORY": "drexthealpha/Knos", "GITHUB_STEP_SUMMARY": str(tmp_path / "summary"), "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "t",
+           "ACTIONS_ID_TOKEN_REQUEST_URL": "https://token.test/?api-version=2"}
+    done = subprocess.run([bash, "-c", run], cwd=tmp_path, env=env, capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    want = [gate.audience(ids[name], gate.executable_hash(elf + name.encode())) for name in named]
+    assert (tmp_path / "asked").read_text(encoding="utf-8").split() == [f"https://token.test/?api-version=2&audience={aud}" for aud in want]
+    from knos.proof import ghrelay
+    posted = ghrelay.TOKEN.findall((tmp_path / "comments").read_text(encoding="utf-8"))
+    assert [kind for kind, _jwt in posted] == ["gate"] * 4 and len({jwt for _kind, jwt in posted}) == 4
+    log = (tmp_path / "gh.log").read_text(encoding="utf-8").splitlines()
+    assert len(log) == 5 and all(line == "issue comment 12 --repo drexthealpha/Knos --body-file -" for line in log[1:])     # the issue was there: none is made
+    assert all(f"{name} {ids[name]}: executable hash" in (tmp_path / "summary").read_text(encoding="utf-8") for name in named)
+    # a build that is missing from the run fails the job before anything else is signed for it
+    (tmp_path / "built" / "knos_pay-v2-verified.so" / "knos_pay.so").unlink()
+    again = subprocess.run([bash, "-c", run], cwd=tmp_path, env=env, capture_output=True, text=True)
+    assert again.returncode == 1 and "no verified build of knos_pay" in again.stdout
 
 
 def test_ten_thousand_random_steps_are_four_walks_side_by_side_each_from_its_own_seed():
@@ -132,11 +250,13 @@ def test_the_tests_can_only_load_a_binary_this_commit_built(tmp_path):
     doc = _doc()
     for job in ("build-test", "fuzz"):
         [step] = [s for s in doc["jobs"][job]["steps"] if 'bash "$BUILD"' in str(s.get("run", ""))]
-        for deployment, builds, left in (("first", "knos_pay_test.so", "knos_pay_v2_test.so knos_old_v2_test.so"),
+        # the meter's binary carries no _v2_ and is the second deployment's all the same
+        for deployment, builds, left in (("first", "knos_pay_test.so", "knos_pay_v2_test.so knos_old_v2_test.so knos_meter_test.so"),
                                          ("second", "knos_pay_v2_test.so", "knos_pay_test.so knos_old_test.so")):
             tree = tmp_path / job / deployment
             (tree / "tests" / "fixtures").mkdir(parents=True)
-            for name in ("knos_pay_test.so", "knos_old_test.so", "knos_pay_v2_test.so", "knos_old_v2_test.so", "SHA256SUMS", "keys.json"):
+            for name in ("knos_pay_test.so", "knos_old_test.so", "knos_pay_v2_test.so", "knos_old_v2_test.so", "knos_meter_test.so", "SHA256SUMS",
+                         "keys.json"):
                 (tree / "tests" / "fixtures" / name).write_text("committed", encoding="utf-8")
             (tree / "build.sh").write_text(f"echo built > tests/fixtures/{builds}\n", encoding="utf-8")
             env = {**os.environ, "DEPLOYMENT": deployment, "BUILD": "build.sh"}
@@ -154,11 +274,254 @@ def test_every_committed_test_binary_is_one_its_deployments_build_script_builds(
     binaries = sorted(FIXTURES.glob("*.so"))
     assert binaries
     for binary in binaries:
-        script = ROOT / legs["second" if "_v2_" in binary.name else "first"]["build"]
+        # the meter exists only in the second deployment's workspace, so its binary carries no _v2_
+        script = ROOT / legs["second" if "_v2_" in binary.name or binary.name.startswith("knos_meter_") else "first"]["build"]
         code = "\n".join(ln for ln in script.read_text(encoding="utf-8").splitlines() if not ln.lstrip().startswith("#"))
         assert re.search(rf"(?<![\w.]){re.escape(binary.name)}(?![\w.])", code), (
             f"tests/fixtures/{binary.name}: scripts/{script.name} does not build it. The program workflow removes the "
             f"committed binaries before it builds, so a test that loads this one would fail there: add its build, or remove it")
+
+
+def test_the_two_claim_readers_and_serde_json_are_asked_the_same_documents_on_every_push():
+    """The fuzz target's check runs nightly on any bytes; the same function runs on stable, from fixed seeds, in the
+    job that tests the interface crate. And the crate a program funds an order with is tested there too."""
+    job = _doc()["jobs"]["interface"]
+    assert "if" not in job and "needs" not in job
+    run = _runs(job)
+    assert "cd programs-v2/knos_oidc/fuzz && cargo test --release --locked --test random" in run
+    fuzz = ROOT / "programs-v2" / "knos_oidc" / "fuzz"
+    assert (fuzz / "Cargo.lock").is_file() and (fuzz / "tests" / "random.rs").is_file()
+    tests = (fuzz / "tests" / "random.rs").read_text(encoding="utf-8")
+    assert len(re.findall(r"^#\[test\]$", tests, re.M)) == 4 and "agree(" in tests
+    # the number the workflow's header gives is the tests' own: 300,000 + 200,000 + 16 x (40,000 + 20,000), less the spellings
+    counts = [int(n.replace("_", "")) for n in re.findall(r"for _ in 0\.\.([\d_]+) \{", tests)]
+    assert counts == [300_000, 200_000, 40_000, 20_000] and "for seed in 1..=16u64" in tests
+    assert 300_000 + 200_000 + 16 * (40_000 + 20_000) == 1_460_000 and "1.46 million inputs" in WORKFLOW.read_text(encoding="utf-8")
+    cache = next(s for s in job["steps"] if str(s.get("uses", "")).startswith("Swatinem/rust-cache@"))
+    assert cache["with"]["workspaces"].split() == ["crates/knos-oidc-interface", "crates/knos-pay-interface", "programs-v2/knos_oidc/fuzz"]
+    assert "tests/test_pay_interface.py" in run and (ROOT / "tests" / "test_pay_interface.py").is_file()
+    assert (ROOT / "crates" / "knos-pay-interface" / "Cargo.lock").is_file()
+
+
+def _pin(action: str) -> str:
+    pins = json.loads((ROOT / "scripts" / "action_pins.json").read_text(encoding="utf-8"))["pins"]
+    return f"{action.split('@')[0]}@{pins[action]}"
+
+
+def test_clippy_denies_every_warning_on_the_second_deployment_and_the_interface_crate_on_a_named_rust_release():
+    job = _doc()["jobs"]["clippy"]
+    assert "needs" not in job and "if" not in job
+    release = job["env"]["RUSTUP_TOOLCHAIN"]
+    assert re.fullmatch(r"\d+\.\d+\.\d+", release), "a release, not `stable`: a new lint must not fail an old push"
+    steps = job["steps"]
+    install = next(i for i, s in enumerate(steps) if "rustup toolchain install" in str(s.get("run", "")))
+    assert '"$RUSTUP_TOOLCHAIN"' in steps[install]["run"] and "--component clippy" in steps[install]["run"]
+    cache = next(i for i, s in enumerate(steps) if str(s.get("uses", "")).startswith("Swatinem/rust-cache@"))
+    lint = next(i for i, s in enumerate(steps) if "cargo clippy" in str(s.get("run", "")))
+    assert install < cache < lint                    # the cache key reads the release, so the release comes first
+    assert steps[cache]["uses"] == _pin("Swatinem/rust-cache@v2") and steps[cache]["with"]["save-if"] == "${{ github.ref == 'refs/heads/main' }}"
+    assert steps[cache]["with"]["workspaces"] == "programs-v2\ncrates/knos-oidc-interface\n"
+    assert "${{ env.RUSTUP_TOOLCHAIN }}" in steps[cache]["with"]["shared-key"]
+    commands = [ln.strip() for ln in steps[lint]["run"].splitlines() if ln.strip()]
+    assert commands == [
+        "(cd crates/knos-oidc-interface && cargo clippy --locked --all-targets --all-features -- -D warnings)",
+        "(cd programs-v2 && cargo clippy --locked --all-targets -- -D warnings)"]
+    for crate in ("crates/knos-oidc-interface", "programs-v2"):
+        assert (ROOT / crate / "Cargo.lock").is_file()            # --locked needs one
+    assert not [a for a in ("allow(", "-A ") if a in steps[lint]["run"]]     # nothing is let through on the command line
+
+
+def test_the_claim_parser_is_fuzzed_nightly_for_five_minutes_and_the_job_skips_cleanly_without_the_target():
+    from _ghexpr import runs
+    doc = _doc()
+    job = doc["jobs"]["fuzz-claims"]
+    assert "cron" in doc["on"]["schedule"][0] and "workflow_dispatch" in doc["on"] and "needs" not in job
+    # nightly and by hand only: a push (or a pull request) never waits for five minutes of fuzzing
+    for event, runs_it in (("schedule", True), ("workflow_dispatch", True), ("push", False), ("pull_request", False)):
+        assert runs(job["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
+    assert re.fullmatch(r"nightly-\d{4}-\d{2}-\d{2}", job["env"]["FUZZ_TOOLCHAIN"])      # dated: a night can be reproduced
+    assert re.fullmatch(r"\d+\.\d+\.\d+", job["env"]["CARGO_FUZZ"]) and job["timeout-minutes"] >= 15
+    steps = job["steps"]
+    guard = "hashFiles('programs-v2/knos_oidc/fuzz/Cargo.toml') != ''"
+    script = next(s for s in steps if "fuzz_nightly.sh" in str(s.get("run", "")))
+    assert script["run"] == "bash scripts/fuzz_nightly.sh 300" and "if" not in script   # 300 seconds; the script itself says "no target"
+    # until the target exists every step that takes time is skipped, and the ones after still run
+    for step in steps:
+        if step is script or str(step.get("uses", "")).startswith(("actions/checkout@", "actions/upload-artifact@")):
+            continue
+        assert step.get("if") == guard, step
+    uploads = {s["with"]["name"]: s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact@")}
+    assert uploads["fuzz-claims"]["with"]["path"] == "fuzz.json" and uploads["fuzz-claims"]["if"] == "always()"
+    assert uploads["fuzz-claims-crash"]["with"]["path"] == "programs-v2/knos_oidc/fuzz/artifacts" and uploads["fuzz-claims-crash"]["if"] == "failure()"
+    assert all(u["with"]["if-no-files-found"] == "ignore" and u["uses"] == _pin("actions/upload-artifact@v7") for u in uploads.values())
+    # the corpus is kept from one night to the next, and no other job here is on a nightly compiler
+    corpus = next(s for s in steps if s.get("uses") == _pin("actions/cache@v6"))
+    assert corpus["with"]["path"] == "programs-v2/knos_oidc/fuzz/corpus" and corpus["with"]["restore-keys"] == "fuzz-claims-corpus-"
+    assert "${{ github.run_id }}" in corpus["with"]["key"]
+    # no other job here names a nightly compiler (the Kani job's verifier carries the one it was built with)
+    assert not [name for name, other in doc["jobs"].items() if name != "fuzz-claims" and "nightly" in str(other)]
+
+
+def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_random_on_every_push():
+    from _ghexpr import runs
+    doc = _doc()
+    job = doc["jobs"]["kani"]
+    assert "needs" not in job and job["timeout-minutes"] <= 30
+    for event, runs_it in (("schedule", True), ("workflow_dispatch", True), ("push", False), ("pull_request", False)):
+        assert runs(job["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
+    checkout, kani = job["steps"]
+    assert checkout["uses"] == _pin("actions/checkout@v7") and kani["uses"] == _pin("model-checking/kani-github-action@v1.1")
+    # a named version of the verifier, in the crate whose arithmetic it proves; a harness that fails fails the step
+    assert re.fullmatch(r"\d+\.\d+\.\d+", kani["with"]["kani-version"]) and kani["with"]["working-directory"] == "programs-v2/knos_pay"
+    assert set(kani["with"]) == {"kani-version", "working-directory", "args"} and "--harness" not in kani["with"]["args"]    # every harness
+    crate = ROOT / "programs-v2" / "knos_pay"
+    proofs, lib = (crate / "src" / "proofs.rs").read_text(encoding="utf-8"), (crate / "src" / "lib.rs").read_text(encoding="utf-8")
+    # the proofs are in no build of the program: one line of lib.rs, the last, behind cfg(kani) or cfg(test)
+    assert lib.rstrip().splitlines()[-1].startswith("#[cfg(any(kani, test))] mod proofs;") and lib.count("mod proofs") == 1
+    harnesses = re.findall(r"#\[kani::proof\]\n(?:    #\[kani::unwind\(\d+\)\]\n)?    fn (\w+)\(\)", proofs)
+    assert harnesses == ["the_remainder_of_a_share_is_never_more_than_the_remainder", "an_orders_fee_is_between_its_floor_and_its_cap_for_every_amount",
+                         "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
+                         "an_order_that_has_paid_nothing_has_given_out_none_of_its_fee"]
+    assert proofs.count("#[kani::proof]") == len(harnesses) and "#[cfg(kani)]\nmod harness {" in proofs
+    # what a harness assumes instead of proving is said where the file says what is proved, and tested at random
+    assert proofs.count("kani::assume(fee_before <= fee_after && fee_after <= fee && (!last || fee_after == fee));") == 1
+    assert "WHAT IS ASSUMED" in proofs and "WHAT IS PROVED" in proofs and "WHAT IS NOT" in proofs
+    # the same properties on inputs made from fixed seeds, in the programs' own `cargo test`, which every push runs
+    tests = re.findall(r"    #\[test\]\n    fn (\w+)\(\)", proofs)
+    assert tests == ["the_model_is_the_arithmetic_of_the_source", "an_orders_fee_is_between_its_floor_and_its_cap_and_a_share_is_never_more_than_the_whole",
+                     "the_payees_shares_add_up_to_the_payment", "the_fee_an_order_has_given_out_grows_with_what_it_paid_and_ends_at_the_whole_fee",
+                     "nothing_is_created_or_lost_over_the_life_of_an_order",
+                     "a_standing_order_gives_out_its_fee_with_its_amount_and_keeps_the_rest_for_the_refund"]
+    assert _legs(doc["jobs"]["build-test"])["second"]["cargo-test"] == "programs-v2"
+    assert 'cd "$CARGO_TEST" && cargo test --release' in _runs(doc["jobs"]["build-test"])
+    # the lint that would refuse `cfg(kani)` is off for this crate, so clippy's -D warnings still passes
+    assert 'unexpected_cfgs = { level = "allow" }' in (crate / "Cargo.toml").read_text(encoding="utf-8")
+
+
+# ---- the nightly fuzz script, with a stand-in for cargo-fuzz ----------------------------------------------------------
+
+CARGO_FUZZ = """#!/bin/sh
+# cargo +<toolchain> fuzz list | fuzz run <target> -- <libFuzzer arguments>, as far as the script can tell.
+echo "$@" >> "$FAKE_LOG"
+[ "$2" = fuzz ] || exit 9
+case "$3" in
+  list) printf '%s\n' $FAKE_TARGETS ;;
+  run)
+    target=$4
+    echo "INFO: Running with entropic power schedule"
+    [ "$FAKE_MODE" = nobuild ] && { echo "error: could not compile $target" >&2; exit 101; }
+    echo "#9\tDONE cov: 14 ft: 15 corp: 1/1b exec/s: 3 rss: 40Mb"
+    [ "$FAKE_MODE" = crash ] && echo "Test unit written to ./artifacts/$target/crash-0123abcd"
+    echo "stat::number_of_executed_units: ${FAKE_RUNS:-1000}"
+    echo "stat::average_exec_per_sec:     333"
+    [ "$FAKE_MODE" = crash ] && exit 77
+    exit 0 ;;
+esac
+"""
+
+
+@pytest.fixture()
+def fuzz(tmp_path):
+    """scripts/fuzz_nightly.sh in a tree shaped like the repository, with a `cargo` that fuzzes nothing and says what a
+    real run says. `go(mode=..., targets=..., runs=..., seconds=...)` returns (result, parsed fuzz.json or None, summary)."""
+    bash = _bash()
+    root = tmp_path / "repo"
+    (root / "scripts").mkdir(parents=True)
+    shutil.copy(ROOT / "scripts" / "fuzz_nightly.sh", root / "scripts" / "fuzz_nightly.sh")
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "cargo").write_text(CARGO_FUZZ, encoding="utf-8")
+    (fake / "cargo").chmod(0o755)
+
+    def go(mode: str = "", targets: tuple[str, ...] = ("claims",), runs: int = 1000, seconds: str = "300", present: bool = True):
+        crate = root / "programs-v2" / "knos_oidc"
+        if present:
+            (crate / "fuzz" / "fuzz_targets").mkdir(parents=True, exist_ok=True)
+            (crate / "fuzz" / "Cargo.toml").write_text("[package]\nname = 'knos-oidc-fuzz'\n", encoding="utf-8")
+            for name in targets:
+                (crate / "fuzz" / "fuzz_targets" / f"{name}.rs").write_text("// target\n", encoding="utf-8")
+        for stale in ("fuzz.json", "summary.md", "calls"):
+            (root / stale).unlink(missing_ok=True)
+        env = {**os.environ, "PATH": str(fake) + os.pathsep + os.environ["PATH"], "FAKE_MODE": mode, "FAKE_RUNS": str(runs),
+               "FAKE_TARGETS": " ".join(targets), "FAKE_LOG": str(root / "calls"), "GITHUB_STEP_SUMMARY": str(root / "summary.md"),
+               "GITHUB_SHA": "a" * 40, "GITHUB_RUN_ID": "77", "GITHUB_REPOSITORY": "o/r", "GITHUB_SERVER_URL": "https://github.com",
+               "FUZZ_TOOLCHAIN": "nightly-2026-10-01"}
+        r = subprocess.run([bash, "scripts/fuzz_nightly.sh", *([seconds] if seconds else [])], cwd=str(root), env=env, capture_output=True, text=True)
+        out = json.loads((root / "fuzz.json").read_text(encoding="utf-8")) if (root / "fuzz.json").exists() else None
+        summary = (root / "summary.md").read_text(encoding="utf-8") if (root / "summary.md").exists() else ""
+        calls = (root / "calls").read_text(encoding="utf-8").splitlines() if (root / "calls").exists() else []
+        return r, out, summary, calls
+    go.root = root
+    return go
+
+
+def test_the_fuzz_script_counts_the_inputs_the_fuzzer_reports_and_says_so_twice(fuzz):
+    r, out, summary, calls = fuzz(runs=61_230)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert out["executions"] == 61_230 and out["seconds"] == 300 and out["crashed"] is False and out["target"] == "claims"
+    assert out["commit"] == "a" * 40 and out["run"] == "https://github.com/o/r/actions/runs/77"
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", out["date"])
+    assert "libFuzzer" in out["source"] and "300 seconds" in out["source"] and "aaaaaaa" in out["source"] and out["run"] in out["source"]
+    assert "| claims | 300 | 61230 | none |" in summary
+    # the nightly toolchain and libFuzzer's own time limit: the whole 300 seconds for the one target
+    assert calls == ["+nightly-2026-10-01 fuzz list",
+                     "+nightly-2026-10-01 fuzz run claims -- -max_total_time=300 -print_final_stats=1 -rss_limit_mb=2048"]
+
+
+def test_with_two_targets_each_gets_an_equal_share_and_the_counts_add_up(fuzz):
+    r, out, summary, calls = fuzz(targets=("claims", "keys"), runs=500, seconds="300")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert out["executions"] == 1000 and out["target"] == "claims,keys" and out["seconds"] == 300
+    assert [c.split(" -- ")[1].split()[0] for c in calls if " fuzz run " in c] == ["-max_total_time=150"] * 2
+    assert "| claims,keys | 300 | 1000 | none |" in summary
+
+
+def test_the_fuzz_script_defaults_to_five_minutes_and_refuses_what_is_not_a_number_of_seconds(fuzz):
+    r, out, _summary, calls = fuzz(seconds="")
+    assert r.returncode == 0 and out["seconds"] == 300 and "-max_total_time=300" in calls[-1]
+    for bad in ("five", "0", "-5", "1.5"):
+        r, out, _summary, calls = fuzz(seconds=bad)
+        assert r.returncode == 2 and out is None and not calls and "whole number of seconds" in r.stdout, bad
+
+
+def test_the_fuzz_script_skips_cleanly_while_the_target_is_not_there(fuzz):
+    fuzz_dir = fuzz.root / "programs-v2" / "knos_oidc" / "fuzz"
+    for kind in ("no fuzz directory", "a fuzz directory with no target in it"):
+        if kind != "no fuzz directory":
+            (fuzz_dir / "fuzz_targets").mkdir(parents=True)
+            (fuzz_dir / "Cargo.toml").write_text("[package]\nname = 'knos-oidc-fuzz'\n", encoding="utf-8")
+        r, out, summary, calls = fuzz(present=False)
+        assert r.returncode == 0 and out is None and not calls, (kind, r.stdout, r.stderr)   # green, no file, cargo never called
+        assert "no fuzz target" in summary and "nothing was fuzzed" in summary, kind
+
+
+def test_an_input_that_crashes_the_parser_fails_the_job_and_is_still_counted(fuzz):
+    r, out, summary, _calls = fuzz(mode="crash", runs=42)
+    assert r.returncode == 1
+    assert out["crashed"] is True and out["executions"] == 42
+    assert "yes: the input is in the artifact" in summary and "makes the claim parser fail" in summary
+
+
+def test_a_run_that_did_not_finish_writes_no_count(fuzz):
+    r, out, summary, _calls = fuzz(mode="nobuild")
+    assert r.returncode == 1 and out is None
+    assert "did not finish" in summary and "No count was written" in summary
+
+
+def test_the_numbers_in_fuzz_json_are_what_bench_docs_takes_for_a_number_only_a_run_can_measure(fuzz, tmp_path):
+    """`bench_docs.py --set NAME=NUMBER --source TEXT` with the file's `executions` and `source`: kept in docs/bench.json
+    under release.<name>, with where it was measured."""
+    spec = importlib.util.spec_from_file_location("bench_docs", ROOT / "scripts" / "bench_docs.py")
+    bd = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bd)
+    assert bd.SLOTS["claim_parser_executions"][1] is None        # no stats.json path: only a run can give it
+    _r, out, _summary, _calls = fuzz(runs=987_654)
+    for rel in ("docs/bench.json", "docs/facts.json"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_bytes((ROOT / rel).read_bytes())
+    bd.fill(given={"claim_parser_executions": (out["executions"], out["source"])}, root=tmp_path)
+    kept = json.loads((tmp_path / "docs" / "bench.json").read_text(encoding="utf-8"))["release"]["claim_parser_executions"]
+    assert kept == {"value": 987_654, "source": out["source"]}
 
 
 # ---- the build scripts, with a stand-in for cargo -------------------------------------------------------------------
@@ -187,12 +550,16 @@ def tree(tmp_path):
     (root / "tests" / "fixtures" / "SHA256SUMS").write_text(f"{'0' * 64}  docs/other.json\n", encoding="utf-8")
     for ws in ("programs", "programs-v2"):
         (root / ws).mkdir()
-        (root / ws / "Cargo.toml").write_text('[workspace]\nmembers = ["knos_oidc", "knos_pay"]\n', encoding="utf-8")
-        for crate in ("knos_oidc", "knos_pay"):
+        crates = ("knos_oidc", "knos_pay") + (("knos_passkey",) if ws == "programs-v2" else ())
+        (root / ws / "Cargo.toml").write_text(f'[workspace]\nmembers = {json.dumps(list(crates))}\n', encoding="utf-8")
+        for crate in crates:
             (root / ws / crate).mkdir()
             (root / ws / crate / "Cargo.toml").write_text(f'[package]\nname = "{crate}"\n', encoding="utf-8")
-    (root / "examples" / "oidc_gate").mkdir(parents=True)
-    (root / "examples" / "oidc_gate" / "Cargo.toml").write_text('[package]\nname = "oidc_gate"\n', encoding="utf-8")
+    (root / "programs-v2" / "knos_meter").mkdir()
+    (root / "programs-v2" / "knos_meter" / "Cargo.toml").write_text('[package]\nname = "knos_meter"\n', encoding="utf-8")
+    for example in ("oidc_gate", "cpi_fund", "workflow_vault", "upgrade_gate"):
+        (root / "examples" / example).mkdir(parents=True)
+        (root / "examples" / example / "Cargo.toml").write_text(f'[package]\nname = "{example}"\n', encoding="utf-8")
     fake = tmp_path / "bin"
     fake.mkdir()
     (fake / "cargo").write_text(CARGO, encoding="utf-8")
@@ -243,17 +610,67 @@ def test_the_second_deployments_script_builds_test_binaries_with_test_keys_and_l
         r = build("build_programs_v2.sh")
         assert r.returncode == 0, r.stderr
         got = _built(root / "tests" / "fixtures")
-        assert got and all("_v2_" in name for name in got), got                # its binaries carry _v2_; the first's are not its business
+        # its binaries carry _v2_ (the meter's, which the first deployment never had, does not); the first's are not its business
+        assert got and all("_v2_" in name or name == "knos_meter_test.so" for name in got), got
         for name, how in got.items():
-            assert how.split()[0] == ("knos_oidc" if name.startswith("knos_oidc_") else "knos_pay"), (name, how)
+            assert how.split()[0] == name.split("_v2_")[0].removesuffix("_test.so"), (name, how)
             # a binary named real is the program as it is deployed; every other one is a test build
             assert ("--features testkeys" in how) == ("_real" not in name), (name, how)
-        assert {"knos_oidc_v2_test.so", "knos_pay_v2_test.so", "knos_pay_v2_nodevnet.so"} <= set(got)
+        assert {"knos_oidc_v2_test.so", "knos_pay_v2_test.so", "knos_pay_v2_nodevnet.so", "knos_meter_test.so", "knos_passkey_v2_real.so"} <= set(got)
         assert "--no-default-features" in got["knos_pay_v2_nodevnet.so"] and "--no-default-features" not in got["knos_pay_v2_test.so"]
+        # the example programs built on this deployment are built here too, each as it would be deployed, into a target of their own
+        assert {"cpi_fund_v2_real.so", "workflow_vault_v2_real.so", "upgrade_gate_v2_real.so"} <= set(got)
+        assert set(_built(root / "examples" / "target" / "deploy")) == {"cpi_fund.so", "workflow_vault.so", "upgrade_gate.so"}
         # what is left to try on a cluster trusts no test key, and the devnet escrow has its faucet
-        assert _built(root / "programs-v2" / "target" / "deploy") == {"knos_oidc.so": "knos_oidc", "knos_pay.so": "knos_pay"}
+        assert _built(root / "programs-v2" / "target" / "deploy") == {"knos_oidc.so": "knos_oidc", "knos_pay.so": "knos_pay", "knos_meter.so": "knos_meter", "knos_passkey.so": "knos_passkey"}
         # each binary it built is pinned by its hash, once, and the other pins are as they were
         sums = dict(reversed(line.split("  ", 1)) for line in (root / "tests" / "fixtures" / "SHA256SUMS").read_text(encoding="utf-8").splitlines())
         assert sums.pop("docs/other.json") == "0" * 64
         assert sums == {f"tests/fixtures/{name}": hashlib.sha256((root / "tests" / "fixtures" / name).read_bytes()).hexdigest() for name in got}
     assert not (root / "programs" / "target").exists()
+
+
+def test_the_rebuild_a_person_is_told_to_run_is_the_command_program_yml_and_deploy_v2_run():
+    """The verified hashes are program.yml's builds. ASSURANCE.md, deploy_v2.sh (the build it runs, the step it describes
+    and the command its UNGATED line hands the members) and build_programs_v2.sh's note must say the same command, or a
+    verifier rebuilds something else. Every mount is an absolute path: solana-verify finds the manifest with `find
+    <mount>` and strips the mount's text from each path it finds, so a mount of "." strips every dot
+    (./programs-v2/knos_pay/Cargo.toml becomes /programs-v2/knos_pay/Cargotoml) and cargo refuses it."""
+    import shlex
+    doc = _doc()
+    image = doc["env"]["VERIFY_IMAGE"]
+    run = _runs(doc["jobs"]["verified-build"])
+    ci = next(line.strip() for line in run.splitlines() if line.strip().startswith('solana-verify build "$GITHUB_WORKSPACE" '))
+
+    def words(command: str, root: str, name: str) -> list[str]:
+        return shlex.split(command.replace(root, "<repo>").replace("$WORKSPACE", "programs-v2").replace("$VERIFY_IMAGE", image)
+                           .replace("$PROGRAM", "<name>").replace("$name", "<name>").replace("<name>", name))
+    want = {name: words(ci, "$GITHUB_WORKSPACE", name) for name in ("knos_oidc", "knos_pay")}
+    assert want["knos_pay"] == ["solana-verify", "build", "<repo>", "--workspace-path", "<repo>/programs-v2", "--library-name",
+                                "knos_pay", "--base-image", image]
+    script = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    assert f'VERIFY_IMAGE="${{KNOS_VERIFY_IMAGE:-{image}}}"' in script
+    built = [line.strip().split(" || ")[0] for line in script.splitlines() if line.strip().startswith("solana-verify build ")]
+    assert len(built) == 1 and words(built[0], "$ROOT", "knos_pay") == want["knos_pay"]
+    # what the UNGATED line prints, as bash prints it
+    echo = next(line.strip() for line in script.splitlines() if "UNGATED: the members have only their own rebuild" in line)
+    bash = shutil.which("bash")
+    if bash and os.name != "nt":
+        said = subprocess.run([bash, "-c", f"name=knos_oidc; want=abc; VERIFY_IMAGE={shlex.quote(image)}; {echo}"],
+                              capture_output=True, text=True, timeout=30).stdout
+        told = said[said.index("solana-verify build"):].rstrip().rstrip(".").rstrip(")")
+        assert words(told, "$PWD", "knos_oidc") == want["knos_oidc"], said
+    # the documented commands, one per program, run from the repository's root
+    text = (ROOT / "docs" / "ASSURANCE.md").read_text(encoding="utf-8")
+    documented = [line for line in text.splitlines() if line.startswith("solana-verify build")]
+    assert [words(line, "$PWD", "")[6] for line in documented] == ["knos_pay", "knos_oidc"]
+    assert all(words(line, "$PWD", "") == want[words(line, "$PWD", "")[6]] for line in documented), documented
+    # the notes in the scripts, which name the program <name>
+    step = script[script.index("#   2 build"):script.index("#   3 deploy")]
+    notes = {"deploy_v2.sh": " ".join(line.lstrip("# ").strip() for line in step.splitlines()),
+             "build_programs_v2.sh": (ROOT / "scripts" / "build_programs_v2.sh").read_text(encoding="utf-8")}
+    for where, note in notes.items():
+        assert note.count("solana-verify build") == 1, where
+        assert 'solana-verify build "$PWD" --workspace-path "$PWD/programs-v2" --library-name <name>' in note, where
+    for text in (script, notes["build_programs_v2.sh"], (ROOT / "docs" / "ASSURANCE.md").read_text(encoding="utf-8"), run):
+        assert "solana-verify build ." not in text and "solana-verify build programs" not in text

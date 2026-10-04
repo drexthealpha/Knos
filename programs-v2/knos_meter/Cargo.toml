@@ -1,0 +1,26 @@
+[package]
+name = "knos_meter"
+version = "0.3.13"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+description = "Acceptance without escrow: a neutral on-chain count of GitHub-signed evaluations, paid from prepaid credits. It moves no customer money."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+# The token is read through knos-oidc-interface (bytes in, values out, no dependency of its own). It lives outside
+# this workspace's directory: a reproducible build of this crate mounts the repository root, not programs-v2 alone.
+[dependencies]
+solana-program = "=2.2.1"
+solana-security-txt = "1.1.1"
+knos-oidc-interface = { path = "../../crates/knos-oidc-interface" }
+
+[features]
+# testkeys: a TEST build. SetPlan also takes the signature of a test key (the seed [7; 32]) in FEE_OWNER's place, and
+# credits may be opened in any mint that passes the mint rules, not only Circle's USDC. Never deploy a testkeys build.
+testkeys = []
+no-entrypoint = []
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

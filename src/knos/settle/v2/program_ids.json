@@ -1,8 +1,12 @@
 {
   "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
   "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+  "knos_meter": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+  "knos_passkey": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
   "rotate_sha": "6ddf031b64febecfcd510763ecee37637a8047fa",
   "claim_sha": "80e796d341f65060767939c4e65a38ede5fa1ac8",
+  "rotate_sha2": "212f9eb5f584eb6f8cd2d6673878132fc0011e27",
+  "claim_sha_org": "212f9eb5f584eb6f8cd2d6673878132fc0011e27",
   "guardian": "AT1aKj1DpgaWerxmS4YjDkNpWPNUtCCKVDvxLhFxg5Jc",
   "guardian_multisig": "EwqWNR3XwE9RMsJQdH7pZJSx4WERXCKLQdBpMnr8jFx5",
   "upgrade_authority": "CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2",

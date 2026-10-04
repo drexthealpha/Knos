@@ -13,7 +13,7 @@ export const KNOS_RELAY_SHA = "KNOS_COMMIT_SHA";
 
 // ---- claim detection (port of scripts/agent_pr_ci.py) -----------------------------------------------------------
 const PASS = String.raw`(?:pass(?:es|ed|ing)?|green)`;
-const CLAIM_RE = new RegExp(
+export const CLAIM_RE = new RegExp(
   String.raw`(?:\ball\s+(?:\w+\s+){0,2}tests?\s+(?:are\s+|now\s+)*` + PASS +
   String.raw`|\btests?\s+(?:are\s+|now\s+|still\s+)*` + PASS + String.raw`\b` +
   String.raw`|\btests?\b[^\n.]{0,40}?\band\s+passing\b` +
@@ -26,12 +26,15 @@ const CLAIM_RE = new RegExp(
   String.raw`|\b\d[\d,]*\s*(?:/\s*\d[\d,]*\s*)?(?:\w+\s+){0,2}passed\b` +
   String.raw`|✅\s*[^\n]{0,40}?\btests?\b` +
   String.raw`|\btests?\b[^\n]{0,30}?✅)`, "i");
-const NONCLAIM_RE = new RegExp(
-  String.raw`- \[ \]|\b(ensure|make sure|verify that|should|would|will|to confirm|until|` +
+// an unticked box of a task list (any marker: -, *, +, 1., 1), nested or quoted), or a conditional, instruction,
+// negation or partial failure: the line claims nothing
+export const NONCLAIM_RE = new RegExp(
+  String.raw`^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)+\[ \](?:[ \t]|$)|` +
+  String.raw`\b(ensure|make sure|verify that|should|would|will|to confirm|until|` +
   String.raw`once|if|before|whether|need|needs|must|expect|expected|todo|not|` +
   String.raw`fail|fails|failing|failed|failure|failures|errors?|except|unless|pending|flaky|skip|` +
   String.raw`red|broken)\b|n't\b`, "i");
-const BOILER_RE = new RegExp(String.raw`\*\*Your PR cannot be merged unless tests pass\*\*|` +
+export const BOILER_RE = new RegExp(String.raw`\*\*Your PR cannot be merged unless tests pass\*\*|` +
   String.raw`\bfail[- ](?:closed|safe|fast|open)\b|\b0 failed\b`, "gi");
 
 function stripBody(body) {
@@ -196,7 +199,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@def6ac689479af2225c1b022ed078c2388b87800
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -217,7 +220,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@def6ac689479af2225c1b022ed078c2388b87800
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -237,7 +240,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@def6ac689479af2225c1b022ed078c2388b87800
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -286,7 +289,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@def6ac689479af2225c1b022ed078c2388b87800
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
 `;
 
 export function checkUrl(owner, repo, branch) {

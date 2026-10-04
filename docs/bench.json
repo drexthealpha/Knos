@@ -640,11 +640,11 @@
   },
   "second": "neither program id of the second deployment held an account on devnet when the cluster was read on 3 Oct 2026.",
   "stats": {
-   "updated": "2026-10-03 16:04 UTC",
+   "updated": "2026-10-04 07:51 UTC",
    "by_deployment": {
     "second": {
-     "funded": 10,
-     "completed": 6
+     "funded": 49,
+     "completed": 40
     }
    },
    "outside": {
@@ -655,20 +655,20 @@
    },
    "latency": {
     "merge_to_paid": {
-     "count": 2,
-     "median": 110,
-     "p90": 164
+     "count": 36,
+     "median": 24,
+     "p90": 54
     },
     "comment_to_funded": {
-     "median": 260
+     "median": 48
     }
    }
   }
  },
  "release": {
   "tests_passing": {
-   "value": 909,
-   "source": "pytest -q on the release tree, ubuntu-latest Python 3.12 in tests.yml: 909 passed, 7 skipped (drexthealpha/knos-rc run 37134734073, the same tree as the release commit apart from these documents)"
+   "value": 1617,
+   "source": "pytest (ubuntu-latest, 3.12) of tests.yml run 37186744698 on drexthealpha/knos-rc 433ac90: 1617 passed, 25 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37186744698"
   },
   "outside_prs_merged_and_paid": {
    "value": 3,
@@ -681,6 +681,18 @@
   "days_of_shipping": {
    "value": 32,
    "source": "git log --author=drexthealpha --format=%ad --date=short | sort -u | wc -l on drexthealpha/Knos from 2026-09-01 to the release commit of 2026-10-03"
+  },
+  "claim_parser_executions": {
+   "value": 16024654,
+   "source": "libFuzzer through cargo-fuzz on the claim parser (target claims), 300 seconds, commit 519dffc, https://github.com/drexthealpha/knos-rc/actions/runs/37185319408"
+  },
+  "upgrade_proposed": {
+   "value": "2026-10-04 07:17 UTC",
+   "source": "the later of the two approvals on devnet: proposal 2 (knos_pay) approved 2026-10-04 07:17:29 UTC; proposal 1 (knos_oidc) 07:16:43 UTC"
+  },
+  "upgrade_executable": {
+   "value": "2026-10-06 07:17 UTC",
+   "source": "48 hours after upgrade_proposed (the later of the two approvals on devnet: proposal 2 (knos_pay) approved 2026-10-04 07:17:29 UTC; proposal 1 (knos_oidc) 07:16:43 UTC)"
   }
  }
 }

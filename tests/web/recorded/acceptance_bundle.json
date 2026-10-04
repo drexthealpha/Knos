@@ -1,0 +1,319 @@
+{
+ "note": "What the site's form for a task with no repository (web/task.js) must write: the command line split as shlex.split(posix=True) does, and the three files accept.bundle makes from the pairs given (answers normalised by accept.norm), for the inputs below. tests/web/site.mjs runs web/task.js on the same inputs and compares byte for byte. Written by `python tests/test_accept.py`; test_the_sites_recorded_bundles_are_what_accept_bundle_writes fails when they differ from what the code writes now.",
+ "shell": [
+  {
+   "command": "python3 slugify.py",
+   "argv": [
+    "python3",
+    "slugify.py"
+   ]
+  },
+  {
+   "command": "a 'b c' \"d e\"",
+   "argv": [
+    "a",
+    "b c",
+    "d e"
+   ]
+  },
+  {
+   "command": "a\\ b",
+   "argv": [
+    "a b"
+   ]
+  },
+  {
+   "command": "\"a\\\"b\"",
+   "argv": [
+    "a\"b"
+   ]
+  },
+  {
+   "command": "\"a\\\\b\"",
+   "argv": [
+    "a\\b"
+   ]
+  },
+  {
+   "command": "\"a\\nb\"",
+   "argv": [
+    "a\\nb"
+   ]
+  },
+  {
+   "command": "''",
+   "argv": [
+    ""
+   ]
+  },
+  {
+   "command": "a \"\" b",
+   "argv": [
+    "a",
+    "",
+    "b"
+   ]
+  },
+  {
+   "command": "it's",
+   "error": true
+  },
+  {
+   "command": "a\\",
+   "error": true
+  },
+  {
+   "command": "\"unterminated",
+   "error": true
+  },
+  {
+   "command": "a\tb\nc  d",
+   "argv": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ]
+  },
+  {
+   "command": "--x=\"a b\"",
+   "argv": [
+    "--x=a b"
+   ]
+  },
+  {
+   "command": "'a'\"b\"c",
+   "argv": [
+    "abc"
+   ]
+  },
+  {
+   "command": "node \"my solution.js\" --flag 'a b' it\\'s",
+   "argv": [
+    "node",
+    "my solution.js",
+    "--flag",
+    "a b",
+    "it's"
+   ]
+  },
+  {
+   "command": "  lead and trail  ",
+   "argv": [
+    "lead",
+    "and",
+    "trail"
+   ]
+  },
+  {
+   "command": "",
+   "argv": []
+  }
+ ],
+ "bundles": [
+  {
+   "name": "plain",
+   "issue": 12,
+   "command": "python3 slugify.py",
+   "argv": [
+    "python3",
+    "slugify.py"
+   ],
+   "pairs": [
+    {
+     "input": "Hello, World!",
+     "output": "hello-world\n"
+    },
+    {
+     "input": "  Spaces  ",
+     "output": "spaces"
+    },
+    {
+     "input": "a--b",
+     "output": "a-b"
+    },
+    {
+     "input": "100%",
+     "output": "100"
+    },
+    {
+     "input": "x",
+     "output": "x"
+    }
+   ],
+   "cases": [
+    {
+     "input": "Hello, World!",
+     "output": "hello-world"
+    },
+    {
+     "input": "  Spaces  ",
+     "output": "spaces"
+    },
+    {
+     "input": "a--b",
+     "output": "a-b"
+    },
+    {
+     "input": "100%",
+     "output": "100"
+    },
+    {
+     "input": "x",
+     "output": "x"
+    }
+   ],
+   "files": {
+    "blackbox.py": "\"\"\"Black-box acceptance for issue 12, made by `knos accept init`. Read README.md.\n\nThis file runs as the judge, outside the pull request's tree, and never loads the pull request's code. It runs\n\"$KNOS_RUN <command>\" (which runs the command in the pull request's tree, inside the sandbox) on every input in\ncases.json, and compares what it prints with the answer recorded from the reference. Exit 0 means every case agrees.\"\"\"\nimport json\nimport os\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nSPEC = json.loads((Path(__file__).resolve().parent / \"cases.json\").read_text(encoding=\"utf-8\"))\nSECONDS = 60\n\n\ndef norm(text):\n    return \"\\n\".join(line.rstrip() for line in text.replace(\"\\r\\n\", \"\\n\").strip(\"\\n\").split(\"\\n\"))\n\n\ndef ask(argv, stdin):\n    got = subprocess.run([os.environ[\"KNOS_RUN\"], *argv], input=stdin, capture_output=True, timeout=SECONDS)\n    return got.returncode, got.stdout, got.stderr\n\n\ndef check(ask=ask):\n    \"\"\"None when every case agrees, else one sentence about the first that does not.\"\"\"\n    for n, case in enumerate(SPEC[\"cases\"], 1):\n        at = \"case %d, the input %s\" % (n, repr(case[\"input\"][:60]))\n        try:\n            code, out, err = ask(SPEC[\"run\"], (case[\"input\"] + \"\\n\").encode(\"utf-8\"))\n        except subprocess.TimeoutExpired:\n            return \"%s: the command took more than %d seconds\" % (at, SECONDS)\n        if code != 0:\n            return \"%s: the command exited %d: %s\" % (at, code, \" \".join(err.decode(\"utf-8\", \"replace\").split())[-200:] or \"it said nothing\")\n        got = norm(out.decode(\"utf-8\", \"replace\"))\n        if got != case[\"output\"]:\n            return \"%s: it printed %s, expected %s\" % (at, repr(got[:80]), repr(case[\"output\"][:80]))\n    return None\n\n\nif __name__ == \"__main__\":\n    why = check()\n    if why:\n        sys.exit(why)\n    print(\"all %d cases agree\" % len(SPEC[\"cases\"]))\n",
+    "cases.json": "{\n \"v\": 1,\n \"issue\": 12,\n \"run\": [\n  \"python3\",\n  \"slugify.py\"\n ],\n \"input\": \"given\",\n \"seed\": null,\n \"cases\": [\n  {\n   \"input\": \"Hello, World!\",\n   \"output\": \"hello-world\"\n  },\n  {\n   \"input\": \"  Spaces  \",\n   \"output\": \"spaces\"\n  },\n  {\n   \"input\": \"a--b\",\n   \"output\": \"a-b\"\n  },\n  {\n   \"input\": \"100%\",\n   \"output\": \"100\"\n  },\n  {\n   \"input\": \"x\",\n   \"output\": \"x\"\n  }\n ]\n}\n",
+    "README.md": "# Acceptance checks for issue 12\n\nMade by `knos accept init` from a reference implementation: 5 inputs (given, seed none) and the answer the reference\ngave to each, in `cases.json`. `blackbox.py` is the judge. It runs `python3 slugify.py` in the pull request's tree for every input,\nwith the input on standard input, and compares what it prints with the recorded answer (trailing spaces and blank lines at\nthe end are ignored). Exit 0 means every case agrees.\n\nIt is black-box: the pull request's code runs as a separate process, and the judge never loads it, so nothing that code\ndoes can change the verdict except printing the right answer. That is what lets Knos pay on this check alone, without a\nmerge, when this folder is on the default branch before the bounty is funded: `/knos fund <amount>` on issue 12.\n\nWhat it does not do: the cases are in this repository, so an implementation can answer exactly them from a table. More\ncases make that more work, not impossible. A check that generates its inputs when it runs and compares them with a\nreference at that time cannot be answered from a table: write that as `blackbox.py` yourself if the bounty is worth it\n(Knos's docs/TAMPER.md measures the difference).\n"
+   }
+  },
+  {
+   "name": "text that json escapes",
+   "issue": 7,
+   "command": "node \"my solution.js\" --flag 'a b' it\\'s",
+   "argv": [
+    "node",
+    "my solution.js",
+    "--flag",
+    "a b",
+    "it's"
+   ],
+   "pairs": [
+    {
+     "input": "École \"quoted\"",
+     "output": "ecole-quoted  \n\n"
+    },
+    {
+     "input": "中文 and 😀",
+     "output": "\n\nzhong-wen\r\nsecond line   \n"
+    },
+    {
+     "input": "back\\slash",
+     "output": "back/slash"
+    },
+    {
+     "input": "tab\there",
+     "output": "tab here"
+    },
+    {
+     "input": "  keep the spaces  ",
+     "output": "  indented answer"
+    },
+    {
+     "input": "é",
+     "output": "e"
+    }
+   ],
+   "cases": [
+    {
+     "input": "École \"quoted\"",
+     "output": "ecole-quoted"
+    },
+    {
+     "input": "中文 and 😀",
+     "output": "zhong-wen\nsecond line"
+    },
+    {
+     "input": "back\\slash",
+     "output": "back/slash"
+    },
+    {
+     "input": "tab\there",
+     "output": "tab here"
+    },
+    {
+     "input": "  keep the spaces  ",
+     "output": "  indented answer"
+    },
+    {
+     "input": "é",
+     "output": "e"
+    }
+   ],
+   "files": {
+    "blackbox.py": "\"\"\"Black-box acceptance for issue 7, made by `knos accept init`. Read README.md.\n\nThis file runs as the judge, outside the pull request's tree, and never loads the pull request's code. It runs\n\"$KNOS_RUN <command>\" (which runs the command in the pull request's tree, inside the sandbox) on every input in\ncases.json, and compares what it prints with the answer recorded from the reference. Exit 0 means every case agrees.\"\"\"\nimport json\nimport os\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nSPEC = json.loads((Path(__file__).resolve().parent / \"cases.json\").read_text(encoding=\"utf-8\"))\nSECONDS = 60\n\n\ndef norm(text):\n    return \"\\n\".join(line.rstrip() for line in text.replace(\"\\r\\n\", \"\\n\").strip(\"\\n\").split(\"\\n\"))\n\n\ndef ask(argv, stdin):\n    got = subprocess.run([os.environ[\"KNOS_RUN\"], *argv], input=stdin, capture_output=True, timeout=SECONDS)\n    return got.returncode, got.stdout, got.stderr\n\n\ndef check(ask=ask):\n    \"\"\"None when every case agrees, else one sentence about the first that does not.\"\"\"\n    for n, case in enumerate(SPEC[\"cases\"], 1):\n        at = \"case %d, the input %s\" % (n, repr(case[\"input\"][:60]))\n        try:\n            code, out, err = ask(SPEC[\"run\"], (case[\"input\"] + \"\\n\").encode(\"utf-8\"))\n        except subprocess.TimeoutExpired:\n            return \"%s: the command took more than %d seconds\" % (at, SECONDS)\n        if code != 0:\n            return \"%s: the command exited %d: %s\" % (at, code, \" \".join(err.decode(\"utf-8\", \"replace\").split())[-200:] or \"it said nothing\")\n        got = norm(out.decode(\"utf-8\", \"replace\"))\n        if got != case[\"output\"]:\n            return \"%s: it printed %s, expected %s\" % (at, repr(got[:80]), repr(case[\"output\"][:80]))\n    return None\n\n\nif __name__ == \"__main__\":\n    why = check()\n    if why:\n        sys.exit(why)\n    print(\"all %d cases agree\" % len(SPEC[\"cases\"]))\n",
+    "cases.json": "{\n \"v\": 1,\n \"issue\": 7,\n \"run\": [\n  \"node\",\n  \"my solution.js\",\n  \"--flag\",\n  \"a b\",\n  \"it's\"\n ],\n \"input\": \"given\",\n \"seed\": null,\n \"cases\": [\n  {\n   \"input\": \"\\u00c9cole \\\"quoted\\\"\",\n   \"output\": \"ecole-quoted\"\n  },\n  {\n   \"input\": \"\\u4e2d\\u6587 and \\ud83d\\ude00\",\n   \"output\": \"zhong-wen\\nsecond line\"\n  },\n  {\n   \"input\": \"back\\\\slash\",\n   \"output\": \"back/slash\"\n  },\n  {\n   \"input\": \"tab\\there\",\n   \"output\": \"tab here\"\n  },\n  {\n   \"input\": \"  keep the spaces  \",\n   \"output\": \"  indented answer\"\n  },\n  {\n   \"input\": \"\\u00e9\",\n   \"output\": \"e\"\n  }\n ]\n}\n",
+    "README.md": "# Acceptance checks for issue 7\n\nMade by `knos accept init` from a reference implementation: 6 inputs (given, seed none) and the answer the reference\ngave to each, in `cases.json`. `blackbox.py` is the judge. It runs `node 'my solution.js' --flag 'a b' 'it'\"'\"'s'` in the pull request's tree for every input,\nwith the input on standard input, and compares what it prints with the recorded answer (trailing spaces and blank lines at\nthe end are ignored). Exit 0 means every case agrees.\n\nIt is black-box: the pull request's code runs as a separate process, and the judge never loads it, so nothing that code\ndoes can change the verdict except printing the right answer. That is what lets Knos pay on this check alone, without a\nmerge, when this folder is on the default branch before the bounty is funded: `/knos fund <amount>` on issue 7.\n\nWhat it does not do: the cases are in this repository, so an implementation can answer exactly them from a table. More\ncases make that more work, not impossible. A check that generates its inputs when it runs and compares them with a\nreference at that time cannot be answered from a table: write that as `blackbox.py` yourself if the bounty is worth it\n(Knos's docs/TAMPER.md measures the difference).\n"
+   }
+  },
+  {
+   "name": "a large issue number and an empty answer",
+   "issue": 1000000000,
+   "command": "./run.sh",
+   "argv": [
+    "./run.sh"
+   ],
+   "pairs": [
+    {
+     "input": "one",
+     "output": "1"
+    },
+    {
+     "input": "two",
+     "output": "2"
+    },
+    {
+     "input": "three",
+     "output": ""
+    },
+    {
+     "input": "four",
+     "output": "4"
+    },
+    {
+     "input": "five",
+     "output": "5"
+    },
+    {
+     "input": "six",
+     "output": "6"
+    },
+    {
+     "input": "seven",
+     "output": "7"
+    }
+   ],
+   "cases": [
+    {
+     "input": "one",
+     "output": "1"
+    },
+    {
+     "input": "two",
+     "output": "2"
+    },
+    {
+     "input": "three",
+     "output": ""
+    },
+    {
+     "input": "four",
+     "output": "4"
+    },
+    {
+     "input": "five",
+     "output": "5"
+    },
+    {
+     "input": "six",
+     "output": "6"
+    },
+    {
+     "input": "seven",
+     "output": "7"
+    }
+   ],
+   "files": {
+    "blackbox.py": "\"\"\"Black-box acceptance for issue 1000000000, made by `knos accept init`. Read README.md.\n\nThis file runs as the judge, outside the pull request's tree, and never loads the pull request's code. It runs\n\"$KNOS_RUN <command>\" (which runs the command in the pull request's tree, inside the sandbox) on every input in\ncases.json, and compares what it prints with the answer recorded from the reference. Exit 0 means every case agrees.\"\"\"\nimport json\nimport os\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nSPEC = json.loads((Path(__file__).resolve().parent / \"cases.json\").read_text(encoding=\"utf-8\"))\nSECONDS = 60\n\n\ndef norm(text):\n    return \"\\n\".join(line.rstrip() for line in text.replace(\"\\r\\n\", \"\\n\").strip(\"\\n\").split(\"\\n\"))\n\n\ndef ask(argv, stdin):\n    got = subprocess.run([os.environ[\"KNOS_RUN\"], *argv], input=stdin, capture_output=True, timeout=SECONDS)\n    return got.returncode, got.stdout, got.stderr\n\n\ndef check(ask=ask):\n    \"\"\"None when every case agrees, else one sentence about the first that does not.\"\"\"\n    for n, case in enumerate(SPEC[\"cases\"], 1):\n        at = \"case %d, the input %s\" % (n, repr(case[\"input\"][:60]))\n        try:\n            code, out, err = ask(SPEC[\"run\"], (case[\"input\"] + \"\\n\").encode(\"utf-8\"))\n        except subprocess.TimeoutExpired:\n            return \"%s: the command took more than %d seconds\" % (at, SECONDS)\n        if code != 0:\n            return \"%s: the command exited %d: %s\" % (at, code, \" \".join(err.decode(\"utf-8\", \"replace\").split())[-200:] or \"it said nothing\")\n        got = norm(out.decode(\"utf-8\", \"replace\"))\n        if got != case[\"output\"]:\n            return \"%s: it printed %s, expected %s\" % (at, repr(got[:80]), repr(case[\"output\"][:80]))\n    return None\n\n\nif __name__ == \"__main__\":\n    why = check()\n    if why:\n        sys.exit(why)\n    print(\"all %d cases agree\" % len(SPEC[\"cases\"]))\n",
+    "cases.json": "{\n \"v\": 1,\n \"issue\": 1000000000,\n \"run\": [\n  \"./run.sh\"\n ],\n \"input\": \"given\",\n \"seed\": null,\n \"cases\": [\n  {\n   \"input\": \"one\",\n   \"output\": \"1\"\n  },\n  {\n   \"input\": \"two\",\n   \"output\": \"2\"\n  },\n  {\n   \"input\": \"three\",\n   \"output\": \"\"\n  },\n  {\n   \"input\": \"four\",\n   \"output\": \"4\"\n  },\n  {\n   \"input\": \"five\",\n   \"output\": \"5\"\n  },\n  {\n   \"input\": \"six\",\n   \"output\": \"6\"\n  },\n  {\n   \"input\": \"seven\",\n   \"output\": \"7\"\n  }\n ]\n}\n",
+    "README.md": "# Acceptance checks for issue 1000000000\n\nMade by `knos accept init` from a reference implementation: 7 inputs (given, seed none) and the answer the reference\ngave to each, in `cases.json`. `blackbox.py` is the judge. It runs `./run.sh` in the pull request's tree for every input,\nwith the input on standard input, and compares what it prints with the recorded answer (trailing spaces and blank lines at\nthe end are ignored). Exit 0 means every case agrees.\n\nIt is black-box: the pull request's code runs as a separate process, and the judge never loads it, so nothing that code\ndoes can change the verdict except printing the right answer. That is what lets Knos pay on this check alone, without a\nmerge, when this folder is on the default branch before the bounty is funded: `/knos fund <amount>` on issue 1000000000.\n\nWhat it does not do: the cases are in this repository, so an implementation can answer exactly them from a table. More\ncases make that more work, not impossible. A check that generates its inputs when it runs and compares them with a\nreference at that time cannot be answered from a table: write that as `blackbox.py` yourself if the bounty is worth it\n(Knos's docs/TAMPER.md measures the difference).\n"
+   }
+  }
+ ],
+ "limits": {
+  "MAX_CASES": 200,
+  "MAX_INPUT": 2000
+ }
+}

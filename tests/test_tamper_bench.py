@@ -196,3 +196,56 @@ def test_cli_checks_hash(capsys):
     assert main(["proof", "checks-hash", "--dir", str(SAMPLE / ".knos" / "acceptance" / "1")]) == 0
     assert capsys.readouterr().out.strip() == prove.checks_hash(SAMPLE / ".knos" / "acceptance" / "1")
     assert main(["proof", "checks-hash", "--dir", str(SAMPLE / "missing")]) == 1
+
+
+# ---- the six tasks taken from real open-source behaviour, and the three that are not code -------------------------------
+
+REAL_SAMPLE = ["stub returns the visible examples' answers", "stub returns one constant for every input",
+               "edit the acceptance bundle so it always passes", "source monkeypatches pytest so no test body runs"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the black-box check reaches the tree through a shell wrapper")
+@pytest.mark.parametrize("key", ["urljoin", "version", "sniff", "ini", "date", "glob"])
+def test_the_honest_fix_of_each_real_task_is_accepted_and_the_naive_version_is_not(key):
+    """Neither false refusal nor false accept on the two submissions every task has: the fix and the base itself."""
+    bench = _bench()
+    got = bench.run_real(key, only=[], delegate=False)
+    assert got["control"]["ci"] and got["control"]["box"], got["control"]         # the honest fix passes both judges
+    assert not bench.prove.judge(
+        *_base_twice(bench, key), {"issue": "1", "test_dirs": ["tests"]})["passed"]   # the naive base fails the check
+    assert got["intact"]
+
+
+def _base_twice(bench, key):
+    import tempfile
+    R, _ = bench._real_modules()
+    d = Path(tempfile.mkdtemp(prefix="knos-real-test-"))
+    R.materialise(R.TASKS[key], d / "base")
+    shutil.copytree(d / "base", d / "pr")
+    return d / "base", d / "pr"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the black-box check reaches the tree through a shell wrapper")
+@pytest.mark.parametrize("key", ["urljoin", "ini"])
+def test_a_sample_of_the_attacks_on_a_real_task_fools_ci_but_not_the_black_box(key):
+    """The suite runs a sample (python scripts/tamper_bench.py --real runs all 17 attacks on all six tasks)."""
+    bench = _bench()
+    got = bench.run_real(key, only=REAL_SAMPLE)
+    rows = {r["name"]: r for r in got["rows"]}
+    assert set(rows) == set(REAL_SAMPLE)
+    assert not any(r["box"] for r in rows.values()), [r["name"] for r in rows.values() if r["box"]]
+    assert rows[REAL_SAMPLE[0]]["ci"] and rows[REAL_SAMPLE[3]]["ci"]   # the stub of the examples and the patched runner go through CI
+    assert got["delegate"]["box"]                                  # handing the work to the real code has the behaviour asked for
+    assert got["intact"]
+
+
+def test_the_report_has_the_real_tasks_and_the_non_code_tasks_with_no_false_accept_or_refusal():
+    doc = DOC.read_text(encoding="utf-8")
+    for name in ("real", "accept"):
+        assert f"<!-- {name}:begin -->" in doc and f"<!-- {name}:end -->" in doc
+    real = doc.split("<!-- real:begin -->")[1].split("<!-- real:end -->")[0]
+    accept = doc.split("<!-- accept:begin -->")[1].split("<!-- accept:end -->")[0]
+    for block in (real, accept):
+        assert "**False accepts: none. False refusals: none.**" in block
+    assert len(__import__("re").findall(r"^\| (urljoin|version|sniff|ini|date|glob) \|", real, __import__("re").M)) == 6
+    assert len(__import__("re").findall(r"^\| (clean-csv|summarise|classify) \| \d+ of \d+ \|", accept, __import__("re").M)) == 3

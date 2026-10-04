@@ -1,33 +1,30 @@
 # Weekly update (one minute)
 
-Narration in the founder's own voice, about 150 words, over one screen recording. The number in the second part is
+Narration in the founder's own voice, about 130 words, over one screen recording. The number in the second part is
 a slot, `[[stat: name]]`, filled from the release run.
 
 ## What shipped (0:00)
 
-*On screen: a comment funds an issue, a merge, the payment in the explorer.*
+*On screen: a comment funds a work order, the workflow file is deleted, the seller's own run, the payment.*
 
-This week I shipped the second deployment of Knos. A maintainer funds an issue with one comment and names the
-checks that must pass. Those terms are fixed on chain. When she merges a pull request that meets them, her workflow
-reads the merge and the checks from GitHub, GitHub signs that run, a Solana program checks the signature, and the
-author is paid straight to a wallet. There is no veto after the
-merge.
+This week I shipped work orders. The buyer pays the fee on top, and the seller receives the full amount. A buyer
+who deletes the workflow after merging can no longer hold the payment back: the seller runs the pinned workflow
+himself, and the program pays. I also shipped a neutral count for vendors who bill per result, a wallet from a
+passkey, and a verifier that takes any issuer.
 
-## One number (0:25)
+## One number (0:28)
 
 *On screen: the site's Numbers page.*
 
-From merge to paid on devnet: 110 seconds at the median.
+From merge to paid took 24 seconds at the median, on devnet.
 
-## The hardest problem, and the decision (0:30)
+## The hardest problem, and the decision (0:33)
 
-*On screen: the table at the top of CHANGELOG.md.*
+*On screen: the table under "Security" in CHANGELOG.md.*
 
-Three outside reviews found faults in the programs I had already made immutable. The worst: a funder could merge
-and then take the money back. I could not patch them. So I said so in public, left the first deployment as it is,
-and deployed a second one that stays changeable, behind a public 48-hour delay, until someone outside has
-reviewed it.
+A reader confirmed seven defects in last week's programs. I fixed each one, and I am upgrading through my own
+48-hour delay, in public, like anyone else would have to.
 
-## Next week (0:55)
+## Next week (0:45)
 
-One repository that is not mine funds a task and pays someone.
+Design partners among vendors that bill per merge, and an outside security review.

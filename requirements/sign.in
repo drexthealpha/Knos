@@ -1,0 +1,10 @@
+# What a job that signs, or holds a secret, installs: these and what they need, and nothing else. The knos wheel
+# itself is not here: its hash exists only at a release, when `scripts/pinned_workflows.py lock WHEEL --write` adds it
+# as the last line of sign.txt (docs/RELEASE.md). Compiling again removes that line: lock again afterwards.
+#
+# The commands a workflow runs (knos.flow's own entry, read with argparse) need only the standard library and solders:
+# tests/test_signing_path.py holds them to that with typer, rich, the memory engine and PyYAML unimportable.
+#
+# Compile again after any change here, and at every release:
+#   uv pip compile requirements/sign.in --generate-hashes --python-version 3.12 --no-config -o requirements/sign.txt
+solders>=0.29

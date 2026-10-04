@@ -30,6 +30,8 @@ from knos.settle.v2 import oidc, pay
 
 FIX = Path(__file__).parent / "fixtures"
 GUARDIAN = Keypair.from_seed(bytes([7]) * 32)     # the test guardian of a testkeys build: the escrow's and the verifier's
+USDC_KEY = Keypair.from_seed(bytes([8]) * 32)     # the mint a testkeys build counts as Circle's USDC in the record (TEST_USDC)
+PLAN_SIGNER = Keypair.from_seed(bytes([6]) * 32)  # may sign SetPlan in a testkeys build, beside FEE_OWNER
 WF_REPO, WF_SHA = "drexthealpha/Knos", "c" * 40   # the repository and commit whose fund.yml and prove.yml the tests' jobs pin
 TEST_CLAIM_SHA = "2" * 40                         # the claim workflow commit a testkeys build accepts beside the real pin
 _IDS = ("repository_id", "repository_owner_id", "actor_id", "run_number", "run_id", "run_attempt")
@@ -116,16 +118,30 @@ class Chain:
         """The guardian ends a key, for ever."""
         return self.send([oidc.revoke_ix(GUARDIAN.pubkey(), issuer, n)], signers=[GUARDIAN])
 
-    def attest(self, issuer: int, n: int) -> Pubkey | None:
-        """A verified token in which GitHub names this key: a run of the pinned rotate workflow, issued now."""
+    def attest(self, issuer: int, n: int, by=None) -> Pubkey | None:
+        """A verified token in which GitHub names this key: a run of the pinned rotate workflow, issued now. Signed
+        by the seed key, or by `by` (what `second_key` returned)."""
         now = self.now()
         self._n += 1
         claims = attest_claims(issuer, n, iat=now, nbf=now - 600, exp=now + 300, jti=f"a{self._n}")
-        return self.verify(sign_jwt(signing_key(), claims), oidc.GITHUB, self.github)
+        k = by or signing_key()
+        return self.verify(sign_jwt(k, claims), oidc.GITHUB, modulus(k))
+
+    def second_key(self):
+        """Admits a second key of GitHub's the attested way: the first names it, the guardian approves it, and it
+        verifies from a day after this call, for 30 days. An attestation counts only while the key that verified it
+        is usable, so a key that has expired is refreshed by an attestation verified under one that has not."""
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        k = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        n, p = modulus(k), self.payer.pubkey()
+        tok = self.attest(oidc.GITHUB, n)
+        assert tok is not None and self.send([oidc.register_key_ix(p, oidc.GITHUB, n, tok, self.key_of(tok))]), self.err
+        assert self.send([oidc.key_params_ix(p, oidc.GITHUB, n)]) and self.send([oidc.approve_ix(GUARDIAN.pubkey(), oidc.GITHUB, n)], signers=[GUARDIAN]), self.err
+        return k
 
     def refresh(self, issuer: int, n: int, attest: Pubkey) -> bool:
         """The key lives 30 days from now. `attest`: what `attest` returned, while GitHub's key could still verify it."""
-        return self.send([oidc.refresh_ix(self.payer.pubkey(), issuer, n, attest)])
+        return self.send([oidc.refresh_ix(self.payer.pubkey(), issuer, n, attest, self.key_of(attest))])
 
     def key_of(self, token: Pubkey) -> Pubkey:
         """The key account a token account names: the one a relayer passes with it."""
@@ -163,12 +179,14 @@ class Chain:
         return self.verify(sign_jwt(signing_key(), github_claims(**claims)), oidc.GITHUB, self.github, payer)
 
     # -- SPL Token and Token-2022 ------------------------------------------------------------------------------------
-    def new_mint(self, decimals: int = 6) -> Pubkey:
-        """An SPL Token mint (a stand-in for Circle's USDC); its mint authority is the chain's payer."""
-        return self._mint(pay.TOKEN, 82, [], decimals, None)
+    def new_mint(self, decimals: int = 6, keypair: Keypair | None = None) -> Pubkey:
+        """An SPL Token mint; its mint authority is the chain's payer. With `keypair=USDC_KEY` it is the stand-in for
+        Circle's USDC that a test build's record counts as real money; any other mint is counted as a test."""
+        return self._mint(pay.TOKEN, 82, [], decimals, None, keypair)
 
     def new_mint22(self, *, decimals: int = 6, fee: tuple[int, int] | None = None, confidential: bool = False, permanent_delegate: Pubkey | None = None,
-                   hook: tuple[Pubkey | None, Pubkey | None] | None = None, non_transferable: bool = False, default_state: int | None = None) -> Pubkey:
+                   hook: tuple[Pubkey | None, Pubkey | None] | None = None, non_transferable: bool = False, default_state: int | None = None,
+                   close_authority: bool = False, pausable: bool = False) -> Pubkey:
         """A Token-2022 mint with the extensions asked for. fee: (basis points, maximum fee); hook: (authority, program);
         default_state: 1 initialized, 2 frozen. Its mint, freeze, fee and hook authorities are the chain's payer."""
         me, mint22 = self.payer.pubkey(), lambda data: (lambda m: Instruction(pay.TOKEN_2022, data, [AccountMeta(m, False, True)]))  # noqa: E731
@@ -187,11 +205,15 @@ class Chain:
             ext.append((32, mint22(bytes([35]) + bytes(permanent_delegate))))
         if hook is not None:
             ext.append((64, mint22(bytes([36, 0]) + _key(hook[0]) + _key(hook[1]))))
+        if close_authority:
+            ext.append((32, mint22(bytes([25]) + _opt(me))))
+        if pausable:
+            ext.append((33, mint22(bytes([44, 0]) + bytes(me))))
         space = 166 + sum(4 + n for n, _ in ext) if ext else 82
         return self._mint(pay.TOKEN_2022, space + (2 if space == 355 else 0), [b for _, b in ext], decimals, me)
 
-    def _mint(self, program: Pubkey, space: int, extensions, decimals: int, freeze: Pubkey | None) -> Pubkey:
-        m, me = Keypair(), self.payer.pubkey()
+    def _mint(self, program: Pubkey, space: int, extensions, decimals: int, freeze: Pubkey | None, keypair: Keypair | None = None) -> Pubkey:
+        m, me = keypair or Keypair(), self.payer.pubkey()
         ixs = [create_account(CreateAccountParams(from_pubkey=me, to_pubkey=m.pubkey(), lamports=self.svm.minimum_balance_for_rent_exemption(space),
                                                   space=space, owner=program)),
                *(build(m.pubkey()) for build in extensions),
@@ -234,7 +256,7 @@ class Chain:
 
 class ChainLedger:
     """The Chain behind the interface a relay and a settlement use, as knos.chain.Ledger has it: send(ixs, payer,
-    signers), send_all(groups, payer), account(address), infos(addresses), now(), program_accounts(program, size,
+    signers), send_all(groups, payer), simulate(ixs, payer), account(address), infos(addresses), now(), program_accounts(program, size,
     {offset: bytes}) and log_of(address, marker)."""
     def __init__(self, chain: Chain):
         self.chain = chain
@@ -252,6 +274,15 @@ class ChainLedger:
 
     def send_all(self, groups, payer, signers=None) -> list[str]:
         return [self.send(ixs, payer, signers) for ixs in groups]
+
+    def simulate(self, ixs, payer, signers=None) -> list[str]:
+        """As knos.chain.Ledger.simulate: the log the transaction would leave, with nothing sent."""
+        everyone = {bytes(k.pubkey()): k for k in [payer, *(signers or [])]}
+        msg = MessageV0.try_compile(payer.pubkey(), [set_compute_unit_limit(1_400_000), *ixs], [], self.chain.svm.latest_blockhash())
+        r = self.chain.svm.simulate_transaction(VersionedTransaction(msg, list(everyone.values())))
+        if "Failed" in type(r).__name__:
+            raise RuntimeError(f"transaction failed: {r.err()}")
+        return list(r.meta().logs())
 
     def account(self, address):
         return self.chain.data(address)

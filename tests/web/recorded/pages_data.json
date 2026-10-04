@@ -1,0 +1,1975 @@
+{
+ "note": "The JSON files pages_data.build writes for the scenario of tests/test_pages_data.py (build(get=github(), index=agent_index())), as the static site would publish them: tests/web/site.mjs serves them as the same-origin files the Records, Ranks and Statements views read. Written by `python tests/test_pages_data.py`; test_the_recorded_files_are_what_pages_data_writes fails when they are not what the code writes now.",
+ "files": {
+  "badge/r/acme/gadgets.json": {
+   "schemaVersion": 1,
+   "label": "pays on merge",
+   "message": "1 paid, median 100 s",
+   "color": "brightgreen",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "badge/r/octo/widgets.json": {
+   "schemaVersion": 1,
+   "label": "pays on merge",
+   "message": "1 paid, median 10 s",
+   "color": "brightgreen",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "badge/u/alice.json": {
+   "schemaVersion": 1,
+   "label": "paid through Knos",
+   "message": "1 paid",
+   "color": "brightgreen",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "badge/u/carol.json": {
+   "schemaVersion": 1,
+   "label": "paid through Knos",
+   "message": "1 paid",
+   "color": "brightgreen",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "badge/u/funder-one.json": {
+   "schemaVersion": 1,
+   "label": "paid through Knos",
+   "message": "none yet",
+   "color": "lightgrey",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "badge/u/funder-two.json": {
+   "schemaVersion": 1,
+   "label": "paid through Knos",
+   "message": "none yet",
+   "color": "lightgrey",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "badge/u/knos-team.json": {
+   "schemaVersion": 1,
+   "label": "paid through Knos",
+   "message": "none yet",
+   "color": "lightgrey",
+   "cacheSeconds": 1800,
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z"
+  },
+  "r/acme/gadgets.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "repository": "acme/gadgets",
+   "github_id": 20,
+   "as_earner": {
+    "paid_merges": 1,
+    "amounts": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "distinct_funders": 1,
+    "distinct_funders_real": 1,
+    "refusals_at_merge": 0,
+    "first": "2026-09-21T15:20:00Z",
+    "last": "2026-09-21T15:20:00Z",
+    "payees": 1
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 1,
+     "k": 1,
+     "share": 1.0,
+     "ci95": [
+      0.2065,
+      1.0
+     ]
+    },
+    "reliability_test": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "review": {
+     "seconds": {
+      "n": 0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "slowest": null
+     },
+     "note": null
+    },
+    "merged_unpaid": []
+   },
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/r/acme/gadgets.json",
+    "readme": "[![pays on merge](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fr%2Facme%2Fgadgets.json)](https://drexthealpha.github.io/Knos/r/acme/gadgets.html)"
+   }
+  },
+  "r/octo/widgets.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "repository": "octo/widgets",
+   "github_id": 10,
+   "as_earner": {
+    "paid_merges": 4,
+    "amounts": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "self": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "own": {
+      "count": 1,
+      "amount": 4875000
+     }
+    },
+    "distinct_funders": 1,
+    "distinct_funders_real": 1,
+    "refusals_at_merge": 1,
+    "first": "2026-09-21T14:30:00Z",
+    "last": "2026-09-21T15:11:40Z",
+    "payees": 1
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 2,
+      "amount": 10000000
+     },
+     "test": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "self": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "own": {
+      "count": 1,
+      "amount": 5000000
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "self": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "own": {
+      "count": 1,
+      "amount": 4875000
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 2,
+     "k": 1,
+     "share": 0.5,
+     "ci95": [
+      0.0945,
+      0.9055
+     ]
+    },
+    "reliability_test": {
+     "n": 1,
+     "k": 1,
+     "share": 1.0,
+     "ci95": [
+      0.2065,
+      1.0
+     ]
+    },
+    "review": {
+     "seconds": {
+      "n": 2,
+      "p50": 95,
+      "p95": 100,
+      "p99": 100,
+      "slowest": 100
+     },
+     "note": null
+    },
+    "merged_unpaid": [
+     {
+      "repository": "octo/widgets",
+      "issue": 2,
+      "amount": 5000000,
+      "bucket": "real",
+      "pull_request": 12,
+      "author": "bob",
+      "merged_at": "2026-09-21T15:20:00Z",
+      "refunded_at": "2026-09-21T15:36:40Z"
+     }
+    ]
+   },
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/r/octo/widgets.json",
+    "readme": "[![pays on merge](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fr%2Focto%2Fwidgets.json)](https://drexthealpha.github.io/Knos/r/octo/widgets.html)"
+   }
+  },
+  "rank/agents.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "month": "2026-10",
+   "date": "2026-10-02",
+   "window": [
+    "2026-06-04",
+    "2026-10-01"
+   ],
+   "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304",
+   "definition": "of those, the ones with at least one failed check of any kind at the head commit: a check run that concluded failure, timed_out or startup_failure, or a commit status of failure or error. This includes checks that test nothing (a deploy preview, a title or label gate, a review bot, a coverage threshold, a security scanner). The agent's own session run is not a check",
+   "entries": [
+    {
+     "rank": 1,
+     "agent": "codex",
+     "name": "OpenAI Codex",
+     "repositories": 1,
+     "false_claim_rate": 0.0,
+     "ci95": [
+      0.0,
+      0.7935
+     ],
+     "test_or_build_rate": 0.0,
+     "test_or_build_ci95": [
+      0.0,
+      0.7935
+     ],
+     "pull_requests": 1,
+     "pull_requests_any_check_failed": 0
+    },
+    {
+     "rank": 2,
+     "agent": "devin",
+     "name": "Devin",
+     "repositories": 10,
+     "false_claim_rate": 0.1,
+     "ci95": [
+      0.0179,
+      0.4042
+     ],
+     "test_or_build_rate": 0.1,
+     "test_or_build_ci95": [
+      0.0179,
+      0.4042
+     ],
+     "pull_requests": 10,
+     "pull_requests_any_check_failed": 1
+    },
+    {
+     "rank": 3,
+     "agent": "copilot",
+     "name": "GitHub Copilot coding agent",
+     "repositories": 10,
+     "false_claim_rate": 0.3,
+     "ci95": [
+      0.1078,
+      0.6032
+     ],
+     "test_or_build_rate": 0.3,
+     "test_or_build_ci95": [
+      0.1078,
+      0.6032
+     ],
+     "pull_requests": 10,
+     "pull_requests_any_check_failed": 3
+    },
+    {
+     "rank": 4,
+     "agent": "claude-bot",
+     "name": "Claude GitHub app",
+     "repositories": 0,
+     "false_claim_rate": null,
+     "ci95": null,
+     "test_or_build_rate": null,
+     "test_or_build_ci95": null,
+     "pull_requests": 0,
+     "pull_requests_any_check_failed": 0
+    },
+    {
+     "rank": 5,
+     "agent": "claude-code",
+     "name": "Claude Code",
+     "repositories": 0,
+     "false_claim_rate": null,
+     "ci95": null,
+     "test_or_build_rate": null,
+     "test_or_build_ci95": null,
+     "pull_requests": 0,
+     "pull_requests_any_check_failed": 0
+    }
+   ]
+  },
+  "rank/earners.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "entries": [
+    {
+     "rank": 1,
+     "github_id": 601,
+     "login": "alice",
+     "paid_amount": 4875000,
+     "paid_merges": 1,
+     "distinct_funders": 1,
+     "first": "2026-09-21T14:30:00Z",
+     "last": "2026-09-21T14:30:00Z"
+    },
+    {
+     "rank": 2,
+     "github_id": 603,
+     "login": "carol",
+     "paid_amount": 4875000,
+     "paid_merges": 1,
+     "distinct_funders": 1,
+     "first": "2026-09-21T15:20:00Z",
+     "last": "2026-09-21T15:20:00Z"
+    }
+   ],
+   "left_out": {
+    "test": 1,
+    "self": 1,
+    "own": 1
+   }
+  },
+  "rank/funders.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "entries": [
+    {
+     "rank": 1,
+     "funder": "gh:501",
+     "github_id": 501,
+     "login": "funder-one",
+     "paid_amount": 4875000,
+     "paid_jobs": 1,
+     "refunded_jobs": 1,
+     "open_jobs": 0,
+     "reliability": {
+      "n": 2,
+      "k": 1,
+      "share": 0.5,
+      "ci95": [
+       0.0945,
+       0.9055
+      ]
+     },
+     "merged_unpaid": 1
+    },
+    {
+     "rank": 2,
+     "funder": "gh:502",
+     "github_id": 502,
+     "login": "funder-two",
+     "paid_amount": 4875000,
+     "paid_jobs": 1,
+     "refunded_jobs": 0,
+     "open_jobs": 0,
+     "reliability": {
+      "n": 1,
+      "k": 1,
+      "share": 1.0,
+      "ci95": [
+       0.2065,
+       1.0
+      ]
+     },
+     "merged_unpaid": 0
+    }
+   ],
+   "left_out": {
+    "test": 1,
+    "self": 1,
+    "own": 1
+   }
+  },
+  "records.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "accounts": [
+    "funder-one",
+    "funder-two",
+    "alice",
+    "carol",
+    "knos-team"
+   ],
+   "repositories": [
+    "octo/widgets",
+    "acme/gadgets"
+   ],
+   "unnamed_accounts": 0,
+   "unnamed_repositories": 0,
+   "note": "an id GitHub did not name gets no file"
+  },
+  "statements/alice.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "alice",
+   "github_id": 601,
+   "columns": [
+    "date",
+    "time",
+    "deployment",
+    "repository_id",
+    "repository",
+    "issue",
+    "pull_request",
+    "payee_id",
+    "payee",
+    "amount",
+    "fee",
+    "total",
+    "currency",
+    "amount_units",
+    "fee_units",
+    "total_units",
+    "funder_id",
+    "funder",
+    "kind",
+    "transaction"
+   ],
+   "decimals": 6,
+   "as_seller": [
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T14:30:00Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 1,
+     "pull_request": null,
+     "payee_id": 601,
+     "payee": "alice",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 501,
+     "funder": "funder-one",
+     "kind": "real",
+     "transaction": "pay1"
+    },
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T14:46:40Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 3,
+     "pull_request": null,
+     "payee_id": 601,
+     "payee": "alice",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "test USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 501,
+     "funder": "funder-one",
+     "kind": "test",
+     "transaction": "pay3"
+    },
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T15:11:40Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 5,
+     "pull_request": null,
+     "payee_id": 601,
+     "payee": "alice",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 142920951,
+     "funder": "knos-team",
+     "kind": "own",
+     "transaction": "pay5"
+    }
+   ],
+   "as_owner": [],
+   "note": "Every payment the escrows' log lines show, as paid: amounts in six decimals. A payment newer than `generated` is not in it. `kind` says what a payment is counted as (real, test, self, own); kinds are never added together."
+  },
+  "statements/carol.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "carol",
+   "github_id": 603,
+   "columns": [
+    "date",
+    "time",
+    "deployment",
+    "repository_id",
+    "repository",
+    "issue",
+    "pull_request",
+    "payee_id",
+    "payee",
+    "amount",
+    "fee",
+    "total",
+    "currency",
+    "amount_units",
+    "fee_units",
+    "total_units",
+    "funder_id",
+    "funder",
+    "kind",
+    "transaction"
+   ],
+   "decimals": 6,
+   "as_seller": [
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T15:20:00Z",
+     "deployment": 2,
+     "repository_id": 20,
+     "repository": "acme/gadgets",
+     "issue": 1,
+     "pull_request": null,
+     "payee_id": 603,
+     "payee": "carol",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 502,
+     "funder": "funder-two",
+     "kind": "real",
+     "transaction": "pay6"
+    }
+   ],
+   "as_owner": [],
+   "note": "Every payment the escrows' log lines show, as paid: amounts in six decimals. A payment newer than `generated` is not in it. `kind` says what a payment is counted as (real, test, self, own); kinds are never added together."
+  },
+  "statements/funder-one.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "funder-one",
+   "github_id": 501,
+   "columns": [
+    "date",
+    "time",
+    "deployment",
+    "repository_id",
+    "repository",
+    "issue",
+    "pull_request",
+    "payee_id",
+    "payee",
+    "amount",
+    "fee",
+    "total",
+    "currency",
+    "amount_units",
+    "fee_units",
+    "total_units",
+    "funder_id",
+    "funder",
+    "kind",
+    "transaction"
+   ],
+   "decimals": 6,
+   "as_seller": [
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T15:03:20Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 4,
+     "pull_request": null,
+     "payee_id": 501,
+     "payee": "funder-one",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 501,
+     "funder": "funder-one",
+     "kind": "self",
+     "transaction": "pay4"
+    }
+   ],
+   "as_owner": [
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T14:30:00Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 1,
+     "pull_request": null,
+     "payee_id": 601,
+     "payee": "alice",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 501,
+     "funder": "funder-one",
+     "kind": "real",
+     "transaction": "pay1"
+    },
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T14:46:40Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 3,
+     "pull_request": null,
+     "payee_id": 601,
+     "payee": "alice",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "test USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 501,
+     "funder": "funder-one",
+     "kind": "test",
+     "transaction": "pay3"
+    },
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T15:03:20Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 4,
+     "pull_request": null,
+     "payee_id": 501,
+     "payee": "funder-one",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 501,
+     "funder": "funder-one",
+     "kind": "self",
+     "transaction": "pay4"
+    }
+   ],
+   "note": "Every payment the escrows' log lines show, as paid: amounts in six decimals. A payment newer than `generated` is not in it. `kind` says what a payment is counted as (real, test, self, own); kinds are never added together."
+  },
+  "statements/funder-two.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "funder-two",
+   "github_id": 502,
+   "columns": [
+    "date",
+    "time",
+    "deployment",
+    "repository_id",
+    "repository",
+    "issue",
+    "pull_request",
+    "payee_id",
+    "payee",
+    "amount",
+    "fee",
+    "total",
+    "currency",
+    "amount_units",
+    "fee_units",
+    "total_units",
+    "funder_id",
+    "funder",
+    "kind",
+    "transaction"
+   ],
+   "decimals": 6,
+   "as_seller": [],
+   "as_owner": [
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T15:20:00Z",
+     "deployment": 2,
+     "repository_id": 20,
+     "repository": "acme/gadgets",
+     "issue": 1,
+     "pull_request": null,
+     "payee_id": 603,
+     "payee": "carol",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 502,
+     "funder": "funder-two",
+     "kind": "real",
+     "transaction": "pay6"
+    }
+   ],
+   "note": "Every payment the escrows' log lines show, as paid: amounts in six decimals. A payment newer than `generated` is not in it. `kind` says what a payment is counted as (real, test, self, own); kinds are never added together."
+  },
+  "statements/knos-team.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "knos-team",
+   "github_id": 142920951,
+   "columns": [
+    "date",
+    "time",
+    "deployment",
+    "repository_id",
+    "repository",
+    "issue",
+    "pull_request",
+    "payee_id",
+    "payee",
+    "amount",
+    "fee",
+    "total",
+    "currency",
+    "amount_units",
+    "fee_units",
+    "total_units",
+    "funder_id",
+    "funder",
+    "kind",
+    "transaction"
+   ],
+   "decimals": 6,
+   "as_seller": [],
+   "as_owner": [
+    {
+     "month": "2026-09",
+     "date": "2026-09-21",
+     "time": "2026-09-21T15:11:40Z",
+     "deployment": 2,
+     "repository_id": 10,
+     "repository": "octo/widgets",
+     "issue": 5,
+     "pull_request": null,
+     "payee_id": 601,
+     "payee": "alice",
+     "amount": "4.875000",
+     "fee": "0.125000",
+     "total": "5.000000",
+     "currency": "USDC",
+     "amount_units": 4875000,
+     "fee_units": 125000,
+     "total_units": 5000000,
+     "funder_id": 142920951,
+     "funder": "knos-team",
+     "kind": "own",
+     "transaction": "pay5"
+    }
+   ],
+   "note": "Every payment the escrows' log lines show, as paid: amounts in six decimals. A payment newer than `generated` is not in it. `kind` says what a payment is counted as (real, test, self, own); kinds are never added together."
+  },
+  "u/alice.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "alice",
+   "github_id": 601,
+   "as_earner": {
+    "paid_merges": 3,
+    "amounts": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 1,
+      "amount": 4875000
+     }
+    },
+    "distinct_funders": 1,
+    "distinct_funders_real": 1,
+    "refusals_at_merge": 1,
+    "first": "2026-09-21T14:30:00Z",
+    "last": "2026-09-21T15:11:40Z"
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "reliability_test": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "review": {
+     "seconds": {
+      "n": 0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "slowest": null
+     },
+     "note": "not measured: GitHub was not asked"
+    },
+    "merged_unpaid": []
+   },
+   "merged_but_unpaid_to_me": [],
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/u/alice.json",
+    "readme": "[![paid through Knos](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fu%2Falice.json)](https://drexthealpha.github.io/Knos/u/alice.html)"
+   }
+  },
+  "u/carol.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "carol",
+   "github_id": 603,
+   "as_earner": {
+    "paid_merges": 1,
+    "amounts": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "distinct_funders": 1,
+    "distinct_funders_real": 1,
+    "refusals_at_merge": 0,
+    "first": "2026-09-21T15:20:00Z",
+    "last": "2026-09-21T15:20:00Z"
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "reliability_test": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "review": {
+     "seconds": {
+      "n": 0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "slowest": null
+     },
+     "note": "not measured: GitHub was not asked"
+    },
+    "merged_unpaid": []
+   },
+   "merged_but_unpaid_to_me": [],
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/u/carol.json",
+    "readme": "[![paid through Knos](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fu%2Fcarol.json)](https://drexthealpha.github.io/Knos/u/carol.html)"
+   }
+  },
+  "u/funder-one.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "funder-one",
+   "github_id": 501,
+   "as_earner": {
+    "paid_merges": 1,
+    "amounts": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "distinct_funders": 0,
+    "distinct_funders_real": 0,
+    "refusals_at_merge": 0,
+    "first": "2026-09-21T15:03:20Z",
+    "last": "2026-09-21T15:03:20Z"
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 2,
+      "amount": 10000000
+     },
+     "test": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "self": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "self": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 2,
+     "k": 1,
+     "share": 0.5,
+     "ci95": [
+      0.0945,
+      0.9055
+     ]
+    },
+    "reliability_test": {
+     "n": 1,
+     "k": 1,
+     "share": 1.0,
+     "ci95": [
+      0.2065,
+      1.0
+     ]
+    },
+    "review": {
+     "seconds": {
+      "n": 2,
+      "p50": 95,
+      "p95": 100,
+      "p99": 100,
+      "slowest": 100
+     },
+     "note": null
+    },
+    "merged_unpaid": [
+     {
+      "repository": "octo/widgets",
+      "issue": 2,
+      "amount": 5000000,
+      "bucket": "real",
+      "pull_request": 12,
+      "author": "bob",
+      "merged_at": "2026-09-21T15:20:00Z",
+      "refunded_at": "2026-09-21T15:36:40Z"
+     }
+    ]
+   },
+   "merged_but_unpaid_to_me": [],
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/u/funder-one.json",
+    "readme": "[![paid through Knos](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fu%2Ffunder-one.json)](https://drexthealpha.github.io/Knos/u/funder-one.html)"
+   }
+  },
+  "u/funder-two.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "funder-two",
+   "github_id": 502,
+   "as_earner": {
+    "paid_merges": 0,
+    "amounts": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "distinct_funders": 0,
+    "distinct_funders_real": 0,
+    "refusals_at_merge": 0,
+    "first": null,
+    "last": null
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 1,
+      "amount": 5000000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 1,
+      "amount": 4875000
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 1,
+     "k": 1,
+     "share": 1.0,
+     "ci95": [
+      0.2065,
+      1.0
+     ]
+    },
+    "reliability_test": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "review": {
+     "seconds": {
+      "n": 0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "slowest": null
+     },
+     "note": null
+    },
+    "merged_unpaid": []
+   },
+   "merged_but_unpaid_to_me": [],
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/u/funder-two.json",
+    "readme": "[![paid through Knos](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fu%2Ffunder-two.json)](https://drexthealpha.github.io/Knos/u/funder-two.html)"
+   }
+  },
+  "u/knos-team.json": {
+   "source": {
+    "chain": {
+     "events": 20,
+     "programs": [
+      "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    },
+    "relay_log": {
+     "lines": 2,
+     "failed_lines": 1,
+     "repository": "drexthealpha/Knos"
+    },
+    "github": true,
+    "agent_pr_index": {
+     "date": "2026-10-02",
+     "root": "00fa1be4192f450b0eebf625c5c1788150731812ef84f1b12d1825b7c840b304"
+    },
+    "recompute": "python scripts/network_stats.py --events-out e.json; python scripts/pages_data.py --events e.json --index index.json",
+    "summary": "20 log lines of the escrows' history on devnet, 2 lines of the relay log, GitHub, the Agent PR Index of 2026-10-02 (root 00fa1be4192f)"
+   },
+   "generated": "2026-09-21T17:00:00Z",
+   "login": "knos-team",
+   "github_id": 142920951,
+   "as_earner": {
+    "paid_merges": 0,
+    "amounts": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "distinct_funders": 0,
+    "distinct_funders_real": 0,
+    "refusals_at_merge": 0,
+    "first": null,
+    "last": null
+   },
+   "as_funder": {
+    "funded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 1,
+      "amount": 5000000
+     }
+    },
+    "paid": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 1,
+      "amount": 4875000
+     }
+    },
+    "refunded": {
+     "real": {
+      "count": 0,
+      "amount": 0
+     },
+     "test": {
+      "count": 0,
+      "amount": 0
+     },
+     "self": {
+      "count": 0,
+      "amount": 0
+     },
+     "own": {
+      "count": 0,
+      "amount": 0
+     }
+    },
+    "open": 0,
+    "reliability": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "reliability_test": {
+     "n": 0,
+     "k": 0,
+     "share": null,
+     "ci95": null
+    },
+    "review": {
+     "seconds": {
+      "n": 0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "slowest": null
+     },
+     "note": null
+    },
+    "merged_unpaid": []
+   },
+   "merged_but_unpaid_to_me": [],
+   "badge": {
+    "endpoint": "https://drexthealpha.github.io/Knos/badge/u/knos-team.json",
+    "readme": "[![paid through Knos](https://img.shields.io/endpoint?url=https%3A%2F%2Fdrexthealpha.github.io%2FKnos%2Fbadge%2Fu%2Fknos-team.json)](https://drexthealpha.github.io/Knos/u/knos-team.html)"
+   }
+  }
+ }
+}

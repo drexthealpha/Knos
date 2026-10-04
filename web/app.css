@@ -74,3 +74,37 @@ td[data-key] { min-width: 12ch; }
 button.small { margin: 2px 4px 2px 0; }
 #money-form button, #owner-form button { margin-top: 12px; }
 @media (max-width: 560px) { .parts, .facts { grid-template-columns: 1fr; } }
+.demo { margin: 16px 0; } .demo video { width: 100%; max-height: 60vh; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.demo figcaption { margin-top: 6px; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; } .examples button { margin: 0; }
+.examples-row { margin: 12px 0 6px; } #example-says { min-height: 1.4em; margin: 6px 0 0; }
+
+/* the passkey wallet in Get paid */
+#passkey textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; word-break: break-all; }
+#pk-form { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 4px; }
+#pk-address-comment { white-space: pre-wrap; word-break: break-all; }
+
+/* records and ranks */
+ul.plain { list-style: none; padding: 0; margin: 6px 0; } ul.plain li { margin: 8px 0; }
+ul.inline { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.badge { display: inline-flex; font: 600 12px/20px Verdana, system-ui, sans-serif; border-radius: 3px; overflow: hidden; color: #fff; }
+.badge span { padding: 0 8px; } .badge-label { background: #555; }
+.badge-message { background: #9f9f9f; } .badge[data-color=brightgreen] .badge-message { background: #3a3; } .badge[data-color=green] .badge-message { background: #4c8a2c; }
+.badge[data-color=yellow] .badge-message, .badge[data-color=orange] .badge-message { background: #b8860b; } .badge[data-color=red] .badge-message { background: #c33; } .badge[data-color=blue] .badge-message { background: #2a6fc0; }
+#rec-readme { white-space: pre-wrap; word-break: break-all; }
+#stm-statement td { vertical-align: top; }
+
+/* a task with no repository */
+#task .pair { border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px 12px; margin: 8px 0; }
+#task-steps > li { margin: 14px 0; } #task-steps pre { margin: 6px 0; }
+#task details textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+#task a.button, #pk-request a.button, #rec-card a { overflow-wrap: anywhere; }
+
+/* an upgrade that is waiting */
+.banner { width: calc(100% - 32px); max-width: 828px; margin: 8px auto 0; padding: 6px 14px; border: 1px solid #b8860b; border-radius: 10px; background: color-mix(in srgb, #b8860b 14%, var(--bg)); }
+.banner p { margin: 4px 0; } .banner a { overflow-wrap: anywhere; }
+
+/* fund any issue */
+#any-terms { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+#anyissue dd, #anyissue li, #any-hash, #any-available { overflow-wrap: anywhere; }
+#any-sentences { margin: 0; padding-left: 18px; }

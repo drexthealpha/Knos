@@ -2,9 +2,10 @@
 // The JavaScript client against the fixtures the Python client wrote: every address, audience, fee, instruction,
 // account reader and transaction must match byte for byte, for both deployments. Then what the client adds for a
 // browser: the wallets it can ask, with stand-ins for each kind. Exit 1 on the first mismatch.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { format } from "node:util";
 import * as knos from "./index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -125,7 +126,16 @@ const bal = await k2.balance(j.owner_id, j.authority, j.mint), bal22 = await k2.
 const faucetBal = await k2.faucetBalance(j.owner_id);
 const jobBal = await k2.job(j.repo_id, j.issue, bal), jobWallet = await k2.job(j.repo_id, j.issue, j.funder);
 const key2048 = await k2.oidc.keyPda(knos.GITHUB, n2048), key4096 = await k2.oidc.keyPda(knos.GITLAB, n4096);
+const orderTerms = v2.termsJson(j.order_terms), oth = knos.hex(await v2.termsHash(orderTerms)), saltBytes = knos.unhex(j.salt);
+const scope = await v2.scopeOf(j.repo_id, j.issue), scopePrivate = await v2.scopeOf(j.repo_id, j.issue, saltBytes);
+const orderW = await k2.orderPda(scope, j.funder, 0), orderB = await k2.orderPda(scope, bal, 3), orderP = await k2.orderPda(scopePrivate, j.funder, 1);
+const verifiedToken = knos.unhex(s.accounts["token (verified)"].data);
 const addresses = {
+  "order(scope, wallet, seq 0)": orderW, "order(scope, balance, seq 3)": orderB, "order(private scope, wallet, seq 1)": orderP,
+  "ov(order)": await k2.ovPda(orderW), "balx(balance)": await k2.balxPda(bal), "plan(owner)": await k2.planPda(j.owner_id),
+  "used(jwt)": await k2.usedPda(j.jwt), "used(token account data)": await k2.usedPda(verifiedToken), "used(signature hash)": await k2.usedPda(await v2.sigHash(j.jwt)),
+  "key(issuer url, n2048)": await k2.oidc.keyPda(j.url, n2048), "key(private, n2048)": await k2.oidc.keyPda(j.url, n2048, j.authority), "iss(url)": await k2.oidc.issPda(j.url),
+  "hb(order)": await k2.hbPda(orderW), "done(order, pr 40)": await k2.donePda(orderB, 40), "assign(order, payee)": await k2.assignPda(orderW, j.payee_id),
   auth: await k2.auth(), "vault(mint)": await k2.vault(j.mint), faucet_mint: await k2.faucetMint(), "balance(owner, authority, mint)": bal,
   "faucet_balance(owner)": faucetBal, "baltok(balance)": await k2.baltok(bal), "job(repo, issue, balance)": jobBal,
   "job(repo, issue, funder)": jobWallet, "bind(payee)": await k2.bind(j.payee_id), "rep(payee)": await k2.rep(j.payee_id),
@@ -148,7 +158,11 @@ same("terms in another key order give the same bytes", knos.hex(v2.termsJson(Obj
 await throws("terms over 600 bytes are refused", () => v2.termsJson({ ...j.terms, paths: Array(60).fill("a-long-glob/**") }));
 same("hashes", { wf_repo_hash: knos.hex(await v2.wfRepoHash(j.wf_repo)), "funder_key(wallet)": knos.hex(await v2.funderKey(j.funder)),
   "funder_key(owner id)": knos.hex(await v2.funderKey(j.owner_id)), "token_id(jwt)": knos.hex(await knos.tokenId(j.jwt)),
-  "key_hash(n2048)": knos.hex(await knos.keyHash(n2048)), "key_hash(n4096)": knos.hex(await knos.keyHash(n4096)) }, s.hashes);
+  "key_hash(n2048)": knos.hex(await knos.keyHash(n2048)), "key_hash(n4096)": knos.hex(await knos.keyHash(n4096)),
+  "scope(repo, issue)": knos.hex(scope), "scope(repo, issue, salt)": knos.hex(scopePrivate), "sig_hash(jwt)": knos.hex(await v2.sigHash(j.jwt)),
+  "sig_hash(token account data)": knos.hex(await v2.sigHash(verifiedToken)), "issuer_hash(url)": knos.hex(await knos.issuerHash(j.url)), "order terms": oth,
+  "private_fund_terms(scope, terms)": knos.hex(await v2.privateFundTerms(scopePrivate, oth)) }, s.hashes);
+same("a private order's fund terms from bytes and from hex are the same", knos.hex(await v2.privateFundTerms(knos.hex(scopePrivate), knos.unhex(oth))), s.hashes["private_fund_terms(scope, terms)"]);
 for (const [amount, fee] of Object.entries(s.fees)) same(`second: fee of ${amount}`, v2.feeOf(Number(amount)), fee);
 
 // audiences
@@ -156,7 +170,23 @@ const fundAud = v2.fundAudience(j.issue, j.amount, v2.MERGE, th, bal);
 const payAud = v2.payAudience(j.repo_id, j.issue, j.payee_id, j.head_sha, th, v2.MERGE, j.address);
 const payAudNone = v2.payAudience(j.repo_id, j.issue, j.payee_id, j.head_sha, thTests, v2.TESTS);
 const bound = v2.readBind(knos.unhex(s.accounts.bind.data));
+const opts = (name) => ({ none: v2.opts(), "merge, reserve 7": v2.opts({ flags: v2.F_NEUTRAL, reserveDays: 7 }),
+  everything: v2.opts({ flags: v2.F_NEUTRAL | v2.F_STANDING, holdbackBps: 5000, warrantyDays: 90, killBps: 2000, reserveDays: 30, rate: 2_500_000, arbiterId: 9_001,
+    judgeRepoId: 70_000_001, salted: true }), private: v2.opts({ flags: v2.F_PRIVATE | v2.F_NEUTRAL, salted: true, judgeRepoId: 70_000_001 }) })[name];
+const one = [[j.payee_id, 10_000, j.address]], many = [[j.payee_id, 6_000, j.address], [j.maintainer_id, 3_000, null], [9, 1_000, j.wallet]];
 const audiences = {
+  "order fund": v2.orderFundAudience(j.issue, j.amount, v2.MERGE, oth, bal, 14 * 86400, 3, opts("merge, reserve 7")),
+  "order fund, no options": v2.orderFundAudience(j.issue, j.amount, v2.TESTS, oth, bal),
+  "order pay, one payee": v2.orderPayAudience(orderW, j.head, oth, v2.MERGE, 12, one),
+  "order pay, three payees": v2.orderPayAudience(orderB, j.head, oth, v2.TESTS, 40, many),
+  "payees_of(one)": v2.payeesOf(v2.orderPayAudience(orderW, j.head, oth, v2.MERGE, 12, one)),
+  "payees_of(three)": v2.payeesOf(v2.orderPayAudience(orderB, j.head, oth, v2.TESTS, 40, many)), "payees_text(three)": v2.payeesText(many),
+  "order_destination(bind, address)": v2.orderDestination(bound, j.address), "order_destination(bind, no address)": v2.orderDestination(bound, null),
+  "order_destination(no bind, address)": v2.orderDestination(null, j.address), "order_destination(no bind, no address)": v2.orderDestination(null, null),
+  "rotate (issuer url)": await knos.rotateAudience(j.url, n2048),
+  "order fund, private": v2.orderFundAudience(0, j.amount, v2.MERGE, knos.hex(await v2.privateFundTerms(scopePrivate, oth)), bal, 14 * 86400, 3, opts("private")),
+  "rule, three payees": v2.ruleAudience(orderB, many), "org bind": v2.orgBindAudience(j.wallet), take: v2.takeAudience(orderW, j.payee_id, 7),
+  cancel: v2.cancelAudience(orderB), revert: v2.revertAudience(orderB, j.head), "payees_of(rule)": v2.payeesOf(v2.ruleAudience(orderB, many)),
   fund: fundAud, "fund tests, 30 days": v2.fundAudience(j.issue, j.amount, v2.TESTS, thTests, faucetBal, 30 * 86400),
   "pay to an address": payAud, "pay, no address": payAudNone, bind: v2.bindAudience(j.wallet),
   rotate: await knos.rotateAudience(knos.GITHUB, n2048), "rotate 4096": await knos.rotateAudience(knos.GITLAB, n4096),
@@ -184,9 +214,32 @@ const readers = {
   job: (raw) => { const got = v2.readJob(raw); if (got) delete got.funder; return snake(got); },
   balance: (raw) => snake(v2.readBalance(raw)), bind: (raw) => snake(v2.readBind(raw)), rep: (raw) => snake(v2.readRep(raw)),
   pause: v2.readPause, rate: v2.readRate,
+  order: (raw) => { const got = v2.readOrder(raw); if (got) { delete got.funder; delete got.tokenProgram; delete got.faucet; } return snake(got); },
+  balx: (raw) => snake(v2.readBalx(raw)), plan: (raw) => snake(v2.readPlan(raw)), iss: v2.readIss,
+  holdback: v2.readHoldback, assign: (raw) => v2.readAssign(raw), marker: v2.readMarker,
   token: (raw) => { const t = knos.readToken(raw); return t && { stage: t.stage, issuer: t.issuer, done: t.done, exp: t.exp, key: t.key, payer: t.payer, payload: knos.hex(t.payload) }; },
 };
-for (const [name, a] of Object.entries(s.accounts)) same(`account ${name}`, readers[a.reader](a.data === null ? null : knos.unhex(a.data)), a.read);
+for (const [name, a] of Object.entries({ ...s.accounts, ...s["order accounts"] })) same(`account ${name}`, readers[a.reader](a.data === null ? null : knos.unhex(a.data)), a.read);
+const oW = v2.readOrder(knos.unhex(s["order accounts"]["order (open, from a wallet, public)"].data));
+const oB = v2.readOrder(knos.unhex(s["order accounts"]["order (warranty, from a Balance, standing, token-2022)"].data));
+const oP = v2.readOrder(knos.unhex(s["order accounts"]["order (held, private)"].data));
+same("an order says whose money it is and which token program holds it", [oW.funder, oB.funder, oB.tokenProgram, oW.tokenProgram, oB.faucet, oP.state, oB.state],
+  [j.funder, j.owner_id, knos.TOKEN_2022, knos.TOKEN, false, "held", "warranty"]);
+const orderOf = (name) => v2.readOrder(knos.unhex(s["order accounts"][name].data));
+const oK = orderOf("order (open, cancelled while reserved)"), oH = orderOf("order (warranty, a holdback, from a wallet)"), oHb = orderOf("order (open, a holdback, from a Balance)");
+const hbOne = v2.readHoldback(knos.unhex(s["order accounts"]["holdback (one payee)"].data)), hbThree = v2.readHoldback(knos.unhex(s["order accounts"]["holdback (three payees)"].data));
+same("what a refund owes a taker first, for every order", Object.fromEntries(Object.keys(s["kill fees"]).map((name) => [name, v2.killFee(orderOf(name))])), s["kill fees"]);
+same("a kill fee is a tenth of this order's amount, and never more than what is left of it", [v2.killFee(oK), v2.killFee({ ...oK, paid: oK.amount - 5 }), v2.killFee({ ...oK, cancelAt: 0 })],
+  [2_000_000, 5, 0]);
+{
+  const assigned = knos.unhex(s["order accounts"].assign.data), earlier = Uint8Array.from(assigned);
+  new DataView(earlier.buffer).setBigInt64(80, BigInt(j.now - 1), true);
+  same("where a payee of an order is paid: its assignee, else the token's address, else its bound wallet", {
+    assigned: v2.payeeWallet(assigned, oW, bound, j.address), "assigned for an earlier order at this address": v2.payeeWallet(earlier, oW, bound, null),
+    "no assignment, an address": v2.payeeWallet(null, oW, bound, j.address), "no assignment, no address, no bind": v2.payeeWallet(null, oW, null, null) }, s["payee wallets"]);
+  same("an assignment is read with or without its order", [v2.readAssign(assigned), v2.readAssign(assigned, oW), v2.readAssign(earlier, oW)], [j.dest_token, j.dest_token, null]);
+}
+same("a Balance with a side account says so", v2.readBalance(knos.unhex(s["order accounts"]["balance (with a side account)"].data)).hasX, true);
 const jBal = v2.readJob(knos.unhex(s.accounts["job (open, from a Balance)"].data));
 const jWallet = v2.readJob(knos.unhex(s.accounts["job (held, from a wallet, Token-2022, tests mode)"].data));
 same("a Balance's job is funded by its GitHub owner; a wallet's by the wallet", [jBal.funder, jWallet.funder], [j.owner_id, j.funder]);
@@ -200,6 +253,12 @@ for (const [name, c] of Object.entries(s.keys)) {
   same(`key ${name}: header`, snake(key), c.read);
   same(`key ${name}: usable`, v2.keyUsable(key, c.now), c.usable);
 }
+for (const [name, c] of Object.entries(s["order keys"])) {
+  const key = v2.readKey(c.data === null ? null : knos.unhex(c.data));
+  same(`key ${name}: header`, snake(key), c.read);
+  same(`key ${name}: usable`, v2.keyUsable(key, c.now), c.usable);
+}
+for (const [name, c] of Object.entries(s["token issuers"])) same(`token issuer: ${name}`, v2.tokenIssuer(knos.unhex(c.data)), c.read);
 same("a key account names its key by the hash of its modulus", await v2.keyAccountHash(knos.unhex(s.keys["ready, genesis"].data)), s.hashes["key_hash(n2048)"]);
 same("a time outside the years a date can name", v2.keyUsable({ state: 1, genesis: true, activeAt: 4e14, expiresAt: 5e14 }, 0)[1],
   "this signing key is new: it can be used from time 400000000000000. Try again then.");
@@ -232,15 +291,20 @@ const instructions = {
   "pay.withdraw (token-2022)": await k2.withdrawIx({ authority: j.authority, balance: bal22, mint: j.mint22, tokenProgram: knos.TOKEN_2022 }),
   "pay.fund_balance": await k2.fundBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: bal, mint: j.mint,
     repoId: j.repo_id, issue: j.issue, terms }),
+  "pay.fund_balance (with its side account)": await k2.fundBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: bal, mint: j.mint,
+    repoId: j.repo_id, issue: j.issue, terms, balx: true }),
   "pay.fund_balance (faucet)": await k2.fundBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: faucetBal,
     mint: await k2.faucetMint(), repoId: j.repo_id, issue: j.issue, terms: s.terms.json }),
   "pay.fund_wallet merge": await k2.fundWalletIx({ funder: j.funder, funderToken: j.funder_token, mint: j.mint, repoId: j.repo_id, issue: j.issue,
     amount: j.amount, wfRepo: j.wf_repo, wfSha: j.wf_sha, terms }),
   "pay.fund_wallet tests (token-2022)": await k2.fundWalletIx({ funder: j.funder, funderToken: j.funder_token, mint: j.mint22, repoId: j.repo_id,
     issue: j.issue, amount: j.amount, wfRepo: j.wf_repo, wfSha: j.wf_sha, terms: termsTests, mode: v2.TESTS, workS: 7 * 86400, tokenProgram: knos.TOKEN_2022 }),
-  "pay.pay (a Balance's job, to a wallet)": await k2.payIx({ ...payArgs, job: jobBal, j: jBal, payeeId: j.payee_id, wallet: j.wallet }),
-  "pay.pay (a Balance's job, held)": await k2.payIx({ ...payArgs, job: jobBal, j: jBal, payeeId: j.payee_id, wallet: null }),
-  "pay.pay (a wallet's job, token account)": await k2.payIx({ ...payArgs, job: jobWallet, j: jWallet, payeeId: j.payee_id, wallet: j.wallet, destToken: j.dest_token }),
+  "pay.pay (a Balance's job, to a wallet)": await k2.payIx({ ...payArgs, job: jobBal, j: jBal, payeeId: j.payee_id, wallet: j.wallet, used: j.jwt }),
+  "pay.pay (a Balance's job, held)": await k2.payIx({ ...payArgs, job: jobBal, j: jBal, payeeId: j.payee_id, wallet: null, used: await v2.sigHash(j.jwt) }),
+  "pay.pay (a wallet's job, token account)": await k2.payIx({ ...payArgs, job: jobWallet, j: jWallet, payeeId: j.payee_id, wallet: j.wallet, destToken: j.dest_token,
+    used: j.attest }),
+  "pay.pay (the marker of a token account's data)": await k2.payIx({ ...payArgs, job: jobBal, j: jBal, payeeId: j.payee_id, wallet: j.wallet,
+    used: knos.unhex(s.accounts["token (verified)"].data) }),
   "pay.settle": await k2.settleIx({ relayer: j.relayer, job: jobWallet, j: jWallet, wallet: j.wallet }),
   "pay.refund (a Balance's job)": await k2.refundIx({ relayer: j.relayer, job: jobBal, j: jBal }),
   "pay.refund (a wallet's job)": await k2.refundIx({ relayer: j.relayer, job: jobWallet, j: jWallet }),
@@ -262,9 +326,9 @@ await throws("a workflow commit that is not a full sha is refused", () => k2.fun
 
 // what an instruction is, read back from its bytes: every knos-pay instruction under the IDL's names
 for (const [name, ix] of Object.entries(instructions).filter(([name]) => name.startsWith("pay."))) {
-  const e = k2.explain(ix), [want, names] = v2.PAY_IXS[ix.data[0]];
+  const e = k2.explain(ix), [want, names] = v2.PAY_IXS.find((x) => x[2] === ix.data[0]);
   same(`explain ${name}`, [e.program, e.address, e.name, e.accounts.map((a) => a.name), e.accounts.map((a) => a.pubkey)],
-    ["knos-pay", s.programs.knos_pay, want, names, ix.accounts.map((a) => a.pubkey)]);
+    ["knos-pay", s.programs.knos_pay, want, names.slice(0, ix.accounts.length), ix.accounts.map((a) => a.pubkey)]);
 }
 same("explain: open a balance", k2.explain(open).args, { ownerId: j.owner_id, cap: j.cap, spenders: j.spenders });
 same("explain: set who may spend", k2.explain(instructions["pay.set_balance (no cap, nobody)"]).args, { cap: 0, spenders: [] });
@@ -283,8 +347,8 @@ same("explain: anything else is unknown, with its bytes", [k2.explain(w[0]).prog
 const idlPath = join(here, "..", "..", "idl", "knos_pay_v2.json");
 if (existsSync(idlPath)) {      // in the repository: the names are the IDL's (the npm package does not carry it)
   const idl = JSON.parse(readFileSync(idlPath, "utf8"));
-  same("the instruction table is the IDL's", v2.PAY_IXS, idl.instructions.map((x) => [x.name, x.accounts.map((a) => a.name)]));
-  same("the instruction tags are the IDL's", v2.PAY_IXS.map((_x, at) => at), idl.instructions.map((x) => x.discriminant.value));
+  same("the instruction table is the IDL's", v2.PAY_IXS.map(([name, names]) => [name, names]), idl.instructions.map((x) => [x.name, x.accounts.map((a) => a.name)]));
+  same("the instruction tags are the IDL's", v2.PAY_IXS.map((x) => x[2]), idl.instructions.map((x) => x.discriminant.value));
 }
 
 // transactions: the unsigned legacy transaction as the Solana SDK serialises the same instructions
@@ -310,6 +374,251 @@ for (const [name, [ixs, payer]] of Object.entries(transactions)) {
   same(`transaction ${name}: bytes`, b64(bytes), want.transaction);
   same(`transaction ${name}: the message inside it`, knos.hex(knos.messageOf(bytes)), want.message);
   same(`transaction ${name}: fits in a packet`, bytes.length <= 1232, true);
+}
+
+
+// ==== work orders (2.1) =============================================================================================
+for (const [amount, fee] of Object.entries(s["fees (decimals)"])) { const [a, d] = amount.split("/").map(Number); same(`second: fee of ${amount}`, v2.feeOf(a, d), fee); }
+for (const [name, fee] of Object.entries(s["order fees"])) { const [a, bps, d] = name.split("/").map(Number); same(`order fee ${name}`, v2.orderFee(a, bps, d), fee); }
+for (const [name, want] of Object.entries(s.units)) { const [m, d] = name.split("/").map(Number); same(`units ${name}`, v2.units(m, d), want); }
+same("units saturate at the largest amount a token account holds", v2.units(10n ** 13n, 18), 2n ** 64n - 1n);
+same("the fee of an order is never above the cap, however large the amount", v2.orderFee(10n ** 12n), 25_000_000);
+const plansIn = { "no plan": null, "a plan in force": v2.readPlan(knos.unhex(s["order accounts"].plan.data)) };
+{
+  const p = (over) => ({ ...plansIn["a plan in force"], ...over });
+  const got = { "no plan": v2.planBps(null, j.now), "a plan in force": v2.planBps(plansIn["a plan in force"], j.now), "an expired plan": v2.planBps(p({ expires: j.now - 1 }), j.now),
+    "a rate below the floor": v2.planBps(p({ feeBps: 10 }), j.now), "a rate above the cap": v2.planBps(p({ feeBps: 900 }), j.now), "expires this second": v2.planBps(p({ expires: j.now }), j.now) };
+  same("the fee rate of an owner's orders: a plan while it lasts, within 50 to 250", got, s["plan bps"]);
+}
+for (const [name, want] of Object.entries(s.opts)) same(`opts ${name}`, knos.hex(opts(name)), want);
+same("opts are 48 bytes", opts("everything").length, v2.OPTS_LEN);
+
+const orderIxs = {};
+{
+  const bal22 = await k2.balance(j.owner_id, j.authority, j.mint22), erpt = () => ({ relayer: j.relayer, fundToken: j.token_account, key: j.key, ownerId: j.owner_id, repoId: j.repo_id, issue: j.issue, terms: orderTerms });
+  const payees = (named) => named.map(([id, wallet, dest]) => [id, wallet ? j[wallet] : null, ...(dest ? [j[dest]] : [])]);
+  const four = payees(j.four_payees);
+  const orderK = await k2.orderPda(scope, j.funder, 2), orderH = await k2.orderPda(scope, j.funder, 5), orderHb = await k2.orderPda(scope, bal, 6);
+  const fundW = { funder: j.funder, funderToken: j.funder_token, mint: j.mint, repoId: j.repo_id, issue: j.issue, amount: j.amount, wfRepo: j.wf_repo, wfSha: j.wf_sha, terms: orderTerms };
+  Object.assign(orderIxs, {
+    "pay.version": k2.versionIx(),
+    "pay.set_balance_x": await k2.setBalanceXIx({ authority: j.authority, balance: bal, dayLimit: 50_000_000, totalLimit: 500_000_000, repos: [j.repo_id, 7], wfSha: j.wf_sha }),
+    "pay.set_balance_x (no limits)": await k2.setBalanceXIx({ authority: j.authority, balance: bal }),
+    "pay.set_balance_x (eight repositories)": await k2.setBalanceXIx({ authority: j.authority, balance: bal, dayLimit: 1, totalLimit: 2, repos: [1, 2, 3, 4, 5, 6, 7, 2n ** 64n - 1n], wfSha: "d".repeat(40) }),
+    "pay.set_plan": await k2.setPlanIx({ feeOwner: knos.FEE_OWNER, payer: j.payer, ownerId: j.owner_id, feeBps: 100, expires: j.now + 90 * 86400 }),
+    "pay.fund_order_wallet": await k2.fundOrderWalletIx(fundW),
+    "pay.fund_order_wallet (tests, options, seq, token-2022)": await k2.fundOrderWalletIx({ ...fundW, mint: j.mint22, mode: v2.TESTS, workS: 7 * 86400, seq: 4,
+      options: opts("everything"), tokenProgram: knos.TOKEN_2022 }),
+    "pay.fund_order_wallet (private)": await k2.fundOrderWalletIx({ ...fundW, repoId: 0, issue: 0, terms: knos.unhex(oth), seq: 1, options: opts("private"), scope: scopePrivate }),
+    "pay.fund_order_balance": await k2.fundOrderBalanceIx({ ...erpt(), balance: bal, mint: j.mint, used: j.jwt, seq: 3 }),
+    "pay.fund_order_balance (token-2022, marker given)": await k2.fundOrderBalanceIx({ ...erpt(), balance: bal22, mint: j.mint22, used: j.attest, seq: 0, tokenProgram: knos.TOKEN_2022 }),
+    "pay.pay_order (one payee, a bound wallet)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderW, o: oW, payees: [[j.payee_id, j.wallet]] }),
+    "pay.pay_order (one payee, held)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderW, o: oW, payees: [[j.payee_id, null]] }),
+    "pay.pay_order (four payees, a tip account, a token account)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderB, o: oB,
+      payees: four, tipToken: j.dest_token }),
+    "pay.fund_order_balance (private)": await k2.fundPrivateOrderBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: bal, mint: j.mint,
+      ownerId: j.owner_id, scope: scopePrivate, termsHash: oth, used: j.jwt, seq: 3 }),
+    "pay.bind_org": await k2.bindOrgIx({ relayer: j.relayer, bindToken: j.token_account, key: j.key, orgId: j.owner_id }),
+    "pay.pay_order (a holdback: its record)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderHb, o: oHb,
+      payees: [[j.payee_id, j.wallet], [j.maintainer_id, j.address]] }),
+    "pay.pay_order (a standing order: the pull request's marker)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderB, o: oB,
+      payees: [[j.payee_id, j.wallet]], pr: 40 }),
+    "pay.release (one payee)": await k2.releaseIx({ relayer: j.relayer, order: orderH, o: oH, hb: hbOne }),
+    "pay.release (three payees, a tip account, token-2022)": await k2.releaseIx({ relayer: j.relayer, order: orderB, o: oB, hb: hbThree, tipToken: j.dest_token }),
+    "pay.revert (a wallet's order)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderH, o: oH, hb: hbOne }),
+    "pay.revert (a Balance's order)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderB, o: oB, hb: hbThree }),
+    "pay.revert (token account)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderH, o: oH, hb: hbOne, refundToken: j.dest_token }),
+    "pay.reserve": k2.reserveIx({ relayer: j.relayer, takeToken: j.token_account, key: j.key, order: orderW }),
+    "pay.cancel (a wallet's order)": k2.cancelIx({ signer: j.funder, order: orderW }),
+    "pay.cancel (a Balance's order, a token)": k2.cancelIx({ signer: j.relayer, order: orderB, cancelToken: j.token_account, key: j.key }),
+    "pay.assign": await k2.assignIx({ signer: j.wallet, order: orderW, payeeId: j.payee_id, to: j.dest_token }),
+    "pay.close_marker (used)": k2.closeMarkerIx({ marker: await k2.usedPda(j.jwt), rentTo: j.relayer }),
+    "pay.close_marker (done)": k2.closeMarkerIx({ marker: await k2.donePda(orderB, 40), rentTo: j.relayer, order: orderB }),
+    "pay.refund_order (a kill fee, to the taker)": await k2.refundOrderIx({ relayer: j.relayer, order: orderK, o: oK, killToken: j.dest_token }),
+    "pay.refund_order (a kill fee, held for the taker)": await k2.refundOrderIx({ relayer: j.relayer, order: orderK, o: oK }),
+    "pay.settle_order": await k2.settleOrderIx({ relayer: j.relayer, order: orderP, o: oP, wallet: j.wallet }),
+    "pay.settle_order (token account, tip account)": await k2.settleOrderIx({ relayer: j.relayer, order: orderP, o: oP, wallet: j.wallet, destToken: j.dest_token, tipToken: j.token_account }),
+    "pay.refund_order (a wallet's order)": await k2.refundOrderIx({ relayer: j.relayer, order: orderW, o: oW }),
+    "pay.refund_order (a Balance's order)": await k2.refundOrderIx({ relayer: j.relayer, order: orderB, o: oB }),
+    "pay.refund_order (token account)": await k2.refundOrderIx({ relayer: j.relayer, order: orderW, o: oW, refundToken: j.dest_token }),
+    "pay.top_up (a wallet's order)": await k2.topUpIx({ signer: j.funder, order: orderW, o: oW, add: 5_000_000 }),
+    "pay.top_up (a Balance's order)": await k2.topUpIx({ signer: j.authority, order: orderB, o: oB, add: 5_000_000_000 }),
+    "pay.top_up (token account)": await k2.topUpIx({ signer: j.funder, order: orderW, o: oW, add: 1, fromToken: j.dest_token }),
+    "oidc.register_key (attested, with its key)": await k2.oidc.registerKeyIx(j.payer, knos.GITLAB, n4096, j.attest, j.key),
+    "oidc.register_key (no attestation, a key given)": await k2.oidc.registerKeyIx(j.payer, knos.GITHUB, n2048, null, j.key),
+    "oidc.register_issuer_key": await k2.oidc.registerIssuerKeyIx(j.payer, j.url, n2048, j.attest, j.key),
+    "oidc.register_private_key": await k2.oidc.registerPrivateKeyIx(j.authority, j.url, n4096),
+    "oidc.key_params (issuer URL)": await k2.oidc.keyParamsIx(j.payer, j.url, n2048),
+    "oidc.key_params (private)": await k2.oidc.keyParamsIx(j.payer, j.url, n2048, j.authority),
+    "oidc.refresh (with its key)": await k2.oidc.refreshIx(j.payer, knos.GITHUB, n2048, j.attest, j.key),
+    "oidc.refresh (issuer URL)": await k2.oidc.refreshIx(j.payer, j.url, n2048, j.attest, j.key),
+    "oidc.approve (issuer URL)": await k2.oidc.approveIx(s.programs.guardian, j.url, n2048),
+    "oidc.revoke (private)": await k2.oidc.revokeIx(j.authority, j.url, n2048, j.authority),
+  });
+}
+same("order: every instruction has a check", Object.keys(orderIxs).sort(), Object.keys(s["order instructions"]).sort());
+for (const [name, got] of Object.entries(orderIxs)) same(`order instruction ${name}`, plain(got), s["order instructions"][name]);
+await throws("a fifth payee needs no check here: nine repositories are refused", () => k2.setBalanceXIx({ authority: j.authority, balance: bal, repos: [1, 2, 3, 4, 5, 6, 7, 8, 9] }));
+await throws("a pay token with no marker is refused in words", () => k2.payIx({ ...payArgs, job: jobBal, j: jBal, payeeId: j.payee_id, wallet: j.wallet }));
+await throws("an issuer URL that is not https is refused", () => k2.oidc.registerPrivateKeyIx(j.authority, "http://token.example.com", n2048));
+await throws("an issuer URL of 201 bytes is refused", () => k2.oidc.registerPrivateKeyIx(j.authority, "https://" + "a".repeat(193), n2048));
+await throws("an order's workflow commit must be a full sha", () => k2.fundOrderWalletIx({ funder: j.funder, funderToken: j.funder_token, mint: j.mint, repoId: j.repo_id, issue: j.issue,
+  amount: j.amount, wfRepo: j.wf_repo, wfSha: "abc", terms: orderTerms }));
+
+// every order instruction, read back from its bytes. The names are the table's (the IDL's) where an instruction has
+// one list of accounts; a payment's are written out here: thirteen, five for each payee, each payee's assignment,
+// then the marker or the record; a release's: thirteen, then a wallet and its token account for each recorded payee.
+const perPayee = ["bind", "wallet", "destToken", "rep", "pair"];
+const paid = (payees, last) => [...v2.PAY_IXS[17][1].slice(0, 13), ...Array(payees).fill(perPayee).flat(), ...Array(payees).fill("assign"), ...last];
+const written = { "pay.pay_order (one payee, a bound wallet)": paid(1, []), "pay.pay_order (one payee, held)": paid(1, []),
+  "pay.pay_order (four payees, a tip account, a token account)": paid(4, ["doneOrHb"]), "pay.pay_order (a holdback: its record)": paid(2, ["doneOrHb"]),
+  "pay.pay_order (a standing order: the pull request's marker)": paid(1, ["doneOrHb"]),
+  "pay.release (three payees, a tip account, token-2022)": [...v2.PAY_IXS[18][1], "wallet", "destToken", "wallet", "destToken"] };
+for (const [name, ix] of Object.entries(orderIxs).filter(([name]) => name.startsWith("pay."))) {
+  const e = k2.explain(ix), [want, names] = v2.PAY_IXS.find((x) => x[2] === ix.data[0]);
+  const expect = written[name] ?? names.slice(0, ix.accounts.length);
+  same(`explain ${name}: an account, a name`, expect.length, ix.accounts.length);
+  same(`explain ${name}`, [e.program, e.name, e.accounts.map((a) => a.name), e.accounts.map((a) => a.pubkey)], ["knos-pay", want, expect, ix.accounts.map((a) => a.pubkey)]);
+}
+same("the table is in the order of the tags, with none missing", v2.PAY_IXS.map((x) => x[2]), v2.PAY_IXS.map((_x, at) => at));
+same("explain: a private order from a Balance shows its scope and the hash of its terms", k2.explain(orderIxs["pay.fund_order_balance (private)"]).args,
+  { scope: knos.hex(scopePrivate), terms: oth });
+same("explain: an assignment", k2.explain(orderIxs["pay.assign"]).args, { payeeId: j.payee_id, to: j.dest_token });
+same("explain: the taker's accounts of a refund", k2.explain(orderIxs["pay.refund_order (a kill fee, to the taker)"]).accounts.slice(8).map((a) => [a.name, a.pubkey, a.writable]),
+  [["takerBind", await k2.bind(j.maintainer_id), false], ["killToken", j.dest_token, true]]);
+same("a refund with no kill fee due names no taker", orderIxs["pay.refund_order (a wallet's order)"].accounts.length, 8);
+same("explain: a wallet funds an order", k2.explain(orderIxs["pay.fund_order_wallet"]).args, { issue: j.issue, repoId: j.repo_id, amount: j.amount, mode: 0, workS: 14 * 86400, seq: 0,
+  options: knos.hex(v2.opts()), wfRepoHash: s.hashes.wf_repo_hash, wfSha: j.wf_sha, terms: s["order terms"].json });
+same("explain: a private order shows its scope and the hash of its terms", k2.explain(orderIxs["pay.fund_order_wallet (private)"]).args,
+  { issue: 0, repoId: 0, amount: j.amount, mode: 0, workS: 14 * 86400, seq: 1, options: knos.hex(opts("private")), wfRepoHash: s.hashes.wf_repo_hash, wfSha: j.wf_sha, scope: knos.hex(scopePrivate), terms: oth });
+same("explain: a side account", k2.explain(orderIxs["pay.set_balance_x"]).args, { dayLimit: 50_000_000, totalLimit: 500_000_000, repos: [j.repo_id, 7], wfSha: j.wf_sha });
+same("explain: no side account limits", k2.explain(orderIxs["pay.set_balance_x (no limits)"]).args, { dayLimit: 0, totalLimit: 0, repos: [], wfSha: "" });
+same("explain: a plan", k2.explain(orderIxs["pay.set_plan"]).args, { ownerId: j.owner_id, feeBps: 100, expires: j.now + 90 * 86400 });
+same("explain: a top up", k2.explain(orderIxs["pay.top_up (a wallet's order)"]).args, { add: 5_000_000 });
+same("explain: a comment funds an order", k2.explain(orderIxs["pay.fund_order_balance"]).args, { terms: s["order terms"].json });
+same("explain: the version call", [k2.explain(orderIxs["pay.version"]).name, k2.explain(orderIxs["pay.version"]).accounts], ["Version", []]);
+
+// the transaction a wallet signs to fund an order, and the same in a v1 transaction
+{
+  const fund = await k2.fundOrderWalletIx({ funder: j.funder, funderToken: await knos.ata(j.funder, j.mint), mint: j.mint, repoId: j.repo_id, issue: j.issue, amount: j.amount,
+    wfRepo: j.wf_repo, wfSha: j.wf_sha, terms: orderTerms });
+  const named = { "a wallet funds an order": [[fund], j.funder], "a wallet funds an order, with its token account": [[await knos.createAtaIx(j.funder, j.funder, j.mint),
+    await k2.fundOrderWalletIx({ funder: j.funder, funderToken: await knos.ata(j.funder, j.mint), mint: j.mint, repoId: j.repo_id, issue: j.issue, amount: j.amount,
+      wfRepo: j.wf_repo, wfSha: j.wf_sha, terms: orderTerms })], j.funder] };
+  for (const [name, [ixs, payer]] of Object.entries(named)) {
+    const want = s["order transactions"][name], bytes = knos.serializeTx(ixs, payer, j.blockhash);
+    same(`transaction ${name}: instructions`, ixs.map(plain), want.instructions);
+    same(`transaction ${name}: bytes`, b64(bytes), want.transaction);
+    same(`transaction ${name}: the message inside it`, knos.hex(knos.messageOf(bytes)), want.message);
+    same(`transaction ${name}: fits in a packet`, bytes.length <= 1232, true);
+  }
+}
+
+// ==== knos-meter ======================================================================================================
+const M = s.meter, m = knos.meter, mk = m.client(s.programs.knos_meter), mi = M.inputs;
+for (const [name, want] of Object.entries(M.constants)) same(`meter constant ${name}`, m[name], want);
+same("the words for every meter error code", Object.fromEntries(Object.entries(m.ERRORS).map(([c, w]) => [String(c), w])), M.errors);
+same("the meter's address is the one the programs file names", mk.program, s.programs.knos_meter);
+const mintAuth = j.authority;
+const credits = await mk.creditsPda(j.owner_id, mintAuth, j.mint), credits22 = await mk.creditsPda(j.owner_id, mintAuth, j.mint22);
+const meterBytes = (name) => knos.unhex(M.accounts[name].data);
+const c = m.readCredits(meterBytes("credits")), c22 = m.readCredits(meterBytes("credits (token-2022)"));
+const aud = m.evalAudience(j.owner_id, j.maintainer_id, mi.order, mi.artifact, mi.policy, 0, 1, 2_000_000);
+const audRejected = m.evalAudience(j.owner_id, j.maintainer_id, mi.order, "b".repeat(40), mi.policy, 3, 0, 5);
+const ev = m.parseAudience(aud), evRejected = m.parseAudience(audRejected);
+const evKey = await m.evalKey(ev.order, ev.artifact, ev.policy, ev.milestone), evKeyRejected = await m.evalKey(evRejected.order, evRejected.artifact, evRejected.policy, evRejected.milestone);
+const mAddresses = { auth: await mk.auth(), "credits(owner, authority, mint)": credits, "credits(owner, authority, mint22)": credits22, "crtok(credits)": await mk.crtokPda(credits),
+  "plan(owner)": await mk.planPda(j.owner_id), "mark(buyer, key)": await mk.markPda(j.owner_id, evKey), "month(buyer, seller, month)": await mk.monthPda(j.owner_id, j.maintainer_id, 202610) };
+same("meter: every address has a check", Object.keys(mAddresses).sort(), Object.keys(M.addresses).sort());
+for (const [name, got] of Object.entries(mAddresses)) same(`meter address ${name}`, got, M.addresses[name]);
+same("meter: audiences", { eval: aud, "eval, rejected": audRejected, "parse(eval)": snake(ev), "parse(rejected)": snake(evRejected) }, M.audiences);
+same("a mark is named by the hash of the four things that make an evaluation", { eval_key: knos.hex(evKey), "eval_key (rejected)": knos.hex(evKeyRejected) }, M.hashes);
+await throws("an evaluation of a 31-byte work order is refused", () => m.evalAudience(1, 2, "ab".repeat(31), mi.artifact, mi.policy, 0, 1, 1));
+await throws("an evaluation of a 39-character commit is refused", () => m.evalAudience(1, 2, mi.order, "a".repeat(39), mi.policy, 0, 1, 1));
+await throws("a milestone of 2^32 is refused", () => m.evalAudience(1, 2, mi.order, mi.artifact, mi.policy, 2 ** 32, 1, 1));
+await throws("an audience that is not an evaluation is refused", async () => m.parseAudience("knos3:fund:1"));
+same("the evaluation of bytes and of hex are the same", m.evalAudience(1, 2, knos.unhex(mi.order), mi.artifact, knos.unhex(mi.policy), 0, true, 1), m.evalAudience(1, 2, mi.order, mi.artifact, mi.policy, 0, 1, 1));
+same("months, UTC, from the chain's clock", Object.fromEntries(Object.entries(M.when).map(([name, t]) => [name, m.yyyymm(t)])), M.yyyymm);
+same("the first second of the next month", Object.fromEntries(Object.entries(M.when).map(([name, t]) => [name, m.nextMonth(t)])), M.next_month);
+same("from when a mark can be closed", Object.fromEntries(Object.entries(M.when).map(([name, t]) => [name, m.closeAfter(t)])), M.close_after);
+{
+  const marks = M.closable.marks.map(([address, mark]) => [address, { ...mark, closeAfter: mark.close_after }]);
+  same("the marks CloseMark takes at a time: none before, all but the one from before CloseMark after",
+    Object.fromEntries(Object.keys(M.closable.want).map((t) => [t, m.closable(marks, Number(t))])), M.closable.want);
+}
+// past 2^53 an amount is a BigInt here and a JSON number in the fixtures: both as the same digits
+const digits = (o) => Object.fromEntries(Object.entries(o).map(([name, v]) => [name, BigInt(v).toString()]));
+same("fees in a mint's smallest units", digits(Object.fromEntries(Object.keys(M.fee_units).map((name) => [name, m.feeUnits(...name.split("/").map(Number))]))), digits(M.fee_units));
+const mPlans = { "no plan, nothing used": m.readPlan(null), "a plan, past the free ones": m.readPlan(meterBytes("plan")),
+  "a plan, expired": { ...m.readPlan(meterBytes("plan")), expiry: j.now - 1 }, "a plan, last month's count": { ...m.readPlan(meterBytes("plan")), month: 202609 },
+  "inside the free ones": { tier: 0, month: 202610, ownerId: j.owner_id, rate: 0, expiry: 0, used: 9_999 }, "the first one paid for": { tier: 0, month: 202610, ownerId: j.owner_id, rate: 0, expiry: 0, used: 10_000 } };
+same("the meter's plans", Object.fromEntries(Object.entries(mPlans).map(([name, p]) => [name, snake(p)])), Object.fromEntries(Object.entries(M.plans).map(([name, p]) => [name, p])));
+same("what the next evaluation costs", Object.fromEntries(Object.entries(mPlans).map(([name, p]) => [name, m.quote(p, 6, j.now)])), M.quote);
+same("the rate in force", Object.fromEntries(Object.entries(mPlans).map(([name, p]) => [name, m.rateAt(p, j.now)])), M.rate_at);
+same("the count of a month", Object.fromEntries(Object.entries(mPlans).map(([name, p]) => [name, m.usedIn(p, 202610)])), M.used_in);
+const meterIxs = {
+  open_credits: await mk.openCreditsIx({ authority: j.authority, ownerId: j.owner_id, mint: j.mint, wfRepo: j.wf_repo, wfSha: j.wf_sha }),
+  "open_credits (token-2022)": await mk.openCreditsIx({ authority: j.authority, ownerId: j.owner_id, mint: j.mint22, wfRepo: j.wf_repo, wfSha: j.wf_sha, tokenProgram: knos.TOKEN_2022 }),
+  deposit: await mk.depositIx({ source: walletTok, owner: j.authority, credits, mint: j.mint, amount: j.amount, decimals: 6 }),
+  "deposit (token-2022)": await mk.depositIx({ source: walletTok22, owner: j.authority, credits: credits22, mint: j.mint22, amount: 3_000_000_000, decimals: 9, tokenProgram: knos.TOKEN_2022 }),
+  "withdraw_credits (everything)": await mk.withdrawCreditsIx({ authority: j.authority, credits, mint: j.mint }),
+  "withdraw_credits (amount, token account)": await mk.withdrawCreditsIx({ authority: j.authority, credits, mint: j.mint, amount: j.amount, destToken: j.dest_token }),
+  "withdraw_credits (token-2022)": await mk.withdrawCreditsIx({ authority: j.authority, credits: credits22, mint: j.mint22, tokenProgram: knos.TOKEN_2022 }),
+  set_plan: await mk.setPlanIx({ feeOwner: knos.FEE_OWNER, payer: j.payer, ownerId: j.owner_id, tier: 2, rate: 20_000, expiry: j.now + 90 * 86400 }),
+  "record (a fee token account given)": await mk.recordIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits, c, audience: aud, now: j.now, feeToken: j.dest_token }),
+  "record (token-2022, the fee owner's own)": await mk.recordIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits: credits22, c: c22, audience: audRejected, now: j.now + 40 * 86400 }),
+  close_mark: mk.closeMarkIx({ payer: j.relayer, mark: await mk.markPda(j.owner_id, evKey) }),
+};
+same("meter: every instruction has a check", Object.keys(meterIxs).sort(), Object.keys(M.instructions).sort());
+for (const [name, got] of Object.entries(meterIxs)) same(`meter instruction ${name}`, plain(got), M.instructions[name]);
+await throws("credits pin a full commit", () => mk.openCreditsIx({ authority: j.authority, ownerId: j.owner_id, mint: j.mint, wfRepo: j.wf_repo, wfSha: "main" }));
+const mReaders = { credits: m.readCredits, plan: m.readPlan, mark: m.readMark, month: (raw) => m.readMonth(raw, j.owner_id, j.maintainer_id, 202610) };
+for (const [name, a] of Object.entries(M.accounts)) same(`meter account ${name}`, snake(mReaders[a.reader](a.data === null ? null : knos.unhex(a.data))), a.read);
+same("a deposit is a plain transfer to the credits' token account", [meterIxs.deposit.program, k2.explain(meterIxs.deposit).name], [knos.TOKEN, "TransferChecked"]);
+same("parse_eval", Object.fromEntries(Object.keys(M.parse_eval).map((line) => [line, m.parseEval(line)])), M.parse_eval);
+same("what a program itself logged", [knos.said(M.said.logs, M.said.program), knos.said(M.said.logs)], [M.said.want, M["said"]["want (everyone)"]]);
+{
+  const st = M.statement;
+  const asked = [], history = async function* (address, most) { asked.push(address); yield* Object.keys(st.logs).slice(0, most); };
+  const got = await m.statement({ history, logs: (sig) => st.logs[sig] }, st.buyer, st.seller, st.month, st.program);
+  same("a statement recomputed from the meter's logs: duplicates, forged lines, other sellers and months do not count", snake(got), st.want);
+  same("it asked for the transactions of the month's account", asked, [await mk.monthPda(st.buyer, st.seller, st.month)]);
+}
+
+// ==== the v1 transaction (SIMD-0385) ==================================================================================
+{
+  const four = j.four_payees.map(([id, wallet, dest]) => [id, wallet ? j[wallet] : null, ...(dest ? [j[dest]] : [])]);
+  const orderBal = await k2.orderPda(scope, bal, 3);
+  const oBal = v2.readOrder(knos.unhex(s["order accounts"]["order (open, from a wallet, public)"].data));
+  const oFor = { ...oBal, fromBalance: true, source: bal, refundTo: await k2.baltok(bal), rentTo: j.relayer, mint: j.mint, funder: j.owner_id };
+  const payFour = await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderBal, o: oFor, payees: four });
+  const fund = await k2.fundOrderWalletIx({ funder: j.funder, funderToken: await knos.ata(j.funder, j.mint), mint: j.mint, repoId: j.repo_id, issue: j.issue, amount: j.amount,
+    wfRepo: j.wf_repo, wfSha: j.wf_sha, terms: orderTerms });
+  const cases = {
+    "four payees, a compute limit": [[payFour], j.relayer], "a wallet funds an order, every setting": [[fund], j.funder],
+    "open a balance and put money in": [[open, transfer], j.authority],
+    "a token-2022 payee list and a heap": [[await knos.createAtaIx(j.relayer, j.address, j.mint22, knos.TOKEN_2022), payFour], j.relayer],
+  };
+  const camel = (cfg) => ({ computeUnitLimit: cfg.compute_unit_limit, priorityFee: cfg.priority_fee, loadedAccountsDataSizeLimit: cfg.loaded_accounts_data_size_limit, heapSize: cfg.heap_size });
+  same("v1: every transaction has a check", Object.keys(cases).sort(), Object.keys(s.v1.cases).sort());
+  for (const [name, [ixs, payer]] of Object.entries(cases)) {
+    const want = s.v1.cases[name], config = Object.fromEntries(Object.entries(camel(want.config)).filter(([, v]) => v !== undefined));
+    same(`v1 ${name}: payer and instructions`, [payer, ixs.map(plain)], [want.payer, want.instructions]);
+    const message = knos.serializeMessageV1(ixs, payer, j.blockhash, config), bytes = knos.serializeTxV1(ixs, payer, j.blockhash, config);
+    same(`v1 ${name}: message`, knos.hex(message), want.message);
+    same(`v1 ${name}: bytes`, b64(bytes), want.transaction);
+    same(`v1 ${name}: size`, bytes.length, want.size);
+    same(`v1 ${name}: the message inside it`, knos.hex(knos.messageOfV1(bytes)), want.message);
+    same(`v1 ${name}: starts with 0x81`, message[0], s.v1.limits.V1_PREFIX);
+  }
+  same("v1: a payment to four new payees does not fit a legacy transaction and fits a v1 one",
+    [knos.serializeTx([await knos.createAtaIx(j.relayer, j.address, j.mint22, knos.TOKEN_2022), payFour], j.relayer, j.blockhash).length > 1232, s.v1.cases["a token-2022 payee list and a heap"].size <= knos.V1_MAX_SIZE], [true, true]);
+  same("v1: the limits", [knos.V1_MAX_SIZE, knos.V1_PREFIX], [s.v1.limits.MAX_TRANSACTION_SIZE, s.v1.limits.V1_PREFIX]);
+  await throws("v1: no compute limit is refused (an unset one is zero units)", async () => knos.serializeTxV1([fund], j.funder, j.blockhash, {}));
+  await throws("v1: a heap outside 32 KiB to 256 KiB is refused", async () => knos.serializeTxV1([fund], j.funder, j.blockhash, { computeUnitLimit: 1, heapSize: 1024 }));
+  await throws("v1: more than 4,096 bytes are refused", async () => knos.serializeTxV1([{ ...fund, data: new Uint8Array(4100) }], j.funder, j.blockhash, { computeUnitLimit: 1 }));
+  await throws("v1: more than 64 accounts are refused", async () => knos.serializeTxV1([{ program: knos.SYSTEM, data: new Uint8Array(0),
+    accounts: Array.from({ length: 70 }, (_x, at) => ({ pubkey: knos.b58(Uint8Array.from({ length: 32 }, () => at + 1)), signer: false, writable: false })) }], j.funder, j.blockhash, { computeUnitLimit: 1 }));
 }
 
 // ==== what a browser adds ============================================================================================
@@ -437,7 +746,7 @@ same("no window, no wallets", knos.wallets(undefined), []);
 
 // JSON-RPC: what is asked and what comes back, with a stand-in for fetch
 {
-  const asked = [], real = globalThis.fetch;
+  const asked = [], filters = [], real = globalThis.fetch;
   const answers = { getAccountInfo: (p) => ({ value: p[0] === j.mint ? { owner: knos.TOKEN, lamports: 1461600, data: [b64(mintAccount), "base64"] } : null }),
     getProgramAccounts: () => [{ pubkey: bal, account: { data: [s.accounts.balance.data ? b64(knos.unhex(s.accounts.balance.data)) : "", "base64"] } }],
     getMultipleAccounts: (p) => ({ value: p[0].map((a) => (a === j.mint ? { owner: knos.TOKEN, lamports: 1461600, data: [b64(mintAccount), "base64"] } : null)) }),
@@ -458,6 +767,11 @@ same("no window, no wallets", knos.wallets(undefined), []);
     same("the chain's clock is a block's time, the newest that has one", await knos.chainTime("rpc"), 1790000499);
     const got = await knos.programAccounts("rpc", s.programs.knos_pay, v2.BALANCE_LEN, 8, knos.u64le(j.owner_id));
     same("a program's accounts", [got.length, got[0].address, v2.readBalance(got[0].data).ownerId], [1, bal, j.owner_id]);
+    // the marks a relayer paid for: one request, filtered by a mark's length and by the payer it names; what is not a mark is left out
+    answers.getProgramAccounts = (p) => { filters.push(p[1].filters); return [M.accounts.mark, M.accounts["mark (rejected)"], M.accounts.credits].map((a, at) => ({ pubkey: [bal, bal22, jobBal][at], account: { data: [b64(knos.unhex(a.data)), "base64"] } })); };
+    const mine = await knos.meter.client(s.programs.knos_meter).marksOf("rpc", j.relayer);
+    same("the marks a relayer paid for", [mine.map(([address]) => address), mine.map(([, mark]) => mark.payer), filters],
+      [[bal, bal22], [j.relayer, j.relayer], [[{ dataSize: 88 }, { memcmp: { offset: 48, bytes: j.relayer } }]]]);
     same("a confirmed transaction", await knos.confirmed("rpc", "landed", 3, async () => {}), { ok: true, err: null });
     same("a refused transaction, in the program's words", v2.errorWords((await knos.confirmed("rpc", "failed", 3, async () => {})).err), s.errors["98"]);
     same("a transaction nobody saw", await knos.confirmed("rpc", "pending", 3, async () => {}), null);
@@ -465,5 +779,84 @@ same("no window, no wallets", knos.wallets(undefined), []);
     same("each call went to the endpoint", [asked.length > 6, asked.every(([url]) => url === "rpc")], [true, true]);
   } finally { globalThis.fetch = real; }
 }
+
+// ==== the README's two examples, as pasted, with a fake wallet and a fake network ====================================
+{
+  const readme = readFileSync(join(here, "README.md"), "utf8");
+  const example = (heading) => /```js\n([\s\S]*?)```/.exec(readme.slice(readme.indexOf(`## ${heading}`)))[1];
+  const fund = example("Fund an order from a wallet in the browser"), read = example("Read an account's record");
+  same("the first example is 20 lines at most", fund.trimEnd().split("\n").length <= 20, true);
+  same("the first deployment is mentioned once", readme.match(/first deployment/gi).length, 1);
+  same("the README's program ids are the second deployment's", [fund, read].map((code) => [s.programs.knos_oidc, s.programs.knos_pay].every((id) => code.includes(id))), [true, true]);
+  const pinned = /prove\.yml@([0-9a-f]{40})/.exec(readFileSync(join(here, "../../examples/knos-workflow.yml"), "utf8"))[1];
+  same("the workflows the example pins are the ones the example workflow calls", fund.includes(`wfSha: "${pinned}"`), true);
+
+  const repoId = 1353152983, userId = 142920951, win = new Window(), sent = [], lines = [];
+  registerWallet(win, standardWallet("Fake", sent));
+  const answers = { getLatestBlockhash: () => ({ value: { blockhash: j.blockhash, lastValidBlockHeight: 1 } }),
+    getSignatureStatuses: () => ({ value: [{ err: null, confirmationStatus: "confirmed" }] }),
+    getAccountInfo: async ([address]) => ({ value: address === await k2.rep(userId) ? { owner: s.programs.knos_pay, lamports: 1, data: [b64(knos.unhex(s.accounts.rep.data)), "base64"] } : null }) };
+  const github = { "https://api.github.com/repos/drexthealpha/Knos": { id: repoId }, "https://api.github.com/users/drexthealpha": { id: userId } };
+  const [real, log] = [globalThis.fetch, console.log], file = join(here, ".readme-example.mjs");
+  globalThis.window = win;
+  globalThis.fetch = async (url, init) => {
+    if (url in github) return { json: async () => github[url] };
+    const body = JSON.parse(init.body);
+    return { json: async () => ({ jsonrpc: "2.0", id: 1, result: await answers[body.method](body.params) }) };
+  };
+  console.log = (...what) => lines.push(format(...what));
+  try {
+    for (const [at, code] of [fund, read].entries()) {
+      writeFileSync(file, code);                       // inside the package, so that "knos-settle" is this very package
+      await import(`${pathToFileURL(file)}?${at}`);
+    }
+  } finally { globalThis.fetch = real; console.log = log; delete globalThis.window; rmSync(file, { force: true }); }
+  const want = await k2.fundOrderWalletIx({ funder: j.authority, funderToken: await knos.ata(j.authority, knos.USDC_DEVNET), mint: knos.USDC_DEVNET, repoId, issue: 7,
+    amount: 25_000_000, terms: v2.termsJson(j.terms), wfRepo: j.wf_repo, wfSha: pinned });
+  same("the wallet was asked once, on devnet, for the transaction the client builds", [sent.length, sent[0].chain, b64(sent[0].transaction)],
+    [1, "solana:devnet", b64(knos.serializeTx([want], j.authority, j.blockhash))]);
+  same("the first example says what happened", lines[0], "{ ok: true, err: null } - paid 25 test USDC and a fee of 0.625 on top");
+  same("the second example prints the record", lines[1], "3 payments from 2 funders, 58.5 test USDC");
+}
+
+// ==== every export has a declaration (index.d.ts) =======================================================================
+{
+  const declarations = (file) => readFileSync(join(here, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const dts = declarations("index.d.ts");
+  // the members of `export interface name { ... }`: split at the `;` that sit outside every bracket
+  const members = (name) => {
+    const open = dts.indexOf("{", dts.search(new RegExp(`export interface ${name}\\b`)));
+    let depth = 0, from = open + 1, parts = [];
+    for (let at = open; at < dts.length; at++) {
+      const c = dts[at];
+      if ("{([".includes(c)) depth++;
+      else if ("})]".includes(c) && --depth === 0) { parts.push(dts.slice(from, at)); break; }
+      else if (c === ";" && depth === 1) { parts.push(dts.slice(from, at)); from = at + 1; }
+    }
+    return parts.map((p) => /^\s*(?:readonly\s+)?(\w+)\??\s*[(:<]/.exec(p)?.[1]).filter(Boolean);
+  };
+  const values = new Set(), declared = new Set();
+  for (const [, kind, name] of dts.matchAll(/^export (?:declare )?(?:async )?(function|const|let|class|interface|type|enum)\s+(\w+)/gm)) {
+    declared.add(name);
+    if (!["interface", "type"].includes(kind)) values.add(name);
+  }
+  for (const [, list] of dts.matchAll(/^export \{([^}]*)\}/gm)) for (const part of list.split(",")) values.add(part.trim().split(/\s+as\s+/).pop());
+  const missing = (what, have, want) => same(`${what}: declared and exported are the same names`,
+    { undeclared: have.filter((x) => !want.includes(x)).sort(), stale: want.filter((x) => !have.includes(x)).sort() }, { undeclared: [], stale: [] });
+  missing("index.js", Object.keys(knos), [...values]);
+  const agentDts = declarations("agent.d.ts"), agentValues = [...agentDts.matchAll(/^export (?:declare )?(?:async )?(?:function|const|let|class)\s+(\w+)/gm)].map((m) => m[1]);
+  missing("agent.js", Object.keys(await import("./agent.js")), agentValues);
+  missing("knos.v2", Object.keys(knos.v2), members("V2"));
+  missing("knos.meter", Object.keys(knos.meter), members("Meter"));
+  missing("client(ids)", Object.keys(k), members("Client1"));
+  missing("v2.client(ids)", Object.keys(k2), members("V2Client"));
+  missing("verifier(program)", Object.keys(knos.verifier(knos.SYSTEM)), members("Verifier"));
+  missing("meter.client(program)", Object.keys(mk), members("MeterClient"));
+  same("every declaration of a value has a type that is declared", declared.has("Instruction") && declared.has("Order") && declared.has("Wallet"), true);
+}
+
+// the passkey wallet's helper and the agent calls have their own files and their own checks
+await import("./passkey.test.mjs");
+await import("./agent.test.mjs");
 
 console.log(`sdk/settle: ${n} checks match the Python client (${first} for the first deployment, ${n - first} for the second and the browser)`);

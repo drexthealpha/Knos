@@ -7,7 +7,6 @@ import re
 import time
 from pathlib import Path
 
-import pytest
 
 from knos.proof import ghrelay
 
@@ -17,7 +16,9 @@ PAYOUT = "EwSxyJFNQkNN9qtss4Qd7DTvrNYb62vgvhdwqgfErXDz"
 
 
 def jwt(aud: str, exp: float | None = None) -> str:
-    enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+    def enc(d: dict) -> str:
+        return base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+
     return f"{enc({'alg': 'RS256', 'kid': 'k1'})}.{enc({'aud': aud, 'exp': exp or time.time() + 300})}.c2ln"
 
 

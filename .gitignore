@@ -37,3 +37,5 @@ examples/*/target
 
 # videos rendered by scripts/video/render.py
 scripts/video/out/
+examples/target
+mutants/

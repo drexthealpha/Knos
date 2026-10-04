@@ -2,7 +2,9 @@ name: pages
 
 # GitHub Pages: the Knos web app at / (it reads GitHub and Solana devnet in the browser, so it works with no Knos
 # server), /stats.json (what was funded and paid, counted from knos-pay's own logs on devnet, with Knos's own
-# activity kept apart from outside use: scripts/network_stats.py), and /index.json, the Agent PR Index (scanned every
+# activity kept apart from outside use: scripts/network_stats.py), the public record as static files (/bounties.json,
+# /bounties.rss, /u/<login>, /r/<owner>/<repo>, /badge/, /rank/, /latency.json, /operations.json: scripts/pages_data.py,
+# counted from the same log lines, the relay log and GitHub), and /index.json, the Agent PR Index (scanned every
 # 6 hours by index.yml and published as the index.json asset of the newest `index-*` GitHub Release; this build only
 # downloads it and re-checks its Merkle root). It never commits: all of it ships in the Pages artifact.
 #
@@ -11,15 +13,15 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/build_site.sh", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
+    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
 
+# The build installs the package with pip (its dependencies are not pinned by hash) and runs the site's scripts, so it
+# gets the least: it reads. The deploy job alone may publish the Pages artifact and ask GitHub for its signed token.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -37,7 +39,7 @@ jobs:
       - name: site = the web app, at the commit it was built from
         run: bash scripts/build_site.sh _site "$GITHUB_SHA"
       - name: /stats.json, counted from devnet
-        run: python scripts/network_stats.py --out _site/stats.json
+        run: python scripts/network_stats.py --out _site/stats.json --events-out _events.json
       - name: Agent PR Index (/index.json) from the newest index-* release; its root must match its records
         run: |
           tag=$(gh release list -R "${{ github.repository }}" --limit 100 --json tagName,createdAt \
@@ -50,6 +52,10 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: the public record as static files (bounties, accounts, repositories, badges, rankings, latency, operations)
+        run: python scripts/pages_data.py --out _site --events _events.json --index _site/index.json
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: _site/
@@ -57,6 +63,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -218,6 +218,8 @@ def test_the_install_page_names_one_release_and_says_why_two_registries_are_miss
     dep = _toml(crate)["dependencies"]["knos-oidc-interface"]
     assert dep == {"git": f"https://github.com/{REPO}", "tag": f"v{tag}"} and tarball == tag
     assert set(re.findall(r"drexthealpha/Knos@v([\d.]+)", page)) == {tag}
+    # and no sentence about it names another release (a third party's action pin is the comment after its sha: `# v10.2.0`)
+    assert set(re.findall(r"(?<!# )\bv(\d+\.\d+\.\d+)\b", page)) == {tag}
     # The page is written for the release being built, and pyproject.toml moves at the release itself: until then the
     # page may be ahead of it. It may never name an older release than the package's.
     as_numbers = lambda v: tuple(int(x) for x in v.split("."))  # noqa: E731
@@ -305,14 +307,87 @@ def test_the_workflow_the_install_page_gives_is_a_pull_request_workflow_of_its_o
     assert [s["uses"].split("@")[0] for s in job["steps"]] == ["astral-sh/setup-uv"]
 
 
-def test_gitlab_merge_request_example_installs_knos_and_runs_its_check():
+_FAKE_GITHUB = '''\
+"""api.github.com, from a file: what the job under test reads, and nothing from the network."""
+import io, json, os, urllib.error, urllib.request
+
+_pages = json.load(open(os.environ["FAKE_GITHUB"], encoding="utf-8"))
+
+
+def _urlopen(req, *args, **kwargs):
+    url = req.full_url if isinstance(req, urllib.request.Request) else str(req)
+    path = url.split("api.github.com/", 1)[1]
+    with open(os.environ["FAKE_GITHUB_LOG"], "a", encoding="utf-8") as log:
+        log.write(json.dumps({"path": path, "token": isinstance(req, urllib.request.Request)
+                              and req.get_header("Authorization")}) + "\\n")
+    if path not in _pages:
+        raise urllib.error.HTTPError(url, 404, "Not Found", None, io.BytesIO(b"{}"))
+    return io.BytesIO(json.dumps(_pages[path]).encode())
+
+
+urllib.request.urlopen = _urlopen
+'''
+
+
+def test_the_gitlab_job_checks_the_github_pull_request_of_its_own_pipeline(tmp_path):
+    """The page's .gitlab-ci.yml job, its script run line by line as a GitLab runner runs it (bash, -e, -o pipefail),
+    once per pipeline. pip is stood in for (it would download) and GitHub is a file: `knos` is this checkout's. Each
+    pipeline reads the pull request GitLab named for it, its description and its head commit's checks, and fails on a
+    false "tests pass"; a pull request GitHub does not answer for fails too, rather than pass unread."""
+    _needs("bash")
     [workflow] = [_yaml(f) for f in _fences("yaml") if "# .gitlab-ci.yml" in f]
-    job = workflow["knos"]
-    assert any(rule.get("if") == '$CI_PIPELINE_SOURCE == "merge_request_event"' for rule in job["rules"])
-    assert "python -m pip install knos" in job["script"]
-    assert any(command.startswith("knos check --event ") and "--repo \"$KNOS_GITHUB_REPOSITORY\"" in command
-               for command in job["script"])
-    assert any("KNOS_GITHUB_PR_NUMBER" in command for command in job["script"])
+    [(name, job)] = workflow.items()
+    assert name == "knos" and job["image"].startswith("python:3")
+    # a pipeline GitLab runs for a GitHub pull request, the only kind that has one
+    assert job["rules"] == [{"if": '$CI_PIPELINE_SOURCE == "external_pull_request_event"'}]
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "python").write_text('#!/bin/sh\nif [ "$1 $2 $3" = "-m pip install" ]; then shift 3; echo "$@" >> "$PIP_LOG"; exit 0; fi\n'
+                                 'exec "$KNOS_PYTHON" "$@"\n', encoding="utf-8")
+    (fake / "knos").write_text('#!/bin/sh\nexec "$KNOS_PYTHON" -m knos "$@"\n', encoding="utf-8")
+    for tool in ("python", "knos"):
+        (fake / tool).chmod(0o755)
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "sitecustomize.py").write_text(_FAKE_GITHUB, encoding="utf-8")
+    red, green = "a" * 40, "b" * 40
+    pages = {"repos/octo/widgets/pulls/12": {"number": 12, "body": "Slugs get dashes. All tests pass.", "head": {"sha": red}},
+             "repos/octo/widgets/pulls/13": {"number": 13, "body": "Slugs get dashes. All tests pass.", "head": {"sha": green}},
+             f"repos/octo/widgets/commits/{red}/check-runs?per_page=100&page=1":
+                 {"check_runs": [{"name": "unit", "status": "completed", "conclusion": "failure"}]},
+             f"repos/octo/widgets/commits/{green}/check-runs?per_page=100&page=1":
+                 {"check_runs": [{"name": "unit", "status": "completed", "conclusion": "success"}]}}
+    (tmp_path / "github.json").write_text(json.dumps(pages), encoding="utf-8")
+
+    def pipeline(number: int, **more: str) -> tuple[subprocess.CompletedProcess, list[str], list[dict]]:
+        run = tmp_path / f"pipeline-{number}"
+        run.mkdir()
+        env = {"CI_PIPELINE_SOURCE": "external_pull_request_event", "CI_EXTERNAL_PULL_REQUEST_IID": str(number),
+               "KNOS_GITHUB_REPOSITORY": "octo/widgets",                       # the project's CI/CD variable: one value
+               "PATH": f"{fake}{os.pathsep}{os.environ['PATH']}", "KNOS_PYTHON": sys.executable,
+               "PYTHONPATH": f"{site}{os.pathsep}{ROOT / 'src'}", "HOME": str(run), "XDG_CONFIG_HOME": str(run),
+               "FAKE_GITHUB": str(tmp_path / "github.json"), "FAKE_GITHUB_LOG": str(run / "github.log"),
+               "PIP_LOG": str(run / "pip.log"), "GH_TOKEN": "", "GITHUB_TOKEN": "", **more}
+        done = _bash("\n".join(job["script"]), env, run)
+        log = run / "github.log"
+        reads = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
+        return done, (run / "pip.log").read_text(encoding="utf-8").split(), reads
+
+    # the description says tests pass and a check failed at the head commit: the job fails, and says why
+    done, pip, reads = pipeline(12)
+    assert pip == [f"knos=={_version()}"]                                      # the release this page documents
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "failed at the head commit" in done.stdout and "unit" in done.stdout
+    assert [r["path"] for r in reads] == ["repos/octo/widgets/pulls/12", f"repos/octo/widgets/commits/{red}/check-runs?per_page=100&page=1"]
+    # the next pipeline, under the same project variables, checks its own pull request, which is true
+    done, _pip, reads = pipeline(13, GH_TOKEN="glpat_masked_read_token")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "no finished check failed" in done.stdout
+    assert [r["path"] for r in reads][0] == "repos/octo/widgets/pulls/13"
+    assert all(r["token"] == "Bearer glpat_masked_read_token" for r in reads)       # the masked variable reaches GitHub
+    # GitHub has no such pull request (or would not answer): no verdict, and the job does not pass
+    done, _pip, reads = pipeline(14)
+    assert done.returncode != 0 and "GitHub has nothing at repos/octo/widgets/pulls/14" in done.stdout
 
 
 def test_the_action_reads_a_pull_request_without_running_it_and_judges_what_it_read(tmp_path):

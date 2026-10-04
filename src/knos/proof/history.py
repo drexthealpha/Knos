@@ -217,7 +217,7 @@ def tamper_checks_required(store, repo=None, agent=None) -> set[str]:
 
 # ---- what the judge learned, to carry between runs (knos.proof.memory) -------------------------------------------
 
-LESSONS = ("tamper", "proof_rule", "repo_rule")
+LESSONS = ("tamper", "proof_rule", "repo_rule", "settlement")
 
 
 def lesson(row) -> dict | None:
@@ -232,6 +232,10 @@ def lesson(row) -> dict | None:
         ok = body.get("origin") != "contributing" and isinstance(body.get("kind"), str) and body.get("id") == name
     elif row["category"] == "tamper":
         ok = all(isinstance(body.get(k), str) for k in ("repo", "agent", "pattern"))
+    elif row["category"] == "settlement":   # what one settlement showed (knos.flow): the checks that failed and where, false claims, terms met
+        ok = (isinstance(body.get("repo"), str) and isinstance(body.get("pull"), int) and isinstance(body.get("paid"), bool)
+              and isinstance(body.get("failed"), dict) and all(isinstance(k, str) and isinstance(v, list) for k, v in body["failed"].items())
+              and all(isinstance(body.get(k), list) and all(isinstance(x, str) for x in body[k]) for k in ("met", "false", "paths")))
     else:
         ok = isinstance(body.get("when"), str) and isinstance(body.get("require"), str)
         if ok and body["when"] == "tamper":     # the rule's name is made of what it says: one cannot pose as another
@@ -243,7 +247,7 @@ def lesson(row) -> dict | None:
 
 def lessons(store) -> list[dict]:
     """What the judge learned, as {"category", "name", "body"} rows a later run can load: each tamper it caught, each
-    check that made required, and each rule a rejection taught."""
+    check that made required, each rule a rejection taught, and what each settlement showed."""
     rows = getattr(store, "rows", None)
     found = [lesson({"category": c, "name": name, "body": body}) for c in LESSONS for name, body in (rows(c) if rows else [])]
     return sorted((x for x in found if x), key=lambda x: (x["category"], x["name"]))
@@ -255,11 +259,24 @@ def export_lessons(store) -> str:
     return "".join(json.dumps(x, sort_keys=True, separators=(",", ":")) + "\n" for x in rows)
 
 
+def paid_settlements(rows) -> set[str]:
+    """The names of the settlement lessons that say their pull request was paid, among `rows` (a store, or the
+    {"category", "name", "body"} rows themselves)."""
+    if not isinstance(rows, list):
+        rows = [{"category": "settlement", "name": name, "body": body} for name, body in rows.rows("settlement")] if hasattr(rows, "rows") else []
+    return {x["name"] for x in rows or [] if isinstance(x, dict) and x.get("category") == "settlement"
+            and isinstance(x.get("body"), dict) and x["body"].get("paid") is True}
+
+
 def import_lessons(store, lines) -> int:
     """Load lessons (JSON lines as text, or the rows themselves) into the store; returns how many were lessons.
     Each is kept under its own name, so loading the same lessons twice changes nothing. A line that is not a
-    lesson is skipped. Into a NullStore this keeps nothing: the lines are not a memory of their own."""
-    n = 0
+    lesson is skipped. Into a NullStore this keeps nothing: the lines are not a memory of their own.
+
+    A pull request that was paid stays paid: a settlement lesson that says "not paid" never replaces one under the
+    same name that says "paid", whichever was written or read last. A merge's settlement and the attestor's run can
+    both settle the same pull request at the same commit at the same time; the one that paid is the fact."""
+    n, paid = 0, None
     for line in (lines.splitlines() if isinstance(lines, str) else lines or []):
         if isinstance(line, str):
             try:
@@ -268,8 +285,14 @@ def import_lessons(store, lines) -> int:
                 continue
         row = lesson(line)
         if row:
-            store.put(row["category"], row["name"], row["body"])
             n += 1
+            if row["category"] == "settlement":
+                paid = paid_settlements(store) if paid is None else paid
+                if row["body"]["paid"]:
+                    paid.add(row["name"])
+                elif row["name"] in paid:
+                    continue
+            store.put(row["category"], row["name"], row["body"])
     return n
 
 

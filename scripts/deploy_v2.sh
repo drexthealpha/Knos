@@ -10,12 +10,46 @@
 #                                           it uses the local validator or Surfpool already running there instead.
 #   bash scripts/deploy_v2.sh --localnet --keep     leaves that validator running, to try governance.mjs against it
 #
+# Since 0.3.13, one more thing a run (each alone, never two in one run; each safe to run again):
+#   bash scripts/deploy_v2.sh --new         deploy the NEW programs knos_meter, knos_passkey and upgrade_gate at their
+#                                           pinned ids, from <name>-keypair.json in the key folder (the gate's may be
+#                                           named knos_gate-keypair.json), with the same resumable buffers, and hand
+#                                           their upgrade authority to the upgrade vault. Needs the multisigs (the
+#                                           plain run made them).
+#   bash scripts/deploy_v2.sh --rc          a STAGING copy of the 2.1 builds of knos_oidc and knos_pay under fresh ids
+#                                           (keypairs made in <key folder>/rc; upgrade authority: the fee payer), with
+#                                           the faucet, GitHub's genesis keys and the fee account set up on it, and
+#                                           <key folder>/rc/program_ids.json written: a client run with
+#                                           KNOS_PROGRAM_IDS=<that file> talks to the staging programs, so every new
+#                                           instruction can be tried on devnet before the real upgrade executes. The
+#                                           staging escrow reads tokens of the verifier its build names (OIDC_ID in
+#                                           knos_pay's source): the script says which one that is.
+#   bash scripts/deploy_v2.sh --rc-close    close the staging programs and their buffers; the SOL returns to the fee
+#                                           payer. Closed ids can never be used again: the next --rc makes new ones.
+#   bash scripts/deploy_v2.sh --propose [--ungated]
+#                                           the upgrade of knos_oidc and knos_pay to the verified 2.1 builds: each
+#                                           build is written to a buffer (resumable), its record at the upgrade gate is
+#                                           waited for (program.yml's gate job has GitHub sign the hash of each build
+#                                           it made on main or a release tag, and a relayer carries that to the gate;
+#                                           the record is written here first when KNOS_GATE_TOKENS has the token), the
+#                                           buffer is handed to the upgrade vault, the proposal is created and approved
+#                                           by the member keys of the key folder. It prints when both can be executed
+#                                           and writes that to <key folder>/upgrade-schedule.json, which
+#                                           scripts/schedule_upgrade.sh reads. A build with no record at the gate
+#                                           after the wait is refused. --ungated is for an emergency only (GitHub or
+#                                           every relayer is down and a fix cannot wait): it proposes such a build
+#                                           without waiting, and says so loudly, here and in the proposal's own output.
+#   Each also takes --localnet with KNOS_RPC naming the validator a `--localnet --keep` run left running.
+#
 # Steps (each reads the chain first; a step that is already done says so and sends nothing)
 #   1 multisigs  both Squads multisigs exist as the design fixes them (governance.mjs show --check); created with
 #                governance.mjs create when they do not (it takes the member keys of the key folder, threshold 2)
-#   2 build      the verified build of both programs: solana-verify build programs-v2 --library-name knos_oidc, then
-#                knos_pay, in the docker image program.yml pins; the default features, which is the devnet build.
-#                Prints each executable hash. Not repeated while programs-v2 is unchanged since the last build.
+#   2 build      the verified build of both programs, program.yml's command: solana-verify build "$PWD"
+#                --workspace-path "$PWD/programs-v2" --library-name <name> (from the repository's root), for knos_oidc,
+#                then knos_pay, in the docker image program.yml pins, the repository mounted (knos_meter, a member of
+#                the workspace, reads crates/knos-oidc-interface); the default
+#                features, which is the devnet build. Prints each executable hash. Not repeated while programs-v2
+#                and the interface crate are unchanged since the last build.
 #   3 deploy     solana program deploy, each program under its own keypair, with a buffer keypair kept in the key
 #                folder (the same command continues a deploy that failed half way), --max-sign-attempts 60 and a
 #                compute unit price. Skipped for a program whose on-chain bytes are already this build.
@@ -39,7 +73,15 @@
 #   KNOS_MEMBERS       the multisig members' keypair files or addresses, separated by spaces (default: member-N.json)
 #   KNOS_RPC           the cluster (default https://api.devnet.solana.com)
 #   KNOS_SO_DIR        a folder with knos_oidc.so and knos_pay.so to deploy instead of building: the verified-build
-#                      artifacts of program.yml, say. Step 2 then only prints their hashes
+#                      artifacts of program.yml, say. Step 2 then only prints their hashes. --new reads knos_meter.so,
+#                      knos_passkey.so and upgrade_gate.so there (upgrade_gate is never built here: it comes from
+#                      program.yml's artifacts)
+#   KNOS_RC_SO_DIR     --rc: a folder with the knos_oidc.so and knos_pay.so to stage, when they are not the builds
+#                      above (a build of knos_pay whose OIDC_ID is the staging verifier, say)
+#   KNOS_GATE_TOKENS   --propose: a folder with knos_oidc.jwt and knos_pay.jwt, the tokens program.yml asked GitHub
+#                      for (audience gate:<program>:<executable hash>). With them a missing record is written
+#   KNOS_GATE_WAIT     --propose: how many seconds to wait for a build's record at the upgrade gate before refusing
+#                      (default 1800: program.yml's verified builds and the relay take about that long after a push)
 #   KNOS_PRIORITY_FEE  micro-lamports per compute unit for the deploy (default 1000)
 #   KNOS_USE_RPC=1     send the deploy's writes through the RPC endpoint (--use-rpc): for a provider's endpoint. It is
 #                      always on for an endpoint on this machine (a local validator or a Surfpool fork)
@@ -54,15 +96,20 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
 
-LOCALNET=0 KEEP=0
+LOCALNET=0 KEEP=0 MODE="" UNGATED=0
 for arg in "$@"; do
   case "$arg" in
     --localnet) LOCALNET=1 ;;
     --keep) KEEP=1 ;;
+    --new|--rc|--rc-close|--propose)
+      [ -z "$MODE" ] || { echo "one of --new, --rc, --rc-close, --propose in a run, not ${MODE} and ${arg}" >&2; exit 2; }
+      MODE="$arg" ;;
+    --ungated) UNGATED=1 ;;
     -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
-    *) echo "usage: bash scripts/deploy_v2.sh [--localnet [--keep]]" >&2; exit 2 ;;
+    *) echo "usage: bash scripts/deploy_v2.sh [--localnet [--keep]] [--new | --rc | --rc-close | --propose [--ungated]]" >&2; exit 2 ;;
   esac
 done
+if [ "$UNGATED" = 1 ] && [ "$MODE" != --propose ]; then echo "--ungated goes with --propose" >&2; exit 2; fi
 
 KEYS="${KNOS_KEYS:-$ROOT/.knos-keys}"
 PAYER="${KNOS_FEE_PAYER:-$KEYS/payer.json}"
@@ -70,11 +117,16 @@ PRICE="${KNOS_PRIORITY_FEE:-1000}"
 PYTHON="${PYTHON:-python3}"
 VERIFY_IMAGE="${KNOS_VERIFY_IMAGE:-solanafoundation/solana-verifiable-build:2.3.11}"   # the image program.yml builds in
 RPC="${KNOS_RPC:-https://api.devnet.solana.com}"
+GATE_WAIT="${KNOS_GATE_WAIT:-1800}"
 PROGRAMS="knos_oidc knos_pay"
+NEW_PROGRAMS="knos_meter knos_passkey upgrade_gate"
+RC="$KEYS/rc"                                  # the staging keypairs and ids file
+SCHEDULE="$KEYS/upgrade-schedule.json"         # when the proposed upgrades can be executed: scripts/schedule_upgrade.sh reads it
 WORK="" VALIDATOR=""
 
 die() { echo "stopped: $*" >&2; exit 1; }
 step() { echo; echo "[$1/7] $2"; }
+part() { echo; echo "[$1] $2"; }
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is not on PATH. $2"; }
 pinned() { "$PYTHON" -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$ROOT/programs-v2/program_ids.json" "$1"; }
 py() { PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON" "$ROOT/scripts/deploy_v2.py" --rpc "$RPC" --payer "$PAYER" "$@"; }
@@ -89,7 +141,10 @@ sol_again() {
     n=$((n + 1)); echo "  the solana command failed: trying again in 5 seconds (try $n of 3)" >&2; sleep 5
   done
 }
-lamports() { sol "$@" --lamports | awk 'NF >= 2 { print $(NF - 1); exit }'; }
+# the number in the first line of `solana <rent|balance> --lamports`. awk reads to the end and never exits early: `solana
+# rent` prints an empty line after its number, and a reader that had already gone would make that write fail (Broken
+# pipe), solana exit 101, and pipefail stop this script half way with no word of why
+lamports() { sol "$@" --lamports | awk 'NF >= 2 && !n++ { print $(NF - 1) }'; }
 # HAVE (the executable hash on chain, or "absent") and AUTHORITY (the upgrade authority, or "none") of a program
 program_state() {
   local state
@@ -109,9 +164,11 @@ start_localnet() {
   local port="${KNOS_LOCAL_PORT:-8899}" from="${KNOS_CLONE_FROM:-https://api.devnet.solana.com}"
   WORK="$(mktemp -d "${TMPDIR:-/tmp}/knos-localnet.XXXXXX")"
   RPC="http://127.0.0.1:$port"
-  # the one program this deployment meets on a cluster that it does not deploy: Squads v4, with its config account
+  # the one program this deployment meets on a cluster that it does not deploy: Squads v4, with its config account.
+  # Epochs four times the default length: scripts/drill_upgrade.sh moves this validator's clock 48 hours with --warp-slot,
+  # and one epoch of the default length carries the clock 36 hours at most
   solana-test-validator --reset --quiet --ledger "$WORK/ledger" --bind-address 127.0.0.1 --rpc-port "$port" --faucet-port "$((port + 2))" \
-    --gossip-port "$((port + 3))" --dynamic-port-range "$((port + 4))-$((port + 40))" --url "$from" \
+    --gossip-port "$((port + 3))" --dynamic-port-range "$((port + 4))-$((port + 40))" --slots-per-epoch 1728000 --url "$from" \
     --clone-upgradeable-program "$(pinned squads_program)" --clone BSTq9w3kZwNwpBXJEvTZz2G9ZTNyKBvoSeXMvwb4cNZr > "$WORK/validator.log" 2>&1 &
   VALIDATOR=$!
   for _ in $(seq 90); do
@@ -151,69 +208,117 @@ multisigs() {
   governance show --check >/dev/null || die "the multisigs are not right on chain: node scripts/governance.mjs show --rpc $RPC says what is wrong."
 }
 
-sources_hash() { (cd "$ROOT/programs-v2" && find . -type f -not -path './target/*' -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1); }
+# sha256 [--check --status] <files>: sha256sum's lines and --check, from shasum -a 256 where there is no sha256sum (macOS)
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 
+sources_hash() { (cd "$ROOT" && find programs-v2 crates/knos-oidc-interface -type f -not -path '*/target/*' -print0 | LC_ALL=C sort -z | while IFS= read -r -d '' f; do sha256 "$f"; done | sha256 | cut -d' ' -f1); }
+
+# build <names>: the verified build of each (or the files of KNOS_SO_DIR), and its executable hash
 build() {
+  local name stamp want files=""
   if [ -n "${KNOS_SO_DIR:-}" ]; then
     SO_DIR="$(cd "$KNOS_SO_DIR" && pwd)"
     echo "  not built here: deploying the files of $SO_DIR"
   else
     SO_DIR="$ROOT/programs-v2/target/deploy"
-    local stamp="$SO_DIR/.verified-build" want
+    for name in "$@"; do
+      [ "$name" != upgrade_gate ] || die "upgrade_gate is not built here (its verified build is program.yml's: examples/upgrade_gate is its own workspace, built into its own folder). Download program.yml's artifacts and name their folder with KNOS_SO_DIR."
+      files="$files $name.so"
+    done
+    stamp="$SO_DIR/.verified-build"
+    [ "$*" = "$PROGRAMS" ] || stamp="$SO_DIR/.verified-build-new"
     want="$(sources_hash) $VERIFY_IMAGE"
-    if [ -f "$stamp" ] && [ "$(head -1 "$stamp")" = "$want" ] && (cd "$SO_DIR" && tail -n +2 .verified-build | sha256sum --check --status); then
+    if [ -f "$stamp" ] && [ "$(head -1 "$stamp")" = "$want" ] && (cd "$SO_DIR" && tail -n +2 "$stamp" | sha256 --check --status); then
       echo "  programs-v2 is unchanged since the last verified build: not built again"
     else
       need solana-verify "Install it: cargo install --locked solana-verify"
       docker info >/dev/null 2>&1 || die "docker is not running, and the verified build runs in it. Start docker; or deploy files built elsewhere with KNOS_SO_DIR."
-      rm -f "$stamp"
-      for name in $PROGRAMS; do
-        solana-verify build "$ROOT/programs-v2" --library-name "$name" --base-image "$VERIFY_IMAGE"
+      rm -f "${stamp:?}"
+      for name in "$@"; do
+        # programs/ holds the first deployment's crate of the same name, and solana-verify builds the first manifest
+        # `find <mount>` lists, then hashes whatever programs-v2/target/deploy holds. Where programs/ is listed first
+        # (NTFS: WSL under /mnt/c, Git Bash) it builds that crate, and a file left here (build_programs_v2.sh's cargo
+        # build-sbf) would be stamped as this build. So the file goes first, and the build must make it again.
+        rm -f "${SO_DIR:?}/$name.so"
+        solana-verify build "$ROOT" --workspace-path "$ROOT/programs-v2" --library-name "$name" --base-image "$VERIFY_IMAGE" || true
+        [ -f "$SO_DIR/$name.so" ] || die "solana-verify built no $SO_DIR/$name.so (its output above says why). Its line 'Building manifest path' names the crate it built: if that is programs/$name, the first deployment's crate of the same name, it was listed before programs-v2/$name on this file system. Build from a clone on a Linux file system (on WSL, under ~, not /mnt/c), or deploy program.yml's artifacts with KNOS_SO_DIR. Nothing is stamped."
       done
-      { echo "$want"; (cd "$SO_DIR" && sha256sum knos_oidc.so knos_pay.so); } > "$stamp"
+      # shellcheck disable=SC2086  # files is a list of names
+      { echo "$want"; (cd "$SO_DIR" && sha256 $files); } > "$stamp"
     fi
   fi
-  for name in $PROGRAMS; do
+  for name in "$@"; do
     [ -f "$SO_DIR/$name.so" ] || die "$SO_DIR/$name.so is missing."
     echo "  $name: executable hash $(py hash "$SO_DIR/$name.so")"
   done
 }
 
+# stops unless the fee payer can pay for what a file takes at its peak: a buffer of twice its size (it comes back) and,
+# for a first deploy ($3 = 1), the program data of twice its size
+afford() {
+  local what="$1" so="$2" data="$3" size cost balance
+  size="$(wc -c < "$so")"
+  cost=$(( $(lamports rent $((2 * size + 37))) + data * $(lamports rent $((2 * size + 45))) + 50000000 ))
+  balance="$(lamports balance "$PAYER_ADDRESS")"
+  [ "$balance" -ge "$cost" ] || die "the fee payer $PAYER_ADDRESS holds $balance lamports and $what takes about $cost (part of it comes back). Fund it: solana airdrop 2 $PAYER_ADDRESS --url $RPC, or https://faucet.solana.com"
+}
+
+# deploy_one <name> <address> <program keypair> <buffer keypair> <file>: the program runs this build afterwards. Skipped
+# when it does already; continued, with the same buffer, when an earlier run stopped half way
+deploy_one() {
+  local name="$1" id="$2" key="$3" buffer="$4" so="$5" want size
+  want="$(py hash "$so")"
+  program_state "$id"
+  if [ "$HAVE" = "$want" ]; then echo "  $name $id: this build is on chain already"; return; fi
+  [ -f "$key" ] || die "$key is missing: the program's keypair, whose address is $id."
+  [ "$(solana-keygen pubkey "$key")" = "$id" ] || die "$key is the keypair of $(solana-keygen pubkey "$key"), not of $name ($id)."
+  if [ "$HAVE" != absent ] && [ "$AUTHORITY" != "$PAYER_ADDRESS" ]; then
+    die "$name $id is deployed with another build ($HAVE), and its upgrade authority is $AUTHORITY, not the fee payer. An upgrade now goes through the multisig: bash scripts/deploy_v2.sh --propose (it writes the new build to a buffer, then runs node scripts/governance.mjs upgrade propose $name <buffer address>)"
+  fi
+  size="$(wc -c < "$so")"
+  afford "deploying $name" "$so" 1
+  [ -f "$buffer" ] || solana-keygen new --no-bip39-passphrase --silent --outfile "$buffer" >/dev/null
+  # shellcheck disable=SC2086  # USE_RPC is one flag or nothing
+  if ! sol_again program deploy "$so" --program-id "$key" --buffer "$buffer" --upgrade-authority "$PAYER" --fee-payer "$PAYER" \
+    --max-len $((2 * size)) --max-sign-attempts 60 --with-compute-unit-price "$PRICE" $USE_RPC 2>&1 | sed 's/^/  /'; then
+    die "deploying $name did not finish. Run this script again: the same buffer ($buffer) continues the deploy where it stopped."
+  fi
+  program_state "$id"
+  [ "$HAVE" = "$want" ] || die "$name was deployed but the chain shows $HAVE, not this build ($want). Run this script again."
+  echo "  $name $id: deployed, executable hash $HAVE"
+}
+
 deploy() {
-  local name id key buffer so want size cost balance
+  local name
   for name in $PROGRAMS; do
-    id="$(pinned "$name")" key="$KEYS/${name}_v2-keypair.json" buffer="$KEYS/${name}_v2-buffer.json" so="$SO_DIR/$name.so"
-    want="$(py hash "$so")"
-    program_state "$name"
-    if [ "$HAVE" = "$want" ]; then echo "  $name $id: this build is on chain already"; continue; fi
-    [ -f "$key" ] || die "$key is missing: the program's keypair, whose address is $id."
-    [ "$(solana-keygen pubkey "$key")" = "$id" ] || die "$key is the keypair of $(solana-keygen pubkey "$key"), not of $name ($id)."
-    if [ "$HAVE" != absent ] && [ "$AUTHORITY" != "$PAYER_ADDRESS" ]; then
-      die "$name $id is deployed with another build ($HAVE), and its upgrade authority is $AUTHORITY, not the fee payer. An upgrade now goes through the multisig: write the new build to a buffer, then node scripts/governance.mjs upgrade propose $name <buffer address>"
-    fi
-    size="$(wc -c < "$so")"
-    # what the deploy holds at its peak: the buffer (it comes back) and the program data, each with room for twice the size
-    cost=$(( $(lamports rent $((2 * size + 37))) + $(lamports rent $((2 * size + 45))) + 50000000 ))
-    balance="$(lamports balance "$PAYER_ADDRESS")"
-    [ "$balance" -ge "$cost" ] || die "the fee payer $PAYER_ADDRESS holds $balance lamports and deploying $name takes about $cost (part of it comes back). Fund it: solana airdrop 2 $PAYER_ADDRESS --url $RPC, or https://faucet.solana.com"
-    [ -f "$buffer" ] || solana-keygen new --no-bip39-passphrase --silent --outfile "$buffer" >/dev/null
-    # shellcheck disable=SC2086  # USE_RPC is one flag or nothing
-    if ! sol_again program deploy "$so" --program-id "$key" --buffer "$buffer" --upgrade-authority "$PAYER" --fee-payer "$PAYER" \
-      --max-len $((2 * size)) --max-sign-attempts 60 --with-compute-unit-price "$PRICE" $USE_RPC 2>&1 | sed 's/^/  /'; then
-      die "deploying $name did not finish. Run this script again: the same buffer ($buffer) continues the deploy where it stopped."
-    fi
-    program_state "$name"
-    [ "$HAVE" = "$want" ] || die "$name was deployed but the chain shows $HAVE, not this build ($want). Run this script again."
-    echo "  $name $id: deployed, executable hash $HAVE"
+    deploy_one "$name" "$(pinned "$name")" "$KEYS/${name}_v2-keypair.json" "$KEYS/${name}_v2-buffer.json" "$SO_DIR/$name.so"
   done
 }
 
+# the keypair file of a new program: <name>-keypair.json in the key folder (the gate's is also looked for under the name
+# it was made with)
+new_key() {
+  local name="$1" file
+  for file in "$KEYS/$name-keypair.json" "$KEYS/${name/upgrade_gate/knos_gate}-keypair.json"; do
+    if [ -f "$file" ]; then echo "$file"; return; fi
+  done
+  echo "$KEYS/$name-keypair.json"
+}
+
+deploy_new() {
+  local name
+  for name in $NEW_PROGRAMS; do
+    deploy_one "$name" "$(py id "$name")" "$(new_key "$name")" "$KEYS/$name-buffer.json" "$SO_DIR/$name.so"
+  done
+}
+
+# handover <names>: each program's upgrade authority is the upgrade vault afterwards
 handover() {
   local name id vault
   vault="$(pinned upgrade_authority)"
   governance show --check >/dev/null || die "the multisigs are not right on chain (node scripts/governance.mjs show --rpc $RPC says what is wrong): the upgrade authority was NOT handed over."
-  for name in $PROGRAMS; do
-    id="$(pinned "$name")"
+  for name in "$@"; do
+    id="$(py id "$name")"
     program_state "$name"
     if [ "$AUTHORITY" = "$vault" ]; then echo "  $name: its upgrade authority is the upgrade vault already"; continue; fi
     [ "$AUTHORITY" = "$PAYER_ADDRESS" ] || die "$name's upgrade authority is $AUTHORITY: neither the fee payer nor the upgrade vault. Nothing was changed."
@@ -223,6 +328,141 @@ handover() {
     [ "$AUTHORITY" = "$vault" ] || die "$name's upgrade authority is still $AUTHORITY. Run this script again."
     echo "  $name: upgrade authority handed to the upgrade vault $vault"
   done
+}
+
+# ---- --rc: a staging copy of the 2.1 builds --------------------------------------------------------------------------
+rc_deploy() {
+  local name from="${KNOS_RC_SO_DIR:-$SO_DIR}" trusts
+  mkdir -p "$RC"; chmod 700 "$RC"
+  for name in $PROGRAMS; do
+    [ -f "$from/$name.so" ] || die "$from/$name.so is missing."
+    [ -f "$RC/$name-keypair.json" ] || solana-keygen new --no-bip39-passphrase --silent --outfile "$RC/$name-keypair.json" >/dev/null
+    deploy_one "$name (staging)" "$(solana-keygen pubkey "$RC/$name-keypair.json")" "$RC/$name-keypair.json" "$RC/$name-buffer.json" "$from/$name.so"
+  done
+  py rc-ids "$(solana-keygen pubkey "$RC/knos_oidc-keypair.json")" "$(solana-keygen pubkey "$RC/knos_pay-keypair.json")" "$RC/program_ids.json"
+  # the set-up of a deployment, on the staging programs: the same steps, told where they are by the ids file
+  echo "  the faucet's test-USDC mint, GitHub's four genesis keys and the fee owner's token account, on the staging programs:"
+  KNOS_PROGRAM_IDS="$RC/program_ids.json" py faucet
+  KNOS_PROGRAM_IDS="$RC/program_ids.json" py keys
+  KNOS_PROGRAM_IDS="$RC/program_ids.json" py fee-account
+  trusts="$(sed -n 's/^pub const OIDC_ID: Pubkey = pubkey!("\(.*\)");.*/\1/p' "$ROOT/programs-v2/knos_pay/src/lib.rs" | head -1)"
+  echo
+  program_state "$(solana-keygen pubkey "$RC/knos_pay-keypair.json")"       # who holds it, as the chain says: an earlier run may have had another payer
+  echo "STAGING: knos_oidc $(solana-keygen pubkey "$RC/knos_oidc-keypair.json") and knos_pay $(solana-keygen pubkey "$RC/knos_pay-keypair.json"), upgrade authority $AUTHORITY$([ "$AUTHORITY" = "$PAYER_ADDRESS" ] && echo " (the fee payer)" || echo " (NOT this run's fee payer $PAYER_ADDRESS: only that key can close them)")."
+  if [ -z "${KNOS_RC_SO_DIR:-}" ] && [ -n "$trusts" ]; then
+    echo "NOTE: this build of knos_pay accepts tokens verified by knos_oidc $trusts (OIDC_ID in its source), NOT by the staging verifier."
+    echo "      What needs no token (Version, FundOrderWallet, SetBalanceX, SetPlan, TopUp, Cancel by the funder, RefundOrder, Assign) and the"
+    echo "      staging verifier's own instructions run as they are; a token path of the staging escrow runs against the verifier at"
+    echo "      $trusts as it is deployed now. To stage those too, build knos_pay with OIDC_ID set to the staging verifier and name the"
+    echo "      folder with KNOS_RC_SO_DIR."
+  fi
+  echo "Use it:    export KNOS_PROGRAM_IDS=$RC/program_ids.json     (the Python client, deploy_v2.py and knos-settle/agent read it)"
+  echo "Close it:  bash scripts/deploy_v2.sh --rc-close             (the SOL returns to the fee payer)"
+}
+
+rc_close() {
+  local name id file before after closed=0
+  if [ ! -d "$RC" ]; then echo "  there is no staging deployment in $RC: nothing to close"; return; fi
+  before="$(lamports balance "$PAYER_ADDRESS")"
+  for name in $PROGRAMS; do
+    file="$RC/$name-keypair.json"
+    [ -f "$file" ] || continue
+    id="$(solana-keygen pubkey "$file")"
+    case " $(pinned knos_oidc) $(pinned knos_pay) $(py id knos_meter) $(py id knos_passkey) $(py id upgrade_gate) " in
+      *" $id "*) die "$file is the keypair of a PINNED program ($id), not of a staging one. Nothing was closed." ;;
+    esac
+    program_state "$id"
+    if [ "$HAVE" = absent ]; then
+      echo "  $name (staging) $id: not on chain (closed already, or never deployed)"
+    else
+      [ "$AUTHORITY" = "$PAYER_ADDRESS" ] || die "$name (staging) $id has the upgrade authority $AUTHORITY, not the fee payer: this script cannot close it."
+      # not sent again by itself: a second try after a lost answer would fail because the first one worked. The chain is asked instead.
+      sol program close "$id" --authority "$PAYER" --recipient "$PAYER_ADDRESS" --bypass-warning 2>&1 | sed 's/^/  /' || true
+      program_state "$id"
+      [ "$HAVE" = absent ] || die "$name (staging) $id is still on chain. Run this script again."
+      echo "  $name (staging) $id: closed"; closed=$((closed + 1))
+    fi
+    # a buffer a deploy left half written holds SOL too
+    if [ -f "$RC/$name-buffer.json" ] && [ "$(py buffer "$(solana-keygen pubkey "$RC/$name-buffer.json")")" != absent ]; then
+      sol program close "$(solana-keygen pubkey "$RC/$name-buffer.json")" --authority "$PAYER" --recipient "$PAYER_ADDRESS" --bypass-warning 2>&1 | sed 's/^/  /' || true
+    fi
+  done
+  after="$(lamports balance "$PAYER_ADDRESS")"
+  # a closed program id can never be deployed to again: the folder is set aside, so the next --rc makes new ids
+  mv "$RC" "$RC.closed.$(date -u +%Y%m%dT%H%M%SZ)"
+  echo "  closed $closed staging program(s); the fee payer holds $after lamports, $((after - before)) more than before."
+  echo "  The staging ids file went with them: unset KNOS_PROGRAM_IDS."
+}
+
+# ---- --propose: the upgrade of the two programs, through the multisig ------------------------------------------------
+propose() {
+  local name id so want buffer address state held vault outs="" flag rc wait="$GATE_WAIT"
+  vault="$(pinned upgrade_authority)"
+  governance show --check >/dev/null || die "the multisigs are not right on chain (node scripts/governance.mjs show --rpc $RPC says what is wrong). Nothing was proposed."
+  if [ "$UNGATED" = 1 ]; then
+    echo "  UNGATED: --ungated WAS PASSED. THIS IS FOR AN EMERGENCY ONLY: a build that no record at the upgrade gate vouches for will be"
+    echo "  UNGATED: proposed without waiting for one. Without the flag this script waits for program.yml's record and refuses a build that has none."
+    wait=0
+  fi
+  for name in $PROGRAMS; do
+    id="$(pinned "$name")" so="$SO_DIR/$name.so" buffer="$KEYS/${name}_v2-upgrade-buffer.json"
+    want="$(py hash "$so")"
+    program_state "$name"
+    [ "$HAVE" != absent ] || die "$name $id is not deployed on this cluster: there is nothing to upgrade. The plain run deploys it."
+    if [ "$HAVE" = "$want" ]; then echo "  $name $id: runs this build already ($want): nothing to propose"; continue; fi
+    [ "$AUTHORITY" = "$vault" ] || die "$name's upgrade authority is $AUTHORITY, not the upgrade vault $vault: the multisig could not execute an upgrade. Nothing was proposed."
+    [ -f "$buffer" ] || solana-keygen new --no-bip39-passphrase --silent --outfile "$buffer" >/dev/null
+    address="$(solana-keygen pubkey "$buffer")"
+    state="$(py buffer "$address")"; held="${state#* }"
+    if [ "${state%% *}" = "$want" ]; then
+      echo "  $name: the buffer $address holds this build already"
+    else
+      [ "$state" = absent ] || [ "$held" = "$PAYER_ADDRESS" ] || die "the buffer $address holds another build and its authority is $held: this script cannot write to it. Move $buffer away and run again: a new buffer is made."
+      afford "the buffer of $name" "$so" 0
+      # shellcheck disable=SC2086  # USE_RPC is one flag or nothing
+      if ! sol_again program write-buffer "$so" --buffer "$buffer" --buffer-authority "$PAYER" --fee-payer "$PAYER" \
+        --max-sign-attempts 60 --with-compute-unit-price "$PRICE" $USE_RPC 2>&1 | sed 's/^/  /'; then
+        die "writing the buffer of $name did not finish. Run this script again: the same buffer ($buffer) continues where it stopped."
+      fi
+      state="$(py buffer "$address")"; held="${state#* }"
+      [ "${state%% *}" = "$want" ] || die "the buffer $address was written but the chain shows ${state%% *}, not this build ($want). Run this script again."
+      echo "  $name: the build $want is in the buffer $address"
+    fi
+    # the gate: GitHub's signed statement that its runner built exactly these bytes. program.yml's gate job asks for it
+    # after the verified builds and a relayer carries it, so the record may still be on its way: it is waited for
+    flag=""; rc=0
+    if [ -n "${KNOS_GATE_TOKENS:-}" ] && [ -f "$KNOS_GATE_TOKENS/$name.jwt" ]; then py --wait "$wait" gate "$name" "$so" "$KNOS_GATE_TOKENS/$name.jwt" || rc=$?; else py --wait "$wait" gate "$name" "$so" || rc=$?; fi
+    if [ "$rc" != 0 ]; then
+      if [ "$UNGATED" != 1 ]; then
+        [ "$rc" != 3 ] || die "the upgrade gate is not deployed on this cluster, so no record vouches for this build. Deploy it first (bash scripts/deploy_v2.sh --new) and run this again. The buffer is written and stays. (In an emergency only: --propose --ungated.)"
+        die "the upgrade gate holds no record of this build of $name after $wait seconds. program.yml records the builds it makes on main and on a release tag: push the commit this build is of, let its gate job finish, and run this again (or put its token in KNOS_GATE_TOKENS/$name.jwt). If the hash above is not the one that run printed, this file is not the build GitHub made: take the run's artifacts (KNOS_SO_DIR). The buffer is written and stays. (In an emergency only: --propose --ungated.)"
+      fi
+      echo "  UNGATED: NO RECORD AT THE UPGRADE GATE VOUCHES FOR THIS BUILD OF $name. It is proposed because --ungated was passed:"
+      echo "  UNGATED: the members have only their own rebuild to compare $want with (from the root of a clone: solana-verify build \"\$PWD\" --workspace-path \"\$PWD/programs-v2\" --library-name $name --base-image $VERIFY_IMAGE)."
+      flag="--ungated"
+    fi
+    if [ "$held" != "$vault" ]; then
+      [ "$held" = "$PAYER_ADDRESS" ] || die "the buffer $address has the authority $held: neither the fee payer nor the upgrade vault."
+      # not sent again by itself: the chain is asked instead
+      sol program set-buffer-authority "$address" --new-buffer-authority "$vault" --buffer-authority "$PAYER" 2>&1 | sed 's/^/  /' || true
+      state="$(py buffer "$address")"
+      [ "${state#* }" = "$vault" ] || die "the buffer's authority is still ${state#* }. Run this script again."
+      echo "  $name: the buffer is the upgrade vault's now"
+    fi
+    : > "${KEYS:?}/${name:?}-upgrade.json.new"
+    # shellcheck disable=SC2086  # flag is one flag or nothing
+    governance upgrade propose "$name" "$address" --out "$KEYS/$name-upgrade.json.new" $flag | sed 's/^/  /'
+    # only what this run's proposal wrote counts: an earlier run's file is never read as this one's
+    [ -s "$KEYS/$name-upgrade.json.new" ] || die "the proposal for $name was not made (the lines above say why). Run this script again."
+    mv "$KEYS/$name-upgrade.json.new" "$KEYS/$name-upgrade.json"
+    outs="$outs $KEYS/$name-upgrade.json"
+  done
+  echo
+  if [ -z "$outs" ]; then echo "on chain now: both programs run these builds already. Nothing is proposed and nothing is scheduled."; return; fi
+  # shellcheck disable=SC2086  # outs is a list of files
+  py schedule "$SCHEDULE" $outs
+  echo "Next: bash scripts/schedule_upgrade.sh     (at that time it executes the proposals, then runs knos status; it says how to cancel)"
+  echo "Until then anyone can read the proposals on chain, and the members can cancel one: node scripts/governance.mjs cancel upgrade <index>"
 }
 
 # ---- run ------------------------------------------------------------------------------------------------------------
@@ -247,17 +487,41 @@ if [ "$LOCALNET" = 1 ]; then
 elif [ "$CLUSTER" = mainnet-beta ]; then
   die "$RPC is mainnet-beta. This is the devnet deployment: a mainnet deployment needs program ids of its own and an outside review first (knos mainnet-check)."
 fi
+[ -z "${KNOS_PROGRAM_IDS:-}" ] || die "KNOS_PROGRAM_IDS is set ($KNOS_PROGRAM_IDS). This script works on the pinned programs and names the staging ones itself: unset it and run again."
 [ -f "$PAYER" ] || die "the fee payer's keypair $PAYER is missing. Set KNOS_FEE_PAYER, or put payer.json in the key folder $KEYS."
 PAYER_ADDRESS="$(solana-keygen pubkey "$PAYER")"
 echo "cluster $CLUSTER ($RPC); fee payer $PAYER_ADDRESS; key folder $KEYS"
 
+# shellcheck disable=SC2086  # the lists of names are split on purpose
+case "$MODE" in
+  --new)
+    part "new 1/3" "the verified build of the new programs"; build $NEW_PROGRAMS
+    part "new 2/3" "deploy knos_meter, knos_passkey and upgrade_gate at their pinned ids"; deploy_new
+    part "new 3/3" "their upgrade authority goes to the upgrade vault"; handover $NEW_PROGRAMS
+    echo; py summary-new; exit $? ;;
+  --rc)
+    part "rc 1/2" "the builds to stage"; build $PROGRAMS
+    part "rc 2/2" "deploy them under staging ids, and set the staging deployment up"; rc_deploy
+    exit 0 ;;
+  --rc-close)
+    part "rc-close" "close the staging programs"; rc_close
+    exit 0 ;;
+  --propose)
+    part "propose 1/2" "the verified 2.1 builds"; build $PROGRAMS
+    part "propose 2/2" "buffers, the upgrade gate, the proposals"; propose
+    exit 0 ;;
+esac
+
+# shellcheck disable=SC2086
 step 1 "the two multisigs"; multisigs
-step 2 "the verified build"; build
+# shellcheck disable=SC2086
+step 2 "the verified build"; build $PROGRAMS
 step 3 "deploy"; deploy
 step 4 "the faucet's test-USDC mint"; py faucet
 step 5 "GitHub's four genesis keys"; py keys
 step 6 "the fee owner's token account"; py fee-account
-step 7 "the upgrade authority goes to the upgrade vault"; handover
+# shellcheck disable=SC2086
+step 7 "the upgrade authority goes to the upgrade vault"; handover $PROGRAMS
 
 echo
 echo "addresses"

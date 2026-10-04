@@ -12,6 +12,7 @@
     "@sqds/multisig": "2.1.4"
   },
   "optionalDependencies": {
-    "@solana/surfpool": "1.6.0"
+    "@solana/surfpool": "1.6.0",
+    "sas-lib": "1.0.10"
   }
 }

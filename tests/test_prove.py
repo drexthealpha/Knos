@@ -53,7 +53,7 @@ def test_every_action_is_pinned_to_a_commit():
             assert re.fullmatch(r"[0-9a-f]{40}", ref), f"{f.name}: {name}@{ref} is not pinned to a commit"
             seen.add(ref)
     # the rotate and claim workflows are the commits the programs pin
-    assert seen - {ids["rotate_sha"], ids["claim_sha"]} <= set(pins.values())
+    assert seen - {ids["rotate_sha"], ids["claim_sha"], ids["rotate_sha2"], ids["claim_sha_org"]} <= set(pins.values())
 
 
 # ---- who is paid --------------------------------------------------------------------------------------------------

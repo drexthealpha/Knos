@@ -86,3 +86,31 @@ def test_governance_mjs_agrees_with_the_python_client():
     summary = "\n".join(line for line in done.stdout.splitlines() if line.startswith(("# tests", "# pass", "# fail")) or line.startswith("not ok"))
     assert done.returncode == 0, f"{summary}\n{done.stdout[-3000:]}\n{done.stderr[-1000:]}"
     assert re.search(r"^# pass (\d+)$", done.stdout, re.M) and int(re.search(r"^# pass (\d+)$", done.stdout, re.M).group(1)) >= 20
+
+
+def test_upgrade_propose_refuses_a_buffer_whose_build_the_gate_has_not_recorded():
+    """examples/upgrade_gate records ["build", program, executable hash] only on GitHub's signed word that this repository's
+    program.yml built those bytes. `upgrade propose` reads that record before it proposes anything: without one it refuses,
+    unless --ungated is passed. The record the Node script is held to is one the program itself wrote in LiteSVM
+    (tests/fixtures/upgrade_gate.json), at the address the Python client derives."""
+    import os
+    import sys
+
+    from knos.settle.v2 import gate
+    pytest.importorskip("solders.litesvm")
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "upgrade_gate_fixture.py"), "--check"], capture_output=True, text=True, check=False,
+                       env={**os.environ, "PYTHONPATH": str(ROOT / "src")})
+    assert r.returncode == 0, r.stderr or r.stdout
+    fx = json.loads((ROOT / "tests" / "fixtures" / "upgrade_gate.json").read_text(encoding="utf-8"))
+    rec = gate.read_record(bytes.fromhex(fx["record_data"]))
+    assert (str(rec.program), rec.executable.hex(), rec.sha) == (fx["program"], fx["executable_hash"], fx["commit"])
+    assert str(gate.record_pda(rec.program, rec.executable)) == fx["record"] and fx["gate"] == str(gate.GATE_ID)
+    assert gate.executable_hash(bytes.fromhex(fx["elf"]) + bytes(9)).hex() == fx["executable_hash"]
+    mjs = (ROOT / "scripts" / "governance.mjs").read_text(encoding="utf-8")
+    body = mjs[mjs.index("async function upgrade("):mjs.index("// ---- approve, cancel, execute")]
+    assert 0 < body.index("say(gated(await conn.getAccountInfo(buildRecord(program, hash)") < body.index("await propose(")
+    assert "o.ungated" in body and "--ungated" in mjs.split("import fs")[0]            # the flag is passed on, and the usage text names it
+    node = _node()
+    done = subprocess.run([node, "--test", "--test-name-pattern", "upgrade gate|upgrade propose refuses", "scripts/governance.test.mjs"], cwd=ROOT,
+                          capture_output=True, text=True, timeout=240)
+    assert done.returncode == 0 and re.search(r"^# pass 2$", done.stdout, re.M) and re.search(r"^# fail 0$", done.stdout, re.M), done.stdout[-3000:]

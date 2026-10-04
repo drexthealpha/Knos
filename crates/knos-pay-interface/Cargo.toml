@@ -1,0 +1,20 @@
+[package]
+name = "knos-pay-interface"
+version = "0.3.13"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+description = "Fund, top up, refund and read a Knos work order from another Solana program: ids, addresses, instruction builders, the Order reader."
+repository = "https://github.com/drexthealpha/Knos"
+readme = "README.md"
+keywords = ["solana", "escrow", "cpi", "github-actions", "payments"]
+categories = ["cryptography::cryptocurrencies"]
+
+# solana-program and nothing else: the instructions are built by hand and the Order is read from bytes, so a program
+# that funds an order by CPI takes on no code of knos_pay's.
+[dependencies]
+solana-program = "2.2"
+
+# The tests read the fixture the Python client wrote with an independent JSON parser.
+[dev-dependencies]
+serde_json = "1"

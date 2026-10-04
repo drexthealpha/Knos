@@ -201,7 +201,9 @@ def test_money_that_goes_back_to_its_own_wallet_or_to_knos_is_never_outside():
     bal = str(pay2.balance_pda(5001, Pubkey.from_string(w), Pubkey.from_string(usdc)))
     opened = tx(1, w, f"knos2:balance owner=5001 authority={w} mint={usdc}", program=PAY2)
     kind = lambda *history, wallets=frozenset(): network_stats.kind_of(network_stats.jobs_of(events(*history))[0][0], OWN, wallets)  # noqa: E731
-    from_balance = lambda to: [opened, funded2(10, 1, 1, USDC, 6001, bal), paid2(20, 1, 1, 9001, USDC, to=to)]
+    def from_balance(to):
+        return [opened, funded2(10, 1, 1, USDC, 6001, bal), paid2(20, 1, 1, 9001, USDC, to=to)]
+
     # a Balance's money paid to the wallet that opened it is self-payment, whoever the GitHub account is that was paid
     assert kind(*from_balance(w)) == "self"
     assert kind(*from_balance(other)) == "outside"
@@ -373,13 +375,15 @@ def test_stats_json_with_no_history_is_zeros_and_says_what_was_not_measured():
     s = samples()["stats_empty.json"]
     assert s["updated"] == "2026-10-03 04:00 UTC" and s["cluster"] == "devnet" and "error" not in s
     assert s["programs"] == {"first": {"knos_oidc": str(network_stats.oidc.OIDC_ID), "knos_pay": PAY1},
-                             "second": {"knos_oidc": str(network_stats.oidc2.OIDC_ID), "knos_pay": PAY2}}
+                             "second": {"knos_oidc": str(network_stats.oidc2.OIDC_ID), "knos_pay": PAY2, "knos_meter": str(network_stats.meter.METER_ID)}}
     assert set(s["outside"].values()) == {0} and all(set(side.values()) == {0} for side in s["apart"].values())
     assert s["funnel"] == {"installed": None, "installed_note": "not measured", "funded": 0, "completed": 0, "funded_again": 0}
     zero = {"count": 0, "median": None, "p90": None, "slowest": None}
     assert s["latency"] == {"funded_to_paid": zero, "comment_to_funded": zero, "merge_to_paid": zero, "relay": {"fund": zero, "pay": zero},
                             "note": "not measured: GitHub was not asked"}
-    assert s["recent"] == [] and s["live"]["second"] == {"open": 0, "open_amount": 0, "held": 0, "held_amount": 0}
+    no_orders = {"open": 0, "open_amount": 0, "held": 0, "held_amount": 0, "in_warranty": 0, "held_back": 0}
+    assert s["recent"] == [] and s["live"]["second"] == {"open": 0, "open_amount": 0, "held": 0, "held_amount": 0, "orders": no_orders}
+    assert set(s["orders"].values()) == {0} and s["meter"] == {"evaluations": 0, "accepted": 0, "rejected": 0, "fees": 0, "by_month": {}}
 
 
 def test_stats_json_of_both_deployments_keeps_the_four_kinds_apart():
@@ -400,7 +404,8 @@ def test_stats_json_of_both_deployments_keeps_the_four_kinds_apart():
     assert s["latency"]["merge_to_paid"] == {"count": 4, "median": 61, "p90": 620, "slowest": 620}
     assert s["latency"]["relay"] == {"fund": {"count": 3, "median": 9, "p90": 12, "slowest": 12}, "pay": {"count": 4, "median": 6, "p90": 14, "slowest": 14}}
     assert s["latency"]["note"] == "over the lines of the public relay log" and s["latency"]["funded_to_paid"]["count"] == 14
-    assert s["live"]["second"] == {"open": 2, "open_amount": 20 * USDC, "held": 1, "held_amount": 12 * USDC}
+    assert {k: v for k, v in s["live"]["second"].items() if k != "orders"} == {"open": 2, "open_amount": 20 * USDC, "held": 1, "held_amount": 12 * USDC}
+    assert s["orders"]["funded"] == 0 and set(s["live"]["second"]["orders"].values()) == {0}         # the recorded scenario is jobs alone
     assert len(s["recent"]) == 14 and [p["at"] for p in s["recent"]] == sorted((p["at"] for p in s["recent"]), reverse=True)      # newest first
     assert {p["kind"] for p in s["recent"]} == {"outside", "own", "self", "test"} and s["recent"][0]["deployment"] == 1
 
@@ -507,7 +512,7 @@ def scenario() -> tuple[list[dict], list[dict], dict]:
         wallet = pay2.destination(pay2.read_bind(c.data(pay2.bind_pda(payee))), aud)
         if wallet is not None:
             c.token_account(wallet, j.mint)
-        send([pay2.pay_ix(me, tok, c.key, job, j, payee, wallet)], name=name)
+        send([pay2.pay_ix(me, tok, c.key, job, j, payee, wallet, used=c.data(tok))], name=name)     # 2.1: a pay token's single-use marker
 
     def bind(who: int, wallet) -> None:
         c.warp(1)

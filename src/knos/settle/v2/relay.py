@@ -3,11 +3,31 @@ instruction its audience asks for. Anyone can run this and pay the fees; the mon
 say, never where the relayer says. A workflow that has a relay key calls `submit` itself (knos.flow); Knos's public
 worker calls it for every token a workflow posts instead (knos.proof.ghrelay).
 
+    withdraw(ledger, payer, request)   a passkey wallet's withdrawal request (no token): see `withdraw`
     submit(ledger, payer, jwt, terms=None, jwks=None, now=None)
       knos2:fund:...     {"ok": True, "kind": "fund", "sigs", "job", "repo_id", "issue", "amount", "mode", "faucet", "balance", "deadline"}
       knos2:pay:...      {"ok": True, "kind": "pay", "sigs", "repo_id", "issue", "payee_id", "head",
                           "paid": [{"job", "amount", "fee", "mint", "to": wallet or None, "held_until": time or None}]}
       knos2:bind:...     {"ok": True, "kind": "bind", "sigs", "user_id", "wallet", "settled": [{"job", "amount", "fee", "mint"}]}
+      knos3:fund:...     {"ok": True, "kind": "fund", "sigs", "order", "repo_id", "issue", "seq", "amount", "fee", "mode", "faucet", "balance", "deadline"}
+                         a PRIVATE order adds "private": True: its "issue" is 0 and its "repo_id" is its judge repository's, where
+                         the comment was; `terms` is then its scope and its terms hash (`private_terms`), not a terms JSON
+      knos3:pay:...      {"ok": True, "kind": "pay", "sigs", "order", "repo_id", "issue", "mint", "head", "pr",
+                          "paid": [{"payee_id", "amount", "to": wallet or None, "held_until": time or None}]}   (work orders, 2.1)
+                         each row also has "id" (the same as "payee_id"); a standing order adds "left", one with a
+                         holdback "held_back" and "warranty_until". Judges: the order's own repository, a neutral run
+                         of attest.yml, the order's judge repository.
+      knos3:rule:...     {"ok": True, "kind": "rule", "sigs", "order", "repo_id", "issue", "mint", "paid": [as for knos3:pay]}   (the arbiter's ruling)
+      knos3:take:...     {"ok": True, "kind": "take", "sigs", "order", "repo_id", "issue", "taker_id", "days", "reserved_until"}
+      knos3:cancel:...   {"ok": True, "kind": "cancel", "sigs", "order", "repo_id", "issue", "cancel_at", "deadline"}
+      knos3:revert:...   {"ok": True, "kind": "revert", "sigs", "order", "head", "repo_id", "issue", "mint", "amount"}   (what went back to the funder)
+      knos3:bind:...     {"ok": True, "kind": "bind", "sigs", "user_id" (the organisation's id), "wallet", "org": True, "by", "settled": [...]}
+      knosm:eval:...     {"ok": True, "kind": "eval", "sigs", "buyer_id", "seller_id", "order", "artifact", "milestone", "accepted", "rate", "fee", "month"}
+                         (knos_meter Record: one billable evaluation, paid from the buyer's credits)
+      gate:...           {"ok": True, "kind": "gate", "sigs", "program", "hash", "commit", "run_id", "record"}: upgrade_gate's record
+                         that GitHub's runner built the executable with this hash for this program (program.yml's gate job)
+      knos-oidc:ikey:... {"ok": True, "kind": "key", "sigs", "key", "added", "refreshed", "issuer"}: a key of any RS256 issuer,
+                         named by its URL, which comes as `terms` (the `knos-issuer:` line of the token's comment)
       knos-oidc:key:...  {"ok": True, "kind": "key", "sigs", "key", "added": bool, "refreshed": bool, "first": {...}}
                          carried to both deployments. `key`, `added` (RegisterKey: the key now waits a day and the
                          guardian) and `refreshed` (Refresh: it lives 30 days from now) are the second verifier's;
@@ -18,16 +38,30 @@ worker calls it for every token a workflow posts instead (knos.proof.ghrelay).
       done before        the same result with "already": True and no fee spent, when the chain already shows what the
                          token asks for (another relayer carried it)
 
-`terms` is the terms JSON whose hash a fund token's audience carries. `jwks` maps an issuer id to its JWKS document
-(fetched from the issuer and kept ten minutes when not given). `now` is the chain's time (read from it when not given).
+A token of an issuer that is not GitHub or GitLab (its `iss` is another URL) is verified under a key the verifier
+holds for that URL (`other_keys`): a registered issuer's, or a PRIVATE one some wallet registered itself. The chain is
+the key set: nothing is fetched from a URL a token names. `verify_only` carries any such token. The escrow takes one
+in a single case: a pay token under a private key pays a PRIVATE order funded from the Balance that the key's own
+registrant opened (never a ruling); everything else of the escrow's is GitHub's alone, and is refused here for nothing.
+
+`terms` is the terms JSON whose hash a fund token's audience carries. `jwks` maps an issuer id (or, for any other
+issuer, its URL) to its JWKS document (fetched from the issuer and kept ten minutes when not given). `now` is the chain's time (read from it when not given).
 
 Before a fee is spent, `precheck` asks everything the two programs will ask, with reads alone: the claims, the
 audience, the workflow, the key that signed, the job, the Balance, the faucet's rate, and GitHub's signature itself
 (the same arithmetic as on chain, done here). Anyone can have GitHub sign any audience from a repository of their own
 and post it where a relayer looks, so a relayer that paid first and asked later could be made to pay for nothing.
 
-Round trips. A GitHub token of the usual size (the harness's are 1,770 to 1,910 bytes) takes four transactions and
-three waits, whatever it asks for:
+Round trips. On a 2.1 cluster (`version` answers 1) with a ledger that sends v1 transactions (4,096 bytes), a GitHub
+token of the usual size (the harness's are 1,770 to 1,910 bytes) takes two transactions and two waits, whatever it
+asks for:
+
+    1  Write, Step(8)             the whole token, and the first half of the RSA verification
+    2  Step(8), <escrow>, Close   the second half, what the audience asks for, and the token account closed again
+
+A token longer than about 3,700 bytes has its head written first, in Writes side by side. Where v1 transactions cannot
+be used (the deployed 2.0 escrow, a ledger without them, or a cluster that refused one: the relay then falls back by
+itself and stays there) the same token takes four legacy transactions and three waits:
 
     1  Write | Write              the head of the token, side by side (one Write for a token up to 1,756 bytes)
     2  Write, Step(8)             the rest of it, and the first half of the RSA verification
@@ -35,19 +69,22 @@ three waits, whatever it asks for:
 
 The first deployment's relay sends each chunk, each step, the escrow instruction and the close in a transaction of
 its own and waits for each: seven and seven for the same token. The last Step and the escrow share a transaction when
-both fit in 1,232 bytes and 1,400,000 compute units; a fund with the longest terms (600 bytes) does not, and takes two
-more. tests/test_relay2.py counts every path's transactions, waits and compute units, and prints them with -s.
+both fit in its bytes and in 1,400,000 compute units; on the legacy path a fund with the longest terms (600 bytes)
+does not, and takes two more. tests/test_relay2.py counts every path's transactions, waits and compute units, and
+prints them with -s.
 
 `ledger` needs send(ixs, payer) -> signature, account(address) -> bytes | None, program_accounts(program, size,
-{offset: bytes}) -> [(address, data)] and now(); it is used better when it also has send_all, infos, recent and logs
-(knos.chain.Ledger has them all).
+{offset: bytes}) -> [(address, data)] and now(); it is used better when it also has send_all, infos, recent, logs, simulate
+(without it the cluster is taken for 2.0) and `takes_v1` with send(..., v1=True) (knos.chain.Ledger has them all).
 """
 from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import re
 import time
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
@@ -60,9 +97,8 @@ from ... import chain
 from .. import oidc as first_oidc
 from .. import relay as first
 from ..relay import claims_of, header_of
-from . import oidc, pay
+from . import gate, meter, oidc, pay, passkey
 
-KINDS = {"fund": "knos2:fund:", "pay": "knos2:pay:", "bind": "knos2:bind:", "key": "knos-oidc:key:"}
 # GitHub's four keys of 2 Oct 2026, the root knos-oidc starts from (programs-v2/knos_oidc/src/pins.rs, GENESIS):
 # RegisterKey takes these with no attestation, so a relayer that meets one the chain has not seen registers it.
 GENESIS = frozenset({"29dfb1c0b82f6c6f770f45a7a78b73a30dfe33980f4a82a6fb4280ccf7417e1a",
@@ -74,18 +110,29 @@ CLAIM_REF = "drexthealpha/knos-oidc-rotate/.github/workflows/claim.yml@"
 # The pins the programs hold (program_ids.json). A test build accepts test pins beside them; the tests add those here.
 ROTATE_SHAS = frozenset({oidc.IDS["rotate_sha"]})
 CLAIM_SHAS = frozenset({pay.IDS["claim_sha"]})
+# The later commit of both workflows, which only the 2.1 programs take beside the pins above: rotate.yml with an `issuer`
+# input (a key of any RS256 issuer, named by its URL), claim.yml with `kind: org` (an organisation's wallet).
+ROTATE_SHAS2 = frozenset({oidc.IDS["rotate_sha2"]})
+ORG_CLAIM_SHAS = frozenset({pay.IDS["claim_sha_org"]})
 ATTESTERS = frozenset((oidc.IDS["attest_owner_id"], repo) for repo in oidc.IDS["attest_repo_ids"])
 REFRESH_AFTER = 86_400      # a key is refreshed when that moves its expiry by a day or more: once a day, not per token
 JWKS_TTL = 600
 ROOM = chain.MAX_TX_BYTES - 4   # what this relay lets a transaction weigh (a ledger that signs another way may add 2 bytes)
+ROOM_V1 = chain.MAX_V1_BYTES - 4    # and a v1 transaction, which a 2.1 cluster takes
 # Compute units, measured in LiteSVM (tests/test_relay2.py prints them) and rounded up. The last Step also hashes and
 # decodes the token, so it costs more the longer the token is: (for any token, for each of its bytes), by key size.
 _LAST_STEP = {2048: (760_000, 75), 4096: (820_000, 75)}
 _CU = {"faucet": 100_000, "fund": 110_000, "ata": 30_000, "pay": 130_000, "settle": 90_000, "bind": 40_000, "close": 5_000,
-       "register": 45_000, "refresh": 35_000, "params": {2048: 150_000, 4096: 550_000}}
+       "register": 45_000, "refresh": 35_000, "params": {2048: 150_000, 4096: 550_000},
+       "record": 90_000,
+       "fund_order": 150_000, "pay_order": 110_000, "payee": 60_000,       # an order's payment: once, and for each payee (its token account made on the way)
+       "terms": 40_000,                                                    # and what a standing order's marker or a holdback's record adds to it
+       "reserve": 60_000, "cancel": 60_000, "revert": 120_000, "release": 90_000, "bind_org": 60_000, "issuer_key": 90_000,
+       "gate": 60_000}
 _SPARE = 50_000             # compute units left unplanned in a transaction
 _DIGEST_INFO = bytes.fromhex("3031300d060960864801650304020105000420")     # PKCS#1 v1.5: "a SHA-256 digest follows"
 _HEX64, _HEX40 = re.compile(r"[0-9a-f]{64}"), re.compile(r"[0-9a-f]{40}")
+_U64 = re.compile(r"0|[1-9][0-9]{0,17}")
 _T_PAYER, _T_ID = 50, 82    # where a token account keeps the key that pays for it, and the token's id
 # what knos-oidc means by its error numbers (knos-pay's 80-99, and the key's 76-78, are worded in pay.ERRORS)
 _VERIFIER = {64: "the token is longer than the verifier takes", 65: "the signature is not as long as its key",
@@ -108,8 +155,70 @@ def _no(kind: str | None, why: str, **more) -> _Stop:
     return _Stop({"ok": False, "kind": kind, "why": why, **more})
 
 
+def _handler(aud: str) -> "Kind | None":
+    return next((kind for prefix, kind in KINDS.items() if aud.startswith(prefix)), None)
+
+
 def kind_of(aud: str) -> str | None:
-    return next((k for k, prefix in KINDS.items() if aud.startswith(prefix)), None)
+    """What the relay calls a token with this audience ("fund", "pay", "bind", "key", ...: see KINDS); None for an
+    audience it does not carry."""
+    found = _handler(aud)
+    return found.name if found else None
+
+
+_VERSION: dict[tuple, int] = {}         # (cluster, program) -> what Version answered, for as long as this process lives
+_VERSION_LINE = b"knos2:version"         # Version's log line (fund.rs: msg!("knos2:version {}", VERSION)): only a build that answers 12 holds it
+_UPGRADEABLE = Pubkey.from_string("BPFLoaderUpgradeab1e11111111111111111111111")      # its program account names the ProgramData that holds the code
+
+
+def _built(ledger) -> int | None:
+    """Which knos-pay is deployed, read from its executable: no transaction, so no fee payer. 1 when the bytes hold
+    Version's log line, 0 when they do not (2.0 refuses instruction 12 and has no such line), None when they could not
+    be read. The program account holds the executable itself (loader v2, v4), or (the upgradeable loader) is the tag 2
+    and the address of the ProgramData account that holds it."""
+    infos = getattr(ledger, "infos", None)
+    if infos is None:
+        return None
+    try:
+        got = infos([pay.PAY_ID])[0]
+        if got is not None and got[0] == _UPGRADEABLE:
+            data = got[1]
+            got = infos([Pubkey.from_bytes(data[4:36])])[0] if len(data) >= 36 and data[:4] == (2).to_bytes(4, "little") else None
+    except Exception:  # noqa: BLE001 - not read is no answer
+        return None
+    return None if got is None else int(_VERSION_LINE in bytes(got[1]))
+
+
+def version(ledger, payer: Keypair | None = None) -> int:
+    """Which knos-pay the cluster runs: 1 once 2.1 is live (its instruction 12 logs `knos2:version 1`), 0 for the
+    deployed 2.0 program, which refuses that instruction. Asked by simulation, so it costs nothing, and once per
+    process and cluster: an upgrade is announced 48 hours ahead, and a worker's run is shorter than that. A ledger that
+    cannot simulate, or a cluster that did not answer, counts as 0 for this call and is asked again on the next:
+    everything 2.1 added is used only on the answer 1. `payer`: any funded key (default: the relay key).
+    A simulation needs a fee payer that is on chain. A seller with no relay key (`knos settle --neutral`) or a
+    repository with no secret has none, and the cluster refuses the simulation for that (AccountNotFound): then the
+    deployed executable is read instead, which needs no payer at all (`_built`)."""
+    where = (getattr(ledger, "url", None) or id(ledger), pay.PAY_ID)
+    if where in _VERSION:
+        return _VERSION[where]
+    ask = getattr(ledger, "simulate", None)
+    if ask is None:
+        return 0
+    try:
+        logs = ask([pay.version_ix()], payer or chain.key())
+    except Exception as why:  # noqa: BLE001 - a refusal by the program is the answer 0; anything else is no answer
+        text = " ".join([str(why), *((getattr(why, "data", None) or {}).get("logs") or [])]) if isinstance(getattr(why, "data", None), dict) else str(why)
+        if "InstructionError" in text or "invalid instruction data" in text or _code(text) is not None:
+            _VERSION[where] = 0
+        elif any(mark in text for mark in _BROKE):     # the fee payer is not on chain, or holds no SOL: nothing was asked
+            built = _built(ledger)
+            if built is not None:
+                _VERSION[where] = built
+                return built
+        return 0
+    found = next((int(m.group(1)) for m in (re.fullmatch(r"knos2:version (\d+)", line) for line in chain.said(logs, pay.PAY_ID)) if m), 0)
+    _VERSION[where] = found
+    return found
 
 
 def _when(t: int) -> str:
@@ -135,6 +244,8 @@ class _Token:
     tid: bytes
     key: Pubkey             # the verifier's account of that key
     account: Pubkey         # where this relayer has it verified
+    url: str | None = None  # the issuer's URL, when it is not GitHub or GitLab (`issuer` is then oidc.OTHER or oidc.PRIVATE)
+    held: list = field(default_factory=list)    # then: (address, Key) of every key of that issuer on chain with this modulus
 
     @property
     def bits(self) -> int:
@@ -169,19 +280,49 @@ def signed(jwt: str, n: int) -> bool:
         return False
 
 
-def _open(jwt: str, me: Pubkey, jwks: dict | None) -> _Token:
+def other_keys(ledger, url: str) -> list[tuple[Pubkey, oidc.Key, int]]:
+    """(address, Key, modulus) of every key the verifier holds for the issuer at `url`, where that is not GitHub or
+    GitLab by number: the registered issuer's keys first (GitHub's signature named them and the guardian approved
+    them), then the PRIVATE ones (a wallet registered each itself; nobody vouches for them), oldest first."""
+    out = []
+    for limbs in (64, 128):
+        tail = oidc.K_HDR + 8 * limbs
+        for addr, data in ledger.program_accounts(oidc.OIDC_ID, tail + oidc.KEY_TAIL, {2: bytes([limbs]), tail: oidc.issuer_hash(url)}):
+            k = oidc.read_key(data)
+            if k is not None and k.issuer >= oidc.OTHER and not k.revoked:
+                out.append((addr, k, int.from_bytes(data[oidc.K_HDR:oidc.K_HDR + 4 * limbs], "little")))
+    return sorted(out, key=lambda x: (x[1].private, x[1].active_at, str(x[0])))
+
+
+def _open_other(jwt: str, me: Pubkey, c: dict, aud: str, kind: str | None, ledger) -> _Token:
+    """A token whose issuer is not GitHub or GitLab: the keys the verifier holds for its `iss` are the key set, and
+    the one that signed it is found by the same arithmetic as on chain. Nothing is fetched from the URL."""
+    url = c.get("iss")
+    if not isinstance(url, str) or not url.startswith("https://") or not 8 < len(url.encode()) <= oidc.MAX_ISS or ledger is None:
+        raise _no(None, "this is not a token GitHub Actions or GitLab CI issued")
+    held = [(addr, k, n) for addr, k, n in other_keys(ledger, url) if signed(jwt, n)]
+    if not held:
+        raise _no(kind, "this is not a token GitHub Actions or GitLab CI issued, and the verifier holds no key of its issuer that signed it: "
+                        "an issuer's key is registered by the rotate workflow (rotate.yml with `issuer`), a private one by a wallet (knos-oidc RegisterPrivateKey)")
+    addr, k, n = held[0]
+    return _Token(jwt, c, aud, kind, k.issuer, n, oidc.token_id(jwt), addr, oidc.token_pda(me, oidc.token_id(jwt)), url, [(a, key) for a, key, _n in held])
+
+
+def _open(jwt: str, me: Pubkey, jwks: dict | None, ledger=None) -> _Token:
     """The token, with the key its header names looked up among the issuer's published keys. Refuses one that none
-    of them signed."""
+    of them signed. For any other issuer (`ledger` given) the key is one the verifier holds for it: `_open_other`."""
     try:
         c, h = claims_of(jwt), header_of(jwt)
         aud = c["aud"] if isinstance(c["aud"], str) else c["aud"][0]
-        issuer = next(i for i, url in oidc.ISSUERS.items() if c.get("iss") == url)
+        issuer = next((i for i, url in oidc.ISSUERS.items() if c.get("iss") == url), None)
         kid = h.get("kid")
-    except (StopIteration, KeyError, IndexError, ValueError, TypeError, AttributeError):
+    except (KeyError, IndexError, ValueError, TypeError, AttributeError):
         raise _no(None, "this is not a token GitHub Actions or GitLab CI issued") from None
     kind = kind_of(aud)
     if not 0 < len(jwt.encode()) <= oidc.MAX_JWT:
         raise _no(kind, f"the token is {len(jwt.encode())} bytes; the verifier takes up to {oidc.MAX_JWT}")
+    if issuer is None:
+        return _open_other(jwt, me, c, aud, kind, ledger)
     keys_ = dict(oidc.jwks_keys(_jwks(issuer, jwks)))
     if kid not in keys_ and not (jwks and issuer in jwks):
         keys_ = dict(oidc.jwks_keys(_jwks(issuer, jwks, fresh=True)))      # the issuer may have added a key since we last looked
@@ -281,6 +422,20 @@ def _last(ledger, address: Pubkey) -> list[str]:
     return [sig] if sig else []
 
 
+def _said_in(ledger, address: Pubkey, line: str, most: int = 10) -> list[str]:
+    """The newest of the last few transactions that named `address` in which knos-pay itself logged exactly `line`.
+    The last transaction to name an account is not the one that wrote it: a wallet's Bind is named, read-only, by
+    every payment to its owner afterwards. When none is found the result names no transaction, never another one."""
+    recent, logs = getattr(ledger, "recent", None), getattr(ledger, "logs", None)
+    try:
+        for sig, _when in (recent(address, most) if recent and logs else []):
+            if line in chain.said(logs(sig), pay.PAY_ID):
+                return [sig]
+    except Exception:  # noqa: BLE001, S110 - the verdict does not depend on finding the transaction
+        pass
+    return []
+
+
 # -- what each audience asks of the escrow, decided with reads alone ----------------------------------------------------
 Group = tuple[list[Instruction], int]       # instructions that go in one transaction together, and their compute units
 
@@ -295,14 +450,18 @@ class _Plan:
     lead: bool = False                      # whether the first group must land before the others whatever else is so (a Bind, then the payments it frees)
     closes: bool = False                    # whether a group already closes the token account
     have: bytes | None = None               # the token account as it stands
+    v1: bool = False                        # whether its transactions go out as v1 ones (4,096 bytes): a 2.1 cluster, and a ledger that sends them
     register: list[Instruction] = field(default_factory=list)   # a signing key the chain needs first (a genesis key it has not seen)
 
 
-def _github_token(t: _Token, now: int) -> None:
+def _github_token(t: _Token, now: int, private: bool = False) -> None:
     """What knos-pay asks of every token before it reads the audience (gh.rs): GitHub's, a GitHub-hosted runner, and
-    times that GitHub's clock wrote."""
-    if t.issuer != oidc.GITHUB:
-        raise _no(t.kind, "the escrow takes GitHub's tokens only")
+    times that GitHub's clock wrote. `private`: the kind also takes a token under a key some wallet registered itself,
+    where its planner finds that wallet to be the one whose money it pays out (`_own_key`)."""
+    if t.issuer != oidc.GITHUB and not (private and any(k.private for _a, k in t.held)):
+        raise _no(t.kind, "the escrow takes GitHub's tokens only" + ("" if t.url is None else
+                          ": a token of another issuer is verified for other programs to read (post it as `knos-verify:`), and a pay token under a "
+                          "key a wallet registered itself pays a private order of that wallet's own balance"))
     if t.c.get("runner_environment") != "github-hosted":
         raise _no(t.kind, "not from a GitHub-hosted runner")
     try:
@@ -313,7 +472,50 @@ def _github_token(t: _Token, now: int) -> None:
         raise _no(t.kind, "the token's times are not GitHub's: it is dated ahead of the chain's clock, or lives longer than an hour")
 
 
-def _plan_fund(ledger, me: Pubkey, t: _Token, terms: bytes | None, now: int) -> _Plan:
+def _decimals(mint: bytes | None) -> int:
+    """A mint's decimals (either token program); 6 when the mint could not be read."""
+    return mint[44] if mint and len(mint) >= 82 else 6
+
+
+def _bounds(kind: str, amount: int, decimals: int, least: int = pay.MIN_AMOUNT, what: str = "a bounty") -> None:
+    """The escrow's limits are whole units of the mint, whatever its decimals."""
+    low, high, one = pay.units(least, decimals), pay.units(pay.MAX_AMOUNT, decimals), 10 ** decimals
+    if not low <= amount <= high:
+        raise _no(kind, f"{what} is from {low / one:,.2f} to {high / one:,.2f}; this token asks for {amount / one:,.2f}")
+
+
+def _limits(kind: str, x: pay.BalanceX | None, amount: int, repo_id: int, wf_sha: str, now: int) -> None:
+    """What a Balance's side account asks of a funding (2.1): its repositories, its workflows commit, and what it may
+    spend in a day and in all."""
+    if x is None:
+        return
+    if x.repos and repo_id not in x.repos:
+        raise _no(kind, "that balance lists the repositories that may spend it, and this one is not among them")
+    if x.wf_sha and x.wf_sha != wf_sha:
+        raise _no(kind, "that balance is spent only by the workflows at the commit its wallet pinned, and this run used another")
+    today = x.day_spent if x.day == now // 86_400 else 0
+    if (x.day_limit and today + amount > x.day_limit) or (x.total_limit and x.total_spent + amount > x.total_limit):
+        raise _no(kind, f"{pay.ERRORS[100]}: {_units(today)} of {_units(x.day_limit)} spent today, {_units(x.total_spent)} of {_units(x.total_limit)} in all "
+                        "(a limit of 0.00 is no limit)")
+
+
+def _fund_run(kind: str, c: dict, terms: bytes | None, named: str, private: bool = False) -> str:
+    """What the escrow asks of the run behind any fund token (a job's or an order's), and of the terms that came with
+    it. Returns the commit of the workflows that ran."""
+    _wf_repo, wf_file, wf_sha = _workflow(c)
+    if wf_file != "fund.yml":
+        raise _no(kind, "a fund token must come from fund.yml")
+    # a PRIVATE order's attestor has no comment to react to: its run is started by hand or by its schedule
+    if c.get("event_name") not in ("issue_comment", "issues") + (("workflow_dispatch", "schedule") if private else ()):
+        raise _no(kind, "a bounty is funded by a comment on an issue or by a new issue, and this run was started by something else")
+    if str(c.get("run_attempt")) != "1":
+        raise _no(kind, "this token is from a re-run, and only a run's first attempt can fund; comment again")
+    if terms and (len(terms) > pay.MAX_TERMS or not all(0x20 <= b < 0x7f for b in terms) or pay.terms_hash(terms).hex() != named):
+        raise _no(kind, "these are not the terms GitHub signed for: their hash is not the one the token carries")
+    return wf_sha
+
+
+def _plan_fund(ledger, me: Pubkey, t: _Token, terms: bytes | None, now: int, v: int = 1) -> _Plan:
     kind, c, p = "fund", t.c, t.aud.split(":")
     try:
         if len(p) != 8 or p[4] not in ("0", "1") or not _HEX64.fullmatch(p[5]):
@@ -322,22 +524,14 @@ def _plan_fund(ledger, me: Pubkey, t: _Token, terms: bytes | None, now: int) -> 
         repo_id, owner_id, actor, iat = _ints(c, "repository_id", "repository_owner_id", "actor_id", "iat")
     except (KeyError, ValueError, TypeError):
         raise _no(kind, "malformed audience or claims") from None
-    _wf_repo, wf_file, wf_sha = _workflow(c)
-    if wf_file != "fund.yml":
-        raise _no(kind, "a fund token must come from fund.yml")
-    if c.get("event_name") not in ("issue_comment", "issues"):
-        raise _no(kind, "a bounty is funded by a comment on an issue or by a new issue, and this run was started by something else")
-    if str(c.get("run_attempt")) != "1":
-        raise _no(kind, "this token is from a re-run, and only a run's first attempt can fund; comment again")
-    if terms and (len(terms) > pay.MAX_TERMS or not all(0x20 <= b < 0x7f for b in terms) or pay.terms_hash(terms).hex() != p[5]):
-        raise _no(kind, "these are not the terms GitHub signed for: their hash is not the one the token carries")
-    if not pay.MIN_AMOUNT <= amount <= pay.MAX_AMOUNT:
-        raise _no(kind, f"a bounty is from {_units(pay.MIN_AMOUNT)} to {_units(pay.MAX_AMOUNT)}; this token asks for {_units(amount)}")
+    wf_sha = _fund_run(kind, c, terms, p[5])
     if not pay.MIN_WORK <= work <= pay.MAX_WORK:
         raise _no(kind, f"a bounty is open for a minute to {pay.MAX_WORK // 86_400} days; this token asks for {work} seconds")
     faucet = balance == pay.faucet_balance_pda(owner_id)
+    if faucet:
+        _bounds(kind, amount, 6)
     job, baltok = pay.job_pda(repo_id, issue, balance), pay.baltok_pda(balance)
-    got = _read(ledger, [pay.pause_pda(), balance, baltok, job, pay.faucet_mint(), pay.rate_pda(repo_id)])
+    got = _read(ledger, [pay.pause_pda(), balance, baltok, job, pay.faucet_mint(), pay.rate_pda(repo_id), pay.balx_pda(balance)])
     b, j = pay.read_balance(_data(got, balance)), pay.read_job(_data(got, job))
     result = dict(kind=kind, job=str(job), repo_id=repo_id, issue=issue, amount=amount, mode=mode, balance=str(balance))
 
@@ -379,6 +573,7 @@ def _plan_fund(ledger, me: Pubkey, t: _Token, terms: bytes | None, now: int) -> 
     else:
         if b is None:
             raise _no(kind, f"the balance this token names ({balance}) does not exist")
+        _bounds(kind, amount, _decimals(_data(_read(ledger, [b.mint]), b.mint)))
         if b.owner_id != owner_id:
             raise _no(kind, "that balance is for another GitHub owner's repositories")
         if actor == 0 or not (b.faucet or actor == b.owner_id or actor in b.spenders):
@@ -387,9 +582,10 @@ def _plan_fund(ledger, me: Pubkey, t: _Token, terms: bytes | None, now: int) -> 
             raise _no(kind, f"that balance allows {_units(b.cap_per_job)} for one bounty; this token asks for {_units(amount)}")
         if _amount(_data(got, baltok)) < amount:
             raise _no(kind, f"the balance holds {_units(_amount(_data(got, baltok)))}, less than this bounty; add money to it or fund less")
+        _limits(kind, pay.read_balx(_data(got, pay.balx_pda(balance))) if v >= 1 and b.has_x else None, amount, repo_id, wf_sha, now)
         mint = b.mint
         program = (got[baltok][0] if got.get(baltok) else None) or pay.TOKEN     # a Balance's token account belongs to its mint's token program
-    groups.append(([pay.fund_balance_ix(me, t.account, t.key, balance, mint, repo_id, issue, terms, program)], _CU["fund"]))
+    groups.append(([pay.fund_balance_ix(me, t.account, t.key, balance, mint, repo_id, issue, terms, program, balx=bool(v >= 1 and b and b.has_x))], _CU["fund"]))
     return _Plan(t, groups, done)
 
 
@@ -419,7 +615,7 @@ def _paid_before(ledger, repo_id: int, issue: int, payee: int, since: int) -> li
     return out
 
 
-def _plan_pay(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
+def _plan_pay(ledger, me: Pubkey, t: _Token, now: int, v: int = 1) -> _Plan:
     kind, c, p = "pay", t.c, t.aud.split(":")
     try:
         if len(p) != 9 or not _HEX40.fullmatch(p[5]) or not _HEX64.fullmatch(p[6]) or p[7] not in ("0", "1"):
@@ -439,6 +635,10 @@ def _plan_pay(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
     pinned = [(a, j) for a, j in jobs if (j.wf_repo_hash, j.wf_sha) == (wf_repo, wf_sha)]
     agreed = [(a, j) for a, j in pinned if (j.terms.hex(), j.mode) == (p[6], mode)]
     mine = [(a, j) for a, j in agreed if j.state == "open" and now <= j.deadline and iat >= j.not_before]
+    used = pay.used_pda(t.jwt)
+    spent = v >= 1 and _data(_read(ledger, [used]), used) is not None       # the token's marker is there: it has paid, or held, its one job
+    if v >= 1:              # 2.1: a pay token pays exactly one job, the largest here. (2.0 pays every one, and knows no marker)
+        mine = [] if spent else sorted(mine, key=lambda x: (-x[1].amount, str(x[0])))[:1]
     if not mine:
         held = [(a, j) for a, j in agreed if j.state == "held" and j.payee_id == payee]
         if held:        # another relayer carried this token: the jobs wait for the payee to bind a wallet
@@ -447,7 +647,8 @@ def _plan_pay(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
         before = _paid_before(ledger, repo_id, issue, payee, iat - pay.TOKEN_AHEAD)
         if before:      # and here the payee had a wallet: the job was paid and is gone
             raise _Stop({"ok": True, **result, "sigs": list(dict.fromkeys(e.pop("sig") for e in before)), "already": True, "paid": before})
-        raise _no(kind, "no bounty is in escrow for this issue (never funded, or already paid or refunded)" if not jobs else
+        raise _no(kind, "this token has paid its one bounty already; another bounty on the issue is paid by a new run of the workflow" if spent and opened else
+                  "no bounty is in escrow for this issue (never funded, or already paid or refunded)" if not jobs else
                   "the bounty on this issue is already held for another GitHub user" if not opened else
                   "no open bounty on this issue pins this workflow at this commit" if not any(j.state == "open" for _a, j in pinned) else
                   "the open bounty on this issue has other terms than the ones this token was made for" if not any(j.state == "open" for _a, j in agreed) else
@@ -459,7 +660,9 @@ def _plan_pay(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
         raise _no(kind, "the address this token names is the escrow's own account")
     groups: list[Group] = []
     for addr, j in mine:
-        ix = pay.pay_ix(me, t.account, t.key, addr, j, payee, wallet)
+        ix = pay.pay_ix(me, t.account, t.key, addr, j, payee, wallet, used=used)
+        if v < 1:
+            ix = Instruction(ix.program_id, bytes(ix.data), list(ix.accounts)[:-1])
         groups.append(([ix], _CU["pay"]) if wallet is None else _payout(me, j, wallet, ix, _CU["pay"]))
 
     def done(sigs: list[str]) -> dict:
@@ -504,15 +707,32 @@ def _plan_bind(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
         if (bound.iat, bound.wallet) != (iat, wallet):
             raise _no(kind, "a newer claim has bound a wallet since this one; run the claim again to change it")
         if not settles:         # another relayer carried it, and nothing is left to pay
-            raise _Stop(done(_last(ledger, pay.bind_pda(user)), True))
+            raise _Stop(done(_said_in(ledger, pay.bind_pda(user), f"knos2:bound user={user} wallet={wallet}"), True))
         return _Plan(t, settles, lambda sigs: done(sigs, True), token=False, alone=True)       # a Settle needs no token
     bind = ([pay.bind_ix(me, t.account, t.key, user), oidc.close_ix(me, t.tid)], _CU["bind"] + _CU["close"])
     return _Plan(t, [bind, *settles], done, alone=True, lead=True, closes=True)
 
 
-def _plan_key(ledger, me: Pubkey, t: _Token, jwks: dict | None, now: int) -> _Plan:
+def _attests(t: _Token, v: int) -> tuple[bool, bool]:
+    """Whether a token is an attestation the verifier takes for a key (`attested` in knos_oidc): (from the attester:
+    registers and refreshes, anyone's: refreshes only). The pinned rotate workflow on a GitHub-hosted runner, at the
+    first pin or (2.1) the later one; run by its schedule or by hand in an attester's repository, or (2.1, anyone's)
+    started by hand in a repository of the person who started it."""
+    c = t.c
+    try:
+        owner, repo = _ints(c, "repository_owner_id", "repository_id")
+    except (KeyError, ValueError, TypeError):
+        return False, False
+    pinned = (t.issuer == oidc.GITHUB and str(c.get("job_workflow_ref", "")).startswith(ROTATE_REF) and c.get("runner_environment") == "github-hosted"
+              and c.get("job_workflow_sha") in (ROTATE_SHAS | ROTATE_SHAS2 if v >= 1 else ROTATE_SHAS))
+    names = pinned and (owner, repo) in ATTESTERS and c.get("event_name") in ("schedule", "workflow_dispatch")
+    anyone = pinned and v >= 1 and c.get("event_name") == "workflow_dispatch" and str(c.get("actor_id")) == str(owner)
+    return names, anyone
+
+
+def _plan_key(ledger, me: Pubkey, t: _Token, jwks: dict | None, now: int, v: int = 1) -> _Plan:
     """A key token on the second verifier: RegisterKey for a key it does not have, Refresh for one it has."""
-    kind, c, p = "key", t.c, t.aud.split(":")
+    kind, p = "key", t.aud.split(":")
     try:
         issuer, want = int(p[2]), p[3]
         if len(p) != 4 or issuer not in oidc.ISSUERS:
@@ -526,12 +746,7 @@ def _plan_key(ledger, me: Pubkey, t: _Token, jwks: dict | None, now: int) -> _Pl
     k = oidc.read_key(ledger.account(key))
     if k is not None and k.revoked:
         raise _no(kind, "the guardian revoked this key; it cannot be used again")
-    try:
-        where = tuple(_ints(c, "repository_owner_id", "repository_id"))
-    except (KeyError, ValueError, TypeError):
-        where = ()
-    names = (t.issuer == oidc.GITHUB and str(c.get("job_workflow_ref", "")).startswith(ROTATE_REF) and c.get("job_workflow_sha") in ROTATE_SHAS
-             and c.get("runner_environment") == "github-hosted" and where in ATTESTERS and c.get("event_name") in ("schedule", "workflow_dispatch"))
+    names, anyone = _attests(t, v)
 
     def done(added: bool = False, refreshed: bool = False) -> Callable[[list[str]], dict]:
         return lambda sigs: {"ok": True, "kind": kind, "sigs": sigs, "key": str(key), "added": added, "refreshed": refreshed}
@@ -540,14 +755,770 @@ def _plan_key(ledger, me: Pubkey, t: _Token, jwks: dict | None, now: int) -> _Pl
         if not names:
             raise _no(kind, "the second verifier takes a new key only from the rotate workflow at its pinned commit, run by its "
                             "schedule or by hand in the attester's own repository")
-        register = ([oidc.register_key_ix(me, issuer, n, t.account), oidc.close_ix(me, t.tid)], _CU["register"] + _CU["close"])
+        register = ([oidc.register_key_ix(me, issuer, n, t.account, t.key if v >= 1 else None), oidc.close_ix(me, t.tid)], _CU["register"] + _CU["close"])
         return _Plan(t, [register, params], done(added=True), closes=True)
     if k.state != 1:            # registered, its parameters never sent: anyone may send them, and no token is needed
         return _Plan(t, [params], done(), token=False)
-    if not names or now + oidc.KEY_TTL - k.expires_at < REFRESH_AFTER:
+    if not (names or anyone) or now + oidc.KEY_TTL - k.expires_at < REFRESH_AFTER:
         raise _Stop(done()([]))  # the verifier has it, and a day of life gained is not worth a transaction
-    refresh = ([oidc.refresh_ix(me, issuer, n, t.account), oidc.close_ix(me, t.tid)], _CU["refresh"] + _CU["close"])
+    refresh = ([oidc.refresh_ix(me, issuer, n, t.account, t.key if v >= 1 else None), oidc.close_ix(me, t.tid)], _CU["refresh"] + _CU["close"])
     return _Plan(t, [refresh], done(refreshed=True), closes=True)
+
+
+def _issuer_keys(url: str, jwks: dict | None) -> dict:
+    """The key set of any OpenID issuer, found the way everyone finds it: `<url>/.well-known/openid-configuration`
+    names where it is published. The one given for this URL when `jwks` has it; else fetched and kept ten minutes.
+    The document must be this issuer's own, and its key set must be served over https."""
+    if jwks and url in jwks:
+        return jwks[url]
+    kept = _KEPT.get(url)
+    if kept is None or time.monotonic() - kept[0] > JWKS_TTL:
+        conf = _fetch(url.rstrip("/") + "/.well-known/openid-configuration")
+        where = str(conf.get("jwks_uri") or "") if isinstance(conf, dict) else ""
+        if not isinstance(conf, dict) or conf.get("issuer") != url or not where.startswith("https://"):
+            raise ValueError("the issuer's openid-configuration is not this issuer's, or names no https key set")
+        kept = _KEPT[url] = (time.monotonic(), _fetch(where))
+    return kept[1]
+
+
+def _fetch(url: str) -> dict:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "knos", "Accept": "application/json"}), timeout=20) as r:  # noqa: S310 - https, checked by the caller
+        return json.loads(r.read(1 << 20))
+
+
+def _plan_issuer_key(a: _Ask) -> _Plan:
+    """knos-oidc:ikey: a key of ANY RS256 issuer, named by the issuer's URL (2.1): RegisterIssuerKey for a key the
+    verifier does not have, Refresh for one it has. The URL travels with the token (the `knos-issuer:` line of its
+    comment; `terms` here), and its sha256 is in the audience GitHub signed. The issuer is asked for its key set only
+    once the token is the pinned rotate workflow's: nobody's comment makes this relay fetch a URL of their choosing."""
+    kind, ledger, me, t, now = "key", a.ledger, a.me, a.t, a.now
+    p = t.aud.split(":")
+    if len(p) != 4 or not _HEX64.fullmatch(p[2]) or not _HEX64.fullmatch(p[3]):
+        raise _no(kind, "malformed audience or claims")
+    url = (a.terms or b"").decode("ascii", "replace").strip()
+    if not url:
+        raise _no(kind, "the issuer's URL did not come with its token (the `knos-issuer:` line of the comment)")
+    if not url.startswith("https://") or not 8 < len(url.encode()) <= oidc.MAX_ISS or oidc.issuer_hash(url).hex() != p[2]:
+        raise _no(kind, "the `knos-issuer:` line is not the issuer this token names")
+    names, anyone = _attests(t, a.v)
+    if not (names or anyone):
+        raise _no(kind, "an issuer's key is taken only from the rotate workflow at its pinned commit, run by its schedule or by hand in the "
+                        "attester's own repository")
+    try:
+        n = next((n for _kid, n in oidc.jwks_keys(_issuer_keys(url, a.jwks)) if oidc.key_hash(n).hex() == p[3]), None)
+    except _Stop:
+        raise
+    except Exception as why:  # noqa: BLE001 - the issuer did not answer, or answered something else: asked again on a later pass
+        raise _no(kind, f"the issuer's key set could not be read at {url} ({type(why).__name__})", retry=True, transient=True) from None
+    if n is None:
+        raise _no(kind, "the issuer's key set has no key with that hash")
+    key = oidc.key_pda(url, n)
+    k = oidc.read_key(ledger.account(key))
+    if k is not None and k.revoked:
+        raise _no(kind, "the guardian revoked this key; it cannot be used again")
+
+    def done(added: bool = False, refreshed: bool = False) -> Callable[[list[str]], dict]:
+        return lambda sigs: {"ok": True, "kind": kind, "sigs": sigs, "key": str(key), "added": added, "refreshed": refreshed, "issuer": url}
+    params: Group = ([oidc.key_params_ix(me, url, n)], _CU["params"][8 * len(oidc.modulus_bytes(n))])
+    if k is None:
+        if not names:
+            raise _no(kind, "a new key is registered only on the attester's own run of the rotate workflow; anyone's run refreshes a key the "
+                            "verifier already has")
+        register = ([oidc.register_issuer_key_ix(me, url, n, t.account, t.key), oidc.close_ix(me, t.tid)], _CU["issuer_key"] + _CU["close"])
+        return _Plan(t, [register, params], done(added=True), closes=True)
+    if k.state != 1:
+        return _Plan(t, [params], done(), token=False)
+    if now + oidc.KEY_TTL - k.expires_at < REFRESH_AFTER:
+        raise _Stop(done()([]))
+    refresh = ([oidc.refresh_ix(me, url, n, t.account, t.key), oidc.close_ix(me, t.tid)], _CU["refresh"] + _CU["close"])
+    return _Plan(t, [refresh], done(refreshed=True), closes=True)
+
+
+# -- work orders (2.1): knos3:fund, knos3:pay -----------------------------------------------------------------------------
+@dataclass
+class _Ask:
+    """One token, and what a handler plans it with."""
+    ledger: object
+    payer: Keypair
+    me: Pubkey
+    t: _Token
+    now: int
+    v: int                      # the escrow's version on this cluster
+    terms: bytes | None = None
+    jwks: dict | None = None
+
+
+def _options(kind: str, raw: bytes, amount: int, actor: int = 0, owner: int = 0) -> tuple[bool, int]:
+    """The 48 bytes a funder fixes beside the amount (opts_of in order.rs, and the arbiter rule of order_judge::funded):
+    refused here as the program would. Returns (whether the order is PRIVATE, its judge repository's id)."""
+    flags, holdback, warranty, kill, rate, arbiter, judge, salted = (raw[0], int.from_bytes(raw[1:3], "little"), int.from_bytes(raw[3:5], "little"),
+                                                                    int.from_bytes(raw[5:7], "little"), int.from_bytes(raw[8:16], "little"),
+                                                                    int.from_bytes(raw[16:24], "little"), int.from_bytes(raw[24:32], "little"), raw[32])
+    private, standing = bool(flags & pay.F_PRIVATE), bool(flags & pay.F_STANDING)
+    ok = (flags & ~(pay.F_PRIVATE | pay.F_NEUTRAL | pay.F_STANDING) == 0 and salted <= 1 and not any(raw[33:]) and holdback <= pay.MAX_HOLDBACK_BPS
+          and warranty <= pay.MAX_WARRANTY_DAYS and kill <= pay.MAX_KILL_BPS and (holdback == 0 or warranty > 0)
+          and (1 <= rate <= amount if standing else rate == 0) and private == bool(salted) and (not private or judge != 0))
+    if not ok:
+        raise _no(kind, "the order's options are outside what is allowed: a holdback up to 50% and only with a warranty, a warranty up to "
+                        f"{pay.MAX_WARRANTY_DAYS} days, a kill fee up to 20%, a rate only for a standing order and no more than its amount, "
+                        "and a private order names its scope and a judge repository")
+    if arbiter and arbiter in (actor, owner):
+        raise _no(kind, "the arbiter decides between the funder and the payees: he cannot be the commenter who funds the order, nor the owner whose balance pays")
+    return private, judge
+
+
+def private_terms(beside: bytes | str | None) -> bytes | None:
+    """What travels with the fund token of a PRIVATE order, where a public one's terms JSON travels: the order's scope
+    and its terms hash, 64 bytes, or the 128 hex characters a comment's `knos-terms:` line writes them as. Neither
+    says which repository or which issue. None for anything else."""
+    raw = beside.encode() if isinstance(beside, str) else bytes(beside or b"")
+    if len(raw) == 128 and re.fullmatch(rb"[0-9a-f]{128}", raw):
+        raw = bytes.fromhex(raw.decode())
+    return raw if len(raw) == 64 else None
+
+
+def carries_terms(aud: str, terms: bytes | str | None) -> bool:
+    """Whether `terms` is what a fund token with this audience was signed for: the terms JSON whose hash the audience
+    carries, or (the options say PRIVATE) the scope and terms hash whose hash it carries."""
+    p = aud.split(":")
+    if len(p) < 6 or terms is None:
+        return False
+    private = len(p) == 10 and re.fullmatch(r"[0-9a-f]{%d}" % (2 * pay.OPTS_LEN), p[9]) and bytes.fromhex(p[9])[0] & pay.F_PRIVATE
+    raw = private_terms(terms) if private else (terms.encode() if isinstance(terms, str) else bytes(terms))
+    return raw is not None and hashlib.sha256(raw).hexdigest() == p[5]
+
+
+def _plan_order_fund(a: _Ask) -> _Plan:
+    """knos3:fund: a comment funds a work order from a Balance (FundOrderBalance), the faucet opened on the way. The
+    funder pays the fee on top of the amount, so the Balance must hold both."""
+    kind, ledger, me, t, now, terms = "fund", a.ledger, a.me, a.t, a.now, a.terms
+    c, p = t.c, t.aud.split(":")
+    try:
+        if len(p) != 10 or p[4] not in ("0", "1") or not _HEX64.fullmatch(p[5]) or not re.fullmatch(r"[0-9a-f]{%d}" % (2 * pay.OPTS_LEN), p[9]):
+            raise ValueError(t.aud)
+        issue, amount, mode, work, balance, seq = int(p[2]), int(p[3]), int(p[4]), int(p[6]), _address(p[7]), int(p[8])
+        repo_id, owner_id, actor, iat = _ints(c, "repository_id", "repository_owner_id", "actor_id", "iat")
+        if not 0 <= seq < 2 ** 32:
+            raise ValueError(t.aud)
+    except (KeyError, ValueError, TypeError):
+        raise _no(kind, "malformed audience or claims") from None
+    private, judge_repo = _options(kind, bytes.fromhex(p[9]), amount, actor, owner_id)
+    wf_sha = _fund_run(kind, c, None if private else terms, p[5], private=private)
+    hidden = private_terms(terms) if private else None      # a private order: its scope, then its terms hash (order_judge::funded)
+    if private:
+        if issue != 0:
+            raise _no(kind, "malformed audience or claims")
+        if not terms:           # the order's address is made of its scope, which only the comment says
+            raise _no(kind, "the order's scope and terms hash did not come with its token (the `knos-terms:` line of the funding comment: 128 hex characters)")
+        if hidden is None or hashlib.sha256(hidden).hexdigest() != p[5]:
+            raise _no(kind, "these are not the scope and the terms hash GitHub signed for: their hash is not the one the token carries")
+        if repo_id != judge_repo:
+            raise _no(kind, "a private order is funded by a comment in the repository it names as its judge, and this run was in another")
+    if not pay.MIN_WORK <= work <= pay.MAX_WORK:
+        raise _no(kind, f"an order is open for a minute to {pay.MAX_WORK // 86_400} days; this token asks for {work} seconds")
+    faucet = balance == pay.faucet_balance_pda(owner_id)
+    scope, named = (hidden[:32], hidden[32:].hex()) if hidden else (pay.scope_of(repo_id, issue), p[5])
+    order, baltok, used = pay.order_pda(scope, balance, seq), pay.baltok_pda(balance), pay.used_pda(t.jwt)
+    got = _read(ledger, [pay.pause_pda(), balance, baltok, order, pay.faucet_mint(), pay.rate_pda(repo_id), pay.balx_pda(balance), pay.plan_pda(owner_id), used])
+    b, o = pay.read_balance(_data(got, balance)), pay.read_order(_data(got, order))
+    result = dict(kind=kind, order=str(order), repo_id=repo_id, issue=issue, seq=seq, amount=amount, mode=mode, balance=str(balance),
+                  **({"private": True} if private else {}))
+
+    def done(sigs: list[str], made: pay.Order | None = None) -> dict:
+        made = made or pay.read_order(ledger.account(order))
+        if made is None:
+            return {"ok": False, "kind": kind, "why": "the funding did not reach the chain"}
+        return {"ok": True, **result, "sigs": sigs, "amount": made.amount, "fee": made.fee, "faucet": made.faucet, "deadline": made.deadline}
+    if o is not None:       # an order keeps its token's time and commenter: this very token made it, carried by another relayer
+        if (o.not_before, o.funder_id, o.terms.hex(), o.mode, o.wf_sha) == (iat, actor, named, mode, wf_sha):
+            raise _Stop({**done(_last(ledger, order), o), "already": True})
+        raise _no(kind, f"this issue already has order number {seq} from this balance (order {order}); fund again with another number")
+    if _data(got, used) is not None:
+        raise _no(kind, "this token was used already, and a fund token works once")
+    if not terms:
+        raise _no(kind, "the order's terms did not come with its token (the `knos-terms:` line of the funding comment)")
+    until = pay.read_pause(_data(got, pay.pause_pda()))
+    if now < until:
+        soon = until < int(c.get("exp", 0)) + oidc.LATE - 60
+        raise _no(kind, f"new funding is paused until {_when(until)}; payments and refunds go on", **({"retry": True, "wait": until - now} if soon else {}))
+    bps = pay.plan_bps(pay.read_plan(_data(got, pay.plan_pda(owner_id))), now)
+    groups: list[Group] = []
+    if faucet:
+        _bounds(kind, amount, 6, pay.ORDER_MIN_AMOUNT, "an order")
+        total = amount + pay.order_fee(amount, bps)
+        if _data(got, pay.faucet_mint()) is None:
+            raise _no(kind, "this token spends the devnet faucet's test USDC, and this cluster has no faucet")
+        if amount > pay.FAUCET_CAP:
+            raise _no(kind, f"the faucet gives at most {_units(pay.FAUCET_CAP)} test USDC for one order; open a balance for more")
+        if actor == 0:
+            raise _no(kind, "this token names no commenter")
+        if _amount(_data(got, baltok)) < total:     # FaucetOpen mints the amount and the fee on it
+            last, last_iat = pay.read_rate(_data(got, pay.rate_pda(repo_id)))
+            if last and iat <= last_iat:
+                raise _no(kind, "an older fund token than the repository's last one; comment again")
+            if now < last + pay.FUND_PERIOD:
+                raise _no(kind, "the faucet serves a repository once a minute", retry=True, wait=last + pay.FUND_PERIOD - now)
+            groups.append(([pay.faucet_open_ix(me, t.account, t.key, owner_id, repo_id)], _CU["faucet"]))
+        mint, program = pay.faucet_mint(), pay.TOKEN
+    else:
+        if b is None:
+            raise _no(kind, f"the balance this token names ({balance}) does not exist")
+        decimals = _decimals(_data(_read(ledger, [b.mint]), b.mint))
+        _bounds(kind, amount, decimals, pay.ORDER_MIN_AMOUNT, "an order")
+        if b.owner_id != owner_id:
+            raise _no(kind, "that balance is for another GitHub owner's repositories")
+        if actor == 0 or not (b.faucet or actor == b.owner_id or actor in b.spenders):
+            raise _no(kind, "this commenter may not spend that balance: only its repository owner and the spenders its wallet listed can")
+        if b.cap_per_job and amount > b.cap_per_job:
+            raise _no(kind, f"that balance allows {_units(b.cap_per_job)} for one order; this token asks for {_units(amount)}")
+        total, one = amount + pay.order_fee(amount, bps, decimals), 10 ** decimals
+        if _amount(_data(got, baltok)) < total:
+            raise _no(kind, f"the balance holds {_amount(_data(got, baltok)) / one:,.2f}, less than this order and its fee ({total / one:,.2f}); "
+                            "add money to it or fund less")
+        _limits(kind, pay.read_balx(_data(got, pay.balx_pda(balance))) if b.has_x else None, total, repo_id, wf_sha, now)
+        mint = b.mint
+        program = (got[baltok][0] if got.get(baltok) else None) or pay.TOKEN
+    fund = (pay.fund_private_order_balance_ix(me, t.account, t.key, balance, mint, owner_id, scope, hidden[32:], used, seq, program) if hidden else
+            pay.fund_order_balance_ix(me, t.account, t.key, balance, mint, owner_id, repo_id, issue, terms, used, seq, program))
+    groups.append(([fund], _CU["fund_order"]))
+    return _Plan(t, groups, done)
+
+
+def _payees(aud: str) -> list[tuple[int, int, Pubkey | None]]:
+    """The payees of an order's pay audience as the program reads them: 1 to 4, each id once and not 0, each share
+    at least one basis point, 10000 in all. ValueError otherwise."""
+    out = [(i, bps, _address(str(w)) if w is not None else None) for i, bps, w in pay.payees_of(aud)]
+    if not 1 <= len(out) <= pay.MAX_PAYEES or len({i for i, _b, _w in out}) != len(out) or any(i == 0 or bps < 1 for i, bps, _w in out) \
+            or sum(bps for _i, bps, _w in out) != 10_000:
+        raise ValueError(aud)
+    return out
+
+
+def _shares(due: int, payees) -> list[int]:
+    """What each payee receives of `due`: its share rounded down, the last one taking what rounding left."""
+    out = [due * bps // 10_000 for _i, bps, _w in payees[:-1]]
+    return [*out, due - sum(out)]
+
+
+def _order_paid(ledger, order: Pubkey, pr: int, since: int) -> list[dict]:
+    """What knos-pay itself logged when this order was paid for this pull request, no earlier than `since`: the token
+    another relayer carried, after which the order is gone."""
+    recent, logs = getattr(ledger, "recent", None), getattr(ledger, "logs", None)
+    out = []
+    try:
+        for sig, when in (recent(order, 5) if recent and logs else []):
+            if when is not None and when < since:
+                continue
+            for line in chain.said(logs(sig), pay.PAY_ID):
+                m = re.fullmatch(rf"knos3:paid order={order} pr={pr} payee=(\d+) amount=(\d+) to=(\S+)", line)
+                if m:
+                    out.append({"id": int(m.group(1)), "payee_id": int(m.group(1)), "amount": int(m.group(2)), "to": m.group(3), "held_until": None, "sig": sig})
+    except Exception:  # noqa: BLE001 - not finding it only means the plain refusal is given
+        return []
+    return out
+
+
+def _tip_accounts(me: Pubkey, o: pay.Order, got: dict) -> tuple[list[Instruction], int]:
+    """An order's payment sends the relayer its tip and FEE_OWNER the rest of the fee: their token accounts of the
+    order's mint must exist, so each is made the first time it is needed. (`got`: a read that asked for both.)"""
+    tp = o.token_program
+    ixs = [pay.create_ata_ix(me, owner, o.mint, tp) for owner in (me, pay.FEE_OWNER) if _data(got, pay.ata(owner, o.mint, tp)) is None]
+    return ixs, _CU["ata"] * len(ixs)
+
+
+def _number(v) -> int | None:
+    """A claim, or a part of an audience, as the programs read a number (claims::parse_u64): digits alone, no sign, no
+    leading zero, at most 18 of them; a claim may be a JSON number or a string. None for anything else."""
+    text = str(v) if isinstance(v, int) and not isinstance(v, bool) else v
+    return int(text) if isinstance(text, str) and _U64.fullmatch(text) else None
+
+
+_ASKS = {"take": "reserve an order", "cancel": "cancel an order", "revert": "end an order's warranty"}
+
+
+def _run(kind: str, o: pay.Order, t: _Token) -> tuple[str, int, int, bool]:
+    """What `judge` and `command` (order_judge.rs) both ask of a token about an order before anything else: the pinned
+    workflows at the order's commit, and a run's first attempt. Returns (the workflow file that ran, the id of the
+    repository it ran in, the id of the account that started it, whether that account started it by hand in a
+    repository it owns)."""
+    c = t.c
+    wf_repo, wf_file, wf_sha = _workflow(c)
+    if (o.wf_repo_hash, o.wf_sha) != (wf_repo, wf_sha):
+        raise _no(kind, "the order pins another workflow repository or commit than the one this token's run used")
+    if str(c.get("run_attempt")) != "1":
+        raise _no(kind, f"this token is from a re-run, and only a run's first attempt can {_ASKS.get(kind, 'pay an order')}; run the workflow again")
+    ran_in, owner, actor = (_number(c.get(name)) for name in ("repository_id", "repository_owner_id", "actor_id"))
+    if ran_in is None or owner is None or actor is None:
+        raise _no(kind, "malformed audience or claims")
+    return wf_file, ran_in, actor, c.get("event_name") == "workflow_dispatch" and actor != 0 and actor == owner
+
+
+def _judge(kind: str, o: pay.Order, t: _Token, rule: bool = False) -> str:
+    """Which judge of this order signed this token, as order_judge.rs decides it from the claims alone: "own" (a: the
+    order's own repository, its prove.yml), "neutral" (b: attest.yml started by hand by the owner of the repository it
+    ran in, for an order funded NEUTRAL and not PRIVATE), "private" (c: the order's judge repository, its prove.yml or
+    attest.yml), or "arbiter" (d: `rule`, the audience of a ruling). Refuses a token no judge of the order signed."""
+    wf_file, ran_in, actor, by_hand = _run(kind, o, t)
+    if rule:
+        named = o.arbiter_id != 0 and o.arbiter_id not in (o.funder_id, o.owner_id)
+        if wf_file == "attest.yml" and named and by_hand and actor == o.arbiter_id:
+            return "arbiter"
+        raise _no(kind, "a ruling is the arbiter's alone: the pinned attest.yml, started by hand by the arbiter the order named at funding, "
+                        "in a repository he owns" + ("" if named else "; this order named none"))
+    own = o.repo_id != 0 and ran_in == o.repo_id
+    if own and wf_file == "prove.yml":
+        return "own"
+    if o.judge_repo_id != 0 and ran_in == o.judge_repo_id and wf_file in ("prove.yml", "attest.yml"):
+        return "private"
+    if o.flags & pay.F_NEUTRAL and not o.flags & pay.F_PRIVATE and by_hand and wf_file == "attest.yml":
+        return "neutral"
+    raise _no(kind, "not from a judge this order takes: the pinned prove.yml run in the order's own repository"
+              + (", the pinned attest.yml started by hand by the owner of the repository it runs in" if o.flags & pay.F_NEUTRAL and not o.flags & pay.F_PRIVATE else "")
+              + (", or a run in the order's judge repository" if o.judge_repo_id else ""))
+
+
+def _command(kind: str, o: pay.Order, t: _Token) -> tuple[str, int]:
+    """Whose run signed a COMMAND about this order (Reserve, Cancel), as order_judge::command decides it, and the id of
+    the account that started it: "own" (the order's own repository, its fund.yml answering a comment or its prove.yml)
+    or "neutral" (attest.yml started by hand by the owner of the repository it ran in, for an order funded NEUTRAL and
+    not PRIVATE). Nothing else: the order's judge repository and its arbiter judge work, they sign no command."""
+    wf_file, ran_in, actor, by_hand = _run(kind, o, t)
+    if o.repo_id != 0 and ran_in == o.repo_id and wf_file in ("fund.yml", "prove.yml"):
+        return "own", actor
+    neutral = bool(o.flags & pay.F_NEUTRAL) and not o.flags & pay.F_PRIVATE
+    if neutral and by_hand and wf_file == "attest.yml":
+        return "neutral", actor
+    raise _no(kind, "not a command this order takes: the pinned fund.yml or prove.yml run in the order's own repository"
+              + (", or the pinned attest.yml started by hand by the owner of the repository it runs in" if neutral else "")
+              + "; the order's judge repository and its arbiter sign none")
+
+
+def _own_key(kind: str, o: pay.Order, t: _Token) -> Pubkey:
+    """The one token of the escrow's that GitHub did not sign (order_judge::token): a pay token under a PRIVATE key
+    pays a PRIVATE order funded from the Balance that the key's registrant opened. It is then the word of the wallet
+    whose money it pays out, and of nobody else's. Returns that key's account; refuses every other pairing."""
+    mine = [addr for addr, k in t.held if k.private and k.registrant is not None and o.from_balance and o.flags & pay.F_PRIVATE
+            and pay.balance_pda(o.owner_id, k.registrant, o.mint) == o.source]
+    if not mine:
+        raise _no(kind, "this token is not GitHub's, and no key that signed it was registered by the wallet that opened this order's balance: a key a "
+                        "wallet registered itself pays only a private order funded from that wallet's own balance")
+    return mine[0]
+
+
+def _routed(got: dict, order: Pubkey, o: pay.Order, payee: int, named: Pubkey | None) -> Pubkey | None:
+    """Where PayOrder pays one payee: nowhere yet (None) when the token names no address and no wallet is bound; else
+    the wallet this payee assigned the order's payment to (Assign), else the address, else the bound wallet. (`got`:
+    a read that asked for the payee's Bind and assignment.)"""
+    dest = pay.order_destination(pay.read_bind(_data(got, pay.bind_pda(payee))), named)
+    return dest if dest is None else pay.read_assign(_data(got, pay.assign_pda(order, payee)), o) or dest
+
+
+def _plan_order_pay(a: _Ask, rule: bool = False) -> _Plan:
+    """knos3:pay: a judge's token pays an order to its 1 to 4 payees (PayOrder), or holds it for a single payee with
+    no wallet. knos3:rule (`rule`): the arbiter's ruling pays the payees it names, with no pull request. A standing
+    order pays its rate and stays open; an order with a holdback pays the rest and keeps the holdback through its
+    warranty. The tip goes to this relayer's own token account."""
+    kind, ledger, me, t, now = "rule" if rule else "pay", a.ledger, a.me, a.t, a.now
+    c, p = t.c, t.aud.split(":")
+    try:
+        if len(p) != (4 if rule else 8) or not (rule or (_HEX40.fullmatch(p[3]) and _HEX64.fullmatch(p[4]) and p[5] in ("0", "1"))):
+            raise ValueError(t.aud)
+        order, pr, payees = _address(p[2]), 0 if rule else int(p[6]), _payees(t.aud)
+        iat, = _ints(c, "iat")
+    except (KeyError, ValueError, TypeError):
+        raise _no(kind, "malformed audience or claims") from None
+    o = pay.read_order(ledger.account(order))
+    result = dict(kind=kind, order=str(order), **({} if rule else dict(head=p[3], pr=pr)))
+
+    def before() -> list[dict]:     # what the escrow logged when another relayer carried this very token
+        return _order_paid(ledger, order, pr, iat - pay.TOKEN_AHEAD)
+
+    def already(rows: list[dict]) -> _Stop:
+        return _Stop({"ok": True, **result, "sigs": list(dict.fromkeys(e.pop("sig") for e in rows)), "already": True, "paid": rows})
+    if o is None:
+        if rows := before():        # the order was paid and is gone
+            raise already(rows)
+        raise _no(kind, "no such order is in escrow (never funded, or already paid or refunded)")
+    result.update(repo_id=o.repo_id, issue=o.issue, mint=str(o.mint))
+    _judge(kind, o, t, rule)
+    if t.issuer != oidc.GITHUB:
+        t.key, t.issuer = _own_key(kind, o, t), oidc.PRIVATE
+    if rule and any(i == o.arbiter_id for i, _b, _w in payees):
+        raise _no(kind, "a ruling cannot pay the arbiter himself")
+    if not rule and (o.terms.hex(), o.mode) != (p[4], int(p[5])):
+        raise _no(kind, "the order has other terms than the ones this token was made for")
+    if o.state == "held":
+        if [i for i, _b, _w in payees] == [o.payee_id]:     # another relayer carried it: the order waits for its payee to bind a wallet
+            entry = {"id": o.payee_id, "payee_id": o.payee_id, "amount": o.amount - o.paid, "to": None, "held_until": o.hold_until}
+            raise _Stop({"ok": True, **result, "sigs": _last(ledger, order), "already": True, "paid": [entry]})
+        raise _no(kind, "the order is already held for another GitHub user")
+    standing, left = bool(o.flags & pay.F_STANDING), o.amount - o.paid
+    tp = o.token_program
+    got = _read(ledger, [*(k for i, _b, _w in payees for k in (pay.bind_pda(i), pay.assign_pda(order, i))), pay.ata(me, o.mint, tp),
+                         pay.ata(pay.FEE_OWNER, o.mint, tp), pay.done_pda(order, pr)])
+    if o.state != "open" or (standing and _data(got, pay.done_pda(order, pr)) is not None):
+        if rows := before():        # paid by this token already: what it holds back waits for its warranty, or (standing) it stays open for the next
+            raise already(rows)
+        raise _no(kind, f"this standing order has paid pull request #{pr} already, and pays each one once" if o.state == "open" else
+                  "the order is not open: it was paid, and what it holds back waits for its warranty")
+    if now > o.deadline:
+        raise _no(kind, "the order's deadline has passed: it goes back to its funder")
+    if iat < o.not_before:
+        raise _no(kind, "this token is older than the order: it was made before the funding")
+    if standing and o.holdback_bps:
+        raise _no(kind, pay.ERRORS[103])
+    due = (o.rate if left >= o.rate else 0) if standing else left - left * o.holdback_bps // 10_000    # due_now in order_terms.rs
+    if due == 0:
+        raise _no(kind, "less than one payment is left in this standing order; the rest goes back to its funder")
+    wallets = [(i, _routed(got, order, o, i, w)) for i, _b, w in payees]
+    if any(w == pay.auth_pda() for _i, w in wallets):
+        raise _no(kind, "an address this token names is the escrow's own account")
+    held = any(w is None for _i, w in wallets)
+    if held and (standing or o.holdback_bps):
+        raise _no(kind, "a standing order, and one with a holdback, is never held: every payee needs an address in the token or a bound wallet; "
+                        "they bind one with `knos claim <address>`, then run the workflow again")
+    if held and len(payees) != 1:
+        raise _no(kind, "one of the payees has no address in the token and no bound wallet, and a split is paid whole or not at all; "
+                        "they bind one with `knos claim <address>`, then run the workflow again")
+    first, cu = ([], 0) if held else _tip_accounts(me, o, got)
+    ix = pay.pay_order_ix(me, t.account, t.key, order, o, wallets, pr=pr)
+
+    def done(sigs: list[str]) -> dict:
+        after = pay.read_order(ledger.account(order))
+        if after is not None and after.state == "held":
+            row = {"id": payees[0][0], "payee_id": payees[0][0], "amount": due, "to": None, "held_until": after.hold_until}
+            return {"ok": True, **result, "sigs": sigs, "paid": [row]}
+        took = ledger.account(pay.done_pda(order, pr)) is not None if standing else after is None or after.state == "warranty" or after.paid != o.paid
+        if not took:
+            return {"ok": False, "kind": kind, "why": "the order did not accept the token"}
+        paid = [{"id": i, "payee_id": i, "amount": share, "to": str(w), "held_until": None} for (i, w), share in zip(wallets, _shares(due, payees))]
+        more = ({"left": after.amount if after is not None else 0} if standing else
+                {"held_back": left - due, "warranty_until": after.hold_until} if after is not None and after.state == "warranty" else {})
+        return {"ok": True, **result, "sigs": sigs, "paid": paid, **more}
+    extra = _CU["terms"] if standing or o.holdback_bps else 0
+    return _Plan(t, [([*first, ix], cu + _CU["pay_order"] + _CU["payee"] * len(payees) + extra)], done, alone=True)
+
+
+# -- what an order can promise (2.1, order_terms.rs): knos3:take, cancel, revert; and an organisation's wallet ------------
+def _order_token(a: _Ask, kind: str, parts: int) -> tuple[Pubkey, pay.Order | None, list[str], int]:
+    """(the order's address, the order or None, the audience's parts, the token's issue time) of a token whose
+    audience is knos3:<kind>:<order address>:..."""
+    p = a.t.aud.split(":")
+    try:
+        if len(p) != parts:
+            raise ValueError(a.t.aud)
+        order, (iat,) = _address(p[2]), _ints(a.t.c, "iat")
+    except (KeyError, ValueError, TypeError):
+        raise _no(kind, "malformed audience or claims") from None
+    return order, pay.read_order(a.ledger.account(order)), p, iat
+
+
+def _plan_take(a: _Ask) -> _Plan:
+    """knos3:take: a person takes an open order for himself, for how many days he says (Reserve). The token is a
+    command's (`_command`): the order's own repository answered his comment (the pinned fund.yml) or his pull request
+    (prove.yml), or, for a NEUTRAL order, he started the pinned attest.yml by hand in a repository of his own; and the
+    taker it names is the account that started the run. One taker at a time, and none once the order was cancelled."""
+    kind, ledger, me, t, now = "take", a.ledger, a.me, a.t, a.now
+    order, o, p, iat = _order_token(a, kind, 5)
+    taker, days = _number(p[3]), _number(p[4])
+    if not taker or days is None:
+        raise _no(kind, "malformed audience or claims")
+    if o is None:
+        raise _no(kind, "no such order is in escrow (never funded, or already paid or refunded)")
+    result = dict(kind=kind, order=str(order), repo_id=o.repo_id, issue=o.issue, taker_id=taker, days=days)
+    _which, actor = _command(kind, o, t)
+    if actor != taker:
+        raise _no(kind, f"a person reserves an order for himself: this token names GitHub user id {taker} as the taker, and its run was started by "
+                        f"GitHub user id {actor}")
+    if o.reserved_by == taker and now <= o.reserved_until and iat <= o.reserved_until - days * 86_400 <= int(t.c.get("exp", 0)) + oidc.LATE:
+        raise _Stop({"ok": True, **result, "sigs": _last(ledger, order), "already": True, "reserved_until": o.reserved_until})     # this token's doing
+    if o.state != "open" or now > o.deadline:
+        raise _no(kind, "the order is not open any more: it was paid, held for its payee, or its deadline has passed")
+    if o.cancel_at:
+        raise _no(kind, "the order was cancelled, and a cancelled order takes no new reservation")
+    if o.reserved_by and now <= o.reserved_until:
+        raise _no(kind, f"the order is reserved for GitHub user id {o.reserved_by} until {_when(o.reserved_until)}")
+    if iat < o.not_before:
+        raise _no(kind, "this token is older than the order: it was made before the funding")
+    if not 1 <= days <= o.reserve_days:
+        raise _no(kind, f"this order is reserved for 1 to {o.reserve_days} days, and the token asks for {days}" if o.reserve_days else
+                  "this order takes no reservations: it was funded with none")
+
+    def done(sigs: list[str]) -> dict:
+        after = pay.read_order(ledger.account(order))
+        if after is None or after.reserved_by != taker:
+            return {"ok": False, "kind": kind, "why": "the order did not accept the token"}
+        return {"ok": True, **result, "sigs": sigs, "reserved_until": after.reserved_until}
+    return _Plan(t, [([pay.reserve_ix(me, t.account, t.key, order)], _CU["reserve"])], done)
+
+
+def _plan_cancel(a: _Ask) -> _Plan:
+    """knos3:cancel: the commenter who funded a Balance's order, or the Balance's owner, gives notice from the order's
+    own repository, by its pinned fund.yml (a comment) or prove.yml (Cancel): the deadline becomes at most seven days
+    away, and what is accepted until then is paid. A NEUTRAL run cancels nothing, whoever starts it."""
+    kind, ledger, me, t, now = "cancel", a.ledger, a.me, a.t, a.now
+    order, o, _p, iat = _order_token(a, kind, 3)
+    if o is None:
+        raise _no(kind, "no such order is in escrow (never funded, or already paid or refunded)")
+    result = dict(kind=kind, order=str(order), repo_id=o.repo_id, issue=o.issue)
+    if not o.from_balance:
+        raise _no(kind, "this order was funded from a wallet, and only that wallet's own signature cancels it (knos_pay Cancel); no token does")
+    which, actor = _command(kind, o, t)
+    if which != "own":
+        raise _no(kind, "a neutral run cancels nothing, since anyone can start one: a cancellation is signed in the order's own repository, by its "
+                        "pinned fund.yml or prove.yml")
+    if actor not in (o.funder_id, o.owner_id):
+        raise _no(kind, "only the commenter who funded the order, or the owner of the balance it came from, cancels it")
+    if o.cancel_at:
+        if o.cancel_at >= iat - pay.TOKEN_AHEAD:        # cancelled since this token was signed: its own doing, or the same request's
+            raise _Stop({"ok": True, **result, "sigs": _last(ledger, order), "already": True, "cancel_at": o.cancel_at, "deadline": o.deadline})
+        raise _no(kind, f"the order was cancelled already, on {_when(o.cancel_at)}")
+    if o.state != "open" or now > o.deadline:
+        raise _no(kind, "the order is not open any more: it was paid, held for its payee, or its deadline has passed")
+    if iat < o.not_before:
+        raise _no(kind, "this token is older than the order: it was made before the funding")
+
+    def done(sigs: list[str]) -> dict:
+        after = pay.read_order(ledger.account(order))
+        if after is None or not after.cancel_at:
+            return {"ok": False, "kind": kind, "why": "the order did not accept the token"}
+        return {"ok": True, **result, "sigs": sigs, "cancel_at": after.cancel_at, "deadline": after.deadline}
+    return _Plan(t, [([pay.cancel_ix(me, order, t.account, t.key)], _CU["cancel"])], done)
+
+
+def _said_since(ledger, address: Pubkey, pattern: str, since: int) -> tuple[re.Match, str] | None:
+    """The newest line knos-pay itself logged, no earlier than `since`, in a transaction that named `address`, which
+    matches `pattern` whole: (the match, the transaction). None when there is none, or the ledger cannot say."""
+    recent, logs = getattr(ledger, "recent", None), getattr(ledger, "logs", None)
+    try:
+        for sig, when in (recent(address, 5) if recent and logs else []):
+            if when is not None and when < since:
+                continue
+            for line in chain.said(logs(sig), pay.PAY_ID):
+                if m := re.fullmatch(pattern, line):
+                    return m, sig
+    except Exception:  # noqa: BLE001, S110 - not finding it only means the plain refusal is given
+        pass
+    return None
+
+
+def _plan_revert(a: _Ask) -> _Plan:
+    """knos3:revert: inside the warranty a judge of the order says the accepted change was reverted (Revert):
+    everything the order still holds, the holdback and the fee on it, goes back to where its money came from. The
+    judge is a, b or c as for a payment (`_judge`: the order's own repository, a NEUTRAL attest.yml by hand, the judge
+    repository). Never the arbiter: he rules on payments, and with this audience he is whoever else he is to the order."""
+    kind, ledger, me, t, now = "revert", a.ledger, a.me, a.t, a.now
+    order, o, p, iat = _order_token(a, kind, 4)
+    if not _HEX40.fullmatch(p[3]):
+        raise _no(kind, "malformed audience or claims")
+    result = dict(kind=kind, order=str(order), head=p[3])
+    if o is None:
+        was = _said_since(ledger, order, rf"knos3:reverted order={order} amount=(\d+) head={p[3]}", iat - pay.TOKEN_AHEAD)
+        if was:         # another relayer carried this token: the holdback went back and the order is gone
+            raise _Stop({"ok": True, **result, "sigs": [was[1]], "already": True, "amount": int(was[0].group(1))})
+        raise _no(kind, "no such order is in escrow (never funded, or already paid or refunded)")
+    result.update(repo_id=o.repo_id, issue=o.issue, mint=str(o.mint))
+    _judge(kind, o, t)          # a, b or c, or refused: only the audience of a ruling makes anyone the arbiter
+    if o.state != "warranty":
+        raise _no(kind, "the order holds nothing back: a revert counts only inside the warranty of an order that was paid with a holdback")
+    if now > o.hold_until:
+        raise _no(kind, f"the warranty ended {_when(o.hold_until)}: what was held back goes to the payees")
+    if iat < o.hold_until - o.warranty_s:
+        raise _no(kind, "this token is older than the payment whose warranty it would end")
+    ov = pay.ov_pda(order)
+    home = o.refund_to if o.from_balance else pay.ata(o.refund_to, o.mint, o.token_program)
+    got = _read(ledger, [pay.hb_pda(order), ov, home])
+    hb = pay.read_holdback(_data(got, pay.hb_pda(order)))
+    if hb is None:
+        raise _no(kind, "the order's record of what it holds back is not on chain")
+    amount = _amount(_data(got, ov))
+    first = [] if o.from_balance or _data(got, home) is not None else [pay.create_ata_ix(me, o.refund_to, o.mint, o.token_program)]
+
+    def done(sigs: list[str]) -> dict:
+        if ledger.account(order) is not None:
+            return {"ok": False, "kind": kind, "why": "the order did not accept the token"}
+        return {"ok": True, **result, "sigs": sigs, "amount": amount}
+    return _Plan(t, [([*first, pay.revert_ix(me, t.account, t.key, order, o, hb)], _CU["ata"] * len(first) + _CU["revert"])], done)
+
+
+def _org_made(bind: bytes | None) -> bool:
+    """Whether BindOrg wrote this Bind as it stands (order_judge.rs, org_made): its mark is there, and is of the
+    `iat` the account holds. What a person bound himself is never this."""
+    return bool(bind) and len(bind) >= 56 and bind[2] == 1 and bytes(bind[3:8]) == bytes(bind[48:53])
+
+
+def _plan_org_bind(a: _Ask) -> _Plan:
+    """knos3:bind: a member starts the pinned claim workflow by hand in an ORGANISATION's repository named knos-claim
+    (BindOrg): the organisation is paid at the address, and what is held for it follows."""
+    kind, ledger, me, t, now = "bind", a.ledger, a.me, a.t, a.now
+    c, p = t.c, t.aud.split(":")
+    try:
+        if len(p) != 3:
+            raise ValueError(t.aud)
+        wallet = _address(p[2])
+        actor, org, iat = _ints(c, "actor_id", "repository_owner_id", "iat")
+    except (KeyError, ValueError, TypeError):
+        raise _no(kind, "malformed audience or claims") from None
+    how = "`knos claim --org <organisation> <address>` does it: it runs Knos's claim workflow in the organisation's repository named knos-claim"
+    if not str(c.get("job_workflow_ref", "")).startswith(CLAIM_REF) or c.get("job_workflow_sha") not in CLAIM_SHAS | ORG_CLAIM_SHAS:
+        raise _no(kind, f"an organisation's wallet is bound only by Knos's claim workflow at its pinned commit; {how}")
+    if org == 0 or actor == 0 or org == actor or not str(c.get("repository", "")).endswith("/knos-claim"):
+        raise _no(kind, "an organisation's claim runs in the organisation's repository named knos-claim, started by a member (a person binds "
+                        f"with `knos claim <address>` in a repository of his own); {how}")
+    if c.get("event_name") != "workflow_dispatch" or str(c.get("run_attempt")) != "1":
+        raise _no(kind, "the claim must be started by hand by a member of the organisation (Run workflow, with the address typed in), and not "
+                        "be a re-run; `knos claim --org <organisation> <address>` does that")
+    raw = _data(_read(ledger, [pay.bind_pda(org)]), pay.bind_pda(org))
+    bound = pay.read_bind(raw)
+    held = [(addr, j) for addr, j in held_for(ledger, org) if now <= j.hold_until]
+    result = dict(kind=kind, user_id=org, wallet=str(wallet), org=True, by=actor)
+    settles = [_payout(me, j, wallet, pay.settle_ix(me, addr, j, wallet), _CU["settle"]) for addr, j in held]
+
+    def done(sigs: list[str], already: bool = False) -> dict:
+        after = _read(ledger, [addr for addr, _j in held]) if held else {}
+        settled = [{"job": str(addr), "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint)} for addr, j in held if _data(after, addr) is None]
+        return {"ok": True, **result, "sigs": sigs, **({"already": True} if already else {}), "settled": settled}
+    if bound is not None:
+        if not _org_made(raw):
+            raise _no(kind, "this GitHub id bound its wallet itself (a person's claim), and only its own claim changes that")
+        if iat <= bound.iat:
+            if (bound.iat, bound.wallet) != (iat, wallet):
+                raise _no(kind, "a newer claim has bound a wallet since this one; run the claim again to change it")
+            if not settles:
+                raise _Stop(done(_said_in(ledger, pay.bind_pda(org), f"knos3:bound org={org} wallet={wallet} by={actor}"), True))
+            return _Plan(t, settles, lambda sigs: done(sigs, True), token=False, alone=True)
+    bind = ([pay.bind_org_ix(me, t.account, t.key, org), oidc.close_ix(me, t.tid)], _CU["bind_org"] + _CU["close"])
+    return _Plan(t, [bind, *settles], done, alone=True, lead=True, closes=True)
+
+
+# -- knos_meter: an evaluation counted, with no escrow --------------------------------------------------------------------
+def credits_for(ledger, buyer_id: int) -> list[tuple[Pubkey, meter.Credits, int]]:
+    """(address, Credits, what its token account holds) for every credits account prepaid for one buyer's evaluations."""
+    found = ledger.program_accounts(meter.METER_ID, meter.CREDITS_LEN, {8: buyer_id.to_bytes(8, "little")})
+    got = sorted(((a, c) for a, c in ((a, meter.read_credits(d)) for a, d in found) if c is not None), key=lambda x: str(x[0]))
+    held = _read(ledger, [meter.crtok_pda(a) for a, _c in got])
+    return [(a, c, _amount(_data(held, meter.crtok_pda(a)))) for a, c in got]
+
+
+def _plan_eval(a: _Ask) -> _Plan:
+    """knosm:eval: knos_meter records one evaluation (Record) against credits the buyer prepaid for the workflows
+    that ran. An evaluation is billed once: a token for one the meter already has costs this relay nothing."""
+    kind, ledger, me, t, now = "eval", a.ledger, a.me, a.t, a.now
+    c = t.c
+    try:
+        e = meter.parse_audience(t.aud)
+        if (len(e.order), len(e.policy)) != (32, 32) or not _HEX40.fullmatch(e.artifact) or not 0 <= e.milestone < 2 ** 32 or e.buyer_id == 0:
+            raise ValueError(t.aud)
+        owner, = _ints(c, "repository_owner_id")
+    except (KeyError, ValueError, TypeError):
+        raise _no(kind, "malformed audience or claims") from None
+    wf_repo, wf_file, wf_sha = _workflow(c)
+    if wf_file not in meter.WORKFLOWS:
+        raise _no(kind, "an evaluation is recorded from attest.yml or prove.yml")
+    if str(c.get("run_attempt")) != "1":
+        raise _no(kind, "this token is from a re-run, and only a run's first attempt is counted; run the workflow again")
+    if owner != e.buyer_id:
+        raise _no(kind, "the run was not in a repository of the buyer its audience names")
+    mark = meter.mark_pda(e.buyer_id, e.key)
+    got = _read(ledger, [mark, meter.plan_pda(e.buyer_id), meter.METER_ID])
+    result = dict(kind=kind, buyer_id=e.buyer_id, seller_id=e.seller_id, order=e.order.hex(), artifact=e.artifact, milestone=e.milestone)
+    before = meter.read_mark(_data(got, mark))
+    if before is not None:      # counted already (by this token or by another run): the first verdict stands, and a retry is free
+        raise _Stop({"ok": True, **result, "sigs": _last(ledger, mark), "already": True, "accepted": before.accepted, "rate": before.rate, "fee": before.fee,
+                     "month": before.month})
+    if _data(got, meter.METER_ID) is None:      # what this needs is knos_meter (and the verifier it reads), never a version of the escrow
+        raise _no(kind, f"knos_meter ({meter.METER_ID}) is not deployed on this cluster, so no evaluation can be counted here")
+    pinned = [(addr, cr, held) for addr, cr, held in credits_for(ledger, e.buyer_id) if (cr.wf_repo_hash, cr.wf_sha) == (wf_repo, wf_sha)]
+    if not pinned:
+        raise _no(kind, "the buyer has no credits opened for these workflows at this commit; a wallet opens them (knos_meter OpenCredits), and "
+                        "the first 10,000 evaluations of a month then cost nothing")
+    plan_ = meter.read_plan(_data(got, meter.plan_pda(e.buyer_id)))
+    paying = [(addr, cr, held) for addr, cr, held in pinned if held >= meter.quote(plan_, cr.decimals, now)]
+    if not paying:
+        raise _no(kind, "the buyer's credits hold less than the fee of this evaluation; a plain transfer to their token account adds to them")
+    credits, cr, _held = max(paying, key=lambda x: x[2])
+    fee = meter.quote(plan_, cr.decimals, now)
+    home = pay.ata(meter.FEE_OWNER, cr.mint, cr.token_program)
+    first = [pay.create_ata_ix(me, meter.FEE_OWNER, cr.mint, cr.token_program)] if fee and _data(_read(ledger, [home]), home) is None else []
+
+    def done(sigs: list[str]) -> dict:
+        made = meter.read_mark(ledger.account(mark))
+        if made is None:
+            return {"ok": False, "kind": kind, "why": "the evaluation did not reach the chain"}
+        return {"ok": True, **result, "sigs": sigs, "accepted": made.accepted, "rate": made.rate, "fee": made.fee, "month": made.month}
+    return _Plan(t, [([*first, meter.record_ix(me, t.account, t.key, credits, cr, t.aud, now)], _CU["ata"] * len(first) + _CU["record"])], done)
+
+
+# -- the upgrade gate: GitHub's word on which bytes its runner built ----------------------------------------------------
+def _plan_gate(a: _Ask) -> _Plan:
+    """gate:<program>:<executable hash>: examples/upgrade_gate records that GitHub's runner built these bytes for this
+    program (its one instruction, Record). The token is program.yml's gate job's: Knos's repository, that file at the
+    commit it built, main or a release tag, a GitHub-hosted runner. A record is written once, so a later run that
+    built the same bytes costs this relay nothing."""
+    kind, ledger, me, t = "gate", a.ledger, a.me, a.t
+    c, p = t.c, t.aud.split(":")
+    try:
+        if len(p) != 3 or not _HEX64.fullmatch(p[2]):
+            raise ValueError(t.aud)
+        program, executable = _address(p[1]), bytes.fromhex(p[2])
+        repo, = _ints(c, "repository_id")
+    except (KeyError, ValueError, TypeError):
+        raise _no(kind, "malformed audience or claims") from None
+    ref, sha = str(c.get("ref", "")), str(c.get("sha", ""))
+    if not (t.issuer == oidc.GITHUB and repo == gate.KNOS_REPO_ID and str(c.get("job_workflow_ref", "")).startswith(gate.WORKFLOW + "@")
+            and c.get("runner_environment") == "github-hosted" and (ref == "refs/heads/main" or ref.startswith("refs/tags/v"))
+            and _HEX40.fullmatch(sha) and c.get("job_workflow_sha") == sha):
+        raise _no(kind, "a build is recorded only on a run of Knos's own program.yml on a GitHub-hosted runner, at a commit of main or of a "
+                        "release tag, with the workflow file of that same commit")
+    at = gate.record_pda(program, executable)
+    got = _read(ledger, [at, gate.GATE_ID])
+    result = dict(kind=kind, program=str(program), hash=p[2], record=str(at))
+
+    def done(sigs: list[str], rec: gate.Record | None = None) -> dict:
+        rec = rec or gate.read_record(ledger.account(at))
+        if rec is None:
+            return {"ok": False, "kind": kind, "why": "the record did not reach the chain"}
+        return {"ok": True, **result, "sigs": sigs, "commit": rec.sha, "run_id": rec.run_id}
+    before = gate.read_record(_data(got, at))
+    if before is not None:      # recorded already, by this token or by an earlier run that built the same bytes: the first commit stays
+        raise _Stop({**done(_last(ledger, at), before), "already": True})
+    if _data(got, gate.GATE_ID) is None:
+        raise _no(kind, f"the upgrade gate ({gate.GATE_ID}) is not deployed on this cluster, so no build can be recorded here")
+    return _Plan(t, [([gate.record_ix(me, t.account, t.key, program, executable)], _CU["gate"])], done)
+
+
+# -- one table: every audience this relay carries, and who plans it ----------------------------------------------------
+@dataclass(frozen=True)
+class Kind:
+    """One kind of token. `name` is what its result and the worker's log call it, and the comment marker it is
+    posted under (a pay token's marker is `proof`); `plan(ask)` answers with a _Plan, or raises the _Stop that says
+    why nothing is sent, from reads alone; `since` is the escrow version that first takes it (`version`); `github`
+    says whether what the escrow asks of every GitHub token applies before the audience is read."""
+    name: str
+    plan: Callable[[_Ask], _Plan]
+    since: int = 0
+    github: bool = True
+    first: bool = False         # carried to the first deployment's relay as well (a key of GitHub's or GitLab's)
+    private: bool = False       # also takes a token under a key a wallet registered itself, where its planner accepts that wallet
+
+
+# A new kind is a planner and one line here.
+KINDS: dict[str, Kind] = {
+    "knos2:fund:": Kind("fund", lambda a: _plan_fund(a.ledger, a.me, a.t, a.terms, a.now, a.v)),
+    "knos2:pay:": Kind("pay", lambda a: _plan_pay(a.ledger, a.me, a.t, a.now, a.v)),
+    "knos2:bind:": Kind("bind", lambda a: _plan_bind(a.ledger, a.me, a.t, a.now)),
+    "knos-oidc:key:": Kind("key", lambda a: _plan_key(a.ledger, a.me, a.t, a.jwks, a.now, a.v), github=False, first=True),
+    "knos-oidc:ikey:": Kind("key", _plan_issuer_key, since=1, github=False),
+    "knos3:fund:": Kind("fund", _plan_order_fund, since=1),
+    "knos3:pay:": Kind("pay", _plan_order_pay, since=1, private=True),
+    "knos3:rule:": Kind("rule", lambda a: _plan_order_pay(a, rule=True), since=1),
+    "knos3:take:": Kind("take", _plan_take, since=1),
+    "knos3:cancel:": Kind("cancel", _plan_cancel, since=1),
+    "knos3:revert:": Kind("revert", _plan_revert, since=1),
+    "knos3:bind:": Kind("bind", _plan_org_bind, since=1),
+    "knosm:eval:": Kind("eval", _plan_eval),        # knos_meter is a program of its own and never calls the escrow: it needs no 2.1 escrow
+    "gate:": Kind("gate", _plan_gate, github=False),       # upgrade_gate reads the verified token itself: it needs no 2.1 escrow, and asks its own claims
+}
 
 
 def _signer(ledger, me: Pubkey, t: _Token, plan: _Plan, now: int) -> None:
@@ -559,8 +1530,8 @@ def _signer(ledger, me: Pubkey, t: _Token, plan: _Plan, now: int) -> None:
     if k is None and t.issuer == oidc.GITHUB and oidc.key_hash(t.n).hex() in GENESIS:
         plan.register = [oidc.register_key_ix(me, t.issuer, t.n), oidc.key_params_ix(me, t.issuer, t.n)]
         return
-    if k is not None and k.state == 0:
-        plan.register, k.state = [oidc.key_params_ix(me, t.issuer, t.n)], 1
+    if k is not None and k.state == 0:      # registered, its parameters never sent: anyone may send them
+        plan.register, k.state = [oidc.key_params_ix(me, t.url or t.issuer, t.n, registrant=k.registrant)], 1
     usable, why = oidc.key_usable(k, now)
     if not usable:
         raise _no(t.kind, "the token cannot be verified: " + why)
@@ -569,18 +1540,19 @@ def _signer(ledger, me: Pubkey, t: _Token, plan: _Plan, now: int) -> None:
 def _plan(ledger, payer: Keypair, jwt: str, terms: bytes | str | None, jwks: dict | None, now: float | None) -> _Plan:
     """Everything `submit` will send for this token, or the _Stop that says why it sends nothing. Reads only."""
     me = payer.pubkey()
-    t = _open(jwt.strip(), me, jwks)
+    t = _open(jwt.strip(), me, jwks, ledger)
     if t.kind is None:
         raise _no(None, f"not an audience of the second deployment: {t.aud[:60]!r}")
     now = int(now if now is not None else ledger.now())
     if int(t.c.get("exp", 0)) + oidc.LATE <= now:
         raise _no(t.kind, "token expired")
-    if t.kind == "key":
-        plan = _plan_key(ledger, me, t, jwks, now)
-    else:
-        _github_token(t, now)
-        plan = (_plan_fund(ledger, me, t, terms.encode() if isinstance(terms, str) else terms, now) if t.kind == "fund"
-                else _plan_pay(ledger, me, t, now) if t.kind == "pay" else _plan_bind(ledger, me, t, now))
+    handler, v = _handler(t.aud), version(ledger, payer)
+    if v < handler.since:
+        raise _no(t.kind, "the escrow on this cluster is version 2.0, which takes no such token yet; it will once the announced upgrade to 2.1 is live")
+    if handler.github:
+        _github_token(t, now, handler.private)
+    plan = handler.plan(_Ask(ledger, payer, me, t, now, v, terms.encode() if isinstance(terms, str) else terms, jwks))
+    plan.v1 = v >= 1 and bool(getattr(ledger, "takes_v1", False))
     if plan.token:
         _signer(ledger, me, t, plan, now)
     return plan
@@ -603,8 +1575,13 @@ def _write_ix(me: Pubkey, tid: bytes, total: int, off: int, chunk: bytes) -> Ins
                        [AccountMeta(me, True, True), AccountMeta(oidc.token_pda(me, tid), False, True), AccountMeta(oidc.SYSTEM, False, False)])
 
 
-def _fits(me: Pubkey, ixs: list[Instruction], cu: int = 0) -> bool:
-    return chain.tx_size(ixs, me) <= ROOM and cu <= chain.MAX_COMPUTE_UNITS - _SPARE
+def _fits(me: Pubkey, ixs: list[Instruction], cu: int = 0, v1: bool = False) -> bool:
+    return chain.tx_size(ixs, me, v1) <= (ROOM_V1 if v1 else ROOM) and cu <= chain.MAX_COMPUTE_UNITS - _SPARE
+
+
+def _send(ledger, payer: Keypair, ixs: list[Instruction], v1: bool = False) -> str:
+    """One transaction, waited for: a v1 one when the plan says so (a ledger that knows none is never asked for one)."""
+    return ledger.send(ixs, payer, v1=True) if v1 else ledger.send(ixs, payer)
 
 
 def _steps(bits: int, done: int) -> list[int]:
@@ -618,11 +1595,13 @@ def _steps(bits: int, done: int) -> list[int]:
     return out
 
 
-def _verification(me: Pubkey, t: _Token, have: bytes | None, register: list[Instruction]) -> tuple[list[list[list[Instruction]]], Instruction | None, int]:
+def _verification(me: Pubkey, t: _Token, have: bytes | None, register: list[Instruction],
+                  v1: bool = False) -> tuple[list[list[list[Instruction]]], Instruction | None, int]:
     """(rounds, last Step, its compute units): the transactions that bring the token to its last Step, in rounds
     whose transactions do not depend on each other, and the Step that finishes the verification, which the caller
     sends together with what needs the verified token. An account that already holds part of this token (a run that
-    was cut short) is carried on from where it stands; a verified one needs nothing (no last Step)."""
+    was cut short) is carried on from where it stands; a verified one needs nothing (no last Step). With `v1` a
+    transaction holds 4,096 bytes: a token of the usual size is written whole beside its first Step."""
     raw, state = t.jwt.encode(), oidc.read_token(have)
     rounds: list[list[list[Instruction]]] = [[register]] if register else []
     if state is not None and state.verified:
@@ -635,7 +1614,7 @@ def _verification(me: Pubkey, t: _Token, have: bytes | None, register: list[Inst
     steps = [oidc.step_ix(me, t.tid, t.key, sq) for sq in _steps(t.bits, done)]
     before = steps[:1] if len(steps) > 1 else []          # the last Step is the caller's; the one before it takes the token's tail along
     if done == 0:
-        room = lambda *beside: 200 + ROOM - chain.tx_size([_write_ix(me, t.tid, len(raw), 0, bytes(200)), *beside], me)  # noqa: E731
+        room = lambda *beside: 200 + (ROOM_V1 if v1 else ROOM) - chain.tx_size([_write_ix(me, t.tid, len(raw), 0, bytes(200)), *beside], me, v1)  # noqa: E731
         cut = len(raw) - min(len(raw), room(*before)) if before else len(raw)
         heads = [(off, raw[off:min(off + room(), cut)]) for off in range(0, cut, room())]
         lead = [[_write_ix(me, t.tid, len(raw), off, chunk)] for off, chunk in heads if written is None or written[off:off + len(chunk)] != chunk]
@@ -651,12 +1630,12 @@ def _verification(me: Pubkey, t: _Token, have: bytes | None, register: list[Inst
     return rounds, steps[-1], fixed + per_byte * len(raw)
 
 
-def _round(ledger, payer: Keypair, txs: list[list[Instruction]]) -> list[str]:
+def _round(ledger, payer: Keypair, txs: list[list[Instruction]], v1: bool = False) -> list[str]:
     """Transactions that do not depend on each other: sent together and waited for once, when the ledger can."""
     many = getattr(ledger, "send_all", None)
     if many is not None and len(txs) > 1:
-        return list(many(txs, payer))
-    return [ledger.send(ixs, payer) for ixs in txs]
+        return list(many(txs, payer, v1=True) if v1 else many(txs, payer))
+    return [_send(ledger, payer, ixs, v1) for ixs in txs]
 
 
 def _out_of_compute(why: BaseException) -> bool:
@@ -665,7 +1644,7 @@ def _out_of_compute(why: BaseException) -> bool:
 
 
 def _land(ledger, payer: Keypair, last: Instruction | None, last_cu: int, groups: list[Group], close: Instruction | None, alone: bool,
-          lead: bool = False) -> tuple[list[str], bool]:
+          lead: bool = False, v1: bool = False) -> tuple[list[str], bool]:
     """Sends the last Step, the escrow's groups and the Close in as few transactions and waits as they fit in: the
     Step shares its transaction with the groups that fit beside it, and the Close rides in the last one. Groups left
     over go in further transactions, side by side when `alone` says they depend on nothing but the first (with no
@@ -675,7 +1654,7 @@ def _land(ledger, payer: Keypair, last: Instruction | None, last_cu: int, groups
     txs: list[Group] = []
     cur, cu = ([last], last_cu) if last is not None else ([], 0)
     for ixs, need in groups:
-        if cur and not _fits(me, cur + ixs, cu + need):
+        if cur and not _fits(me, cur + ixs, cu + need, v1):
             txs.append((cur, cu))
             cur, cu = [], 0
         cur, cu = cur + ixs, cu + need
@@ -683,23 +1662,23 @@ def _land(ledger, payer: Keypair, last: Instruction | None, last_cu: int, groups
         txs.append((cur, cu))
     first_n = 1 if last is not None or lead or not alone else 0     # the transaction with the Step (or the Bind) lands before any other
     together = alone and len(txs) - first_n > 1             # the rest land in any order, so the Close waits for them all
-    closed = close is not None and bool(txs) and not together and _fits(me, txs[-1][0] + [close], txs[-1][1] + _CU["close"])
+    closed = close is not None and bool(txs) and not together and _fits(me, txs[-1][0] + [close], txs[-1][1] + _CU["close"], v1)
     if closed:
         txs[-1] = (txs[-1][0] + [close], txs[-1][1] + _CU["close"])
     sigs: list[str] = []
     for ixs, _cu in txs[:first_n]:
         try:
-            sigs.append(ledger.send(ixs, payer))
+            sigs.append(_send(ledger, payer, ixs, v1))
         except Exception as why:
             if last is None or len(ixs) == 1 or not _out_of_compute(why):
                 raise
-            sigs.append(ledger.send([last], payer))         # the Step took more than was measured: it goes alone, the rest after it
-            more, shut = _land(ledger, payer, None, 0, groups, close, alone, lead)
+            sigs.append(_send(ledger, payer, [last], v1))   # the Step took more than was measured: it goes alone, the rest after it
+            more, shut = _land(ledger, payer, None, 0, groups, close, alone, lead, v1)
             return sigs + more, shut
     rest = [ixs for ixs, _cu in txs[first_n:]]
-    sigs += _round(ledger, payer, rest) if together else [ledger.send(ixs, payer) for ixs in rest]
+    sigs += _round(ledger, payer, rest, v1) if together else [_send(ledger, payer, ixs, v1) for ixs in rest]
     if close is not None and not closed:
-        sigs.append(ledger.send([close], payer))
+        sigs.append(_send(ledger, payer, [close], v1))
     return sigs, close is not None
 
 
@@ -753,16 +1732,20 @@ def _carry(ledger, payer: Keypair, plan: _Plan, again: Callable[[], _Plan]) -> d
     try:
         last, last_cu = None, 0
         if plan.token:
-            rounds, last, last_cu = _verification(me, t, plan.have, plan.register)
+            rounds, last, last_cu = _verification(me, t, plan.have, plan.register, plan.v1)
             for txs in rounds:
-                sigs += _round(ledger, payer, txs)
+                sigs += _round(ledger, payer, txs, plan.v1)
         landed, shut = _land(ledger, payer, last, last_cu, plan.groups, oidc.close_ix(me, t.tid) if plan.token and not plan.closes else None, plan.alone,
-                             plan.lead)
+                             plan.lead, plan.v1)
         sigs += landed
         closed = closed or shut or plan.closes
         return plan.done(sigs)
     except Exception as why:  # noqa: BLE001 - one bad token never stops the relay loop
         closed = not plan.token
+        if plan.v1 and chain.v1_refused(why):       # this cluster takes no v1 transaction: the same token, the old way, from where it stands
+            ledger.takes_v1 = False
+            closed = True                           # (the retry closes what it opens)
+            return _carry(ledger, payer, again(), again)
         try:
             again()
         except _Stop as stop:
@@ -780,10 +1763,10 @@ def _carry(ledger, payer: Keypair, plan: _Plan, again: Callable[[], _Plan]) -> d
                 pass
 
 
-def _kind(jwt: str) -> str | None:
+def _handler_of(jwt: str) -> Kind | None:
     try:
         aud = claims_of(jwt.strip())["aud"]
-        return kind_of(aud if isinstance(aud, str) else aud[0])
+        return _handler(aud if isinstance(aud, str) else aud[0])
     except Exception:  # noqa: BLE001 - not a token: `_open` says so
         return None
 
@@ -804,8 +1787,9 @@ def submit(ledger, payer: Keypair, jwt: str, terms: bytes | None = None, jwks: d
     for a bad token: returns {"ok": False, "kind", "why"}, with "retry": True when the same token may succeed later.
     The token's account is closed behind it, so the relayer's rent comes back whatever happened. A key token is ok
     when either deployment took it or had nothing to do; a later run of the rotate workflow brings the key again."""
-    kind = _kind(jwt)
-    before = _first(ledger, payer, jwt, jwks, now) if kind == "key" else None
+    handler = _handler_of(jwt)
+    kind = handler.name if handler else None
+    before = _first(ledger, payer, jwt, jwks, now) if handler is not None and handler.first else None
     try:
         plan = lambda: _plan(ledger, payer, jwt, terms, jwks, now)  # noqa: E731
         result = _carry(ledger, payer, plan(), plan)
@@ -824,7 +1808,8 @@ def submit(ledger, payer: Keypair, jwt: str, terms: bytes | None = None, jwks: d
 
 
 def verify_only(ledger, payer: Keypair, jwt: str, jwks: dict | None = None, now: float | None = None) -> dict:
-    """Verifies a token of any audience into its account and leaves it there, for someone else's program to read:
+    """Verifies a token of any audience into its account and leaves it there, for someone else's program to read
+    (GitHub's, GitLab's, or one of any issuer the verifier holds a key for: a registered issuer's key before a private one):
     {"ok": True, "kind": "verify", "sigs", "account", "payer", "exp"}. The account is the verifier's
     ["tok", payer, sha256(token)]: a consumer checks that knos-oidc owns it and reads the claims (docs/OIDC.md). It
     stays until an hour past the token's expiry, when `sweep` takes its rent back. The same reads as `submit` come
@@ -832,21 +1817,27 @@ def verify_only(ledger, payer: Keypair, jwt: str, jwks: dict | None = None, now:
     kind = "verify"
     try:
         me = payer.pubkey()
-        t = _open(jwt.strip(), me, jwks)
+        t = _open(jwt.strip(), me, jwks, ledger)
         t.kind = kind
         now = int(now if now is not None else ledger.now())
         exp = int(t.c.get("exp", 0))
         if exp + oidc.LATE <= now:
             raise _no(kind, "token expired")
-        plan = _Plan(t, [], dict)
+        plan = _Plan(t, [], dict, v1=version(ledger, payer) >= 1 and bool(getattr(ledger, "takes_v1", False)))
         _signer(ledger, me, t, plan, now)
         result = dict(ok=True, kind=kind, account=str(t.account), payer=str(me), exp=exp)
-        rounds, last, _cu = _verification(me, t, plan.have, plan.register)
+        rounds, last, _cu = _verification(me, t, plan.have, plan.register, plan.v1)
         if last is None:
             return {**result, "sigs": [], "already": True}
         sigs: list[str] = []
-        for txs in [*rounds, [[last]]]:
-            sigs += _round(ledger, payer, txs)
+        try:
+            for txs in [*rounds, [[last]]]:
+                sigs += _round(ledger, payer, txs, plan.v1)
+        except Exception as why:  # noqa: BLE001
+            if not (plan.v1 and chain.v1_refused(why)):
+                raise
+            ledger.takes_v1 = False                 # this cluster takes no v1 transaction: the old way, from where the account stands
+            return verify_only(ledger, payer, jwt, jwks, now)
         return {**result, "sigs": sigs}
     except _Stop as stop:
         return {**stop.result, "kind": kind}
@@ -892,6 +1883,152 @@ def settle_held(ledger, payer: Keypair) -> list[str]:
         if bound is not None:
             txs.append(_payout(me, j, bound.wallet, pay.settle_ix(me, addr, j, bound.wallet), 0)[0])
     return _each(ledger, payer, txs)
+
+
+def orders(ledger, state: int) -> list[tuple[Pubkey, pay.Order]]:
+    """Every work order in one state (1 open, 3 held, 4 warranty). Needs ledger.program_accounts."""
+    found = ((a, pay.read_order(d)) for a, d in ledger.program_accounts(pay.PAY_ID, pay.ORDER_LEN, {0: bytes([2, state])}))
+    return sorted(((a, o) for a, o in found if o is not None), key=lambda x: str(x[0]))
+
+
+def open_repositories(ledger) -> set[int]:
+    """The GitHub id of every repository with money waiting on a proof: an open job, or an open work order (a private
+    order names no repository, so the one whose runs judge it stands in). A worker that reads those repositories'
+    comments finds a pay token with no search at all. Reads only; needs ledger.program_accounts."""
+    jobs = (pay.read_job(d) for _a, d in ledger.program_accounts(pay.PAY_ID, pay.JOB_LEN, {0: bytes([1])}))
+    ids = {j.repo_id for j in jobs if j is not None} | {o.repo_id or o.judge_repo_id for _a, o in orders(ledger, 1)}
+    return ids - {0}
+
+
+def refund_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
+    """Sends back every work order nobody can be paid from any more: open past its deadline, or held past its hold.
+    To the Balance it came from, or to the funding wallet's token account (made if it is gone). Nothing on a 2.0 escrow."""
+    if version(ledger, payer) < 1:
+        return []
+    me, txs = payer.pubkey(), []
+    due = [(addr, o) for state in (1, 3) for addr, o in orders(ledger, state) if now > (o.deadline if o.state == "open" else o.hold_until)]
+    # an order cancelled while it was reserved owes its taker a kill fee first: to his bound wallet's token account,
+    # made here if it is not there; with no wallet bound the fee stays held for him in the order and the rest goes back
+    binds = _read(ledger, [pay.bind_pda(o.reserved_by) for _a, o in due if pay.kill_fee(o)])
+    for addr, o in due:
+        home = [] if o.from_balance else [pay.create_ata_ix(me, o.refund_to, o.mint, o.token_program)]
+        taker = pay.read_bind(_data(binds, pay.bind_pda(o.reserved_by))) if pay.kill_fee(o) else None
+        if taker is not None and taker.wallet != pay.auth_pda():
+            home.append(pay.create_ata_ix(me, taker.wallet, o.mint, o.token_program))
+        txs.append([*home, pay.refund_order_ix(me, addr, o, kill_token=pay.ata(taker.wallet, o.mint, o.token_program) if taker is not None else None)])
+    return _each(ledger, payer, txs)
+
+
+def settle_orders_held(ledger, payer: Keypair) -> list[str]:
+    """Pays every held work order whose payee has bound a wallet since it was held; the tip comes to this relayer's
+    own token account, made the first time. Nothing on a 2.0 escrow."""
+    if version(ledger, payer) < 1:
+        return []
+    me, now = payer.pubkey(), int(ledger.now())
+    held = [(addr, o) for addr, o in orders(ledger, 3) if now <= o.hold_until]
+    got = _read(ledger, [k for a, o in held for k in (pay.bind_pda(o.payee_id), pay.assign_pda(a, o.payee_id), pay.ata(me, o.mint, o.token_program),
+                                                      pay.ata(pay.FEE_OWNER, o.mint, o.token_program))])
+    txs = []
+    for addr, o in held:
+        wallet = _routed(got, addr, o, o.payee_id, None)        # the bound wallet, or the one the payee assigned this order's payment to
+        if wallet is not None:
+            txs.append([*_tip_accounts(me, o, got)[0], pay.settle_order_ix(me, addr, o, wallet)])
+    return _each(ledger, payer, txs)
+
+
+def release_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
+    """Sends what every order held back to the wallets recorded when it was paid, once its warranty is over and nobody
+    reverted (Release). Anyone may; the tip comes to this relayer's own token account. Nothing on a 2.0 escrow."""
+    if version(ledger, payer) < 1:
+        return []
+    me = payer.pubkey()
+    due = [(addr, o) for addr, o in orders(ledger, 4) if now > o.hold_until]
+    got = _read(ledger, [k for a, o in due for k in (pay.hb_pda(a), pay.ata(me, o.mint, o.token_program), pay.ata(pay.FEE_OWNER, o.mint, o.token_program))])
+    txs = []
+    for addr, o in due:
+        hb = pay.read_holdback(_data(got, pay.hb_pda(addr)))
+        if hb is not None:
+            txs.append([*_tip_accounts(me, o, got)[0], pay.release_ix(me, addr, o, hb)])
+    return _each(ledger, payer, txs)
+
+
+def close_markers(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str]:
+    """Takes back the rent of the markers this relayer paid for, once they no longer matter (CloseMarker): the
+    single-use marker of a token (`used`) after the time it stores, by which no instruction accepts that token any
+    more; and a standing order's marker of a paid pull request (`done`) once its order is closed. Several to a
+    transaction. Nothing on a 2.0 escrow, which has neither."""
+    if version(ledger, payer) < 1:
+        return []
+    me, ixs = payer.pubkey(), []
+    for addr, data in ledger.program_accounts(pay.PAY_ID, pay.USED_LEN, {1: bytes(me)}):
+        got = pay.read_marker(data)
+        if got is not None and got[0] == me and now > got[1]:
+            ixs.append(pay.close_marker_ix(addr, me))
+    done = [(addr, pay.read_marker(data)) for addr, data in ledger.program_accounts(pay.PAY_ID, pay.DONE_LEN, {1: bytes(me)})]
+    done = [(addr, got[1]) for addr, got in done if got is not None and got[0] == me]
+    gone = _read(ledger, [order for _a, order in done])
+    ixs += [pay.close_marker_ix(addr, me, order) for addr, order in done if gone.get(order) is None]
+    return _each(ledger, payer, [ixs[k:k + per_tx] for k in range(0, len(ixs), per_tx)])
+
+
+def close_marks(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str]:
+    """Takes back the rent of the meter's marks this relayer paid for (knos_meter CloseMark), once the month they
+    were counted in is over and no token of it can come again. Several to a transaction. knos_meter's own instruction:
+    whatever version the escrow is (a cluster without the meter has no marks)."""
+    me = payer.pubkey()
+    ixs = [meter.close_mark_ix(me, mark) for mark in meter.closable(meter.marks_of(ledger, me), now)]
+    return _each(ledger, payer, [ixs[k:k + per_tx] for k in range(0, len(ixs), per_tx)])
+
+
+def withdraw(ledger, payer: Keypair, request: str | bytes) -> dict:
+    """A passkey wallet's withdrawal (knos_passkey), sent and paid for by this relay, for a person who holds no SOL:
+    Open when the wallet's account is not there yet, the secp256r1 check of the passkey's signature, Withdraw.
+    `request` is what passkey.request wrote. {"ok": True, "kind": "withdraw", "sigs", "wallet", "mint", "to",
+    "amount", "nonce"}, or {"ok": False, "kind": "withdraw", "why"}. The relay decides nothing: the passkey signed the
+    mint, the destination, the amount and the nonce. Everything is asked first, by reads and then by simulating the
+    very transaction, so a request the chain would refuse costs no fee; a ledger that cannot simulate sends none."""
+    kind = "withdraw"
+    try:
+        q = passkey.read_request(request)
+    except ValueError as why:
+        return {"ok": False, "kind": kind, "why": str(why)}
+    try:
+        me, w = payer.pubkey(), q.wallet
+        result = dict(kind=kind, wallet=str(w), mint=str(q.mint), to=str(q.to), amount=q.amount, nonce=q.nonce)
+        got = _read(ledger, [w, q.mint, q.to, passkey.PASSKEY_ID])
+        if _data(got, passkey.PASSKEY_ID) is None:     # knos_passkey never calls the escrow: what a withdrawal needs is that program, whatever the escrow's version
+            raise _no(kind, f"knos_passkey ({passkey.PASSKEY_ID}) is not deployed on this cluster, so no passkey wallet can withdraw here")
+        program = got[q.mint][0] if got.get(q.mint) else None
+        if program not in (pay.TOKEN, pay.TOKEN_2022):
+            raise _no(kind, "the mint this request names does not exist")
+        source = pay.ata(w, q.mint, program)
+        state = passkey.read_wallet(_data(got, w))
+        if q.nonce != (state.nonce if state else 0) + 1:
+            raise _no(kind, passkey.ERRORS[119])
+        dest = _data(got, q.to)
+        if dest is None or len(dest) < 165 or bytes(dest[:32]) != bytes(q.mint) or q.to == source:
+            raise _no(kind, "the destination is not a token account of this mint; it is made first (by whoever is paid), then the request is signed for it")
+        if q.amount == 0 or _amount(_data(_read(ledger, [source]), source)) < q.amount:
+            raise _no(kind, "the wallet holds less of this mint than the request asks for")
+        ixs = [*([passkey.open_ix(me, q.key)] if state is None else []),
+               *passkey.withdraw_ixs(q.key, q.mint, q.to, q.amount, q.nonce, q.authenticator_data, q.client_data_json, q.signature, program)]
+        ask = getattr(ledger, "simulate", None)
+        if ask is None:
+            raise _no(kind, "this relay's ledger cannot simulate, and a withdrawal is never sent unchecked")
+        try:
+            ask(ixs, payer)
+        except Exception as why:  # noqa: BLE001 - the chain's refusal, in the passkey program's words
+            if transient(why) and _code(str(why)) is None:
+                raise
+            code = _code(str(why))
+            raise _no(kind, f"{passkey.ERRORS[code]} (error {code})" if code in passkey.ERRORS else
+                      "the passkey's signature does not verify: it is another key's, or over other bytes than this request's" if code is not None and code < 8 else
+                      f"the chain would refuse it: {str(why)[:200]}") from None       # (the secp256r1 check's own errors are 0 to 4)
+        return {"ok": True, **result, "sigs": [ledger.send(ixs, payer)]}
+    except _Stop as stop:
+        return stop.result
+    except Exception as why:  # noqa: BLE001 - the cluster did not answer, or dropped it: the same request may be sent again
+        return _failed(kind, why)
 
 
 def _exp(jwt: bytes) -> int | None:

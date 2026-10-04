@@ -3,13 +3,13 @@
 //! (an upgrade multisig, a DAO, a token unlock) can then require "the commit being deployed is the one CI ran on".
 //!
 //! The whole integration is the 7 lines in `process`, and its only dependency on Knos is the interface crate
-//! (crates/knos-oidc-interface, which depends on nothing): `Token::read` checks that the token account's owner is
-//! knos-oidc, that the token is verified and that it is fresh; then read the claims you care about. No oracle, no
-//! CPI, no admin.
+//! (crates/knos-oidc-interface, which depends on nothing): `v1::read` checks that the token account's owner is
+//! knos-oidc (here the first deployment, named: the crate's defaults read the second), that the token is verified
+//! and that it is fresh; then read the claims you care about. No oracle, no CPI, no admin.
 //!
 //!   Record  payer(s,w) token gate(w) system        (no data)
 //!           gate = ["gate", repository_id (u64 LE)] : repository_id u64, slot u64, sha[40]
-use knos_oidc_interface::{number, text, Error, Token, ISSUER_GITHUB};
+use knos_oidc_interface::{number, text, v1, Error, ISSUER_GITHUB};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -43,7 +43,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], _data: &[u8]) -> P
     let clock = Clock::get()?;
     // ---- the integration ----
     let data = token.try_borrow_data()?;
-    let tok = Token::read(&token.owner.to_bytes(), &data, clock.unix_timestamp).map_err(refused)?;
+    let tok = v1::read(&token.owner.to_bytes(), &data, clock.unix_timestamp).map_err(refused)?;
     if tok.issuer() != ISSUER_GITHUB { return Err(ProgramError::InvalidAccountData); }
     let [repo, sha, runner, aud] = tok.claims([b"repository_id", b"sha", b"runner_environment", b"aud"]).map_err(refused)?;
     if !text(runner).map_err(refused)?.is("github-hosted") || !text(aud).map_err(refused)?.is("oidc-gate:release") { return Err(ProgramError::InvalidArgument); }

@@ -10,7 +10,8 @@ hand them LiteSVM behind the same methods).
 
 A relay waits on round trips, so the Ledger keeps them few: `accounts` reads many accounts in one request, `send_all`
 signs transactions that do not depend on each other over one blockhash, sends them side by side and waits for all of
-them at once, and `now` is one read of the clock the programs see. The public endpoints count requests per address
+them at once, `now` is one read of the clock the programs see, and a v1 transaction (`v1=True`: 4,096 bytes where a
+legacy one holds 1,232) carries in one round what took three. `simulate` asks what a transaction would do, for no fee. The public endpoints count requests per address
 (devnet: 100 in 10 seconds, 40 of them for one method; solana.com/docs/references/clusters): a 429 is waited out here,
 never passed on as a failure.
 """
@@ -32,13 +33,20 @@ from solders.compute_budget import ID as COMPUTE_BUDGET
 from solders.compute_budget import set_compute_unit_limit
 from solders.hash import Hash
 from solders.keypair import Keypair
-from solders.message import Message
+from solders.message import Message, MessageV1, TransactionConfig
 from solders.pubkey import Pubkey
-from solders.transaction import Transaction
+from solders.transaction import Transaction, VersionedTransaction
 
 CLUSTERS = {"devnet": "https://api.devnet.solana.com", "localnet": "http://127.0.0.1:8899"}
 MAX_COMPUTE_UNITS = 1_400_000   # the most one transaction may use
 MAX_TX_BYTES = 1232             # the most one transaction may weigh, its signatures included
+MAX_V1_BYTES = 4096             # and a v1 transaction (SIMD-0385), which carries its limits in the message, not in instructions
+V1_LOADED = 64 * 1024 * 1024    # the account data a v1 transaction may load: unset means none, so it is always set (the legacy default)
+# A cluster reads a v1 transaction's compute-unit limit from the message and runs a compute budget instruction in it as
+# any other instruction, to no effect (devnet, Agave 4.4.0, by simulation, 3 Oct 2026). LiteSVM as solders 0.29.0 ships
+# it runs v1 transactions but reads the limit from that instruction only (200,000 units an instruction without one):
+# the tests turn this on, and the instruction then goes in beside the message's own limit.
+V1_BUDGET_IX = False
 CLOCK = Pubkey.from_string("SysvarC1ock11111111111111111111111111111111")
 SIDE_BY_SIDE = 8                # requests `send_all` has in flight at once
 LOG = "Program log: "            # what the runtime puts before a line a program logged
@@ -111,16 +119,46 @@ def message(ixs, payer: Pubkey, blockhash: Hash | None = None) -> Message:
     return Message.new_with_blockhash(ixs, payer, blockhash or Hash.default())
 
 
-def tx_size(ixs, payer: Pubkey) -> int:
-    """The bytes these instructions weigh as one transaction of `Ledger.send`'s, signed. A cluster takes MAX_TX_BYTES."""
+def message_v1(ixs, payer: Pubkey, blockhash: Hash | None = None) -> MessageV1:
+    """The same instructions as a v1 message: up to MAX_V1_BYTES, no lookup tables, and the compute-unit limit in the
+    message itself (the limit an instruction among `ixs` asks for, else the most a transaction may use). A compute
+    budget instruction does nothing in a v1 transaction, so those are left out (see V1_BUDGET_IX)."""
+    units, rest = MAX_COMPUTE_UNITS, []
+    for ix in ixs:
+        if ix.program_id != COMPUTE_BUDGET:
+            rest.append(ix)
+        elif bytes(ix.data)[:1] == b"\x02":
+            units = int.from_bytes(bytes(ix.data)[1:5], "little")
+    config = TransactionConfig(compute_unit_limit=units, loaded_accounts_data_size_limit=V1_LOADED)
+    return MessageV1.try_compile(payer, ([set_compute_unit_limit(units)] if V1_BUDGET_IX else []) + rest, blockhash or Hash.default(), config)
+
+
+def tx_size(ixs, payer: Pubkey, v1: bool = False) -> int:
+    """The bytes these instructions weigh as one transaction of `Ledger.send`'s, signed. A cluster takes MAX_TX_BYTES,
+    and MAX_V1_BYTES of a v1 transaction (`v1`)."""
+    if v1:
+        m1 = message_v1(ixs, payer)
+        return 1 + 64 * m1.header.num_required_signatures + len(bytes(m1))      # the version byte (0x81), the message, the signatures
     m = message(ixs, payer)
     return 1 + 64 * m.header.num_required_signatures + len(bytes(m))
 
 
-def sign(ixs, payer: Keypair, signers, blockhash: Hash) -> Transaction:
-    """One transaction: `message` over `blockhash`, signed by the fee payer and whoever else must sign."""
+def sign(ixs, payer: Keypair, signers, blockhash: Hash, v1: bool = False) -> Transaction | VersionedTransaction:
+    """One transaction: `message` over `blockhash` (`message_v1` with `v1`), signed by the fee payer and whoever else
+    must sign."""
     everyone = {bytes(k.pubkey()): k for k in [payer, *(signers or [])]}
+    if v1:
+        m1 = message_v1(ixs, payer.pubkey(), blockhash)
+        return VersionedTransaction(m1, [everyone[bytes(k)] for k in m1.account_keys[:m1.header.num_required_signatures]])
     return Transaction(list(everyone.values()), message(ixs, payer.pubkey(), blockhash), blockhash)
+
+
+def v1_refused(why: BaseException) -> bool:
+    """Whether a failure says the cluster does not take v1 transactions at all (an endpoint or a validator older than
+    SIMD-0385), which is no verdict on what the transaction asked for: the same instructions go out as legacy ones."""
+    text = str(why).lower()
+    return any(mark in text for mark in ("unsupported transaction version", "transaction version", "failed to deserialize", "invalid transaction version",
+                                         "unsupportedversion"))
 
 
 def wait_all(url: str, signatures: list[str], within: float = 60.0, commitment: str = "confirmed") -> list[dict]:
@@ -157,24 +195,36 @@ class Ledger:
     """A cluster reached over JSON-RPC."""
     url: str
     commitment: str = "confirmed"
+    takes_v1: bool = True       # v1 transactions (4,096 bytes) may be sent; a relay sets it False once the cluster has refused one
 
     # -- writing ---------------------------------------------------------------------------------------------------
     def _blockhash(self) -> Hash:
         return Hash.from_string(call(self.url, "getLatestBlockhash", [{"commitment": "confirmed"}])["value"]["blockhash"])
 
-    def _submit(self, tx: Transaction) -> str:
+    def _submit(self, tx: Transaction | VersionedTransaction) -> str:
         """Hand one signed transaction to the cluster, with preflight: a failing program returns its logs, and costs
         no fee."""
         raw = base64.b64encode(bytes(tx)).decode()
         return call(self.url, "sendTransaction", [raw, {"encoding": "base64", "preflightCommitment": "confirmed"}])
 
-    def send(self, ixs, payer: Keypair, signers: list[Keypair] | None = None) -> str:
-        """Sign, send (with preflight, so a failing program returns its logs) and wait for `commitment`."""
-        sig = self._submit(sign(ixs, payer, signers, self._blockhash()))
+    def send(self, ixs, payer: Keypair, signers: list[Keypair] | None = None, v1: bool = False) -> str:
+        """Sign, send (with preflight, so a failing program returns its logs) and wait for `commitment`. `v1`: as a
+        v1 transaction, which holds MAX_V1_BYTES."""
+        sig = self._submit(sign(ixs, payer, signers, self._blockhash(), v1))
         wait(self.url, sig, 60.0, self.commitment)
         return sig
 
-    def send_all(self, groups, payer: Keypair, signers: list[Keypair] | None = None) -> list[str]:
+    def simulate(self, ixs, payer: Keypair, signers: list[Keypair] | None = None, v1: bool = False) -> list[str]:
+        """What the cluster would log for this transaction, without sending it: no fee, nothing changed. RpcError,
+        with the programs' own words, when it would fail."""
+        raw = base64.b64encode(bytes(sign(ixs, payer, signers, Hash.default(), v1))).decode()
+        got = call(self.url, "simulateTransaction", [raw, {"encoding": "base64", "sigVerify": False, "replaceRecentBlockhash": True,
+                                                           "commitment": self.commitment}])["value"]
+        if got.get("err"):
+            raise RpcError(f"transaction failed: {got['err']}", got)
+        return list(got.get("logs") or [])
+
+    def send_all(self, groups, payer: Keypair, signers: list[Keypair] | None = None, v1: bool = False) -> list[str]:
         """Several transactions that do not depend on each other (`groups`: the instructions of each): signed over one
         blockhash, sent without waiting between them, then waited for together, so the lot costs one round of
         confirmation where `send` in turn would cost one each. Returns their signatures in order. Raises what `send`
@@ -182,11 +232,11 @@ class Ledger:
         chain stands). No two groups may be the same instructions: they would be one transaction."""
         groups = [list(g) for g in groups]
         if len(groups) < 2:
-            return [self.send(g, payer, signers) for g in groups]
+            return [self.send(g, payer, signers, v1) for g in groups]
         blockhash = self._blockhash()
-        txs = [sign(ixs, payer, signers, blockhash) for ixs in groups]
+        txs = [sign(ixs, payer, signers, blockhash, v1) for ixs in groups]
 
-        def submit(tx: Transaction):
+        def submit(tx):
             try:
                 return self._submit(tx)
             except Exception as why:  # noqa: BLE001 - kept, and raised below once the rest have been waited for
@@ -256,7 +306,7 @@ class Ledger:
     def logs(self, signature: str) -> list[str]:
         """What the programs logged in one transaction, line by line; empty when the cluster no longer has it."""
         got = call(self.url, "getTransaction", [signature, {"encoding": "json", "commitment": self.commitment,
-                                                            "maxSupportedTransactionVersion": 0}], timeout=20)
+                                                            "maxSupportedTransactionVersion": 1}], timeout=20)
         return list(((got or {}).get("meta") or {}).get("logMessages") or [])
 
     def history(self, address: Pubkey, most: int = 500):

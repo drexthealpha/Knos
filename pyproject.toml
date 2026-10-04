@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.32.4"]   # pinned: the wheel must come out the same on every machine (requirements/build.txt has the hashes)
 build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.3.12"
+version = "0.3.13"
 description = "Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana. An escrow and a signature verifier on Solana devnet; a free check for pull requests and a Stop hook for coding agents."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -45,7 +45,7 @@ dev = [
 ]
 
 [project.scripts]
-knos = "knos.cli:main"
+knos = "knos.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/drexthealpha/Knos"
@@ -56,7 +56,40 @@ Issues = "https://github.com/drexthealpha/Knos/issues"
 packages = ["src/knos"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/knos", "tests", "README.md", "LICENSE"]
+# anchored at the root: a bare name would also take every README.md and tests/ folder below it (the crates', the
+# JavaScript client's, which the stamp of the pinned workflows writes), and the sdist must not change with the stamp
+include = ["/src/knos", "/tests", "/README.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# ---- lint and types: tests.yml runs `ruff check .` and `mypy` (both pinned there). Permissive to start: what is not
+# ---- checked is listed here, in words, so it can be taken out one line at a time.
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]                # ruff's own default set: imports, statements, syntax, pyflakes
+# E702 (`a; b` on one line) is the dense style of the byte-level harnesses and fixture scripts: 56 places in
+# scripts/settle_fixtures.py, tests/_oidc2.py, tests/_pay2.py, tests/_settle.py, tests/test_oidc_chain.py and
+# tests/test_pay_chain.py. Not ignored: everything else in the set, in every file.
+ignore = ["E702"]
+
+[tool.mypy]
+files = ["src/knos"]
+python_version = "3.10"
+ignore_missing_imports = true                   # the memory engine ships no types, and PyYAML's are a package of their own
+follow_imports = "silent"
+# What is not checked: the 16 modules below, which had 122 errors when the check was added, with the package installed
+# as tests.yml does (Optional values used without a test, two classes named Job in knos.settle.pay and
+# knos.settle.v2.pay passed for each other, untyped dictionaries). Everything else under src/knos, and every new
+# module, is checked in full. Untyped function bodies are not checked (mypy's default); tests/ and scripts/ are not
+# type-checked.
+[[tool.mypy.overrides]]
+module = [
+  "knos.flow", "knos.settle.v2.relay", "knos.proof.cli", "knos.who", "knos.mainnet_check", "knos.judge", "knos.cli",
+  "knos.mcp", "knos.proof.history", "knos.terms", "knos.settle.relay", "knos.proof.ghrelay", "knos.init", "knos.chain",
+  "knos.store", "knos.proof.engine",
+]
+ignore_errors = true

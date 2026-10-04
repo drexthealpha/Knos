@@ -17,7 +17,7 @@
 //   node scripts/governance.mjs guardian approve <issuer> <key hash>    let a key GitHub's signature admitted be used
 //   node scripts/governance.mjs guardian revoke <issuer> <key hash>     end a key for ever: nothing undoes it
 //   node scripts/governance.mjs guardian pause <seconds>        refuse new funding for that long (at most 604800; 0 lifts it)
-//   node scripts/governance.mjs upgrade propose <knos_oidc|knos_pay> <buffer address> [--spill ADDRESS]
+//   node scripts/governance.mjs upgrade propose <knos_oidc|knos_pay> <buffer address> [--spill ADDRESS] [--ungated]
 //   node scripts/governance.mjs upgrade execute <index>         once the proposal is approved and its 172800 s have passed
 //   node scripts/governance.mjs approve <upgrade|guardian> <index>   another member's vote for a proposal
 //   node scripts/governance.mjs cancel <upgrade|guardian> <index>    a vote to cancel an approved proposal that has not run
@@ -47,6 +47,15 @@
 //   --threshold N        create: how many members must approve (default 2)
 //   --upgrade-create-key FILE, --guardian-create-key FILE     create, derive (default: in the key folder)
 //   --priority-fee N     micro-lamports per compute unit, on every transaction (default 0)
+//   --out FILE           upgrade propose: also write the proposal as JSON (program, address, buffer, hash, index, status,
+//                        approved_at, executable_from: unix seconds, null until it is approved), for scripts/deploy_v2.sh
+//                        --propose and the scheduler
+//   --ungated            upgrade propose: FOR AN EMERGENCY ONLY. Propose a buffer whose build has no record of the upgrade gate
+//                        (examples/upgrade_gate: GitHub's signed statement that its runner built these bytes from a commit of
+//                        this repository; program.yml's gate job asks for it and a relayer records it, so a release needs no
+//                        flag). Without it such a buffer is refused. The members then have only their own rebuild to go by.
+//   --unchecked          execute: send it without this script's own look at the proposal's state and time lock, so that
+//                        the Squads program itself answers. For scripts/drill_upgrade.sh, which shows the chain's refusal.
 //
 // Every command can be run again after a failure: it reads the chain first and does only what is missing. The last
 // line it prints says what is true on chain now. Install the packages first: npm ci --prefix scripts
@@ -65,6 +74,9 @@ const { Multisig, ProgramConfig, Proposal, VaultTransaction } = squads.accounts;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const IDS = JSON.parse(fs.readFileSync(path.join(ROOT, "programs-v2", "program_ids.json"), "utf8"));
 export const LOADER = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
+// examples/upgrade_gate: it writes ["build", program, executable hash] only on a token GitHub signed for this repository's
+// program.yml at a commit of main or of a release tag, verified on chain by knos-oidc.
+export const UPGRADE_GATE = new PublicKey("2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW");
 // What each multisig must be. The addresses are the pinned ones: the programs name these vaults.
 export const WHICH = {
   upgrade: { timeLock: 172_800, multisig: IDS.upgrade_multisig, vault: IDS.upgrade_authority, createKey: "upgrade-create-key.json" },
@@ -75,7 +87,7 @@ const CLUSTERS = { EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG: "devnet", "4uhc
                    "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d": "mainnet-beta" };
 
 /** A refusal in plain words: what is wrong and what to do. Printed as one line, exit 1. */
-class Refused extends Error {}
+export class Refused extends Error {}
 
 const say = (line) => console.log(line);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -173,6 +185,35 @@ export function executableHash(bytes) {
   let end = bytes.length;
   while (end > 0 && bytes[end - 1] === 0) end--;
   return createHash("sha256").update(bytes.subarray(0, end)).digest("hex");
+}
+
+/** Where the upgrade gate records that GitHub built the executable with this hash (64 hex characters) for this program. */
+export function buildRecord(program, hashHex) {
+  return PublicKey.findProgramAddressSync([Buffer.from("build"), program.toBuffer(), Buffer.from(hashHex, "hex")], UPGRADE_GATE)[0];
+}
+
+/** A build record (136 bytes, version 1): the run, when it was recorded, the program, the executable hash, the commit. */
+export function readBuildRecord(data) {
+  if (data.length !== 136 || data[0] !== 1) return null;
+  return { runId: data.readBigUInt64LE(8), time: Number(data.readBigInt64LE(16)), program: new PublicKey(data.subarray(32, 64)),
+           hash: data.subarray(64, 96).toString("hex"), commit: data.subarray(96, 136).toString("latin1") };
+}
+
+/**
+ * The gate on `upgrade propose`: what the record account (as getAccountInfo gives it, or null) says about this build
+ * of this program. Returns the line to print; throws a refusal when there is no record and --ungated was not passed.
+ */
+export function gated(info, programRef, program, hashHex, ungated) {
+  const rec = info && info.owner.equals(UPGRADE_GATE) ? readBuildRecord(info.data) : null;
+  const at = buildRecord(program, hashHex);
+  if (rec && rec.hash === hashHex && rec.program.equals(program)) {
+    return `upgrade gate: GitHub's runner built ${hashHex} from commit ${rec.commit} (run ${rec.runId}; record ${at})`;
+  }
+  if (ungated) return `upgrade gate: NO record that GitHub built ${hashHex} (${at} does not exist). PROPOSED ANYWAY, because --ungated was passed (an emergency only): the members have only their own rebuild to compare with`;
+  throw new Refused(`the upgrade gate has no record that GitHub built ${hashHex} for ${programRef} (${at} does not exist on this cluster). ` +
+                    "Build it with this repository's program.yml on main or a release tag (its gate job has GitHub sign the hash, and a relayer " +
+                    "records it a few minutes later), and write THAT build to the buffer. " +
+                    "In an emergency only, to propose a build GitHub did not vouch for, pass --ungated. Nothing was sent.");
 }
 
 /** A buffer account of the upgradeable loader: its authority (null: none) and the program bytes it holds. */
@@ -427,21 +468,22 @@ async function propose(ctx, name, ms, members, inner, what) {
   return { index, proposal: await voteUpTo(ctx, name, ms, members, index, false, label) };
 }
 
-/** Executes an approved proposal whose time lock has passed. Refuses, with the time, one that is still locked. */
-async function executeProposal(ctx, name, ms, index, member, what) {
+/** Executes an approved proposal whose time lock has passed. Refuses, with the time, one that is still locked;
+ *  `unchecked` leaves both refusals to the Squads program. */
+async function executeProposal(ctx, name, ms, index, member, what, unchecked = false) {
   const { conn } = ctx;
   const { multisigPda } = pinned(name);
   const p = await proposal(conn, multisigPda, index);
   if (!p) throw new Refused(`the ${name} multisig has no proposal ${index}.`);
   const kind = p.status.__kind;
   if (kind === "Executed") { say(`  proposal ${index} was executed already (${when(Number(big(p.status.timestamp)))})`); return false; }
-  if (kind !== "Approved") {
+  if (kind !== "Approved" && !unchecked) {
     throw new Refused(`proposal ${index} of the ${name} multisig is ${kind.toLowerCase()}` + (kind === "Active"
       ? `, with ${p.approved.length} of the ${ms.threshold} approvals it needs. Another member approves it with: node scripts/governance.mjs approve ${name} ${index} --member FILE`
       : ": it cannot be executed."));
   }
   const from = Number(big(p.status.timestamp)) + ms.timeLock, now = await chainTime(conn);
-  if (now < from) {
+  if (now < from && !unchecked) {
     throw new Refused(`proposal ${index} of the ${name} multisig was approved ${when(from - ms.timeLock)} and its time lock of ${span(ms.timeLock)} ends ` +
                       `${when(from)}, in ${Math.ceil((from - now) / 60)} minutes. It cannot be executed before that.`);
   }
@@ -526,6 +568,14 @@ async function guardian(o, action, args) {
 }
 
 // ---- upgrade --------------------------------------------------------------------------------------------------------
+/** What `upgrade propose --out` writes: the proposal as data. `executable_from` is null until the proposal is approved,
+ *  because the time lock starts with the last approval. */
+export function proposalRecord(programRef, program, buffer, hash, index, timeLock, p) {
+  const approved = p.status.__kind === "Approved" ? Number(big(p.status.timestamp)) : null;
+  return { program: programRef, address: program.toBase58(), buffer: buffer.toBase58(), hash, index: Number(index), status: p.status.__kind,
+           approved_at: approved, executable_from: approved === null ? null : approved + timeLock };
+}
+
 function programOf(ref) {
   if (ref === "knos_oidc" || ref === "knos_pay") return new PublicKey(IDS[ref]);
   throw new Refused("upgrade takes knos_oidc or knos_pay, then the address of the buffer that holds the new build.");
@@ -558,12 +608,15 @@ async function upgrade(o, programRef, bufferRef) {
   }
   say(`${programRef} ${program}: on chain ${executableHash(pd.bytes)} (deployed in slot ${pd.slot})`);
   say(`buffer ${buffer}: ${executableHash(buf.bytes)}   <- compare with: solana-verify get-executable-hash programs-v2/target/deploy/${programRef}.so`);
+  const hash = executableHash(buf.bytes);
+  say(gated(await conn.getAccountInfo(buildRecord(program, hash), "confirmed"), programRef, program, hash, o.ungated));
   const ms = await existing(conn, "upgrade");
   const members = membersOf(ms, o, "upgrade");
   const spill = o.spill ? address(o.spill) : feePayer.publicKey;
   const { index, proposal: p } = await propose(ctx, "upgrade", ms, members, [upgradeIx(program, buffer, vault, spill)], `upgrade ${programRef}`);
   say(`on chain now: ${standing("upgrade", ms, index, p)}. It replaces ${programRef} with the buffer's build ${executableHash(buf.bytes)}; ` +
       `then: node scripts/governance.mjs upgrade execute ${index}`);
+  if (o.out) fs.writeFileSync(o.out, JSON.stringify(proposalRecord(programRef, program, buffer, hash, index, ms.timeLock, p), null, 2) + "\n");
 }
 
 // ---- approve, cancel, execute ---------------------------------------------------------------------------------------
@@ -595,7 +648,7 @@ async function execute(o, name, indexText) {
   const ctx = await context(o);
   const ms = await existing(ctx.conn, name);
   const members = membersOf(ms, o, name);
-  await executeProposal(ctx, name, ms, index, members[0], `${name} proposal`);
+  await executeProposal(ctx, name, ms, index, members[0], `${name} proposal`, Boolean(o.unchecked));
   const lines = [];
   for (const program of ["knos_oidc", "knos_pay"]) {
     const info = await ctx.conn.getAccountInfo(programData(new PublicKey(IDS[program])), "confirmed");
@@ -636,8 +689,8 @@ function usage() {
 async function main(argv) {
   const { values: o, positionals: [command, ...rest] } = parseArgs({ args: argv, allowPositionals: true, options: {
     rpc: { type: "string" }, keys: { type: "string" }, "fee-payer": { type: "string" }, member: { type: "string", multiple: true }, threshold: { type: "string" },
-    "upgrade-create-key": { type: "string" }, "guardian-create-key": { type: "string" }, spill: { type: "string" },
-    "priority-fee": { type: "string" }, check: { type: "boolean" }, json: { type: "boolean" }, help: { type: "boolean", short: "h" } } });
+    "upgrade-create-key": { type: "string" }, "guardian-create-key": { type: "string" }, spill: { type: "string" }, out: { type: "string" },
+    "priority-fee": { type: "string" }, check: { type: "boolean" }, json: { type: "boolean" }, unchecked: { type: "boolean" }, ungated: { type: "boolean" }, help: { type: "boolean", short: "h" } } });
   if (squads.PROGRAM_ID.toBase58() !== IDS.squads_program) throw new Refused(`the Squads SDK is for program ${squads.PROGRAM_ID}, and programs-v2/program_ids.json names ${IDS.squads_program}.`);
   if (o.help || !command) return say(usage());
   if (command === "create") return create(o);

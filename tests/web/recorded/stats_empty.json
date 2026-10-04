@@ -8,7 +8,8 @@
   },
   "second": {
    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
-   "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+   "knos_meter": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
   }
  },
  "outside": {
@@ -84,6 +85,35 @@
    "completed": 0
   }
  },
+ "orders": {
+  "funded": 0,
+  "completed": 0,
+  "open": 0,
+  "held": 0,
+  "in_warranty": 0,
+  "refunded": 0,
+  "standing": 0,
+  "private": 0,
+  "payments": 0,
+  "funded_amount": 0,
+  "paid_amount": 0,
+  "held_back": 0,
+  "outside": 0,
+  "reverted": 0,
+  "released": 0,
+  "cancelled": 0,
+  "reserved": 0,
+  "assigned": 0,
+  "topped_up": 0,
+  "kill_fees": 0
+ },
+ "meter": {
+  "evaluations": 0,
+  "accepted": 0,
+  "rejected": 0,
+  "fees": 0,
+  "by_month": {}
+ },
  "funnel": {
   "installed": null,
   "installed_note": "not measured",
@@ -139,7 +169,15 @@
    "open": 0,
    "open_amount": 0,
    "held": 0,
-   "held_amount": 0
+   "held_amount": 0,
+   "orders": {
+    "open": 0,
+    "open_amount": 0,
+    "held": 0,
+    "held_amount": 0,
+    "in_warranty": 0,
+    "held_back": 0
+   }
   }
  }
 }

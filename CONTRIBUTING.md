@@ -58,20 +58,21 @@ link could be someone else's, so none is ever put in one) or named on the pull r
 
 ## Release
 
-A release is one push, of its tag:
+[docs/RELEASE.md](docs/RELEASE.md) is the whole order, with every command. In short: the wheel is built once from the
+final tree, its hash is locked in `requirements/sign.txt`, the pinned workflows are published with that lock, their
+commit is stamped into the tree, and then there is one commit, the wheel goes to PyPI, one push, and the tag:
 
 ```bash
-git tag v0.3.12 && git push origin v0.3.12
+git tag v0.3.13 && git push origin v0.3.13
 ```
 
 `.github/workflows/release.yml` then runs the whole test workflow on that commit and, only when every job of it has
-passed, uploads the wheel and the sdist to PyPI, creates the GitHub release with the npm tarball, lists `knos mcp`
-in the MCP registry, attaches the Gemini CLI extension, publishes to crates.io and npm when their tokens are set,
-and rebuilds the site. Every one of those jobs needs the test job of the same run, so tagging early only starts the
-tests earlier, and a commit whose tests fail publishes nothing. A job added to that workflow must need `tests` too
-(`tests/test_release_gate.py` fails if one does not). Nothing is uploaded by hand: PyPI accepts the upload on the
-workflow's own GitHub token (trusted publishing; the one-time setup is at the top of the workflow file), so the
-project needs no PyPI API token and should have none.
+passed, builds the wheel again and holds it to the locked hash, checks that PyPI serves exactly that file (it uploads
+nothing there), creates the GitHub release with the npm tarball, lists `knos mcp` in the MCP registry, attaches the
+Gemini CLI extension, publishes to crates.io and npm when their tokens are set, and rebuilds the site. Every one of
+those jobs needs the test job of the same run, so tagging early only starts the tests earlier, and a commit whose
+tests fail publishes nothing. A job added to that workflow must need `tests` too (`tests/test_release_gate.py` fails
+if one does not).
 
 ## Licence
 

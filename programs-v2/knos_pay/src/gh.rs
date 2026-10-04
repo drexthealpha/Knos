@@ -1,7 +1,7 @@
 //! Reading a GitHub Actions token that knos-oidc verified, and the audiences this program understands.
 use crate::{err, state::{b58, i64_at}, E_ACCOUNTS, E_AUD, E_CLAIMS, E_TOKEN, OIDC_ID, TOKEN_AHEAD, TOKEN_LIFE};
 use knos_oidc::claims::{self, fields, number, parts, text};
-use knos_oidc::{K_ACTIVE, K_EXPIRES, K_FLAGS, K_HDR, T_KEY};
+use knos_oidc::{K_ACTIVE, K_EXPIRES, K_FLAGS, K_HDR, T_JWT, T_KEY, T_LEN};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, program_error::ProgramError, pubkey::Pubkey};
 
 /// The claims this program reads, taken once from the token account.
@@ -25,11 +25,18 @@ pub struct Gh {
 /// that it lives longer than TOKEN_LIFE, was not written by GitHub's clock and is refused. So every token works only
 /// from TOKEN_AHEAD before its `iat` until TOKEN_LIFE + LATE after it: none works for ever, whatever expiry it
 /// carries, and none can date itself far ahead to count as newer than every job and every token still to come.
-pub fn github(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> {
+pub fn github(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> { token_of(tok, key, now, |_| false) }
+
+/// `github`, for the one caller that also takes a token GitHub did not sign (order_judge::token): a token verified
+/// under a PRIVATE key (a key some wallet registered itself, which nobody checked) passes when `ours` accepts the
+/// wallet that registered it. Such a token is that wallet's word, not GitHub's, and every other rule above holds for
+/// it unchanged. A token of any other issuer (GitLab, a registered issuer) is refused whatever `ours` says.
+pub fn token_of(tok: &AccountInfo, key: &AccountInfo, now: i64, ours: impl Fn(&[u8; 32]) -> bool) -> Result<Gh, ProgramError> {
     if *tok.owner != OIDC_ID { return Err(err(E_TOKEN)); }
     let d = tok.try_borrow_data()?;
     let v = knos_oidc::verified(&d).ok_or_else(|| err(E_TOKEN))?;
-    if v.issuer != knos_oidc::pins::ISSUER_GITHUB || !knos_oidc::fresh(v.exp, now) { return Err(err(E_TOKEN)); }
+    let signed = v.issuer == knos_oidc::pins::ISSUER_GITHUB || knos_oidc::registrant(&d).is_some_and(ours);
+    if !signed || !knos_oidc::fresh(v.exp, now) { return Err(err(E_TOKEN)); }
     key_good(&d, key, now)?;
     let [repo_id, owner_id, actor_id, iat, wref, wsha, runner, aud, event, repository, run_attempt] = fields(v.payload,
         [b"repository_id", b"repository_owner_id", b"actor_id", b"iat", b"job_workflow_ref", b"job_workflow_sha", b"runner_environment", b"aud",
@@ -49,6 +56,23 @@ pub fn github(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, Prog
             repository: text(repository).ok(), first_attempt: number(run_attempt).ok() == Some(1), wf_ref })
 }
 
+/// sha256 of the signature bytes of the token in a VERIFIED token account (one `github` or `token_of` accepted): what
+/// a single-use marker ["used", sig] is named by. The verifier decodes the payload in place and leaves the signature
+/// as the token carried it, after the last dot; it took that text only in its one canonical base64url form and only
+/// as a number below the modulus, so one token has one hash and cannot be respelled to be used twice.
+/// Only the instructions that use a token up call this (Pay, FundOrderBalance): decoding the 342 characters costs
+/// 13,900 compute units (measured), which every other instruction that reads a token would pay for nothing.
+pub fn sig_hash(tok: &AccountInfo) -> Result<[u8; 32], ProgramError> {
+    let tok = tok.try_borrow_data()?;
+    let len = u16::from_le_bytes([tok[T_LEN], tok[T_LEN + 1]]) as usize;
+    let jwt = tok.get(T_JWT..T_JWT + len).ok_or_else(|| err(E_TOKEN))?;
+    let dot = jwt.iter().rposition(|&c| c == b'.').ok_or_else(|| err(E_TOKEN))?;
+    let text = &jwt[dot + 1..];
+    let mut sig = vec![0u8; claims::b64_len(text.len()).filter(|n| *n > 0).ok_or_else(|| err(E_TOKEN))?];
+    claims::b64url_into(text, &mut sig)?;
+    Ok(hashv(&[&sig]).to_bytes())
+}
+
 /// A token stops working when the key that verified it does. `key` must be the account the token account names (the
 /// verifier wrote its address there when the verification began, and never closes a key account), owned by the
 /// verifier, and usable now by the verifier's own rule: not revoked, not expired. So when the guardian revokes a key
@@ -63,7 +87,7 @@ fn key_good(tok: &[u8], key: &AccountInfo, now: i64) -> ProgramResult {
     knos_oidc::key_usable(k[K_FLAGS], i64_at(&k, K_ACTIVE), i64_at(&k, K_EXPIRES), now).map_err(err)
 }
 
-fn n(s: &[u8]) -> Result<u64, ProgramError> { claims::parse_u64(s).ok_or_else(|| err(E_AUD)) }
+pub fn n(s: &[u8]) -> Result<u64, ProgramError> { claims::parse_u64(s).ok_or_else(|| err(E_AUD)) }
 
 /// knos2:fund:<issue>:<amount units>:<mode 0|1>:<terms hash hex>:<work seconds>:<balance address>
 pub struct FundAud { pub issue: u64, pub amount: u64, pub mode: u8, pub terms: [u8; 32], pub work: i64 }

@@ -26,25 +26,44 @@ A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in README.md or docs
     devnet        the second deployment on devnet. A number nobody has measured yet reads "measured at release"
     devnet1       the first deployment's record on devnet
 
-A slot is `[[stat: name]]` in a file under docs/submission/: a number that only the release run can measure. SLOTS
-names every slot and says what it counts. `--stats` fills the ones stats.json has, `--set` fills one of the others.
-Filling a slot does three things: the number replaces the slot in the text; it is kept in docs/bench.json
-(`devnet.stats`, at the same path as in stats.json, or `release.<name>` with its source); and a fact in docs/facts.json
-points at it, so scripts/claims_check.py can hold the text to it. A slot with no number is left as it stands. A slot is
-filled once: after that the text holds the number, and a later change is an edit of docs/bench.json and of the text.
+A slot is `[[stat: name]]` in a file under docs/submission/ or in one of SLOTTED (README.md, CHANGELOG.md and the
+documents a judge opens): a number that only the release run can measure. SLOTS names every slot and says what it
+counts. `--stats` fills the ones stats.json has, `--set` fills one of the others. Filling a slot does three things: the
+number replaces the slot in the text, in every file that carries it; it is kept in docs/bench.json (`devnet.stats`, at
+the same path as in stats.json, or `release.<name>` with its source); and a fact in docs/facts.json points at it, so
+scripts/claims_check.py can hold the text to it. A slot with no number is left as it stands. A slot is filled once:
+after that the text holds the number, and a later change is an edit of docs/bench.json and of the text.
+
+Two slots are a time, not a number (WHEN): `--set upgrade_proposed="2026-10-05 14:00 UTC"` says when the upgrade of the
+second deployment was approved by the multisig, and `upgrade_executable` is filled with it, 48 hours later, so the two
+cannot disagree.
+
+One fact, one value. FRAMES names the sentences in which a slot's fact is stated (in any public document and in the
+site's text). `--check` fails when two of them give different values for one fact (a slot in one file and a number in
+another is two values), when the slot in such a sentence is another fact's, or when the number is not the one
+docs/bench.json keeps.
 """
 
 from __future__ import annotations
 
+import html
 import json
 import math
 import re
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/BENCH.md"]
-SUBMISSION = "docs/submission"       # where [[stat: name]] slots are filled
+# The pitch-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
+PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
+         "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
+SUBMISSION = "docs/submission"       # every .md under it may carry [[stat: name]] slots
+# The other files that may carry slots. Everything a judge opens states a release-measured fact through one, so that the
+# release fills them all in one run and no document is left with an older number.
+SLOTTED = ["README.md", "CHANGELOG.md", "docs/DISCLOSURE.md", "docs/WHY.md", "docs/COMPARE.md", "docs/MARKET.md",
+           "docs/SECURITY.md", "docs/ASSURANCE.md", "docs/BENCH.md"]
 UNMEASURED = "measured at release"
 SLOT = re.compile(r"(?<!`)\[\[stat: ([a-z][a-z_]*)\]\]")      # not one quoted as code: that is the docs naming the syntax
 # The rows of the `devnet` block: (what was measured, its path in stats.json).
@@ -78,9 +97,33 @@ SLOTS = {
     "outside_prs_merged_and_paid": ("of the pull requests #32, #33 and #34 by jaystay-bot, the ones that were merged and "
                                     "paid on devnet when the release ran", None),
     "tests_passing": ("tests that passed in the release's own run of the suite (`pytest -q` on the release commit)", None),
+    "claim_parser_executions": ("inputs the fuzzer ran against the claim parser in the latest nightly run of program.yml: "
+                                "`executions` and `source` in the fuzz.json of its `fuzz-claims` artifact", None),
+    "upgrade_proposed": ("when the upgrade of knos_oidc and knos_pay to 2.1 was proposed to the upgrade multisig and approved "
+                         "by its members on devnet (UTC, to the minute; the later of the two programs' approvals). `node "
+                         "scripts/governance.mjs upgrade propose` stops after the approvals and prints when the proposal can "
+                         "be executed, which is this time plus 48 hours; `knos status` reads the same from the chain", None),
+    "upgrade_executable": ("48 hours after that approval: the first moment the Squads program lets the upgrade execute. "
+                           "Filled with upgrade_proposed, never by itself", None),
     "days_of_shipping": ("days, from 1 Sep 2026 to the release, on which drexthealpha made a commit in the public "
                          "repository (the automatic commits of a workflow are left out): "
                          "`git log --author=drexthealpha --format=%ad --date=short | sort -u | wc -l`", None),
+}
+# The slots whose value is a time (UTC, to the minute), not a number.
+WHEN = {"upgrade_proposed", "upgrade_executable"}
+TIME = "%Y-%m-%d %H:%M UTC"
+DELAY_HOURS = 48                      # the upgrade multisig's time lock (programs-v2/program_ids.json, upgrade_multisig)
+_V = r"(\[\[stat: [a-z_]+\]\]|\d[\d,]*(?:\.\d+)?)"
+_T = r"(\[\[stat: [a-z_]+\]\]|\d{4}-\d\d-\d\d \d\d:\d\d UTC)"
+# The sentences in which a slot's fact is stated, each with one group: the value as written, a number or a slot.
+FRAMES = {
+    "seconds_from_merge_to_paid": [rf"merge to (?:paid|payment|the payment)\b[^.|]{{0,60}}?{_V} seconds",
+                                   rf"{_V} seconds from (?:the )?merge to (?:paid|payment|the payment)"],
+    "payments_timed": [rf"seconds\b[^.|]{{0,40}}? over {_V} payments"],
+    "tests_passing": [rf"{_V} tests pass"],
+    "claim_parser_executions": [rf"{_V} inputs against the claim parser"],
+    "upgrade_proposed": [rf"proposed(?: and approved)?(?: by the multisig)? on {_T}"],
+    "upgrade_executable": [rf"can execute from {_T}"],
 }
 
 
@@ -319,7 +362,10 @@ def _number(value) -> bool:
 
 
 def _said(value) -> str:
-    """A measured number as the docs print it; anything else (nothing measured yet) as `UNMEASURED`."""
+    """A measured number as the docs print it, a time as it was given; anything else (nothing measured yet) as
+    `UNMEASURED`."""
+    if isinstance(value, str) and value:
+        return value
     if not _number(value):
         return UNMEASURED
     return f"{value:,}" if isinstance(value, int) else f"{value:,.1f}"
@@ -381,11 +427,71 @@ def _keep(into: dict, path: str, value) -> None:
     into[parts[-1]] = value
 
 
+def slot_files(root: Path = ROOT) -> list[str]:
+    """Every file that may carry a slot and exists: docs/submission/*.md, then SLOTTED."""
+    return [f"{SUBMISSION}/{doc.name}" for doc in sorted((root / SUBMISSION).glob("*.md"))] + [d for d in SLOTTED if (root / d).is_file()]
+
+
 def slots(root: Path = ROOT) -> list[tuple[str, str]]:
-    """(file, slot name) for every slot still open under docs/submission, in the order they are read."""
+    """(file, slot name) for every slot still open, in the order they are read."""
+    return [(doc, name) for doc in slot_files(root) for name in SLOT.findall((root / doc).read_text(encoding="utf-8"))]
+
+
+def _prose(root: Path, doc: str) -> str:
+    """A document as its sentences: generated blocks and code left out (a slot quoted as code names the syntax), the
+    changelog's newest release only (older ones are history), a page's tags removed, and one space between words."""
+    text = (root / doc).read_text(encoding="utf-8")
+    if doc == "CHANGELOG.md":
+        text = "## ".join(text.split("\n## ")[:2])
+    for pat in (r"<!-- bench:(\w[\w-]*) -->.*?<!-- /bench:\1 -->", r"```.*?```", r"`[^`\n]*`", r"<script.*?</script>"):
+        text = re.sub(pat, " ", text, flags=re.S)
+    if doc.endswith(".html"):
+        text = html.unescape(re.sub(r"<[^>]+>", " ", text))
+    return " ".join(text.replace("**", "").split())
+
+
+def public_text(root: Path = ROOT) -> list[str]:
+    """Every public document and the site's text: where one fact must have one value."""
+    docs = ["README.md", "CHANGELOG.md", *sorted(f"docs/{p.name}" for p in (root / "docs").glob("*.md")),
+            *sorted(f"{SUBMISSION}/{p.name}" for p in (root / SUBMISSION).glob("*.md")), "web/index.html"]
+    return [d for d in docs if (root / d).is_file()]
+
+
+def said(root: Path = ROOT) -> dict[str, dict[str, list[str]]]:
+    """{slot name: {value as written: [files that state it]}} over FRAMES, in every public document and the site."""
+    out: dict[str, dict[str, list[str]]] = {}
+    for doc in public_text(root):
+        text = _prose(root, doc)
+        for name, frames in FRAMES.items():
+            for frame in frames:
+                for m in re.finditer(frame, text):
+                    files = out.setdefault(name, {}).setdefault(m.group(1), [])
+                    if doc not in files:
+                        files.append(doc)
+    return out
+
+
+def _kept(src: dict, name: str):
+    """The value docs/bench.json keeps for a slot, or None when nothing was measured."""
+    path = SLOTS[name][1]
+    return _dig(src.get("devnet", {}).get("stats") or {}, path) if path else _dig(src, f"release.{name}.value")
+
+
+def disagreements(root: Path = ROOT) -> list[str]:
+    """What breaks "one fact, one value", one line each."""
+    src = json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8"))
     out = []
-    for doc in sorted((root / SUBMISSION).glob("*.md")):
-        out += [(f"{SUBMISSION}/{doc.name}", name) for name in SLOT.findall(doc.read_text(encoding="utf-8"))]
+    for name, values in sorted(said(root).items()):
+        where = "; ".join(f"{value} in {', '.join(files)}" for value, files in values.items())
+        if len(values) > 1:
+            out.append(f"{name} has {len(values)} values: {where}")
+            continue
+        value = next(iter(values))
+        if value.startswith("[["):
+            if value != f"[[stat: {name}]]":
+                out.append(f"{name} is stated with another fact's slot: {where}")
+        elif _said(_kept(src, name)) != value:
+            out.append(f"{name} is {_said(_kept(src, name))} in docs/bench.json and {where}")
     return out
 
 
@@ -402,11 +508,26 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
         for _what, path in DEVNET:
             _keep(kept, path, _dig(stats, path))
         src.setdefault("devnet", {})["stats"] = kept
-    for name, (value, source) in (given or {}).items():
-        if name not in SLOTS or SLOTS[name][1] is not None or not _number(value):
+    given = dict(given or {})
+    if "upgrade_executable" in given:
+        raise SystemExit("--set upgrade_executable: it is filled with upgrade_proposed, 48 hours later")
+    if "upgrade_proposed" in given:
+        when, source = given["upgrade_proposed"]
+        try:
+            later = (datetime.strptime(str(when), TIME) + timedelta(hours=DELAY_HOURS)).strftime(TIME)
+        except ValueError:
+            raise SystemExit('--set upgrade_proposed: a time like "2026-10-05 14:00 UTC"') from None
+        given["upgrade_executable"] = (later, f"{DELAY_HOURS} hours after upgrade_proposed ({source})")
+    for name, (value, source) in given.items():
+        good = isinstance(value, str) if name in WHEN else _number(value)
+        if name not in SLOTS or SLOTS[name][1] is not None or not good:
             raise SystemExit(f"--set {name}: " + ("not a slot this script knows" if name not in SLOTS else
-                                                  "stats.json fills this one (--stats)" if SLOTS[name][1] else "not a number"))
+                                                  "stats.json fills this one (--stats)" if SLOTS[name][1] else
+                                                  "not a time" if name in WHEN else "not a number"))
         src.setdefault("release", {})[name] = {"value": value, "source": source}
+
+    where_said: dict[str, set[str]] = {}       # a fact's path -> the documents its slot was filled in
+    here = [""]
 
     def number(m: re.Match) -> str:
         name = m.group(1)
@@ -414,19 +535,30 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
         if path is not None and stats is not None and _number(_dig(stats, path)):
             value, where, why = _dig(stats, path), f"devnet.stats.{path}", f"{what} (the site's stats.json of {stats.get('updated')})"
             _keep(src["devnet"]["stats"], path, value)
-        elif path is None and name in (given or {}):
+        elif path is None and name in given:
             value, where, why = given[name][0], f"release.{name}.value", f"{what}. Measured: {given[name][1]}"
         else:
             return m.group(0)
-        fact = {"say": [_said(value)], "what": why, "json": "docs/bench.json", "path": where, "equals": value}
+        fact = {"say": [] if name in WHEN else [_said(value)], "what": why, "json": "docs/bench.json", "path": where, "equals": value}
+        if name in WHEN:
+            fact["text"] = value                       # a time is held to its text, not to a number (claims_check.py)
         facts["facts"] = [f for f in facts["facts"] if f.get("path") != where] + [fact]
+        where_said.setdefault(where, set()).add(here[0])
         return _said(value)
 
-    for doc in sorted((root / SUBMISSION).glob("*.md")):
+    for rel in slot_files(root):
+        here[0] = rel
+        doc = root / rel
         text = doc.read_text(encoding="utf-8")
         new = SLOT.sub(number, text)
         if new != text:
             doc.write_text(new, encoding="utf-8")
+    # A number said only in documents that are not pitch-facing (docs/ASSURANCE.md, ...) is a "doc" fact: claims_check.py
+    # then holds those documents to it, instead of looking for it in the pitch-facing text, which does not say it.
+    for f in facts["facts"]:
+        docs = where_said.get(f.get("path"), set())
+        if docs and f["say"] and not docs & set(PITCH):
+            f["doc"] = sorted(docs) if len(docs) > 1 else next(iter(docs))
     bench.write_text(json.dumps(src, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     facts_file.write_text(json.dumps(facts, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return sorted({name for _doc, name in slots(root)})
@@ -449,7 +581,10 @@ def main(check: bool = False, root: Path = ROOT) -> int:
         print("slots this script does not know (add them to SLOTS in scripts/bench_docs.py): " + "; ".join(unknown))
     if check and drift:
         print("benchmark numbers drifted from docs/bench.json in: " + ", ".join(drift))
-    return 1 if unknown or (check and drift) else 0
+    two = disagreements(root)
+    for line in two:
+        print("one fact, one value: " + line)
+    return 1 if unknown or two or (check and drift) else 0
 
 
 def _arg(flag: str) -> str | None:
@@ -463,9 +598,9 @@ if __name__ == "__main__":
     if "--set" in sys.argv:
         name, _, value = (_arg("--set") or "").partition("=")
         source = _arg("--source")
-        if not source or not re.fullmatch(r"\d+(?:\.\d+)?", value):
+        if not source or not (name in WHEN or re.fullmatch(r"\d+(?:\.\d+)?", value)):
             raise SystemExit('usage: python scripts/bench_docs.py --set NAME=NUMBER --source "where it was measured"')
-        given = {name: (float(value) if "." in value else int(value), source)}
+        given = {name: (value if name in WHEN else float(value) if "." in value else int(value), source)}
     if "--stats" in sys.argv or given:
         fill(_arg("--stats"), given)
     if "--slots" in sys.argv:

@@ -94,12 +94,17 @@ def pull(repo: str, store, get) -> int | None:
 def push(repo: str, store, get, post, run: str = "") -> int | None:
     """Post the lessons the store holds and the issue does not: one comment (more only when they do not fit in
     one), in an issue it opens when the repository has none. Returns how many lessons were posted; None, with
-    nothing posted, when GitHub could not be read."""
+    nothing posted, when GitHub could not be read.
+
+    The issue is append-only: a lesson is never edited, only posted again. So a settlement the store knows was paid
+    is posted even when the issue has the same lesson saying "not paid" (another run settled the same pull request
+    at the same moment and refused it), and every run reads the paid one as final (history.import_lessons)."""
     n, there = read(repo, get)
     if there is None:
         return None
-    have = {(x["category"], x["name"]) for x in there}
-    new = [x for x in history.lessons(store) if (x["category"], x["name"]) not in have]
+    have, paid = {(x["category"], x["name"]) for x in there}, history.paid_settlements(there)
+    new = [x for x in history.lessons(store) if (x["category"], x["name"]) not in have
+           or (x["category"] == "settlement" and x["body"]["paid"] is True and x["name"] not in paid)]
     if not new:
         return 0
     if n is None:

@@ -34,18 +34,36 @@ name: knos fund
 #     for: an edit can be made by someone who is not the author.
 #   - It takes no inputs: nothing a caller passes can change which code runs here. A caller chooses when to call it,
 #     and nothing else. Its one output tells the caller that a payment should be tried next; it decides no payment.
+#   - A run started by hand or by a timer (`workflow_dispatch`, `schedule`) is an ATTESTOR's: one repository of an
+#     organisation that funds PRIVATE work orders for the organisation's other repositories, which run no workflow
+#     (examples/knos-attestor.yml). The command tells such a run by its event, and does nothing unless the
+#     .knos/policy.yml of the repository it runs in names that very repository as the attestor. Then it answers the
+#     `/knos fund` comments on issues of the repositories that policy lists. It reads them through KNOS_READ_TOKEN
+#     and checks nothing out; who may fund, the terms and the balance are decided as for any comment. The token it
+#     asks GitHub for names no repository but the attestor: issue 0, and a hash where the terms would be. In a
+#     repository that is no attestor such a run funds nothing and says so.
 #
-# The one secret is optional. With KNOS_RELAY_KEY (a Solana key that pays transaction fees; it never holds a
+# Both secrets are optional. With KNOS_RELAY_KEY (a Solana key that pays transaction fees; it never holds a
 # bounty's money) the job carries its own token to Solana. Without it the token is posted as a comment and Knos's
 # public relay (worker.yml in drexthealpha/Knos) carries it; anyone else can. The token is public on purpose: it
-# names one action, the chain takes it once, and the signature on it is GitHub's.
+# names one action, the chain takes it once, and the signature on it is GitHub's. KNOS_READ_TOKEN is an attestor's
+# alone: a token of the organisation's that reads the repositories it attests for. It goes to the one step that runs
+# the command, and the command sends it to api.github.com and nowhere else.
 #
-# The install, the same two steps in every Knos job: uv at a version whose checksum the pinned setup-uv action
-# checks, then knos as the one exact requirement named below (a release on PyPI), with dependencies no newer than
-# UV_EXCLUDE_NEWER, ignoring any uv configuration in the working directory. The runner is ubuntu-24.04 by name: its
-# image has Python 3.12, and `ubuntu-latest` is being moved to Ubuntu 26.04. No job here restores or saves an Actions
-# cache (`enable-cache: false`, and `cache-mode: read` on every job): a cache written by a run of pull request code
-# could be read by a job that signs, so every run downloads what it installs.
+# The install, in every Knos job: uv at a version whose checksum the pinned setup-uv action checks, then knos.
+#   - A job that signs (this one, and settle and attest in prove.yml) installs from a hash-locked list written into the
+#     step itself: `uv pip install --require-hashes`, so uv refuses any file whose sha256 is not in the list, and
+#     `--no-deps --no-build`, so nothing else comes with it and nothing is built from source. The list is
+#     requirements/sign.txt of drexthealpha/Knos (every third-party package by hash) and one more line: the knos wheel
+#     of the release, by hash. Both are in the file at the commit a bounty records, so that commit names the hash of
+#     everything these jobs install. It is also published as requirements/sign.txt in this repository. No date cutoff
+#     is needed: a package released tomorrow is not in the list and cannot be installed.
+#   - The jobs that sign nothing and hold no secret (review and judge in prove.yml, and check.yml) install the one exact
+#     release from PyPI with dependencies no newer than UV_EXCLUDE_NEWER, ignoring any uv configuration in the
+#     working directory.
+# The runner is ubuntu-24.04 by name: its image has Python 3.12, and `ubuntu-latest` is being moved to Ubuntu 26.04. No
+# job here restores or saves an Actions cache (`enable-cache: false`, and `cache-mode: read` on every job): a cache
+# written by a run of pull request code could be read by a job that signs, so every run downloads what it installs.
 on:
   workflow_call:
     secrets:
@@ -53,6 +71,12 @@ on:
         description: >-
           Optional. A Solana key that pays transaction fees, so this run carries its own token to Solana. Without it
           the token is posted as a comment and Knos's public relay carries it.
+        required: false
+      KNOS_READ_TOKEN:
+        description: >-
+          Optional, and only for an organisation's attestor repository (examples/knos-attestor.yml): a fine-grained
+          token that reads the repositories the attestor's policy lists, and writes Knos's comments on their issues
+          and pull requests. No other repository passes it, and without it this job reads only its own repository.
         required: false
     outputs:
       settle:
@@ -67,7 +91,8 @@ jobs:
   command:
     if: >-
       (github.event_name == 'issue_comment' && github.event.action == 'created') ||
-      (github.event_name == 'issues' && github.event.action == 'opened')
+      (github.event_name == 'issues' && github.event.action == 'opened') ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     # one command at a time for an issue or a pull request, each in its turn (GitHub keeps up to 100 waiting), so a
@@ -94,13 +119,17 @@ jobs:
           python-version: "3.12"
           enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
           ignore-empty-workdir: true
-      - name: install knos, this one requirement exactly
-        env:
-          UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.12"
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          KNOS_LOCK
+          LOCK
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: knos command
         id: command
         env:
           GH_TOKEN: ${{ github.token }}
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}
+          KNOS_READ_TOKEN: ${{ secrets.KNOS_READ_TOKEN }}
         run: knos command --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"

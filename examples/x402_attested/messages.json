@@ -1,0 +1,122 @@
+{
+ "paymentRequired": {
+  "x402Version": 2,
+  "error": "PAYMENT-SIGNATURE header is required",
+  "resource": {
+   "url": "https://seller.example/work/77",
+   "description": "Fix issue 77 of repository 987654321: delivered as a pull request, paid when it is merged with the funded check green",
+   "mimeType": "application/json"
+  },
+  "accepts": [
+   {
+    "scheme": "attested",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000000",
+    "asset": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+    "payTo": "6JhaGdekBjU2RfiYWSjYdQAibx4LfSfTNFEeMUHnUVz7",
+    "maxTimeoutSeconds": 604800,
+    "extra": {
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+     "repoId": "987654321",
+     "issue": "77",
+     "seq": 0,
+     "mode": 0,
+     "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"mode\":\"merge\",\"v\":2}",
+     "termsHash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+     "workflows": {
+      "repository": "drexthealpha/Knos",
+      "sha": "cccccccccccccccccccccccccccccccccccccccc"
+     },
+     "fee": "500000",
+     "payee": {
+      "githubId": "5550123"
+     }
+    }
+   }
+  ],
+  "extensions": {
+   "attested": {
+    "info": {
+     "version": 1,
+     "proposal": true,
+     "settles": "on-acceptance",
+     "refund": "after-deadline",
+     "payerHeader": "Attested-Payer"
+    }
+   }
+  }
+ },
+ "paymentPayload": {
+  "x402Version": 2,
+  "resource": {
+   "url": "https://seller.example/work/77",
+   "description": "Fix issue 77 of repository 987654321: delivered as a pull request, paid when it is merged with the funded check green",
+   "mimeType": "application/json"
+  },
+  "accepted": {
+   "scheme": "attested",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "amount": "20000000",
+   "asset": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+   "payTo": "6JhaGdekBjU2RfiYWSjYdQAibx4LfSfTNFEeMUHnUVz7",
+   "maxTimeoutSeconds": 604800,
+   "extra": {
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "repoId": "987654321",
+    "issue": "77",
+    "seq": 0,
+    "mode": 0,
+    "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"mode\":\"merge\",\"v\":2}",
+    "termsHash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+    "workflows": {
+     "repository": "drexthealpha/Knos",
+     "sha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "fee": "500000",
+    "payee": {
+     "githubId": "5550123"
+    }
+   }
+  },
+  "payload": {
+   "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+   "transaction": "i8tvUaQJPbEqvXzNf7vxiN5LeY1poYMxNYA3oFRsj91jLwxFM5jZ8UjR2usPtJxBMEwcjLFnrL9mgMpV95s7m6E"
+  },
+  "extensions": {}
+ },
+ "settlementResponse": {
+  "success": true,
+  "payer": "5WcE8o73vmsSZXeeWTLm3ty3fAJKCnBWRF6VuKUme5nu",
+  "transaction": "i8tvUaQJPbEqvXzNf7vxiN5LeY1poYMxNYA3oFRsj91jLwxFM5jZ8UjR2usPtJxBMEwcjLFnrL9mgMpV95s7m6E",
+  "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+  "amount": "20000000",
+  "extensions": {
+   "attested": {
+    "info": {
+     "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+     "state": "escrowed",
+     "deadline": 1790604800
+    }
+   }
+  }
+ },
+ "statusPaid": {
+  "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+  "state": "paid",
+  "payments": [
+   {
+    "payee": "5550123",
+    "amount": "20000000",
+    "to": "6JhaGdekBjU2RfiYWSjYdQAibx4LfSfTNFEeMUHnUVz7",
+    "pr": "12"
+   }
+  ]
+ },
+ "statusRefunded": {
+  "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+  "state": "refunded",
+  "amount": "20500000"
+ }
+}

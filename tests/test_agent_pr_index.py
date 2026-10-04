@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -419,6 +420,55 @@ def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way()
     # finished CI; now the floor is half the last index (1,216 after the 2,431 one) and the scan may keep 4,000
     per_agent = int(runs[scan].split("--per-agent")[1].split()[0])
     assert per_agent * len(agent_pr_ci.AGENTS) >= 3 * agent_pr_index.MIN_OF_PREVIOUS * 2431
+
+
+UNTICKED = ("- [ ] All tests pass", "* [ ] CI is green", "+ [ ] 801 passed", "1. [ ] tests pass", "2) [ ] all checks pass",
+            "> - [ ] tests pass", "  - [ ] tests pass", "1. - [ ] tests pass")
+HEDGED = ("All tests should pass.", "Please make sure CI is green.", "Please ensure the tests pass.", "TODO: make tests pass",
+          "Tests must pass before merging.", "The tests do not pass.", "Tests don't pass yet.", "If 801 passed, merge it.")
+
+
+def test_an_unticked_box_of_any_list_marker_claims_nothing_and_ticked_it_is_a_claim():
+    """GitHub makes a task-list box of -, *, + or a number, nested or quoted. Unticked, the author asserted nothing;
+    the index skipped only "- [ ]", while `knos check` skipped them all."""
+    from knos.proof import claims
+    for box in UNTICKED:
+        assert agent_pr_ci.find_claim(box) == (None, None), box
+        assert agent_pr_ci.find_claim(box.replace("[ ]", "[x]"))[0], box
+        assert not claims.read(box).kinds and claims.read(box.replace("[ ]", "[x]")).kinds & {"tests", "ci"}, box
+    for hedged in HEDGED:
+        assert agent_pr_ci.find_claim(hedged) == (None, None) and not claims.read(hedged).kinds & {"tests", "ci"}, hedged
+
+
+def test_the_command_line_reads_what_claims_nothing_in_the_index_s_words():
+    """src/knos/proof/claims.py (`knos check`, the gate, knos_check_pr) sets a sentence aside with the index's own
+    patterns: its box, its hedges and its boilerplate."""
+    from knos.proof import claims
+    assert agent_pr_ci.NONCLAIM_RE.pattern == claims._BOX + r"(?:[ \t]|$)|" + claims._HEDGE.pattern
+    assert agent_pr_ci._BOILER_RE.pattern == claims._BOILER.pattern
+    assert agent_pr_ci.NONCLAIM_RE.flags & re.I and claims._HEDGE.flags & re.I and claims._BOILER.flags & re.I
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="needs node")
+def test_the_sites_copy_of_the_claim_reader_is_the_index_s():
+    """web/front.js is a copy of agent_pr_ci's reader, so that the site and the index agree on a pull request: the same
+    three patterns, and the same answer for each body."""
+    bodies = [*UNTICKED, *(b.replace("[ ]", "[x]") for b in UNTICKED), *HEDGED, *(f["claim_line"] for f in fixtures()),
+              "Please make sure tests pass before merging", "- [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)",
+              "- [x] Local tests pass. **Your PR cannot be merged unless tests pass**", "504 passed, 0 failed.",
+              "<!-- make sure all tests pass -->\nRefactor.", "Done; `npm test` passes", "CI is green ✅", "Tests pass. I did not touch the docs."]
+    js = ('import { findClaim, CLAIM_RE, NONCLAIM_RE, BOILER_RE } from "./web/front.js";\n'
+          f"const bodies = {json.dumps(bodies)};\n"
+          "console.log(JSON.stringify({found: bodies.map((b) => { const c = findClaim(b); return c ? [c.phrase, c.line] : [null, null]; }),\n"
+          "  claim: CLAIM_RE.source, nonclaim: NONCLAIM_RE.source, boiler: BOILER_RE.source, flags: [CLAIM_RE.flags, NONCLAIM_RE.flags]}));\n")
+    r = subprocess.run(["node", "--input-type=module", "-e", js], cwd=str(ROOT), capture_output=True, text=True,
+                       encoding="utf-8", check=False)
+    assert r.returncode == 0, r.stderr
+    got = json.loads(r.stdout)
+    assert got["claim"].replace("\\/", "/") == agent_pr_ci.CLAIM_RE.pattern
+    assert got["nonclaim"] == agent_pr_ci.NONCLAIM_RE.pattern and got["boiler"] == agent_pr_ci._BOILER_RE.pattern
+    assert got["flags"] == ["i", "i"]
+    assert got["found"] == [list(agent_pr_ci.find_claim(b)) for b in bodies]
 
 
 @pytest.mark.skipif(not shutil.which("node"), reason="needs node")

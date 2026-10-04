@@ -1,19 +1,22 @@
 name: release
 
-# Everything a release publishes, behind one gate.
+# Everything a release publishes, behind one gate. docs/RELEASE.md has the whole order; this is its last part.
 #
-# A release starts by pushing its tag, and only that way:  git tag v0.3.12 && git push origin v0.3.12
+# A release starts by pushing its tag, and only that way:  git tag v0.3.13 && git push origin v0.3.13
+# By then the tagged commit holds the lock (the last line of requirements/sign.txt: the knos wheel by its sha256) and
+# PyPI holds that very wheel: it was built once, before the commit, and uploaded before the push (scripts/release.py).
 #
 #   tests           THE GATE: the whole test workflow (tests.yml, called as a reusable workflow) on the tagged commit,
 #                   in this very run. Every job below needs it, so nothing leaves the repository unless the full
 #                   suite passed on that exact commit. Tagging early cannot skip it: the tag only starts the tests.
-#   build           the wheel, the sdist and the npm tarball of the JavaScript client (sdk/settle), once; the tag must
-#                   be the version each of them carries.
-#   pypi            uploads the wheel and the sdist. First by PyPI trusted publishing: PyPI accepts the upload on
-#                   this run's GitHub OIDC token, so there is no API token to store. When that fails or is not set
-#                   up on pypi.org, the second way is the repository secret PYPI_API_TOKEN, if there is one. When
-#                   neither works the job fails and its message names both ways.
-#   github-release  creates the GitHub release for the tag, with the wheel, the sdist and the npm tarball attached
+#   build           builds the wheel again from the tagged commit, reproducibly, and FAILS unless it is the locked
+#                   one: the commit holds the sources of the wheel it names. Also the sdist, the npm tarball of the
+#                   JavaScript client (sdk/settle) and sign.txt (requirements/sign.txt as it is); the tag must be the
+#                   version each of them carries.
+#   pypi            uploads NOTHING. It asks PyPI for the wheel of this version and fails loudly unless PyPI serves a
+#                   file with exactly the locked sha256. A wheel built here is never uploaded: if it differed from the
+#                   locked one by a byte, every signing job (they install by hash) would refuse it.
+#   github-release  creates the GitHub release for the tag, with the wheel, the sdist, sign.txt and the npm tarball attached
 #                   (`npm i https://github.com/drexthealpha/Knos/releases/download/vX.Y.Z/knos-settle-X.Y.Z.tgz`).
 #   registry        lists `knos mcp` in the official MCP registry (registry.modelcontextprotocol.io). It proves it owns
 #                   the io.github.drexthealpha namespace with this run's GitHub OIDC token; the registry checks the
@@ -30,16 +33,11 @@ name: release
 #                   the release tarball (docs/INSTALL.md). A version the registry already has is left alone.
 #   site            starts the Pages build (a release made with GITHUB_TOKEN triggers no workflow).
 #
-# The secrets here are the two registry tokens and the optional PYPI_API_TOKEN, each read by one step of one job.
-# Before 0.3.12 the wheel was
-# uploaded to PyPI by hand and this workflow ran when a release was published, so both could happen (and did) while
-# the tests of that commit were failing or still running. Publishing a release by hand now starts nothing: a job that
-# waits for a release event, or reads one, would never run.
-#
-# Once, by the owner of the PyPI project, for the gate to be the only way in: on pypi.org, knos > Publishing, add the
-# trusted publisher (owner drexthealpha, repository Knos, workflow release.yml, environment pypi), then delete the
-# project's API tokens. Until the trusted publisher exists, a token stored as the secret PYPI_API_TOKEN (a token
-# for the knos project only) lets this workflow publish; delete the secret as well once trusted publishing works.
+# The secrets here are the two registry tokens, each read by one step of one job. No PyPI token and no PyPI trusted
+# publisher is used by any workflow: the upload happens once, from the machine that built the wheel, with a token in
+# that shell's environment. Until 0.3.12 this workflow built the wheel and uploaded it; the lock then existed only
+# after the tag, so the commit that pinned the workflows came after the release and took a second push.
+# Publishing a release by hand starts nothing: a job that waits for a release event, or reads one, would never run.
 #
 # A run that failed half way is run again from the Actions page ("Re-run failed jobs"), or with "Run workflow" on the
 # tag: each job skips what is already published.
@@ -80,11 +78,17 @@ jobs:
           test "$(jq -r .version server.json)" = "$version"
           test "$(jq -r '.packages[0].version' server.json)" = "$version"
           test "$(jq -r .version sdk/settle/package.json)" = "$version"
-      - name: wheel, sdist and npm tarball
+      # The wheel was built once, before this commit was made, and its hash is the last line of requirements/sign.txt.
+      # The same build here (SOURCE_DATE_EPOCH fixed, the build backend installed by hash) must give that very file.
+      - name: the wheel this commit builds is the locked one
         run: |
           set -euo pipefail
-          uv build
+          python3 scripts/release.py wheel --check
+      - name: npm tarball, and sign.txt as the commit holds it
+        run: |
+          set -euo pipefail
           (cd sdk/settle && npm pack --pack-destination ../../dist)
+          cp requirements/sign.txt dist/sign.txt
           ls -l dist
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -96,39 +100,19 @@ jobs:
     needs: [tests, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: pypi
     permissions:
-      id-token: write   # PyPI trusted publishing, the first way
+      contents: read
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release
           path: dist
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          enable-cache: false      # this job signs and uploads: nothing is restored into it
-      # The first way. It does not fail the job when PyPI says no: the next step decides, so that the token is never
-      # in the environment of this attempt and the log of this step says why PyPI refused.
-      - name: upload to PyPI by trusted publishing (files it already has are skipped, so a second run is safe)
-        id: trusted
+      # Nothing is uploaded from here, with any token: PyPI must already serve the wheel, and exactly the locked one.
+      - name: PyPI serves the wheel with exactly the locked hash
         run: |
-          if uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/*.whl dist/*.tar.gz; then
-            echo "done=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "done=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=PyPI::Trusted publishing did not work (the output above says why). Trying the secret PYPI_API_TOKEN next."
-          fi
-      # The second way, only when the first did not work, and only if the repository has the secret.
-      - name: upload to PyPI with the secret PYPI_API_TOKEN (only when trusted publishing did not work)
-        if: steps.trusted.outputs.done != 'true'
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          if [ -z "$UV_PUBLISH_TOKEN" ]; then
-            echo "::error title=PyPI::The upload to PyPI did not work, and there is no other way in. Fix one of the two: (1) trusted publishing: on pypi.org open the knos project, Publishing, and add a trusted publisher with owner drexthealpha, repository Knos, workflow release.yml, environment pypi; or (2) a token: create an API token for the knos project on pypi.org and store it as the repository secret PYPI_API_TOKEN. Then run this job again."
-            exit 1
-          fi
-          uv publish --trusted-publishing never --check-url https://pypi.org/simple/ dist/*.whl dist/*.tar.gz
+          set -euo pipefail
+          python3 scripts/release.py pypi-check --dist dist --wait 300
 
   github-release:
     needs: [tests, build, pypi]

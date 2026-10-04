@@ -113,9 +113,10 @@ _WRITES = {"PATCH": r"repos/[^/]+/[^/]+/issues/comments/\d+",     # the text of 
            "DELETE": r"repos/[^/]+/[^/]+/issues/\d+/assignees"}   # an issue's assignee: `/knos release`, a lapsed take
 
 
-def github(path: str, data: dict | None = None, method: str | None = None):
+def github(path: str, data: dict | None = None, method: str | None = None, *, token: str | None = None):
     """GET api.github.com/<path>; with `data`, POST it there as JSON (GH_TOKEN or GITHUB_TOKEN is sent when set, and
-    the API version these calls were written against). `method` PATCH edits a comment and DELETE takes an assignee
+    the API version these calls were written against; `token`, when given, is sent in their place: an attestor reads
+    another repository with a token of its own). `method` PATCH edits a comment and DELETE takes an assignee
     off an issue, with `data` as the body: any other path is refused before anything is sent, and so is any other
     method. Raises OSError when GitHub says no or does not answer in JSON. An empty answer is None."""
     import urllib.request
@@ -126,7 +127,7 @@ def github(path: str, data: dict | None = None, method: str | None = None):
                                  headers={"Accept": "application/vnd.github+json", "User-Agent": "knos",
                                           "X-GitHub-Api-Version": "2022-11-28",
                                           **({} if data is None else {"Content-Type": "application/json"})})
-    tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    tok = token or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if tok:
         req.add_header("Authorization", f"Bearer {tok}")
     with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310 - api.github.com
@@ -984,21 +985,213 @@ def _command(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
     return Run(got, {"acceptance::check"}, log=log[-2000:])
 
 
+# $KNOS_RUN on Windows, which runs no "#!/bin/sh" file. It is a program, knos-run.exe: the venv launcher that ships with
+# Python, beside a pyvenv.cfg naming the judge's interpreter and a .pth file that runs this relay before Python reads
+# its arguments. So the command's arguments reach the relay as the check gave them: a .cmd would hand them to cmd.exe,
+# which splits them at & and |, redirects at < and >, and expands %VAR%. The relay runs the command in the tree (WORK,
+# written in by the judge) inside a job object, so the whole tree it starts ends with it: a check that stops
+# "$KNOS_RUN ..." at its time limit ends knos-run.exe, and with it the relay, whose job then ends every process the
+# command started (one left running would hold the check's pipe open past the limit, and outlive the judge).
+# When there is no launcher, or it does not start the relay, knos-run.cmd runs the same relay (LAUNCHED = False).
+_WINDOWS_RUN = '''import ctypes
+import os
+import subprocess
+import sys
+import threading
+from ctypes import wintypes
+
+kernel = ctypes.WinDLL("kernel32")
+kernel.OpenProcess.restype = wintypes.HANDLE
+kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+kernel.CreateJobObjectW.restype = wintypes.HANDLE
+kernel.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+kernel.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+kernel.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+kernel.GetCurrentProcess.restype = wintypes.HANDLE
+
+
+class _Limits(ctypes.Structure):        # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD), ("SchedulingClass", wintypes.DWORD),
+                ("IoInfo", ctypes.c_uint64 * 6), ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+
+def _end(code):
+    for f in (sys.stdout, sys.stderr):
+        try:
+            f.flush()
+        except (AttributeError, OSError, ValueError):
+            pass
+    os._exit(code)
+
+
+def _resolve(name):
+    """The program a bare command name runs: found on PATH only, as `exec` finds it on Linux, never in the tree (Windows
+    looks in the current directory first, so a git.exe the pull request commits would run in place of Git). python3 is
+    the judge's own interpreter: Windows ships no python3.exe, and the python3 on PATH is often the Microsoft Store's
+    stub, which runs nothing. So is python when the only one on PATH is that stub."""
+    if os.path.dirname(name) or os.path.splitdrive(name)[0]:
+        return name
+    low = name.lower()
+    stem = low[:-4] if low.endswith(".exe") else low
+    python = getattr(sys, "_base_executable", "") or sys.executable
+    if stem == "python3":
+        return python
+    exts = [e for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if e]
+    names = [name] if os.path.splitext(low)[1] in [e.lower() for e in exts] else [name + e for e in exts]
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        d = d.strip().strip('"')
+        if not d or not os.path.isabs(d):
+            continue                     # a relative entry ("." among them) names the tree
+        for n in names:
+            path = os.path.join(d, n)
+            if os.path.isfile(path):
+                if stem == "python" and os.path.basename(os.path.normpath(d)).lower() == "windowsapps":
+                    return python
+                return path
+    return python if stem == "python" else None
+
+
+def main(argv):
+    if argv == ["knos-run:probe"]:
+        print("knos-run:ready")
+        _end(0)
+    parent = kernel.OpenProcess(0x00100000, False, os.getppid())    # SYNCHRONIZE: to wait for $KNOS_RUN to end
+    if not parent:
+        _end(126)                        # $KNOS_RUN has already been ended
+    try:
+        os.chdir(WORK)
+    except OSError:
+        _end(126)
+    if not argv:
+        _end(0)
+    found = _resolve(argv[0])
+    if not found:
+        print(f"knos-run: {argv[0]}: command not found", file=sys.stderr)
+        _end(127)
+    job = kernel.CreateJobObjectW(None, None)
+    limits = _Limits(LimitFlags=0x2000)  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: the job's last handle ends the tree
+    if not job or not kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits)) \\
+            or not kernel.AssignProcessToJobObject(job, kernel.GetCurrentProcess()):
+        print("knos-run: the command could not be put in a job object", file=sys.stderr)
+        _end(126)
+    os.environ.pop("__PYVENV_LAUNCHER__", None)     # the launcher's, for this relay only: not the command's Python
+    std = []
+    for fd in (0, 1, 2):
+        try:
+            os.fstat(fd)
+            std.append(fd)
+        except OSError:
+            std.append(subprocess.DEVNULL)
+    try:
+        child = subprocess.Popen([found, *argv[1:]], stdin=std[0], stdout=std[1], stderr=std[2])
+    except OSError as why:
+        print(f"knos-run: {why}", file=sys.stderr)
+        _end(127)
+
+    def watch():
+        kernel.WaitForSingleObject(parent, 0xFFFFFFFF)
+        kernel.TerminateJobObject(job, 1)    # $KNOS_RUN was ended (the check's time limit): so is all it started
+    threading.Thread(target=watch, daemon=True).start()
+    _end(child.wait())
+
+
+try:
+    main(sys.orig_argv[1:] if LAUNCHED else sys.argv[1:])
+except BaseException as why:            # in a .pth file an error would let Python go on to run argv[1] as a script
+    print(f"knos-run: {why!r}", file=sys.stderr)
+    _end(126)
+'''
+
+
+def _venv_launcher() -> Path | None:
+    """The launcher Python's venv copies into a virtual environment on Windows: it runs the interpreter its pyvenv.cfg
+    names with its own command line, unchanged, and ends that interpreter when it is ended (a job object of its own)."""
+    import venv
+    nt = Path(venv.__file__).resolve().parent / "scripts" / "nt"
+    return next((nt / n for n in ("venvlauncher.exe", "python.exe") if (nt / n).is_file()), None)
+
+
+def _cmd_line(python: str) -> bytes:
+    """knos-run.cmd's one line, in the code page cmd.exe reads a batch file in (the console's, else the OEM one): written
+    as UTF-8, a path such as C:\\Users\\José\\... is misread and the interpreter is not found. A path that code page
+    cannot spell is given by its short (8.3) name."""
+    import ctypes
+    k = ctypes.windll.kernel32
+    cp = k.GetConsoleOutputCP() or k.GetOEMCP()
+    enc = "utf-8" if cp == 65001 else f"cp{cp}"
+    try:
+        "".encode(enc)
+    except LookupError:
+        enc = "mbcs"
+    paths = [python]
+    buf = ctypes.create_unicode_buffer(32768)
+    if k.GetShortPathNameW(python, buf, len(buf)):
+        paths.append(buf.value)
+    for path in paths:
+        line = f'@"{path.replace("%", "%%")}" -I -S "%~dp0knos-run.py" %*\r\n'
+        try:
+            return line.encode(enc)
+        except UnicodeEncodeError:
+            continue
+    return line.encode(enc, "replace")
+
+
+def _windows_runner(home: Path, work: Path) -> Path:
+    """$KNOS_RUN on Windows, made in `home` (a folder of its own): knos-run.exe when the launcher starts the relay, else
+    knos-run.cmd, which runs the relay with the interpreter itself (not a virtual environment's launcher, which would
+    stand between the .cmd and the relay and outlive the .cmd)."""
+    python = Path(getattr(sys, "_base_executable", "") or sys.executable)
+    home.mkdir(parents=True, exist_ok=True)
+    launcher = _venv_launcher()
+    if launcher:
+        site = home / "Lib" / "site-packages"
+        site.mkdir(parents=True, exist_ok=True)
+        (site / "knos_run.py").write_text(f"WORK = {str(work)!r}\nLAUNCHED = True\n" + _WINDOWS_RUN, "utf-8")
+        (site / "knos_run.pth").write_text("import knos_run\n", "utf-8")
+        (home / "pyvenv.cfg").write_text(f"home = {python.parent}\ninclude-system-site-packages = false\n", "utf-8")
+        (home / "Scripts").mkdir(exist_ok=True)
+        runner = home / "Scripts" / "knos-run.exe"
+        shutil.copyfile(launcher, runner)
+        try:
+            probe = subprocess.run([str(runner), "knos-run:probe"], capture_output=True, timeout=60,
+                                   stdin=subprocess.DEVNULL)
+            if probe.returncode == 0 and probe.stdout.strip() == b"knos-run:ready":
+                return runner
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    (home / "knos-run.py").write_text(f"WORK = {str(work)!r}\nLAUNCHED = False\n" + _WINDOWS_RUN, "utf-8")
+    runner = home / "knos-run.cmd"
+    runner.write_bytes(_cmd_line(str(python)))
+    return runner
+
+
 def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
     """The check that cannot be forged from inside: it runs as the judge, outside the tree, and never loads the pull
     request's code. It reaches that code only through "$KNOS_RUN <command>", which runs the command in the tree,
     inside the sandbox. The check file is the base's (the pull request cannot touch .knos/), so it is trusted the way
-    the repository's own CI is. Exit 0 means done."""
+    the repository's own CI is. The bundle is copied out of the tree and taken out of it: what the check holds (a
+    held-out set, a reference) is not readable by the code it judges. Exit 0 means done."""
     import shlex
     bundle = box.work / ".knos" / "acceptance" / issue
     private = box.root / "check"
     shutil.copytree(bundle, private)
     os.chmod(private, 0o700)
+    # The bundle may hold the answers (a held-out set, a reference). The copy above is the judge's; the one in the tree
+    # would be readable by the code that is being judged, so no bundle of the repository stays there.
+    shutil.rmtree(box.work / ".knos" / "acceptance", ignore_errors=True)
     box.open_up()
-    argv, env = box.wrap(["sh", "-c", 'exec "$@"', "sh"], net=False)
-    runner = private / "knos-run"
-    runner.write_text("#!/bin/sh\n" + f"cd {shlex.quote(str(box.work))} || exit 126\n"
-                      + "exec " + " ".join(shlex.quote(a) for a in argv) + ' "$@"\n', "utf-8")
+    if os.name == "nt":
+        runner = _windows_runner(box.root / "knos-run", box.work)
+    else:
+        argv, env = box.wrap(["sh", "-c", 'exec "$@"', "sh"], net=False)
+        runner = private / "knos-run"
+        runner.write_text("#!/bin/sh\n" + f"cd {shlex.quote(str(box.work))} || exit 126\n"
+                          + "exec " + " ".join(shlex.quote(a) for a in argv) + ' "$@"\n', "utf-8")
     runner.chmod(0o700)
     name = next(n for n in BLACKBOX_ENTRY if (private / n).is_file())
     cmd = [sys.executable, name] if name.endswith(".py") else ["sh", name]

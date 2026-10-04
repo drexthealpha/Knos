@@ -274,8 +274,8 @@ def test_every_condition_of_the_attestation_is_needed_to_register_a_key_and_to_r
     expires = c.key(GH, hn).expires_at
     c.warp(5 * DAY)                                         # so that a Refresh that worked would show
 
-    reg = lambda tok: c.send([oidc.register_key_ix(c.payer.pubkey(), GH, n, tok)])  # noqa: E731
-    ref = lambda tok: c.send([oidc.refresh_ix(c.payer.pubkey(), GH, hn, tok)])  # noqa: E731
+    reg = lambda tok: c.send([c.register_ix(GH, n, tok)])  # noqa: E731
+    ref = lambda tok: c.send([c.refresh_ix(GH, hn, tok)])  # noqa: E731
 
     def refused(what: str, want: int, **over) -> None:
         for send, target in ((reg, n), (ref, hn)):
@@ -347,10 +347,306 @@ def test_every_condition_of_the_attestation_is_needed_to_register_a_key_and_to_r
     for repo in REAL_REPOS:
         other, on = new_key()
         tok = c.attest(GH, on, repository_owner_id=str(REAL_OWNER), repository_id=str(repo), repository="drexthealpha/Knos")
-        assert c.send([oidc.register_key_ix(c.payer.pubkey(), GH, on, tok)]), c.err
+        assert c.send([c.register_ix(GH, on, tok)]), c.err
     assert REAL_OWNER == 142920951 and REAL_REPOS == [1353152983, 1401432540]
     # the same key cannot be registered twice
     assert not reg(c.attest(GH, n)) and code(c) == 67
+
+
+def test_an_attestation_counts_only_while_the_key_that_verified_it_is_usable():
+    """RegisterKey and Refresh take the key account that verified the attestation and ask of it what Step asks. A
+    VERIFIED token account outlives its key by up to 25 hours (a day of `exp` ahead, an hour of lateness); an
+    attestation does not outlive it by a second."""
+    c = Chain2()
+    sn = modulus(signing_key())
+    assert c.register(GH, sn), c.err
+    second, n2 = new_key()                                  # a second key of GitHub's
+    assert c.admit(GH, n2), c.err
+    target, p = new_key()[1], c.payer.pubkey()
+    c.warp(10 * DAY)
+    assert c.refresh(GH, sn), c.err                         # the seed key now lives longer than the second
+    c.warp(c.key(GH, n2).expires_at - c.now() - 1)          # the second key's last second
+    far = c.now() + DAY                                     # the furthest expiry Step lets through
+    reg_tok, ref_tok, seed_tok = (c.attest(GH, n, by=second, exp=far) for n in (target, n2, sn))
+    assert reg_tok and ref_tok and seed_tok, c.err
+    # the key account is the one the token account names, and no other: a usable key that did not verify it, the
+    # token itself, a wallet, nothing
+    for wrong in (oidc.key_pda(GH, sn), reg_tok, p, Keypair().pubkey()):
+        assert not c.send([oidc.register_key_ix(p, GH, target, reg_tok, wrong)]) and code(c) == 68, c.err
+        assert not c.send([oidc.refresh_ix(p, GH, sn, seed_tok, wrong)]) and code(c) == 68, c.err
+    assert not c.send([oidc.register_key_ix(p, GH, target, reg_tok)]) and "NotEnoughAccountKeys" in c.err
+    assert not c.send([oidc.refresh_ix(p, GH, sn, seed_tok)]) and "NotEnoughAccountKeys" in c.err
+    before = c.key(GH, sn)
+    uses = lambda: (c.register_ix(GH, target, reg_tok), c.refresh_ix(GH, n2, ref_tok), c.refresh_ix(GH, sn, seed_tok))  # noqa: E731
+    c.warp(1)                                               # the second key has expired; its tokens are fresh for a day
+    assert all(oidc.read_token(c.data(t)).verified and c.now() < oidc.read_token(c.data(t)).exp for t in (reg_tok, ref_tok, seed_tok))
+    for ix in uses():
+        assert not c.send([ix]) and code(c) == 77, c.err    # not even to refresh itself
+    assert c.key(GH, target) is None and c.key(GH, sn) == before and not oidc.key_usable(c.key(GH, n2), c.now())[0]
+    # GitHub names the expired key again in a token verified under a key that is live: that refreshes it
+    assert c.refresh(GH, n2), c.err
+    assert c.send([c.refresh_ix(GH, sn, seed_tok)]), c.err   # and what it verified counts again, for its own time
+    assert c.key(GH, sn).expires_at == c.now() + oidc.KEY_TTL > before.expires_at
+    # revoked: nothing it verified attests anything again
+    before = c.key(GH, sn)
+    assert c.revoke(GH, n2), c.err
+    for warp in (0, DAY + oidc.LATE):
+        c.warp(warp)
+        for ix in uses():
+            assert not c.send([ix]) and code(c) == 78, c.err
+    assert c.key(GH, target) is None and c.key(GH, sn) == before
+
+
+def test_anyone_refreshes_a_key_from_a_repository_of_his_own_and_nobody_registers_one_that_way():
+    """The rotate workflow at its pinned commit, started by hand in a repository owned by the person who started it
+    (repository_owner_id == actor_id: a personal account, whose hosted runners are GitHub's), counts for Refresh.
+    So the keys stay alive without the attester's schedule. It never counts for RegisterKey."""
+    c = Chain2()
+    sn = modulus(signing_key())
+    assert c.register(GH, sn), c.err
+    have, hn = new_key()
+    assert c.admit(GH, hn), c.err
+    new = new_key()[1]
+    c.warp(5 * DAY)
+    mine = dict(event_name="workflow_dispatch", repository_owner_id="555000", actor_id="555000", repository_id="777000111",
+                repository="someone/rotate-knos", repository_owner="someone", actor="someone")
+    expires = c.key(GH, hn).expires_at
+    refused = {
+        "the schedule": dict(event_name="schedule"),
+        "a push": dict(event_name="push"),
+        "started by someone who does not own the repository": dict(actor_id="555001"),
+        "an organisation's repository": dict(repository_owner_id="9000001"),
+        "no actor": dict(actor_id=None),
+        "an actor that is not a number": dict(actor_id="someone"),
+        "a self-hosted runner": dict(runner_environment="self-hosted"),
+        "another commit of the workflow": dict(job_workflow_sha="2" * 40),
+        "a copy of the workflow in his repository": dict(job_workflow_ref="someone/rotate-knos/.github/workflows/rotate.yml@refs/heads/main"),
+        "another key's audience": dict(aud=oidc.rotate_audience(GH, new)),
+    }
+    for what, over in refused.items():
+        claims = {k: v for k, v in {**mine, **over}.items() if v is not None}
+        tok = c.attest(GH, hn, **claims) if "actor_id" in claims else c.verify(
+            sign_jwt(signing_key(), {k: v for k, v in attest_claims(GH, hn, iat=c.now(), exp=c.now() + 300, jti="noactor", **claims).items() if k != "actor_id"}), GH, sn)
+        assert tok is not None, c.err
+        assert not c.send([c.refresh_ix(GH, hn, tok)]) and code(c) == 74, f"{what}: {c.err}"
+    assert c.key(GH, hn).expires_at == expires
+    stranger = c.fund()
+    tok = c.attest(GH, hn, **mine)
+    assert c.refresh(GH, hn, tok, payer=stranger), c.err
+    assert c.key(GH, hn).expires_at == c.now() + oidc.KEY_TTL > expires
+    # the same run names a key the chain does not have: that is the attester's to say, and the guardian's to approve
+    tok = c.attest(GH, new, **mine)
+    assert tok is not None and not c.send([c.register_ix(GH, new, tok)]) and code(c) == 74
+    assert c.key(GH, new) is None
+    assert c.register(GH, new, c.attest(GH, new)), c.err                # the attester's run does register it
+    assert c.refresh(GH, new, c.attest(GH, new, **mine)), c.err         # and then anyone keeps it alive
+
+
+# -- any RS256 issuer --------------------------------------------------------------------------------------------------
+
+# two issuers that are neither GitHub nor GitLab: a CI service, and a company's GitHub Enterprise Server
+ISSUER_URLS = {2048: "https://oidc.ci.example.dev", 4096: "https://ghe.example.org/_services/token"}
+
+
+def issuer_claims(url: str, c: Chain2, **over) -> dict:
+    """What such an issuer signs: its own `iss`, its own claim names, and the three every OIDC token has."""
+    claims = {"iss": url, "sub": "org/acme/project/widgets/pipeline/release", "aud": "acme:release:1.2.0", "iat": c.now(), "exp": c.now() + 300,
+              "jti": f"i{next(_serial)}", "project_id": "8841", "pipeline": "release"}
+    claims.update(over)
+    return claims
+
+
+@pytest.mark.parametrize("bits", [2048, 4096])
+def test_any_rs256_issuer_is_admitted_on_githubs_signature_and_step_checks_its_iss(bits):
+    c = Chain2()
+    url, sn = ISSUER_URLS[bits], modulus(signing_key())
+    key, n = new_key(bits)
+    assert c.register(GH, sn), c.err
+    ih = oidc.issuer_hash(url)
+    assert oidc.rotate_audience(url, n) == f"knos-oidc:ikey:{ih.hex()}:{oidc.key_hash(n).hex()}"
+    # what does not admit it: the audience of a numbered issuer's key, another issuer's, another key's, anyone's run,
+    # an attestation by a GitLab key, and RegisterKey (the two numbered issuers only)
+    other_url, other_n = "https://oidc.ci.example.com", new_key()[1]
+    anyone = dict(event_name="workflow_dispatch", repository_owner_id="555000", actor_id="555000", repository_id="777000111")
+    for what, tok in {"a numbered key's audience": c.attest(GH, n), "another issuer's": c.attest(other_url, n), "another key's": c.attest(url, other_n),
+                      "anyone's run": c.attest(url, n, **anyone), "a push": c.attest(url, n, event_name="push")}.items():
+        assert tok is not None and not c.send([c.register_ix(url, n, tok)]) and code(c) == 74, f"{what}: {c.err}"
+    tok = c.attest(url, n)
+    for issuer in (GH, GL):
+        assert not c.send([c.register_ix(issuer, n, tok)]) and code(c) == 74
+    assert not c.send([Instruction(oidc.OIDC_ID, b"\x03\x02" + oidc.modulus_bytes(n), c.register_ix(GH, n, tok).accounts)]) and code(c) == 72
+    # an issuer is an https URL as it stands in `iss`: nothing else has an account
+    for bad in ("http://oidc.ci.example.dev", "https://", "oidc.ci.example.dev/https://", 'https://a"b', "https://a b", "https://a\\b", "https://" + "a" * 193):
+        u = bad.encode()
+        ix = c.register_ix(url, n, tok)
+        assert not c.send([Instruction(oidc.OIDC_ID, b"\x08" + bytes([len(u)]) + u + oidc.modulus_bytes(n), ix.accounts)]) and code(c) == 72, bad
+    # the accounts are the ones the URL and the modulus derive
+    ix = c.register_ix(url, n, tok)
+    swap = lambda at, meta: Instruction(ix.program_id, bytes(ix.data), ix.accounts[:at] + [meta] + ix.accounts[at + 1:])  # noqa: E731
+    for at, key_ in ((1, oidc.key_pda(other_url, n)), (1, oidc.key_pda(url, other_n)), (1, oidc.key_pda(GH, n)), (2, oidc.iss_pda(other_url)),
+                     (2, oidc.key_pda(url, n)), (3, oidc.OIDC_ID)):
+        assert not c.send([swap(at, AccountMeta(key_, False, at < 3))]) and code(c) == 67, (at, c.err)
+    assert c.key(url, n) is None and c.data(oidc.iss_pda(url)) is None
+    # GitHub's signature names it: registered, with the issuer's URL on chain beside it
+    assert c.register(url, n, tok), c.err
+    k = c.key(url, n)
+    assert k == oidc.Key(state=1, issuer=oidc.OTHER, bits=bits, active_at=c.now() + oidc.KEY_DELAY, expires_at=c.now() + oidc.KEY_DELAY + oidc.KEY_TTL,
+                         approved=False, revoked=False, genesis=False, issuer_hash=ih)
+    d = c.data(oidc.key_pda(url, n))
+    assert len(d) == oidc.K_HDR + 8 * (bits // 32) + oidc.KEY_TAIL and d[-64:] == ih + bytes(32)
+    iss = c.data(oidc.iss_pda(url))
+    assert oidc.read_iss(iss) == url and iss[0] == 3 and iss[2:4] == bytes([0, len(url)])
+    assert not c.send([c.register_ix(url, n, c.attest(url, n))]) and code(c) == 67          # once
+    # the same day of waiting and the same approval as any attested key
+    jwt = sign_jwt(key, issuer_claims(url, c))
+    assert c.verify(jwt, url, n) is None and code(c) == 76
+    c.travel(oidc.KEY_DELAY)
+    assert c.verify(jwt, url, n) is None and code(c) == 76
+    assert c.approve(url, n), c.err
+    claims = issuer_claims(url, c)
+    tok = c.verify(sign_jwt(key, claims), url, n, tag="issuer")
+    assert tok is not None, c.err
+    print(f"\nCU Step under a {bits}-bit key of another issuer:", [c.cu[f"issuer_{bits}_step{i + 1}"][-1] for i in range(len(oidc.step_plan(bits)))])
+    t = oidc.read_token(c.data(tok))
+    assert t.verified and t.claims() == claims and t.key == oidc.key_pda(url, n)
+    # the token account says OTHER and which issuer: it is never GitHub's or GitLab's number
+    assert t.issuer == oidc.OTHER and oidc.token_issuer(c.data(tok)) == (ih, None)
+    gh_tok = c.gh("knos2:bind:x")
+    assert oidc.token_issuer(c.data(gh_tok)) is None and oidc.read_token(c.data(gh_tok)).issuer == GH
+    # `iss` must be the URL the key was admitted for: this key signs for no other issuer
+    for iss_claim in (other_url, oidc.ISSUERS[GH], oidc.ISSUERS[GL], url + "/", url.upper(), ""):
+        assert c.verify(sign_jwt(key, issuer_claims(url, c, iss=iss_claim)), url, n) is None and code(c) == 72, iss_claim
+    claims = issuer_claims(url, c)
+    del claims["iss"]
+    assert c.verify(sign_jwt(key, claims), url, n) is None and code(c) == 63
+    # an issuer that writes its slashes escaped is the same issuer
+    claims = issuer_claims(url, c)
+    raw = json.dumps(claims, separators=(",", ":")).replace("/", "\\/").encode()
+    assert c.verify(sign_jwt(key, claims, raw_payload=raw), url, n) is not None, c.err
+    # as an attestation such a token is worth nothing: only GitHub's own keys attest
+    forged = c.verify(sign_jwt(key, {**attest_claims(GH, other_n, iat=c.now(), exp=c.now() + 300, jti="forged"), "iss": url}), url, n)
+    assert forged is not None and not c.send([c.register_ix(GH, other_n, forged)]) and code(c) == 74
+    assert not c.send([c.refresh_ix(GH, sn, forged)]) and code(c) == 74
+    # a second key of the same issuer finds the issuer's account there
+    key2, n2 = new_key()
+    assert c.register(url, n2, c.attest(url, n2)), c.err
+    assert c.data(oidc.iss_pda(url)) == iss
+    # expiry and Refresh: with the issuer key's own audience, from the attester or from anyone's run
+    c.warp(oidc.KEY_TTL)
+    assert c.verify(sign_jwt(key, issuer_claims(url, c)), url, n) is None and code(c) == 77
+    assert c.refresh(GH, sn) is False and code(c) == 77                  # GitHub's key expired with it: this chain is dead
+    c2 = Chain2()
+    assert c2.register(GH, sn) and c2.register(url, n, c2.attest(url, n)) and c2.approve(url, n), c2.err
+    c2.travel(oidc.KEY_DELAY + 5 * DAY)
+    before = c2.key(url, n).expires_at
+    c2.warp(DAY)
+    for wrong in (c2.attest(GH, n), c2.attest(other_url, n), c2.attest(url, n2)):
+        assert not c2.send([c2.refresh_ix(url, n, wrong)]) and code(c2) == 74
+    assert c2.send([c2.refresh_ix(url, n, c2.attest(url, n, **anyone))]), c2.err
+    assert c2.key(url, n).expires_at == c2.now() + oidc.KEY_TTL == before + DAY
+    assert c2.verify(sign_jwt(key, issuer_claims(url, c2)), url, n) is not None, c2.err
+    # revocation, for ever
+    assert not c2.revoke(url, n, guardian=c2.fund()) and code(c2) == 79
+    assert c2.revoke(url, n), c2.err
+    assert c2.verify(sign_jwt(key, issuer_claims(url, c2)), url, n) is None and code(c2) == 78
+    assert not c2.send([c2.refresh_ix(url, n, c2.attest(url, n))]) and code(c2) == 78
+
+
+# -- private keys ------------------------------------------------------------------------------------------------------
+
+def test_a_private_key_is_its_registrants_word_and_is_marked_so_in_every_token_it_verifies():
+    c = Chain2()
+    sn = modulus(signing_key())
+    assert c.register(GH, sn), c.err
+    company, url = c.fund(), "https://ghe.acme.example/_services/token"
+    key, n = new_key()
+    who, ih = company.pubkey(), oidc.issuer_hash(url)
+    kp = oidc.key_pda(url, n, registrant=who)
+    assert kp not in (oidc.key_pda(url, n), oidc.key_pda(url, n, registrant=c.payer.pubkey()))
+    # the registrant signs and pays; the address is derived from him, the URL and the modulus
+    ix = oidc.register_private_key_ix(who, url, n)
+    unsigned = Instruction(ix.program_id, bytes(ix.data), [AccountMeta(who, False, True), *ix.accounts[1:]])
+    assert not c.send([unsigned]) and code(c) == 67
+    for at, other in ((1, oidc.key_pda(url, n)), (1, oidc.key_pda(url, n, registrant=c.payer.pubkey())), (2, oidc.OIDC_ID)):
+        swapped = Instruction(ix.program_id, bytes(ix.data), ix.accounts[:at] + [AccountMeta(other, False, at == 1)] + ix.accounts[at + 1:])
+        assert not c.send([swapped], company) and code(c) == 67
+    assert not c.send([Instruction(ix.program_id, b"\x09" + bytes([4]) + b"ftp:" + oidc.modulus_bytes(n), ix.accounts)], company) and code(c) == 72
+    assert c.register_private(company, url, n), c.err
+    k = oidc.read_key(c.data(kp))
+    assert k == oidc.Key(state=1, issuer=oidc.PRIVATE, bits=2048, active_at=c.now(), expires_at=c.now() + oidc.KEY_TTL, approved=False, revoked=False,
+                         genesis=False, issuer_hash=ih, private=True, registrant=who)
+    assert c.data(kp)[24] == oidc.PRIVATE_FLAG and c.data(kp)[-64:] == ih + bytes(who)
+    assert oidc.key_usable(k, c.now()) == (True, "")                    # at once: nobody's approval is asked, or given
+    assert not c.approve(url, n) and not c.send([Instruction(oidc.OIDC_ID, b"\x06", [AccountMeta(GUARDIAN.pubkey(), True, False), AccountMeta(kp, False, True)])],
+                                                signers=[GUARDIAN]) and code(c) == 68
+    claims = issuer_claims(url, c)
+    tok = c.verify(sign_jwt(key, claims), url, n, registrant=who, tag="private")
+    assert tok is not None, c.err
+    t = oidc.read_token(c.data(tok))
+    assert t.verified and t.claims() == claims and t.key == kp
+    # the token account says PRIVATE and whose word it is
+    assert t.issuer == oidc.PRIVATE and oidc.token_issuer(c.data(tok)) == (ih, who)
+    assert c.verify(sign_jwt(key, issuer_claims(url, c, iss="https://ghe.other.example/_services/token")), url, n, registrant=who) is None and code(c) == 72
+
+    # A thief registers his own key as a private key "of GitHub" and signs whatever GitHub would sign.
+    thief, github = c.fund(), oidc.ISSUERS[GH]
+    tk, tn = new_key()
+    assert c.register_private(thief, github, tn), c.err
+    assert c.key(GH, tn) is None and c.key(github, tn) is None          # it is nobody's key but his
+    target = new_key()[1]
+    forged = c.verify(sign_jwt(tk, attest_claims(GH, target, iat=c.now(), exp=c.now() + 300, jti="thief-reg")), github, tn, registrant=thief.pubkey())
+    keep = c.verify(sign_jwt(tk, attest_claims(GH, sn, iat=c.now(), exp=c.now() + 300, jti="thief-ref")), github, tn, registrant=thief.pubkey())
+    pay = c.verify(sign_jwt(tk, github_claims(aud="knos2:pay:987654321:7:1234567:" + "a" * 40 + ":" + "c" * 64 + ":0:-", iat=c.now(), exp=c.now() + 300)),
+                   github, tn, registrant=thief.pubkey())
+    assert forged and keep and pay, c.err
+    for account in (forged, keep, pay):
+        t = oidc.read_token(c.data(account))
+        # every claim reads as GitHub's, the signature verified, and the account is VERIFIED...
+        assert t.verified and t.claims()["iss"] == github
+        # ...and it is marked: not GitHub's number, and the thief's own address is in it
+        assert t.issuer == oidc.PRIVATE != GH and oidc.token_issuer(c.data(account)) == (oidc.issuer_hash(github), thief.pubkey())
+    # the verifier itself takes no attestation from it: no key is registered and none is refreshed
+    before = c.key(GH, sn)
+    c.warp(DAY)
+    assert not c.send([c.register_ix(GH, target, forged)]) and code(c) == 74
+    assert not c.send([c.register_ix(github, target, forged)]) and code(c) == 74
+    assert not c.send([c.refresh_ix(GH, sn, keep)]) and code(c) == 74
+    assert c.key(GH, target) is None and c.key(github, target) is None and c.key(GH, sn) == before
+    # nor with a real GitHub key account beside it, nor with a real attestation beside the private key
+    real = c.attest(GH, target)
+    p = c.payer.pubkey()
+    assert not c.send([oidc.register_key_ix(p, GH, target, forged, oidc.key_pda(GH, sn))]) and code(c) == 68
+    assert not c.send([oidc.register_key_ix(p, GH, target, real, oidc.key_pda(github, tn, registrant=thief.pubkey()))]) and code(c) == 68
+    # so the one reader it fools is a consumer that reads the claims and asks neither the issuer's number nor the flag
+    forgetful = lambda d: oidc.read_token(d).verified and oidc.read_token(d).claims()["iss"] == github  # noqa: E731
+    careful = lambda d: forgetful(d) and oidc.read_token(d).issuer == GH and oidc.token_issuer(d) is None  # noqa: E731
+    real_pay = c.gh("knos2:pay:1:1")
+    assert forgetful(c.data(pay)) and not careful(c.data(pay)) and careful(c.data(real_pay))
+
+    # renewing: the same wallet sends it again; another wallet's signature makes another wallet's key
+    c.warp(10 * DAY)
+    assert c.send([oidc.register_private_key_ix(who, url, n)], company), c.err
+    assert oidc.read_key(c.data(kp)).expires_at == c.now() + oidc.KEY_TTL and oidc.read_key(c.data(kp)).active_at == k.active_at
+    assert c.send([oidc.register_private_key_ix(thief.pubkey(), url, n)], thief), c.err
+    assert oidc.read_key(c.data(oidc.key_pda(url, n, registrant=thief.pubkey()))).registrant == thief.pubkey() and oidc.read_key(c.data(kp)).registrant == who
+    # no attestation refreshes it, GitHub's included
+    assert not c.send([oidc.refresh_ix(p, url, n, real, oidc.key_pda(GH, sn))]) and code(c) == 68          # the attested issuer's key: not there
+    r = oidc.refresh_ix(p, url, n, real, oidc.key_pda(GH, sn))
+    assert not c.send([Instruction(r.program_id, bytes(r.data), [r.accounts[0], AccountMeta(kp, False, True), *r.accounts[2:]])]) and code(c) == 72
+    # it expires like any key
+    c.warp(oidc.KEY_TTL)
+    assert c.verify(sign_jwt(key, issuer_claims(url, c)), url, n, registrant=who) is None and code(c) == 77
+    assert c.send([oidc.register_private_key_ix(who, url, n)], company), c.err
+    assert c.verify(sign_jwt(key, issuer_claims(url, c)), url, n, registrant=who) is not None, c.err
+    # its registrant ends it, or the guardian does; nobody else; and then it is over
+    assert not c.send([oidc.revoke_ix(thief.pubkey(), url, n, registrant=who)], thief) and code(c) == 79
+    assert not c.send([oidc.revoke_ix(who, GH, sn)], company) and code(c) == 79         # a registrant revokes no key but his own
+    assert c.send([oidc.revoke_ix(who, url, n, registrant=who)], company), c.err
+    assert oidc.read_key(c.data(kp)).revoked
+    assert c.verify(sign_jwt(key, issuer_claims(url, c)), url, n, registrant=who) is None and code(c) == 78
+    assert not c.send([oidc.register_private_key_ix(who, url, n)], company) and code(c) == 78
+    assert c.send([oidc.revoke_ix(GUARDIAN.pubkey(), github, tn, registrant=thief.pubkey())], signers=[GUARDIAN]), c.err
+    print("\nCU Step under a private 2048-bit key:", [c.cu[f"private_2048_step{i + 1}"][-1] for i in range(2)])
 
 
 # -- expiry ---------------------------------------------------------------------------------------------------------------
@@ -382,12 +678,12 @@ def test_refresh_moves_the_expiry_to_thirty_days_from_now_and_never_earlier():
     assert c.refresh(GH, n) and c.key(GH, n).expires_at == before.expires_at + 3600
     assert c.key(GH, n).active_at == before.active_at and not c.key(GH, n).approved
     # Refresh takes no data, needs a signer, and works on key accounts only
-    ix = oidc.refresh_ix(c.payer.pubkey(), GH, n, c.attest(GH, n))
+    ix = c.refresh_ix(GH, n, c.attest(GH, n))
     assert not c.send([Instruction(oidc.OIDC_ID, b"\x05\x00", ix.accounts)]) and "InvalidInstructionData" in c.err
     unsigned = Instruction(oidc.OIDC_ID, b"\x05", [AccountMeta(anyone.pubkey(), False, False), *ix.accounts[1:]])
     assert not c.send([unsigned]) and code(c) == 67
     missing = new_key()[1]
-    assert not c.send([oidc.refresh_ix(c.payer.pubkey(), GH, missing, c.attest(GH, missing))]) and code(c) == 68
+    assert not c.send([c.refresh_ix(GH, missing, c.attest(GH, missing))]) and code(c) == 68
 
 
 def test_a_key_past_its_expiry_verifies_nothing_until_github_names_it_again():
@@ -448,8 +744,8 @@ def test_revoke_is_for_ever():
     # nothing brings it back: not the guardian, not a new attestation, not time
     assert not c.approve(GH, n) and code(c) == 78
     tok = c.attest(GH, n)
-    assert not c.send([oidc.refresh_ix(c.payer.pubkey(), GH, n, tok)]) and code(c) == 78
-    assert not c.send([oidc.register_key_ix(c.payer.pubkey(), GH, n, tok)]) and code(c) == 67     # the account stays: no second life
+    assert not c.send([c.refresh_ix(GH, n, tok)]) and code(c) == 78
+    assert not c.send([c.register_ix(GH, n, tok)]) and code(c) == 67     # the account stays: no second life
     assert not c.send([oidc.register_key_ix(c.payer.pubkey(), GH, n)]) and code(c) == 67
     assert not c.send([oidc.key_params_ix(c.payer.pubkey(), GH, n)]) and code(c) == 69
     assert c.revoke(GH, n) and c.key(GH, n).revoked                                                   # again: still revoked
@@ -494,9 +790,12 @@ def test_no_token_outlives_its_key_by_more_than_25_hours_whatever_expiry_it_carr
     assert keep is not None and own is not None, c.err
     assert c.revoke(GH, n), c.err
     expires = c.key(GH, sn).expires_at
+    # as an attestation it is worth nothing from the second of the revocation: RegisterKey and Refresh ask the key
+    assert not c.send([c.refresh_ix(GH, sn, keep)]) and code(c) == 78
+    assert not c.send([c.register_ix(GH, mine, own)]) and code(c) == 78
     c.warp(ahead + oidc.LATE)
-    assert not c.send([oidc.refresh_ix(c.payer.pubkey(), GH, sn, keep)]) and code(c) == 75
-    assert not c.send([oidc.register_key_ix(c.payer.pubkey(), GH, mine, own)]) and code(c) == 75
+    assert not c.send([c.refresh_ix(GH, sn, keep)]) and code(c) == 78
+    assert not c.send([c.register_ix(GH, mine, own)]) and code(c) == 78
     assert c.key(GH, sn).expires_at == expires and c.key(GH, mine) is None
     # a token already past its expiry still verifies (lateness is `fresh`'s question, asked by whoever consumes it)
     assert c.verify(token(signing_key(), exp=c.now() - 10 * DAY), GH, sn) is not None, c.err
@@ -545,8 +844,12 @@ def test_only_the_guardian_approves_and_revokes_and_it_can_do_nothing_else():
         ix = Instruction(oidc.OIDC_ID, tag + b"\x01", [AccountMeta(GUARDIAN.pubkey(), True, False), AccountMeta(kp, False, True)])
         assert not c.send([ix], signers=[GUARDIAN]) and "InvalidInstructionData" in c.err
     assert c.data(tok) == before and c.key(GH, n) == k
-    # there is no ninth instruction
-    for tag in range(8, 256):
+    # the instructions after its two are not the guardian's: a key of another issuer takes GitHub's signature like any key
+    url = "https://oidc.ci.example.dev"
+    g = oidc.register_issuer_key_ix(GUARDIAN.pubkey(), url, other, tok, oidc.key_pda(GH, modulus(signing_key())))
+    assert not c.send([g], payer=GUARDIAN) and code(c) == 73 and c.key(url, other) is None
+    # and there is no instruction after RegisterPrivateKey
+    for tag in range(10, 256):
         ix = Instruction(oidc.OIDC_ID, bytes([tag]), [AccountMeta(GUARDIAN.pubkey(), True, True), AccountMeta(kp, False, True)])
         assert not c.send([ix], signers=[GUARDIAN]) and "InvalidInstructionData" in c.err
     # approving changes the approval and nothing else; the day still has to pass
@@ -586,7 +889,7 @@ def test_the_real_build_trusts_none_of_the_test_values():
 
 def test_wrong_montgomery_constants_are_refused(chain):
     key, n = new_key()
-    assert chain.send([oidc.register_key_ix(chain.payer.pubkey(), GH, n, chain.attest(GH, n))]), chain.err
+    assert chain.send([chain.register_ix(GH, n, chain.attest(GH, n))]), chain.err
     n0inv, r2 = oidc.key_params(n)
     kp = oidc.key_pda(GH, n)
     acc = [AccountMeta(chain.payer.pubkey(), True, False), AccountMeta(kp, False, True)]
@@ -603,7 +906,7 @@ def test_wrong_montgomery_constants_are_refused(chain):
     acc[1] = AccountMeta(oidc.token_pda(chain.payer.pubkey(), tid), False, True)
     assert not chain.send([Instruction(oidc.OIDC_ID, b"\x04" + n0inv.to_bytes(4, "little") + r2, acc)]) and "InvalidInstructionData" in chain.err
     for bad in (n + 1, n >> 1):
-        assert not chain.send([oidc.register_key_ix(chain.payer.pubkey(), GH, bad, chain.attest(GH, bad))]) and code(chain) == 66
+        assert not chain.send([chain.register_ix(GH, bad, chain.attest(GH, bad))]) and code(chain) == 66
 
 
 def _flip(jwt: str, part: int, at: int) -> str:
@@ -665,7 +968,7 @@ def test_escaped_claims_read_as_the_same_text(chain):
     new, nn = new_key()
     ac = attest_claims(GH, nn, jti="escaped")
     tok = chain.verify(sign_jwt(key, ac, raw_payload=json.dumps(ac, separators=(",", ":")).replace("/", "\\/").replace("schedule", "sch\\u0065dule").encode()), GH, n)
-    assert tok is not None and chain.send([oidc.register_key_ix(chain.payer.pubkey(), GH, nn, tok)]), chain.err
+    assert tok is not None and chain.send([chain.register_ix(GH, nn, tok)]), chain.err
 
 
 def test_claims_are_read_at_the_top_level_only_and_a_time_is_plain_digits():
@@ -673,7 +976,7 @@ def test_claims_are_read_at_the_top_level_only_and_a_time_is_plain_digits():
     key, sn = signing_key(), modulus(signing_key())
     assert c.register(GH, sn), c.err
     dumps = lambda d: json.dumps(d, separators=(",", ":"))  # noqa: E731
-    reg = lambda n, tok: c.send([oidc.register_key_ix(c.payer.pubkey(), GH, n, tok)])  # noqa: E731
+    reg = lambda n, tok: c.send([c.register_ix(GH, n, tok)])  # noqa: E731
     # exp: an unsigned whole number of at most 18 digits, written once
     good, at = dumps(github_claims(jti="exp")), '"exp":%d' % (NOW + 300)
     assert at in good
@@ -764,7 +1067,7 @@ def test_nothing_computed_for_one_token_serves_another_and_no_account_stands_in_
         assert not c.send([swap(w, at, meta)]) and code(c) == 67
     # RegisterKey: only the address derived from the issuer and the modulus's hash, and only the system program
     _k, n = new_key()
-    r = oidc.register_key_ix(me, GH, n, c.attest(GH, n))
+    r = c.register_ix(GH, n, c.attest(GH, n))
     for at, meta in ((1, AccountMeta(oidc.key_pda(GL, n), False, True)), (1, AccountMeta(oidc.key_pda(GH, n + 2), False, True)),
                      (1, AccountMeta(Keypair().pubkey(), False, True)), (2, AccountMeta(oidc.OIDC_ID, False, False))):
         assert not c.send([swap(r, at, meta)]) and code(c) == 67

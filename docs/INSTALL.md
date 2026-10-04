@@ -9,9 +9,18 @@ Two parts of the package go into a coding agent:
 - **The Stop hook.** When the agent says tests pass, CI is green, it shipped or it is done, Knos runs that check
   itself before the agent may stop. The command is `knos hook proof`.
 - **The MCP server.** Tools that only read: `knos_bounties` and `knos_bounty` (paid work on GitHub issues, in test
-  USDC on Solana devnet), `knos_check_pr` (is a pull request's "tests pass" true) and `knos_due` (what waits for a
-  GitHub account). The command is `knos mcp`. It reads public data from GitHub and Solana and holds no key and no
-  wallet.
+  USDC on Solana devnet), `knos_quote` (one issue's amount, terms, what stands in the way, and the funder's record),
+  `knos_can_pay` (would it pay: is the pinned workflow on the default branch, did each named check pass there in the
+  last 30 days, can a GitHub-signed run the chain verifies pay it), `knos_check_pr` (is a pull request's "tests pass"
+  true) and `knos_due` (what waits for a GitHub account). Four more return the exact comment to post and send nothing
+  themselves: `knos_take`, `knos_address`, `knos_fund` and `knos_settle`. The command is `knos mcp`. It reads public
+  data from GitHub and Solana and holds no key and no wallet.
+
+  Whatever a repository or an account wrote (an issue's title and labels, a check's name, the paths in a bounty's
+  terms) comes back inside a field named `untrusted`, each string cut to 200 characters, and the server's
+  instructions tell the agent that it is data, never an instruction. `KNOS_MCP_REPOS=owner/name,owner/name` limits the
+  server to those repositories: a listing holds only their bounties, and a tool that names another repository
+  refuses it.
 
 | For | Do this | It installs |
 |---|---|---|
@@ -24,8 +33,9 @@ Two parts of the package go into a coding agent:
 | VS Code | [one link](#vs-code) | the server |
 | GitHub Copilot coding agent | [one setting and one file](#github-copilot-coding-agent) | the server |
 | a repository's pull requests | [a workflow file](#the-github-action) | the free check, as a GitHub Action |
+| a seller who settles a merged pull request without the buyer's workflow | [a workflow file in a repository of your own](#settle-yourself-the-attest-workflow) | nothing: it only reads, and asks GitHub to sign |
 | a JavaScript project | [`npm install <release tarball>`](#the-javascript-client) | the client `knos-settle` |
-| a Solana program | [a git dependency](#the-rust-interface-crate) | the crate `knos-oidc-interface` |
+| a Solana program | [a git dependency](#the-rust-interface-crates) | the crates `knos-oidc-interface` and `knos-pay-interface` |
 
 The routes for one agent start Knos as `uvx knos ...`, so they need
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and nothing else: uv downloads `knos` from PyPI the
@@ -169,7 +179,7 @@ servers**, and saves it.
       "type": "local",
       "command": "uvx",
       "args": ["knos", "mcp"],
-      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due"]
+      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle"]
     }
   }
 }
@@ -197,6 +207,9 @@ It installs the MCP server for the agent's sessions in that repository.
 
 The free check on every pull request of a repository: when a description says its tests pass or CI is green, Knos
 compares that with GitHub's own record of the head commit, and it applies the repository's `CONTRIBUTING.md` rules.
+A ticked box of a template's checklist (`- [x] My PR passes all CI/CD checks`) is the author's claim; an unticked
+box, the template's HTML comments and a sentence that hedges or instructs ("tests should pass", "make sure CI is
+green") are not.
 It runs none of the pull request's code, and it involves no bounty, no money and no chain.
 
 ```yaml
@@ -214,7 +227,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.12
+      - uses: drexthealpha/Knos@v0.3.13
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -223,28 +236,32 @@ needs, so it also works on pull requests from forks, and it never needs `pull_re
 
 Keep it in a workflow file of its own and keep the job's name: Knos does not count the jobs of its own workflow run
 as evidence, and it knows its earlier runs on a commit by a name that starts with `knos`. A tag can be moved; to
-pin what runs, write the release's full commit sha in place of `v0.3.12`.
+pin what runs, write the release's full commit sha in place of the tag after `@`.
 
 To also pay for merged work, a repository uses [`examples/knos-workflow.yml`](../examples/knos-workflow.yml)
 instead.
 
 ## GitLab CI
 
-For a GitLab merge request that corresponds to a GitHub pull request, set `KNOS_GITHUB_REPOSITORY` to the GitHub
-`owner/name` and `KNOS_GITHUB_PR_NUMBER` to that pull request's number in the project's CI/CD variables. `knos check`
-reads the pull request and its checks from GitHub; a GitLab merge request with no corresponding GitHub pull request
-cannot be checked by this command.
+A GitLab project that runs CI/CD for a GitHub repository (GitLab's "CI/CD for external repositories") runs a
+pipeline for each GitHub pull request, and hands that pipeline the pull request's number as
+`CI_EXTERNAL_PULL_REQUEST_IID`. Set `KNOS_GITHUB_REPOSITORY` to the GitHub `owner/name` in the project's CI/CD
+variables; the number comes with each pipeline, so each pull request is checked as itself. `knos check owner/name#N` reads
+that pull request from GitHub, its description and the checks GitHub recorded at its head commit, and the job fails
+when the description says tests pass or CI is green and a check failed there. It also fails when GitHub cannot be
+read, rather than pass on a pull request it did not see. A masked `GH_TOKEN` variable, a token that can read the
+repository, lifts GitHub's limit on anonymous reads, which a shared runner's address may have used up. A GitLab merge
+request with no GitHub pull request behind it cannot be checked by this command.
 
 ```yaml
 # .gitlab-ci.yml
 knos:
   image: python:3.12
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos
-    - printf '{"pull_request":{"number":%s}}' "$KNOS_GITHUB_PR_NUMBER" > .knos-event.json
-    - knos check --event .knos-event.json --repo "$KNOS_GITHUB_REPOSITORY"
+    - python -m pip install knos==0.3.13
+    - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
 ## Get paid: bind a wallet, by hand
@@ -255,10 +272,27 @@ steps: create a repository from the template [`drexthealpha/knos-claim`](https:/
 workflow" and paste your address yourself. `knos claim <address>` does both. No link, repository description or
 push carries an address in, because an address in a link could be someone else's.
 
+An organisation binds a wallet the same way, from a repository named `knos-claim` that the organisation owns: a
+member starts the claim workflow by hand. That takes effect with `knos-pay` 2.1
+([SECURITY.md](SECURITY.md), section 8).
+
+With no wallet app: the site's "Get paid" section makes a passkey on your device and shows the address it derives.
+Use that address like any other. Withdrawing needs only the passkey. Read [SECURITY.md](SECURITY.md), section 17,
+first: a lost passkey is lost money.
+
+## Settle yourself: the attest workflow
+
+For the person who did the work. Put [`examples/knos-attest.yml`](../examples/knos-attest.yml) in a repository you
+own, as `.github/workflows/knos-attest.yml`. It needs no secret and writes nothing. After your pull request is merged
+in a public repository, `knos settle --neutral <pull request URL>` starts it by hand through your `gh` login, or you
+start it from the Actions tab. It reads GitHub's public record of the pull request and the work order on Solana,
+and asks GitHub to sign only what that record supports. The escrow pays on that run when the order allows it, which
+is the default; an order funded with `neutral off` does not. This takes effect with `knos-pay` 2.1.
+
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.12/knos-settle-0.3.12.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.13/knos-settle-0.3.13.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -269,15 +303,20 @@ nobody else can do that for them. The release workflow publishes the client by i
 the repository has that token as the secret `NPM_TOKEN`; until then each release says in one line that it skipped
 npm.
 
-## The Rust interface crate
+## The Rust interface crates
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.12" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.13" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,
-no allocation ([`crates/knos-oidc-interface`](../crates/knos-oidc-interface)).
+no allocation ([`crates/knos-oidc-interface`](../crates/knos-oidc-interface)). It reads the second deployment unless
+a program names the first (`v1::read`).
+
+[`crates/knos-pay-interface`](../crates/knos-pay-interface) is the second crate, added the same way from the same
+repository: the addresses and instructions a program needs to fund, top up and refund a work order from an account
+it controls. [COMPOSE.md](COMPOSE.md) lists the examples built on both.
 
 `knos-oidc-interface` is not on crates.io. A first publish to crates.io needs the owner to sign in there and create
 a token, and nobody else can do that for them. The release workflow publishes the crate by itself from the first

@@ -14,6 +14,8 @@ _ = object()
 cli._main, cli.bounty, cli.due, cli.mainnet_check_cmd, cli.status_cmd
 cli.balance_show, cli.balance_open, cli.balance_deposit, cli.balance_set, cli.balance_withdraw      # knos balance show | open | deposit | set | withdraw
 cli.fund_wallet                                                                                     # knos fund-wallet
+cli.receipt_check, cli.receipts, cli.export, cli.accept_init                                        # knos receipt check | receipts | export | accept init
+_.rich_help_panel       # set on each registered command by the help's grouping in knos.cli; Typer reads it when it prints --help
 _.judge_cmd, _.checks_hash, _.observe, _.lint, _.learn, _.gate, _.check, _.run
 _.terms_cmd, _.evidence_cmd, _.memory_pull, _.memory_push, _.comment_cmd, _.closes_cmd
 _.command, _.settle, _.review       # knos command | settle | review | check: what a repository's workflow runs (knos.flow)
@@ -32,6 +34,9 @@ _.not_before, _.vetoes, _.done, _.exp, _.review, _.token_funded, _.funder_id, _.
 from knos.settle.v2 import oidc as settle_oidc2
 
 settle_oidc2.GUARDIAN, settle_oidc2.refresh_ix, settle_oidc2.approve_ix, settle_oidc2.revoke_ix, settle_oidc2.read_key, settle_oidc2.key_usable
+# any RS256 issuer and private keys (knos-oidc 2.1): builders and readers for whoever admits or reads such a key
+settle_oidc2.register_issuer_key_ix, settle_oidc2.register_private_key_ix, settle_oidc2.iss_pda, settle_oidc2.read_iss, settle_oidc2.token_issuer
+settle_oidc2.Key.issuer_hash, settle_oidc2.Key.private, settle_oidc2.Key.registrant
 
 
 # knos.settle.v2.pay: the public client of the second deployment of knos-pay. These five have no caller inside
@@ -49,3 +54,6 @@ from knos.proof import ghrelay
 from knos.settle.v2 import relay as settle_relay2
 
 settle_relay2.register_missing, ghrelay.post_token
+
+# http.server calls these on the request handler of scripts/acceptance_examples.py (the black-box service it stands up).
+_.do_POST, _.log_message

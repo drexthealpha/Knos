@@ -71,21 +71,27 @@ def test_the_npm_tarball_holds_the_client_and_nothing_else():
     assert r.returncode == 0, r.stderr
     [packed] = json.loads(r.stdout)
     manifest = json.loads(_read("sdk", "settle", "package.json"))
-    assert {f["path"] for f in packed["files"]} == {"package.json", "index.js", "README.md"}
+    assert {f["path"] for f in packed["files"]} == {"package.json", "index.js", "index.d.ts", "agent.js", "agent.d.ts", "README.md"}
     assert (packed["name"], packed["version"]) == ("knos-settle", manifest["version"])
     assert packed["filename"] == f"knos-settle-{manifest['version']}.tgz"       # the file name in the README's install line
     assert not list(SDK.glob("*.tgz")), "a dry run writes nothing"
-    assert manifest["type"] == "module" and manifest["exports"] == "./index.js" and manifest["license"] == "MIT"
+    assert manifest["type"] == "module" and manifest["exports"] == {".": {"types": "./index.d.ts", "default": "./index.js"}, "./agent": {"types": "./agent.d.ts", "default": "./agent.js"}} and manifest["license"] == "MIT"
     assert manifest["repository"]["directory"] == "sdk/settle" and manifest["scripts"] == {"test": "node test.mjs"}
     assert not any(k in manifest for k in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"))
 
 
 def test_the_interface_crate_names_the_deployed_program_and_depends_on_nothing():
-    ids = json.loads(_read("programs", "program_ids.json"))
+    """`ID`, the first constant in the file and the one `Token::read` checks, is the SECOND deployment's address
+    (programs-v2/program_ids.json): a program that names no deployment reads the one whose keys expire and can be revoked."""
+    ids = json.loads(_read("programs-v2", "program_ids.json"))
     lib = (CRATE / "src" / "lib.rs").read_text(encoding="utf-8")
     assert re.search(r'pub const ID_STR: &str = "(\w+)";', lib).group(1) == ids["knos_oidc"]
     body = re.search(r"pub const ID: \[u8; 32\] = \[(.*?)\];", lib, re.S).group(1)
     assert bytes(int(x, 16) for x in re.findall(r"0x([0-9a-f]{2})", body)) == bytes(Pubkey.from_string(ids["knos_oidc"]))
+    assert "pub fn read(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> { Self::read_from(&ID, owner, data, now) }" in lib
+    assert "pub fn read_any(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> { Self::read_any_from(&ID, owner, data, now) }" in lib
+    v2 = lib.split("pub mod v2 {")[1].split("\n}\n")[0]
+    assert "pub const ID: [u8; 32] = super::ID;" in v2 and "pub const ID_STR: &str = super::ID_STR;" in v2 and "Token::read_from(&ID, owner, data, now)" in v2
     assert "#![no_std]" in lib
     manifest = (CRATE / "Cargo.toml").read_text(encoding="utf-8")
     deps = manifest.split("[dependencies]")[1].split("[features]")[0]
@@ -93,22 +99,26 @@ def test_the_interface_crate_names_the_deployed_program_and_depends_on_nothing()
     # the example consumer reads tokens with the interface crate only, as an outside program would
     gate = _read("examples", "oidc_gate", "Cargo.toml")
     assert 'knos-oidc-interface = { path = "../../crates/knos-oidc-interface" }' in gate and "knos_oidc" not in gate
-
-
-def test_the_interface_crate_names_the_second_deployment_too():
-    """`v2::ID` is the second deployment's address (programs-v2/program_ids.json); `ID`, the first constant in the
-    file and the one `Token::read` checks, stays the first deployment's."""
-    ids = json.loads(_read("programs-v2", "program_ids.json"))
-    lib = (CRATE / "src" / "lib.rs").read_text(encoding="utf-8")
-    v2 = lib.split("pub mod v2 {")[1].split("\n}\n")[0]
-    assert re.search(r'pub const ID_STR: &str = "(\w+)";', v2).group(1) == ids["knos_oidc"]
-    body = re.search(r"pub const ID: \[u8; 32\] = \[(.*?)\];", v2, re.S).group(1)
-    assert bytes(int(x, 16) for x in re.findall(r"0x([0-9a-f]{2})", body)) == bytes(Pubkey.from_string(ids["knos_oidc"]))
-    assert lib.index("pub const ID: [u8; 32]") < lib.index("pub mod v2 {") and lib.count("pub const ID: [u8; 32]") == 2
-    assert "pub fn read(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> { Self::read_from(&ID, owner, data, now) }" in lib
-    assert "Token::read_from(&ID, owner, data, now)" in v2
     readme = (CRATE / "README.md").read_text(encoding="utf-8")
     assert ids["knos_oidc"] in readme and "idl/knos_oidc_v2.json" in readme
+
+
+def test_the_interface_crate_reads_the_first_deployment_only_by_name():
+    """The first deployment's address (programs/program_ids.json) is in the `v1` module and nowhere else: its keys
+    never expire and cannot be revoked, so no default reads it."""
+    ids = json.loads(_read("programs", "program_ids.json"))
+    lib = (CRATE / "src" / "lib.rs").read_text(encoding="utf-8")
+    v1 = lib.split("pub mod v1 {")[1].split("\n}\n")[0]
+    assert re.search(r'pub const ID_STR: &str = "(\w+)";', v1).group(1) == ids["knos_oidc"]
+    body = re.search(r"pub const ID: \[u8; 32\] = \[(.*?)\];", v1, re.S).group(1)
+    assert bytes(int(x, 16) for x in re.findall(r"0x([0-9a-f]{2})", body)) == bytes(Pubkey.from_string(ids["knos_oidc"]))
+    assert "Token::read_from(&ID, owner, data, now)" in v1
+    code = "\n".join(line for line in lib.split("#[cfg(test)]")[0].splitlines() if not line.lstrip().startswith("//"))
+    assert code.count(ids["knos_oidc"]) == 1 and lib.index("pub const ID: [u8; 32]") < lib.index("pub mod v2 {") < lib.index("pub mod v1 {")
+    # the example consumer is a first-deployment program and says so
+    assert "v1::read(&token.owner.to_bytes()" in _read("examples", "oidc_gate", "src", "lib.rs")
+    readme = (CRATE / "README.md").read_text(encoding="utf-8")
+    assert f"`{ids['knos_oidc']}` (`v1::ID`, `v1::ID_STR`)" in readme
 
 
 def test_the_interface_fixture_is_what_knos_oidc_writes():

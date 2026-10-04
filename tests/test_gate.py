@@ -5,20 +5,23 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import time
+from pathlib import Path
 
 import pytest
 
 from _hub import BOT, Hub, comment, run, status, user
 from knos import closing, judge, terms
 from knos.cli import main
-from knos.proof import history
+from knos.proof import claims, history
 
 MONA, EVE, HUBOT = user("mona", 4242), user("eve", 666), user("hubot", 1)
 DEVIN = user("devin-ai-integration[bot]", 158243242, "Bot")
 BOUGHT = {"accept": "", "checks": [{"app": 15368, "name": "tests"}], "deny": [".github/**", ".knos/**"], "mode": "merge",
           "paths": [], "reserve": 7, "v": 1}
 NONE = "claim: the description claims tests pass; GitHub has no check runs for this commit"
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def cli(capsys, *args: str) -> tuple[int, str]:
@@ -49,6 +52,61 @@ def test_a_claim_on_a_commit_with_no_check_runs_is_refused_at_the_merge():
     assert judge.claim_check(body, skipped, strict=True) == ["claim: the description claims tests pass; no check passed at this commit (skipped: lint, tests)"]
     assert judge.claim_check(body, skipped) == [] and judge.claim_report(body, skipped)["state"] == "unverified"
     assert judge.claim_check(body, [run("tests", "skipped"), run("lint")], strict=True) == []          # one passed, none failed
+
+
+def test_a_ticked_template_box_is_held_to_the_record_and_an_unticked_one_is_not():
+    """A ticked box is the author asserting its words; an unticked one, or a template's instruction in an HTML comment,
+    asserts nothing. 0.3.13 had both backwards for a checklist: it did not read a ticked "My PR passes all CI/CD
+    checks", and it held an unticked "- [ ] All tests pass" against a failed check."""
+    failing = [run("All Other Providers / Run tests", "failure"), run("lint")]
+    ticked = ("## Pre-Submission checklist\r\n\r\n- [x] I have added meaningful tests\r\n"
+              "- [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)\r\n")
+    assert judge.claim_check(ticked, failing) == \
+        ["claim: the description says CI is green, but these checks failed at the head commit: All Other Providers / Run tests"]
+    report = judge.claim_report(ticked.replace("- [x] My PR", "- [ ] My PR"), failing, strict=True)
+    assert report["said"] == "" and report["state"] == "none" and report["violations"] == []
+    assert report["facts"] == ["checks failing: All Other Providers / Run tests"]                   # still said, as a fact
+    for silent in ("Fixes #7.\n- [ ] All tests pass", "Fixes #7.\n<!-- Make sure CI is green -->"):
+        assert judge.claim_check(silent, failing, strict=True) == [], silent
+
+
+def test_a_hedged_sentence_never_causes_a_refusal():
+    """A sentence that hedges, negates or instructs claims nothing, so with every check failed it is never refused,
+    before a merge or at it, and the report says nothing was claimed. The same words asserted are refused."""
+    failing = [run("tests", "failure"), run("lint", "failure")]
+    hedged = ["Fixes #7. All tests should pass.", "Fixes #7. Please make sure CI is green.", "Fixes #7. Please ensure the tests pass.",
+              "Fixes #7. The tests do not pass yet.", "Fixes #7. Tests don't pass on Windows.", "TODO: make tests pass",
+              "Fixes #7. Tests must pass before merging.", "Fixes #7. CI will be green once the cache is warm.",
+              "Fixes #7. Unit tests pass, except the flaky e2e job.", "Fixes #7.\n- [ ] All tests pass\n* [ ] CI is green"]
+    words = ("ensure", "make sure", "verify that", "should", "would", "will", "to confirm", "until", "once", "if", "before", "whether",
+             "need", "needs", "must", "expect", "expected", "todo", "not", "can't", "fail", "fails", "failing", "failed", "failure",
+             "failures", "error", "errors", "except", "unless", "pending", "flaky", "skip", "red", "broken")
+    hedged += [f"Fixes #7. All tests pass and CI is green ({word})." for word in words]
+    for body in hedged:
+        for strict in (False, True):
+            assert judge.claim_check(body, failing, strict) == [], (body, strict)
+        report = judge.claim_report(body, failing, strict=True)
+        assert report["said"] == "" and report["state"] == "none" and report["facts"] == ["checks failing: lint, tests"], body
+    assert judge.claim_check("Fixes #7. All tests pass and CI is green.", failing) == \
+        ["claim: the description says CI is green and tests pass, but these checks failed at the head commit: lint, tests"]
+
+
+def test_the_sites_examples_are_judged_here_as_the_site_shows_them():
+    """The first screen's two claims (web/config.js) are pull requests of docs/agent_pr_ci.json, recorded with the line
+    the site quotes and the checks that failed in tests/web/recorded/example_prs.json. "A claim that is false" is
+    BerriAI/litellm#34321, a ticked "My PR passes all CI/CD checks" whose head commit had a failed check: the site
+    showed it FALSE while `knos check` answered that the description did not say tests pass. Both read it the same way."""
+    config = (ROOT / "web" / "config.js").read_text(encoding="utf-8")
+    shown = dict(re.findall(r'\{ id: "(\w+)", label: "A claim that is \w+", input: "([^"]+)"', config))
+    assert set(shown) == {"true", "false"}
+    recorded = json.loads((ROOT / "tests" / "web" / "recorded" / "example_prs.json").read_text(encoding="utf-8"))["prs"]
+    by_url = {f"https://github.com/{p['repo']}/pull/{p['number']}": p for p in recorded}
+    for verdict, url in shown.items():
+        pr = by_url[url]
+        assert {"passed": "true", "failed": "false"}[pr["class"]] == verdict
+        assert claims.read(pr["claim_line"]).kinds & {"tests", "ci"}, pr["claim_line"]
+        report = judge.claim_report(pr["claim_line"], [run("lint")] + [run(name, "failure") for name in pr["failed_checks"]])
+        assert report["state"] == verdict, (url, report)
 
 
 def test_no_claim_and_a_failing_check_is_not_a_false_claim_and_is_not_paid_on_terms(tmp_path):

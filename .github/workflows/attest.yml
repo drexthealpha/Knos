@@ -1,0 +1,133 @@
+name: knos attest (reusable workflow)
+
+# A reusable workflow: GitHub signs one statement that a work order's terms were met, so that anyone who did the work
+# can ask for the payment themselves. A seller's own file, knos-attest.yml (examples/knos-attest.yml, in a repository
+# the seller owns), calls it by hand after a merge; Knos's site and `knos settle --neutral` start it for them. One job:
+# install knos, run one command. The command holds the logic and is tested without GitHub:
+#
+#     knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K"
+#
+# It reads GitHub's public record of the pull request (who merged it, which checks passed at which commit) and the
+# order on Solana, and only when they agree with the order's terms asks GitHub for the signed statement. The kind says
+# which one: pay (the terms were met), take (reserve the order for someone), revert (inside the warranty, the holdback
+# goes back to the funder) or rule (the arbiter the order named decides). The audience of the statement names the
+# order, the pull request and the commit, so it is good for that one action and no other.
+#
+# The kind eval is a buyer's, for knos_meter: run in a repository of the buyer, for a pull request in a repository of
+# that same owner, it asks GitHub to sign one evaluation (knosm:eval), accepted when the buyer merged the pull request
+# and rejected when it closed it unmerged, and posts it as `knos-eval:`. The meter counts it against credits the buyer
+# opened for this file at the commit the run used, from the run's first attempt only.
+#
+# What GitHub signs here, and why a run in a seller's own repository is trusted. The escrow does not take anyone's word,
+# the seller's included. It takes GitHub's signature, and the claims in it say which workflow file ran at which commit
+# (this one, at the commit the order recorded when it was funded), in which repository, started by whom, how (by
+# hand), and on what kind of machine (GitHub's own: a personal account cannot give a machine of its own that label).
+# For an order that allows it, the escrow accepts the statement from a run started by hand by the account that owns
+# the repository the run was in. So the caller's file decides only when this runs; it cannot change what it does, and a
+# buyer who deletes his own workflow can no longer hold back a payment that GitHub's record supports.
+#
+# What it can read and what it cannot do:
+#   - No checkout. It reads nothing of the repository it runs in and runs nothing from a pull request.
+#   - The job's token reads the repository's contents (the public record is read through GitHub's API with it) and
+#     writes one thing: a comment with the signed statement on the issue titled "knos tokens" in the repository the
+#     run is in (made the first time), where a relayer finds it. Without that nobody would carry the statement to
+#     Solana. It writes no code, no pull request, no release, no setting.
+#   - No secret. The other permission beyond reading is the id-token: the signed statement itself.
+#   - What people wrote reaches the command as environment variables, never inside a shell script.
+#
+# The install steps are fund.yml's: uv at a pinned version, then knos and everything it needs by the hash in a list
+# written into the step, `uv pip install --require-hashes`, and no Actions cache.
+#
+# The inputs are the same when this is called and when it is started by hand (in a fork of this repository). They name
+# facts, not code: nothing a caller passes can change which code runs here.
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: The repository the pull request is in, as owner/name.
+        required: true
+        type: string
+      pull:
+        description: The pull request's number.
+        required: true
+        type: number
+      order:
+        description: >-
+          The work order's address on Solana. For eval, the evaluation instead, as order.milestone.rate: the work
+          order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted.
+        required: true
+        type: string
+      kind:
+        description: What to ask GitHub to sign, one of pay, take, revert, rule and eval.
+        required: true
+        type: string
+      payees:
+        description: >-
+          Optional. Who is paid, as id.bps.address entries separated by commas. Left empty, the command works out who is
+          paid from GitHub's record of the pull request.
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: The repository the pull request is in, as owner/name.
+        required: true
+        type: string
+      pull:
+        description: The pull request's number.
+        required: true
+        type: number
+      order:
+        description: >-
+          The work order's address on Solana. For eval, the evaluation instead, as order.milestone.rate: the work
+          order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted.
+        required: true
+        type: string
+      kind:
+        description: What to ask GitHub to sign, one of pay, take, revert, rule and eval.
+        required: true
+        type: string
+      payees:
+        description: >-
+          Optional. Who is paid, as id.bps.address entries separated by commas. Left empty, the command works out who is
+          paid from GitHub's record of the pull request.
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  attest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15     # the command waits up to 10 minutes (knos.flow.RELAY_WAIT) for a relayer, and then says what became of the token
+    cache-mode: read
+    permissions:
+      contents: read          # GitHub's public record, read through its API (there is no checkout)
+      issues: write           # the signed statement is posted on the "knos tokens" issue of the repository the run is in
+      id-token: write         # the signed statement
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
+          ignore-empty-workdir: true
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          KNOS_LOCK
+          LOCK
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: knos attest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R: ${{ inputs.repository }}
+          P: ${{ inputs.pull }}
+          O: ${{ inputs.order }}
+          K: ${{ inputs.kind }}
+          PAYEES: ${{ inputs.payees }}
+        run: knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" ${PAYEES:+--payees "$PAYEES"}

@@ -1,0 +1,7 @@
+# What builds the wheel: the build backend pyproject.toml names, and what it needs, each by hash, so the same tree gives
+# the same wheel on every machine (scripts/release.py: uv build --build-constraints requirements/build.txt --require-hashes).
+# Compile again when the backend moves (and move its version in pyproject.toml with it):
+#   uv pip compile requirements/build.in --generate-hashes --universal --python-version 3.10 --no-config -o requirements/build.txt
+# (universal from 3.10, the oldest Python tests.yml runs: hatchling needs tomli below 3.11, and --require-hashes refuses
+# a requirement the lock does not hold)
+hatchling==1.32.4

@@ -1,5 +1,5 @@
 {
-  "version": "0.3.12",
+  "version": "0.3.13",
   "name": "knos_pay",
   "docs": [
     "Pay on proof: an escrow that pays a GitHub account only on a GitHub-signed token verified on chain by knos-oidc. No admin, immutable.",

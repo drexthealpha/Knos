@@ -1,0 +1,84 @@
+# .github/workflows/knos-attest.yml: ask GitHub to sign that a work order's terms were met, so that you can ask for your
+# payment yourself. For the person who did the work (the seller), in a repository of your own, and for an arbiter. It
+# needs no secret. It reads, and it writes one comment: the statement GitHub signed, on an issue of this repository.
+#
+# What starts it:
+#
+#   You, by hand (`workflow_dispatch`).
+#       Actions > knos attest > Run workflow. Say which repository the pull request is in (owner/name), its number, the
+#       work order (its address, shown on the order's page), and what you ask GitHub to sign:
+#         pay     the pull request was merged and the order's terms were met: pay it.
+#         take    reserve the order for you, so nobody else starts the same work.
+#         revert  the work failed inside the warranty window: the held-back part goes back to the funder.
+#         rule    you are the arbiter the order named, and you decide.
+#         eval    (a buyer, for knos_meter) one evaluation of a pull request in a repository of yours: accepted when you
+#                 merged it, rejected when you closed it unmerged. `order` is then `<work order>.<milestone>.<rate>`: the
+#                 work order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted. It counts
+#                 against credits you opened for Knos's attest.yml at the commit named below.
+#       `payees` is optional. Leave it empty and Knos works out who is paid from GitHub's record of the pull request.
+#       Nothing else starts it: not a push, not a comment, not a schedule, and not another person.
+#
+# What it can do in this repository: read GitHub's public record of that pull request (who merged it, which checks passed
+# at which commit) and the order on Solana, ask GitHub for one signed statement that names the order, the pull request
+# and the commit, and post that statement as a comment on the issue titled "knos tokens" here (made the first time).
+# A relayer finds it there and carries it to Solana; without the comment nobody would. What it cannot do: change
+# anything else. It writes no code, pull request, release or setting, it checks out nothing and runs nothing from the
+# pull request, and it holds no secret of yours.
+#
+# Why a run started by hand in your own repository is trusted. The escrow does not take your word, and it does not take
+# this file's. It takes GitHub's signature, which says which workflow ran, at which commit, in which repository,
+# who started it, how, and on what kind of machine. It accepts the statement only when
+#   - the workflow is Knos's attest.yml at the commit the order recorded when it was funded. This file chooses when that
+#     runs and nothing else: editing it cannot change what runs, and a copy that names another commit is refused;
+#   - you started it by hand, and you own the repository it ran in;
+#   - GitHub says the machine was its own (a personal account cannot give a machine of its own that label), and that it
+#     is the first attempt at the run (a run again is refused);
+#   - the statement is for this order, this pull request and this commit: it is no use for another.
+# And before it asks GitHub to sign, the command checks the pull request against the order's own terms, from GitHub's
+# public record. So what you can get signed is only what that record supports. A buyer who deletes his own workflow can
+# no longer hold back a payment that the record supports.
+#
+# Name the commit of Knos's workflows in full, never a branch or a tag; it is the one the other Knos files name too.
+name: knos attest
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: The repository the pull request is in, as owner/name
+        required: true
+        type: string
+      pull:
+        description: The pull request's number
+        required: true
+        type: number
+      order:
+        description: "The work order's address (eval: order.milestone.rate)"
+        required: true
+        type: string
+      kind:
+        description: What to ask GitHub to sign
+        required: true
+        type: choice
+        options: [pay, take, revert, rule, eval]
+      payees:
+        description: "Optional: who is paid, as id.bps.address entries separated by commas"
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  attest:
+    permissions:
+      contents: read
+      issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
+      id-token: write
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    with:
+      repository: ${{ inputs.repository }}
+      pull: ${{ fromJSON(inputs.pull) }}       # a number input started by hand reaches here as text, and the called workflow takes a number
+      order: ${{ inputs.order }}
+      kind: ${{ inputs.kind }}
+      payees: ${{ inputs.payees }}

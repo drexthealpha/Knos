@@ -24,6 +24,8 @@ PROGRAMS = {"knos_oidc": ("programs", "knos_oidc", oidc), "knos_pay": ("programs
             "knos_oidc_v2": ("programs-v2", "knos_oidc", oidc2), "knos_pay_v2": ("programs-v2", "knos_pay", pay2)}
 IDL = {name: json.loads((ROOT / "idl" / f"{name}.json").read_text(encoding="utf-8")) for name in PROGRAMS}
 SRC = {name: (ROOT / tree / crate / "src" / "lib.rs").read_text(encoding="utf-8") for name, (tree, crate, _) in PROGRAMS.items()}
+# the second escrow lists the instructions of an order's terms (18..21, 24, 27) in the header of the file that holds them
+ORDER_TERMS_RS = (ROOT / "programs-v2" / "knos_pay" / "src" / "order_terms.rs").read_text(encoding="utf-8")
 CLAIMS_RS = (ROOT / "programs" / "knos_oidc" / "src" / "claims.rs").read_text(encoding="utf-8")
 
 K = {n: Pubkey(bytes([i + 1]) * 32) for i, n in enumerate(["payer", "funder", "funder_token", "mint", "relayer", "address", "token_account",
@@ -33,6 +35,7 @@ N2048, N4096 = (1 << 2047) | 0x1234567, (1 << 4095) | 0x1234567   # odd numbers 
 TID, CHECKS, WF_SHA = bytes(range(0xC0, 0xE0)), bytes(range(32)), "c" * 40
 JWT = "eyJhbGciOiJSUzI1NiJ9." + "A" * 1000 + ".c2ln"
 JOB = pay.job_pda(REPO, ISSUE, K["funder"])
+ISSUER_URL = "https://oidc.ci.example.dev"       # an RS256 issuer that is neither GitHub nor GitLab
 
 # the second escrow: a Balance of the owner's, a job funded from it and one funded by a wallet in a Token-2022 mint
 OWNER, SPENDERS, T22 = 424242, [555000, 9], pay2.TOKEN_2022
@@ -45,7 +48,23 @@ FROM_BALANCE = pay2.Job(from_balance=True, token_program=pay2.TOKEN, owner_id=OW
 FROM_WALLET = pay2.Job(from_balance=False, token_program=T22, owner_id=0, source=K["funder"], refund_to=K["funder"], rent_to=K["funder"], **_JOB)
 PAYOUT = {"bind": pay2.bind_pda(AUTHOR), "destToken": pay2.ata(K["wallet"], K["mint"]), "rep": pay2.rep_pda(AUTHOR), "pair": pay2.pair_pda(AUTHOR, OWNER),
           "vault": pay2.vault_pda(K["mint"]), "feeToken": pay2.ata(pay2.FEE_OWNER, K["mint"]), "auth": pay2.auth_pda(), "rentTo": K["relayer"],
-          "mint": K["mint"], "tokenProgram": pay2.TOKEN, "systemProgram": pay2.SYSTEM}
+          "mint": K["mint"], "tokenProgram": pay2.TOKEN, "systemProgram": pay2.SYSTEM, "used": pay2.used_pda(bytes(32))}
+# an order funded by a wallet, as the client reads it
+_ORDER = bytearray(pay2.ORDER_LEN)
+_ORDER[0:2] = bytes([2, 1])
+for _at in (192, 224, 256):
+    _ORDER[_at:_at + 32] = bytes(K["funder"])
+_ORDER[288:320] = bytes(K["mint"])
+_ORDER[152:160] = AUTHOR.to_bytes(8, "little")      # the payee a held order waits for
+ORDER, ORD, OPTS = pay2.read_order(bytes(_ORDER)), pay2.order_pda(pay2.scope_of(REPO, ISSUE), K["funder"], 3), pay2.opts(pay2.F_NEUTRAL, kill_bps=500)
+# the same order with a holdback (PayOrder then takes its record); in warranty with one payee recorded; cancelled while reserved (a kill fee is due)
+_HELD_BACK, _KILLED = bytearray(_ORDER), bytearray(_ORDER)
+_HELD_BACK[60:62] = (1000).to_bytes(2, "little")
+_KILLED[62:64], _KILLED[64:72] = (500).to_bytes(2, "little"), AMOUNT.to_bytes(8, "little")
+TAKER = 7654321                                     # reserved by him until 200, cancelled at 100
+_KILLED[128:136], _KILLED[136:144], _KILLED[144:152] = TAKER.to_bytes(8, "little"), (200).to_bytes(8, "little"), (100).to_bytes(8, "little")
+HELD_BACK, KILLED = pay2.read_order(bytes(_HELD_BACK)), pay2.read_order(bytes(_KILLED))
+HB = pay2.Holdback(payer=K["relayer"], until=1_790_000_000, payees=[(AUTHOR, K["wallet"], 500_000)])
 PAYOUT_22 = {**PAYOUT, "destToken": pay2.ata(K["wallet"], K["mint"], T22), "pair": pay2.pair_pda(AUTHOR, K["funder"]),
              "feeToken": pay2.ata(pay2.FEE_OWNER, K["mint"], T22), "rentTo": K["funder"], "tokenProgram": T22}
 TOKEN_AND_KEY = {"relayer": K["relayer"], "key": K["key"]}
@@ -54,6 +73,13 @@ TOKEN_AND_KEY = {"relayer": K["relayer"], "key": K["key"]}
 def u64s(values) -> bytes:
     return b"".join(v.to_bytes(8, "little") for v in values)
 
+
+ORDER_PAYOUT = {"order": ORD, "ov": pay2.ov_pda(ORD), "tipToken": pay2.ata(K["relayer"], K["mint"]), "feeToken": pay2.ata(pay2.FEE_OWNER, K["mint"]),
+                "auth": pay2.auth_pda(), "rentTo": K["funder"], "mint": K["mint"], "tokenProgram": pay2.TOKEN, "systemProgram": pay2.SYSTEM,
+                "ataProgram": pay2.ATA_PROGRAM, "bind": pay2.bind_pda(AUTHOR), "wallet": K["wallet"], "destToken": pay2.ata(K["wallet"], K["mint"]),
+                "rep": pay2.rep_pda(AUTHOR), "pair": pay2.pair_pda(AUTHOR, K["funder"]), "assign": pay2.assign_pda(ORD, AUTHOR)}
+ORDER_AND_HB = {"order": ORD, "ov": pay2.ov_pda(ORD), "hb": pay2.hb_pda(ORD), "auth": pay2.auth_pda(), "rentTo": K["funder"], "hbPayer": K["relayer"],
+                "mint": K["mint"], "tokenProgram": pay2.TOKEN}
 
 # builder -> (IDL instruction, the instructions it builds, how many of the IDL's optional accounts they carry,
 #             the arguments the data must decode to[, the address each account must be, under the IDL's name for it])
@@ -77,11 +103,21 @@ CASES = {
         "close_ix": ("Close", lambda: [oidc2.close_ix(K["payer"], TID)], 0, [{"id": TID}]),
         "register_key_ix": ("RegisterKey", lambda: [oidc2.register_key_ix(K["payer"], oidc2.GITHUB, N2048), oidc2.register_key_ix(K["payer"], oidc2.GITLAB, N4096)], 0,
                             [{"issuer": 0, "n": oidc2.modulus_bytes(N2048)}, {"issuer": 1, "n": oidc2.modulus_bytes(N4096)}]),
-        "register_key_ix (attested)": ("RegisterKey", lambda: [oidc2.register_key_ix(K["payer"], oidc2.GITLAB, N4096, K["token_account"])], 1,
-                                       [{"issuer": 1, "n": oidc2.modulus_bytes(N4096)}]),
+        "register_key_ix (attested)": ("RegisterKey", lambda: [oidc2.register_key_ix(K["payer"], oidc2.GITLAB, N4096, K["token_account"], K["key"])], 2,
+                                       [{"issuer": 1, "n": oidc2.modulus_bytes(N4096)}],
+                                       [{"payer": K["payer"], "key": oidc2.key_pda(oidc2.GITLAB, N4096), "systemProgram": oidc2.SYSTEM, "attest": K["token_account"],
+                                         "attestKey": K["key"]}]),
         "key_params_ix": ("KeyParams", lambda: [oidc2.key_params_ix(K["payer"], oidc2.GITLAB, N4096)], 0,
                           [{"n0inv": oidc2.key_params(N4096)[0], "r2": oidc2.key_params(N4096)[1]}]),
-        "refresh_ix": ("Refresh", lambda: [oidc2.refresh_ix(K["payer"], oidc2.GITHUB, N2048, K["token_account"])], 0, [{}]),
+        "refresh_ix": ("Refresh", lambda: [oidc2.refresh_ix(K["payer"], oidc2.GITHUB, N2048, K["token_account"], K["key"])], 0, [{}],
+                       [{"payer": K["payer"], "key": oidc2.key_pda(oidc2.GITHUB, N2048), "attest": K["token_account"], "attestKey": K["key"]}]),
+        "register_issuer_key_ix": ("RegisterIssuerKey", lambda: [oidc2.register_issuer_key_ix(K["payer"], ISSUER_URL, N4096, K["token_account"], K["key"])], 0,
+                                   [{"urlLen": len(ISSUER_URL), "urlAndN": ISSUER_URL.encode() + oidc2.modulus_bytes(N4096)}],
+                                   [{"payer": K["payer"], "key": oidc2.key_pda(ISSUER_URL, N4096), "issuer": oidc2.iss_pda(ISSUER_URL),
+                                     "systemProgram": oidc2.SYSTEM, "attest": K["token_account"], "attestKey": K["key"]}]),
+        "register_private_key_ix": ("RegisterPrivateKey", lambda: [oidc2.register_private_key_ix(K["wallet"], ISSUER_URL, N2048)], 0,
+                                    [{"urlLen": len(ISSUER_URL), "urlAndN": ISSUER_URL.encode() + oidc2.modulus_bytes(N2048)}],
+                                    [{"registrant": K["wallet"], "key": oidc2.key_pda(ISSUER_URL, N2048, registrant=K["wallet"]), "systemProgram": oidc2.SYSTEM}]),
         "approve_ix": ("Approve", lambda: [oidc2.approve_ix(oidc2.GUARDIAN, oidc2.GITLAB, N4096)], 0, [{}]),
         "revoke_ix": ("Revoke", lambda: [oidc2.revoke_ix(oidc2.GUARDIAN, oidc2.GITHUB, N2048)], 0, [{}]),
     },
@@ -115,6 +151,69 @@ CASES = {
                             [{**TOKEN_AND_KEY, "fundToken": K["token_account"], "balance": BAL, "baltok": pay2.baltok_pda(BAL), "job": JOB2,
                               "vault": pay2.vault_pda(K["mint"]), "mint": K["mint"], "auth": pay2.auth_pda(), "tokenProgram": pay2.TOKEN,
                               "systemProgram": pay2.SYSTEM, "pause": pay2.pause_pda()}]),
+        "fund_balance_ix (a Balance with a side account)": ("FundBalance", lambda: [pay2.fund_balance_ix(
+            K["relayer"], K["token_account"], K["key"], BAL, K["mint"], REPO, ISSUE, TERMS, balx=True)], 1, [{"terms": TERMS}]),
+        # 2.1: work orders
+        "version_ix": ("Version", lambda: [pay2.version_ix()], 0, [{}]),
+        "set_balance_x_ix": ("SetBalanceX", lambda: [pay2.set_balance_x_ix(K["authority"], BAL, 30, 70, [REPO], WF_SHA)], 0,
+                             [{"dayLimit": 30, "totalLimit": 70, "repos": u64s([REPO] + [0] * 7), "wfSha": WF_SHA.encode()}],
+                             [{"authority": K["authority"], "balance": BAL, "balx": pay2.balx_pda(BAL), "systemProgram": pay2.SYSTEM}]),
+        "set_plan_ix": ("SetPlan", lambda: [pay2.set_plan_ix(K["guardian"], K["relayer"], OWNER, 100, 1_800_000_000)], 0,
+                        [{"ownerId": OWNER, "feeBps": 100, "expires": 1_800_000_000}],
+                        [{"feeOwner": K["guardian"], "payer": K["relayer"], "plan": pay2.plan_pda(OWNER), "systemProgram": pay2.SYSTEM}]),
+        "fund_order_wallet_ix": ("FundOrderWallet", lambda: [pay2.fund_order_wallet_ix(
+            K["funder"], K["funder_token"], K["mint"], REPO, ISSUE, AMOUNT, "drexthealpha/Knos", WF_SHA, TERMS, pay2.TESTS, 7 * 86_400, 3, OPTS)], 0,
+            [{"issue": ISSUE, "repoId": REPO, "amount": AMOUNT, "mode": pay2.TESTS, "work": 7 * 86_400, "seq": 3, "opts": OPTS,
+              "wfRepo": pay2.wf_repo_hash("drexthealpha/Knos"), "wfSha": WF_SHA.encode(), "terms": TERMS}],
+            [{"funder": K["funder"], "order": ORD, "ov": pay2.ov_pda(ORD), "funderToken": K["funder_token"], "mint": K["mint"], "auth": pay2.auth_pda(),
+              "tokenProgram": pay2.TOKEN, "systemProgram": pay2.SYSTEM, "pause": pay2.pause_pda()}]),
+        "fund_order_balance_ix": ("FundOrderBalance", lambda: [pay2.fund_order_balance_ix(
+            K["relayer"], K["token_account"], K["key"], BAL, K["mint"], OWNER, REPO, ISSUE, TERMS, bytes(32), 3)], 0, [{"terms": TERMS}],
+            [{**TOKEN_AND_KEY, "fundToken": K["token_account"], "balance": BAL, "baltok": pay2.baltok_pda(BAL), "balx": pay2.balx_pda(BAL),
+              "plan": pay2.plan_pda(OWNER), "order": pay2.order_pda(pay2.scope_of(REPO, ISSUE), BAL, 3),
+              "ov": pay2.ov_pda(pay2.order_pda(pay2.scope_of(REPO, ISSUE), BAL, 3)), "used": pay2.used_pda(bytes(32)), "mint": K["mint"],
+              "auth": pay2.auth_pda(), "tokenProgram": pay2.TOKEN, "systemProgram": pay2.SYSTEM, "pause": pay2.pause_pda()}]),
+        "fund_private_order_balance_ix": ("FundOrderBalance", lambda: [pay2.fund_private_order_balance_ix(
+            K["relayer"], K["token_account"], K["key"], BAL, K["mint"], OWNER, bytes([5]) * 32, bytes([6]) * 32, bytes(32), 3)], 0,
+            [{"terms": bytes([5]) * 32 + bytes([6]) * 32}],
+            [{**TOKEN_AND_KEY, "fundToken": K["token_account"], "balance": BAL, "baltok": pay2.baltok_pda(BAL), "balx": pay2.balx_pda(BAL),
+              "plan": pay2.plan_pda(OWNER), "order": pay2.order_pda(bytes([5]) * 32, BAL, 3), "ov": pay2.ov_pda(pay2.order_pda(bytes([5]) * 32, BAL, 3)),
+              "used": pay2.used_pda(bytes(32)), "mint": K["mint"], "auth": pay2.auth_pda(), "tokenProgram": pay2.TOKEN, "systemProgram": pay2.SYSTEM,
+              "pause": pay2.pause_pda()}]),
+        "bind_org_ix": ("BindOrg", lambda: [pay2.bind_org_ix(K["relayer"], K["token_account"], K["key"], OWNER)], 0, [{}],
+                        [{**TOKEN_AND_KEY, "bindToken": K["token_account"], "bind": pay2.bind_pda(OWNER), "systemProgram": pay2.SYSTEM}]),
+        "pay_order_ix": ("PayOrder", lambda: [pay2.pay_order_ix(K["relayer"], K["token_account"], K["key"], ORD, ORDER, [(AUTHOR, K["wallet"])])], 0, [{}],
+                         [{**TOKEN_AND_KEY, "payToken": K["token_account"], **ORDER_PAYOUT}]),
+        "pay_order_ix (an order with a holdback)": ("PayOrder", lambda: [
+            pay2.pay_order_ix(K["relayer"], K["token_account"], K["key"], ORD, HELD_BACK, [(AUTHOR, K["wallet"])])], 1, [{}],
+            [{**TOKEN_AND_KEY, "payToken": K["token_account"], **ORDER_PAYOUT, "doneOrHb": pay2.hb_pda(ORD)}]),
+        "release_ix": ("Release", lambda: [pay2.release_ix(K["relayer"], ORD, ORDER, HB)], 0, [{}],
+                       [{"relayer": K["relayer"], **ORDER_AND_HB, "tipToken": pay2.ata(K["relayer"], K["mint"]), "feeToken": pay2.ata(pay2.FEE_OWNER, K["mint"]),
+                         "systemProgram": pay2.SYSTEM, "ataProgram": pay2.ATA_PROGRAM, "wallet": K["wallet"], "destToken": pay2.ata(K["wallet"], K["mint"])}]),
+        "revert_ix": ("Revert", lambda: [pay2.revert_ix(K["relayer"], K["token_account"], K["key"], ORD, ORDER, HB)], 0, [{}],
+                      [{**TOKEN_AND_KEY, "revertToken": K["token_account"], **ORDER_AND_HB, "refundToken": pay2.ata(K["funder"], K["mint"])}]),
+        "reserve_ix": ("Reserve", lambda: [pay2.reserve_ix(K["relayer"], K["token_account"], K["key"], ORD)], 0, [{}],
+                       [{**TOKEN_AND_KEY, "takeToken": K["token_account"], "order": ORD}]),
+        "cancel_ix": ("Cancel", lambda: [pay2.cancel_ix(K["funder"], ORD)], 0, [{}], [{"signer": K["funder"], "order": ORD}]),
+        "cancel_ix (a Balance's order: a token)": ("Cancel", lambda: [pay2.cancel_ix(K["relayer"], ORD, K["token_account"], K["key"])], 2, [{}],
+                                                    [{"signer": K["relayer"], "order": ORD, "cancelToken": K["token_account"], "key": K["key"]}]),
+        "assign_ix": ("Assign", lambda: [pay2.assign_ix(K["wallet"], ORD, AUTHOR, K["address"])], 0, [{"payeeId": AUTHOR, "to": bytes(K["address"])}],
+                      [{"signer": K["wallet"], "order": ORD, "bind": pay2.bind_pda(AUTHOR), "assign": pay2.assign_pda(ORD, AUTHOR), "systemProgram": pay2.SYSTEM}]),
+        "close_marker_ix": ("CloseMarker", lambda: [pay2.close_marker_ix(pay2.done_pda(ORD, 12), K["relayer"], ORD),
+                                                    pay2.close_marker_ix(pay2.used_pda(bytes(32)), K["relayer"])], 0, [{}, {}],
+                            [{"marker": pay2.done_pda(ORD, 12), "rentTo": K["relayer"], "order": ORD},
+                             {"marker": pay2.used_pda(bytes(32)), "rentTo": K["relayer"], "order": pay2.SYSTEM}]),
+        "settle_order_ix": ("SettleOrder", lambda: [pay2.settle_order_ix(K["relayer"], ORD, ORDER, K["wallet"])], 0, [{}], [{"relayer": K["relayer"], **ORDER_PAYOUT}]),
+        "refund_order_ix": ("RefundOrder", lambda: [pay2.refund_order_ix(K["relayer"], ORD, ORDER)], 0, [{}],
+                            [{"relayer": K["relayer"], "order": ORD, "ov": pay2.ov_pda(ORD), "refundToken": pay2.ata(K["funder"], K["mint"]),
+                              "auth": pay2.auth_pda(), "rentTo": K["funder"], "mint": K["mint"], "tokenProgram": pay2.TOKEN}]),
+        "refund_order_ix (a kill fee is due)": ("RefundOrder", lambda: [pay2.refund_order_ix(K["relayer"], ORD, KILLED, kill_token=K["address"])], 2, [{}],
+                                                [{"relayer": K["relayer"], "order": ORD, "ov": pay2.ov_pda(ORD), "refundToken": pay2.ata(K["funder"], K["mint"]),
+                                                  "auth": pay2.auth_pda(), "rentTo": K["funder"], "mint": K["mint"], "tokenProgram": pay2.TOKEN,
+                                                  "takerBind": pay2.bind_pda(TAKER), "killToken": K["address"]}]),
+        "top_up_ix": ("TopUp", lambda: [pay2.top_up_ix(K["funder"], ORD, ORDER, AMOUNT)], 0, [{"add": AMOUNT}],
+                      [{"signer": K["funder"], "order": ORD, "ov": pay2.ov_pda(ORD), "fromToken": pay2.ata(K["funder"], K["mint"]), "balance": K["funder"],
+                        "mint": K["mint"], "auth": pay2.auth_pda(), "tokenProgram": pay2.TOKEN, "pause": pay2.pause_pda()}]),
         "fund_wallet_ix": ("FundWallet", lambda: [pay2.fund_wallet_ix(K["funder"], K["funder_token"], K["mint"], REPO, ISSUE, AMOUNT, "drexthealpha/Knos", WF_SHA, TERMS,
                                                                      mode=pay2.TESTS, work_s=7 * 86_400, token_program=T22)], 0,
                            [{"repoId": REPO, "issue": ISSUE, "amount": AMOUNT, "work": 7 * 86_400, "mode": pay2.TESTS,
@@ -122,9 +221,9 @@ CASES = {
                            [{"funder": K["funder"], "job": JOB2_OF_WALLET, "funderToken": K["funder_token"], "vault": pay2.vault_pda(K["mint"]), "mint": K["mint"],
                              "auth": pay2.auth_pda(), "tokenProgram": T22, "systemProgram": pay2.SYSTEM, "pause": pay2.pause_pda()}]),
         # a Balance's job; a wallet's job in a Token-2022 mint; no wallet known, so the job will be held and the vault stands in for the destination
-        "pay_ix": ("Pay", lambda: [pay2.pay_ix(K["relayer"], K["token_account"], K["key"], JOB2, FROM_BALANCE, AUTHOR, K["wallet"]),
-                                   pay2.pay_ix(K["relayer"], K["token_account"], K["key"], JOB2_OF_WALLET, FROM_WALLET, AUTHOR, K["wallet"]),
-                                   pay2.pay_ix(K["relayer"], K["token_account"], K["key"], JOB2, FROM_BALANCE, AUTHOR, None)], 0, [{}, {}, {}],
+        "pay_ix": ("Pay", lambda: [pay2.pay_ix(K["relayer"], K["token_account"], K["key"], JOB2, FROM_BALANCE, AUTHOR, K["wallet"], used=bytes(32)),
+                                   pay2.pay_ix(K["relayer"], K["token_account"], K["key"], JOB2_OF_WALLET, FROM_WALLET, AUTHOR, K["wallet"], used=bytes(32)),
+                                   pay2.pay_ix(K["relayer"], K["token_account"], K["key"], JOB2, FROM_BALANCE, AUTHOR, None, used=bytes(32))], 0, [{}, {}, {}],
                    [{**TOKEN_AND_KEY, "payToken": K["token_account"], "job": JOB2, **PAYOUT},
                     {**TOKEN_AND_KEY, "payToken": K["token_account"], "job": JOB2_OF_WALLET, **PAYOUT_22},
                     {**TOKEN_AND_KEY, "payToken": K["token_account"], "job": JOB2, **PAYOUT, "destToken": pay2.vault_pda(K["mint"])}]),
@@ -211,11 +310,13 @@ def test_the_address_is_the_deployed_program(program):
 @pytest.mark.parametrize("program", list(IDL))
 def test_every_instruction_of_the_source_is_in_the_idl(program):
     """The header comment of lib.rs lists each instruction as `<tag> <Name>`; the dispatch has one arm per tag."""
-    listed = {m.group(2): int(m.group(1)) for m in re.finditer(r"^//!   (\d+) (\w+) ", SRC[program], re.M)}
+    headers = SRC[program] + (ORDER_TERMS_RS if program == "knos_pay_v2" else "")
+    listed = {m.group(2): int(m.group(1)) for m in re.finditer(r"^//!   (\d+) (\w+)(?: |$)", headers, re.M)}
     # an arm is a block, or (the second escrow) a call into the module that holds the instruction
     arms = {int(m.group(1)) for m in re.finditer(r"^        (\d+) => (?:\{|\w+::\w+\()", SRC[program].split("pub fn process")[1], re.M)}
     got = {i["name"]: i["discriminant"]["value"] for i in IDL[program]["instructions"]}
     assert got == listed and set(got.values()) == arms == set(range(len(got)))
+    assert [i["discriminant"]["value"] for i in IDL[program]["instructions"]] == list(range(len(got)))       # in the order of their tags
     assert all(i["discriminant"]["type"] == "u8" for i in IDL[program]["instructions"])
 
 
@@ -317,7 +418,8 @@ def test_field_offsets_are_the_constants_of_the_source():
     signed = {names[c] for pair in re.findall(r"i64_at\(&d, (K_\w+)\)|put_i64\(&mut d, (K_\w+),", SRC["knos_oidc_v2"]) for c in pair if c}
     assert signed == {"activeAt", "expiresAt"} == {f["name"] for f in layout("knos_oidc_v2", "Key") if f["type"] == "i64"}
     flags = constants(SRC["knos_oidc_v2"], "F_", "u8")
-    assert flags == {"F_APPROVED": oidc2.APPROVED, "F_REVOKED": oidc2.REVOKED, "F_GENESIS": oidc2.GENESIS} == {"F_APPROVED": 1, "F_REVOKED": 2, "F_GENESIS": 4}
+    assert flags == {"F_APPROVED": oidc2.APPROVED, "F_REVOKED": oidc2.REVOKED, "F_GENESIS": oidc2.GENESIS, "F_PRIVATE": oidc2.PRIVATE_FLAG} == {
+        "F_APPROVED": 1, "F_REVOKED": 2, "F_GENESIS": 4, "F_PRIVATE": 8}
     assert "flags: 1 approved by the guardian, 2 revoked, 4 genesis" in " ".join(next(a for a in IDL["knos_oidc_v2"]["accounts"] if a["name"] == "Key")["docs"])
 
 
@@ -348,6 +450,23 @@ def test_accounts_written_as_the_idl_says_are_read_by_the_client():
                                                 (4, (False, False, True)), (5, (True, False, True)), (7, (True, True, True))):
         assert oidc2.read_key(encode(layout("knos_oidc_v2", "Key"), {**header, "flags": flags})) == oidc2.Key(
             state=1, issuer=1, bits=4096, active_at=1_790_086_400, expires_at=-7, approved=approved, revoked=revoked, genesis=genesis)
+    # a key of any other issuer, and a private key: 64 more bytes after R^2, the issuer's hash and the registrant
+    ih = oidc2.issuer_hash(ISSUER_URL)
+    other = encode(layout("knos_oidc_v2", "Key"), {**header, "issuer": oidc2.OTHER, "flags": 1, "nAndR2": bytes(1024) + ih + bytes(32)})
+    assert oidc2.read_key(other) == oidc2.Key(state=1, issuer=2, bits=4096, active_at=1_790_086_400, expires_at=-7, approved=True, revoked=False,
+                                              genesis=False, issuer_hash=ih)
+    assert oidc2.read_key(other[:-64]) is None and oidc2.read_key(encode(layout("knos_oidc_v2", "Key"), {**header, "nAndR2": bytes(1024 + 64)})) is None
+    private = encode(layout("knos_oidc_v2", "Key"), {**header, "issuer": oidc2.PRIVATE, "flags": oidc2.PRIVATE_FLAG, "nAndR2": bytes(1024) + ih + bytes(K["wallet"])})
+    assert oidc2.read_key(private) == oidc2.Key(state=1, issuer=3, bits=4096, active_at=1_790_086_400, expires_at=-7, approved=False, revoked=False,
+                                                genesis=False, issuer_hash=ih, private=True, registrant=K["wallet"])
+    assert oidc2.key_usable(oidc2.read_key(private[:16] + (2 ** 62).to_bytes(8, "little") + private[24:]), 1_790_086_400) == (True, "")   # no approval asked
+    # the token accounts they verify carry the same two values where the running power was
+    marked = encode(layout("knos_oidc_v2", "Token"), {
+        "stage": 2, "issuer": 3, "squaringsDone": 16, "limbs": 64, "jwtLen": 40, "payloadOff": 626 + 4, "payloadLen": len(payload), "exp": 1_790_000_300,
+        "key": bytes(K["address"]), "payer": bytes(K["payer"]), "id": TID, "x": ih + bytes(K["wallet"]) + bytes(448), "jwt": b"head" + payload + bytes(25)})
+    assert oidc2.token_issuer(marked) == (ih, K["wallet"]) and oidc2.read_token(marked).issuer == oidc2.PRIVATE
+    assert oidc2.token_issuer(bytes([2, 2]) + marked[2:]) == (ih, K["wallet"]) and oidc2.token_issuer(bytes([2, 1]) + marked[2:]) is None
+    assert oidc2.read_iss(encode(layout("knos_oidc_v2", "Issuer"), {"state": 3, "bump": 255, "zero": 0, "urlLen": len(ISSUER_URL), "url": ISSUER_URL.encode()})) == ISSUER_URL
 
 
 def test_every_error_code_of_the_source_is_in_the_idl():
@@ -366,6 +485,9 @@ def test_every_error_code_of_the_source_is_in_the_idl():
         assert codes == sorted(set(codes)) and len({e["name"] for e in errors}) == len(errors) and all(e["msg"] for e in errors)
     assert set(pay.ERRORS) <= {e["code"] for e in IDL["knos_pay"]["errors"]}
     assert set(pay2.ERRORS) == {e["code"] for e in IDL["knos_pay_v2"]["errors"]} - claims
+    # the escrow's own codes are all in lib.rs: no other file of it defines one
+    for path in (ROOT / "programs-v2" / "knos_pay" / "src").glob("*.rs"):
+        assert path.name == "lib.rs" or not constants(path.read_text(encoding="utf-8"), "E_", "u32"), path.name
     # a code the second escrow passes on has the name the second verifier's IDL gives it
     named = {e["code"]: e["name"] for e in IDL["knos_oidc_v2"]["errors"]}
     assert {e["code"]: e["name"] for e in IDL["knos_pay_v2"]["errors"] if e["code"] < 80} == {c: named[c] for c in claims | stale_key}
@@ -382,8 +504,13 @@ def test_the_second_verifier_keeps_the_first_ones_token_instructions_byte_for_by
     wire = lambda i: ([(a["name"], a["isMut"], a["isSigner"], a.get("optional", False)) for a in i["accounts"]], i["args"], i["discriminant"])  # noqa: E731
     assert list(second)[:len(first)] == list(first) == ["Write", "Step", "Close", "RegisterKey", "KeyParams"]
     for name in first:
-        assert wire(second[name]) == wire(first[name]), name
-    assert [(n, second[n]["discriminant"]["value"], second[n]["args"]) for n in list(second)[len(first):]] == [("Refresh", 5, []), ("Approve", 6, []), ("Revoke", 7, [])]
+        accounts, args, tag = wire(second[name])
+        # RegisterKey also takes the key account that verified the attestation, after the first deployment's accounts
+        added = [("attestKey", False, False, True)] if name == "RegisterKey" else []
+        assert (accounts[:len(accounts) - len(added)], args, tag) == wire(first[name]) and accounts[len(accounts) - len(added):] == added, name
+    assert [(n, second[n]["discriminant"]["value"], second[n]["args"]) for n in list(second)[len(first):]] == [
+        ("Refresh", 5, []), ("Approve", 6, []), ("Revoke", 7, []), ("RegisterIssuerKey", 8, [{"name": "urlLen", "type": "u8"}, {"name": "urlAndN", "type": "bytes"}]),
+        ("RegisterPrivateKey", 9, [{"name": "urlLen", "type": "u8"}, {"name": "urlAndN", "type": "bytes"}])]
     # and the Python client of the second deployment builds them with the first one's builders
     p = K["payer"]
     for a, b in ((oidc2.write_ixs(p, TID, JWT)[0], oidc.write_ixs(p, TID, JWT, program=oidc2.OIDC_ID)[0]),

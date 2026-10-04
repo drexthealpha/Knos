@@ -19,6 +19,26 @@ from _hub import BOT, Hub, user
 from knos import closing, commands, flow
 from knos.settle.v2 import pay
 
+ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
+
+
+def program_digits() -> int:
+    """The most digits knos_oidc's claims.rs parse_u64 takes, read from the program's own source (knos_pay parses an
+    order's pay audience with it: gh.rs n()), so no test here can believe a number the chain refuses."""
+    src = (ROOT / "programs-v2" / "knos_oidc" / "src" / "claims.rs").read_text(encoding="utf-8")
+    body = re.search(r"pub fn parse_u64\(s: &\[u8\]\) -> Option<u64> \{(.*?)\n\}", src, re.S)
+    assert body, "claims.rs has no parse_u64 any more: read its limit again"
+    limit = re.search(r"s\.len\(\) > (\d+)", body.group(1))
+    assert limit, "parse_u64 no longer says how many digits it takes: read its limit again"
+    return int(limit.group(1))
+
+
+def program_u64(text: str) -> int | None:
+    """claims.rs parse_u64: digits only, no leading zero, at most `program_digits()` of them; else None (error 87)."""
+    if not text or len(text) > program_digits() or not text.isdigit() or (len(text) > 1 and text[0] == "0"):
+        return None
+    return int(text)
+
 REPO, REPO_ID = "o/r", 555
 HUBOT, MONA, EVE = user("hubot", 1), user("mona", 4242), user("eve", 666)       # hubot owns o/r; eve cannot write to it
 DEVIN = user("devin-ai-integration[bot]", 158243242, "Bot")
@@ -64,16 +84,17 @@ class Signer:
 
     def __init__(self, clock: Clock, actor: int = HUBOT["id"], wf_sha: str = WF_SHA):
         self.clock, self.actor, self.wf_sha, self.asked, self.down = clock, actor, wf_sha, [], False
+        self.repo_id, self.more = REPO_ID, {}                # the repository the run is in; and any other claim (event_name, repository)
 
     def __call__(self, audience: str) -> str:
         if self.down:
             raise OSError("GitHub's token endpoint did not answer")
         self.asked.append(audience)
-        file = "fund.yml" if audience.startswith("knos2:fund:") else "prove.yml"
-        payload = {"aud": audience, "iat": int(self.clock()), "exp": int(self.clock()) + 300, "repository_id": str(REPO_ID),
+        file = "fund.yml" if audience.split(":")[1] in ("fund", "cancel", "take") else "prove.yml"
+        payload = {"aud": audience, "iat": int(self.clock()), "exp": int(self.clock()) + 300, "repository_id": str(self.repo_id),
                    "repository_owner_id": str(HUBOT["id"]), "actor_id": str(self.actor), "run_attempt": "1",
                    "runner_environment": "github-hosted", "job_workflow_sha": self.wf_sha,
-                   "job_workflow_ref": f"{WF_REPO}/.github/workflows/{file}@refs/tags/v0.3.12"}
+                   "job_workflow_ref": f"{WF_REPO}/.github/workflows/{file}@refs/tags/v0.3.12", **self.more}
         enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()  # noqa: E731
         return f"{enc({'alg': 'RS256', 'kid': 'k'})}.{enc(payload)}.c2ln"
 
@@ -94,6 +115,28 @@ def job_bytes(repo_id: int, issue: int, amount: int, source: Pubkey, terms_hash:
     mint = mint or (pay.faucet_mint() if faucet else pay.USDC_DEVNET)
     d[88:120], d[120:152], d[152:184], d[184:216] = bytes(source), bytes(pay.baltok_pda(source)), bytes(key("relayer")), bytes(mint)
     d[216:248], d[248:280], d[280:320] = terms_hash, pay.wf_repo_hash(wf_repo), wf_sha.encode()
+    return bytes(d)
+
+
+def order_bytes(repo_id: int, issue: int, amount: int, source: Pubkey, terms_hash: bytes, *, seq: int = 0, state: int = 1, mode: int = 0,
+                flags: int = pay.F_NEUTRAL | pay.F_FAUCET, fee: int | None = None, rate: int = 0, paid: int = 0, deadline: int = 0, not_before: int = 0,
+                holdback_bps: int = 0, warranty_days: int = 0, kill_bps: int = 0, reserve_days: int = 0, arbiter: int = 0, mint: Pubkey | None = None,
+                owner_id: int = HUBOT["id"], funder_id: int = HUBOT["id"], wf_repo: str = WF_REPO, wf_sha: str = WF_SHA, kind: int = 1,
+                scope: bytes | None = None, judge_repo: int = 0) -> bytes:
+    """A work order as programs-v2/knos_pay lays it out (state.rs): what knos.settle.v2.pay.read_order reads. A PRIVATE
+    one: `repo_id` and `issue` 0, its `scope` given, `judge_repo` the repository whose runs pay it."""
+    d = bytearray(pay.ORDER_LEN)
+    d[0], d[1], d[2], d[3], d[4], d[6], d[7] = 2, state, mode, kind, flags, 6, reserve_days
+    d[24:56], d[56:60] = scope or pay.scope_of(repo_id, issue), seq.to_bytes(4, "little")
+    d[184:192] = judge_repo.to_bytes(8, "little")
+    d[60:62], d[62:64] = holdback_bps.to_bytes(2, "little"), kill_bps.to_bytes(2, "little")
+    for offset, value in ((8, repo_id), (16, issue), (64, amount), (72, pay.order_fee(amount) if fee is None else fee), (80, rate), (88, paid),
+                          (96, deadline), (104, not_before), (120, warranty_days * 86_400), (160, funder_id), (168, owner_id), (176, arbiter)):
+        d[offset:offset + 8] = int(value).to_bytes(8, "little")
+    mint = mint or (pay.faucet_mint() if flags & pay.F_FAUCET else pay.USDC_DEVNET)
+    d[192:224], d[224:256], d[256:288], d[288:320] = bytes(source), bytes(pay.baltok_pda(source)), bytes(key("relayer")), bytes(mint)
+    d[320:352], d[352:384], d[384:424] = terms_hash, pay.wf_repo_hash(wf_repo), wf_sha.encode()
+    d[424:426] = (250).to_bytes(2, "little")
     return bytes(d)
 
 
@@ -148,8 +191,9 @@ class Chain:
         it so."""
         self._up()
         raw = self.logs.get(str(address))
+        order = len(self.accounts.get(str(address)) or b"") == pay.ORDER_LEN          # an order's terms are logged as knos3:terms
         lines = [*self.newer.get(str(address), []), "Program log: knos2:funded repo=555",
-                 *(["Program log: knos2:terms " + raw.decode()] if raw is not None else [])]
+                 *([f"Program log: knos{3 if order else 2}:terms " + raw.decode()] if raw is not None else [])]
         lines = lines if self.prefixed else [x[len("Program log: "):] for x in lines]
         return next((x for x in lines if x.startswith(marker) and (check is None or check(x))), None)
 
@@ -161,6 +205,24 @@ class Chain:
         """[(address, Job)] of every job, or of one issue's."""
         got = [(a, pay.read_job(d)) for a, d in self.accounts.items() if len(d) == pay.JOB_LEN]
         return [(a, j) for a, j in got if issue is None or j.issue == issue]
+
+    def orders(self, issue: int | None = None) -> list:
+        """[(address, Order)] of every work order, or of one issue's."""
+        got = [(a, pay.read_order(d)) for a, d in self.accounts.items() if len(d) == pay.ORDER_LEN]
+        return [(a, o) for a, o in got if issue is None or o.issue == issue]
+
+    def order(self, issue: int, units: int, bought: dict | bytes, *, source: Pubkey | None = None, at: float | None = None, days: int = 14,
+              seq: int = 0, **more) -> Pubkey:
+        """A work order as a knos3 fund token would have left it: open, with its terms logged."""
+        from knos import terms
+        raw = bought if isinstance(bought, bytes) else terms.canonical(bought)
+        source = source or pay.faucet_balance_pda(HUBOT["id"])
+        at = self.clock() if at is None else at
+        address = pay.order_pda(pay.scope_of(REPO_ID, issue), source, seq)
+        self.accounts[str(address)] = order_bytes(REPO_ID, issue, units, source, pay.terms_hash(raw), seq=seq, deadline=int(at) + days * 86_400,
+                                                  not_before=int(at), **more)
+        self.logs[str(address)] = raw
+        return address
 
     def balance(self, name: str, held: int, spenders=(), cap: int = 0, mint: Pubkey = pay.USDC_DEVNET, owner: int = HUBOT["id"],
                 spent: int = 0) -> Pubkey:
@@ -202,18 +264,25 @@ class Relay:
 
     def __init__(self, clock: Clock, takes: float = 30):
         self.clock, self.takes, self.refusals, self.submitted, self.n = clock, takes, [], [], 0
+        self.answered = []                                   # what `submit` returned, in order
 
     def _sig(self) -> str:
         self.n += 1
         return f"sig{self.n}"
 
     def submit(self, ledger: Chain, payer, jwt: str, terms: bytes | None = None, jwks=None, now=None) -> dict:
+        self.answered.append(self._submit(ledger, payer, jwt, terms))
+        return self.answered[-1]
+
+    def _submit(self, ledger: Chain, payer, jwt: str, terms: bytes | None = None) -> dict:
         self.submitted.append((jwt, terms))
         self.clock.sleep(self.takes)
         if self.refusals:
             return dict(self.refusals.pop(0))
         c = claims(jwt)
         aud = c["aud"].split(":")
+        if aud[0] == "knos3":
+            return self._order(ledger, c, aud, terms)
         if aud[1] == "fund":
             issue, amount, mode, balance = int(aud[2]), int(aud[3]), int(aud[4]), aud[7]
             job = pay.job_pda(REPO_ID, issue, Pubkey.from_string(balance))
@@ -263,12 +332,99 @@ class Relay:
                 "head": aud[5], "paid": paid}
 
 
+    def _order(self, ledger: Chain, c: dict, aud: list, terms: bytes | None) -> dict:
+        """What knos_pay 2.1 does with a knos3 token, as far as these tests need it: FundOrderBalance, PayOrder, Cancel
+        and Reserve."""
+        pin = (c["job_workflow_ref"].split("/.github/workflows/")[0], c["job_workflow_sha"])
+        if aud[1] == "fund":
+            issue, amount, mode, balance, seq, options = int(aud[2]), int(aud[3]), int(aud[4]), aud[7], int(aud[8]), bytes.fromhex(aud[9])
+            # a PRIVATE order (order_judge::funded): what travels with the token is its scope and its terms hash, 128 hex
+            # characters; the audience names issue 0 and their hash; and the run was in the repository the options name as judge
+            private, judge_repo = bool(options[0] & pay.F_PRIVATE), int.from_bytes(options[24:32], "little")
+            hidden = bytes.fromhex(terms.decode()) if private and terms and len(terms) == 128 else None
+            if private and (hidden is None or issue != 0 or not options[32] or int(c["repository_id"]) != judge_repo
+                            or c.get("job_workflow_ref", "").split("/.github/workflows/")[1].split("@")[0] != "fund.yml"):
+                return {"ok": False, "kind": "fund", "why": "a private order is funded from its judge repository's fund.yml, with its scope and terms hash"}
+            scope = hidden[:32] if private else pay.scope_of(REPO_ID, issue)
+            order = pay.order_pda(scope, Pubkey.from_string(balance), seq)
+            if str(order) in ledger.accounts or hashlib.sha256(hidden or terms or b"").hexdigest() != aud[5] or len(options) != pay.OPTS_LEN:
+                return {"ok": False, "kind": "fund", "why": "the order exists already, or its terms are not the ones the token names"}
+            faucet = balance == str(pay.faucet_balance_pda(int(c["repository_owner_id"])))
+            n = lambda o, size: int.from_bytes(options[o:o + size], "little")  # noqa: E731
+            fee, deadline = pay.order_fee(amount), int(self.clock()) + int(aud[6])
+            mint = pay.faucet_mint()
+            if not faucet:
+                b = pay.read_balance(ledger.accounts[balance])
+                if ledger.held(balance) < amount + fee:
+                    return {"ok": False, "kind": "fund", "why": pay.ERRORS[94]}
+                mint = b.mint
+                ledger.accounts[str(pay.baltok_pda(Pubkey.from_string(balance)))] = token_bytes(b.mint, pay.auth_pda(), ledger.held(balance) - amount - fee)
+            ledger.accounts[str(order)] = order_bytes(
+                0 if private else REPO_ID, issue, amount, Pubkey.from_string(balance), hidden[32:] if private else bytes.fromhex(aud[5]), seq=seq, mode=mode,
+                flags=options[0] | (pay.F_FAUCET if faucet else 0),
+                rate=n(8, 8), deadline=deadline, not_before=int(c["iat"]), holdback_bps=n(1, 2), warranty_days=n(3, 2), kill_bps=n(5, 2),
+                reserve_days=options[7], arbiter=n(16, 8), mint=mint, funder_id=int(c["actor_id"]), wf_repo=pin[0], wf_sha=pin[1],
+                owner_id=int(c["repository_owner_id"]), scope=scope if private else None, judge_repo=judge_repo)
+            if not private:                                  # a private order's terms are never logged
+                ledger.logs[str(order)] = terms
+            return {"ok": True, "kind": "fund", "sigs": [self._sig(), self._sig()], "order": str(order), "repo_id": int(c["repository_id"]) if private else REPO_ID,
+                    "issue": issue, "seq": seq, "amount": amount, "fee": fee, "mode": mode, "faucet": faucet, "balance": balance, "deadline": deadline,
+                    **({"private": True} if private else {})}
+        address = aud[2]
+        o = pay.read_order(ledger.accounts.get(address))
+        if o is None or o.state != "open" or (pay.wf_repo_hash(pin[0]), pin[1]) != (o.wf_repo_hash, o.wf_sha):
+            return {"ok": False, "kind": aud[1], "why": "no open order accepted the token"}
+        data = bytearray(ledger.accounts[address])
+        if aud[1] == "cancel":
+            now = int(self.clock())
+            data[144:152], data[96:104] = now.to_bytes(8, "little"), min(o.deadline, now + 7 * 86_400).to_bytes(8, "little")
+            ledger.accounts[address] = bytes(data)
+            return {"ok": True, "kind": "cancel", "sigs": [self._sig(), self._sig()], "order": address}
+        if aud[1] == "take":
+            data[128:136], data[136:144] = int(aud[3]).to_bytes(8, "little"), (int(self.clock()) + int(aud[4]) * 86_400).to_bytes(8, "little")
+            ledger.accounts[address] = bytes(data)
+            return {"ok": True, "kind": "take", "sigs": [self._sig(), self._sig()], "order": address}
+        payees = pay.payees_of(c["aud"])
+        if program_u64(aud[6]) is None:                      # order_pay.rs: pr is claims.rs parse_u64's, or the audience does not match
+            return {"ok": False, "kind": "pay", "why": "the token's audience does not match (error 87)"}
+        if o.flags & pay.F_PRIVATE and (int(c["repository_id"]) != o.judge_repo_id or int(c["iat"]) < o.not_before):
+            return {"ok": False, "kind": "pay", "why": "not from a judge this order takes: a run in the order's judge repository"}      # judge c
+        if o.terms.hex() != aud[4] or str(o.mode) != aud[5] or sum(bps for _i, bps, _a in payees) != 10_000 or not 1 <= len(payees) <= pay.MAX_PAYEES:
+            return {"ok": False, "kind": "pay", "why": "the order did not accept the token"}
+        paid = []
+        for pid, _bps, named in payees:
+            bind = pay.read_bind(ledger.accounts.get(str(pay.bind_pda(pid))))
+            assigned = ledger.accounts.get(str(pay.assign_pda(Pubkey.from_string(str(address)), pid)))      # knos_pay 24 Assign comes first
+            to = pay.payee_wallet(assigned, o, bind, named)
+            if to is None and len(payees) > 1:
+                return {"ok": False, "kind": "pay", "why": "a payee of a split has no wallet"}
+            paid.append({"id": pid, "to": str(to) if to else None, "held_until": None if to else int(self.clock()) + pay.HOLD})
+        standing = bool(o.flags & pay.F_STANDING)
+        if standing and o.amount - o.paid - o.rate >= o.rate:
+            data[88:96] = (o.paid + o.rate).to_bytes(8, "little")
+            ledger.accounts[address] = bytes(data)
+        elif paid[0]["to"] is None:
+            data[1], data[152:160], data[112:120] = 3, payees[0][0].to_bytes(8, "little"), paid[0]["held_until"].to_bytes(8, "little")
+            ledger.accounts[address] = bytes(data)
+        elif o.holdback_bps:
+            data[1] = 4
+            ledger.accounts[address] = bytes(data)
+        else:
+            del ledger.accounts[address]
+        if o.flags & pay.F_PRIVATE:                         # as the real relay answers: the order's own repository and issue are 0
+            share = lambda bps: (o.amount - o.paid) * bps // 10_000  # noqa: E731
+            paid = [{**row, "payee_id": row["id"], "amount": share(bps)} for row, (_i, bps, _a) in zip(paid, payees)]
+            return {"ok": True, "kind": "pay", "sigs": [self._sig(), self._sig()], "order": address, "repo_id": o.repo_id, "issue": o.issue,
+                    "mint": str(o.mint), "head": aud[3], "pr": int(aud[6]), "paid": paid}
+        return {"ok": True, "kind": "pay", "sigs": [self._sig(), self._sig()], "order": address, "paid": paid}
+
+
 class Worker:
     """knos.proof.ghrelay, by its contract: `token_id(jwt)`, and `wait_for(token_id, log_repo, timeout, every, get)`,
     which gives the line Knos's public worker logged about a token, or None in time. Here the worker makes its pass
     at that moment: it reads the token comment the flow posted (the marker, the terms line, the one word it
     searches for), relays, and logs."""
-    TOKEN = re.compile(r"^knos-(fund|proof|bind): (eyJ[\w-]+\.[\w-]+\.[\w-]+)$", re.M)
+    TOKEN = re.compile(r"^knos-(fund|proof|bind|cancel|take): (eyJ[\w-]+\.[\w-]+\.[\w-]+)$", re.M)
 
     def __init__(self, hub, chain: Chain, relay: Relay, clock: Clock):
         self.hub, self.chain, self.relay, self.clock, self.silent, self.waited = hub, chain, relay, clock, False, []
@@ -297,7 +453,7 @@ class Worker:
         n, marker, jwt, terms = next(x for x in self.posted() if self.token_id(x[2]) == tid)
         self.clock.sleep(9)                                  # the worker's next pass
         r = self.relay.submit(self.chain, None, jwt, terms)
-        head = f"knos-relay {marker} {REPO}#{n} {tid}"
+        head = f"knos-relay {marker} {getattr(self.hub, 'name', REPO)}#{n} {tid}"
         return f"{head} ok sig={','.join(r['sigs'])} note=relayed by the worker t=39" if r["ok"] else f"{head} fail {r['why']}"
 
 
@@ -309,10 +465,10 @@ class GitHub(Hub):
     A path nothing answers is a 404; `down` names paths GitHub does not answer for at all; `readonly` is a fork's
     token. Every comment Knos posts is checked here: none may itself read as a command."""
 
-    def __init__(self, clock: Clock):
+    def __init__(self, clock: Clock, name: str = REPO, repo_id: int = REPO_ID):
         super().__init__()
-        self.clock = clock
-        self.repo = {"id": REPO_ID, "full_name": REPO, "default_branch": "main", "owner": dict(HUBOT)}
+        self.clock, self.name = clock, name
+        self.repo = {"id": repo_id, "full_name": name, "default_branch": "main", "owner": dict(HUBOT)}
         self.issues, self.pulls, self.comments, self.events = {}, {}, {}, {}
         self.checks, self.statuses, self.files, self.brought, self.closes, self.messages = {}, {}, {}, {}, {}, {}
         self.can = {"hubot": "admin", "mona": "read"}
@@ -320,6 +476,7 @@ class GitHub(Hub):
         self.contents, self.required, self.head, self.bundles = {}, [], sha("main"), {}
         self.down, self.readonly, self.unassignable, self.ids, self.wrote = (), False, set(), 100, []
         self.edited = {}                                     # pull request -> when its description was last edited
+        self.history = []                                    # the default branch's commits since some time, newest first
         self.checks[self.head] = [check("test")]
 
     # -- what a test sets up -------------------------------------------------------------------------------------------
@@ -336,10 +493,10 @@ class GitHub(Hub):
         owner = fork or "o"
         p = {"number": n, "body": body, "user": author, "assignees": list(assignees), "state": "closed" if merged else "open",
              "head": {"sha": head, "ref": f"fix-{n}", "repo": {"full_name": f"{owner}/r", "owner": {"login": owner}}},
-             "base": {"ref": base, "sha": self.head, "repo": {"id": REPO_ID, "full_name": REPO, "default_branch": "main"}},
+             "base": {"ref": base, "sha": self.head, "repo": {"id": self.repo["id"], "full_name": self.name, "default_branch": "main"}},
              "merged": bool(merged), "merged_at": stamp(merged) if merged else None, "merge_commit_sha": merge_sha}
         self.pulls[n] = p
-        self.issue(n, body, author, assignees, p["state"])["pull_request"] = {"url": f"https://api.github.com/repos/{REPO}/pulls/{n}"}
+        self.issue(n, body, author, assignees, p["state"])["pull_request"] = {"url": f"https://api.github.com/repos/{self.name}/pulls/{n}"}
         self.files.setdefault(n, [{"filename": "src/a.py", "patch": "@@ -1,1 +1,2 @@\n def a():\n+    return 1"}])
         self.checks.setdefault(head, [check("test")])
         return p
@@ -353,7 +510,7 @@ class GitHub(Hub):
         self.ids += 1
         at = self.clock() if at is None else at
         c = {"id": self.ids, "user": who_, "body": body, "created_at": stamp(at), "updated_at": stamp(at + 60 if edited else at),
-             "issue_url": f"https://api.github.com/repos/{REPO}/issues/{n}"}
+             "issue_url": f"https://api.github.com/repos/{self.name}/issues/{n}"}
         self.comments.setdefault(n, []).append(c)
         return c
 
@@ -400,6 +557,9 @@ class GitHub(Hub):
             raise urllib.error.HTTPError(f"https://api.github.com/{path}", 403, "Resource not accessible by integration", None, None)
         bare, _, query = path.partition("?")
         q = dict(urllib.parse.parse_qsl(query))
+        if self.name != REPO and bare.startswith("repos/"):     # the routes are written for o/r: this repository's paths are read as its
+            mine = bare == f"repos/{self.name}" or bare.startswith(f"repos/{self.name}/")
+            bare = "repos/o/r" + bare[len(f"repos/{self.name}"):] if mine else "repos/another/repository"
         for pattern, answer in self._ROUTES:
             m = re.fullmatch(pattern, bare)
             if m:
@@ -436,15 +596,17 @@ class GitHub(Hub):
 
     def _graphql(self, q, data, method):
         n = data["variables"]["number"]
-        closes = self.closes.get(n, closing.closing_issues(self.pulls[n]["body"] or "", REPO))
-        nodes = [{"number": i, "repository": {"nameWithOwner": REPO}} for i in closes]
+        closes = self.closes.get(n, closing.closing_issues(self.pulls[n]["body"] or "", self.name))
+        nodes = [{"number": i, "repository": {"nameWithOwner": self.name}} for i in closes]
         return {"data": {"repository": {"pullRequest": {"mergedAt": self.pulls[n].get("merged_at"), "lastEditedAt": self.edited.get(n),
                                                         "closingIssuesReferences": {"totalCount": len(nodes), "nodes": nodes}}}}}
 
     def _memory(self, q, data, method):
         if data is None:
             return [i for i in self.issues.values() if {"name": "knos-memory"} in i.get("labels", []) and i["state"] == "open"]
-        n = max([*self.issues, 0]) + 1
+        if "labels" not in data:
+            raise urllib.error.HTTPError(f"https://api.github.com/repos/{self.name}/issues", 403, "Resource not accessible", None, None)
+        n = max([*self.issues, 900]) + 1                     # well clear of the numbers the tests give their own issues
         self.issue(n, data["body"], BOT).update(labels=[{"name": x} for x in data["labels"]], title=data["title"])
         return {"number": n}
 
@@ -470,13 +632,20 @@ class GitHub(Hub):
         text = self.contents.get(name)
         return None if text is None else {"encoding": "base64", "content": base64.b64encode(text.encode()).decode()}
 
+    def _recent(self, q, data, method):
+        """GET issues/comments?since=: every comment of the repository made since then, the newest first."""
+        return sorted((c for cs in self.comments.values() for c in cs if c["created_at"] >= q.get("since", "")), key=lambda c: c["id"], reverse=True)
+
     def _open_pulls(self, q, data, method):
+        if q.get("state") == "closed":
+            return [p for p in self.pulls.values() if p["state"] == "closed"]
         return [p for p in self.pulls.values() if p["state"] == "open" and
                 f"{p['head']['repo']['owner']['login']}:{p['head']['ref']}" == q.get("head")]
 
     _R = r"repos/o/r"
     _ROUTES = [
         (_R, lambda s, q, d, m: s.repo),
+        (_R + r"/commits", lambda s, q, d, m: list(s.history) if q.get("sha") == "main" and q.get("since") else None),
         (_R + r"/commits/([^/]+)", _commit),
         (_R + r"/rules/branches/main", lambda s, q, d, m: [{"type": "required_status_checks", "parameters": {"required_status_checks": s.required}}]
             if s.required else []),
@@ -492,6 +661,7 @@ class GitHub(Hub):
         (_R + r"/issues/(\d+)", lambda s, q, d, m, n: s.issues.get(int(n))),
         (_R + r"/issues/(\d+)/events", lambda s, q, d, m, n: list(s.events.get(int(n), []))),
         (_R + r"/issues/(\d+)/comments", _comments),
+        (_R + r"/issues/comments", _recent),
         (_R + r"/issues/comments/(\d+)", _edit),
         (_R + r"/issues/(\d+)/assignees", _assignees),
         (_R + r"/collaborators/([^/]+)/permission", lambda s, q, d, m, login: {"permission": s.can[login]} if login in s.can else None),
@@ -520,6 +690,9 @@ class World:
         self.signer = Signer(self.clock, actor["id"])
         self.env = {"GITHUB_RUN_ID": "77", **({"KNOS_RELAY_KEY": "[1,2,3]"} if relay_key else {})}
         self.runs = 0
+        self.version = 0                                                  # knos_pay on this chain: 0 is 2.0 (jobs), 1 is 2.1 (work orders)
+        self.screened, self.screen = [], lambda address: (True, "screened: not listed.")      # knos.screen.check, by its contract
+        self.month_spent = 0                                              # knos.records.month_spent for the owner
 
     def run(self, event: dict, **env) -> flow.Run:
         said = event.get("comment") or event.get("issue") or {}
@@ -527,4 +700,9 @@ class World:
         self.runs += 1                                                    # every run is a fresh runner: nothing of the last one's is there
         return flow.Run(REPO, event, github=self.hub, ledger=self.chain, relay=self.relay, ghrelay=self.worker, mint=self.signer,
                         key=lambda: "the relay key", env={**self.env, **env}, clock=self.clock, sleep=self.clock.sleep,
-                        scratch=self.tmp / f"runner-{self.runs}")
+                        scratch=self.tmp / f"runner-{self.runs}", version=lambda: self.version, screen=self._screen,
+                        spent=lambda owner_id: self.month_spent)
+
+    def _screen(self, address: str):
+        self.screened.append(address)
+        return self.screen(address)

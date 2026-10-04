@@ -1,16 +1,17 @@
-//! Read a token that knos-oidc verified. knos-oidc is a Solana program that checks the RS256 signature of a GitHub
-//! Actions or GitLab CI OIDC token on chain and leaves the result in an account it owns. Your program takes that
-//! account and reads the claims the issuer signed: which repository, which commit, which workflow, which audience.
-//! There is no CPI and no oracle.
+//! Read a token that knos-oidc verified. knos-oidc is a Solana program that checks the RS256 signature of an OIDC
+//! token (GitHub Actions, GitLab CI, any other RS256 issuer it admitted) on chain and leaves the result in an
+//! account it owns. Your program takes that account and reads the claims the issuer signed: which repository, which
+//! commit, which workflow, which audience. There is no CPI and no oracle.
 //!
 //! This crate has no dependency and does not allocate: bytes in, values out. It works with solana-program,
 //! pinocchio or anchor of any version, and off chain.
 //!
-//! There are two deployments of knos-oidc. The first (`ID`) is immutable, so its account layout and the rules below
-//! do not change. The second (`v2::ID`) admits signing keys more strictly, lets them expire and lets a guardian
-//! revoke them; it is upgradeable only through a multisig with a public 48-hour delay, until an outside review; then
-//! made immutable. A token account has the same layout and reads the same way under both. Your program chooses which
-//! deployment it trusts by the owner it requires: `Token::read` for the first, `v2::read` for the second.
+//! There are two deployments of knos-oidc, and this crate reads the SECOND unless you name the first: `ID`,
+//! `Token::read` and `Token::read_any` are the second deployment's (`v2` is the same thing by name). It admits
+//! signing keys on GitHub's own signature, lets them expire and lets a guardian revoke them; it is upgradeable only
+//! through a multisig with a public 48-hour delay, until an outside review. The first deployment (`v1::ID`,
+//! `v1::read`) is immutable: no key of it expires and none can be revoked, so a program reads it only by naming it.
+//! A token account has the same layout under both; a token one deployment verified says nothing under the other.
 //!
 //! ```ignore
 //! let data = token_account.try_borrow_data()?;
@@ -22,29 +23,44 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-/// The knos-oidc program (devnet, the first deployment), as bytes. A token account must be owned by it.
+/// The knos-oidc program this crate reads by default: the second deployment (devnet), as bytes. A token account
+/// must be owned by it.
 pub const ID: [u8; 32] = [
-    0x0d, 0xc9, 0x82, 0xa8, 0x4f, 0x3b, 0x4e, 0xae, 0x63, 0x8e, 0x01, 0x8f, 0xe3, 0x9a, 0x96, 0xd0,
-    0x6b, 0xd7, 0xe9, 0x53, 0x33, 0x1c, 0xda, 0x76, 0x0d, 0x51, 0x66, 0xb4, 0x0b, 0x34, 0x2b, 0xa3,
+    0xdb, 0x45, 0x49, 0x36, 0x35, 0xef, 0x28, 0x0d, 0xfb, 0xbe, 0x73, 0x6a, 0x6d, 0xfa, 0xd8, 0xbc,
+    0xf8, 0x60, 0x38, 0xc2, 0xa5, 0x39, 0x74, 0xf7, 0x64, 0x1d, 0x78, 0x42, 0xb8, 0xaa, 0x41, 0x71,
 ];
 /// The same address as Solana prints it.
-pub const ID_STR: &str = "vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE";
+pub const ID_STR: &str = "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W";
 
-/// The second deployment of knos-oidc. Its token accounts have the layout this crate reads and the same rules
-/// (`VERIFIED`, `LATE`, the claims); what differs is which signing keys the program accepts and for how long.
+/// The second deployment of knos-oidc by name: the same address and the same reader as the crate's defaults, for a
+/// program that wants its choice written out.
 pub mod v2 {
     use super::{Error, Token};
 
-    /// The second deployment's address, as bytes. A token account it verified is owned by it.
+    pub const ID: [u8; 32] = super::ID;
+    pub const ID_STR: &str = super::ID_STR;
+
+    /// `Token::read`: the account is owned by the second deployment, VERIFIED, at most `LATE` seconds past its
+    /// expiry, and not verified by a private key.
+    pub fn read<'a>(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> {
+        Token::read_from(&ID, owner, data, now)
+    }
+}
+
+/// The first deployment of knos-oidc: immutable, with GitHub's and GitLab's keys of its day fixed in it, no expiry
+/// and no revocation. Nothing in this crate reads it unless you write `v1`.
+pub mod v1 {
+    use super::{Error, Token};
+
+    /// The first deployment's address (devnet), as bytes.
     pub const ID: [u8; 32] = [
-        0xdb, 0x45, 0x49, 0x36, 0x35, 0xef, 0x28, 0x0d, 0xfb, 0xbe, 0x73, 0x6a, 0x6d, 0xfa, 0xd8, 0xbc,
-        0xf8, 0x60, 0x38, 0xc2, 0xa5, 0x39, 0x74, 0xf7, 0x64, 0x1d, 0x78, 0x42, 0xb8, 0xaa, 0x41, 0x71,
+        0x0d, 0xc9, 0x82, 0xa8, 0x4f, 0x3b, 0x4e, 0xae, 0x63, 0x8e, 0x01, 0x8f, 0xe3, 0x9a, 0x96, 0xd0,
+        0x6b, 0xd7, 0xe9, 0x53, 0x33, 0x1c, 0xda, 0x76, 0x0d, 0x51, 0x66, 0xb4, 0x0b, 0x34, 0x2b, 0xa3,
     ];
     /// The same address as Solana prints it.
-    pub const ID_STR: &str = "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W";
+    pub const ID_STR: &str = "vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE";
 
-    /// `Token::read` for the second deployment: the account is owned by `v2::ID`, VERIFIED, and at most `LATE`
-    /// seconds past its expiry.
+    /// The three checks against the first deployment: owned by `v1::ID`, VERIFIED, at most `LATE` past its expiry.
     pub fn read<'a>(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> {
         Token::read_from(&ID, owner, data, now)
     }
@@ -52,7 +68,15 @@ pub mod v2 {
 
 pub const ISSUER_GITHUB: u8 = 0;
 pub const ISSUER_GITLAB: u8 = 1;
-/// The `iss` claim of each issuer, by its number.
+/// Any other RS256 issuer that the second deployment admitted on an attestation (RegisterIssuerKey). The number says
+/// only "not GitHub, not GitLab": which issuer is `Token::issuer_hash` (sha256 of its URL), and knos-oidc checked
+/// that the token's `iss` is that URL.
+pub const ISSUER_OTHER: u8 = 2;
+/// A PRIVATE key verified the token: a key some wallet registered itself, with no attestation (RegisterPrivateKey),
+/// for an issuer no public runner can reach. Nobody vouches for it. `Token::read` refuses such a token; a program
+/// that wants them reads with `Token::read_any` and accepts one only from a `registrant` it trusts for that purpose.
+pub const ISSUER_PRIVATE: u8 = 3;
+/// The `iss` claim of each numbered issuer, by its number.
 pub const ISSUERS: [&[u8]; 2] = [b"https://token.actions.githubusercontent.com", b"https://gitlab.com"];
 
 /// The longest token knos-oidc takes.
@@ -78,6 +102,22 @@ pub const T_ID: usize = 82;
 pub const T_X: usize = 114;
 pub const T_JWT: usize = 626;
 pub const VERIFIED: u8 = 2;
+/// In a VERIFIED account whose issuer is ISSUER_OTHER or ISSUER_PRIVATE: sha256 of the issuer's URL, and for a
+/// private key the wallet that registered it (zero otherwise). They stand where the running power was.
+pub const T_IHASH: usize = T_X;
+pub const T_REGISTRANT: usize = T_X + 32;
+
+// key account (second deployment): state u8 (1 ready), issuer u8, limbs u8, bump u8, n0inv u32, active_at i64,
+// expires_at i64, flags u8, 15 zero bytes, then the modulus and R^2
+pub const K_STATE: usize = 0;
+pub const K_ACTIVE: usize = 8;
+pub const K_EXPIRES: usize = 16;
+pub const K_FLAGS: usize = 24;
+pub const K_HDR: usize = 40;
+pub const F_APPROVED: u8 = 1;
+pub const F_REVOKED: u8 = 2;
+pub const F_GENESIS: u8 = 4;
+pub const F_PRIVATE: u8 = 8;
 
 /// Why a token or a claim was refused. `code()` is the number to put in a program error: 61 to 63 are the codes
 /// knos-oidc's own claims reader returns for the same bytes.
@@ -90,6 +130,17 @@ pub enum Error {
     NotVerified = 2,
     /// More than `LATE` seconds past the token's `exp`.
     Stale = 3,
+    /// A private key verified the token (`ISSUER_PRIVATE`): it is one wallet's word, and `Token::read` does not take
+    /// it. Read it with `Token::read_any` and check `registrant()`.
+    Private = 4,
+    /// Not the key account the token names, or not an account of the same knos-oidc.
+    Key = 68,
+    /// The key that verified the token is not active (the same codes as knos-oidc's Step: 76, 77, 78).
+    KeyNotActive = 76,
+    /// The key that verified the token has expired: nothing attested it for 30 days.
+    KeyExpired = 77,
+    /// The guardian (or a private key's registrant) revoked the key that verified the token.
+    KeyRevoked = 78,
     /// The claims are not a JSON object.
     Json = 61,
     /// A claim that was asked for appears twice.
@@ -113,8 +164,9 @@ pub fn verified(d: &[u8]) -> Option<Verified<'_>> {
     Some(Verified { issuer: d[T_ISSUER], exp: i64::from_le_bytes(d[T_EXP..T_EXP + 8].try_into().ok()?), payload })
 }
 
-/// A verified, fresh token. `read` does the three checks every consumer must do: the account is owned by knos-oidc,
-/// it is VERIFIED, and it is at most `LATE` seconds past its expiry (`now` is the chain's clock).
+/// A verified, fresh token. `read` does the three checks every consumer must do: the account is owned by knos-oidc
+/// (the second deployment, unless you read with `v1::read` or `read_from`), it is VERIFIED, and it is at most `LATE`
+/// seconds past its expiry (`now` is the chain's clock).
 ///
 /// What remains your program's job, because knos-oidc only says the token is genuine:
 /// - the issuer (`issuer()`): GitHub and GitLab sign different claims;
@@ -124,24 +176,63 @@ pub fn verified(d: &[u8]) -> Option<Verified<'_>> {
 ///   be used with yours;
 /// - your own replay guard: the same verified token can be read by any program, any number of times, until an
 ///   hour after its expiry. Bind the token to one action in the audience and record that the action was done.
+/// - if a revoked or expired signing key must stop its tokens at once: take the key account too and call
+///   `check_key`. Without it a token account is good for up to 25 hours after its key stopped.
+///
+/// `read` never returns a token that a PRIVATE key verified. `read_any` does, and then `is_private()` is the check
+/// your program must not forget: such a token is the word of `registrant()`, not of the issuer its claims name.
 #[derive(Clone, Copy, Debug)]
-pub struct Token<'a>(Verified<'a>);
+pub struct Token<'a> { v: Verified<'a>, data: &'a [u8], program: [u8; 32] }
 impl<'a> Token<'a> {
+    /// The second deployment's token accounts (`ID`). For the first deployment, write `v1::read`.
     pub fn read(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> { Self::read_from(&ID, owner, data, now) }
-    /// The same three checks against one deployment of knos-oidc that you name: `ID` or `v2::ID`. A token that one
+    /// The same three checks against one deployment of knos-oidc that you name: `ID` or `v1::ID`. A token that one
     /// deployment verified says nothing under the other's address, so name exactly the one your program trusts.
+    /// A token that a private key verified is refused (`Error::Private`).
     pub fn read_from(program: &[u8; 32], owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> {
+        let tok = Self::read_any_from(program, owner, data, now)?;
+        if tok.v.issuer > ISSUER_OTHER { return Err(Error::Private); }
+        Ok(tok)
+    }
+    /// `read`, and tokens that a private key verified too. Ask `is_private()` of what this returns.
+    pub fn read_any(owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> { Self::read_any_from(&ID, owner, data, now) }
+    pub fn read_any_from(program: &[u8; 32], owner: &[u8; 32], data: &'a [u8], now: i64) -> Result<Token<'a>, Error> {
         if owner != program { return Err(Error::NotOidc); }
         let v = verified(data).ok_or(Error::NotVerified)?;
         if !fresh(v.exp, now) { return Err(Error::Stale); }
-        Ok(Token(v))
+        Ok(Token { v, data, program: *program })
     }
-    pub fn issuer(&self) -> u8 { self.0.issuer }
-    pub fn exp(&self) -> i64 { self.0.exp }
+    /// ISSUER_GITHUB, ISSUER_GITLAB, ISSUER_OTHER (see `issuer_hash`) or ISSUER_PRIVATE (see `registrant`).
+    pub fn issuer(&self) -> u8 { self.v.issuer }
+    pub fn exp(&self) -> i64 { self.v.exp }
+    /// Whether a private key verified this token: a key a wallet registered itself, which nobody vouches for. The
+    /// claims may name any issuer, GitHub included; they are the registrant's word. True for any issuer number this
+    /// crate does not know, so that a newer kind of key is never taken for a public one.
+    pub fn is_private(&self) -> bool { self.v.issuer > ISSUER_OTHER }
+    /// The wallet that registered the private key; None for a token that is not private.
+    pub fn registrant(&self) -> Option<&'a [u8; 32]> {
+        if self.v.issuer != ISSUER_PRIVATE { return None; }
+        self.data[T_REGISTRANT..T_REGISTRANT + 32].try_into().ok()
+    }
+    /// sha256 of the issuer's URL, for ISSUER_OTHER and ISSUER_PRIVATE; None for GitHub and GitLab by number.
+    pub fn issuer_hash(&self) -> Option<&'a [u8; 32]> {
+        if self.v.issuer < ISSUER_OTHER { return None; }
+        self.data[T_IHASH..T_IHASH + 32].try_into().ok()
+    }
+    /// The address of the key account that verified the token.
+    pub fn key(&self) -> &'a [u8; 32] { self.data[T_KEY..T_KEY + 32].try_into().unwrap() }
+    /// Whether the key that verified the token may still verify at `now`, by knos-oidc's own rule. Pass the key
+    /// account: its address must be the one the token names and its owner the same knos-oidc. Second deployment
+    /// only (the first has no expiry and no revocation). Errors: `Key`, `KeyNotActive`, `KeyExpired`, `KeyRevoked`.
+    pub fn check_key(&self, key_address: &[u8; 32], key_owner: &[u8; 32], key_data: &[u8], now: i64) -> Result<(), Error> {
+        if key_address != self.key() || *key_owner != self.program || key_data.len() < K_HDR || key_data[K_STATE] != 1 { return Err(Error::Key); }
+        let at = |o: usize| i64::from_le_bytes(key_data[o..o + 8].try_into().unwrap());
+        key_usable(key_data[K_FLAGS], at(K_ACTIVE), at(K_EXPIRES), now)
+    }
     /// The claims as the issuer signed them (a JSON object).
-    pub fn payload(&self) -> &'a [u8] { self.0.payload }
+    pub fn payload(&self) -> &'a [u8] { self.v.payload }
     /// Several claims in one pass over the payload. A wanted claim that appears twice is an error.
-    pub fn claims<const N: usize>(&self, want: [&[u8]; N]) -> Result<[Option<Raw<'a>>; N], Error> { fields(self.0.payload, want) }
+    pub fn claims<const N: usize>(&self, want: [&[u8]; N]) -> Result<[Option<Raw<'a>>; N], Error> { fields(self.v.payload, want) }
     /// A string claim. None if it is absent, appears twice or is not a string.
     pub fn claim(&self, name: &str) -> Option<Text<'a>> {
         let [f] = self.claims([name.as_bytes()]).ok()?;
@@ -154,6 +245,15 @@ impl<'a> Token<'a> {
     }
     /// The `aud` claim when it is one string, which is what GitHub Actions and GitLab CI sign.
     pub fn audience(&self) -> Option<Text<'a>> { self.claim("aud") }
+}
+
+/// knos-oidc's rule for a ready key, from its flags and times: revoked first, then not active (not a genesis key,
+/// not approved, not private, or before its time), then expired.
+pub fn key_usable(flags: u8, active_at: i64, expires_at: i64, now: i64) -> Result<(), Error> {
+    if flags & F_REVOKED != 0 { return Err(Error::KeyRevoked); }
+    if flags & (F_GENESIS | F_APPROVED | F_PRIVATE) == 0 || now < active_at { return Err(Error::KeyNotActive); }
+    if now >= expires_at { return Err(Error::KeyExpired); }
+    Ok(())
 }
 
 fn ws(b: &[u8], mut i: usize) -> usize {
@@ -203,9 +303,24 @@ fn skip_value(b: &[u8], i: usize) -> Result<usize, Error> {
 #[derive(Clone, Copy, Debug)]
 pub struct Raw<'a> { pub bytes: &'a [u8], pub is_str: bool }
 
+/// Whether a key whose raw content is `raw` is the name `want` (printable ASCII), however it is spelled: a JSON
+/// reader that decodes escapes takes "a\u0075d" for "aud", so this one does too. An escape `unescape` refuses
+/// stands for a character no wanted name has.
+fn key_is(raw: &[u8], escaped: bool, want: &[u8]) -> bool {
+    if !escaped { return raw == want; }
+    let (mut i, mut k) = (0, 0);
+    while i < raw.len() {
+        let Ok((c, next)) = unescape(raw, i) else { return false };
+        if want.get(k) != Some(&c) { return false; }
+        i = next; k += 1;
+    }
+    k == want.len()
+}
+
 /// One pass over a flat JSON object: for each wanted top-level key, its value. A wanted key that appears twice is
-/// refused, the whole object must parse, and nothing may follow it. Keys are compared raw (GitHub's and GitLab's
-/// claim names have no escapes). The same code as knos-oidc's, so it gives the same answer on the same bytes.
+/// refused, the whole object must parse, and nothing may follow it. A key is compared as the text it spells (its
+/// escapes decoded), so that this reader and any other JSON reader find the same claim under the same name. The
+/// same code as the second knos-oidc's, so it gives the same answer on the same bytes.
 pub fn fields<'a, const N: usize>(b: &'a [u8], want: [&[u8]; N]) -> Result<[Option<Raw<'a>>; N], Error> {
     let mut got: [Option<Raw<'a>>; N] = [None; N];
     let mut i = ws(b, 0);
@@ -219,8 +334,9 @@ pub fn fields<'a, const N: usize>(b: &'a [u8], want: [&[u8]; N]) -> Result<[Opti
             let vs = ws(b, i + 1);
             let ve = skip_value(b, vs)?;
             let key = &b[ks..ke];
+            let escaped = key.contains(&b'\\');
             for (w, g) in want.iter().zip(got.iter_mut()) {
-                if key == *w {
+                if key_is(key, escaped, w) {
                     if g.is_some() { return Err(Error::Duplicate); }
                     *g = Some(if b[vs] == b'"' { Raw { bytes: &b[vs + 1..ve - 1], is_str: true } } else { Raw { bytes: &b[vs..ve], is_str: false } });
                 }
@@ -373,12 +489,30 @@ mod tests {
     #[test]
     fn the_id_is_the_deployed_address() {
         assert_eq!(b58_32(ID_STR.as_bytes()), Some(ID));
+        assert_eq!(b58_32(v1::ID_STR.as_bytes()), Some(v1::ID));
     }
 
     #[test]
-    fn the_second_deployment_has_its_own_address_and_reads_the_same_layout() {
+    fn every_default_is_the_second_deployment_and_the_first_is_read_only_by_name() {
+        assert_eq!((ID_STR, v2::ID_STR, v1::ID_STR), ("FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W", "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+                                                       "vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE"));
+        assert!(v2::ID == ID && v1::ID != ID);
+        let (d, len) = account(ISSUER_GITHUB, br#"{"aud":"x","exp":1000}"#, 1000);
+        let d = &d[..len];
+        // an account the first deployment owns: every reader that does not say `v1` refuses it
+        assert_eq!(Token::read(&v1::ID, d, 1000).unwrap_err(), Error::NotOidc);
+        assert_eq!(Token::read_any(&v1::ID, d, 1000).unwrap_err(), Error::NotOidc);
+        assert_eq!(v2::read(&v1::ID, d, 1000).unwrap_err(), Error::NotOidc);
+        assert!(v1::read(&v1::ID, d, 1000).is_ok() && Token::read_from(&v1::ID, &v1::ID, d, 1000).is_ok());
+        // an account the second owns: read by every default, refused under the first's name
+        assert!(Token::read(&ID, d, 1000).is_ok() && Token::read_any(&ID, d, 1000).is_ok() && v2::read(&ID, d, 1000).is_ok());
+        assert_eq!(v1::read(&ID, d, 1000).unwrap_err(), Error::NotOidc);
+    }
+
+    #[test]
+    fn the_two_deployments_have_their_own_addresses_and_read_the_same_layout() {
         assert_eq!(b58_32(v2::ID_STR.as_bytes()), Some(v2::ID));
-        assert_ne!(v2::ID, ID);
+        assert_ne!(v2::ID, v1::ID);
         // a VERIFIED token account, as small as one can be: the header, then the claims
         let payload = br#"{"aud":"x","exp":1000}"#;
         let mut d = [0u8; T_JWT + 22];
@@ -391,14 +525,90 @@ mod tests {
         // each reader takes its own deployment's account and refuses the other's
         let tok = v2::read(&v2::ID, &d, 1000).unwrap();
         assert!(tok.issuer() == ISSUER_GITLAB && tok.exp() == 1000 && tok.audience().unwrap().is("x") && tok.claim_u64("exp") == Some(1000));
-        assert_eq!(v2::read(&ID, &d, 1000).unwrap_err(), Error::NotOidc);
-        assert_eq!(Token::read(&v2::ID, &d, 1000).unwrap_err(), Error::NotOidc);
-        assert!(Token::read(&ID, &d, 1000).is_ok() && Token::read_from(&v2::ID, &v2::ID, &d, 1000).is_ok());
+        assert_eq!(v2::read(&v1::ID, &d, 1000).unwrap_err(), Error::NotOidc);
+        assert_eq!(v1::read(&v2::ID, &d, 1000).unwrap_err(), Error::NotOidc);
+        assert!(v1::read(&v1::ID, &d, 1000).is_ok() && Token::read_from(&v2::ID, &v2::ID, &d, 1000).is_ok());
         assert_eq!(Token::read_from(&v2::ID, &[0; 32], &d, 1000).unwrap_err(), Error::NotOidc);
         // the other two checks are the same ones
         assert_eq!(v2::read(&v2::ID, &d, 1000 + LATE).unwrap_err(), Error::Stale);
         d[T_STAGE] = 1;
         assert_eq!(v2::read(&v2::ID, &d, 1000).unwrap_err(), Error::NotVerified);
+    }
+
+    /// A VERIFIED token account of the second deployment, as small as one can be.
+    fn account(issuer: u8, payload: &[u8], exp: i64) -> ([u8; T_JWT + 160], usize) {
+        let mut d = [0u8; T_JWT + 160];
+        d[T_STAGE] = VERIFIED;
+        d[T_ISSUER] = issuer;
+        d[T_POFF..T_POFF + 2].copy_from_slice(&(T_JWT as u16).to_le_bytes());
+        d[T_PLEN..T_PLEN + 2].copy_from_slice(&(payload.len() as u16).to_le_bytes());
+        d[T_EXP..T_EXP + 8].copy_from_slice(&exp.to_le_bytes());
+        d[T_KEY..T_KEY + 32].copy_from_slice(&[9; 32]);
+        d[T_JWT..T_JWT + payload.len()].copy_from_slice(payload);
+        (d, T_JWT + payload.len())
+    }
+
+    #[test]
+    fn a_private_token_is_refused_by_read_and_marked_for_whoever_reads_any() {
+        // every claim is what GitHub would sign; a wallet's own key signed it and knos-oidc marked the account
+        let payload = br#"{"iss":"https://token.actions.githubusercontent.com","aud":"gate:release","repository_id":"1","exp":1000}"#;
+        let (mut d, len) = account(ISSUER_PRIVATE, payload, 1000);
+        d[T_IHASH..T_IHASH + 32].copy_from_slice(&[0xaa; 32]);
+        d[T_REGISTRANT..T_REGISTRANT + 32].copy_from_slice(&[0xbb; 32]);
+        let d = &d[..len];
+        assert_eq!(v2::read(&v2::ID, d, 1000).unwrap_err(), Error::Private);
+        assert_eq!(Token::read_from(&v2::ID, &v2::ID, d, 1000).unwrap_err(), Error::Private);
+        let tok = Token::read_any_from(&v2::ID, &v2::ID, d, 1000).unwrap();
+        assert!(tok.is_private() && tok.registrant() == Some(&[0xbb; 32]) && tok.issuer_hash() == Some(&[0xaa; 32]));
+        assert!(tok.issuer() == ISSUER_PRIVATE && tok.issuer() != ISSUER_GITHUB);
+        // The one way to be fooled: read_any, then the claims alone. Each of the two checks alone stops it.
+        let forgetful = |t: &Token| t.claim("iss").is_some_and(|i| i.is(ISSUERS[0])) && t.audience().is_some_and(|a| a.is("gate:release"));
+        assert!(forgetful(&tok));
+        let fooled_past_is_private = forgetful(&tok) && !tok.is_private();
+        let fooled_past_the_issuer = forgetful(&tok) && tok.issuer() == ISSUER_GITHUB;
+        assert!(!fooled_past_is_private);
+        assert!(!fooled_past_the_issuer);
+        // the other two checks of read_any are read's
+        assert_eq!(Token::read_any_from(&v2::ID, &[1; 32], d, 1000).unwrap_err(), Error::NotOidc);
+        assert_eq!(Token::read_any_from(&v2::ID, &v2::ID, d, 1000 + LATE).unwrap_err(), Error::Stale);
+        // a public token: not private, no registrant; GitHub and GitLab have no hash, any other issuer has one
+        for (issuer, hash) in [(ISSUER_GITHUB, None), (ISSUER_GITLAB, None), (ISSUER_OTHER, Some(&[0xaa; 32]))] {
+            let (mut d, len) = account(issuer, payload, 1000);
+            d[T_IHASH..T_IHASH + 32].copy_from_slice(&[0xaa; 32]);
+            let tok = v2::read(&v2::ID, &d[..len], 1000).unwrap();
+            assert!(!tok.is_private() && tok.registrant().is_none() && tok.issuer_hash() == hash && tok.issuer() == issuer && tok.key() == &[9; 32]);
+        }
+        // an issuer number from a later knos-oidc is never taken for a public one
+        for issuer in [4u8, 200, 255] {
+            let (d, len) = account(issuer, payload, 1000);
+            assert_eq!(v2::read(&v2::ID, &d[..len], 1000).unwrap_err(), Error::Private);
+            assert!(Token::read_any_from(&v2::ID, &v2::ID, &d[..len], 1000).unwrap().is_private());
+        }
+    }
+
+    #[test]
+    fn check_key_is_knos_oidcs_rule_on_the_key_account_the_token_names() {
+        let (d, len) = account(ISSUER_GITHUB, br#"{"exp":1000}"#, 1000);
+        let tok = v2::read(&v2::ID, &d[..len], 1000).unwrap();
+        let key = |state: u8, flags: u8, active: i64, expires: i64| {
+            let mut k = [0u8; K_HDR + 8];
+            k[K_STATE] = state; k[K_FLAGS] = flags;
+            k[K_ACTIVE..K_ACTIVE + 8].copy_from_slice(&active.to_le_bytes());
+            k[K_EXPIRES..K_EXPIRES + 8].copy_from_slice(&expires.to_le_bytes());
+            k
+        };
+        let good = key(1, F_GENESIS | F_APPROVED, 500, 2000);
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &good, 1000), Ok(()));
+        assert_eq!(tok.check_key(&[8; 32], &v2::ID, &good, 1000), Err(Error::Key));      // another key account
+        assert_eq!(tok.check_key(&[9; 32], &[7; 32], &good, 1000), Err(Error::Key));     // another program's account
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &good[..K_HDR - 1], 1000), Err(Error::Key));
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &key(0, F_GENESIS, 500, 2000), 1000), Err(Error::Key));
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &good, 499), Err(Error::KeyNotActive));
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &key(1, 0, 500, 2000), 1000), Err(Error::KeyNotActive));
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &good, 2000), Err(Error::KeyExpired));
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &key(1, F_APPROVED | F_REVOKED, 500, 2000), 1000), Err(Error::KeyRevoked));
+        assert_eq!(tok.check_key(&[9; 32], &v2::ID, &key(1, F_PRIVATE, 500, 2000), 1000), Ok(()));
+        assert_eq!((Error::Key.code(), Error::KeyNotActive.code(), Error::KeyExpired.code(), Error::KeyRevoked.code()), (68, 76, 77, 78));
     }
 
     #[test]
@@ -417,6 +627,11 @@ mod tests {
         let json = |b: &[u8]| fields(b, [b"a"]).unwrap_err();
         assert_eq!(json(br#"{"a":"x","a":"y"}"#), Error::Duplicate);
         assert!(fields(br#"{"b":1,"b":2}"#, [b"a"]).is_ok());   // only a wanted key is checked for a second copy
+        // a key is the text it spells: a claim is found under an escaped spelling, and a second copy cannot hide behind one
+        let [a] = fields(br#"{"\u0061":"x"}"#, [b"a"]).unwrap();
+        assert!(text(a).unwrap().is("x"));
+        assert_eq!(json(br#"{"a":"x","\u0061":"y"}"#), Error::Duplicate);
+        assert!(fields(br#"{"\u0061b":"x","\n":1}"#, [b"a"]).unwrap()[0].is_none());
         for bad in [&b""[..], b"[]", b"{", br#"{"a"}"#, br#"{"a":}"#, br#"{"a":"x"} x"#, br#"{"a":"x",}"#, br#"{"a":"x"#,
                     br#"{"a":[1,2"#,br#"{a:1}"#, br#"{"a":1 "b":2}"#] {
             assert_eq!(json(bad), Error::Json, "{:?}", core::str::from_utf8(bad));

@@ -1,0 +1,37 @@
+{
+ "note": "Two pull requests of the Agent PR Index (docs/agent_pr_ci.json, generated 2026-10-01): what GitHub said about each at its head commit, as that file records it. tests/web/site.mjs answers the page's GitHub reads from these. The third example of the first screen is a transaction of devnet_first_deployment.json.",
+ "prs": [
+  {
+   "agent": "devin",
+   "repo": "usestrix/strix",
+   "number": 753,
+   "author": "devin-ai-integration[bot]",
+   "pr_state": "closed",
+   "merged": true,
+   "sha": "0f5e92c18d94ce18fb1dd1ef7ec20f5eef7c61f8",
+   "phrase": "tests still pass",
+   "claim_line": "- Existing dependency + writer tests still pass; full suite green (180 passed).",
+   "class": "passed",
+   "failed_checks": [],
+   "n_check_runs": 2,
+   "n_statuses": 0
+  },
+  {
+   "agent": "devin",
+   "repo": "BerriAI/litellm",
+   "number": 34321,
+   "author": "devin-ai-integration[bot]",
+   "pr_state": "open",
+   "merged": false,
+   "sha": "431e1a2052c49381f8466245afd78aac8097be1f",
+   "phrase": "passes all CI",
+   "claim_line": "- [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)",
+   "class": "failed",
+   "failed_checks": [
+    "All Other Providers / Run tests"
+   ],
+   "n_check_runs": 77,
+   "n_statuses": 0
+  }
+ ]
+}

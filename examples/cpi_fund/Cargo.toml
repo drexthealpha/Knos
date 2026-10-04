@@ -1,0 +1,18 @@
+[package]
+name = "cpi_fund"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+description = "Example: a treasury that no key controls funds a Knos work order by CPI, and gets its money back if the work is not delivered."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "=2.2.1"
+# What an outside team writes: knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.13" }
+knos-pay-interface = { path = "../../crates/knos-pay-interface" }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

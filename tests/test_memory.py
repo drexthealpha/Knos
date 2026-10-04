@@ -259,3 +259,74 @@ def test_the_memory_is_written_only_through_sibyl(tmp_path, monkeypatch):
         history.SibylStore.local(tmp_path / "none")                                        # there is no other store to pull into
     assert memory.pull("o/r", history.NullStore(), hub) == 3
     assert judge.gate(tmp_path, DIFF, history.NullStore(), "o/lax", "agent-x")["passed"]   # the issue alone remembers nothing
+
+
+# ---- a pull request that was paid stays paid --------------------------------------------------------------------------
+
+SETTLED = history._id("settlement", "r", 12, "a" * 40)       # the lesson's name: the repository, the pull request, its head
+
+
+def settled(tmp_path, name: str, paid: bool, hub=None):
+    """A run that settled pull request 12 at the same commit, as flow._learn keeps it: the memory read from the issue
+    (when `hub` is given), then what this settlement showed, under the same name whoever settled it."""
+    store = history.SibylStore.local(tmp_path / name)
+    if hub is not None:
+        assert memory.pull("o/r", store, hub) is not None
+    body = {"repo": "r", "pull": 12, "paid": paid, "failed": {} if paid else {"test": ["src"]}, "false": [],
+            "met": ["test"] if paid else [], "paths": ["src"], "at": 1}
+    assert history.import_lessons(store, [{"category": "settlement", "name": SETTLED, "body": body}]) == 1
+    return store
+
+
+def remembered(tmp_path, hub, name: str = "next") -> dict:
+    """What the next run reads of pull request 12."""
+    store = history.SibylStore.local(tmp_path / name)
+    memory.pull("o/r", store, hub)
+    [(got, body)] = store.rows("settlement")
+    assert got == SETTLED
+    return body
+
+
+@pytest.mark.parametrize("posts_last", ["refused", "paid"])
+def test_a_merge_settle_and_attest_racing_on_one_pull_request_leave_it_paid_whichever_posts_last(tmp_path, posts_last):
+    """prove.yml's merged job and attest no longer share a concurrency line: both read the memory before either
+    writes, both post their lesson under the same name, and the one posted last used to be what every later run read.
+    A "not paid" posted after the "paid" took the payment back out of the judge's memory."""
+    hub = Issues()
+    paid, refused = settled(tmp_path, "attest", True, hub), settled(tmp_path, "merge", False, hub)
+    first, last = (paid, refused) if posts_last == "refused" else (refused, paid)
+    between = []
+
+    def post(path, data):                                  # `last` read the issue; `first` posts before `last` does
+        if not between:
+            between.append(memory.push("o/r", first, hub, hub, run="1"))
+        return hub(path, data)
+    assert memory.push("o/r", last, hub, post, run="2") == 1 and between == [1]
+    there = [x for x in memory.read("o/r", hub)[1] if x["category"] == "settlement"]
+    assert [x["name"] for x in there] == [SETTLED, SETTLED] and {x["body"]["paid"] for x in there} == {True, False}
+    got = remembered(tmp_path, hub)
+    assert got["paid"] is True and got["met"] == ["test"] and got["failed"] == {}
+    # every run after reads the same, however often it loads the issue, and has nothing of its own to post
+    later = history.SibylStore.local(tmp_path / "later")
+    assert memory.pull("o/r", later, hub) == 2 == memory.pull("o/r", later, hub)
+    assert [b["paid"] for b in later.all("settlement")] == [True] and memory.push("o/r", later, hub, hub) == 0
+
+
+def test_a_not_paid_written_after_paid_is_not_kept_and_a_paid_written_after_not_paid_is_posted(tmp_path):
+    # the attestor paid first; the merge's settlement runs after it and refuses: its store keeps the payment, and it posts nothing
+    hub = Issues()
+    assert memory.push("o/r", settled(tmp_path, "attest", True, hub), hub, hub) == 1
+    late = settled(tmp_path, "merge", False, hub)
+    assert [b["paid"] for b in late.all("settlement")] == [True] and memory.push("o/r", late, hub, hub) == 0
+    assert remembered(tmp_path, hub)["paid"] is True
+    # the merge's settlement refused first; the attestor pays after it: the issue says "not paid" under that name, and
+    # the payment is posted all the same (a lesson is never edited, only posted again), and read as final
+    hub = Issues()
+    assert memory.push("o/r", settled(tmp_path, "merge2", False, hub), hub, hub) == 1
+    late = settled(tmp_path, "attest2", True, hub)
+    assert [b["paid"] for b in late.all("settlement")] == [True] and memory.push("o/r", late, hub, hub) == 1
+    assert remembered(tmp_path, hub, "next2")["paid"] is True and memory.push("o/r", late, hub, hub) == 0
+    # a "not paid" for another commit of the same pull request is another lesson: nothing is taken from it
+    other = history._id("settlement", "r", 12, "b" * 40)
+    assert history.paid_settlements(memory.read("o/r", hub)[1]) == {SETTLED} and other != SETTLED
+    assert history.paid_settlements([]) == set() == history.paid_settlements(history.NullStore()) == history.paid_settlements(object())

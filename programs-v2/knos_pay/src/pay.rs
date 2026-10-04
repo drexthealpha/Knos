@@ -12,7 +12,7 @@ struct Payout<'a, 'b> {
 
 /// The wallet bound to a GitHub user, from ["bind", user]; None when the user has not bound one. The account must be
 /// that address: a relayer cannot hide a Bind by passing something else.
-fn bound(program_id: &Pubkey, bind: &AccountInfo, user: u64) -> Result<Option<Pubkey>, ProgramError> {
+pub fn bound(program_id: &Pubkey, bind: &AccountInfo, user: u64) -> Result<Option<Pubkey>, ProgramError> {
     if *bind.key != Pubkey::find_program_address(&[b"bind", &user.to_le_bytes()], program_id).0 { return Err(err(E_PAYEE)); }
     if bind.owner != program_id || bind.data_len() != BIND_LEN { return Ok(None); }
     Ok(Some(key_at(&bind.try_borrow_data()?, BD_WALLET)))
@@ -41,34 +41,44 @@ fn pay_out<'a>(program_id: &Pubkey, a: &Payout<'a, '_>, j: &Job, payee: u64, wal
     if wallet == a.auth.key || !is_owned(a.dest, a.token.key, &j.mint, wallet) || !is_owned(a.fee_tok, a.token.key, &j.mint, &FEE_OWNER) {
         return Err(err(E_PAYEE));
     }
-    let fee = fee_of(j.amount);
+    let fee = fee_of(j.amount, m.decimals);
     let net = j.amount - fee;
     if fee > 0 { transfer(a.token, a.vault, a.mint, a.fee_tok, a.auth, fee, m.decimals, Some(bump))?; }
     if net > 0 { transfer(a.token, a.vault, a.mint, a.dest, a.auth, net, m.decimals, Some(bump))?; }
-    record(program_id, a, j, payee, wallet, net, now)?;
+    let p = Paid { faucet: j.faucet, kind: j.kind, owner_id: j.owner_id, funder_id: j.funder_id, source: &j.source, mint: &j.mint };
+    record(program_id, a.relayer, a.rep, a.pair, a.sys, &p, payee, wallet, net, now)?;
     msg!("knos2:paid repo={} issue={} payee={} amount={} fee={} to={}", j.repo, j.issue, payee, net, fee, b58(wallet));
     close(a.job, a.rent_to)
 }
 
-/// The payee's public record ["rep", payee]. Test money (a job in the faucet's mint) counts apart. A payment whose
-/// funder is the payee (the Balance's owner or the funding commenter is the payee, or the money goes back to the
-/// wallet that funded the job) counts apart too. Any other payment is real: it adds to `paid` and `total`, and to
-/// `funders` the first time this funder pays this payee, which the Pair account ["pair", payee, funder key] remembers.
-fn record<'a>(program_id: &Pubkey, a: &Payout<'a, '_>, j: &Job, payee: u64, wallet: &Pubkey, net: u64, now: i64) -> ProgramResult {
+/// What the record needs to know of the job or the order a payment came from.
+pub struct Paid<'x> { pub faucet: bool, pub kind: u8, pub owner_id: u64, pub funder_id: u64, pub source: &'x Pubkey, pub mint: &'x Pubkey }
+
+/// The payee's public record ["rep", payee]. Test money (the faucet's mint) counts apart. A mint that is neither the
+/// faucet's nor Circle's USDC (`counted`) is anybody's token: its payment is counted as a test payment and its amount
+/// is not added to anything, so nobody mints himself a record. In Circle's USDC, a payment whose funder is the payee
+/// (the Balance's owner or the funding commenter is the payee, or the money goes back to the wallet that funded it)
+/// counts apart too. Any other payment is real: it adds to `paid` and `total`, and to `funders` the first time this
+/// funder pays this payee, which the Pair account ["pair", payee, funder key] remembers.
+#[allow(clippy::too_many_arguments)]
+pub fn record<'a>(program_id: &Pubkey, relayer: &AccountInfo<'a>, rep: &AccountInfo<'a>, pair: &AccountInfo<'a>, sys: &AccountInfo<'a>, p: &Paid,
+                  payee: u64, wallet: &Pubkey, net: u64, now: i64) -> ProgramResult {
     let pb = payee.to_le_bytes();
-    open(program_id, a.relayer, a.rep, a.sys, REP_LEN, &[b"rep", &pb], E_PAYEE)?;
-    let own = j.owner_id == payee || j.funder_id == payee || (j.kind == 0 && j.source == *wallet);
-    if j.faucet {
-        let mut d = a.rep.try_borrow_mut_data()?;
+    open(program_id, relayer, rep, sys, REP_LEN, &[b"rep", &pb], E_PAYEE)?;
+    let own = p.owner_id == payee || p.funder_id == payee || (p.kind == 0 && p.source == wallet);
+    if p.faucet {
+        let mut d = rep.try_borrow_mut_data()?;
         count(&mut d, R_TEST_PAID); add(&mut d, R_TEST_TOTAL, net);
+    } else if !counted(p.mint) {
+        count(&mut rep.try_borrow_mut_data()?, R_TEST_PAID);
     } else if own {
-        count(&mut a.rep.try_borrow_mut_data()?, R_SELF_PAID);
+        count(&mut rep.try_borrow_mut_data()?, R_SELF_PAID);
     } else {
         // the funder: the wallet, or the GitHub owner of the Balance (as sha256("gh" || owner id))
-        let funder = if j.kind == 0 { j.source.to_bytes() } else { hashv(&[b"gh", &j.owner_id.to_le_bytes()]).to_bytes() };
-        let (first, _) = open(program_id, a.relayer, a.pair, a.sys, PAIR_LEN, &[b"pair", &pb, &funder], E_PAYEE)?;
-        if first { a.pair.try_borrow_mut_data()?[0] = 1; }
-        let mut d = a.rep.try_borrow_mut_data()?;
+        let funder = if p.kind == 0 { p.source.to_bytes() } else { hashv(&[b"gh", &p.owner_id.to_le_bytes()]).to_bytes() };
+        let (first, _) = open(program_id, relayer, pair, sys, PAIR_LEN, &[b"pair", &pb, &funder], E_PAYEE)?;
+        if first { pair.try_borrow_mut_data()?[0] = 1; }
+        let mut d = rep.try_borrow_mut_data()?;
         count(&mut d, R_PAID); add(&mut d, R_TOTAL, net);
         if first { count(&mut d, R_FUNDERS); }
         if i64_at(&d, R_FIRST) == 0 { put_i64(&mut d, R_FIRST, now); }
@@ -82,7 +92,7 @@ fn add(d: &mut [u8], o: usize, by: u64) { let v = u64_at(d, o).saturating_add(by
 
 /// A pay token from the job's pinned prove.yml: the funded terms were met at the merged commit by this payee.
 pub fn pay(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, job, bind, dest, rep, pair, vault, fee_tok, auth, rent_to, mint, token, sys] = take(accounts)?;
+    let [relayer, tok, key, job, bind, dest, rep, pair, vault, fee_tok, auth, rent_to, mint, token, sys, used] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let j = load_job(program_id, job)?;
@@ -96,6 +106,8 @@ pub fn pay(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64)
     if g.iat < j.not_before { return Err(err(E_STATE)); }
     let p = pay_aud(&g.aud)?;
     if p.repo != j.repo || p.issue != j.issue || p.terms != j.terms || p.mode != j.mode { return Err(err(E_AUD)); }
+    // a pay token pays, or holds, exactly one job: its marker is made here, and a second job is refused with it
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?)?;
     // where the money goes: the payee's bound wallet; else the address the token carries; else nowhere yet
     match bound(program_id, bind, p.payee)?.or(p.address) {
         Some(wallet) => pay_out(program_id, &Payout { relayer, job, dest, rep, pair, vault, fee_tok, auth, rent_to, mint, token, sys }, &j, p.payee, &wallet, now),

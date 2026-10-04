@@ -17,6 +17,9 @@
 //! from any repository that called the workflow) and was started by the schedule or by hand. A key admitted this
 //! way waits KEY_DELAY and needs the guardian's approval before it verifies anything.
 //!
+//! Refresh also takes a run of the same pinned workflow started by hand by anyone in a repository of their own
+//! (ANYONE_EVENT): the system does not depend on one account's schedule to stay alive. RegisterKey does not.
+//!
 //! Every key, genesis or attested, expires KEY_TTL after it was registered or last attested (Refresh): a key the
 //! issuer has retired stops being named by the rotate workflow and expires KEY_TTL later.
 //!
@@ -26,6 +29,13 @@ use solana_program::{pubkey, pubkey::Pubkey};
 pub const ISSUER_GITHUB: u8 = 0;
 pub const ISSUER_GITLAB: u8 = 1;
 pub const ISSUERS: [&[u8]; 2] = [b"https://token.actions.githubusercontent.com", b"https://gitlab.com"];
+/// The issuer number of a key, and of a token it verified, when the issuer is not one of the two above: any RS256
+/// issuer admitted by RegisterIssuerKey. Which issuer is said by the hash of its URL, in the key account and in the
+/// token account, never by this number alone.
+pub const ISSUER_OTHER: u8 = 2;
+/// The issuer number of a PRIVATE key and of a token it verified: registered by a wallet with no attestation
+/// (RegisterPrivateKey). Nobody vouches for it; the wallet's address is beside the issuer's hash.
+pub const ISSUER_PRIVATE: u8 = 3;
 
 const fn h(s: &str) -> [u8; 32] {
     let b = s.as_bytes();
@@ -54,6 +64,10 @@ pub const GENESIS: &[(u8, [u8; 32])] = &[
 pub const ROTATE_REF: &[u8] = b"drexthealpha/knos-oidc-rotate/.github/workflows/rotate.yml@";
 // PIN: the commit of drexthealpha/knos-oidc-rotate that holds rotate.yml (programs-v2/program_ids.json, rotate_sha).
 pub const ROTATE_SHA: &[u8; 40] = b"6ddf031b64febecfcd510763ecee37637a8047fa";
+/// The later commit of the same workflow, accepted beside ROTATE_SHA: it adds the `issuer` input (any RS256 issuer by its
+/// URL, audience knos-oidc:ikey:...) and documents the run by hand in one's own repository. What it attests for
+/// GitHub and GitLab is byte for byte what ROTATE_SHA attests.
+pub const ROTATE_SHA2: &[u8; 40] = b"212f9eb5f584eb6f8cd2d6673878132fc0011e27";
 
 /// Where the rotate workflow must have run: `repository_owner_id` and `repository_id` as GitHub signs them. The
 /// owner is the personal account drexthealpha; the repositories are drexthealpha/Knos and
@@ -63,6 +77,13 @@ pub const ATTEST_OWNER_ID: u64 = 142_920_951;
 pub const ATTEST_REPO_IDS: [u64; 2] = [1_353_152_983, 1_401_432_540];
 /// `event_name` of an attesting run: the schedule, or a run started by hand. Not a push, not a pull request.
 pub const ATTEST_EVENTS: [&[u8]; 2] = [b"schedule", b"workflow_dispatch"];
+/// Refresh by anyone: `event_name` of a run of the pinned rotate workflow that anyone may use to keep a key alive.
+/// The run must be in a repository owned by the person who started it (`repository_owner_id == actor_id`). That is a
+/// personal account, which cannot have self-hosted or custom-image runners that carry a hosted label, so
+/// `runner_environment` says what it seems to say; an organisation is never an actor, so no organisation passes.
+/// The workflow file is fixed by ROTATE_SHA whoever calls it. Such a run only extends the life of a key that is
+/// already admitted and not revoked: it registers nothing.
+pub const ANYONE_EVENT: &[u8] = b"workflow_dispatch";
 
 /// A key admitted by an attestation verifies nothing for this long: time for anyone to see it on chain and for
 /// the guardian to look at it.

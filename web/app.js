@@ -5,6 +5,14 @@
 // wallet is done by hand on GitHub (see "Get paid" in index.html). Devnet only.
 import * as knos from "./settle.js";
 import { esc } from "./front.js";
+import { initFirst } from "./first.js";
+import { initPricing } from "./pricing.js";
+import { initClaim } from "./claim.js";
+import { initRecords } from "./records.js";
+import { initStatements } from "./statements.js";
+import { initTask } from "./task.js";
+import { initAnyIssue } from "./anyissue.js";
+import { pendingUpgrades, upgradeWords, runDay } from "./upgrade.js";
 
 const $ = (id) => document.getElementById(id);
 const FIRST_PAY = $("first-deployment")?.querySelectorAll(".mono")[1]?.textContent.trim();
@@ -33,8 +41,8 @@ $("theme").hidden = false;
 $("theme").onclick = () => setTheme((document.documentElement.dataset.theme
   || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark");
 
-const VIEWS = ["check", "protect", "fund", "claim", "network", "build"];
-const ALIAS = { bounty: "fund", money: "fund", numbers: "network" };       // links from earlier pages and comments
+const VIEWS = ["check", "protect", "fund", "claim", "pricing", "records", "network", "build"];
+const ALIAS = { bounty: "fund", money: "fund", numbers: "network", u: "records", r: "records", rank: "records", statement: "records", task: "fund", anyissue: "fund" };       // links from earlier pages and comments; #u=, #r= and #rank= are records
 function route() {
   const [raw, ...rest] = location.hash.replace(/^#/, "").split("=");
   const arg = rest.length ? decodeURIComponent(rest.join("=")) : "";
@@ -44,8 +52,13 @@ function route() {
     if (a.getAttribute("href") === `#${view}`) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
   if (view === "network") loadNetwork();
-  if (view === "fund") fillLatency();
-  if (view === "fund" && arg) { $("st-issue").value = arg; readEscrow(); }
+  if (view === "fund") { fillLatency(); anyShow(); }
+  if (view === "pricing") upgradesP.then((u) => showVersion(u.upgrades.length ? (runDay(u.upgrades, "knos_pay") ? `an upgrade of knos_pay is approved and can be run from ${runDay(u.upgrades, "knos_pay")}` : "an upgrade of knos_pay is pending, not yet approved") : ""));
+  if (view === "records") {
+    showRecords(raw === "records" || raw === "statement" || !arg ? "records" : raw, arg);
+    if (raw === "statement") showStatement(arg);
+  }
+  if (view === "fund" && arg && raw !== "anyissue") { $("st-issue").value = arg; readEscrow(); }
   if (view === "claim" && arg) { $("due-login").value = arg; readAccount(); }
   if (view === "protect" && arg) {
     const at = arg.lastIndexOf("@");
@@ -54,6 +67,8 @@ function route() {
     $("protect-form").requestSubmit();
   }
   if (raw === "money") $("money").scrollIntoView?.();
+  if (raw === "task") $("task").scrollIntoView?.();
+  if (raw === "anyissue") { if (arg) $("any-issue").value = arg; $("anyissue").scrollIntoView?.(); }
 }
 addEventListener("hashchange", route);
 
@@ -86,7 +101,7 @@ function parseIssue(s) {
 const moneyName = (mint, faucet) => (faucet || mint === knos.USDC_DEVNET ? "test USDC" : `of the test token ${short(mint)}`);
 
 // ---- add money: a Balance, from your wallet ------------------------------------------------------------------------
-const wallet = { pick: null, w: null, address: null, owner: null, mint: null, balance: null, pending: null };
+const wallet = { pick: null, w: null, address: null, owner: null, mint: null, balance: null, pending: null, listeners: [] };
 
 // "20", "0.5": digits with at most `decimals` decimals, in the mint's smallest units. null for anything else, or too big.
 export function units(text, decimals = 6) {
@@ -96,31 +111,38 @@ export function units(text, decimals = 6) {
   return n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : null;          // a number the page cannot hold exactly is not sent
 }
 
-async function connectTo(w) {
-  const st = $("wallet-status");
+// The two cards that ask for a wallet (Add money, Fund any issue) share it: connecting in one shows in both.
+const SPOTS = [["wallet-status", "wallet-connect", "wallet-address"], ["any-wallet", "any-connect", "any-address"]];
+async function connectTo(w, from = "wallet-status") {
+  const st = $(from);
   try {
     say(st, `Asking ${esc(w.name)}…`);
     const address = await w.connect(CHAIN);
     await devnet();
     Object.assign(wallet, { w, address, balance: null, pending: null });
-    st.innerHTML = `<p class="status ok">Connected: <span class="mono" id="wallet-address">${esc(address)}</span> (${esc(w.name)}). Solana devnet.</p>
+    for (const [status, button, id] of SPOTS) {
+      $(status).innerHTML = `<p class="status ok">Connected: <span class="mono" id="${id}">${esc(address)}</span> (${esc(w.name)}). Solana devnet.</p>
       <p class="fine">It needs a little devnet SOL for fees and, to put money in, test USDC from
       <a href="https://faucet.circle.com/" target="_blank" rel="noopener">Circle's devnet faucet</a>.</p>`;
-    $("wallet-connect").textContent = "Switch wallet";
+      $(button).textContent = "Switch wallet";
+    }
+    for (const listener of wallet.listeners) listener();
   } catch (e) { say(st, esc(e.message), "bad"); }
 }
 
-$("wallet-connect").onclick = () => {
-  const list = knos.wallets();
-  if (!list.length) return say($("wallet-status"), "No Solana wallet found in this browser. Install Phantom, Solflare or Backpack, set it to devnet and reload this page.", "bad");
-  if (list.length === 1) return connectTo(list[0]);
-  wallet.pick = list;
-  $("wallet-status").innerHTML = `<p class="fine">Which wallet?</p>${list.map((w, i) => `<button type="button" class="small" data-wallet="${i}">${esc(w.name)}</button>`).join(" ")}`;
-};
-$("wallet-status").addEventListener("click", (ev) => {
-  const i = ev.target.closest?.("[data-wallet]")?.dataset.wallet;
-  if (i !== undefined && wallet.pick?.[i]) connectTo(wallet.pick[i]);
-});
+for (const [status, button] of SPOTS) {
+  $(button).onclick = () => {
+    const list = knos.wallets();
+    if (!list.length) return say($(status), "No Solana wallet found in this browser. Install Phantom, Solflare or Backpack, set it to devnet and reload this page.", "bad");
+    if (list.length === 1) return connectTo(list[0], status);
+    wallet.pick = list;
+    $(status).innerHTML = `<p class="fine">Which wallet?</p>${list.map((w, i) => `<button type="button" class="small" data-wallet="${i}">${esc(w.name)}</button>`).join(" ")}`;
+  };
+  $(status).addEventListener("click", (ev) => {
+    const i = ev.target.closest?.("[data-wallet]")?.dataset.wallet;
+    if (i !== undefined && wallet.pick?.[i]) connectTo(wallet.pick[i], status);
+  });
+}
 try { knos.wallets(); } catch { /* the page still reads without one */ }       // so a wallet that loads after this page is heard
 
 // Everything about the Balance this wallet would have for this GitHub owner and mint, read now.
@@ -270,23 +292,31 @@ function whyFailed(err, logs = []) {
   return `Devnet would refuse it (${JSON.stringify(err).slice(0, 120)})${clue ? `: ${clue}` : ""}.`;
 }
 
+// Ask the wallet to sign and send, then wait for devnet to show the transaction: the link to it. When devnet does not show it within a
+// minute that is said in `st`, and the answer is null. Nothing is sent to a cluster that is not devnet.
+async function signAndConfirm(ixs, st) {
+  await devnet();
+  say(st, `Approve it in ${esc(wallet.w.name)}…`);
+  const signature = await wallet.w.signAndSend(await sendable(ixs), CHAIN);
+  if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(signature)) throw new Error("The wallet did not give back a transaction signature.");
+  const where = `<a href="${esc(EXPLORER("tx", signature))}" target="_blank" rel="noopener">transaction</a>`;
+  say(st, `Sent. Waiting for devnet to confirm… ${where}`);
+  const done = await knos.confirmed(RPC, signature);
+  if (!done) {
+    st.innerHTML = `<p class="status bad">Devnet did not show the ${where} within a minute. If your wallet is set to another network, nothing happened there: other networks refuse a devnet transaction.</p>`;
+    return null;
+  }
+  if (!done.ok) throw new Error(whyFailed(done.err));
+  return where;
+}
+
 async function send() {
   const st = $("money-status"), todo = wallet.pending, button = $("money-send");
   if (!todo) return;
   button.disabled = true;
   try {
-    await devnet();
-    say(st, `Approve it in ${esc(wallet.w.name)}…`);
-    const signature = await wallet.w.signAndSend(await sendable(todo.ixs), CHAIN);
-    if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(signature)) throw new Error("The wallet did not give back a transaction signature.");
-    const where = `<a href="${esc(EXPLORER("tx", signature))}" target="_blank" rel="noopener">transaction</a>`;
-    say(st, `Sent. Waiting for devnet to confirm… ${where}`);
-    const done = await knos.confirmed(RPC, signature);
-    if (!done) {
-      st.innerHTML = `<p class="status bad">Devnet did not show the ${where} within a minute. If your wallet is set to another network, nothing happened there: other networks refuse a devnet transaction.</p>`;
-      return;
-    }
-    if (!done.ok) throw new Error(whyFailed(done.err));
+    const where = await signAndConfirm(todo.ixs, st);
+    if (!where) return;
     await showBalance();
     st.innerHTML = `<p class="status ok" id="money-done">Done. ${where}.</p>`;
   } catch (e) {
@@ -350,25 +380,30 @@ async function readAccount(ev) {
   say(out, "Reading GitHub and Solana…");
   try {
     const [user, k] = await Promise.all([gh(`/users/${login}`), client()]);
-    const [bindRaw, repRaw, jobs, firstDues] = await Promise.all([knos.account(RPC, await k.bind(user.id)), knos.account(RPC, await k.rep(user.id)),
-      knos.programAccounts(RPC, k.ids.knos_pay, knos.v2.JOB_LEN, 56, le(user.id)),
-      knos.programAccounts(RPC, FIRST_PAY, knos.DUE_LEN, 8, le(user.id))]);
+    // The first deployment is read on its own: when it cannot be read, that is said, and the second deployment's
+    // wallet, holds and record are still shown.
+    const firstRead = (FIRST_PAY ? knos.programAccounts(RPC, FIRST_PAY, knos.DUE_LEN, 8, le(user.id))
+      : Promise.reject(new Error("the page does not name its program"))).then((dues) => ({ dues }), (e) => ({ error: e }));
+    const [bindRaw, repRaw, jobs, first] = await Promise.all([knos.account(RPC, await k.bind(user.id)), knos.account(RPC, await k.rep(user.id)),
+      knos.programAccounts(RPC, k.ids.knos_pay, knos.v2.JOB_LEN, 56, le(user.id)), firstRead]);
     const bind = knos.v2.readBind(bindRaw), rep = knos.v2.readRep(repRaw);
     const held = jobs.map((f) => knos.v2.readJob(f.data)).filter((j) => j && j.state === "held" && j.payeeId === user.id);
-    const oldDues = firstDues.map((f) => knos.parseDue(f.data)).filter((d) => d && d.userId === user.id && d.amount > 0);
+    const oldDues = (first.dues || []).map((f) => knos.parseDue(f.data)).filter((d) => d && d.userId === user.id && d.amount > 0);
     const bound = bind ? `<p class="verdict ok" id="due-bound">Paid at ${esc(bind.wallet)}</p><p class="fine">Bound ${when(bind.iat)}. Every task now pays this wallet.</p>`
       : `<p class="status" id="due-bound">No wallet is bound for ${esc(user.login)}.</p>`;
     const holds = held.length ? held.map((j) => `<p class="verdict ok">${money(j.amount)} ${esc(moneyName(j.mint, j.faucet))} is held for ${esc(user.login)} until ${when(j.holdUntil)}.</p>
       <p class="fine">${bind ? "A wallet is bound, so it can be sent there now: comment <code>/knos settle</code> on the merged pull request." : "Bind a wallet before then and it can be sent there. After that date it goes back to the funder."}</p>`).join("")
-      : `<p class="status">Nothing is held for ${esc(user.login)} right now.</p>`;
+      : `<p class="status">Nothing is held for ${esc(user.login)} ${oldDues.length || first.error ? "on the second deployment" : "right now"}.</p>`;
     const firstHolds = oldDues.length ? `<section id="due-v1"><h4>First deployment (v1)</h4>${oldDues.map((d) => `<p class="verdict ok">${money(d.amount)} ${esc(moneyName(d.mint, false))} is still held for ${esc(user.login)} on the first deployment.</p>`).join("")}
-      <p class="fine">First authenticate GitHub CLI as ${esc(user.login)} with <code>gh auth login</code>, then send it to an address you choose with <code>knos claim --v1 &lt;address&gt;</code>.</p></section>` : "";
+      <p class="fine">First authenticate GitHub CLI as ${esc(user.login)} with <code>gh auth login</code>, then send it to an address you choose with <code>knos claim --v1 &lt;address&gt;</code>.</p></section>`
+      : first.error ? `<p class="status bad" id="due-v1-unread">Could not read the first deployment just now (${esc(first.error.message)}), so anything still held there is not shown. Try again in a moment.</p>` : "";
     const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
     out.innerHTML = `${bound}${holds}${firstHolds}<h4>The record on Solana</h4><dl class="facts" id="due-record">
       <dt>Paid by others</dt><dd><strong>${plural(rep.paid, "payment")}</strong> from <strong>${plural(rep.funders, "different funder")}</strong>, ${money(rep.total)} test USDC in all${rep.paid ? ` (${when(rep.first)} to ${when(rep.last)})` : ""}</dd>
       <dt>From the faucet</dt><dd>${plural(rep.testPaid, "payment")}, ${money(rep.testTotal)} of the faucet's free test USDC. Counted apart.</dd>
       <dt>Paid by themselves</dt><dd>${plural(rep.selfPaid, "payment")}, where the funder was the person paid. Counted apart.</dd>
-    </dl><p class="fine">GitHub account id ${user.id}. All of it is test USDC on devnet. Only a payment adds to this record, and the three kinds are never added together.</p>`;
+    </dl><p class="fine">GitHub account id ${user.id}. All of it is test USDC on devnet. Only a payment adds to this record, and the three kinds are never added together.</p>
+      <p class="fine"><a id="due-public" href="#u=${encodeURIComponent(user.login)}">The public record of ${esc(user.login)}</a>: what was paid and refunded, by kind of money, and the README badge line.</p>`;
   } catch (e) { say(out, esc(e.message), "bad"); }
 }
 $("due-form").onsubmit = readAccount;
@@ -426,12 +461,12 @@ async function programsHtml() {
   const [up, guard] = await Promise.all([knos.account(RPC, all.upgrade_multisig).then(knos.readMultisig), knos.account(RPC, all.guardian_multisig).then(knos.readMultisig)]);
   const vault = await knos.squadsVault(all.upgrade_multisig);
   const verdict = (r) => (r.auth === undefined ? `<span class="status" data-state="missing">not on devnet yet</span>`
-    : r.auth === null ? `<strong class="status ok" data-state="immutable">no upgrade authority is set: the program can no longer be upgraded</strong>`
+    : r.auth === null ? `<strong class="status" data-state="no-authority">no upgrade authority is set on chain: nothing can upgrade this program, which is not the plan stated above</strong>`
     : r.auth === all.upgrade_authority && r.auth === vault ? `<strong class="status ok" data-state="multisig">upgradeable only by the upgrade multisig's vault ${esc(short(r.auth))}</strong>`
     : `<strong class="status bad" data-state="other">upgradeable by ${esc(r.auth)}, which is not the upgrade multisig of this deployment</strong>`);
   const hours = (m) => (m.timeLock % 3600 === 0 ? `${m.timeLock / 3600} hour${m.timeLock === 3600 ? "" : "s"}` : `${m.timeLock} seconds`);
   return `<h3>Who can change the second deployment, read from Solana now</h3>
-    <p class="fine">The plan: upgradeable only through a multisig with a public 48-hour delay, until an outside review; then made immutable.
+    <p class="fine">The plan: upgradeable only through a multisig with a public 48-hour delay, until an outside review.
       What the chain says now:</p>
     <dl class="facts" id="programs-now">${rows.map((r) => `<dt>${esc(r.name)}</dt><dd>${link("address", r.address)}<br>${verdict(r)}</dd>`).join("")}</dl>
     <dl class="facts" id="multisigs-now">
@@ -489,5 +524,34 @@ async function loadNetwork() {
   box.innerHTML = numbersHtml(s);
   $("network-note").textContent = `Counted ${s.updated} by scripts/network_stats.py from the transaction history of both escrow programs.${s.error ? ` Not everything could be read: ${s.error}.` : ""}`;
 }
+
+
+// ---- an upgrade of a program that is waiting: the upgrade multisig's proposals, read from devnet on every load ---------------------------
+const SECURITY = "https://github.com/drexthealpha/Knos/blob/main/docs/SECURITY.md#7-the-upgrade-authority";
+const upgradesP = (async () => {
+  try {
+    const { ms, upgrades } = await pendingUpgrades(knos, RPC, await ids());
+    if (!upgrades.length) return { upgrades: [], ms, now: null };
+    return { upgrades, ms, now: await knos.chainTime(RPC).catch(() => null) };
+  } catch { return { upgrades: [], ms: null, now: null, failed: true }; }          // not readable just now: no banner, and nothing guessed
+})();
+upgradesP.then(({ upgrades, ms, now }) => {
+  if (!upgrades.length) return;
+  $("upgrade-banner").innerHTML = upgrades.map((p) => { const w = upgradeWords(p, ms.timeLock, now);
+    return `<p class="upgrade" data-program="${esc(p.name)}" data-status="${esc(p.status)}" data-index="${p.index}"><strong>${esc(w.what)}</strong>
+      <a class="mono" href="${esc(EXPLORER("address", p.buffer))}" target="_blank" rel="noopener">${esc(short(p.buffer))}</a>. ${esc(w.state)}</p>`; }).join("")
+    + `<p class="fine">A program's upgrade can change what it does, and the delay is there so that it can be seen coming: the proposal and the new bytes are on chain for anyone to read.
+      What it protects and what it does not: <a id="upgrade-security" href="${SECURITY}" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p>`;
+  $("upgrade-banner").hidden = false;
+});
+
+// ---- the first screen: the recording, the example buttons, a payment by its transaction ---------------------------------
+initFirst({ $, esc, knos, RPC, EXPLORER, money, ids, gh, devnet });
+const showVersion = initPricing({ $, esc, knos, RPC, ids });
+initClaim({ $, esc, knos, RPC, EXPLORER, units, say, money, devnet, client });
+const showRecords = initRecords({ $, esc });
+const showStatement = initStatements({ $, esc, EXPLORER });
+initTask({ $, esc, knos, gh });
+const anyShow = initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });
 
 route();

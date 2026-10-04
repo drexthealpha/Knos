@@ -4,10 +4,7 @@ tagged commit and every publishing job needs that job. One mechanism, and no oth
 from __future__ import annotations
 
 import json
-import os
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -17,7 +14,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 
 # Every way a workflow can publish something outside the repository, and the one place each is allowed.
 PUBLISHES = {
-    r"\buv publish\b|\btwine upload\b|pypa/gh-action-pypi-publish": {"release.yml"},
+    r"\buv publish\b|\btwine upload\b|pypa/gh-action-pypi-publish": set(),      # no workflow uploads to PyPI: scripts/release.py does, before the push
     r"\bnpm publish\b|\bcargo publish\b": {"release.yml"},
     r"\bmcp-publisher publish\b": {"release.yml"},
     r"\bgh release (create|upload)\b": {"release.yml", "index.yml"},     # index.yml: the index-<date> data release
@@ -56,6 +53,31 @@ def test_a_release_runs_the_whole_test_workflow_on_the_tagged_commit_before_anyt
     assert "github.workflow" not in tests["concurrency"]["group"]
 
 
+def test_the_lint_job_runs_ruff_and_mypy_at_pinned_versions_and_pyproject_lists_what_it_leaves_out():
+    """tests.yml's lint job is part of the gate (no condition, nothing to wait for), inside the 5-minute budget, and runs
+    the two tools at one version each. What they skip is written in pyproject.toml and is still true: every module it
+    leaves to mypy's silence is a file that exists."""
+    try:
+        import tomllib
+    except ModuleNotFoundError:   # Python 3.10
+        import tomli as tomllib  # type: ignore[no-redef]
+    job = _yaml("tests.yml")["jobs"]["lint"]
+    assert "if" not in job and "needs" not in job and job["timeout-minutes"] <= 5
+    runs = [str(step["run"]) for step in job["steps"] if "run" in step]
+    install = next(r for r in runs if r.startswith("uv pip install"))
+    assert re.findall(r"\b(ruff|mypy)==\d+\.\d+\.\d+\b", install) == ["ruff", "mypy"]
+    assert " -e . " in install + " "              # the package is installed: mypy reads the types of what it imports
+    assert [r for r in runs if r != install] == ["ruff check .", "mypy"]
+    assert all(re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", step["uses"].split(" ")[0]) for step in job["steps"] if "uses" in step)
+    tool = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]
+    assert tool["ruff"]["lint"]["select"] == ["E4", "E7", "E9", "F"] and tool["ruff"]["lint"]["ignore"] == ["E702"]
+    assert tool["mypy"]["files"] == ["src/knos"] and tool["mypy"]["ignore_missing_imports"] is True
+    [skipped] = tool["mypy"]["overrides"]
+    assert skipped["ignore_errors"] is True and len(skipped["module"]) == len(set(skipped["module"]))
+    for module in skipped["module"]:
+        assert (ROOT / "src" / Path(*module.split("."))).with_suffix(".py").is_file(), f"{module} is gone: take it off the list"
+
+
 def test_every_publishing_job_needs_the_gate_and_none_can_run_when_it_did_not_pass():
     rel = _yaml("release.yml")
     text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
@@ -69,17 +91,17 @@ def test_every_publishing_job_needs_the_gate_and_none_can_run_when_it_did_not_pa
         assert name in ("build", "pypi") or {"pypi", "github-release"} & set(_needs(job)), name
     # a tag starts the run, so there is no release event: a job that waited for one or read its payload would never run
     assert "github.event" not in "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
-    # the only secrets are the two registry tokens and PyPI's fallback token (the MCP registry takes this run's OIDC token)
-    assert sorted(re.findall(r"secrets\.(\w+)", text)) == ["CARGO_REGISTRY_TOKEN", "NPM_TOKEN", "PYPI_API_TOKEN"]
-    # PyPI by trusted publishing first: the upload is accepted on this run's own token, and only this job can ask for it
+    # the only secrets are the two registry tokens: no workflow holds a way into PyPI (the MCP registry takes this run's OIDC token)
+    assert sorted(re.findall(r"secrets\.(\w+)", text)) == ["CARGO_REGISTRY_TOKEN", "NPM_TOKEN"]
+    # PyPI: nothing is uploaded. The job reads the lock from the commit and holds what PyPI serves to it
     pypi = jobs["pypi"]
-    assert pypi["permissions"] == {"id-token": "write"} and pypi["environment"] == "pypi"
+    assert pypi["permissions"] == {"contents": "read"} and "environment" not in pypi
     run = "\n".join(str(s.get("run", "")) for s in pypi["steps"])
-    assert "uv publish --trusted-publishing always" in run and "--check-url https://pypi.org/simple/" in run
-    assert not any(str(s.get("uses", "")).startswith("actions/checkout") for s in pypi["steps"])   # it uploads what build built
-    # what is uploaded was built once, from the tagged commit, with the tag as its version
+    assert "python3 scripts/release.py pypi-check --dist dist" in run and "publish" not in run and "upload" not in run
+    # what is attached was built from the tagged commit, with the tag as its version, and is the locked wheel or the job fails
     build = "\n".join(str(s.get("run", "")) for s in jobs["build"]["steps"])
     assert 'version="${GITHUB_REF_NAME#v}"' in build and build.count('= "$version"') == 4
+    assert "python3 scripts/release.py wheel --check" in build and "uv build" not in build and "pinned_workflows.py lock" not in build
     assert _needs(jobs["github-release"]) == ["tests", "build", "pypi"] and _needs(jobs["registry"]) == ["tests", "pypi"]
     assert jobs["github-release"]["permissions"] == {"contents": "write"}
     assert jobs["registry"]["permissions"] == {"contents": "read", "id-token": "write"}
@@ -98,81 +120,69 @@ def test_no_other_workflow_publishes_a_release():
     assert "gh workflow run network.yml" in site["steps"][0]["run"] and site["permissions"] == {"actions": "write"}
 
 
-# ---- PyPI: trusted publishing first, the PYPI_API_TOKEN secret second, plain words when neither works ------------------
+# ---- PyPI: the wheel is there before the tag, and it is the locked one ----------------------------------------------------
 
-def _pypi_steps() -> tuple[dict, dict]:
-    steps = _yaml("release.yml")["jobs"]["pypi"]["steps"]
-    [trusted] = [s for s in steps if s.get("id") == "trusted"]
-    [token] = [s for s in steps if "secrets.PYPI_API_TOKEN" in json.dumps(s)]
-    assert steps.index(trusted) < steps.index(token)               # the token is the second way, never the first
-    return trusted, token
-
-
-def test_pypi_publishes_by_trusted_publishing_and_falls_back_to_the_token_secret():
-    pypi = _yaml("release.yml")["jobs"]["pypi"]
-    trusted, token = _pypi_steps()
-    # the first attempt has no token in its environment, so it is trusted publishing and nothing else
-    assert "env" not in trusted and "uv publish --trusted-publishing always --check-url https://pypi.org/simple/" in trusted["run"]
-    assert "secrets." not in json.dumps(trusted)
-    # the second runs only when the first did not, with the token as uv reads it, and never asks uv to try trusted publishing
-    assert token["if"] == "steps.trusted.outputs.done != 'true'"
-    assert token["env"] == {"UV_PUBLISH_TOKEN": "${{ secrets.PYPI_API_TOKEN }}"}
-    assert "uv publish --trusted-publishing never --check-url https://pypi.org/simple/" in token["run"]
-    # the secret is read by that one step; nothing is allowed to fail quietly; the job installs nothing from a cache
-    assert (WORKFLOWS / "release.yml").read_text(encoding="utf-8").count("secrets.PYPI_API_TOKEN") == 1
-    assert "continue-on-error" not in json.dumps(pypi) and pypi["permissions"] == {"id-token": "write"}
-    [uv] = [s for s in pypi["steps"] if str(s.get("uses", "")).startswith("astral-sh/setup-uv@")]
-    assert uv["with"] == {"enable-cache": False}
-    # the message for neither way names both, in words someone can act on
-    message = re.search(r'echo "::error title=PyPI::(.*)"', token["run"]).group(1)
-    for words in ("trusted publisher", "pypi.org", "owner drexthealpha", "repository Knos", "workflow release.yml", "environment pypi", "PYPI_API_TOKEN"):
-        assert words in message, words
+def _release_script():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("release_script", ROOT / "scripts" / "release.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-@pytest.mark.skipif(os.name == "nt" or not shutil.which("bash"), reason="runs the two steps' shell with a stand-in uv")
-@pytest.mark.parametrize("trusted_works, secret, token_works, outcome", [
-    (True, "", True, "trusted"),              # trusted publishing works: the token is not used, and not even looked at
-    (True, "pypi-secret", True, "trusted"),
-    (False, "pypi-secret", True, "token"),    # trusted publishing fails or is not set up: the token publishes
-    (False, "pypi-secret", False, "fail"),    # and when PyPI refuses that too, the job fails
-    (False, "", True, "neither"),             # neither works: it fails, and says what to do
-])
-def test_the_two_pypi_steps_do_what_the_job_says(tmp_path, trusted_works, secret, token_works, outcome):
-    trusted, token = _pypi_steps()
-    bin_dir, calls, out = tmp_path / "bin", tmp_path / "calls", tmp_path / "output"
-    bin_dir.mkdir()
-    uv = bin_dir / "uv"
-    uv.write_text(
-        "#!/bin/sh\n"
-        'echo "uv $* token=${UV_PUBLISH_TOKEN:-none}" >> "$CALLS"\n'
-        'case "$*" in\n'
-        '  *"--trusted-publishing always"*) [ "$TRUSTED" = 1 ] && exit 0; echo "trusted publishing is not set up" >&2; exit 2;;\n'
-        '  *"--trusted-publishing never"*) [ -n "$UV_PUBLISH_TOKEN" ] && [ "$TOKEN_OK" = 1 ] && exit 0; exit 3;;\n'
-        "esac\nexit 9\n", encoding="utf-8")
-    uv.chmod(0o755)
-    env = {"PATH": f"{bin_dir}:{os.environ['PATH']}", "CALLS": str(calls), "GITHUB_OUTPUT": str(out),
-           "TRUSTED": "1" if trusted_works else "0", "TOKEN_OK": "1" if token_works else "0"}
-    out.write_text("", encoding="utf-8")
-    calls.write_text("", encoding="utf-8")
+def _tree(tmp_path: Path, last: str) -> Path:
+    (tmp_path / "requirements").mkdir(parents=True)
+    (tmp_path / "requirements" / "sign.txt").write_text("solders==0.29.0 \\\n    --hash=sha256:" + "0" * 64 + "\n" + last, encoding="utf-8")
+    return tmp_path
 
-    def run(step: dict, extra: dict):                       # the shell GitHub starts for a `run`: bash -eo pipefail
-        return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]], cwd=str(tmp_path),
-                              env={**env, **extra}, capture_output=True, text=True, check=False)
 
-    first = run(trusted, {})
-    assert first.returncode == 0                            # it never fails the job: the next step decides
-    assert "done=" + ("true" if trusted_works else "false") in out.read_text(encoding="utf-8")
-    seen = calls.read_text(encoding="utf-8").splitlines()
-    assert len(seen) == 1 and "--trusted-publishing always" in seen[0] and seen[0].endswith("token=none")
-    if outcome == "trusted":
-        return                                              # the second step's condition is false: it does not run
-    second = run(token, {"UV_PUBLISH_TOKEN": secret})
-    seen = calls.read_text(encoding="utf-8").splitlines()
-    if outcome == "token":
-        assert second.returncode == 0 and len(seen) == 2
-        assert "--trusted-publishing never" in seen[1] and seen[1].endswith(f"token={secret}")
-    elif outcome == "fail":
-        assert second.returncode != 0 and len(seen) == 2
-    else:
-        assert second.returncode == 1 and len(seen) == 1    # no second upload was tried
-        assert "trusted publisher" in second.stdout and "PYPI_API_TOKEN" in second.stdout and second.stdout.startswith("::error")
+def test_the_release_fails_loudly_unless_pypi_serves_the_wheel_with_exactly_the_locked_hash(tmp_path):
+    r = _release_script()
+    want, other = "a" * 64, "b" * 64
+    root = _tree(tmp_path, "knos" + f"==9.8.7 --hash=sha256:{want}\n")           # in two parts: this file is read for version pins too
+    wheel = "knos-9.8.7-py3-none-any.whl"
+    asked = []
+
+    def pypi(files):
+        def fetch(url: str):
+            asked.append(url)
+            return None if files is None else json.dumps({"urls": [{"filename": n, "digests": {"sha256": h}} for n, h in files.items()]}).encode()
+        return fetch
+    ok, said = r.pypi_check(fetch=pypi({wheel: want, "knos-9.8.7.tar.gz": other}), root=root)
+    assert ok and said == f"PyPI serves {wheel} with the locked sha256 {want}." and asked == ["https://pypi.org/pypi/knos/9.8.7/json"]
+    # another file under the same name: the release stops, and says that the file cannot be replaced
+    ok, said = r.pypi_check(fetch=pypi({wheel: other}), root=root)
+    assert not ok and f"PyPI serves {wheel} with sha256 {other}, and this commit locks {want}" in said and "DIFFERENT" in said and "release a new version" in said
+    # not there (the version is unknown, or it has only an sdist): it is never uploaded from the workflow
+    for files in (None, {"knos-9.8.7.tar.gz": want}):
+        ok, said = r.pypi_check(fetch=pypi(files), root=root)
+        assert not ok and f"PyPI does not serve {wheel}" in said and "BEFORE the push" in said and "never uploads a wheel" in said
+    # it waits for PyPI to show a release that was just uploaded, then reads it
+    seen = iter([None, None, {wheel: want}])
+    naps = []
+    ok, _said = r.pypi_check(wait=120, fetch=lambda url: None if (f := next(seen)) is None else pypi(f)(url), sleep=naps.append, root=root)
+    assert ok and naps == [20, 20]
+    # the artifact of this run's build must be that file too
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / wheel).write_bytes(b"not it")
+    ok, said = r.pypi_check(dist=dist, fetch=pypi({wheel: want}), root=root)
+    assert not ok and "is not the locked wheel" in said
+    # a commit that locks nothing has nothing to hold PyPI to
+    bare = _tree(tmp_path / "bare", "")
+    ok, said = r.pypi_check(fetch=pypi({wheel: want}), root=bare)
+    assert not ok and "locks no release" in said and r.lock_hash(bare) is None and r.lock_hash(root) == ("9.8.7", want)
+
+
+def test_publish_uploads_only_the_locked_wheel_from_a_committed_tree_with_a_token_from_the_environment():
+    text = (ROOT / "scripts" / "release.py").read_text(encoding="utf-8")
+    body = text[text.index("def publish_cmd"):text.index("def main")]
+    order = ["is not the locked wheel", "the working tree is not committed", "the commit does not hold this lock", "on_pypi(version)", "UV_PUBLISH_TOKEN", '"uv", "publish"', "pypi_check(wait=300)"]
+    assert [body.index(x) for x in order] == sorted(body.index(x) for x in order)
+    assert "--check-url" in body and "print(os.environ" not in text and "UV_PUBLISH_TOKEN\"]" not in text      # the token is read by uv, never by this script
+    r = _release_script()
+    assert r.EPOCH == 1767225600 and r.BUILD == "requirements/build.txt"
+    build = (ROOT / "requirements" / "build.txt").read_text(encoding="utf-8")
+    pinned = re.search(r'^requires = \["hatchling==([\d.]+)"\]', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
+    assert f"hatchling=={pinned} \\\n    --hash=sha256:" in build
+    assert all("--hash=sha256:" in block for block in re.split(r"\n(?=[a-z])", build) if re.match(r"[a-z][\w.-]*==", block))

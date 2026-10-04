@@ -9,8 +9,8 @@ name: knos prove
 #
 # Each job installs knos and runs one command. The commands hold the logic and are tested without GitHub.
 #
-#   settle   a push to the default branch, a run started by hand with a pull request's number, or a `/knos settle`
-#            or `/knos tip` comment on a pull request:   knos settle
+#   settle   a push to the default branch, a run started by hand with a pull request's number, a `/knos settle` or
+#            `/knos tip` comment on a pull request, or (an attestor, below) a timer:   knos settle
 #            For each pull request the event merged or names: the issues it closes, their bounties on chain, the
 #            terms as they were funded, GitHub's record of the merged head commit, who is paid and where. Only then
 #            the token, its relay and a comment on the pull request. It checks out nothing and runs none of the pull
@@ -59,9 +59,15 @@ name: knos prove
 #     takes a new comment only, never an edit.
 #   - It takes no inputs: nothing a caller passes can change which code judges. A caller chooses when to call it,
 #     and nothing else.
+#   - In an organisation's ATTESTOR repository (examples/knos-attestor.yml; see fund.yml) settle also runs on a timer
+#     (`schedule`) and by hand with a `repository`. The command tells such a run by its event and by the repository's
+#     own .knos/policy.yml, reads the listed repositories through KNOS_READ_TOKEN without checking anything out, and
+#     for each pull request merged there applies the rules it applies to a merge anywhere. The pay token names the
+#     order and the accepted commit, and no repository, issue, pull request, branch or check: knos-pay takes it
+#     because the run is in the repository the order named as its judge when it was funded.
 #
-# The one secret is optional: see fund.yml. The install steps are fund.yml's, and so is the reason none of them uses
-# the Actions cache.
+# Both secrets are optional: see fund.yml. The install steps are fund.yml's (settle and attest install by hash; review
+# and judge by release), and so is the reason none of them uses the Actions cache.
 on:
   workflow_call:
     secrets:
@@ -69,6 +75,12 @@ on:
         description: >-
           Optional. A Solana key that pays transaction fees, so this run carries its own token to Solana. Without it
           the token is posted as a comment and Knos's public relay carries it.
+        required: false
+      KNOS_READ_TOKEN:
+        description: >-
+          Optional, and only for an organisation's attestor repository (examples/knos-attestor.yml): a fine-grained
+          token that reads the repositories the attestor's policy lists, and writes Knos's comments on their issues
+          and pull requests. No other repository passes it, and without it this job reads only its own repository.
         required: false
 
 permissions: {}
@@ -78,16 +90,18 @@ jobs:
   settle:
     if: >-
       (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
       (github.event_name == 'issue_comment' && github.event.action == 'created' && github.event.issue.pull_request)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # A push does not say which pull requests it merged, so merges (and runs started by hand) wait in one line for
-    # the whole repository, each in its turn (GitHub keeps up to 100 waiting). A comment waits in its own pull
-    # request's line instead: anyone can write comments, and they must not be able to fill the line the merges wait
-    # in. Should two runs prove the same pull request, the chain pays it once.
+    # A push does not say which pull requests it merged, so a merge waits in the line of the commit it pushed: two
+    # merges never wait for each other (a run holds its line until the relay has carried its token, so a merge that
+    # waited for the one before it was paid that much later), and two runs of one commit run in turn. Runs started by
+    # hand share one line, each in its turn (GitHub keeps up to 100 waiting). A comment waits in its own pull
+    # request's line: anyone can write comments, and they must not be able to fill a line merges wait in. Should
+    # two runs prove the same pull request, the chain pays it once.
     concurrency:
-      group: ${{ github.event_name == 'issue_comment' && format('knos-settle-{0}', github.event.issue.number) || 'knos-settle' }}
+      group: ${{ github.event_name == 'issue_comment' && format('knos-settle-{0}', github.event.issue.number) || github.event_name == 'push' && format('knos-settle-push-{0}', github.sha) || 'knos-settle' }}
       queue: max
     cache-mode: read
     permissions:
@@ -106,14 +120,18 @@ jobs:
           python-version: "3.12"
           enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
           ignore-empty-workdir: true
-      - name: install knos, this one requirement exactly
-        env:
-          UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.12"
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          KNOS_LOCK
+          LOCK
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: knos settle
         env:
           GH_TOKEN: ${{ github.token }}
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}
+          KNOS_READ_TOKEN: ${{ secrets.KNOS_READ_TOKEN }}
         run: knos settle --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
 
   # ---- the check on a pull request has finished: the same check, where it may comment and remember -------------------
@@ -150,7 +168,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.12"
+        run: uv tool install --no-config "knos==0.3.13"
       - name: knos review
         id: review
         env:
@@ -158,6 +176,12 @@ jobs:
         run: knos review --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
 
   # ---- tests mode: the funder's acceptance checks against the pull request. The one job that runs its code. ----------
+  # THE BOUNDARY. This job is a separate GitHub-hosted virtual machine, with no id-token and no secret: a fresh machine for
+  # this job alone, thrown away when it ends, that cannot ask GitHub to sign anything and holds nothing to steal. Its
+  # token only reads the repository's contents and is not given to the step that runs the code. Nothing but its success
+  # or failure leaves it: no output, no artifact, no cache. Inside it the code runs as another user, with an empty
+  # environment and no network. The step before the judge checks that last part the way the judge starts the code, on
+  # this very machine, and fails the job before any of the pull request's code runs if there is a route out.
   judge:
     needs: review
     if: needs.review.outputs.tests != ''
@@ -212,7 +236,35 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.12"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.13"
+      # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
+      # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
+      # sandbox cannot be made here, the job ends now.
+      - name: the sandbox has no network (checked here, before any pull request code runs)
+        run: |
+          set -euo pipefail
+          probe=$(cat <<'PY'
+          import socket
+          for host in ("1.1.1.1", "8.8.8.8", "140.82.112.3"):
+              s = socket.socket()
+              s.settimeout(3)
+              try:
+                  s.connect((host, 443))
+              except OSError:
+                  continue
+              print("reached " + host)
+              raise SystemExit(1)
+          print("no network")
+          PY
+          )
+          python=$(command -v python3)
+          out=$(sudo -n unshare -n -- sh -c 'ip link set lo up 2>/dev/null; exec "$@"' sh \
+                  setpriv --reuid=65534 --regid=65534 --clear-groups -- env -i "$python" -c "$probe" 2>&1) || true
+          if [ "$out" != "no network" ]; then
+            echo "The sandbox for the pull request's code is not safe on this machine ($out). None of that code was run."
+            exit 1
+          fi
+          echo "$out"
       - name: knos proof judge, in the sandbox
         env:
           ISSUE: ${{ needs.review.outputs.tests }}
@@ -224,7 +276,9 @@ jobs:
     if: needs.review.outputs.tests != '' && needs.judge.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    concurrency:      # the same line as a merge: it waits its turn
+    # The line of the runs started by hand, each in its turn. A merge waits in the line of its own commit, so it does
+    # not wait for this job: should both prove the same pull request, the chain pays it once.
+    concurrency:
       group: knos-settle
       queue: max
     cache-mode: read
@@ -244,10 +298,13 @@ jobs:
           python-version: "3.12"
           enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
           ignore-empty-workdir: true
-      - name: install knos, this one requirement exactly
-        env:
-          UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.12"
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          KNOS_LOCK
+          LOCK
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: knos settle, for the pull request, the head commit and the issue the judge passed
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,6 +1,6 @@
 {
   "name": "knos",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana. The plugin adds a Stop hook: when the agent says tests pass, CI is green, it shipped or it is done, Knos runs that check itself before the agent may stop. And the knos MCP server: bounties on GitHub issues, paid in test USDC on Solana devnet, and pull request claim checks.",
   "author": {
     "name": "drexthealpha",

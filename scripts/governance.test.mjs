@@ -52,6 +52,38 @@ test("the script's table says what each multisig must be", () => {
   assert.equal(squads.PROGRAM_ID.toBase58(), IDS.squads_program, "the SDK is for the Squads program the repository pins");
 });
 
+// ---- the upgrade gate ---------------------------------------------------------------------------------------------
+const GATE = JSON.parse(fs.readFileSync(path.join(ROOT, "tests", "fixtures", "upgrade_gate.json"), "utf8"));
+
+test("the upgrade gate's record is derived and read as the Python client and the program itself do", () => {
+  assert.equal(gov.UPGRADE_GATE.toBase58(), GATE.gate);
+  assert.equal(gov.executableHash(Buffer.from(GATE.elf, "hex")), GATE.executable_hash);
+  assert.equal(gov.buildRecord(pk(GATE.program), GATE.executable_hash).toBase58(), GATE.record);
+  const r = gov.readBuildRecord(Buffer.from(GATE.record_data, "hex"));
+  assert.deepEqual([r.program.toBase58(), r.hash, r.commit, Number(r.runId), r.time], [GATE.program, GATE.executable_hash, GATE.commit, GATE.run_id, GATE.time]);
+  assert.equal(gov.readBuildRecord(Buffer.from(GATE.record_data, "hex").subarray(1)), null);
+});
+
+test("upgrade propose refuses a buffer whose build the gate has not recorded, unless --ungated", () => {
+  const [program, hash] = [pk(GATE.program), GATE.executable_hash];
+  const info = { owner: gov.UPGRADE_GATE, data: Buffer.from(GATE.record_data, "hex") };
+  assert.match(gov.gated(info, "knos_pay", program, hash, false), new RegExp(`^upgrade gate: GitHub's runner built ${hash} from commit ${GATE.commit} \\(run ${GATE.run_id}; record ${GATE.record}\\)$`));
+  // no record; a record of another build, of another program; the same bytes in an account the gate does not own
+  const other = "00".repeat(32);
+  for (const [got, prog, h] of [[null, program, hash], [info, program, other], [info, pk(IDS.knos_oidc), hash], [{ ...info, owner: gov.LOADER }, program, hash]]) {
+    assert.throws(() => gov.gated(got, "knos_pay", prog, h, false),
+                  (e) => e instanceof gov.Refused && /has no record that GitHub built/.test(e.message) && /--ungated/.test(e.message) && /Nothing was sent/.test(e.message));
+    assert.match(gov.gated(got, "knos_pay", prog, h, true), /^upgrade gate: NO record that GitHub built .* --ungated was passed/);
+  }
+  // the check is in the proposing path, before anything is proposed, and the flag is one the command line takes
+  const src = fs.readFileSync(path.join(HERE, "governance.mjs"), "utf8");
+  const body = src.slice(src.indexOf("async function upgrade("), src.indexOf("// ---- approve, cancel, execute"));
+  assert.ok(body.indexOf("gated(await conn.getAccountInfo(buildRecord(program, hash)") > 0);
+  assert.ok(body.indexOf("gated(") < body.indexOf("await propose("), "the gate is asked before the proposal is made");
+  assert.match(src, /ungated: \{ type: "boolean" \}/);
+  assert.match(src, /--ungated/);
+});
+
 // ---- address derivation -------------------------------------------------------------------------------------------
 test("each create key gives the multisig and the vault that programs-v2/program_ids.json pins (and the Python client derives)", () => {
   for (const [name, want] of [["upgrade", { multisig: IDS.upgrade_multisig, vault: IDS.upgrade_authority }],
@@ -255,4 +287,14 @@ test("--help lists every command, and an empty command line does too", () => {
       assert.ok(r.out.includes(words), `the help says "${words}"`);
     }
   }
+});
+
+test("upgrade propose --out writes the proposal as data, and names no time until the proposal is approved", () => {
+  const program = new web3.PublicKey(gov.IDS.knos_pay), buffer = web3.Keypair.generate().publicKey;
+  const approved = gov.proposalRecord("knos_pay", program, buffer, "ab".repeat(32), 7n, 172_800, { status: { __kind: "Approved", timestamp: 1_790_000_000n } });
+  assert.deepEqual(approved, { program: "knos_pay", address: gov.IDS.knos_pay, buffer: buffer.toBase58(), hash: "ab".repeat(32), index: 7, status: "Approved",
+                               approved_at: 1_790_000_000, executable_from: 1_790_172_800 });
+  const active = gov.proposalRecord("knos_pay", program, buffer, "ab".repeat(32), 7n, 172_800, { status: { __kind: "Active", timestamp: 1_790_000_000n } });
+  assert.equal(active.executable_from, null);          // the 48 hours start with the last approval, not with the proposal
+  assert.equal(active.approved_at, null);
 });

@@ -1,7 +1,7 @@
 """Reachability: which knos modules are imported (statically, at any depth, including imports inside functions) from
 the product's entry points. Anything not reached is unused.
 
-Entry points: the console script (knos.cli:main), `python -m knos`, the relay the always-on worker runs
+Entry points: the console script (knos.__main__:main), `python -m knos`, the relay the always-on worker runs
 (knos.proof.ghrelay), and the repo's scripts. CI runs `python scripts/deadcode.py` and fails if any module is
 unreached; functions are checked by vulture (scripts/vulture_whitelist.py).
 """

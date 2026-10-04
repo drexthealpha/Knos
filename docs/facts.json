@@ -65,14 +65,6 @@
   },
   {
    "say": [
-    "6"
-   ],
-   "what": "a new scan of the Agent PR Index is scheduled every 6 hours; it replaces the published list only when it has finished",
-   "file": ".github/workflows/index.yml",
-   "has": "cron: \"17 */6 * * *\""
-  },
-  {
-   "say": [
     "63",
     "56"
    ],
@@ -156,33 +148,6 @@
   },
   {
    "say": [
-    "2048",
-    "4096"
-   ],
-   "what": "RSA key sizes the verifier takes and is tested with",
-   "file": "docs/BENCH.md",
-   "matches": "517 vectors, for 2048- and\\s+4096-bit keys"
-  },
-  {
-   "say": [
-    "11"
-   ],
-   "what": "bounties funded on the first deployment on devnet, read from the escrow's own logs",
-   "json": "docs/bench.json",
-   "path": "devnet.first.funded",
-   "equals": 11
-  },
-  {
-   "say": [
-    "6"
-   ],
-   "what": "of those, the ones paid: every one Knos's own account paying itself",
-   "json": "docs/bench.json",
-   "path": "devnet.first.paid",
-   "equals": 6
-  },
-  {
-   "say": [
     "64,291"
    ],
    "what": "open bounties on GitHub issues across all boards: 59 verified, 64,291 USD (the page's own update time: 2026-10-02 10:33 UTC)",
@@ -226,69 +191,6 @@
   },
   {
    "say": [
-    "6"
-   ],
-   "what": "tasks paid on the second deployment, on devnet (the site's stats.json of 2026-10-03 16:04 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.by_deployment.second.completed",
-   "equals": 6
-  },
-  {
-   "say": [
-    "0"
-   ],
-   "what": "tasks, on both deployments, that someone other than Knos funded with their own tokens and that were paid to someone other than the funder (the site's stats.json of 2026-10-03 16:04 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.outside.completed",
-   "equals": 0
-  },
-  {
-   "say": [
-    "0"
-   ],
-   "what": "the funders of those tasks (the site's stats.json of 2026-10-03 16:04 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.outside.funders",
-   "equals": 0
-  },
-  {
-   "say": [
-    "0"
-   ],
-   "what": "of those funders, the ones who funded another task after one of theirs was paid (the site's stats.json of 2026-10-03 16:04 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.outside.repeat_funders",
-   "equals": 0
-  },
-  {
-   "say": [
-    "2"
-   ],
-   "what": "the payments that median is over (the site's stats.json of 2026-10-03 16:04 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.latency.merge_to_paid.count",
-   "equals": 2
-  },
-  {
-   "say": [
-    "110"
-   ],
-   "what": "seconds from the merge to the payment, the median over the public relay's log (the site's stats.json of 2026-10-03 16:04 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.latency.merge_to_paid.median",
-   "equals": 110
-  },
-  {
-   "say": [
-    "909"
-   ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest -q on the release tree, ubuntu-latest Python 3.12 in tests.yml: 909 passed, 7 skipped (drexthealpha/knos-rc run 37134734073, the same tree as the release commit apart from these documents)",
-   "json": "docs/bench.json",
-   "path": "release.tests_passing.value",
-   "equals": 909
-  },
-  {
-   "say": [
     "3"
    ],
    "what": "of the pull requests #32, #33 and #34 by jaystay-bot, the ones that were merged and paid on devnet when the release ran. Measured: Knos #32, #33 and #34 by jaystay-bot, merged 2026-10-03 14:53 UTC and paid by the first deployment's knos_pay after its one-hour hold: knos due jaystay-bot read 'Paid for 3 pull request(s) in 1 repository: 48.75 in all' at 15:56 UTC; the payments are the knos:paid lines of issues #29, #30 and #31 in knos_pay's log on devnet",
@@ -307,12 +209,327 @@
   },
   {
    "say": [
-    "32"
+    "121,125"
    ],
-   "what": "days, from 1 Sep 2026 to the release, on which drexthealpha made a commit in the public repository (the automatic commits of a workflow are left out): `git log --author=drexthealpha --format=%ad --date=short | sort -u | wc -l`. Measured: git log --author=drexthealpha --format=%ad --date=short | sort -u | wc -l on drexthealpha/Knos from 2026-09-01 to the release commit of 2026-10-03",
+   "doc": "docs/MARKET.md",
+   "what": "today's bottom-up: the fees of the document's own three scenarios, 1,875 + 21,125 + 98,125 USD a year at 2.5% of 4,845,000 USD settled; a scenario, not revenue",
+   "file": "docs/MARKET.md",
+   "matches": "\\| 75,000 USD \\| 1,875 USD \\|[\\s\\S]*\\| 845,000 USD \\| 21,125 USD \\|[\\s\\S]*\\| 3,925,000 USD \\| 98,125 USD \\|"
+  },
+  {
+   "say": [
+    "0.40",
+    "25"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "the price book, Settle: the funder pays the amount plus 2.5%, at least 0.40 and at most 25 USDC (FEE_MIN and FEE_MAX of knos_pay 2.1, in whole units of the mint); the row every document and the pricing page repeat",
+   "file": "docs/MARKET.md",
+   "has": "| Settle | escrow and payout on signed acceptance | the funder pays the amount plus 2.5%, at least 0.40, at most 25 USDC; the payee receives the posted amount; 0.5% to 1.5% under a contract (a Plan) | |"
+  },
+  {
+   "say": [
+    "0.05",
+    "0.02",
+    "10,000"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "the price book, Meter: 0.05 per billable evaluation, 0.02 at volume, the first 10,000 evaluations of an owner in a month free (knos_meter)",
+   "file": "docs/MARKET.md",
+   "has": "| Meter | a neutral count of accepted outcomes for vendors who bill per result and buyers who audit them | 0.05 per billable evaluation, 0.02 at volume | 10,000 evaluations a month |"
+  },
+  {
+   "say": [
+    "25,000",
+    "80,000"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "the price book, Control: 25,000 USD a year; 80,000 with a volume commitment; a contract price, enforced by nothing on chain",
+   "file": "docs/MARKET.md",
+   "has": "| Control | organisation policy as code, budgets, private repositories, statements, exports, screening | 25,000 USD a year; 80,000 with a volume commitment | 30 days |"
+  },
+  {
+   "say": [
+    "450",
+    "240",
+    "310",
+    "8,256"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "what 1 billion USD a year would require, as arithmetic and not as a forecast: 30 billion settled at 1.5% = 450 million; 3,000 organisations at 80,000 = 240 million; 6.2 billion evaluations at 0.05 = 310 million; 1,000,000,000 / 121,125 = 8,256",
+   "file": "docs/MARKET.md",
+   "matches": "\\| Settle \\| 30 billion USD settled a year \\| 1\\.5% \\| 450 million \\|[\\s\\S]*\\| Control \\| 3,000 organisations \\| 80,000 USD a year \\| 240 million \\|[\\s\\S]*\\| Meter and Verify \\| 6\\.2 billion billable evaluations a year \\| 0\\.05 blended \\| 310 million \\|"
+  },
+  {
+   "say": [
+    "12.4%"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "30 of 241 merged agent pull requests whose description said tests or CI pass had a failed check at the head commit (0.1245)",
+   "json": "docs/backtest.json",
+   "path": "sample.merged.overall.any_check_failed.share",
+   "equals": 0.1245
+  },
+  {
+   "say": [
+    "4.03",
+    "787.8"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Upwork, 2025: 4,028.4 million USD of gross services volume and 787.8 million USD of revenue",
+   "source": "https://investors.upwork.com/news-releases/news-release-details/upwork-reports-fourth-quarter-and-full-year-2025-financial",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "1.57"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Gartner, 27 Jul 2026: worldwide IT services spending forecast for 2026, 1.57 trillion USD",
+   "source": "https://www.gartner.com/en/newsroom/press-releases/2026-07-27-gartner-forecasts-worldwide-it-spending-to-grow-14-point-2-percent-in-2026-totaling-6-point-37-trillion",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "37",
+    "4.0"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Menlo Ventures, 9 Dec 2025: enterprises spent 37 billion USD on generative AI in 2025, 4.0 billion of it on coding tools",
+   "source": "https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "71"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "GitHub, 11 Dec 2025: GitHub Actions handles 71 million jobs per day",
+   "source": "https://github.blog/news-insights/product-news/lets-talk-about-github-actions/",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "2,730"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Superteam Earn: \"Join 2,730+ others\" (sponsors); its stats endpoint returned totalInUSD 15,948,030",
+   "source": "https://superteam.fun/earn",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "650"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Immunefi: \"$140M+ paid\" across \"650+ protocols\"",
+   "source": "https://immunefi.com",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "0.99"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Intercom's Fin: 0.99 USD per outcome (Sacra, a secondary source; it also says Fin passed 100 million USD of annual recurring revenue)",
+   "source": "https://sacra.com/research/intercom",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "1.50",
+    "2.00"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Zendesk: an automated resolution costs 1.50 USD committed and 2.00 USD pay-as-you-go",
+   "source": "https://www.zendesk.com/pricing/",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "9%"
+   ],
+   "doc": [
+    "docs/MARKET.md",
+    "docs/COMPARE.md"
+   ],
+   "what": "Algora's service fee",
+   "source": "https://algora.io/pricing",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "75.41",
+    "24.24"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "x402.org on 3 Oct 2026, rolling 30 days: 75.41 million transactions, 24.24 million USD",
+   "source": "https://x402.org",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "21,702.10"
+   ],
+   "doc": [
+    "docs/MARKET.md",
+    "docs/WHY.md"
+   ],
+   "what": "completed work Bountysource left unpaid, at least (boehs.org, 3 May 2024)",
+   "source": "https://boehs.org/node/bountysource",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "2,000",
+    "$2,000"
+   ],
+   "doc": "docs/REGULATION.md",
+   "what": "Form 1099-NEC is filed for each person paid at least 2,000 USD in the course of business during the year, for tax years beginning after 2025 (IRS instructions for Forms 1099-MISC and 1099-NEC, revision of December 2026)",
+   "source": "https://www.irs.gov/instructions/i1099mec",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "63",
+    "56"
+   ],
+   "doc": "docs/WHY.md",
+   "what": "cheating pull requests in the tamper benchmark (21 ideas in each of three sample repositories), and how many passed plain CI; WHY.md said 21 and 17 until 0.3.13",
+   "file": "docs/TAMPER.md",
+   "has": "| **all** | **63** | **56** | **7** | **0** |"
+  },
+  {
+   "say": [
+    "3"
+   ],
+   "doc": "docs/COMPARE.md",
+   "what": "payments on devnet, of 15 on both deployments, whose payee is another GitHub account than the one that funded the task; Knos funded all 15",
    "json": "docs/bench.json",
-   "path": "release.days_of_shipping.value",
-   "equals": 32
+   "path": "release.payments_between_unrelated_accounts.value",
+   "equals": 3
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "the least a work order may hold, in whole units of its mint (knos-pay 2.1)",
+   "file": "programs-v2/knos_pay/src/lib.rs",
+   "has": "pub const ORDER_MIN_AMOUNT: u64 = 5_000_000;"
+  },
+  {
+   "say": [
+    "50%"
+   ],
+   "what": "the largest share of a payment an order may hold back for a warranty: 5,000 basis points (knos-pay 2.1)",
+   "file": "programs-v2/knos_pay/src/lib.rs",
+   "has": "pub const MAX_HOLDBACK_BPS: u16 = 5000;"
+  },
+  {
+   "say": [
+    "0.5%",
+    "1.5%"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "the price book, Settle under a contract: 0.5% to 1.5%; the program lets a Plan set 50 to 250 basis points (PLAN_BPS_MIN, FEE_BPS)",
+   "file": "programs-v2/knos_pay/src/lib.rs",
+   "has": "pub const PLAN_BPS_MIN: u64 = 50;"
+  },
+  {
+   "say": [
+    "15"
+   ],
+   "what": "payments on devnet by both deployments when the escrows' logs were read on 3 Oct 2026, 16:04 UTC; Knos funded every one of those tasks, and 3 went to another GitHub account",
+   "file": "docs/COMPARE.md",
+   "has": "Knos's two deployments show 15 payments on devnet"
+  },
+  {
+   "say": [
+    "40"
+   ],
+   "what": "tasks paid on the second deployment, on devnet (the site's stats.json of 2026-10-04 07:51 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.by_deployment.second.completed",
+   "equals": 40
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "tasks, on both deployments, that someone other than Knos funded with their own tokens and that were paid to someone other than the funder (the site's stats.json of 2026-10-04 07:51 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.outside.completed",
+   "equals": 0
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "of those funders, the ones who funded another task after one of theirs was paid (the site's stats.json of 2026-10-04 07:51 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.outside.repeat_funders",
+   "equals": 0
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "the funders of those tasks (the site's stats.json of 2026-10-04 07:51 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.outside.funders",
+   "equals": 0
+  },
+  {
+   "say": [
+    "24"
+   ],
+   "what": "seconds from the merge to the payment, the median over the public relay's log (the site's stats.json of 2026-10-04 07:51 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.latency.merge_to_paid.median",
+   "equals": 24
+  },
+  {
+   "say": [
+    "36"
+   ],
+   "what": "the payments that median is over (the site's stats.json of 2026-10-04 07:51 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.latency.merge_to_paid.count",
+   "equals": 36
+  },
+  {
+   "say": [
+    "1,617"
+   ],
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37186744698 on drexthealpha/knos-rc 433ac90: 1617 passed, 25 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37186744698",
+   "json": "docs/bench.json",
+   "path": "release.tests_passing.value",
+   "equals": 1617
+  },
+  {
+   "say": [
+    "16,024,654"
+   ],
+   "what": "inputs the fuzzer ran against the claim parser in the latest nightly run of program.yml: `executions` and `source` in the fuzz.json of its `fuzz-claims` artifact. Measured: libFuzzer through cargo-fuzz on the claim parser (target claims), 300 seconds, commit 519dffc, https://github.com/drexthealpha/knos-rc/actions/runs/37185319408",
+   "json": "docs/bench.json",
+   "path": "release.claim_parser_executions.value",
+   "equals": 16024654,
+   "doc": "docs/ASSURANCE.md"
+  },
+  {
+   "say": [],
+   "what": "when the upgrade of knos_oidc and knos_pay to 2.1 was proposed to the upgrade multisig and approved by its members on devnet (UTC, to the minute; the later of the two programs' approvals). `node scripts/governance.mjs upgrade propose` stops after the approvals and prints when the proposal can be executed, which is this time plus 48 hours; `knos status` reads the same from the chain. Measured: the later of the two approvals on devnet: proposal 2 (knos_pay) approved 2026-10-04 07:17:29 UTC; proposal 1 (knos_oidc) 07:16:43 UTC",
+   "json": "docs/bench.json",
+   "path": "release.upgrade_proposed.value",
+   "equals": "2026-10-04 07:17 UTC",
+   "text": "2026-10-04 07:17 UTC"
+  },
+  {
+   "say": [],
+   "what": "48 hours after that approval: the first moment the Squads program lets the upgrade execute. Filled with upgrade_proposed, never by itself. Measured: 48 hours after upgrade_proposed (the later of the two approvals on devnet: proposal 2 (knos_pay) approved 2026-10-04 07:17:29 UTC; proposal 1 (knos_oidc) 07:16:43 UTC)",
+   "json": "docs/bench.json",
+   "path": "release.upgrade_executable.value",
+   "equals": "2026-10-06 07:17 UTC",
+   "text": "2026-10-06 07:17 UTC"
   }
  ]
 }

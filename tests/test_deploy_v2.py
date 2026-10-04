@@ -214,3 +214,351 @@ def test_the_shell_script_has_seven_steps_no_idl_and_hands_over_last():
     assert "idl" not in text.lower() and "Program Metadata" not in text
     assert "--skip-new-upgrade-authority-signer-check" in text and "--max-sign-attempts 60" in text and '--buffer "$buffer"' in text
     assert "mainnet-beta" in text and "knos mainnet-check" in text     # the script refuses a mainnet endpoint and says where to go
+
+
+# ---- 0.3.13: the new programs, a staging copy, and the upgrade's proposals -------------------------------------------
+
+def _buffer(ledger: Ledger, address: Pubkey, elf: bytes, authority: str | None) -> None:
+    head = (1).to_bytes(4, "little") + (b"\x01" + bytes(Pubkey.from_string(authority)) if authority else bytes(33))
+    ledger.accounts[str(address)] = head + elf + bytes(64)
+
+
+def test_a_program_is_named_by_its_pinned_name_or_its_address_and_the_gate_has_one_too():
+    assert d.program_id("knos_meter") == pay.IDS["knos_meter"] and d.program_id("knos_passkey") == pay.IDS["knos_passkey"]
+    assert d.program_id("upgrade_gate") == str(d.gate.GATE_ID) == "2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW"
+    other = str(Keypair().pubkey())
+    assert d.program_id(other) == other
+    for wrong in ("fee_owner", "rotate_sha", "knos_nothing", ""):          # a pinned value that is not a program is not one
+        with pytest.raises(SystemExit, match="neither a program of this deployment"):
+            d.program_id(wrong)
+    ledger = Ledger()
+    assert d.program_state(ledger, other) is None
+    ledger.accounts[str(mc.programdata_address(other))] = (3).to_bytes(4, "little") + bytes(8) + bytes(33) + b"\x7fELFstaged" + bytes(9)
+    assert d.program_state(ledger, other) == (mc.elf_hash(b"\x7fELFstaged"), None)
+
+
+def test_a_buffer_is_read_with_its_build_and_its_authority_and_anything_else_is_not_a_buffer():
+    ledger, at = Ledger(), Keypair().pubkey()
+    assert d.buffer_state(ledger, str(at)) is None
+    _buffer(ledger, at, b"\x7fELFnew build", VAULT)
+    assert d.buffer_state(ledger, str(at)) == (mc.elf_hash(b"\x7fELFnew build"), VAULT)
+    _buffer(ledger, at, b"\x7fELFnew build", None)
+    assert d.buffer_state(ledger, str(at)) == (mc.elf_hash(b"\x7fELFnew build"), None)
+    ledger.accounts[str(at)] = (3).to_bytes(4, "little") + bytes(60)       # program data is not a buffer
+    assert d.buffer_state(ledger, str(at)) is None
+
+
+def test_the_new_programs_are_complete_only_when_all_three_are_deployed_and_the_vault_holds_them():
+    ledger = Ledger()
+    ok, line = d.summary_new(ledger)
+    assert not ok and line.count("is not deployed") == 3
+
+    def put(name: str, authority: str | None) -> None:
+        head = (3).to_bytes(4, "little") + bytes(8) + (b"\x01" + bytes(Pubkey.from_string(authority)) if authority else bytes(33))
+        ledger.accounts[str(mc.programdata_address(d.program_id(name)))] = head + b"\x7fELF" + name.encode() + bytes(16)
+    for name in d.NEW:
+        put(name, str(Keypair().pubkey()))
+    ok, line = d.summary_new(ledger)
+    assert not ok and line.count(f"NOT the upgrade vault {VAULT}") == 3
+    for name in d.NEW:
+        put(name, VAULT)
+    ok, line = d.summary_new(ledger)
+    assert ok and line.count(f"its upgrade authority is the upgrade vault {VAULT}") == 3 and d.NEW == ("knos_meter", "knos_passkey", "upgrade_gate")
+
+
+def test_the_gate_step_says_recorded_no_record_or_no_gate_and_never_calls_a_build_vouched_for_that_is_not():
+    ledger, elf, said = Ledger(), b"\x7fELFa 2.1 build" + bytes(40), []
+    assert d.gate_record(ledger, "knos_pay", elf, say=said.append) == 3 and "not deployed on this cluster" in said[-1]
+    ledger.accounts[str(mc.programdata_address(str(d.gate.GATE_ID)))] = (3).to_bytes(4, "little") + bytes(8) + bytes(33) + b"\x7fELFgate" + bytes(8)
+    assert d.gate_record(ledger, "knos_pay", elf, say=said.append) == 4 and "NO record that GitHub built" in said[-1]
+    h = d.gate.executable_hash(elf)
+    at = d.gate.record_pda(pay.PAY_ID, h)
+    record = bytes([1]) + bytes(7) + (4242).to_bytes(8, "little") + NOW.to_bytes(8, "little") + (9).to_bytes(8, "little") + bytes(pay.PAY_ID) + h + b"c" * 40
+    ledger.accounts[str(at)] = record
+    assert d.gate_record(ledger, "knos_pay", elf, say=said.append) == 0
+    assert said[-1] == f"  upgrade gate: GitHub's runner built {h.hex()} for knos_pay from commit {'c' * 40} (run 4242, record {at})"
+    # the record of another build, or of another program, vouches for nothing
+    assert d.gate_record(ledger, "knos_pay", elf + b"\x01", say=said.append) == 4 and d.gate_record(ledger, "knos_oidc", elf, say=said.append) == 4
+
+
+def test_the_gate_step_waits_for_the_record_program_yml_and_a_relayer_write_and_gives_up_when_its_time_is_over():
+    ledger, elf, said = Ledger(), b"\x7fELF the 2.1 build" + bytes(24), []
+    h = d.gate.executable_hash(elf)
+    at = str(d.gate.record_pda(pay.PAY_ID, h))
+    record = bytes([1, 255]) + bytes(6) + (4242).to_bytes(8, "little") + bytes(16) + bytes(pay.PAY_ID) + h + b"c" * 40
+    t, slept = [0.0], []
+
+    def sleep(seconds: float) -> None:      # the relayer lands the record while the script sleeps for the third time
+        slept.append(seconds)
+        t[0] += seconds
+        if len(slept) == 3:
+            ledger.accounts[at] = record
+    ask = lambda wait: d.gate_awaited(ledger, "knos_pay", elf, wait=wait, every=15, say=said.append, sleep=sleep, clock=lambda: t[0])  # noqa: E731
+    # no gate on this cluster: nothing to wait for
+    assert ask(600) == 3 and not slept and len(said) == 1 and "not deployed on this cluster" in said[0]
+    ledger.accounts[str(mc.programdata_address(str(d.gate.GATE_ID)))] = (3).to_bytes(4, "little") + bytes(8) + bytes(33) + b"\x7fELFgate" + bytes(8)
+    # asked with no wait (as --ungated does): one look, one line
+    del said[:]
+    assert ask(0) == 4 and not slept and len(said) == 1 and "NO record that GitHub built" in said[0]
+    # waited for: said once that it waits and how the record comes, then what is so
+    del said[:]
+    assert ask(600) == 0 and slept == [15, 15, 15]
+    assert len(said) == 2 and "Waiting up to 600 seconds" in said[0] and "program.yml" in said[0] and "a relayer carries" in said[0]
+    assert said[1] == f"  upgrade gate: GitHub's runner built {h.hex()} for knos_pay from commit {'c' * 40} (run 4242, record {at})"
+    # there already: no wait at all
+    del said[:], slept[:]
+    assert ask(600) == 0 and not slept and len(said) == 1
+    # never comes: the time is used up, not more, and the answer is still no
+    del said[:], slept[:]
+    other = elf + b"\x01"
+    assert d.gate_awaited(ledger, "knos_pay", other, wait=40, every=15, say=said.append, sleep=sleep, clock=lambda: t[0]) == 4
+    assert slept == [15, 15, 10] and "NO record that GitHub built" in said[-1] and len(said) == 2
+    # the command line takes the wait
+    with pytest.raises(SystemExit):
+        d.main(["--wait", "soon", "gate", "knos_pay", "x.so"])
+
+
+def test_the_staging_ids_file_replaces_the_two_programs_says_what_it_is_and_the_clients_read_it(tmp_path):
+    a, b = str(Keypair().pubkey()), str(Keypair().pubkey())
+    ids = d.rc_ids(a, b)
+    pinned = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+    assert ids["knos_oidc"] == a and ids["knos_pay"] == b and "STAGING" in ids["staging"]
+    assert {k: v for k, v in ids.items() if k not in ("knos_oidc", "knos_pay", "staging")} == {k: v for k, v in pinned.items() if k not in ("knos_oidc", "knos_pay")}
+    for wrong in ((pinned["knos_oidc"], b), (a, pinned["knos_pay"]), (a, a)):
+        with pytest.raises(SystemExit, match="a staging program must have an address of its own"):
+            d.rc_ids(*wrong)
+    out = tmp_path / "program_ids.json"
+    assert d.main(["rc-ids", a, b, str(out)]) == 0 and json.loads(out.read_text(encoding="utf-8")) == ids
+    # the Python client: the staging programs with the variable, the pinned ones without, and it says so once
+    import subprocess
+    import sys
+    code = "from knos.settle.v2 import pay, oidc, meter; print(pay.PAY_ID, pay.OIDC_ID, oidc.OIDC_ID, meter.OIDC_ID, pay.FEE_OWNER)"
+    env = {"PYTHONPATH": str(ROOT / "src"), "PATH": "/usr/bin:/bin"}
+    got = subprocess.run([sys.executable, "-c", code], env={**env, "KNOS_PROGRAM_IDS": str(out)}, capture_output=True, text=True, check=True)
+    assert got.stdout.split() == [b, a, a, a, pinned["fee_owner"]]
+    assert got.stderr.count("KNOS_PROGRAM_IDS is set: using the STAGING programs") == 1 and "Unset it to use the real one" in got.stderr
+    plain = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True)
+    assert plain.stdout.split() == [pinned["knos_pay"], pinned["knos_oidc"], pinned["knos_oidc"], pinned["knos_oidc"], pinned["fee_owner"]] and plain.stderr == ""
+
+
+def test_a_staging_file_can_replace_program_addresses_and_nothing_else(tmp_path):
+    from knos.settle import v2
+    pinned = v2.load_ids({})
+    assert pinned == json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+    f = tmp_path / "ids.json"
+
+    def load(doc) -> dict:
+        f.write_text(doc if isinstance(doc, str) else json.dumps(doc), encoding="utf-8")
+        return v2.load_ids({"KNOS_PROGRAM_IDS": str(f)})
+    other = str(Keypair().pubkey())
+    assert load({"knos_pay": other}) == {**pinned, "knos_pay": other}
+    assert load({**pinned, "knos_meter": other, "staging": "a note"}) == {**pinned, "knos_meter": other}       # the whole file, as --rc writes it
+    for doc, why in (({"fee_owner": other}, "it changes fee_owner"), ({"guardian": other}, "it changes guardian"), ({"claim_sha": "0" * 40}, "it changes claim_sha"),
+                     ({"upgrade_authority": other}, "it changes upgrade_authority"), ({"knos_pay": "not an address"}, "knos_pay is not an address"),
+                     ({"knos_pay": 7}, "knos_pay is not an address"), ("[1]", "is not a JSON object"), ("{", "cannot be read as JSON")):
+        with pytest.raises(RuntimeError, match=why):
+            load(doc)
+    with pytest.raises(RuntimeError, match="cannot be read as JSON"):
+        v2.load_ids({"KNOS_PROGRAM_IDS": str(tmp_path / "none.json")})
+
+
+def test_the_schedule_is_the_later_of_the_two_times_plus_ten_minutes_and_an_unapproved_proposal_schedules_nothing(tmp_path):
+    def part(name: str, index: int, at: int | None) -> dict:
+        return {"program": name, "address": pay.IDS[name], "buffer": str(Keypair().pubkey()), "hash": "ab" * 32, "index": index, "status": "Approved" if at else "Active",
+                "approved_at": at, "executable_from": at + 172_800 if at else None}
+    parts = [part("knos_pay", 4, NOW + 30), part("knos_oidc", 3, NOW)]
+    plan = d.schedule(parts, "https://api.devnet.solana.com")
+    assert plan["executable_from"] == NOW + 30 + 172_800 and plan["run_at"] == plan["executable_from"] + 600
+    assert plan["run_at_utc"] == d.when(plan["run_at"]) and [p["index"] for p in plan["proposals"]] == [3, 4] and plan["rpc"] == "https://api.devnet.solana.com"
+    with pytest.raises(SystemExit, match=r"proposal 4 \(knos_pay\) is not approved yet, so its 48 hours have not started"):
+        d.schedule([parts[1], part("knos_pay", 4, None)], "x")
+    with pytest.raises(SystemExit, match="nothing to schedule"):
+        d.schedule([], "x")
+    files = []
+    for p in parts:
+        files.append(tmp_path / f"{p['program']}.json")
+        files[-1].write_text(json.dumps(p), encoding="utf-8")
+    out = tmp_path / "upgrade-schedule.json"
+    assert d.main(["--rpc", "http://127.0.0.1:8899", "schedule", str(out), *map(str, files)]) == 0
+    assert json.loads(out.read_text(encoding="utf-8")) == {**plan, "rpc": "http://127.0.0.1:8899"}
+
+
+def test_the_shell_script_takes_one_new_mode_a_run_and_each_does_what_the_release_needs():
+    import shutil
+    import subprocess
+    text = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    # --new: the three new programs at their pinned ids, the same resumable buffers, then the vault
+    assert 'NEW_PROGRAMS="knos_meter knos_passkey upgrade_gate"' in text and 'deploy_one "$name" "$(py id "$name")" "$(new_key "$name")" "$KEYS/$name-buffer.json"' in text
+    new = text[text.index("  --new)"):text.index("  --rc)")]
+    assert new.index("build $NEW_PROGRAMS") < new.index("deploy_new") < new.index("handover $NEW_PROGRAMS") < new.index("py summary-new")
+    # --rc: fresh keypairs in the key folder, the fee payer as authority, the ids file, and what the staged escrow trusts said aloud
+    rc = text[text.index("rc_deploy() {"):text.index("rc_close() {")]
+    assert 'solana-keygen new --no-bip39-passphrase --silent --outfile "$RC/$name-keypair.json"' in rc and 'py rc-ids' in rc and '"$RC/program_ids.json"' in rc
+    assert "NOT by the staging verifier" in rc and "export KNOS_PROGRAM_IDS=$RC/program_ids.json" in rc
+    close = text[text.index("rc_close() {"):text.index("# ---- --propose")]
+    assert "sol program close" in close and '--recipient "$PAYER_ADDRESS"' in close and "is the keypair of a PINNED program" in close
+    # --propose: buffer, gate, hand-over, proposal, schedule, in that order; no record means refusal unless --ungated, which is loud
+    pr = text[text.index("propose() {"):text.index("# ---- run")]
+    order = ["program write-buffer", 'py --wait "$wait" gate "$name"', "program set-buffer-authority", "governance upgrade propose", 'py schedule "$SCHEDULE"']
+    assert [pr.index(x) for x in order] == sorted(pr.index(x) for x in order)
+    assert "--propose --ungated" in pr and "UNGATED: NO RECORD AT THE UPGRADE GATE VOUCHES FOR THIS BUILD" in pr and 'flag="--ungated"' in pr
+    # the record is waited for (program.yml's gate job and a relayer write it), so the release proposes WITHOUT --ungated;
+    # the flag is the emergency's: it waits for nothing, says so before anything else, and is passed on only for a build with no record
+    assert 'GATE_WAIT="${KNOS_GATE_WAIT:-1800}"' in text and 'wait="$GATE_WAIT"' in pr and pr.count('py --wait "$wait" gate') == 2
+    assert pr.index("UNGATED: --ungated WAS PASSED. THIS IS FOR AN EMERGENCY ONLY") < pr.index("for name in $PROGRAMS") and "wait=0" in pr
+    gated = pr[pr.index('if [ "$rc" != 0 ]; then'):pr.index('if [ "$held" != "$vault" ]')]
+    assert gated.index('if [ "$UNGATED" != 1 ]; then') < gated.index("after $wait seconds") < gated.index('flag="--ungated"')
+    assert pr.count('flag="--ungated"') == 1 and "In an emergency only: --propose --ungated" in gated and "$flag |" in pr
+    assert '--buffer "$buffer" --buffer-authority "$PAYER"' in pr and "--max-sign-attempts 60" in pr
+    assert "KNOS_PROGRAM_IDS is set" in text            # the script never works on staging ids by accident
+    # the bash on PATH: on Windows a bare "bash" is looked up in System32 first, which is WSL's launcher, not Git's bash
+    if bash := shutil.which("bash"):
+        assert subprocess.run([bash, "-n", str(ROOT / "scripts" / "deploy_v2.sh")]).returncode == 0
+        two = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--new", "--rc"], capture_output=True, text=True)
+        assert two.returncode == 2 and "one of --new, --rc, --rc-close, --propose in a run" in two.stderr
+        alone = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--ungated"], capture_output=True, text=True)
+        assert alone.returncode == 2 and "--ungated goes with --propose" in alone.stderr
+        said = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--help"], capture_output=True, text=True).stdout
+        assert all(flag in said for flag in ("--new", "--rc ", "--rc-close", "--propose [--ungated]", "KNOS_GATE_TOKENS", "KNOS_RC_SO_DIR",
+                                             "KNOS_GATE_WAIT", "--ungated is for an emergency only"))
+
+
+def test_lamports_reads_solanas_whole_answer_so_the_line_after_the_number_never_stops_the_script(tmp_path):
+    """`solana rent N --lamports` prints its number, then an empty line. A reader that leaves after the number makes that
+    second write fail (Broken pipe): solana exits 101, and with pipefail the cost check stopped deploy_v2.sh half way with
+    no word of why (one call in ten on devnet). The stand-in waits between its two lines, so a reader that leaves early
+    loses every time, and the script's own lamports() must not."""
+    import os
+    import re
+    import shutil
+    import subprocess
+    bash = shutil.which("bash")
+    if os.name == "nt" or not bash:
+        pytest.skip("runs the script's functions with bash")
+    text = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    funcs = [line for line in text.splitlines() if re.match(r"(sol|lamports)\(\) \{", line)]
+    assert len(funcs) == 2 and "exit" not in funcs[1], funcs
+    solana = tmp_path / "solana"
+    solana.write_text('#!/bin/bash\ncase " $* " in\n  *" rent "*) echo "Rent-exempt minimum: 3678758200 lamports"; sleep 1; echo ;;\n'
+                      '  *" balance "*) echo "14232197098 lamports" ;;\nesac\n', encoding="utf-8")
+    solana.chmod(0o755)
+    env = {"PATH": f"{tmp_path}:/usr/bin:/bin", "RPC": "http://127.0.0.1:1", "PAYER": "payer.json"}
+
+    def afford(lamports_line: str) -> subprocess.CompletedProcess:
+        # what afford() does with it: the two numbers in arithmetic, under the script's own shell options
+        body = f'set -euo pipefail\n{funcs[0]}\n{lamports_line}\ncost=$(( $(lamports rent 724037) + 2 * $(lamports rent 724045) ))\necho "$cost $(lamports balance me)"\n'
+        return subprocess.run([bash, "-c", body], env=env, capture_output=True, text=True, timeout=60)
+    ok = afford(funcs[1])
+    assert ok.returncode == 0 and ok.stdout.split() == [str(3678758200 * 3), "14232197098"], ok.stderr
+    # the reader deploy_v2.sh had before: the stand-in shows the race is real, not something this test made up
+    early = afford("lamports() { sol \"$@\" --lamports | awk 'NF >= 2 { print $(NF - 1); exit }'; }")
+    assert early.returncode != 0 and early.stdout == ""
+
+
+def _build_world(tmp_path):
+    """deploy_v2.sh's sources_hash() and build() under the script's shell options, in a repository of a few files, with
+    stand-ins for solana-verify and docker. The stand-in builds the crate whose manifest `find <mount>` lists first, as
+    solana-verify does, into that crate's workspace, and then hashes what <workspace-path>/target/deploy holds."""
+    import os
+    import re
+    import shutil
+    import subprocess
+    bash = shutil.which("bash")
+    if os.name == "nt" or not bash:
+        pytest.skip("runs the script's functions with bash")
+    text = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    funcs = {"sha256": next(line for line in text.splitlines() if line.startswith("sha256() {")),
+             "sources_hash": next(line for line in text.splitlines() if line.startswith("sources_hash() {")),
+             "build": re.search(r"(?ms)^build\(\) \{.*?^\}$", text).group(0)}
+    repo = tmp_path / "repo"
+    for rel in ("programs-v2/Cargo.toml", "programs-v2/knos_oidc/Cargo.toml", "programs-v2/knos_pay/Cargo.toml",
+                "programs/knos_oidc/Cargo.toml", "programs/knos_pay/Cargo.toml", "crates/knos-oidc-interface/src/lib.rs"):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(rel, encoding="utf-8")
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    (bin_ / "docker").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+    # FIRST=programs makes the stand-in list programs/ first, as find does on NTFS (WSL under /mnt/c, Git Bash)
+    (bin_ / "solana-verify").write_text(
+        '#!/bin/bash\necho "$*" >> "$LOG"\nmount="$2"; ws="$4"; lib="$6"\n'
+        'crate="$mount/${FIRST:-programs-v2}/$lib"\nmkdir -p "$(dirname "$crate")/target/deploy"\n'
+        'echo "built from $crate" > "$(dirname "$crate")/target/deploy/$lib.so"\n'
+        '[ -f "$ws/target/deploy/$lib.so" ] || { echo "no $lib.so in $ws/target/deploy" >&2; exit 1; }\n', encoding="utf-8")
+    for f in bin_.iterdir():
+        f.chmod(0o755)
+    log = tmp_path / "log"
+    body = "\n".join(['set -euo pipefail', f'ROOT={repo}', 'PROGRAMS="knos_oidc knos_pay"', 'VERIFY_IMAGE=img',
+                      'die() { echo "stopped: $*" >&2; exit 1; }', 'need() { :; }', 'py() { sha256 "$2" | cut -c1-8; }',
+                      funcs["sha256"], funcs["sources_hash"], funcs["build"], 'build $PROGRAMS'])
+
+    def run(path: str = "/usr/bin:/bin", **env) -> subprocess.CompletedProcess:
+        return subprocess.run([bash, "-c", body], capture_output=True, text=True, timeout=60,
+                              env={"PATH": f"{bin_}:{path}", "LOG": str(log), **env})
+    return repo, log, run
+
+
+def test_the_verified_build_mounts_the_repository_names_programs_v2_and_rebuilds_when_its_sources_change(tmp_path):
+    repo, log, run = _build_world(tmp_path)
+    first = run()
+    assert first.returncode == 0, first.stderr
+    assert log.read_text().splitlines() == [f"build {repo} --workspace-path {repo}/programs-v2 --library-name {n} --base-image img"
+                                            for n in ("knos_oidc", "knos_pay")]
+    deploy = repo / "programs-v2" / "target" / "deploy"
+    assert (deploy / "knos_pay.so").read_text().strip() == f"built from {repo}/programs-v2/knos_pay"
+    assert (deploy / ".verified-build").read_text().splitlines()[0].endswith(" img")
+    # unchanged sources, or a change under a target folder or in programs/ (which the build does not read): no rebuild
+    (repo / "programs-v2" / "target" / "scratch.txt").write_text("x")
+    (repo / "programs" / "knos_pay" / "Cargo.toml").write_text("changed")
+    again = run()
+    assert again.returncode == 0 and "unchanged since the last verified build" in again.stdout and len(log.read_text().splitlines()) == 2
+    # the interface crate knos_meter reads is a source of the build: a change to it builds again
+    (repo / "crates" / "knos-oidc-interface" / "src" / "lib.rs").write_text("changed")
+    third = run()
+    assert third.returncode == 0 and "unchanged" not in third.stdout and len(log.read_text().splitlines()) == 4
+
+
+def test_a_verified_build_of_the_first_deployments_crate_of_the_same_name_is_refused_not_stamped(tmp_path):
+    """The repository holds programs/knos_pay and programs-v2/knos_pay, and solana-verify builds the first manifest
+    `find` lists. Where programs/ comes first, it builds the first deployment's crate elsewhere and hashes whatever
+    programs-v2/target/deploy holds: a file build_programs_v2.sh left there (plain cargo build-sbf) must not be stamped
+    as the verified build."""
+    repo, log, run = _build_world(tmp_path)
+    deploy = repo / "programs-v2" / "target" / "deploy"
+    deploy.mkdir(parents=True)
+    for n in ("knos_oidc", "knos_pay"):
+        (deploy / f"{n}.so").write_text("cargo build-sbf, not reproducible")
+    wrong = run(FIRST="programs")
+    assert wrong.returncode != 0 and "Building manifest path" in wrong.stderr and "programs/knos_oidc" in wrong.stderr, wrong.stderr
+    assert not (deploy / ".verified-build").exists() and not (deploy / "knos_oidc.so").exists()
+
+
+def test_the_verified_build_and_its_stamp_need_no_sha256sum_where_the_system_has_only_shasum(tmp_path):
+    """macOS has shasum and no sha256sum. With a PATH that has every command of /usr/bin and /bin but sha256sum, the
+    build hashes its sources and stamps its files with shasum -a 256, and a stamp written where sha256sum is (Linux) is
+    read there as the same build: the two write the same lines."""
+    import shutil
+    repo, log, run = _build_world(tmp_path)
+    if not shutil.which("shasum", path="/usr/bin:/bin"):
+        pytest.skip("needs shasum (perl's), which macOS and the Linux runners have")
+    no_sha256sum = tmp_path / "no-sha256sum"
+    no_sha256sum.mkdir()
+    for d_ in ("/usr/bin", "/bin"):
+        for f in Path(d_).iterdir():
+            if f.name != "sha256sum" and not (no_sha256sum / f.name).exists():
+                (no_sha256sum / f.name).symlink_to(f)
+    assert shutil.which("sha256sum", path=str(no_sha256sum)) is None
+    first = run()
+    assert first.returncode == 0, first.stderr
+    stamp = repo / "programs-v2" / "target" / "deploy" / ".verified-build"
+    written = stamp.read_text()
+    again = run(path=str(no_sha256sum))
+    assert again.returncode == 0, again.stderr
+    assert "unchanged since the last verified build" in again.stdout and len(log.read_text().splitlines()) == 2
+    # a change of the sources builds again, and the stamp shasum writes is the one sha256sum wrote for the same files
+    (repo / "crates" / "knos-oidc-interface" / "src" / "lib.rs").write_text("changed")
+    third = run(path=str(no_sha256sum))
+    assert third.returncode == 0 and "unchanged" not in third.stdout and len(log.read_text().splitlines()) == 4, third.stderr
+    assert "sha256sum" not in third.stderr and stamp.read_text().splitlines()[1:] == written.splitlines()[1:]
+    assert stamp.read_text().splitlines()[0] != written.splitlines()[0]
+    fourth = run()
+    assert fourth.returncode == 0 and "unchanged since the last verified build" in fourth.stdout, fourth.stderr

@@ -101,6 +101,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # ruff (imports, statements, syntax, pyflakes) and mypy over src/knos, each at one version, with the settings in
+  # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule and 16
+  # modules of mypy's) so each can come out one line at a time. The package is installed so that mypy reads the types
+  # of what it imports, as a developer's editor does. About a minute with the cache.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e . ruff==0.15.11 mypy==1.20.2
+      - run: ruff check .
+      - run: mypy
+
   # Nothing unused ships: every module is reached from an entry point, and vulture finds no unused code beyond the
   # framework-called names listed (with reasons) in scripts/vulture_whitelist.py.
   deadcode:

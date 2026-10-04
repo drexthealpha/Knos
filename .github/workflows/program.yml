@@ -6,22 +6,50 @@ name: program
 #
 #   build-test      one job per deployment, at the same time. cargo test (the Wycheproof RSA vectors against the
 #                   verifier's own arithmetic, and the programs' unit tests), then cargo build-sbf (pinned, cached
-#                   agave) for knos-oidc, knos-pay and, with the first deployment, the example consumer. The
-#                   deployment's committed test binaries are removed before the build, so the LiteSVM tests can only
-#                   load what THIS commit's source built: the differential test against OpenSSL, the attack tests,
+#                   agave) for knos-oidc, knos-pay and, with the first deployment, the example consumer; with the
+#                   second, knos-meter and knos-passkey too, and the three example programs that build against it
+#                   (examples/cpi_fund, workflow_vault, upgrade_gate). The deployment's committed test binaries are
+#                   removed before the build, so the LiteSVM tests can only load what THIS commit's source built: the
+#                   differential test against OpenSSL, the attack tests, the work orders' tests (the order itself,
+#                   its judges, its terms), the meter's and the passkey wallet's tests, the examples' tests,
 #                   and the fixture check (the interface crate's fixture is what the program writes).
 #   fuzz            10,000 random steps over every knos-pay instruction of each deployment (no money lost or created,
 #                   nothing stuck), as four walks of 2,500 at the same time, each from its own seed. A failure prints
 #                   its seed and step.
-#   interface       the dependency-free crate other programs use to read a verified token, and the IDLs.
-#   cargo-audit     RustSec advisories against each deployment's lockfile. No ignores.
-#   verified-build  `solana-verify build` (pinned docker image) for each program: the reproducible binary. These
+#   interface       the dependency-free crate other programs use to read a verified token, the crate they fund an
+#                   order with, the IDLs, and the fuzz target's check on stable: claims.rs, the interface crate and
+#                   serde_json read the same claims from 1.46 million inputs made from fixed seeds.
+#   clippy          every warning an error (`-D warnings`), on the second deployment's programs and on the interface
+#                   crate, tests included. On a Rust release that is named here (RUSTUP_TOOLCHAIN), not on whatever
+#                   `stable` is that day: a lint added by a newer release must not fail a push that did not touch Rust.
+#                   programs/ (the first deployment) is not linted here.
+#   cargo-audit     RustSec advisories against each lockfile: the two deployments' and the interface crate's. No ignores.
+#   fuzz-claims     the claim parser (programs-v2/knos_oidc/fuzz, a cargo-fuzz target) for 5 minutes. Only on the
+#                   nightly run and when started by hand, and only once the fuzz target is in the repository: with no
+#                   target the job ends green and says so. It ends with the number of inputs tried, in the job summary
+#                   and in fuzz.json (the `fuzz-claims` artifact), which scripts/bench_docs.py takes as the slot
+#                   claim_parser_executions:
+#                       gh run download <run id> -n fuzz-claims
+#                       python scripts/bench_docs.py --set claim_parser_executions=$(jq .executions fuzz.json) \
+#                           --source "$(jq -r .source fuzz.json)"
+#                   An input that makes the parser fail fails the job and is kept in the `fuzz-claims-crash` artifact.
+#   kani            the fee and conservation arithmetic of knos-pay under the Kani model checker (cargo kani in
+#                   programs-v2/knos_pay: the harnesses of src/proofs.rs). Only on the nightly run and when started by
+#                   hand. A harness that fails fails the job.
+#   verified-build  `solana-verify build` (pinned docker image) for each program, knos-meter and knos-passkey of
+#                   the second deployment among them, and the upgrade gate example: the reproducible binary. These
 #                   artifacts are what gets deployed; `knos mainnet-check` compares the on-chain bytes with them.
-#                   Only on main, on the nightly run and when started by hand: it compiles everything in a container
-#                   with no cache (a reproducible build must not start from one), which no branch push has to wait for.
+#                   Only on main, on a release tag (v*), on the nightly run and when started by hand: it compiles
+#                   everything in a container with no cache (a reproducible build must not start from one), which no
+#                   branch push has to wait for.
+#   gate            after the verified builds, on main or a release tag, in this repository: asks GitHub to sign
+#                   gate:<program id>:<executable hash> for each program of the second deployment and posts each
+#                   token on the "knos tokens" issue. A relayer carries it to examples/upgrade_gate, which records
+#                   that GitHub's runner built these bytes from this commit; `deploy_v2.sh --propose` waits for the
+#                   records. It builds nothing and checks out nothing: it hashes the artifacts of this run.
 #
-# Time. A push to a branch waits for build-test, fuzz, interface and cargo-audit. No job needs another, so they all
-# run side by side and the wait is the longest single job: a second deployment is a second job beside the first, not
+# Time. A push to a branch waits for build-test, fuzz, interface, clippy and cargo-audit. No job needs another (gate
+# alone waits, for the verified builds), so they all run side by side and the wait is the longest single job: a second deployment is a second job beside the first, not
 # more steps in it. Every Rust build starts from a cache (Swatinem/rust-cache: the registry and the compiled
 # dependencies, saved by runs on main; a program's own crates are always compiled). On a cold cache, the first run
 # after a lockfile changes, the dependencies are compiled once and that run is slower. A newer push to a branch
@@ -31,7 +59,9 @@ name: program
 on:
   workflow_dispatch:
   push:
-    paths: ["programs/**", "programs-v2/**", "crates/**", "idl/**", "examples/oidc_gate/**", "src/knos/settle/**", "tests/_*.py", "tests/test_oidc*.py", "tests/test_pay*.py", "tests/test_settle*.py", "scripts/build_programs*.sh", "scripts/interface_fixture.py", ".github/workflows/program.yml"]
+    # examples/**: every example program is built and tested here. crates/**: the interface crates the programs and the
+    # examples depend on.
+    paths: ["programs/**", "programs-v2/**", "crates/**", "examples/**", "idl/**", "src/knos/settle/**", "tests/_*.py", "tests/test_oidc*.py", "tests/test_pay*.py", "tests/test_order*.py", "tests/test_settle*.py", "tests/test_meter*.py", "tests/test_passkey*.py", "tests/test_cpi_fund.py", "tests/test_workflow_vault.py", "tests/test_upgrade_gate.py", "scripts/build_programs*.sh", "scripts/interface_fixture.py", ".github/workflows/program.yml"]
   schedule:
     - cron: "41 3 * * *"
 
@@ -56,7 +86,11 @@ jobs:
         include:
           # One entry per deployment. workspace, also: its cargo workspaces (what the cache holds). cargo-test: where
           # `cargo test` runs. build: the script that builds its programs and test binaries. tests: its LiteSVM tests,
-          # as pytest takes them. suffix: of its artifacts (the first deployment's keep the names they had).
+          # as pytest takes them. suffix: of its artifacts (the first deployment's keep the names they had). The
+          # second deployment has two programs more, knos-meter and knos-passkey: its script builds them and their
+          # tests are named here. So are the work orders' tests (tests/test_order_*.py: the order, its judges, its
+          # terms) and the tests of the three example programs its script builds; those three share one target
+          # directory (examples/target), which `also` names so that their dependencies come from the cache too.
           - deployment: first
             workspace: programs
             also: examples/oidc_gate
@@ -66,10 +100,10 @@ jobs:
             suffix: ""
           - deployment: second
             workspace: programs-v2
-            also: ""
+            also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target"
             cargo-test: programs-v2
             build: scripts/build_programs_v2.sh
-            tests: tests/test_oidc2_*.py tests/test_pay2_*.py
+            tests: tests/test_oidc2_*.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py
             suffix: "-v2"
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -104,15 +138,15 @@ jobs:
       - name: cargo build-sbf (the programs and their test binaries, in place of the committed ones)
         run: |
           # This deployment's committed test binaries go first: a test can then only load a binary this commit built,
-          # and one that the build script does not build is missing, not stale.
-          if [ "$DEPLOYMENT" = second ]; then find tests/fixtures -name '*_v2_*.so' -delete; else find tests/fixtures -name '*.so' ! -name '*_v2_*' -delete; fi
+          # and one that the build script does not build is missing, not stale. The second deployment's carry _v2_,
+          # and the meter's (a program the first deployment never had) is knos_meter_*.
+          if [ "$DEPLOYMENT" = second ]; then find tests/fixtures \( -name '*_v2_*.so' -o -name 'knos_meter_*.so' \) -delete; else find tests/fixtures -name '*.so' ! -name '*_v2_*' ! -name 'knos_meter_*' -delete; fi
           bash "$BUILD"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: programs${{ matrix.suffix }}
-          path: |
-            ${{ matrix.workspace }}/target/deploy/knos_oidc.so
-            ${{ matrix.workspace }}/target/deploy/knos_pay.so
+          # knos_oidc.so and knos_pay.so, and with the second deployment knos_meter.so and knos_passkey.so
+          path: ${{ matrix.workspace }}/target/deploy/knos_*.so
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -149,7 +183,7 @@ jobs:
         walk: [1, 2, 3, 4]
         include:
           - {deployment: first, workspace: programs, also: examples/oidc_gate, build: scripts/build_programs.sh, tests: tests/test_pay_chain.py}
-          - {deployment: second, workspace: programs-v2, also: "", build: scripts/build_programs_v2.sh, tests: "tests/test_pay2_*.py"}
+          - {deployment: second, workspace: programs-v2, also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target", build: scripts/build_programs_v2.sh, tests: "tests/test_pay2_*.py"}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -177,7 +211,7 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: cargo build-sbf (this commit's test binaries, in place of the committed ones)
         run: |
-          if [ "$DEPLOYMENT" = second ]; then find tests/fixtures -name '*_v2_*.so' -delete; else find tests/fixtures -name '*.so' ! -name '*_v2_*' -delete; fi
+          if [ "$DEPLOYMENT" = second ]; then find tests/fixtures \( -name '*_v2_*.so' -o -name 'knos_meter_*.so' \) -delete; else find tests/fixtures -name '*.so' ! -name '*_v2_*' ! -name 'knos_meter_*' -delete; fi
           bash "$BUILD"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
@@ -196,21 +230,29 @@ jobs:
           KNOS_FUZZ_SEED: ${{ github.run_id }}${{ github.run_attempt }}${{ matrix.walk }}
 
   # The crate another team's program depends on to read a verified token: no dependency, tested on the host against
-  # a real verified token account (the fixture is regenerated and compared), and under clippy.
+  # a real verified token account (the fixture is regenerated and compared). Its clippy run is the clippy job's.
   interface:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15    # on a cold cache solana-program is compiled twice here (the fuzz crate, the pay interface crate)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          workspaces: crates/knos-oidc-interface
+          workspaces: |
+            crates/knos-oidc-interface
+            crates/knos-pay-interface
+            programs-v2/knos_oidc/fuzz
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: cargo test (default and all features)
         run: |
           cd crates/knos-oidc-interface
           cargo test --locked
           cargo test --locked --all-features
+      # What the nightly fuzz target asks of any bytes, asked here on stable of documents made from fixed seeds: the two
+      # copies of the claim reader that run today (claims.rs on chain, this crate in other programs) give the same
+      # answer, and it is serde_json's, for every wanted claim under every spelling of its name.
+      - name: cargo test (claims.rs, the interface crate and serde_json agree on every document)
+        run: cd programs-v2/knos_oidc/fuzz && cargo test --release --locked --test random
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -219,7 +261,32 @@ jobs:
       - name: the fixture is what the real program writes, and the IDLs match the clients
         run: |
           python scripts/interface_fixture.py --check
-          pytest -q tests/test_idl.py tests/test_packages.py
+          # test_pay_interface.py: the crate another program funds an order with (crates/knos-pay-interface): its fixture
+          # is what the client and the escrow write, and its own `cargo test` passes against it
+          pytest -q tests/test_idl.py tests/test_packages.py tests/test_pay_interface.py
+
+  # Clippy with every warning an error: the second deployment's two programs and the interface crate, with their tests.
+  # It checks and does not build the programs (no sbf toolchain here), so it needs none of build-test's cache.
+  clippy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUSTUP_TOOLCHAIN: "1.95.0"    # the release clippy was run with when this job was added, and clean
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: rust (the named release, with clippy)
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            programs-v2
+            crates/knos-oidc-interface
+          shared-key: clippy-${{ env.RUSTUP_TOOLCHAIN }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo clippy (-D warnings, tests included)
+        run: |
+          (cd crates/knos-oidc-interface && cargo clippy --locked --all-targets --all-features -- -D warnings)
+          (cd programs-v2 && cargo clippy --locked --all-targets -- -D warnings)
 
   cargo-audit:
     runs-on: ubuntu-latest
@@ -229,16 +296,85 @@ jobs:
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2
         with:
           tool: cargo-audit
-      - name: cargo audit (each deployment's one lockfile covers both of its programs; any vulnerability fails the job)
+      - name: cargo audit (a deployment's lockfile covers both of its programs, the interface crate has its own, and any vulnerability fails the job)
         run: |
           (cd programs && cargo audit)
           (cd programs-v2 && cargo audit)
+          (cd crates/knos-oidc-interface && cargo audit)
+
+  # The claim parser, fuzzed for 5 minutes a night with libFuzzer (programs-v2/knos_oidc/fuzz, a cargo-fuzz target).
+  # cargo-fuzz needs a nightly compiler, so this is the one job here on a nightly: dated, so that a night's result can
+  # be reproduced. The corpus of inputs that found new paths is kept from one night to the next, so each run starts
+  # where the last one ended. While the fuzz target is not in the repository every step that costs time is skipped
+  # (hashFiles) and the script ends green with a line in the summary saying nothing was fuzzed.
+  fuzz-claims:
+    name: fuzz (the claim parser, 5 minutes)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FUZZ_TOOLCHAIN: nightly-2026-10-01
+      CARGO_FUZZ: "0.13.2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: rust nightly (dated)
+        if: hashFiles('programs-v2/knos_oidc/fuzz/Cargo.toml') != ''
+        run: rustup toolchain install "$FUZZ_TOOLCHAIN" --profile minimal
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        if: hashFiles('programs-v2/knos_oidc/fuzz/Cargo.toml') != ''
+        with:
+          workspaces: programs-v2/knos_oidc/fuzz
+          shared-key: fuzz-claims-${{ env.FUZZ_TOOLCHAIN }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo-fuzz (pinned; kept with the cached cargo binaries)
+        if: hashFiles('programs-v2/knos_oidc/fuzz/Cargo.toml') != ''
+        run: cargo fuzz --version 2>/dev/null | grep -qx "cargo-fuzz $CARGO_FUZZ" || cargo install --locked --force --version "$CARGO_FUZZ" cargo-fuzz
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        if: hashFiles('programs-v2/knos_oidc/fuzz/Cargo.toml') != ''
+        with:
+          path: programs-v2/knos_oidc/fuzz/corpus
+          key: fuzz-claims-corpus-${{ github.run_id }}
+          restore-keys: fuzz-claims-corpus-
+      - name: fuzz for 5 minutes, count the inputs tried (the job summary and fuzz.json)
+        run: bash scripts/fuzz_nightly.sh 300
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: fuzz-claims
+          path: fuzz.json
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: failure()
+        with:
+          name: fuzz-claims-crash
+          path: programs-v2/knos_oidc/fuzz/artifacts
+          if-no-files-found: ignore
+
+  # The fee and conservation arithmetic of knos-pay under the Kani model checker (programs-v2/knos_pay/src/proofs.rs,
+  # compiled only for this and for `cargo test`): an order's fee is within its floor and its cap for every amount, and
+  # a payment's tip and fee are exactly its share of the order's fee, the account going from what it held to what it
+  # must hold, for every u64. proofs.rs says what is proved and what is assumed. The same properties run on every
+  # push as randomised tests (build-test's cargo test). Kani brings its own compiler, so the job is here and not in
+  # build-test, and waits for the scheduled run. Its version is named: a night's result can be reproduced.
+  kani:
+    name: kani (the fee and conservation arithmetic of knos-pay)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
+        with:
+          kani-version: "0.68.0"
+          working-directory: programs-v2/knos_pay
+          args: --output-format terse
 
   verified-build:
     # The deployed binaries are THESE: `solana-verify build` in a pinned docker image, so `solana-verify
     # verify-from-repo` reproduces them byte for byte. cargo build-sbf on the runner differs (toolchain paths are
     # embedded), which is why build-test's binaries are only tested, never deployed.
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    # A release tag builds them too: the gate below records a build made at a commit of main or of a v tag.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     name: verified-build (${{ matrix.workspace }}, ${{ matrix.program }})
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -247,9 +383,20 @@ jobs:
       matrix:
         workspace: [programs, programs-v2]
         program: [knos_oidc, knos_pay]
+        include:
+          # The second deployment's other two programs, and upgrade_gate (examples/upgrade_gate), which 0.3.13 deploys
+          # with them and which nothing else builds verified. knos-meter reads a token through
+          # crates/knos-oidc-interface, which is outside programs-v2, and cargo reads every member of a workspace to
+          # build any one of them: so every build of programs-v2 mounts the repository and names the workspace (where
+          # the lockfile is). upgrade_gate reads the same crate. The first deployment mounts its workspace alone.
+          - {workspace: programs-v2, mount: repository}
+          - {workspace: programs-v2, program: knos_meter, mount: repository}
+          - {workspace: programs-v2, program: knos_passkey, mount: repository}
+          - {workspace: examples/upgrade_gate, program: upgrade_gate, mount: repository}
     env:
       WORKSPACE: ${{ matrix.workspace }}
       PROGRAM: ${{ matrix.program }}
+      MOUNT: ${{ matrix.mount }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -262,7 +409,11 @@ jobs:
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - name: solana-verify build (docker)
         run: |
-          solana-verify build "$GITHUB_WORKSPACE/$WORKSPACE" --library-name "$PROGRAM" --base-image "$VERIFY_IMAGE"
+          if [ "$MOUNT" = repository ]; then
+            solana-verify build "$GITHUB_WORKSPACE" --workspace-path "$GITHUB_WORKSPACE/$WORKSPACE" --library-name "$PROGRAM" --base-image "$VERIFY_IMAGE"
+          else
+            solana-verify build "$GITHUB_WORKSPACE/$WORKSPACE" --library-name "$PROGRAM" --base-image "$VERIFY_IMAGE"
+          fi
           echo "executable hash: $(solana-verify get-executable-hash "$WORKSPACE/target/deploy/$PROGRAM.so")"
           sha256sum "$WORKSPACE/target/deploy/$PROGRAM.so"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -270,3 +421,62 @@ jobs:
           # the first deployment's artifacts keep their names: `knos mainnet-check` downloads <program>-verified.so
           name: ${{ matrix.program }}${{ matrix.workspace == 'programs-v2' && '-v2' || '' }}-verified.so
           path: ${{ matrix.workspace }}/target/deploy/${{ matrix.program }}.so
+
+  # The upgrade gate (examples/upgrade_gate): GitHub's own signature that its runner built exactly these bytes from
+  # this commit. For each program of the second deployment this job hashes the verified build of THIS run (sha256 of
+  # the file without its trailing zeros: what `solana-verify get-executable-hash` prints) and asks GitHub for a token
+  # whose audience is gate:<program id>:<hash>. Each token goes on this repository's "knos tokens" issue as a comment
+  # (`knos-gate: <token>`), where Knos's worker, or anyone's relay, finds it and carries it to Solana: knos-oidc
+  # verifies GitHub's signature, and upgrade_gate writes the record ["build", program, hash]. A token is no secret: it
+  # can only make that one record.
+  #
+  # The gate takes a token only when its claims say: this repository, this file (job_workflow_ref starts
+  # drexthealpha/Knos/.github/workflows/program.yml@), at the commit that was built (job_workflow_sha is sha), on
+  # refs/heads/main or a refs/tags/v* tag, on a GitHub-hosted runner. So the job is in this file, not in a workflow
+  # this file calls, and it runs only where those claims come out so: a run of a branch or of a fork is skipped (its
+  # token would be refused, and a fork has no business posting here). The nightly run is skipped too: it builds the
+  # commit a push already recorded.
+  #
+  # It is the only job here that may ask for a token, and it runs nothing a commit wrote: no checkout, no build, no
+  # cache. The program ids are the pinned ones of programs-v2/program_ids.json, written out because nothing is
+  # checked out (tests/test_program_ci.py holds this list to that file).
+  gate:
+    name: gate (GitHub signs the hash of each verified build of the second deployment)
+    needs: verified-build
+    if: github.repository == 'drexthealpha/Knos' && github.event_name != 'schedule' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write     # the signed statement
+      issues: write       # the comment that carries it
+    env:
+      PROGRAMS: >-
+        knos_oidc=FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W
+        knos_pay=5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k
+        knos_meter=FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX
+        knos_passkey=FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: "*-v2-verified.so"     # this run's verified builds of the second deployment, one folder each
+          path: built
+      - name: ask GitHub to sign each build's hash, and post each token where a relayer finds it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          issue="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '[.[] | select(.title == "knos tokens" and (has("pull_request") | not))][0].number // empty')"
+          if [ -z "$issue" ]; then
+            issue="$(gh api "repos/$GITHUB_REPOSITORY/issues" -f title="knos tokens" --jq .number \
+              -f body="Knos posts here the tokens GitHub signed in this repository, one comment each. A token is no secret: it names one action on Solana and works once. Anyone may carry it there; Knos's public relay finds it here and does.")"
+          fi
+          for entry in $PROGRAMS; do
+            name="${entry%%=*}" id="${entry#*=}" file="built/${entry%%=*}-v2-verified.so/${entry%%=*}.so"
+            [ -s "$file" ] || { echo "::error::this run has no verified build of $name ($file), so nothing was signed for it"; exit 1; }
+            hash="$(python3 -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read().rstrip(b"\0")).hexdigest())' "$file")"
+            token="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=gate:$id:$hash" \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin)["value"])')"
+            printf 'knos-gate: %s\n\n<sub>knosrelay: a GitHub-signed token. Anyone can carry it to Solana, and it can only do what it says.</sub>\n' "$token" \
+              | gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body-file - > /dev/null
+            echo "$name $id: executable hash $hash; GitHub signed gate:$id:$hash, posted on #$issue for a relayer" | tee -a "$GITHUB_STEP_SUMMARY"
+          done

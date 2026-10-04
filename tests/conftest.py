@@ -74,6 +74,14 @@ def _isolated(tmp_path_factory, monkeypatch):
     for k in list(os.environ):
         if k.startswith("KNOS_"):
             monkeypatch.delenv(k, raising=False)
+    # cargo and rustup find their toolchains under the real home: pinned before HOME moves (a test that runs cargo
+    # would otherwise see no toolchain at all, as a machine with no Rust would)
+    for var, folder in (("RUSTUP_HOME", ".rustup"), ("CARGO_HOME", ".cargo")):
+        if not os.environ.get(var) and (_REAL_HOME / folder).is_dir():
+            monkeypatch.setenv(var, str(_REAL_HOME / folder))
+    # On GitHub's runners Typer forces a terminal (it reads GITHUB_ACTIONS when it is imported), so help printed there
+    # is coloured: the tests read the help as a pipe gets it, on every machine
+    monkeypatch.setattr("typer.rich_utils.FORCE_TERMINAL", None, raising=False)
     monkeypatch.setenv("HOME", str(fake))
     monkeypatch.setenv("USERPROFILE", str(fake))
     monkeypatch.setenv("APPDATA", str(fake / "AppData" / "Roaming"))

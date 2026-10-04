@@ -42,6 +42,7 @@ RESERVE, MAX_RESERVE = 7, 90
 STATUS, ANY = 0, -1                # a check's `app`: a commit status; any source
 STATES = ("passed", "failed", "skipped", "pending", "absent", "unreadable")
 _KEYS = frozenset(("accept", "checks", "deny", "mode", "paths", "reserve", "v"))
+_ORDER_KEYS = frozenset(("policy", "vendor"))     # a work order's terms may also say these; a job's never do, so its bytes stay as they were
 
 
 class Refused(ValueError):
@@ -88,8 +89,15 @@ def _int(value, low: int, high: int, what: str) -> int:
 
 def _clean(terms) -> dict:
     """The terms with every field checked and every list in its canonical order. Raises Refused."""
-    if not isinstance(terms, dict) or set(terms) != _KEYS:
+    if not isinstance(terms, dict) or set(terms) - _ORDER_KEYS != _KEYS:
         raise Refused("a bounty's terms have exactly these fields: " + ", ".join(sorted(_KEYS)))
+    more = {}
+    if "policy" in terms:       # sha256 of the repository's .knos/policy.yml as it was at funding (knos.policy.digest)
+        if not isinstance(terms["policy"], str) or not re.fullmatch(r"[0-9a-f]{64}", terms["policy"]):
+            raise Refused("policy is the hash of the repository's policy file (64 hex characters)")
+        more["policy"] = terms["policy"]
+    if "vendor" in terms:       # a standing offer: the GitHub id of the one account it pays
+        more["vendor"] = _int(terms["vendor"], 1, 2**63 - 1, "vendor")
     if terms["v"] != 1 or type(terms["v"]) is not int:
         raise Refused("v is 1: the only version of the terms there is")
     if terms["mode"] not in ("merge", "tests"):
@@ -111,7 +119,7 @@ def _clean(terms) -> dict:
         lists[key] = sorted({valid_glob(g) for g in terms[key]})
     return {"accept": accept, "checks": [{"app": app, "name": name} for name, app in sorted(checks)],
             "deny": lists["deny"], "mode": terms["mode"], "paths": lists["paths"],
-            "reserve": _int(terms["reserve"], 0, MAX_RESERVE, "reserve"), "v": 1}
+            "reserve": _int(terms["reserve"], 0, MAX_RESERVE, "reserve"), "v": 1, **more}
 
 
 def _dump(terms: dict) -> bytes:

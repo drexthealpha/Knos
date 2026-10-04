@@ -74,7 +74,15 @@ One dependency also carries over: Sibyl's memory client, which the judge and the
   wallet, in the transaction that verifies the pay token; balances funded from a wallet and spent by comment; classic
   and Token-2022 mints; signing keys that wait a day and expire; a guardian that can revoke a key or pause new
   funding for at most 7 days. It is upgradeable only through a multisig with a public 48-hour delay, until an
-  outside review; then it is made immutable. The first deployment keeps working for jobs funded on it.
+  outside review. The first deployment keeps working for jobs funded on it.
+- **Knos 0.3.13**: an upgrade of the second deployment through that multisig, and two new programs. Work orders in
+  place of single bounties: each with a token account of its own, the fee paid by the funder on top of the amount,
+  funding of any public issue from a wallet, standing orders, splits between payees, holdbacks and warranties,
+  cancellation with notice, organisations as payees, and a payment that can be assigned. Attestation after a merge
+  from a repository of the seller's own. `knos-meter`, which counts attested evaluations and holds no customer
+  money. `knos-passkey`, a wallet made from a passkey. Signing keys of any RS256 issuer in the verifier. A policy
+  file, statements and exports, and screening of payout addresses. Drills of the recovery paths on the deployed
+  bytes.
 
 In commits: 18 between the start of the hackathon and 29 Sep, and 108 from 30 Sep to Knos 0.3.11.
 
@@ -95,10 +103,16 @@ that fixes it. The commit history shows those turns.
   days and then returning it to the funder; reserving an issue by comment for 7 days; paying a person when a bot
   account opened the pull request; and a waiting time before a new signing key is active. No code was copied; the
   programs here are written for Solana from scratch.
+- **Reviews of 0.3.12.** Six reviews were read for 0.3.13: three by outside readers and three done by Knos
+  itself. They are reviews of the design and the documents. They are not security audits: no security firm has
+  audited anything. The earlier reviews that 0.3.12 answered were of the same kind. The price book, the meter, the
+  work order and its terms, the passkey wallet, attestation by the seller, and the documents
+  [MARKET.md](MARKET.md), [REGULATION.md](REGULATION.md) and [CONTROLS.md](CONTROLS.md) follow what those readers
+  asked for. The arithmetic of what 1 billion USD a year would require comes from one of them.
 - **Three pull requests by another GitHub account.** `jaystay-bot` wrote pull requests #32, #33 and #34 for
   bounties Knos funded on this repository on 2 Oct 2026: what `knos_bounties` says about each bounty, a
   repository's own record on the site, and a Ruby runner for the judge. That code is in the tree from 0.3.12, in
-  commits under that account's name.
+  commits under that account's name. The three were merged on 3 Oct 2026 and paid 48.75 test USDC in all.
 - **Squads v4** is the multisig program that holds the second deployment's upgrade authority and its guardian
   role.
 - **Shank** (Metaplex) is the format of the IDL files in `idl/`; they were written by hand from the programs'
@@ -118,11 +132,16 @@ reviewed and committed the change.
 
 ## What has not been done
 
-No outside review. No mainnet deployment. No real money has moved. No outside repository has funded a task: every
-payment up to Knos 0.3.11 is Knos's own account paying itself to prove the path, and the site's Numbers page counts
-outside use apart from that. The first deployment cannot be changed, so its known limits stay
-([SECURITY.md](SECURITY.md)). The second deployment can be changed, by Knos, only through a multisig with a public
-48-hour delay, until an outside review.
+- **No security audit.** No security firm has audited anything. The reviews Knos has had are readers' reviews of
+  the design and the documents.
+- **No mainnet deployment.** No real money has moved.
+- **No outside funder.** Knos's own account funded every task on both deployments, in test money. Up to Knos
+  0.3.11 every payment was Knos's own account paying itself. Since then 3 payments have gone to another GitHub
+  account, for the three pull requests above. The site's Numbers page counts outside use apart from Knos's own.
+- **No customer.** Nobody has paid for anything, and no buyer has been interviewed.
+- **No legal review.** [REGULATION.md](REGULATION.md) says what was read. Counsel has not been asked.
+- The first deployment cannot be changed, so its known limits stay ([SECURITY.md](SECURITY.md)). The second
+  deployment can be changed, by Knos, only through a multisig with a public 48-hour delay, until an outside review.
 
 ## Reproduce the counts
 

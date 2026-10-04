@@ -1,0 +1,695 @@
+{
+  "version": "0.3.13",
+  "name": "knos_meter",
+  "docs": [
+    "Acceptance without escrow: a neutral on-chain count of evaluations that GitHub signed, paid from prepaid credits. It moves no customer money.",
+    "Upgradeable only through a multisig with a public 48-hour delay, until an outside review.",
+    "A native program: this file is written by hand from programs-v2/knos_meter/src (lib.rs lists every instruction, state.rs every account) and checked by tests/test_meter_chain.py.",
+    "Instruction data is the discriminant byte, then the arguments in order, little-endian, with no padding.",
+    "token is a VERIFIED GitHub Actions token account owned by knos-oidc (the second deployment's verifier), from a GitHub-hosted runner, at most an hour past its expiry,",
+    "issued no more than 300 seconds ahead of the chain's clock and living at most an hour. key, the account after it, is knos-oidc's account of the key that verified it",
+    "(the token account names it at bytes 18..50). It must be usable now (errors 76 to 78) and of a kind the meter knows: a private key counts nothing (122).",
+    "The audience (the aud claim): knosm:eval:<buyer owner id>:<seller id>:<work order hex32>:<artifact hex40>:<policy hex32>:<milestone>:<verdict 0|1>:<rate>,",
+    "from attest.yml or prove.yml of the repository the Credits account pins, at the commit it pins, run in a repository of the buyer, first attempt.",
+    "A billable evaluation is one (buyer, work order, artifact, policy, milestone): billed and counted once, whatever the verdict; a later token for it is free and changes nothing while its Mark stands.",
+    "The relayer puts up the Mark's rent and CloseMark returns all of it to that relayer from the Mark's closeAfter: the first second of the next UTC month plus 7200 seconds, when no token GitHub issued in the month of the count is accepted any more. A retry is free for the whole calendar month; after a Mark is closed, a token issued in a later month for the same evaluation is billed and counted again, in that month.",
+    "Prices in whole units of the mint, kept in millionths: 50000 (0.05) per billable evaluation, or the owner's Plan rate (20000..=50000) until its expiry; the first 10000 of an owner in a UTC month are free.",
+    "Anyone may relay Record and pay its gas. tokenProgram is SPL Token or Token-2022, the owner of the mint."
+  ],
+  "instructions": [
+    {
+      "name": "OpenCredits",
+      "docs": [
+        "A wallet opens credits for the evaluations of one GitHub owner (the buyer) and pins the workflows whose runs may spend them. Sent again by the same wallet, it sets a new pin and nothing else. No money moves; add money with a plain token transfer to crtok."
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "The wallet that owns the credits; pays the rent"
+        },
+        {
+          "name": "credits",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"cr\", ownerId u64 LE, authority, mint]"
+        },
+        {
+          "name": "crtok",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"crtok\", credits]: the credits' token account, created here"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint: Circle's USDC; it must pass the mint rules"
+        },
+        {
+          "name": "auth",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "PDA [\"auth\"]: owner of every token account of the program"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "SPL Token or Token-2022: the mint's owner"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        }
+      ],
+      "args": [
+        {
+          "name": "ownerId",
+          "type": "u64"
+        },
+        {
+          "name": "wfRepo",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "wfSha",
+          "type": {
+            "array": [
+              "u8",
+              40
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    },
+    {
+      "name": "WithdrawCredits",
+      "docs": [
+        "The wallet that opened the credits takes unspent money back, to a token account of its own. amount 0: all of it."
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The credits' authority"
+        },
+        {
+          "name": "credits",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The Credits account"
+        },
+        {
+          "name": "crtok",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"crtok\", credits]"
+        },
+        {
+          "name": "destToken",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "A token account of the credits' mint owned by the authority"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The credits' mint"
+        },
+        {
+          "name": "auth",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "PDA [\"auth\"]"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint's owner"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    },
+    {
+      "name": "SetPlan",
+      "docs": [
+        "FEE_OWNER sets one owner's rate per billable evaluation (millionths of a whole unit, 20000..=50000) until an expiry. tier is a label for the contract, which is off chain."
+      ],
+      "accounts": [
+        {
+          "name": "feeOwner",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "FEE_OWNER"
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "Pays the rent of a new Plan"
+        },
+        {
+          "name": "plan",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"plan\", ownerId u64 LE]"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        }
+      ],
+      "args": [
+        {
+          "name": "ownerId",
+          "type": "u64"
+        },
+        {
+          "name": "tier",
+          "type": "u8"
+        },
+        {
+          "name": "rate",
+          "type": "u64"
+        },
+        {
+          "name": "expiry",
+          "type": "i64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      }
+    },
+    {
+      "name": "Record",
+      "docs": [
+        "Records the evaluation a verified token describes: counted and billed the first time, free and without effect after that while its Mark stands (logs knosm:retry). Credits that cannot pay the fee are refused (118) and nothing is recorded. The Mark keeps the relayer, who paid its rent, and the time from which CloseMark returns it."
+      ],
+      "accounts": [
+        {
+          "name": "relayer",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "Anyone; pays the rent of the accounts created"
+        },
+        {
+          "name": "token",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The VERIFIED token account, owned by knos-oidc"
+        },
+        {
+          "name": "key",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "knos-oidc's account of the key that verified the token"
+        },
+        {
+          "name": "credits",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Credits of the audience's buyer, pinned to the token's workflows"
+        },
+        {
+          "name": "crtok",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"crtok\", credits]"
+        },
+        {
+          "name": "plan",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"plan\", buyer id u64 LE]: created on first use"
+        },
+        {
+          "name": "mark",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"k\", buyer id u64 LE, sha256(work order || artifact || policy || milestone u32 LE)]"
+        },
+        {
+          "name": "month",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"m\", buyer id u64 LE, seller id u64 LE, yyyymm u32 LE] of the chain's clock"
+        },
+        {
+          "name": "feeToken",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "A token account of the credits' mint owned by FEE_OWNER; not read while the evaluation is free"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The credits' mint"
+        },
+        {
+          "name": "auth",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "PDA [\"auth\"]"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint's owner"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 3
+      }
+    },
+    {
+      "name": "CloseMark",
+      "docs": [
+        "The relayer that paid a Mark's rent takes all of it back, from the Mark's closeAfter on (124 before it; 123 for another signer or another account). The Mark is gone (logs knosm:closed). Several fit in one transaction."
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "The relayer the Mark names: it signs, and the rent goes to it"
+        },
+        {
+          "name": "mark",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"k\", buyerId u64 LE, key]: a Mark this relayer paid for"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Credits",
+      "docs": [
+        "PDA [\"cr\", ownerId u64 LE, authority, mint]: what a wallet prepaid for the evaluations of one GitHub owner. 168 bytes. version is 1.",
+        "tokenProgram 0 SPL Token, 1 Token-2022. spent: every fee it paid. evaluations: the billable evaluations recorded against it, the free ones included.",
+        "wfRepo: sha256 of the \"owner/name\" of the repository whose attest.yml and prove.yml may spend it; wfSha: their commit, 40 hex characters."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "tokenProgram",
+            "type": "u8"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "ownerId",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "spent",
+            "type": "u64"
+          },
+          {
+            "name": "evaluations",
+            "type": "u64"
+          },
+          {
+            "name": "wfRepo",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "wfSha",
+            "type": {
+              "array": [
+                "u8",
+                40
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Plan",
+      "docs": [
+        "PDA [\"plan\", ownerId u64 LE]: an owner's rate under a contract, and its billable evaluations this month. 40 bytes. version is 1.",
+        "rate: millionths of a whole unit per evaluation, in force before expiry (0: no plan). used counts the month `month` (yyyymm) and starts again when the month changes."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "tier",
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "month",
+            "type": "u32"
+          },
+          {
+            "name": "ownerId",
+            "type": "u64"
+          },
+          {
+            "name": "rate",
+            "type": "u64"
+          },
+          {
+            "name": "expiry",
+            "type": "i64"
+          },
+          {
+            "name": "used",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mark",
+      "docs": [
+        "PDA [\"k\", buyer id u64 LE, key]: this evaluation was billed. 88 bytes. version is 2. verdict 1 accepted, 0 rejected.",
+        "month: the yyyymm it was counted in. rate: the value its token declared. fee: what the credits paid for it.",
+        "payer: the relayer that paid its rent, the only signer CloseMark takes and the only address the rent goes to. closeAfter: the chain time from which it can be closed.",
+        "A mark written before CloseMark existed is the first 48 bytes with version 1: it stays, and nobody closes it."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "verdict",
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "month",
+            "type": "u32"
+          },
+          {
+            "name": "buyerId",
+            "type": "u64"
+          },
+          {
+            "name": "sellerId",
+            "type": "u64"
+          },
+          {
+            "name": "time",
+            "type": "i64"
+          },
+          {
+            "name": "rate",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          },
+          {
+            "name": "payer",
+            "type": "publicKey"
+          },
+          {
+            "name": "closeAfter",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Month",
+      "docs": [
+        "PDA [\"m\", buyer id u64 LE, seller id u64 LE, yyyymm u32 LE]: the count of one buyer and one seller in one UTC month. 64 bytes. version is 1.",
+        "evaluations = accepted + rejected. value: the sum of rate over the accepted. fees: what these evaluations cost in credits."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "month",
+            "type": "u32"
+          },
+          {
+            "name": "buyerId",
+            "type": "u64"
+          },
+          {
+            "name": "sellerId",
+            "type": "u64"
+          },
+          {
+            "name": "evaluations",
+            "type": "u64"
+          },
+          {
+            "name": "accepted",
+            "type": "u64"
+          },
+          {
+            "name": "rejected",
+            "type": "u64"
+          },
+          {
+            "name": "value",
+            "type": "u64"
+          },
+          {
+            "name": "fees",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 61,
+      "name": "Json",
+      "msg": "The claim reader: the claims are not a JSON object"
+    },
+    {
+      "code": 62,
+      "name": "Duplicate",
+      "msg": "The claim reader: a claim that was asked for appears twice"
+    },
+    {
+      "code": 63,
+      "name": "Claim",
+      "msg": "The claim reader: a claim is missing or of the wrong type"
+    },
+    {
+      "code": 76,
+      "name": "KeyInactive",
+      "msg": "The key that verified the token is not active yet"
+    },
+    {
+      "code": 77,
+      "name": "KeyExpired",
+      "msg": "The key that verified the token has expired"
+    },
+    {
+      "code": 78,
+      "name": "KeyRevoked",
+      "msg": "The key that verified the token was revoked"
+    },
+    {
+      "code": 110,
+      "name": "Accounts",
+      "msg": "A wrong account, or a missing signature"
+    },
+    {
+      "code": 111,
+      "name": "Terms",
+      "msg": "Owner id, workflow commit, rate or tier not allowed"
+    },
+    {
+      "code": 112,
+      "name": "Credits",
+      "msg": "Not a Credits account, or the signer is not the wallet that opened it"
+    },
+    {
+      "code": 113,
+      "name": "Token",
+      "msg": "The token is not verified by knos-oidc, not GitHub's, or expired"
+    },
+    {
+      "code": 114,
+      "name": "Claims",
+      "msg": "The token's claims do not allow this: the runner, or a re-run instead of a first run"
+    },
+    {
+      "code": 115,
+      "name": "Workflow",
+      "msg": "The token is not from attest.yml or prove.yml at the commit the Credits account pins"
+    },
+    {
+      "code": 116,
+      "name": "Aud",
+      "msg": "The audience is not a knosm:eval audience"
+    },
+    {
+      "code": 117,
+      "name": "Owner",
+      "msg": "The run was not in a repository of the buyer, or the credits are another owner's"
+    },
+    {
+      "code": 118,
+      "name": "Funds",
+      "msg": "The credits do not hold that much"
+    },
+    {
+      "code": 119,
+      "name": "Mint",
+      "msg": "The mint or the token program is not accepted"
+    },
+    {
+      "code": 120,
+      "name": "Fee",
+      "msg": "feeToken is not a token account of the mint owned by FEE_OWNER, or destToken is not the authority's"
+    },
+    {
+      "code": 121,
+      "name": "FeeOwner",
+      "msg": "Not FEE_OWNER"
+    },
+    {
+      "code": 122,
+      "name": "KeyKind",
+      "msg": "The key that verified the token is private, or of a kind this program does not know"
+    },
+    {
+      "code": 123,
+      "name": "Mark",
+      "msg": "Not a Mark that can be closed, or the signer is not the relayer that paid its rent"
+    },
+    {
+      "code": 124,
+      "name": "Early",
+      "msg": "The Mark cannot be closed yet: its month has not closed, or a token issued in it could still be relayed"
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+  }
+}

@@ -10,6 +10,17 @@ it must be one a fact in docs/facts.json says ("say"), and every fact must hold:
     {"say": ["21"], "what": "...", "file": "docs/TAMPER.md", "has": "fooled 17/21"}
     {"say": ["1,470"], "what": "...", "source": "https://...", "read": "2026-10-02"}      an outside number, cited
     {"say": [...], "what": "...", "live": "immutable"}                                   checked on devnet (see LIVE)
+    {"say": ["4.03"], "what": "...", "doc": "docs/MARKET.md", "source": "https://...", "read": "..."}   said in a document
+    {"say": [], "text": "2026-10-05 14:00 UTC", "what": "...", "json": "docs/bench.json", "path": "...", "equals": "..."}   a time
+
+A fact with "doc" backs a number in a document that is not pitch-facing (docs/MARKET.md, docs/REGULATION.md, ...): the
+document must still say every number the fact lists, and the fact must hold like any other. Its numbers may be used in
+the pitch-facing text too, so a number has one fact wherever it is said.
+
+A fact with "text" is a time the release filled (scripts/bench_docs.py, WHEN): the pitch-facing text must say that text.
+
+The one sentence (SENTENCE) must be in README.md, the home page and the submission, word for word; the long form (LONG)
+in README.md and the home page, whatever the line breaks.
 
 Numbers that are not claims are ignored: versions, dates, clock times in the scripts, list numbering, names such as
 RS256, and anything inside code or a link's address. The generated benchmark table is checked by bench_docs.py.
@@ -30,17 +41,19 @@ sys.path.insert(0, str(ROOT / "src"))
 
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
          "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
-SENTENCE = "Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana."
-# the long form, after the short one, in the README's lead and the home page's hero
-LONG = ("A pinned workflow reads the merge and the check results from GitHub. GitHub signs that workflow run. A Solana program "
-        "verifies the signature itself and pays the author in the same minute. Nobody holds the money in between, and nobody "
-        "decides after the fact.")
+SENTENCE = ("Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they "
+            "were met, a Solana program settles.")
+# the long form, after the short one, in the README's lead and the home page's first view
+LONG = ("A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A bounty "
+        "on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs says whether the "
+        "terms were met, and a Solana program checks that signature itself before it pays. No person holds the money in between.")
 NUMBER = re.compile(r"\$?\d[\d,]*(?:\.\d+)?%?")
 NOT_CLAIMS = [
     r"<!-- bench:(\w+) -->.*?<!-- /bench:\1 -->",            # generated; bench_docs.py --check covers it
     r"```.*?```", r"`[^`\n]*`", r"<pre.*?</pre>", r"<code>.*?</code>",   # code
     r"\]\([^)]*\)", r"https?://\S+",                           # link addresses
-    r"\b\d+\.\d+\.\d+\b", r"\bKnos 0\.\d+\b", r"\b0\.\d–0\.\d\.\d\b",     # versions
+    r"\b20\d\d-\d\d-\d\d(?: \d\d:\d\d(?: UTC)?)?",       # a date, or a time the release filled (bench_docs.py, WHEN)
+    r"\b\d+\.\d+\.\d+\b", r"\bKnos 0\.\d+\b", r"\b(?:knos[-_]pay|knos[-_]oidc) 2\.[01]\b", r"\b0\.\d–0\.\d\.\d\b",     # versions
     r"\b\d{1,2}(?:–\d{1,2})? (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?: \d{4})?\b", r"\b(?:Sep|Oct)[a-z]* 20\d\d\b",
     r"\b20[12]\d\b",                                           # years
     r"\(\d:\d\d(?:, \d+ seconds)?\)",                          # clock times and scene lengths in the scripts
@@ -49,7 +62,8 @@ NOT_CLAIMS = [
     r"(?m)^#+ \d+\.\s", r"\bsection \d+\b", r"\babout \d+ words\b",       # headings, cross-references, the word count
     r"\b0\.\d and\b",                                         # "0.2 and 0.3.0-0.3.9"
     r"bounty 20\b", r"\b20\.00 USDC\b", r"\b20 USDC\b",       # the amount typed in the example
-    r"#\d+\b|#N\b", r"\bRS256\b|\bSHA-256\b|\bRSA-\d+\b|\bHS256\b|\buid \d+\b|\b360px\b",
+    r"#\d+\b|#N\b", r"\bRS256\b|\bSHA-256\b|\bRSA-\d+\b|\bHS256\b|\buid \d+\b|\b360px\b|\bsecp256r1\b|\bP-256\b",
+    r"\bscenes? \d+(?: to \d+)?\b",                          # the demo script naming its own scenes
 ]
 
 
@@ -69,6 +83,14 @@ def pitch_text(path: str) -> str:
     return text
 
 
+def words(path: str) -> str:
+    """A file's text with a page's tags removed and one space between words: what a sentence is looked for in."""
+    text = html.unescape(read(path))
+    if path.endswith(".html"):
+        text = html.unescape(re.sub(r"<[^>]+>", " ", text))
+    return " ".join(text.replace("**", "").split())
+
+
 def numbers(path: str) -> list[tuple[str, str]]:
     """(number, the line it is on) for every number in the file's pitch-facing text."""
     out = []
@@ -78,6 +100,24 @@ def numbers(path: str) -> list[tuple[str, str]]:
             if tok and tok not in ("$",):
                 out.append((tok, " ".join(line.split())[:140]))
     return out
+
+
+def docs_of(facts: list[dict]) -> list[str]:
+    """The documents that facts with "doc" name: read by the check, so a test that copies the tree must copy them."""
+    out: list[str] = []
+    for f in facts:
+        d = f.get("doc") or []
+        for path in ([d] if isinstance(d, str) else d):
+            if path not in out:
+                out.append(path)
+    return out
+
+
+def unsaid(fact: dict, said: dict[str, set[str]]) -> list[str]:
+    """The numbers of a "doc" fact that none of its documents says any more."""
+    d = fact["doc"]
+    here = set().union(*(said[path] for path in ([d] if isinstance(d, str) else d)))
+    return [tok for tok in fact["say"] if tok not in here]
 
 
 # ---- checking a fact ----------------------------------------------------------------------------------------------
@@ -178,15 +218,27 @@ def main(argv: list[str] | None = None) -> int:
                 fails += 1
                 print(f"FAIL  {path}: {tok!r} has no fact in docs/facts.json: {line}")
     for path in ("README.md", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md", "web/index.html"):
-        if SENTENCE not in html.unescape(read(path)):
+        if SENTENCE not in words(path):
             fails += 1
             print(f"FAIL  {path}: the one sentence is missing")
     for path in ("README.md", "web/index.html"):
-        if LONG not in html.unescape(read(path)):
+        if LONG not in words(path):
             fails += 1
             print(f"FAIL  {path}: the long form of the sentence is missing")
+    said = {path: {tok for tok, _line in numbers(path)} for path in docs_of(facts)}
     for f in facts:
-        if not (set(f["say"]) & used) and "live" not in f:
+        if "doc" in f:
+            gone = unsaid(f, said)
+            if gone:
+                fails += 1
+                print(f"FAIL  docs/facts.json: {f['doc']} no longer says {gone} ({f['what']}): fix the document or the fact")
+                continue
+        elif "text" in f:
+            if not any(f["text"] in words(path) for path in PITCH):
+                fails += 1
+                print(f"FAIL  docs/facts.json: nothing says {f['text']!r} any more ({f['what']}): remove the fact")
+                continue
+        elif not (set(f["say"]) & used) and "live" not in f:
             fails += 1
             print(f"FAIL  docs/facts.json: nothing says {f['say']} any more ({f['what']}): remove the fact")
             continue

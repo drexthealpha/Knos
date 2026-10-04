@@ -82,7 +82,7 @@ def test_relay_carries_one_token_from_a_file_and_prints_the_result_as_json(world
     job = pay.job_pda(repo, 7, pay.faucet_balance_pda(org))
     assert rc == 0 and r == {"ok": True, "kind": "fund", "sigs": r["sigs"], "job": str(job), "repo_id": repo, "issue": 7, "amount": 5 * USDC, "mode": 0,
                              "faucet": True, "balance": str(pay.faucet_balance_pda(org)), "deadline": c.now() + 14 * 86_400, "note": ghrelay.note(r)}
-    assert len(r["sigs"]) == 4 and pay.read_job(c.data(job)).state == "open"
+    assert len(r["sigs"]) == 2 and pay.read_job(c.data(job)).state == "open"       # two v1 transactions (knos.settle.v2.relay)
     rc, said = knos("relay", "--token-file", tmp_path / "token", "--terms-file", tmp_path / "terms")      # again: the chain shows it done
     assert rc == 0 and json.loads(said)["already"] is True
     # the comment that carried a token is as good as the token: its terms line is read from it
@@ -100,6 +100,29 @@ def test_relay_carries_one_token_from_a_file_and_prints_the_result_as_json(world
     monkeypatch.setattr(ghrelay, "serve", lambda seconds, every: ran.append((seconds, every)) or 0)
     assert knos("relay")[0] == 0 and knos("relay", "--serve", "280")[0] == 0 and knos("relay", "--serve", "60", "--every", "1.5")[0] == 0
     assert ran == ["once", (280.0, 3.0), (60.0, 1.5)]
+
+
+def test_relay_reads_a_key_tokens_issuer_url_from_the_comment_that_carried_it(world, tmp_path, monkeypatch):
+    """The comment the rotate workflow posts names the issuer on a `knos-issuer:` line, as the worker reads it
+    (ghrelay.tokens): `knos relay --token-file <that comment>` hands the relay the same URL, with no --terms-file."""
+    c, net, knos = world
+    carried = []
+    monkeypatch.setattr(ghrelay, "carry", lambda ledger, payer, jwt, terms=None: carried.append((jwt, terms)) or {"ok": False, "kind": "key", "why": "spied"})
+    jwt = "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJrbm9zLW9pZGM6aWtleSJ9.c2lnbmF0dXJl"
+    (tmp_path / "key").write_text(ghrelay.token_comment("key", jwt, "https://agent.buildkite.com"), encoding="utf-8")
+    assert ghrelay.tokens([{"body": (tmp_path / "key").read_text(), "issue_url": "x/8"}])[0].terms == b"https://agent.buildkite.com"
+    assert knos("relay", "--token-file", tmp_path / "key")[0] == 1
+    assert carried[-1] == (jwt, b"https://agent.buildkite.com")                 # what the worker would have carried
+    # a fund comment's terms line still rides; a key comment's knos-terms line is not its issuer; --terms-file wins
+    (tmp_path / "fund").write_text(ghrelay.token_comment("fund", jwt, TERMS), encoding="utf-8")
+    knos("relay", "--token-file", tmp_path / "fund")
+    assert carried[-1] == (jwt, TERMS)
+    (tmp_path / "odd").write_text(f"knos-key: {jwt}\nknos-terms: {TERMS.decode()}\n", encoding="utf-8")
+    knos("relay", "--token-file", tmp_path / "odd")
+    assert carried[-1] == (jwt, None)
+    (tmp_path / "url").write_text("https://issuer.example\n", encoding="utf-8")
+    knos("relay", "--token-file", tmp_path / "key", "--terms-file", tmp_path / "url")
+    assert carried[-1] == (jwt, b"https://issuer.example")
 
 
 # -- knos keys -----------------------------------------------------------------------------------------------------------------
@@ -237,15 +260,60 @@ def test_fund_wallet_fixes_the_terms_from_the_repositorys_checks_and_funds_from_
                        (("octo/widgets#9", "20", "--paths", "../x"), "glob"), (("nobody/home#1", "20"), "GitHub did not answer for repos/nobody/home")):
         rc, said = knos("fund-wallet", *args, "--mint", mint, "--keypair", c.keyfile)
         assert rc == 1 and want in said, (args, said)
-    # a repository that has not installed Knos pins nothing, so nothing there could prove a bounty
+    # a repository that has not installed Knos: on 2.1 a neutral work order, as the site funds one (test_fund_wallet_on_a_repository_with_no_knos_file...)
+    # on 2.0 it pins nothing, so nothing there could prove a bounty
     github(monkeypatch, {"repos/octo/bare": {"id": 5, "default_branch": "main"}})
+    live = relay2.version
+    monkeypatch.setattr(relay2, "version", lambda ledger, payer=None: 0)
     rc, said = knos("fund-wallet", "octo/bare#1", "20", "--checks", "none", "--mint", mint, "--keypair", c.keyfile)
     assert rc == 1 and said.splitlines() == ["octo/bare has no .github/workflows/knos.yml that calls prove.yml at a pinned commit, so no run there could pay this bounty.",
                                              "Install Knos in the repository first, or name the workflows yourself: --workflow owner/name@<commit>"]
+    monkeypatch.setattr(relay2, "version", live)
     # GitHub not answering for the checks is not the same as there being none
     github(monkeypatch, {"repos/octo/widgets": {"id": REPO, "default_branch": "main"}, "repos/octo/widgets/contents/.github/workflows/knos.yml": _installed()})
     rc, said = knos("fund-wallet", "octo/widgets#9", "20", "--mint", mint, "--keypair", c.keyfile)
     assert rc == 1 and "GitHub did not answer for octo/widgets's checks" in said and net.txs == n0
+
+
+def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pinned_to_the_releases_attest(world, monkeypatch):
+    """C2 scenario 8: `knos fund-wallet` on a repository that runs no Knos workflow was refused, and with --workflow it
+    made a 2.0 job that only that repository's own prove.yml could pay, so it could only go back. On 2.1 it makes what
+    the site's "Fund any issue" makes: a NEUTRAL work order, pinned to the attest.yml commit this release's
+    knos-attest.yml calls, which the seller has paid after the merge with `knos settle --neutral`."""
+    from knos import version
+    c, net, knos = world
+    mint, wallet = str(c.usdc), c.wallet_key.pubkey()
+    attest = "jobs:\n  attest:\n    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@" + "a" * 40 + "\n"
+    asked = []
+    github(monkeypatch, {"repos/octo/bare": {"id": 5, "default_branch": "main"},
+                         "repos/drexthealpha/Knos/contents/examples/knos-attest.yml": {"content": base64.encodebytes(attest.encode()).decode()}})
+    real = cli._github
+    monkeypatch.setattr(cli, "_github", lambda path: asked.append(path) or real(path))
+    rc, said = knos("fund-wallet", "octo/bare#1", "20", "--checks", "none", "--days", "1", "--mint", mint, "--keypair", c.keyfile)
+    order = pay.order_pda(pay.scope_of(5, 1), wallet, 0)
+    assert rc == 0, said
+    assert f"repos/drexthealpha/Knos/contents/examples/knos-attest.yml?ref=v{version()}" in asked      # the release's own file, at its tag
+    lines = said.splitlines()
+    assert lines[0] == f"20.00 of mint {mint} is in escrow for octo/bare#1, and Knos's fee of 0.50 of mint {mint} was paid on top. Work order {order}."
+    assert "  Nobody can reserve it: the first accepted pull request is paid." in lines             # nothing there answers `/knos take`
+    assert not any("/knos take` reserves" in x for x in lines)
+    assert lines[-2] == ("  Unpaid after 1 day, it goes back to this wallet. octo/bare needs no Knos file: after the merge, whoever did the work runs "
+                         "`knos settle --neutral <pull request URL>`, which starts `knos attest` in their own repository knos-attest. "
+                         f"Only a signed run of attest.yml of drexthealpha/knos-workflows at {'a' * 12} can pay it.")
+    o = pay.read_order(c.data(order))
+    assert (o.state, o.from_balance, o.flags & pay.F_NEUTRAL, o.amount, o.fee, o.source, o.repo_id, o.issue, o.reserve_days, o.wf_sha, o.wf_repo_hash) == \
+        ("open", False, pay.F_NEUTRAL, 20 * USDC, 500_000, wallet, 5, 1, 0, "a" * 40, pay.wf_repo_hash("drexthealpha/knos-workflows"))
+    assert c.data(pay.job_pda(5, 1, wallet)) is None                                                 # no 2.0 job that nobody could pay
+    # again from the same wallet: the next order on the issue; --workflow names the workflows by hand; too little for an order
+    rc, said = knos("fund-wallet", "octo/bare#1", "6", "--checks", "none", "--workflow", "evil/flows@" + "d" * 40, "--mint", mint, "--keypair", c.keyfile)
+    assert rc == 0 and pay.read_order(c.data(pay.order_pda(pay.scope_of(5, 1), wallet, 1))).wf_sha == "d" * 40, said
+    n0 = net.txs
+    rc, said = knos("fund-wallet", "octo/bare#2", "4", "--checks", "none", "--mint", mint, "--keypair", c.keyfile)
+    assert rc == 1 and said.strip() == "octo/bare runs no Knos workflow, so this is a work order, and a work order holds at least 5.00 of mint " + mint + "." and net.txs == n0
+    # a release whose examples cannot be read names no workflows: said, and nothing is sent
+    github(monkeypatch, {"repos/octo/bare": {"id": 5, "default_branch": "main"}})
+    rc, said = knos("fund-wallet", "octo/bare#3", "20", "--checks", "none", "--mint", mint, "--keypair", c.keyfile)
+    assert rc == 1 and "cannot tell which workflows a work order would name" in said and "--workflow owner/name@<commit>" in said and net.txs == n0
 
 
 # -- knos bounty, knos due -----------------------------------------------------------------------------------------------------
@@ -426,3 +494,110 @@ def test_claim_makes_the_repository_itself_when_the_template_cannot_be_used_and_
     got = claiming.bind(str(Keypair().pubkey()), wait=0.05, gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=lambda *a: pytest.fail("no token to wait for"))
     assert not got["bound"] and said[-1].startswith("Not bound yet.") and time.monotonic() - t0 < 5
 
+
+
+# -- knos claim --org ------------------------------------------------------------------------------------------------------------
+class OrgGh:
+    """The `gh` command of a member of an organisation, faked: the organisation, its knos-claim repository and the file
+    in it, and a workflow run started by hand that has GitHub sign what the file's `kind` asks for and posts it."""
+
+    def __init__(self, c: Chain, member: tuple[str, int], org: tuple[str, int], kind: str = "Organization", may_create: bool = True):
+        self.c, self.member, self.org, self.kind, self.may_create = c, member, org, kind, may_create
+        self.repo = f"{org[0]}/knos-claim"
+        self.calls: list[tuple] = []
+        self.files: dict[str, dict] = {}
+        self.made = False
+        self.comments: list[dict] = []
+        self.signed: list[str] = []
+
+    def __call__(self, *args, inp=None) -> str:
+        from test_relay2 import token
+        self.calls.append(args)
+        if args[:2] == ("api", "user"):
+            return json.dumps({"login": self.member[0], "id": self.member[1]})
+        if args == ("api", f"users/{self.org[0]}"):
+            return json.dumps({"login": self.org[0], "id": self.org[1], "type": self.kind})
+        if args[0] == "api" and args[1].startswith("users/"):
+            raise claiming.Cannot("HTTP 404")
+        if args == ("api", f"repos/{self.repo}"):
+            if not self.made:
+                raise claiming.Cannot("HTTP 404")
+            return "{}"
+        if args[:2] == ("repo", "create"):
+            assert "--template" not in args and args[2] == self.repo            # the template holds a person's file
+            if not self.may_create:
+                raise claiming.Cannot("HTTP 403: You need admin access to the organization before adding a repository to it.")
+            self.made = True
+            return ""
+        if args[:3] == ("api", "-X", "PUT"):
+            self.files[args[3]] = {"content": json.loads(inp)["content"], "sha": "p1", "replaced": json.loads(inp).get("sha")}
+            return "{}"
+        if args[0] == "api" and "/contents/" in args[1]:
+            if args[1] not in self.files:
+                raise claiming.Cannot("HTTP 404")
+            return json.dumps(self.files[args[1]])
+        if args[:2] == ("workflow", "run"):
+            text = base64.b64decode(self.files[f"repos/{self.repo}/contents/{claiming.WORKFLOW}"]["content"]).decode()
+            sha = text.split("claim.yml@", 1)[1][:40]
+            address = Pubkey.from_string(args[-1].split("=", 1)[1])
+            assert args[2:5] == ("knos-claim.yml", "-R", self.repo) and "kind: org" in text
+            self.c.warp(1)
+            self.signed.append(token(self.c, pay.org_bind_audience(address), file="claim.yml", wf_repo="drexthealpha/knos-oidc-rotate", wf_sha=sha,
+                                     event_name="workflow_dispatch", actor_id=self.member[1], repository_owner_id=self.org[1], repository=self.repo,
+                                     repository_id=80_000_000 + self.org[1] % 1_000_000))
+            self.comments.insert(0, {"body": ghrelay.token_comment("bind", self.signed[-1]), "issue_url": f"https://api.github.com/repos/{self.repo}/issues/1",
+                                     "user": {"login": "github-actions[bot]"}})
+            return ""
+        if args[0] == "api" and args[1].startswith(f"repos/{self.repo}/issues/comments"):
+            return json.dumps(self.comments)
+        raise AssertionError(args)
+
+
+def test_claim_org_binds_an_organisations_wallet_from_its_own_knos_claim_repository_started_by_a_member(world, monkeypatch):
+    c, net, knos = world
+    member, org, wallet = user(), user(), Keypair().pubkey()
+    gh, said = OrgGh(c, ("mona", member), ("acme", org)), []
+
+    def worker(tid, log_repo, timeout, every, get):
+        jwt = gh.signed[-1]
+        assert tid == ghrelay.token_id(jwt) and log_repo == ghrelay.HOME_REPO
+        r = ghrelay.relay_one(net, c.payer, "bind", jwt, submit=lambda ledger, payer, token: relay2.submit(ledger, payer, token, None, JWKS, now=c.now()))
+        return ghrelay.log_line("bind", "acme/knos-claim", 1, jwt, r, 9)
+    got = claiming.bind_org("acme", str(wallet), gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=worker)
+    words = f"GitHub organisation id {org} is now paid at {wallet} (its member with id {member} ran the claim)."
+    assert got == {"login": "mona", "org": "acme", "org_id": org, "repo": "acme/knos-claim", "created": True, "bound": True, "said": words}
+    assert said == ["Created acme/knos-claim (public; it holds only the claim workflow).", f"Added {claiming.WORKFLOW} in acme/knos-claim.",
+                    "GitHub is signing the claim in acme/knos-claim; waiting for a relayer to carry it to Solana (up to 10 min).", words]
+    # the file it put there is the one a release ships and the example: the caller of the claim workflow's later commit, with kind org
+    put = base64.b64decode(gh.files[f"repos/acme/knos-claim/contents/{claiming.WORKFLOW}"]["content"])
+    assert put == claiming.TEMPLATE_ORG.read_bytes() == (FIX.parents[1] / "examples" / "knos-claim-org.yml").read_bytes()
+    assert f"claim.yml@{pay.IDS['claim_sha_org']}".encode() in put and pay.IDS["claim_sha_org"] == "212f9eb5f584eb6f8cd2d6673878132fc0011e27"
+    assert b"      kind: org\n" in put and b"workflow_dispatch" in put and b"push" not in put.split(b"\nname:")[1]
+    assert ("workflow", "run", "knos-claim.yml", "-R", "acme/knos-claim", "-f", f"address={wallet}") in gh.calls
+    assert ("repo", "create", "acme/knos-claim", "--public", "--description", claiming.ABOUT_ORG) in gh.calls
+    assert pay.read_bind(c.data(pay.bind_pda(org))).wallet == wallet and pay.read_bind(c.data(pay.bind_pda(member))) is None
+    # the same address again: the chain already says so. Another address: the repository and its file are there
+    gh.calls.clear()
+    assert claiming.bind_org("acme", str(wallet), gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=worker)["bound"]
+    assert gh.calls == [("api", "user"), ("api", "users/acme")] and said[-1] == f"acme (GitHub organisation id {org}) is already paid at {wallet}. Nothing to do."
+    other = Keypair().pubkey()
+    got = claiming.bind_org("acme", str(other), gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=worker)
+    assert got["bound"] and not got["created"] and not [a for a in gh.calls if "PUT" in a] and pay.read_bind(c.data(pay.bind_pda(org))).wallet == other
+    # a person's file under that name (someone copied the wrong example) is replaced by the organisation's
+    gh.files[f"repos/acme/knos-claim/contents/{claiming.WORKFLOW}"] = {"content": base64.b64encode(claiming.TEMPLATE.read_bytes()).decode(), "sha": "old"}
+    assert claiming.bind_org("acme", str(wallet), gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=worker)["bound"]
+    assert gh.files[f"repos/acme/knos-claim/contents/{claiming.WORKFLOW}"]["replaced"] == "old"
+    # what cannot be: a person's account, a name GitHub does not know, an address that is none, a member who may not make the repository
+    with pytest.raises(claiming.Cannot, match="is a person's account, not an organisation. Its owner binds a wallet with `knos claim <address>`"):
+        claiming.bind_org("acme", str(wallet), gh=OrgGh(c, ("mona", member), ("acme", org), kind="User"), ledger=net)
+    with pytest.raises(claiming.Cannot, match="GitHub knows no account named nobody"):
+        claiming.bind_org("nobody", str(wallet), gh=gh, ledger=net)
+    with pytest.raises(claiming.Cannot, match="not a Solana address"):
+        claiming.bind_org("acme", "0xabc", gh=gh, ledger=net)
+    with pytest.raises(claiming.Cannot, match="could not be made ready .*examples/knos-claim-org.yml"):
+        claiming.bind_org("beta", str(wallet), gh=OrgGh(c, ("mona", member), ("beta", user()), may_create=False), ledger=net, say=said.append)
+    # the command line
+    monkeypatch.setattr(claiming, "bind_org", lambda org_, address, wait, say: say(f"{org_} {address}") or {"bound": address == "yes"})
+    assert knos("claim", "--org", "acme", "yes") == (0, "acme yes\n") and knos("claim", "--org", "acme", "no")[0] == 1
+    rc, text = knos("claim", "--org", "acme", "--v1", "yes")
+    assert rc == 1 and "goes with neither --v1 nor --repo" in text

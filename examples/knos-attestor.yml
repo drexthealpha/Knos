@@ -1,0 +1,125 @@
+# .github/workflows/knos-attestor.yml: Knos for an organisation's PRIVATE repositories. This file goes in ONE repository
+# of the organisation, its attestor (for example acme/knos-settle; it may itself be private or public). The private
+# repositories get no workflow, no secret and no file of Knos's. A private work order shows on Solana an amount, the
+# balance that paid and, once it is paid, who was paid and the id of the commit that was accepted. It never shows a
+# repository's name, an issue, a pull request, a branch, a check's name or a path.
+#
+# It does nothing until this repository's .knos/policy.yml, on its default branch, says so:
+#
+#     private: true
+#     attestor: acme/knos-settle          # this repository
+#     targets: [acme/app, acme/api]       # the repositories it funds and pays for
+#
+# That file is the policy of every target: who may fund, the cap, the budget, the checks an order asks for when its
+# funder names none. A copy of this file in any other repository funds nothing and pays nothing, and says why.
+#
+# What starts it, and what it then does:
+#
+#   A timer, every 15 minutes (`schedule`).
+#       The command job reads the comments of the last 3 days on the targets' issues. A comment `/knos fund 20` there,
+#       from someone the policy lets fund and who can write to that repository, is funded as a private work order and
+#       answered on that issue, once. Before GitHub signs anything the job writes one comment on the private issue
+#       that keeps what Solana will not: the order's salt and its terms. Do not edit or delete it: the order is paid
+#       from it. Then the settle job reads the pull requests merged in the targets in the last 3 days. For each one
+#       that closes an issue with such an order it checks the order's terms at the merged commit (the checks the
+#       funder named must have passed there), exactly as Knos does in a repository that runs it, and only if they hold
+#       asks GitHub for the signed statement that pays. It says what it did on the private pull request.
+#       GitHub may start a timer run late, and stops timers in a repository with no activity for 60 days. GitHub signs
+#       a timer's run in the name of whoever last changed this file's schedule, so that account spends the balance.
+#   You, by hand (`workflow_dispatch`).
+#       Actions > knos attestor > Run workflow. `repository`: one target, or empty for all of them. `issue`: the issue
+#       whose `/knos fund` comment to answer now. `pull`: the merged pull request whose payment to try now; that run
+#       always answers on the pull request, also when nothing is in escrow for it.
+#
+# What is public, and what is not. The signed statements are public: each is posted as a comment on this repository's
+# issue titled "knos tokens" (made the first time), where a relayer finds it and carries it to Solana. A statement
+# names this repository, an amount, a balance, an order's address, hashes made with the order's salt, the payees'
+# GitHub ids and wallets, and the id of the accepted commit, which says nothing to anyone who cannot read the
+# repository it is in. This file's own run pages say how many comments were answered and how many payments signed,
+# and nothing else. Everything that names a target is written in the target, where only people with access read it.
+# If this repository is public, its policy file names the targets: keep it private when the names themselves are
+# confidential.
+#
+# What it can do in this repository: read the code (the policy file), make and write on the issue titled "knos
+# tokens", and ask GitHub for signed statements about what it found (id-token). What it cannot do: change code,
+# branches, tags, releases or settings. What it can do in a target is what the secret KNOS_READ_TOKEN lets it, and
+# of that it uses only this: it reads, and it writes its own comments on issues and pull requests. It checks no
+# target out and runs nothing from one.
+#
+# The two secrets. KNOS_READ_TOKEN is needed: a fine-grained personal access token (or a GitHub App's token) for the
+# target repositories only, with the access Knos's jobs have in a repository that runs Knos itself: contents,
+# checks, commit statuses, actions and metadata to read; issues and pull requests to read and write, because the
+# answers are comments there. Give it nothing more. KNOS_RELAY_KEY is optional (a Solana key that holds a little SOL
+# for fees, never an order's money): with it the jobs carry their own statements to Solana and post none.
+#
+# The money. A private order is paid from a balance on Solana of this repository's owner. Its wallet must list this
+# repository among the repositories that may spend it, and list as a spender whoever starts the run: GitHub signs
+# that account's id, and the escrow goes by it.
+#
+# Why it is safe to install. It does not use `pull_request_target`, and no job checks anything out. The Knos
+# workflows are named by a full commit, the one the other Knos files name; the escrow records that commit when an
+# order is funded and takes the pay token only from the same commit. They accept no inputs: what you type into "Run
+# workflow" reaches the command as data, and a repository the policy does not list is refused. Keep the two names
+# that start with "knos".
+name: knos attestor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "One target, as owner/name (empty: every repository the policy lists)"
+        required: false
+        type: string
+        default: ""
+      issue:
+        description: "Optional: the number of the issue whose /knos fund comment to answer now"
+        required: false
+        type: string
+        default: ""
+      pull:
+        description: "Optional: the number of the merged pull request whose payment to try now"
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  # ---- the targets' /knos fund comments: private work orders -----------------------------------------------------------
+  command:
+    name: knos command
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      checks: read
+      statuses: read
+      actions: read
+      id-token: write
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    secrets:
+      KNOS_READ_TOKEN: ${{ secrets.KNOS_READ_TOKEN }}
+      KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
+
+  # ---- the targets' merged pull requests: what each one earned ---------------------------------------------------------
+  # The same permissions as the command: GitHub starts a called workflow only when the calling job grants what every
+  # job in it asks for.
+  settle:
+    name: knos settle
+    needs: command    # after the funding, so that an order funded in this run is there when its pull request is read
+    if: >-
+      !cancelled()
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      checks: read
+      statuses: read
+      actions: read
+      id-token: write
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    secrets:
+      KNOS_READ_TOKEN: ${{ secrets.KNOS_READ_TOKEN }}
+      KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}       # optional, as above

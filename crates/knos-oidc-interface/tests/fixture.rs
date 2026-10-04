@@ -1,14 +1,15 @@
 //! The reader against a real token account: a GitHub-shaped token that the test build of knos-oidc verified in
 //! LiteSVM, saved as it stood (scripts/interface_fixture.py). What must be found in it is in verified_token.json,
-//! read here with serde_json, so the crate's own JSON reader is checked against another one. A second fixture is the
-//! same token from the same payer, verified by the test build of the second deployment.
-use knos_oidc_interface::{fields, v2, verified, Error, Token, ID, ID_STR, ISSUERS, ISSUER_GITHUB, LATE, T_JWT, T_KEY, T_PAYER, T_PLEN, T_POFF, T_STAGE, VERIFIED};
+//! read here with serde_json, so the crate's own JSON reader is checked against another one. The account every test
+//! reads is the second deployment's (the crate's default); a second fixture is the same token from the same payer,
+//! verified by the test build of the first deployment and read by naming it.
+use knos_oidc_interface::{fields, v1, v2, verified, Error, Token, ID, ID_STR, ISSUERS, ISSUER_GITHUB, LATE, T_JWT, T_KEY, T_PAYER, T_PLEN, T_POFF, T_STAGE, VERIFIED};
 use serde_json::Value;
 
-const ACCOUNT: &[u8] = include_bytes!("fixtures/verified_token.bin");
-const ACCOUNT_V2: &[u8] = include_bytes!("fixtures/verified_token_v2.bin");
+const ACCOUNT: &[u8] = include_bytes!("fixtures/verified_token_v2.bin");
+const ACCOUNT_V1: &[u8] = include_bytes!("fixtures/verified_token.bin");
 
-fn want() -> Value { serde_json::from_str(include_str!("fixtures/verified_token.json")).unwrap() }
+fn want() -> Value { serde_json::from_str(include_str!("fixtures/verified_token_v2.json")).unwrap() }
 fn now() -> i64 { want()["now"].as_i64().unwrap() }
 
 #[test]
@@ -100,21 +101,27 @@ fn truncated_data_is_refused() {
 }
 
 #[test]
-fn the_second_deployment_writes_the_same_account_for_the_same_token() {
-    let w: Value = serde_json::from_str(include_str!("fixtures/verified_token_v2.json")).unwrap();
-    assert_eq!(w["owner"], v2::ID_STR);
-    let (first, second) = (Token::read(&ID, ACCOUNT, now()).unwrap(), v2::read(&v2::ID, ACCOUNT_V2, now()).unwrap());
+fn the_first_deployment_wrote_the_same_account_for_the_same_token_and_is_read_only_by_name() {
+    let w: Value = serde_json::from_str(include_str!("fixtures/verified_token.json")).unwrap();
+    assert_eq!(w["owner"], v1::ID_STR);
+    assert_eq!(want()["owner"], v2::ID_STR);
+    let (second, first) = (Token::read(&ID, ACCOUNT, now()).unwrap(), v1::read(&v1::ID, ACCOUNT_V1, now()).unwrap());
     assert_eq!((second.issuer(), second.exp(), second.payload()), (first.issuer(), first.exp(), first.payload()));
-    assert_eq!(serde_json::from_slice::<Value>(second.payload()).unwrap(), w["claims"]);
+    assert_eq!(serde_json::from_slice::<Value>(first.payload()).unwrap(), w["claims"]);
     assert_eq!(w["claims"], want()["claims"]);
-    assert!(second.audience().unwrap().is("oidc-gate:release") && second.claim_u64("repository_id") == Some(424242001));
+    assert!(first.audience().unwrap().is("oidc-gate:release") && first.claim_u64("repository_id") == Some(424242001));
     // every byte is the same but the address of the key account, which is derived from the program's address
-    assert_eq!(ACCOUNT_V2.len(), ACCOUNT.len());
-    assert_eq!(ACCOUNT_V2[..T_KEY], ACCOUNT[..T_KEY]);
-    assert_eq!(ACCOUNT_V2[T_PAYER..], ACCOUNT[T_PAYER..]);
-    assert_ne!(ACCOUNT_V2[T_KEY..T_PAYER], ACCOUNT[T_KEY..T_PAYER]);
-    // neither reader takes the other deployment's account, whatever its bytes say
-    assert_eq!(v2::read(&ID, ACCOUNT_V2, now()).unwrap_err(), Error::NotOidc);
-    assert_eq!(Token::read(&v2::ID, ACCOUNT_V2, now()).unwrap_err(), Error::NotOidc);
-    assert_eq!(v2::read(&v2::ID, ACCOUNT_V2, w["exp"].as_i64().unwrap() + LATE).unwrap_err(), Error::Stale);
+    assert_eq!(ACCOUNT_V1.len(), ACCOUNT.len());
+    assert_eq!(ACCOUNT_V1[..T_KEY], ACCOUNT[..T_KEY]);
+    assert_eq!(ACCOUNT_V1[T_PAYER..], ACCOUNT[T_PAYER..]);
+    assert_ne!(ACCOUNT_V1[T_KEY..T_PAYER], ACCOUNT[T_KEY..T_PAYER]);
+    assert_eq!(second.key(), &ACCOUNT[T_KEY..T_PAYER]);
+    // no default takes the first deployment's account, whatever its bytes say, and `v1` takes no other
+    assert_eq!(Token::read(&v1::ID, ACCOUNT_V1, now()).unwrap_err(), Error::NotOidc);
+    assert_eq!(Token::read_any(&v1::ID, ACCOUNT_V1, now()).unwrap_err(), Error::NotOidc);
+    assert_eq!(v2::read(&v1::ID, ACCOUNT_V1, now()).unwrap_err(), Error::NotOidc);
+    assert_eq!(v1::read(&ID, ACCOUNT, now()).unwrap_err(), Error::NotOidc);
+    assert_eq!(v1::read(&v1::ID, ACCOUNT_V1, w["exp"].as_i64().unwrap() + LATE).unwrap_err(), Error::Stale);
+    // a GitHub token of either deployment is nobody's private word
+    assert!(!second.is_private() && second.registrant().is_none() && second.issuer_hash().is_none() && !first.is_private());
 }

@@ -1,0 +1,64 @@
+# .github/workflows/knos-canary.yml: measures how long Knos takes to pay, as a user sees it, every 30 minutes. It goes in
+# a repository of its own that has knos.yml and knos-check.yml installed (Knos runs one in drexthealpha/knos-e2e), never
+# in a repository whose code or money you care about: it opens and merges pull requests there, all day.
+#
+# What starts it:
+#
+#   A timer, every 30 minutes (`schedule`).
+#       `knos canary` works on the repository it runs in. It funds an issue with 5 test USDC from the faucet (the comment
+#       route; it is test money), opens a pull request that closes it, waits for its check to pass, merges it, then
+#       waits for the payment and records the seconds each stage took: from the comment to the funding, and from the
+#       merge to the payment. A run that fails is an incident: the run's page says which stage and why. GitHub may start
+#       a timer run late, and stops timers in a repository with no activity for 60 days; the canary's own pull
+#       requests are activity.
+#   You, by hand (`workflow_dispatch`).
+#       Actions > knos canary > Run workflow: one measurement now.
+#
+# What it can do in this repository: write on its issues and pull requests and merge them, all through the token below.
+# What it cannot do: anything outside this repository. The job's own token only reads. The token it uses to write
+# is a secret you create: a fine-grained personal access token for this one repository (contents, pull requests and
+# issues, write; nothing else), kept as the repository secret KNOS_CANARY_TOKEN. It has to be a token of yours and
+# not the job's own: a merge made with a workflow's own token starts no workflow run (GitHub's rule), so the payment
+# would never start, and the canary would measure nothing. The job holds no key to any wallet and moves no money but the
+# faucet's test USDC; it asks GitHub for no signed statement.
+#
+# Because the job sees a secret, it installs from the same hash-locked list the pinned workflows install from, read at
+# the commit the other Knos files name: `uv pip install --require-hashes`, so uv refuses any file whose sha256 that
+# list does not hold. It restores and saves no Actions cache.
+name: knos canary
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# one measurement at a time: a second one started while the first waits for its payment would measure the queue
+concurrency:
+  group: knos-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+          ignore-empty-workdir: true
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r https://raw.githubusercontent.com/drexthealpha/knos-workflows/bbaf6e1c850bcc1a12954ffe252b100ef67f16b8/requirements/sign.txt
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: knos canary
+        env:
+          GH_TOKEN: ${{ secrets.KNOS_CANARY_TOKEN }}
+        run: knos canary

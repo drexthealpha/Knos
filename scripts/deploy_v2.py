@@ -4,7 +4,19 @@
 
     cluster         which cluster the endpoint is: devnet, testnet, mainnet-beta or local
     hash FILE       the executable hash of a program file, as solana-verify prints it
-    program NAME    knos_oidc or knos_pay as the chain has it: "absent", or "<executable hash> <upgrade authority, or none>"
+    id NAME         the pinned address of knos_oidc, knos_pay, knos_meter, knos_passkey or upgrade_gate
+    program NAME    a program (one of those names, or an address) as the chain has it: "absent", or
+                    "<executable hash> <upgrade authority, or none>"
+    buffer ADDRESS  a program buffer as the chain has it: "absent", or "<executable hash> <its authority, or none>"
+    gate NAME FILE [TOKEN]   whether the upgrade gate holds a record that GitHub built FILE for NAME. With TOKEN (a file
+                    holding the token program.yml asked GitHub for, audience gate:<program>:<hash>), a missing record
+                    is written. With --wait SECONDS a record that is not there yet is waited for (program.yml's gate
+                    job and a relayer write it). Exit 0 recorded, 3 the gate is not deployed here, 4 no record
+    rc-ids OIDC PAY OUT   write the staging ids file a client reads through KNOS_PROGRAM_IDS
+    schedule OUT FILE...  join what `governance.mjs upgrade propose --out` wrote for each program into the one file
+                    scripts/schedule_upgrade.sh reads, and print when the upgrades can be executed
+    summary-new     one line about knos_meter, knos_passkey and upgrade_gate. Exit 1 unless all three are deployed
+                    and held by the upgrade vault
     faucet          InitFaucet: the escrow's test-USDC mint
     keys            RegisterKey and KeyParams for each of GitHub's four genesis keys
     fee-account     the fee owner's token account for the faucet's mint
@@ -38,12 +50,29 @@ from solders.pubkey import Pubkey  # noqa: E402
 
 from knos import chain  # noqa: E402
 from knos import mainnet_check as mc  # noqa: E402
-from knos.settle.v2 import oidc, pay  # noqa: E402
+from knos.settle.v2 import gate, oidc, pay, relay  # noqa: E402
 
 JWKS = ROOT / "tests" / "fixtures" / "github_jwks_2026-10-02.json"
 PINS = ROOT / "programs-v2" / "knos_oidc" / "src" / "pins.rs"
 CLUSTERS = {"EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG": "devnet", "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY": "testnet",
             "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d": "mainnet-beta"}
+
+
+NEW = ("knos_meter", "knos_passkey", "upgrade_gate")         # what 0.3.13 deploys for the first time
+LOADER = "BPFLoaderUpgradeab1e11111111111111111111111"
+
+
+def program_id(name: str) -> str:
+    """The address of a program: its pinned one by name (a staging file named by KNOS_PROGRAM_IDS replaces the four it
+    may), or the address itself."""
+    if name == "upgrade_gate":
+        return str(gate.GATE_ID)
+    if name in pay.IDS and name.startswith("knos_"):
+        return pay.IDS[name]
+    try:
+        return str(Pubkey.from_string(name))
+    except ValueError:
+        raise SystemExit(f"{name} is neither a program of this deployment (knos_oidc, knos_pay, knos_meter, knos_passkey, upgrade_gate) nor an address") from None
 
 
 def when(t: int) -> str:
@@ -65,8 +94,104 @@ def program_state(ledger, name: str) -> tuple[str, str | None] | None:
     def account(address: str):
         data = ledger.account(Pubkey.from_string(address))
         return None if data is None else ("", data)
-    deployed, authority, elf = mc.program_data(account, pay.IDS[name])
+    deployed, authority, elf = mc.program_data(account, program_id(name))
     return (mc.elf_hash(elf), authority) if deployed else None
+
+
+def buffer_state(ledger, address: str) -> tuple[str, str | None] | None:
+    """(executable hash, authority or None) of a program buffer; None when the account is not one. A buffer that is
+    half written has the hash of what is there so far, which is not the build's."""
+    data = ledger.account(Pubkey.from_string(address))
+    if not data or len(data) < gate.BUFFER_HEADER or data[:4] != (1).to_bytes(4, "little"):
+        return None
+    return mc.elf_hash(data[gate.BUFFER_HEADER:]), (str(Pubkey.from_bytes(data[5:37])) if data[4] == 1 else None)
+
+
+def gate_record(ledger, name: str, elf: bytes, payer: Keypair | None = None, jwt: str | None = None, say=print) -> int:
+    """0 when the upgrade gate holds a record that GitHub built these bytes for the program, 3 when the gate is not
+    deployed on this cluster, 4 when it is and holds no record. With a token and a payer, a missing record is written
+    first: the token is verified on chain by knos-oidc, then handed to the gate."""
+    program, h = Pubkey.from_string(program_id(name)), gate.executable_hash(elf)
+    at = gate.record_pda(program, h)
+    if program_state(ledger, "upgrade_gate") is None:
+        say(f"  upgrade gate: not deployed on this cluster ({gate.GATE_ID}), so no record of {name}'s build can exist")
+        return 3
+    rec = gate.read_record(ledger.account(at))
+    if rec is None and jwt and payer is not None:
+        done = relay.verify_only(ledger, payer, jwt)
+        if not done.get("ok"):
+            say(f"  upgrade gate: the token for {name} could not be verified on chain ({done.get('error') or done}). No record was written")
+            return 4
+        key = oidc.read_token(ledger.account(Pubkey.from_string(done["account"]))).key
+        say(f"  upgrade gate: record written: {ledger.send([gate.record_ix(payer.pubkey(), Pubkey.from_string(done['account']), key, program, h)], payer)}")
+        rec = gate.read_record(ledger.account(at))
+    if rec is None or rec.executable != h:
+        say(f"  upgrade gate: NO record that GitHub built {h.hex()} for {name} ({at} does not exist)")
+        return 4
+    say(f"  upgrade gate: GitHub's runner built {h.hex()} for {name} from commit {rec.sha} (run {rec.run_id}, record {at})")
+    return 0
+
+
+def gate_awaited(ledger, name: str, elf: bytes, payer: Keypair | None = None, jwt: str | None = None, wait: float = 0, every: float = 15, say=print,
+                 sleep=time.sleep, clock=time.monotonic) -> int:
+    """`gate_record`, asked again every `every` seconds for up to `wait` seconds while the gate is there and the record
+    is not: program.yml's gate job asks GitHub for the token after the verified builds, and a relayer carries it, so a
+    record of a build that was just pushed is still on its way. Says once that it waits, and at the end what is so."""
+    said: list[str] = []
+    rc = gate_record(ledger, name, elf, payer, jwt, said.append)
+    end = clock() + wait
+    if rc == 4 and wait > 0:
+        say(f"  upgrade gate: no record of this build of {name} yet. Waiting up to {round(wait)} seconds for it: program.yml's gate job has GitHub sign "
+            f"the hash of each build it makes on main or a release tag ({gate.WORKFLOW}), and a relayer carries that to the gate. Asking every {round(every)} seconds")
+    while rc == 4 and clock() < end:
+        sleep(min(every, max(0.0, end - clock())))
+        said.clear()
+        try:
+            rc = gate_record(ledger, name, elf, say=said.append)
+        except (OSError, chain.RpcError) as why:    # the cluster did not answer this once: asked again
+            said.append(f"  upgrade gate: the cluster did not answer ({type(why).__name__}); NO record that GitHub built this build of {name} was read")
+    for line in said:
+        say(line)
+    return rc
+
+
+def rc_ids(oidc_id: str, pay_id: str) -> dict:
+    """The staging ids file: the pinned file with the two staging programs in place of the real ones, and a line that
+    says what it is. Every other value is the pinned one: the programs' own constants cannot be staged."""
+    for address in (oidc_id, pay_id):
+        Pubkey.from_string(address)
+    pinned = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+    if oidc_id == pinned["knos_oidc"] or pay_id == pinned["knos_pay"] or oidc_id == pay_id:
+        raise SystemExit("refused: a staging program must have an address of its own, not a pinned one. Nothing was written.")
+    return {**pinned, "knos_oidc": oidc_id, "knos_pay": pay_id,
+            "staging": "A STAGING deployment (scripts/deploy_v2.sh --rc): the 2.1 builds under ids of their own, for rehearsal. Not the pinned programs."}
+
+
+def schedule(parts: list[dict], rpc: str, wait: int = 600) -> dict:
+    """What scripts/schedule_upgrade.sh reads: each proposal, and the one time at which all of them can be executed (the
+    latest of their times) plus `wait` seconds, so the run does not start on the very second the time lock ends."""
+    if not parts:
+        raise SystemExit("refused: no proposal was given, so there is nothing to schedule.")
+    waiting = [p for p in parts if not p.get("executable_from")]
+    if waiting:
+        raise SystemExit("refused: " + ", ".join(f"proposal {p.get('index')} ({p.get('program')})" for p in waiting) + " is not approved yet, so its 48 hours "
+                         "have not started. Another member approves with: node scripts/governance.mjs approve upgrade <index> --member FILE. Then run --propose again.")
+    last = max(int(p["executable_from"]) for p in parts)
+    return {"rpc": rpc, "executable_from": last, "executable_from_utc": when(last), "run_at": last + wait, "run_at_utc": when(last + wait),
+            "proposals": sorted(({k: p[k] for k in ("program", "address", "buffer", "hash", "index", "approved_at", "executable_from")} for p in parts),
+                                key=lambda p: int(p["index"]))}
+
+
+def summary_new(ledger) -> tuple[bool, str]:
+    """(complete, one line) for the programs 0.3.13 deploys for the first time."""
+    vault, ok, said = pay.IDS["upgrade_authority"], True, []
+    for name in NEW:
+        state = program_state(ledger, name)
+        ok &= state is not None and state[1] == vault
+        said.append(f"{name} {program_id(name)} is not deployed" if state is None else
+                    f"{name} {program_id(name)} runs the build {state[0]}, and its upgrade authority is "
+                    + ("the upgrade vault " + vault if state[1] == vault else f"{state[1] or 'none'}, NOT the upgrade vault {vault}"))
+    return ok, "on chain now: " + "; ".join(said) + "."
 
 
 def init_faucet(ledger, payer: Keypair, say=print) -> Pubkey:
@@ -170,20 +295,44 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--rpc", default="https://api.devnet.solana.com")
     ap.add_argument("--payer", type=Path, help="the fee payer's keypair file")
-    ap.add_argument("step", choices=["cluster", "hash", "program", "faucet", "keys", "fee-account", "addresses", "transactions", "summary"])
+    ap.add_argument("--wait", type=float, default=0, help="gate: seconds to wait for a record that is not there yet")
+    ap.add_argument("step", choices=["cluster", "hash", "id", "program", "buffer", "gate", "rc-ids", "schedule", "faucet", "keys", "fee-account",
+                                     "addresses", "transactions", "summary", "summary-new"])
     ap.add_argument("arg", nargs="?")
+    ap.add_argument("more", nargs="*")
     a = ap.parse_args(argv)
     if a.step == "hash":
         print(mc.elf_hash(Path(a.arg).read_bytes()))
+        return 0
+    if a.step == "id":
+        print(program_id(a.arg))
+        return 0
+    if a.step == "rc-ids":
+        out = Path(a.more[1])
+        out.write_text(json.dumps(rc_ids(a.arg, a.more[0]), indent=2) + "\n", encoding="utf-8")
+        print(f"  wrote {out}: knos_oidc {a.arg}, knos_pay {a.more[0]} (staging)")
+        return 0
+    if a.step == "schedule":
+        plan = schedule([json.loads(Path(f).read_text(encoding="utf-8")) for f in a.more], a.rpc)
+        Path(a.arg).write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+        print(f"  both upgrades can be executed from {plan['executable_from_utc']}; the scheduler runs them at {plan['run_at_utc']} ({a.arg})")
         return 0
     ledger = chain.Ledger(a.rpc)
     if a.step == "cluster":
         print(CLUSTERS.get(chain.call(a.rpc, "getGenesisHash", []), "local"))
         return 0
-    if a.step == "program":
-        state = program_state(ledger, a.arg)
+    if a.step in ("program", "buffer"):
+        state = program_state(ledger, a.arg) if a.step == "program" else buffer_state(ledger, a.arg)
         print("absent" if state is None else f"{state[0]} {state[1] or 'none'}")
         return 0
+    if a.step == "gate":
+        jwt = Path(a.more[1]).read_text(encoding="utf-8").strip() if len(a.more) > 1 else None
+        payer = Keypair.from_bytes(bytes(json.loads(a.payer.read_text(encoding="utf-8")))) if jwt and a.payer else None
+        return retrying(lambda: gate_awaited(ledger, a.arg, Path(a.more[0]).read_bytes(), payer, jwt, a.wait))
+    if a.step == "summary-new":
+        ok, line = summary_new(ledger)
+        print(line)
+        return 0 if ok else 1
     if a.step in ("addresses", "transactions"):
         found = addresses(genesis_keys())
         if a.step == "addresses":

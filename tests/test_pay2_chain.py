@@ -22,7 +22,7 @@ from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 from solders.system_program import CreateAccountParams, create_account  # noqa: E402
 
-from _pay2 import GUARDIAN, TEST_CLAIM_SHA, WF_REPO, WF_SHA, Chain, ChainLedger, github_claims  # noqa: E402
+from _pay2 import GUARDIAN, TEST_CLAIM_SHA, USDC_KEY, WF_REPO, WF_SHA, Chain, ChainLedger, github_claims  # noqa: E402
 from _settle import NOW, modulus, sign_jwt, signing_key  # noqa: E402
 
 from knos.settle.v2 import oidc, pay  # noqa: E402
@@ -70,6 +70,11 @@ def swap(ix: Instruction, name: str, key: Pubkey) -> Instruction:
     return Instruction(ix.program_id, bytes(ix.data), acc)
 
 
+def pay_ix(c: Chain, relayer: Pubkey, tok: Pubkey, *args, **kw) -> Instruction:
+    """pay.pay_ix with the token's single-use marker, read from its token account."""
+    return pay.pay_ix(relayer, tok, *args, used=c.data(tok), **kw)
+
+
 def transfer(c: Chain, source: Pubkey, dest: Pubkey, amount: int, owner: Keypair, mint: Pubkey | None = None) -> None:
     """A plain TransferChecked, as any wallet would send it."""
     mint = mint or c.usdc
@@ -81,7 +86,7 @@ def transfer(c: Chain, source: Pubkey, dest: Pubkey, amount: int, owner: Keypair
 def setup(c: Chain) -> Chain:
     """A stand-in for USDC, the fee account, the repository owner's Balance (the owner and one maintainer spend it by
     comment) and a sponsor's wallet."""
-    c.usdc = c.new_mint()
+    c.usdc = c.new_mint(keypair=USDC_KEY)
     c.fee = c.token_account(pay.FEE_OWNER, c.usdc)
     c.owner, c.owner_tok = c.wallet(c.usdc, 1_000_000 * USDC)
     assert c.send([pay.open_balance_ix(c.owner.pubkey(), OWNER, c.usdc, spenders=[MAINT])], c.owner), c.err
@@ -152,7 +157,7 @@ def do_pay(c: Chain, job: Pubkey, tok: Pubkey, payee: int = AUTHOR, wallet: Pubk
     j = pay.read_job(c.data(job))
     if wallet is not None:
         c.token_account(wallet, j.mint)
-    return c.send([pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, payee, wallet)], tag=tag)
+    return c.send([pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, payee, wallet)], tag=tag)
 
 
 def proven(c: Chain, job: Pubkey, payee: int = AUTHOR, wallet: Pubkey | None = None, tag: str | None = None) -> Pubkey:
@@ -587,12 +592,13 @@ def test_a_proof_pays_the_address_the_token_carries(chain):
     assert (c.balance(pay.ata(wallet, c.usdc)), c.balance(c.fee) - fee0, vault0 - c.balance(pay.vault_pda(c.usdc))) == (4_875_000, 125_000, 5 * USDC)
     assert c.data(job) is None
     assert c.said("knos2:") == [f"knos2:paid repo={REPO} issue={j.issue} payee={payee} amount=4875000 fee=125000 to={wallet}"]
-    # the relayer paid the transaction and the rent of the payee's record and pair, and got the job's rent back (it had paid it)
+    # the relayer paid the transaction and the rent of the payee's record, of the pair and of the token's single-use
+    # marker (which keeps who paid for it and when it may be closed), and got the job's rent back (it had paid it)
     rent = c.svm.minimum_balance_for_rent_exemption
-    assert c.lamports(c.payer.pubkey()) - sol0 == rent(pay.JOB_LEN) - rent(pay.REP_LEN) - rent(1) - 2 * 5000
+    assert c.lamports(c.payer.pubkey()) - sol0 == rent(pay.JOB_LEN) - rent(pay.REP_LEN) - rent(1) - rent(pay.USED_LEN) - 2 * 5000
     # the same proof cannot pay twice: the job is gone
     assert pay.read_job(c.data(job)) is None
-    assert not c.send([pay.pay_ix(c.payer.pubkey(), pay_token_for(c, j, payee, wallet), c.key, job, j, payee, wallet)]) and code(c) == 82
+    assert not c.send([pay_ix(c, c.payer.pubkey(), pay_token_for(c, j, payee, wallet), c.key, job, j, payee, wallet)]) and code(c) == 82
 
 
 def pay_token_for(c: Chain, j: pay.Job, payee: int, address: Pubkey | None = None, **over):
@@ -609,8 +615,8 @@ def test_a_proof_pays_the_payees_bound_wallet_whatever_address_the_token_carries
     # a relayer cannot send it to the address in the token, nor hide the Bind behind another account
     c.token_account(named, c.usdc)
     j = pay.read_job(c.data(job))
-    assert not c.send([pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, payee, named)]) and code(c) == 88
-    hidden = swap(pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, payee, named), "bind", pay.bind_pda(user()))
+    assert not c.send([pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, payee, named)]) and code(c) == 88
+    hidden = swap(pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, payee, named), "bind", pay.bind_pda(user()))
     assert not c.send([hidden]) and code(c) == 88
     assert do_pay(c, job, tok, payee, bound), c.err
     assert (c.balance(pay.ata(bound, c.usdc)), c.balance(pay.ata(named, c.usdc))) == (39 * USDC, 0)     # the fee: 2.5% of 40
@@ -806,7 +812,7 @@ def test_a_job_is_not_paid_with(chain, what):
     tok = make(c, job)
     assert tok is not None, c.err
     # with the key account the token account itself names, as a relayer finds it: what is refused is the token
-    ix = pay.pay_ix(c.payer.pubkey(), tok, c.key_of(tok), job, j, AUTHOR, c.wallet_of_author)
+    ix = pay_ix(c, c.payer.pubkey(), tok, c.key_of(tok), job, j, AUTHOR, c.wallet_of_author)
     if change:
         ix = swap(ix, change[0], change[1](c, job))
     assert not c.send([ix]), f"{what}: accepted"
@@ -827,7 +833,7 @@ def test_a_proof_pays_nothing_after_the_deadline_and_no_job_twice(chain):
     tok = pay_token(c, job, AUTHOR, wallet)
     c.warp(60)
     assert do_pay(c, job, tok, AUTHOR, wallet), c.err                # the deadline's own second
-    assert not c.send([pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, AUTHOR, wallet)]) and code(c) == 82    # the job is gone
+    assert not c.send([pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, AUTHOR, wallet)]) and code(c) == 82    # the job is gone
     job = fund_wallet(c, work_s=60)
     tok = pay_token(c, job, AUTHOR, wallet)
     c.warp(61)
@@ -835,12 +841,12 @@ def test_a_proof_pays_nothing_after_the_deadline_and_no_job_twice(chain):
     assert refund(c, job), c.err
     # a relayer must sign, and pay the record's rent itself
     job = fund_wallet(c)
-    ix = pay.pay_ix(c.payer.pubkey(), pay_token(c, job, AUTHOR, wallet), c.key, job, pay.read_job(c.data(job)), AUTHOR, wallet)
+    ix = pay_ix(c, c.payer.pubkey(), pay_token(c, job, AUTHOR, wallet), c.key, job, pay.read_job(c.data(job)), AUTHOR, wallet)
     unsigned = Instruction(ix.program_id, bytes(ix.data), [AccountMeta(c.funder.pubkey(), False, True), *ix.accounts[1:]])
     assert not c.send([unsigned]) and code(c) == 80
 
 
-def test_one_proof_pays_every_job_on_the_issue_that_pins_the_same_workflow_and_terms(chain):
+def test_one_proof_pays_one_job_and_every_job_on_the_issue_is_paid_by_a_proof_of_its_own(chain):
     c = chain
     n, payee, wallet = issue(), user(), Keypair().pubkey()
     c.token_account(wallet, c.usdc)
@@ -856,8 +862,10 @@ def test_one_proof_pays_every_job_on_the_issue_that_pins_the_same_workflow_and_t
     found = ChainLedger(c).program_accounts(pay.PAY_ID, pay.JOB_LEN, {8: REPO.to_bytes(8, "little") + n.to_bytes(8, "little")})
     assert {a for a, _d in found} == {own, added, theirs} and all(pay.read_job(d).issue == n for _a, d in found)
     tok = pay_token(c, own, payee, wallet)
-    for job in (own, added):
-        assert do_pay(c, job, tok, payee, wallet), c.err
+    assert do_pay(c, own, tok, payee, wallet), c.err
+    # a pay token pays exactly one job (2.1): the second job on the issue needs a token of another run
+    assert not do_pay(c, added, tok, payee, wallet) and code(c) == 91
+    assert do_pay(c, added, pay_token(c, added, payee, wallet), payee, wallet), c.err
     assert c.balance(pay.ata(wallet, c.usdc)) == 4_875_000 + 19_500_000
     assert not do_pay(c, theirs, tok, payee, wallet) and code(c) == 86
 
@@ -1115,7 +1123,7 @@ def each_use(c: Chain) -> dict[str, Instruction]:
     c.token_account(wallet, c.usdc)
     return {"FundBalance": pay.fund_balance_ix(me, fund_token(c, n), c.key, c.bal, c.usdc, REPO, n, TERMS),
             "FaucetOpen": pay.faucet_open_ix(me, faucet_token(c, n, org, repo), c.key, org, repo),
-            "Pay": pay.pay_ix(me, pay_token(c, job, AUTHOR, wallet), c.key, job, pay.read_job(c.data(job)), AUTHOR, wallet),
+            "Pay": pay_ix(c, me, pay_token(c, job, AUTHOR, wallet), c.key, job, pay.read_job(c.data(job)), AUTHOR, wallet),
             "Bind": pay.bind_ix(me, bind_token(c, who, wallet), c.key, who)}
 
 
@@ -1194,14 +1202,17 @@ def test_a_token_is_refused_while_its_key_is_expired_and_works_again_once_the_ke
     key, the same tokens work again for what is left of their own time."""
     c = setup(Chain())
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
+    second = c.second_key()                             # another key of GitHub's: it lives a day longer than the first
     expires = oidc.read_key(c.data(c.key)).expires_at
     assert expires == NOW + oidc.KEY_TTL == NOW + 30 * DAY
     c.warp(expires - c.now() - 240)                     # four minutes before the key expires
     in_time, wallet = fund_wallet(c), Keypair().pubkey()
     last = pay_token(c, in_time, AUTHOR, wallet)
     uses = each_use(c)
-    attest = c.attest(oidc.GITHUB, c.github)            # GitHub names its key again, in a token verified while the key still verifies
-    assert attest is not None, c.err
+    # GitHub names its key again. The verifier takes an attestation only while the key that verified it is usable, so
+    # one verified under the key that is about to expire is worth nothing afterwards; one under the second key is
+    stale, attest = c.attest(oidc.GITHUB, c.github), c.attest(oidc.GITHUB, c.github, by=second)
+    assert stale is not None and attest is not None, c.err
     c.warp(expires - c.now() - 1)
     assert do_pay(c, in_time, last, AUTHOR, wallet), c.err   # the key's last second
     before = untouched(c, uses)
@@ -1211,6 +1222,7 @@ def test_a_token_is_refused_while_its_key_is_expired_and_works_again_once_the_ke
         assert not c.send([ix]) and code(c) == 77, (name, c.err)
     assert untouched(c, uses) == before
     assert c.gh(pay.bind_audience(wallet)) is None and code(c) == 77      # the verifier verifies nothing new with it either
+    assert not c.refresh(oidc.GITHUB, c.github, stale) and code(c) == 77
     assert c.refresh(oidc.GITHUB, c.github, attest), c.err
     assert oidc.read_key(c.data(c.key)).expires_at == c.now() + oidc.KEY_TTL
     for name, ix in uses.items():
@@ -1274,11 +1286,11 @@ def test_the_guardian_pauses_new_funding_only_and_nobody_else_can(chain):
 
 # -- mints -------------------------------------------------------------------------------------------------------------
 def test_a_token_2022_stablecoin_with_its_usual_extensions_works_end_to_end(chain):
-    """PermanentDelegate, a transfer hook with an authority and no program, ConfidentialTransfer and a 0-bps transfer
-    fee: what PYUSD, USDG, AUSD and CASH carry."""
+    """A Token-2022 mint with extensions on the allow-list: ConfidentialTransfer and a mint close authority. (The
+    stablecoins that also carry a permanent delegate, a transfer hook authority or a transfer fee are refused since
+    2.1: tests/test_order_chain.py.)"""
     c = chain
-    issuer = c.payer.pubkey()
-    coin = c.new_mint22(fee=(0, 0), confidential=True, permanent_delegate=issuer, hook=(issuer, None))
+    coin = c.new_mint22(confidential=True, close_authority=True)
     t22 = pay.TOKEN_2022
     assert c.token_program(coin) == t22 and len(c.data(coin)) > 165
     fee = c.token_account(pay.FEE_OWNER, coin)
@@ -1288,7 +1300,7 @@ def test_a_token_2022_stablecoin_with_its_usual_extensions_works_end_to_end(chai
     assert c.send([pay.open_balance_ix(w.pubkey(), org, coin, spenders=[MAINT], token_program=t22)], w, tag="open_balance_2022"), c.err
     bal = pay.balance_pda(org, w.pubkey(), coin)
     baltok = pay.baltok_pda(bal)
-    assert c.svm.get_account(baltok).owner == t22 and len(c.data(baltok)) > 165       # sized by GetAccountDataSize: the mint's extensions need room
+    assert c.svm.get_account(baltok).owner == t22 and len(c.data(baltok)) >= 165      # sized by GetAccountDataSize: whatever the mint's extensions need
     transfer(c, wtok, baltok, 300 * USDC, w, coin)
     job = fund_balance(c, amount=100 * USDC, balance=bal, repo=repo, repository_owner_id=org, repository_id=repo)
     j = pay.read_job(c.data(job))
@@ -1320,7 +1332,7 @@ def test_a_token_2022_stablecoin_with_its_usual_extensions_works_end_to_end(chai
     ix = pay.fund_wallet_ix(w.pubkey(), wtok, coin, REPO, issue(), 5 * USDC, WF_REPO, WF_SHA, TERMS, token_program=pay.TOKEN)
     assert not c.send([ix], w) and code(c) == 95
     job = fund_wallet(c, funder=w, funder_tok=wtok, mint=coin)
-    ix = pay.pay_ix(c.payer.pubkey(), pay_token(c, job, payee, wallet), c.key, job, pay.read_job(c.data(job)), payee, wallet)
+    ix = pay_ix(c, c.payer.pubkey(), pay_token(c, job, payee, wallet), c.key, job, pay.read_job(c.data(job)), payee, wallet)
     assert not c.send([swap(ix, "destToken", c.funder_tok)]) and code(c) == 88
     assert not c.send([swap(ix, "tokenProgram", pay.TOKEN)]) and code(c) == 95
     assert c.send([ix]), c.err
@@ -1374,22 +1386,34 @@ def test_a_mint_is_a_mint_of_the_token_program_passed_and_harmless_extensions_ar
     assert not open_(c.usdc, pay.TOKEN_2022) and code(c) == 95
     assert not open_(plain22, pay.TOKEN) and code(c) == 95
     assert not open_(c.usdc, pay.ATA_PROGRAM) and code(c) == 95
-    # accepted: no extensions; a fee that takes nothing; an initialised default state; a hook and a delegate with nobody behind them
-    for mint in (plain22, c.new_mint22(fee=(0, 9 * USDC)), c.new_mint22(fee=(250, 0)), c.new_mint22(default_state=1),
-                 c.new_mint22(hook=(SOMEONE, None), permanent_delegate=c.payer.pubkey(), confidential=True)):
+    # accepted: no extensions, and the ones on the allow-list
+    for mint in (plain22, c.new_mint22(close_authority=True), c.new_mint22(confidential=True)):
         assert open_(mint, pay.TOKEN_2022), c.err
-    # a 9-decimal SPL Token mint: amounts are the mint's smallest units, and TransferChecked carries its decimals
+    # refused since 2.1, whatever they hold today: a fee that takes nothing, an initialised default state, a hook and a
+    # delegate with nobody behind them
+    for mint in (c.new_mint22(fee=(0, 9 * USDC)), c.new_mint22(fee=(250, 0)), c.new_mint22(default_state=1),
+                 c.new_mint22(hook=(SOMEONE, None)), c.new_mint22(permanent_delegate=c.payer.pubkey())):
+        assert not open_(mint, pay.TOKEN_2022) and code(c) == 95
+    # a 9-decimal SPL Token mint: the bounds are whole units of it, and TransferChecked carries its decimals
     nine = c.new_mint(9)
-    k, ktok = c.wallet(nine, 50 * USDC)
+    k, ktok = c.wallet(nine, 50 * 10 ** 9)
     c.token_account(pay.FEE_OWNER, nine)
-    job = fund_wallet(c, amount=5 * USDC, funder=k, funder_tok=ktok, mint=nine)
+    job = fund_wallet(c, amount=5 * 10 ** 9, funder=k, funder_tok=ktok, mint=nine)
     wallet = proven(c, job)
-    assert c.balance(pay.ata(wallet, nine)) == 4_875_000
+    assert c.balance(pay.ata(wallet, nine)) == 4_875_000_000
+
+
+def add_extension(c: Chain, mint: Pubkey, kind: int, value: bytes) -> None:
+    """Rewrites a plain Token-2022 mint as the same mint with one extension: how a mint that entered under the rules
+    of 2.0 with an extension 2.1 refuses stands on chain."""
+    a = c.svm.get_account(mint)
+    data = bytes(a.data)[:82] + bytes(83) + b"\x01" + kind.to_bytes(2, "little") + len(value).to_bytes(2, "little") + value
+    c.svm.set_account(mint, Account(a.lamports + 10 ** 7, data, a.owner))
 
 
 def test_a_mint_that_turns_bad_takes_no_new_money_and_money_in_escrow_still_leaves(chain):
     c = chain
-    coin = c.new_mint22(fee=(0, 0))
+    coin = c.new_mint22()
     c.token_account(pay.FEE_OWNER, coin)
     w, wtok = c.wallet(coin, 100 * USDC)
     org, repo = user(), user()
@@ -1397,7 +1421,7 @@ def test_a_mint_that_turns_bad_takes_no_new_money_and_money_in_escrow_still_leav
     bal = pay.balance_pda(org, w.pubkey(), coin)
     transfer(c, wtok, pay.baltok_pda(bal), 60 * USDC, w, coin)
     job = fund_balance(c, amount=10 * USDC, balance=bal, repo=repo, actor=org, repository_owner_id=org, repository_id=repo)
-    c.set_fee22(coin, 100, 1 * USDC)            # the issuer schedules a 1% fee
+    add_extension(c, coin, 12, bytes(c.payer.pubkey()))     # the mint now carries a permanent delegate
     # no new job in this mint, from the Balance or from a wallet
     n = issue()
     tok = fund_token(c, n, actor=org, balance=bal, repository_owner_id=org, repository_id=repo)
@@ -1427,7 +1451,7 @@ def test_an_address_that_was_sent_lamports_before_it_exists_is_still_created(cha
     wallet = Keypair().pubkey()
     assert bind(c, payee, wallet), c.err
     assert do_pay(c, job, pay_token(c, job, payee), payee, wallet), c.err
-    assert c.balance(pay.ata(wallet, coin)) == 9_750_000 and pay.read_rep(c.data(pay.rep_pda(payee))).paid == 1
+    assert c.balance(pay.ata(wallet, coin)) == 9_750_000 and pay.read_rep(c.data(pay.rep_pda(payee))).test_paid == 1
     assert c.lamports(w.pubkey()) > 0 and c.data(job) is None
 
 
@@ -1466,7 +1490,7 @@ def test_a_frozen_or_missing_destination_moves_nothing_and_one_transaction_takes
     j, payee, wallet = pay.read_job(c.data(job)), user(), Keypair().pubkey()
     dest, vault = c.token_account(wallet, coin), pay.vault_pda(coin)
     tok = pay_token(c, job, payee, wallet)
-    ix = pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, payee, wallet)
+    ix = pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, payee, wallet)
 
     def untouched() -> bool:
         return (c.balance(vault), c.balance(fee_tok), c.balance(dest), pay.read_job(c.data(job)).state) == (10 * USDC, 0, 0, "open")
@@ -1476,7 +1500,7 @@ def test_a_frozen_or_missing_destination_moves_nothing_and_one_transaction_takes
 
     assert c.send([freeze(10)]), c.err
     assert not c.send([ix]) and code(c) == 17 and untouched(), c.err              # the token program's "account is frozen"
-    assert not c.send([pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, payee, wallet, Keypair().pubkey())]) and code(c) == 88 and untouched()
+    assert not c.send([pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, payee, wallet, Keypair().pubkey())]) and code(c) == 88 and untouched()
     assert c.send([freeze(11)]), c.err
     assert not c.send([ix, ix]) and code(c) == 82 and untouched(), c.err
     assert not c.send([ix, pay.refund_ix(c.payer.pubkey(), job, j)]) and code(c) == 82 and untouched(), c.err
@@ -1501,14 +1525,16 @@ def test_tokens_sent_to_a_vault_directly_belong_to_no_job_and_stay_there(chain):
 
 
 def test_a_mints_issuer_keeps_its_powers_over_the_vault_and_the_job_waits(chain):
-    """A permanent delegate (the regulated stablecoins have one) can move tokens out of any account, a vault included.
-    The program cannot stop that. Its books do not change: the job stays open and is paid when the money is back."""
+    """A permanent delegate can move tokens out of any account, a vault included. Since 2.1 no money enters in such
+    a mint; a job funded before that (the mint is rewritten here to carry the delegate) keeps its books: it stays
+    open and is paid when the money is back."""
     c = chain
     issuer = c.payer
-    coin = c.new_mint22(permanent_delegate=issuer.pubkey())
+    coin = c.new_mint22()
     c.token_account(pay.FEE_OWNER, coin)
     w, wtok = c.wallet(coin, 100 * USDC)
     job = fund_wallet(c, amount=10 * USDC, funder=w, funder_tok=wtok, mint=coin)
+    add_extension(c, coin, 12, bytes(issuer.pubkey()))
     vault, seized = pay.vault_pda(coin), c.token_account(issuer.pubkey(), coin)
     transfer(c, vault, seized, 4 * USDC, issuer, coin)             # the issuer's delegate signs, not the program
     assert c.balance(vault) == 6 * USDC and pay.read_job(c.data(job)).amount == 10 * USDC
@@ -1528,8 +1554,7 @@ def test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs():
     funded == paid + fees + refunded."""
     c = Chain()
     rng = random.Random(FUZZ_SEED)
-    issuer = c.payer.pubkey()
-    mints = [c.new_mint(), c.new_mint22(fee=(0, 0), confidential=True, permanent_delegate=issuer, hook=(issuer, None))]
+    mints = [c.new_mint(), c.new_mint22(confidential=True, close_authority=True)]
     owner = c.fund(1_000)
     funder = c.fund(1_000)
     users = [9001, 9002, 9003, 9004]
@@ -1594,7 +1619,7 @@ def test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs():
             address = rng.choice([None, wallets[u]])
             to = bound.get(u, address)
             tok = pay_token(c, job, u, address, **({"wf_sha": "e" * 40} if op == "bad" else {})) if c.data(job) else None
-            ok = c.send([pay.pay_ix(c.payer.pubkey(), tok, c.key, job, pay.read_job(c.data(job)), u, to)])
+            ok = c.send([pay_ix(c, c.payer.pubkey(), tok, c.key, job, pay.read_job(c.data(job)), u, to)])
             if op == "bad" or j["held"] is not None or c.now() > j["deadline"]:
                 assert not ok, f"{op}: a job that could not be paid was"
             else:
@@ -1652,7 +1677,7 @@ def test_compute_units_are_recorded(chain):
     bundled token programs). Pay is measured over 16 payees, because the addresses it derives (bind, record, pair,
     vault) cost 1,500 units for each bump the derivation tries."""
     c = chain
-    coin = c.new_mint22(fee=(0, 0), confidential=True, permanent_delegate=c.payer.pubkey(), hook=(c.payer.pubkey(), None))
+    coin = c.new_mint22(confidential=True, close_authority=True)
     c.token_account(pay.FEE_OWNER, coin)
     w, wtok = c.wallet(coin, 1_000 * USDC)
     for _ in range(16):
@@ -1668,4 +1693,8 @@ def test_compute_units_are_recorded(chain):
         print(f"CU {tag}: {spread(c.cu[tag])}")
     top = {k: max(v) for k, v in sorted(c.cu.items()) if not k.startswith("Pay,")}
     print("CU of the other instructions, highest seen:", top)
-    assert all(max(v) < 200_000 for v in c.cu.values())     # each fits a transaction's default budget for one instruction
+    # Each fits the default budget of ONE instruction (200,000), also the one tag that is a transaction of two
+    # (faucet_open+fund_balance: its default budget is 400,000). That transaction creates five accounts and read its
+    # token twice; it cost 212,564 while every instruction that read a token also hashed the token's signature
+    # (13,900 units each time), which only the instructions that use a token up need. Measured now: 184,900.
+    assert all(max(v) < 200_000 for v in c.cu.values()), {k: max(v) for k, v in c.cu.items() if max(v) >= 200_000}

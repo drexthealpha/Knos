@@ -1,21 +1,23 @@
 //! Money coming in, and a funder's own money going back out before it is in a job: OpenBalance, SetBalance, Withdraw,
-//! FundBalance, FundWallet, Pause, and the devnet faucet (InitFaucet, FaucetOpen).
+//! FundBalance, FundWallet, Pause, the devnet faucet (InitFaucet, FaucetOpen), and of 2.1: Version, SetBalanceX (a
+//! Balance's side account of limits) and SetPlan (a lower fee rate for one repository owner).
 use crate::{err, gh::*, state::*, token::*, *};
 use knos_oidc::claims;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, msg, program_error::ProgramError, pubkey::Pubkey};
 
-fn terms_ok(amount: u64, work: i64, mode: u8) -> bool {
-    (MIN_AMOUNT..=MAX_AMOUNT).contains(&amount) && (MIN_WORK..=MAX_WORK).contains(&work) && mode <= 1
+/// A job's bounds: the amount between MIN_AMOUNT and MAX_AMOUNT whole units of its mint (`decimals` is the mint's).
+fn terms_ok(amount: u64, work: i64, mode: u8, decimals: u8) -> bool {
+    (units(MIN_AMOUNT, decimals)..=units(MAX_AMOUNT, decimals)).contains(&amount) && (MIN_WORK..=MAX_WORK).contains(&work) && mode <= 1
 }
 /// sha256 of the terms JSON a funding instruction carries: at most MAX_TERMS bytes of printable ASCII, because it is
 /// logged as one line for everyone to read.
-fn terms_hash(json: &[u8]) -> Result<[u8; 32], ProgramError> {
+pub fn terms_hash(json: &[u8]) -> Result<[u8; 32], ProgramError> {
     if json.is_empty() || json.len() > MAX_TERMS || !json.iter().all(|c| (0x20..0x7f).contains(c)) { return Err(err(E_TERMS)); }
     Ok(hashv(&[json]).to_bytes())
 }
 /// New funding is refused while the guardian's pause lasts. The account must be ["pause"] itself, so a pause cannot
 /// be hidden by passing another account.
-fn not_paused(program_id: &Pubkey, pause: &AccountInfo, now: i64) -> ProgramResult {
+pub fn not_paused(program_id: &Pubkey, pause: &AccountInfo, now: i64) -> ProgramResult {
     if *pause.key != Pubkey::find_program_address(&[b"pause"], program_id).0 { return Err(err(E_ACCOUNTS)); }
     if pause.owner == program_id && pause.data_len() == PAUSE_LEN && now < i64_at(&pause.try_borrow_data()?, 0) { return Err(err(E_PAUSED)); }
     Ok(())
@@ -25,11 +27,107 @@ fn not_paused(program_id: &Pubkey, pause: &AccountInfo, now: i64) -> ProgramResu
 /// attempt: a re-run keeps the first actor's name whoever starts it, so it would let anyone with write access spend
 /// as the commenter again. Its audience names `balance`, the Balance the instruction was given.
 fn fund_token(tok: &AccountInfo, key: &AccountInfo, balance: &Pubkey, now: i64) -> Result<(Gh, FundAud), ProgramError> {
-    let g = github(tok, key, now)?;
-    if g.wf_file != b"fund.yml" { return Err(err(E_WORKFLOW)); }
-    if (g.event != b"issue_comment" && g.event != b"issues") || !g.first_attempt { return Err(err(E_CLAIMS)); }
+    let g = fund_run(tok, key, now)?;
     let f = fund_aud(&g.aud, balance)?;
     Ok((g, f))
+}
+/// The claims of a fund token, whatever its audience: fund.yml, a comment or an issue event, the run's first attempt.
+pub fn fund_run(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> {
+    let g = fund_run_any(tok, key, now)?;
+    if by_hand_or_schedule(&g) { return Err(err(E_CLAIMS)); }
+    Ok(g)
+}
+/// The same, and also a run of fund.yml started by hand or by a schedule. Only a PRIVATE order is funded that way (its
+/// attestor repository has no comment to react to: the comment is in the private repository): the caller refuses such a
+/// run for anything else. Who may spend the Balance is asked of the run's actor all the same (`may_spend`).
+pub fn fund_run_any(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> {
+    let g = github(tok, key, now)?;
+    if g.wf_file != b"fund.yml" { return Err(err(E_WORKFLOW)); }
+    let comment = g.event == b"issue_comment" || g.event == b"issues";
+    if !(comment || by_hand_or_schedule(&g)) || !g.first_attempt { return Err(err(E_CLAIMS)); }
+    Ok(g)
+}
+pub fn by_hand_or_schedule(g: &Gh) -> bool { g.event == b"workflow_dispatch" || g.event == b"schedule" }
+/// Who may spend a Balance by comment: the run was in a repository of the Balance's owner, and the comment is the
+/// owner's or a listed spender's. The faucet's Balance is test money for any commenter the repository's own workflow
+/// lets through: GitHub's claims do not say whether an owner is a person or an organisation, and nobody comments as
+/// an organisation.
+pub fn may_spend(b: &Balance, g: &Gh) -> ProgramResult {
+    let may = b.faucet || g.actor_id == b.owner_id || b.spenders.contains(&g.actor_id);
+    if g.owner_id != b.owner_id || g.actor_id == 0 || !may { return Err(err(E_SPENDER)); }
+    Ok(())
+}
+
+/// The rules of a Balance's side account ["balx", balance], enforced on every funding from a Balance that has one
+/// (B_X), and its counters moved. `balx` must then be that account, writable: a relayer cannot leave it out. The
+/// repository is the fund token's, the commit its `job_workflow_sha`, `amount` what leaves the Balance.
+#[allow(clippy::too_many_arguments)]
+pub fn spend_x(program_id: &Pubkey, b: &Balance, balance: &Pubkey, balx: Option<&AccountInfo>, repo_id: u64, wf_sha: &[u8], amount: u64,
+               now: i64) -> ProgramResult {
+    if !b.x { return Ok(()); }
+    let x = balx.ok_or(ProgramError::NotEnoughAccountKeys)?;
+    if *x.key != balx_key(program_id, balance).0 || x.owner != program_id || x.data_len() != BALX_LEN || !x.is_writable { return Err(err(E_ACCOUNTS)); }
+    let mut d = x.try_borrow_mut_data()?;
+    let listed = (0..8).map(|k| u64_at(&d, X_REPOS + 8 * k)).filter(|r| *r != 0);
+    if listed.clone().count() > 0 && !listed.clone().any(|r| r == repo_id) { return Err(err(E_SPENDER)); }
+    if d[X_WF_SHA..X_WF_SHA + 40] != [0u8; 40] && d[X_WF_SHA..X_WF_SHA + 40] != *wf_sha { return Err(err(E_WORKFLOW)); }
+    let day = now.div_euclid(86_400);
+    let today = if i64_at(&d, X_DAY) == day { u64_at(&d, X_DAY_SPENT) } else { 0 }.checked_add(amount).ok_or_else(|| err(E_LIMIT))?;
+    let total = u64_at(&d, X_TOTAL_SPENT).checked_add(amount).ok_or_else(|| err(E_LIMIT))?;
+    let (day_limit, total_limit) = (u64_at(&d, X_DAY_LIMIT), u64_at(&d, X_TOTAL_LIMIT));
+    if (day_limit != 0 && today > day_limit) || (total_limit != 0 && total > total_limit) { return Err(err(E_LIMIT)); }
+    put_i64(&mut d, X_DAY, day); put_u64(&mut d, X_DAY_SPENT, today); put_u64(&mut d, X_TOTAL_SPENT, total);
+    Ok(())
+}
+
+/// 12 Version: a client simulates it to learn whether 2.1 is live (2.0 refuses the tag).
+pub fn version(data: &[u8]) -> ProgramResult {
+    if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
+    msg!("knos2:version {}", VERSION);
+    Ok(())
+}
+
+/// 13 SetBalanceX: the wallet that opened a Balance sets its side account (created on first use; the counters stay).
+/// From then on every funding from the Balance enforces it.
+pub fn set_balance_x(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
+    let [authority, balance, balx, sys] = take(accounts)?;
+    if data.len() != 120 { return Err(ProgramError::InvalidInstructionData); }
+    let b = load_balance(program_id, balance)?;
+    if !authority.is_signer || !authority.is_writable || *authority.key != b.authority { return Err(err(E_BALANCE)); }
+    let sha = &data[80..120];
+    if *sha != [0u8; 40] && !claims::is_hex(sha, 40) { return Err(err(E_TERMS)); }
+    let (new, bump) = open(program_id, authority, balx, sys, BALX_LEN, &[b"balx", balance.key.as_ref()], E_ACCOUNTS)?;
+    let mut d = balx.try_borrow_mut_data()?;
+    if new { d[X_VERSION] = 1; d[X_BUMP] = bump; }
+    d[X_DAY_LIMIT..X_WF_SHA + 40].copy_from_slice(data);
+    balance.try_borrow_mut_data()?[B_X] = 1;
+    msg!("knos2:balancex balance={} day={} total={}", b58(balance.key), u64_at(data, 0), u64_at(data, 8));
+    Ok(())
+}
+
+/// 14 SetPlan: FEE_OWNER sets the fee rate of one repository owner's orders until `expires` (the contract is off
+/// chain, the rate is on chain). It can only lower what a funder pays: PLAN_BPS_MIN..=FEE_BPS.
+pub fn set_plan(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
+    let [fee_owner, payer, plan, sys] = take(accounts)?;
+    if data.len() != 18 { return Err(ProgramError::InvalidInstructionData); }
+    let (owner_id, bps, expires) = (u64_at(data, 0), u16_at(data, 8), i64_at(data, 10));
+    if !fee_owner.is_signer || (*fee_owner.key != FEE_OWNER && Some(*fee_owner.key) != TEST_PLAN_SIGNER) { return Err(err(E_PLAN)); }
+    if owner_id == 0 || !(PLAN_BPS_MIN..=FEE_BPS).contains(&(bps as u64)) || expires <= now { return Err(err(E_PLAN)); }
+    if !payer.is_signer || !payer.is_writable { return Err(err(E_ACCOUNTS)); }
+    let (_, bump) = open(program_id, payer, plan, sys, PLAN_LEN, &[b"plan", &data[0..8]], E_ACCOUNTS)?;
+    let mut d = plan.try_borrow_mut_data()?;
+    d[P_VERSION] = 1; d[P_BUMP] = bump;
+    put_u16(&mut d, P_BPS, bps); put_u64(&mut d, P_OWNER, owner_id); put_i64(&mut d, P_EXPIRES, expires);
+    msg!("knos2:plan owner={} bps={} expires={}", owner_id, bps, expires);
+    Ok(())
+}
+/// The fee rate of the orders of `owner_id` now: its Plan's while it lasts, FEE_BPS otherwise. `plan` must be
+/// ["plan", owner_id] itself, so a Plan of another owner cannot be passed.
+pub fn plan_bps(program_id: &Pubkey, plan: &AccountInfo, owner_id: u64, now: i64) -> Result<u64, ProgramError> {
+    if *plan.key != Pubkey::find_program_address(&[b"plan", &owner_id.to_le_bytes()], program_id).0 { return Err(err(E_ACCOUNTS)); }
+    if plan.owner != program_id || plan.data_len() != PLAN_LEN { return Ok(FEE_BPS); }
+    let d = plan.try_borrow_data()?;
+    Ok(if now < i64_at(&d, P_EXPIRES) { (u16_at(&d, P_BPS) as u64).clamp(PLAN_BPS_MIN, FEE_BPS) } else { FEE_BPS })
 }
 
 /// Fills a Balance that `open` just created, and creates its token account ["baltok", balance].
@@ -137,6 +235,7 @@ fn escrow<'a>(program_id: &Pubkey, e: &Escrow<'a, '_>, m: &Mint, n: &NewJob, jso
 /// One comment funds a job from a Balance. Anyone may relay the token; what it can do is fixed by GitHub's signature.
 pub fn fund_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &[u8], now: i64) -> ProgramResult {
     let [relayer, tok, key, balance, baltok, job, vault, mint, auth, token, sys, pause] = take(accounts)?;
+    let balx = accounts.get(12);    // ["balx", balance]: required when the Balance has one
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     not_paused(program_id, pause, now)?;
     let b = load_balance(program_id, balance)?;
@@ -144,13 +243,10 @@ pub fn fund_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &[u8], 
     let m = mint_of(mint, token, true)?;
     // the token names this Balance: the funder's workflow picked it, and a relayer cannot spend another one with it
     let (g, f) = fund_token(tok, key, balance.key, now)?;
-    // the run was in a repository of the Balance's owner, and the comment is the owner's or a listed spender's. The
-    // faucet's Balance is test money for any commenter the repository's own workflow lets through: GitHub's claims
-    // do not say whether an owner is a person or an organisation, and nobody comments as an organisation.
-    let may = b.faucet || g.actor_id == b.owner_id || b.spenders.contains(&g.actor_id);
-    if g.owner_id != b.owner_id || g.actor_id == 0 || !may { return Err(err(E_SPENDER)); }
-    if !terms_ok(f.amount, f.work, f.mode) || terms_hash(json)? != f.terms { return Err(err(E_TERMS)); }
+    may_spend(&b, &g)?;
+    if !terms_ok(f.amount, f.work, f.mode, m.decimals) || terms_hash(json)? != f.terms { return Err(err(E_TERMS)); }
     if b.cap != 0 && f.amount > b.cap { return Err(err(E_CAP)); }
+    spend_x(program_id, &b, balance.key, balx, g.repo_id, &g.wf_sha, f.amount, now)?;
     // a fund token works once: it names one Balance, and a Balance takes its tokens in the order GitHub issued them
     if g.iat <= b.last_iat { return Err(err(E_REPLAY)); }
     if amount_of(baltok, token.key, E_ACCOUNTS)? < f.amount { return Err(err(E_FUNDS)); }
@@ -175,7 +271,7 @@ pub fn fund_wallet(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], n
     let m = mint_of(mint, token, true)?;
     let (repo, issue, amount, work, mode) = (u64_at(data, 0), u64_at(data, 8), u64_at(data, 16), i64_at(data, 24), data[32]);
     let (wf_repo, wf_sha, json) = (&data[33..65], &data[65..105], &data[105..]);
-    if !terms_ok(amount, work, mode) || repo == 0 || !claims::is_hex(wf_sha, 40) { return Err(err(E_TERMS)); }
+    if !terms_ok(amount, work, mode, m.decimals) || repo == 0 || !claims::is_hex(wf_sha, 40) { return Err(err(E_TERMS)); }
     let terms = terms_hash(json)?;
     let faucet = DEVNET && *mint.key == faucet_mint(program_id).0;
     escrow(program_id, &Escrow { payer: funder, job, from: funder_tok, authority: funder, vault, mint, auth, token, sys, auth_signs: false }, &m,
@@ -223,8 +319,17 @@ pub fn faucet_open(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], n
     let m = mint_of(mint, token, true)?;
     // the token names the account passed as the Balance; `open` below takes that account only at the address of the
     // repository owner's faucet Balance. So the audience's Balance is that one, and no other.
-    let (g, f) = fund_token(tok, key, balance.key, now)?;
-    if !terms_ok(f.amount, f.work, f.mode) || f.amount > FAUCET_CAP { return Err(err(E_TERMS)); }
+    // a job's fund token (knos2) mints its amount; an order's (knos3) its amount and the fee the funder pays on top
+    let g = fund_run(tok, key, now)?;
+    let amount = if g.aud.starts_with(b"knos3:") {
+        let f = crate::order::order_fund_aud(&g.aud, balance.key)?;
+        if !crate::order::order_terms_ok(f.amount, f.work, f.mode, m.decimals) || f.amount > FAUCET_CAP { return Err(err(E_TERMS)); }
+        f.amount + order_fee(f.amount, FEE_BPS, m.decimals)
+    } else {
+        let f = fund_aud(&g.aud, balance.key)?;
+        if !terms_ok(f.amount, f.work, f.mode, m.decimals) || f.amount > FAUCET_CAP { return Err(err(E_TERMS)); }
+        f.amount
+    };
     // one use per repository per FUND_PERIOD, in the order GitHub issued the tokens: a token seen in public cannot
     // mint a second time
     open(program_id, relayer, rate, sys, RATE_LEN, &[b"rate", &g.repo_id.to_le_bytes()], E_ACCOUNTS)?;
@@ -239,5 +344,5 @@ pub fn faucet_open(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], n
     } else if *baltok.key != baltok_key(program_id, balance.key).0 {
         return Err(err(E_ACCOUNTS));
     }
-    mint_to(token, mint, baltok, auth, f.amount, ab)
+    mint_to(token, mint, baltok, auth, amount, ab)
 }
