@@ -1,0 +1,410 @@
+{
+  "version": "0.3.14",
+  "page": "docs/INVARIANTS.md",
+  "program": "programs-v2/knos_pay",
+  "kani_file": "programs-v2/knos_pay/src/proofs.rs",
+  "invariants": [
+    {
+      "id": 1,
+      "invariant": "An order never pays out more than was funded",
+      "enforced_by": [
+        "FundOrderWallet",
+        "FundOrderBalance",
+        "TopUp",
+        "PayOrder",
+        "SettleOrder",
+        "Release",
+        "RefundOrder",
+        "Revert"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_a_random_walk_conserves_every_orders_money"
+        },
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_up_to_four_payees_share_an_order_and_every_unit_is_paid"
+        },
+        {
+          "file": "tests/test_order_terms.py",
+          "test": "test_a_random_walk_over_every_promise_conserves_every_orders_money"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_a_random_machine_of_orders_tokens_and_replays_keeps_every_invariant"
+        }
+      ],
+      "kani": [
+        "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
+        "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order"
+      ],
+      "not_covered": null
+    },
+    {
+      "id": 2,
+      "invariant": "A milestone is never paid twice",
+      "enforced_by": [
+        "PayOrder",
+        "Pay",
+        "knos_meter Record",
+        "knos_meter RecordBatch"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_terms.py",
+          "test": "test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_one_rate_is_left"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_a_proof_pays_nothing_after_the_deadline_and_no_job_twice"
+        },
+        {
+          "file": "tests/test_meter_chain.py",
+          "test": "test_an_evaluation_is_billed_and_counted_once_and_a_retry_is_free"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_a_random_machine_of_orders_tokens_and_replays_keeps_every_invariant"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_the_machine_finds_the_double_payment_of_the_0_3_13_build_within_its_default_budget"
+        },
+        {
+          "file": "tests/test_double_pay.py",
+          "test": null
+        },
+        {
+          "file": "tests/test_meter_batch.py",
+          "test": null
+        }
+      ],
+      "kani": [],
+      "not_covered": null
+    },
+    {
+      "id": 3,
+      "invariant": "No signed token is accepted twice by any instruction",
+      "enforced_by": [
+        "FundBalance",
+        "FundOrderBalance",
+        "Pay",
+        "PayOrder",
+        "Revert",
+        "Reserve",
+        "Cancel",
+        "Bind",
+        "BindOrg",
+        "FaucetOpen",
+        "CloseMarker"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_a_comment_funds_an_order_from_a_balance_once"
+        },
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_a_pay_token_pays_exactly_one_job"
+        },
+        {
+          "file": "tests/test_order_terms.py",
+          "test": "test_a_used_marker_is_closed_once_no_token_it_stands_for_can_be_accepted"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_a_fund_token_works_once"
+        },
+        {
+          "file": "tests/test_passkey_chain.py",
+          "test": "test_withdrawals_follow_one_another_and_none_can_be_sent_twice"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_a_random_machine_of_orders_tokens_and_replays_keeps_every_invariant"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_the_machine_finds_the_double_payment_of_the_0_3_13_build_within_its_default_budget"
+        },
+        {
+          "file": "tests/test_double_pay.py",
+          "test": null
+        }
+      ],
+      "kani": [],
+      "not_covered": null
+    },
+    {
+      "id": 4,
+      "invariant": "A token for one order, repository, policy or deployment cannot act on another",
+      "enforced_by": [
+        "FundBalance",
+        "FundOrderBalance",
+        "Pay",
+        "PayOrder",
+        "Revert",
+        "Reserve",
+        "Cancel"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_what_a_pay_token_and_its_relayer_cannot_do"
+        },
+        {
+          "file": "tests/test_order_judges.py",
+          "test": "test_what_a_ruling_cannot_do"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_a_comment_in_another_owners_repository_cannot_spend_a_balance"
+        },
+        {
+          "file": "tests/test_order_judges.py",
+          "test": "test_what_a_neutral_run_cannot_do"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_a_fund_token_spends_only_the_balance_it_names"
+        },
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_what_a_fund_token_cannot_do"
+        },
+        {
+          "file": "tests/test_meter_chain.py",
+          "test": "test_an_evaluation_is_billed_and_counted_once_and_a_retry_is_free"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_every_audience_goes_through_one_table"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_a_pay_or_fund_token_of_one_deployment_is_refused_by_the_same_build_at_other_program_ids"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_a_key_token_is_carried_to_both_deployments"
+        }
+      ],
+      "kani": [],
+      "not_covered": "a deployment whose verifier is another program"
+    },
+    {
+      "id": 5,
+      "invariant": "Expiry, cancel, refund and pay cannot produce two terminal states",
+      "enforced_by": [
+        "PayOrder",
+        "SettleOrder",
+        "Release",
+        "RefundOrder",
+        "Revert",
+        "Cancel"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before"
+        },
+        {
+          "file": "tests/test_order_terms.py",
+          "test": "test_a_reservation_a_cancellation_with_notice_and_the_kill_fee"
+        },
+        {
+          "file": "tests/test_order_terms.py",
+          "test": "test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder"
+        },
+        {
+          "file": "tests/test_order_terms.py",
+          "test": "test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the_wallets_it_recorded"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_every_ordering_of_two_and_of_three_of_pay_cancel_expiry_refund_settle_release_and_revert_ends_an_order_exactly_once"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_a_random_machine_of_orders_tokens_and_replays_keeps_every_invariant"
+        }
+      ],
+      "kani": [],
+      "not_covered": "orderings of four and more moves are sampled, not enumerated"
+    },
+    {
+      "id": 6,
+      "invariant": "A refund stays available after the deadline with no GitHub and no Knos",
+      "enforced_by": [
+        "RefundOrder",
+        "Withdraw",
+        "SettleOrder",
+        "Release",
+        "Refund"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_an_order_is_held_for_a_payee_with_no_wallet_then_settled_and_an_unproven_one_goes_back"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_the_guardian_pauses_new_funding_only_and_nobody_else_can"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_refund_order_on_the_committed_real_money_build_needs_no_token_no_funder_and_no_open_funding"
+        }
+      ],
+      "kani": [],
+      "not_covered": "RefundOrder on the deployed bytes, in a drill"
+    },
+    {
+      "id": 7,
+      "invariant": "A retried relay has the same economic result",
+      "enforced_by": [
+        "FundOrderBalance",
+        "PayOrder",
+        "Pay",
+        "FundBalance"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_a_token_relayed_twice_or_by_two_relayers_is_done_once"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_a_token_carried_before_is_known_by_what_it_left_on_chain_and_by_nothing_else"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_a_transaction_reported_lost_that_landed_is_seen_on_the_chain"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_a_hiccup_of_the_cluster_is_tried_again_and_a_refusal_is_not"
+        },
+        {
+          "file": "tests/test_settle_relay.py",
+          "test": "test_a_dropped_transaction_is_tried_again_and_a_second_relayer_does_no_harm"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_two_relayers_send_one_token_in_one_slot_and_exactly_one_is_accepted"
+        }
+      ],
+      "kani": [],
+      "not_covered": "two relayers racing against a running validator"
+    },
+    {
+      "id": 8,
+      "invariant": "Fees never exceed the tier schedule",
+      "enforced_by": [
+        "FundOrderWallet",
+        "FundOrderBalance",
+        "TopUp",
+        "SetPlan",
+        "PayOrder",
+        "SettleOrder",
+        "Release"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top"
+        },
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate"
+        },
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_the_orders_repository_pays_one_payee_in_full_and_the_fee_is_split"
+        },
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came"
+        },
+        {
+          "file": "tests/test_meter_chain.py",
+          "test": "test_the_first_ten_thousand_evaluations_of_a_month_are_free_and_credits_never_go_below_zero"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_a_top_up_across_a_fee_tier_pays_the_difference_between_the_two_schedule_values"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_a_top_up_across_the_first_tier_of_a_balances_order_keeps_the_plans_rate_below_it_and_one_percent_above"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_a_random_machine_of_orders_tokens_and_replays_keeps_every_invariant"
+        },
+        {
+          "file": "tests/test_meter_batch.py",
+          "test": null
+        }
+      ],
+      "kani": [
+        "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
+        "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
+        "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount"
+      ],
+      "not_covered": null
+    },
+    {
+      "id": 9,
+      "invariant": "A Balance never spends past its limits",
+      "enforced_by": [
+        "FundBalance",
+        "FundOrderBalance",
+        "SetBalance",
+        "SetBalanceX",
+        "Withdraw"
+      ],
+      "tests": [
+        {
+          "file": "tests/test_order_chain.py",
+          "test": "test_a_balance_with_a_side_account_enforces_all_of_it"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_a_cap_per_job_is_enforced"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_only_the_owner_and_the_listed_spenders_spend_a_balance"
+        },
+        {
+          "file": "tests/test_pay2_chain.py",
+          "test": "test_unspent_money_goes_back_only_to_the_wallet_that_opened_the_balance"
+        },
+        {
+          "file": "tests/test_relay2.py",
+          "test": "test_a_balance_with_limits_is_funded_with_its_side_account_and_refused_before_any_fee"
+        },
+        {
+          "file": "tests/test_invariants_gaps.py",
+          "test": "test_a_random_walk_over_a_balances_day_and_total_counters_never_passes_a_limit"
+        },
+        {
+          "file": "tests/test_invariants_machine.py",
+          "test": "test_a_random_machine_of_orders_tokens_and_replays_keeps_every_invariant"
+        }
+      ],
+      "kani": [],
+      "not_covered": null
+    }
+  ]
+}

@@ -40,8 +40,10 @@ pub fn fund_run(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, Pr
 /// The same, and also a run of fund.yml started by hand or by a schedule. Only a PRIVATE order is funded that way (its
 /// attestor repository has no comment to react to: the comment is in the private repository): the caller refuses such a
 /// run for anything else. Who may spend the Balance is asked of the run's actor all the same (`may_spend`).
-pub fn fund_run_any(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> {
-    let g = github(tok, key, now)?;
+pub fn fund_run_any(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> { fund_rules(github(tok, key, now)?) }
+/// The same for FundOrderBalance, the one funding instruction that also takes a gitlab.com token (gl.rs).
+pub fn fund_run_order(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> { fund_rules(order_token(tok, key, now)?) }
+fn fund_rules(g: Gh) -> Result<Gh, ProgramError> {
     if g.wf_file != b"fund.yml" { return Err(err(E_WORKFLOW)); }
     let comment = g.event == b"issue_comment" || g.event == b"issues";
     if !(comment || by_hand_or_schedule(&g)) || !g.first_attempt { return Err(err(E_CLAIMS)); }
@@ -234,8 +236,8 @@ fn escrow<'a>(program_id: &Pubkey, e: &Escrow<'a, '_>, m: &Mint, n: &NewJob, jso
 
 /// One comment funds a job from a Balance. Anyone may relay the token; what it can do is fixed by GitHub's signature.
 pub fn fund_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, balance, baltok, job, vault, mint, auth, token, sys, pause] = take(accounts)?;
-    let balx = accounts.get(12);    // ["balx", balance]: required when the Balance has one
+    let [relayer, tok, key, balance, baltok, job, vault, mint, auth, token, sys, pause, used] = take(accounts)?;
+    let balx = accounts.get(13);    // ["balx", balance]: required when the Balance has one
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     not_paused(program_id, pause, now)?;
     let b = load_balance(program_id, balance)?;
@@ -250,6 +252,8 @@ pub fn fund_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &[u8], 
     // a fund token works once: it names one Balance, and a Balance takes its tokens in the order GitHub issued them
     if g.iat <= b.last_iat { return Err(err(E_REPLAY)); }
     if amount_of(baltok, token.key, E_ACCOUNTS)? < f.amount { return Err(err(E_FUNDS)); }
+    // and no other instruction takes it either, before or after (a faucet token: the faucet has minted on it)
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, true)?;
     let faucet = b.faucet || (DEVNET && *mint.key == faucet_mint(program_id).0);
     escrow(program_id, &Escrow { payer: relayer, job, from: baltok, authority: auth, vault, mint, auth, token, sys, auth_signs: true }, &m,
            &NewJob { repo: g.repo_id, issue: f.issue, amount: f.amount, work: f.work, mode: f.mode, kind: 1, faucet, funder_id: g.actor_id,
@@ -308,11 +312,11 @@ pub fn init_faucet(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -
 
 /// Devnet only. Mints the fund token's amount of test USDC into the faucet's Balance of the token's repository owner
 /// (["bal", owner id, ["auth"], faucet mint], created here on first use), and only when that is the Balance the token
-/// names: a token for a Balance of real money mints nothing. It does not use the token up: FundBalance does, when it
-/// spends this Balance like any other.
+/// names: a token for a Balance of real money mints nothing. The token's marker is made here and says MINTED: the one
+/// thing the token can still do is fund from this Balance (FundBalance, FundOrderBalance), which makes it USED.
 pub fn faucet_open(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
     if !DEVNET { return Err(err(E_DEVNET)); }
-    let [relayer, tok, key, balance, baltok, mint, auth, token, sys, rate] = take(accounts)?;
+    let [relayer, tok, key, balance, baltok, mint, auth, token, sys, rate, used] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     let (ak, ab) = auth_key(program_id);
     if !relayer.is_signer || !relayer.is_writable || *mint.key != faucet_mint(program_id).0 || *auth.key != ak { return Err(err(E_ACCOUNTS)); }
@@ -338,6 +342,8 @@ pub fn faucet_open(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], n
         if now < i64_at(&d, 0).saturating_add(FUND_PERIOD) || g.iat <= i64_at(&d, 8) { return Err(err(E_RATE)); }
         put_i64(&mut d, 0, now); put_i64(&mut d, 8, g.iat);
     }
+    // the token mints once, and never after it funded: its marker is made here as MINTED, which only a funding takes
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, MINTED, false)?;
     let (new, bump) = open(program_id, relayer, balance, sys, BALANCE_LEN, &[b"bal", &g.owner_id.to_le_bytes(), ak.as_ref(), mint.key.as_ref()], E_ACCOUNTS)?;
     if new {
         new_balance(program_id, relayer, balance, baltok, mint, auth, token, sys, &m, bump, g.owner_id, &ak, true, &[0u8; 40])?;

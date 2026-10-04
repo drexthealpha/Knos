@@ -29,7 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 V = r"(\d+\.\d+\.\d+)"
-OURS = ("knos", "knos-oidc-interface", "knos-pay-interface", "knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
+OURS = ("knos", "knos-oidc-interface", "knos-pay-interface", "knos_oidc", "knos_pay", "knos_meter", "knos_passkey", "knos-handler-tests")
 JSON_VERSION = r'"version": "' + V + '"'
 # (files, pattern): every match's groups are the version. Each file must match at least once. A line ends in \n or in
 # \r\n: a file written on Windows (by an editor, or Python's text mode) names its version as any other file does, and
@@ -46,7 +46,8 @@ PLACES: list[tuple[str, str]] = [
     ("crates/*/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
     ("programs-v2/*/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
 ]
-LOCKS = ("crates/*/Cargo.lock", "examples/*/Cargo.lock", "programs-v2/Cargo.lock", "programs-v2/knos_oidc/fuzz/Cargo.lock")
+LOCKS = ("crates/*/Cargo.lock", "examples/*/Cargo.lock", "programs-v2/Cargo.lock", "programs-v2/knos_oidc/fuzz/Cargo.lock",
+         "programs-v2/handlers/Cargo.lock")     # program.yml runs the handler tests with --locked: a lock one release behind fails the job
 LOCKED = r'name = "(?:' + "|".join(OURS[1:]) + r')"\r?\nversion = "' + V + '"'
 PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
         r"git tag v" + V + r" && git push origin v" + V)

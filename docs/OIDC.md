@@ -47,7 +47,7 @@ The interface crate, [`crates/knos-oidc-interface`](../crates/knos-oidc-interfac
 allocate, so it builds with solana-program, pinocchio or anchor of any version:
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.13" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }
 ```
 
 ```rust
@@ -156,6 +156,67 @@ Fixed in [`programs-v2/knos_oidc/src/pins.rs`](../programs-v2/knos_oidc/src/pins
 `Step` refuses a key that is not ready, is revoked, is neither a genesis key nor approved, is before its start or
 past its expiry (errors 68 and 76 to 78). [SECURITY.md](SECURITY.md), sections 5 to 7, says who can do what to a
 key and to the program.
+
+## GitLab
+
+knos-oidc verifies a gitlab.com ID token as it verifies GitHub's. This release proposes that `knos-pay` reads one
+too ([`programs-v2/knos_pay/src/gl.rs`](../programs-v2/knos_pay/src/gl.rs)), for two things: funding a work order
+from a Balance, and paying one. It is tested in LiteSVM against tokens shaped as GitLab documents them
+([`tests/test_gitlab_pay.py`](../tests/test_gitlab_pay.py)); it has not run against a token gitlab.com signed, and
+[`examples/gitlab/.gitlab-ci.yml`](../examples/gitlab/.gitlab-ci.yml) has not run in a project. The claims are
+GitLab's own list, read on 4 Oct 2026:
+[OpenID Connect (OIDC) Authentication Using ID Tokens](https://docs.gitlab.com/ci/secrets/id_token_authentication/).
+
+| what the escrow asks | GitHub's claim | GitLab's claim | how it is read |
+|---|---|---|---|
+| which repository | `repository_id` | `project_id` | 900000000000000000 + the id |
+| whose Balance pays | `repository_owner_id` | `namespace_id` | 800000000000000000 + the id |
+| who asked, who is paid | `actor_id` | `user_id` | 900000000000000000 + the id |
+| which file ran | `job_workflow_ref` | `ci_config_ref_uri` | whole (project path, file, ref); the order stores its sha256 |
+| at which commit | `job_workflow_sha` | `ci_config_sha` | 40 hex characters; the order stores it |
+| on whose machine | `runner_environment` `github-hosted` | `runner_environment` `gitlab-hosted` | anything else is refused |
+| what started it | `event_name` | `pipeline_source` | `web` funds, `pipeline` pays, nothing else does either |
+| a protected ref | not asked | `ref_type` `branch`, `ref_protected` `"true"` | required of every GitLab token |
+| a first attempt | `run_attempt` 1 | none | see below |
+| the audience | `aud` | `aud` (`id_tokens: aud:`) | `knos3:fund:...` or `knos3:pay:...` only |
+
+**Ids cannot meet.** A GitLab id is read into a range of its own, and the escrow refuses a GitHub token (and a
+token under a private key) whose repository, owner or actor id is 800000000000000000 or more. GitHub's ids are
+around ten digits today. The ranges are decimal so that an audience, which carries ids as at most 18 digits, can
+name a GitLab payee: user 4242 is payee `900000000000004242`. GitLab numbers users and namespaces apart (a user's
+own namespace has another number than the user), so they get two ranges, and no GitLab token passes a rule that
+asks whether the actor owns the repository.
+
+**The pin.** `ci_config_ref_uri` and `ci_config_sha` are null when the CI file is kept in another project; such a
+token is refused. When it is in the project, `ci_config_sha` is the commit the pipeline ran on: GitLab signs no
+commit for a file kept apart from the code, as GitHub's `job_workflow_sha` is. So the pinned file lives on a
+protected branch that does not move (the example calls it `knos`). The order stores the URI's hash and that
+commit, and pays only on a token of exactly that file, branch and commit. The default branch's own pipeline after
+a merge has another commit and is refused; it starts the pinned one (`trigger:`, which GitLab signs as
+`pipeline_source` `pipeline`:
+[downstream pipelines](https://docs.gitlab.com/ci/pipelines/downstream_pipelines/)), and the pinned job reads the
+merge request from GitLab's API before it lets the token out.
+
+**What GitLab does not sign, and what follows.**
+
+- *Which branch is the default one, and that a merge request was merged.* No claim says either. The escrow asks
+  for a protected branch and for a pipeline that a pipeline started; that the merge request was merged into the
+  protected default branch, and by whom it was written, is read by the pinned job, as GitHub's pinned workflow
+  reads it.
+- *An attempt number.* GitLab says of a retry: "The new job associates with the user who initiated the retry,
+  not the user who created the original pipeline" ([Retry jobs](https://docs.gitlab.com/ci/jobs/)), so `user_id` is
+  the person who asked, which is what the first-attempt rule protects on GitHub. A retried paying job does give a
+  second token with the same claims; an order pays once whatever the number of tokens.
+- *That a namespace is one person's own.* So nothing that rests on it is offered: no neutral run started by the
+  seller, no arbiter's ruling, and a Balance's owner is not a spender unless listed.
+- *An event for an issue or a comment.* A person funds by running the pinned pipeline by hand.
+
+**What a GitLab project cannot do yet.** Bind a wallet (the pay token must carry the payee's address; with none
+the order is held and goes back to its funder when the hold ends); reserve, cancel or revert an order, or fund a
+2.0 job (a GitLab token with any other audience is refused); use the devnet faucet (send test USDC to the Balance);
+pin a file on a self-managed GitLab (gitlab.com only); use a runner of its own. There is no relayer, no command and
+no page for GitLab: the token is carried to Solana with the client in `src/knos/settle/v2`. The example's paying
+job does not yet check the order's terms on Solana; it says so where it would.
 
 ## Limits
 

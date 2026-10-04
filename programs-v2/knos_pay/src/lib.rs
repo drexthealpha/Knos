@@ -28,8 +28,8 @@
 //! 2.1: WORK ORDERS. Instructions 0..11 are 2.0 and keep their bytes, but for four fixes: bounds and the fee floor are
 //! whole units of the mint (10^decimals, read from the mint); the record counts real money only in Circle's USDC;
 //! Token-2022 mints pass an allow-list of extensions; a Balance can carry a side account of limits (FundBalance takes
-//! it as a 13th account once it exists); and a pay token pays exactly one job (Pay takes its marker as a 16th
-//! account). Everything else of 2.1 is new instruction numbers and one new kind of account, the Order (order.rs: its
+//! it as a 14th account once it exists); and every instruction that takes a token takes that token's single-use
+//! marker, `used` (ONE MARKER, below). Everything else of 2.1 is new instruction numbers and one new kind of account, the Order (order.rs: its
 //! funding; order_pay.rs: its payment and refund; order_judge.rs: who may sign for it; order_terms.rs: what it can
 //! promise), whose audiences start `knos3:`. An order's money is in a token account of its own, ["ov", order]:
 //!   a wallet's token account  -> the order's account      FundOrderWallet, TopUp: the wallet signs
@@ -57,7 +57,7 @@
 //!   Pause    ["pause"]                           new funding is refused until this time
 //!   BalX     ["balx", balance]                   a Balance's side account: limits per day and in total, repositories, workflows commit
 //!   Plan     ["plan", owner id]                  a lower fee rate for one repository owner's orders until an expiry
-//!   Used     ["used", sha256(token signature)]   exists once a token that works once was used (2.0 Pay, FundOrderBalance)
+//!   Used     ["used", sha256(token signature)]   exists once an instruction took that token: no instruction takes it again
 //!   Order    ["ord", scope, source, seq u32]     one work order; scope is sha256("knos3:scope" || repo id || issue), or a private one
 //!   ov       ["ov", order]                       token account: that order's money and nothing else
 //!   Hb       ["hb", order]                       where the holdback of an order in WARRANTY goes: the wallets paid, and their parts
@@ -82,12 +82,24 @@
 //!   fund  knos3:fund:<issue>:<amount units>:<mode>:<terms hash hex>:<work seconds>:<balance address>:<seq>:<opts hex>   an order, from fund.yml
 //!   pay   knos3:pay:<order address>:<head sha>:<terms hash hex>:<mode>:<pr>:<payees>                               an order, from a judge
 //!         payees: 1..=4 of <github id>.<basis points>.<address or -> joined by `,`; the basis points add up to 10000
+//!   auto  knos3:auto:<order address>:<head sha>:<terms hash hex>:1:<pr>:<payee>   an AUTO order, unmerged, from its own prove.yml (order_judge.rs, e)
 //!   rule  knos3:rule:<order address>:<payees>                         an order's arbiter rules, from attest.yml started by hand
 //!   revert knos3:revert:<order address>:<head sha>                    an order's holdback goes back, from a judge (a, b or c)
 //!   take  knos3:take:<order address>:<taker github id>:<days>         an order is reserved, from its COMMAND job (fund.yml) or prove.yml,
 //!                                                                     or attest.yml by hand (a NEUTRAL order): the taker's own run
 //!   cancel knos3:cancel:<order address>                               a Balance's order gets notice, from its COMMAND job or prove.yml
 //!   bind  knos3:bind:<address>                                        an organisation's wallet, from the pinned claim.yml
+//! ONE MARKER. A token is accepted once. Every instruction that takes one (3 FundBalance, 5 Pay, 8 Bind, 11 FaucetOpen,
+//! 16 FundOrderBalance, 17 PayOrder, 19 Revert, 20 Reserve, 21 Cancel on a Balance's order, 25 BindOrg) makes the
+//! token's marker ["used", sha256(the token's signature bytes)] once it has decided to accept the token and before it
+//! changes anything else, and refuses the token (E_REPLAY) when the marker is there. So the same token is never
+//! accepted twice, by the same instruction or by another, whatever the accounts it names hold by then: an order that
+//! was paid and funded again at the same address is not paid again by the token that paid it. The one pair that is
+//! designed: on devnet FaucetOpen marks its fund token MINTED, and the funding instruction that follows takes exactly
+//! such a token and marks it used. The marker keeps who paid its rent and the time after which no instruction could
+//! accept the token anyway; CloseMarker gives the rent back after that. The relayer (Cancel: the signer) pays the
+//! rent and must be writable. An order's `not_before` is the chain's time at its funding less CLOCK_SLACK, never a
+//! token's `iat`: no token issued before an order was funded acts on it.
 //! A fund token names the Balance it spends, by its address as Solana prints it: the funder's own workflow chooses
 //! the Balance when it asks GitHub for the token (it reads the chain), and a relayer cannot spend another one with it.
 //! A job pins its workflows at funding: the repository that holds them (sha256 of "owner/name", from the fund token's
@@ -109,7 +121,7 @@
 //!                  The wallet that opened the Balance takes unspent money back (amount 0: all of it). dest_token must be
 //!                  a token account of the Balance's mint owned by that same wallet. A faucet Balance cannot withdraw.
 //!                  Never paused.
-//!   3 FundBalance  relayer(s,w) fund_token key balance(w) baltok(w) job(w) vault(w) mint auth token_program system pause balx(w)
+//!   3 FundBalance  relayer(s,w) fund_token key balance(w) baltok(w) job(w) vault(w) mint auth token_program system pause used(w) balx(w)
 //!                  data: terms bytes
 //!                  Anyone relays. Not paused. The token: workflow file fund.yml; event `issue_comment` or `issues`, and
 //!                  `run_attempt` 1 (a re-run keeps the first actor's name whoever starts it); the audience names this
@@ -122,7 +134,8 @@
 //!                  account holds the amount; the job ["job", repository_id, issue, balance] does not exist; the mint
 //!                  passes the mint rules. Money: the amount, baltok -> vault. The job refunds to baltok, its rent is the
 //!                  relayer's, its workflows are the token's, its deadline is now + work, proofs count from the token's `iat`.
-//!                  2.1: `balx` is passed (and then required) only once the Balance has a side account (SetBalanceX).
+//!                  2.1: `used` is the token's marker; `balx` is passed (and then required) only once the Balance has a
+//!                  side account (SetBalanceX).
 //!   4 FundWallet   funder(s,w) job(w) funder_token(w) vault(w) mint auth token_program system pause
 //!                  data: repo_id u64, issue u64, amount u64, work i64, mode u8, wf_repo [u8; 32], wf_sha [u8; 40], terms bytes
 //!                  The funding wallet signs. Not paused. The same bounds; repo_id not 0; wf_sha 40 hex characters; the job
@@ -152,7 +165,7 @@
 //!                  past its deadline, or HELD past its hold. Money: the job's amount from the vault to refund_token,
 //!                  which is exactly the Balance's token account (a Balance's job) or a token account of the job's mint
 //!                  owned by the funding wallet (a wallet's job). The job is closed.
-//!   8 Bind         relayer(s,w) bind_token key bind(w) system
+//!   8 Bind         relayer(s,w) bind_token key bind(w) system used(w)
 //!                  Anyone relays. The token: `job_workflow_ref` starts with CLAIM_REF and `job_workflow_sha` is CLAIM_SHA
 //!                  (the pinned claim workflow); `actor_id` equals `repository_owner_id` and is not 0; `repository` ends
 //!                  with "/knos-claim"; event `workflow_dispatch` only (a run its owner started by hand: a push, even
@@ -166,14 +179,14 @@
 //!                  ignores it: payments, refunds, withdrawals and binds cannot be paused.
 //!   10 InitFaucet  payer(s,w) mint(w) auth token_program system
 //!                  Devnet builds only. Anyone, once. Creates the faucet's test-USDC mint; its mint authority is ["auth"].
-//!   11 FaucetOpen  relayer(s,w) fund_token key balance(w) baltok(w) mint(w) auth token_program system rate(w)
+//!   11 FaucetOpen  relayer(s,w) fund_token key balance(w) baltok(w) mint(w) auth token_program system rate(w) used(w)
 //!                  Devnet builds only. Anyone relays. The same fund token as FundBalance (fund.yml, event, first attempt,
 //!                  bounds), amount at most FAUCET_CAP, once per repository per FUND_PERIOD and only with a later `iat`
 //!                  than the last (Rate). The Balance its audience names must be the faucet Balance ["bal",
 //!                  repository_owner_id, ["auth"], faucet mint]: a token that names a Balance of real money mints
 //!                  nothing. Mints the amount of test USDC into that Balance (created on first use and flagged: any
-//!                  actor spends it, nobody withdraws it). The token is not used up: FundBalance then spends that
-//!                  Balance with it.
+//!                  actor spends it, nobody withdraws it). The token's marker is made here as MINTED: the funding
+//!                  instruction that spends that Balance with it is the one thing that still takes it.
 //!   12 Version
 //!                  Logs `knos2:version 1`. A client simulates it to learn whether 2.1 is live (2.0 refuses the tag).
 //!   13 SetBalanceX authority(s,w) balance(w) balx(w) system
@@ -204,10 +217,11 @@
 //!                  amount is at most the Balance's cap; amount + fee (at the owner's Plan rate, `plan` being
 //!                  ["plan", owner id]) is within the side account's limits and what the Balance holds. Money: amount
 //!                  + fee, baltok -> ov. The order refunds to baltok; its rent is the relayer's.
-//!   17 PayOrder    relayer(s,w) pay_token key order(w) ov(w) tip_token(w) fee_token(w) auth rent_to(w) mint token_program system ata_program bind wallet dest_token(w) rep(w) pair(w)
+//!   17 PayOrder    relayer(s,w) pay_token key order(w) ov(w) tip_token(w) fee_token(w) auth rent_to(w) mint token_program system ata_program used(w) bind wallet dest_token(w) rep(w) pair(w)
 //!                  The last five are the first payee's; five more follow for each further payee of the audience, in its
 //!                  order; then one ["as", order, payee] per payee, in the same order (it need not exist, but cannot be
 //!                  left out); then ["done", order, pr](w) for a STANDING order, or ["hb", order](w) for one with a holdback.
+//!                  `used` is the token's marker: a pay token or a ruling pays, or holds, once.
 //!                  Anyone relays. The order is OPEN before its deadline. The token is a judge's (order_judge.rs): the
 //!                  workflows of the order's pinned repository at its pinned commit, a first attempt, and one of
 //!                  a. prove.yml run in the order's own repository; b. for a NEUTRAL order that is not PRIVATE,
@@ -234,25 +248,26 @@
 //!                  recorded receives its part of the holdback (its associated token account is created here when it
 //!                  does not exist), the relayer the tip, FEE_OWNER what is left; the order, its token account and the
 //!                  record are closed.
-//!   19 Revert      relayer(s) revert_token key order(w) ov(w) hb(w) refund_token(w) auth rent_to(w) hb_payer(w) mint token_program
+//!   19 Revert      relayer(s,w) revert_token key order(w) ov(w) hb(w) refund_token(w) auth rent_to(w) hb_payer(w) mint token_program system used(w)
 //!                  Anyone relays. An order in WARRANTY, inside its warranty. The token: audience
 //!                  knos3:revert:<order>:<head sha>, from judge a, b or c of the order (as PayOrder's; never the
 //!                  arbiter), issued after the payment. Everything the order's account holds (the holdback and the fee
 //!                  on it) goes to refund_token, where the order's money came from; all three accounts are closed.
 //!                  It cannot touch what was already paid.
-//!   20 Reserve     relayer(s) take_token key order(w)
+//!   20 Reserve     relayer(s,w) take_token key order(w) system used(w)
 //!                  Anyone relays. The token: audience knos3:take:<order>:<taker id>:<days>, days 1..=the order's
 //!                  reserve_days; from the order's pinned workflows at its pinned commit, a first attempt: fund.yml
 //!                  (the COMMAND job, answering a comment) or prove.yml run in the order's own repository, or, for a
 //!                  NEUTRAL order that is not PRIVATE, attest.yml started by hand by the account that owns the
 //!                  repository it ran in. `actor_id` is the taker the audience names: a person reserves for himself.
 //!                  The order (OPEN, not cancelled, not reserved now) is reserved for the taker until now + days.
-//!   21 Cancel      signer(s) order(w) [cancel_token key]
+//!   21 Cancel      signer(s,w) order(w) [cancel_token key system used(w)]
 //!                  Once, on an OPEN order before its deadline: the deadline becomes min(deadline, now + NOTICE, seven
 //!                  days); a pay token still pays until then. A wallet's order: the funding wallet signs. A Balance's
 //!                  order: anyone signs, and the token has audience knos3:cancel:<order>, is from fund.yml or prove.yml
 //!                  of the order's pinned workflows run in the order's own repository (a first attempt), and its
-//!                  `actor_id` funded the order or owns the Balance.
+//!                  `actor_id` funded the order or owns the Balance. With a token the signer pays the rent of its marker
+//!                  `used`, and only then must it be writable.
 //!   22 RefundOrder relayer(s,w) order(w) ov(w) refund_token(w) auth rent_to(w) mint token_program
 //!                  Anyone relays; no token. OPEN past its deadline or HELD past its hold: everything the order's
 //!                  account holds goes to refund_token (the Balance's token account, or a token account of the
@@ -271,7 +286,7 @@
 //!                  The payee's bound wallet signs (once an assignment is set, only its current assignee): this
 //!                  order's payment for that payee goes to the wallet `to`, recorded in ["as", order, payee]. What was
 //!                  assigned cannot be taken back or assigned twice by the payee. No money moves.
-//!   25 BindOrg     relayer(s,w) bind_token key bind(w) system
+//!   25 BindOrg     relayer(s,w) bind_token key bind(w) system used(w)
 //!                  Anyone relays. An organisation's wallet (order_judge.rs). The token: audience knos3:bind:<address>;
 //!                  the pinned claim workflow (CLAIM_REF at CLAIM_SHA or order_judge::CLAIM_SHA_ORG); `repository` ends
 //!                  with "/knos-claim"; `workflow_dispatch`, `run_attempt` 1; `repository_owner_id` is not `actor_id`
@@ -320,6 +335,7 @@
 //!   knos3:assigned order= payee= to=               knos3:bound org= wallet= by=
 pub mod fund;
 pub mod gh;
+pub mod gl;
 pub mod order;
 pub mod order_judge;
 pub mod order_pay;
@@ -372,13 +388,17 @@ pub const TEST_PLAN_SIGNER: Option<Pubkey> = None;
 
 // Amounts below are millionths of ONE WHOLE UNIT of the mint (10^decimals of its smallest units): state::units turns
 // them into the mint's smallest units with the decimals read from the mint. For a 6-decimal mint they are the same.
-pub const FEE_BPS: u64 = 250;             // 2.5%
+pub const FEE_BPS: u64 = 250;             // 2.5%: a job's fee, and the first tier of an order's
 pub const FEE_MIN: u64 = 50_000;          // jobs (2.0): 0.05; never more than the amount
 pub const MIN_AMOUNT: u64 = 1_000_000;    // jobs (2.0): 1.00
-pub const MAX_AMOUNT: u64 = 500_000_000;  // 500.00 per job and per order until an outside review
-// orders (2.1): the funder pays the fee on top of the amount; the payees receive the amount
+pub const MAX_AMOUNT: u64 = 100_000_000_000; // 100,000.00 per job and per order on devnet; a build for real money decides its own cap
+// orders (2.1): the funder pays the fee on top of the amount; the payees receive the amount. The fee is marginal, in
+// three tiers of the amount, and has a floor and no cap (order_fee).
 pub const ORDER_FEE_MIN: u64 = 400_000;   // 0.40
-pub const ORDER_FEE_MAX: u64 = 25_000_000; // 25.00
+pub const FEE_TIER_1: u64 = 1_000_000_000;   // the first 1,000.00: FEE_BPS, or the owner's Plan
+pub const FEE_TIER_2: u64 = 50_000_000_000;  // from there to 50,000.00: FEE_BPS_2; above it: FEE_BPS_3
+pub const FEE_BPS_2: u64 = 100;           // 1%
+pub const FEE_BPS_3: u64 = 50;            // 0.5%
 pub const ORDER_MIN_AMOUNT: u64 = 5_000_000; // 5.00
 pub const TIP: u64 = 50_000;              // 0.05 of the fee goes to whoever paid for the paying transaction
 pub const TIP_FIRST: u64 = 300_000;       // 0.30 when that transaction created a payee's token account
@@ -387,7 +407,7 @@ pub const MAX_HOLDBACK_BPS: u16 = 5000;
 pub const MAX_WARRANTY_DAYS: u16 = 90;
 pub const MAX_KILL_BPS: u16 = 2000;
 pub const MAX_PAYEES: usize = 4;
-pub const VERSION: u32 = 1;               // what Version logs: 2.1 is live
+pub const VERSION: u32 = 1;               // what Version logs: 2.1 is live (2.1 as first built, without ONE MARKER, was never deployed)
 pub const MIN_WORK: i64 = 60;
 pub const MAX_WORK: i64 = 90 * 86_400;
 pub const HOLD: i64 = 180 * 86_400;       // how long a proven job waits for its payee to bind a wallet
@@ -413,7 +433,7 @@ pub const E_AUD: u32 = 87;       // the audience does not match
 pub const E_PAYEE: u32 = 88;     // wrong destination, fee or refund account, or the payee has no bound wallet
 pub const E_DEVNET: u32 = 89;    // devnet builds only
 pub const E_RATE: u32 = 90;      // the faucet: one use per repository per minute, in the order GitHub issued the tokens
-pub const E_REPLAY: u32 = 91;    // this token is not newer than the last one used here: a token works once
+pub const E_REPLAY: u32 = 91;    // this token was used already, or is not newer than the last one used here: a token works once
 pub const E_SPENDER: u32 = 92;   // the token's repository owner or actor may not spend this Balance
 pub const E_CAP: u32 = 93;       // more than the Balance's cap per job
 pub const E_FUNDS: u32 = 94;     // the Balance does not hold that much
@@ -444,10 +464,17 @@ pub fn bps_of(amount: u64, bps: u64) -> u64 { amount / 10_000 * bps + amount % 1
 /// The fee of a job's payment (2.0), taken out of the amount: FEE_BPS of it, at least FEE_MIN of a whole unit of the
 /// mint, never more than the amount.
 pub fn fee_of(amount: u64, decimals: u8) -> u64 { bps_of(amount, FEE_BPS).max(state::units(FEE_MIN, decimals)).min(amount) }
-/// The fee of an order (2.1), paid by the funder on top of the amount: `bps` of it (FEE_BPS, or the owner's Plan), at
-/// least ORDER_FEE_MIN and at most ORDER_FEE_MAX of a whole unit of the mint.
+/// The fee of an order (2.1), paid by the funder on top of the amount. Marginal, in whole units of the mint: `bps`
+/// (FEE_BPS, or the owner's Plan) of the first FEE_TIER_1 of the amount, FEE_BPS_2 of what lies between FEE_TIER_1 and
+/// FEE_TIER_2, FEE_BPS_3 of what lies above; each part rounded down; at least ORDER_FEE_MIN; no cap. A Plan lowers
+/// the first tier's rate only. Never more than 2.5% of the amount above the floor, so amount + fee fits a u64 for
+/// every amount the program takes.
 pub fn order_fee(amount: u64, bps: u64, decimals: u8) -> u64 {
-    bps_of(amount, bps).max(state::units(ORDER_FEE_MIN, decimals)).min(state::units(ORDER_FEE_MAX, decimals))
+    let (t1, t2) = (state::units(FEE_TIER_1, decimals), state::units(FEE_TIER_2, decimals));
+    let first = amount.min(t1);
+    let second = amount.min(t2) - first;
+    let third = amount - first - second;
+    (bps_of(first, bps) + bps_of(second, FEE_BPS_2) + bps_of(third, FEE_BPS_3)).max(state::units(ORDER_FEE_MIN, decimals))
 }
 /// Whether the record counts a payment in this mint as real money.
 pub fn counted(mint: &Pubkey) -> bool { *mint == USDC_DEVNET || *mint == USDC_MAINNET || Some(*mint) == TEST_USDC }
@@ -495,7 +522,7 @@ mod tests {
     #[test]
     fn the_fee_is_two_and_a_half_percent_with_a_floor_and_never_more_than_the_amount() {
         for (amount, fee) in [(0, 0), (1, 1), (49_999, 49_999), (50_000, 50_000), (1_000_000, 50_000), (2_000_000, 50_000), (2_000_040, 50_001),
-                              (5_000_000, 125_000), (500_000_000, 12_500_000), (u64::MAX, u64::MAX / 10_000 * 250 + (u64::MAX % 10_000) * 250 / 10_000)] {
+                              (5_000_000, 125_000), (500_000_000, 12_500_000), (100_000_000_000, 2_500_000_000), (u64::MAX, u64::MAX / 10_000 * 250 + (u64::MAX % 10_000) * 250 / 10_000)] {
             assert_eq!(fee_of(amount, 6), fee, "{amount}");
             assert!(fee_of(amount, 6) <= amount);
         }
@@ -504,20 +531,39 @@ mod tests {
     }
 
     #[test]
-    fn an_orders_fee_is_on_top_between_forty_cents_and_twenty_five() {
-        for (amount, bps, fee) in [(5_000_000, 250, 400_000), (16_000_000, 250, 400_000), (16_000_040, 250, 400_001), (100_000_000, 250, 2_500_000),
-                                   (500_000_000, 250, 12_500_000), (2_000_000_000, 250, 25_000_000), (u64::MAX, 250, 25_000_000),
-                                   (100_000_000, 50, 500_000), (500_000_000, 50, 2_500_000), (0, 250, 400_000)] {
+    fn an_orders_fee_is_on_top_in_three_marginal_tiers_with_a_floor_of_forty_cents_and_no_cap() {
+        const U: u64 = 1_000_000;   // one whole unit of a 6-decimal mint
+        for (amount, bps, fee) in [
+            // the floor, and where 2.5% passes it
+            (0, 250, 400_000), (5 * U, 250, 400_000), (16 * U, 250, 400_000), (16 * U + 40, 250, 400_001), (100 * U, 250, 2_500_000),
+            // the edge of the first tier: 2.5% of 1,000 is 25.00, and the unit after it is charged 1%
+            (1_000 * U - 1, 250, 24_999_999), (1_000 * U, 250, 25 * U), (1_000 * U + 99, 250, 25 * U), (1_000 * U + 100, 250, 25 * U + 1),
+            (1_001 * U, 250, 25 * U + 10_000), (2_000 * U, 250, 35 * U),
+            // the edge of the second: 25 + 1% of 49,000 = 515.00, and the unit after it is charged 0.5%
+            (50_000 * U - 1, 250, 515 * U - 1), (50_000 * U, 250, 515 * U), (50_000 * U + 199, 250, 515 * U), (50_000 * U + 200, 250, 515 * U + 1),
+            (50_001 * U, 250, 515 * U + 5_000),
+            // the most an order holds: 515 + 0.5% of 50,000 = 765.00; and no cap beyond it
+            (100_000 * U, 250, 765 * U), (1_000_000 * U, 250, 5_265 * U),
+            // a Plan lowers the first tier and nothing else
+            (100 * U, 50, 500_000), (1_000 * U, 50, 5 * U), (1_000 * U, 150, 15 * U), (2_000 * U, 50, 15 * U), (50_000 * U, 150, 505 * U),
+            (100_000 * U, 50, 745 * U), (16 * U, 50, 400_000),
+        ] {
             assert_eq!(order_fee(amount, bps, 6), fee, "{amount} {bps}");
         }
+        // every u64, without overflow: the three parts are parts of the amount
+        assert_eq!(order_fee(u64::MAX, 250, 6), 25 * U + 490 * U + bps_of(u64::MAX - 50_000 * U, 50));
+        // the tiers and the floor are whole units of the mint, whatever its decimals
         assert_eq!((order_fee(5_000_000_000, 250, 9), order_fee(500, 250, 2), order_fee(100, 250, 0)), (400_000_000, 40, 2));
+        assert_eq!((order_fee(2_000_000_000_000, 250, 9), order_fee(200_000, 250, 2), order_fee(100_000, 250, 0), order_fee(60_000, 250, 0)),
+                   (35_000_000_000, 3_500, 765, 565));
         const { assert!(TIP_FIRST <= ORDER_FEE_MIN && TIP <= TIP_FIRST && PLAN_BPS_MIN <= FEE_BPS && ORDER_MIN_AMOUNT <= MAX_AMOUNT) };
+        const { assert!(FEE_TIER_1 < FEE_TIER_2 && FEE_TIER_2 <= MAX_AMOUNT && FEE_BPS_3 <= FEE_BPS_2 && FEE_BPS_2 <= FEE_BPS) };
         assert!(counted(&USDC_DEVNET) && counted(&USDC_MAINNET) && !counted(&FEE_OWNER));
     }
 
     #[test]
     fn the_bounds_are_the_ones_the_design_fixes() {
-        assert_eq!((MIN_AMOUNT, MAX_AMOUNT, MAX_WORK, HOLD, PAUSE_MAX, MAX_TERMS), (1_000_000, 500_000_000, 7_776_000, 15_552_000, 604_800, 600));
+        assert_eq!((MIN_AMOUNT, MAX_AMOUNT, MAX_WORK, HOLD, PAUSE_MAX, MAX_TERMS), (1_000_000, 100_000_000_000, 7_776_000, 15_552_000, 604_800, 600));
         assert!(CLAIM_REF.ends_with(b"/.github/workflows/claim.yml@") && knos_oidc::claims::is_hex(CLAIM_SHA, 40));
         const { assert!(TOKEN_LIFE >= 300 && TOKEN_AHEAD >= CLOCK_SLACK) };
     }

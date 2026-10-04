@@ -12,7 +12,9 @@ import { initRecords } from "./records.js";
 import { initStatements } from "./statements.js";
 import { initTask } from "./task.js";
 import { initAnyIssue } from "./anyissue.js";
-import { pendingUpgrades, upgradeWords, runDay } from "./upgrade.js";
+import { renderInstall } from "./install.js";
+import { renderCapabilities } from "./capabilities.js";
+import { pendingUpgrades, upgradeWords, runDay, feedLine } from "./upgrade.js";
 
 const $ = (id) => document.getElementById(id);
 const FIRST_PAY = $("first-deployment")?.querySelectorAll(".mono")[1]?.textContent.trim();
@@ -541,7 +543,7 @@ upgradesP.then(({ upgrades, ms, now }) => {
     return `<p class="upgrade" data-program="${esc(p.name)}" data-status="${esc(p.status)}" data-index="${p.index}"><strong>${esc(w.what)}</strong>
       <a class="mono" href="${esc(EXPLORER("address", p.buffer))}" target="_blank" rel="noopener">${esc(short(p.buffer))}</a>. ${esc(w.state)}</p>`; }).join("")
     + `<p class="fine">A program's upgrade can change what it does, and the delay is there so that it can be seen coming: the proposal and the new bytes are on chain for anyone to read.
-      What it protects and what it does not: <a id="upgrade-security" href="${SECURITY}" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p>`;
+      What it protects and what it does not: <a id="upgrade-security" href="${SECURITY}" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p>` + feedLine;
   $("upgrade-banner").hidden = false;
 });
 
@@ -549,8 +551,19 @@ upgradesP.then(({ upgrades, ms, now }) => {
 initFirst({ $, esc, knos, RPC, EXPLORER, money, ids, gh, devnet });
 const showVersion = initPricing({ $, esc, knos, RPC, ids });
 initClaim({ $, esc, knos, RPC, EXPLORER, units, say, money, devnet, client });
-const showRecords = initRecords({ $, esc });
+const showRecords = initRecords({ $, esc, rep: async (id) => knos.v2.readRep(await knos.account(RPC, await (await client()).rep(id))) });
 const showStatement = initStatements({ $, esc, EXPLORER });
+if ($("install-pr")) renderInstall($("install-pr"));
+// The pages other modules fill (index.html: section.mount). Capabilities: the manifest the build copied from docs/.
+// Buy: web/buyer.js, which a build may not have yet; then the page stays empty and is not offered.
+fetch("capabilities.json").then((r) => (r.ok ? r.json() : null)).then((data) => {
+  if (!data || !$("capabilities")) return;
+  $("capabilities").innerHTML = `<h2>What Knos can do, and how far each thing has got</h2>
+    <p class="lede">One row per capability, at the highest stage its evidence supports. The same list is in the repository as
+      <a href="https://github.com/drexthealpha/Knos/blob/main/docs/CAPABILITIES.md">docs/CAPABILITIES.md</a>.</p><div class="card" id="capabilities-list"></div>`;
+  renderCapabilities($("capabilities-list"), data);
+}).catch(() => {});
+import("./buyer.js").then((m) => m.renderBuyer?.($("buy"), { $, esc, knos, RPC, EXPLORER, ids, client, gh, devnet })).catch(() => {});
 initTask({ $, esc, knos, gh });
 const anyShow = initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });
 

@@ -282,11 +282,10 @@ def test_the_recorded_rpc_of_the_agent_calls_reads_the_same_in_python():
 def test_the_site_is_built_at_one_commit(tmp_path):
     import os
 
-    import pytest
-    if os.name == "nt":
-        pytest.skip("the Pages build runs on ubuntu-latest")
+    import _posix
     sha = "ab" * 20
-    r = subprocess.run(["bash", str(ROOT / "scripts" / "build_site.sh"), str(tmp_path / "site"), sha], capture_output=True, text=True, check=False)
+    r = subprocess.run([_posix.bash(), _posix.path(ROOT / "scripts" / "build_site.sh"), _posix.path(tmp_path / "site"), sha], capture_output=True, text=True, check=False,
+                       env=_posix.environ(dict(os.environ)))
     assert r.returncode == 0, r.stderr
     site = tmp_path / "site"
     assert {"index.html", "app.js", "front.js", "settle.js", "knos-claim.yml", "program_ids.json"} <= {p.name for p in site.iterdir()}
@@ -296,7 +295,8 @@ def test_the_site_is_built_at_one_commit(tmp_path):
     assert (site / "settle.js").read_bytes() == (ROOT / "sdk" / "settle" / "index.js").read_bytes()
     # the second deployment's addresses ship as a file, and the first deployment's are only in the page, as history
     assert (site / "program_ids.json").read_bytes() == (ROOT / "src" / "knos" / "settle" / "v2" / "program_ids.json").read_bytes()
-    assert subprocess.run(["bash", str(ROOT / "scripts" / "build_site.sh"), str(tmp_path / "x"), "main"], capture_output=True).returncode != 0
+    assert subprocess.run([_posix.bash(), _posix.path(ROOT / "scripts" / "build_site.sh"), _posix.path(tmp_path / "x"), "main"], capture_output=True,
+                          env=_posix.environ(dict(os.environ))).returncode != 0
 
 
 # -- the site's words against the code they describe -----------------------------------------------------------------
@@ -342,14 +342,21 @@ def test_the_numbers_the_site_states_are_the_codes():
     from knos.settle.v2 import oidc, pay
     fund, claim, build = (_text(_view(n)) for n in ("fund", "claim", "build"))
     usdc = lambda units: f"{units / 10 ** 6:g}"                                    # noqa: E731
-    assert f"from {usdc(pay.MIN_AMOUNT)} to {usdc(pay.MAX_AMOUNT)} test USDC, with at most 6 decimals" in fund
+    whole = lambda units: f"{units // 10 ** 6:,}"                                  # noqa: E731
+    # `/knos fund` opens a work order, and an order's least amount is its own (knos_pay ORDER_MIN_AMOUNT, lib.rs): 5, where a 2.0 job's is 1
+    assert f"from {usdc(pay.ORDER_MIN_AMOUNT)} to {whole(pay.MAX_AMOUNT)} test USDC, with at most 6 decimals" in fund
+    assert (pay.MIN_AMOUNT, pay.ORDER_MIN_AMOUNT, pay.MAX_AMOUNT) == (1_000_000, 5_000_000, 100_000_000_000)
     assert f"at most {usdc(pay.FAUCET_CAP)} per comment, once per repository per minute" in fund and pay.FUND_PERIOD == 60
     assert f"{commands.DAYS} days unless you say, {commands.MAX_DAYS} at most" in fund
     assert f"{commands.RESERVE} unless you say" in fund
-    # an order's fee: its funder pays it on top of the amount, between a floor and a cap, and gets it back with a refund
-    assert (f"Fee: {pay.FEE_BPS / 100:g}% of the amount, paid by the funder on top of it (at least {pay.ORDER_FEE_MIN / 10 ** 6:.2f} test USDC, "
-            f"at most {pay.ORDER_FEE_MAX / 10 ** 6:g}), and only when someone is paid: a refund returns it with the amount") in fund
-    assert (pay.order_fee(pay.ORDER_MIN_AMOUNT), pay.order_fee(pay.MAX_AMOUNT), pay.order_fee(10 ** 12)) == (pay.ORDER_FEE_MIN, 12_500_000, pay.ORDER_FEE_MAX)
+    # an order's fee: its funder pays it on top of the amount, in three tiers above a floor and with no maximum, and gets it back with a refund
+    for part in (f"{pay.FEE_BPS / 100:g}% of the first {whole(pay.FEE_TIER_1)}", f"{pay.FEE_BPS_2 / 100:g}% from {whole(pay.FEE_TIER_1)} to {whole(pay.FEE_TIER_2)}",
+                 f"{pay.FEE_BPS_3 / 100:g}% above", f"at least {pay.ORDER_FEE_MIN / 10 ** 6:.2f} test USDC", "paid by the funder on top",
+                 "only when someone is paid: a refund returns it with the amount"):
+        assert part in fund, part
+    assert "at most 25)" not in fund and not hasattr(pay, "ORDER_FEE_MAX"), "the fee has no maximum any more"
+    assert (pay.order_fee(pay.ORDER_MIN_AMOUNT), pay.order_fee(pay.FEE_TIER_1), pay.order_fee(pay.FEE_TIER_2), pay.order_fee(pay.MAX_AMOUNT),
+            pay.order_fee(10 ** 12)) == (pay.ORDER_FEE_MIN, 25_000_000, 515_000_000, 765_000_000, 5_265_000_000)
     # which of the two fees applies is the program's version, and the page sends the reader to where it is read
     assert "Pricing says which fee the program on devnet applies today" in fund and 'id="price-version-now"' in _view("pricing")
     assert f"held for you for {pay.HOLD // 86_400} days" in claim and f"After {pay.HOLD // 86_400} days it goes back to the funder" in claim
@@ -375,9 +382,16 @@ def test_the_sample_reply_says_what_the_terms_say():
     assert "20.00 test USDC" in sample and f"until you bind a wallet ({pay.HOLD // 86_400} days at most)" in sample and "`/knos address <your Solana address>`" in sample
 
 
-def test_the_first_view_has_no_numbers_outside_code():
-    """scripts/claims_check.py holds every number in this view to a fact; the easiest way to keep it true is to have none."""
-    assert not re.search(r"\d", re.sub(r"`[^`]*`", " ", _text(_view("check"))))
+def test_the_first_view_has_no_numbers_outside_code_but_the_one_measurement_it_leads_with():
+    """scripts/claims_check.py holds every number in this view to a fact; the easiest way to keep it true is to have
+    almost none. A command shown in a <pre> is code, like one in <code>. The one measurement the view states (how many
+    cheating pull requests passed the black-box check, and how many passed plain CI) is the totals row of docs/TAMPER.md."""
+    view = re.sub(r"<pre>(.*?)</pre>", lambda m: "<code>" + m.group(1) + "</code>", _view("check"), flags=re.S)
+    said = re.sub(r"`[^`]*`", " ", _text(view))
+    row = re.search(r"^\| \*\*all\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \|$", (ROOT / "docs" / "TAMPER.md").read_text(encoding="utf-8"), re.M)
+    cases, plain_ci, _in_process, black_box = row.groups()
+    assert f"{black_box} of {cases} cheating pull requests passed it, {plain_ci} passed plain CI" in said
+    assert re.findall(r"\d+", said) == [black_box, cases, plain_ci], re.findall(r"\d+", said)
 
 
 def test_the_site_says_nothing_it_may_not():

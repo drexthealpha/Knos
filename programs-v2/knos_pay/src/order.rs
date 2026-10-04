@@ -9,8 +9,8 @@ use knos_oidc::claims::{self, parts};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, msg, program_error::ProgramError, pubkey::Pubkey};
 
 pub const OPTS_LEN: usize = 48;
-/// What a funder fixes beside the amount and the terms. 48 bytes: flags u8 @0 (PRIVATE 2, NEUTRAL 4, STANDING 8; the
-/// program sets FAUCET and TOKEN2022 itself), holdback_bps u16 @1, warranty_days u16 @3, kill_bps u16 @5,
+/// What a funder fixes beside the amount and the terms. 48 bytes: flags u8 @0 (PRIVATE 2, NEUTRAL 4, STANDING 8, AUTO 32, and
+/// in its two high bits QUORUM 2 or 3; the program sets FAUCET and TOKEN2022 itself), holdback_bps u16 @1, warranty_days u16 @3, kill_bps u16 @5,
 /// reserve_days u8 @7, rate u64 @8, arbiter_id u64 @16, judge_repo_id u64 @24, salted u8 @32 (1: a private order,
 /// whose 32-byte scope follows in the instruction data), 15 zero bytes.
 pub struct Opts {
@@ -21,13 +21,21 @@ pub struct Opts {
 /// MAX_WARRANTY_DAYS, kill fee at most MAX_KILL_BPS; a STANDING order has a rate between 1 and its amount, any other
 /// has none; PRIVATE and `salted` go together and need a judge repository (no run in the order's own repository can
 /// be told, since its id is not on chain); no bit and no byte that means nothing yet.
+/// AUTO and a QUORUM are for a public order that is not STANDING (the first passing pull request closes it; a quorum
+/// is counted per order, not per pull request). A QUORUM is 2 or 3 and no more than the judges the order can have:
+/// its own repository, a neutral run if it allows one, its judge repository if it names one. AUTO also needs mode 1
+/// (`escrow` refuses it otherwise: these 48 bytes do not carry the mode).
 pub fn opts_of(o: &[u8], amount: u64) -> Result<Opts, ProgramError> {
     if o.len() != OPTS_LEN { return Err(ProgramError::InvalidInstructionData); }
     let v = Opts { flags: o[0], holdback_bps: u16_at(o, 1), warranty_days: u16_at(o, 3), kill_bps: u16_at(o, 5), reserve_days: o[7], rate: u64_at(o, 8),
                    arbiter_id: u64_at(o, 16), judge_repo_id: u64_at(o, 24), salted: o[32] == 1 };
     let standing = v.flags & F_STANDING != 0;
     let private = v.flags & F_PRIVATE != 0;
-    let ok = v.flags & !(F_PRIVATE | F_NEUTRAL | F_STANDING) == 0 && o[32] <= 1 && o[33..] == [0u8; 15]
+    let quorum = v.flags >> 6;
+    let judges = 1 + (v.flags & F_NEUTRAL != 0) as u8 + (v.judge_repo_id != 0) as u8;
+    let plain = !standing && !private;
+    let ok = v.flags & !(F_PRIVATE | F_NEUTRAL | F_STANDING | F_AUTO | F_QUORUM) == 0 && o[32] <= 1
+        && (v.flags & F_AUTO == 0 || plain) && (quorum == 0 || (plain && (2..=judges).contains(&quorum))) && o[33..] == [0u8; 15]
         && v.holdback_bps <= MAX_HOLDBACK_BPS && v.warranty_days <= MAX_WARRANTY_DAYS && v.kill_bps <= MAX_KILL_BPS
         && (v.holdback_bps == 0 || v.warranty_days > 0)
         && (if standing { v.rate >= 1 && v.rate <= amount } else { v.rate == 0 })
@@ -48,6 +56,8 @@ pub struct Order {
 }
 impl Order {
     pub fn is(&self, flag: u8) -> bool { self.flags & flag != 0 }
+    /// How many distinct judges must pass the same artifact before this order pays: 0 (one judge's token pays), 2 or 3.
+    pub fn quorum(&self) -> u8 { self.flags >> 6 }
 }
 /// An order, read after checking that this program owns the account, that it has an order's length and version, and
 /// that its address is the one its own fields derive. An order that was paid out or refunded is gone.
@@ -131,6 +141,9 @@ fn escrow<'a>(program_id: &Pubkey, e: &Escrow<'a, '_>, m: &Mint, n: &NewOrder, j
     let (ak, ab) = auth_key(program_id);
     if *e.auth.key != ak { return Err(err(E_ACCOUNTS)); }
     if !order_terms_ok(n.amount, n.work, n.mode, m.decimals) { return Err(err(E_TERMS)); }
+    // AUTO pays with no merge, so only on the black-box suite: mode 1 (tests), where the pinned judge runs the
+    // pinned acceptance bundle against the pull request and refuses a bundle that is not black-box
+    if n.opts.flags & F_AUTO != 0 && n.mode != 1 { return Err(err(E_TERMS)); }
     let seq = n.seq.to_le_bytes();
     let (new, bump) = open(program_id, e.payer, e.order, e.sys, ORDER_LEN, &[b"ord", &n.scope, n.source.as_ref(), &seq], E_ORDER)?;
     if !new { return Err(err(E_ORDER)); }
@@ -205,7 +218,7 @@ pub fn fund_order_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &
     let b = load_balance(program_id, balance)?;
     if *mint.key != b.mint || *baltok.key != baltok_key(program_id, balance.key).0 { return Err(err(E_ACCOUNTS)); }
     let m = mint_of(mint, token, true)?;
-    let g = crate::fund::fund_run_any(tok, key, now)?;
+    let g = crate::fund::fund_run_order(tok, key, now)?;
     let f = order_fund_aud(&g.aud, balance.key)?;
     may_spend(&b, &g)?;
     let opts = opts_of(&f.opts, f.amount)?;
@@ -218,12 +231,12 @@ pub fn fund_order_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &
     let total = f.amount.checked_add(order_fee(f.amount, bps, m.decimals)).ok_or(ProgramError::ArithmeticOverflow)?;
     // the limits count what leaves the Balance: the amount and the fee on top of it
     spend_x(program_id, &b, balance.key, Some(balx), g.repo_id, &g.wf_sha, total, now)?;
-    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?)?;
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, true)?;
     if amount_of(baltok, token.key, E_ACCOUNTS)? < total { return Err(err(E_FUNDS)); }
     let faucet = b.faucet || (DEVNET && *mint.key == faucet_mint(program_id).0);
     escrow(program_id, &Escrow { payer: relayer, order, ov, from: baltok, authority: auth, mint, auth, token, sys, auth_signs: true }, &m,
            &NewOrder { repo: n.repo, issue: n.issue, scope: n.scope, seq: f.seq, amount: f.amount, bps, work: f.work,
-                       mode: f.mode, kind: 1, faucet, funder_id: g.actor_id, owner_id: b.owner_id, not_before: g.iat, source: balance.key,
+                       mode: f.mode, kind: 1, faucet, funder_id: g.actor_id, owner_id: b.owner_id, not_before: now.saturating_sub(CLOCK_SLACK), source: balance.key,
                        refund_to: baltok.key, terms: n.terms, wf_repo: &g.wf_repo, wf_sha: &g.wf_sha, opts }, n.json, now)?;
     let mut d = balance.try_borrow_mut_data()?;
     let spent = u64_at(&d, B_SPENT).saturating_add(total);
@@ -280,11 +293,17 @@ mod tests {
         assert_eq!((v.flags, v.holdback_bps, v.warranty_days, v.kill_bps, v.reserve_days, v.rate, v.arbiter_id, v.judge_repo_id, v.salted),
                    (F_NEUTRAL | F_STANDING, 5000, 90, 2000, 7, 5, 77, 9, false));
         assert!(opts_of(&opts(0, 0, 0, 0, 0, 0, 0), 10).is_ok() && opts_of(&opts(F_PRIVATE, 0, 0, 0, 0, 9, 1), 10).is_ok());
+        // AUTO; a quorum of 2 with two possible judges, of 3 with all three
+        for good in [opts(F_AUTO, 0, 0, 0, 0, 0, 0), opts(F_AUTO | 0x80 | F_NEUTRAL, 1000, 30, 0, 0, 0, 0), opts(0x80, 0, 0, 0, 0, 9, 0), opts(0xc0 | F_NEUTRAL, 0, 0, 0, 0, 9, 0)] {
+            assert!(opts_of(&good, 10).is_ok(), "{good:?}");
+        }
         let mut junk = opts(0, 0, 0, 0, 0, 0, 0);
         junk[40] = 1;
         for bad in [opts(0, 5001, 90, 0, 0, 0, 0), opts(0, 100, 91, 0, 0, 0, 0), opts(0, 0, 0, 2001, 0, 0, 0), opts(0, 100, 0, 0, 0, 0, 0),
                     opts(F_STANDING, 0, 0, 0, 0, 0, 0), opts(F_STANDING, 0, 0, 0, 11, 0, 0), opts(0, 0, 0, 0, 5, 0, 0), opts(F_FAUCET, 0, 0, 0, 0, 0, 0),
-                    opts(F_TOKEN2022, 0, 0, 0, 0, 0, 0), opts(32, 0, 0, 0, 0, 0, 0), opts(F_PRIVATE, 0, 0, 0, 0, 9, 0), opts(0, 0, 0, 0, 0, 9, 1),
+                    opts(F_TOKEN2022, 0, 0, 0, 0, 0, 0), opts(64, 0, 0, 0, 0, 0, 0), opts(0x80, 0, 0, 0, 0, 0, 0), opts(0xc0 | F_NEUTRAL, 0, 0, 0, 0, 0, 0),
+                    opts(0x80 | F_NEUTRAL | F_STANDING, 0, 0, 0, 5, 0, 0), opts(F_AUTO | F_STANDING, 0, 0, 0, 5, 0, 0), opts(F_AUTO | F_PRIVATE, 0, 0, 0, 0, 9, 1),
+                    opts(0x80 | F_PRIVATE, 0, 0, 0, 0, 9, 1), opts(F_PRIVATE, 0, 0, 0, 0, 9, 0), opts(0, 0, 0, 0, 0, 9, 1),
                     opts(F_PRIVATE, 0, 0, 0, 0, 0, 1), opts(0, 0, 0, 0, 0, 0, 2), junk] {
             assert!(opts_of(&bad, 10).err() == Some(err(E_TERMS)), "{bad:?}");
         }

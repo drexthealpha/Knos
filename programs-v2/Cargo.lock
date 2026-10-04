@@ -494,11 +494,11 @@ dependencies = [
 
 [[package]]
 name = "knos-oidc-interface"
-version = "0.3.13"
+version = "0.3.14"
 
 [[package]]
 name = "knos_meter"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "knos-oidc-interface",
  "solana-program",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "knos_oidc"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "hex",
  "serde",
@@ -518,7 +518,7 @@ dependencies = [
 
 [[package]]
 name = "knos_passkey"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "solana-program",
  "solana-security-txt",
@@ -526,7 +526,7 @@ dependencies = [
 
 [[package]]
 name = "knos_pay"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "knos_oidc",
  "solana-program",

@@ -15,13 +15,13 @@ It speaks to the second deployment (`knos.v2`), whose programs are upgradeable o
 No registry account is needed. From the release:
 
 ```bash
-npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.13/knos-settle-0.3.13.tgz
+npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.14/knos-settle-0.3.14.tgz
 ```
 
 Or import it in a browser:
 
 ```js
-import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.13/sdk/settle/index.js";
+import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.14/sdk/settle/index.js";
 ```
 
 ## Fund an order from a wallet in the browser
@@ -38,7 +38,7 @@ if (!wallet) throw new Error("This page found no Solana wallet. Install one and 
 const funder = await wallet.connect("solana:devnet");    // the wallet asks the person, then gives an address
 const { id: repoId } = await (await fetch("https://api.github.com/repos/drexthealpha/Knos")).json();
 const ix = await k.fundOrderWalletIx({ funder, funderToken: await knos.ata(funder, mint), mint, repoId, issue: 7, amount, terms,
-  wfRepo: "drexthealpha/knos-workflows", wfSha: "bbaf6e1c850bcc1a12954ffe252b100ef67f16b8" });   // the workflows that may pay it
+  wfRepo: "drexthealpha/knos-workflows", wfSha: "c319984edd726d3d779f0c5497a52c57044d59fb" });   // the workflows that may pay it
 const { value } = await knos.rpc(RPC, "getLatestBlockhash", [{ commitment: "finalized" }]);
 const signature = await wallet.signAndSend(knos.serializeTx([ix], funder, value.blockhash), "solana:devnet");   // the wallet shows it first
 console.log(await knos.confirmed(RPC, signature), "- paid", amount / 1e6, "test USDC and a fee of", knos.v2.orderFee(amount) / 1e6, "on top");
@@ -46,7 +46,8 @@ console.log(await knos.confirmed(RPC, signature), "- paid", amount / 1e6, "test 
 
 The order is for issue 7 of that repository: the 25 test USDC go to the person whose pull request closes the issue, once a
 maintainer merges it and the checks named in `terms` passed at its last commit. The fee is paid by the funder on top
-of the amount: 2.5%, at least 0.4 and at most 25 whole units of the mint (`knos.v2.orderFee`). Unpaid at its deadline
+of the amount: 2.5% of the first 1,000 whole units of the mint, 1% from there to 50,000 and 0.5% above, at least 0.4 and
+with no maximum (`knos.v2.orderFee`). Unpaid at its deadline
 (14 days after funding, unless `workS` says otherwise), the order can be sent back to the wallet. The wallet needs the
 amount and the fee in test USDC, which Circle's [devnet faucet](https://faucet.circle.com) gives. The workflows in
 `wfRepo` and `wfSha` are the `prove.yml` that the repository's own `.github/workflows/knos.yml` calls: only a signed
@@ -110,10 +111,11 @@ or fix the time deadlines are judged by.
 |---|---|
 | `knos.v2.client(ids)` | Orders: `fundOrderWalletIx`, `fundOrderBalanceIx`, `payOrderIx`, `settleOrderIx`, `refundOrderIx`, `topUpIx`; balances and their limits (`openBalanceIx`, `setBalanceXIx`); the addresses of everything (`orderPda`, `rep`, `baltok`, ...); `explain(ix)`, which reads an instruction back in words before anyone signs it. |
 | `knos.v2` | The pure functions: `orderFee`, `termsJson`, `termsHash`, the audiences (`orderFundAudience`, `orderPayAudience`), the readers (`readOrder`, `readBalance`, `readRep`, ...) and every constant. |
-| `knos.meter` | The meter: `client(id)` builds `openCreditsIx`, `depositIx`, `withdrawCreditsIx` and the addresses; `evalAudience`, `readCredits`, `quote` and `statement` read and recompute. The token an evaluation needs comes from a run of the published `attest.yml` with the kind `eval` in a repository of the buyer (`knos attest --kind eval`), posted as `knos-eval:` for the relay; pin that workflow's repository and commit when you open the credits. |
+| `knos.meter` | The meter: `client(id)` builds `openCreditsIx`, `depositIx`, `withdrawCreditsIx` and the addresses; `evalAudience`, `readCredits`, `quote` and `statement` read and recompute. A batch counts many evaluations with one token and no account each: `merkleRoot`, `batchAudience`, `recordBatchIx` for the buyer, `claimBatchIx` for the seller's own count, and `readLedger` with `chainHash` to check a ledger against the chain. The token an evaluation needs comes from a run of the published `attest.yml` with the kind `eval` in a repository of the buyer (`knos attest --kind eval`), posted as `knos-eval:` for the relay; pin that workflow's repository and commit when you open the credits. |
 | `knos.verifier(id)` | The verifier: a token into its account, the squarings, the key accounts of GitHub, GitLab and any other issuer named by its URL. |
 | `serializeTx`, `serializeTxV1` | An unsigned transaction for a wallet: legacy (up to 1,232 bytes) or version 1 (SIMD-0385: up to 4,096 bytes, 64 accounts). |
 | `rpc`, `account`, `programAccounts`, `confirmed` | The few RPC calls the rest needs, with `fetch`. |
 | `knos-settle/agent` | `quote`, `eligible`, `statement`, and `describe`, which puts terms in words. |
+| `knos-settle/passkey` | A wallet whose only key is a passkey (knos-passkey): `create`, `sign`, `withdrawIxs`, and `fundIxs`, which funds a work order from it. One file with no import, so a page can load it alone. |
 
-Types for every export are in `index.d.ts` and `agent.d.ts`; a test fails when an export has no declaration.
+Types for every export are in `index.d.ts`, `agent.d.ts` and `passkey.d.ts`; a test fails when an export has no declaration.

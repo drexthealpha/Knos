@@ -742,3 +742,49 @@ def test_knos_proof_evidence_prints_each_checks_state_and_the_verdict(github, tm
     t.write_bytes(terms.canonical(need()).replace(b",", b", "))
     rc, out = cli(capsys, "proof", "evidence", "--terms", str(t), "--repo", "o/r", "--sha", "abc", "--changed", str(changed))
     assert rc == 1 and "not in canonical form" in out
+
+
+# ---- image: the hermetic judge's container, fixed at funding ----------------------------------------------------------
+
+IMAGE = "docker.io/library/python@sha256:" + "a" * 64
+TESTS = {**BASE, "mode": "tests", "accept": "b" * 64}
+
+
+def test_an_image_is_part_of_the_terms_and_of_their_hash():
+    with_image = {**TESTS, "image": IMAGE}
+    data = terms.canonical(with_image)
+    assert terms.parse(data) == with_image and json.loads(data)["image"] == IMAGE
+    assert terms.terms_hash(with_image) == hashlib.sha256(data).hexdigest() != terms.terms_hash(TESTS)
+    other = {**TESTS, "image": "docker.io/library/python@sha256:" + "c" * 64}
+    assert terms.terms_hash(other) != terms.terms_hash(with_image)            # another image is other terms
+    assert b"image" not in terms.canonical(TESTS) and terms.canonical(BASE) == terms.canonical({**BASE})   # terms without one keep their bytes
+    built = terms.build(fund(), [], [], [], accept="b" * 64, image=IMAGE)
+    assert built.terms["image"] == IMAGE and built.terms["mode"] == "tests"
+    assert "image" not in terms.build(fund(), [], [], [], accept="", image=IMAGE).terms    # a merge has no judge to pin
+
+
+@pytest.mark.parametrize("image", ["python:3.12", "docker.io/library/python:3.12-alpine", "ghcr.io/owner/judge:latest", "python"])
+def test_a_tag_without_a_digest_is_refused_at_funding_with_what_to_write(image):
+    for said in (refused(terms.canonical, {**TESTS, "image": image}), refused(terms.build, fund(), [], [], [], "b" * 64, image=image)):
+        assert "a tag can be pointed at another image after funding" in said
+        assert "Pin it by digest: write <registry>/<name>@sha256:<64 hex>" in said
+
+
+def test_an_image_that_is_not_one_and_an_image_in_merge_mode_are_refused():
+    for bad in ("python@sha256:" + "a" * 64, IMAGE[:-1], IMAGE.upper(), IMAGE + " --privileged", "", 7, None, [IMAGE]):
+        assert "image" in refused(terms.canonical, {**TESTS, "image": bad}), bad
+    assert "image goes with tests mode" in refused(terms.canonical, {**BASE, "image": IMAGE})
+    assert "not in canonical form" in refused(terms.parse, terms.canonical({**TESTS, "image": IMAGE}).replace(b'"image"', b' "image"'))
+
+
+def test_the_terms_say_which_assurance_they_buy():
+    assert terms.assurance(BASE) == "" and terms.assurance(TESTS) == ""                     # merge mode; and not known from the terms alone
+    assert (terms.assurance(TESTS, False), terms.assurance(TESTS, True), terms.assurance({**TESTS, "image": IMAGE})) == \
+        ("in-process", "black-box", "hermetic")
+    assert not any(line.startswith("Judge:") for line in terms.describe(BASE))
+    tests = terms.describe(TESTS, black_box=False)[-1]
+    box = terms.describe(TESTS, black_box=True)[-1]
+    hermetic = terms.describe({**TESTS, "image": IMAGE})[-1]
+    assert tests.startswith("Judge: in-process. ") and "7 of 63" in tests
+    assert box.startswith("Judge: black-box. ") and "0 of 63" in box and "not a proof for every attack" in box
+    assert hermetic.startswith(f"Judge: hermetic, in `{IMAGE}`. ") and "0 of 63" in hermetic and "not a proof for every attack" in hermetic

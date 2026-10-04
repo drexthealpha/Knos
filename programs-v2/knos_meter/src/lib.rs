@@ -25,8 +25,27 @@
 //! never were, which would drop them from a count that must be exact, and a list of keys in the Month account holds
 //! rent that nobody gets back.
 //!
+//! TWO MODES. The INDIVIDUAL mode above (Record) keeps one Mark per evaluation, and a Mark's rent is more than the fee
+//! it guards. The BATCH mode (RecordBatch) writes no account per evaluation: one signed token carries the count of
+//! many evaluations, how many were accepted, their declared value and the root of a Merkle tree over their keys, and
+//! one Ledger account per (buyer, seller, month) keeps the totals and a running hash of every batch. The evaluations
+//! themselves are in a ledger file off chain; anyone who holds it recomputes each root and the running hash and
+//! compares them with the account. A batch token is taken once because its `seq` must be the Ledger's `next_seq`.
+//! The program does not see the evaluations of a batch, so it cannot tell that one was also recorded by Record or in
+//! another batch: the off-chain ledger shows that (leaves are sorted and never repeat inside a batch), the chain does
+//! not. ClaimBatch is the SELLER's own count of the same month, in an account of its own, at no fee: a buyer who
+//! leaves evaluations out is visible on chain as two counts that differ, and the two ledger files say which.
+//!
+//! THE TREE (the program stores the root and never computes it). RFC 6962: leaf = sha256(0x00 || id),
+//! node = sha256(0x01 || left || right), split at the largest power of two below the number of leaves. id is the key
+//! of the individual mode: sha256(work order || artifact (40 hex characters) || policy || milestone u32). Leaves are
+//! sorted ascending by id and none repeats.
+//!
+//! THE RUNNING HASH. A new Ledger's `chain` is 32 zero bytes. Each batch sets
+//!   chain = sha256(chain || root || seq u64 || count u64 || accepted u64 || value u64)      integers little-endian
+//!
 //! WHERE MONEY CAN GO. Tokens leave a Credits token account only by these two transfers, each a TransferChecked:
-//!   crtok -> a token account of FEE_OWNER                      Record: the fee of one billable evaluation
+//!   crtok -> a token account of FEE_OWNER                      Record: the fee of one billable evaluation; RecordBatch: of a batch
 //!   crtok -> a token account of the wallet that opened it      WithdrawCredits, that wallet signs
 //! A fee that the credits do not hold is refused, and the evaluation with it: credits never go below zero and no
 //! debt is kept. Money enters by a plain token transfer to crtok, from anyone.
@@ -40,6 +59,8 @@
 //!   Mark     ["k", buyer id, key]                this evaluation was billed; key = sha256(work order || artifact (40
 //!                                                hex characters) || policy || milestone u32). Closed by CloseMark.
 //!   Month    ["m", buyer id, seller id, yyyymm u32]   the count of one buyer and one seller in one month (UTC)
+//!   Ledger   ["l", buyer id, seller id, yyyymm u32]   the batches the BUYER's runs recorded for that month (RecordBatch)
+//!   Ledger   ["lc", buyer id, seller id, yyyymm u32]  the batches the SELLER's runs claimed for it (ClaimBatch); same layout
 //!
 //! THE TOKEN. A GitHub Actions OIDC token in an account that knos-oidc owns and marked VERIFIED, read through
 //! knos-oidc-interface. Required, in gh.rs: issuer GitHub; at most an hour past its expiry; `iat` at most TOKEN_AHEAD
@@ -50,7 +71,9 @@
 //! a wallet registered with no attestation, counts nothing here. The audience (`aud`):
 //!   knosm:eval:<buyer owner id>:<seller id>:<work order hex32>:<artifact hex40>:<policy hex32>:<milestone>:<verdict 0|1>:<rate>
 //! `rate` is what the seller bills for this outcome if it is accepted, in the smallest units of whatever the two
-//! settle in. A token is not a secret: anyone may relay one, and what it can do is fixed by its claims and audience.
+//! settle in. The batch mode's two audiences (gh.rs has the rules of each field):
+//!   knosm:batch:<buyer owner id>:<seller id>:<month yyyymm>:<seq>:<count>:<accepted>:<value>:<root hex32>
+//!   knosm:claim:<buyer owner id>:<seller id>:<month yyyymm>:<seq>:<count>:<accepted>:<value>:<root hex32> A token is not a secret: anyone may relay one, and what it can do is fixed by its claims and audience.
 //!
 //! PRICES, in whole units of the mint (read from the mint's decimals). FEE 0.05 per billable evaluation; under a Plan
 //! that has not expired, the Plan's rate, PLAN_MIN 0.02 ..= FEE; the first FREE_PER_MONTH (10,000) billable
@@ -87,6 +110,22 @@
 //!   4 CloseMark        payer(s,w) mark(w)
 //!                      The relayer that paid a Mark's rent takes it back, all of it, from the time the Mark names
 //!                      (E_EARLY before it; E_MARK for another signer or another account). The account is gone.
+//!   5 RecordBatch      relayer(s,w) token key credits(w) crtok(w) plan(w) ledger(w) fee_token(w) mint auth token_program system
+//!                      Anyone relays. The token: as for Record (the pinned attest.yml or prove.yml, first attempt, a
+//!                      repository of the buyer, credits prepaid for that buyer), with a knosm:batch audience. count
+//!                      is 1..=MAX_BATCH, accepted is at most count, month is the chain's month or the one before it
+//!                      (E_BATCH), and seq is the Ledger's next_seq (E_SEQ: the same token again, a batch out of
+//!                      order). The Ledger is created on first use (rent from the relayer; it is never closed). The
+//!                      owner's count of the chain's month goes up by `count` (Plan); the part of the batch above
+//!                      FREE_PER_MONTH costs the rate each, from crtok to fee_token, and credits that hold less
+//!                      refuse the whole batch (E_FUNDS). The Ledger adds the batch to its totals and its chain.
+//!   6 ClaimBatch       relayer(s,w) token key claim(w) system
+//!                      Anyone relays. The token: verified as above, from any workflow run in a repository whose
+//!                      `repository_owner_id` is the audience's SELLER (E_OWNER), with a knosm:claim audience and the
+//!                      same bounds and seq rule. It is the seller's own statement: no pin, no fee, no credits. Writes
+//!                      the Ledger at ["lc", ...] exactly as RecordBatch writes the one at ["l", ...].
+//!   7 Version
+//!                      Logs `knosm:version 1.1`. A client simulates it to learn which build is live.
 //!
 //! MINT RULES (token.rs). Credits are opened only in Circle's USDC (FEE_MINTS; a test build takes any mint). The
 //! mint's owner is SPL Token or Token-2022 and the token program passed is that owner; 2 to 18 decimals; a Token-2022
@@ -102,6 +141,11 @@
 //!                                                       a billable evaluation; n: the owner's count this month
 //!   knosm:retry buyer= key=                             an evaluation that was billed before: free, not counted
 //!   knosm:closed buyer= month= lamports=                a Mark was closed and its rent returned to the relayer that paid it
+//!   knosm:batch buyer= seller= month= seq= count= accepted= value= root= billable= fee= n= chain= mint=
+//!                                                       a batch was recorded; billable: how many of it cost the rate;
+//!                                                       n: the owner's count this month; chain: the running hash after it
+//!   knosm:claim buyer= seller= month= seq= count= accepted= value= root= chain=      the seller claimed a batch
+//!   knosm:version 1.1
 pub mod gh;
 pub mod meter;
 pub mod state;
@@ -133,6 +177,8 @@ pub const PLAN_MIN: u64 = 20_000;         // 0.02: the lowest rate a Plan can se
 pub const FREE_PER_MONTH: u64 = 10_000;   // an owner's first billable evaluations of a month cost nothing
 pub const TOKEN_AHEAD: i64 = 300;         // a token's `iat` may be this far ahead of the chain's clock (the clock can lag)
 pub const TOKEN_LIFE: i64 = 3600;         // a token's `exp` is at most this long after its `iat` (GitHub's is 300 seconds)
+pub const MAX_BATCH: u64 = 100_000;       // the most evaluations one batch token carries
+pub const VERSION: &str = "1.1";          // what Version logs
 pub const MARK_GRACE: i64 = 7200;         // TOKEN_LIFE + the verifier's LATE: how long past a month's end a token issued in it can still be accepted
 
 // errors 61-63 are the claim reader's (knos-oidc-interface); 76-78 are knos-oidc's: the key that verified a token is
@@ -152,6 +198,8 @@ pub const E_FEE_OWNER: u32 = 121; // not FEE_OWNER
 pub const E_KEY_KIND: u32 = 122;  // the key that verified the token is private, or of a kind this program does not know
 pub const E_MARK: u32 = 123;      // not a Mark that can be closed, or the signer is not the relayer that paid its rent
 pub const E_EARLY: u32 = 124;     // the Mark cannot be closed yet: its month has not closed, or a token issued in it could still be relayed
+pub const E_SEQ: u32 = 125;       // the batch's seq is not the Ledger's next: this token was taken before, or a batch before it is missing
+pub const E_BATCH: u32 = 126;     // a batch of no evaluations or of more than MAX_BATCH, more accepted than counted, or a month that is neither this one nor the last
 
 pub fn err(code: u32) -> ProgramError { ProgramError::Custom(code) }
 
@@ -192,6 +240,9 @@ pub fn next_month(t: i64) -> i64 {
     (era * 146_097 + yoe * 365 + yoe / 4 - yoe / 100 + (153 * mp + 2) / 5 - 719_468) * 86_400
 }
 
+/// The month before a yyyymm.
+pub fn prev_month(ym: u32) -> u32 { if ym % 100 == 1 { ym - 89 } else { ym - 1 } }
+
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     let (&tag, rest) = data.split_first().ok_or(ProgramError::InvalidInstructionData)?;
     let now = Clock::get()?.unix_timestamp;
@@ -201,6 +252,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Pr
         2 => meter::set_plan(program_id, accounts, rest),
         3 => meter::record(program_id, accounts, rest, now),
         4 => meter::close_mark(program_id, accounts, rest, now),
+        5 => meter::record_batch(program_id, accounts, rest, now),
+        6 => meter::claim_batch(program_id, accounts, rest, now),
+        7 => meter::version(rest),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -234,6 +288,11 @@ mod tests {
             t += 40_027;
         }
         assert_eq!(MARK_GRACE, TOKEN_LIFE + knos_oidc_interface::LATE);
+    }
+
+    #[test]
+    fn the_month_before() {
+        assert_eq!((prev_month(202610), prev_month(202701), prev_month(202612), prev_month(197001)), (202609, 202612, 202611, 196912));
     }
 
     #[test]

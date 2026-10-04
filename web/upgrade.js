@@ -131,3 +131,12 @@ export function runDay(upgrades, name) {
   const p = upgrades.filter((x) => x.name === name && x.status === "Approved").sort((a, b) => a.executesAt - b.executesAt)[0];
   return p ? new Date(p.executesAt * 1000).toISOString().slice(0, 10) : null;
 }
+
+// Being told without looking: scripts/upgrade_feed.py writes every proposal (program, proposed build hash, source commit, earliest
+// execution time, status) to upgrades.json and to an Atom feed beside this file, at release time and with every build of the site.
+// A feed reader that follows the feed shows a new proposal when the site is next built; the banner above reads the chain itself.
+export const FEED = "upgrades.xml";
+export const FEED_JSON = "upgrades.json";
+// The banner's last line, on every view while a proposal is pending.
+export const feedLine = `<p class="fine">Follow every proposal without opening this page: <a id="upgrade-feed" href="${FEED}" type="application/atom+xml">the upgrade feed (Atom)</a>,
+  or <a href="${FEED_JSON}">the same as JSON</a>: program, build hash, source commit, earliest time it can run, and whether it is pending, executed, cancelled or replaced.</p>`;

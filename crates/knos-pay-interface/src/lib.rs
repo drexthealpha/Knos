@@ -43,11 +43,14 @@ pub const USDC_DEVNET: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJ
 pub const USDC_MAINNET: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
 // Prices and bounds, in millionths of ONE WHOLE UNIT of the mint (`units` turns them into the mint's smallest units).
-pub const FEE_BPS: u64 = 250;
-pub const ORDER_FEE_MIN: u64 = 400_000;
-pub const ORDER_FEE_MAX: u64 = 25_000_000;
+pub const FEE_BPS: u64 = 250; // 2.5%: the first tier of an order's fee
+pub const ORDER_FEE_MIN: u64 = 400_000; // 0.40
+pub const FEE_TIER_1: u64 = 1_000_000_000; // the first 1,000.00: FEE_BPS, or the owner's Plan
+pub const FEE_TIER_2: u64 = 50_000_000_000; // from there to 50,000.00: FEE_BPS_2; above it: FEE_BPS_3
+pub const FEE_BPS_2: u64 = 100; // 1%
+pub const FEE_BPS_3: u64 = 50; // 0.5%
 pub const ORDER_MIN_AMOUNT: u64 = 5_000_000;
-pub const MAX_AMOUNT: u64 = 500_000_000;
+pub const MAX_AMOUNT: u64 = 100_000_000_000; // 100,000.00 per order on devnet
 pub const MIN_WORK: i64 = 60;
 pub const MAX_WORK: i64 = 90 * 86_400;
 pub const MAX_TERMS: usize = 600;
@@ -71,10 +74,18 @@ pub fn units(micro: u64, decimals: u8) -> u64 {
     let v = match 10u128.checked_pow(decimals as u32) { Some(p) => (micro as u128).saturating_mul(p) / 1_000_000, None => u128::MAX };
     v.min(u64::MAX as u128) as u64
 }
-/// The fee a funder pays ON TOP of an order's amount: `bps` of it (FEE_BPS for a wallet's order), at least
-/// ORDER_FEE_MIN and at most ORDER_FEE_MAX of a whole unit. FundOrderWallet moves amount + order_fee(amount).
+/// `bps` basis points of an amount, rounded down, without overflow.
+pub fn bps_of(amount: u64, bps: u64) -> u64 { amount / 10_000 * bps + amount % 10_000 * bps / 10_000 }
+/// The fee a funder pays ON TOP of an order's amount, exactly as knos_pay computes it. Marginal, in whole units of
+/// the mint: `bps` (FEE_BPS for a wallet's order) of the first FEE_TIER_1 of the amount, FEE_BPS_2 of what lies
+/// between FEE_TIER_1 and FEE_TIER_2, FEE_BPS_3 of what lies above; each part rounded down; at least ORDER_FEE_MIN;
+/// no maximum. FundOrderWallet moves amount + order_fee(amount).
 pub fn order_fee(amount: u64, bps: u64, decimals: u8) -> u64 {
-    (amount / 10_000 * bps + amount % 10_000 * bps / 10_000).max(units(ORDER_FEE_MIN, decimals)).min(units(ORDER_FEE_MAX, decimals))
+    let (t1, t2) = (units(FEE_TIER_1, decimals), units(FEE_TIER_2, decimals));
+    let first = amount.min(t1);
+    let second = amount.min(t2) - first;
+    let third = amount - first - second;
+    (bps_of(first, bps) + bps_of(second, FEE_BPS_2) + bps_of(third, FEE_BPS_3)).max(units(ORDER_FEE_MIN, decimals))
 }
 
 /// sha256 of the terms JSON: what the order stores and a pay token must carry.

@@ -1,46 +1,47 @@
 # Knos
 
-**Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they were met, a Solana program settles.**
+**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.**
 
 A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A
 bounty on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs says whether
 the terms were met, and a Solana program checks that signature itself before it pays. No person holds the money in
 between.
 
+**Who it is for.** The buyer is the person who has to approve a supplier's invoice for software work: an engineering
+leader or a finance owner buying per accepted change from an agent vendor or an agency. The supplier is the second
+user: it needs acceptance terms nobody can change after the work, and a way to be paid when the buyer does nothing.
+A maintainer with a 20 USDC bounty is the smallest case, not the market ([docs/MARKET.md](docs/MARKET.md)). It all
+runs on Solana devnet, in test USDC; nobody outside Knos has funded an order with their own tokens or bought anything.
+
+1. **A verifier on Solana for any RS256 workload identity**, readable by other programs ([docs/OIDC.md](docs/OIDC.md)).
+2. **Named checks and allowed paths are hashed into the order at funding.** Nothing changes them afterwards.
+3. **A seller can settle without the buyer**, after a merge in a public repository.
+4. **Payment on a black-box check:** of 63 cheating pull requests, 56 passed plain CI and 0 passed it ([docs/TAMPER.md](docs/TAMPER.md)).
+5. **A neutral count of accepted outcomes with no escrow:** the supplier's count sits on chain beside the buyer's.
+
 <!-- recording: the release puts the poster image on the next line, linked to the same file -->
-**Recording:** [one work order, from its funding to its payment](https://github.com/drexthealpha/Knos/releases/latest/download/demo.mp4).
-The file is `demo.mp4`, attached to the latest release. A release with no recording has no such file, and the link
-then finds nothing.
+**Recording:** [one work order, from its funding to its payment](https://github.com/drexthealpha/Knos/releases/latest/download/demo.mp4). A release with no recording has no such file.
 
 **Try it in one minute, with no wallet.** Open [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/).
-Under the first form are three buttons. Each puts a real input in the form and shows the result:
-
+Three buttons under the first form each put a real input in it and show the result:
 - **A claim that is true:** an agent's pull request says its tests pass, and GitHub's own checks agree.
 - **A claim that is false:** a pull request says it passes all CI, and a check of its latest commit failed.
-- **A task that was paid:** the transaction on Solana devnet that paid a task. Knos's own account paid itself
-  there, in test USDC, to show the path.
+- **A task that was paid:** the transaction on devnet that paid a task; Knos's own account paid itself, in test USDC.
 
-One buyer, one work order, one acceptance, one payment, and then the next order:
+The smallest case, end to end (a company buying from a vendor uses the same order, or the count alone, with no escrow):
 
-1. **A buyer.** A maintainer has an issue she would pay 20 USDC to have fixed.
-2. **A work order.** She comments on the issue: `/knos fund 20 checks: test`. The money goes into a token account
-   that belongs to this order alone, and she pays Knos's fee on top of it, so whoever does the work receives the
-   full amount.
-   Knos replies with the terms: paid when a pull request that closes this issue is merged, if the check `test`
-   passed at that pull request's last commit. The terms are logged on chain and nothing changes them afterwards.
-3. **An acceptance.** Someone opens a pull request: a person, or a coding agent somebody runs. She merges it. Had
-   `test` failed at that commit, her merge would pay nothing, and a comment would name the check that failed.
-4. **A payment.** A workflow at a pinned commit reads GitHub's record of the merge and asks GitHub to sign what it
-   found. A Solana program checks GitHub's signature and pays the author's wallet. Her own repository's workflow does
-   this on the merge. If it does not, the seller can: after a merge in a public repository he runs the pinned
-   `attest.yml` by hand in a repository of his own (`knos settle --neutral <pull request URL>`), and the program pays
-   on that run too. A buyer who deletes her workflow after merging no longer withholds the payment.
-5. **A repeat.** She comments `/knos fund 20` on the next issue.
+1. **A work order.** A maintainer comments on an issue: `/knos fund 20 checks: test`. The money goes into a token
+   account of this order alone, the fee on top of it. The terms are logged on chain and nothing changes them.
+2. **An acceptance.** Someone opens a pull request, a person or a coding agent, and she merges it. Had `test` failed
+   at that commit, her merge would pay nothing, and a comment would name the check that failed.
+3. **A payment.** A workflow at a pinned commit reads GitHub's record of the merge and asks GitHub to sign what it
+   found. A Solana program checks that signature and pays the author's wallet. If her repository's workflow does
+   not do this, the seller can: he runs the pinned `attest.yml` in a repository of his own
+   (`knos settle --neutral <pull request URL>`), and the program pays on that run too.
 
-Two options are fixed at funding, and both are off unless the funder asks. A **warranty**: `warranty 14 holdback 20`
-keeps that share of each payment in the order for that many days, and it goes back to the funder if the work is
-reverted in that time. An **arbiter**: `arbiter @login` names a person both sides accept, who can rule who is paid
-when they disagree.
+Two options are fixed at funding, both off unless the funder asks. A **warranty**: `warranty 14 holdback 20` keeps
+that share of each payment in the order for that many days, and returns it to the funder if the work is reverted in
+that time. An **arbiter**: `arbiter @login` names a person both sides accept, who rules who is paid when they disagree.
 
 ## Why
 
@@ -56,7 +57,7 @@ Of the 241 merged agent pull requests in the smaller sample that records merges,
 <!-- /bench:headline -->
 
 So nobody pays an agent on its word. Agents are mostly billed by the seat or by the token, and vendors that have
-started to bill per accepted change count the changes themselves ([docs/MARKET.md](docs/MARKET.md), section 1).
+started to bill per accepted change count the changes themselves ([docs/MARKET.md](docs/MARKET.md), section 2).
 Code has what most agent work lacks: a third party that already records the result. GitHub records who opened a
 pull request, what its checks concluded and who merged it, and it signs statements about a workflow run. A letter
 of credit works the same way: the bank pays against a document a third party signed, never against the seller's
@@ -155,18 +156,18 @@ Everything is on **Solana devnet**, and the money is **test USDC**. Mainnet is n
 
 | program | address | state |
 |---|---|---|
-| `knos-oidc`, the verifier | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | deployed as 0.3.12 left it; the upgrade to this release was proposed |
+| `knos-oidc`, the verifier | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | deployed as 0.3.12 left it; this release's build runs only once its proposal executes |
 | `knos-pay`, the escrow | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | the same |
-| `knos-meter`, the count | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | new in this release |
-| `knos-passkey`, a wallet from a passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | new in this release |
+| `knos-meter`, the count | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | deployed (`1.0`); batches and the seller's count (`1.1`) are tested locally, not deployed |
+| `knos-passkey`, a wallet from a passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | deployed (`1.0`); funding an order with a passkey (`1.1`) is tested locally, not deployed |
 
-The upgrade of `knos-oidc` and `knos-pay` was proposed and approved by the multisig on 2026-10-04 07:17 UTC. It
-can execute from 2026-10-06 07:17 UTC, 48 hours later, and not before: that delay is the rule this project
-asks its users to rely on, so it waits like anyone else. Until it executes, the two programs behave as 0.3.12
-described them: a bounty's fee is taken from the payment, only the funder's repository can sign, and there is no
-warranty, arbiter, split or standing order. Work orders, the seller's own settlement, any-issuer keys and single-use
-pay tokens are live from the moment it executes. `knos status` and a banner on the site say whether an upgrade is
-still pending. [CHANGELOG.md](CHANGELOG.md) lists each feature with when it is live.
+The release of 0.3.14 cancels the proposals 0.3.13 made for `knos-oidc` and `knos-pay` and proposes this build in
+their place; [`web/upgrades.json`](web/upgrades.json), read from the chain, carries the live state. The proposal on
+chain when this page was last filled was proposed and approved by the multisig on 2026-10-04 07:17 UTC and
+can execute from 2026-10-06 07:17 UTC, 48 hours later, and not before: Knos waits out its own delay like anyone else.
+Until a proposal executes, the two programs behave as 0.3.12 described them: the fee comes out of the payment, only
+the funder's repository can sign, and there is no work order, seller's settlement, any-issuer key or single-use pay
+token. `knos status` and the site's banner say whether an upgrade is pending ([CHANGELOG.md](CHANGELOG.md)).
 
 Knos can change all four programs only through a Squads multisig whose vault
 (`CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2`) is their upgrade authority, and only after that public 48-hour
@@ -176,8 +177,12 @@ number of signers, is what protects a user. A second multisig, the guardian
 most 7 days. It cannot add a key or move money. The first deployment ([`programs`](programs), 0.3.10 and 0.3.11) has
 no upgrade authority and stays as the record of those releases; nothing new is funded there.
 
-No outside security firm has reviewed anything. Readers' reviews of 0.3.12 found defects, and this release fixes
-them ([CHANGELOG.md](CHANGELOG.md)).
+No outside security firm has examined anything. This release fixes a double payment in the 0.3.13 build, found
+before that build ran on any cluster ([CHANGELOG.md](CHANGELOG.md)).
+
+<!-- capabilities:start -->
+**Every capability and how far it has got** ([the table with the evidence](docs/CAPABILITIES.md), from [`docs/capabilities.json`](docs/capabilities.json); a stage needs its evidence and the stages below it). **Reproduced by someone else:** none recorded yet. **Exercised on devnet:** `work_orders`, `order_pay`, `tests_mode`, `order_auto_accept`, `order_challenge`, `order_quorum`, `warranty_revert`, `reserve_cancel`, `fee_tiers`, `single_use_tokens`, `meter_batch`, `meter_seller_claim`, `passkey_funder`, `passkey_fund_relay`, `buyer_page`, `x402_knos_order`. **Deployed on devnet:** `verify_github`, `verify_gitlab`, `key_guardian`, `fund_by_comment`, `fund_from_wallet`, `pay_on_merge`, `hold_and_bind`, `refund`, `pause`, `meter_single`, `passkey_payee_wallet`, `upgrade_gate`. **Tested locally:** `check`, `install_by_pull_request`, `terms_templates`, `stop_hook`, `mcp_tools`, `agent_tools`, `verify_any_issuer`, `hermetic_judge`, `holdback_release`, `seller_settle`, `neutral_attest`, `arbiter_rule`, `top_up`, `assign`, `advance_by_assignment`, `standing_order`, `org_balance_limits`, `org_wallet`, `plans`, `private_attestor`, `gitlab_pay`, `relay`, `adapters`, `canary`, `load_local_1000`, `invariants_state_machine`, `rust_handler_tests`, `receipt`, `evidence_bundle`, `receipt_mirror`, `sas_receipt`, `x402_example`, `cpi_fund`, `oidc_gate`, `upgrade_delay`, `upgrade_feed`, `policy`, `screening`, `statements`, `badge`, `audit_export`, `agent_pr_index`, `agent_weekly_rates`, `mainnet_check`. **Implemented:** `gitlab_ci_example`, `kani_fee_conservation`. **Not built:** none recorded yet.
+<!-- capabilities:end -->
 
 ## Install
 
@@ -195,18 +200,18 @@ them ([CHANGELOG.md](CHANGELOG.md)).
 
 ## Prices
 
-[docs/MARKET.md](docs/MARKET.md) has the price book, what each sale costs to deliver, and what a fork takes.
+| Line | Unit | Price |
+| --- | --- | --- |
+| Check | pull request checked | free |
+| Meter | attested evaluation | 10,000 a month free, then 0.05 USD; 0.02 on a committed-volume plan |
+| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40; plans 0.5 to 1.5% |
+| Control | organisation | 25,000 USD a year entry, 80,000 organisation tier (nobody has bought it) |
+| Advance | dollar advanced on accepted work waiting on a holdback | 1 to 3%, by a financier who takes the assignment (`Assign`); Knos charges nothing today |
+| Assurance | dollar warranted | a premium for the warranty that refunds a reverted order; not priced until there is loss history |
 
-- **Check:** free. The claim check, the Stop hook, the MCP tools, the Index and on-chain verification.
-- **Settle:** the funder pays the amount plus 2.5%, at least 0.40 and at most 25 USDC. The payee receives the
-  posted amount. 0.5% to 1.5% under a contract.
-- **Meter:** 0.05 per billable evaluation, 0.02 at volume. The first 10,000 evaluations of a month are free.
-- **Control:** policy as code, budgets, private repositories, statements, exports, screening. 25,000 USD a year,
-  or 80,000 with a volume commitment. A contract price: nothing on chain enforces it, and nobody has bought it.
-- **Advance:** a third party pays the seller at acceptance and takes the assigned payment. Knos charges nothing.
-
-The repository's own three scenarios add up to 121,125 USD of fees a year. What 1 billion USD a year would
-require is printed beside it in MARKET.md as arithmetic, not as a forecast.
+Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. Nobody has bought anything.
+[docs/MARKET.md](docs/MARKET.md) has what each sale costs, what a fork can copy, and what 1 billion USD a year would
+require, as arithmetic and not as a forecast.
 
 ## Limits
 
@@ -222,7 +227,7 @@ require is printed beside it in MARKET.md as arithmetic, not as a forecast.
 - **A passed check is not good work.** An order buys what its terms say, and the funder chose the terms.
 - **Knos inherits GitHub's failures.** If GitHub signs something false or is down, the programs believe it or wait.
 - **One person can change the programs, after 48 hours,** until the outside review.
-- **An order is capped at 500 USDC** until the review, and holds at least 5.
+- **An order holds from 5 to 100,000 test USDC** on devnet. A mainnet build sets its own cap.
 - **The payout is USDC on Solana.** There is no card, bank transfer or invoice payment in, and no bank payout.
 
 ## What is in this repository
@@ -235,7 +240,7 @@ require is printed beside it in MARKET.md as arithmetic, not as a forecast.
 | [`src/knos`](src/knos) | What the workflows run, the judge, the relay anyone can run, the policy reader, receipts and statements, the Stop hook and the MCP server. |
 | [`crates`](crates), [`idl`](idl), [`sdk/settle`](sdk/settle), [`examples`](examples) | What another team builds on: interface crates, IDLs, a JavaScript client with no dependency, and example programs with their tests. |
 | [`web`](web) | The site. It reads GitHub and Solana in the browser; there is no Knos server. |
-| [`docs`](docs) | [SECURITY](docs/SECURITY.md) (who is trusted for what, every known limit), [ASSURANCE](docs/ASSURANCE.md) (the rules the tests enforce, where a reviewer should start), [DRILLS](docs/DRILLS.md) (safety paths run on the deployed bytes), [BENCH](docs/BENCH.md) (every measured number), [MARKET](docs/MARKET.md), [COMPARE](docs/COMPARE.md), [WHY](docs/WHY.md), [OIDC](docs/OIDC.md), [COMPOSE](docs/COMPOSE.md), [INSTALL](docs/INSTALL.md), [DISCLOSURE](docs/DISCLOSURE.md). |
+| [`docs`](docs) | [SECURITY](docs/SECURITY.md) (who is trusted for what, every known limit), [ASSURANCE](docs/ASSURANCE.md) (the rules the tests enforce, where a reviewer should start), [DRILLS](docs/DRILLS.md) (safety paths run on the deployed bytes), [BENCH](docs/BENCH.md) (every measured number), [MARKET](docs/MARKET.md), [COMPARE](docs/COMPARE.md), [WHY](docs/WHY.md), [OIDC](docs/OIDC.md), [COMPOSE](docs/COMPOSE.md), [INSTALL](docs/INSTALL.md), [DISCLOSURE](docs/DISCLOSURE.md). New in 0.3.14: [METER](docs/METER.md) (batches, the seller's own count, reconciling two ledgers), [RECEIPT](docs/RECEIPT.md) and [PRIVACY](docs/PRIVACY.md), [GOVERNANCE](docs/GOVERNANCE.md), [INVARIANTS](docs/INVARIANTS.md), [ADAPTERS](docs/ADAPTERS.md), [LOAD](docs/LOAD.md), [X402](docs/X402.md), [CONTROLS](docs/CONTROLS.md), [REGULATION](docs/REGULATION.md), [RELAY](docs/RELAY.md), [OPERATIONS](docs/OPERATIONS.md). |
 
 ## History
 
@@ -243,8 +248,8 @@ Knos 0.1 (1–7 Sep 2026, before this hackathon) was shared memory for coding ag
 Sibyl Labs hackathon. 0.2 and 0.3.0–0.3.9 (29 Sep – 2 Oct) were built during this one and tried coordination,
 budgets and a jobs market before the measurement above showed where the problem was. Those are kept in
 [drexthealpha/knos-labs](https://github.com/drexthealpha/knos-labs). 0.3.10 and 0.3.11 were the first deployment,
-made immutable before anyone outside had read it. 0.3.12 was the second deployment. 0.3.13 is this release: work
-orders, the count, the passkey wallet and any issuer. [docs/DISCLOSURE.md](docs/DISCLOSURE.md) says what was built
+made immutable before anyone outside had read it. 0.3.12 was the second deployment. 0.3.13 added work orders, the
+count, the passkey wallet and any issuer. 0.3.14 is this release: every token is single-use in every instruction. [docs/DISCLOSURE.md](docs/DISCLOSURE.md) says what was built
 when, what is older than the hackathon, and what came from elsewhere; [CHANGELOG.md](CHANGELOG.md) is the dated
 record.
 

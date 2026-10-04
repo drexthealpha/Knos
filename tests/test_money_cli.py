@@ -17,7 +17,7 @@ from solders.pubkey import Pubkey  # noqa: E402
 from test_relay2 import (JWKS, MAINT, OWNER, REPO, TERMS, USDC, WF_REPO, WF_SHA, Net, bind_jwt, faucet_jwt, fund_jwt,  # noqa: E402
                          issue, pay_jwt, user)
 
-from knos import chain, cli, judge  # noqa: E402
+from knos import chain, cli, flow, judge  # noqa: E402
 from knos import claim as claiming  # noqa: E402
 from knos.proof import ghrelay  # noqa: E402
 from knos.settle import oidc as oidc1  # noqa: E402
@@ -96,8 +96,9 @@ def test_relay_carries_one_token_from_a_file_and_prints_the_result_as_json(world
     assert rc == 1 and json.loads(said) == {"ok": False, "kind": "pay", "why": "no bounty is in escrow for this issue (never funded, or already paid or refunded)"}
     # with no token: one pass of the worker, or passes for a while
     ran = []
-    monkeypatch.setattr(ghrelay, "once", lambda: ran.append("once") or [])
-    monkeypatch.setattr(ghrelay, "serve", lambda seconds, every: ran.append((seconds, every)) or 0)
+    # (knos.flow reads the command and keeps the loop of passes itself: tests/test_worker.py runs that loop)
+    monkeypatch.setattr(ghrelay, "once", lambda ledger, payer, crank=True: ran.append("once") or [])
+    monkeypatch.setattr(flow, "_relay_serve", lambda ghrelay, ledger, payer, seconds, every, clock, sleep, env: ran.append((seconds, every)) or 0)
     assert knos("relay")[0] == 0 and knos("relay", "--serve", "280")[0] == 0 and knos("relay", "--serve", "60", "--every", "1.5")[0] == 0
     assert ran == ["once", (280.0, 3.0), (60.0, 1.5)]
 

@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # Execute the proposed upgrades when their 48 hours have passed, unattended.
 #
-# `bash scripts/deploy_v2.sh --propose` wrote <key folder>/upgrade-schedule.json: each proposal's index and the time
-# from which all of them can be executed, plus ten minutes (run_at). This script arranges for one run at that time:
+# `bash scripts/deploy_v2.sh --propose` wrote <key folder>/upgrade-schedule.json: each proposal's index, the executable
+# hash of the build it was proposed with, and the time from which all of them can be executed, plus ten minutes
+# (run_at). This script arranges for one run at that time:
 #
-#     node scripts/governance.mjs upgrade execute <index>      for each proposal, in the order of their indexes
-#     knos status                                              what is on chain afterwards
+#     node scripts/governance.mjs upgrade execute <index> --expect-hash <hash>     for each proposal, in the order of their indexes
+#     knos status                                                                  what is on chain afterwards
 #
-# with every line of both appended to <key folder>/upgrade-run.log.
+# with every line of both appended to <key folder>/upgrade-run.log. The run executes a proposal only while its buffer
+# holds exactly the build the schedule recorded for it (--expect-hash: governance.mjs reads the buffer from the
+# proposal's own transaction and refuses any other build, or a buffer that is gone), and a proposal the schedule
+# records no build for is not executed at all. So a run arranged for a build that was withdrawn since
+# (bash scripts/deploy_v2.sh --propose --replace) executes nothing of it, whatever the schedule file names by then.
 #
 #   bash scripts/schedule_upgrade.sh              arrange the run, and print how to cancel it
 #   bash scripts/schedule_upgrade.sh --show       what is arranged, and what the log says so far
-#   bash scripts/schedule_upgrade.sh --cancel     take the arrangement back (the proposals stay as they are on chain)
+#   bash scripts/schedule_upgrade.sh --cancel     take the arrangement back (the proposals stay as they are on chain).
+#                                                 The first step when a proposal must not execute: docs/RELEASE.md
 #   bash scripts/schedule_upgrade.sh --run        the run itself, now: what the timer calls. Safe by hand too: a
 #                                                 proposal whose time has not come is refused by governance.mjs and by
 #                                                 the Squads program, and one already executed is left alone
@@ -80,7 +86,9 @@ UNIT=knos-upgrade
 TASK=KnosUpgrade
 
 die() { echo "stopped: $*" >&2; exit 1; }
-field() { node -e 'const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); const v = process.argv[2] === "indexes" ? s.proposals.map((p) => p.index).join(" ") : s[process.argv[2]]; if (v === undefined || v === null || v === "") process.exit(1); console.log(v);' "$SCHEDULE" "$1"; }
+# field <name>: a value of the schedule file. `indexes`: the proposals' indexes on one line. `plan`: one line per proposal,
+# "<index> <the build's executable hash, or - when the file records none> <program>", in the order of the indexes
+field() { node -e 'const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); const hex = (h) => (/^[0-9a-f]{64}$/.test(h ?? "") ? h : "-"); const v = process.argv[2] === "indexes" ? s.proposals.map((p) => p.index).join(" ") : process.argv[2] === "plan" ? s.proposals.map((p) => `${p.index} ${hex(p.hash)} ${p.program ?? "-"}`).join("\n") : s[process.argv[2]]; if (v === undefined || v === null || v === "") process.exit(1); console.log(v);' "$SCHEDULE" "$1"; }
 wsl() { [ -n "${WSL_DISTRO_NAME:-}" ] || grep -qi microsoft "${KNOS_OSRELEASE:-/proc/sys/kernel/osrelease}" 2>/dev/null; }
 # schtasks.exe: on PATH, or in Windows' System32 for a WSL that keeps Windows' PATH off its own (appendWindowsPath=false)
 schtasks_exe() {
@@ -116,7 +124,7 @@ unreadable() { local f; key_files | while IFS= read -r f; do if [ ! -f "$f" ] ||
 
 # ---- the run itself ---------------------------------------------------------------------------------------------------
 run() {
-  local index failed=0 rpc missing
+  local index hash program failed=0 rpc missing
   [ -f "$SCHEDULE" ] || die "$SCHEDULE is missing: nothing was proposed, or the key folder is another one (KNOS_KEYS)."
   rpc="$(field rpc)" || die "$SCHEDULE names no cluster."
   mkdir -p "$(dirname "$LOG")"
@@ -133,14 +141,20 @@ run() {
   fi
   {
     echo "==== $(date -u "+%Y-%m-%d %H:%M:%S UTC")  the scheduled upgrade run starts (cluster $rpc; proposals $(field indexes))"
-    for index in $(field indexes); do
-      echo "---- node scripts/governance.mjs upgrade execute $index"
-      if KNOS_KEYS="$KEYS" node "$ROOT/scripts/governance.mjs" upgrade execute "$index" --rpc "$rpc"; then
+    while read -r index hash program; do
+      # only the build this run was arranged for: a proposal with no recorded build is never executed on its index alone
+      if [ "$hash" = - ]; then
+        echo "---- proposal $index ($program): NOT executed: $SCHEDULE records no build for it, and this run executes only the build it was arranged for."
+        echo "     Propose again (bash scripts/deploy_v2.sh --propose writes the schedule with each build's hash), then: bash scripts/schedule_upgrade.sh"
+        failed=$((failed + 1)); continue
+      fi
+      echo "---- node scripts/governance.mjs upgrade execute $index --expect-hash $hash     ($program)"
+      if KNOS_KEYS="$KEYS" node "$ROOT/scripts/governance.mjs" upgrade execute "$index" --rpc "$rpc" --expect-hash "$hash" < /dev/null; then
         echo "---- proposal $index: executed (or executed before)"
       else
         echo "---- proposal $index: NOT executed (the lines above say why)"; failed=$((failed + 1))
       fi
-    done
+    done <<< "$(field plan)"
     echo "---- knos status"
     if command -v knos >/dev/null 2>&1; then KNOS_RPC="$rpc" knos status || echo "---- knos status found something to look at (the lines above)"
     else echo "---- knos is not on PATH: run it by hand: KNOS_RPC=$rpc knos status"; fi
@@ -176,10 +190,13 @@ works() {
 }
 
 arrange() {
-  local at kind="" k command id xml distro order="systemd at schtasks" missing
+  local at kind="" k command id xml distro order="systemd at schtasks" missing nohash
   [ -f "$SCHEDULE" ] || die "$SCHEDULE is missing. Propose the upgrades first: bash scripts/deploy_v2.sh --propose"
   at="$(field run_at)" || die "$SCHEDULE names no time (run_at): propose the upgrades again."
   field indexes >/dev/null || die "$SCHEDULE names no proposal."
+  # the run executes only the build the schedule records for each proposal: one with none would never run
+  nohash="$(field plan | awk '$2 == "-" { print $1 }' | paste -sd ' ' -)"
+  [ -z "$nohash" ] || die "$SCHEDULE records no build (hash) for proposal $nohash: it was not written by this version's --propose. Propose again: bash scripts/deploy_v2.sh --propose. Nothing was arranged."
   [ "$at" -gt "$(date +%s)" ] || die "the time in $SCHEDULE ($(utc "$at")) has passed already. Run it now: bash scripts/schedule_upgrade.sh --run"
   # the run signs with these: one that cannot be read now will not be readable then
   missing="$(unreadable)"
@@ -246,11 +263,14 @@ arrange() {
   fi
   echo "The run starts with bash -l and reads $ENVFILE: the fee payer's and $(( $(key_files | wc -l) - 1 )) member key file(s), each readable now."
   echo "It will run, for proposals $(field indexes) on $(field rpc): node scripts/governance.mjs upgrade execute <index>, then knos status."
+  echo "Each is executed only while its buffer holds the build proposed:"
+  field plan | while read -r index hash program; do echo "  proposal $index: $program, build $hash"; done
   echo "The log: $LOG     (the upgrades can be executed from $(utc "$(field executable_from)"); the run is ten minutes later)"
 }
 
 show() {
   if [ -f "$SCHEDULE" ]; then echo "schedule: proposals $(field indexes) on $(field rpc), executable from $(utc "$(field executable_from)"), run at $(utc "$(field run_at)")"
+    field plan | while read -r index hash program; do echo "  proposal $index: $program, build $hash"; done
   else echo "schedule: none ($SCHEDULE does not exist)"; fi
   if [ -f "$STATE" ]; then echo "timer: $(cat "$STATE")"; else echo "timer: none arranged"; fi
   local missing

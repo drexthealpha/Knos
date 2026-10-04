@@ -9,7 +9,7 @@
   },
   "accepts": [
    {
-    "scheme": "attested",
+    "scheme": "knos-order",
     "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
     "amount": "20000000",
     "asset": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
@@ -22,8 +22,8 @@
      "issue": "77",
      "seq": 0,
      "mode": 0,
-     "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"mode\":\"merge\",\"v\":2}",
-     "termsHash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+     "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1}",
+     "termsHash": "92aeb2ac236fe3581aa4366a8729c5c772044a23c87ce5fe9d0cf9697c964b57",
      "workflows": {
       "repository": "drexthealpha/Knos",
       "sha": "cccccccccccccccccccccccccccccccccccccccc"
@@ -36,13 +36,39 @@
    }
   ],
   "extensions": {
-   "attested": {
+   "knos-order": {
     "info": {
      "version": 1,
      "proposal": true,
      "settles": "on-acceptance",
      "refund": "after-deadline",
      "payerHeader": "Attested-Payer"
+    },
+    "schema": {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "type": "object",
+     "required": [
+      "version",
+      "settles",
+      "refund"
+     ],
+     "properties": {
+      "version": {
+       "const": 1
+      },
+      "proposal": {
+       "type": "boolean"
+      },
+      "settles": {
+       "const": "on-acceptance"
+      },
+      "refund": {
+       "const": "after-deadline"
+      },
+      "payerHeader": {
+       "type": "string"
+      }
+     }
     }
    }
   }
@@ -55,7 +81,7 @@
    "mimeType": "application/json"
   },
   "accepted": {
-   "scheme": "attested",
+   "scheme": "knos-order",
    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
    "amount": "20000000",
    "asset": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
@@ -68,8 +94,8 @@
     "issue": "77",
     "seq": 0,
     "mode": 0,
-    "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"mode\":\"merge\",\"v\":2}",
-    "termsHash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+    "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1}",
+    "termsHash": "92aeb2ac236fe3581aa4366a8729c5c772044a23c87ce5fe9d0cf9697c964b57",
     "workflows": {
      "repository": "drexthealpha/Knos",
      "sha": "cccccccccccccccccccccccccccccccccccccccc"
@@ -82,18 +108,18 @@
   },
   "payload": {
    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
-   "transaction": "i8tvUaQJPbEqvXzNf7vxiN5LeY1poYMxNYA3oFRsj91jLwxFM5jZ8UjR2usPtJxBMEwcjLFnrL9mgMpV95s7m6E"
+   "transaction": "4PLCWA8vhAvzNgfaBpmtMnsgy232VuqhcLEkR3hXZtN2zZXFKvDxaYbrurxFtXwrTR6Bo1VSh8p1n2kCWgoHv64Y"
   },
   "extensions": {}
  },
  "settlementResponse": {
   "success": true,
   "payer": "5WcE8o73vmsSZXeeWTLm3ty3fAJKCnBWRF6VuKUme5nu",
-  "transaction": "i8tvUaQJPbEqvXzNf7vxiN5LeY1poYMxNYA3oFRsj91jLwxFM5jZ8UjR2usPtJxBMEwcjLFnrL9mgMpV95s7m6E",
+  "transaction": "4PLCWA8vhAvzNgfaBpmtMnsgy232VuqhcLEkR3hXZtN2zZXFKvDxaYbrurxFtXwrTR6Bo1VSh8p1n2kCWgoHv64Y",
   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
   "amount": "20000000",
   "extensions": {
-   "attested": {
+   "knos-order": {
     "info": {
      "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
      "state": "escrowed",

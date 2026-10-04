@@ -10,6 +10,8 @@ public 48-hour delay, until an outside review.
     set_plan_ix(fee_owner, payer, owner_id, tier, rate, expiry)   # FEE_OWNER lowers one owner's rate until an expiry
     record_ix(relayer, token, key, credits, c, audience, now)     # one verified token = one evaluation; anyone relays
     close_mark_ix(payer, mark)                                    # the relayer takes back the rent of a mark it paid for
+    record_batch_ix(relayer, token, key, credits, c, audience)    # 1.1: one verified token = one batch of the buyer's count
+    claim_batch_ix(relayer, token, key, audience)                 # 1.1: one verified token = one batch of the seller's own count
 
 An evaluation is a run of attest.yml or prove.yml at the commit the Credits account pins, in a repository of the
 buyer, on a GitHub-hosted runner, first attempt, whose token's audience is `eval_audience(...)`. It is billed and
@@ -25,6 +27,13 @@ in the month of the count is accepted any more. From then `close_mark_ix` return
 mark is closed, a token issued in a later month for the same evaluation is billed and counted again, in that month;
 a relayer that wants an evaluation billed once for longer leaves its mark open.
 
+The batch mode (1.1) writes no account per evaluation. A `knosm:batch` token of the buyer (the same workflow pin as
+Record) or a `knosm:claim` token of the seller (any workflow in a repository the seller owns) carries a month, a seq, a
+count, how many were accepted, their value and a Merkle root; the Ledger account at `ledger_pda(...)` (96 bytes, one
+per buyer, seller and month, never closed) adds the numbers and folds the root into a running hash (`chain_hash`).
+The evaluations behind a root are in a ledger file (`knos.ledger`, which holds the one Merkle tree and the one
+audience format; this module adds the addresses, the account reader and the instructions).
+
 Tokens are verified with `knos.settle.v2.oidc` (write_ixs, step_ix). `key` is the verifier's account of the key that
 verified the token: `oidc.read_token(token account data).key`. A token is refused once that key is revoked (78) or
 has expired (77), and always when the key is a private one (122).
@@ -38,6 +47,7 @@ from datetime import datetime, timezone
 from solders.instruction import AccountMeta, Instruction
 from solders.pubkey import Pubkey
 
+from ...ledger import ZERO, Bad, audience_of, chain_hash, merkle_root, parse_batch_audience  # noqa: F401 - one tree, one hash and one audience format, shared with the ledger file
 from . import load_ids
 from .pay import ATA_PROGRAM, SYSTEM, TOKEN, TOKEN_2022, ata, create_ata_ix, wf_repo_hash  # noqa: F401
 
@@ -53,6 +63,9 @@ EXTENSIONS = (3, 4, 10, 18, 19, 20, 21, 22, 23, 25)     # the only Token-2022 mi
 TOKEN_AHEAD, TOKEN_LIFE = 300, 3600
 MARK_GRACE = 7200                       # TOKEN_LIFE + the hour the verifier allows past a token's expiry
 CREDITS_LEN, PLAN_LEN, MARK_LEN, MONTH_LEN = 168, 40, 88, 64
+LEDGER_LEN, MAX_BATCH, VERSION = 96, 100_000, "1.1"     # a Ledger account; the most evaluations one batch token carries; what Version logs
+CU_BATCH, CU_CLAIM = 110_000, 60_000    # compute budgets a relay asks for: RecordBatch measured 77,035 (first of a ledger, with a fee), ClaimBatch 57,412
+E_SEQ, E_BATCH = 125, 126
 MARK_LEN_1 = 48                         # a mark written before CloseMark existed: no payer, it stays
 MARK_PAYER = 48                         # where a mark keeps the relayer that paid its rent (`marks_of` filters on it)
 CLOSED = "knosm:closed "                # a mark was closed and its rent returned
@@ -76,7 +89,10 @@ ERRORS = {61: "the token's claims are not a JSON object", 62: "a claim the meter
           121: "only the fee owner sets a plan",
           122: "the key that signed this token is a private key, or of a kind the meter does not know: it counts nothing here",
           123: "this is not a mark that can be closed, or the signer is not the relayer that paid its rent; sign with the wallet the mark names",
-          124: "this mark cannot be closed yet; send this again after the time the mark names (two hours into the month after the one it was counted in)"}
+          124: "this mark cannot be closed yet; send this again after the time the mark names (two hours into the month after the one it was counted in)",
+          E_SEQ: "this batch's seq is not the ledger's next one: the token was already taken, or an earlier batch is missing; read next_seq from the ledger account and send that batch",
+          E_BATCH: "a batch holds 1 to 100,000 evaluations, no more accepted than counted, for this month or the last one"}
+BATCH_ERRORS = {E_SEQ: ERRORS[E_SEQ], E_BATCH: ERRORS[E_BATCH]}
 
 
 def _u64(v: int) -> bytes:
@@ -104,6 +120,11 @@ def yyyymm(t: int) -> int:
     """The UTC calendar month of a unix time, as the program computes it from the chain's clock."""
     d = datetime.fromtimestamp(max(t, 0), timezone.utc)
     return d.year * 100 + d.month
+
+
+def prev_month(ym: int) -> int:
+    """The month before a yyyymm: a batch may name the chain's month or this one."""
+    return ym - 89 if ym % 100 == 1 else ym - 1
 
 
 def next_month(t: int) -> int:
@@ -156,6 +177,11 @@ def eval_key(order: bytes, artifact: str, policy: bytes, milestone: int) -> byte
     return hashlib.sha256(order + artifact.encode() + policy + milestone.to_bytes(4, "little")).digest()
 
 
+def batch_audience(buyer_id: int, seller_id: int, month: int, seq: int, count: int, accepted: int, value: int, root: bytes, kind: str = "batch") -> str:
+    """What the buyer's run (kind "batch") or the seller's (kind "claim") asks GitHub to sign for one batch."""
+    return audience_of(kind, buyer_id, seller_id, month, seq, count, accepted, value, root)
+
+
 # -- addresses --------------------------------------------------------------------------------------------------------
 def auth_pda(program: Pubkey = METER_ID) -> Pubkey:
     """The owner of every credits token account. Only the program signs for it."""
@@ -185,6 +211,12 @@ def mark_pda(buyer_id: int, key: bytes, program: Pubkey = METER_ID) -> Pubkey:
 def month_pda(buyer_id: int, seller_id: int, month: int, program: Pubkey = METER_ID) -> Pubkey:
     """The count of one buyer and one seller in one month (`month` is yyyymm, as `yyyymm(unix time)` gives it)."""
     return _pda([b"m", _u64(buyer_id), _u64(seller_id), month.to_bytes(4, "little")], program)
+
+
+def ledger_pda(buyer_id: int, seller_id: int, month: int, claim: bool = False, program: Pubkey = METER_ID) -> Pubkey:
+    """The batches of one buyer, one seller and one month: the buyer's count (RecordBatch), or with `claim` the
+    seller's own (ClaimBatch). `month` is yyyymm."""
+    return _pda([b"lc" if claim else b"l", _u64(buyer_id), _u64(seller_id), month.to_bytes(4, "little")], program)
 
 
 # -- accounts ---------------------------------------------------------------------------------------------------------
@@ -286,6 +318,41 @@ def read_month(data: bytes | None, buyer_id: int = 0, seller_id: int = 0, month:
         return Statement(buyer_id, seller_id, month)
     return Statement(buyer_id=_n(data, 8), seller_id=_n(data, 16), month=_n(data, 4, 4), evaluations=_n(data, 24), accepted=_n(data, 32),
                      rejected=_n(data, 40), value=_n(data, 48), fees=_n(data, 56))
+
+
+@dataclass
+class BatchLedger:
+    """A Ledger account: what the batches of one (buyer, seller, month) add up to, and the running hash of them."""
+    claim: bool             # the seller's own count (ClaimBatch) instead of the buyer's (RecordBatch)
+    month: int
+    buyer_id: int
+    seller_id: int
+    next_seq: int           # the only seq the next batch token may carry
+    evaluations: int
+    accepted: int
+    value: int
+    fees: int               # what the buyer's credits paid for these batches (always 0 in a claim)
+    chain: bytes
+
+
+def read_ledger(data: bytes | None) -> BatchLedger | None:
+    """None: no batch was recorded there yet."""
+    if not data or len(data) != LEDGER_LEN or data[0] != 1:
+        return None
+    return BatchLedger(claim=data[2] == 1, month=_n(data, 4, 4), buyer_id=_n(data, 8), seller_id=_n(data, 16), next_seq=_n(data, 24), evaluations=_n(data, 32),
+                       accepted=_n(data, 40), value=_n(data, 48), fees=_n(data, 56), chain=bytes(data[64:96]))
+
+
+def book(ledger, buyer_id: int, seller_id: int, month: int, claim: bool = False, program: Pubkey = METER_ID) -> BatchLedger:
+    """The Ledger account as the chain has it now (`ledger.account`); one with no batch yet reads as zeros."""
+    return read_ledger(ledger.account(ledger_pda(buyer_id, seller_id, month, claim, program))) or BatchLedger(claim, month, buyer_id, seller_id, 0, 0, 0, 0, 0, ZERO)
+
+
+def batch_fee(plan: Plan, count: int, decimals: int, now: int) -> int:
+    """What RecordBatch takes from the credits for a batch of `count` at `now`, in the mint's smallest units: the
+    rate for each evaluation past the owner's free ones in the month of the chain's clock."""
+    used = plan.used_in(yyyymm(now))
+    return max(0, used + count - max(FREE_PER_MONTH, used)) * fee_units(plan.rate_at(now), decimals)
 
 
 def quote(plan: Plan, decimals: int, now: int) -> int:
@@ -390,3 +457,31 @@ def close_mark_ix(payer: Pubkey, mark: Pubkey, program: Pubkey = METER_ID) -> In
     the mark names; `mark` is mark_pda(buyer id, key) or an address from `marks_of`. Refused before the mark's
     `close_after` (error 124). Several fit in one transaction: one signature closes them all."""
     return Instruction(program, b"\x04", [AccountMeta(payer, True, True), AccountMeta(mark, False, True)])
+
+
+def record_batch_ix(relayer: Pubkey, token: Pubkey, key: Pubkey, credits: Pubkey, c: Credits, audience: str, fee_token: Pubkey | None = None,
+                    program: Pubkey = METER_ID) -> Instruction:
+    """Records the batch a verified `knosm:batch` token describes, against `credits` (`c` is read_credits of it). The
+    token is held to what Record holds one to; its seq must be the Ledger's next (error 125). `fee_token` as in
+    `record_ix`."""
+    _claim, b = parse_batch_audience(audience)
+    fee = fee_token if fee_token is not None else ata(FEE_OWNER, c.mint, c.token_program)
+    return Instruction(program, b"\x05",
+                       [AccountMeta(relayer, True, True), AccountMeta(token, False, False), AccountMeta(key, False, False), AccountMeta(credits, False, True),
+                        AccountMeta(crtok_pda(credits, program), False, True), AccountMeta(plan_pda(b.buyer, program), False, True),
+                        AccountMeta(ledger_pda(b.buyer, b.seller, b.month, False, program), False, True), AccountMeta(fee, False, True),
+                        AccountMeta(c.mint, False, False), AccountMeta(auth_pda(program), False, False), AccountMeta(c.token_program, False, False),
+                        AccountMeta(SYSTEM, False, False)])
+
+
+def claim_batch_ix(relayer: Pubkey, token: Pubkey, key: Pubkey, audience: str, program: Pubkey = METER_ID) -> Instruction:
+    """Records the seller's own count: a verified `knosm:claim` token from any workflow in a repository the seller
+    owns. No credits, no fee; the relayer pays the Ledger's rent the first time."""
+    _claim, b = parse_batch_audience(audience)
+    return Instruction(program, b"\x06", [AccountMeta(relayer, True, True), AccountMeta(token, False, False), AccountMeta(key, False, False),
+                                          AccountMeta(ledger_pda(b.buyer, b.seller, b.month, True, program), False, True), AccountMeta(SYSTEM, False, False)])
+
+
+def version_ix(program: Pubkey = METER_ID) -> Instruction:
+    """Logs `knosm:version 1.1`: which build answers."""
+    return Instruction(program, b"\x07", [])

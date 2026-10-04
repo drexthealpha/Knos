@@ -27,7 +27,9 @@ export const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 export const TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 export const ATA_PROGRAM = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 export const SYSTEM = "11111111111111111111111111111111";
+export const KNOS_PAY = "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k";     // knos_pay in program_ids.json: the orders Fund funds
 export const WALLET_LEN = 48;
+export const FUND_ORDER_WALLET = 15, FUND_MIN = 158;      // knos_pay's instruction tag; the tag and the 157 bytes it requires before the terms
 export const N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551n;   // the order of P-256
 export const ERRORS = {
   110: "a wrong account in the instruction",
@@ -43,6 +45,8 @@ export const ERRORS = {
   120: "this mint cannot be withdrawn: it is not a mint of the token program passed, or it is a Token-2022 mint with an extension the program does not accept",
   121: "the signature's s is in the upper half; send n - s instead, as this client's builders do",
   122: "the source is not a token account of this mint owned by the wallet, or it is the destination",
+  123: "the slot is past the expiry slot the passkey signed for; sign again",
+  124: "the instruction to fund with is not a FundOrderWallet of the knos_pay this program is pinned to",
 };
 
 // ---- bytes and addresses (as in index.js) ----------------------------------------------------------------------------
@@ -234,6 +238,40 @@ export async function withdrawIxs({ key, mint, to, amount, nonce, assertion, tok
     accounts: [meta(w, false, true), meta(from || await ata(w, mint, tokenProgram), false, true), meta(mint, false, false), meta(to, false, true),
       meta(tokenProgram, false, false), meta(INSTRUCTIONS, false, false)] };
   return [secp256r1Ix(key, a.signature, cat(bytes(a.authenticatorData), await sha256(clientData))), withdraw];
+}
+
+// ---- Fund (1.1): a funder with only a passkey funds a knos_pay work order -----------------------------------------------
+// `data` is the whole instruction data of knos_pay's FundOrderWallet with the passkey wallet as its funder
+// ((await knos.v2.client(ids).fundOrderWalletIx({ funder: wallet, ... })).data in index.js): it names the issue, the
+// amount, the pinned workflows and the terms. The Python client is src/knos/settle/v2/passkey_fund.py.
+/** The 32 bytes the passkey signs to fund the order `data` describes, in `mint`, as the wallet's number `nonce`, in no
+ *  slot after `expirySlot`: sha256("knos-passkey:fund" || knos_pay || mint || data || expiry slot LE || nonce LE). */
+export const fundChallenge = (mint, data, expirySlot, nonce, payProgram = KNOS_PAY) =>
+  sha256(cat(enc.encode("knos-passkey:fund"), key32(payProgram), key32(mint), bytes(data), u64(expirySlot), u64(nonce)));
+
+/** The address of the order a FundOrderWallet with this data creates when `walletAddress` is its funder. */
+export async function orderOf(walletAddress, data, payProgram = KNOS_PAY) {
+  const d = bytes(data);
+  if (d.length < FUND_MIN || d[0] !== FUND_ORDER_WALLET) throw new Error("not the instruction data of FundOrderWallet");
+  // a private order says so in its options (byte 32 of them) and carries its scope; a public one's is of its repository and issue
+  const scope = d[1 + 37 + 32] === 1 ? d.subarray(FUND_MIN, FUND_MIN + 32) : await sha256(cat(enc.encode("knos3:scope"), d.subarray(9, 17), d.subarray(1, 9)));
+  return (await findProgramAddress([enc.encode("ord"), scope, key32(walletAddress), d.subarray(34, 38)], payProgram))[0];
+}
+
+/** The two instructions of a funding, from a WebAuthn assertion over fundChallenge(mint, data, expirySlot, nonce): the
+ *  precompile, then Fund. Keep them adjacent and in this order. Anyone pays the transaction's fee, and before them
+ *  sends the rent of the order (512 bytes) and of its token account to their addresses (`order`, `ov`: accounts 3 and 4
+ *  of Fund): the wallet cannot pay it. The fee on top of the amount is knos_pay's (index.js: v2.orderFee) and leaves
+ *  the wallet's token account with it. `from`: the wallet's token account to spend (default: its associated one). */
+export async function fundIxs({ key, mint, data, expirySlot, nonce, assertion, tokenProgram = TOKEN, from = null, program = PASSKEY, payProgram = KNOS_PAY }) {
+  const a = assertion.response || assertion;
+  const clientData = bytes(a.clientDataJSON), d = bytes(data), w = await wallet(key, program), order = await orderOf(w, d, payProgram);
+  const pda = async (...seeds) => (await findProgramAddress(seeds, payProgram))[0];
+  const fund = { program, data: cat(Uint8Array.of(2), u64(expirySlot), u64(nonce), u16(clientData.length), clientData, d),
+    accounts: [meta(w, false, true), meta(from || await ata(w, mint, tokenProgram), false, true), meta(mint, false, false), meta(order, false, true),
+      meta(await pda(enc.encode("ov"), key32(order)), false, true), meta(await pda(enc.encode("auth")), false, false), meta(tokenProgram, false, false),
+      meta(SYSTEM, false, false), meta(await pda(enc.encode("pause")), false, false), meta(payProgram, false, false), meta(INSTRUCTIONS, false, false)] };
+  return [secp256r1Ix(key, a.signature, cat(bytes(a.authenticatorData), await sha256(clientData))), fund];
 }
 
 // ---- the withdrawal request: the one line a relay reads ---------------------------------------------------------------

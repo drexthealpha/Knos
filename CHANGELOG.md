@@ -1,13 +1,135 @@
 # Changelog
 
+## 0.3.14 (October 2026)
+
+**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a
+signed CI run attests they were met, a Solana program counts it or pays it.**
+
+**A token for `PayOrder` could pay a re-funded order twice in the 0.3.13 build.** With two fund comments on one
+issue, relaying the second fund token after the first order was paid put a new order at the same address, and the
+pay token that had paid the first order paid the second too. This was found during the 48-hour delay. That build was
+never live on any cluster, and only test USDC was involved. **Every token is now single-use in every instruction.**
+
+Everything is on Solana devnet with test USDC. Nothing in this release is deployed on the pinned programs yet: each
+line of [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) says how far it has got. The new ones are "tested locally";
+"implemented" for two that no test runs here (the Kani proofs and the GitLab pipeline example); or "exercised on
+devnet", each with its transaction, where the release's rehearsal ran them on a staging deployment of this build
+([`docs/CAPABILITIES.md`](docs/CAPABILITIES.md), "The 0.3.14 rehearsal on devnet").
+The 0.3.13 build was proposed and approved by the multisig on 2026-10-04 07:17 UTC. The release of 0.3.14 cancels
+that proposal and proposes this build in its place, as `knos_pay 2.1` and `knos_oidc 2.1`, with the same public
+48-hour delay. Until the release has done that, the chain shows the old proposal pending:
+[`web/upgrades.json`](web/upgrades.json), read from the chain, is the record of the live state, not this file.
+
+### Security
+
+- **One marker rule.** Every instruction of `knos_pay` that takes a signed token creates the account
+  `["used", sha256(the token's signature)]` and refuses a token whose marker exists: `PayOrder`, `Revert`, `Reserve`
+  and `Cancel` as well as `Pay` and `FundOrderBalance`. The marker records who paid its rent and the time after
+  which no instruction accepts the token; `CloseMarker` returns the rent after that.
+- **An order's `not_before` is the chain's time at its funding**, never a token's issue time, so an order funded
+  again at an address does not inherit the tokens of the order that was there before.
+- `tests/test_double_pay.py` reproduces the double payment and requires it to be refused, and sends the accepted
+  token of every token-taking instruction a second time: no second use moves money.
+- `overflow-checks = true` in the release profile of every program in `programs-v2/`.
+- [`docs/SECURITY.md`](docs/SECURITY.md), section 15, says what holds now and what the 0.3.13 build did not hold.
+
+### Prices
+
+- **The fee of an order is marginal in three tiers**, paid by the funder on top: 2.5% of the first 1,000, 1% from
+  1,000 to 50,000, 0.5% above; at least 0.40, no maximum. On 100 it is 2.50; on 5,000 it is 25 + 40 = 65; on 50,000
+  it is 25 + 490 = 515. A Plan still lowers the first tier's rate.
+- **An order holds from 5 to 100,000 test USDC** on devnet. A mainnet build sets its own cap.
+- The price book has six lines (Check, Meter, Settle, Control, Advance, Assurance) and reads the same in the README,
+  [`docs/MARKET.md`](docs/MARKET.md) and the site's Pricing page. Nobody has bought anything.
+
+### The count (`knos_meter 1.1`)
+
+- **Batches.** `RecordBatch`: one signed token counts a batch of evaluations under a Merkle root and writes no
+  account per evaluation, so rent no longer exceeds the price. The single `Record` stays.
+- **The seller's own count.** `ClaimBatch` writes the seller's count of the same month beside the buyer's. A buyer
+  who leaves events out shows on chain as two different counts.
+- **Ledger files** (`src/knos/ledger.py`, [`docs/METER.md`](docs/METER.md)): build a batch, verify a ledger against
+  the chain, prove one evaluation is in it, and reconcile a buyer's ledger with a seller's.
+
+### Funding and paying
+
+- **A funder with only a passkey** (`knos_passkey 1.1`): `Fund` moves test USDC from the passkey wallet into an
+  order, authorised by a WebAuthn assertion over the order's terms hash, the amount and an expiry. A relayer pays
+  the transaction fee.
+- **GitLab.** A gitlab.com project funds an order and is paid on a merge to a protected branch. Its ids are in
+  ranges of their own, so a GitLab project is never a GitHub repository. Not yet: binding a wallet, reserve, cancel
+  and revert, the faucet, self-managed GitLab, and any relayer, command or page ([`docs/OIDC.md`](docs/OIDC.md)).
+- **Adapters** ([`docs/ADAPTERS.md`](docs/ADAPTERS.md)): workflow files that turn a signed event (a release, a
+  deployment, an attestation, a tracker's webhook) into a settlement or a count.
+- **x402.** The example's `knos-order` scheme funds a real order over RPC. On devnet, on the staging deployment, it
+  funded an order and the seller was paid on acceptance ([`docs/X402.md`](docs/X402.md)). The interface crates and
+  the npm package are ready to publish.
+
+### Evidence
+
+- **Receipts in four parts**, an **evidence bundle** that verifies with no network, and a **mirror** that keeps
+  what the chain's history no longer serves ([`docs/RECEIPT.md`](docs/RECEIPT.md), `knos bundle`, `knos receipt`).
+- **An audit export** per organisation and period: one hash-chained file that two parties can compare.
+- **A hermetic judge.** In tests mode a submission runs in a container named by image digest. Its end-to-end test
+  ran in a real container on GitHub's runner, in the staging repository's run 37217535106
+  ([`docs/ASSURANCE.md`](docs/ASSURANCE.md)).
+- **A badge** ("paid on proof") that states its scope, its money and its date, `knos record` for a payee's record,
+  and each agent's rate of false claims by week in the Index.
+- **Load.** 1,000 orders open at once were each paid once and none was lost, in the local simulator
+  ([`docs/LOAD.md`](docs/LOAD.md)). Time for 1,000 on a cluster is derived, not measured. On devnet, 200 orders were
+  verified, funded from a wallet, refunded and closed with no failure; paying is not part of that run.
+
+### Orders that need no person, and what checks the programs
+
+All of this is tested locally and not deployed on the pinned programs. The release's rehearsal ran auto-accept, the
+challenge, the quorum, the agent's tools and the Buy page on a staging deployment of this build
+([`docs/CAPABILITIES.md`](docs/CAPABILITIES.md), "The 0.3.14 rehearsal on devnet").
+
+- **Auto-accept.** A funder can make an order paid by the black-box suite `auto` at funding: the first pull request
+  the suite passes is paid, with no merge and no comment (`tests/test_order_auto.py`).
+- **The challenge.** Inside the warranty of an order that allows a neutral run, anyone who runs the pinned judge
+  again and finds the paid head failing returns the holdback to the funder. What was paid at acceptance stays paid.
+- **A quorum of judges.** An order can require two or three distinct judges to pass the same artifact before it pays
+  (`tests/test_order_quorum.py`).
+- **Tools for an agent** ([`docs/AGENTS.md`](docs/AGENTS.md)): find funded work, take it, submit it after the
+  order's acceptance passes locally, collect; with a key of the agent's own. The tools that post are off until the
+  operator turns them on. Tested against stand-ins for GitHub and the chain; on the staging deployment an agent was
+  paid for an auto order.
+- **The Buy page.** A buyer picks a terms template and a passkey signs the line that funds the order; a relay
+  carries that line (`/knos passkey-fund`). Tested in a headless browser and the local simulator.
+- **Advance.** [`examples/advance`](examples/advance) says what `Assign` does: an assignment made before the order
+  is paid sends the payment and the holdback to the financier; one made after acceptance moves nothing.
+- **A state machine over the invariants** (`tests/test_invariants_machine.py`): random orders, tokens and replays.
+  Run on the 0.3.13 build it finds the double payment; on this build it finds no broken invariant. Tests for the
+  gaps [`docs/INVARIANTS.md`](docs/INVARIANTS.md) listed are in `tests/test_invariants_gaps.py`.
+- **Handler tests in Rust** (`programs-v2/handlers`), run by the program workflow, and **Kani harnesses** for the
+  fee and for conservation (`programs-v2/knos_pay/src/proofs.rs`), proved only where `cargo kani` runs.
+- An example `.gitlab-ci.yml` (`examples/gitlab`). It has never run on GitLab.
+
+### Operations
+
+- The public relay runs on the lean signing install and fails loudly; a repository can relay in its own merging run.
+- **Install by one pull request**: a link that opens GitHub's editor with the workflow file filled in, and five
+  terms templates (`knos init --pr`, `knos terms`, the site's Install page).
+- **The upgrade feed.** Every proposal of the upgrade multisig is in `web/upgrades.json` and an Atom feed, with the
+  program, the build hash, the source commit and the earliest time it can run.
+- [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) says who can change what today, and
+  [`docs/INVARIANTS.md`](docs/INVARIANTS.md) what the programs guarantee while they are unchanged.
+
+### The site
+
+- Pages for Install and Capabilities; the badge and the program's own record on a repository's and an account's
+  record; a copy button beside every address and hash; no page scrolls sideways.
+- The Numbers page's merge-to-paid time was measured over no merges, because the Pages build read GitHub without a
+  token. The build now passes one.
+
 ## 0.3.13 (October 2026)
 
 **Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they
 were met, a Solana program settles.** The unit is now a work order. A bounty on an issue is the smallest one.
 
-Six readers' reviews of 0.3.12 are answered by this release. None was a security audit, and no outside security firm
-has reviewed anything. One of them confirmed seven defects in 0.3.12 by reading the source; each is listed under
-[Security](#security) with its fix.
+This release fixes seven defects in 0.3.12; each is listed under [Security](#security) with its fix. No outside
+security firm has examined anything.
 
 ### What is live, and when
 
@@ -112,7 +234,7 @@ the new paths carry audiences that start `knos3:`, so a token of one generation 
 
 ### Security
 
-The seven defects one review confirmed in 0.3.12, and what this release does about each:
+Seven defects in 0.3.12, and what this release does about each:
 
 | the defect in 0.3.12 | this release |
 |---|---|
@@ -150,7 +272,7 @@ be patched there. 0.3.12 does not touch it: `programs/` is byte for byte what wa
 on it finish on it. Everything new is a second pair of programs, `programs-v2`, with new addresses. It stays
 changeable until an outside review, only through a multisig with a public 48-hour delay, and is then made immutable.
 
-What the reviews found in the first deployment, and what the second does instead:
+Defects in the first deployment, and what the second does instead:
 
 | the defect | the second deployment |
 |---|---|

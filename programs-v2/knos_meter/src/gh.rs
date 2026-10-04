@@ -1,5 +1,24 @@
 //! Reading a GitHub Actions token that knos-oidc verified (through knos-oidc-interface), the rule for the key that
-//! verified it, and the one audience this program understands.
+//! verified it, and the audiences this program understands.
+//!
+//! THE THREE AUDIENCES (the `aud` claim; parts split on ':', nothing before, between or after them).
+//!   knosm:eval:<buyer owner id>:<seller id>:<work order hex32>:<artifact hex40>:<policy hex32>:<milestone>:<verdict 0|1>:<rate>
+//!   knosm:batch:<buyer owner id>:<seller id>:<month>:<seq>:<count>:<accepted>:<value>:<root>
+//!   knosm:claim:<buyer owner id>:<seller id>:<month>:<seq>:<count>:<accepted>:<value>:<root>
+//! A batch and a claim have ten parts each:
+//!   buyer owner id, seller id   GitHub owner ids, decimal, not 0
+//!   month      yyyymm (UTC) of the evaluations, six digits, e.g. 202610
+//!   seq        the batch's number in its Ledger: 0 for the first of a (buyer, seller, month), then 1, 2, ...
+//!   count      evaluations in the batch, 1..=100000
+//!   accepted   how many of them were accepted, 0..=count
+//!   value      the sum of `rate` over the accepted, in the smallest units of whatever the two settle in
+//!   root       the RFC 6962 Merkle root over the batch's evaluation keys, 64 lowercase hex characters
+//! Every number is decimal with no sign and no leading zero ("0" itself is written 0), at most 18 digits.
+//! Example: the first batch of October 2026 of buyer 424242 with seller 555000, 5,000 evaluations, 4,321 accepted,
+//! worth 8,642,000,000 units, with a root of 32 bytes 0xab:
+//!   knosm:batch:424242:555000:202610:0:5000:4321:8642000000:abababababababababababababababababababababababababababababababab
+//! knosm:batch is asked for by a run in a repository of the BUYER (RecordBatch), knosm:claim by a run in a repository
+//! of the SELLER (ClaimBatch); a token of one kind is never taken as the other.
 use crate::{err, state::i64_at, E_ACCOUNTS, E_AUD, E_CLAIMS, E_KEY_KIND, E_TOKEN, OIDC_ID, TOKEN_AHEAD, TOKEN_LIFE};
 use knos_oidc_interface::{is_hex, number, parse_u64, parts, text, unhex32, Raw, Text, Token, ISSUER_GITHUB, T_KEY};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, program_error::ProgramError};
@@ -106,6 +125,26 @@ pub fn eval_aud(aud: &[u8]) -> Result<EvalAud, ProgramError> {
                  milestone: milestone as u32, accepted: verdict == b"1", rate: n(rate)? })
 }
 
+/// knosm:batch:... or knosm:claim:... (the layout is at the top of this file). `month` is held to the chain's clock
+/// and `count` to MAX_BATCH by the instruction; here only the shape.
+pub struct BatchAud { pub buyer: u64, pub seller: u64, pub month: u32, pub seq: u64, pub count: u64, pub accepted: u64, pub value: u64, pub root: [u8; 32] }
+impl BatchAud {
+    /// The Ledger's running hash after this batch: sha256(chain || root || seq || count || accepted || value).
+    pub fn chain(&self, before: &[u8]) -> [u8; 32] {
+        hashv(&[before, &self.root, &self.seq.to_le_bytes(), &self.count.to_le_bytes(), &self.accepted.to_le_bytes(), &self.value.to_le_bytes()]).to_bytes()
+    }
+}
+/// `kind`: b"batch" (the buyer's record) or b"claim" (the seller's).
+pub fn batch_aud(aud: &[u8], kind: &[u8]) -> Result<BatchAud, ProgramError> {
+    let bad = || err(E_AUD);
+    let n = |s: &[u8]| parse_u64(s).ok_or_else(bad);
+    let [k, e, buyer, seller, month, seq, count, accepted, value, root] = parts::<10>(aud).ok_or_else(bad)?;
+    if k != b"knosm" || e != kind || month.len() != 6 { return Err(bad()); }
+    let (buyer, seller) = (n(buyer)?, n(seller)?);
+    if buyer == 0 || seller == 0 { return Err(bad()); }
+    Ok(BatchAud { buyer, seller, month: n(month)? as u32, seq: n(seq)?, count: n(count)?, accepted: n(accepted)?, value: n(value)?, root: unhex32(root).ok_or_else(bad)? })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,6 +162,25 @@ mod tests {
         assert_eq!(key_usable(F_GENESIS, 100, 200, 199), Ok(()));
         assert_eq!(key_usable(F_GENESIS, 100, 200, 200), Err(E_KEY_EXPIRED));
         assert_eq!(key_usable(F_APPROVED | 8, 100, 200, 150), Err(E_KEY_KIND));
+    }
+
+    #[test]
+    fn a_batch_audience_is_ten_parts_of_its_own_kind() {
+        let root = "ab".repeat(32);
+        let aud = format!("knosm:batch:424242:555000:202610:0:5000:4321:8642000000:{root}");
+        let b = batch_aud(aud.as_bytes(), b"batch").unwrap();
+        assert_eq!((b.buyer, b.seller, b.month, b.seq, b.count, b.accepted, b.value, b.root), (424242, 555000, 202610, 0, 5000, 4321, 8_642_000_000, [0xab; 32]));
+        assert_eq!(b.chain(&[0u8; 32]), hashv(&[&[0u8; 32], &[0xab; 32], &0u64.to_le_bytes(), &5000u64.to_le_bytes(), &4321u64.to_le_bytes(), &8_642_000_000u64.to_le_bytes()]).to_bytes());
+        assert!(batch_aud(aud.as_bytes(), b"claim").is_err() && eval_aud(aud.as_bytes()).is_err());
+        assert_eq!(batch_aud(aud.replace("knosm:batch", "knosm:claim").as_bytes(), b"claim").unwrap().seq, 0);
+        for bad in [format!("knosm:batch:0:555000:202610:0:5:4:8:{root}"), format!("knosm:batch:424242:0:202610:0:5:4:8:{root}"),
+                    format!("knosm:batch:424242:555000:20261:0:5:4:8:{root}"), format!("knosm:batch:424242:555000:2026100:0:5:4:8:{root}"),
+                    format!("knosm:batch:424242:555000:202610:00:5:4:8:{root}"), format!("knosm:batch:424242:555000:202610:0:-5:4:8:{root}"),
+                    format!("knosm:batch:424242:555000:202610:0:5:4:8:{}", &root[1..]), format!("knosm:batch:424242:555000:202610:0:5:4:8:{}", "AB".repeat(32)),
+                    format!("knosm:batch:424242:555000:202610:0:5:4:8:{root}:x"), format!("knosm:batch:424242:555000:202610:0:5:4:{root}"),
+                    format!("knos2:batch:424242:555000:202610:0:5:4:8:{root}")] {
+            assert!(batch_aud(bad.as_bytes(), b"batch").err() == Some(err(E_AUD)), "{bad}");
+        }
     }
 
     #[test]

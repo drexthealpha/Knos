@@ -71,11 +71,13 @@ def test_the_npm_tarball_holds_the_client_and_nothing_else():
     assert r.returncode == 0, r.stderr
     [packed] = json.loads(r.stdout)
     manifest = json.loads(_read("sdk", "settle", "package.json"))
-    assert {f["path"] for f in packed["files"]} == {"package.json", "index.js", "index.d.ts", "agent.js", "agent.d.ts", "README.md"}
+    assert {f["path"] for f in packed["files"]} == {"package.json", "index.js", "index.d.ts", "agent.js", "agent.d.ts", "passkey.js", "passkey.d.ts", "README.md"}
     assert (packed["name"], packed["version"]) == ("knos-settle", manifest["version"])
     assert packed["filename"] == f"knos-settle-{manifest['version']}.tgz"       # the file name in the README's install line
     assert not list(SDK.glob("*.tgz")), "a dry run writes nothing"
-    assert manifest["type"] == "module" and manifest["exports"] == {".": {"types": "./index.d.ts", "default": "./index.js"}, "./agent": {"types": "./agent.d.ts", "default": "./agent.js"}} and manifest["license"] == "MIT"
+    assert manifest["type"] == "module" and manifest["exports"] == {".": {"types": "./index.d.ts", "default": "./index.js"}, "./agent": {"types": "./agent.d.ts", "default": "./agent.js"},
+                                                               "./passkey": {"types": "./passkey.d.ts", "default": "./passkey.js"}} and manifest["license"] == "MIT"
+    assert not re.search(r"^\s*import\s|^export\s[^;\n]*\sfrom\s+[\x22\x27]", _read("sdk", "settle", "passkey.js"), re.M), "passkey.js imports nothing: a page loads it alone"
     assert manifest["repository"]["directory"] == "sdk/settle" and manifest["scripts"] == {"test": "node test.mjs"}
     assert not any(k in manifest for k in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"))
 

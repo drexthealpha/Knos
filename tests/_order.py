@@ -12,12 +12,15 @@ from solders.pubkey import Pubkey
 
 from _pay2 import PLAN_SIGNER, USDC_KEY, WF_REPO, WF_SHA, Chain
 
-from knos.settle.v2 import pay
+from knos.settle.v2 import order_auto, pay
 
 REPO, OWNER, MAINT, AUTHOR = 987654321, 424242, 555000, 1234567    # the repository, its owner, a maintainer, a contributor
 USDC, DAY, HEAD = 1_000_000, 86_400, "a" * 40
 TERMS = pay.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}], "mode": "merge", "v": 2})
 TH = pay.terms_hash(TERMS)
+# terms paid by the black-box acceptance suite (mode 1): what an AUTO order is funded on
+SUITE = pay.terms_json({"accept": "5e" * 32, "checks": [], "mode": "tests", "v": 2})
+SELLER_REPO = 700_700_700       # a repository a stranger owns: nothing of the buyer's is in it
 _COUNT = [1000, 9_000_000]
 
 
@@ -122,7 +125,37 @@ class OrderChain(Chain):
         return [(i, pay.order_destination(pay.read_bind(self.data(pay.bind_pda(i))), a)) for i, _, a in payees]
 
     def pay_ix(self, order: Pubkey, tok: Pubkey, payees, o: pay.Order | None = None, **kw) -> Instruction:
-        return pay.pay_order_ix(self.payer.pubkey(), tok, self.key, order, o or self.order(order), self.wallets(payees), **kw)
+        o = o or self.order(order)
+        return order_auto.with_quorum(pay.pay_order_ix(self.payer.pubkey(), tok, self.key, order, o, self.wallets(payees), **kw), order, o)
+
+    # -- auto-accept, challenge, quorum ----------------------------------------------------------------------------
+    def fund_auto(self, n: int | None = None, flags: int = 0, quorum: int = 0, work_s: int = 14 * DAY, auto: bool = True, **options) -> Pubkey:
+        """A wallet funds an order paid by the black-box suite (mode 1) that is AUTO: the first passing pull request
+        is paid unmerged. `flags`, `quorum` and `options` add to it; `auto` False: the same order without AUTO."""
+        return self.fund_wallet(n, mode=pay.TESTS, terms=SUITE, work_s=work_s,
+                                options=pay.opts((order_auto.F_AUTO if auto else 0) | flags | order_auto.quorum_flags(quorum), **options))
+
+    def auto_token(self, order: Pubkey, payee: int, wallet: Pubkey | None, o: pay.Order | None = None, pr: int = 7, head: str = HEAD,
+                   terms: bytes | None = None, **over) -> Pubkey | None:
+        """What the order's pinned prove.yml asks GitHub to sign when the black-box suite passed on the head of an open
+        pull request: no merge, no comment. The run is the pull request's check finishing (`workflow_run`)."""
+        o = o or self.order(order)
+        self.warp(1)
+        aud = order_auto.auto_audience(order, head, o.terms if terms is None else terms, pr, payee, wallet)
+        return self.gh(aud, **{"repository_id": o.repo_id, "event_name": "workflow_run", **over})
+
+    def auto(self, order: Pubkey, payee: int, wallet: Pubkey | None, tag: str | None = "pay_order_auto", **over) -> bool:
+        """The suite passed on a pull request by `payee`: the token arrives, with nobody's merge."""
+        payees = [(payee, 10_000, wallet)]
+        return self.send([self.pay_ix(order, self.auto_token(order, payee, wallet, **over), payees)], tag=tag)
+
+    def neutral(self, who: int, repo: int = SELLER_REPO, **over) -> dict:
+        """The claims of the pinned attest.yml started by hand by `who` in a repository `who` owns (judge b)."""
+        return {"file": "attest.yml", "event_name": "workflow_dispatch", "actor_id": who, "repository_owner_id": who, "repository_id": repo, **over}
+
+    def quorum(self, order: Pubkey) -> dict[int, tuple | None]:
+        """The order's quorum markers as they stand: {kind: read_q(...) or None}."""
+        return {k: order_auto.read_q(self.data(order_auto.q_pda(order, k))) for k in range(3)}
 
     def pay(self, order: Pubkey, payees, tag: str | None = "pay_order", **over) -> bool:
         """The proof arrives and the order is paid (or held)."""

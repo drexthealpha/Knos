@@ -18,6 +18,10 @@ from _pay2 import FIX, WF_REPO, WF_SHA
 
 from knos.settle.v2 import meter, oidc
 
+# knos_meter 1.1, the batch mode: the client is knos.settle.v2.meter; these names are what the tests already import here
+from knos.settle.v2.meter import (BATCH_ERRORS, E_BATCH, E_SEQ, LEDGER_LEN, MAX_BATCH, VERSION, BatchLedger, batch_audience, chain_hash,  # noqa: E402,F401
+                                  claim_batch_ix, ledger_pda, merkle_root, read_ledger, record_batch_ix, version_ix)
+
 PLAN_SETTER = Keypair.from_seed(bytes([7]) * 32)   # lib.rs TEST_FEE_OWNER: stands in for FEE_OWNER (a multisig vault) in a test build
 BUYER, SELLER = 424242, 555000                     # GitHub owner ids: the buyer's organisation, the vendor
 ORDER, POLICY = bytes([0xA1]) * 32, bytes([0xB2]) * 32
@@ -130,7 +134,7 @@ class Meter(_pay2.Chain):
 
     def token(self, aud: str, file: str = "attest.yml", **over) -> Pubkey | None:
         """A verified token for this audience from a first run of the pinned workflow in a repository of the buyer."""
-        claims = dict(repository_owner_id=meter.parse_audience(aud).buyer_id, run_attempt=1)
+        claims = dict(repository_owner_id=int(aud.split(":")[2]), run_attempt=1)
         claims.update(over)
         return self.gh(aud, file=file, **claims)
 
@@ -142,6 +146,32 @@ class Meter(_pay2.Chain):
         r = relayer or self.payer
         return self.send([meter.record_ix(r.pubkey(), token, self.key_of(token), credits, self.credits(credits), aud, self.now(), fee_token)], r,
                          tag="record")
+
+    # -- batches ---------------------------------------------------------------------------------------------------------
+    def batch_aud(self, seq: int = 0, count: int = 5000, accepted: int = 4000, value: int = 8_000_000_000, root: bytes = bytes([0xAB]) * 32,
+                  month: int | None = None, buyer: int = BUYER, seller: int = SELLER, kind: str = "batch") -> str:
+        return batch_audience(buyer, seller, month or meter.yyyymm(self.now()), seq, count, accepted, value, root, kind)
+
+    def batch(self, credits: Pubkey, aud: str, token: Pubkey | None = None, relayer: Keypair | None = None, **over) -> bool:
+        """Relays one batch: a new verified token for `aud` from a run of the buyer (or `token`), then RecordBatch."""
+        claims = dict(repository_owner_id=int(aud.split(":")[2]), run_attempt=1)
+        claims.update(over)
+        token = token or self.gh(aud, file=claims.pop("file", "attest.yml"), **claims)
+        assert token is not None, self.err
+        r = relayer or self.payer
+        return self.send([record_batch_ix(r.pubkey(), token, self.key_of(token), credits, self.credits(credits), aud)], r, tag="batch")
+
+    def claim(self, aud: str, token: Pubkey | None = None, relayer: Keypair | None = None, **over) -> bool:
+        """Relays the seller's claim: a new verified token for `aud` from a run in a repository of the seller (or `token`)."""
+        claims = dict(repository_owner_id=int(aud.split(":")[3]))
+        claims.update(over)
+        token = token or self.gh(aud, **claims)
+        assert token is not None, self.err
+        r = relayer or self.payer
+        return self.send([claim_batch_ix(r.pubkey(), token, self.key_of(token), aud)], r, tag="claim")
+
+    def book(self, claim: bool = False, buyer: int = BUYER, seller: int = SELLER, month: int | None = None) -> BatchLedger | None:
+        return read_ledger(self.data(ledger_pda(buyer, seller, month or meter.yyyymm(self.now()), claim)))
 
     def close(self, marks, payer: Keypair, fee_payer: Keypair | None = None) -> bool:
         """CloseMark for each of `marks`, in one transaction that `payer` (the relayer the marks name) signs."""

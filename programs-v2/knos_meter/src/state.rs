@@ -68,6 +68,22 @@ pub const M_VALUE: usize = 48;      // declared value: the sum of `rate` over th
 pub const M_FEES: usize = 56;       // what these evaluations cost in credits
 pub const MONTH_LEN: usize = 64;
 
+// Ledger ["l", buyer_id, seller_id, yyyymm u32] (the buyer's runs: RecordBatch) and ["lc", ...] (the seller's runs:
+// ClaimBatch): the batches of one buyer and one seller in one month. Never closed: it is the record.
+pub const L_VERSION: usize = 0;     // 1
+pub const L_BUMP: usize = 1;
+pub const L_KIND: usize = 2;        // 0 recorded by the buyer's runs, 1 claimed by the seller's
+pub const L_MONTH: usize = 4;       // u32 yyyymm of the evaluations
+pub const L_BUYER: usize = 8;
+pub const L_SELLER: usize = 16;
+pub const L_NEXT_SEQ: usize = 24;   // the seq the next batch must carry: 0 for the first; also the number of batches
+pub const L_EVALS: usize = 32;      // the sum of `count`
+pub const L_ACCEPTED: usize = 40;   // the sum of `accepted`; rejected = evals - accepted
+pub const L_VALUE: usize = 48;      // the sum of `value`: what the seller bills for the accepted
+pub const L_FEES: usize = 56;       // what these batches cost in credits (always 0 in a claim)
+pub const L_CHAIN: usize = 64;      // sha256(chain || root || seq || count || accepted || value), from 32 zero bytes
+pub const LEDGER_LEN: usize = 96;
+
 pub fn u32_at(d: &[u8], o: usize) -> u32 { u32::from_le_bytes(d[o..o + 4].try_into().unwrap()) }
 pub fn u64_at(d: &[u8], o: usize) -> u64 { u64::from_le_bytes(d[o..o + 8].try_into().unwrap()) }
 pub fn i64_at(d: &[u8], o: usize) -> i64 { i64::from_le_bytes(d[o..o + 8].try_into().unwrap()) }
@@ -172,7 +188,9 @@ mod tests {
         let plan = [(P_VERSION, 1), (P_BUMP, 1), (P_TIER, 1), (P_MONTH, 4), (P_OWNER_ID, 8), (P_RATE, 8), (P_EXPIRY, 8), (P_USED, 8)];
         let mark = [(K_VERSION, 1), (K_VERDICT, 1), (K_MONTH, 4), (K_BUYER, 8), (K_SELLER, 8), (K_TIME, 8), (K_RATE, 8), (K_FEE, 8), (K_PAYER, 32), (K_CLOSE_AFTER, 8)];
         let month = [(M_VERSION, 1), (M_BUMP, 1), (M_MONTH, 4), (M_BUYER, 8), (M_SELLER, 8), (M_EVALS, 8), (M_ACCEPTED, 8), (M_REJECTED, 8), (M_VALUE, 8), (M_FEES, 8)];
-        for (fields, len) in [(&credits[..], CREDITS_LEN), (&plan[..], PLAN_LEN), (&mark[..], MARK_LEN), (&month[..], MONTH_LEN)] {
+        let ledger = [(L_VERSION, 1), (L_BUMP, 1), (L_KIND, 1), (L_MONTH, 4), (L_BUYER, 8), (L_SELLER, 8), (L_NEXT_SEQ, 8), (L_EVALS, 8), (L_ACCEPTED, 8), (L_VALUE, 8),
+                      (L_FEES, 8), (L_CHAIN, 32)];
+        for (fields, len) in [(&credits[..], CREDITS_LEN), (&plan[..], PLAN_LEN), (&mark[..], MARK_LEN), (&month[..], MONTH_LEN), (&ledger[..], LEDGER_LEN)] {
             let mut end = 0;
             for &(at, size) in fields {
                 assert!(at >= end, "a field starts inside the one before it");
@@ -180,7 +198,7 @@ mod tests {
             }
             assert_eq!(end, len);
         }
-        let mut lens = [CREDITS_LEN, PLAN_LEN, MARK_LEN, MARK_LEN_1, MONTH_LEN];   // CloseMark tells a Mark by its length
+        let mut lens = [CREDITS_LEN, PLAN_LEN, MARK_LEN, MARK_LEN_1, MONTH_LEN, LEDGER_LEN];   // CloseMark tells a Mark by its length
         lens.sort_unstable();
         assert!(lens.windows(2).all(|w| w[0] != w[1]));
     }

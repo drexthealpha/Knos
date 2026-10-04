@@ -82,6 +82,9 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
             out.print(f"NO  {r}", markup=False, emoji=False)
         if v["checks_hash"]:
             out.print(f"checks_hash {v['checks_hash']}", markup=False)
+        if v.get("assurance"):          # how much this verdict can carry: in-process, black-box or hermetic (knos.judge.ASSURANCE)
+            image = (ev.get("image") or {}).get("ref")
+            out.print(f"assurance {v['assurance']}" + (f", in {image}" if image else "") + f": {v.get('assurance_means', '')}", markup=False, emoji=False)
         if not v["passed"]:
             out.print("[red]not proven[/red]")
             raise typer.Exit(1)
@@ -477,6 +480,16 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
             out.print("No claim here is contradicted by its evidence.")
         for x in got:
             out.print(f"  {x.sha[:8]}: claimed {', '.join(x.claimed) or 'done'}, but {x.failed} failed", markup=False)
+
+    @proof.command("record")
+    def record(words: str = typer.Argument("", help="find what Knos did about these words before, e.g. a check's or a file's name")) -> None:
+        """What Knos remembers of claims of done in this repository: how many it refused, what failed last time, and the
+        checks still owed. Read it before saying the work is done."""
+        from . import history
+        st = _store(repo_of(None))
+        out.print(history.briefing(st) or "Knos has refused no claim of done in this repository (or its memory is not there).", markup=False)
+        for line in history.recall(st, words) if words else []:
+            out.print(f"  {line}", markup=False)
 
     @proof.command("learn")
     def learn() -> None:

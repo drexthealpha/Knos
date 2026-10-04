@@ -249,3 +249,38 @@ def test_the_report_has_the_real_tasks_and_the_non_code_tasks_with_no_false_acce
         assert "**False accepts: none. False refusals: none.**" in block
     assert len(__import__("re").findall(r"^\| (urljoin|version|sniff|ini|date|glob) \|", real, __import__("re").M)) == 6
     assert len(__import__("re").findall(r"^\| (clean-csv|summarise|classify) \| \d+ of \d+ \|", accept, __import__("re").M)) == 3
+
+
+# ---- the five escapes from where a submission runs ---------------------------------------------------------------------
+
+@pytest.mark.skipif(not __import__("sys").platform.startswith("linux"), reason="the probes read /proc")
+def test_each_escape_does_what_is_expected_in_every_place_that_can_be_run_here():
+    bench = _bench()
+    got = bench.run_escapes(only=("none", "host"))          # the container is tests/test_judge_hermetic.py's last test
+    assert not got["places"]["none"] and got["places"]["hermetic"]
+    ran = [p for p in ("none", "host") if not got["places"][p]]
+    for e in bench.ESCAPES:
+        for place in ran:
+            assert got["rows"][e.key][place] is bench.expected(e, place), (e.key, place)
+        assert got["rows"][e.key]["hermetic"] is None
+    text = "\n".join(bench.escape_section(got))
+    assert "**hermetic (image): not run here**" in text and "No number is claimed for it" in text
+    assert f"{len(bench.ESCAPES) * len(ran)} of {len(bench.ESCAPES) * len(ran)} outcomes were the expected one" in text
+
+
+def test_the_report_lists_the_escapes_and_claims_no_number_for_a_place_it_did_not_run():
+    bench = _bench()
+    doc = DOC.read_text(encoding="utf-8")
+    block = doc.split("<!-- escape:begin -->")[1].split("<!-- escape:end -->")[0]
+    for e in bench.ESCAPES:
+        assert block.count(f"| {e.title} |") == 2, e.key                   # once as expected, once as measured
+    measured = block.split("What was measured")[1]
+    for place, title in bench.PLACES:
+        column = [row.split(" | ")[1 + [p for p, _ in bench.PLACES].index(place)].strip(" |") for row in measured.splitlines()
+                  if row.startswith("| ") and not row.startswith("| escape")]
+        if f"**{title}: not run here**" in block:
+            assert column == ["not run here"] * len(bench.ESCAPES), title
+        else:
+            assert "not run here" not in column and len(column) == len(bench.ESCAPES), title
+    assert [e.expect for e in bench.ESCAPES if e.expect["hermetic"]] == []      # the container is built to hold all five
+    assert "63" in doc.split("<!-- escape:begin -->")[0] and "cannot be cheated" not in doc

@@ -1,11 +1,14 @@
 [package]
 name = "knos-oidc-interface"
-version = "0.3.13"
+version = "0.3.14"
 edition = "2021"
+rust-version = "1.84"
 license = "MIT"
 description = "Read a GitHub Actions or GitLab CI OIDC token that the knos-oidc program verified on Solana. No dependencies."
 repository = "https://github.com/drexthealpha/Knos"
 readme = "README.md"
+documentation = "https://docs.rs/knos-oidc-interface"
+homepage = "https://github.com/drexthealpha/Knos/blob/main/docs/COMPOSE.md"
 keywords = ["solana", "oidc", "github-actions", "jwt", "no-std"]
 categories = ["no-std", "cryptography::cryptocurrencies"]
 # tests/differential.rs reads its documents from the repository around the crate (programs-v2/knos_oidc/tests/oracle)

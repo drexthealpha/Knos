@@ -1,10 +1,10 @@
-// x402 "attested": a PROPOSED payment scheme, not part of x402. The payment requirement is a Knos work order: the client
+// x402 "knos-order": a PROPOSED payment scheme, not part of x402. The payment requirement is a Knos work order: the client
 // puts the amount in escrow (FundOrderWallet), the server delivers, and the escrow pays the seller when a GitHub-signed
 // acceptance arrives (PayOrder), or returns everything to the client after the deadline (RefundOrder). docs/X402.md is
 // the specification; this file is both roles' logic, with no dependency but Node and sdk/settle (which has none).
 import { ata, b58, findProgramAddress, hex, sha256, unb58, unhex } from "../../sdk/settle/index.js";
 
-export const SCHEME = "attested";
+export const SCHEME = "knos-order";     // lower case with a hyphen, as x402 names its own (exact, upto, batch-settlement)
 export const X402_VERSION = 2;
 export const DEVNET = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";     // x402's network id of Solana devnet (CAIP-2)
 export const KNOS_PAY = "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k";
@@ -19,8 +19,13 @@ const num = (raw, o, bytes) => { let n = 0n; for (let i = bytes - 1; i >= 0; i--
 export const encode = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64");
 export const decode = (text) => JSON.parse(Buffer.from(text, "base64").toString("utf8"));
 
-/** The fee a funder pays on top of an order's amount (knos_pay's order_fee for a 6-decimal mint): 2.5%, 0.40 to 25. */
-export const orderFee = (amount) => { const a = BigInt(amount); const f = a * 250n / 10_000n; return f < 400_000n ? 400_000n : f > 25_000_000n ? 25_000_000n : f; };
+/** The fee a funder pays on top of an order's amount (knos_pay's order_fee for a 6-decimal mint, no Plan): 2.5% of the
+ *  first 1,000, 1% from there to 50,000, 0.5% above; at least 0.40. */
+export function orderFee(amount) {
+  const a = BigInt(amount), k = 1_000_000_000n, m = 50_000_000_000n, min = (x, y) => (x < y ? x : y);
+  const f = min(a, k) * 250n / 10_000n + (a > k ? (min(a, m) - k) * 100n / 10_000n : 0n) + (a > m ? (a - m) * 50n / 10_000n : 0n);
+  return f < 400_000n ? 400_000n : f;
+}
 export const scopeOf = (repoId, issue) => sha256(cat(enc.encode("knos3:scope"), le(repoId, 8), le(issue, 8)));
 export const termsHash = async (terms) => hex(await sha256(enc.encode(terms)));
 /** ["ord", scope, payer, seq]: the order a payer's funding creates for this requirement. */
@@ -43,13 +48,17 @@ export async function requirement(offer, payer = null) {
   };
 }
 
+// An x402 extension is { info, schema }: the schema is the JSON Schema of info (specification v2, "Extensions").
+const INFO_SCHEMA = { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", required: ["version", "settles", "refund"],
+  properties: { version: { const: 1 }, proposal: { type: "boolean" }, settles: { const: "on-acceptance" }, refund: { const: "after-deadline" }, payerHeader: { type: "string" } } };
+
 /** The body of the 402 (and, base64, its PAYMENT-REQUIRED header). */
 export async function paymentRequired(offer, payer, error) {
   return {
     x402Version: X402_VERSION, error,
     resource: { url: offer.url, description: offer.description, mimeType: "application/json" },
     accepts: [await requirement(offer, payer)],
-    extensions: { attested: { info: { version: 1, proposal: true, settles: "on-acceptance", refund: "after-deadline", payerHeader: "Attested-Payer" } } },
+    extensions: { [SCHEME]: { info: { version: 1, proposal: true, settles: "on-acceptance", refund: "after-deadline", payerHeader: "Attested-Payer" }, schema: INFO_SCHEMA } },
   };
 }
 
@@ -100,14 +109,14 @@ export async function verify(chain, req, payload, margin = 3600) {
   if (o.terms !== x.termsHash || o.mode !== x.mode) return no("the order's terms are not the ones this resource was offered under");
   if (o.wfRepo !== hex(await sha256(enc.encode(x.workflows.repository))) || o.wfSha !== x.workflows.sha) return no("the order pins other workflows as its judge");
   if (o.flags & 0x0a || o.holdbackBps) return no("the order is private, standing or holds part of the payment back: this resource is sold for a plain order");
-  if (o.deadline < chain.now() + margin) return no("the order's deadline leaves too little time to deliver");
+  if (o.deadline < await chain.now() + margin) return no("the order's deadline leaves too little time to deliver");
   return { ok: true, order: o, payer: o.source };
 }
 
 /** The SettlementResponse the server returns with the resource (base64 in PAYMENT-RESPONSE): the money is in escrow, not yet the seller's. */
 export const escrowed = (req, payload, v) => ({
   success: true, payer: v.payer, transaction: payload.transaction ?? "", network: req.network, amount: String(v.order.amount),
-  extensions: { attested: { info: { order: payload.order, state: "escrowed", deadline: v.order.deadline } } },
+  extensions: { [SCHEME]: { info: { order: payload.order, state: "escrowed", deadline: v.order.deadline } } },
 });
 
 /** Where an order stands, from the chain alone: escrowed while its account exists; afterwards its last log line says how it ended. */

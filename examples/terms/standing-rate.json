@@ -1,0 +1,30 @@
+{
+  "name": "standing-rate",
+  "sentence": "Pays @octocat 10 test USDC for each pull request of theirs, up to 100 test USDC in all, when check `unit` passes on a merge; refund after 90 days",
+  "comment": "/knos offer @octocat rate 10 budget 100 checks: unit days 90",
+  "where": "an issue",
+  "terms": {
+    "accept": "",
+    "checks": [
+      {
+        "app": 15368,
+        "name": "unit"
+      }
+    ],
+    "deny": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "mode": "merge",
+    "paths": [],
+    "reserve": 0,
+    "v": 1,
+    "vendor": 583231
+  },
+  "terms_json": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1,\"vendor\":583231}",
+  "terms_hash": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+  "assumes": {
+    "checks": "each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit",
+    "vendor": "@octocat (account id 583231) stands for your vendor"
+  }
+}

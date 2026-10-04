@@ -13,7 +13,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
+    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/upgrade_feed.py", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
@@ -40,6 +40,10 @@ jobs:
         run: bash scripts/build_site.sh _site "$GITHUB_SHA"
       - name: /stats.json, counted from devnet
         run: python scripts/network_stats.py --out _site/stats.json --events-out _events.json
+        env:
+          GH_TOKEN: ${{ github.token }}       # without it GitHub is read unauthenticated, and merge-to-paid has no merges to time
+      - name: /upgrades.json and /upgrades.xml from the upgrade multisig's proposals (a cluster that does not answer keeps the committed files)
+        run: python scripts/upgrade_feed.py --out _site || [ "$?" = 2 ]
       - name: Agent PR Index (/index.json) from the newest index-* release; its root must match its records
         run: |
           tag=$(gh release list -R "${{ github.repository }}" --limit 100 --json tagName,createdAt \

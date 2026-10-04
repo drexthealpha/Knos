@@ -1,0 +1,1360 @@
+{
+ "read": "2026-10-01",
+ "window": [
+  "2026-07-03",
+  "2026-09-30"
+ ],
+ "source": "docs/agent_pr_ci.json, the sample read on 2026-10-01, reshaped by week (nothing was read again). Unlike the index, this sample kept pull requests on repositories their author owns",
+ "agents_told_by": {
+  "copilot": "author:app/copilot-swe-agent",
+  "devin": "author:app/devin-ai-integration",
+  "claude-bot": "author:app/claude",
+  "claude-code": "\"Generated with Claude Code\" in:body -author:app/claude",
+  "codex": "\"chatgpt.com/codex/tasks\" in:body"
+ },
+ "claim_search": "(\"tests pass\" OR \"all tests pass\" OR \"tests passing\" OR \"CI passes\" OR \"CI is green\" OR \"CI passing\") in:body",
+ "definitions": {
+  "week": "the Monday (UTC) of the week the pull request was created in; a week at either end of `window` is cut short by it",
+  "sampled": "pull requests GitHub's search returned for the agent's query and the claim phrases (`agents`, `claim_search`), created in that week, not on a repository owned by the pull request's author or by the person who assigned the agent. null where the source did not keep the creation date of the hits it then set aside",
+  "claimed_passing": "of those, the ones whose description, read line by line, says tests or CI pass (CLAIM_RE and NONCLAIM_RE in scripts/agent_pr_ci.py): an unticked box, a wish or a negation is not a claim",
+  "ci_finished": "of the claimed, the ones whose CI had finished at the head commit when it was read (classes failed, passed, other). The two rates below are over these",
+  "failed_a_check": "at least one failed check of any kind at the head commit (`any_check_failed` of the index); `test_or_build` counts the ones where a failed check is, by its name, a test, build, lint or type-check job",
+  "merged_despite_failed_check": "merged when read, with a failed check at the head commit, over the merged pull requests with finished CI. null where the merge state was not read",
+  "share, ci95": "k over n, and the 95% Wilson score interval of that share (z = 1.96); null when n is 0"
+ },
+ "limits": [
+  "An agent is told by its author account or by a line its tool writes in the description (`agents`). A person who pastes that line is counted as the agent; an agent run under a person's own account without it is missed.",
+  "Public repositories only: GitHub's search does not return private ones.",
+  "One snapshot of the checks: what GitHub showed at the head commit when it was read. A check that was run again later, or a commit pushed after, is not seen. The agent's own session run is not a check.",
+  "The search asks for a few claim phrases, so `sampled` is not every pull request the agent opened.",
+  "A week holds few pull requests for some agents: read the interval, not the share."
+ ],
+ "agents": {
+  "copilot": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 4,
+     "failed_a_check": {
+      "k": 0,
+      "n": 4,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4899
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     }
+    },
+    {
+     "week": "2026-07-20",
+     "sampled": null,
+     "claimed_passing": 6,
+     "ci_finished": 4,
+     "failed_a_check": {
+      "k": 1,
+      "n": 4,
+      "share": 0.25,
+      "ci95": [
+       0.0456,
+       0.6994
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 4,
+      "share": 0.25,
+      "ci95": [
+       0.0456,
+       0.6994
+      ]
+     }
+    },
+    {
+     "week": "2026-07-27",
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 4,
+     "failed_a_check": {
+      "k": 1,
+      "n": 4,
+      "share": 0.25,
+      "ci95": [
+       0.0456,
+       0.6994
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ]
+     }
+    },
+    {
+     "week": "2026-08-10",
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 10,
+     "failed_a_check": {
+      "k": 3,
+      "n": 10,
+      "share": 0.3,
+      "ci95": [
+       0.1078,
+       0.6032
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 5,
+      "share": 0.6,
+      "ci95": [
+       0.2307,
+       0.8824
+      ]
+     }
+    },
+    {
+     "week": "2026-08-17",
+     "sampled": null,
+     "claimed_passing": 13,
+     "ci_finished": 12,
+     "failed_a_check": {
+      "k": 4,
+      "n": 12,
+      "share": 0.3333,
+      "ci95": [
+       0.1381,
+       0.6094
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 10,
+      "share": 0.3,
+      "ci95": [
+       0.1078,
+       0.6032
+      ]
+     }
+    },
+    {
+     "week": "2026-08-31",
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 5,
+     "failed_a_check": {
+      "k": 5,
+      "n": 5,
+      "share": 1.0,
+      "ci95": [
+       0.5655,
+       1.0
+      ],
+      "test_or_build": 4
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 2,
+      "share": 1.0,
+      "ci95": [
+       0.3424,
+       1.0
+      ]
+     }
+    },
+    {
+     "week": "2026-09-07",
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 11,
+     "failed_a_check": {
+      "k": 3,
+      "n": 11,
+      "share": 0.2727,
+      "ci95": [
+       0.0975,
+       0.5657
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 7,
+      "share": 0.1429,
+      "ci95": [
+       0.0257,
+       0.5131
+      ]
+     }
+    },
+    {
+     "week": "2026-09-14",
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "failed_a_check": {
+      "k": 3,
+      "n": 7,
+      "share": 0.4286,
+      "ci95": [
+       0.1582,
+       0.7495
+      ],
+      "test_or_build": 2
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 7,
+      "share": 0.4286,
+      "ci95": [
+       0.1582,
+       0.7495
+      ]
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ]
+     }
+    }
+   ],
+   "all_weeks": {
+    "sampled": 179,
+    "claimed_passing": 75,
+    "ci_finished": 60,
+    "failed_a_check": {
+     "k": 21,
+     "n": 60,
+     "share": 0.35,
+     "ci95": [
+      0.2417,
+      0.4764
+     ],
+     "test_or_build": 10
+    },
+    "merged_despite_failed_check": {
+     "k": 15,
+     "n": 44,
+     "share": 0.3409,
+     "ci95": [
+      0.2188,
+      0.4886
+     ]
+    }
+   }
+  },
+  "devin": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     }
+    },
+    {
+     "week": "2026-07-20",
+     "sampled": null,
+     "claimed_passing": 14,
+     "ci_finished": 14,
+     "failed_a_check": {
+      "k": 10,
+      "n": 14,
+      "share": 0.7143,
+      "ci95": [
+       0.4535,
+       0.8828
+      ],
+      "test_or_build": 8
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 4,
+      "share": 0.5,
+      "ci95": [
+       0.15,
+       0.85
+      ]
+     }
+    },
+    {
+     "week": "2026-07-27",
+     "sampled": null,
+     "claimed_passing": 9,
+     "ci_finished": 6,
+     "failed_a_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     }
+    },
+    {
+     "week": "2026-08-10",
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 6,
+     "failed_a_check": {
+      "k": 1,
+      "n": 6,
+      "share": 0.1667,
+      "ci95": [
+       0.0301,
+       0.5635
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 5,
+      "share": 0.2,
+      "ci95": [
+       0.0362,
+       0.6245
+      ]
+     }
+    },
+    {
+     "week": "2026-08-17",
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 11,
+     "failed_a_check": {
+      "k": 1,
+      "n": 11,
+      "share": 0.0909,
+      "ci95": [
+       0.0162,
+       0.3774
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ]
+     }
+    },
+    {
+     "week": "2026-08-31",
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 10,
+     "failed_a_check": {
+      "k": 1,
+      "n": 10,
+      "share": 0.1,
+      "ci95": [
+       0.0179,
+       0.4042
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 10,
+      "share": 0.1,
+      "ci95": [
+       0.0179,
+       0.4042
+      ]
+     }
+    },
+    {
+     "week": "2026-09-07",
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 9,
+     "failed_a_check": {
+      "k": 1,
+      "n": 9,
+      "share": 0.1111,
+      "ci95": [
+       0.0199,
+       0.435
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 8,
+      "share": 0.125,
+      "ci95": [
+       0.0224,
+       0.4709
+      ]
+     }
+    },
+    {
+     "week": "2026-09-14",
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "sampled": null,
+     "claimed_passing": 14,
+     "ci_finished": 6,
+     "failed_a_check": {
+      "k": 1,
+      "n": 6,
+      "share": 0.1667,
+      "ci95": [
+       0.0301,
+       0.5635
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 4,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4899
+      ]
+     }
+    }
+   ],
+   "all_weeks": {
+    "sampled": 180,
+    "claimed_passing": 87,
+    "ci_finished": 68,
+    "failed_a_check": {
+     "k": 15,
+     "n": 68,
+     "share": 0.2206,
+     "ci95": [
+      0.1385,
+      0.3326
+     ],
+     "test_or_build": 11
+    },
+    "merged_despite_failed_check": {
+     "k": 5,
+     "n": 43,
+     "share": 0.1163,
+     "ci95": [
+      0.0507,
+      0.2448
+     ]
+    }
+   }
+  },
+  "claude-bot": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "sampled": null,
+     "claimed_passing": 15,
+     "ci_finished": 15,
+     "failed_a_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ]
+     }
+    },
+    {
+     "week": "2026-07-20",
+     "sampled": null,
+     "claimed_passing": 15,
+     "ci_finished": 15,
+     "failed_a_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ]
+     }
+    },
+    {
+     "week": "2026-07-27",
+     "sampled": null,
+     "claimed_passing": 13,
+     "ci_finished": 11,
+     "failed_a_check": {
+      "k": 4,
+      "n": 11,
+      "share": 0.3636,
+      "ci95": [
+       0.1517,
+       0.6462
+      ],
+      "test_or_build": 4
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 7,
+      "share": 0.2857,
+      "ci95": [
+       0.0822,
+       0.6411
+      ]
+     }
+    },
+    {
+     "week": "2026-08-10",
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "failed_a_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ]
+     }
+    },
+    {
+     "week": "2026-08-17",
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 12,
+     "failed_a_check": {
+      "k": 1,
+      "n": 12,
+      "share": 0.0833,
+      "ci95": [
+       0.0149,
+       0.3539
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 10,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2775
+      ]
+     }
+    },
+    {
+     "week": "2026-08-31",
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 11,
+     "failed_a_check": {
+      "k": 3,
+      "n": 11,
+      "share": 0.2727,
+      "ci95": [
+       0.0975,
+       0.5657
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 11,
+      "share": 0.2727,
+      "ci95": [
+       0.0975,
+       0.5657
+      ]
+     }
+    },
+    {
+     "week": "2026-09-07",
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 5,
+     "failed_a_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ]
+     }
+    },
+    {
+     "week": "2026-09-14",
+     "sampled": null,
+     "claimed_passing": 14,
+     "ci_finished": 14,
+     "failed_a_check": {
+      "k": 0,
+      "n": 14,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2153
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 13,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2281
+      ]
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "sampled": null,
+     "claimed_passing": 9,
+     "ci_finished": 6,
+     "failed_a_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     }
+    }
+   ],
+   "all_weeks": {
+    "sampled": 180,
+    "claimed_passing": 101,
+    "ci_finished": 96,
+    "failed_a_check": {
+     "k": 8,
+     "n": 96,
+     "share": 0.0833,
+     "ci95": [
+      0.0428,
+      0.1559
+     ],
+     "test_or_build": 5
+    },
+    "merged_despite_failed_check": {
+     "k": 5,
+     "n": 85,
+     "share": 0.0588,
+     "ci95": [
+      0.0254,
+      0.1304
+     ]
+    }
+   }
+  },
+  "claude-code": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 0,
+     "failed_a_check": {
+      "k": 0,
+      "n": 0,
+      "share": null,
+      "ci95": null,
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": null
+    },
+    {
+     "week": "2026-07-20",
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     }
+    },
+    {
+     "week": "2026-07-27",
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     }
+    },
+    {
+     "week": "2026-08-10",
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     }
+    },
+    {
+     "week": "2026-08-17",
+     "sampled": null,
+     "claimed_passing": 3,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     }
+    },
+    {
+     "week": "2026-08-31",
+     "sampled": null,
+     "claimed_passing": 6,
+     "ci_finished": 5,
+     "failed_a_check": {
+      "k": 1,
+      "n": 5,
+      "share": 0.2,
+      "ci95": [
+       0.0362,
+       0.6245
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 5,
+      "share": 0.2,
+      "ci95": [
+       0.0362,
+       0.6245
+      ]
+     }
+    },
+    {
+     "week": "2026-09-07",
+     "sampled": null,
+     "claimed_passing": 2,
+     "ci_finished": 1,
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     }
+    },
+    {
+     "week": "2026-09-14",
+     "sampled": null,
+     "claimed_passing": 6,
+     "ci_finished": 5,
+     "failed_a_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ]
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 1,
+      "share": 1.0,
+      "ci95": [
+       0.2065,
+       1.0
+      ]
+     }
+    }
+   ],
+   "all_weeks": {
+    "sampled": 180,
+    "claimed_passing": 31,
+    "ci_finished": 24,
+    "failed_a_check": {
+     "k": 2,
+     "n": 24,
+     "share": 0.0833,
+     "ci95": [
+      0.0232,
+      0.2585
+     ],
+     "test_or_build": 0
+    },
+    "merged_despite_failed_check": {
+     "k": 2,
+     "n": 22,
+     "share": 0.0909,
+     "ci95": [
+      0.0253,
+      0.2782
+     ]
+    }
+   }
+  },
+  "codex": {
+   "weeks": [
+    {
+     "week": "2026-06-29",
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 0,
+      "share": null,
+      "ci95": null
+     }
+    },
+    {
+     "week": "2026-07-06",
+     "sampled": null,
+     "claimed_passing": 2,
+     "ci_finished": 2,
+     "failed_a_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     }
+    },
+    {
+     "week": "2026-07-13",
+     "sampled": null,
+     "claimed_passing": 3,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ]
+     }
+    },
+    {
+     "week": "2026-07-20",
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "failed_a_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ]
+     }
+    },
+    {
+     "week": "2026-07-27",
+     "sampled": null,
+     "claimed_passing": 3,
+     "ci_finished": 3,
+     "failed_a_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     }
+    },
+    {
+     "week": "2026-08-03",
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     }
+    },
+    {
+     "week": "2026-08-10",
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     }
+    },
+    {
+     "week": "2026-08-17",
+     "sampled": null,
+     "claimed_passing": 2,
+     "ci_finished": 2,
+     "failed_a_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     }
+    },
+    {
+     "week": "2026-08-31",
+     "sampled": null,
+     "claimed_passing": 13,
+     "ci_finished": 13,
+     "failed_a_check": {
+      "k": 6,
+      "n": 13,
+      "share": 0.4615,
+      "ci95": [
+       0.2321,
+       0.7086
+      ],
+      "test_or_build": 6
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 8,
+      "share": 0.25,
+      "ci95": [
+       0.0715,
+       0.5907
+      ]
+     }
+    },
+    {
+     "week": "2026-09-07",
+     "sampled": null,
+     "claimed_passing": 10,
+     "ci_finished": 10,
+     "failed_a_check": {
+      "k": 1,
+      "n": 10,
+      "share": 0.1,
+      "ci95": [
+       0.0179,
+       0.4042
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 9,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2992
+      ]
+     }
+    },
+    {
+     "week": "2026-09-14",
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "failed_a_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ]
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 5,
+     "failed_a_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ]
+     }
+    }
+   ],
+   "all_weeks": {
+    "sampled": 114,
+    "claimed_passing": 55,
+    "ci_finished": 55,
+    "failed_a_check": {
+     "k": 9,
+     "n": 55,
+     "share": 0.1636,
+     "ci95": [
+      0.0886,
+      0.2826
+     ],
+     "test_or_build": 8
+    },
+    "merged_despite_failed_check": {
+     "k": 3,
+     "n": 47,
+     "share": 0.0638,
+     "ci95": [
+      0.0219,
+      0.1716
+     ]
+    }
+   }
+  }
+ }
+}

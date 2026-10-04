@@ -17,9 +17,9 @@ use crate::{err, gh::*, order::*, pay::{bound, record, Paid}, state::*, token::*
 use knos_oidc::claims::{self, parts};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, system_program};
 
-/// Who signed a pay token, of the four the design allows.
+/// Who signed a pay token, of the five the design allows (order_judge.rs: a, b, c, d, and e for an AUTO order).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Judge { Own = 0, Neutral = 1, Private = 2, Arbiter = 3 }
+pub enum Judge { Own = 0, Neutral = 1, Private = 2, Arbiter = 3, Auto = 4 }
 
 /// HOOK. Which judge signed this token for this order, or a refusal. Always: the workflow is in the order's pinned
 /// repository at the order's pinned commit, and the run is a first attempt (`github` has already required a
@@ -32,7 +32,7 @@ pub fn due_now(o: &Order) -> u64 { crate::order_terms::due_now(o) }
 
 /// HOOK. What is refused before any money moves (order_terms.rs): an order that is both STANDING and has a holdback
 /// (E_LATER: its money waits and goes back at the deadline), and a payee without a wallet on a STANDING order or one
-/// with a holdback (those are never held). `per`: the accounts after PayOrder's thirteen.
+/// with a holdback (those are never held). `per`: the accounts after PayOrder's fourteen.
 pub fn not_yet(program_id: &Pubkey, o: &Order, payees: &[Payee], per: &[AccountInfo]) -> ProgramResult {
     crate::order_terms::not_yet(program_id, o, payees, per)
 }
@@ -59,10 +59,12 @@ pub struct Payee { pub id: u64, pub bps: u64, pub address: Option<Pubkey> }
 /// `payees`: 1..=4 entries `id.bps.address` joined by `,`; the shares add up to 10000; `address` is a wallet as
 /// Solana prints it, or `-` (the id's bound wallet; with none, the order is held for the id).
 pub struct PayAud { pub order: Pubkey, pub terms: [u8; 32], pub mode: u8, pub pr: u64, pub payees: Vec<Payee> }
-pub fn pay_order_aud(aud: &[u8]) -> Result<PayAud, ProgramError> {
+pub fn pay_order_aud(aud: &[u8]) -> Result<PayAud, ProgramError> { pay_aud_as(aud, b"pay") }
+/// The same eight parts under another second word: knos3:auto:... is an AUTO order's (order_judge.rs, e).
+pub fn pay_aud_as(aud: &[u8], word: &[u8]) -> Result<PayAud, ProgramError> {
     let bad = || err(E_AUD);
     let [k, p, order, head, terms, mode, pr, list] = parts::<8>(aud).ok_or_else(bad)?;
-    if k != b"knos3" || p != b"pay" || !claims::is_hex(head, 40) || (mode != b"0" && mode != b"1") { return Err(bad()); }
+    if k != b"knos3" || p != word || !claims::is_hex(head, 40) || (mode != b"0" && mode != b"1") { return Err(bad()); }
     Ok(PayAud { order: Pubkey::new_from_array(claims::b58_32(order).ok_or_else(bad)?), terms: claims::unhex32(terms).ok_or_else(bad)?,
                 mode: mode[0] - b'0', pr: n(pr)?, payees: payees_of(list)? })
 }
@@ -147,24 +149,34 @@ fn pay_out<'a>(program_id: &Pubkey, a: &Payout<'a, '_>, o: &Order, per: &[Accoun
 
 /// 17 PayOrder: a pay token from a judge of this order (`judge_ok`): the terms fixed at funding were met.
 /// accounts: relayer(s,w) pay_token key order(w) ov(w) tip_token(w) fee_token(w) auth rent_to(w) mint token_program
-///           system ata_program, then for each payee of the audience, in its order: bind wallet dest_token(w) rep(w) pair(w)
+///           system ata_program used(w), then for each payee of the audience, in its order: bind wallet dest_token(w) rep(w) pair(w)
+/// The token pays, or holds, once: its marker ["used", sha256(signature)] is made here before anything changes, so
+/// the same token is refused (E_REPLAY) by this and by every other instruction from then on, whatever the order's
+/// address holds by then (2.1 as first built made no marker here: a token could pay an order funded again at the
+/// address of the one it had paid).
 /// Each payee is paid at the address the token carries for it; with `-`, at the wallet in its Bind; with neither, the
 /// order becomes HELD for it (one payee only: a split with a payee who cannot be paid is refused, and nothing moves).
+/// An order with a QUORUM takes three more accounts, last: ["q", order, 0](w) ["q", order, 1](w) ["q", order, 2](w).
 pub fn pay_order(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, order, ov, tip_tok, fee_tok, auth, rent_to, mint, token, sys, ata_program] = take(accounts)?;
-    let per = &accounts[13..];
+    let [relayer, tok, key, order, ov, tip_tok, fee_tok, auth, rent_to, mint, token, sys, ata_program, used] = take(accounts)?;
+    let per = &accounts[14..];
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let o = load_order(program_id, order)?;
     let g = crate::order_judge::token(program_id, &o, tok, key, now)?;
     if o.state != OPEN || now > o.deadline { return Err(err(E_STATE)); }
     let judge = judge_ok(&o, &g)?;
-    // issued after the funding: a proof made before this order existed cannot pay it
+    // issued after the funding (`not_before` is the chain's time then): a proof made before this order existed cannot pay it
     if g.iat < o.not_before { return Err(err(E_STATE)); }
-    let a = crate::order_judge::audience(&o, judge, &g.aud)?;
+    let a = crate::order_judge::audience(&o, judge, &g.aud, now)?;
     if a.order != *order.key || a.terms != o.terms || a.mode != o.mode { return Err(err(E_AUD)); }
     not_yet(program_id, &o, &a.payees, per)?;
     if per.len() < a.payees.len() * PER_PAYEE { return Err(ProgramError::NotEnoughAccountKeys); }
+    // the token is accepted: from here it is used up, whether it pays or holds
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, false)?;
+    // HOOK. An order with a QUORUM: this judge's word is recorded, and nothing is paid until enough distinct judges
+    // have passed the same artifact (order_terms.rs, 5). The last three accounts are the three markers.
+    if !crate::order_terms::quorum(program_id, relayer, order, sys, &o, &g, judge, accounts)? { return Ok(()); }
     // where each payee's money goes: the address the token carries; else the payee's bound wallet; else nowhere yet.
     // The bind account must be ["bind", id] itself (`bound`), so a Bind cannot be hidden.
     let mut wallets = Vec::with_capacity(a.payees.len());

@@ -163,17 +163,28 @@ def _flip(jwt: str, part: int, at: int) -> str:
     return ".".join(parts)
 
 
+def _by_another_key(n: int) -> str:
+    """A token signed by another 2048-bit key, whose signature read as a number is below n. One at or above n is
+    refused before any arithmetic (E_SIG 65, asserted below), and a random key's signature is that whenever it falls
+    between n and the other key's larger modulus: drawn unchecked, it made this test fail now and then."""
+    while True:
+        jwt = sign_jwt(rsa.generate_private_key(public_exponent=65537, key_size=2048), github_claims())
+        sig = jwt.split(".")[2]
+        if int.from_bytes(base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4)), "big") < n:
+            return jwt
+
+
 def test_every_forgery_is_refused(chain):
     key, n = signing_key(), modulus(signing_key())
     good = sign_jwt(key, github_claims(aud="knos:pay:1:1"))
-    other = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    other = _by_another_key(n)
     hs = sign_jwt(key, github_claims(), header={"typ": "JWT", "alg": "HS256", "kid": "k"})
     none = sign_jwt(key, github_claims(), header={"typ": "JWT", "alg": "none", "kid": "k"})
     dup = sign_jwt(key, {}, raw_payload=b'{"iss":"https://evil.example","iss":"' + oidc.ISSUERS[GH].encode() + b'","exp":%d}' % (NOW + 300))
     cases = {
         "claims changed after signing": (_flip(good, 1, 40), 70),
         "signature changed": (_flip(good, 2, 100), 70),
-        "signed by another key": (sign_jwt(other, github_claims()), 70),
+        "signed by another key": (other, 70),
         "alg HS256": (hs, 71),
         "alg none": (none, 71),
         "another issuer in iss": (sign_jwt(key, github_claims(iss="https://gitlab.com")), 72),

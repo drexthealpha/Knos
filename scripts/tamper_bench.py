@@ -3,6 +3,7 @@
     python scripts/tamper_bench.py [--out docs/TAMPER.md] [--only python|node|ruby]
     python scripts/tamper_bench.py --real        # only the six real-behaviour tasks: rewrites their block of docs/TAMPER.md
     python scripts/tamper_bench.py --accept      # only the three non-code tasks (scripts/acceptance_examples.py), same
+    python scripts/tamper_bench.py --escape      # only the five escapes from where the submission runs, same
 
 The samples (tests/bench_tamper/) are the same small project with the same bug, in Python (pytest), JavaScript
 (node:test) and Ruby (minitest), and each has its own 21 attacks: the same 21 ideas, each as that language's tools
@@ -19,6 +20,10 @@ urllib.parse.urljoin, packaging.version, csv.Sniffer, configparser, datetime.fro
 box against that code on generated inputs. Each has an honest fix, a constant-returning stub and the attacks above that
 apply (attacks_real.py), judged by CI green and by Knos's black box. And three tasks that are not code
 (examples/acceptance/) are run through `knos proof judge` by scripts/acceptance_examples.py. docs/TAMPER.md reports both.
+
+Five escapes (ESCAPES) are not about the verdict: each is something a submission does to the machine that judges it,
+tried in each place a submission can run (the judge's machine with no sandbox, its sandbox, a container of a pinned
+image). A place that cannot be set up here is reported as "not run here", with no number.
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
@@ -395,6 +401,252 @@ def accept_section(results: dict, repeat: int) -> list[str]:
     return out
 
 
+# ---- escapes: what a submission can do to the machine that judges it -------------------------------------------------
+
+# The image the hermetic column runs the probe in: python 3.12 on Alpine, as Docker Hub's registry named it on
+# 2026-10-04 (https://hub.docker.com/_/python, tag 3.12-alpine).
+ESCAPE_IMAGE = "docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71"
+PLACES = (("none", "host, no sandbox"), ("host", "host sandbox"), ("hermetic", "hermetic (image)"))
+THREADS = 400     # more than the container's process limit (judge.Limits.pids) and few enough to be harmless anywhere
+
+
+class Escape(NamedTuple):
+    key: str
+    title: str
+    expect: dict        # place -> True (the escape works there) | False (it is stopped) | "root" (works when the judge is root)
+    why: str
+
+
+ESCAPES = (
+    Escape("network", "open a connection out (how a hidden test set or a secret would leave)",
+           {"none": True, "host": False, "hermetic": False},
+           "the sandbox and the container both run the submission with no network"),
+    Escape("write", "write a file outside the work directory",
+           {"none": True, "host": True, "hermetic": False},
+           "the sandbox user can write wherever any user of the machine can (/tmp and the like); the container has a "
+           "read-only root and sees no host directory but the tree, read-only"),
+    Escape("env", "read the judge's environment variables",
+           {"none": True, "host": False, "hermetic": False},
+           "without a sandbox the submission inherits the judge's environment, less CI's own variables; the sandbox "
+           "starts it with an empty one and another user; the container starts with the image's"),
+    Escape("procs", f"start {THREADS} threads at once (a fork bomb, held still)",
+           {"none": True, "host": True, "hermetic": False},
+           "the host puts no limit on the sandbox user's processes; the container has --pids-limit"),
+    Escape("clock", "hold the right to set the machine's clock",
+           {"none": "root", "host": False, "hermetic": False},
+           "setting the clock needs CAP_SYS_TIME: the judge's own user has it only when that user is root, the sandbox "
+           "user and the container never"),
+)
+
+PROBE = r"""import os, socket, sys, threading, time
+what, args = sys.argv[1], sys.argv[2:]
+if what == "network":
+    for host in args[2:]:
+        try:
+            with socket.create_connection((host, int(args[1])), timeout=2) as s:
+                s.sendall(args[0].encode())
+            print("sent to", host)
+        except OSError as why:
+            print("no", host, why)
+elif what == "write":
+    try:
+        with open(os.path.join(args[0], args[1]), "w") as f:
+            f.write("was here")
+        print("wrote")
+    except OSError as why:
+        print("no", why)
+elif what == "env":
+    seen = [v for v in os.environ.values()]
+    for pid in os.listdir("/proc") if os.path.isdir("/proc") else []:
+        try:
+            with open("/proc/%s/environ" % pid, "rb") as f:
+                seen.append(f.read().decode("utf-8", "replace"))
+        except OSError:
+            pass
+    print("found " + args[0] if any(args[0] in v for v in seen) else "not found")
+elif what == "procs":
+    threading.stack_size(256 * 1024)
+    stop, n = threading.Event(), 0
+    for _ in range(int(args[0])):
+        try:
+            threading.Thread(target=stop.wait, daemon=True).start()
+            n += 1
+        except (RuntimeError, MemoryError):
+            break
+    stop.set()
+    print("started", n)
+elif what == "clock":
+    cap = 0
+    with open("/proc/self/status") as f:
+        for line in f:
+            if line.startswith("CapEff:"):
+                cap = int(line.split()[1], 16)
+    if cap >> 25 & 1:
+        print("may set the clock")          # it holds CAP_SYS_TIME; the probe does not use it
+    else:
+        try:
+            time.clock_settime(time.CLOCK_REALTIME, time.time())
+            print("may set the clock")
+        except OSError as why:
+            print("no", why)
+"""
+
+
+def _listener(nonce: str):
+    """A TCP listener on every interface of this machine; (port, got) where got() says whether the nonce arrived."""
+    import socket
+    import threading
+    srv = socket.socket()
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("0.0.0.0", 0))
+    srv.listen(8)
+    srv.settimeout(0.2)
+    seen, done = [], threading.Event()
+
+    def serve():
+        while not done.is_set():
+            try:
+                conn, _ = srv.accept()
+            except OSError:
+                continue
+            with conn:
+                conn.settimeout(2)
+                try:
+                    seen.append(conn.recv(200).decode("utf-8", "replace"))
+                except OSError:
+                    pass
+    t = threading.Thread(target=serve, daemon=True)
+    t.start()
+
+    def got() -> bool:
+        time.sleep(0.5)
+        done.set()
+        t.join(3)
+        srv.close()
+        return any(nonce in s for s in seen)
+    return srv.getsockname()[1], got
+
+
+def _host_addresses() -> list[str]:
+    import socket
+    out = ["127.0.0.1", "172.17.0.1"]          # this machine as it sees itself, and as docker's default bridge names it
+    try:
+        out.append(socket.gethostbyname(socket.gethostname()))
+    except OSError:
+        pass
+    return list(dict.fromkeys(out))
+
+
+def places() -> dict[str, str]:
+    """place -> "" when a submission can be run there on this machine, else why not, in a few words."""
+    linux = sys.platform.startswith("linux")
+    rt = prove.container_runtime()
+    return {"none": "" if linux else "the probes read /proc: Linux only",
+            "host": "" if linux and prove.sandbox_available() else "no sandbox on this machine (Linux, setpriv, unshare, root or sudo)",
+            "hermetic": "" if linux and prove.runtime_ready(rt) else ("no container runtime on this machine" if not rt
+                                                                      else f"{Path(rt).name} is installed and its daemon does not answer")}
+
+
+def _probe(place: str, work: Path, argv: list[str], box, held) -> str:
+    """What the probe printed when run at `place` as a submission's command would be."""
+    if place == "hermetic":
+        cmd = [*prove.container_argv(held["runtime"], held["ref"], work, held["limits"], label=held["label"]), "python", *argv]
+        got = subprocess.run(cmd, capture_output=True, timeout=120, stdin=subprocess.DEVNULL)
+        return (got.stdout + got.stderr).decode("utf-8", "replace")
+    return box.run([sys.executable, *argv], net=False, timeout=120)[1]
+
+
+def run_escapes(only: tuple = ()) -> dict:
+    """{"places": places(), "rows": {escape: {place: True escaped | False held | None not run}}}."""
+    import secrets
+    can = places()
+    rows: dict = {e.key: {} for e in ESCAPES}
+    for place, _ in PLACES:
+        if can[place] or (only and place not in only):
+            can[place] = can[place] or "left out of this run"
+            for e in ESCAPES:
+                rows[e.key][place] = None
+            continue
+        root = Path(tempfile.mkdtemp(prefix="knos-escape-")).resolve()
+        drop = Path(tempfile.mkdtemp(prefix="knos-drop-")).resolve()
+        os.chmod(drop, 0o1777)                 # a directory any user may write, as /tmp is
+        box = prove.Box(root, place == "host")
+        box.work.mkdir()
+        (box.work / "probe.py").write_text(PROBE, encoding="utf-8")
+        held = None
+        try:
+            if place == "hermetic":
+                held = {"runtime": prove.container_runtime(), "ref": ESCAPE_IMAGE, "limits": prove.Limits(), "label": secrets.token_hex(6)}
+                prove.pull(held["runtime"], ESCAPE_IMAGE)
+                os.chmod(root, 0o755)
+                (box.work / "probe.py").chmod(0o644)
+                box.work.chmod(0o755)
+            box.open_up()
+            nonce = secrets.token_hex(12)
+            os.environ["DEPLOY_TOKEN_OF_THE_JUDGE"] = nonce
+            port, arrived = _listener(nonce)
+            _probe(place, box.work, ["probe.py", "network", nonce, str(port), *_host_addresses()], box, held)
+            rows["network"][place] = arrived()
+            _probe(place, box.work, ["probe.py", "write", str(drop), nonce], box, held)
+            rows["write"][place] = (drop / nonce).exists()
+            rows["env"][place] = f"found {nonce}" in _probe(place, box.work, ["probe.py", "env", nonce], box, held)
+            rows["procs"][place] = f"started {THREADS}" in _probe(place, box.work, ["probe.py", "procs", str(THREADS)], box, held)
+            rows["clock"][place] = "may set the clock" in _probe(place, box.work, ["probe.py", "clock"], box, held)
+        except (ValueError, OSError, subprocess.SubprocessError) as why:
+            can[place] = f"could not be set up: {' '.join(str(why).split())[:160]}"
+            for e in ESCAPES:
+                rows[e.key][place] = None
+        finally:
+            os.environ.pop("DEPLOY_TOKEN_OF_THE_JUDGE", None)
+            if held:
+                prove._sweep(held["runtime"], held["label"])
+            box.clean()
+            shutil.rmtree(drop, ignore_errors=True)
+    return {"places": can, "rows": rows}
+
+
+def expected(e: Escape, place: str) -> bool:
+    want = e.expect[place]
+    return (hasattr(os, "geteuid") and os.geteuid() == 0) if want == "root" else bool(want)
+
+
+def escape_section(results: dict) -> list[str]:
+    word = {True: "ESCAPES", False: "held", None: "not run here"}
+    exp = {True: "escapes", False: "held", "root": "escapes if the judge is root"}
+    can, rows = results["places"], results["rows"]
+    ran = [p for p, _ in PLACES if not can[p]]
+    out = ["<!-- escape:begin -->", "## Escapes: what a submission can do to the machine that judges it", "",
+           "These five are not ways to pass without doing the work, so they are not among the 63. Each is something a "
+           "submission tries on the judge's machine while it runs; it is tried in each place a submission can run, by the "
+           "same call the judge uses to run a submission's command (`python scripts/tamper_bench.py --escape`; "
+           "tests/test_tamper_bench.py runs it). **host, no sandbox**: tests mode or black-box on a machine that has no "
+           "sandbox and was not told `--sandbox require` (prove.yml passes `require`). **host sandbox**: tests mode and "
+           "black-box as prove.yml runs them: another user, an empty environment, no network. **hermetic**: black-box with "
+           f"an `image` in the terms; the probe ran in `{ESCAPE_IMAGE}`.", "",
+           "What is expected, from how each place is built:", "",
+           "| escape | " + " | ".join(t for _, t in PLACES) + " | why |", "|---|---|---|---|---|"]
+    out += [f"| {e.title} | " + " | ".join(exp[e.expect[p]] for p, _ in PLACES) + f" | {e.why} |" for e in ESCAPES]
+    out += ["", "What was measured on the machine that wrote this page:", "",
+            "| escape | " + " | ".join(t for _, t in PLACES) + " |", "|---|---|---|---|"]
+    out += [f"| {e.title} | " + " | ".join(word[rows[e.key][p]] for p, _ in PLACES) + " |" for e in ESCAPES]
+    out.append("")
+    for p, title in PLACES:
+        if can[p]:
+            out.append(f"**{title}: not run here** ({can[p]}). No number is claimed for it: its column above is what the "
+                       "command line is built to do (tests/test_judge_hermetic.py checks that command line argument by "
+                       "argument), not a measurement.")
+            out.append("")
+    if ran:
+        hits = sum(rows[e.key][p] == expected(e, p) for e in ESCAPES for p in ran)
+        out.append(f"In the places that were run ({_and([t for p, t in PLACES if p in ran])}), {hits} of {len(ESCAPES) * len(ran)} "
+                   "outcomes were the expected one" + (f" (the judge ran as {'root' if expected(ESCAPES[-1], 'none') else 'an ordinary user'})." if "none" in ran else "."))
+    out += ["", "What this says and does not: the host sandbox stops a submission from calling out and from reading the "
+            "judge's environment, and leaves it able to write where any user can and to exhaust the machine. The "
+            "container is built to close those too. Five probes are five probes: a kernel or runtime bug that lets a "
+            "process out of a container is outside what this page measures.", "<!-- escape:end -->"]
+    return out
+
+
 def update_block(doc: str, name: str, lines: list[str]) -> str:
     """`doc` with the block between <!-- name:begin --> and <!-- name:end --> replaced (or appended when there is none)."""
     block = "\n".join(lines)
@@ -411,14 +663,17 @@ def main(argv=None) -> int:
     ap.add_argument("--real", action="store_true", help="run the six real-behaviour tasks and rewrite their block of --out")
     ap.add_argument("--accept", action="store_true", help="run the three non-code tasks and rewrite their block of --out")
     ap.add_argument("--repeat", type=int, default=5, help="with --accept: judgments of each submission (new inputs each time)")
+    ap.add_argument("--escape", action="store_true", help="run the five escapes and rewrite their block of --out")
     a = ap.parse_args(argv)
-    if a.real or a.accept:
+    if a.real or a.accept or a.escape:
         path = Path(a.out)
         doc = path.read_text(encoding="utf-8")
         if a.real:
             doc = update_block(doc, "real", real_section({k: run_real(k) for k in _real_modules()[0].TASKS}))
         if a.accept:
             doc = update_block(doc, "accept", accept_section(run_accept(a.repeat), a.repeat))
+        if a.escape:
+            doc = update_block(doc, "escape", escape_section(run_escapes()))
         path.write_text(doc, encoding="utf-8")
         return 0
     if a.only:
@@ -430,7 +685,7 @@ def main(argv=None) -> int:
               "run one sample with --only", file=sys.stderr)
         return 1
     extra = [*real_section({k: run_real(k) for k in _real_modules()[0].TASKS}), "",
-             *accept_section(run_accept(a.repeat), a.repeat)]
+             *accept_section(run_accept(a.repeat), a.repeat), "", *escape_section(run_escapes())]
     text = render({key: run(key) for key in SAMPLES}, extra) + "\n"
     Path(a.out).write_text(text, encoding="utf-8")
     print(text)

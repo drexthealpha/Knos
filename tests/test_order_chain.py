@@ -69,9 +69,9 @@ def test_a_jobs_bounds_and_fee_floor_are_whole_units_of_its_mint(chain):
     nine = c.new_mint(decimals=9)
     w, wtok = c.wallet(nine, 2_000 * 10 ** 9)
     n = issue()
-    # half a unit is under the minimum of 1, and 501 units over the maximum of 500, whatever the smallest unit is
+    # half a unit is under the minimum of 1, and 100,001 units over the maximum of 100,000, whatever the smallest unit is
     assert not fund_job(c, n, 5 * 10 ** 8, nine, w, wtok) and code(c) == 81
-    assert not fund_job(c, n, 501 * 10 ** 9, nine, w, wtok) and code(c) == 81
+    assert not fund_job(c, n, 100_001 * 10 ** 9, nine, w, wtok) and code(c) == 81
     assert fund_job(c, n, 10 ** 9, nine, w, wtok), c.err
     job, payee, wallet = pay.job_pda(REPO, n, w.pubkey()), user(), Keypair().pubkey()
     assert pay_job(c, job, job_token(c, job, payee, wallet), payee, wallet), c.err
@@ -248,10 +248,16 @@ def test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top():
     assert c.said("knos3:terms") == ["knos3:terms " + TERMS.decode()]
     funded = c.said("knos3:funded")[0]
     assert f"order={order} repo={REPO} issue={n} seq=4 amount=100000000 fee=2500000 mode=1 by=0 source={c.funder.pubkey()} flags=4" in funded
-    # the fee has a floor of 0.40 and a ceiling of 25, and the amount is between 5 and 500
+    # the fee has a floor of 0.40 and no ceiling: 2.5% of the first 1,000, 1% from there to 50,000, 0.5% above;
+    # and the amount is between 5 and 100,000
     assert c.order(c.fund_wallet(amount=5 * USDC)).fee == 400_000
     assert c.order(c.fund_wallet(amount=500 * USDC)).fee == 12_500_000
-    for amount in (5 * USDC - 1, 500 * USDC + 1, 0):
+    for amount, fee in ((1_000 * USDC, 25 * USDC), (2_000 * USDC, 35 * USDC), (50_000 * USDC, 515 * USDC), (100_000 * USDC, 765 * USDC)):
+        funded, had = c.fund_wallet(amount=amount), c.balance(c.funder_tok)
+        assert c.order(funded).fee == fee == pay.order_fee(amount) and c.held(funded) == amount + fee
+        c.warp(14 * DAY + 1)        # and all of it goes back at the deadline
+        assert c.refund(funded) and c.balance(c.funder_tok) == had + amount + fee, c.err
+    for amount in (5 * USDC - 1, 100_000 * USDC + 1, 0):
         assert not c.send([c.fund_wallet_ix(issue(), amount)], c.funder) and code(c) == 81
     # the same wallet funds the same issue again under another seq, and never the same one twice
     assert c.fund_wallet(n, seq=5) != order
@@ -315,7 +321,7 @@ def test_a_comment_funds_an_order_from_a_balance_once(chain):
     order = pay.order_pda(pay.scope_of(REPO, n), c.bal, 2)
     o = c.order(order)
     assert (o.state, o.from_balance, o.flags, o.amount, o.fee, o.seq) == ("open", True, pay.F_NEUTRAL, 40 * USDC, USDC, 2)
-    assert (o.funder_id, o.owner_id, o.source, o.refund_to, o.rent_to, o.not_before) == (MAINT, OWNER, c.bal, pay.baltok_pda(c.bal), c.payer.pubkey(), c.now())
+    assert (o.funder_id, o.owner_id, o.source, o.refund_to, o.rent_to, o.not_before) == (MAINT, OWNER, c.bal, pay.baltok_pda(c.bal), c.payer.pubkey(), c.now() - pay.CLOCK_SLACK)
     assert c.held(order) == 41 * USDC == before - c.balance(pay.baltok_pda(c.bal)) and pay.read_balance(c.data(c.bal)).spent == spent + 41 * USDC
     assert c.data(pay.used_pda(c.data(tok)))[:1] == b"\x01"
     # the same token again: the order exists; and once the order is gone, the token is still used up
@@ -565,10 +571,10 @@ def test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came(chain):
     assert (c.order(order).amount, c.order(order).fee, c.held(order)) == (100 * USDC, 2_500_000, 102_500_000)
     assert before - c.balance(c.funder_tok) == 90 * USDC + 2_100_000
     assert c.said("knos3:topup") == [f"knos3:topup order={order} add=86000000 amount=100000000 fee=2500000"]
-    # nothing, over 500 in all, someone else, someone else's money
+    # nothing, over 100,000 in all, someone else, someone else's money
     stranger, stranger_tok = c.wallet(c.usdc, 100 * USDC)
     assert not top(0) and code(c) == 81
-    assert not top(400 * USDC + 1) and code(c) == 81
+    assert not top(99_900 * USDC + 1) and code(c) == 81
     assert not top(USDC, stranger, from_token=stranger_tok) and code(c) == 80
     assert not top(USDC, from_token=stranger_tok)
     # a Balance's order: the wallet that opened the Balance signs, and the Balance pays

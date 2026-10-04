@@ -1,30 +1,29 @@
 # Weekly update (one minute)
 
-Narration in the founder's own voice, about 130 words, over one screen recording. The number in the second part is
+Narration in the founder's own voice, about 140 words, over one screen recording. The number in the second part is
 a slot, `[[stat: name]]`, filled from the release run.
 
 ## What shipped (0:00)
 
-*On screen: a comment funds a work order, the workflow file is deleted, the seller's own run, the payment.*
+*On screen: the price book, then the two counts of one month side by side on chain.*
 
-This week I shipped work orders. The buyer pays the fee on top, and the seller receives the full amount. A buyer
-who deletes the workflow after merging can no longer hold the payment back: the seller runs the pinned workflow
-himself, and the program pays. I also shipped a neutral count for vendors who bill per result, a wallet from a
-passkey, and a verifier that takes any issuer.
+This week I changed what Knos is for. It is the neutral count and settlement for software work priced per outcome.
+The buyer is the person who approves a supplier's invoice. I shipped a count that needs no money on chain, where
+the supplier's own count sits beside the buyer's, and fees in tiers so that a large order pays a smaller share.
 
-## One number (0:28)
+## One number (0:25)
 
 *On screen: the site's Numbers page.*
 
-From merge to paid took 24 seconds at the median, on devnet.
+From merge to paid took 25 seconds at the median, on devnet.
 
-## The hardest problem, and the decision (0:33)
+## The hardest problem, and the decision (0:30)
 
-*On screen: the table under "Security" in CHANGELOG.md.*
+*On screen: the section of docs/SECURITY.md that says what holds now.*
 
-A reader confirmed seven defects in last week's programs. I fixed each one, and I am upgrading through my own
-48-hour delay, in public, like anyone else would have to.
+Before the new build went live, a defect was found in it: one pay token could pay a re-funded order twice. The fix
+is one rule for every token. This release cancels that upgrade and puts the fixed build through my own 48-hour delay.
 
-## Next week (0:45)
+## Next week (0:48)
 
-Design partners among vendors that bill per merge, and an outside security review.
+Conversations with the people who approve these invoices. None has happened yet.

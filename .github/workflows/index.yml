@@ -18,12 +18,18 @@ name: agent-pr-index
 #            live, and the cache is saved all the same, so the next run continues where this one stopped.
 #   release  everything else is published, every 6 hours.
 #
+#   weekly   every run also cuts its scan by agent and by week (agent_weekly.json, a second asset of the release: see
+#            docs/INDEX.md). Once a week the `weekly` job takes the newest release's file and opens a pull request
+#            that puts it in docs/agent_weekly.json and writes its table into docs/INDEX.md. A person merges it:
+#            nothing reaches the default branch from here on its own.
+#
 # With only the default token (GitHub allows it 1,000 API requests an hour) the first scan on an empty cache can take
 # more than one run: each run fails at the gate and the next continues from the cache. KNOS_INDEX_TOKEN (a read-only
 # PAT: 5,000 an hour) is optional.
 on:
   schedule:
     - cron: "17 */6 * * *"
+    - cron: "43 5 * * 1"   # Mondays: the weekly job below (the index job runs too; one more scan from the cache)
   workflow_dispatch:
 
 permissions:
@@ -62,6 +68,10 @@ jobs:
           key: agent-pr-ci-${{ github.run_id }}-${{ github.run_attempt }}
       - name: build index.json
         run: python scripts/agent_pr_index.py build --rows rows.json --out index.json
+      - name: the same scan by agent and by week (reads whether each pull request with finished CI was merged)
+        run: python scripts/agent_pr_index.py weekly --rows rows.json --out agent_weekly.json --max-seconds 1800
+        env:
+          GH_TOKEN: ${{ secrets.KNOS_INDEX_TOKEN || github.token }}
       - name: gate (a scan that did not finish fails here and publishes nothing; the last release stays live)
         run: |
           last=$(gh release list -R "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
@@ -75,11 +85,49 @@ jobs:
           n=$(python -c "import json; print(json.load(open('index.json'))['n_prs'])")
           root=$(python -c "import json; print(json.load(open('index.json'))['root'])")
           tag="index-$(date -u +%Y-%m-%d-%H%M)"
-          gh release create "$tag" index.json -R "$GITHUB_REPOSITORY" --title "Agent PR Index $tag" --latest=false \
+          gh release create "$tag" index.json agent_weekly.json -R "$GITHUB_REPOSITORY" --title "Agent PR Index $tag" --latest=false \
             --notes "Agent PR Index: $n PRs, Merkle root $root. Recompute it: python scripts/agent_pr_index.py check --out index.json"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Pages build (a release made with GITHUB_TOKEN triggers no workflow, so start it explicitly)
         run: gh workflow run network.yml --ref main -R "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  weekly:
+    # docs/agent_weekly.json and the table in docs/INDEX.md, from the newest release that has the file. It opens a
+    # pull request and merges nothing. If no release has the file yet, or it is the one already committed, it says
+    # so and ends.
+    if: github.event.schedule == '43 5 * * 1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write        # push the branch index-weekly
+      pull-requests: write   # open the pull request
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: the newest release's agent_weekly.json, into docs/, and its table into docs/INDEX.md
+        run: |
+          for tag in $(gh release list -R "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
+                       --jq '[.[] | select(.tagName | startswith("index-"))] | sort_by(.createdAt) | reverse | .[].tagName'); do
+            if gh release download "$tag" -R "$GITHUB_REPOSITORY" -p agent_weekly.json -O docs/agent_weekly.json --clobber; then break; fi
+          done
+          python -c "import json, sys; sys.path.insert(0, 'scripts'); import agent_pr_index as i; i.render_doc('docs/INDEX.md', json.load(open('docs/agent_weekly.json', encoding='utf-8')))"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: open a pull request when the numbers changed
+        run: |
+          if git diff --quiet -- docs/agent_weekly.json docs/INDEX.md; then echo "No release has newer weekly numbers than the ones committed."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B index-weekly
+          git commit -m "Weekly agent pull request rates" -- docs/agent_weekly.json docs/INDEX.md
+          git push --force origin index-weekly
+          gh pr create -R "$GITHUB_REPOSITORY" --head index-weekly --title "Weekly agent pull request rates" \
+            --body "docs/agent_weekly.json and the table in docs/INDEX.md, from the newest index release. Method and limits: docs/INDEX.md." \
+            || gh pr edit index-weekly -R "$GITHUB_REPOSITORY" --title "Weekly agent pull request rates"
         env:
           GH_TOKEN: ${{ github.token }}

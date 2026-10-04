@@ -76,7 +76,8 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
                                                                   "test_cpi_fund.py", "test_workflow_vault.py", "test_upgrade_gate.py")):
         assert (ROOT / "tests" / harness).is_file(), harness                 # a program's tests arrive with its harness
         assert list(ROOT.glob(pattern)), f"{pattern} matches no file: pytest would fail the second deployment's job"
-    assert sorted(p.name for p in ROOT.glob("tests/test_order_*.py")) == ["test_order_chain.py", "test_order_judges.py", "test_order_terms.py"]
+    assert sorted(p.name for p in ROOT.glob("tests/test_order_*.py")) == ["test_order_auto.py", "test_order_chain.py", "test_order_judges.py",
+                                                                              "test_order_quorum.py", "test_order_terms.py"]
     # the examples: each one's test loads the binary the second deployment's script builds from examples/<name>, and
     # the cache holds their shared target directory beside the workspace's (rust-cache: `workspace -> target`)
     script = (ROOT / legs["second"]["build"]).read_text(encoding="utf-8")
@@ -379,8 +380,9 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
     # the proofs are in no build of the program: one line of lib.rs, the last, behind cfg(kani) or cfg(test)
     assert lib.rstrip().splitlines()[-1].startswith("#[cfg(any(kani, test))] mod proofs;") and lib.count("mod proofs") == 1
     harnesses = re.findall(r"#\[kani::proof\]\n(?:    #\[kani::unwind\(\d+\)\]\n)?    fn (\w+)\(\)", proofs)
-    assert harnesses == ["the_remainder_of_a_share_is_never_more_than_the_remainder", "an_orders_fee_is_between_its_floor_and_its_cap_for_every_amount",
+    assert harnesses == ["the_remainder_of_a_share_is_never_more_than_the_remainder", "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount",
                          "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
+                         "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
                          "an_order_that_has_paid_nothing_has_given_out_none_of_its_fee"]
     assert proofs.count("#[kani::proof]") == len(harnesses) and "#[cfg(kani)]\nmod harness {" in proofs
     # what a harness assumes instead of proving is said where the file says what is proved, and tested at random
@@ -388,7 +390,7 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
     assert "WHAT IS ASSUMED" in proofs and "WHAT IS PROVED" in proofs and "WHAT IS NOT" in proofs
     # the same properties on inputs made from fixed seeds, in the programs' own `cargo test`, which every push runs
     tests = re.findall(r"    #\[test\]\n    fn (\w+)\(\)", proofs)
-    assert tests == ["the_model_is_the_arithmetic_of_the_source", "an_orders_fee_is_between_its_floor_and_its_cap_and_a_share_is_never_more_than_the_whole",
+    assert tests == ["the_model_is_the_arithmetic_of_the_source", "an_orders_fee_is_its_three_tiers_above_its_floor_and_a_share_is_never_more_than_the_whole",
                      "the_payees_shares_add_up_to_the_payment", "the_fee_an_order_has_given_out_grows_with_what_it_paid_and_ends_at_the_whole_fee",
                      "nothing_is_created_or_lost_over_the_life_of_an_order",
                      "a_standing_order_gives_out_its_fee_with_its_amount_and_keeps_the_rest_for_the_refund"]

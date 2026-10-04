@@ -261,18 +261,33 @@ noop_buffer() {
 }
 
 # proposes the upgrade to $BUFFER: INDEX (the proposal) and FROM (the unix time its time lock ends). GATE says how the
-# upgrade gate took it. The no-op buffer holds the bytes the program already runs; a build deployed before the gate
-# existed (the 2.0 programs) has no record there, and none can be made for it, so governance.mjs refuses it first, and
-# the drill then proposes it with --ungated: the gate is checked to refuse, and the time lock and the vote are what
-# this drill is about. A build the gate has a record of is proposed as it is.
+# upgrade gate took it. The no-op buffer holds the bytes the program already runs. When the gate has no record of
+# them, governance.mjs refuses them first, and the drill then proposes them with --ungated: the gate is checked to
+# refuse, and the time lock and the vote are what this drill is about. Why there is no record is said as it is on this
+# cluster: the gate program is not on it (a validator of deploy_v2.sh --localnet, or one copied from devnet without
+# the gate), or the program was last deployed before the gate (the 2.0 programs: none can be made for them), or
+# neither, and then only that the gate holds none. A build the gate has a record of is proposed as it is.
 INDEX="" FROM="" GATE=""
+# why the upgrade gate holds no record of the bytes $NAME runs (deployed in slot $SLOT), as this cluster shows it
+no_record() {
+  local gate gate_slot
+  gate="$(sed -n 's/^export const UPGRADE_GATE = new PublicKey("\([1-9A-HJ-NP-Za-km-z]*\)").*/\1/p' "$ROOT/scripts/governance.mjs")"
+  gate_slot="$(sol program show "$gate" 2>/dev/null | awk '/Last Deployed In Slot/ { print $NF }' || true)"
+  if [ -z "$gate_slot" ]; then
+    echo "the upgrade gate program ${gate:-of governance.mjs} is not on this cluster, so it holds no record of these bytes"
+  elif [ -n "$SLOT" ] && [ "$SLOT" -lt "$gate_slot" ]; then
+    echo "the upgrade gate holds no record of these bytes ($NAME was last deployed in slot $SLOT, before the gate, deployed in slot $gate_slot)"
+  else
+    echo "the upgrade gate holds no record of these bytes"
+  fi
+}
 propose() {
   local iso
   if gov upgrade propose "$NAME" "$BUFFER"; then
     GATE="the upgrade gate holds a record that GitHub built it"
   else
     grep -q "the upgrade gate has no record that GitHub built" "$OUT" || die "the upgrade could not be proposed."
-    GATE="governance.mjs refused it first because the upgrade gate holds no record of these bytes (deployed before the gate existed), so it was proposed with --ungated"
+    GATE="governance.mjs refused it first because $(no_record), so it was proposed with --ungated"
     gov upgrade propose "$NAME" "$BUFFER" --ungated || die "the upgrade could not be proposed, even with --ungated."
   fi
   INDEX="$(sed -n 's/^on chain now: proposal \([0-9][0-9]*\) of the upgrade multisig is approved.*/\1/p' "$OUT")"

@@ -1,0 +1,169 @@
+"""The badge and the record say what the receipt says and no more: a scope, a date, which money, and what "paid" is."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import pytest
+
+from knos import badge
+from knos.settle.v2.pay import Record
+
+ROOT = Path(__file__).resolve().parents[1]
+NOW = 1791072000          # 2026-10-04 00:00 UTC
+PR = {"repo": "o/r", "pr": 12, "amount": "100.00", "money": "test USDC", "date": "2026-10-03"}
+REPO = {"repo": "o/r", "pr": None, "count": 3, "other": 0, "money": "test USDC", "as_of": "2026-10-04"}
+
+
+def _row(pr, units, day, currency="test USDC"):
+    return {"pull_request": pr, "amount_units": units, "date": day, "currency": currency, "repository_id": 7}
+
+
+def test_a_badge_states_its_scope_its_money_and_its_date():
+    assert badge.message(PR) == "#12: 100.00 test USDC, 2026-10-03"
+    assert badge.message(REPO) == "3 payments in test USDC, as of 2026-10-04"
+    assert badge.message({**REPO, "count": 1, "other": 2}) == "1 payment in test USDC, 2 in another token, as of 2026-10-04"
+    for data in (PR, REPO):
+        said = badge.message(data) + badge.title(data)
+        assert "test USDC" in said and "2026-10-0" in said and "o/r" in badge.title(data) and "not a score" in badge.title(data)
+        assert not any(w in said.lower() for w in ("verified", "audited", "trusted", "quality", "guarantee", "certified"))
+
+
+def test_the_svg_is_one_file_with_an_accessible_title_and_nothing_fetched():
+    for data in (PR, REPO, {**PR, "repo": 'o/<r>&"x'}):
+        text = badge.svg(data)
+        root = ET.fromstring(text)                                            # well-formed, whatever the repository is called
+        ns = "{http://www.w3.org/2000/svg}"
+        assert root.get("role") == "img" and root.get("aria-label") == f"paid on proof: {badge.message(data)}"
+        assert root[0].tag == f"{ns}title" and root[0].text == badge.title(data)    # the title is the first child, as readers expect
+        assert [t.text for t in root.iter(f"{ns}text")] == ["paid on proof", badge.message(data)]
+        low = text.lower()
+        assert not any(w in low for w in ("<script", "<image", "<a ", "href", "@font-face", "@import", "url(", "<style", "<foreignobject"))
+        assert text.count("http") == 1 and "http://www.w3.org/2000/svg" in text     # the namespace is the only address in it
+        assert int(root.get("width")) == sum(int(float(r.get("width"))) for r in root.iter(f"{ns}rect"))
+    assert "#57606a" in badge.svg(PR) and "#1a7f37" not in badge.svg(PR)       # test money is never drawn green
+
+
+def test_the_markdown_links_the_badge_to_the_repositorys_record_on_the_site():
+    assert badge.markdown(PR, "knos-paid-12.svg") == ("[![paid on proof: #12: 100.00 test USDC, 2026-10-03](knos-paid-12.svg)]"
+                                                      "(https://drexthealpha.github.io/Knos/r/o/r.html)")
+    site = (ROOT / "scripts" / "pages_data.py").read_text(encoding="utf-8")   # the route is the one the site builds
+    assert f'SITE = "{badge.SITE}"' in site and "{SITE}/{kind}/{path}.html" in site
+
+
+def test_a_badge_is_made_from_the_receipts_and_from_nothing_else():
+    rows = [_row(12, 60_000_000, "2026-10-02"), _row(12, 40_000_000, "2026-10-03"), _row(13, 5_500_000, "2026-10-03"),
+            _row(14, 9, "2026-10-03", "mint X")]
+    assert badge.from_rows("o/r", 12, rows, NOW) == PR                         # a split is one pull request: summed, dated by its last payment
+    assert badge.from_rows("o/r", 13, rows, NOW)["amount"] == "5.50"
+    assert badge.from_rows("o/r", 99, rows, NOW) is None and badge.from_rows("o/r", 14, rows, NOW) is None   # no payment in test USDC: no badge
+    assert badge.from_rows("o/r", None, rows, NOW) == {**REPO, "other": 1}     # another token is counted apart, never as test USDC
+    assert badge.from_rows("o/r", None, [], NOW)["count"] == 0
+
+
+def test_the_payment_comment_ends_with_one_badge_line_and_other_comments_are_untouched():
+    paid = "Knos: paid. @ann received 100.00 test USDC for issue #3, in full: its funder paid Knos's fee of 2.50 on top. It went to `W` (tx, 21 s)."
+    got = badge.said("o/r", 12, paid, NOW)
+    assert got.startswith(paid + "\n\n[![paid on proof: #12: 100.00 test USDC, 2026-10-04](https://img.shields.io/badge/paid_on_proof-")
+    assert got.endswith("-57606a)](https://drexthealpha.github.io/Knos/r/o/r.html)") and "%2312%3A_100.00_test_USDC%2C_2026--10--04" in got
+    order = "Knos: paid. The work order on issue #3 paid 80.00 test USDC in full (its funder paid Knos's fee of 2.00 on top): @a 40.00 (50%) to `W` (tx, 3 s)."
+    assert "#12: 80.00 test USDC, 2026-10-04" in badge.said("o/r", 12, order, NOW)
+    held = "Held for @ann. 20.00 test USDC for issue #7 waits for them until 2027-03-20. It is then paid in full."
+    both = paid + "\n\nPaid. @ann received 4.875 test USDC as a tip for this pull request: the tip of 5.00 less Knos's fee of 0.125." + "\n\n" + held
+    got = badge.said("o/r", 12, both, NOW)
+    assert got.count("[![paid on proof") == 1 and got.endswith(".html)") and "#12: 104.875 test USDC, 2026-10-04" in got   # one line, at the end; what is held is not in it
+    for other in ("Knos: held for @ann. 100.00 test USDC for issue #3 waits for them until 2026-11-01.", "Knos: not paid yet. @ann would have received 5.00 test USDC.",
+                  "Knos: paid. With no amount in it.", "Knos: nothing is in escrow."):
+        assert badge.said("o/r", 12, other, NOW) == other                      # nothing reached a wallet, or nothing says how much: no badge
+    assert badge.said("o/r", 0, paid, NOW) == paid
+
+
+def test_knos_flow_adds_the_line_where_the_settlement_comment_is_posted_and_the_cli_registers_both_commands():
+    flow = (ROOT / "src" / "knos" / "flow.py").read_text(encoding="utf-8")
+    assert flow.count("run.say(number, badge.said(run.repo, number, _join(parts), run.now()))") == 1 and flow.count("badge.") == 1
+    from typer.testing import CliRunner
+
+    from knos import cli
+    names = {c.name for c in cli.app.registered_commands}
+    assert {"badge", "record"} <= names
+    got = CliRunner().invoke(cli.app, ["badge", "not-a-repo"])
+    assert got.exit_code != 0 and isinstance(got.exception, cli.Stop) and "owner/repo" in got.exception.said
+
+
+REP = Record(paid=3, funders=2, total=250_000_000, test_paid=5, self_paid=1, test_total=500_000_000, first=NOW - 86_400 * 3, last=NOW)
+
+
+def test_the_record_keeps_test_money_and_self_paid_out_of_the_headline_and_says_what_paid_means():
+    v = badge.record_view(REP, 42, "ann")
+    assert v["headline"] == {"paid": 3, "distinct_funders": 2, "total": "250.00", "first": "2026-10-01", "last": "2026-10-04"}
+    assert v["apart"] == {"test_paid": 5, "test_total": "500.00", "self_paid": 1}
+    lines = badge.record_lines(v)
+    assert lines[1] == "Paid 3 times by 2 distinct funders: 250.00 test USDC in all, first 2026-10-01, last 2026-10-04."
+    assert "Shown apart, not in the count above: 5 payments in the faucet's test money (500.00 test USDC); 1 payment this account funded itself" in lines[2]
+    assert not any(n in lines[1] for n in ("9 ", "8 ", "750", "4 times"))      # 3 + 5 + 1 and 250 + 500 are written nowhere
+    said = "\n".join(lines)
+    assert "not a score" in said and "Ten payments from one funder add one" in said and "test USDC, not money" in said
+    empty = badge.record_lines(badge.record_view(Record(0, 0, 0, 2, 0, 9_000_000, 0, 0), 42))
+    assert empty[1].startswith("No payment from someone else is recorded") and "2 payments in the faucet's test money (9.00 test USDC)" in empty[2]
+    assert badge.record_view(Record(0, 0, 0, 2, 0, 9_000_000, 0, 0), 42)["headline"]["first"] is None
+
+
+def test_the_record_command_reads_the_reputation_account_of_the_id(monkeypatch):
+    from typer.testing import CliRunner
+
+    from knos import cli
+    from knos.settle.v2 import pay
+    asked = []
+
+    class Ledger:
+        def account(self, address):
+            asked.append(address)
+            data = bytearray(pay.REP_LEN)
+            data[0:4] = (3).to_bytes(4, "little")
+            data[4:8] = (2).to_bytes(4, "little")
+            data[8:16] = (250_000_000).to_bytes(8, "little")
+            data[16:20] = (5).to_bytes(4, "little")
+            data[20:24] = (1).to_bytes(4, "little")
+            data[32:40] = (500_000_000).to_bytes(8, "little")
+            data[40:48] = (NOW - 86_400 * 3).to_bytes(8, "little")
+            data[48:56] = NOW.to_bytes(8, "little")
+            return bytes(data)
+    monkeypatch.setattr(cli, "_ledger", lambda: Ledger())
+    got = CliRunner().invoke(cli.app, ["record", "42", "--json"])
+    assert got.exit_code == 0, got.output
+    assert asked == [pay.rep_pda(42)] and json.loads(got.output) == badge.record_view(REP, 42)
+    text = CliRunner().invoke(cli.app, ["record", "42"]).output
+    assert "Paid 3 times by 2 distinct funders" in " ".join(text.split()) and "not a score" in text
+
+
+NODE = shutil.which("node")
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_the_site_draws_the_same_badge_and_shows_the_record_with_its_caveats_in_the_same_view():
+    rep = badge.record_view(REP, 42, "ann<b>")
+    script = f"""
+      import {{ badgeSvg, badgeMessage, badgeTitle, receiptUrl, renderBadge, renderRecord }} from {json.dumps((ROOT / "web" / "badge.js").as_uri())};
+      const cases = {json.dumps([PR, REPO, {**PR, "repo": 'o/<r>&"x'}])}, a = {{}}, b = {{}};
+      renderBadge(a, cases[0]); renderRecord(b, {json.dumps(rep)});
+      console.log(JSON.stringify({{ svgs: cases.map(badgeSvg), messages: cases.map(badgeMessage), titles: cases.map(badgeTitle),
+        url: receiptUrl("o/r"), badge: a.innerHTML, record: b.innerHTML }}));
+    """
+    got = subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True, text=True, encoding="utf-8")
+    assert got.returncode == 0, got.stderr
+    out = json.loads(got.stdout)
+    cases = [PR, REPO, {**PR, "repo": 'o/<r>&"x'}]
+    assert out["svgs"] == [badge.svg(c) for c in cases]                        # byte for byte what `knos badge` writes
+    assert out["messages"] == [badge.message(c) for c in cases] and out["titles"] == [badge.title(c) for c in cases]
+    assert out["url"] == badge.receipt_url("o/r") and f'href="{badge.receipt_url("o/r")}"' in out["badge"]
+    assert "One pull request: #12 of o/r, paid on 2026-10-03 (UTC)." in out["badge"] and "Test USDC on Solana devnet: not money." in out["badge"]
+    rec = out["record"]
+    assert "<strong>Paid 3 times</strong> by <strong>2 distinct funders</strong>: 250.00 test USDC in all" in rec
+    head, apart = rec.split("Shown apart, not in the count above")
+    assert "500.00" not in head and "5 payments, 500.00 test USDC" in apart and "1 payment (the program keeps their number" in apart
+    assert all(c.replace("'", "&#x27;") in rec for c in rep["caveats"]) and len(rep["caveats"]) == 4     # the caveats are in the same view
+    assert "ann&lt;b&gt;" in rec and "<b>" not in rec.replace("<b>", "", 0).split("<h3>")[1].split("</h3>")[0]

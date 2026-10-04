@@ -13,6 +13,7 @@
   "actions/upload-pages-artifact@v5": "fc324d3547104276b827a68afc52ff2a11cc49c9",
   "astral-sh/setup-uv@v10.2.0": "c18668ad3cf93ea998bef934396af7bb5c839dc7",
   "model-checking/kani-github-action@v1.1": "f838096619a707b0f6b2118cf435eaccfa33e51f",
+  "rust-lang/crates-io-auth-action@v1.0.5": "c6f97d42243bad5fab37ca0427f495c86d5b1a18",
   "Swatinem/rust-cache@v2": "6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
   "taiki-e/install-action@v2": "83ac0ad63c0167e6f06796fab0fce28db1bf3db0"
  }

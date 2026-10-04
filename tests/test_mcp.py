@@ -70,7 +70,8 @@ class Ledger:
 
     def log_of(self, address, marker: str, check=None):
         self._up()
-        lines = ["knos2:funded repo=1", *(["knos2:terms " + self.logs[address].decode()] if address in self.logs else [])]
+        said = [self.logs[address].decode()] if address in self.logs else []      # a job's line, and a work order's
+        lines = ["knos2:funded repo=1", *("knos2:terms " + x for x in said), *("knos3:terms " + x for x in said)]
         return next((x for x in lines if x.startswith(marker) and (check is None or check(x))), None)
 
     def now(self) -> int:
@@ -159,10 +160,12 @@ def test_a_session_client_shakes_hands_lists_the_tools_and_calls_one():
     assert "knos_bounties" in mcp.INSTRUCTIONS and "only when it is true" in mcp.INSTRUCTIONS
     tools = listed["result"]["tools"]
     assert [t["name"] for t in tools] == ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take",
-                                          "knos_address", "knos_fund", "knos_settle"]
+                                          "knos_address", "knos_fund", "knos_settle", "knos_find_work", "knos_take_work", "knos_submit_work", "knos_collect"]
     assert listed["result"]["ttlMs"] == 300_000 and listed["result"]["cacheScope"] == "public"
     for t in tools:
-        assert t["annotations"] == {"readOnlyHint": True, "openWorldHint": True} and t["title"] and t["description"]
+        acts = t["name"] in ("knos_take_work", "knos_submit_work", "knos_collect")       # the three that post (tests/test_agentkey.py)
+        assert t["annotations"] == ({"readOnlyHint": False, "openWorldHint": True, "destructiveHint": False} if acts else
+                                    {"readOnlyHint": True, "openWorldHint": True}) and t["title"] and t["description"]
         assert t["inputSchema"]["type"] == "object" and t["inputSchema"]["additionalProperties"] is False
     assert called["id"] == "three" and called["result"]["isError"] is False
 
@@ -184,7 +187,7 @@ def test_a_stateless_client_discovers_lists_and_calls_with_no_handshake():
     assert found["result"] == {"resultType": "complete", "supportedVersions": ["2026-07-28"], "capabilities": {"tools": {}},
                                "instructions": mcp.INSTRUCTIONS,
                                "_meta": {"io.modelcontextprotocol/serverInfo": {"name": "knos", "version": version()}}}
-    assert listed["result"]["resultType"] == "complete" and len(listed["result"]["tools"]) == 10
+    assert listed["result"]["resultType"] == "complete" and len(listed["result"]["tools"]) == 14
     result = called["result"]
     assert result["resultType"] == "complete" and result["isError"] is False
     assert result["content"] == [{"type": "text", "text": json.dumps(result["structuredContent"], indent=1)}]

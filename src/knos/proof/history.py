@@ -19,6 +19,14 @@ that history makes required.
                   runs on GitHub (knos.proof.memory keeps them in the repository's `knos-memory` issue). They are
                   loaded into a Sibyl store and read from there; nothing decides from the lines themselves.
 
+    refuse(), accept(), refusals(), owed(), track(), briefing(), recall()
+                  the agent's own track record on this repository, across sessions. Each verdict of the Stop hook is
+                  one event in Sibyl's journal (the COLD tier: append-only, newest first) and the running count is one
+                  state document (the HOT tier, rewritten in place). A check a refusal named is owed on every later
+                  "done" here, whatever the message says, until a verdict shows it passing; `briefing` says what failed
+                  last time and `recall` finds it by its words (Sibyl's FTS5 search across tiers). The proof rules
+                  above stay entities (the WARM tier).
+
 `NullStore` keeps nothing: the same engine with no memory, which is what a plain hook amounts to.
 """
 
@@ -41,6 +49,21 @@ class NullStore:
         return []
 
     def rows(self, category: str) -> list[tuple[str, dict]]:
+        return []
+
+    def journal(self, evaluated=None, acted=None, forward=None, extra=None) -> None:
+        return None
+
+    def events(self, limit: int = 200) -> list[dict]:
+        return []
+
+    def state(self, key: str) -> dict:
+        return {}
+
+    def set_state(self, key: str, body: dict) -> None:
+        return None
+
+    def search(self, query: str, limit: int = 5) -> list[dict]:
         return []
 
 
@@ -100,6 +123,47 @@ class SibylStore:
 
     def all(self, category: str) -> list[dict]:
         return [body for _name, body in self.rows(category)]
+
+    def journal(self, evaluated=None, acted=None, forward=None, extra=None) -> None:
+        """One event in Sibyl's journal (the COLD tier): appended, never rewritten."""
+        try:
+            self.client.write_event(evaluated=evaluated, acted=acted, forward=forward, extra=extra)
+        finally:
+            self._release()
+
+    def events(self, limit: int = 200) -> list[dict]:
+        """The journal's newest events first."""
+        try:
+            return list(self.client.read_events(limit=limit))
+        finally:
+            self._release()
+
+    def state(self, key: str) -> dict:
+        """A state document (the HOT tier): its body, or {} when there is none."""
+        try:
+            got = self.client.get_state(key)
+        finally:
+            self._release()
+        body = got.get("body") if isinstance(got, dict) and "body" in got else got
+        if isinstance(body, str):
+            try:
+                body = json.loads(body)
+            except ValueError:
+                return {}
+        return body if isinstance(body, dict) else {}
+
+    def set_state(self, key: str, body: dict) -> None:
+        try:
+            self.client.set_state(key, body)
+        finally:
+            self._release()
+
+    def search(self, query: str, limit: int = 5) -> list[dict]:
+        """Sibyl's full-text search (FTS5) across its tiers: lexical, no model."""
+        try:
+            return [dict(r) for r in self.client.search(query, limit=limit)]
+        finally:
+            self._release()
 
 
 @dataclass
@@ -172,6 +236,95 @@ def rules(store) -> list[dict]:
 def required(store, kinds: set[str]) -> set[str]:
     return {r["require"] for r in rules(store) if (r.get("when") in kinds or r.get("when") == "*")
             and not r.get("scope")}
+
+
+# ---- the agent's own track record here: refusals in Sibyl's journal, the running count in its state --------------
+
+TRACK = "knos_track"        # the state document's key; one per tenant, and a tenant is one repository
+_MARK = "knos-verdict"      # what makes a journal event one of these
+
+
+def _verdict_event(store, sha: str, claim_text: str, results: list[dict], ok: bool, at: float | None) -> None:
+    failed = sorted(r["name"] for r in results if not r.get("ok"))
+    passed = sorted(r["name"] for r in results if r.get("ok"))
+    at = at or time.time()
+    store.journal(evaluated={"claim": claim_text[:400], "sha": sha},
+                  acted="accepted" if ok else "refused: " + "; ".join(f"{r['name']} ({str(r.get('detail', ''))[:160]})"
+                                                                     for r in results if not r.get("ok")),
+                  forward=None if ok else "run " + ", ".join(failed) + " before the next claim of done here",
+                  extra={"kind": _MARK, "ok": ok, "failed": failed, "passed": passed, "sha": sha, "at": at})
+    t = store.state(TRACK)
+    store.set_state(TRACK, {"claims": int(t.get("claims", 0)) + 1, "refused": int(t.get("refused", 0)) + (0 if ok else 1),
+                            "last": {"ok": ok, "failed": failed, "sha": sha, "at": at}})
+
+
+def refuse(store, sha: str, claim_text: str, results: list[dict], at: float | None = None) -> None:
+    """A claim of done that Knos refused: which checks failed and what each said. `results`: [{name, ok, detail}]."""
+    _verdict_event(store, sha, claim_text, results, False, at)
+
+
+def accept(store, sha: str, claim_text: str, results: list[dict], at: float | None = None) -> None:
+    """A claim of done every check bore out: the checks it names are no longer owed."""
+    _verdict_event(store, sha, claim_text, results, True, at)
+
+
+def verdicts(store, limit: int = 200) -> list[dict]:
+    """This repository's verdicts from the journal, newest first: each event's `extra`, with what was said and done."""
+    out = []
+    for e in store.events(limit):
+        x = e.get("extra")
+        if isinstance(x, dict) and x.get("kind") == _MARK and isinstance(x.get("failed"), list):
+            out.append({**x, "acted": e.get("acted"), "claim": (e.get("evaluated") or {}).get("claim", "")
+                        if isinstance(e.get("evaluated"), dict) else ""})
+    return sorted(out, key=lambda x: -float(x.get("at") or 0))
+
+
+def refusals(store, limit: int = 200) -> list[dict]:
+    return [x for x in verdicts(store, limit) if not x.get("ok")]
+
+
+def owed(store) -> set[str]:
+    """The checks a refusal here named that no later verdict has shown passing: every claim of done runs them."""
+    settled, out = set(), set()
+    for x in verdicts(store):                       # newest first: the latest word on each check decides
+        for name in x.get("passed") or []:
+            settled.add(name)
+        for name in x.get("failed") or []:
+            if name not in settled:
+                out.add(name)
+            settled.add(name)
+    return out
+
+
+def track(store) -> dict:
+    """{"claims", "refused", "last"}: how many claims of done Knos judged here and how many it refused."""
+    return store.state(TRACK)
+
+
+def recall(store, words: str, limit: int = 3) -> list[str]:
+    """What Knos did about these words before, found by Sibyl's full-text search in its journal: "refused: tests
+    (3 failed in test_calc.py)". Lexical: it finds the words that were written, nothing like them."""
+    out = []
+    for hit in store.search(words, limit=limit * 4):
+        body = hit.get("body")
+        if hit.get("tier") == "journal" and isinstance(body, dict) and (body.get("extra") or {}).get("kind") == _MARK:
+            out.append(str(body.get("acted") or "")[:300])
+    return out[:limit]
+
+
+def briefing(store) -> str:
+    """What an agent is told about its record here before its word is taken: empty when nothing was refused."""
+    past = refusals(store)
+    if not past:
+        return ""
+    t, last = track(store), past[0]
+    day = time.strftime("%Y-%m-%d", time.gmtime(float(last.get("at") or 0)))
+    lines = [f"On this repository Knos refused {t.get('refused', len(past))} of {t.get('claims', len(past))} claims of done. "
+             f"The last refusal ({day}, commit {str(last.get('sha', ''))[:8] or 'unknown'}): {last.get('acted', '')}"]
+    still = sorted(owed(store))
+    if still:
+        lines.append("Still owed, whatever the message says: " + ", ".join(still) + ". Run them before saying it is done.")
+    return "\n".join(lines)
 
 
 # ---- tampering an agent was caught at, per repo and per agent (Sibyl) --------------------------------------------

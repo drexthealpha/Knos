@@ -254,11 +254,15 @@ test("guardian: the command line is checked before the cluster is asked anything
 });
 
 test("upgrade and the votes refuse what cannot be understood, at once", () => {
-  assert.match(run("upgrade", "propose", "knos_money", BUFFER).err, /upgrade takes knos_oidc or knos_pay/);
+  assert.match(run("upgrade", "propose", "knos_money", BUFFER).err, /upgrade takes knos_oidc, knos_pay, knos_meter or knos_passkey, then the address of the buffer/);
+  assert.match(run("upgrade", "propose", "upgrade_gate", BUFFER).err, /upgrade takes knos_oidc, knos_pay, knos_meter or knos_passkey/);
+  assert.match(run("upgrade", "propose", "knos_meter").err, /upgrade needs the buffer's address/);
   assert.match(run("upgrade", "propose", "knos_pay").err, /upgrade needs the buffer's address/);
-  assert.match(run("upgrade", "sideways").err, /upgrade takes propose <knos_oidc\|knos_pay> <buffer address>, or execute/);
+  assert.match(run("upgrade", "sideways").err, /upgrade takes propose <knos_oidc\|knos_pay\|knos_meter\|knos_passkey> <buffer address>, or execute/);
   assert.match(run("approve", "treasury", "1").err, /give the multisig and the proposal: upgrade or guardian/);
   assert.match(run("execute", "upgrade", "first").err, /give the multisig and the proposal/);
+  assert.match(run("upgrade", "execute", "3", "--expect-hash", "abc").err, /--expect-hash goes with an upgrade proposal and takes the build's executable hash: 64 lowercase hex/);
+  assert.match(run("execute", "guardian", "3", "--expect-hash", "ab".repeat(32)).err, /--expect-hash goes with an upgrade proposal/);
   assert.match(run("frobnicate").err, /there is no command frobnicate\. Run node scripts\/governance\.mjs --help/);
 });
 
@@ -283,7 +287,8 @@ test("--help lists every command, and an empty command line does too", () => {
   for (const r of [run("--help"), run()]) {
     assert.equal(r.code, 0, r.err);
     for (const words of ["create", "show [--check]", "guardian approve <issuer> <key hash>", "guardian revoke", "guardian pause <seconds>", "upgrade propose",
-                         "upgrade execute <index>", "approve <upgrade|guardian> <index>", "cancel <upgrade|guardian> <index>", "derive"]) {
+                         "upgrade propose <knos_oidc|knos_pay|knos_meter|knos_passkey> <buffer address>",
+                         "upgrade execute <index> [--expect-hash HASH]", "approve <upgrade|guardian> <index>", "cancel <upgrade|guardian> <index>", "derive"]) {
       assert.ok(r.out.includes(words), `the help says "${words}"`);
     }
   }
@@ -297,4 +302,74 @@ test("upgrade propose --out writes the proposal as data, and names no time until
   const active = gov.proposalRecord("knos_pay", program, buffer, "ab".repeat(32), 7n, 172_800, { status: { __kind: "Active", timestamp: 1_790_000_000n } });
   assert.equal(active.executable_from, null);          // the 48 hours start with the last approval, not with the proposal
   assert.equal(active.approved_at, null);
+});
+
+// ---- 0.3.14: four programs, a proposal withdrawn, and a run that executes only the build it was arranged for ------------------
+test("an upgrade can be proposed for each of the four programs the upgrade vault holds, and for nothing else", () => {
+  assert.deepEqual(gov.PROGRAMS, ["knos_oidc", "knos_pay", "knos_meter", "knos_passkey"]);
+  const vault = pk(IDS.upgrade_authority);
+  for (const name of gov.PROGRAMS) {
+    const r = run("inner", "upgrade", name, BUFFER, "--fee-payer", PAYER, "--spill", SPILL);
+    assert.equal(r.code, 0, r.err);
+    const got = JSON.parse(r.out);
+    // the loader's Upgrade on THAT program: its program data, itself, the buffer; the vault signs
+    assert.deepEqual([got.program, got.data, got.accounts[0].address, got.accounts[1].address, got.accounts[2].address],
+                     [gov.LOADER.toBase58(), "03000000", gov.programData(pk(IDS[name])).toBase58(), IDS[name], BUFFER]);
+    assert.deepEqual(got.accounts.filter((a) => a.signer).map((a) => a.address), [vault.toBase58()]);
+  }
+  assert.equal(new Set(gov.PROGRAMS.map((n) => IDS[n])).size, 4);
+  assert.match(run("inner", "upgrade", "upgrade_gate", BUFFER, "--fee-payer", PAYER).err, /upgrade takes knos_oidc, knos_pay, knos_meter or knos_passkey/);
+});
+
+test("a proposal is withdrawn by the votes the Squads program takes for its state: cancel when approved, reject while it collects approvals", () => {
+  const key = () => Keypair.generate().publicKey;
+  const [a, b, c] = [key(), key(), key()];
+  const ms = { threshold: 2, members: [a, b, c].map((k) => ({ key: k, permissions: { mask: 7 } })) };
+  const p = (kind, more = {}) => ({ status: { __kind: kind, timestamp: 1_791_098_249n }, approved: [a, b], rejected: [], cancelled: [], ...more });
+  // approved, inside its 48 hours or after them: `threshold` cancel votes (proposalCancel asks only for the status Approved)
+  assert.deepEqual(gov.withdrawal(ms, p("Approved")), { how: "cancel", need: 2, done: [] });
+  assert.deepEqual(gov.withdrawal(ms, p("Approved", { cancelled: [c] })), { how: "cancel", need: 2, done: [c.toBase58()] });
+  // one vote short of approved: two of three reject it, and then two can no longer approve
+  assert.deepEqual(gov.withdrawal(ms, p("Active", { approved: [a] })), { how: "reject", need: 2, done: [] });
+  // a member who cannot vote does not count towards the cutoff
+  const some = { threshold: 2, members: [...ms.members, { key: key(), permissions: { mask: 5 } }] };
+  assert.equal(gov.withdrawal(some, p("Active")).need, 2);
+  assert.equal(gov.withdrawal({ threshold: 3, members: ms.members }, p("Active")).need, 1);
+  for (const kind of ["Draft", "Rejected", "Executing", "Executed", "Cancelled"]) assert.equal(gov.withdrawal(ms, p(kind)), null, kind);
+  // the instructions exist in the SDK this repository pins, and take the member as a signer on the proposal's own account
+  for (const name of ["proposalCancel", "proposalReject", "proposalApprove"]) {
+    const ix = squads.instructions[name]({ multisigPda: pk(IDS.upgrade_multisig), transactionIndex: 2n, member: a });
+    assert.equal(ix.programId.toBase58(), IDS.squads_program, name);
+    assert.deepEqual(ix.keys.map((k) => [k.pubkey.toBase58(), k.isSigner]),
+                     [[IDS.upgrade_multisig, false], [a.toBase58(), true], [squads.getProposalPda({ multisigPda: pk(IDS.upgrade_multisig), transactionIndex: 2n })[0].toBase58(), false]], name);
+  }
+  const src = fs.readFileSync(path.join(HERE, "governance.mjs"), "utf8");
+  assert.match(src, /cancel: \["proposalCancel", "cancelled"\], reject: \["proposalReject", "rejected"\]/);
+});
+
+test("upgrade execute --expect-hash executes only the build the run was arranged for", () => {
+  const want = FIXTURE.loader_accounts.buffer, buffer = pk(BUFFER);
+  const info = { owner: gov.LOADER, data: Buffer.from(want.data, "hex") };
+  assert.match(gov.expected(3n, buffer, info, want.executable_hash), new RegExp(`^proposal 3: its buffer ${BUFFER} holds the build ${want.executable_hash}, the one this run was arranged for$`));
+  const refused = (b, i, h, words) => assert.throws(() => gov.expected(3n, b, i, h), (e) => e instanceof gov.Refused && words.test(e.message) && /Nothing was sent/.test(e.message));
+  // the withdrawn build's hash against a proposal that carries another build
+  refused(buffer, info, "69ec05b83e29b92fb255fd7f0cd52e128e04a4c9dbc5e16eecdc39caaafed9c9", new RegExp(`would deploy the build ${want.executable_hash}, and this run was arranged for the build 69ec05b8`));
+  refused(buffer, null, want.executable_hash, /is not a program buffer on this cluster/);                         // closed
+  refused(buffer, { ...info, owner: squads.PROGRAM_ID }, want.executable_hash, /is not a program buffer/);        // the same bytes in an account the loader does not own
+  refused(buffer, { owner: gov.LOADER, data: Buffer.from(FIXTURE.loader_accounts.programdata.data, "hex") }, want.executable_hash, /is not a program buffer/);
+  refused(null, null, want.executable_hash, /carries no upgrade of a program/);                                   // a config change, or a closed transaction
+  // the buffer is read from the proposal's own transaction: the loader's Upgrade, third account
+  const ix = gov.upgradeIx(pk(IDS.knos_pay), buffer, pk(IDS.upgrade_authority), pk(SPILL));
+  const keys = [pk(IDS.upgrade_authority), ...ix.keys.map((k) => k.pubkey).filter((k) => !k.equals(pk(IDS.upgrade_authority))), gov.LOADER];
+  const at = (k) => keys.findIndex((x) => x.equals(k));
+  const message = (data, programId = gov.LOADER) => ({ accountKeys: keys, instructions: [{ programIdIndex: at(programId), accountIndexes: Uint8Array.from(ix.keys.map((k) => at(k.pubkey))), data }] });
+  assert.equal(gov.upgradeBuffer(message(Uint8Array.from(ix.data))).toBase58(), BUFFER);
+  assert.equal(gov.upgradeBuffer(message(Uint8Array.from([4, 0, 0, 0]))), null, "another instruction of the loader");
+  assert.equal(gov.upgradeBuffer(message(Uint8Array.from(ix.data), pk(IDS.knos_pay))), null, "another program");
+  assert.equal(gov.upgradeBuffer({ accountKeys: keys, instructions: [] }), null);
+  // the check is before the execution, and the flag is one the command line takes
+  const src = fs.readFileSync(path.join(HERE, "governance.mjs"), "utf8");
+  const body = src.slice(src.indexOf("async function execute("), src.indexOf("// ---- no network"));
+  assert.ok(body.indexOf("say(expected(") > 0 && body.indexOf("say(expected(") < body.indexOf("await executeProposal("), "the build is compared before anything is sent");
+  assert.match(src, /"expect-hash": \{ type: "string" \}/);
 });

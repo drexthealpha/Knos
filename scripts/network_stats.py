@@ -31,7 +31,9 @@ Each job is in exactly one of the four. `outside` is the headline; the other thr
 to it. A funder is the GitHub owner of the Balance a comment spent, or the wallet that funded. `repeat_funders` are
 outside funders who funded another outside job after one of theirs was paid.
 
-Latency, each as { count, median, p90, slowest } in seconds (p90 by nearest rank; null when count is 0):
+Latency, each as { count, median, p90, slowest } in seconds (p90 by nearest rank; null when count is 0). The two that
+start at GitHub come from ONE function, measure(), and also carry n, p50, p95, window, deployment, lines, not_timed
+and the definition that is printed next to the number:
 
     comment_to_funded   from the funding comment (GitHub's created_at) to the funding transaction's block time
     merge_to_paid       from the merge (GitHub's merged_at) to the paying transaction's block time
@@ -236,27 +238,73 @@ def asked_at(line: dict, done: int, get) -> int | None:
     return None
 
 
-def latency(lines: list[dict], events: list[dict], get=None, most: int = 200) -> dict:
-    """comment_to_funded and merge_to_paid over the relay log's lines (the newest `most` of each kind). The end of
-    each is the block time of the line's transaction that funded or paid; a line whose transaction the chain's
-    history does not show, or whose start GitHub does not give, is not measured."""
+MOST = 500          # the newest lines of each kind of the relay log that are timed
+WAITS = {"comment_to_funded": (("fund",), "fund"), "merge_to_paid": (("proof", "pay"), "pay")}
+DEFINITIONS = {
+    "merge_to_paid": "seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, "
+                     "one sample per successful pay line of the public relay log, over its newest {most} such lines, both deployments, all time. "
+                     "A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; "
+                     "`not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank",
+    "comment_to_funded": "seconds from the funding comment (GitHub's created_at) to the block time of the funding transaction, one sample per "
+                         "successful fund line of the public relay log, over its newest {most} such lines, both deployments, all time",
+}
+
+
+def _day(ts: int) -> str:
+    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")
+
+
+def measure(name: str, lines: list[dict], events: list[dict], get=None, most: int = MOST) -> dict:
+    """THE measurement of one wait a person saw (`name`: merge_to_paid or comment_to_funded). Every place that states
+    the number takes it from this function's output: stats.json (the site's Numbers page), latency.json and its
+    badges (scripts/pages_data.py), and, through stats.json, docs/BENCH.md, docs/bench.json and docs/facts.json
+    (scripts/bench_docs.py). The output says what it is over:
+
+        n, p50, p95, slowest        the samples, the median, the 95th percentile by nearest rank, the longest (seconds)
+        count, median, p90          n and p50 under the names the Numbers table reads, and its 90th percentile
+        window                      {from, to}: the days (UTC) of the oldest and newest payment in the sample
+        deployment                  {first, second}: how many of the samples each deployment's escrow paid
+        lines, not_timed            the relay log lines looked at, and how many of them gave no sample: a zero beside
+                                    a large not_timed is a build that could not read the chain or GitHub, not a quiet week
+        definition                  the sentence printed next to the number
+        samples                     [{at, seconds, t, sigs, token, v}], oldest first, for a breakdown by day or by stage
+
+    The end is the block time of the line's transaction that funded or paid; the start is the line's own `asked=` or
+    what GitHub says (asked_at)."""
+    kinds, what = WAITS[name]
     landed = {}
     for ev in events:       # a job's lines and a work order's alike
-        if ev["event"] in ("funded", "paid", "order_funded", "order_paid") and ev.get("tx"):
-            landed.setdefault((ev["tx"], "fund" if ev["event"].endswith("funded") else "pay"), ev["at"])
-    out = {}
-    for name, kinds, what in (("comment_to_funded", ("fund",), "fund"), ("merge_to_paid", ("proof", "pay"), "pay")):
-        took = []
-        for line in [r for r in lines if r["kind"] in kinds][-most:]:
-            done = next((landed[(s, what)] for s in line["sigs"] if (s, what) in landed), None)
-            start = asked_at(line, done, get) if done is not None and (get is not None or line["asked"] is not None) else None
-            if start is not None and done >= start:
-                took.append(done - start)
-        out[name] = _spread(took)
-    return out
+        if ev["event"] in ("funded", "paid", "order_funded", "order_paid") and ev.get("tx") and ("fund" if ev["event"].endswith("funded") else "pay") == what:
+            landed.setdefault(ev["tx"], (ev["at"], ev.get("v")))
+    mine = [r for r in lines if r["kind"] in kinds][-most:]
+    samples = []
+    for line in mine:
+        done, v = next((landed[s] for s in line["sigs"] if s in landed), (None, None))
+        start = asked_at(line, done, get) if done is not None and (get is not None or line["asked"] is not None) else None
+        if start is not None and done >= start:
+            samples.append({"at": done, "seconds": done - start, "t": line.get("t"), "sigs": line["sigs"], "token": line["token"], "v": v})
+    samples.sort(key=lambda s: s["at"])
+    took = sorted(s["seconds"] for s in samples)
+    rank = lambda q: took[max(0, math.ceil(q * len(took)) - 1)] if took else None        # noqa: E731 - nearest rank
+    p50 = int(statistics.median(took)) if took else None
+    return {"n": len(took), "p50": p50, "p95": rank(0.95), "slowest": took[-1] if took else None,
+            "count": len(took), "median": p50, "p90": rank(0.9),
+            "window": {"from": _day(samples[0]["at"]), "to": _day(samples[-1]["at"])} if samples else None,
+            "deployment": {"first": sum(1 for s in samples if s["v"] == 1), "second": sum(1 for s in samples if s["v"] == 2)},
+            "lines": len(mine), "not_timed": len(mine) - len(samples), "definition": DEFINITIONS[name].format(most=most), "samples": samples}
 
 
-def relay_seconds(lines: list[dict], most: int = 200) -> dict:
+def published(m: dict) -> dict:
+    """measure()'s output as a file states it: everything but the samples."""
+    return {k: v for k, v in m.items() if k != "samples"}
+
+
+def latency(lines: list[dict], events: list[dict], get=None, most: int = MOST) -> dict:
+    """comment_to_funded and merge_to_paid as measure() gives them, without the samples."""
+    return {name: published(measure(name, lines, events, get, most)) for name in WAITS}
+
+
+def relay_seconds(lines: list[dict], most: int = MOST) -> dict:
     """{fund, pay}: the relay's own part of the wait, as {count, median, p90, slowest}, from the ` t=<seconds>` of the
     relay log's lines (the newest `most` of each kind that sent a transaction and wrote one). It starts at the comment
     that carried the token, not at the person's own comment or at the merge, so it is shorter than latency()'s two."""
@@ -355,7 +403,10 @@ def collect(url: str, get=None, token: str | None = None, limit: int = 1000, now
     else:
         try:
             lines = relay_lines(relay_log(get))
-            data["latency"].update(latency(lines, events, get), relay=relay_seconds(lines), note=note)
+            got = latency(lines, events, get)
+            lost = {name: m["not_timed"] for name, m in got.items() if m["not_timed"]}      # said, so that a build GitHub refused is never read as "nothing happened"
+            data["latency"].update(got, relay=relay_seconds(lines), note=note + "".join(
+                f"; {k} of {got[name]['lines']} {name.replace('_', ' ')} lines were not timed (the chain's history or GitHub did not give both ends)" for name, k in lost.items()))
         except Exception as e:  # noqa: BLE001
             data["latency"].update(latency([], events), relay=relay_seconds([]), note=f"not measured: the relay log could not be read ({type(e).__name__})")
         if token:

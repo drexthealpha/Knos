@@ -18,6 +18,7 @@ cli.receipt_check, cli.receipts, cli.export, cli.accept_init                    
 _.rich_help_panel       # set on each registered command by the help's grouping in knos.cli; Typer reads it when it prints --help
 _.judge_cmd, _.checks_hash, _.observe, _.lint, _.learn, _.gate, _.check, _.run
 _.terms_cmd, _.evidence_cmd, _.memory_pull, _.memory_push, _.comment_cmd, _.closes_cmd
+_.badge_cmd, _.record_cmd      # knos.badge.register: `knos badge`, `knos record`
 _.command, _.settle, _.review       # knos command | settle | review | check: what a repository's workflow runs (knos.flow)
 
 # The Sibyl store keeps its connection open for its lifetime.
@@ -57,3 +58,25 @@ settle_relay2.register_missing, ghrelay.post_token
 
 # http.server calls these on the request handler of scripts/acceptance_examples.py (the black-box service it stands up).
 _.do_POST, _.log_message
+
+
+# 0.3.14. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.receipt_cmd, _.make_cmd       # knos.bundle.register: knos receipt <file> | mirror | verify, knos bundle make (verify_cmd is named below)
+_.rerun_cmd                     # knos.judge.register: knos judge rerun
+_.export_, _.verify_            # knos.audit.register and knos.ledger.register: knos audit export | verify, knos meter verify | export
+_.batch_, _.prove_, _.reconcile_        # knos.ledger.register: knos meter batch | prove | reconcile
+# tarfile reads these off the TarInfo knos.bundle.make fills in: what makes two builds of one bundle the same bytes.
+_.mtime, _.uname, _.gname
+# The public client of knos_passkey 1.1's Fund and of the receipt format, with no caller inside src/knos: the tests hold
+# them to the program and to the conformance vectors (tests/test_passkey_fund.py, tests/test_passkey_chain.py,
+# tests/test_receipt.py), and web/passkey_fund.js is the browser's side of the same bytes.
+from knos import receipt as receipt_
+from knos.settle.v2 import passkey_fund
+
+passkey_fund.fund_challenge, passkey_fund.rent_ixs, passkey_fund.intent_comment, passkey_fund.read_intent, receipt_.upgrade
+# Which account of each token-taking instruction is the token's: tests/test_double_pay.py and tests/_pay2.py walk it.
+settle_pay2.TOKEN_AT
+# scripts/upgrade_feed.py writes `hash_from` into the feed's JSON for its reader.
+_.hash_from
+# Typer registers these inside knos.agentkey's `register` and calls them when a person types the command.
+_._init, _._rotate              # knos agent init | rotate

@@ -15,6 +15,8 @@ number that could not be measured is null with a note, never a guess. Written un
     badge/u/<login>.json, badge/r/<owner>/<repo>.json     shields.io endpoint files
     rank/earners, rank/funders, rank/agents (.json and .html)
     statements/<login>.json          every payment to an account and every payment it funded, one row each, for the site's statements
+    audit/<owner id>.json            each owner's work orders, a month at a time: the lines `knos audit export` chains, for the
+                                     site's order statement (scripts/audit_statements.py writes them; web/statements.js reads them)
     latency.json                     merge to paid and comment to funded, last 30 days and all time
     operations.json                  the canary's runs, its incidents, the time to a first answer to outsiders
     records.json                     which accounts and repositories have a file, and how many could not be named
@@ -46,6 +48,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import html
+import importlib.util
 import json
 import math
 import os
@@ -504,25 +507,17 @@ def rank_agents(index: dict | None) -> dict:
 
 
 # ---- latency ---------------------------------------------------------------------------------------------------------
-def latency_samples(lines: list[dict], events: list[dict], get, extras: dict, most: int = 500) -> dict:
-    """{merge_to_paid, comment_to_funded: [{at, seconds, t, parts}]} over the newest `most` lines of each kind of the
-    relay log: `at` is the block time of the transaction that paid or funded, `seconds` runs from the merge or the
-    funding comment (as network_stats.latency reads them), `t` is the relay's own seconds (comment to last
-    transaction) and `parts` the optional stages the line carries."""
-    ns = _ns() if lines else None
-    landed = {}
-    for ev in events:       # a job's lines and a work order's alike
-        if ev["event"] in ("funded", "paid", "order_funded", "order_paid") and ev.get("tx"):
-            landed.setdefault((ev["tx"], "fund" if ev["event"].endswith("funded") else "pay"), ev["at"])
-    out = {}
-    for name, kinds, what in (("comment_to_funded", ("fund",), "fund"), ("merge_to_paid", ("proof", "pay"), "pay")):
-        got = []
-        for line in [r for r in lines if r["kind"] in kinds][-most:]:
-            done = next((landed[(s, what)] for s in line["sigs"] if (s, what) in landed), None)
-            start = ns.asked_at(line, done, get) if done is not None and (get is not None or line["asked"] is not None) else None
-            if start is not None and done >= start:
-                got.append({"at": done, "seconds": done - start, "t": line.get("t"), "parts": extras.get(line["token"], {}), "sigs": line["sigs"]})
-        out[name] = got
+def latency_samples(lines: list[dict], events: list[dict], get, extras: dict, most: int | None = None) -> dict:
+    """{merge_to_paid, comment_to_funded: network_stats.measure()'s output}: the one measurement of each wait, whose
+    `samples` ([{at, seconds, t, parts, sigs}]) also carry `parts`, the optional stages the relay line wrote. Nothing is
+    counted here: the numbers of latency.json, of a repository's badge and of stats.json are that function's."""
+    if not lines:
+        return {name: {"samples": []} for name in ("comment_to_funded", "merge_to_paid")}
+    ns, out = _ns(), {}
+    for name in ns.WAITS:
+        out[name] = ns.measure(name, lines, events, get, most or ns.MOST)
+        for s in out[name]["samples"]:
+            s["parts"] = extras.get(s["token"], {})
     return out
 
 
@@ -550,9 +545,23 @@ def latency_json(samples: dict, now: float, meta: dict, note: str | None) -> dic
                  "the token's comment), relay_wait (that comment to the relay picking it up) and chain (pickup to the last confirmation) are read "
                  "from the relay log lines that carry queue=, workflow=, wait= and chain= (seconds). The relay writes each only when it could "
                  "measure it, so their n can be lower than the whole wait's, and lines written before it did carry none"}}
-    for name, got in samples.items():
+    for name, m in samples.items():
+        got = m["samples"] if isinstance(m, dict) else m
         out[name] = {"last_30_days": latency_block([s for s in got if s["at"] >= now - 30 * DAY]), "all_time": latency_block(got)}
+        if isinstance(m, dict) and "n" in m:     # the headline, as the one function gave it: all_time's n, p50 and p95 are these
+            out[name]["measure"] = {k: v for k, v in m.items() if k != "samples"}
+            out[name]["all_time"].update({k: m[k] for k in ("n", "p50", "p95", "slowest")})
+            out["definitions"][name] = m["definition"]
     return out
+
+
+def same_stats(stats: dict, latency: dict) -> dict:
+    """stats.json with the two waits of latency.json's `measure` in place of its own: the Numbers page and the
+    latency file are written in one build, by two steps that read GitHub separately, and must show one number."""
+    for name in ("comment_to_funded", "merge_to_paid"):
+        if isinstance(stats.get("latency"), dict) and "measure" in latency.get(name, {}):
+            stats["latency"][name] = latency[name]["measure"]
+    return stats
 
 
 # ---- operations ------------------------------------------------------------------------------------------------------
@@ -766,6 +775,10 @@ def bounties_rss(bounties: list[dict], meta: dict) -> str:
 
 
 # ---- html ------------------------------------------------------------------------------------------------------------
+# the one sentence, as scripts/claims_check.py SENTENCE has it; every page of the record starts with it
+SENTENCE = ("Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
+            "signed CI run attests they were met, a Solana program counts it or pays it.")
+TAGLINE = SENTENCE[len("Knos is "):]
 CSS = ("body{font:16px/1.55 system-ui,sans-serif;margin:0;background:#fbfbf9;color:#16181d}main{max-width:860px;margin:0 auto;padding:24px 16px 48px}"
        "table{border-collapse:collapse;width:100%;margin:12px 0}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e3e4e8}"
        "code,pre{background:#eef;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}a{color:#3b46c4}.muted{color:#5b616e;font-size:14px}"
@@ -785,7 +798,7 @@ def table(head: list[str], rows: list[list]) -> str:
 def page(title: str, body: str, meta: dict, json_path: str | None = None) -> str:
     src = f"Source: {esc(meta['source']['summary'])}. Generated {esc(meta['generated'])}." + (f" The same numbers as <a href=\"{esc(SITE)}/{esc(json_path)}\">{esc(json_path)}</a>." if json_path else "")
     return (f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>{esc(title)}</title>"
-            f"<style>{CSS}</style><main><p class=muted><a href=\"{SITE}/\">Knos</a>: pays for software work on signed acceptance</p><h1>{esc(title)}</h1>{body}<p class=muted>{src}</p></main></html>\n")
+            f"<style>{CSS}</style><main><p class=muted><a href=\"{SITE}/\">Knos</a>: {esc(TAGLINE)}</p><h1>{esc(title)}</h1>{body}<p class=muted>{src}</p></main></html>\n")
 
 
 def kinds_rows(amounts: dict) -> list[list]:
@@ -815,8 +828,38 @@ def record_page(rec: dict, kind: str, path: str, meta: dict) -> str:
               f"Median time from a pull request passing its checks to the merge or rejection: {esc(_dur(f['review']['seconds']['p50']) if f['review']['seconds']['n'] else (f['review']['note'] or 'not measured'))}"
               f" over {esc(f['review']['seconds']['n'])} pull requests.</p>"
             + "<h2>Merged but unpaid</h2><p class=muted>A pull request that closes a funded issue was merged, and the bounty was refunded instead. This says both happened, not whose fault it was.</p>" + unpaid_html(f["merged_unpaid"])
+            + (paid_on_proof(rec, meta) if kind == "r" else "")
             + f"<h2>README</h2><pre>{esc(paste)}</pre>")
     return page(title, body, meta, f"{kind}/{path}.json")
+
+
+def paid_on_proof(rec: dict, meta: dict) -> str:
+    """The "paid on proof" badge (src/knos/badge.py) on a repository's page, which is the page the badge links to:
+    payments by someone else in the faucet's test money, the ones in another token named apart, as of the day the
+    page was made. As web/records.js `badgeData` counts it for the same repository."""
+    from knos import badge
+    amounts = rec["as_earner"]["amounts"]
+    data = {"repo": rec["repository"], "pr": None, "count": amounts["test"]["count"], "other": amounts["real"]["count"], "money": badge.TEST,
+            "as_of": str(meta["generated"])[:10]}
+    return (f"<h2>Paid on proof</h2><p>{badge.svg(data).strip()}</p><p class=muted>{esc(badge.title(data))} "
+            "A payment to the funder's own account, or to one of Knos's own accounts, is not in the badge.</p>")
+
+
+def audit_files(events: list[dict], partial: bool = False) -> dict[str, str]:
+    """audit/<owner id>.json for every account whose Balance funded a work order (scripts/audit_statements.py `files`):
+    the months, and for each the scope and the lines that `knos audit export --owner <id>` writes for that month, so
+    the page's export is that command's bytes. Named by id: the chain holds ids, and a file needs no name from GitHub.
+    `partial`: the history was not read whole, and every scope then says so. No history, no statement: and then nothing
+    of knos is imported, so the empty build (`--empty`, which tests.yml's sdk job runs with no Python package installed)
+    needs none."""
+    if not events:
+        return {}
+    spec = importlib.util.spec_from_file_location("audit_statements", ROOT / "scripts" / "audit_statements.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)            # (it puts src/ on the path, as scripts/network_stats.py does)
+    from knos import records
+    owners = {int(o["owner"] or o["by"]) for o in records.orders_of(events)[0] if o["v"] == 2 and o["from_balance"] and (o["owner"] or o["by"])}
+    return mod.files(events, owners, partial)
 
 
 def rank_page(title: str, head: list[str], rows: list[list], note: str, meta: dict, json_path: str) -> str:
@@ -825,10 +868,12 @@ def rank_page(title: str, head: list[str], rows: list[list], note: str, meta: di
 
 # ---- everything ------------------------------------------------------------------------------------------------------
 def build(events: list[dict], comments: list[dict] | None, get, index: dict | None, accounts: dict | None, names: Names, now: float,
-          own: frozenset | None = None, own_wallets: frozenset | None = None, canary: str = CANARY, source: dict | None = None) -> dict[str, str]:
+          own: frozenset | None = None, own_wallets: frozenset | None = None, canary: str = CANARY, source: dict | None = None,
+          partial: bool = False) -> dict[str, str]:
     """{path under the output folder: text} for every file this module writes. `events` are network_stats's, `comments`
     the relay log's comments (None: not read), `get` reads GitHub (None: not asked), `index` is the Agent PR Index,
-    `accounts` maps job addresses to accounts (None: not read)."""
+    `accounts` maps job addresses to accounts (None: not read), `partial` says the history was not read whole (the
+    order statements then say so)."""
     if own is None or own_wallets is None:
         own, own_wallets = own_ids()
     jobs = jobs_of(events, own, own_wallets)
@@ -890,7 +935,7 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
         dump(f"r/{name}.json", stamp({**rec, "badge": {"endpoint": f"{SITE}/badge/r/{name}.json", "readme": readme_line("r", name, "pays on merge")}}))
         files[f"r/{name}.html"] = record_page(rec, "r", name, meta)
         sigs = {j["paid_tx"] for j in mine if j["state"] == "paid" and j.get("paid_tx")}
-        median = spread([s["seconds"] for s in samples["merge_to_paid"] if sigs & set(s["sigs"])])["p50"]
+        median = spread([s["seconds"] for s in samples["merge_to_paid"]["samples"] if sigs & set(s["sigs"])])["p50"]
         dump(f"badge/r/{name}.json", paid_badge(rec, badge_meta, median, repo=True))
         index_repos.append(name)
     dump("records.json", stamp({"accounts": index_users, "repositories": index_repos, "unnamed_accounts": unnamed_accounts, "unnamed_repositories": unnamed_repos,
@@ -918,6 +963,9 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
                                           agents.get("note") or ("Of the repositories where the agent's first pull request said tests or CI pass, the share where a check had failed at the head commit "
                                                                  f"(Agent PR Index of {agents['date']}, pull requests created {agents['window'][0]} to {agents['window'][1]}). A failed check is GitHub's record, not a judgment of why."),
                                           meta, "rank/agents.json")
+
+    # the order statements: each owner's work orders by month, as `knos audit export` writes them
+    files.update(audit_files(events, partial))
 
     # latency and operations
     note = None if get else "not measured: GitHub was not asked, so a line of the relay log that does not carry its own start time is not measured"
@@ -964,12 +1012,15 @@ def main(argv=None) -> int:
         token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or None
         get = None if a.no_github else (lambda path: ns.github(path, token))
         url = os.environ.get("KNOS_RPC") or chain.CLUSTERS["devnet"]
+        partial = False
         if a.events and Path(a.events).exists():
             events = json.loads(Path(a.events).read_text(encoding="utf-8"))
         else:
             events = []
             for program in (ns.pay.PAY_ID, ns.pay2.PAY_ID, ns.meter.METER_ID):
-                events += ns.history(url, program, a.limit)[0]
+                got, lost, short = ns.history(url, program, a.limit)
+                events += got
+                partial = partial or (program == ns.pay2.PAY_ID and bool(lost or short))      # the work orders' history was not read whole
             events.sort(key=lambda ev: ev["at"])
         index = None
         if a.index and Path(a.index).exists():
@@ -992,8 +1043,11 @@ def main(argv=None) -> int:
                 comments = ns.relay_log(get)
             except Exception as e:  # noqa: BLE001
                 print(f"pages_data: the relay log was not read ({type(e).__name__})", file=sys.stderr)
-        files = build(events, comments, get, index, accounts, Names(), now, canary=a.canary)
+        files = build(events, comments, get, index, accounts, Names(), now, canary=a.canary, partial=partial)
     write(files, Path(a.out))
+    stats = Path(a.out) / "stats.json"
+    if not a.empty and comments is not None and stats.exists():      # the relay log was read here: the page's table takes this build's one measurement
+        stats.write_text(json.dumps(same_stats(json.loads(stats.read_text(encoding="utf-8")), json.loads(files["latency.json"])), indent=1), encoding="utf-8")
     if a.docs:
         Path(a.docs).write_text(files["OPERATIONS.md"], encoding="utf-8")
     print(f"pages_data: {len(files)} files under {a.out}", file=sys.stderr)

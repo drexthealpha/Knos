@@ -83,6 +83,14 @@ One dependency also carries over: Sibyl's memory client, which the judge and the
   money. `knos-passkey`, a wallet made from a passkey. Signing keys of any RS256 issuer in the verifier. A policy
   file, statements and exports, and screening of payout addresses. Drills of the recovery paths on the deployed
   bytes.
+- **Knos 0.3.14**: a correction and what follows from it. The escrow build that 0.3.13 proposed let one pay token
+  pay a second order funded later for the same issue; it was found during the proposal's 48-hour delay, before the
+  build ran, and this release withdraws that proposal and proposes a corrected one, in which every signed token is
+  accepted once by one marker rule ([SECURITY.md](SECURITY.md), section 15). Also: overflow checks in release
+  builds of every program; fee tiers in place of one rate, and a devnet cap of 100,000 per order; a batch mode of
+  the meter with a seller's own count; funding from a passkey wallet; orders of GitLab projects; a hermetic judge
+  by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
+  [GOVERNANCE.md](GOVERNANCE.md).
 
 In commits: 18 between the start of the hackathon and 29 Sep, and 108 from 30 Sep to Knos 0.3.11.
 
@@ -103,12 +111,12 @@ that fixes it. The commit history shows those turns.
   days and then returning it to the funder; reserving an issue by comment for 7 days; paying a person when a bot
   account opened the pull request; and a waiting time before a new signing key is active. No code was copied; the
   programs here are written for Solana from scratch.
-- **Reviews of 0.3.12.** Six reviews were read for 0.3.13: three by outside readers and three done by Knos
-  itself. They are reviews of the design and the documents. They are not security audits: no security firm has
-  audited anything. The earlier reviews that 0.3.12 answered were of the same kind. The price book, the meter, the
-  work order and its terms, the passkey wallet, attestation by the seller, and the documents
-  [MARKET.md](MARKET.md), [REGULATION.md](REGULATION.md) and [CONTROLS.md](CONTROLS.md) follow what those readers
-  asked for. The arithmetic of what 1 billion USD a year would require comes from one of them.
+- **Written feedback from readers of the repository.** Several things were built because people who read earlier
+  releases asked for them: the price book, the meter, the work order and its terms, the passkey wallet, attestation
+  by the seller, the single-use rule for every token, the statement of invariants and of governance, and the
+  documents [MARKET.md](MARKET.md), [REGULATION.md](REGULATION.md) and [CONTROLS.md](CONTROLS.md). The arithmetic
+  of what 1 billion USD a year would require comes from one such reader. None of that feedback is a security
+  review, none of those readers wrote code here, and none of them is a customer, an adviser or a member of a team.
 - **Three pull requests by another GitHub account.** `jaystay-bot` wrote pull requests #32, #33 and #34 for
   bounties Knos funded on this repository on 2 Oct 2026: what `knos_bounties` says about each bounty, a
   repository's own record on the site, and a Ruby runner for the judge. That code is in the tree from 0.3.12, in
@@ -130,16 +138,42 @@ Commits in this repository were written with coding agents. Every commit is auth
 who is responsible for it. Commits carry no co-author trailers, because the author of record is the person who
 reviewed and committed the change.
 
-## What has not been done
+## What only people can supply, and does not exist
 
-- **No security audit.** No security firm has audited anything. The reviews Knos has had are readers' reviews of
-  the design and the documents.
-- **No mainnet deployment.** No real money has moved.
+Code cannot produce any of these, and none of them exists today. Each line is the whole truth of it.
+
+- **No buyer has been interviewed.** Not one. Every statement in this repository about what a buyer wants is the
+  founder's reasoning from public sources ([MARKET.md](MARKET.md)).
+- **No letter of intent.** Nobody has written that they would use or buy Knos.
+- **No paying customer.** Nobody has paid for anything. No price in the price book has been charged to anyone.
 - **No outside funder.** Knos's own account funded every task on both deployments, in test money. Up to Knos
   0.3.11 every payment was Knos's own account paying itself. Since then 3 payments have gone to another GitHub
-  account, for the three pull requests above. The site's Numbers page counts outside use apart from Knos's own.
-- **No customer.** Nobody has paid for anything, and no buyer has been interviewed.
-- **No legal review.** [REGULATION.md](REGULATION.md) says what was read. Counsel has not been asked.
+  account, for the three pull requests named above. The site's Numbers page counts outside use apart from Knos's
+  own.
+- **No outside signer.** Both multisigs are 2-of-3 and one person holds all three keys. Nobody has agreed to hold
+  one ([GOVERNANCE.md](GOVERNANCE.md)).
+- **One founder, pseudonymous.** Knos is one person, known publicly only as the GitHub account drexthealpha. No
+  legal name is published. There is no team, no co-founder, no employee, no adviser.
+- **No legal entity.** No company exists. Nothing can sign a contract, hold a licence, be invoiced or be sued as
+  Knos. There are no terms of service, no service-level agreement and no data-processing agreement.
+- **No legal review.** [REGULATION.md](REGULATION.md) says what the founder read. No lawyer has been asked anything.
+- **No outside security review, of anything.** Not the programs, the workflows, the relay, the clients, the site
+  or the documents. No security firm has been engaged or asked for a quote. The defect fixed in 0.3.14 was found
+  by the founder.
+- **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash,
+  rerunning the benchmarks, or running the drills.
+- **The Rust crates and the npm package are not on crates.io or npm.** A first publish to each needs the owner to
+  sign in once at crates.io and at npmjs.com and create a token; that has not been done. Until then
+  `knos-oidc-interface` and `knos-settle` are installed from this repository ([INSTALL.md](INSTALL.md)). The Python
+  package is on PyPI.
+
+## What else has not been done
+
+- **No mainnet deployment.** No real money has moved.
+- **No second person on call.** If the founder is unavailable, nobody answers a report, approves a key or
+  cancels a proposal.
+- **No organisation account.** The pinned workflows and the relay live in one personal GitHub account; if it is
+  suspended, funded orders can only be refunded ([GOVERNANCE.md](GOVERNANCE.md), section 9).
 - The first deployment cannot be changed, so its known limits stay ([SECURITY.md](SECURITY.md)). The second
   deployment can be changed, by Knos, only through a multisig with a public 48-hour delay, until an outside review.
 

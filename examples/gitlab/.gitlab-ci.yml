@@ -1,0 +1,81 @@
+# .gitlab-ci.yml for the protected branch `knos` of a gitlab.com project: fund a Knos work order from the project,
+# and pay the author of a merge request once it is merged. docs/OIDC.md, "GitLab", says what the escrow checks.
+#
+# NOT RUN ON gitlab.com YET. The escrow's rules for the tokens this file asks for are tested against GitLab-shaped
+# tokens (tests/test_gitlab_pay.py). The jobs below show which pipeline asks for which token and what the paying job
+# must read first; nobody has run them in a project. Knos has no relayer and no command for GitLab yet: each job
+# leaves the signed token as an artifact (`knos-token.jwt`), and someone carries it to Solana with the client in
+# src/knos/settle/v2 (FundOrderBalance, PayOrder), as the test does.
+#
+# Set up, once:
+#   1. Create the branch `knos` holding only this file, and protect it (Settings > Repository > Protected branches).
+#      Allow to merge and to push: the people who may fund and who merge. Never commit to it again: an order pins this
+#      file at the commit it was funded from, and a pipeline of any later commit pays nothing.
+#   2. Open a Balance for the project's namespace and list who may fund: owner id 800000000000000000 + the namespace
+#      id, spenders 900000000000000000 + each user id. Send test USDC to it (devnet).
+#   3. In the default branch's own .gitlab-ci.yml, start this file after a merge (a pipeline that a pipeline started):
+#        knos-pay:
+#          rules: [{ if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' }]
+#          trigger: { project: $CI_PROJECT_PATH, branch: knos }
+#          variables: { KNOS_AUD: "knos3:pay:<order>:<head sha>:<terms hash>:<mode>:<merge request>:<payees>" }
+#      The author's id in <payees> is 900000000000000000 + the GitLab user id, and the address is the one the author
+#      wrote in the merge request's description as `Knos-Pay-To: <address>` (a GitLab user cannot bind a wallet yet).
+#      Whoever may edit that description can change the address: on GitLab that includes the project's maintainers.
+#
+# Only GitLab-hosted runners: the escrow refuses a token from a runner of your own.
+# A token lives as long as its job may run, so each job has a short timeout; the escrow refuses one that lives over
+# an hour.
+
+stages: [knos]
+
+.knos:
+  stage: knos
+  image: alpine:3.20
+  timeout: 5 minutes
+  tags: [saas-linux-small-amd64]
+  id_tokens:
+    KNOS_TOKEN:
+      aud: $KNOS_AUD
+  artifacts:
+    paths: [knos-token.jwt]
+    expire_in: 1 hour
+
+# Fund: someone the Balance lists runs this pipeline by hand (Build > Pipelines > New pipeline, branch `knos`) with
+# the variable KNOS_AUD = knos3:fund:<issue>:<amount>:<mode>:<terms hash>:<seconds>:<balance>:<seq>:<options>.
+# GitLab signs who ran it; the escrow checks that this person may spend the Balance the audience names.
+knos-fund:
+  extends: .knos
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_REF_PROTECTED == "true" && $KNOS_AUD =~ /^knos3:fund:/'
+  script:
+    - printf '%s' "$KNOS_TOKEN" > knos-token.jwt
+
+# Pay: started by the default branch's pipeline after a merge. The audience came from that pipeline, which is not
+# pinned, so nothing in it is believed: before the token leaves this job, GitLab's own record of the merge request
+# must say what the audience says. Anything else ends the job with no artifact.
+knos-pay:
+  extends: .knos
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_PROTECTED == "true" && $KNOS_AUD =~ /^knos3:pay:/'
+  script:
+    - apk add --no-cache curl jq >/dev/null
+    - |
+      IFS=: read -r _ _ ORDER HEAD TERMS MODE MR PAYEES <<EOF
+      $KNOS_AUD
+      EOF
+    - PAYEE="${PAYEES%%.*}"; REST="${PAYEES#*.}"; SHARE="${REST%%.*}"; ADDRESS="${REST#*.}"
+    - test "$SHARE" = 10000                                   # one payee: the author
+    - api="$CI_API_V4_URL/projects/$CI_PROJECT_ID"
+    - curl -fsS "$api" > project.json
+    - curl -fsS "$api/merge_requests/$MR" > mr.json
+    - curl -fsS "$api/protected_branches/$(jq -r .default_branch project.json | jq -sRr @uri)" > /dev/null   # the default branch is protected
+    - test "$(jq -r .state mr.json)" = merged
+    - test "$(jq -r .target_branch mr.json)" = "$(jq -r .default_branch project.json)"
+    - test "$(jq -r .sha mr.json)" = "$HEAD"
+    - test "$((900000000000000000 + $(jq -r .author.id mr.json)))" = "$PAYEE"
+    - 'jq -r .description mr.json | grep -qx "Knos-Pay-To: $ADDRESS"'
+    # What this example does NOT check, and a real judge must: that ORDER on Solana is an order of this project for
+    # the issue this merge request closes, with TERMS and MODE as funded, and that the order's own terms (its named
+    # checks and allowed paths) were met at HEAD. Until a command does that, the people who can start this pipeline
+    # are trusted for it.
+    - printf '%s' "$KNOS_TOKEN" > knos-token.jwt

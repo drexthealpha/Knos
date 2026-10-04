@@ -369,6 +369,7 @@ def test_the_schedule_is_the_later_of_the_two_times_plus_ten_minutes_and_an_unap
     parts = [part("knos_pay", 4, NOW + 30), part("knos_oidc", 3, NOW)]
     plan = d.schedule(parts, "https://api.devnet.solana.com")
     assert plan["executable_from"] == NOW + 30 + 172_800 and plan["run_at"] == plan["executable_from"] + 600
+    assert [p["hash"] for p in plan["proposals"]] == ["ab" * 32] * 2          # the build each was proposed with: the run executes no other
     assert plan["run_at_utc"] == d.when(plan["run_at"]) and [p["index"] for p in plan["proposals"]] == [3, 4] and plan["rpc"] == "https://api.devnet.solana.com"
     with pytest.raises(SystemExit, match=r"proposal 4 \(knos_pay\) is not approved yet, so its 48 hours have not started"):
         d.schedule([parts[1], part("knos_pay", 4, None)], "x")
@@ -405,7 +406,18 @@ def test_the_shell_script_takes_one_new_mode_a_run_and_each_does_what_the_releas
     # the record is waited for (program.yml's gate job and a relayer write it), so the release proposes WITHOUT --ungated;
     # the flag is the emergency's: it waits for nothing, says so before anything else, and is passed on only for a build with no record
     assert 'GATE_WAIT="${KNOS_GATE_WAIT:-1800}"' in text and 'wait="$GATE_WAIT"' in pr and pr.count('py --wait "$wait" gate') == 2
-    assert pr.index("UNGATED: --ungated WAS PASSED. THIS IS FOR AN EMERGENCY ONLY") < pr.index("for name in $PROGRAMS") and "wait=0" in pr
+    assert pr.index("UNGATED: --ungated WAS PASSED. THIS IS FOR AN EMERGENCY ONLY") < pr.index("for name in $UPGRADES") and "wait=0" in pr
+    # all four programs the vault holds, each gated by its own record, each with a buffer of its own for this build; older
+    # proposals are dealt with before any buffer is written
+    assert 'UPGRADES="knos_oidc knos_pay knos_meter knos_passkey"' in text and "for name in $PROGRAMS" not in pr and "build $UPGRADES" in text
+    assert 'buffer="$KEYS/$name-upgrade-buffer-${want:0:16}.json"' in pr and "runs this build already" in pr
+    assert pr.index("withdraw_older\n") < pr.index("for name in $UPGRADES") < pr.index('py kept "$name=$want"') < pr.index("program write-buffer")
+    assert json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8")).keys() >= set(d.UPGRADED) and " ".join(d.UPGRADED) in text
+    # a build larger than the program's data account has room for: the account is extended first, after the gate has
+    # vouched for the build and before its buffer is handed to the vault; a cluster that refuses stops the run in plain words
+    grow = pr[pr.index('have="$(py room "$name")"'):pr.index('if [ "$held" != "$vault" ]')]
+    assert pr.index('py --wait "$wait" gate "$name"') < pr.index('py extend "$name" $((size - have))') < pr.index("program set-buffer-authority")
+    assert 'if [ "$size" -gt "$have" ]; then' in grow and "ExtendProgramChecked" in grow and "Nothing was proposed for $name" in grow
     gated = pr[pr.index('if [ "$rc" != 0 ]; then'):pr.index('if [ "$held" != "$vault" ]')]
     assert gated.index('if [ "$UNGATED" != 1 ]; then') < gated.index("after $wait seconds") < gated.index('flag="--ungated"')
     assert pr.count('flag="--ungated"') == 1 and "In an emergency only: --propose --ungated" in gated and "$flag |" in pr
@@ -418,8 +430,10 @@ def test_the_shell_script_takes_one_new_mode_a_run_and_each_does_what_the_releas
         assert two.returncode == 2 and "one of --new, --rc, --rc-close, --propose in a run" in two.stderr
         alone = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--ungated"], capture_output=True, text=True)
         assert alone.returncode == 2 and "--ungated goes with --propose" in alone.stderr
+        lone = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--new", "--replace"], capture_output=True, text=True)
+        assert lone.returncode == 2 and "--replace goes with --propose" in lone.stderr
         said = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--help"], capture_output=True, text=True).stdout
-        assert all(flag in said for flag in ("--new", "--rc ", "--rc-close", "--propose [--ungated]", "KNOS_GATE_TOKENS", "KNOS_RC_SO_DIR",
+        assert all(flag in said for flag in ("--new", "--rc ", "--rc-close", "--propose [--replace] [--ungated]", "KNOS_GATE_TOKENS", "KNOS_RC_SO_DIR",
                                              "KNOS_GATE_WAIT", "--ungated is for an emergency only"))
 
 
@@ -450,9 +464,15 @@ def test_lamports_reads_solanas_whole_answer_so_the_line_after_the_number_never_
         return subprocess.run([bash, "-c", body], env=env, capture_output=True, text=True, timeout=60)
     ok = afford(funcs[1])
     assert ok.returncode == 0 and ok.stdout.split() == [str(3678758200 * 3), "14232197098"], ok.stderr
-    # the reader deploy_v2.sh had before: the stand-in shows the race is real, not something this test made up
-    early = afford("lamports() { sol \"$@\" --lamports | awk 'NF >= 2 { print $(NF - 1); exit }'; }")
+    # A reader that leaves after the first line: the stand-in shows the race is real, not something this test made up.
+    # `head -n 1` leaves there whatever awk is installed.
+    early = afford("lamports() { sol \"$@\" --lamports | head -n 1 | awk 'NF >= 2 { print $(NF - 1) }'; }")
     assert early.returncode != 0 and early.stdout == ""
+    # The reader deploy_v2.sh had before left through awk's `exit`. An awk that stops reading there (gawk) loses the same
+    # way; one that reads its input to the end before it leaves (mawk, the awk of Debian and Ubuntu) happens to win. So it
+    # stopped the script or not by which awk the machine had: either it fails with nothing printed, or it is right.
+    old = afford("lamports() { sol \"$@\" --lamports | awk 'NF >= 2 { print $(NF - 1); exit }'; }")
+    assert (old.returncode != 0 and old.stdout == "") or (old.returncode == 0 and old.stdout == ok.stdout), (old.returncode, old.stdout, old.stderr)
 
 
 def _build_world(tmp_path):
@@ -487,7 +507,7 @@ def _build_world(tmp_path):
     for f in bin_.iterdir():
         f.chmod(0o755)
     log = tmp_path / "log"
-    body = "\n".join(['set -euo pipefail', f'ROOT={repo}', 'PROGRAMS="knos_oidc knos_pay"', 'VERIFY_IMAGE=img',
+    body = "\n".join(['set -euo pipefail', f'ROOT={repo}', 'PROGRAMS="knos_oidc knos_pay"', 'UPGRADES="knos_oidc knos_pay knos_meter knos_passkey"', 'VERIFY_IMAGE=img',
                       'die() { echo "stopped: $*" >&2; exit 1; }', 'need() { :; }', 'py() { sha256 "$2" | cut -c1-8; }',
                       funcs["sha256"], funcs["sources_hash"], funcs["build"], 'build $PROGRAMS'])
 
@@ -562,3 +582,180 @@ def test_the_verified_build_and_its_stamp_need_no_sha256sum_where_the_system_has
     assert stamp.read_text().splitlines()[0] != written.splitlines()[0]
     fourth = run()
     assert fourth.returncode == 0 and "unchanged since the last verified build" in fourth.stdout, fourth.stderr
+
+
+# ---- 0.3.14: a proposal that must not execute is withdrawn before its replacement is proposed ---------------------------
+
+def _proposals(plan: list[tuple[int, str, str, bytes | None]]) -> dict:
+    """The upgrade multisig with these proposals (index, Squads status, program name, the build in its buffer; None: the
+    buffer is closed), in the account layouts scripts/upgrade_feed.py reads."""
+    import sys
+    sys.path.insert(0, str(ROOT / "tests"))
+    import test_upgrade_feed as f
+    accounts, rows = {}, []
+    for index, status, name, elf in plan:
+        buffer = str(Keypair().pubkey())
+        if elf is not None:
+            accounts[buffer] = f.buffer(elf)
+        rows.append((index, status, f.NOW - 41 * 3600, 2 if status == "Approved" else 1, f.vault_transaction_account(pay.IDS[name], buffer)))
+    return f.world(rows, accounts), f
+
+
+def _entries(accounts: dict, f) -> list[dict]:
+    return [vars(e) for e in f.uf.entries(accounts.get, f.IDS)[1]]
+
+
+BAD_OIDC, BAD_PAY = b"\x7fELF oidc 0.3.13", b"\x7fELF pay 0.3.13, pays twice"
+THIS = {name: mc.elf_hash(f"\x7fELF {name} 0.3.14".encode()) for name in ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")}
+
+
+def test_an_older_proposal_that_can_still_run_stops_the_proposing_and_replace_lists_it_to_be_withdrawn_first():
+    # devnet as 0.3.13 left it: proposals 1 and 2, approved, in their 48 hours
+    accounts, f = _proposals([(1, "Approved", "knos_oidc", BAD_OIDC), (2, "Approved", "knos_pay", BAD_PAY)])
+    entries = _entries(accounts, f)
+    withdraw, refusal = d.replace_plan(entries, THIS, replace=False)
+    assert withdraw == [] and refusal.startswith("refused: proposal 1 (knos_oidc, build " + mc.elf_hash(BAD_OIDC))
+    assert f"proposal 2 (knos_pay, build {mc.elf_hash(BAD_PAY)}, approved: it can be executed from {d.when(f.NOW + 7 * 3600)})" in refusal
+    assert "would deploy another build than this one. Nothing was proposed." in refusal
+    assert refusal.endswith("pass --replace: bash scripts/deploy_v2.sh --propose --replace")
+    withdraw, refusal = d.replace_plan(entries, THIS, replace=True)
+    assert refusal is None and [(e["index"], e["program"], e["build_hash"], e["squads_status"]) for e in withdraw] == [
+        (1, "knos_oidc", mc.elf_hash(BAD_OIDC), "Approved"), (2, "knos_pay", mc.elf_hash(BAD_PAY), "Approved")]
+    # a program that runs this build already is not proposed, and an older proposal for it must still go: executed, it
+    # would put the withdrawn build back. So every program is asked about, whatever is proposed this time
+    assert [e["index"] for e in d.older(entries, {"knos_pay": THIS["knos_pay"]})] == [2]
+    # once they are cancelled nothing stands in the way, with or without the flag
+    accounts, f = _proposals([(1, "Cancelled", "knos_oidc", BAD_OIDC), (2, "Cancelled", "knos_pay", BAD_PAY)])
+    assert d.replace_plan(_entries(accounts, f), THIS, False) == ([], None) == d.replace_plan(_entries(accounts, f), THIS, True)
+
+
+def test_this_builds_own_proposal_is_kept_and_what_is_not_known_to_be_this_build_is_not():
+    elf = {name: f"\x7fELF {name} 0.3.14".encode() for name in THIS}
+    accounts, f = _proposals([
+        (1, "Cancelled", "knos_oidc", BAD_OIDC), (2, "Cancelled", "knos_pay", BAD_PAY),
+        (3, "Approved", "knos_oidc", elf["knos_oidc"]),        # a run of --propose that stopped after its first proposal: kept, and continued
+        (4, "Active", "knos_pay", BAD_PAY),                    # one vote short, of the build that must not run: another vote would start its 48 hours
+        (5, "Approved", "knos_meter", None),                   # its buffer is gone: nobody can say it is this build
+        (6, "Executed", "knos_passkey", BAD_PAY),              # ran: nothing to withdraw
+        (7, "Rejected", "knos_passkey", BAD_PAY)])
+    entries = _entries(accounts, f)
+    assert [(e["index"], e["squads_status"]) for e in d.older(entries, THIS)] == [(4, "Active"), (5, "Approved")]
+    _none, refusal = d.replace_plan(entries, THIS, False)
+    assert "proposal 4 (knos_pay, build " + mc.elf_hash(BAD_PAY) + ", active: it can still be approved)" in refusal
+    assert "proposal 5 (knos_meter, build unknown: its buffer cannot be read, approved: it can be executed from" in refusal and "withdraw them" in refusal
+    # this build's own proposal is found by its build, so a second run proposes with its buffer and never makes another
+    own = next(e for e in entries if e["index"] == 3)
+    assert d.kept(entries, "knos_oidc", THIS["knos_oidc"]) == own["buffer"] and d.kept(entries, "knos_pay", THIS["knos_pay"]) is None
+    assert d.kept(entries, "knos_passkey", mc.elf_hash(BAD_PAY)) is None           # executed and rejected proposals carry nothing forward
+    # at or below the multisig's stale index a proposal can never run: not in the way
+    accounts[f.IDS["upgrade_multisig"]] = f.world([(7, "Rejected", 0, 0, None)], {}, stale=5)[f.IDS["upgrade_multisig"]]
+    assert d.older(_entries(accounts, f), THIS) == []
+
+
+def test_the_stale_step_prints_what_to_withdraw_or_refuses_with_exit_5(monkeypatch, capsys):
+    accounts, f = _proposals([(1, "Approved", "knos_oidc", BAD_OIDC), (2, "Approved", "knos_pay", BAD_PAY)])
+    monkeypatch.setattr(d.mc, "_rpc", lambda url: accounts.get)
+    builds = [f"{name}={h}" for name, h in THIS.items()]
+    assert d.main(["stale", *builds]) == 5
+    said = capsys.readouterr()
+    assert said.out == "" and "pass --replace" in said.err and "proposal 2 (knos_pay" in said.err
+    assert d.main(["--replace", "stale", *builds]) == 0
+    assert capsys.readouterr().out.splitlines() == [f"1 knos_oidc {mc.elf_hash(BAD_OIDC)} Approved", f"2 knos_pay {mc.elf_hash(BAD_PAY)} Approved"]
+    assert d.main(["kept", f"knos_pay={mc.elf_hash(BAD_PAY)}"]) == 0 and capsys.readouterr().out.strip() == next(e["buffer"] for e in _entries(accounts, f) if e["index"] == 2)
+    assert d.main(["kept", builds[1]]) == 0 and capsys.readouterr().out.strip() == ""
+    with pytest.raises(SystemExit, match="stale takes NAME=HASH"):
+        d.main(["stale", "upgrade_gate=" + "ab" * 32])
+    with pytest.raises(SystemExit, match="stale takes NAME=HASH"):
+        d.main(["stale"])
+
+
+def _withdraw_world(tmp_path, stale_answers: list[tuple[int, str]]):
+    """deploy_v2.sh's withdraw_older() under the script's shell options, with stand-ins for deploy_v2.py (its answers to
+    `stale`, in turn) and governance.mjs: what the script does with what they say."""
+    import os
+    import re
+    import shutil
+    import subprocess
+    bash = shutil.which("bash")
+    if os.name == "nt" or not bash:
+        pytest.skip("runs the script's function with bash")
+    text = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    func = re.search(r"(?ms)^withdraw_older\(\) \{.*?^\}$", text).group(0)
+    tmp_path = tmp_path / f"world-{len(list(tmp_path.iterdir()))}"
+    keys, calls = tmp_path / "keys", tmp_path / "calls"
+    keys.mkdir(parents=True)
+    for n, (rc, out) in enumerate(stale_answers, 1):
+        (tmp_path / f"stale-{n}").write_text(f"{rc}\n{out}", encoding="utf-8")
+    body = "\n".join([
+        "set -euo pipefail", f'KEYS={keys} SCHEDULE={keys}/upgrade-schedule.json RPC=http://127.0.0.1:9 SO_DIR=/so', 'UPGRADES="knos_oidc knos_pay knos_meter knos_passkey"',
+        'die() { echo "stopped: $*" >&2; exit 1; }',
+        f'py() {{ if [ "$1" = hash ]; then basename "$2" .so; return; fi; echo "py $*" >> {calls}; n=$(grep -c "stale" {calls}); '
+        f'tail -n +2 {tmp_path}/stale-$n; [ "$(head -1 {tmp_path}/stale-$n)" = 0 ] || {{ echo "refused: pass --replace" >&2; return "$(head -1 {tmp_path}/stale-$n)"; }}; }}',
+        f'governance() {{ echo "governance $*" >> {calls}; [ "$3" != "${{FAIL:-}}" ] || {{ echo "refused: not a member" >&2; return 1; }}; echo "on chain now: proposal $3 of the upgrade multisig is cancelled: it can never be executed."; }}',
+        func, "withdraw_older", "echo PROPOSING"])
+
+    def run(replace: bool, **env) -> subprocess.CompletedProcess:
+        return subprocess.run([bash, "-c", f"REPLACE={int(replace)}\n{body}"], capture_output=True, text=True, timeout=60, env={"PATH": "/usr/bin:/bin", **env})
+    return keys, calls, run
+
+
+OLD = "1 knos_oidc a9dd1d07bad629cf1d43242ea927e811b43ae03122db814826fcaf5276847805 Approved\n2 knos_pay 69ec05b83e29b92fb255fd7f0cd52e128e04a4c9dbc5e16eecdc39caaafed9c9 Approved\n"
+
+
+def test_replace_withdraws_each_older_proposal_says_which_and_proposes_only_once_the_chain_shows_them_gone(tmp_path):
+    keys, calls, run = _withdraw_world(tmp_path, [(0, OLD), (0, "")])
+    (keys / "upgrade-schedule.json").write_text("{}", encoding="utf-8")
+    (keys / "upgrade-run.timer").write_text("systemd knos-upgrade\n", encoding="utf-8")
+    done = run(True)
+    assert done.returncode == 0, done.stderr
+    said = calls.read_text(encoding="utf-8").splitlines()
+    builds = "knos_oidc=knos_oidc knos_pay=knos_pay knos_meter=knos_meter knos_passkey=knos_passkey"      # every program's build is asked about
+    assert said == [f"py --replace stale {builds}", "governance cancel upgrade 1", "governance cancel upgrade 2", f"py --replace stale {builds}"]
+    out = done.stdout
+    assert "REPLACING proposal 1: knos_oidc, build a9dd1d07bad629cf1d43242ea927e811b43ae03122db814826fcaf5276847805 (Approved)" in out
+    assert "REPLACING proposal 2: knos_pay, build 69ec05b83e29b92fb255fd7f0cd52e128e04a4c9dbc5e16eecdc39caaafed9c9 (Approved)" in out
+    assert out.index("REPLACING proposal 2") < out.index("proposal 2 of the upgrade multisig is cancelled") < out.index("PROPOSING")
+    # the schedule of what was withdrawn is set aside, and a timer still arranged for it is named with the way to take it back
+    assert not (keys / "upgrade-schedule.json").exists() and (keys / "upgrade-schedule.json.withdrawn").exists()
+    assert "a timer for the withdrawn proposals is still arranged (systemd knos-upgrade)" in out and "bash scripts/schedule_upgrade.sh --cancel" in out
+
+
+def test_without_replace_or_when_a_withdrawal_did_not_happen_nothing_is_proposed(tmp_path):
+    keys, calls, run = _withdraw_world(tmp_path, [(5, "")])
+    refused = run(False)
+    assert refused.returncode == 1 and "PROPOSING" not in refused.stdout and "pass --replace" in refused.stderr
+    assert [c for c in calls.read_text(encoding="utf-8").splitlines() if c.startswith("governance")] == []       # nothing was cancelled without the flag
+    assert calls.read_text(encoding="utf-8").startswith("py stale ")
+    # a member key that cannot cancel: the script stops at that proposal
+    keys, calls, run = _withdraw_world(tmp_path, [(0, OLD), (0, "")])
+    failed = run(True, FAIL="1")
+    assert failed.returncode == 1 and "PROPOSING" not in failed.stdout and "proposal 1 (knos_oidc, build a9dd1d07" in failed.stderr and "was NOT withdrawn" in failed.stderr
+    assert "it can still be executed. Nothing was proposed" in failed.stderr
+    # the votes went out but the chain still shows one approved (one member key short of the threshold): not proposed
+    keys, calls, run = _withdraw_world(tmp_path, [(0, OLD), (0, OLD.splitlines()[1] + "\n")])
+    short = run(True)
+    assert short.returncode == 1 and "PROPOSING" not in short.stdout
+    assert "still not withdrawn: proposal 2 (knos_pay, build 69ec05b83e29b92fb255fd7f0cd52e128e04a4c9dbc5e16eecdc39caaafed9c9). Nothing was proposed" in short.stderr
+    # nothing in the way: said, and on to the proposing; the cluster not answering stops it
+    keys, calls, run = _withdraw_world(tmp_path, [(0, "")])
+    clear = run(False)
+    assert clear.returncode == 0 and "no older proposal that can still run" in clear.stdout and "PROPOSING" in clear.stdout
+    keys, calls, run = _withdraw_world(tmp_path, [(1, "")])
+    down = run(True)
+    assert down.returncode == 1 and "could not be read" in down.stderr and "PROPOSING" not in down.stdout
+
+
+def test_a_build_larger_than_the_programs_data_account_is_seen_and_the_extension_is_the_loaders_own_instruction():
+    ledger = Ledger()
+    where = mc.programdata_address(pay.IDS["knos_pay"])
+    assert d.room(ledger, "knos_pay") is None                      # not deployed
+    ledger.accounts[str(where)] = bytes(mc.PROGRAMDATA_HEADER) + bytes(383_744)     # devnet on 4 October 2026: twice the 2.0 build
+    assert d.room(ledger, "knos_pay") == 383_744
+    payer = Keypair()
+    ix = d.extend_ix(pay.IDS["knos_pay"], payer.pubkey(), 19_928)
+    assert str(ix.program_id) == d.LOADER and ix.data == bytes([6, 0, 0, 0]) + (19_928).to_bytes(4, "little")
+    assert [(str(a.pubkey), a.is_signer, a.is_writable) for a in ix.accounts] == [
+        (str(where), False, True), (pay.IDS["knos_pay"], False, True), ("11111111111111111111111111111111", False, False), (str(payer.pubkey()), True, True)]
+    for bad in (0, -1, 2 ** 32):
+        with pytest.raises(SystemExit, match="a program is extended by 1 to"):
+            d.extend_ix(pay.IDS["knos_pay"], payer.pubkey(), bad)

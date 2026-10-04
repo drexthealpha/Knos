@@ -18,6 +18,14 @@ name: knos attest (reusable workflow)
 # and rejected when it closed it unmerged, and posts it as `knos-eval:`. The meter counts it against credits the buyer
 # opened for this file at the commit the run used, from the run's first attempt only.
 #
+# The kinds batch and claim are knos_meter's batch mode (docs/METER.md). `repository` is then the repository that holds a
+# ledger file (the one the run is in), `order` is the file's path there, optionally followed by `:<yyyymm>.<seq>` to
+# name one batch, and `pull` is 0. The command reads the file through GitHub's API, recomputes every root and total of
+# it, and asks GitHub to sign ONE batch (knosm:batch or knosm:claim): the one named, or the first one the chain has not
+# taken. batch is the buyer's count, from a repository of the buyer, counted against the same credits and from the same
+# first attempt as eval; claim is the seller's own count, from a repository of the seller. Both are posted as
+# `knos-eval:`. A run that finds no new batch signs nothing and does not fail.
+#
 # What GitHub signs here, and why a run in a seller's own repository is trusted. The escrow does not take anyone's word,
 # the seller's included. It takes GitHub's signature, and the claims in it say which workflow file ran at which commit
 # (this one, at the commit the order recorded when it was funded), in which repository, started by whom, how (by
@@ -48,17 +56,18 @@ on:
         required: true
         type: string
       pull:
-        description: The pull request's number.
+        description: The pull request's number (0 for batch and claim, which name none).
         required: true
         type: number
       order:
         description: >-
           The work order's address on Solana. For eval, the evaluation instead, as order.milestone.rate: the work
-          order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted.
+          order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted. For batch and claim,
+          the ledger file's path in the repository, optionally followed by :yyyymm.seq to name one batch.
         required: true
         type: string
       kind:
-        description: What to ask GitHub to sign, one of pay, take, revert, rule and eval.
+        description: What to ask GitHub to sign, one of pay, take, revert, rule and eval, or batch and claim (knos_meter's batch mode).
         required: true
         type: string
       payees:
@@ -75,17 +84,18 @@ on:
         required: true
         type: string
       pull:
-        description: The pull request's number.
+        description: The pull request's number (0 for batch and claim, which name none).
         required: true
         type: number
       order:
         description: >-
           The work order's address on Solana. For eval, the evaluation instead, as order.milestone.rate: the work
-          order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted.
+          order's 32-byte id in hex, the milestone, and what the seller bills when it is accepted. For batch and claim,
+          the ledger file's path in the repository, optionally followed by :yyyymm.seq to name one batch.
         required: true
         type: string
       kind:
-        description: What to ask GitHub to sign, one of pay, take, revert, rule and eval.
+        description: What to ask GitHub to sign, one of pay, take, revert, rule and eval, or batch and claim (knos_meter's batch mode).
         required: true
         type: string
       payees:

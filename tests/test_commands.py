@@ -101,11 +101,11 @@ def test_amounts_are_plain_decimals_within_what_the_escrow_takes():
         assert "the amount is digits with at most 6 decimals" in bad(f"/knos tip {text}"), text
     assert "`000` is not something this command takes" in bad("/knos fund 1 000")
     assert "`reserve` needs a whole number" in bad("/knos fund 20 reserve ٣")              # digits are 0 to 9
-    for text in ("0", "0.999999", "500.000001", "501", "999999999"):
-        assert "the amount must be from 1 to 500" in bad(f"/knos fund {text}"), text
-        assert "the amount must be from 1 to 500" in bad(f"/knos tip {text}")
+    for text in ("0", "0.999999", "100000.000001", "100001", "999999999"):
+        assert "the amount must be from 1 to 100000" in bad(f"/knos fund {text}"), text
+        assert "the amount must be from 1 to 100000" in bad(f"/knos tip {text}")
     assert "the amount is missing" in bad("/knos tip") and bad("/knos tip").endswith("Type it like this: `/knos tip <amount>`.")
-    assert (c.MIN_UNITS, c.MAX_UNITS) == (1_000_000, 500_000_000)                        # knos-pay's MIN_AMOUNT and MAX_AMOUNT
+    assert (c.MIN_UNITS, c.MAX_UNITS) == (1_000_000, 100_000_000_000)                        # knos-pay's MIN_AMOUNT and MAX_AMOUNT
 
 
 def test_an_address_is_32_bytes_in_canonical_base58():

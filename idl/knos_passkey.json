@@ -1,5 +1,5 @@
 {
-  "version": "0.3.13",
+  "version": "0.3.14",
   "name": "knos_passkey",
   "docs": [
     "A wallet from a passkey: an account whose only authority is a WebAuthn (P-256) assertion, verified by Solana's secp256r1 precompile (SIMD-0075).",
@@ -10,7 +10,9 @@
     "Withdraw must come right after an instruction of Secp256r1SigVerify1111111111111111111111111 that verifies exactly one signature, with the key, the signature and the message in that instruction's own data:",
     "count u8 = 1, padding u8, then u16 LE signature offset, 0xFFFF, key offset, 0xFFFF, message offset, message length, 0xFFFF; the key is the wallet's 33-byte compressed key, the signature r || s with s <= n/2,",
     "the message authenticatorData || sha256(clientDataJSON). The clientDataJSON's type must be webauthn.get and its challenge the unpadded base64url of",
-    "sha256(\"knos-passkey\" || wallet || mint || to || amount u64 LE || nonce u64 LE). authenticatorData must have the user-present flag set."
+    "sha256(\"knos-passkey\" || wallet || mint || to || amount u64 LE || nonce u64 LE). authenticatorData must have the user-present flag set.",
+    "Fund (1.1) is checked the same way, over its own challenge: the unpadded base64url of sha256(\"knos-passkey:fund\" || knos_pay id || mint || the FundOrderWallet instruction data || expirySlot u64 LE || nonce u64 LE).",
+    "Fund's data after the discriminant: expirySlot u64, nonce u64, clientLen u16, clientDataJSON [clientLen], then the whole instruction data of knos_pay's FundOrderWallet (shown below as two `bytes` arguments; only the second runs to the end)."
   ],
   "instructions": [
     {
@@ -116,6 +118,108 @@
       "discriminant": {
         "type": "u8",
         "value": 1
+      }
+    },
+    {
+      "name": "Fund",
+      "docs": [
+        "1.1. A funder with only a passkey funds a knos_pay work order: the wallet signs one FundOrderWallet of the knos_pay this program is pinned to, with the very bytes the passkey signed for, and nothing else. Nobody signs this instruction: anyone may send it and pay the fee.",
+        "nonce must be the wallet's nonce plus one (the counter Withdraw uses) and becomes the wallet's nonce; the slot must not be after expirySlot. Money: the order's amount plus knos_pay's fee, from -> ov; what left is logged, no fee is computed here.",
+        "The wallet holds data, so it cannot pay rent: whoever sends the transaction sends the rent of `order` and of `ov` to those addresses first. When the order closes, knos_pay returns that rent to the wallet."
+      ],
+      "accounts": [
+        {
+          "name": "wallet",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"pk\", sha256(key)], open"
+        },
+        {
+          "name": "from",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "A token account of the mint owned by the wallet (its associated token account)"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint"
+        },
+        {
+          "name": "order",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The knos_pay order this FundOrderWallet creates, with the wallet as its funder"
+        },
+        {
+          "name": "ov",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The order's own token account, of knos_pay"
+        },
+        {
+          "name": "payAuth",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "knos_pay's token authority"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "SPL Token or Token-2022: the mint's owner"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "pause",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "knos_pay's pause account"
+        },
+        {
+          "name": "knosPay",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The knos_pay program this build is pinned to"
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The instructions sysvar"
+        }
+      ],
+      "args": [
+        {
+          "name": "expirySlot",
+          "type": "u64"
+        },
+        {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
+          "name": "clientLen",
+          "type": "u16"
+        },
+        {
+          "name": "clientDataJson",
+          "type": "bytes"
+        },
+        {
+          "name": "fundOrderWallet",
+          "type": "bytes"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
       }
     }
   ],
@@ -228,6 +332,16 @@
       "code": 122,
       "name": "From",
       "msg": "from is not a token account of this mint owned by the wallet, or is the destination"
+    },
+    {
+      "code": 123,
+      "name": "Expired",
+      "msg": "the slot is past the expiry slot the passkey signed for"
+    },
+    {
+      "code": 124,
+      "name": "Fund",
+      "msg": "not a FundOrderWallet instruction of the pinned knos_pay"
     }
   ],
   "metadata": {

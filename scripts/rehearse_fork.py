@@ -234,7 +234,7 @@ class Rehearsal:
             self.send([oidc.step_ix(me, tid, self.key, squarings)])
         token = oidc.token_pda(me, tid)
         self.expect(oidc.read_token(self.data(token)).stage == 2, "the token was written and stepped, but the verifier does not call it verified")
-        self.jwt = jwt          # the pay token's single-use marker is derived from it (pay.used_pda)
+        self.jwt = jwt          # the token's single-use marker is derived from it (pay.used_pda): every instruction that takes a token makes it
         return token
 
     # ---- the steps --------------------------------------------------------------------------------------------------------
@@ -342,7 +342,7 @@ class Rehearsal:
         token = self.gh(aud, "fund.yml", event_name="issue_comment", actor_id=MAINT, repository_id=OWNER_REPO, repository_owner_id=OWNER)
         self.ok(f"the comment's token {token} is verified on chain by knos-oidc ({time.monotonic() - t0:.0f} s, written in pieces and stepped, "
                 f"no program of ours trusts anything but that)")
-        sig = self.send([pay.fund_balance_ix(self.relayer.pubkey(), token, self.key, self.bal, USDC_MINT, OWNER_REPO, issue, TERMS)])
+        sig = self.send([pay.fund_balance_ix(self.relayer.pubkey(), token, self.key, self.bal, USDC_MINT, OWNER_REPO, issue, TERMS, used=pay.used_pda(self.jwt))])
         self.job_b = pay.job_pda(OWNER_REPO, issue, self.bal)
         job = pay.read_job(self.data(self.job_b))
         self.expect(job is not None and job.from_balance and job.amount == amount and job.funder_id == MAINT, "the comment did not fund an open job from the Balance")

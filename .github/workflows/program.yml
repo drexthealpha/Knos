@@ -142,6 +142,13 @@ jobs:
           # and the meter's (a program the first deployment never had) is knos_meter_*.
           if [ "$DEPLOYMENT" = second ]; then find tests/fixtures \( -name '*_v2_*.so' -o -name 'knos_meter_*.so' \) -delete; else find tests/fixtures -name '*.so' ! -name '*_v2_*' ! -name 'knos_meter_*' -delete; fi
           bash "$BUILD"
+      # The instruction handlers of the four programs, driven from Rust: programs-v2/handlers (a crate of its own, outside
+      # the programs' workspace and lockfile) sends the signed transactions of programs-v2/testdata/*.json, written by
+      # scripts/rust_test_vectors.py, to the binaries the step above built, in the litesvm crate, and asserts every
+      # answer, balance and account. It can load nothing this commit did not build.
+      - name: cargo test (the instruction handlers, from Rust, against the binaries this commit built)
+        if: matrix.deployment == 'second'
+        run: cd programs-v2/handlers && cargo test --locked
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: programs${{ matrix.suffix }}

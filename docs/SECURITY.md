@@ -4,19 +4,29 @@ Who has to be trusted for what, what a signed statement covers, and what it does
 names the file or the test that backs it. The authority on what the programs do is the documentation at the top of
 each source file in [`programs-v2`](../programs-v2).
 
-This page describes Knos 0.3.13: `knos-pay` 2.1 and `knos-oidc` 2.1 (an upgrade of the second deployment at the same
-addresses), and two new programs, `knos-meter` and `knos-passkey`. The upgrade was proposed and approved by the
-multisig on 2026-10-04 07:17 UTC and can execute from 2026-10-06 07:17 UTC. Until it executes, the
-deployed escrow and verifier are 0.3.12's, and what this page says about work orders, judges, any-issuer keys and
-single-use pay tokens is not live yet ([section 8](#8-versions-and-what-is-live-when)). Knos runs on Solana devnet,
-the money is test USDC, and no outside security firm has reviewed anything. Report a vulnerability privately:
+This page describes Knos 0.3.14: `knos-pay` 2.1 and `knos-oidc` 2.1 (an upgrade of the second deployment at the same
+addresses), `knos-meter` 1.1 and `knos-passkey` 1.1. The 2.1 builds that 0.3.13 proposed never ran: a defect was
+found in the proposed escrow during its 48-hour delay ([section 15](#15-tokens-public-bound-to-one-action-used-once)),
+and this release withdraws those proposals and proposes corrected builds in their place. Until the new proposal
+executes, the deployed escrow and verifier are 0.3.12's, and what this page says about work orders, judges,
+any-issuer keys, GitLab and the single-use rule is not live ([section 8](#8-versions-and-what-is-live-when)).
+The 2.1 proposal on chain when the release last filled this page was proposed and approved by the multisig on
+2026-10-04 07:17 UTC and can execute from 2026-10-06 07:17 UTC. Whether a proposal is still pending, has run, or
+was replaced is in [`web/upgrades.json`](../web/upgrades.json), read from the chain, and that file, not this
+sentence, is the record.
+
+Knos runs on Solana devnet and the money is test USDC. **Nobody outside Knos has reviewed the security of
+anything here:** not the programs, the workflows, the relay, the clients, the site or these documents. What the
+programs guarantee about money, one sentence each with its test, is in [INVARIANTS.md](INVARIANTS.md); who can
+change the programs is in [GOVERNANCE.md](GOVERNANCE.md). Report a vulnerability privately:
 [SECURITY.md](../SECURITY.md).
 
 ## The short version
 
 - A work order's money sits in a token account of its own, owned by a program, `knos-pay`. It is not with Knos and
   not with the repository.
-- The program pays only on a token that GitHub signed and that a second program, `knos-oidc`, verified on chain.
+- The program pays only on a token that GitHub signed (or, for an order of a GitLab project, gitlab.com) and that a
+  second program, `knos-oidc`, verified on chain. Every such token is accepted once, by one instruction.
 - GitHub signs which workflow ran, at which commit, in which repository, started by whom, by which event, and on
   which kind of runner. It does not sign what that workflow read. That the named checks passed, and who is paid, is
   the pinned workflow's own reading of GitHub's record.
@@ -26,13 +36,15 @@ the money is test USDC, and no outside security firm has reviewed anything. Repo
   ([section 2](#2-the-four-judges-who-is-trusted-in-each-and-what-each-could-do-wrong)).
 - A statement moves the money of one order and nothing else.
 - Until an outside review, Knos can change every program through a multisig, after a public 48-hour delay. Today
-  one person holds every key of that multisig.
+  one person holds every key of that multisig, so the delay is notice and not a second opinion
+  ([GOVERNANCE.md](GOVERNANCE.md)).
 
 ## Who you trust, and for what
 
 | party | trusted for | not trusted for |
 |---|---|---|
 | **GitHub** | signing true statements about a workflow run; keeping its signing keys; answering its API truthfully; running a GitHub-hosted runner of a personal account on its own image | it cannot move money. It signs statements, and the programs check them |
+| **GitLab** (gitlab.com), for an order of a GitLab project only | the same, for a pipeline: signing true claims, keeping its keys, answering its API | it cannot move money, and its tokens act on no GitHub repository's order |
 | **Solana** | running the programs as written | |
 | **The judge of an order** (one of four, section 2) | everything a pay token says beyond GitHub's signature | any order but the one it judges |
 | **The pinned workflows and the `knos` release they install** | reading GitHub's record as the terms say. They are fixed by commit and by hash, so they are the same code for everyone | |
@@ -75,6 +87,20 @@ organisations and enterprises on paid plans), so a `github-hosted` run in a repo
 own image. Two rules of the programs rest on that: the neutral judge (section 2, b) and Refresh by anyone
 ([section 5](#5-signing-keys-any-issuer-refresh-by-anyone-private-keys)). If GitHub changes this, both rules
 become unsafe and need an upgrade.
+
+**GitLab.** The verifier has checked gitlab.com's signature since 2.0; from this release the escrow reads GitLab's
+claims too, so a GitLab project can fund an order and be paid on a merge to a protected branch. The claims it
+reads are GitLab's own names for the same facts
+([GitLab's documentation of the ID token](https://docs.gitlab.com/ci/secrets/id_token_authentication/)):
+`project_id` and `namespace_id` (the project and its owner, as numbers), `user_id` (who started the pipeline),
+`pipeline_source` (how), `ref` and `ref_protected` (the branch, and whether it is protected), `ci_config_ref_uri`
+and `ci_config_sha` (which pipeline definition ran, fixed by commit, as `job_workflow_ref` and `job_workflow_sha`
+are for GitHub) and `sha`. Scopes and ids are namespaced by issuer, so a GitLab project id can never be taken for a
+GitHub repository id. What is trusted is the same in kind: gitlab.com signs which pipeline ran, not what it read,
+and a project's maintainers control its runners. The rule about personal accounts and runner images above is a
+rule of GitHub's; nothing equivalent was established for GitLab, so the neutral judge and Refresh by anyone remain
+GitHub-only. The source of [`knos_pay`](../programs-v2/knos_pay/src) says exactly which claims each instruction
+requires.
 
 ## 2. The four judges: who is trusted in each, and what each could do wrong
 
@@ -208,12 +234,13 @@ replaces a binding a person made himself (`test_a_collaborator_cannot_rebind_a_p
 The funder cannot take it back in that time. When they bind a wallet, anyone can send `SettleOrder`. After 180
 days it goes back to the funder.
 
-**The fee.** The funder pays it on top of the amount: 2.5%, at least 0.40 and at most 25 whole units of the mint
-(`order_fee` in [`lib.rs`](../programs-v2/knos_pay/src/lib.rs)). It waits in the order's account. At the payment,
+**The fee.** The funder pays it on top of the amount, in marginal tiers: 2.5% of the first 1,000 whole units of the
+mint, 1% from 1,000 to 50,000, and 0.5% above; at least 0.40; no maximum. It is one pure function, `order_fee` in
+[`lib.rs`](../programs-v2/knos_pay/src/lib.rs), tested at the tier edges. It waits in the order's account. At the payment,
 the payees receive their full shares; the relayer that paid for the transaction receives a tip out of the fee (0.05,
 or 0.30 when the transaction created a payee's token account); the rest goes to `FEE_OWNER`, an address of Knos's
 that has one other power: it can lower the rate of the orders funded from one repository owner's Balances, under a
-contract (`SetPlan`, between 0.5% and 2.5%, until an expiry). A refund returns amount and fee.
+contract (`SetPlan`: the first tier's rate, between 0.5% and 2.5%, until an expiry). A refund returns amount and fee.
 
 ## 5. Signing keys: any issuer, refresh by anyone, private keys
 
@@ -234,7 +261,7 @@ verified that token is itself usable (`test_an_attestation_counts_only_while_the
 program stores the URL with the issuer's first key, and `Step` requires a token's `iss` to be that URL. Who is
 trusted for such a key: GitHub's signature, the name resolution and the certificate of the issuer's site at the
 moment of that fetch, the one account whose run counts, and the guardian. A program that reads tokens chooses which
-issuers it accepts. `knos-pay` and `knos-meter` accept GitHub's only.
+issuers it accepts. `knos-pay` accepts GitHub's and gitlab.com's; `knos-meter` accepts GitHub's only.
 
 **A one-day delay, then the guardian's approval.** A key admitted by an attestation verifies nothing for a day and
 nothing at all until the guardian approves it. An attestation alone admits no key, and the guardian alone admits
@@ -263,7 +290,14 @@ Balance that the same wallet opened. The token is then the word of the wallet wh
 `test_what_a_token_under_a_key_that_is_not_githubs_cannot_do`).
 
 **When keys run out.** If no usable key of GitHub's is left, nothing can be verified and nothing can be attested.
-The escrow is then refund-only. Getting out takes an upgrade of the verifier.
+The escrow is then refund-only. Getting out takes an upgrade of the verifier. [GOVERNANCE.md](GOVERNANCE.md),
+section 8, says who refreshes, how anyone can, and what follows if nobody does; [DRILLS.md](DRILLS.md) has the
+funder's steps.
+
+**Refresh by anyone still needs one account to exist.** The pinned rotate workflow is a file in a repository of
+the account drexthealpha. A run "by anyone" calls that file. If the account were suspended, GitHub could not fetch
+it, nobody could make the attestation, and every key would expire within 30 days
+([GOVERNANCE.md](GOVERNANCE.md), section 9).
 
 ## 6. The guardian
 
@@ -294,10 +328,19 @@ The upgrade authority of all four programs is the vault of a Squads multisig
   `scripts/governance.mjs upgrade propose` refuses a buffer that has no record unless it is told `--ungated`, and
   `knos status` says whether a pending upgrade's buffer has one. The record says which commit to read. It does not
   say the commit is good, and the multisig itself does not require it: the refusal is in the script.
-- **Who is told.** `knos status` fails while an upgrade is pending and prints it, and the site shows a banner with
-  the buffer and the time it can run. Nothing pushes that notice to a funder: no comment is posted on repositories
-  with open orders. The notice protects someone who looks.
-- **Today every member key is the founder's.** So the delay, not the number of signers, is what protects users.
+- **Who is told.** `knos status` fails while an upgrade is pending and prints it, and the site shows a banner on
+  every view with the buffer and the time it can run. Every proposal is also written to
+  [`web/upgrades.json`](../web/upgrades.json) and to an Atom feed beside it (`upgrades.xml`), with the program, the
+  proposed build's hash, its source commit, the earliest time it can run and its status, so that a funder can
+  subscribe once instead of looking ([`scripts/upgrade_feed.py`](../scripts/upgrade_feed.py)). The feed is
+  rewritten when the site is built. Nothing is pushed beyond that: no comment is posted on repositories with open
+  orders. The notice protects someone who looks or who subscribed.
+- **Today every member key is the founder's.** The multisig is 2-of-3 and one person holds all three keys. So the
+  delay gives notice, not independent oversight: nobody else must agree and nobody else can refuse
+  ([GOVERNANCE.md](GOVERNANCE.md) has what an independent signer would check and how one would be added; none has
+  agreed).
+- **The delay has been used once.** The 2.1 build proposed by 0.3.13 carried a defect that was found during its 48
+  hours; it never ran, and the release of 0.3.14 cancels its proposal and proposes a corrected build (section 15).
 - **What an upgrade could do: anything**, including taking every vault and every order's money. The delay is the
   protection.
 - **On devnet the multisig program is itself upgradeable.** Squads v4 has no upgrade authority on mainnet. On devnet
@@ -317,13 +360,24 @@ orders whose deadline falls inside it.
 | who may sign a payment | the funder's repository | the funder's repository | one of four judges (section 2) |
 | the fee | from the payment | from the payment | paid by the funder on top |
 | after the pay token | a veto window | final at once | final at once, but for a holdback the funder set at funding |
+| the fee's size | 2.5% | 2.5% | tiers: 2.5%, 1%, 0.5%; at least 0.40 |
+| the most one holds | 500 | 500 | 100,000 on devnet |
+| what makes a token single-use | see [`programs`](../programs) | the bounty closing; a fund token by being newer than the Balance's last | one marker rule for every token (section 15) |
 | live | yes, for the bounties funded there | yes | from the moment the upgrade executes |
 
-The upgrade keeps every 2.0 instruction's bytes and behaviour, except four fixes that take effect for 2.0 bounties
-too when it executes: whole-unit limits, the extension list, the Balance's side account, and single-use pay tokens.
+2.1 was first proposed by 0.3.13 and never executed. The 2.1 of this release is the corrected build: the same
+version name, different bytes, a new proposal and a new 48 hours. Release builds of every program in `programs-v2`
+are compiled with `overflow-checks = true` from this release; before it, arithmetic the source did not check
+explicitly would have wrapped silently.
+
+The upgrade keeps every 2.0 instruction's bytes and behaviour, except these fixes that take effect for 2.0 bounties
+too when it executes: whole-unit limits, the extension list, the Balance's side account, and the single-use rule
+for every token.
 Audiences of the new paths start `knos3:`, so no token of one generation is good for the other. `knos-meter` and
-`knos-passkey` are new programs at their own addresses, live once the release run has deployed them. Neither calls
-the escrow, so the relay carries their evaluations and withdrawals from then, before the upgrade executes.
+`knos-passkey` are programs at their own addresses, live once the release run has deployed them. The meter never
+calls the escrow, and a passkey wallet's withdrawal does not either, so the relay carries evaluations and
+withdrawals from then, before the upgrade executes. A passkey wallet's `Fund` does call the escrow's
+`FundOrderWallet`, so it works only once 2.1 is live.
 
 Mainnet will be different program ids and Circle's mint. Nothing is deployed there.
 
@@ -338,6 +392,8 @@ Mainnet will be different program ids and Circle's mint. Nothing is deployed the
 | The upgrade keys are stolen | a hostile upgrade is public for 48 hours before it can run. The members can cancel it | withdrawals of Balances at once; orders as section 7 says |
 | The buyer's repository deletes its workflow after a merge | nothing, by itself. In a public repository the seller starts the neutral run (section 2) | the payment |
 | Knos's public relay stops | tokens wait as comments | anyone can relay with `knos relay`, and a payment tips whoever does; a repository with a relay key relays its own |
+| Knos's GitHub account is suspended | the published workflows cannot be fetched, so no new token is signed for an order that pinned them; no key can be refreshed | refunds, withdrawals, settlements to a bound wallet, releases. A funded order can only be refunded ([GOVERNANCE.md](GOVERNANCE.md), section 9) |
+| Devnet is reset | every account is gone: programs, orders, Balances, keys, the multisigs | nothing on chain. It is test money. The programs are deployed again and funders fund again ([DRILLS.md](DRILLS.md)) |
 | Knos disappears | no new key can be approved. Keys GitHub still publishes are kept alive by anyone | payments under those keys; refunds and withdrawals, for ever |
 
 The three emergency tools, and their reach: a **pause** stops new funding and nothing else, for at most 7 days per
@@ -346,7 +402,8 @@ after it is approved in public.
 
 ## 10. Recovery without GitHub, and without Knos
 
-These need no token. Anyone can send them, and none reads the pause:
+These need no token. Anyone can send them, and none reads the pause ([INVARIANTS.md](INVARIANTS.md), invariant 6,
+says exactly what a sender needs):
 
 - **Refund.** An order with no payment by its deadline goes back where it came from, amount and fee
   (`test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before`).
@@ -368,6 +425,9 @@ wallet's choice. With none, whoever can change the workflow files on the default
 owner can make the owner's next comment fund any issue there. With one, the damage of a compromised repository is
 bounded by the day's limit and the list of repositories. A wallet-funded order needs no Balance and trusts nobody
 but the judge it names.
+
+**Bounds.** An order holds between 5 and 100,000 whole units on devnet. The upper bound is a devnet number: a
+mainnet build decides its own cap, and none has been decided.
 
 **Mints and extensions.** Limits and the fee floor are in whole units of the mint, read from the mint's decimals
 (`test_a_jobs_bounds_and_fee_floor_are_whole_units_of_its_mint`). The public record counts money as real only in
@@ -426,6 +486,9 @@ Nothing is posted in public only when the repository relays its own tokens, with
   no secret, its token can only read the repository, and it uses no cache. It, and the `review` job that writes the
   check's comment, install `knos` by version, not by hash. So a dependency published after the release could run
   in those two jobs. Neither can sign. What the `attest` job takes from `judge` is one fact, that it succeeded.
+- **The hermetic judge, an option.** A repository can instead name the judge's image by its sha256 digest, so that
+  what judges a submission is fixed by content and nothing is installed by version when the job runs. It is not the
+  default: an order that does not ask for it is judged as the line above says.
 - **The release.** The list is `requirements/sign.txt` of this repository plus one line: the `knos` package of the
   release, by the sha256 of the file that was built ([`scripts/pinned_workflows.py`](../scripts/pinned_workflows.py)).
   So the commit of the workflows names the hash of everything a signing job installs.
@@ -445,25 +508,60 @@ Everything that runs a pull request's code runs as another user (uid 65534) with
 tests run with no network. The repository's own acceptance bundles are removed from the work tree before the
 submission runs ([`src/knos/judge.py`](../src/knos/judge.py)). That is a separation between users on one machine,
 not a virtual machine. A flaw in the runner's kernel or image that lets one user become another would let a pull
-request write its own verdict. The dependency install does have the network.
+request write its own verdict. The dependency install does have the network. The hermetic option (section 13)
+fixes the judge's image by digest; it does not turn the user boundary into a machine boundary.
 
 ## 15. Tokens: public, bound to one action, used once
 
 A token is not a secret. A workflow without a relay key posts it as a comment, and anyone may carry it to the
-chain. What it can do is fixed by its claims and its `aud`, and each works once:
+chain. What it can do is fixed by its claims and its `aud`, and it does it once.
 
-| token | made single-use by |
-|---|---|
-| fund an order from a Balance (`knos3:fund`) | a marker account keyed by the hash of the token's signature. Tokens of one Balance may arrive in any order |
-| pay an order (`knos3:pay`), a ruling (`knos3:rule`) | the order closes when it is paid. A standing order marks each pull request it has paid. A second order cannot be paid with it: the audience names the order's address |
-| pay a 0.3.12 bounty (`knos2:pay`) | the same kind of marker: one token pays, or holds, exactly one bounty (`test_a_pay_token_pays_exactly_one_job`) |
-| fund a 0.3.12 bounty (`knos2:fund`) | newer than the Balance's last. A later token that lands first makes an earlier one useless, and the funder comments again. Orders do not have this limit |
-| bind a wallet | newer than the last binding |
-| count an evaluation (`knosm:eval`) | a marker per work order, artifact, policy and milestone |
+**One rule for every token `knos_pay` takes.** Each instruction that takes a signed token creates the marker account
+`["used", sha256(the token's signature)]` once it has decided to accept the token and before it changes anything
+else, and refuses the token with error 91 when that marker already exists. The marker is named by the token alone,
+not by the order, the job or the wallet the token is about. So the same token is never accepted twice, by the same
+instruction or by another one, whatever the other accounts hold by then.
+
+| instruction | token | what a second use of the same token does |
+|---|---|---|
+| `FundOrderBalance` | fund an order from a Balance (`knos3:fund`) | refused. Tokens of one Balance may arrive in any order |
+| `PayOrder` | pay an order (`knos3:pay`), a ruling (`knos3:rule`) | refused, also when the order was paid and a later funding put a new order at the same address, and also when the first use only held the order for a payee without a wallet |
+| `Revert` | return a holdback (`knos3:revert`) | refused, also for the holdback of a later order at the same address |
+| `Reserve` | take an order (`knos3:take`) | refused, also after the reservation has run out |
+| `Cancel` (a Balance's order) | give notice (`knos3:cancel`) | refused, also for a later order at the same address |
+| `Pay` | pay a 0.3.12 bounty (`knos2:pay`) | refused: one token pays, or holds, exactly one bounty |
+| `FundBalance` | fund a 0.3.12 bounty (`knos2:fund`) | refused. It must also be newer than the Balance's last: a later token that lands first makes an earlier one useless, and the funder comments again. Orders do not have this limit |
+| `Bind`, `BindOrg` | bind a wallet | refused. It must also be newer than the last binding |
+| `FaucetOpen` (devnet only) | the fund token of a faucet Balance | refused. The faucet marks the token as minted on, and the funding instruction that follows is the one thing that still takes it; after that it is used |
+
+`knos_meter` counts an evaluation (`knosm:eval`) once by its own marker, per work order, artifact, policy and
+milestone.
+
+**An order's `not_before` is the chain's time at its funding** (less 30 seconds for clock difference), never a
+token's issue time. A pay, take or cancel token issued before an order was funded is refused by that order, so an
+order funded again at an address does not inherit the tokens of the order that was there before.
+
+**What 0.3.13's build did not hold.** In the build tagged 0.3.13, `PayOrder` made no marker, and an order funded from
+a Balance took its `not_before` from the fund token's issue time. An order's address is the same for every funding
+of one issue from one Balance under one number. So with two fund comments on one issue, relaying the second fund
+token after the first order was paid re-created the order at the same address, and the pay token that had paid the
+first order paid the second too: a payee received 200 on a 100 order, and the Balance lost 205. `Revert`, `Reserve`
+and `Cancel` took their tokens without a marker in the same way. This was found before that build went live on any
+cluster, only test USDC was ever involved, and that build is not the one proposed for upgrade. It is fixed here by
+the two rules above. `tests/test_double_pay.py` reproduces the
+sequence and requires the second payment to be refused, the payee to hold 100 and the Balance to be down 100 and
+one fee; it also sends every token-taking instruction's accepted token a second time, with the accounts as they are
+and with the accounts made again, and requires that no token account anywhere changes.
+
+**What this costs.** Every instruction that takes a token pays the rent of one 41-byte marker (from the relayer,
+returned later) and about 40,000 more compute units than without one: `PayOrder` to one payee measured 115,036
+units before and 154,764 after, in the simulator (the later figure also has overflow checks on).
 
 Every token stops working an hour after its expiry, and one dated more than five minutes ahead of the chain's clock
-is refused. A marker can be closed, and its rent returned to whoever paid it, only once no token it stands for can
-be accepted (`test_a_used_marker_is_closed_once_no_token_it_stands_for_can_be_accepted`).
+is refused. A marker stores who paid its rent and the time after which no instruction could accept its token
+anyway; from then `CloseMarker` closes it and returns the rent to whoever paid it
+(`test_a_used_marker_is_closed_once_no_token_it_stands_for_can_be_accepted`,
+`test_a_marker_gives_its_rent_back_once_no_instruction_could_take_the_token`).
 
 ## 16. The check, its memory, the Stop hook and the MCP tools
 
@@ -490,9 +588,16 @@ A payee with no wallet app can be paid at an address derived from a WebAuthn pas
 ([`programs-v2/knos_passkey`](../programs-v2/knos_passkey)). Money leaves it only on an assertion of that passkey
 that names the mint, the destination, the amount and a number used once. Solana's own secp256r1 instruction checks
 the signature; the program checks what was signed. Nobody signs the transaction but its fee payer, so a relay can
-carry it. No key of Knos's is named in the program. The program never calls the escrow, so the public relay carries
-a withdrawal from the moment `knos-passkey` is deployed, whatever the escrow's version, and refuses one only on a
+carry it. No key of Knos's is named in the program. A withdrawal never calls the escrow, so the public relay carries
+one from the moment `knos-passkey` is deployed, whatever the escrow's version, and refuses one only on a
 cluster where the program is not deployed (`test_a_passkey_withdrawal_request_is_simulated_then_sent_at_the_relays_cost`).
+
+**Funding with a passkey (1.1).** A funder who has only a passkey can fund an order: `Fund` moves test USDC from
+the passkey wallet into an order of `knos-pay` (a call to `FundOrderWallet`), on an assertion over a challenge that
+binds the hash of the order's terms, the amount and a slot after which the assertion is no longer accepted. A
+relayer pays the transaction fee, so the funder needs no SOL and no wallet app. What the funder cannot see is the
+same as for a withdrawal: the authenticator shows the site, not the terms or the amount, so the page is trusted to
+have hashed what it showed. The order refunds to the passkey wallet.
 On devnet the site shows and withdraws Circle's USDC and the faucet's test USDC, which a bounty funded by comment pays.
 
 What is trusted:
@@ -537,12 +642,128 @@ somebody prepaid ([`programs-v2/knos_meter`](../programs-v2/knos_meter)).
   never go below zero, and only the wallet that opened them withdraws them.
 - A token under a private key, a revoked key or an expired key counts nothing.
 
+**Batch mode (1.1).** A single evaluation writes one account, whose rent is more than the evaluation's price. A
+batch writes none per evaluation: `RecordBatch` takes one signed token that carries the buyer, the seller, the
+month, a sequence number, the count, how many were accepted, their value and a 32-byte Merkle root, and adds them to
+one Ledger account per buyer, seller and month, which keeps totals and a running hash of every batch.
+
+- A batch token is taken once: its sequence number must be the Ledger's next.
+- The fee is the count times the rate beyond the month's free allowance, from Credits, and a batch Credits cannot
+  pay is refused whole.
+- **The program stores the root and does not check it.** It cannot see the evaluations. That the root covers the
+  evaluations it claims is checked off chain, by anyone who holds the ledger file
+  ([`src/knos/ledger.py`](../src/knos/ledger.py)): every root and the running hash are recomputed and compared with
+  the chain, and one evaluation's inclusion can be proved.
+- **A buyer can leave events out.** The count is the buyer's. `ClaimBatch` is the seller's own count, from a
+  repository the seller owns, written beside it at no fee. Two different counts on chain show that the sides
+  disagree; which events are missing is found by comparing the two ledger files, not by the program.
+
+## 19. Paid without a merge, challenged, and judged by more than one
+
+Three options of a work order in knos_pay 2.1 change who has to say yes before money moves. Each is the funder's
+choice at funding: it is in the order's options, which the fund token (or the funding wallet's own signature)
+fixes, and it cannot be changed afterwards. None of the three has run on devnet: the tests
+(`tests/test_order_auto.py`, `tests/test_order_quorum.py`) run them in a simulator, on builds made for testing.
+
+**Auto-accept (`/knos fund ... auto`, flag 32).** The first pull request that passes the order's black-box
+acceptance suite is paid, unmerged, to its author. The program takes it only on an order funded in tests mode
+(mode 1), which is the mode the pinned workflow gives only to a black-box bundle; funding an `auto` order in
+merge mode is refused. The token's audience is `knos3:auto:<order>:<head sha>:<terms hash>:1:<pr>:<payee>`, from
+the pinned `prove.yml` run in the order's own repository.
+
+- What the buyer trusts: the pinned suite at the pinned commit. That is the workflow file at the commit the order
+  recorded (it decides that the bundle is black-box, that the head is still the pull request's, that the changed
+  paths are within the terms, and who the author is) and the acceptance bundle whose hash is in the terms. No
+  merge, review, label or comment is asked, and none can stop the payment short of the deadline or a cancel's
+  notice.
+- What the program enforces: the order's own repository and pinned workflow, a first attempt, the order's terms
+  hash, one payee, the order's deadline, and, while the order is reserved, that the payee is the taker. The token
+  is used once, like every token. The first passing pull request closes the order; a second token finds nothing
+  open. An order funded without `auto` refuses every such token.
+- What it does not: a pull request that fools the suite is paid. The measured count for the black-box judge is
+  0 of 63 cheating pull requests in Knos's own suite ([TAMPER.md](TAMPER.md)), which is a count for that suite
+  and not a proof. A funder who wants a second look combines `auto` with a holdback and a warranty, so that part
+  of the money can still be challenged, or with a quorum.
+
+**Challenge (Revert, instruction 19).** While an order is in its warranty, its holdback and the fee on it are
+still in the order. For an order that allows a neutral run, anyone can challenge the payment: he starts the pinned
+`attest.yml` by hand (kind `revert`) in a repository of his own. It reads GitHub's record of the order's repository
+and signs `knos3:revert:<order>:<head sha>` only when a commit on the default branch after the merge reverts the paid
+pull request's merge commit (its message says `This reverts commit <merge sha>`, as `git revert` and GitHub's Revert
+button write it). It does not run the acceptance checks on the head again, and it signs nothing for a pull request
+that was not merged, so an `auto` payment, which is made unmerged, cannot be challenged by a neutral run today: only
+the program would take such a token. Revert then returns everything the order still holds to its funder. After the
+warranty the same token is refused and Release pays the holdback. Rehearsed on devnet on the staging programs in
+0.3.14: a `quorum 2` order with a 20% holdback, its merge reverted, a neutral run by an account that was not its
+funder, and Revert returned the holdback and its fee.
+
+- No bond is asked of a challenger. A bond prices false challenges; here a false challenge cannot be made, because
+  the token is GitHub's signature over a run of the pinned file at the pinned commit on a GitHub-hosted runner,
+  and that file decides what it signs, not the person who started it. A challenge costs one transaction fee and
+  the rent of the token's marker.
+- Limits. What was already paid stays paid: a challenge returns the holdback only. The order keeps no record of
+  the head it paid, so that the head a challenge names is the one that was paid is the pinned workflow's word,
+  not the program's. An order funded with `neutral off` is challenged only from its own or its judge repository.
+  A judge that is not deterministic can fail a head it passed before; the hermetic judge pinned by image digest
+  is the answer to that, and it is not required by the program.
+
+**Quorum (`/knos fund ... quorum 2` or `quorum 3`, the two high bits of the flags).** PayOrder pays only when
+that many distinct judges have each passed the same artifact: the same head commit, terms, mode, pull request and
+payees. The judges are a. the order's own repository's run, b. a neutral run, c. the judge repository the order
+names. Each judge before the last leaves a marker `["q", order, kind]`; the last one pays. Two tokens of the same
+kind count once. A marker's rent goes back to whoever paid it (CloseMarker) once its order is no longer the open
+order it was made for. A marker left by an earlier order at the same address counts for nothing.
+
+- The three marker accounts are fixed addresses and all three are always passed, so a relayer can neither count
+  one judge's marker as another's nor hide one to use up the last judge's token without paying.
+- A neutral run counts toward a quorum only as a third party's: not one in the order's own repository, and not
+  one started by the account that funded the order or owns its Balance.
+- Limits. GitHub does not sign who a person is beyond an account id, so two accounts of one person are two
+  judges: a quorum raises the cost of a false payment, it does not prove independence. The judge repository is
+  the funder's choice. A quorum is refused at funding when the order cannot have that many judges, on a standing
+  order and on a private order. The arbiter's ruling pays without a quorum, as both sides accepted at funding.
+
+Compute, measured in the simulator (it varies by a few thousand units with the addresses involved): PayOrder on an
+auto token about 90,000 units, or about 176,000 when it creates the payee's token account; a challenge 86,000 to
+98,000; PayOrder on an order with a quorum about 120,000 for a judge who is recorded and about 176,000 for the
+one who pays and creates the payee's token account.
+
+**What is built end to end, and what has run.** Every step from the funding comment to the payment exists in code
+and is tested against stand-ins for GitHub and the chain; none of it has run on a cluster.
+
+- Funding. `/knos fund ... auto` and `quorum 2` are parsed (`src/knos/commands.py`); the workflow's fund word puts
+  them into the order's options, which the fund token signs, and the reply says both in plain sentences
+  (`src/knos/flow.py`, `tests/test_flow_orders.py`). `auto` is refused, with what to add, when the issue has no
+  black-box acceptance checks; a quorum is refused when the order cannot have that many judges. A public order has
+  two (its own repository's run and a neutral run), so `quorum 3` is refused by a comment today: the third judge
+  is a judge repository, which only a private order names, and a private order takes neither option.
+- Payment. The pinned `prove.yml` is unchanged in its jobs, events and permissions: the judge job runs the
+  submission with no id-token, and the attest job, which checks nothing out and runs none of that code, asks
+  GitHub for one token. `knos settle --tests` chooses its audience: `knos3:auto` when the order has the flag and
+  the pull request is open, `knos3:pay` otherwise. The token is posted for the relay as a pay token is, and the
+  relay carries it (`src/knos/settle/v2/relay.py`).
+- Who is paid. On an `auto` order an open pull request pays its author, and that author may be an agent's own
+  GitHub account (type Bot); such an account may also reserve the order with `/knos take`. Everywhere else a bot's
+  pull request still pays a person, by a maintainer's assignment or `/knos pay`, and `/knos take` is refused to a
+  bot. The pull request must still close the issue, a maintainer's `/knos reject` still stops it, and an issue
+  someone else holds is still theirs. These are the workflow's rules; of them the program holds only the last
+  (the taker, while the order is reserved).
+- Not done. Nothing in this section has run on devnet: not a funding with either option, not an `auto` payment,
+  not a quorum, not a challenge. The programs that take these tokens are not deployed, and the pinned workflows
+  repository does not yet publish the `prove.yml` that asks for a `knos3:auto` token: it is republished at
+  release. A second judge's run for a quorum is started by hand (`knos settle --neutral`); nothing starts it for
+  an open pull request. An agent's account with no bound wallet is paid only at the address in its own
+  `/knos address` comment on the pull request, and the reply to that comment still reads as a refusal.
+
 ## Before mainnet
 
 - **An outside review first.** `knos mainnet-check` prints every gate with its evidence. The last one, an outside
   review of the bytes on chain, fails today, on purpose.
 - **Different program ids, Circle's mint, no faucet.** The released programs are devnet builds.
-- **The cap stays** at 500 per order until the review. After it the upgrade authority is removed.
+- **The cap** is 100,000 per order on devnet. A mainnet build decides its own; none is decided.
+- **After the review** the verifier, `knos-oidc`, is frozen: its upgrade authority is removed. The escrow,
+  `knos-pay`, stays upgradeable only through the multisig with its public 48-hour delay, so that a defect in the
+  program that holds money can be fixed in place. [GOVERNANCE.md](GOVERNANCE.md), section 7, says what that costs.
 
 ## Known limits
 
@@ -554,10 +775,12 @@ The first three cannot be removed. They come with the design.
    [TAMPER.md](TAMPER.md), plain CI passed 56.
 3. **Knos inherits GitHub's failures.** If GitHub signs something false, or a key of its leaks, the programs believe
    it until the key is revoked or expires. If GitHub is down, tokens wait.
-4. **No outside security firm has reviewed anything.** The reviews so far are readers' reviews of the design, the
-   source and the documents.
-5. **One person can change the programs, after 48 hours.** Every member key of both multisigs is the founder's.
-6. **Nothing is pushed to funders when an upgrade is proposed** (section 7).
+4. **Nobody outside Knos has reviewed the security of anything:** not the programs, the workflows, the relay, the
+   clients, the site or these documents.
+5. **One person can change the programs, after 48 hours.** Both multisigs are 2-of-3 and every member key is the
+   founder's. No independent signer exists ([GOVERNANCE.md](GOVERNANCE.md)).
+6. **An upgrade's notice is pulled, not pushed.** A banner, `knos status` and a feed to subscribe to; no comment on
+   repositories with open orders (section 7).
 7. **New keys need one account and the guardian.** Keys GitHub still publishes can be kept alive by anyone. A key
    GitHub adds later, and every other issuer's key, needs Knos's account and the guardian's approval. If GitHub
    replaced all four keys at once and Knos were gone, the escrow would become refund-only.
@@ -577,11 +800,11 @@ The first three cannot be removed. They come with the design.
 20. **A passkey wallet trusts the page that asks for the signature, and has no recovery** (section 17).
 21. **The meter counts what the buyer's repository ran** (section 18).
 22. **The paid token's issuer keeps its powers.** A freeze authority can freeze what is in escrow.
-23. **An order holds between 5 and 500 units** until the review. A 0.3.12 bounty has no early exit.
+23. **An order holds between 5 and 100,000 units on devnet.** A 0.3.12 bounty has no early exit.
 24. **Several people can do the same work.** One pull request is merged and paid. `/knos take` reserves an order
     for one person for its `reserve` days, and several accounts can take turns.
-25. **GitLab and other issuers are verified, not paid.** The escrow takes GitHub's tokens, and a private key's for
-    its registrant's own private orders.
+25. **GitLab is paid; other issuers are verified, not paid.** The escrow takes GitHub's and gitlab.com's tokens, and
+    a private key's for its registrant's own private orders. The neutral judge is GitHub-only (section 1).
 26. **Not run on the deployed programs yet:** [DRILLS.md](DRILLS.md) runs the safety paths on the deployed bytes in a
     simulator, and lists the rows that need real GitHub tokens and were not run. When 0.3.12 was released, no refund,
     key refresh or revocation had run on devnet itself. No instruction of this release had run on devnet when this
@@ -589,3 +812,12 @@ The first three cannot be removed. They come with the design.
 27. **The assurance is the author's own.** [ASSURANCE.md](ASSURANCE.md) says what is tested, what is fuzzed, and
     what is not.
 28. **Devnet only, and no outside buyer.** By 3 Oct 2026 no outside repository had funded a task.
+29. **Everything depends on one personal GitHub account** that hosts the pinned workflows, the rotate workflow and
+    the relay. If it is suspended, funded orders can only be refunded and keys run out within 30 days
+    ([GOVERNANCE.md](GOVERNANCE.md), section 9). The move to an organisation account is planned and not done.
+30. **A meter batch's Merkle root is not checked on chain** (section 18).
+31. **The feed of upgrade proposals is as fresh as the site's last build** (section 7).
+32. **Every stated invariant has a test, and the tests leave things out;** [INVARIANTS.md](INVARIANTS.md), "Not yet
+    tested, in one list", says what: a deployment whose verifier is another program, orderings of four and more
+    moves (sampled, not enumerated), `RefundOrder` and two racing relayers on a running cluster, and, in the state
+    machine, standing orders, kill fees, assigned payments, a second relayer and a second mint.

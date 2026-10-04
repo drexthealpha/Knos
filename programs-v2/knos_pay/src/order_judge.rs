@@ -30,6 +30,23 @@
 //!               order cannot name its funding commenter or its owner (refused at funding), and a ruling cannot name
 //!               the arbiter among its payees. It may name the funder: a ruling can go the buyer's way.
 //!
+//!   e. AUTO     the order allows it (flag AUTO, fixed at funding, and only with mode 1: paid by the black-box suite),
+//!               and the token's audience is knos3:auto:<order address>:<head sha>:<terms hash hex>:1:<pr>:<payee>:
+//!               the order's own repository's prove.yml (as judge a) ran the acceptance bundle the terms hash names
+//!               against that head of an OPEN, unmerged pull request, as a separate process, and it passed. It pays
+//!               one payee, the pull request's author, whole. Nobody merges, assigns or comments first: the funder
+//!               said so when he funded, in the options GitHub or his own wallet signed.
+//!               WHAT THE BUYER TRUSTS in this mode: the pinned suite at the pinned commit. That is, the workflow
+//!               file at the order's `wf_sha` (it decides that the bundle is black-box, that the head is still the
+//!               pull request's, that the changed paths are within the terms' limits, and who the author is) and
+//!               the acceptance bundle whose hash is in the terms. Nothing a maintainer does: no merge, no review,
+//!               no label, no comment is asked, and none can stop it short of the deadline or a Cancel's notice.
+//!               A pull request that fools the suite is paid; a holdback with a warranty keeps part of the money
+//!               where a challenge (Revert, order_terms.rs) can still return it.
+//!               The first passing pull request wins: the payment closes the order (or leaves it in WARRANTY), and a
+//!               second token finds nothing OPEN. While the order is reserved, only its taker's pull request is paid
+//!               this way. An order that is not AUTO takes no such token, whoever signs it.
+//!
 //! A COMMAND about an order (`command`, called by Reserve and Cancel) is not a judgement of work, and a judge's run
 //! does not mint it: a person asks for it, by a comment that the order's repository answers with its COMMAND job, the
 //! pinned fund.yml. So a command's token is from the pinned workflows at the order's commit, a first attempt, and
@@ -61,7 +78,7 @@
 //! its claims. It is never a ruling: the arbiter is someone else, and only GitHub's signature says who started a run.
 //! FundOrderBalance takes GitHub's tokens only, so the order itself was funded on GitHub's signature.
 //!
-//! 25 BindOrg  relayer(s,w) bind_token key bind(w) system          no data
+//! 25 BindOrg  relayer(s,w) bind_token key bind(w) system used(w)          no data
 //!             An ORGANISATION's wallet, in the account a person's is, ["bind", id]: a payee id that is an
 //!             organisation is then paid like any other (a bot's pull request, paid to the organisation that runs
 //!             it). The token: audience knos3:bind:<address>; the pinned claim workflow (CLAIM_REF at CLAIM_SHA or
@@ -74,7 +91,7 @@
 //!             that Bind (8) wrote: what a person bound himself, only he rebinds. (A Bind made here says so, in
 //!             bytes Bind does not write: BD_ORG, and the `iat` it was made with, which stops matching the moment
 //!             Bind rewrites the account.) Logs knos3:bound org= wallet= by=.
-use crate::{err, gh::*, order::*, order_pay::{pay_order_aud, payees_of, Judge, PayAud}, state::*, *};
+use crate::{err, gh::*, order::*, order_pay::{pay_aud_as, pay_order_aud, payees_of, Judge, PayAud}, state::*, *};
 use knos_oidc::claims::{self, parts};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, msg, program_error::ProgramError, pubkey::Pubkey};
 
@@ -88,6 +105,8 @@ pub const FUND: &[u8] = b"fund.yml";
 
 /// How the audience of a ruling starts. `judge` answers Arbiter for these audiences and for no other.
 pub const RULE: &[u8] = b"knos3:rule:";
+/// How the audience of an AUTO order's unmerged payment starts. `judge` answers Auto for these and for no other.
+pub const AUTO: &[u8] = b"knos3:auto:";
 
 /// The run was started by hand by the account that owns the repository it ran in: a person, in a repository of his.
 /// An organisation never starts a run, so a run in an organisation's repository is not this.
@@ -105,6 +124,11 @@ pub fn judge(o: &Order, g: &Gh) -> Result<Judge, ProgramError> {
         return if named && by_hand(g) && g.actor_id == o.arbiter_id { Ok(Judge::Arbiter) } else { Err(err(E_CLAIMS)) };
     }
     let own = o.repo != 0 && g.repo_id == o.repo;
+    // e. paid unmerged: only an order funded AUTO, and only its own repository's prove.yml
+    if g.aud.starts_with(AUTO) {
+        if !o.is(F_AUTO) || !own { return Err(err(E_CLAIMS)); }
+        return if g.wf_file == PROVE { Ok(Judge::Auto) } else { Err(err(E_WORKFLOW)) };
+    }
     if own && g.wf_file == PROVE { return Ok(Judge::Own); }
     let named = o.judge_repo_id != 0 && g.repo_id == o.judge_repo_id;
     if named && (g.wf_file == PROVE || g.wf_file == ATTEST) { return Ok(Judge::Private); }
@@ -144,7 +168,15 @@ pub fn token(program_id: &Pubkey, o: &Order, tok: &AccountInfo, key: &AccountInf
 /// terms, the mode, the pull request and the payees (`pay_order_aud`). A ruling (judge d) names the order and the
 /// payees: knos3:rule:<order address>:<payees>. It is returned with the order's own terms and mode and pull request 0,
 /// so PayOrder checks its order address exactly as it checks a pay token's. The arbiter is not one of his payees.
-pub fn audience(o: &Order, judge: Judge, aud: &[u8]) -> Result<PayAud, ProgramError> {
+/// An AUTO order's unmerged payment (judge e) names what a pay token names, under knos3:auto: one payee, the pull
+/// request's author; and while the order is reserved (`now` within the reservation) that payee is the taker.
+pub fn audience(o: &Order, judge: Judge, aud: &[u8], now: i64) -> Result<PayAud, ProgramError> {
+    if judge == Judge::Auto {
+        let a = pay_aud_as(aud, b"auto")?;
+        if a.payees.len() != 1 { return Err(err(E_AUD)); }
+        if o.reserved_by != 0 && now <= o.reserved_until && a.payees[0].id != o.reserved_by { return Err(err(E_CLAIMS)); }
+        return Ok(a);
+    }
     if judge != Judge::Arbiter { return pay_order_aud(aud); }
     let bad = || err(E_AUD);
     let [k, r, order, list] = parts::<4>(aud).ok_or_else(bad)?;
@@ -195,7 +227,7 @@ pub fn org_bind_aud(aud: &[u8]) -> Result<Pubkey, ProgramError> {
 
 /// 25 BindOrg: binds a wallet to an organisation. See the module documentation.
 pub fn bind_org(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, bind, sys] = take(accounts)?;
+    let [relayer, tok, key, bind, sys, used] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let g = github(tok, key, now)?;
@@ -209,12 +241,14 @@ pub fn bind_org(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now:
     if !org || !named || !started { return Err(err(E_CLAIMS)); }
     let wallet = org_bind_aud(&g.aud)?;
     let (first, bump) = open(program_id, relayer, bind, sys, BIND_LEN, &[b"bind", &g.owner_id.to_le_bytes()], E_ACCOUNTS)?;
-    let mut d = bind.try_borrow_mut_data()?;
     if !first {
         // what a person bound himself stays his; a later token rebinds an organisation, the same or an older one does nothing
+        let d = bind.try_borrow_data()?;
         if !org_made(&d) { return Err(err(E_CLAIMS)); }
         if g.iat <= i64_at(&d, BD_IAT) { return Err(err(E_REPLAY)); }
     }
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, false)?;
+    let mut d = bind.try_borrow_mut_data()?;
     d[BD_VERSION] = 1; d[BD_BUMP] = bump;
     put_u64(&mut d, BD_USER, g.owner_id); put_key(&mut d, BD_WALLET, &wallet); put_i64(&mut d, BD_IAT, g.iat);
     d[BD_ORG] = 1;
@@ -298,6 +332,18 @@ mod tests {
         // with a pay audience the arbiter is whoever else he is to the order
         assert_eq!(says(&order(0, REPO, 0, ARBITER), &run("attest.yml", 5, ARBITER, ARBITER, hand, pay)), Err(E_CLAIMS));
         assert_eq!(says(&all, &run("attest.yml", 5, ARBITER, ARBITER, hand, pay)), Ok(Judge::Neutral));
+        // e. an unmerged payment: an AUTO order's own prove.yml, and nobody else's run; an order that is not AUTO takes none
+        let (auto, unmerged) = (order(F_AUTO | F_NEUTRAL, REPO, JUDGE_REPO, ARBITER), "knos3:auto:x");
+        assert_eq!(says(&auto, &run("prove.yml", REPO, 424_242, SELLER, "workflow_run", unmerged)), Ok(Judge::Auto));
+        assert_eq!(says(&auto, &run("prove.yml", REPO, 424_242, SELLER, "workflow_run", pay)), Ok(Judge::Own));
+        assert_eq!(says(&auto, &run("attest.yml", REPO, 424_242, 424_242, hand, unmerged)), Err(E_WORKFLOW));
+        for g in [run("attest.yml", 5, SELLER, SELLER, hand, unmerged), run("prove.yml", JUDGE_REPO, 9, SELLER, "push", unmerged),
+                  run("prove.yml", 5, SELLER, SELLER, hand, unmerged)] {
+            assert_eq!(says(&auto, &g), Err(E_CLAIMS));
+        }
+        for o in [&all, &plain] {
+            assert_eq!(says(o, &run("prove.yml", REPO, 424_242, SELLER, "workflow_run", unmerged)), Err(E_CLAIMS));
+        }
         // always: the pinned repository and commit, and a first attempt
         for file in ["prove.yml", "attest.yml"] {
             let mut g = run(file, REPO, 424_242, 424_242, hand, pay);
@@ -357,19 +403,28 @@ mod tests {
     fn a_ruling_names_the_order_and_payees_who_are_not_the_arbiter() {
         let o = order(0, REPO, 0, ARBITER);
         let (at, w) = (Pubkey::new_from_array([7; 32]), Pubkey::new_from_array([9; 32]));
-        let a = audience(&o, Judge::Arbiter, format!("knos3:rule:{at}:5.7000.{w},6.3000.-").as_bytes()).ok().unwrap();
+        let a = audience(&o, Judge::Arbiter, format!("knos3:rule:{at}:5.7000.{w},6.3000.-").as_bytes(), 0).ok().unwrap();
         assert_eq!((a.order, a.terms, a.mode, a.pr, a.payees.len(), a.payees[0].id, a.payees[1].bps), (at, o.terms, o.mode, 0, 2, 5, 3000));
-        let code = |aud: String, j: Judge| audience(&o, j, aud.as_bytes()).err();
+        let code = |aud: String, j: Judge| audience(&o, j, aud.as_bytes(), 0).err();
         assert!(code(format!("knos3:rule:{at}:{ARBITER}.10000.-"), Judge::Arbiter) == Some(err(E_CLAIMS)));
         assert!(code(format!("knos3:rule:{at}:5.5000.-,{ARBITER}.5000.-"), Judge::Arbiter) == Some(err(E_CLAIMS)));
         for bad in [format!("knos3:rule:{at}"), format!("knos3:rule:{at}:5.10000.-:x"), format!("knos2:rule:{at}:5.10000.-"), "knos3:rule:x:5.10000.-".to_string(),
                     format!("knos3:rule:{at}:5.9999.-"), format!("knos3:pay:{at}:{}:{}:0:7:5.10000.-", "a".repeat(40), "ab".repeat(32))] {
             assert!(code(bad.clone(), Judge::Arbiter) == Some(err(E_AUD)), "{bad}");
         }
+        // an unmerged payment names one payee, and the taker while the order is reserved
+        let auto = |list: &str| format!("knos3:auto:{at}:{}:{}:1:7:{list}", "a".repeat(40), "ab".repeat(32));
+        assert!(audience(&o, Judge::Auto, auto("5.10000.-").as_bytes(), 0).is_ok());
+        assert!(code(auto("5.5000.-,6.5000.-"), Judge::Auto) == Some(err(E_AUD)));
+        assert!(code(auto("5.10000.-").replace("auto", "pay"), Judge::Auto) == Some(err(E_AUD)) && code(auto("5.10000.-"), Judge::Own) == Some(err(E_AUD)));
+        let mut taken = order(0, REPO, 0, ARBITER);
+        (taken.reserved_by, taken.reserved_until) = (6, 100);
+        assert!(audience(&taken, Judge::Auto, auto("5.10000.-").as_bytes(), 100).err() == Some(err(E_CLAIMS)));
+        assert!(audience(&taken, Judge::Auto, auto("6.10000.-").as_bytes(), 100).is_ok() && audience(&taken, Judge::Auto, auto("5.10000.-").as_bytes(), 101).is_ok());
         // every other judge signs a pay audience, and a ruling is not one
         for j in [Judge::Own, Judge::Neutral, Judge::Private] {
             assert!(code(format!("knos3:rule:{at}:5.10000.-"), j) == Some(err(E_AUD)));
-            assert!(audience(&o, j, format!("knos3:pay:{at}:{}:{}:0:7:5.10000.-", "a".repeat(40), "ab".repeat(32)).as_bytes()).is_ok());
+            assert!(audience(&o, j, format!("knos3:pay:{at}:{}:{}:0:7:5.10000.-", "a".repeat(40), "ab".repeat(32)).as_bytes(), 0).is_ok());
         }
     }
 

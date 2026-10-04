@@ -18,12 +18,15 @@ from solders.keypair import Keypair  # noqa: E402
 from knos.settle.v2 import pay  # noqa: E402
 
 OUT = ROOT / "examples" / "x402_attested" / "fixtures.json"
+# the terms of the offer a seller copies (offer.devnet.json): canonical, as knos.terms.parse reads them, so an order
+# funded with them can be judged and paid
+TERMS = json.loads((ROOT / "examples" / "x402_attested" / "offer.devnet.json").read_text(encoding="utf-8"))["terms"].encode()
 BUYER, SELLER = Keypair.from_seed(bytes([31]) * 32), Keypair.from_seed(bytes([32]) * 32)
 SELLER_ID, ISSUE, AMOUNT, WORK, SEQ, PR = 5550123, 77, 20_000_000, 7 * 86_400, 0, 12
 
 
 def run(refund: bool):
-    from _order import HEAD, REPO, TERMS, OrderChain
+    from _order import HEAD, REPO, OrderChain
     from _pay2 import WF_REPO, WF_SHA
     c = OrderChain()
     c.svm.airdrop(BUYER.pubkey(), 10 ** 10)

@@ -11,7 +11,9 @@ from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay"]
+# knos.settle.v2.passkey_fund: the Python builders of what web/passkey_fund.js sends (a public client with no caller in
+# the package; tests/test_passkey_fund.py and tests/test_passkey_chain.py hold it to the program).
+ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund"]
 SCRIPTS = [p for p in list((ROOT / "scripts").glob("*.py")) + list((ROOT / "examples").glob("*.py"))
            if p.name not in ("deadcode.py", "vulture_whitelist.py")]
 
@@ -53,6 +55,9 @@ def imports(path: Path, current: str | None) -> set[str]:
                 continue
             got.update(resolve(current, node) if current else [node.module or ""] +
                        [f"{node.module}.{a.name}" for a in node.names])
+        elif (isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)
+              and (getattr(node.func, "id", "") == "__import__" or getattr(node.func, "attr", "") == "import_module")):
+            got.add(node.args[0].value)        # a module named in a call: __import__("knos.x"), importlib.import_module("knos.x")
     found = set()
     for name in got:
         parts = name.split(".")

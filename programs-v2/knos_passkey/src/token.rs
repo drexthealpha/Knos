@@ -59,6 +59,12 @@ pub fn token_account(a: &AccountInfo, token: &Pubkey) -> Option<(Pubkey, Pubkey)
     Some((key(0), key(32)))
 }
 
+/// What a token account holds. Only for an account `token_account` has accepted.
+pub fn amount_of(a: &AccountInfo) -> Result<u64, ProgramError> {
+    let d = a.try_borrow_data()?;
+    d.get(64..72).map(|b| u64::from_le_bytes(b.try_into().unwrap())).ok_or(ProgramError::InvalidAccountData)
+}
+
 /// TransferChecked: `amount` of `mint` from `from` to `to`, signed by the wallet PDA with `seeds`.
 #[allow(clippy::too_many_arguments)]
 pub fn transfer<'a>(token: &AccountInfo<'a>, from: &AccountInfo<'a>, mint: &AccountInfo<'a>, to: &AccountInfo<'a>, wallet: &AccountInfo<'a>,

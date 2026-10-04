@@ -78,8 +78,23 @@ class Chain:
     def now(self) -> int:
         return int(self.svm.get_clock().unix_timestamp)
 
-    def send(self, ixs, payer: Keypair | None = None, signers=(), tag: str | None = None) -> bool:
+    def marked(self, ix):
+        """An instruction of the escrow that takes a token, with that token's marker in its place when the
+        builder was not given one: what a relay does with the JWT it holds, done here from the token account the
+        instruction names. (A token account that holds no token gets some marker: the program refuses the token first.)"""
+        # Pay (5) and FundOrderBalance (16) are always built with their marker
+        at = pay.TOKEN_AT.get(ix.data[0]) if ix.program_id == pay.PAY_ID and ix.data and ix.data[0] not in (5, 16) else None
+        if at is None or len(ix.accounts) <= at:
+            return ix
+        try:
+            marker = pay.used_pda(self.data(ix.accounts[at].pubkey))
+        except Exception:
+            marker = pay.used_pda(bytes(32))
+        return ix if any(a.pubkey == marker for a in ix.accounts) else pay.marked(ix, marker)
+
+    def send(self, ixs, payer: Keypair | None = None, signers=(), tag: str | None = None, mark: bool = True) -> bool:
         payer = payer or self.payer
+        ixs = [self.marked(ix) for ix in ixs] if mark else list(ixs)
         everyone = {bytes(k.pubkey()): k for k in [payer, *signers]}
         msg = MessageV0.try_compile(payer.pubkey(), [set_compute_unit_limit(1_400_000), *ixs], [], self.svm.latest_blockhash())
         tx = VersionedTransaction(msg, list(everyone.values()))
@@ -265,7 +280,7 @@ class ChainLedger:
 
     def send(self, ixs, payer, signers=None) -> str:
         ixs = list(ixs)
-        if not self.chain.send(ixs, payer, signers or ()):
+        if not self.chain.send(ixs, payer, signers or (), mark=False):        # a relay's own instructions, as it built them
             raise RuntimeError(self.chain.err)
         self.n += 1
         for key in {payer.pubkey(), *(ix.program_id for ix in ixs), *(a.pubkey for ix in ixs for a in ix.accounts)}:

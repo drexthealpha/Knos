@@ -547,3 +547,110 @@ def test_open_work_orders_are_listed_with_what_they_promise_and_a_split_is_count
     o = next(b for b in blind["bounties"] if b["issue"] == 31)["order"]
     assert (o["reserved_by"], o["reserved_until"], o["holdback_bps"], o["warranty_days"], o["on_offer"]) == (602, iso(NOW + 5 * 86_400), None, None, 40_000_000)
     assert next(b for b in blind["bounties"] if b["issue"] == 33)["order"]["on_offer"] == 15_000_000
+
+
+# ---- one number, one pipeline ----------------------------------------------------------------------------------------
+def test_the_documents_and_the_site_state_one_merge_to_paid(tmp_path):
+    """merge to paid is measured by network_stats.measure() and by nothing else: latency.json, stats.json (the Numbers
+    page), docs/bench.json (which docs/BENCH.md prints) and docs/facts.json state its output, and bench_docs
+    .site_disagreements names every number on which any two of them differ."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bench_docs", ROOT / "scripts" / "bench_docs.py")
+    bd = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bd)
+    lines = network_stats.relay_lines(COMMENTS)
+    lat = load(build(get=github()), "latency.json")
+    m = lat["merge_to_paid"]["measure"]
+    assert m == network_stats.published(network_stats.measure("merge_to_paid", lines, scenario(), github()))
+    assert (m["n"], m["p50"], m["p95"], m["window"], m["deployment"], m["not_timed"]) == (2, 55, 100, {"from": iso(T0)[:10], "to": iso(T0)[:10]}, {"first": 0, "second": 2}, 0)
+    assert lat["definitions"]["merge_to_paid"] == m["definition"] and {k: lat["merge_to_paid"]["all_time"][k] for k in ("n", "p50", "p95")} == {"n": 2, "p50": 55, "p95": 100}
+    # the Numbers step of the same build read GitHub without a token and was refused: one payment timed, the other not, and it says so
+    def refused(path):
+        raise OSError("403: rate limit")
+    was = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["devnet"]["stats"]         # the other rows stay as the release last read them
+    stats = {**was, "updated": "2026-10-05 10:00 UTC", "latency": network_stats.latency(lines, scenario(), refused)}
+    assert (stats["latency"]["merge_to_paid"]["count"], stats["latency"]["merge_to_paid"]["not_timed"]) == (1, 1)
+    for rel in ("docs/bench.json", "docs/facts.json"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_bytes((ROOT / rel).read_bytes())
+    slots = tmp_path / "docs" / "submission" / "a.md"        # the sentence the pitch says it in, as a release finds it: with slots
+    slots.parent.mkdir()
+    stats_file = tmp_path / "stats.json"
+
+    def release(s):
+        stats_file.write_text(json.dumps(s), encoding="utf-8")
+        slots.write_text("From merge to paid took [[stat: seconds_from_merge_to_paid]] seconds at the median, over [[stat: payments_timed]] payments.\n", encoding="utf-8")
+        bd.fill(str(stats_file), root=tmp_path)
+        return bd.site_disagreements(s, lat, root=tmp_path)
+    wrong = release(stats)
+    assert any(line.startswith("merge_to_paid: stats.json's n is 1, latency.json's measure.n is 2") for line in wrong)
+    # the build's last step gives the page this build's one measurement: now every place agrees
+    stats = pages_data.same_stats(stats, lat)
+    assert release(stats) == []
+    bench = json.loads((tmp_path / "docs" / "bench.json").read_text(encoding="utf-8"))
+    table = bd.devnet(bench["devnet"])
+    assert slots.read_text(encoding="utf-8") == "From merge to paid took 55 seconds at the median, over 2 payments.\n"
+    assert "(n) | 2 |" in table and "(p50) | 55 |" in table and "(p95) | 100 |" in table and "second deployment's escrow | 2 |" in table
+    assert m["definition"] in table and f"| {iso(T0)[:10]} |" in table           # the definition is printed next to the number
+    # ... and a document, a fact or a site file that says another number is named
+    edits = {"docs/bench.json": lambda d: d["devnet"]["stats"]["latency"]["merge_to_paid"].__setitem__("p95", 99),
+             "docs/facts.json": lambda d: [f.__setitem__("equals", 7) for f in d["facts"] if str(f.get("path", "")).endswith("merge_to_paid.median")]}
+    for rel, edit in edits.items():
+        kept = (tmp_path / rel).read_text(encoding="utf-8")
+        data = json.loads(kept)
+        edit(data)
+        (tmp_path / rel).write_text(json.dumps(data), encoding="utf-8")
+        assert len(bd.site_disagreements(stats, lat, root=tmp_path)) == 1, rel
+        (tmp_path / rel).write_text(kept, encoding="utf-8")
+    off = json.loads(json.dumps(lat))
+    off["merge_to_paid"]["all_time"]["p50"] = 54
+    assert bd.site_disagreements(stats, off, root=tmp_path) == ["merge_to_paid: stats.json's p50 is 55, latency.json's all_time.p50 is 54"]
+    assert "run --stats on it first" in bd.site_disagreements({**stats, "updated": "later"}, lat, root=tmp_path)[0]
+
+
+def test_the_repository_s_documents_agree_on_merge_to_paid():
+    """docs/BENCH.md prints docs/bench.json's block, and every fact that points into it holds the same value."""
+    import importlib.util
+    import re
+    spec = importlib.util.spec_from_file_location("bench_docs", ROOT / "scripts" / "bench_docs.py")
+    bd = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bd)
+    bench = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))
+    assert bd.site_disagreements(bench["devnet"]["stats"], None) == []
+    block = re.search(r"<!-- bench:devnet -->\n(.*?)\n<!-- /bench:devnet -->", (ROOT / "docs" / "BENCH.md").read_text(encoding="utf-8"), re.S).group(1)
+    assert block == bd.devnet(bench["devnet"])
+    m = bench["devnet"]["stats"]["latency"]["merge_to_paid"]
+    assert m["definition"] == network_stats.DEFINITIONS["merge_to_paid"].format(most=network_stats.MOST) and m["definition"] in block
+
+
+# ---- order statements ------------------------------------------------------------------------------------------------
+def test_each_owner_of_a_work_order_gets_an_audit_file_whose_months_are_what_knos_audit_export_writes():
+    """audit/<owner id>.json is what the site's order statement and the Buy page's statement read (web/statements.js).
+    Its lines and scope for a month are the ones `knos audit export --owner <id> --from <first day> --to <last day>`
+    chains, so the file the page writes is that command's file and both parties compare one head."""
+    import calendar
+
+    from knos import audit
+    evs = orders_scenario()
+    files = pages_data.build(evs, None, None, None, order_accounts(), pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset())
+    assert [p for p in files if p.startswith("audit/")] == ["audit/501.json"]            # the Balance's owner, by id: no name from GitHub is needed
+    doc = load(files, "audit/501.json")
+    month = datetime.datetime.fromtimestamp(T0, datetime.timezone.utc).strftime("%Y-%m")
+    first, last = f"{month}-01", f"{month}-{calendar.monthrange(int(month[:4]), int(month[5:]))[1]:02d}"
+    assert (doc["type"], doc["version"], doc["owner_id"], list(doc["months"])) == ("knos.audit-statement", 1, 501, [month])
+    got = doc["months"][month]
+    assert got["scope"] == audit.scope_of(501, first, last) and got["scope"]["partial"] == 0
+    assert got["lines"] == audit.lines(evs, 501, (), first, last)
+    # the reserved order as it stands, and one payment line for each of the two that paid
+    assert sorted((r["kind"], r["order"]) for r in got["lines"]) == sorted([("open", order(1)), ("paid", order(2)), ("paid", order(3))])
+    # the same lines chained are the file the command writes, which `knos audit verify` accepts: three rows under this scope
+    text = audit.export(evs, 501, "json", first, last)
+    _scope, rows, _totals, head, count = audit.parse(text)
+    assert audit.verify(text) == [] and json.loads(text)["scope"] == got["scope"]
+    assert count == len(rows) == 3 and len(head) == 64
+    # a history that was not read whole says so in every scope, and a build that read nothing writes no statement
+    cut = pages_data.build(evs, None, None, None, None, pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset(), partial=True)
+    assert load(cut, "audit/501.json")["months"][month]["scope"]["partial"] == 1
+    assert not [p for p in pages_data.empty(NOW) if p.startswith("audit/")]
+    # jobs of the older kind are no work orders: they are in statements/<login>.json, and nobody gets an audit file for them
+    assert not [p for p in build(get=github()) if p.startswith("audit/")]

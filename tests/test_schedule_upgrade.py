@@ -1,7 +1,8 @@
 """scripts/schedule_upgrade.sh with stand-ins for the three timers, node and knos: it arranges ONE run at the time the
 schedule file names, with the first timer that works on the machine (under WSL the Windows task first), says how to
-cancel it, and the run itself, started through a login shell with the key paths arranging wrote, executes each proposal,
-then `knos status`, with every line in the log; a key file it cannot read stops it before anything is sent. Nothing here
+cancel it, and the run itself, started through a login shell with the key paths arranging wrote, executes each proposal
+(only the build the schedule recorded for it), then `knos status`, with every line in the log; a key file it cannot read
+stops it before anything is sent. Nothing here
 reaches a cluster or a real timer, and the "keys" are files that only stand for keys."""
 from __future__ import annotations
 
@@ -30,11 +31,24 @@ STANDINS = {
     # the BSD wc of macOS pads its count with spaces: on every OS the script meets that wc here
     "wc": 'printf "%8s\\n" "$(/usr/bin/wc "$@" | tr -d " ")"\n',
 }
-NODE = ('#!/bin/sh\ncase "$1" in */governance.mjs) echo "node governance $2 $3 $4 $5 $6 keys=$KNOS_KEYS payer=$KNOS_FEE_PAYER members=${KNOS_MEMBERS:-default}" >> "$CALLS"\n'
+# governance.mjs's stand-in refuses as the real one does (scripts/governance.test.mjs holds `expected` to that): a proposal
+# whose buffer holds another build than --expect-hash names (ON_CHAIN_<index>: the build "on chain"; default: the one asked for)
+NODE = ('#!/bin/sh\ncase "$1" in */governance.mjs) echo "node governance $2 $3 $4 $5 $6 $7 $8 keys=$KNOS_KEYS payer=$KNOS_FEE_PAYER members=${KNOS_MEMBERS:-default}" >> "$CALLS"\n'
         '  if [ "$4" = "$FAIL_INDEX" ]; then echo "refused: its time lock ends later" >&2; exit 1; fi\n'
+        '  [ "$7" = --expect-hash ] || { echo "refused: no build was named" >&2; exit 1; }\n'
+        '  have="$(eval echo "\\${ON_CHAIN_$4:-$8}")"\n'
+        '  if [ "$have" != "$8" ]; then echo "refused: proposal $4 of the upgrade multisig would deploy the build $have, and this run was arranged for the build $8. Nothing was sent." >&2; exit 1; fi\n'
         '  echo "on chain now: proposal $4 of the upgrade multisig is executed"; exit 0;; esac\nexec {node} "$@"\n')
 # what each stand-in key file holds: if it ever shows up in the env file, the log or the output, a key was copied there
 MARK = "a-file-that-stands-for-a-key"
+# what 0.3.14 proposes: the four programs the upgrade vault holds, each with the executable hash of its build
+PROPOSED = {3: "knos_oidc", 4: "knos_pay", 5: "knos_meter", 6: "knos_passkey"}
+HASH = {index: f"{index}{index}" * 32 for index in PROPOSED}
+RPC = "https://api.devnet.solana.com"
+
+
+def _executes(index: int, tail: str) -> str:
+    return f"node governance upgrade execute {index} --rpc {RPC} --expect-hash {HASH[index]} {tail}"
 
 
 @pytest.fixture()
@@ -52,7 +66,7 @@ def box(tmp_path):
         (keys / name).write_text(json.dumps(MARK), encoding="utf-8")
     at = int(time.time()) + 172_800
     plan = {"rpc": "https://api.devnet.solana.com", "executable_from": at, "run_at": at + 600,
-            "proposals": [{"program": "knos_oidc", "index": 3}, {"program": "knos_pay", "index": 4}]}
+            "proposals": [{"program": name, "index": index, "hash": HASH[index]} for index, name in PROPOSED.items()]}
     (keys / "upgrade-schedule.json").write_text(json.dumps(plan), encoding="utf-8")
     calls = tmp_path / "calls"
     calls.write_text("", encoding="utf-8")
@@ -173,13 +187,13 @@ def test_the_run_executes_each_proposal_in_order_then_knos_status_and_logs_every
     keys, calls, plan, run, _ = box
     done = run("--run")
     assert done.returncode == 0, done.stderr
+    # all four, in the order of their indexes, each named with the build it was proposed with
     assert [c for c in _calls(calls) if c.startswith(("node", "knos"))] == [
-        f"node governance upgrade execute 3 --rpc https://api.devnet.solana.com keys={keys} payer= members=default",
-        f"node governance upgrade execute 4 --rpc https://api.devnet.solana.com keys={keys} payer= members=default",
-        "knos status rpc=https://api.devnet.solana.com"]
+        *(_executes(index, f"keys={keys} payer= members=default") for index in (3, 4, 5, 6)), "knos status rpc=https://api.devnet.solana.com"]
     log = (keys / "upgrade-run.log").read_text(encoding="utf-8")
-    assert "the scheduled upgrade run starts (cluster https://api.devnet.solana.com; proposals 3 4)" in log
-    assert log.index("proposal 3 of the upgrade multisig is executed") < log.index("proposal 4 of the upgrade multisig is executed") < log.index("12 of 12 checks pass")
+    assert "the scheduled upgrade run starts (cluster https://api.devnet.solana.com; proposals 3 4 5 6)" in log
+    assert log.index("proposal 3 of the upgrade multisig is executed") < log.index("proposal 4 of the upgrade multisig is executed") < log.index(
+        "proposal 6 of the upgrade multisig is executed") < log.index("12 of 12 checks pass")
     assert log.rstrip().endswith("done: every proposal is executed") and "done: every proposal is executed" in done.stdout
     # one that is refused is said, the other still runs, knos status still runs, and the exit code says it
     bad = run("--run", FAIL_INDEX="3")
@@ -188,7 +202,7 @@ def test_the_run_executes_each_proposal_in_order_then_knos_status_and_logs_every
     assert log.rstrip().endswith("done: 1 proposal(s) NOT executed. Run it again by hand: bash scripts/schedule_upgrade.sh --run")
     assert log.count("knos status") >= 2 and log.count("the scheduled upgrade run starts") == 2          # appended, never overwritten
     shown = run("--show")
-    assert "schedule: proposals 3 4 on https://api.devnet.solana.com" in shown.stdout and "timer: none arranged" in shown.stdout and "NOT executed" in shown.stdout
+    assert "schedule: proposals 3 4 5 6 on https://api.devnet.solana.com" in shown.stdout and "timer: none arranged" in shown.stdout and "NOT executed" in shown.stdout
 
 
 def test_the_run_signs_with_the_key_paths_arranging_wrote_and_a_key_it_cannot_read_stops_it_loudly_before_anything_is_sent(box, tmp_path):
@@ -209,7 +223,7 @@ def test_the_run_signs_with_the_key_paths_arranging_wrote_and_a_key_it_cannot_re
     done = run("--run")
     assert done.returncode == 0, done.stderr
     executed = [c for c in _calls(calls) if c.startswith("node governance")]
-    assert len(executed) == 2 and all(c.endswith(f"payer={payer} members={named['KNOS_MEMBERS']}") for c in executed)
+    assert len(executed) == 4 and all(c.endswith(f"payer={payer} members={named['KNOS_MEMBERS']}") for c in executed)
     # the drive that holds a member's key is not there: said once, in the log and aloud, with the path, and nothing is sent
     members[1].unlink()
     before = len(_calls(calls))
@@ -217,7 +231,7 @@ def test_the_run_signs_with_the_key_paths_arranging_wrote_and_a_key_it_cannot_re
     assert stopped.returncode == 1 and _calls(calls)[before:] == [], "no proposal executed, no knos status: nothing was sent"
     log = (keys / "upgrade-run.log").read_text(encoding="utf-8")
     tail = log[log.rindex("===="):]
-    assert "the scheduled upgrade run CANNOT START (cluster https://api.devnet.solana.com; proposals 3 4)" in tail and str(members[1]) in tail
+    assert "the scheduled upgrade run CANNOT START (cluster https://api.devnet.solana.com; proposals 3 4 5 6)" in tail and str(members[1]) in tail
     assert str(members[0]) not in tail and str(payer) not in tail and "Nothing was sent" in tail and "bash scripts/schedule_upgrade.sh --run" in tail
     assert "CANNOT START" in stopped.stderr and str(members[1]) in stopped.stderr and MARK not in log + stopped.stdout + stopped.stderr
     assert f"keys: the run could NOT start now: it cannot read {members[1]}" in run("--show").stdout
@@ -230,3 +244,38 @@ def test_the_run_signs_with_the_key_paths_arranging_wrote_and_a_key_it_cannot_re
     (keys / "payer.json").unlink()
     alone = run(SYSTEMD="1")
     assert alone.returncode == 1 and str(keys / "payer.json") in alone.stderr
+
+
+def test_the_run_executes_only_the_build_the_schedule_recorded_so_a_stale_run_never_executes_another(box):
+    keys, calls, plan, run, _ = box
+    arranged = run(SYSTEMD="1")
+    assert arranged.returncode == 0, arranged.stderr
+    # arranging says which build each proposal is executed for
+    for index, name in PROPOSED.items():
+        assert f"  proposal {index}: {name}, build {HASH[index]}" in arranged.stdout
+    assert "Each is executed only while its buffer holds the build proposed" in arranged.stdout
+    # the buffer of proposal 4 holds another build when the run starts: refused, in the log, and the others still run
+    other = "69ec05b83e29b92fb255fd7f0cd52e128e04a4c9dbc5e16eecdc39caaafed9c9"
+    done = run("--run", ON_CHAIN_4=other)
+    log = (keys / "upgrade-run.log").read_text(encoding="utf-8")
+    assert done.returncode == 1 and f"would deploy the build {other}, and this run was arranged for the build {HASH[4]}. Nothing was sent." in log
+    assert "proposal 4: NOT executed" in log and "proposal 3: executed" in log and "proposal 6: executed" in log
+    assert log.rstrip().endswith("done: 1 proposal(s) NOT executed. Run it again by hand: bash scripts/schedule_upgrade.sh --run")
+    # a schedule that records no build for a proposal (an older --propose wrote it, or a hand): that proposal is never
+    # executed on its index alone, governance.mjs is not even called for it, and such a schedule cannot be arranged
+    old = {**plan, "proposals": [{"program": "knos_oidc", "index": 1}, {"program": "knos_pay", "index": 2, "hash": "not a hash"}, plan["proposals"][2]]}
+    (keys / "upgrade-schedule.json").write_text(json.dumps(old), encoding="utf-8")
+    before = len(_calls(calls))
+    stale = run("--run")
+    sent = [c for c in _calls(calls)[before:] if c.startswith("node governance")]
+    assert stale.returncode == 1 and sent == [_executes(5, f"keys={keys} payer={keys / 'payer.json'} members=default")]
+    log = (keys / "upgrade-run.log").read_text(encoding="utf-8")
+    tail = log[log.rindex("==== ", 0, log.rindex("====")):]
+    assert "proposal 1 (knos_oidc): NOT executed" in tail and "proposal 2 (knos_pay): NOT executed" in tail and "records no build for it" in tail
+    assert "done: 2 proposal(s) NOT executed" in tail and "---- knos status" in tail
+    refused = run(SYSTEMD="1")
+    assert refused.returncode == 1 and "records no build (hash) for proposal 1 2" in refused.stderr and "Nothing was arranged" in refused.stderr
+    assert "  proposal 1: knos_oidc, build -" in run("--show").stdout
+    # every execution the script can send names a build: there is no path that executes by index alone
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert text.count('governance.mjs" upgrade execute') == 1 and 'upgrade execute "$index" --rpc "$rpc" --expect-hash "$hash"' in text

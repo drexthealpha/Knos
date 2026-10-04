@@ -95,8 +95,13 @@ pub const P_OWNER: usize = 8;
 pub const P_EXPIRES: usize = 16;    // i64: the rate holds while now < expires
 pub const PLAN_LEN: usize = 24;
 
-// Used ["used", sha256(a token's signature bytes)]: byte 0 is 1; exists once that token was used by an instruction
-// that takes a token once (2.0 Pay, FundOrderBalance). It keeps what CloseMarker needs to give its rent back.
+// Used ["used", sha256(a token's signature bytes)]: exists once an instruction took that token, and EVERY instruction
+// that takes a token makes it (mark_used), so no token is taken twice whatever state the other accounts are in.
+// Byte 0 is USED; or MINTED after the devnet faucet took the token, which one funding instruction may still take
+// (that is the faucet's design: FaucetOpen mints, the funding spends), and then it is USED. It keeps what CloseMarker
+// needs to give its rent back.
+pub const USED: u8 = 1;
+pub const MINTED: u8 = 2;
 pub const U_PAYER: usize = 1;       // who paid its rent
 pub const U_AFTER: usize = 33;      // i64: after this time no instruction can accept the token, and the marker may be closed
 pub const USED_LEN: usize = 41;
@@ -111,6 +116,8 @@ pub const F_PRIVATE: u8 = 2;
 pub const F_NEUTRAL: u8 = 4;
 pub const F_STANDING: u8 = 8;
 pub const F_TOKEN2022: u8 = 16;
+pub const F_AUTO: u8 = 32;          // the funder's choice: the first pull request the black-box suite passes is paid, unmerged (order_judge.rs, e)
+pub const F_QUORUM: u8 = 0xc0;      // the two high bits are a number, flags >> 6: 0, or the 2 or 3 distinct judges a payment needs (order_terms.rs, 5)
 pub const O_VERSION: usize = 0;     // 2
 pub const O_STATE: usize = 1;       // OPEN 1, HELD 3 (proven, waits for its one payee to bind a wallet), WARRANTY 4
 pub const O_MODE: usize = 2;        // 0 merge, 1 tests
@@ -264,19 +271,32 @@ pub fn units(micro: u64, decimals: u8) -> u64 {
     v.min(u64::MAX as u128) as u64
 }
 
-/// Takes a token that works once: creates its marker ["used", sig] (rent from `payer`), and refuses with E_REPLAY
-/// when the marker exists. `sig`: gh::sig_hash, sha256 of the token's signature bytes. The marker stores who paid for it
-/// and when it stops mattering: a token accepted now was issued at most TOKEN_AHEAD from now, expires at most
-/// TOKEN_LIFE after that, and is refused from knos_oidc::LATE after its expiry; an hour after that latest moment
-/// (which is not before "an hour after the token's own expiry plus the lateness") CloseMarker may close it.
-pub fn mark_used<'a>(program_id: &Pubkey, payer: &AccountInfo<'a>, used: &AccountInfo<'a>, sys: &AccountInfo<'a>, sig: &[u8; 32]) -> ProgramResult {
+/// THE ONE MARKER RULE. Every instruction that takes a token calls this once it has decided to accept it and before
+/// it changes anything else: it creates the token's marker ["used", sig] (rent from `payer`), and refuses with
+/// E_REPLAY when the marker exists. So a token is accepted once by this program, by whichever instruction comes
+/// first, and what the accounts it names look like later (an order closed and funded again at the same address, a
+/// reservation that ran out) cannot make it good a second time. `sig`: gh::sig_hash, sha256 of the token's signature
+/// bytes. `as_`: USED; or MINTED, which only the devnet faucet writes. `after_faucet`: the caller is a funding
+/// instruction, which also takes a token whose marker says MINTED (the faucet minted on it; funding is the one
+/// thing left for it to do) and makes it USED.
+/// The marker stores who paid for it and when it stops mattering: a token accepted now was issued at most TOKEN_AHEAD
+/// from now, expires at most TOKEN_LIFE after that, and is refused from knos_oidc::LATE after its expiry; an hour
+/// after that latest moment (which is not before "an hour after the token's own expiry plus the lateness")
+/// CloseMarker may close it.
+pub fn mark_used<'a>(program_id: &Pubkey, payer: &AccountInfo<'a>, used: &AccountInfo<'a>, sys: &AccountInfo<'a>, sig: &[u8; 32], as_: u8,
+                     after_faucet: bool) -> ProgramResult {
     let (key, bump) = Pubkey::find_program_address(&[b"used", sig], program_id);
-    if *used.key != key { return Err(err(E_ACCOUNTS)); }
-    if used.owner == program_id { return Err(err(E_REPLAY)); }
+    if *used.key != key || !payer.is_writable { return Err(err(E_ACCOUNTS)); }
+    if used.owner == program_id {
+        let mut d = used.try_borrow_mut_data()?;
+        if !(after_faucet && as_ == USED && d.len() == USED_LEN && d[0] == MINTED) { return Err(err(E_REPLAY)); }
+        d[0] = USED;
+        return Ok(());
+    }
     if !used.data_is_empty() || *used.owner != system_program::ID { return Err(err(E_ACCOUNTS)); }
     create_pda(payer, used, sys, program_id, USED_LEN, &[b"used", sig, &[bump]])?;
     let mut d = used.try_borrow_mut_data()?;
-    d[0] = 1;
+    d[0] = as_;
     put_key(&mut d, U_PAYER, payer.key);
     put_i64(&mut d, U_AFTER, Clock::get()?.unix_timestamp.saturating_add(TOKEN_AHEAD + TOKEN_LIFE + knos_oidc::LATE + 3600));
     Ok(())

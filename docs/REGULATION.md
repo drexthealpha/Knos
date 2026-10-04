@@ -7,7 +7,8 @@ its money is test USDC.
 Three questions were examined, each only as far as one public source goes: whether holding money in a program is
 money transmission under United States federal rules; what a payer owes in tax reporting when it pays a
 contractor; and what sanctions law asks before a payout. Everything else is listed at the end as not examined.
-Sources were read on 3 Oct 2026.
+Sources were read on 3 Oct 2026. What the product does was brought in line with Knos 0.3.14 on 4 Oct 2026; no source
+was read again for it, and no conclusion below was checked by anyone outside Knos.
 
 ## 1. Is the escrow money transmission?
 
@@ -19,12 +20,21 @@ Sources were read on 3 Oct 2026.
   payment by the deadline, anyone can send the refund, and it goes back to the funder.
 - In normal operation Knos has no instruction that moves an order's money. Its guardian can pause new funding and
   revoke a signing key. It cannot pay, redirect or take ([SECURITY.md](SECURITY.md), section 6).
-- Knos receives a fee out of each payment, into its own token account.
-- **Until an outside review, Knos can change the program** through a multisig, after a public 48-hour delay. An
-  upgrade "could do anything, including taking every vault" ([SECURITY.md](SECURITY.md), section 7). Every member
-  key of that multisig is the founder's.
+- Knos receives a fee, into its own token account, when an order is paid. The funder pays it on top of the amount:
+  2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above, at least 0.40. A refund returns it.
+- An order holds at most 100,000 on devnet (it was 500 before 0.3.14). A mainnet cap is not decided. The size of
+  a single payment bears on every question on this page, and none was examined at that size.
+- **Knos can change the program** through a multisig, after a public 48-hour delay. An upgrade "could do anything,
+  including taking every vault" ([SECURITY.md](SECURITY.md), section 7). The multisig is 2-of-3 and every member
+  key is the founder's: no second person has to agree ([GOVERNANCE.md](GOVERNANCE.md)).
+- **That does not end with an outside review.** The decision recorded in [GOVERNANCE.md](GOVERNANCE.md), section 7,
+  is that the verifier is frozen after a review and the escrow stays upgradeable behind the delay. So Knos keeps
+  the power to replace the program that holds the money, with notice, for as long as that decision stands.
+- A funder with only a passkey can fund an order from a passkey wallet. A relayer, today Knos's, pays the network
+  fee of that transaction; it cannot change the amount, the order or the destination, which the passkey signed.
+- An order can belong to a GitLab project as well as to a GitHub repository. Nothing below depends on which.
 - The meter (`knos_meter`) moves no customer money. It holds credits a customer prepaid to Knos for Knos's own
-  fee.
+  fee, per evaluation or per batch of evaluations.
 
 ### What the guidance says
 
@@ -50,15 +60,19 @@ condition. Any conclusion for Knos is our inference, not the guidance's.
 | The funder is buying a service on its own behalf (4.2.1, users). | Knos wrote the program and deployed it (5.2.2). |
 | Knos holds no key to an order's money and cannot move it in normal operation (4.2.1, factor d). | Knos takes a fee from each payment. |
 | The funder and the payee interact with the chain directly, or through a relay that decides nothing (factor c). | Until an outside review Knos can replace the program, after 48 hours, and a replacement could move the money. That bears on "total independent control". |
-| | Knos runs the public relay. A relay decides nothing, but today it is the one that carries the tokens. |
+| | Knos runs the public relay. A relay decides nothing, but today it is the one that carries the tokens, and for a passkey funder it also pays the network fee. |
+| | One person holds every key that can replace the program. |
 
-This is the first question for counsel. The answer may differ before and after the upgrade authority is removed.
+This is the first question for counsel. The answer may differ once independent people hold keys of the multisig,
+and it does not go away after an outside review, because the escrow is meant to stay upgradeable.
 
 ### Not examined
 
 - State money-transmitter laws in the United States. The guidance does not cover them.
 - Any other country's rules on payment services, electronic money or crypto-asset services.
 - Whether prepaid meter credits are a stored-value product.
+- Whether paying a funder's network fee, or holding money in a wallet derived from a funder's passkey, changes who
+  is the intermediary.
 - Whether an advance against an assigned payment is lending, and for whom.
 
 ## 2. Paying contractors: tax reporting
@@ -92,6 +106,8 @@ is not a party to the payment. That, too, is our reading and a question for coun
   no name and no country.
 - It withholds nothing and files nothing.
 - It does not decide whether a payee is a contractor or an employee.
+- It does not add up what one payer paid one payee in a year against a reporting threshold. With orders of up to
+  100,000, one order can pass it.
 
 ### Not examined
 
@@ -156,7 +172,10 @@ passed.
 
 1. Counsel on sections 1 to 3, for the country Knos is run from and for the first customers' countries.
 2. A decision, in writing, on who the payer of record is for a payment and who screens it.
-3. A named legal entity as the operator, and terms of service. Neither exists today.
+3. A named legal entity as the operator, and terms of service. Neither exists today: Knos is one person, known
+   publicly by a GitHub account, and no company has been formed ([DISCLOSURE.md](DISCLOSURE.md)).
 4. A review of the programs by a security firm. No security firm has audited anything
    ([SECURITY.md](SECURITY.md)). That is a separate gate from this page, and `knos mainnet-check` fails on it on
    purpose.
+5. Keys of the upgrade multisig held by more than one person, so that the question of control in section 1 has a
+   different answer than "one person".

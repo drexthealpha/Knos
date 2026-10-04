@@ -26,19 +26,25 @@
 #                                           knos_pay's source): the script says which one that is.
 #   bash scripts/deploy_v2.sh --rc-close    close the staging programs and their buffers; the SOL returns to the fee
 #                                           payer. Closed ids can never be used again: the next --rc makes new ones.
-#   bash scripts/deploy_v2.sh --propose [--ungated]
-#                                           the upgrade of knos_oidc and knos_pay to the verified 2.1 builds: each
+#   bash scripts/deploy_v2.sh --propose [--replace] [--ungated]
+#                                           the upgrade of the four programs the upgrade vault holds (knos_oidc, knos_pay,
+#                                           knos_meter, knos_passkey) to the verified builds; one that runs this build
+#                                           already is skipped. Each
 #                                           build is written to a buffer (resumable), its record at the upgrade gate is
 #                                           waited for (program.yml's gate job has GitHub sign the hash of each build
 #                                           it made on main or a release tag, and a relayer carries that to the gate;
 #                                           the record is written here first when KNOS_GATE_TOKENS has the token), the
 #                                           buffer is handed to the upgrade vault, the proposal is created and approved
-#                                           by the member keys of the key folder. It prints when both can be executed
+#                                           by the member keys of the key folder. It prints when all can be executed
 #                                           and writes that to <key folder>/upgrade-schedule.json, which
 #                                           scripts/schedule_upgrade.sh reads. A build with no record at the gate
 #                                           after the wait is refused. --ungated is for an emergency only (GitHub or
 #                                           every relayer is down and a fix cannot wait): it proposes such a build
 #                                           without waiting, and says so loudly, here and in the proposal's own output.
+#                                           While an older proposal for one of the four can still run and would deploy
+#                                           ANOTHER build, nothing is proposed: --replace first withdraws each of those
+#                                           by the member keys' votes (printing its index, program and build), then
+#                                           proposes. Two approved proposals for one program would both execute.
 #   Each also takes --localnet with KNOS_RPC naming the validator a `--localnet --keep` run left running.
 #
 # Steps (each reads the chain first; a step that is already done says so and sends nothing)
@@ -67,7 +73,8 @@
 #   KNOS_KEYS          the key folder (default: .knos-keys in the repository, which git ignores). It holds
 #                      knos_oidc_v2-keypair.json, knos_pay_v2-keypair.json, upgrade-create-key.json,
 #                      guardian-create-key.json, payer.json, member-1.json, member-2.json, member-3.json; this script
-#                      adds the two buffer keypairs
+#                      adds the buffer keypairs (--propose: one per program
+#                      and build, <name>-upgrade-buffer-<the build's hash, 16 characters>.json)
 #   KNOS_FEE_PAYER     the fee payer's keypair (default: payer.json in the key folder). It pays, and it is the
 #                      programs' upgrade authority until step 8
 #   KNOS_MEMBERS       the multisig members' keypair files or addresses, separated by spaces (default: member-N.json)
@@ -78,7 +85,7 @@
 #                      program.yml's artifacts)
 #   KNOS_RC_SO_DIR     --rc: a folder with the knos_oidc.so and knos_pay.so to stage, when they are not the builds
 #                      above (a build of knos_pay whose OIDC_ID is the staging verifier, say)
-#   KNOS_GATE_TOKENS   --propose: a folder with knos_oidc.jwt and knos_pay.jwt, the tokens program.yml asked GitHub
+#   KNOS_GATE_TOKENS   --propose: a folder with <program>.jwt for each of the four, the tokens program.yml asked GitHub
 #                      for (audience gate:<program>:<executable hash>). With them a missing record is written
 #   KNOS_GATE_WAIT     --propose: how many seconds to wait for a build's record at the upgrade gate before refusing
 #                      (default 1800: program.yml's verified builds and the relay take about that long after a push)
@@ -96,7 +103,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
 
-LOCALNET=0 KEEP=0 MODE="" UNGATED=0
+LOCALNET=0 KEEP=0 MODE="" UNGATED=0 REPLACE=0
 for arg in "$@"; do
   case "$arg" in
     --localnet) LOCALNET=1 ;;
@@ -105,11 +112,13 @@ for arg in "$@"; do
       [ -z "$MODE" ] || { echo "one of --new, --rc, --rc-close, --propose in a run, not ${MODE} and ${arg}" >&2; exit 2; }
       MODE="$arg" ;;
     --ungated) UNGATED=1 ;;
+    --replace) REPLACE=1 ;;
     -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
-    *) echo "usage: bash scripts/deploy_v2.sh [--localnet [--keep]] [--new | --rc | --rc-close | --propose [--ungated]]" >&2; exit 2 ;;
+    *) echo "usage: bash scripts/deploy_v2.sh [--localnet [--keep]] [--new | --rc | --rc-close | --propose [--replace] [--ungated]]" >&2; exit 2 ;;
   esac
 done
 if [ "$UNGATED" = 1 ] && [ "$MODE" != --propose ]; then echo "--ungated goes with --propose" >&2; exit 2; fi
+if [ "$REPLACE" = 1 ] && [ "$MODE" != --propose ]; then echo "--replace goes with --propose" >&2; exit 2; fi
 
 KEYS="${KNOS_KEYS:-$ROOT/.knos-keys}"
 PAYER="${KNOS_FEE_PAYER:-$KEYS/payer.json}"
@@ -120,6 +129,7 @@ RPC="${KNOS_RPC:-https://api.devnet.solana.com}"
 GATE_WAIT="${KNOS_GATE_WAIT:-1800}"
 PROGRAMS="knos_oidc knos_pay"
 NEW_PROGRAMS="knos_meter knos_passkey upgrade_gate"
+UPGRADES="knos_oidc knos_pay knos_meter knos_passkey"   # what --propose proposes: every program the upgrade vault holds, in the order they execute
 RC="$KEYS/rc"                                  # the staging keypairs and ids file
 SCHEDULE="$KEYS/upgrade-schedule.json"         # when the proposed upgrades can be executed: scripts/schedule_upgrade.sh reads it
 WORK="" VALIDATOR=""
@@ -227,6 +237,7 @@ build() {
     done
     stamp="$SO_DIR/.verified-build"
     [ "$*" = "$PROGRAMS" ] || stamp="$SO_DIR/.verified-build-new"
+    [ "$*" != "$UPGRADES" ] || stamp="$SO_DIR/.verified-build-upgrades"
     want="$(sources_hash) $VERIFY_IMAGE"
     if [ -f "$stamp" ] && [ "$(head -1 "$stamp")" = "$want" ] && (cd "$SO_DIR" && tail -n +2 "$stamp" | sha256 --check --status); then
       echo "  programs-v2 is unchanged since the last verified build: not built again"
@@ -394,9 +405,37 @@ rc_close() {
   echo "  The staging ids file went with them: unset KNOS_PROGRAM_IDS."
 }
 
-# ---- --propose: the upgrade of the two programs, through the multisig ------------------------------------------------
+# ---- --propose: the upgrade of the four programs, through the multisig -----------------------------------------------
+# withdraw_older: no proposal that can still run would deploy another build of one of the four than this one afterwards.
+# Without --replace such a proposal stops the run (deploy_v2.py stale says which and how); with it each is withdrawn by the
+# member keys' votes first: an approved one is cancelled, inside its 48 hours too, one still collecting approvals is rejected
+withdraw_older() {
+  local name builds="" found rc=0 index program hash status left flag=""
+  [ "$REPLACE" != 1 ] || flag="--replace"
+  for name in $UPGRADES; do builds="$builds $name=$(py hash "$SO_DIR/$name.so")"; done
+  # shellcheck disable=SC2086  # builds is a list of name=hash, flag one flag or nothing
+  found="$(py $flag stale $builds)" || rc=$?
+  [ "$rc" != 5 ] || exit 1                                   # the refusal was printed: what would run, and --replace
+  [ "$rc" = 0 ] || die "the upgrade multisig's proposals could not be read from $RPC. Nothing was withdrawn and nothing proposed. Run this script again."
+  if [ -z "$found" ]; then echo "  no older proposal that can still run would deploy another build of these programs"; return; fi
+  while read -r index program hash status; do
+    echo "  REPLACING proposal $index: $program, build $hash ($status). It is withdrawn by the members' votes and can never be executed afterwards:"
+    governance cancel upgrade "$index" | sed 's/^/  /' || die "proposal $index ($program, build $hash) was NOT withdrawn (the lines above say why): it can still be executed. Nothing was proposed. Run this again with the member keys it needs."
+  done <<< "$found"
+  # the chain is asked again: only what it shows as withdrawn counts
+  # shellcheck disable=SC2086
+  left="$(py --replace stale $builds)" || die "the upgrade multisig's proposals could not be read again from $RPC. Run this script again."
+  [ -z "$left" ] || die "still not withdrawn: $(echo "$left" | awk '{ printf "%sproposal %s (%s, build %s)", sep, $1, $2, $3; sep = ", " }'). Nothing was proposed. Run this again with the member keys it needs (KNOS_MEMBERS)."
+  # the schedule of the withdrawn proposals names nothing that may run now
+  if [ -f "$SCHEDULE" ]; then mv "$SCHEDULE" "$SCHEDULE.withdrawn"; echo "  the schedule of the withdrawn proposals was set aside ($SCHEDULE.withdrawn)"; fi
+  if [ -f "$KEYS/upgrade-run.timer" ]; then
+    echo "  NOTE: a timer for the withdrawn proposals is still arranged ($(cat "$KEYS/upgrade-run.timer")). It can execute none of them: take it back with"
+    echo "        bash scripts/schedule_upgrade.sh --cancel     (arranging the new run, after this, replaces it too)"
+  fi
+}
+
 propose() {
-  local name id so want buffer address state held vault outs="" flag rc wait="$GATE_WAIT"
+  local name id so want buffer address state held vault outs="" flag rc wait="$GATE_WAIT" kept size have
   vault="$(pinned upgrade_authority)"
   governance show --check >/dev/null || die "the multisigs are not right on chain (node scripts/governance.mjs show --rpc $RPC says what is wrong). Nothing was proposed."
   if [ "$UNGATED" = 1 ]; then
@@ -404,15 +443,26 @@ propose() {
     echo "  UNGATED: proposed without waiting for one. Without the flag this script waits for program.yml's record and refuses a build that has none."
     wait=0
   fi
-  for name in $PROGRAMS; do
-    id="$(pinned "$name")" so="$SO_DIR/$name.so" buffer="$KEYS/${name}_v2-upgrade-buffer.json"
+  withdraw_older
+  for name in $UPGRADES; do
+    id="$(pinned "$name")" so="$SO_DIR/$name.so"
     want="$(py hash "$so")"
+    # a buffer of its own for each program and each build: a buffer that an earlier proposal handed to the vault holds that
+    # proposal's build for good, and this script could never write to it again
+    buffer="$KEYS/$name-upgrade-buffer-${want:0:16}.json"
     program_state "$name"
     [ "$HAVE" != absent ] || die "$name $id is not deployed on this cluster: there is nothing to upgrade. The plain run deploys it."
     if [ "$HAVE" = "$want" ]; then echo "  $name $id: runs this build already ($want): nothing to propose"; continue; fi
     [ "$AUTHORITY" = "$vault" ] || die "$name's upgrade authority is $AUTHORITY, not the upgrade vault $vault: the multisig could not execute an upgrade. Nothing was proposed."
-    [ -f "$buffer" ] || solana-keygen new --no-bip39-passphrase --silent --outfile "$buffer" >/dev/null
-    address="$(solana-keygen pubkey "$buffer")"
+    # this build's own proposal from an earlier run (whatever buffer file that run had): proposed with ITS buffer, so
+    # governance.mjs continues that proposal and there are never two for one build
+    kept="$(py kept "$name=$want")" || die "the upgrade multisig's proposals could not be read from $RPC. Run this script again."
+    if [ -n "$kept" ]; then
+      address="$kept"; echo "  $name: a proposal that can still run carries this build already (buffer $address): continuing with it"
+    else
+      [ -f "$buffer" ] || solana-keygen new --no-bip39-passphrase --silent --outfile "$buffer" >/dev/null
+      address="$(solana-keygen pubkey "$buffer")"
+    fi
     state="$(py buffer "$address")"; held="${state#* }"
     if [ "${state%% *}" = "$want" ]; then
       echo "  $name: the buffer $address holds this build already"
@@ -441,6 +491,16 @@ propose() {
       echo "  UNGATED: the members have only their own rebuild to compare $want with (from the root of a clone: solana-verify build \"\$PWD\" --workspace-path \"\$PWD/programs-v2\" --library-name $name --base-image $VERIFY_IMAGE)."
       flag="--ungated"
     fi
+    # the loader refuses an Upgrade to a build larger than the program's data account has room for (a deploy leaves
+    # room for twice the first build). Extended here, before the buffer is the vault's: ExtendProgram changes no code,
+    # and anyone may send it while the cluster has not activated ExtendProgramChecked
+    size="$(wc -c < "$so" | tr -d ' ')"; have="$(py room "$name")"
+    if [ "$size" -gt "$have" ]; then
+      echo "  $name: this build is $size bytes and the program's data account has room for $have. It is extended by $((size - have)) bytes first (the fee payer pays their rent; no code changes):"
+      py extend "$name" $((size - have)) || die "$name's data account could not be extended, so this build ($size bytes) cannot be upgraded to (room: $have). Where the cluster has activated ExtendProgramChecked only the upgrade authority can extend a program, and that is the upgrade vault: the extension then has to be a proposal of the multisig, executed before this upgrade, which this script does not make. Nothing was proposed for $name; its buffer is written and stays with the fee payer."
+      have="$(py room "$name")"
+      [ "$size" -le "$have" ] || die "$name's data account still has room for $have bytes only, and this build is $size. Run this script again."
+    fi
     if [ "$held" != "$vault" ]; then
       [ "$held" = "$PAYER_ADDRESS" ] || die "the buffer $address has the authority $held: neither the fee payer nor the upgrade vault."
       # not sent again by itself: the chain is asked instead
@@ -458,7 +518,7 @@ propose() {
     outs="$outs $KEYS/$name-upgrade.json"
   done
   echo
-  if [ -z "$outs" ]; then echo "on chain now: both programs run these builds already. Nothing is proposed and nothing is scheduled."; return; fi
+  if [ -z "$outs" ]; then echo "on chain now: all four programs run these builds already. Nothing is proposed and nothing is scheduled."; return; fi
   # shellcheck disable=SC2086  # outs is a list of files
   py schedule "$SCHEDULE" $outs
   echo "Next: bash scripts/schedule_upgrade.sh     (at that time it executes the proposals, then runs knos status; it says how to cancel)"
@@ -507,8 +567,8 @@ case "$MODE" in
     part "rc-close" "close the staging programs"; rc_close
     exit 0 ;;
   --propose)
-    part "propose 1/2" "the verified 2.1 builds"; build $PROGRAMS
-    part "propose 2/2" "buffers, the upgrade gate, the proposals"; propose
+    part "propose 1/2" "the verified builds of knos_oidc, knos_pay, knos_meter and knos_passkey"; build $UPGRADES
+    part "propose 2/2" "older proposals, buffers, the upgrade gate, the proposals"; propose
     exit 0 ;;
 esac
 

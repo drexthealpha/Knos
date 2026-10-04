@@ -3,6 +3,7 @@
 // request: each page says which file it read, from what source and when it was generated, as the file itself says.
 // A person with no file gets a sentence, never a made-up zero.
 import { show } from "./price.js";
+import { renderBadge, renderRecord } from "./badge.js";
 
 export const KIND_WORDS = { real: "real USDC", test: "test USDC", self: "paid to the funder's own account", own: "Knos's own accounts" };
 export const RANKS = { earners: "Earners", funders: "Funders", agents: "Agents by false-claim rate" };
@@ -41,6 +42,21 @@ const sharedTable = (esc, head, rows) => (rows.length ? `<div class="table-wrap"
 const sharedSource = (esc, data, path, id = "rec-source") => `<p class="fine" id="${id}">Read from <a href="${esc(path)}">${esc(path)}</a>, made ${esc(stamp(data.generated))} from ${esc(data.source?.summary || "a source the file does not name")}.</p>`;
 export const isLogin = (x) => LOGIN.test(x);
 export const tableHtml = sharedTable, sourceHtml = sharedSource;
+
+// What web/badge.js draws, from what this page read. Both are worded as src/knos/badge.py words them.
+// The record: knos_pay's reputation account of a payee (sdk/settle readRep), as badge.py `record_view` shapes it.
+const CAVEATS = ["Paid is an event: a funder's named checks passed at a merge and the program paid. It is not a score of the work.",
+  "Distinct funders counts different funders. Ten payments from one funder add one.",
+  "Payments in the faucet's test money and payments an account funded itself are shown apart and are not in the headline.",
+  "Solana devnet: every amount here is test USDC, not money."];
+const amount = (units) => show(units).replace(/,/g, ""), day = (t) => new Date(t * 1000).toISOString().slice(0, 10);
+export const recordView = (rep, githubId, login) => ({ github_id: githubId, login, cluster: "devnet", money: "test USDC",
+  headline: { paid: rep.paid, distinct_funders: rep.funders, total: amount(rep.total), first: rep.paid && rep.first ? day(rep.first) : null, last: rep.paid && rep.last ? day(rep.last) : null },
+  apart: { test_paid: rep.testPaid, test_total: amount(rep.testTotal), self_paid: rep.selfPaid }, caveats: CAVEATS });
+// The badge of a repository: its payments in test money, with the ones in another token named apart, as of the day the
+// file was made. A payment to the funder's own account or to one of Knos's own accounts is in neither count.
+export const badgeData = (rec) => ({ repo: rec.repository, count: rec.as_earner?.amounts?.test?.count ?? 0, other: rec.as_earner?.amounts?.real?.count ?? 0,
+  money: "test USDC", as_of: String(rec.generated || "").slice(0, 10) });
 
 export function initRecords(ctx) {
   const { $, esc } = ctx;
@@ -88,6 +104,7 @@ export function initRecords(ctx) {
       <p class="fine">A pull request that closes a funded issue was merged, and the bounty was refunded instead. This says both happened, not whose fault it was.</p>
       ${unpaid(f.merged_unpaid, "None: no pull request that closed a funded issue was merged and then refunded.")}
       ${kind === "u" && rec.merged_but_unpaid_to_me ? `<h4>Merged but unpaid, as the author</h4>${unpaid(rec.merged_but_unpaid_to_me, "None.")}` : ""}
+      ${kind === "r" ? `<h4>Paid on proof</h4><div id="rec-paid"></div>` : `<h4>The record on Solana</h4><div id="rec-chain"><p class="fine">Reading Solana devnet…</p></div>`}
       <h4>README badge</h4>
       <p>${badgeView(badge) || `<span class="fine">The badge file for this record is not there.</span>`}</p>
       <p class="fine">Paste this line into a README. The badge is drawn by shields.io from <a href="${esc(`badge/${path}`)}">${esc(`badge/${path}`)}</a>; the picture above is drawn by this page from the same file, so nothing is asked of shields.io here.</p>
@@ -96,6 +113,15 @@ export function initRecords(ctx) {
     </div>`;
     const copy = $("rec-copy");
     copy.onclick = async () => { try { await navigator.clipboard.writeText(rec.badge?.readme || ""); copy.textContent = "Copied"; } catch { copy.textContent = "Select the line and copy it by hand"; } };
+    if (kind === "r") {
+      renderBadge($("rec-paid"), badgeData(rec));
+      $("rec-paid").insertAdjacentHTML("beforeend", `<p class="fine">Counted from ${esc(path)}: payments by someone else in the faucet's test money. A payment to the funder's own account, or to one of Knos's own accounts, is not in the badge.</p>`);
+    } else if (ctx.rep) {
+      // the program's own account for this GitHub id: read now, from devnet, and said when it cannot be
+      const box = $("rec-chain");
+      ctx.rep(rec.github_id).then((rep) => { if (box.isConnected) renderRecord(box, recordView(rep, rec.github_id, rec.login)); },
+        () => { if (box.isConnected) box.innerHTML = `<p class="fine">Solana devnet did not answer just now, so the program's own record is not shown. The numbers above are from the site's file.</p>`; });
+    } else $("rec-chain").innerHTML = "";
   }
 
   const who = (login, id) => (login ? `<a href="#u=${encodeURIComponent(login)}">${esc(login)}</a>` : esc(`id ${id}`));

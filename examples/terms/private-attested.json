@@ -1,0 +1,32 @@
+{
+  "name": "private-attested",
+  "sentence": "Pays 50 test USDC when check `unit` passes on a merge that only touches src/; funded and paid by the organisation's attestor repository, so nothing public names the private one; refund after 14 days",
+  "comment": "/knos fund 50 checks: unit paths: src/**",
+  "where": "an issue of a private repository the attestor's policy lists",
+  "terms": {
+    "accept": "",
+    "checks": [
+      {
+        "app": 15368,
+        "name": "unit"
+      }
+    ],
+    "deny": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "mode": "merge",
+    "paths": [
+      "src/**"
+    ],
+    "policy": "f2ab964fdea7849f5726192ae7f6b6d7603da31174a51f4c76d2b6dfffc9504d",
+    "reserve": 7,
+    "v": 1
+  },
+  "terms_json": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\"],\"policy\":\"f2ab964fdea7849f5726192ae7f6b6d7603da31174a51f4c76d2b6dfffc9504d\",\"reserve\":7,\"v\":1}",
+  "terms_hash": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5",
+  "assumes": {
+    "checks": "each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit",
+    "policy": "the attestor repository's .knos/policy.yml is: version: 1; private: true; attestor: acme/knos-settle; targets: [acme/vault-core]"
+  }
+}

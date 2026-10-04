@@ -25,6 +25,8 @@ from knos import chain
 from knos.settle import oidc, pay
 from knos.settle.v2 import meter
 from knos.settle.v2 import oidc as oidc2
+from knos.settle.v2 import passkey as passkey2
+from knos.settle.v2 import passkey_fund
 from knos.settle.v2 import pay as pay2
 
 OUT = Path(__file__).resolve().parents[1] / "sdk" / "settle" / "fixtures.json"
@@ -261,6 +263,42 @@ def month_bytes(*, month=202610, buyer=OWNER, seller=MAINT, evaluations=9, accep
     return bytes(d)
 
 
+def ledger_bytes(*, claim=0, month=202610, buyer=OWNER, seller=MAINT, next_seq=2, evaluations=8, accepted=7, value=14_000_000, fees=150_000,
+                 chain: bytes) -> bytes:
+    """A Ledger as programs-v2/knos_meter/src/state.rs lays it out: byte 2 says whose count it is (0 the buyer's, 1 the seller's claim)."""
+    d = bytearray(meter.LEDGER_LEN)
+    d[0], d[2] = 1, claim
+    _put(d, 4, month, 4); _put(d, 8, buyer); _put(d, 16, seller); _put(d, 24, next_seq); _put(d, 32, evaluations); _put(d, 40, accepted)
+    _put(d, 48, value); _put(d, 56, fees)
+    d[64:96] = chain
+    return bytes(d)
+
+
+def passkey_fund_section(k) -> dict:
+    """knos-passkey's Fund (1.1) as src/knos/settle/v2/passkey_fund.py builds it: only the bytes are held here, the
+    assertion is not a real one (tests/test_passkey_fund.py signs and sends real ones)."""
+    key = bytes([2]) + bytes(range(1, 33))
+    wallet = passkey2.wallet(key)
+    terms = pay2.terms_json(TERMS)
+    data = bytes(pay2.fund_order_wallet_ix(wallet, pay2.ata(wallet, k["mint"]), k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, terms, seq=2).data)
+    scope = pay2.scope_of(REPO, ISSUE, bytes([7]) * 32)
+    private = bytes(pay2.fund_order_wallet_ix(wallet, pay2.ata(wallet, k["mint22"], T22), k["mint22"], 0, 0, AMOUNT, WF_REPO, WF_SHA, pay2.terms_hash(terms),
+                                              pay2.MERGE, 14 * 86_400, 1, pay2.opts(pay2.F_PRIVATE, salted=True), scope, T22).data)
+    auth, cdj, sig, slot, nonce = bytes(range(37)), b'{"type":"webauthn.get","challenge":"x"}', bytes([1]) * 32 + bytes([2]) * 32, 400_000_123, 5
+    return {
+        "inputs": {"key": key.hex(), "mint": str(k["mint"]), "mint22": str(k["mint22"]), "from": str(k["dest_token"]), "expiry_slot": slot, "nonce": nonce,
+                   "authenticator_data": auth.hex(), "client_data_json": cdj.decode(), "signature": sig.hex(), "data": data.hex(), "data (private)": private.hex()},
+        "pay": str(pay2.PAY_ID), "wallet": str(wallet),
+        "constants": {"FUND_ORDER_WALLET": passkey_fund.FUND_ORDER_WALLET, "FUND_MIN": passkey_fund.FUND_MIN},
+        "errors": {str(code): words for code, words in passkey_fund.ERRORS.items()},
+        "challenge": passkey_fund.fund_challenge(k["mint"], data, slot, nonce).hex(),
+        "order": str(passkey_fund.order_of(wallet, data)), "order (private)": str(passkey_fund.order_of(wallet, private)),
+        "ixs": [ix(i) for i in passkey_fund.fund_ixs(key, k["mint"], data, slot, nonce, auth, cdj, sig)],
+        "ixs (private, token-2022, a token account given)": [ix(i) for i in passkey_fund.fund_ixs(key, k["mint22"], private, slot, nonce, auth, cdj, sig,
+                                                                                                    token_program=T22, from_token=k["dest_token"])],
+    }
+
+
 def iss_bytes(url: str) -> bytes:
     return bytes([3, 245, 0, len(url.encode())]) + url.encode()
 
@@ -437,10 +475,10 @@ def second() -> dict:
             "pay.withdraw (everything)": ix(pay2.withdraw_ix(k["authority"], bal, k["mint"])),
             "pay.withdraw (amount, token account)": ix(pay2.withdraw_ix(k["authority"], bal, k["mint"], AMOUNT, k["dest_token"])),
             "pay.withdraw (token-2022)": ix(pay2.withdraw_ix(k["authority"], bal22, k["mint22"], 0, None, T22)),
-            "pay.fund_balance": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], REPO, ISSUE, terms)),
+            "pay.fund_balance": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], REPO, ISSUE, terms, used=JWT)),
             "pay.fund_balance (with its side account)": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], REPO, ISSUE, terms,
-                                                                                balx=True)),
-            "pay.fund_balance (faucet)": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], faucet_bal, pay2.faucet_mint(), REPO, ISSUE, terms)),
+                                                                                balx=True, used=pay2.sig_hash(JWT))),
+            "pay.fund_balance (faucet)": ix(pay2.fund_balance_ix(k["relayer"], k["token_account"], k["key"], faucet_bal, pay2.faucet_mint(), REPO, ISSUE, terms, used=token)),
             "pay.fund_wallet merge": ix(pay2.fund_wallet_ix(k["funder"], k["funder_token"], k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, terms)),
             "pay.fund_wallet tests (token-2022)": ix(pay2.fund_wallet_ix(k["funder"], k["funder_token"], k["mint22"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA,
                                                                        terms_tests, pay2.TESTS, 7 * 86_400, T22)),
@@ -454,11 +492,11 @@ def second() -> dict:
             "pay.refund (a Balance's job)": ix(pay2.refund_ix(k["relayer"], job_bal, j_bal)),
             "pay.refund (a wallet's job)": ix(pay2.refund_ix(k["relayer"], job_wallet, j_wallet)),
             "pay.refund (a wallet's job, token account)": ix(pay2.refund_ix(k["relayer"], job_wallet, j_wallet, k["dest_token"])),
-            "pay.bind": ix(pay2.bind_ix(k["relayer"], k["token_account"], k["key"], AUTHOR)),
+            "pay.bind": ix(pay2.bind_ix(k["relayer"], k["token_account"], k["key"], AUTHOR, used=JWT)),
             "pay.pause": ix(pay2.pause_ix(pay2.GUARDIAN, k["payer"], 3 * 86_400)),
             "pay.pause (lift)": ix(pay2.pause_ix(pay2.GUARDIAN, k["payer"], 0)),
             "pay.init_faucet": ix(pay2.init_faucet_ix(k["payer"])),
-            "pay.faucet_open": ix(pay2.faucet_open_ix(k["relayer"], k["token_account"], k["key"], OWNER, REPO)),
+            "pay.faucet_open": ix(pay2.faucet_open_ix(k["relayer"], k["token_account"], k["key"], OWNER, REPO, used=token)),
             "create_ata": ix(pay2.create_ata_ix(k["relayer"], k["address"], k["mint"])),
             "create_ata (token-2022)": ix(pay2.create_ata_ix(k["relayer"], k["address"], k["mint22"], T22)),
             "token.transfer_checked": ix(transfer_checked_ix(wallet_tok, k["mint"], pay2.baltok_pda(bal), k["authority"], AMOUNT, 6)),
@@ -522,6 +560,7 @@ def second() -> dict:
     }
     _merge(out, orders(k, bal, token))
     out["meter"] = meter_section(k)
+    out["passkey_fund"] = passkey_fund_section(k)
     out["v1"] = v1_section(k, terms)
     return out
 
@@ -647,26 +686,26 @@ def orders(k, bal, token) -> dict:
         "pay.fund_order_balance": ix(pay2.fund_order_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], OWNER, REPO, ISSUE, o_terms, JWT, 3)),
         "pay.fund_order_balance (token-2022, marker given)": ix(pay2.fund_order_balance_ix(k["relayer"], k["token_account"], k["key"], bal22, k["mint22"], OWNER, REPO,
                                                                                             ISSUE, o_terms, k["attest"], 0, T22)),
-        "pay.pay_order (one payee, a bound wallet)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_w, o_w, [(AUTHOR, k["wallet"])])),
-        "pay.pay_order (one payee, held)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_w, o_w, [(AUTHOR, None)])),
+        "pay.pay_order (one payee, a bound wallet)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_w, o_w, [(AUTHOR, k["wallet"])], used=JWT)),
+        "pay.pay_order (one payee, held)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_w, o_w, [(AUTHOR, None)], used=k["attest"])),
         "pay.pay_order (four payees, a tip account, a token account)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, four,
-                                                                                            tip_token=k["dest_token"])),
+                                                                                            tip_token=k["dest_token"], used=JWT)),
         # the judges and the terms of an order (order_judge.rs, order_terms.rs)
         "pay.fund_order_balance (private)": ix(pay2.fund_private_order_balance_ix(k["relayer"], k["token_account"], k["key"], bal, k["mint"], OWNER, scope_private,
                                                                                     o_hash, JWT, 3)),
-        "pay.bind_org": ix(pay2.bind_org_ix(k["relayer"], k["token_account"], k["key"], OWNER)),
+        "pay.bind_org": ix(pay2.bind_org_ix(k["relayer"], k["token_account"], k["key"], OWNER, used=JWT)),
         "pay.pay_order (a holdback: its record)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_hb, o_hb,
-                                                                       [(AUTHOR, k["wallet"]), (MAINT, k["address"])])),
+                                                                       [(AUTHOR, k["wallet"]), (MAINT, k["address"])], used=JWT)),
         "pay.pay_order (a standing order: the pull request's marker)": ix(pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b,
-                                                                                           [(AUTHOR, k["wallet"])], pr=40)),
+                                                                                           [(AUTHOR, k["wallet"])], pr=40, used=JWT)),
         "pay.release (one payee)": ix(pay2.release_ix(k["relayer"], order_h, o_h, hb_one)),
         "pay.release (three payees, a tip account, token-2022)": ix(pay2.release_ix(k["relayer"], order_b, o_b, hb_three, k["dest_token"])),
-        "pay.revert (a wallet's order)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_h, o_h, hb_one)),
-        "pay.revert (a Balance's order)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, hb_three)),
-        "pay.revert (token account)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_h, o_h, hb_one, k["dest_token"])),
-        "pay.reserve": ix(pay2.reserve_ix(k["relayer"], k["token_account"], k["key"], order_w)),
+        "pay.revert (a wallet's order)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_h, o_h, hb_one, used=JWT)),
+        "pay.revert (a Balance's order)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, hb_three, used=JWT)),
+        "pay.revert (token account)": ix(pay2.revert_ix(k["relayer"], k["token_account"], k["key"], order_h, o_h, hb_one, k["dest_token"], used=JWT)),
+        "pay.reserve": ix(pay2.reserve_ix(k["relayer"], k["token_account"], k["key"], order_w, used=JWT)),
         "pay.cancel (a wallet's order)": ix(pay2.cancel_ix(k["funder"], order_w)),
-        "pay.cancel (a Balance's order, a token)": ix(pay2.cancel_ix(k["relayer"], order_b, k["token_account"], k["key"])),
+        "pay.cancel (a Balance's order, a token)": ix(pay2.cancel_ix(k["relayer"], order_b, k["token_account"], k["key"], used=JWT)),
         "pay.assign": ix(pay2.assign_ix(k["wallet"], order_w, AUTHOR, k["dest_token"])),
         "pay.close_marker (used)": ix(pay2.close_marker_ix(pay2.used_pda(JWT), k["relayer"])),
         "pay.close_marker (done)": ix(pay2.close_marker_ix(pay2.done_pda(order_b, 40), k["relayer"], order_b)),
@@ -695,7 +734,9 @@ def orders(k, bal, token) -> dict:
     return {
         "inputs": {"url": URL, "salt": SALT.hex(), "order_terms": ORDER_TERMS, "four_payees": FOUR_PAYEES, "head": HEAD},
         "constants": {"USDC_MAINNET": str(pay2.USDC_MAINNET), "COUNTED": [str(m) for m in pay2.COUNTED], "BALX_LEN": pay2.BALX_LEN, "PLAN_LEN": pay2.PLAN_LEN,
-                      "ORDER_LEN": pay2.ORDER_LEN, "OPTS_LEN": pay2.OPTS_LEN, "ORDER_FEE_MIN": pay2.ORDER_FEE_MIN, "ORDER_FEE_MAX": pay2.ORDER_FEE_MAX,
+                      "ORDER_LEN": pay2.ORDER_LEN, "OPTS_LEN": pay2.OPTS_LEN, "ORDER_FEE_MIN": pay2.ORDER_FEE_MIN, "FEE_TIER_1": pay2.FEE_TIER_1,
+                      "FEE_TIER_2": pay2.FEE_TIER_2, "FEE_BPS_2": pay2.FEE_BPS_2, "FEE_BPS_3": pay2.FEE_BPS_3, "MINTED": pay2.MINTED,
+                      "TOKEN_AT": {str(tag): at for tag, at in pay2.TOKEN_AT.items()},
                       "ORDER_MIN_AMOUNT": pay2.ORDER_MIN_AMOUNT, "TIP": pay2.TIP, "TIP_FIRST": pay2.TIP_FIRST, "PLAN_BPS_MIN": pay2.PLAN_BPS_MIN,
                       "MAX_HOLDBACK_BPS": pay2.MAX_HOLDBACK_BPS, "MAX_WARRANTY_DAYS": pay2.MAX_WARRANTY_DAYS, "MAX_KILL_BPS": pay2.MAX_KILL_BPS,
                       "MAX_PAYEES": pay2.MAX_PAYEES, "HB_LEN": pay2.HB_LEN, "DONE_LEN": pay2.DONE_LEN, "AS_LEN": pay2.AS_LEN, "USED_LEN": pay2.USED_LEN,
@@ -731,7 +772,8 @@ def orders(k, bal, token) -> dict:
         },
         "order terms": {"json": o_terms.decode(), "hash": o_hash.hex()},
         "order fees": {f"{a}/{bps}/{dec}": pay2.order_fee(a, bps, dec)
-                       for a in (0, 1, 5_000_000, 20_000_000, 100_000_000, 500_000_000, 999_999_999, 2_000_000_000)
+                       for a in (0, 1, 5_000_000, 16_000_000, 20_000_000, 100_000_000, 500_000_000, 999_999_999, 1_000_000_000, 1_000_000_100,
+                                 2_000_000_000, 49_999_999_999, 50_000_000_000, 50_000_000_200, pay2.MAX_AMOUNT, 10 ** 12)
                        for bps, dec in ((250, 6), (100, 6), (50, 6), (250, 9), (250, 2))},
         "fees (decimals)": {f"{a}/{dec}": pay2.fee_of(a, dec) for a in (0, 1, 50_000, 1_000_000, 5_000_000_000) for dec in (2, 6, 9)},
         "units": {f"{m}/{dec}": pay2.units(m, dec) for m in (0, 1, 400_000, 25_000_000, 5_000_000) for dec in (0, 2, 6, 9)},
@@ -745,6 +787,10 @@ def orders(k, bal, token) -> dict:
             "no assignment, an address": plain(pay2.payee_wallet(None, o_w, bound, k["address"])),
             "no assignment, no address, no bind": pay2.payee_wallet(None, o_w, None, None),
         },
+        # whether a token is used up, from its marker: one the devnet faucet made still funds once
+        "spent": {name: {"data": None if data is None else data.hex(), "want": pay2.spent(data)}
+                  for name, data in {"no marker": None, "used": used_bytes(k["relayer"], NOW + pay2.USED_KEEP),
+                                     "minted on by the faucet": bytes([pay2.MINTED]) + used_bytes(k["relayer"], NOW + pay2.USED_KEEP)[1:]}.items()},
         "opts": {name: o.hex() for name, o in opts_cases.items()},
         "order instructions": ixs,
         "order accounts": {name: {"data": data.hex(), "reader": name.split(" ")[0], "read": plain(readers[name.split(" ")[0]](data))}
@@ -837,17 +883,28 @@ def meter_section(k) -> dict:
         ["Program log: knosm:eval not parsed"],
     ]
     statement = meter.statement(_Ledger(logs), BUYER_ID, SELLER_ID, 202610, METER)
+    # the batch mode: four evaluations in one token, the buyer's count and the seller's claim of it
+    ids = sorted(meter.parse_audience(meter.eval_audience(BUYER_ID, SELLER_ID, ORDER32, "a" * 40, POLICY32, n, 1, 2_000_000)).key for n in range(5))
+    roots = {str(n): meter.merkle_root(ids[:n]) for n in (1, 2, 3, 5)}
+    b_aud = meter.batch_audience(BUYER_ID, SELLER_ID, 202610, 3, 5, 4, 8_000_000, roots["5"])
+    c_aud = meter.batch_audience(BUYER_ID, SELLER_ID, 202610, 0, 5, 5, 10_000_000, roots["5"], "claim")
+    chain0 = meter.chain_hash(bytes(32), roots["3"], 0, 3, 3, 6_000_000)
+    ledgers = {"ledger": ledger_bytes(chain=meter.chain_hash(chain0, roots["5"], 1, 5, 4, 8_000_000)),
+               "ledger (the seller's claim)": ledger_bytes(claim=1, next_seq=1, evaluations=5, accepted=5, value=10_000_000, fees=0, chain=chain0)}
     return {
         "inputs": {"order": ORDER32.hex(), "policy": POLICY32.hex(), "artifact": "a" * 40, "other_program": str(other)},
         "constants": {"MICRO": meter.MICRO, "FEE": meter.FEE, "PLAN_MIN": meter.PLAN_MIN, "FREE_PER_MONTH": meter.FREE_PER_MONTH, "MIN_DECIMALS": meter.MIN_DECIMALS,
                       "MAX_DECIMALS": meter.MAX_DECIMALS, "EXTENSIONS": list(meter.EXTENSIONS), "CREDITS_LEN": meter.CREDITS_LEN, "PLAN_LEN": meter.PLAN_LEN,
                       "MARK_LEN": meter.MARK_LEN, "MARK_LEN_1": meter.MARK_LEN_1, "MARK_PAYER": meter.MARK_PAYER, "MARK_GRACE": meter.MARK_GRACE,
-                      "MONTH_LEN": meter.MONTH_LEN, "WORKFLOWS": list(meter.WORKFLOWS), "EVAL": meter.EVAL, "CLOSED": meter.CLOSED},
-        "errors": {str(code): words for code, words in meter.ERRORS.items()},
+                      "MONTH_LEN": meter.MONTH_LEN, "WORKFLOWS": list(meter.WORKFLOWS), "EVAL": meter.EVAL, "CLOSED": meter.CLOSED,
+                      "LEDGER_LEN": meter.LEDGER_LEN, "MAX_BATCH": meter.MAX_BATCH},
+        "errors": {str(code): words for code, words in (meter.ERRORS | meter.BATCH_ERRORS).items()},
         "addresses": {
             "auth": str(meter.auth_pda()), "credits(owner, authority, mint)": str(credits), "credits(owner, authority, mint22)": str(credits22),
             "crtok(credits)": str(meter.crtok_pda(credits)), "plan(owner)": str(meter.plan_pda(OWNER)), "mark(buyer, key)": str(meter.mark_pda(BUYER_ID, e.key)),
             "month(buyer, seller, month)": str(meter.month_pda(BUYER_ID, SELLER_ID, 202610)),
+            "ledger(buyer, seller, month)": str(meter.ledger_pda(BUYER_ID, SELLER_ID, 202610)),
+            "ledger(buyer, seller, month, claim)": str(meter.ledger_pda(BUYER_ID, SELLER_ID, 202610, True)),
         },
         "audiences": {"eval": aud, "eval, rejected": aud_rejected, "parse(eval)": plain(e), "parse(rejected)": plain(e_rejected)},
         "hashes": {"eval_key": e.key.hex(), "eval_key (rejected)": e_rejected.key.hex()},
@@ -875,7 +932,16 @@ def meter_section(k) -> dict:
             "record (a fee token account given)": ix(meter.record_ix(k["relayer"], k["token_account"], k["key"], credits, c, aud, NOW, k["dest_token"])),
             "record (token-2022, the fee owner's own)": ix(meter.record_ix(k["relayer"], k["token_account"], k["key"], credits22, c22, aud_rejected, NOW + 40 * 86_400)),
             "close_mark": ix(meter.close_mark_ix(k["relayer"], meter.mark_pda(BUYER_ID, e.key))),
+            "record_batch (a fee token account given)": ix(meter.record_batch_ix(k["relayer"], k["token_account"], k["key"], credits, c, b_aud, k["dest_token"])),
+            "record_batch (token-2022, the fee owner's own)": ix(meter.record_batch_ix(k["relayer"], k["token_account"], k["key"], credits22, c22, b_aud)),
+            "claim_batch": ix(meter.claim_batch_ix(k["relayer"], k["token_account"], k["key"], c_aud)),
+            "version": ix(meter.version_ix()),
         },
+        "batch": {"keys": [i.hex() for i in ids], "roots": {n: r.hex() for n, r in roots.items()}, "audience": b_aud, "claim audience": c_aud,
+                  "chain": {"after the first batch (3, all accepted, 6000000)": chain0.hex(),
+                            "after the second (5, 4 accepted, 8000000)": meter.chain_hash(chain0, roots["5"], 1, 5, 4, 8_000_000).hex()}},
+        "ledgers": {name: {"data": data.hex(), "read": plain(meter.read_ledger(data))} for name, data in ledgers.items()}
+        | {"ledger (none)": {"data": None, "read": None}, "ledger (not one)": {"data": bytes(95).hex(), "read": None}},
         "accounts": {name: {"data": data.hex(), "reader": name.split(" ")[0], "read": plain(readers[name.split(" ")[0]](data))} for name, data in accounts.items()}
         | {"credits (not credits)": {"data": bytes(167).hex(), "reader": "credits", "read": plain(meter.read_credits(bytes(167)))},
            "plan (none)": {"data": None, "reader": "plan", "read": plain(meter.read_plan(None))},
@@ -899,7 +965,7 @@ def v1_section(k, terms) -> dict:
     o_b = pay2.read_order(order_bytes(state=1, kind=1, flags=pay2.F_NEUTRAL, scope=scope, source=bal, refund_to=pay2.baltok_pda(bal), rent_to=k["relayer"],
                                       mint=k["mint"], terms=o_hash))
     four = _payees(k, FOUR_PAYEES)
-    pay_four = pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, four)
+    pay_four = pay2.pay_order_ix(k["relayer"], k["token_account"], k["key"], order_b, o_b, four, used=JWT)
     open_ix = pay2.open_balance_ix(k["authority"], OWNER, k["mint"], CAP, SPENDERS)
     fund = pay2.fund_order_wallet_ix(k["funder"], pay2.ata(k["funder"], k["mint"]), k["mint"], REPO, ISSUE, AMOUNT, WF_REPO, WF_SHA, o_terms)
     wallet_tok = pay2.ata(k["authority"], k["mint"])

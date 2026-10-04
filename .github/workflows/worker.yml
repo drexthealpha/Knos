@@ -16,6 +16,11 @@ name: always-on worker
 # loser of a race tries again on its next pass and finds it done, and a run logs nothing for a token whose verdict the
 # log has already (ghrelay.logged). GitHub's cron only restarts the chain: a run it starts, or one started by hand,
 # relays only when no run of this workflow is going.
+# A run that cannot relay is red, and starts nothing. The first step after the install asks the relay for its help text,
+# so an install that lacks something the relay imports fails there, before a key is read. The relay's exit status is the
+# step's (nothing after it hides a failure), and the next run is started only by a run whose relay step succeeded
+# after relaying its full time. After a failure the chain stops; the timer starts it again within 5 minutes. (0.3.13's
+# worker installed less than its relay imported, hid the failure, and each run started the next every 15 s or so.)
 # The one secret is the fee-paying key; it holds devnet SOL for fees and nobody's money.
 # This job sees that secret, so nothing it installs comes from an Actions cache (`enable-cache: false`): a cache can be
 # written by other runs of this repository. And everything it installs is named by hash (requirements/sign.txt,
@@ -106,6 +111,13 @@ jobs:
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
           uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      # With exactly what was installed above. A relay that cannot even say its options ends the run here, red, before
+      # the key is read and before any run is started.
+      - name: the relay starts with what was installed
+        if: steps.chain.outputs.go == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m knos relay --help
       # The notes of the run before (the newest saved). That run saved them just before it started this one.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         if: steps.chain.outputs.go == 'true'
@@ -113,7 +125,10 @@ jobs:
           path: .knos-home
           key: knos-relay-home-${{ github.run_id }}
           restore-keys: knos-relay-home-
+      # Its exit status is the step's. `relayed` is set only after the relay ended well and had relayed its time: a
+      # relay that ends early, whatever its status, starts no next run either.
       - name: relay for about 4 minutes, a pass every 3 s
+        id: relay
         if: steps.chain.outputs.go == 'true'
         env:
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
@@ -122,7 +137,10 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/src
         run: |
           [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
-          python -m knos relay --serve 250 || true
+          began=$(date +%s)
+          python -m knos relay --serve 250
+          [ $(( $(date +%s) - began )) -ge 200 ] || { echo "The relay ended before its time was up: this run starts no next run."; exit 1; }
+          echo "relayed=true" >> "$GITHUB_OUTPUT"
       # Saved before the next run is started, so the next run restores these notes and not the ones of the run before
       # this one (the relay's notes would split in two lines of runs, each with its own day's counts and unposted lines).
       # What this run does in its last 30 s is not saved: the next run relays it too, and the log answers what it did.
@@ -143,10 +161,12 @@ jobs:
         run: |
           [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
           gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID" \
-            && touch "$RUNNER_TEMP/knos-next" || true
-          python -m knos relay --serve 30 || true
+            && touch "$RUNNER_TEMP/knos-next" || echo "GitHub did not take the start: the last step asks again."
+          python -m knos relay --serve 30
+      # Only after a relay step that succeeded: a run whose relay failed (or relayed nothing, having no key) starts
+      # nothing, so a build that cannot relay never starts run after run. The timer restarts the chain.
       - name: start the next run (always on), when the step before did not
-        if: always() && steps.chain.outputs.go == 'true'
+        if: always() && steps.chain.outputs.go == 'true' && steps.relay.outcome == 'success' && steps.relay.outputs.relayed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: '[ -f "$RUNNER_TEMP/knos-next" ] || gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID"'

@@ -14,7 +14,7 @@ and [ASSURANCE.md](ASSURANCE.md) which test holds which rule.
 | state on chain that GitHub's runner built an executable from a commit, and gate upgrades on it | the same crate | [`examples/upgrade_gate`](../examples/upgrade_gate) (`tests/test_upgrade_gate.py`); `scripts/governance.mjs upgrade propose` refuses a buffer without a record unless `--ungated` |
 | fund a work order from your own program (a DAO treasury, a grants program) | [`crates/knos-pay-interface`](../crates/knos-pay-interface): `solana-program` only; ids, addresses, FundOrderWallet, TopUp, RefundOrder, the Order reader | [`examples/cpi_fund`](../examples/cpi_fund) (`tests/test_cpi_fund.py`): a treasury PDA funds, tops up, and is refunded |
 | fund a work order from a multisig | [`scripts/squads_fund.mjs`](../scripts/squads_fund.mjs): a Squads v4 vault transaction; its dry run prints the instruction | `tests/test_squads_fund.py` |
-| sell work over HTTP and be paid on acceptance, not before delivery | [X402.md](X402.md): "attested", a proposed x402 scheme (not part of x402) | [`examples/x402_attested`](../examples/x402_attested) (`node --test examples/x402_attested/test.mjs`) |
+| sell work over HTTP and be paid on acceptance, not before delivery | [X402.md](X402.md): "knos-order", a proposed x402 scheme (not part of x402); `live.mjs --rpc <url>` runs it against any cluster | [`examples/x402_attested`](../examples/x402_attested) (`node --test examples/x402_attested/test.mjs`, `tests/test_x402_attested.py`) |
 | file, show or attest a settlement | [RECEIPT.md](RECEIPT.md): the acceptance receipt, its JSON Schema and vectors; [`scripts/sas_receipt.mjs`](../scripts/sas_receipt.mjs) writes one as a Solana Attestation Service attestation | `tests/test_receipt.py` |
 | build a client in JavaScript or Python | [`sdk/settle`](../sdk/settle) (one file, no dependency) and `knos.settle.v2`; the instructions and layouts are in [`idl/`](../idl) | `sdk/settle/test.mjs`, `tests/test_idl.py` |
 | count accepted outcomes without escrow | `knos_meter` ([`programs-v2/knos_meter`](../programs-v2/knos_meter)) reads tokens through the same interface crate | `tests/test_meter_chain.py` |
@@ -27,5 +27,27 @@ prefix, so a token minted for another program is useless to yours; bind the toke
 action was done, because a verified token can be read by anyone until an hour after it expires; and take the key
 account when a revoked key must stop at once. [OIDC.md](OIDC.md) has the reader's API and
 [SECURITY.md](SECURITY.md) what the verifier does and does not promise.
+
+## Use it from your program in ten minutes
+
+The verifier on devnet is `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`knos-oidc`, second deployment;
+`programs-v2/program_ids.json`). Nothing has to be deployed, registered or asked for on Knos's side.
+
+1. **Two minutes: the dependency.** `knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag =
+   "v0.3.14" }`. It depends on nothing and does not allocate, so it sits beside any version of `solana-program`,
+   `pinocchio` or `anchor`.
+2. **Five minutes: the check.** Copy [`examples/oidc_gate/template.rs`](../examples/oidc_gate/template.rs) and
+   change the three marked lines: your audience prefix, the repository's numeric id, the workflow file. Your
+   instruction takes two more read-only accounts, the token account and its key account;
+   [`examples/oidc_gate/README.md`](../examples/oidc_gate/README.md) has the lines and what each check refuses.
+3. **Three minutes: the token.** In the workflow that may act, give the job `id-token: write` and ask GitHub for a
+   token with your audience ([OIDC.md](OIDC.md), "Put a token on chain"). The sender writes it to `knos-oidc` and
+   verifies it (`Write`, then two `Step` for GitHub's RSA-2048 key), then sends your instruction with the token
+   account and `readToken(data).key`. In JavaScript that is `verifier(program)` of [`sdk/settle`](../sdk/settle); in
+   Python, `knos.settle.v2.oidc`.
+
+What you then hold in your program is GitHub's signature over which repository, which commit, which workflow file at
+which commit and which audience, checked by a program on chain. The examples in this repository are Knos's own; no
+program outside it is known to read a token yet, and this page will say so when one does.
 
 To rebuild the example programs and re-pin their test binaries: `bash scripts/build_programs_v2.sh examples`.

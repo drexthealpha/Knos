@@ -31,6 +31,12 @@ name: knos prove
 #            it takes one fact, that the job succeeded; which pull request, which commit and which issue come from
 #            review; who is paid, and whether the acceptance checks that ran are the ones that were funded, it
 #            works out itself, from GitHub and the chain.
+#            For a work order funded with `auto` the token it asks for has the audience
+#                knos3:auto:<order>:<head sha>:<terms hash>:1:<pull request>:<the author's id>.10000.<address or ->
+#            while the pull request is open: the funder chose, in the options the fund token signed, that the first
+#            pull request this suite passes is paid with no merge, to its author (an agent's own account too). Any
+#            other order paid by its acceptance checks gets the pay token (knos3:pay:...), as before. Both are posted
+#            for the relay the same way. No job, event or permission is added for it: the split above is the same.
 #
 # How GitHub runs this, which the design rests on:
 #   - A reusable workflow called from another repository sees the caller's event: `github.event`, the file at
@@ -168,7 +174,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.13"
+        run: uv tool install --no-config "knos==0.3.14"
       - name: knos review
         id: review
         env:
@@ -236,7 +242,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.13"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.14"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.

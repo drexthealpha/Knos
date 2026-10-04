@@ -36,7 +36,7 @@ export const FEE_OWNER = "4G3cznCnwCUPBCZwzKiLupjdgB5pSoCcGWNGuFv4TYFo";   // re
 export const USDC_DEVNET = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";  // Circle's devnet USDC
 export const USDC_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";  // Circle's USDC on mainnet
 export const MERGE = 0, TESTS = 1;
-export const FEE_BPS = 250, FEE_MIN = 50_000, MIN_AMOUNT = 1_000_000, MAX_AMOUNT = 500_000_000;
+export const FEE_BPS = 250, FEE_MIN = 50_000, MIN_AMOUNT = 1_000_000, MAX_AMOUNT = 500_000_000;      // the first deployment's
 export const JOB_LEN = 256, DUE_LEN = 48, REP_LEN = 32;                    // the first deployment's accounts
 
 // ---- bytes ---------------------------------------------------------------------------------------------------------
@@ -430,13 +430,20 @@ const KEY_TAIL = 64, OTHER = 2, PRIVATE = 3, PRIVATE_FLAG = 8, MAX_ISS = 200, T_
 const COUNTED = Object.freeze([USDC_DEVNET, USDC_MAINNET]);     // the record counts real money only in these mints
 // work orders (2.1). Amounts are millionths of one whole unit of the mint: `units` gives the mint's smallest units.
 const BALX_LEN = 152, PLAN_LEN = 24, ORDER_LEN = 512, OPTS_LEN = 48;
-const ORDER_FEE_MIN = 400_000, ORDER_FEE_MAX = 25_000_000, ORDER_MIN_AMOUNT = 5_000_000, TIP = 50_000, TIP_FIRST = 300_000, PLAN_BPS_MIN = 50;
+const MAX_AMOUNT2 = 100_000_000_000;         // 100,000.00 per job and per order on devnet; a build for real money decides its own cap
+const ORDER_FEE_MIN = 400_000, ORDER_MIN_AMOUNT = 5_000_000, TIP = 50_000, TIP_FIRST = 300_000, PLAN_BPS_MIN = 50;
+// an order's fee is marginal: FEE_BPS (or a Plan's rate) of the first FEE_TIER_1, FEE_BPS_2 up to FEE_TIER_2, FEE_BPS_3 above; no cap
+const FEE_TIER_1 = 1_000_000_000, FEE_TIER_2 = 50_000_000_000, FEE_BPS_2 = 100, FEE_BPS_3 = 50;
 const MAX_HOLDBACK_BPS = 5000, MAX_WARRANTY_DAYS = 90, MAX_KILL_BPS = 2000, MAX_PAYEES = 4;
 const F_FAUCET = 1, F_PRIVATE = 2, F_NEUTRAL = 4, F_STANDING = 8, F_TOKEN2022 = 16;
 // what an order can promise (order_terms.rs): the record of a holdback, the two markers, an assignment
 const HB_LEN = 240, DONE_LEN = 65, AS_LEN = 88, USED_LEN = 41;
 const NOTICE = 7 * 86_400;                  // a cancelled order still takes a pay token for this long
 const USED_KEEP = 300 + 3600 + 3600 + 3600; // a used marker can be closed this long after it was made
+// The instructions that take a token (tag: the index of the token account). Each takes the token's marker (usedPda).
+// MINTED: a marker's first byte after the devnet faucet took the token; the funding that follows still takes it.
+const TOKEN_AT = Object.freeze({ 3: 1, 5: 1, 8: 1, 11: 1, 16: 1, 17: 1, 19: 1, 20: 1, 21: 2, 25: 1 });
+const MINTED = 2;
 const STATES2 = { 1: "open", 3: "held", 4: "warranty" };
 const ERRORS = {
   76: "the key that signed this token is not active on chain yet: it waits for its delay and the guardian's approval; try again after that",
@@ -573,11 +580,15 @@ function feeOf2(amount, decimals = 6) {
   return num(fee < a ? fee : a);
 }
 
-/** The fee of an order (2.1), which its funder pays on top of the amount. `bps`: FEE_BPS, or the owner's Plan. */
+/** The fee of an order (2.1), which its funder pays on top of the amount, exactly as the program computes it (lib.rs
+ *  order_fee): `bps` (FEE_BPS, or the owner's Plan) of the first 1,000 whole units, 1% of what lies between 1,000 and
+ *  50,000, 0.5% of what lies above, each part rounded down; at least 0.40; no maximum. */
 function orderFee(amount, bps = FEE_BPS, decimals = 6) {
-  const pct = (BigInt(amount) * BigInt(bps)) / 10000n, floor = BigInt(units(ORDER_FEE_MIN, decimals)), cap = BigInt(units(ORDER_FEE_MAX, decimals));
-  const fee = pct > floor ? pct : floor;
-  return num(fee < cap ? fee : cap);
+  const a = BigInt(amount), t1 = BigInt(units(FEE_TIER_1, decimals)), t2 = BigInt(units(FEE_TIER_2, decimals));
+  const first = a < t1 ? a : t1, second = (a < t2 ? a : t2) - first, third = a - first - second;
+  const fee = (first * BigInt(bps)) / 10000n + (second * BigInt(FEE_BPS_2)) / 10000n + (third * BigInt(FEE_BPS_3)) / 10000n;
+  const floor = BigInt(units(ORDER_FEE_MIN, decimals));
+  return num(fee > floor ? fee : floor);
 }
 
 const fromHex = (v) => (typeof v === "string" ? unhex(v) : v);
@@ -673,6 +684,10 @@ function readMarker(raw) {
   if (raw && raw.length === DONE_LEN) return [b58(raw.slice(1, 33)), b58(raw.slice(33, 65))];
   return null;
 }
+
+/** Whether a token is used up, from the data of its marker (usedPda): no funding, and nothing else, takes it again.
+ *  A marker the devnet faucet made (MINTED) is not: the one funding that follows the faucet still takes the token. */
+const spent = (marker) => !!(marker && marker.length) && marker[0] !== MINTED;
 
 /** What a refund owes the taker first: killBps of the amount (at most what is left of it), when an open order was
  *  cancelled while reserved. `o` is readOrder's. */
@@ -785,8 +800,8 @@ function keyUsable(k, now) {
 
 // the accounts of each knos-pay instruction, in order, under the names idl/knos_pay_v2.json gives them
 const PAYOUT = ["job", "bind", "destToken", "rep", "pair", "vault", "feeToken", "auth", "rentTo", "mint", "tokenProgram", "systemProgram"];
-// a PayOrder's and a SettleOrder's accounts: what every payment shares, then five for each payee, then each payee's
-// assignment, then (PayOrder) a standing order's marker or a holdback's record
+// a PayOrder's and a SettleOrder's accounts: what every payment shares, (PayOrder) the token's marker, then five for
+// each payee, then each payee's assignment, then (PayOrder) a standing order's marker or a holdback's record
 const ORDER_COMMON = ["order", "ov", "tipToken", "feeToken", "auth", "rentTo", "mint", "tokenProgram", "systemProgram", "ataProgram"];
 const PER_PAYEE = ["bind", "wallet", "destToken", "rep", "pair"];
 const HB_COMMON = ["auth", "rentTo", "hbPayer", "mint", "tokenProgram"];
@@ -796,42 +811,42 @@ const PAY_IXS = [
   ["OpenBalance", ["authority", "balance", "baltok", "mint", "auth", "tokenProgram", "systemProgram"], 0],
   ["SetBalance", ["authority", "balance"], 1],
   ["Withdraw", ["authority", "balance", "baltok", "destToken", "mint", "auth", "tokenProgram"], 2],
-  ["FundBalance", ["relayer", "fundToken", "key", "balance", "baltok", "job", "vault", "mint", "auth", "tokenProgram", "systemProgram", "pause", "balx"], 3],
+  ["FundBalance", ["relayer", "fundToken", "key", "balance", "baltok", "job", "vault", "mint", "auth", "tokenProgram", "systemProgram", "pause", "used", "balx"], 3],
   ["FundWallet", ["funder", "job", "funderToken", "vault", "mint", "auth", "tokenProgram", "systemProgram", "pause"], 4],
   ["Pay", ["relayer", "payToken", "key", ...PAYOUT, "used"], 5],
   ["Settle", ["relayer", ...PAYOUT], 6],
   ["Refund", ["relayer", "job", "vault", "refundToken", "auth", "rentTo", "mint", "tokenProgram"], 7],
-  ["Bind", ["relayer", "bindToken", "key", "bind", "systemProgram"], 8],
+  ["Bind", ["relayer", "bindToken", "key", "bind", "systemProgram", "used"], 8],
   ["Pause", ["guardian", "payer", "pause", "systemProgram"], 9],
   ["InitFaucet", ["payer", "mint", "auth", "tokenProgram", "systemProgram"], 10],
-  ["FaucetOpen", ["relayer", "fundToken", "key", "balance", "baltok", "mint", "auth", "tokenProgram", "systemProgram", "rate"], 11],
+  ["FaucetOpen", ["relayer", "fundToken", "key", "balance", "baltok", "mint", "auth", "tokenProgram", "systemProgram", "rate", "used"], 11],
   ["Version", [], 12],
   ["SetBalanceX", ["authority", "balance", "balx", "systemProgram"], 13],
   ["SetPlan", ["feeOwner", "payer", "plan", "systemProgram"], 14],
   ["FundOrderWallet", ["funder", "order", "ov", "funderToken", "mint", "auth", "tokenProgram", "systemProgram", "pause"], 15],
   ["FundOrderBalance", ["relayer", "fundToken", "key", "balance", "baltok", "balx", "plan", "order", "ov", "used", "mint", "auth", "tokenProgram", "systemProgram", "pause"], 16],
-  ["PayOrder", ["relayer", "payToken", "key", ...ORDER_COMMON, ...PER_PAYEE, "assign", "doneOrHb"], 17],
+  ["PayOrder", ["relayer", "payToken", "key", ...ORDER_COMMON, "used", ...PER_PAYEE, "assign", "doneOrHb"], 17],
   ["Release", ["relayer", "order", "ov", "hb", "tipToken", "feeToken", ...HB_COMMON, "systemProgram", "ataProgram", "wallet", "destToken"], 18],
-  ["Revert", ["relayer", "revertToken", "key", "order", "ov", "hb", "refundToken", ...HB_COMMON], 19],
-  ["Reserve", ["relayer", "takeToken", "key", "order"], 20],
-  ["Cancel", ["signer", "order", "cancelToken", "key"], 21],
+  ["Revert", ["relayer", "revertToken", "key", "order", "ov", "hb", "refundToken", ...HB_COMMON, "systemProgram", "used"], 19],
+  ["Reserve", ["relayer", "takeToken", "key", "order", "systemProgram", "used"], 20],
+  ["Cancel", ["signer", "order", "cancelToken", "key", "systemProgram", "used"], 21],
   ["RefundOrder", ["relayer", "order", "ov", "refundToken", "auth", "rentTo", "mint", "tokenProgram", "takerBind", "killToken"], 22],
   ["TopUp", ["signer", "order", "ov", "fromToken", "balance", "mint", "auth", "tokenProgram", "pause"], 23],
   ["Assign", ["signer", "order", "bind", "assign", "systemProgram"], 24],
-  ["BindOrg", ["relayer", "bindToken", "key", "bind", "systemProgram"], 25],
+  ["BindOrg", ["relayer", "bindToken", "key", "bind", "systemProgram", "used"], 25],
   ["SettleOrder", ["relayer", ...ORDER_COMMON, ...PER_PAYEE, "assign"], 26],
   ["CloseMarker", ["marker", "rentTo", "order"], 27],
 ];
 
-/** The name of each of the `count` accounts of one knos-pay instruction, in order. PayOrder: its thirteen, five for each
+/** The name of each of the `count` accounts of one knos-pay instruction, in order. PayOrder: its fourteen, five for each
  *  payee, then each payee's assignment, then the marker or the record when there is one. Release: its thirteen, then a
  *  wallet and its token account for each recorded payee. Every other instruction: the IDL's names as they stand. */
 function accountNames(name, count) {
   const names = PAY_IXS.find((x) => x[0] === name)[1];
   if (name === "PayOrder") {
-    const payees = Math.floor((count - 13) / 6), last = (count - 13) % 6;
+    const payees = Math.floor((count - 14) / 6), last = (count - 14) % 6;
     if (payees < 1 || last > 1) return names.slice(0, count);
-    return [...names.slice(0, 13), ...Array(payees).fill(PER_PAYEE).flat(), ...Array(payees).fill("assign"), ...(last ? ["doneOrHb"] : [])];
+    return [...names.slice(0, 14), ...Array(payees).fill(PER_PAYEE).flat(), ...Array(payees).fill("assign"), ...(last ? ["doneOrHb"] : [])];
   }
   if (name === "Release") return Array.from({ length: count }, (_x, at) => (at < 13 ? names[at] : ["wallet", "destToken"][(at - 13) % 2]));
   return names.slice(0, count);
@@ -861,7 +876,7 @@ function client2(ids) {
   const tag = (s) => enc.encode(s);
   // a marker given as an address is used as it is; a JWT or a token account's data is turned into one
   const marker = async (used) => {
-    if (used == null) throw new Error("a token that works once needs its marker: pass `used` (the JWT, the token account's data, or usedPda's address)");
+    if (used == null) throw new Error("a token that works once needs its marker: pass `used` (the JWT, the token account's data, or usedPda's address); every instruction that takes a token makes it");
     return typeof used === "string" && isAddress(used) ? used : k.usedPda(used);
   };
   const k = {
@@ -900,7 +915,8 @@ function client2(ids) {
     donePda: (order, pr) => pda(tag("done"), key(order), u64(pr)),
     /** The wallet an order pays for this payee instead of the payee's own. */
     assignPda: (order, payeeId) => pda(tag("as"), key(order), u64(payeeId)),
-    /** The marker of a token that works once. `token`: the JWT, the data of its token account, or the 32 bytes sigHash gave. */
+    /** The single-use marker of a token: every instruction that takes a token makes it, and refuses the token once it
+     *  is there. `token`: the JWT, the data of its token account, or the 32 bytes sigHash gave. */
     async usedPda(token) {
       return pda(tag("used"), token instanceof Uint8Array && token.length === 32 ? token : await sigHash(token));
     },
@@ -925,14 +941,14 @@ function client2(ids) {
     },
     /** Funds the job a fund token describes from the Balance its audience names. `key` is the verifier's account of
      *  the key that verified the token. `terms` is the terms JSON (bytes, or the text) whose hash the audience carries.
-     *  `balx: true` adds the Balance's side account as a 13th account: the program requires it once the Balance has
-     *  one (readBalance(...).hasX). */
-    async fundBalanceIx({ relayer, fundToken, key: keyAccount, balance, mint, repoId, issue, terms, tokenProgram = TOKEN, balx = false }) {
+     *  `balx: true` adds the Balance's side account as a 14th account: the program requires it once the Balance has
+     *  one (readBalance(...).hasX). `used`: the token's single-use marker, as payIx takes it (the 13th account). */
+    async fundBalanceIx({ relayer, fundToken, key: keyAccount, balance, mint, repoId, issue, terms, used, tokenProgram = TOKEN, balx = false }) {
       return { program: PAY, data: cat(Uint8Array.of(3), bytesOf(terms)),
         accounts: [meta(relayer, true, true), meta(fundToken, false, false), meta(keyAccount, false, false), meta(balance, false, true),
           meta(await k.baltok(balance), false, true), meta(await k.job(repoId, issue, balance), false, true), meta(await k.vault(mint), false, true),
           meta(mint, false, false), meta(await k.auth(), false, false), meta(tokenProgram, false, false), meta(SYSTEM, false, false),
-          meta(await k.pause(), false, false), ...(balx ? [meta(await k.balxPda(balance), false, true)] : [])] };
+          meta(await k.pause(), false, false), meta(await marker(used), false, true), ...(balx ? [meta(await k.balxPda(balance), false, true)] : [])] };
     },
     /** A wallet funds a job with its own money. `wfRepo` ("owner/name") and `wfSha` pin the prove.yml that can prove it. */
     async fundWalletIx({ funder, funderToken, mint, repoId, issue, amount, wfRepo, wfSha, terms, mode = MERGE, workS = 14 * 86400,
@@ -972,22 +988,25 @@ function client2(ids) {
         meta(dest, false, true), meta(await k.auth(), false, false), meta(j.rentTo, false, true), meta(j.mint, false, false),
         meta(j.tokenProgram, false, false)] };
     },
-    /** `userId` is the token's actor_id. */
-    bindIx: async ({ relayer, bindToken, key: keyAccount, userId }) => ({ program: PAY, data: Uint8Array.of(8),
+    /** `userId` is the token's actor_id. `used`: the token's single-use marker, as payIx takes it. */
+    bindIx: async ({ relayer, bindToken, key: keyAccount, userId, used }) => ({ program: PAY, data: Uint8Array.of(8),
       accounts: [meta(relayer, true, true), meta(bindToken, false, false), meta(keyAccount, false, false), meta(await k.bind(userId), false, true),
-        meta(SYSTEM, false, false)] }),
+        meta(SYSTEM, false, false), meta(await marker(used), false, true)] }),
     /** The guardian refuses new funding for `seconds` (at most 7 days) from now; 0 lifts the pause. */
     pauseIx: async ({ guardian, payer, seconds }) => ({ program: PAY, data: cat(Uint8Array.of(9), u32(seconds)),
       accounts: [meta(guardian, true, false), meta(payer, true, true), meta(await k.pause(), false, true), meta(SYSTEM, false, false)] }),
     initFaucetIx: async ({ payer }) => ({ program: PAY, data: Uint8Array.of(10), accounts: [meta(payer, true, true),
       meta(await k.faucetMint(), false, true), meta(await k.auth(), false, false), meta(TOKEN, false, false), meta(SYSTEM, false, false)] }),
     /** Devnet: mints the fund token's amount of test USDC into the faucet Balance of the token's repository owner,
-     *  which the token's audience must name. Send fundBalanceIx on that Balance after it, in the same transaction. */
-    async faucetOpenIx({ relayer, fundToken, key: keyAccount, ownerId, repoId }) {
+     *  which the token's audience must name. Send fundBalanceIx on that Balance after it, in the same transaction.
+     *  `used`: the token's marker, as payIx takes it: the faucet marks the token as minted on, and the funding that
+     *  follows is the one instruction that still takes it. */
+    async faucetOpenIx({ relayer, fundToken, key: keyAccount, ownerId, repoId, used }) {
       const balance = await k.faucetBalance(ownerId);
       return { program: PAY, data: Uint8Array.of(11), accounts: [meta(relayer, true, true), meta(fundToken, false, false), meta(keyAccount, false, false),
         meta(balance, false, true), meta(await k.baltok(balance), false, true), meta(await k.faucetMint(), false, true),
-        meta(await k.auth(), false, false), meta(TOKEN, false, false), meta(SYSTEM, false, false), meta(await k.rate(repoId), false, true)] };
+        meta(await k.auth(), false, false), meta(TOKEN, false, false), meta(SYSTEM, false, false), meta(await k.rate(repoId), false, true),
+        meta(await marker(used), false, true)] };
     },
 
     // ---- work orders (2.1) ----
@@ -1049,12 +1068,14 @@ function client2(ids) {
      *  creates when it does not exist, at the relayer's cost and for a larger tip). `tipToken`: a token account of the
      *  relayer for the tip (default: its associated token account; it must exist, as FEE_OWNER's must). A payee who
      *  assigned this order's payment is paid at its assignee: pass payeeWallet(...) as its wallet. `pr`: the pull request
-     *  the audience names (a STANDING order marks it). The token may be any judge's of the order, or its arbiter's ruling. */
-    async payOrderIx({ relayer, payToken, key: keyAccount, order, o, payees, tipToken = null, pr = 0 }) {
+     *  the audience names (a STANDING order marks it). The token may be any judge's of the order, or its arbiter's ruling.
+     *  `used`: the token's single-use marker, as payIx takes it: a pay token (or a ruling) pays, or holds, once; it comes
+     *  before the payees' accounts. */
+    async payOrderIx({ relayer, payToken, key: keyAccount, order, o, payees, used, tipToken = null, pr = 0 }) {
       const per = [];
       for (const [id, wallet, dest = null] of payees) per.push(...await k.payeeAccounts(o, id, wallet, dest));
       return { program: PAY, data: Uint8Array.of(17), accounts: [meta(relayer, true, true), meta(payToken, false, false), meta(keyAccount, false, false),
-        ...await k.orderCommon(relayer, order, o, tipToken), ...per, ...await k.termsAccounts(order, o, payees.map((p) => p[0]), pr)] };
+        ...await k.orderCommon(relayer, order, o, tipToken), meta(await marker(used), false, true), ...per, ...await k.termsAccounts(order, o, payees.map((p) => p[0]), pr)] };
     },
     /** What PayOrder takes after its payees: each payee's assignment (it need not exist, but cannot be left out), then
      *  a standing order's marker of the pull request, or the record of a holdback. */
@@ -1105,10 +1126,10 @@ function client2(ids) {
           meta(await k.auth(), false, false), meta(tokenProgram, false, false), meta(SYSTEM, false, false), meta(await k.pause(), false, false)] };
     },
     /** Binds an organisation's wallet. `orgId` is the token's repository_owner_id; the Bind is the account a person's
-     *  is, k.bind(orgId): a payee id that is an organisation is then paid like any other. */
-    bindOrgIx: async ({ relayer, bindToken, key: keyAccount, orgId }) => ({ program: PAY, data: Uint8Array.of(25),
+     *  is, k.bind(orgId): a payee id that is an organisation is then paid like any other. `used`: the token's marker. */
+    bindOrgIx: async ({ relayer, bindToken, key: keyAccount, orgId, used }) => ({ program: PAY, data: Uint8Array.of(25),
       accounts: [meta(relayer, true, true), meta(bindToken, false, false), meta(keyAccount, false, false), meta(await k.bind(orgId), false, true),
-        meta(SYSTEM, false, false)] }),
+        meta(SYSTEM, false, false), meta(await marker(used), false, true)] }),
     /** After the warranty, anyone: the holdback to the recorded wallets (their associated token accounts, created when
      *  missing), the tip to the relayer, the rest of the fee to FEE_OWNER. `hb` is readHoldback of k.hbPda(order). */
     async releaseIx({ relayer, order, o, hb, tipToken = null }) {
@@ -1118,21 +1139,28 @@ function client2(ids) {
         c[5], meta(hb.payer, false, true), ...c.slice(6), ...per] };
     },
     /** Inside the warranty, on a revert token of one of the order's judges, a, b or c (revertAudience): everything the order
-     *  holds back to its funder. `hb` is readHoldback of k.hbPda(order). */
-    async revertIx({ relayer, revertToken, key: keyAccount, order, o, hb, refundToken = null }) {
+     *  holds back to its funder. `hb` is readHoldback of k.hbPda(order). `used`: the token's marker, as payIx takes it;
+     *  the relayer pays its rent. */
+    async revertIx({ relayer, revertToken, key: keyAccount, order, o, hb, used, refundToken = null }) {
       const dest = refundToken ?? (o.fromBalance ? o.refundTo : await ata(o.refundTo, o.mint, o.tokenProgram));
-      return { program: PAY, data: Uint8Array.of(19), accounts: [meta(relayer, true, false), meta(revertToken, false, false), meta(keyAccount, false, false),
+      return { program: PAY, data: Uint8Array.of(19), accounts: [meta(relayer, true, true), meta(revertToken, false, false), meta(keyAccount, false, false),
         meta(order, false, true), meta(await k.ovPda(order), false, true), meta(await k.hbPda(order), false, true), meta(dest, false, true),
         meta(await k.auth(), false, false), meta(o.rentTo, false, true), meta(hb.payer, false, true), meta(o.mint, false, false),
-        meta(o.tokenProgram, false, false)] };
+        meta(o.tokenProgram, false, false), meta(SYSTEM, false, false), meta(await marker(used), false, true)] };
     },
-    /** Reserves an order for the taker a take token names (takeAudience). */
-    reserveIx: ({ relayer, takeToken, key: keyAccount, order }) => ({ program: PAY, data: Uint8Array.of(20),
-      accounts: [meta(relayer, true, false), meta(takeToken, false, false), meta(keyAccount, false, false), meta(order, false, true)] }),
+    /** Reserves an order for the taker a take token names (takeAudience). `used`: the token's marker, as payIx takes
+     *  it; the relayer pays its rent. */
+    reserveIx: async ({ relayer, takeToken, key: keyAccount, order, used }) => ({ program: PAY, data: Uint8Array.of(20),
+      accounts: [meta(relayer, true, true), meta(takeToken, false, false), meta(keyAccount, false, false), meta(order, false, true),
+        meta(SYSTEM, false, false), meta(await marker(used), false, true)] }),
     /** Gives notice: the deadline becomes min(deadline, now + NOTICE). A wallet's order: `signer` is the funding wallet.
-     *  A Balance's order: anyone signs, and `cancelToken` (with its `key`) carries cancelAudience(order). */
-    cancelIx: ({ signer, order, cancelToken = null, key: keyAccount = null }) => ({ program: PAY, data: Uint8Array.of(21),
-      accounts: [meta(signer, true, false), meta(order, false, true), ...(cancelToken ? [meta(cancelToken, false, false), meta(keyAccount, false, false)] : [])] }),
+     *  A Balance's order: anyone signs, `cancelToken` (with its `key`) carries cancelAudience(order), and `used` is that
+     *  token's marker, as payIx takes it; the signer pays its rent. */
+    async cancelIx({ signer, order, cancelToken = null, key: keyAccount = null, used = null }) {
+      if (cancelToken && !keyAccount) throw new Error("a cancel token is read with its key: pass `key` too");
+      const tok = cancelToken ? [meta(cancelToken, false, false), meta(keyAccount, false, false), meta(SYSTEM, false, false), meta(await marker(used), false, true)] : [];
+      return { program: PAY, data: Uint8Array.of(21), accounts: [meta(signer, true, true), meta(order, false, true), ...tok] };
+    },
     /** This order's payment for `payeeId` goes to the wallet `to`. `signer`: the payee's bound wallet the first time, the
      *  current assignee after that. */
     assignIx: async ({ signer, order, payeeId, to }) => ({ program: PAY, data: cat(Uint8Array.of(24), u64(payeeId), key(to)),
@@ -1194,16 +1222,16 @@ function errorWords(err) {
 }
 
 export const v2 = Object.freeze({
-  MERGE, TESTS, FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT, FAUCET_CAP: 100_000_000, MIN_WORK: 60, MAX_WORK: 90 * 86_400, HOLD, PAUSE_MAX: 7 * 86_400,
+  MERGE, TESTS, FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT: MAX_AMOUNT2, FAUCET_CAP: 100_000_000, MIN_WORK: 60, MAX_WORK: 90 * 86_400, HOLD, PAUSE_MAX: 7 * 86_400,
   FUND_PERIOD: 60, CLOCK_SLACK: 30, MAX_TERMS, TOKEN_AHEAD: 300, TOKEN_LIFE: 3600, JOB_LEN: 320, BALANCE_LEN: 160, BIND_LEN: 56, REP_LEN: 64,
   KEY_DELAY, KEY_TTL, K_HDR, KEY_TAIL, OTHER, PRIVATE, PRIVATE_FLAG, MAX_ISS, T_IHASH, ERRORS, PAY_IXS,
-  BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN, ORDER_FEE_MIN, ORDER_FEE_MAX, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN, MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS,
-  MAX_KILL_BPS, MAX_PAYEES, F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022, COUNTED, HB_LEN, DONE_LEN, AS_LEN, USED_LEN, NOTICE, USED_KEEP,
+  BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN, ORDER_FEE_MIN, FEE_TIER_1, FEE_TIER_2, FEE_BPS_2, FEE_BPS_3, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN, MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS,
+  MAX_KILL_BPS, MAX_PAYEES, F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022, COUNTED, HB_LEN, DONE_LEN, AS_LEN, USED_LEN, NOTICE, USED_KEEP, TOKEN_AT, MINTED,
   units, feeOf: feeOf2, termsJson, termsHash, wfRepoHash, funderKey, fundAudience: fundAudience2, namedBalance, payAudience: payAudience2, bindAudience, destination,
   orderFee, scopeOf, sigHash, opts, orderFundAudience, payeesText, orderPayAudience, payeesOf, orderDestination, planBps,
   privateFundTerms, ruleAudience, orgBindAudience, takeAudience, cancelAudience, revertAudience, payeeWallet, killFee, accountNames,
   readJob, readBalance, readBind, readRep, readPause, readRate, readOrder, readBalx, readPlan, readKey, tokenIssuer, readIss, keyAccountHash, keyUsable,
-  readHoldback, readAssign, readMarker, errorWords, client: client2,
+  readHoldback, readAssign, readMarker, spent, errorWords, client: client2,
 });
 
 
@@ -1231,6 +1259,7 @@ const MARK_LEN_1 = 48;          // a mark written before CloseMark existed: no p
 const MARK_PAYER = 48;          // where a mark keeps the relayer that paid its rent (marksOf filters on it)
 const MARK_GRACE = 7200;        // the longest life the meter takes of a token, and the hour the verifier allows past its expiry
 const M_WORKFLOWS = Object.freeze(["attest.yml", "prove.yml"]), EVAL = "knosm:eval ", CLOSED = "knosm:closed ";
+const LEDGER_LEN = 96, MAX_BATCH = 100_000;     // the batch mode (1.1): one Ledger account for a month, no account per evaluation
 const M_ERRORS = {
   61: "the token's claims are not a JSON object", 62: "a claim the meter reads appears twice in the token", 63: "a claim the meter reads is missing from the token",
   76: ERRORS[76], 77: ERRORS[77],
@@ -1250,6 +1279,8 @@ const M_ERRORS = {
   122: "the key that signed this token is a private key, or of a kind the meter does not know: it counts nothing here",
   123: "this is not a mark that can be closed, or the signer is not the relayer that paid its rent; sign with the wallet the mark names",
   124: "this mark cannot be closed yet; send this again after the time the mark names (two hours into the month after the one it was counted in)",
+  125: "this batch's seq is not the ledger's next one: the token was already taken, or an earlier batch is missing; read next_seq from the ledger account and send that batch",
+  126: "a batch holds 1 to 100,000 evaluations, no more accepted than counted, for this month or the last one",
 };
 
 /** A rate (millionths of a whole unit) in the smallest units of a mint with these decimals, rounded down. */
@@ -1337,6 +1368,53 @@ function readMonth(raw, buyerId = 0, sellerId = 0, month = 0) {
   if (!raw || raw.length !== MONTH_LEN || raw[0] !== 1) return { buyerId, sellerId, month, evaluations: 0, accepted: 0, rejected: 0, value: 0, fees: 0 };
   const dv = view(raw), u = (o) => num(dv.getBigUint64(o, true));
   return { buyerId: u(8), sellerId: u(16), month: dv.getUint32(4, true), evaluations: u(24), accepted: u(32), rejected: u(40), value: u(48), fees: u(56) };
+}
+
+// ---- the batch mode (knos-meter 1.1): one signed token counts a whole batch; the Ledger keeps totals and a running hash ----
+/** What the buyer's run (`kind` "batch") or the seller's (`kind` "claim") asks GitHub to sign for one batch: the month
+ *  (yyyymm), the ledger's next seq, how many evaluations, how many of them accepted, their declared value, and the
+ *  Merkle root of their keys (32 bytes, or hex; merkleRoot gives it). */
+function batchAudience(buyerId, sellerId, month, seq, count, accepted, value, root, kind = "batch") {
+  if (kind !== "batch" && kind !== "claim") throw new Error("a batch is the buyer's (\"batch\") or the seller's own count (\"claim\")");
+  return `knosm:${kind}:${buyerId}:${sellerId}:${month}:${seq}:${count}:${accepted}:${value}:${hex(hex32(root, "a batch's root"))}`;
+}
+
+/** The fields of a knosm:batch or knosm:claim audience: { claim, buyerId, sellerId, month, seq, count, accepted, value, root (hex) }. */
+function parseBatch(audience) {
+  const p = audience.split(":");
+  if (p.length !== 10 || p[0] !== "knosm" || (p[1] !== "batch" && p[1] !== "claim") || !/^[0-9a-f]{64}$/.test(p[9])) throw new Error("this is not a knosm:batch or knosm:claim audience");
+  const n = (at) => num(BigInt(p[at]));
+  return { claim: p[1] === "claim", buyerId: n(2), sellerId: n(3), month: Number(p[4]), seq: n(5), count: n(6), accepted: n(7), value: n(8), root: p[9] };
+}
+
+/** The root both sides compute for one batch and the program stores: RFC 6962 over the evaluation keys (evalKey's
+ *  bytes, or hex), sorted ascending, none repeated: a leaf is sha256(0x00 || key), a node sha256(0x01 || left || right). */
+async function merkleRoot(keys) {
+  const ids = keys.map((id) => hex32(id, "an evaluation key")), ordered = ids.every((id, at) => !at || hex(ids[at - 1]) < hex(id));
+  if (!ids.length || !ordered) throw new Error("a batch's keys are sorted ascending, none repeated, and there is at least one");
+  const tree = async (leaves) => {
+    if (leaves.length === 1) return sha256(cat(Uint8Array.of(0), leaves[0]));
+    let half = 1;
+    while (half * 2 < leaves.length) half *= 2;       // the largest power of two below the number of leaves
+    return sha256(cat(Uint8Array.of(1), await tree(leaves.slice(0, half)), await tree(leaves.slice(half))));
+  };
+  return tree(ids);
+}
+
+/** A ledger's running hash after one more batch: sha256(before || root || seq || count || accepted || value), the four
+ *  numbers as u64 LE. A new ledger starts from 32 zero bytes. Recompute it over every batch of an off-chain ledger and
+ *  compare with readLedger(...).chain. */
+const chainHash = (before, root, seq, count, accepted, value) =>
+  sha256(cat(hex32(before, "a ledger's hash"), hex32(root, "a batch's root"), u64(seq), u64(count), u64(accepted), u64(value)));
+
+/** The Ledger of one buyer, one seller and one month (ledgerPda): { claim (false: the buyer's count, which is billed;
+ *  true: the seller's own), month, buyerId, sellerId, nextSeq, evaluations, accepted, value, fees, chain (hex) }. null
+ *  when no batch was recorded. A buyer's ledger and a seller's that differ are two different counts of the same month. */
+function readLedger(raw) {
+  if (!raw || raw.length !== LEDGER_LEN || raw[0] !== 1) return null;
+  const dv = view(raw), u = (o) => num(dv.getBigUint64(o, true));
+  return { claim: raw[2] === 1, month: dv.getUint32(4, true), buyerId: u(8), sellerId: u(16), nextSeq: u(24), evaluations: u(32), accepted: u(40), value: u(48),
+    fees: u(56), chain: hex(raw.slice(64, 96)) };
 }
 
 /** What the next billable evaluation of this owner costs at `now`, in the mint's smallest units. */
@@ -1428,6 +1506,30 @@ function meterClient(program) {
         meta(await k.monthPda(e.buyerId, e.sellerId, yyyymm(now)), false, true), meta(feeToken ?? await ata(FEE_OWNER, c.mint, c.tokenProgram), false, true),
         meta(c.mint, false, false), meta(await k.auth(), false, false), meta(c.tokenProgram, false, false), meta(SYSTEM, false, false)] };
     },
+    /** The batch ledger of one buyer and one seller in one month: the buyer's count, or (`claim`) the seller's own. */
+    ledgerPda: (buyerId, sellerId, month, claim = false) => pda(tag(claim ? "lc" : "l"), u64(buyerId), u64(sellerId), u32(month)),
+    /** Records the batch a verified token describes (batchAudience): no account per evaluation, the totals and the
+     *  running hash go to the buyer's Ledger. The token is taken once: its seq must be the ledger's nextSeq (error
+     *  125). The fee is count x rate beyond the month's free ones, from `credits`, refused whole when they cannot pay.
+     *  `c` is readCredits of `credits`; `feeToken` as recordIx takes it. */
+    async recordBatchIx({ relayer, token, key: keyAccount, credits, c, audience, feeToken = null }) {
+      const b = parseBatch(audience);
+      if (b.claim) throw new Error("a knosm:claim audience is the seller's own count: send it with claimBatchIx");
+      return { program, data: Uint8Array.of(5), accounts: [meta(relayer, true, true), meta(token, false, false), meta(keyAccount, false, false),
+        meta(credits, false, true), meta(await k.crtokPda(credits), false, true), meta(await k.planPda(b.buyerId), false, true),
+        meta(await k.ledgerPda(b.buyerId, b.sellerId, b.month), false, true), meta(feeToken ?? await ata(FEE_OWNER, c.mint, c.tokenProgram), false, true),
+        meta(c.mint, false, false), meta(await k.auth(), false, false), meta(c.tokenProgram, false, false), meta(SYSTEM, false, false)] };
+    },
+    /** The seller's own count of a batch, from a token of a repository the seller owns (batchAudience with "claim"):
+     *  the same shape, in the seller's Ledger (ledgerPda(..., true)). No fee and no credits. */
+    async claimBatchIx({ relayer, token, key: keyAccount, audience }) {
+      const b = parseBatch(audience);
+      if (!b.claim) throw new Error("a knosm:batch audience is the buyer's count: send it with recordBatchIx");
+      return { program, data: Uint8Array.of(6), accounts: [meta(relayer, true, true), meta(token, false, false), meta(keyAccount, false, false),
+        meta(await k.ledgerPda(b.buyerId, b.sellerId, b.month, true), false, true), meta(SYSTEM, false, false)] };
+    },
+    /** The 1.1 build logs its version when this is simulated; a 1.0 build refuses the instruction. */
+    versionIx: () => ({ program, data: Uint8Array.of(7), accounts: [] }),
     /** The relayer that paid a mark's rent takes all of it back and the mark is gone. `payer` signs and is the wallet
      *  the mark names; `mark` is markPda(buyer id, key) or an address from marksOf. Refused before the mark's
      *  closeAfter (error 124). Several fit in one transaction: one signature closes them all. */
@@ -1444,7 +1546,7 @@ function meterClient(program) {
 
 export const meter = Object.freeze({
   MICRO, FEE: M_FEE, PLAN_MIN: M_PLAN_MIN, FREE_PER_MONTH, MIN_DECIMALS, MAX_DECIMALS, EXTENSIONS: M_EXTENSIONS, CREDITS_LEN, PLAN_LEN: M_PLAN_LEN, MARK_LEN, MONTH_LEN,
-  MARK_LEN_1, MARK_PAYER, MARK_GRACE, CLOSED, WORKFLOWS: M_WORKFLOWS, EVAL, ERRORS: M_ERRORS, feeUnits, yyyymm, nextMonth, closeAfter, closable, evalAudience, parseAudience, evalKey, readCredits, readPlan: readMeterPlan, rateAt, usedIn,
+  MARK_LEN_1, MARK_PAYER, MARK_GRACE, CLOSED, LEDGER_LEN, MAX_BATCH, batchAudience, parseBatch, merkleRoot, chainHash, readLedger, WORKFLOWS: M_WORKFLOWS, EVAL, ERRORS: M_ERRORS, feeUnits, yyyymm, nextMonth, closeAfter, closable, evalAudience, parseAudience, evalKey, readCredits, readPlan: readMeterPlan, rateAt, usedIn,
   readMark, readMonth, quote: meterQuote, parseEval, statement: meterStatement, client: meterClient,
 });
 
@@ -1580,11 +1682,17 @@ export function wallets(win = globalThis.window) {
 
 // ---- JSON-RPC ------------------------------------------------------------------------------------------------------
 export async function rpc(url, method, params) {
-  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
-  const j = await r.json();
-  if (j.error) throw new Error(j.error.message || "RPC error");
-  return j.result;
+  // A public endpoint rate-limits: HTTP 429, or an error of code 429 in the body. That says nothing about the request
+  // (it was not served), so it is waited out and asked again, as the Python client's chain.call does; anything else is
+  // the answer. Without this a client that has just sent a transaction can stop before it knows the transaction landed.
+  for (const wait of [1000, 2000, 4000, 8000, null]) {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+    const j = r.status === 429 ? await r.json().catch(() => ({ error: { code: 429, message: "Too Many Requests" } })) : await r.json();
+    if ((r.status === 429 || j?.error?.code === 429) && wait !== null) { await new Promise((ok) => setTimeout(ok, wait)); continue; }
+    if (j.error) throw new Error(j.error.message || "RPC error");
+    return j.result;
+  }
 }
 
 const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));

@@ -400,7 +400,7 @@ def test_answers_about_pull_requests_that_left_the_window_are_forgotten(github, 
 def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way():
     yaml = pytest.importorskip("yaml")
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
-    assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}]                # `on`: every 6 hours, as the docs say
+    assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}, {"cron": "43 5 * * 1"}]   # `on`: every 6 hours, as the docs say; Mondays for the weekly job
     steps = doc["jobs"]["index"]["steps"]
     runs = [str(s.get("run", "")) for s in steps]
     scan = next(i for i, r in enumerate(runs) if "agent_pr_index.py scan" in r)
@@ -489,3 +489,98 @@ def test_the_site_shows_both_counts_and_still_reads_an_index_published_before_th
     assert "Counting every such pull request: 194 of 787 (24.7%)." in now
     assert "said tests pass on 787 pull requests with finished CI; a check of any kind had failed on 194 (24.7%, 95% interval 21.8%–27.8%)." in before
     assert "test or a build" not in before                                    # that index did not publish the second count
+
+
+# ---- by agent and by week (docs/agent_weekly.json, docs/INDEX.md) -------------------------------------------------
+
+def _row(agent, n, day, cls, merged=None, failed=()):
+    return {"agent": agent, "repo": f"o/r{n}", "number": n, "created_at": f"{day}T12:00:00Z", "class": cls,
+            "failed_checks": list(failed), **({} if merged is None else {"merged": merged})}
+
+
+WEEK_ROWS = [_row("copilot", 1, "2026-09-21", "failed", True, ["build"]),      # a Monday
+             _row("copilot", 2, "2026-09-27", "passed", True),                 # the Sunday of the same week
+             _row("copilot", 3, "2026-09-27", "failed", False, ["vercel"]),
+             _row("copilot", 4, "2026-09-27", "pending", False),               # claimed; CI not finished
+             _row("copilot", 5, "2026-09-28", "passed", True),                 # the next week
+             _row("devin", 6, "2026-09-23", "failed")]                         # merge state not read
+
+
+def test_the_weekly_series_counts_each_agent_by_the_week_a_pull_request_was_opened():
+    assert agent_pr_index.week_of("2026-09-27T23:59:59Z") == "2026-09-21" and agent_pr_index.week_of("2026-09-28T00:00:00Z") == "2026-09-28"
+    got = agent_pr_index.weekly(WEEK_ROWS, WINDOW, "2026-10-02", "a test", [["copilot", "2026-09-22T01:00:00Z"], ["codex", "2026-09-29T01:00:00Z"]])
+    first, second = got["agents"]["copilot"]["weeks"]
+    assert first == {"week": "2026-09-21", "sampled": 5, "claimed_passing": 4, "ci_finished": 3,
+                     "failed_a_check": {"k": 2, "n": 3, "share": 0.6667, "ci95": agent_pr_index.wilson(2, 3), "test_or_build": 1},
+                     "merged_despite_failed_check": {"k": 1, "n": 2, "share": 0.5, "ci95": agent_pr_index.wilson(1, 2)}}
+    assert second["week"] == "2026-09-28" and second["sampled"] == 1 and second["failed_a_check"]["k"] == 0
+    assert got["agents"]["copilot"]["all_weeks"]["failed_a_check"]["n"] == 4
+    assert got["agents"]["devin"]["weeks"][0]["merged_despite_failed_check"] is None      # not read is null, never 0
+    assert got["agents"]["codex"]["weeks"] == [{"week": "2026-09-28", "sampled": 1, "claimed_passing": 0, "ci_finished": 0,
+                                                "failed_a_check": {"k": 0, "n": 0, "share": None, "ci95": None, "test_or_build": 0},
+                                                "merged_despite_failed_check": None}]
+    assert agent_pr_index.weekly(WEEK_ROWS, WINDOW, "d", "s")["agents"]["copilot"]["weeks"][0]["sampled"] is None   # hits set aside not kept
+    assert agent_pr_index.weekly(WEEK_ROWS[::-1], WINDOW, "2026-10-02", "a test", [["codex", "2026-09-29T01:00:00Z"], ["copilot", "2026-09-22T01:00:00Z"]]) == got
+    assert set(got["definitions"]) >= {"sampled", "claimed_passing", "failed_a_check", "merged_despite_failed_check"} and len(got["limits"]) >= 3
+
+
+def test_the_merge_state_is_asked_of_github_and_an_unanswered_one_stays_unknown(monkeypatch):
+    asked = []
+
+    def gh(path, params=None, kind="core", max_age=None):
+        asked.append(path)
+        return {"ok": False, "error": "HTTP 502"} if path.endswith("/3") else {"ok": True, "json": {"merged": path.endswith("/1")}}
+    monkeypatch.setattr(agent_pr_ci, "gh_get", gh)
+    rows = agent_pr_index.read_merged([_row("codex", 1, "2026-09-22", "failed"), _row("codex", 2, "2026-09-22", "passed", False),
+                                       _row("codex", 3, "2026-09-22", "passed"), _row("codex", 4, "2026-09-22", "pending")])
+    assert asked == ["repos/o/r1/pulls/1", "repos/o/r3/pulls/3"]                 # not the one already known, not unfinished CI
+    assert rows[0]["merged"] is True and "merged" not in rows[2]
+    assert agent_pr_index.weekly(rows, WINDOW, "d", "s")["agents"]["codex"]["weeks"][0]["merged_despite_failed_check"] is None
+
+
+def test_a_scan_keeps_when_the_hits_it_set_aside_were_opened(monkeypatch):
+    item = lambda n, body: {"repository_url": "https://api.github.com/repos/o/r", "number": n, "body": body,  # noqa: E731
+                            "user": {"login": "bot", "type": "Bot"}, "created_at": f"2026-09-2{n}T00:00:00Z", "assignees": []}
+    pages = iter([{"ok": True, "json": {"items": [item(1, "All tests pass."), item(2, "Please make sure tests pass")]}}])
+    monkeypatch.setattr(agent_pr_ci, "gh_get", lambda *a, **k: next(pages, {"ok": True, "json": {"items": []}}))
+    monkeypatch.setattr(agent_pr_ci, "NO_CLAIM", [])
+    kept, n, finished = agent_pr_ci.scan_agent("codex", "x", "2026-09-30", 10, 5)
+    assert [c["number"] for c in kept] == [1] and finished and agent_pr_ci.NO_CLAIM == [["codex", "2026-09-22T00:00:00Z"]]
+
+
+def test_the_committed_weekly_file_is_the_committed_sample_cut_by_week_and_the_page_shows_its_table(tmp_path):
+    """Nothing in docs/agent_weekly.json is typed by hand: it is docs/agent_pr_ci.json reshaped, and docs/INDEX.md
+    holds exactly the table the script renders from it, and says what the numbers cannot say."""
+    out, doc = tmp_path / "weekly.json", tmp_path / "INDEX.md"
+    doc.write_text((ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8"), encoding="utf-8")
+    assert subprocess.run([sys.executable, str(ROOT / "scripts" / "agent_pr_index.py"), "weekly", "--sample", "docs/agent_pr_ci.json",
+                           "--out", str(out), "--doc", str(doc)], cwd=ROOT, capture_output=True, text=True).returncode == 0
+    series = json.loads(out.read_text(encoding="utf-8"))
+    assert series == json.loads((ROOT / "docs" / "agent_weekly.json").read_text(encoding="utf-8"))
+    page = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
+    assert doc.read_text(encoding="utf-8") == page and agent_pr_index.weekly_table(series) in page
+    sample = json.loads((ROOT / "docs" / "agent_pr_ci.json").read_text(encoding="utf-8"))
+    assert series["read"] == sample["generated_utc"][:10] and "nothing was read again" in series["source"]
+    for name, agent in series["agents"].items():
+        s = sample["summary"][name]
+        assert agent["all_weeks"]["claimed_passing"] == s["N"] == sum(w["claimed_passing"] for w in agent["weeks"])
+        assert agent["all_weeks"]["failed_a_check"] == {"k": s["failed"], "n": s["with_completed_ci"], "share": s["share_failed_among_completed_ci"],
+                                                        "ci95": agent_pr_index.wilson(s["failed"], s["with_completed_ci"]), "test_or_build": s["failed_testish"]}
+        assert all(w["sampled"] is None for w in agent["weeks"])                 # the sample kept no date for the hits it set aside
+    for words in ("Bot-author heuristics", "Public repositories only", "One snapshot of the checks", "Wilson"):
+        assert words in page
+    with pytest.raises(SystemExit):
+        (tmp_path / "bare.md").write_text("no markers", encoding="utf-8")
+        agent_pr_index.render_doc(str(tmp_path / "bare.md"), series)
+
+
+def test_the_weekly_job_opens_a_pull_request_and_merges_nothing():
+    yaml = pytest.importorskip("yaml")
+    doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
+    job = doc["jobs"]["weekly"]
+    assert job["if"] == "github.event.schedule == '43 5 * * 1' || github.event_name == 'workflow_dispatch'"
+    runs = "\n".join(str(s.get("run", "")) for s in job["steps"])
+    assert "gh pr create" in runs and "gh pr merge" not in runs and "origin main" not in runs
+    assert job["permissions"] == {"contents": "write", "pull-requests": "write"}
+    index = "\n".join(str(s.get("run", "")) for s in doc["jobs"]["index"]["steps"])
+    assert "agent_pr_index.py weekly --rows rows.json --out agent_weekly.json" in index and "index.json agent_weekly.json" in index

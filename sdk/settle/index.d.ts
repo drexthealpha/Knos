@@ -242,7 +242,7 @@ export interface V2Client {
   setBalanceIx(a: { authority: Address; balance: Address; cap?: Num; spenders?: Num[] }): Instruction;
   withdrawIx(a: { authority: Address; balance: Address; mint: Address; amount?: Num; destToken?: Address | null; tokenProgram?: Address }): Promise<Instruction>;
   fundBalanceIx(a: { relayer: Address; fundToken: Address; key: Address; balance: Address; mint: Address; repoId: Num; issue: Num; terms: Bytes | string;
-    tokenProgram?: Address; balx?: boolean }): Promise<Instruction>;
+    used: Address | string | Bytes; tokenProgram?: Address; balx?: boolean }): Promise<Instruction>;
   fundWalletIx(a: { funder: Address; funderToken: Address; mint: Address; repoId: Num; issue: Num; amount: Num; wfRepo: string; wfSha: string; terms: Bytes | string;
     mode?: number; workS?: number; tokenProgram?: Address }): Promise<Instruction>;
   payoutAccounts(job: Address, j: Job, payeeId: Num, wallet: Address | null, destToken: Address | null): Promise<AccountMeta[]>;
@@ -251,10 +251,11 @@ export interface V2Client {
     used: Address | string | Bytes }): Promise<Instruction>;
   settleIx(a: { relayer: Address; job: Address; j: Job; wallet: Address; destToken?: Address | null }): Promise<Instruction>;
   refundIx(a: { relayer: Address; job: Address; j: Job; refundToken?: Address | null }): Promise<Instruction>;
-  bindIx(a: { relayer: Address; bindToken: Address; key: Address; userId: Num }): Promise<Instruction>;
+  /** Every instruction that takes a token takes its marker: `used` is usedPda(...), or what usedPda takes. */
+  bindIx(a: { relayer: Address; bindToken: Address; key: Address; userId: Num; used: Address | string | Bytes }): Promise<Instruction>;
   pauseIx(a: { guardian: Address; payer: Address; seconds: number }): Promise<Instruction>;
   initFaucetIx(a: { payer: Address }): Promise<Instruction>;
-  faucetOpenIx(a: { relayer: Address; fundToken: Address; key: Address; ownerId: Num; repoId: Num }): Promise<Instruction>;
+  faucetOpenIx(a: { relayer: Address; fundToken: Address; key: Address; ownerId: Num; repoId: Num; used: Address | string | Bytes }): Promise<Instruction>;
 
   /** The 2.1 build logs `knos2:version 1` when this is simulated; a 2.0 build refuses the instruction. */
   versionIx(): Instruction;
@@ -270,7 +271,8 @@ export interface V2Client {
   orderCommon(relayer: Address, order: Address, o: Order, tipToken: Address | null): Promise<AccountMeta[]>;
   payeeAccounts(o: Order, payeeId: Num, wallet: Address | null, destToken: Address | null): Promise<AccountMeta[]>;
   /** The token is any judge's of the order, or its arbiter's ruling. `pr`: the pull request the audience names (a STANDING order marks it). */
-  payOrderIx(a: { relayer: Address; payToken: Address; key: Address; order: Address; o: Order; payees: PayeeAccounts[]; tipToken?: Address | null; pr?: Num }): Promise<Instruction>;
+  payOrderIx(a: { relayer: Address; payToken: Address; key: Address; order: Address; o: Order; payees: PayeeAccounts[]; used: Address | string | Bytes; tipToken?: Address | null;
+    pr?: Num }): Promise<Instruction>;
   /** What PayOrder takes after its payees: each payee's assignment, then a standing order's marker or a holdback's record. */
   termsAccounts(order: Address, o: Order, payeeIds: Num[], pr: Num): Promise<AccountMeta[]>;
   settleOrderIx(a: { relayer: Address; order: Address; o: Order; wallet: Address; destToken?: Address | null; tipToken?: Address | null }): Promise<Instruction>;
@@ -282,15 +284,16 @@ export interface V2Client {
   fundPrivateOrderBalanceIx(a: { relayer: Address; fundToken: Address; key: Address; balance: Address; mint: Address; ownerId: Num; scope: Bytes | string;
     termsHash: Bytes | string; used: Address | string | Bytes; seq?: number; tokenProgram?: Address }): Promise<Instruction>;
   /** Binds an organisation's wallet: `orgId` is the token's repository_owner_id. */
-  bindOrgIx(a: { relayer: Address; bindToken: Address; key: Address; orgId: Num }): Promise<Instruction>;
+  bindOrgIx(a: { relayer: Address; bindToken: Address; key: Address; orgId: Num; used: Address | string | Bytes }): Promise<Instruction>;
   /** After the warranty, anyone: the holdback to the recorded wallets, the tip to the relayer, the rest of the fee to FEE_OWNER. */
   releaseIx(a: { relayer: Address; order: Address; o: Order; hb: Holdback; tipToken?: Address | null }): Promise<Instruction>;
   /** Inside the warranty, on a revert token of one of the order's judges (a, b or c): everything the order holds back to its funder. */
-  revertIx(a: { relayer: Address; revertToken: Address; key: Address; order: Address; o: Order; hb: Holdback; refundToken?: Address | null }): Promise<Instruction>;
+  revertIx(a: { relayer: Address; revertToken: Address; key: Address; order: Address; o: Order; hb: Holdback; used: Address | string | Bytes;
+    refundToken?: Address | null }): Promise<Instruction>;
   /** Reserves an order for the taker a take token names. */
-  reserveIx(a: { relayer: Address; takeToken: Address; key: Address; order: Address }): Instruction;
-  /** Gives notice. A wallet's order: the funding wallet signs. A Balance's order: `cancelToken` and its `key`. */
-  cancelIx(a: { signer: Address; order: Address; cancelToken?: Address | null; key?: Address | null }): Instruction;
+  reserveIx(a: { relayer: Address; takeToken: Address; key: Address; order: Address; used: Address | string | Bytes }): Promise<Instruction>;
+  /** Gives notice. A wallet's order: the funding wallet signs. A Balance's order: `cancelToken`, its `key` and its marker (`used`). */
+  cancelIx(a: { signer: Address; order: Address; cancelToken?: Address | null; key?: Address | null; used?: Address | string | Bytes | null }): Promise<Instruction>;
   /** This order's payment for `payeeId` goes to the wallet `to`. */
   assignIx(a: { signer: Address; order: Address; payeeId: Num; to: Address }): Promise<Instruction>;
   /** Closes a used marker once its time has passed, or a pull request's marker once its `order` is closed. */
@@ -311,7 +314,7 @@ export interface V2 {
   readonly PAY_IXS: readonly (readonly [string, readonly string[], number])[];
   readonly BALX_LEN: number; readonly PLAN_LEN: number; readonly ORDER_LEN: number; readonly OPTS_LEN: number;
   /** Prices, in millionths of one whole unit of the mint (`units` gives the smallest units). */
-  readonly ORDER_FEE_MIN: number; readonly ORDER_FEE_MAX: number; readonly ORDER_MIN_AMOUNT: number; readonly TIP: number; readonly TIP_FIRST: number; readonly PLAN_BPS_MIN: number;
+  readonly ORDER_FEE_MIN: number; readonly ORDER_MIN_AMOUNT: number; readonly TIP: number; readonly TIP_FIRST: number; readonly PLAN_BPS_MIN: number;
   readonly MAX_HOLDBACK_BPS: number; readonly MAX_WARRANTY_DAYS: number; readonly MAX_KILL_BPS: number; readonly MAX_PAYEES: number;
   readonly F_FAUCET: 1; readonly F_PRIVATE: 2; readonly F_NEUTRAL: 4; readonly F_STANDING: 8; readonly F_TOKEN2022: 16;
   /** The mints the record counts real money in. */
@@ -319,6 +322,12 @@ export interface V2 {
   readonly HB_LEN: number; readonly DONE_LEN: number; readonly AS_LEN: number; readonly USED_LEN: number;
   /** Seconds: how long a cancelled order still takes a pay token, and how long after it was made a used marker can be closed. */
   readonly NOTICE: number; readonly USED_KEEP: number;
+  /** An order's fee is marginal: FEE_BPS (or a Plan's rate) of the first FEE_TIER_1, FEE_BPS_2 up to FEE_TIER_2, FEE_BPS_3 above; no maximum. */
+  readonly FEE_TIER_1: number; readonly FEE_TIER_2: number; readonly FEE_BPS_2: number; readonly FEE_BPS_3: number;
+  /** The instructions that take a token (tag: the index of the token account); each takes the token's marker. */
+  readonly TOKEN_AT: Readonly<Record<number, number>>;
+  /** A marker's first byte after the devnet faucet took the token: the funding that follows still takes it. */
+  readonly MINTED: 2;
 
   /** `micro` millionths of one whole unit of a mint with `decimals` decimals, in the mint's smallest units. */
   units(micro: Num, decimals?: number): Num;
@@ -334,7 +343,8 @@ export interface V2 {
   bindAudience(address: Address): string;
   destination(bind: Bind | null, audience: string): Address | null;
 
-  /** The fee of an order (2.1), which its funder pays on top of the amount. `bps`: FEE_BPS, or the owner's Plan. */
+  /** The fee of an order (2.1), which its funder pays on top of the amount: `bps` (FEE_BPS, or the owner's Plan) of the first 1,000 whole
+   *  units, 1% from there to 50,000, 0.5% above; at least 0.40; no maximum. */
   orderFee(amount: Num, bps?: number, decimals?: number): Num;
   /** An order's scope. Public: sha256("knos3:scope" || repo id || issue). Private: sha256(salt || repo id || issue). */
   scopeOf(repoId: Num, issue: Num, salt?: Bytes | string | null): Promise<Bytes>;
@@ -383,6 +393,8 @@ export interface V2 {
   /** Where the program pays one payee of an order: its assignee, else the address the token carries, else its bound wallet. */
   payeeWallet(assign: Bytes | null, o: Order, bind: Bind | null, address: Address | null): Address | null;
   readMarker(raw: Bytes | null): Marker | null;
+  /** Whether a token is used up, from the data of its marker: a marker the devnet faucet made still funds once. */
+  spent(marker: Bytes | null): boolean;
   /** What a refund owes the taker first, when an open order was cancelled while reserved. */
   killFee(o: Order): Num;
   /** The name of each of the `count` accounts of one knos-pay instruction, in order. */
@@ -401,6 +413,10 @@ export interface MeterMark { accepted: boolean; month: number; buyerId: Num; sel
 /** One buyer, one seller, one month. */
 export interface MeterMonth { buyerId: Num; sellerId: Num; month: number; evaluations: number; accepted: number; rejected: number; value: Num; fees: Num }
 export interface Evaluation { buyerId: Num; sellerId: Num; order: string; artifact: string; policy: string; milestone: number; accepted: boolean; rate: Num }
+/** One batch, as its audience says it: the buyer's count (`claim` false) or the seller's own. `root` is hex. */
+export interface MeterBatch { claim: boolean; buyerId: Num; sellerId: Num; month: number; seq: Num; count: Num; accepted: Num; value: Num; root: string }
+/** The batch ledger of one buyer, one seller and one month: totals, the next seq it takes, and the running hash of its batches (hex). */
+export interface MeterBatchLedger { claim: boolean; month: number; buyerId: Num; sellerId: Num; nextSeq: Num; evaluations: Num; accepted: Num; value: Num; fees: Num; chain: string }
 /** What meter.statement reads: the transactions that named an address (newest first) and the log of each. */
 export interface MeterLedger {
   history(address: Address, most?: number): Iterable<string> | AsyncIterable<string> | Promise<Iterable<string> | AsyncIterable<string>>;
@@ -419,6 +435,14 @@ export interface MeterClient {
   withdrawCreditsIx(a: { authority: Address; credits: Address; mint: Address; amount?: Num; destToken?: Address | null; tokenProgram?: Address }): Promise<Instruction>;
   setPlanIx(a: { feeOwner: Address; payer: Address; ownerId: Num; tier: number; rate: Num; expiry: Num }): Promise<Instruction>;
   recordIx(a: { relayer: Address; token: Address; key: Address; credits: Address; c: MeterCredits; audience: string; now: Num; feeToken?: Address | null }): Promise<Instruction>;
+  /** The batch ledger of one buyer and one seller in one month: the buyer's count, or (`claim`) the seller's own. */
+  ledgerPda(buyerId: Num, sellerId: Num, month: number, claim?: boolean): Promise<Address>;
+  /** Records the batch a verified token describes (batchAudience) in the buyer's ledger; its seq must be the ledger's nextSeq. */
+  recordBatchIx(a: { relayer: Address; token: Address; key: Address; credits: Address; c: MeterCredits; audience: string; feeToken?: Address | null }): Promise<Instruction>;
+  /** The seller's own count of a batch (batchAudience with "claim"), in the seller's ledger. No fee. */
+  claimBatchIx(a: { relayer: Address; token: Address; key: Address; audience: string }): Promise<Instruction>;
+  /** The 1.1 build logs its version when this is simulated. */
+  versionIx(): Instruction;
   /** The relayer that paid a mark's rent takes it back and the mark is gone; refused before the mark's closeAfter. */
   closeMarkIx(a: { payer: Address; mark: Address }): Instruction;
   /** Every mark whose rent `payer` put up: [address, mark], from one getProgramAccounts of the RPC endpoint `url`. */
@@ -430,6 +454,16 @@ export interface Meter {
   /** A mark written before CloseMark existed is this long; where a mark keeps its payer; seconds past a month's end a token issued in it can still be accepted. */
   readonly MARK_LEN_1: number; readonly MARK_PAYER: number; readonly MARK_GRACE: number; readonly CLOSED: string;
   readonly WORKFLOWS: readonly string[]; readonly EVAL: string; readonly ERRORS: Record<number, string>;
+  /** The batch mode (1.1): a Ledger account's length, and the most evaluations one batch holds. */
+  readonly LEDGER_LEN: number; readonly MAX_BATCH: number;
+  /** What the buyer's run ("batch") or the seller's ("claim") asks GitHub to sign for one batch. `root`: merkleRoot's. */
+  batchAudience(buyerId: Num, sellerId: Num, month: number, seq: Num, count: Num, accepted: Num, value: Num, root: Bytes | string, kind?: "batch" | "claim"): string;
+  parseBatch(audience: string): MeterBatch;
+  /** RFC 6962 over the evaluation keys (evalKey's), sorted ascending, none repeated. */
+  merkleRoot(keys: (Bytes | string)[]): Promise<Bytes>;
+  /** A ledger's running hash after one more batch; a new ledger starts from 32 zero bytes. */
+  chainHash(before: Bytes | string, root: Bytes | string, seq: Num, count: Num, accepted: Num, value: Num): Promise<Bytes>;
+  readLedger(raw: Bytes | null): MeterBatchLedger | null;
   /** A rate (millionths of a whole unit) in the smallest units of a mint with these decimals, rounded down. */
   feeUnits(rate: Num, decimals: number): Num;
   /** The UTC calendar month of a unix time, as the program computes it: 202610. */

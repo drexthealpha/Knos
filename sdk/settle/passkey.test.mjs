@@ -57,7 +57,29 @@ same("Withdraw", plain(built[1]), fx.ixs.withdraw);
 same("the same from a browser's response (ArrayBuffers)", (await passkey.withdrawIxs({ key, mint: fx.mint, to: fx.to, amount: i.amount, nonce: i.nonce,
   assertion: { response: { authenticatorData: assertion.authenticatorData.buffer, clientDataJSON: assertion.clientDataJSON.buffer, signature: assertion.signature.buffer } } })).map(plain),
   [fx.ixs.secp256r1, fx.ixs.withdraw]);
-same("the errors, in the Python client's words", passkey.ERRORS, fx.errors);
+// ---- Fund (1.1): the bytes src/knos/settle/v2/passkey_fund.py built (fixtures.json: passkey_fund, from scripts/settle_fixtures.py) ----
+const pf = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures.json"), "utf8")).second.passkey_fund, fi = pf.inputs;
+same("the errors, in the Python client's words", passkey.ERRORS, { ...fx.errors, ...pf.errors });
+{
+  const fundKey = unhex(fi.key), data = unhex(fi.data), hidden = unhex(fi["data (private)"]);
+  const signed = { authenticatorData: unhex(fi.authenticator_data), clientDataJSON: new TextEncoder().encode(fi.client_data_json), signature: unhex(fi.signature) };
+  same("Fund: the orders it funds are knos_pay's, and the wallet is the passkey's", [passkey.KNOS_PAY, await passkey.wallet(fundKey)], [pf.pay, pf.wallet]);
+  same("Fund: constants", { FUND_ORDER_WALLET: passkey.FUND_ORDER_WALLET, FUND_MIN: passkey.FUND_MIN }, pf.constants);
+  same("Fund: the challenge", hex(await passkey.fundChallenge(fi.mint, data, fi.expiry_slot, fi.nonce)), pf.challenge);
+  same("Fund: another amount, mint, expiry or nonce has another challenge", new Set([pf.challenge, hex(await passkey.fundChallenge(fi.mint22, data, fi.expiry_slot, fi.nonce)),
+    hex(await passkey.fundChallenge(fi.mint, hidden, fi.expiry_slot, fi.nonce)), hex(await passkey.fundChallenge(fi.mint, data, fi.expiry_slot + 1, fi.nonce)),
+    hex(await passkey.fundChallenge(fi.mint, data, fi.expiry_slot, fi.nonce + 1))]).size, 5);
+  same("Fund: the order of a public funding, and of a private one", [await passkey.orderOf(pf.wallet, data), await passkey.orderOf(pf.wallet, hidden)], [pf.order, pf["order (private)"]]);
+  const k2 = knos.v2.client({ knos_pay: pf.pay });
+  same("Fund: the order is the one index.js derives for the wallet as funder", await k2.orderPda(await knos.v2.scopeOf(new DataView(data.buffer).getBigUint64(9, true),
+    new DataView(data.buffer).getBigUint64(1, true)), pf.wallet, new DataView(data.buffer).getUint32(34, true)), pf.order);
+  const args = { key: fundKey, mint: fi.mint, data, expirySlot: fi.expiry_slot, nonce: fi.nonce, assertion: signed };
+  same("Fund: the precompile, then Fund", (await passkey.fundIxs(args)).map(plain), pf.ixs);
+  same("Fund: a private order, Token-2022, a token account given", (await passkey.fundIxs({ ...args, mint: fi.mint22, data: hidden, tokenProgram: passkey.TOKEN_2022, from: fi.from })).map(plain),
+    pf["ixs (private, token-2022, a token account given)"]);
+  await throws("Fund: data that is not a FundOrderWallet's is refused", () => passkey.fundIxs({ ...args, data: Uint8Array.of(16, ...data.subarray(1)) }));
+  await throws("Fund: data cut short is refused", () => passkey.orderOf(pf.wallet, data.subarray(0, 157)));
+}
 // the withdrawal request a relay reads: the same text, and the same line, as the Python relay's own writer makes
 const asked = { key, mint: fx.mint, to: fx.to, amount: i.amount, nonce: i.nonce, assertion };
 same("the withdrawal request", passkey.withdrawRequest(asked), fx.request);
@@ -136,6 +158,12 @@ for (let round = 0; round < 8; round++) {            // several keys and signatu
       [passkey.TOKEN, false, false], [passkey.INSTRUCTIONS, false, false]]);
   same("another amount, destination or nonce has another challenge", new Set([hex(challenge), hex(await passkey.challenge(made.wallet, fx.mint, fx.to, amount + 1, nonce)),
     hex(await passkey.challenge(made.wallet, fx.mint, fx.from, amount, nonce)), hex(await passkey.challenge(made.wallet, fx.mint, fx.to, amount, nonce + 1))]).size, 4);
+}
+{
+  // every export has a declaration, and nothing is declared that is not there
+  const dts = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "passkey.d.ts"), "utf8");
+  const declared = [...dts.matchAll(/^export (?:const|function) (\w+)/gm)].map((m) => m[1]).sort();
+  same("passkey.d.ts declares what passkey.js exports", declared, Object.keys(passkey).sort());
 }
 await throws("no passkeys in this browser", () => passkey.create({ rpId: RP, userName: "octocat" }, null));
 await throws("no passkeys in this browser, signing", () => passkey.sign(new Uint8Array(32), { rpId: RP }, null));

@@ -1,12 +1,14 @@
 """The zero-secret GitHub relay (ghrelay), the caller workflow."""
 
 import base64
+import functools
 import hashlib
 import json
 import re
 import time
 from pathlib import Path
 
+import pytest
 
 from knos.proof import ghrelay
 
@@ -138,3 +140,108 @@ def test_fund_yml_hands_the_event_to_one_command_and_parses_nothing_itself():
     text = json.dumps(job)
     assert "author_association" not in text and "comment.body" not in text and "issue.body" not in text
     assert not [s for s in job["steps"] if "artifact" in str(s.get("uses", ""))]       # the token is the command's to post or relay
+
+
+# -- what 0.3.14 joined: the passkey's funding line, and the meter's batch and claim tokens under knos-eval: -----------
+
+def test_a_passkey_funding_line_on_an_issue_is_sent_by_the_worker_and_answered(monkeypatch, tmp_path):
+    """`/knos passkey-fund <base64url>` is no token and no workflow posts it: the funder pastes it. One pass of the
+    worker finds it, sends it on LiteSVM (knos_pay and knos_passkey as built), answers on the issue and logs it."""
+    pytest.importorskip("solders.litesvm")
+    import test_passkey_relay as tp
+    import test_worker as tw
+    from _order import REPO, USDC, issue
+    from knos.settle.v2 import passkey_fund as pf
+
+    assert ghrelay.PASSKEY_FUND.pattern == pf.LINE.pattern          # the worker reads the line the client's reader takes
+
+    class GitHub(tw.GitHub):
+        def _route(self, method, path, data):                       # and the repository's id, which the chain knows it by
+            ids = {"repos/octo/widgets": REPO, "repos/a/copies": REPO + 1}
+            return (200, {"id": ids[path]}) if path in ids else (404, None) if path.startswith("repos/a/copies/issues/9") else super()._route(method, path, data)
+
+    w, gh = tp.World(), GitHub()
+    net, n, t0 = tp.Counted(w), issue(), time.time()
+    monkeypatch.setattr(ghrelay, "_HUB", ghrelay.Hub(gh.open))
+    monkeypatch.setattr(ghrelay, "_LOG", {})
+    monkeypatch.setattr(ghrelay, "_state_path", lambda: tmp_path / "ghrelay.json")
+    monkeypatch.setenv("KNOS_RELAY_REPOS", "octo/widgets,a/copies")
+    gh.issues[tw.HOME] = [{"number": 1, "state": "open", "labels": [ghrelay.LOG_LABEL]}]
+    line = tp.comment(w, n)
+    text = line.split()[-1]
+    gh.comment("a/copies", 9, line, who="mallory", at=t0 - 9)       # anyone can copy the line elsewhere, even first: it funds nothing there, and uses nothing up
+    gh.comment("octo/widgets", n, f"Funding this from the Buy page.\n\n{line}\n", who="funder", at=t0 - 5)
+    assert [(f[0], f[1], f[2]) for f in ghrelay.tokens(gh.comments["octo/widgets"])] == [("passkey-fund", n, text)]
+    had = w.balance(w.source)
+    lines = ghrelay.once(net, w.payer, now=t0, crank=False)
+    order = pf.order_of(w.p.wallet, w.data_of(n))
+    o = w.order(order)
+    assert net.sent == 1 and (o.amount, o.repo_id, o.issue) == (20 * USDC, REPO, n) and had - w.balance(w.source) == 20 * USDC + o.fee
+    ok = [ln for ln in lines if " ok " in ln]
+    assert len(ok) == 1 and ok[0].startswith(f"knos-relay passkey-fund octo/widgets#{n} {ghrelay.token_id(text)} ok sig=")
+    assert f"note=funded from a passkey wallet. {20 * USDC} units of the test token {w.usdc} is in escrow for issue #{n}" in ok[0]
+    # the answer is on the issue (this relay's token may write there); the copy's comment could not be answered, and its log line names no id
+    said = [c["body"] for c in gh.comments["octo/widgets"] if c["user"]["login"] == ghrelay.LOG_BOT]
+    assert len(said) == 1 and said[0].startswith("Knos: funded from a passkey wallet. ") and f"`{order}`" in said[0]
+    copy = [ln for ln in lines if "a/copies#9" in ln]
+    assert len(copy) == 1 and copy[0].startswith(f"knos-relay passkey-fund a/copies#9 - fail this comment cannot carry its line ({ghrelay.token_id(text)[:8]}...): "
+                                                 f"the passkey signed for issue #{n}")
+    assert json.loads((tmp_path / "ghrelay.json").read_text())["verify"]["n"] == {"passkey-fund:octo/widgets": 1}
+    # the next pass sends nothing. The same line pasted again, there or on another issue, sends nothing either: the
+    # log already answers for that line (as for the loser of two overlapping runs), so nothing is added to it
+    assert ghrelay.once(net, w.payer, now=t0 + 3, crank=False) == [] and net.sent == 1
+    gh.comment("octo/widgets", n, line, who="funder", at=t0 + 4)
+    gh.comment("octo/widgets", n + 1, line, who="funder", at=t0 + 4)
+    assert ghrelay.once(net, w.payer, now=t0 + 6, crank=False) == [] and net.sent == 1 and w.nonce() == 1
+    # 20 a day for one repository: the relay pays each fee and the order's rent
+    saved = json.loads((tmp_path / "ghrelay.json").read_text())
+    saved["verify"]["n"]["passkey-fund:octo/widgets"] = ghrelay.PASSKEY_FUND_PER_DAY
+    (tmp_path / "ghrelay.json").write_text(json.dumps(saved))
+    gh.comment("octo/widgets", n, tp.comment(w, n, seq=1), who="funder", at=t0 + 7)
+    [capped] = ghrelay.once(net, w.payer, now=t0 + 9, crank=False)
+    assert " fail 20 passkey fundings a day are sent for one repository" in capped and net.sent == 1 and w.nonce() == 1
+
+
+def test_a_batch_and_a_sellers_claim_posted_as_knos_eval_reach_the_meters_batch_path(monkeypatch):
+    """`knos attest --kind batch|claim` posts its token under the same marker as one evaluation. The worker hands it
+    to the relay of the second deployment, which sends RecordBatch or ClaimBatch (knos_meter as built, on LiteSVM)."""
+    pytest.importorskip("solders.litesvm")
+    from _meter import BUYER, SELLER, Meter
+    from test_relay2 import JWKS, Net, token
+    from knos.settle.v2 import meter
+    from knos.settle.v2 import relay as second
+
+    c = Meter()
+    net, month, root = Net(c), meter.yyyymm(c.now()), bytes([7]) * 32
+    c.open(c.new_mint(), BUYER, 5_000_000)
+    monkeypatch.setattr(second, "submit", functools.partial(second.submit, jwks=JWKS, now=c.now()))
+    batch = meter.batch_audience(BUYER, SELLER, month, 0, 3, 2, 4_000_000, root)
+    claim = meter.batch_audience(BUYER, SELLER, month, 0, 4, 3, 6_000_000, root, kind="claim")
+    b = token(c, batch, file="attest.yml", repository_owner_id=BUYER, run_attempt=1)
+    s = token(c, claim, file="attest.yml", repository_owner_id=SELLER, run_attempt=1)
+    comment = {"body": ghrelay.token_comment("eval", b), "issue_url": "https://api.github.com/repos/o/r/issues/2", "user": {"login": ghrelay.LOG_BOT}}
+    assert [tuple(f) for f in ghrelay.tokens([comment])] == [("eval", 2, b, ghrelay.LOG_BOT)]
+    for jwt_, kind in ((b, "batch"), (s, "claim")):
+        assert ghrelay.misposted("eval", jwt_) is None
+        assert ghrelay.misposted("fund", jwt_) == f"posted as knos-fund, but its audience is a {kind} token's"
+        assert ghrelay.misposted("verify", jwt_) == f"it is a Knos {kind} token, which is carried under its own marker"
+    assert ghrelay.misposted("claim", s) == "posted as knos-claim, but its audience is a claim token's"     # (the meter's claim, not the first deployment's)
+    # the first deployment's claim keeps its own marker: knos-eval: carries the meter's three and nothing else
+    assert ghrelay.misposted("eval", jwt("knos:claim:1:" + "1" * 44)) == "posted as knos-eval, but its audience is a claim token's"
+    assert ghrelay.misposted("eval", jwt("knos2:pay:1:1:9:" + "a" * 40 + ":" + "0" * 64 + ":0:-")) == "posted as knos-eval, but its audience is a pay token's"
+    r = ghrelay.relay_one(net, c.payer, "eval", b)
+    assert r["ok"] and (r["kind"], r["seq"], r["count"], r["accepted"], r["value"], r["fee"]) == ("batch", 0, 3, 2, 4_000_000, 0), r
+    assert r["note"] == (f"Counted batch 0 of month {month} for buyer {BUYER} and seller {SELLER}: 3 evaluations, 2 accepted (the buyer's count, fee 0.00 from "
+                         f"the buyer's credits). Merkle root {root.hex()}.")
+    book = c.book()
+    assert (book.next_seq, book.evaluations, book.accepted, book.value) == (1, 3, 2, 4_000_000)
+    r = ghrelay.relay_one(net, c.payer, "eval", s)
+    assert r["ok"] and r["kind"] == "claim" and "4 evaluations, 3 accepted (the seller's own count, at no fee)" in r["note"], r
+    theirs = c.book(claim=True)
+    assert (theirs.next_seq, theirs.evaluations, theirs.accepted) == (1, 4, 3)
+    assert ghrelay.log_line("eval", "o/r", 2, s, r).startswith(f"knos-relay eval o/r#2 {ghrelay.token_id(s)} ok sig=")
+    # the same batch token again: taken once, refused from a read
+    again = ghrelay.relay_one(net, c.payer, "eval", token(c, batch, file="attest.yml", repository_owner_id=BUYER, run_attempt=1))
+    assert not again["ok"] and again["kind"] == "batch" and again["why"] == meter.ERRORS[meter.E_SEQ]
+    # a relay's result of another kind under the marker is still refused
+    assert not ghrelay.relay_one(None, None, "eval", "t", submit=lambda *a: {"ok": True, "kind": "fund", "sigs": ["f"]})["ok"]

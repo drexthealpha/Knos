@@ -500,16 +500,24 @@ def test_an_issue_has_one_job_per_balance_and_a_relayer_must_sign(chain):
 
 def test_terms_of_600_bytes_fit_in_one_transaction_with_the_faucet(chain):
     c = chain
+
+    def both(terms: bytes):
+        n, org, repo = issue(), user(), user()
+        tok = faucet_token(c, n, org, repo, terms=pay.terms_hash(terms))
+        return [pay.faucet_open_ix(c.payer.pubkey(), tok, c.key, org, repo),
+                pay.fund_balance_ix(c.payer.pubkey(), tok, c.key, pay.faucet_balance_pda(org), c.test_usdc, repo, n, terms)]
+    # The token's marker is one more account in both instructions (33 bytes). With the compute budget instruction the
+    # harness adds, the two fit a transaction's 1232 bytes for terms of up to 575 bytes, and exactly then.
+    terms = _long_terms(pay.MAX_TERMS - 25)
+    assert c.send(both(terms)), c.err
+    assert c.said("knos2:terms") == ["knos2:terms " + terms.decode()] and c.size == 1232
+    # Longer terms: the faucet goes in a transaction of its own first (its marker says MINTED), then the funding,
+    # which takes the token the faucet has minted on and uses it up.
     terms = _long_terms(pay.MAX_TERMS)
-    n, org, repo = issue(), user(), user()
-    tok = faucet_token(c, n, org, repo, terms=pay.terms_hash(terms))
-    ixs = [pay.faucet_open_ix(c.payer.pubkey(), tok, c.key, org, repo),
-           pay.fund_balance_ix(c.payer.pubkey(), tok, c.key, pay.faucet_balance_pda(org), c.test_usdc, repo, n, terms)]
-    assert c.send(ixs), c.err
-    assert c.said("knos2:terms") == ["knos2:terms " + terms.decode()]
-    # with the compute budget instruction the harness adds, 9 bytes are left: a second one (a priority fee, 12 bytes)
-    # would not fit, and the faucet then goes in a transaction of its own before the funding
-    assert c.size == 1223 <= 1232
+    faucet, fund = both(terms)
+    assert c.send([faucet]) and c.data(pay.used_pda(c.data(faucet.accounts[1].pubkey)))[0] == pay.MINTED, c.err
+    assert c.send([fund]) and c.size == 1210 <= 1232, c.err          # 22 bytes are left: a priority fee (12) still fits
+    assert c.said("knos2:terms") == ["knos2:terms " + terms.decode()] and pay.spent(c.data(pay.used_pda(c.data(faucet.accounts[1].pubkey))))
     job = fund_wallet(c, terms=terms)
     assert pay.read_job(c.data(job)).terms == pay.terms_hash(terms) and c.size < 1232
 
@@ -1677,6 +1685,13 @@ def test_compute_units_are_recorded(chain):
     bundled token programs). Pay is measured over 16 payees, because the addresses it derives (bind, record, pair,
     vault) cost 1,500 units for each bump the derivation tries."""
     c = chain
+    # The one transaction of two instructions, sent here: under pytest-xdist the faucet's own test can run in another
+    # worker, with another chain, and then this run would have no measurement of it.
+    org, repo, n = user(), user(), issue()
+    tok = faucet_token(c, n, org, repo, actor=MAINT)
+    assert c.send([pay.faucet_open_ix(c.payer.pubkey(), tok, c.key, org, repo),
+                   pay.fund_balance_ix(c.payer.pubkey(), tok, c.key, pay.faucet_balance_pda(org), c.test_usdc, repo, n, TERMS)],
+                  tag="faucet_open+fund_balance"), c.err
     coin = c.new_mint22(confidential=True, close_authority=True)
     c.token_account(pay.FEE_OWNER, coin)
     w, wtok = c.wallet(coin, 1_000 * USDC)
@@ -1693,8 +1708,10 @@ def test_compute_units_are_recorded(chain):
         print(f"CU {tag}: {spread(c.cu[tag])}")
     top = {k: max(v) for k, v in sorted(c.cu.items()) if not k.startswith("Pay,")}
     print("CU of the other instructions, highest seen:", top)
-    # Each fits the default budget of ONE instruction (200,000), also the one tag that is a transaction of two
-    # (faucet_open+fund_balance: its default budget is 400,000). That transaction creates five accounts and read its
-    # token twice; it cost 212,564 while every instruction that read a token also hashed the token's signature
-    # (13,900 units each time), which only the instructions that use a token up need. Measured now: 184,900.
-    assert all(max(v) < 200_000 for v in c.cu.values()), {k: max(v) for k, v in c.cu.items() if max(v) >= 200_000}
+    # Each instruction fits the default budget of ONE instruction (200,000). The one tag that is a transaction of two
+    # (faucet_open+fund_balance) has a default budget of 400,000: it creates six accounts, and both of its
+    # instructions hash the token's signature for its marker, as every instruction that takes a token does. Measured:
+    # 233,372 (164,208 before the marker was everywhere and overflow was checked).
+    two = "faucet_open+fund_balance"
+    assert all(max(v) < (400_000 if k == two else 200_000) for k, v in c.cu.items()), {k: max(v) for k, v in c.cu.items() if max(v) >= 200_000}
+    assert max(c.cu[two]) < 260_000

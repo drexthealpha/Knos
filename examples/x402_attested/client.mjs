@@ -11,7 +11,7 @@ export async function fetchAttested(url, wallet, limits, fetcher = fetch) {
   if (first.status !== 402) return { status: first.status, body: await first.json(), messages: {} };
   const required = decode(first.headers.get("PAYMENT-REQUIRED"));
   const req = required.accepts.find((a) => a.scheme === SCHEME);
-  if (!req) throw new Error("the server offers no attested payment");
+  if (!req) throw new Error(`the server offers no ${SCHEME} payment`);
   const x = req.extra;
   // never trust the server's arithmetic: the order is ours to derive, the terms ours to hash, the price ours to cap
   if (!(limits.programs ?? [KNOS_PAY]).includes(x.program)) throw new Error(`refusing to fund an order of ${x.program}: not a program this client knows`);

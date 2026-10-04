@@ -1,314 +1,345 @@
 # Market, money, and what can stop this
 
-Seven parts: who has budget and urgency now; what Knos sells, what each sale costs to deliver, and what a zero-fee
-fork takes; today's bottom-up beside what 1 billion USD a year would require; the sequence of expansion; what can
-stop this; the funnel and the one test that matters; and what is not known.
+**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.**
 
-Every input is labelled **[sourced]** (with its link; read on 3 Oct 2026 unless it says otherwise), **[measured]**
-(with where), **[assumption]**, or **not measured**. The rest is arithmetic on those inputs. Nothing here is a
-forecast. Knos runs on Solana devnet and its money is test USDC. No real money has moved.
+Nine parts: who buys and who sells; the adjacent market, with every source; the price book; what each sale costs
+to deliver; the revenue formula and the fee actually collected; what 1 billion USD a year would require, as
+arithmetic; what a zero-fee fork can and cannot copy, and the moats; the phases and what devnet can show; and what
+can stop this.
 
-## 1. Who has budget and urgency now
+Every outside figure carries its link and one of three labels: **[vendor page]** (the seller's own price list or
+product page), **[press]** (reported by someone else, often from an unnamed source), **[company-reported]** (the
+company's own statement of its results; audited only where it is a public company's filing). Each was read on
+4 Oct 2026 unless it says otherwise. **[measured]** is ours, with where. **[assumption]** has no source. The rest is
+arithmetic on those inputs. Nothing here is a forecast. Knos runs on Solana devnet and its money is test USDC. No
+real money has moved, and nobody has bought anything.
 
-### Vendors already bill per outcome, and each counts its own outcomes
+## 1. Who buys, and who sells
 
-| vendor | the unit it bills | price | who counts |
-|---|---|---|---|
-| Sourcegraph, agentic batch changes | "you pay per changeset merged into your codebase" **[sourced]** ([changelog](https://sourcegraph.com/changelog/agentic-batch-changes-ga); Cloud, since 14 Sep 2026) | not published | Sourcegraph |
-| GitStart | "you only pay for merged PRs" **[sourced]** ([Y Combinator's page](https://www.ycombinator.com/companies/gitstart)) | not published | GitStart |
-| Intercom, Fin | an outcome: a resolution | 0.99 USD **[sourced, secondary]** ([Sacra](https://sacra.com/research/intercom), which also says Fin passed 100 million USD of annual recurring revenue) | Intercom |
-| Zendesk | an "automated resolution": resolved "without any escalation to a human agent" | 1.50 USD committed, 2.00 USD pay-as-you-go **[sourced]** ([pricing](https://www.zendesk.com/pricing/)) | Zendesk |
-| Salesforce, Agentforce | a conversation, or an action | 2 USD per conversation; 0.10 USD per action with Flex Credits **[sourced]** ([press release, 15 May 2025](https://www.businesswire.com/news/home/20250515332990/en/); later changes not checked) | Salesforce |
+**The buyer is the person accountable for approving a supplier's invoice**: an engineering leader or a finance
+owner at a company that buys software work per outcome from an agent vendor or an agency. The question that person
+has to answer is whether the invoice can be approved, explained afterwards, and shown to follow the company's own
+rules. For each line they need: what was ordered and at what price, which acceptance terms applied, which artifact
+was evaluated, who evaluated it, what passed and what failed, whether it was billed before, and what a later
+revert changes.
 
-### The dispute is over who counts
+**The second user is the supplier**: an agent vendor or an agency. A supplier needs acceptance terms that cannot be
+changed after the work, a count it can check itself, and a way to be paid, or to show what is owed, when the buyer
+does nothing.
+
+**The smallest case is a maintainer with a 20 USDC bounty on an issue.** It is where the product was first proven,
+and it is not the market: every open bounty on every board came to 64,291 USD on 2 Oct 2026
+([BountyOS](https://bountyos.rovidev.com/en/github-bounty-board/), read that day), and 2.5% of that is 1,607 USD.
+
+What each of them gets today:
+
+| who | what Knos gives them | where it is |
+|---|---|---|
+| Buyer | Terms hashed into the order when it is funded: named checks, allowed paths, the workflow commit. A count of accepted outcomes that neither side keeps. A statement both sides compute to the same totals. | `knos-pay` orders; `knos-meter`; `knos statement` and the ledger files each side keeps |
+| Supplier | Terms nobody can change after funding. Settlement without the buyer after a merge in a public repository. Its own count of the month on chain, beside the buyer's. | `knos settle --neutral`; `ClaimBatch` in `knos-meter` |
+| Maintainer | One comment funds an issue; one merge pays it. | `/knos fund` |
+
+What neither gets yet: private repositories under a contract, money a bank accepts, single sign-on, a company
+that answers for the service, an outside security review. [CONTROLS.md](CONTROLS.md) has the list.
+
+## 2. The adjacent market
+
+### Vendors already bill per accepted outcome, and each counts its own
+
+| vendor | the unit it bills | price | who counts | source |
+|---|---|---|---|---|
+| Sourcegraph, Agentic Batch Changes | "you pay per changeset merged into your codebase" | not published | Sourcegraph | **[vendor page]** [changelog, 14 Sep 2026](https://sourcegraph.com/changelog/agentic-batch-changes-ga) |
+| GitStart | "you only pay for merged PRs" | not published | GitStart | **[vendor page]** as listed by [Y Combinator](https://www.ycombinator.com/companies/gitstart) |
+| Intercom, Fin | a "Fin outcome" | from 0.99 USD | Intercom | **[vendor page]** [pricing](https://www.intercom.com/pricing) |
+| Zendesk, AI agents | an "automated resolution": resolved "without any escalation to a human agent" | 1.50 USD committed, 2.00 USD pay-as-you-go | Zendesk | **[vendor page]** [pricing](https://www.zendesk.com/pricing/) |
+| Salesforce, Agentforce | a conversation, or Flex Credits per action | 2 USD per conversation; 500 USD per 100,000 Flex Credits | Salesforce | **[vendor page]** [pricing](https://www.salesforce.com/agentforce/pricing/) |
+
+In every row the seller keeps the count the buyer is billed on. That is the gap. Two people who sell or study
+these contracts say so:
 
 - "Attribution disputes are where these contracts fall apart. Outcome-based pricing only scales where both parties
-  can agree on attribution" **[sourced]** (Sidharth Ramsinghaney, Director of Strategy and Operations at Twilio, in
-  [CIO, 16 Jun 2026](https://www.cio.com/article/4184688/it-hurtles-toward-the-great-enterprise-pricing-reset.html)).
-- The seller decides the edge cases. Zendesk's president: "If the AI resolves 90% of the problem, but 10% goes to a
-  human agent, we don't count it." In the same article Gartner's Tom Coshow says 19% of services buyers use
-  outcome arrangements today **[sourced]**
-  ([Channel Dive, 31 Aug 2026](https://www.channeldive.com/news/agentic-ai-outcome-pricing-models-zendesk-gartner/829209/)).
-- For code, the count can be wrong in a way we measured. Of 241 merged agent pull requests whose description said
-  tests or CI pass, 30 (12.4%) had a failed check at the head commit **[measured]** ([BENCH.md](BENCH.md), "Merged
-  anyway"; 95% interval 8.9% to 17.2%). A vendor that bills per merge bills those. A count that reads the checks
-  from GitHub's record does not.
+  can agree on attribution" (Sidharth Ramsinghaney, Director of Strategy and Operations at Twilio; **[press]**
+  [CIO, 16 Jun 2026](https://www.cio.com/article/4184688/it-hurtles-toward-the-great-enterprise-pricing-reset.html),
+  read 3 Oct 2026).
+- Zendesk's president on the edge cases: "If the AI resolves 90% of the problem, but 10% goes to a human agent, we
+  don't count it." (**[press]**
+  [Channel Dive, 31 Aug 2026](https://www.channeldive.com/news/agentic-ai-outcome-pricing-models-zendesk-gartner/829209/),
+  read 3 Oct 2026). The seller decides them.
+
+For code, the count can be wrong in a way we measured. Of 241 merged agent pull requests whose description said
+tests or CI pass, 30 (12.4%) had a failed check at the head commit **[measured]**
+([agent_pr_ci.json](agent_pr_ci.json), `summary.one_pr_per_repo`; [BENCH.md](BENCH.md), "Merged anyway"; 95%
+interval 8.9% to 17.2%). A vendor that bills per merge bills those. A count that reads the checks from the
+system of record does not.
 
 Code has what support does not: a third party that already records the result and signs statements about it.
-GitHub records the merge and the checks, and signs a workflow run. Knos counts and settles on that signature. The
-buyer's own system of record does the counting, for any seller.
+GitHub and GitLab record the merge and the checks, and sign a CI run. Knos counts and settles on that signature,
+for any seller, in the buyer's own system of record.
 
-### The buyers, in order of urgency
+### How much agent work there is
 
-| buyer | budget today | what they need from Knos | what is missing |
-|---|---|---|---|
-| A vendor that bills per merged change, and its customer | The contract already exists. Its size is not published by any vendor above. | A count neither side keeps (Meter), a statement both accept, privacy for private repositories (Control) | A first vendor. No outside party has used Meter. |
-| Teams and foundations that hold USDC and pay strangers per outcome | Immunefi: "$140M+ paid" across "650+ protocols" **[sourced]** ([immunefi.com](https://immunefi.com)). Superteam Earn: 2,730+ sponsors, 15.9 million USD in total **[sourced]** ([superteam.fun/earn](https://superteam.fun/earn); [its stats](https://superteam.fun/api/homepage/stats), field `totalInUSD`) | Settlement on a merge and named checks, in place of judging every submission by hand (Settle) | Mainnet, and a review by a security firm. Neither exists. |
-| Open-source companies that post bounties | Algora charges them 9% **[sourced]** ([pricing](https://algora.io/pricing)); every open bounty on every board came to 64,291 USD **[sourced]** ([BountyOS](https://bountyos.rovidev.com/en/github-bounty-board/), read 2 Oct 2026) | A lower fee, and payment on the day of the merge, not days later: from merge to payment took 24 seconds at the median, over 36 payments ([BENCH.md](BENCH.md)) | Money a bank accepts. Knos pays USDC. |
-| Engineering teams with private repositories that buy fixed-scope changes from outside | Not measured. They pay by contract and invoice. | Budgets, policy, statements, exports, private settlement (Control) | A company that answers for the service: see [CONTROLS.md](CONTROLS.md) |
+| what | figure | label and source |
+|---|---|---|
+| Cursor's annualised revenue | above 4 billion USD in early June 2026 | **[press]**, "a person familiar with the matter": [Dealroom, 9 Jun 2026](https://dealroom.co/news/134107-cursor-tops-4b-annualized-revenue/) |
+| Claude Code's run-rate revenue | "over $2.5 billion" | **[company-reported]**, not audited: [Anthropic, 12 Feb 2026](https://www.anthropic.com/news/anthropic-raises-30-billion-series-g-funding-380-billion-post-money-valuation) |
+| Devin's annual recurring revenue | 492 million USD | **[company-reported]** by Cognition and not audited, read in **[press]**: [TechJack, 28 May 2026](https://techjacksolutions.com/ai-brief/cognition-ai-raises-1b-at-26b-valuation-as-devins-arr-report/) |
+| Pull requests on GitHub that involve an agent | "1 in 3" | **[company-reported]**: Satya Nadella on Microsoft's earnings call of 29 Jul 2026 ([transcript](https://www.fool.com/earnings/call-transcripts/2026/08/07/microsoft-msft-q4-2026-earnings-call-transcript/)) |
+| GitHub Actions jobs | 71 million a day | **[company-reported]**: [GitHub, 11 Dec 2025](https://github.blog/news-insights/product-news/lets-talk-about-github-actions/) |
+| Enterprise spend on generative AI in 2025 | 37 billion USD, 4.0 billion of it on coding | **[company-reported]** research by an investor: [Menlo Ventures, 9 Dec 2025](https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/) |
 
-Bounties on issues are where Knos starts, not a business: 2.5% of every open bounty on every board is 1,607 USD.
+These are revenue run rates of three sellers, one count of activity and one estimate of spend. They are different
+measures of different years, and they are not added. Almost all of that revenue is billed by the seat or by the
+token today.
 
-### The larger money, which we do not multiply by a share
+### Software work that is already paid on acceptance
 
-- Enterprises spent 37 billion USD on generative AI in 2025, 4.0 billion of it on coding tools **[sourced]**
-  ([Menlo Ventures, 9 Dec 2025](https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/)).
-- Cursor passed 4 billion USD of annualised revenue by early June 2026 **[sourced, unofficial]**: "a person
-  familiar with the matter" ([Dealroom, 9 Jun 2026](https://dealroom.co/news/134107-cursor-tops-4b-annualized-revenue/)).
-  That is a run rate in 2026; Menlo's figure is spend in 2025. They are not added.
-- 4.03 billion USD of work was bought through Upwork in 2025, on which Upwork earned 787.8 million USD **[sourced]**
-  ([Upwork, results for 2025](https://investors.upwork.com/news-releases/news-release-details/upwork-reports-fourth-quarter-and-full-year-2025-financial)).
-- Gartner forecasts 1.57 trillion USD of IT services spending in 2026 **[sourced]**
-  ([Gartner, 27 Jul 2026](https://www.gartner.com/en/newsroom/press-releases/2026-07-27-gartner-forecasts-worldwide-it-spending-to-grow-14-point-2-percent-in-2026-totaling-6-point-37-trillion)).
-- GitHub Actions ran 71 million jobs a day in December 2025 **[sourced]**
-  ([GitHub, 11 Dec 2025](https://github.blog/news-insights/product-news/lets-talk-about-github-actions/)).
+| what | figure | label and source |
+|---|---|---|
+| IT services spending worldwide, 2026 | 1.57 trillion USD (forecast) | **[press]** release of an analyst's forecast: [Gartner, 27 Jul 2026](https://www.gartner.com/en/newsroom/press-releases/2026-07-27-gartner-forecasts-worldwide-it-spending-to-grow-14-point-2-percent-in-2026-totaling-6-point-37-trillion) |
+| Work bought through Upwork, 2025 | 4.03 billion USD of gross services volume; Upwork's revenue 787.8 million USD. Revenue ÷ volume is 19.6%: our division, not a rate Upwork states. | **[company-reported]**, a public company's results: [Upwork, results for 2025](https://investors.upwork.com/news-releases/news-release-details/upwork-reports-fourth-quarter-and-full-year-2025-financial) |
+| Paid to security researchers through Immunefi | "$140M+" across "650+ protocols" | **[company-reported]**, not audited: [immunefi.com](https://immunefi.com) |
+| Paid through Superteam Earn | 15.9 million USD in total | **[company-reported]**, not audited: the site's own [statistics](https://superteam.fun/api/homepage/stats), field `totalInUSD` |
 
-No source says what part of any of these would move to payment on signed acceptance. The part that goes through
-Knos today is zero.
+The last two rows are buyers who already pay strangers per outcome in stablecoins and need no bank. They are the
+shortest path from devnet to real settlement.
 
-## 2. What Knos sells, what each sale costs, and what a fork takes
+No source says what part of any of these would move to a neutral count or to payment on signed acceptance. The
+part that goes through Knos today is zero. We do not multiply any of them by a share.
 
-### The price book
+## 3. The price book
 
-Knos sells four things, and one of them is free. A fifth, an advance, is sold by whoever advances the money.
+| Line | Unit | Price |
+| --- | --- | --- |
+| Check | pull request checked | free |
+| Meter | attested evaluation | 10,000 a month free, then 0.05 USD; 0.02 on a committed-volume plan |
+| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40; plans 0.5 to 1.5% |
+| Control | organisation | 25,000 USD a year entry, 80,000 organisation tier (nobody has bought it) |
+| Advance | dollar advanced on accepted work waiting on a holdback | 1 to 3%, by a financier who takes the assignment (`Assign`); Knos charges nothing today |
+| Assurance | dollar warranted | a premium for the warranty that refunds a reverted order; not priced until there is loss history |
 
-| line | what is sold | price | free |
-|---|---|---|---|
-| Check | the claim check, the Stop hook, the MCP tools, the Index, on-chain verification | 0 | all of it |
-| Settle | escrow and payout on signed acceptance | the funder pays the amount plus 2.5%, at least 0.40, at most 25 USDC; the payee receives the posted amount; 0.5% to 1.5% under a contract (a Plan) | |
-| Meter | a neutral count of accepted outcomes for vendors who bill per result and buyers who audit them | 0.05 per billable evaluation, 0.02 at volume | 10,000 evaluations a month |
-| Control | organisation policy as code, budgets, private repositories, statements, exports, screening | 25,000 USD a year; 80,000 with a volume commitment | 30 days |
-| Advance | a third party pays the seller at acceptance and takes the assigned payment | set by whoever advances; Knos charges nothing | |
+Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee.
 
 Where each price is fixed:
 
-- **Settle.** In the escrow program. An order holds between 5 and 500 USDC until an outside review. The fee is
-  escrowed on top of the amount when the order is funded and leaves only when someone is paid. A refund returns
-  amount and fee. Below 16 USDC the 0.40 floor is the fee. The 25 USDC ceiling is reached at 1,000 USDC, so it
-  binds only once the 500 cap is lifted. A contract rate is a `Plan` account that Knos sets for one repository
-  owner until an expiry: the contract is off chain, the rate is on chain. Any change to the constants is an upgrade,
-  public 48 hours before it can run.
-- **Meter.** In a second program, `knos_meter`. It moves no customer money. It counts attested evaluations and
-  takes its fee from credits the customer prepaid. A billable evaluation is one work order, one artifact, one
-  policy and one milestone: a retry or a duplicate is free, and a rejection is billable.
-- **Control.** In a contract. Nothing on chain enforces it. The software it covers is in this repository under
-  the MIT licence.
-- **Advance.** In nobody's price list. A payee signs their payment of one order over to another wallet. Whoever
-  paid them early collects it.
+- **Check.** Nowhere: it is free. The claim check, the Stop hook, the MCP tools, the Agent PR Index and on-chain
+  verification cost nothing, and they are the distribution.
+- **Meter.** In `knos-meter`. It moves no customer money: it counts attested evaluations and takes its fee from
+  credits the customer prepaid. A billable evaluation is one work order, one artifact, one policy and one
+  milestone: a retry or a duplicate is free, and a rejection is billable, because evaluating it took the same work.
+  A committed-volume rate is a `Plan` the program holds for one owner; the commitment itself is a contract off
+  chain.
+- **Settle.** In `knos-pay`. The fee is marginal: each rate applies only to the part of the amount inside its
+  tier. It is escrowed on top of the amount when the order is funded and leaves only when someone is paid; a refund
+  returns amount and fee. A Plan lowers the first tier's rate for one owner. On devnet an order holds between 5
+  and 100,000 test USDC; a build for real money decides its own cap. The second deployment is upgradeable only
+  through a multisig with a public 48-hour delay, until an outside review, so any change to these constants is
+  public two days before it can run.
+- **Control.** In a contract. Nothing on chain enforces it, and the software it covers is in this repository under
+  the MIT licence. What is sold is policy, budgets, private repositories, statements, exports, and a party that
+  answers for the service. That party does not exist yet.
+- **Advance.** In nobody's price list. A payee assigns the payment of an order to another wallet (`Assign`), and
+  whoever paid them early collects it. The 1 to 3% is what such a financier would charge **[assumption]**; no
+  advance has been made.
+- **Assurance.** Not priced. An order can already hold back a share for a warranty period and return it if the work
+  is reverted; a premium for a warranty that refunds the whole order needs a history of losses, and there is none.
 
-### What each sale costs to deliver
+## 4. What each sale costs to deliver
 
-Inputs. A Solana transaction costs 5,000 lamports for its signature **[sourced]**
-([Solana docs](https://solana.com/docs/core/fees)). Solana holds (128 + bytes) × 5,080 lamports of rent against
-each account **[sourced]** ([SIMD-0437](https://solana.com/upgrades/reduced-rent); devnet and mainnet RPC both
-returned 1,488,440 lamports for 165 bytes on 2 Oct 2026). SOL is taken at 120 USD **[sourced]** (it traded between
-117 and 124 USD on 2 Oct 2026; [CoinGecko](https://www.coingecko.com/en/coins/solana)).
+Inputs:
 
-| line | unit | what the unit costs | source |
-|---|---|---|---|
-| Check | one pull request checked | Nothing to Knos. It runs in the repository's own GitHub Actions job or on the user's machine. | by construction; the runner's minutes are not measured |
-| Verification | one GitHub-signed token checked on chain | 2 transactions for an RSA-2048 key, 763,497 and 839,351 compute units; 6 for an RSA-4096 key **[measured]** | [BENCH.md](BENCH.md), "The verifier on chain" |
-| Settle | one token carried to the chain | 7 transactions, 35,000 lamports, 0.0042 USD on the first deployment **[measured]**. On the second, with `knos-pay` 2.1 and 4,096-byte transactions: 2 transactions **[measured in the simulator]**; not measured on devnet. | [BENCH.md](BENCH.md), "What a relayer pays" |
-| Settle | one payment instruction | 62,138 to 94,858 compute units **[measured]** | [BENCH.md](BENCH.md), "The escrow" |
-| Settle | a payee's first payment | Rent the relayer puts up, once per person: a token account, 1,488,440 lamports (0.179 USD); a public record of 64 bytes, 975,360 (0.117 USD); a marker of 1 byte the first time a funder pays them, 655,320 (0.079 USD). Together 3,119,120 lamports, 0.374 USD. | arithmetic on the rent rule above |
-| Meter | one billable evaluation | The verification, then one `Record` of 81,357 compute units **[measured in the simulator]**; not measured on devnet. Each evaluation also leaves a marker of 88 bytes so that a retry is free: (128 + 88) × 5,080 = 1,097,280 lamports of rent, 0.132 USD, which is more than the 0.05 price. The relayer puts that rent up, and the program returns all of it to that relayer from two hours into the next month (`CloseMark`). So an evaluation costs its relayer the signatures, and rent that is locked for up to a month and not spent. Whether that leaves a margin on a cluster is not measured. | [BENCH.md](BENCH.md), "What a relayer pays"; arithmetic on the rent rule above |
-| Control | one organisation for a year | **Not measured.** The cost is people: support, a named party that answers for the service, the reports procurement asks for. None of it exists yet. | [CONTROLS.md](CONTROLS.md) |
-| Advance | one advance | Nothing to Knos. The cost of the money is the advancer's. | |
+- A Solana transaction costs 5,000 lamports per signature **[vendor page]**
+  ([Solana docs](https://solana.com/docs/core/fees)).
+- An account must hold rent for its bytes. The figure used here is what the clusters answer: on 4 Oct 2026
+  `getMinimumBalanceForRentExemption` returned 1,097,280 lamports for 88 bytes, 1,137,920 for 96 and 1,488,440 for
+  165 **[measured]**, which is (128 + bytes) × 5,080 lamports. [METER.md](METER.md), "What an evaluation costs in
+  each mode", says which cluster answered which and has the same arithmetic in full; this page and that one use the
+  same numbers. (The local simulator the tests run in charges more per byte; no figure here comes from it.)
+- SOL is taken at 121.50 USD: [CoinGecko](https://www.coingecko.com/en/coins/solana) and
+  [Coinbase](https://www.coinbase.com/price/solana) quoted 121.49 and 121.46 on 4 Oct 2026, as METER.md records.
+  Every USD figure below moves with it.
+- The meter's tables count 3 transactions of one signature each for one signed token, two that verify it and one
+  for the meter's instruction, as METER.md does: 15,000 lamports, 0.0018 USD.
 
-Not in any row: priority fees, which a busy mainnet may need (not measured); the machine that runs a relay; and
-GitHub Actions minutes, which are free on public repositories with standard runners and cost a private
-repository's owner 0.006 USD a minute on a 2-core Linux runner beyond the minutes its plan includes **[sourced]**
-([prices](https://docs.github.com/en/billing/reference/actions-runner-pricing), read 2 Oct 2026). Solana plans to
-cut rent to 696 lamports per byte (same SIMD page, expected November 2026). The rents above would fall by 86%.
+### A 100 USDC order
 
-**Who is made whole on a Settle payment.** The relayer is whoever sends the transaction. The program pays it a tip
-out of the fee: 0.05 USDC, or 0.30 when the transaction created the payee's token account. Knos receives the rest.
-
-| order | fee the funder adds | to Knos when the payee was paid before | to Knos on a payee's first payment |
-|---|---|---|---|
-| 5 USDC | 0.40 | 0.35 | 0.10 |
-| 20 USDC | 0.50 | 0.45 | 0.20 |
-| 100 USDC | 2.50 | 2.45 | 2.20 |
-| 500 USDC | 12.50 | 12.45 | 12.20 |
-
-The 0.30 tip covers a new token account (0.179 USD at 120 USD per SOL). If the same payment also creates the
-payee's record and the funder's marker, the three rents come to 0.374 USD and the tip is 0.074 short. The price of
-SOL moves that either way. A relayer's transaction fees on the second deployment are not measured.
-
-At the public 2.5%, 1 million USD of fees a year takes 40 million USD of settled payments a year.
-
-### A fork with a zero fee
-
-Knos is MIT. Anyone can deploy the same programs with the fee set to zero, and MergePay already charges none
-([COMPARE.md](COMPARE.md)).
-
-| line | what a zero-fee fork takes | what it cannot take |
+| | USDC | note |
 |---|---|---|
-| Check | Nothing. It is already free. | |
-| Settle | The public fee. A fork needs a relay that runs and reports its latency. Since the program tips whoever relays, anyone can run one at no loss. So settlement alone will be priced toward zero. | Orders already funded on Knos's program ids finish there. A contract rate (a Plan) lets Knos meet a lower price for one owner without changing the public one. |
-| Meter | The per-evaluation fee, the same way. | A count run by the vendor is the vendor's count again, which is the thing the buyer objected to. A fork run by a third party is as neutral as Knos is. |
-| Control | Nothing today, because nothing is sold today. The code is in the repository. | A signed contract with a party that answers for the service. A fork can compete for the next one. |
-| Advance | Nothing. Knos charges nothing. | |
+| The funder pays | 102.50 | the amount and 2.5% on top |
+| The payee receives | 100.00 | the posted amount, in full |
+| The relayer's tip, out of the fee | 0.05 | 0.30 when the paying transaction creates the payee's token account |
+| Knos keeps | 2.45 | 2.20 on a payee's first payment |
 
-Three things are not assets. The verifier is free for any program, a fork included. The payment history is public:
-anyone can read it from the chain. And relaying pays whoever does it. What a customer would pay Knos for is an
-operator that answers for the service. That is unproven: no customer has paid for anything.
+What the relayer spends against that tip: signatures, and on a payee's first payment the rent of a token account
+of 165 bytes, 1,488,440 lamports, 0.181 USD. Carrying one token to the
+chain took 7 transactions and 35,000 lamports (0.0043 USD) on the first deployment **[measured]**, and 2
+transactions on the second **[measured in the simulator]**; a relayer's cost on the second deployment is not
+measured on devnet ([BENCH.md](BENCH.md), "What a relayer pays"). Priority fees, which a busy mainnet may need,
+are in no measurement.
 
-## 3. Today's bottom-up, beside what 1 billion USD a year would require
+So the chain is not the cost of a settlement. The costs are people: support, compliance, an outside review. None
+of them exists yet and none is measured.
 
-### Today's bottom-up: 121,125 USD a year
+### 1 million metered evaluations in a month
 
-Reachable buyers × eligible tasks a year × spend per task × adoption = settled volume. The fee is 2.5% of that,
-paid by the funder. An eligible task is one on GitHub, with a fixed scope and checks, done by someone the buyer
-does not already pay.
+A customer with 1,000,000 evaluations in a month has 990,000 billable ones: 49,500 USD at 0.05, 19,800 USD at 0.02.
 
-| scenario | reachable buyers | tasks a year, each | spend per task | adoption | settled a year | fees a year |
-|---|---|---|---|---|---|---|
-| A. Open-source companies that post bounties today | 100 **[sourced]**: Algora's home page says "100+ happy customers". It now leads with hiring, so this is a ceiling. | 25 **[assumption]** | 150 USD **[assumption]** | 20% **[assumption]** | 75,000 USD | 1,875 USD |
-| B. Crypto teams and foundations that pay strangers per outcome | 3,380 **[sourced]**: 2,730+ sponsors on Superteam Earn and 650+ protocols on Immunefi. Overlap unknown. That they hold USDC is an **[assumption]**. | 25 **[assumption]** | 200 USD **[assumption]** | 5% **[assumption]** | 845,000 USD | 21,125 USD |
-| C. Engineering teams buying fixed-scope changes from outside | 78,500 **[assumption]**: one in ten of Upwork's 785,000 active clients **[sourced]** | 25 **[assumption]** | 100 USD **[assumption]** | 2% **[assumption]** | 3,925,000 USD | 98,125 USD |
+| | individual mode (`Record`) | batch mode (`RecordBatch`) |
+|---|---|---|
+| What is written | One marker account of 88 bytes per evaluation, so that a retry is free | No account per evaluation. One signed token carries the count, the totals and a Merkle root of a batch; one Ledger account of 96 bytes per buyer, seller and month holds the totals and a running hash |
+| Rent per evaluation | 1,097,280 lamports, 0.1333 USD: 2.7 times the 0.05 price | none |
+| Rent for the month | 1,097.28 SOL, 133,320 USD, locked at the month's end. The program returns all of it to the relayer from two hours into the next month (`CloseMark`), so it is working capital, not a cost | 1,137,920 lamports, 0.14 USD, once, and kept: the Ledger is the record and is never closed |
+| Signatures | 3 transactions per evaluation: 15 SOL, 1,822.50 USD | 3 transactions per batch: at 5,000 evaluations a batch, 200 batches, 0.003 SOL, 0.36 USD |
+| Chain cost per evaluation | 0.0018 USD spent, and 0.1333 USD locked for up to a month | 0.00000036 USD |
+| Where the detail lives | on chain, one account each | in a ledger file each side keeps; the chain holds the root, so either side can prove one evaluation was counted, and neither can change the month afterwards |
 
-Sources for the buyers: [Algora](https://algora.io) (read 2 Oct 2026); Superteam Earn and Immunefi as in section 1;
-[Upwork, results for 2025](https://www.globenewswire.com/news-release/2026/02/09/3234886/0/en/upwork-reports-fourth-quarter-and-full-year-2025-financial-results.html)
-(read 2 Oct 2026).
+Batch mode exists so that rent no longer exceeds the price. Individual mode stays for an evaluation that has to
+stand on chain by itself. The supplier's own count of the same month (`ClaimBatch`) costs the supplier's relayer
+the same signatures and one more Ledger account, and no fee. Neither mode's cost has been measured on devnet.
 
-- Together: 4,845,000 USD settled in 43,975 payments, and 121,125 USD of fees. Every task here is between 100 and
-  200 USD, so the fee is 2.5% exactly: the floor and the ceiling do not apply.
-- Of the 121,125, the tips go to whoever relays: 0.05 on each of 43,975 payments is 2,199 USD, more on first
-  payments.
-- Tasks a year and adoption have no source. 25 is one every two weeks. Adoption today is zero.
-- Spend per task: of the 59 open bounties on all boards, 18 were under 50 USD, 14 from 50 to 149, 10 from 150 to
-  499 and 17 of 500 or more **[sourced]** (BountyOS, read 2 Oct 2026). Knos caps an order at 500 USDC.
-- Scenario C carries 81% of the total and rests on two assumptions with no source. Without it the figure is
-  23,000 USD.
+**The gross-margin budget.** At 0.02 per evaluation, a gross margin of 80% **[assumption: a target]** leaves 0.004
+USD per evaluation to deliver it. In batch mode the chain takes 0.00000036 of that. What has to fit in the rest and
+is not measured: storing and serving the ledgers, running a relay, and support. Running the customer's tests is not
+in it: they run in the customer's own CI, on the customer's bill.
 
-### What 1 billion USD a year would require
+## 5. Revenue, and the fee actually collected
 
-This is arithmetic. It says what would have to be true. It is not a forecast, and nothing in it has happened.
+**Revenue opportunity = qualified customers × annual platform price + billable evaluations × realised unit price,**
+and, once real money settles, **+ orders × the fee collected on each.**
 
-| line | volume needed | rate | revenue | today's anchor | today, through Knos |
+Each input has to be shown, and none is today: qualified customers are 0, billable evaluations are 0, and the
+realised unit price is unknown, because the free allowance and committed-volume plans come off the list price
+first.
+
+The settlement line is not "volume × a percentage". The tiers and the floor decide what an order pays:
+
+| order | fee the funder adds | as a share of the order | to Knos | to Knos on a payee's first payment |
+|---|---|---|---|---|
+| 5 | 0.40 | 8% (the minimum) | 0.35 | 0.10 |
+| 20 | 0.50 | 2.5% | 0.45 | 0.20 |
+| 100 | 2.50 | 2.5% | 2.45 | 2.20 |
+| 1,000 | 25.00 | 2.5% | 24.95 | 24.70 |
+| 5,000 | 65.00 = 25 + 1% of 4,000 | 1.3% | 64.95 | 64.70 |
+| 50,000 | 515.00 = 25 + 1% of 49,000 | 1.03% | 514.95 | 514.70 |
+| 100,000 | 765.00 = 515 + 0.5% of 50,000 | 0.765% | 764.95 | 764.70 |
+
+Under a Plan at 0.5% the first tier pays 5, not 25: a 5,000 order pays 45 and a 50,000 order pays 495. The same
+volume therefore yields very different revenue by order size: 1 million USD settled is 25,000 USD of fees in
+orders of 100, 13,000 in orders of 5,000 and 10,300 in orders of 50,000.
+
+## 6. What 1 billion USD a year would require
+
+**This is arithmetic, not a forecast.** It says what would have to be true, at the price book's own prices, and
+puts the reality beside each line. Nothing in it has happened.
+
+| line | what it needs | price | revenue | reality check | today |
 |---|---|---|---|---|---|
-| Settle | 30 billion USD settled a year | 1.5% | 450 million | 7.4 times the 4.03 billion USD bought through Upwork in 2025. 1.9% of Gartner's 1.57 trillion USD of IT services in 2026. At the 500 USDC cap, 60 million orders. | 0 USD of real money |
-| Control | 3,000 organisations | 80,000 USD a year | 240 million | More organisations than Superteam Earn lists sponsors (2,730+), each paying 80,000 USD a year. | 0 organisations |
-| Meter and Verify | 6.2 billion billable evaluations a year | 0.05 blended | 310 million | 24% of the jobs GitHub Actions ran at 71 million a day (25.9 billion a year). 70 times the agent pull requests one tracker counts in a year (1.7 million a week; [WHY.md](WHY.md), section 1). At the 0.02 volume price it is 15.5 billion. | 0 evaluations |
-| **Total** | | | **1,000 million** | 8,256 times today's bottom-up | **121,125 USD, and that is a scenario, not revenue** |
+| Control | 3,000 organisations under contract | 80,000 USD a year each | 240 million | Datadog reported about 4,310 customers above 100,000 USD of annual recurring revenue at the end of 2025 (**[company-reported]**, [results for 2025](https://investors.datadoghq.com/news-releases/news-release-details/datadog-announces-fourth-quarter-and-fiscal-year-2025-financial)) | 0 organisations; nobody has bought it |
+| Meter | 12 billion billable evaluations a year | 0.02 realised | 240 million | 32.9 million a day: 46% of the 71 million jobs GitHub Actions ran a day in December 2025. Each must be a real commercial evaluation, after the free allowance | 0 evaluations by anyone but Knos |
+| Settle | 8 million orders of 5,000 USD: 40 billion USD settled | 65 USD an order (1.3%) | 520 million | 9.9 times the 4.03 billion USD bought through Upwork in 2025; 2.5% of Gartner's 1.57 trillion USD of IT services. In orders of 50,000 the same volume pays 412 million | 0 USD of real money |
+| Advance, Assurance | | not priced | 0 | Knos charges nothing for an advance and has no loss history to price a warranty | 0 |
+| **Total** | | | **1,000 million** | | **0** |
 
-Reading the two numbers side by side:
+Reading it:
 
-- **121,125 USD** is what the three scenarios give at the public price. **1 billion USD** is 8,256 times that.
-- No row of the second table follows from the first. Bounties do not grow into 30 billion USD. The second table
-  needs buyers the first does not contain: vendors who meter, companies under contract, and orders far above 500
-  USDC.
-- "Verify" is the meter counting attestations that are not merges: a deploy, an evaluation, an applied plan
-  (section 4). Verifying on chain stays free. What is charged is the count.
-- The line with the weakest footing is Meter and Verify: its unit cost is not measured (section 2).
-- Revenue today is zero on every line.
+- The two lines that need no customer money on chain, Control and Meter, come to 480 million. Without any
+  settlement revenue the formula of section 5 reaches 1 billion at 6,250 organisations and 25 billion billable
+  evaluations a year, which is 96% of GitHub Actions' December 2025 job rate. That is not a plan.
+- At the list price of 0.05 the meter line needs 4.8 billion evaluations, not 12 billion. Committed-volume
+  customers pay 0.02, so 0.02 is the honest price to plan on.
+- Customer money in escrow, refundable rent and a financier's advances are never revenue.
 
-## 4. The sequence of expansion
+**The first milestone is 1 million USD of fees a year.** Three ways to it, none reached:
 
-Each step uses what the one before it built. For each: what exists, and what would show that it works.
+| way | what it takes | needs mainnet |
+|---|---|---|
+| Control | 40 organisations at the 25,000 USD entry price, or 13 at 80,000 | no: a subscription invoiced off chain |
+| Meter | 50 million billable evaluations a year at 0.02 (137,000 a day), or 20 million at 0.05 | no, for the subscription; the count itself is on chain |
+| Settle | 40 million USD settled in orders of 1,000 or less (2.5%), or 15,385 orders of 5,000 (76.9 million USD settled) | yes |
 
-| step | what it is | what exists | what would show it works |
+## 7. What a fork can copy, and the moats
+
+Knos is MIT. Anyone can deploy the same programs with every fee set to zero, and MergePay already charges no
+platform fee ([COMPARE.md](COMPARE.md)).
+
+**What a zero-fee fork can copy:** all of the code; the verifier, which is free for any program to read; the
+public settlement fee, since the program tips whoever relays and anyone can relay at no loss; and the public
+payment history, which anyone can read from the chain. Settlement alone will be priced toward zero.
+
+**What it cannot copy:**
+
+| | why a fork does not have it | what Knos has of it today |
+|---|---|---|
+| **Neutrality** | A count run by the vendor is the vendor's count again, which is what the buyer objected to. A count run by the forge is not neutral between forges or between its own agent and others. | A design that makes it checkable: the supplier's own count sits on chain beside the buyer's. One operator, who is one person. |
+| **The record** | Orders in flight finish at the program addresses they were funded at, and the history of who delivered, who reverted and who paid accumulates there. A fork starts at zero. | A small record, all of it Knos's own activity on devnet. |
+| **A contract with an accountable party** | Procurement signs with a legal entity that answers for support, security reports and uptime. Code cannot sign. | None. No company has been formed. |
+| **Capital** | Advancing money on accepted work and warranting it take a balance sheet and a loss history. | None. Knos advances nothing. |
+
+A third party's fork is as neutral as Knos is. What separates them then is the record and the contract, which is
+why those have to be earned early.
+
+**The moats, in the order they form:**
+
+1. **Distribution inside the agent loop.** The free check runs where the claim is made: the Stop hook and the MCP
+   tools in the agent's session, and a check on the pull request. It forms first because it costs the user nothing.
+2. **The record.** Each counted evaluation and each settled order adds to a public history of which agents and
+   vendors deliver.
+3. **The terms standard.** If buyers ask suppliers for the same acceptance receipt, a supplier integrates once and
+   reaches every such buyer.
+4. **Neutrality across issuers.** The verifier takes any issuer that signs RS256 tokens; a forge cannot be neutral
+   between itself and another forge, and a vendor cannot be neutral about its own invoice.
+5. **Capital.** Underwriting from the settlement record. It forms last, and only if the record is large.
+
+None of the five exists at a scale that defends anything today.
+
+## 8. The phases, and what devnet can show
+
+Count first, settle second, capital third. The count needs no customer money on chain, so it can be sold before
+any mainnet deployment. The gates are targets we set **[assumption]**, not commitments from anyone.
+
+| phase | what ships | who buys | the gate to the next phase |
 |---|---|---|---|
-| 1. Code on GitHub | A work order on an issue: terms fixed before the work, a GitHub-signed run attests they were met, a Solana program settles. A bounty is the smallest work order. A standing order pays a rate per accepted change. | On devnet, in test USDC. Funded by Knos's own account only ([BENCH.md](BENCH.md), "Measured on devnet"). | Funders who are not Knos, with real money, funding again (section 6). |
-| 2. Other issuers | The same verifier admits a signing key of any issuer that signs RS256 tokens and publishes its keys, behind the same delay, approval, expiry and revocation. GitHub Enterprise Server signs under its own host; GitLab signs RS256 **[sourced]** ([GitHub](https://docs.github.com/en/enterprise-server@latest/actions/reference/security/oidc), [GitLab](https://docs.gitlab.com/ci/secrets/id_token_authentication/)). | The verifier checks GitHub and GitLab tokens. The escrow pays public orders on GitHub's tokens only. No GitLab token has been verified on devnet. | A payment on devnet attested by an issuer that is not GitHub. |
-| 3. Acceptance beyond code | The signed statement is about something other than a merge: a deploy that went green, an evaluation that passed, infrastructure that applied. Each needs its issuer admitted and a map from its claims to terms. | Payment without a merge exists for one case: a black-box test bundle, where the submission runs as a separate process and only its output is compared ([TAMPER.md](TAMPER.md)). Nothing has been paid on a deploy, an evaluation or an applied plan. | One payment for each, with a cheating submission refused. |
-| 4. Advances against accepted work | A payee assigns the payment of an order to another wallet. A third party pays them early and collects it. | The assignment instruction. No advance has been made, and Knos makes none. | Someone other than Knos advancing money against an order, twice. |
+| 0. Proof, on devnet | The free check; the meter beside real invoices; settlement in test USDC | Nobody pays. Design partners use it. | Outside accounts funding orders on devnet, and one vendor or agency running the meter beside its own invoice count |
+| 1. Count | Meter and Control as subscriptions invoiced off chain; private repositories; an outside security review; the verifier and the meter on mainnet | Vendors that bill per accepted change, and their customers | 10 paying organisations and a published review |
+| 2. Settle | Escrow on mainnet with real USDC; bank money in and out through a licensed partner; milestones | Teams that already pay per outcome in stablecoins, then agencies | 50 million USD settled in a year |
+| 3. Capital | Advance and Assurance priced from the settlement record | Agencies and their financiers | Losses below premiums for four quarters |
 
-Steps 2 to 4 widen what can be counted and paid. None of them brings a buyer by itself.
+**What devnet can show:** that the product works end to end; use by accounts that are not Knos's; a supplier and
+a buyer computing the same statement; reproducible refusals and refunds; and subscription revenue, because Meter
+and Control hold no customer money and can be invoiced off chain while the programs stay on devnet. No such
+subscription has been sold.
 
-## 5. What can stop this
+**What devnet cannot show:** settlement revenue, because test USDC is not money; behaviour under mainnet load and
+priority fees; or a ledger a customer can rely on, since devnet carries no guarantee that its history is kept.
+That is why every receipt can also be kept off chain ([RECEIPT.md](RECEIPT.md)).
+
+**Tokenless.** Knos has no token and plans none. Revenue is subscriptions and fees in USD and USDC.
+
+**Legal advice.** Holding money in escrow and paying it out for others may be money transmission, and the rules
+differ by country and by state. Legal advice is needed before any real money moves. **None has been taken.**
+[REGULATION.md](REGULATION.md) says what was read and what was not.
+
+## 9. What can stop this
 
 | what | why it could | what Knos does about it | what Knos cannot do |
 |---|---|---|---|
-| **GitHub ships it** | GitHub owns the record Knos reads. A request for bounties on issues has been open since 6 Jul 2021 **[sourced]** ([discussion 4517](https://github.com/orgs/community/discussions/4517)). | Takes signed statements from issuers other than GitHub (section 4). Stays neutral between agents: GitHub sells an agent of its own, so it would be counting its own sales. Settles outside GitHub's billing, to any wallet. | Stop it, or outlast it on public repositories: a native escrow would take that line. Knos also depends on GitHub's tokens and API, and has to change when they change. |
-| **A payment rail adds acceptance** | The rails have the distribution. x402 reports 75.41 million transactions and 24.24 million USD in 30 days **[sourced]** ([x402.org](https://x402.org), 3 Oct 2026). It is pay before access, with no check of delivery. The draft ERC-8183 has the slot already: one evaluator address that "alone may mark the job completed" **[sourced]** ([EIP](https://eips.ethereum.org/EIPS/eip-8183); draft, created 25 Feb 2026). | Builds the evaluator, not the rail: the verifier is free for any program to read. | Match a rail's reach. If a rail ships its own check of CI tokens, Knos's is one of several. |
-| **Zero-fee copies** | MIT, and MergePay charges no platform fee. | Section 2: a contract rate on chain, and lines a fee constant does not carry. | Keep a percentage on public settlement once someone relays as well for less. |
-| **The attestor gap** | GitHub signs that a workflow ran. It does not sign what the workflow read. The statement is as honest as the runner and the repository it ran in. | Pins the workflow by commit. Requires a GitHub-hosted runner and a first attempt. Lets a funder's repository decide about that funder's money only. After a merge, lets the seller have the pinned workflow read GitHub's public record from a repository of the seller's own, so a buyer who deletes the workflow no longer withholds payment. | Prove the reading without trusting GitHub's hosted runners. There is no second, independent attestor. A private order trusts the repository its funder named as judge. ([SECURITY.md](SECURITY.md)) |
-| **Regulation** | Holding and paying out money for others may be money transmission. Paying contractors brings tax reporting. Paying anyone brings sanctions law. | Holds no key to an order's money in normal operation. Screens a payout address against the OFAC list. Exports every payment for the payer's own records. ([REGULATION.md](REGULATION.md)) | Give a legal opinion. Counsel has not been asked. Until an outside review Knos can change the program through its multisig, which weakens any claim that it does not control the money. |
-| **The history of bounty platforms** | They close. Bountysource left at least 21,702.10 USD of completed work unpaid ([boehs.org, 3 May 2024](https://boehs.org/node/bountysource)). Gitcoin retired its bounties; users had until 30 Jul 2023 to take their data ([Gitcoin](https://support.gitcoin.co/gitcoin-knowledge-base/misc/cgrants-bounties-and-hackathons-sunsetting-faq)). OnlyDust closed after 18 million USD in grants: "Low-skill contributors were flooding them with AI-generated code" ([onlydust.com](https://www.onlydust.com/)). Polar's founder on open bounties: "it's a race towards that cash, and so the contributions are of fairly low quality" ([Changelog 591](https://changelog.com/podcast/591)). All **[sourced]**. | No company holds the money. An order can be reserved for one person. Acceptance is named checks plus a merge, fixed before the work. The business is not the board: section 3 says a board is 1,607 USD. | Make a small market large, or make a buyer come back. |
-| **Maintainer fatigue** | Money plus free submission floods the person who reads. curl ended its bug bounty in January 2026 to "remove the incentive for people to submit crap and non-well researched reports" **[sourced]** ([The Register, 21 Jan 2026](https://www.theregister.com/2026/01/21/curl_ends_bug_bounty/)). | The free check marks a false "tests pass" before a person reads the pull request. A reservation gives an issue to one person. A policy file says who may be paid. GitHub's own limits on pull requests still apply ([COMPARE.md](COMPARE.md)). | Remove the review. A funded issue still draws pull requests, and a maintainer still has to say no. |
+| **Nobody wants a neutral count** | The vendors of section 2 sell on their own count today, and their customers accept it. | Makes the count free to try: 10,000 evaluations a month cost nothing, and the meter runs beside the vendor's invoices without changing them. | Create the dispute. If buyers do not object to the seller's count, there is no Meter business. |
+| **GitHub ships it** | GitHub owns the record Knos reads. A request for bounties on issues has been open since 6 Jul 2021 ([discussion 4517](https://github.com/orgs/community/discussions/4517)). | Takes signed statements from other issuers. Stays neutral between agents: GitHub sells an agent of its own, so it would be counting its own sales. | Stop it, or outlast it on public repositories. Knos also depends on GitHub's tokens and API, and on one GitHub account ([submission/DEPENDENCY.md](submission/DEPENDENCY.md)). |
+| **A payment rail adds acceptance** | The rails have the distribution. x402 reports 75.41 million transactions and 24.24 million USD in 30 days ([x402.org](https://x402.org), read 3 Oct 2026). It is pay before access, with no check of delivery. The draft ERC-8183 has a slot for one: an evaluator address that "alone may mark the job completed" ([EIP](https://eips.ethereum.org/EIPS/eip-8183), read 3 Oct 2026). | Builds the evaluator, not the rail: the verifier is free for any program to read. | Match a rail's reach. |
+| **Zero-fee copies** | MIT, and MergePay charges no platform fee. Algora charges 9% ([pricing](https://algora.io/pricing), read 3 Oct 2026), so the direction of prices is down. | Section 7: prices on what a fee constant does not carry. | Keep a percentage on public settlement once someone relays as well for less. |
+| **The attestor gap** | The issuer signs which workflow ran, at which commit, in which repository. It does not sign what the workflow read. | Pins the workflow by commit; requires a hosted runner and a first attempt; lets the supplier have the pinned workflow read the public record from a repository of its own. | Prove the reading without trusting the forge's hosted runners. A private order trusts the repository its funder named as judge ([SECURITY.md](SECURITY.md)). |
+| **Regulation** | Escrow and payout may be money transmission. Paying contractors brings tax reporting. Paying anyone brings sanctions law. | Holds no key to an order's money in normal operation; screens a payout address; exports every payment. | Give a legal opinion. None has been taken. Until an outside review the programs are upgradeable through the multisig, which weakens any claim that Knos does not control the money. |
+| **One person** | One founder holds every upgrade key and the one GitHub account the pinned workflows live in. | A public 48-hour delay on every upgrade; refunds that need neither GitHub nor Knos; the plan in [submission/DEPENDENCY.md](submission/DEPENDENCY.md). | Be an organisation before it is one. |
+| **Paid work for strangers has failed before** | Bountysource left at least 21,702.10 USD of completed work unpaid ([boehs.org, 3 May 2024](https://boehs.org/node/bountysource), read 3 Oct 2026). curl ended its bug bounty in January 2026 to "remove the incentive for people to submit crap and non-well researched reports" ([The Register, 21 Jan 2026](https://www.theregister.com/2026/01/21/curl_ends_bug_bounty/), read 3 Oct 2026). | No company holds the money. Acceptance is named checks fixed before the work. The free check marks a false "tests pass" before a person reads the pull request. The business is not the board. | Remove the review, or make a small market large. |
 
-## 6. The funnel, and the one test that matters
+## What is not known
 
-| stage | what is counted | today |
-|---|---|---|
-| 1. Installed | repositories whose workflows call the Knos check | not measured |
-| 2. Funded | tasks that someone other than Knos funded with their own tokens | 0 **[measured]** |
-| 3. Completed | of those, tasks paid to someone other than the funder | 0 **[measured]** |
-| 4. Funded again | funders who funded another task after one of theirs was paid | 0 **[measured]** |
-
-Stages 2 to 4 are read from the programs' own logs ([BENCH.md](BENCH.md), "Measured on devnet": the site's
-`stats.json` of 3 Oct 2026, 16:04 UTC), with Knos's own accounts kept apart. Three payments on devnet went to a
-GitHub account that is not Knos's. Knos funded those tasks itself, in test money, so they are not outside demand
-and stage 2 does not count them.
-
-**The one test: funders who are not Knos, funding a second task with real money. Today: zero.**
-
-It cannot be passed on devnet, where the money is free. What each earlier result would mean:
-
-- **Few install.** The check is not wanted. There is no business.
-- **Many install, few fund.** Knos is a free check, and the escrow is a feature few need.
-- **Funded, not completed.** The tasks or the terms are wrong: nobody takes them, or the checks refuse honest work.
-- **Completed, not funded again.** A trial, not a habit.
-- **Funded again, by funders who are not Knos, with real money.** A payment business. The number to watch is how
-  many such funders there are and what each settles in a month.
-
-## 7. What a seller keeps
-
-The seller is a person running an agent, or working by hand, who is not on the buyer's payroll. The funder pays
-the fee, so a 20, 100 or 500 USDC order pays 20, 100 or 500.
-
-- Model cost per attempt: 1, 3 and 15 USD for those sizes **[assumption]**. The anchor is a published estimate of
-  0.04 to 4.50 USD for a simple task and 0.08 to 13.50 USD for a medium one **[sourced]**
-  ([KSPL Academy, 2 Jun 2026](https://academy.kspl.tech/blog/2026-06-02-ai-coding-agent-cost-ladder-2026); its own
-  estimates, not measurements; read 2 Oct 2026).
-- Attempts per accepted result = 1 ÷ merge rate. Published: 71.5% of 33,596 agent pull requests in repositories
-  with more than 100 stars were merged **[sourced]** ([arXiv 2601.15195](https://arxiv.org/html/2601.15195)). That
-  is every agent pull request, not strangers answering paid tasks, so it is the favourable case. For a stranger
-  there is no published rate. One hunter's 30-day log gives about 15% **[sourced, one person's account]**
-  ([dev.to, 1 Jun 2026](https://dev.to/zeroknowledge0x/the-open-source-money-map-every-way-developers-are-actually-making-money-in-2026-with-real-45ba)).
-
-| order | paid | model cost per attempt | kept at 71.5% merged | kept at 15% merged |
-|---|---|---|---|---|
-| 20 USDC | 20 | 1 | 18.60 | 13.33 |
-| 100 USDC | 100 | 3 | 95.80 | 80.00 |
-| 500 USDC | 500 | 15 | 479.02 | 400.00 |
-
-A person's time changes this. GitLab puts a manual review at 15 minutes of a senior engineer, about 25 USD
-**[sourced]** ([GitLab, 19 Mar 2026](https://about.gitlab.com/blog/agentic-code-reviews-with-flat-rate-pricing)).
-A seller who checks each attempt that carefully loses money on a 20 USDC order at any merge rate.
-
-| risk | who bears it |
-|---|---|
-| Attempts that are not merged: model cost and time | the seller |
-| A maintainer who never looks, or declines after reading the diff | the seller. A reservation removes the race with other sellers, not this. |
-| A merged pull request that is not paid, because a funded check did not pass or a file was outside the allowed paths | the seller. The terms are public before the work starts. |
-| A buyer who merges and then removes the workflow | the seller, only on an order that turned neutral attestation off. By default, after a merge, the seller can have the pay token produced from a repository of their own. |
-| An order cancelled while the seller holds the reservation | the funder, up to the share named at funding (at most 20%); the rest, the seller |
-| Money locked until the deadline, or until 7 days after a cancellation | the funder |
-| Paying for work that passed weak checks | the funder, who chose the checks. A holdback and a warranty, set at funding, return part of it if the change is reverted in time. |
-| Transaction fees, rent, and tokens that fail on chain | whoever relays, against the tip |
-| GitHub wrong or down, a fault in a program, a program changed through the multisig | everyone ([SECURITY.md](SECURITY.md)) |
-| What USDC is worth and where it can be spent | the seller |
-
-## 8. What is not known
-
-- Whether anyone will fund a second task with real money. There is no outside funder.
-- Whether any vendor or buyer wants a neutral count enough to pay for it. Nobody has been asked.
-- What a billable evaluation costs to record on a cluster, and so whether Meter has a margin at 0.05 or at 0.02. It is
-  measured in the simulator only.
-- What relaying costs on the second deployment and on mainnet. Priority fees are in no measurement.
-- What share of the spend on coding agents would move to payment on acceptance. No source gives it.
-- The merge rate for strangers who answer funded tasks. The only figure is one person's log.
+- Whether any vendor or buyer wants a neutral count enough to pay for it. Nobody has been asked:
+  [submission/INTERVIEWS.md](submission/INTERVIEWS.md) is the kit for asking.
+- Whether anyone will fund a second order with real money. There is no outside funder.
+- The realised price of an evaluation, and what a batch costs on a cluster. Neither is measured.
+- What relaying costs on mainnet. Priority fees are in no measurement.
+- What share of the spend on coding agents would move to payment per accepted outcome. No source gives it.
 - The price of a merged change. Sourcegraph and GitStart do not publish theirs.
-- How many repositories have installed the check.
-- How long a merge takes to become a payment across many repositories. On devnet, from merge to payment took
-  24 seconds at the median, over 36 payments
-  ([BENCH.md](BENCH.md)), all in Knos's own repositories.
-- How many payees can turn USDC into money they can spend, and in which countries.
-- How these payments are regulated and taxed. [REGULATION.md](REGULATION.md) says what was read and what was not.
-  Counsel has not been asked.
-- What a company's security or procurement review would say. [CONTROLS.md](CONTROLS.md) lists what exists and what
-  does not.
+- How these payments are regulated and taxed. No legal advice has been taken.
+- What a company's security or procurement review would say ([CONTROLS.md](CONTROLS.md)).
 - When a security firm will review the programs, and what it will cost. None has.

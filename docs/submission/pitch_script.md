@@ -1,65 +1,70 @@
-# Pitch (under three minutes)
+# Pitch (under three minutes, five beats)
 
-Narration in the founder's own voice, about 430 words: a little under three minutes read aloud at an even pace. The times in the
-headings are where each part starts at that pace. A number written out here is in `docs/facts.json` with its source,
-and `python scripts/claims_check.py` checks it. A number that only the release run can measure is a slot,
+Narration in the founder's own voice, about 480 words: under three minutes read aloud at an even pace. The times in
+the headings are where each beat starts at that pace. A number written out here is in `docs/facts.json` with its
+source, and `python scripts/claims_check.py` checks it. A number that only the release run can measure is a slot,
 `[[stat: name]]`: `python scripts/bench_docs.py --slots` lists the ones still open, and nothing is recorded until
 they are filled.
 
-## The measurement, and a payment (0:00)
+The third beat is written to be true on the day it was written. Read it against the chain on the day of recording
+(the checklist in [SUBMISSION.md](SUBMISSION.md)), and change it only to what is true then.
 
-*On screen: the Agent PR Index, then a merge on GitHub and its payment landing in the explorer.*
+The second beat's clip shows terms hashed into a work order, which devnet runs only once the upgrade has executed.
+[`docs/capabilities.json`](../capabilities.json) is the index: what the clip shows must be at "exercised on devnet"
+there on the day, and what is not is cut from the clip and from the narration. The last sentence of that beat says
+what is tested and not yet on devnet; it is dropped, item by item, only as the manifest moves.
 
-In 826 repositories I took the first pull request by a coding agent that said its tests pass. In 147 a check had
-failed. In 80, a test or a build. Now this one: merged, and its author paid. From merge to paid took
-24 seconds, the median over 36 payments on devnet. Nobody
-approved that payment.
+## 1. The problem, with a number (0:00)
 
-## The insight (0:23)
+*On screen: a supplier's invoice with a line "merged pull requests", then the measurement.*
 
-A description is not evidence, so nobody can pay an agent on its word. But GitHub already records the result: who
-opened the pull request, what its checks concluded, who merged it. It signs statements about a workflow run, and a
-Solana program can check that signature by itself. So money can move on GitHub's signature, not on the
-seller's word.
+Software work is starting to be sold per outcome: per merged change, per resolution. The seller counts the
+outcomes, and the buyer approves the invoice on the seller's count. I measured what that count hides. Of 241
+merged pull requests by coding agents whose description said the tests pass, 30 had a failed check at that commit.
+That is 12.4%. A vendor that bills per merge bills for those. The person approving the invoice cannot see it,
+and the supplier has no terms it can hold the buyer to either.
 
-## The product (0:47)
+## 2. The demo (0:35)
 
-*On screen, one clip: a comment funds, a merge, the payment; then the workflow deleted, and the seller's own run.*
+*On screen, one clip: terms set, a submission refused with the failed check named, a valid one paid, the same token
+refused the second time.*
 
-Knos pays for software work on signed acceptance. A buyer funds a work order with one comment and names the checks
-that must pass. Those terms are fixed on chain before the work. When a pull request that meets them is merged, a
-pinned workflow reads GitHub's record, GitHub signs the run, and the program pays the author in full. The buyer pays
-the fee on top. If the buyer deletes the workflow after merging, the seller runs the pinned one himself and is still paid.
+Knos is the neutral count and settlement for software work priced per outcome. The buyer fixes the terms before
+the work: the checks that must pass and the paths that may change. They are hashed into the order. A submission
+that says it passed and did not is refused, and the refusal names the check. A valid one is merged; the forge signs
+the CI run; a Solana program verifies that signature itself and pays the seller in full. From merge to paid took
+25 seconds at the median, over 38 payments on devnet. Send the same token again and
+it pays nothing. Tested and not yet on devnet: an order that pays an agent's passing pull request with no merge
+and no person in between, and a batched count with the supplier's count beside the buyer's.
 
-## Evidence (1:21)
+## 3. Who said yes (1:28)
 
-It runs on Solana devnet, in test money. 1,617 tests pass. Refund, key expiry, the pause and a
-time-locked upgrade were drilled against the deployed bytes. Outside funders so far: 0.
+*On screen: the site's Numbers page, the row for funders who are not Knos.*
 
-## Why now (1:33)
+Here is who has said yes, counted from the chain. Funders other than Knos, with their own tokens: 0. Of the
+payments on devnet, 3 went to an outside contributor, for tasks Knos funded itself. Interviews with buyers: none
+yet. Letters of intent: none yet. Paying pilots: none yet. The questions I will ask, and whom, are in the
+repository.
 
-Billing per outcome has started. This September a vendor began charging per merged change, and it counts the merges
-itself. Support agents are sold per resolution, counted by the seller. Nobody neutral counts. GitHub's signature is
-a count neither side owns.
+## 4. The business (1:58)
 
-## The business (1:50)
+*On screen: the price book.*
 
-Four lines. The check is free. Settlement: the funder pays two and a half percent on top. The meter: a neutral
-count for vendors who bill per result, five cents an evaluation. Controls for organisations, by contract. The code
-is MIT. A fork starts with no record: every payment, receipt and rank sits under these addresses. It has to run its
-own relay and keep its own keys attested. Whether customers pay for that is unproven.
+The check is free, and it is the distribution. The count comes first, because it needs no customer money on chain:
+five cents an attested evaluation, two under a committed plan, and a yearly contract for an organisation.
+Settlement is second: two and a half percent, falling in tiers, paid by the funder on top. Capital is third.
+The code is MIT. A fork can copy the code and the fee. It cannot copy neutrality, the record, a contract with
+someone accountable, or capital, and I have little of each today. It is devnet and test money, and nobody has
+bought anything.
 
-## The limits (2:20)
+## 5. The founder, and the next ninety days (2:33)
 
-Devnet only. No outside security review. One person holds every upgrade key, behind a public
-48-hour delay. In a private repository a buyer can still withhold. And GitHub signs that a workflow ran, not what
-it read.
+*On screen: the repository, then the plan.*
 
-## The ask (2:35)
+I'm drexthealpha. That is a pseudonym, and the work is public. I built this alone, with coding agents, because my
+own agents told me the tests passed when they had not. In the next ninety days: ten conversations with people who
+approve these invoices and vendors who send them, and the count of who said yes, published. One vendor running the
+meter beside its own invoices. An outside security review. And keys and workflows moved from one person's account
+to an organisation with a second key holder.
 
-Three asks. A place in the accelerator. Design partners: two vendors that bill per merge and want
-a count their customers trust. And an outside security review, so this can go to mainnet.
-
-I'm drexthealpha. That is a pseudonym, and the work is public.
-
-*Closing card:* Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they were met, a Solana program settles.
+*Closing card:* Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.

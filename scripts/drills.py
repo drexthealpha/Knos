@@ -632,7 +632,7 @@ def a_replay_is_refused(new, tokens: list[Captured]) -> str:
             if svm.version < 1:         # 2.0 knows no single-use marker: its Pay takes one account fewer
                 ix = Instruction(ix.program_id, bytes(ix.data), list(ix.accounts)[:-1])
         else:
-            ix = pay.fund_balance_ix(me, account, key, pay.named_balance(f.aud), j.mint, j.repo_id, j.issue, f.terms)
+            ix = pay.fund_balance_ix(me, account, key, pay.named_balance(f.aud), j.mint, j.repo_id, j.issue, f.terms, used=f.jwt)
         why = svm.refusal([ix])
         if why is None:
             raise Failed(f"the {name} token worked a second time")
@@ -657,10 +657,10 @@ def a_revoked_key_signs_nothing(new, tokens: list[Captured]) -> str:
     key, me = oidc.key_pda(oidc.GITHUB, n), svm.payer.pubkey()
     svm.must("the guardian's Revoke", [oidc.revoke_ix(oidc.GUARDIAN, oidc.GITHUB, n)], unsigned=True)
     svm.must_not("FaucetOpen with a token verified before its key was revoked", 78,
-                 [pay.faucet_open_ix(me, account, key, int(t.c["repository_owner_id"]), int(t.c["repository_id"]))])
+                 [pay.faucet_open_ix(me, account, key, int(t.c["repository_owner_id"]), int(t.c["repository_id"]), used=t.jwt)])
     svm.must_not("FundBalance with a token verified before its key was revoked", 78,
-                 [pay.faucet_open_ix(me, account, key, int(t.c["repository_owner_id"]), int(t.c["repository_id"])),
-                  pay.fund_balance_ix(me, account, key, pay.named_balance(t.aud), pay.faucet_mint(), int(t.c["repository_id"]), int(t.aud.split(":")[2]), t.terms)])
+                 [pay.faucet_open_ix(me, account, key, int(t.c["repository_owner_id"]), int(t.c["repository_id"]), used=t.jwt),
+                  pay.fund_balance_ix(me, account, key, pay.named_balance(t.aud), pay.faucet_mint(), int(t.c["repository_id"]), int(t.aud.split(":")[2]), t.terms, used=t.jwt)])
     _again, steps, why = svm.verify(t.jwt, oidc.GITHUB, n, svm.wallet(5))
     if why is None or steps != 0 or code_of(why) != 78:
         raise Failed(f"a new verification under the revoked key should stop at its first step with error 78, and {why or 'went through'}")
@@ -805,6 +805,12 @@ def document(programs: list[Program], rows: list[Row], rpc: str, cluster: str, n
     return "\n".join(lines)
 
 
+def recovery() -> str:
+    """The hand-written half of the page, what a funder does in three failures: docs/drills_recovery.md, appended as it is."""
+    path = ROOT / "docs" / "drills_recovery.md"
+    return "\n" + path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
 def main(argv: list[str] | None = None, call: Callable = chain.call, say: Callable[[str], None] = print) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--rpc", default="https://api.devnet.solana.com", help="the cluster the programs are read from")
@@ -822,7 +828,7 @@ def main(argv: list[str] | None = None, call: Callable = chain.call, say: Callab
     now = a.now if a.now is not None else int(time.time())
     rows = run({p.name: p.elf for p in programs}, now, tokens, say) + upgrade_rows(a.upgrade_log, say)
     a.out.write_text(document(programs, rows, a.rpc, cluster, now, str(a.tokens) if a.tokens else None, len(tokens or []),
-                              str(a.upgrade_log) if a.upgrade_log else None), encoding="utf-8")
+                              str(a.upgrade_log) if a.upgrade_log else None) + recovery(), encoding="utf-8")
     failed, skipped = [r for r in rows if r.result.startswith("FAIL")], [r for r in rows if r.result.startswith("not run")]
     say(f"{len(rows) - len(failed) - len(skipped)} passed, {len(failed)} failed, {len(skipped)} not run; the table is in {a.out}")
     return 1 if failed or (a.strict and skipped) else 0

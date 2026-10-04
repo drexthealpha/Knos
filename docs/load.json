@@ -1,0 +1,302 @@
+{
+ "_about": "Load measurements; scripts/load.py writes this file and renders docs/LOAD.md from it. local: N orders through the committed test builds in LiteSVM (compute units exact, cluster time derived). runs: what an operator measured on a cluster with a test issuer, newest last.",
+ "limits": {
+  "block_cu": 100000000,
+  "block_cu_before": 60000000,
+  "account_cu": 12000000,
+  "tx_cu": 1400000,
+  "tx_bytes": 1232,
+  "slot_s": 0.4
+ },
+ "sources": {
+  "Solana: 100M CU blocks (SIMD-0286), which also states the 12M per-account limit": "https://solana.com/upgrades/100m-cu-blocks",
+  "Agave's block cost limits (development branch)": "https://github.com/anza-xyz/agave/blob/master/cost-model/src/block_cost_limits.rs",
+  "Solana: slots of 400 ms": "https://solana.com/docs/core/transactions/confirmation"
+ },
+ "runs": [
+  {
+   "cluster": "devnet",
+   "date": "2026-10-04",
+   "orders": 200,
+   "senders": 8,
+   "run": "3f0a73e72a",
+   "wallet": "Dg2KBXnEBGMME7w1JFbnhZfzjNHJN9CWJmokGmfTuHMJ",
+   "issuer": "https://issuer.invalid/knos-load",
+   "key_account": "4jtusKvDteVRsri9z3FCFUweZFRfRC9YhjeYj6YWjjN5",
+   "programs": {
+    "knos_oidc": "iosu8ARUNvvruHPCcMWQ5rqsnJewzBxcPXajSpoHqXd",
+    "knos_pay": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH"
+   },
+   "stages": {
+    "verify": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 600,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 51.12,
+      "p95": 112.73,
+      "p99": 158.58,
+      "max": 207.44
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 73.18,
+      "p95": 140.04,
+      "p99": 184.79,
+      "max": 207.44
+     },
+     "first_failures": [],
+     "verified_on_chain": 200
+    },
+    "fund": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 200,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 38.35,
+      "p95": 97.18,
+      "p99": 157.56,
+      "max": 254.31
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 38.35,
+      "p95": 97.18,
+      "p99": 157.56,
+      "max": 254.31
+     },
+     "first_failures": [],
+     "open_on_chain": 200
+    },
+    "refund": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 200,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 36.43,
+      "p95": 49.89,
+      "p99": 68.21,
+      "max": 113.95
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 36.43,
+      "p95": 49.89,
+      "p99": 68.21,
+      "max": 113.95
+     },
+     "first_failures": []
+    },
+    "close": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 200,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 34.51,
+      "p95": 55.22,
+      "p99": 62.19,
+      "max": 74.16
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 34.51,
+      "p95": 55.22,
+      "p99": 62.19,
+      "max": 74.16
+     },
+     "first_failures": []
+    }
+   },
+   "not_exercised": {
+    "pay": "knos_pay takes a token GitHub did not sign only in PayOrder on a PRIVATE order funded from a Balance, under a key the Balance's own wallet registered; that order is funded by FundOrderBalance, which takes GitHub's tokens only, one per order. A test issuer cannot fund and pay N orders, so PayOrder was not sent on the cluster; its compute units are measured in the local simulator.",
+    "fund from a Balance": "FundOrderBalance and the faucet take GitHub's tokens only. The orders were funded by a wallet (FundOrderWallet), in a mint made for the run.",
+    "meter": "knos_meter takes GitHub's tokens only."
+   },
+   "mint": "98G8AC2j1H1RHkBitQfVbRbtdwNR453ifrfpBZezmZe1",
+   "checks": {
+    "minted": 1360000000,
+    "held_by_orders": 1080000000,
+    "held_equals_funded": true,
+    "orders_left": 0,
+    "returned": 1360000000,
+    "nothing_lost": true
+   },
+   "ok": true
+  }
+ ],
+ "local": {
+  "cluster": "local simulator (LiteSVM)",
+  "date": "2026-10-04",
+  "seed": 314,
+  "fixtures": {
+   "knos_oidc_v2_test.so": "0eabd34789c3dbbc1cbb2da7ded97b05ee9a9c64ceeb1a7797409c3cce63ab77",
+   "knos_pay_v2_test.so": "70f6f6097052b0d473db04f27650fa3e553cdc99c8c1b75a3dff5b61f9a793fd"
+  },
+  "simulator_seconds": 24.7,
+  "invariants": {
+   "orders": 1000,
+   "open_at_once": 1000,
+   "paid_exactly_once": 1000,
+   "paid_twice_or_short": 0,
+   "funded": 24601525000,
+   "paid": 23958000000,
+   "fees": 643525000,
+   "refunds": 0,
+   "left_in_order_accounts_and_vault": 0,
+   "orders_still_open": 0,
+   "markers": {
+    "fund": 1000,
+    "pay": 1000
+   },
+   "markers_expected": 1000,
+   "sent_twice": 200,
+   "sent_after_close": 60,
+   "replays_refused": 260,
+   "replays_accepted": 0,
+   "ok": true
+  },
+  "stages": {
+   "verify": {
+    "orders": 1000,
+    "transactions": 10000,
+    "tx_per_order": {
+     "p50": 10,
+     "max": 10
+    },
+    "cu_per_order": {
+     "p50": 3280855,
+     "p95": 3314293,
+     "max": 3388219,
+     "mean": 3284521
+    },
+    "cu_per_tx_max": 870382,
+    "bytes_per_order": {
+     "p50": 7091,
+     "max": 7167
+    },
+    "bytes_per_tx_max": 1196,
+    "written_by_every_tx": [
+     "the relayer's own account, which pays the transaction fee (one per relayer)"
+    ],
+    "tokens_per_order": 2
+   },
+   "fund": {
+    "orders": 1000,
+    "transactions": 1000,
+    "tx_per_order": {
+     "p50": 1,
+     "max": 1
+    },
+    "cu_per_order": {
+     "p50": 133965,
+     "p95": 140235,
+     "max": 147753,
+     "mean": 134058
+    },
+    "cu_per_tx_max": 147753,
+    "bytes_per_order": {
+     "p50": 748,
+     "max": 748
+    },
+    "bytes_per_tx_max": 748,
+    "written_by_every_tx": [
+     "the Balance's side account (one per funder)",
+     "the Balance's token account (one per funder)",
+     "the funder's Balance (one per funder)",
+     "the relayer's own account, which pays the transaction fee (one per relayer)"
+    ]
+   },
+   "pay": {
+    "orders": 1000,
+    "transactions": 1000,
+    "tx_per_order": {
+     "p50": 1,
+     "max": 1
+    },
+    "cu_per_order": {
+     "p50": 172319,
+     "p95": 243901,
+     "max": 261850,
+     "mean": 184638
+    },
+    "cu_per_tx_max": 261850,
+    "bytes_per_order": {
+     "p50": 808,
+     "max": 1006
+    },
+    "bytes_per_tx_max": 1006,
+    "written_by_every_tx": [
+     "the fee account (FEE_OWNER's token account of the mint) (one per mint, for every relayer and funder)",
+     "the relayer's own account, which pays the transaction fee (one per relayer)",
+     "the relayer's token account, where its tip arrives (one per relayer)"
+    ]
+   }
+  },
+  "derived": {
+   "orders": 1000,
+   "block_cu": 100000000,
+   "cu_per_order": 3603217,
+   "one_relayer_orders_per_second": 8.33,
+   "fee_account_orders_per_second": 162.5,
+   "one_balance_orders_per_second": 223.8,
+   "relayers": {
+    "1": {
+     "blocks": 301,
+     "seconds": 120.4,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 8.3,
+     "under_a_minute": false
+    },
+    "4": {
+     "blocks": 76,
+     "seconds": 30.4,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 32.9,
+     "under_a_minute": true
+    },
+    "16": {
+     "blocks": 37,
+     "seconds": 14.8,
+     "bound_by": "the block",
+     "orders_per_second": 67.6,
+     "under_a_minute": true
+    }
+   }
+  },
+  "derived_before_simd_0286": {
+   "orders": 1000,
+   "block_cu": 60000000,
+   "cu_per_order": 3603217,
+   "one_relayer_orders_per_second": 8.33,
+   "fee_account_orders_per_second": 162.5,
+   "one_balance_orders_per_second": 223.8,
+   "relayers": {
+    "1": {
+     "blocks": 301,
+     "seconds": 120.4,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 8.3,
+     "under_a_minute": false
+    },
+    "4": {
+     "blocks": 76,
+     "seconds": 30.4,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 32.9,
+     "under_a_minute": true
+    },
+    "16": {
+     "blocks": 61,
+     "seconds": 24.4,
+     "bound_by": "the block",
+     "orders_per_second": 41.0,
+     "under_a_minute": true
+    }
+   }
+  }
+ }
+}

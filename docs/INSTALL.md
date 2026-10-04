@@ -13,8 +13,14 @@ Two parts of the package go into a coding agent:
   `knos_can_pay` (would it pay: is the pinned workflow on the default branch, did each named check pass there in the
   last 30 days, can a GitHub-signed run the chain verifies pay it), `knos_check_pr` (is a pull request's "tests pass"
   true) and `knos_due` (what waits for a GitHub account). Four more return the exact comment to post and send nothing
-  themselves: `knos_take`, `knos_address`, `knos_fund` and `knos_settle`. The command is `knos mcp`. It reads public
-  data from GitHub and Solana and holds no key and no wallet.
+  themselves: `knos_take`, `knos_address`, `knos_fund` and `knos_settle`. `knos_find_work` lists the open work
+  orders an agent could take, with their terms. The command is `knos mcp`. With these it reads public data from
+  GitHub and Solana and holds no key and no wallet.
+
+  Three tools post, and only for an agent that was given a GitHub token of its own and told it may act
+  (`knos agent init --allow-actions`, [docs/AGENTS.md](AGENTS.md)): `knos_take_work` (comments `/knos take`),
+  `knos_submit_work` (opens the pull request) and `knos_collect` (says what is held or paid, and can bind a wallet).
+  No allowlist on this page names them: a host that runs listed tools without asking still asks before these three.
 
   Whatever a repository or an account wrote (an issue's title and labels, a check's name, the paths in a bounty's
   terms) comes back inside a field named `untrusted`, each string cut to 200 characters, and the server's
@@ -32,6 +38,7 @@ Two parts of the package go into a coding agent:
 | Cursor | [one link](#cursor) | the server |
 | VS Code | [one link](#vs-code) | the server |
 | GitHub Copilot coding agent | [one setting and one file](#github-copilot-coding-agent) | the server |
+| a repository that pays for merged work | [one pull request](#paid-work-in-a-repository-install-by-pull-request) | the payment workflow, a 21-line file |
 | a repository's pull requests | [a workflow file](#the-github-action) | the free check, as a GitHub Action |
 | a seller who settles a merged pull request without the buyer's workflow | [a workflow file in a repository of your own](#settle-yourself-the-attest-workflow) | nothing: it only reads, and asks GitHub to sign |
 | a JavaScript project | [`npm install <release tarball>`](#the-javascript-client) | the client `knos-settle` |
@@ -179,7 +186,7 @@ servers**, and saves it.
       "type": "local",
       "command": "uvx",
       "args": ["knos", "mcp"],
-      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle"]
+      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle", "knos_find_work"]
     }
   }
 }
@@ -202,6 +209,91 @@ jobs:
 ```
 
 It installs the MCP server for the agent's sessions in that repository.
+
+## Paid work in a repository: install by pull request
+
+On Solana devnet, with test USDC, a repository goes from nothing to a funded issue in three steps. Counted honestly,
+each step is one thing you do on github.com, with your GitHub account and nothing else: no app to install, no
+wallet, no secret, no other account.
+
+1. **Open the install link and commit.** `knos init --pr owner/repo` prints the link (add `@branch` when the default
+   branch is not `main`); the site builds the same one from a text box. It is GitHub's own "new file" page with
+   `.github/workflows/knos.yml` filled in: `https://github.com/<owner>/<repo>/new/<branch>?filename=...&value=...`.
+   Press "Commit changes" and choose "Create a new branch for this commit and start a pull request" (without write
+   access GitHub forks the repository and the button says "Propose new file"). Nothing is sent by the command or by
+   the site: the link is the whole install. With the GitHub CLI (`gh`) on your machine, `knos init --pr` also opens the
+   pull request itself, on a branch `knos-install`, and says so; when it cannot, it changes nothing and leaves the link.
+2. **Merge that pull request.** GitHub runs `issue_comment` and `issues` workflows from the default branch only, so
+   nothing happens before the merge.
+3. **Comment `/knos fund 20` on an issue.** On devnet the program's faucet gives the test USDC (at most 100 per
+   comment, once per repository per minute), so the comment is all it takes. The reply states the terms. `knos terms
+   list` has five ready comments (below).
+
+What follows is the work, not the install: someone opens a pull request that says `Fixes #<issue>`, comments
+`/knos address <their Solana address>` on it, and is paid when it is merged with the terms met. Without an address
+the money waits for them (180 days at most).
+
+The file is [`examples/knos-install.yml`](../examples/knos-install.yml), 21 lines, one of them a comment. It has the triggers of the long
+form, [`examples/knos-workflow.yml`](../examples/knos-workflow.yml), and calls the same two workflows of
+drexthealpha/knos-workflows at the same full commit. The program takes a token by the workflow that produced it
+(`job_workflow_ref`, `job_workflow_sha`: the called workflow's file and commit), not by the file that called it, so a
+short caller in your repository is paid exactly as the long one is. Three differences, none hidden:
+
+- One job calls `prove.yml` where the long form has two (settle and review). `prove.yml`'s own conditions pick the job, so the same jobs run.
+- It does not hand on the optional secret `KNOS_RELAY_KEY`: tokens are posted as comments and Knos's public relay
+  carries them. A repository that wants to carry its own uses the long form.
+- It has one comment line. The long form's comments say what every trigger does; read them before you merge.
+
+It is short because the link must carry it: GitHub refuses an address over 8,191 bytes
+([github/docs#5136](https://github.com/github/docs/issues/5136)). The link is 2,573 bytes for a repository named
+`acme/widgets` (measured: `len(knos.init.install_link("acme/widgets", <the file>))`). The link uses only the two
+query parameters GitHub's editor is known to read, `filename` and `value`; the commit message and the pull request's
+title are GitHub's defaults.
+
+**A private repository** runs no Knos file. One repository of the organisation is its attestor and funds and pays
+for the others; the site gives a second link, for [`examples/knos-attestor.yml`](../examples/knos-attestor.yml)
+without its comment lines (with them it does not fit in a link). That is more than three steps: the attestor also
+needs `.knos/policy.yml` (`private: true`, `attestor:`, `targets:`) and a secret `KNOS_READ_TOKEN`, a fine-grained
+token that reads the repositories it attests for.
+
+### Terms from a template
+
+```bash
+knos terms list                 # the five, one sentence each
+knos terms show bugfix          # the comment to post, the terms JSON the program hashes, its sha256
+```
+
+| Template | The comment | What it says |
+|---|---|---|
+| `bugfix` | `/knos fund 50 checks: unit, lint paths: src/**, tests/**` | named checks must pass; only `src/` and `tests/` may change |
+| `feature-blackbox` | `/knos fund 80 checks: unit` on an issue with `.knos/acceptance/<issue>/` | paid when the black-box acceptance suite passes |
+| `milestone` | `/knos fund 100 checks: unit holdback 20 warranty 30 days 30` | 20% waits 30 days |
+| `standing-rate` | `/knos offer @octocat rate 10 budget 100 checks: unit days 90` | one vendor, a rate per accepted pull request, up to a budget |
+| `private-attested` | `/knos fund 50 checks: unit paths: src/**` on an issue of a private repository | funded and paid by the attestor repository |
+
+Each is a file in [`examples/terms/`](../examples/terms): the comment, one sentence written from its fields, the
+exact terms JSON and its hash. A test reads every comment with the parser that reads real comments and builds its
+terms with the code that fixes a real bounty's, and holds the hash equal to the file's. The JSON is made with sample
+facts a template cannot know (the id of the GitHub App behind each check, your acceptance bundle's hash, your
+policy's hash, your vendor's account id); each file says which. The reply to your own comment shows your
+repository's terms.
+
+### What a funder with real money would additionally need
+
+Knos runs on Solana devnet only. There is no mainnet deployment, so nobody can do the following with real money
+today; this is the list of what it would take, so that no step is hidden. The devnet faucet stands in for all of it.
+
+4. **A wallet.** A Solana wallet app, or the passkey wallet the site makes (no app, no seed phrase).
+5. **USDC in it**, bought or sent from an exchange. With a wallet app, also a little SOL for transaction fees. With
+   the passkey wallet a relayer pays the transaction fee (knos_passkey 1.1, `Fund`).
+6. **A Balance.** The wallet opens one for a GitHub owner (a person or an organisation) and puts USDC in: one or two
+   signatures on the site. This is where a `/knos fund` comment takes its money from.
+7. **Its limits**, in the same place: a cap per order, limits per day and in total, the repositories that may spend
+   it, and up to four other GitHub accounts that may spend it by comment. Optional, and worth doing before the first
+   comment.
+
+So: three steps on devnet, seven with real money. The fee is paid by the funder on top of the amount (2.5% of the
+first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40).
 
 ## The GitHub Action
 
@@ -227,7 +319,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.13
+      - uses: drexthealpha/Knos@v0.3.14
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -260,7 +352,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.13
+    - python -m pip install knos==0.3.14
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -292,7 +384,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.13/knos-settle-0.3.13.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.14/knos-settle-0.3.14.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -307,7 +399,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.13" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

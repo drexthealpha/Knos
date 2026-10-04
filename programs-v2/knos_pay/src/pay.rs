@@ -107,7 +107,7 @@ pub fn pay(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64)
     let p = pay_aud(&g.aud)?;
     if p.repo != j.repo || p.issue != j.issue || p.terms != j.terms || p.mode != j.mode { return Err(err(E_AUD)); }
     // a pay token pays, or holds, exactly one job: its marker is made here, and a second job is refused with it
-    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?)?;
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, false)?;
     // where the money goes: the payee's bound wallet; else the address the token carries; else nowhere yet
     match bound(program_id, bind, p.payee)?.or(p.address) {
         Some(wallet) => pay_out(program_id, &Payout { relayer, job, dest, rep, pair, vault, fee_tok, auth, rent_to, mint, token, sys }, &j, p.payee, &wallet, now),
@@ -158,7 +158,7 @@ pub fn refund(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i
 /// GitHub's new-repository form already filled in (name, description), so a first push can be someone else's choice
 /// of address made with the owner's click. A run started by hand has the address typed by the owner as its input.
 pub fn bind(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, bind, sys] = take(accounts)?;
+    let [relayer, tok, key, bind, sys, used] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let g = github(tok, key, now)?;
@@ -172,9 +172,10 @@ pub fn bind(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64
     if !own || !named || !started { return Err(err(E_CLAIMS)); }
     let wallet = bind_aud(&g.aud)?;
     let (first, bump) = open(program_id, relayer, bind, sys, BIND_LEN, &[b"bind", &g.actor_id.to_le_bytes()], E_ACCOUNTS)?;
-    let mut d = bind.try_borrow_mut_data()?;
     // a later token rebinds; the same or an older one does nothing
-    if !first && g.iat <= i64_at(&d, BD_IAT) { return Err(err(E_REPLAY)); }
+    if !first && g.iat <= i64_at(&bind.try_borrow_data()?, BD_IAT) { return Err(err(E_REPLAY)); }
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, false)?;
+    let mut d = bind.try_borrow_mut_data()?;
     d[BD_VERSION] = 1; d[BD_BUMP] = bump;
     put_u64(&mut d, BD_USER, g.actor_id); put_key(&mut d, BD_WALLET, &wallet); put_i64(&mut d, BD_IAT, g.iat);
     msg!("knos2:bound user={} wallet={}", g.actor_id, b58(&wallet));

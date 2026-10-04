@@ -71,12 +71,12 @@ def test_a_number_without_a_fact_and_a_stale_fact_both_fail(tmp_path, monkeypatc
     # a number a document says under a fact: the document must go on saying it, and the fact must go on holding
     doc_facts = [f for f in facts if "doc" in f]
     assert doc_facts and all(not cc.unsaid(f, {p: {t for t, _l in cc.numbers(p)} for p in cc.docs_of(facts)}) for f in doc_facts)
-    one = next(f for f in doc_facts if isinstance(f["doc"], str) and len(f["say"]) == 1 and f["say"][0] == "121,125")
+    one = next(f for f in doc_facts if isinstance(f["doc"], str) and len(f["say"]) == 1 and f["say"][0] == "4,310")
     page = tmp_path / one["doc"]
-    page.write_text(page.read_text(encoding="utf-8").replace("121,125", "121,126"), encoding="utf-8")
+    page.write_text(page.read_text(encoding="utf-8").replace("4,310", "4,311"), encoding="utf-8")
     capsys.readouterr()
     assert cc.main(["--offline"]) == 1
-    assert "no longer says ['121,125']" in capsys.readouterr().out
+    assert "no longer says ['4,310']" in capsys.readouterr().out
 
 
 def test_every_slot_in_the_submission_is_one_the_script_knows_and_holds_no_digit():
@@ -113,7 +113,8 @@ def test_the_release_fills_a_slot_once_with_its_number_and_a_fact(tmp_path, monk
     # a number stats.json does not have, and one only the release run can give, stay slots
     assert left == ["outside_funders", "tests_passing"] and "[[stat: tests_passing]] tests pass. [[stat: outside_funders]]" in text
     bench = json.loads((tmp_path / "docs" / "bench.json").read_text(encoding="utf-8"))
-    assert bench["devnet"]["stats"]["latency"]["merge_to_paid"] == {"count": 3, "median": 41, "p90": 77}
+    kept = bench["devnet"]["stats"]["latency"]["merge_to_paid"]         # what the table prints, and nothing it does not (p90 is the site's column)
+    assert (kept["count"], kept["median"], kept["p95"]) == (3, 41, None) and "p90" not in kept and set(kept) == {"count", "median", "p95", "window", "deployment", "definition"}
     assert bench["devnet"]["stats"]["by_deployment"]["second"] == {"funded": 4, "completed": 3}
     said = {tuple(f["say"]): f for f in json.loads((tmp_path / "docs" / "facts.json").read_text(encoding="utf-8"))["facts"]}
     assert said[("41",)]["path"] == "devnet.stats.latency.merge_to_paid.median" and said[("41",)]["equals"] == 41
@@ -127,7 +128,7 @@ def test_the_release_fills_a_slot_once_with_its_number_and_a_fact(tmp_path, monk
     assert fact and fact[0]["path"] == "release.tests_passing.value" and "pytest -q on the release commit" in fact[0]["what"]
     # the `devnet` block now shows what was measured, and says "measured at release" only where nothing was
     block = bd.devnet(bench["devnet"])
-    assert "| tasks paid | 3 |" in block and "| seconds from the merge to the payment, median | 41 |" in block
+    assert "| tasks paid | 3 |" in block and "| seconds from the merge to the payment, median (p50) | 41 |" in block
     assert "| funders among them | measured at release |" in block and "2026-10-05 10:00 UTC" in block
     assert bd.main(root=tmp_path) == 0 and bd.main(check=True, root=tmp_path) == 0      # the blocks, written again
     assert "| tasks paid | 3 |" in (tmp_path / "docs" / "BENCH.md").read_text(encoding="utf-8")

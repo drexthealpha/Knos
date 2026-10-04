@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import sys
 import types
 
@@ -68,6 +69,8 @@ def bounty(tmp_path, bought: dict = BOUGHT, units: int = 20_000_000, author: dic
 
 def plain(text: str, most: int = 1100) -> str:
     """What every comment must be: Knos speaking, nothing left unfilled, no line that reads as a command, short."""
+    text, _, line = text.partition("\n\n[![paid on proof: #")     # a payment's badge line (knos.badge, tests/test_badge.py) is read apart
+    assert not line or (re.search(r"\b[Pp]aid\. ", text) and line.endswith(".html)") and "\n" not in line), line
     assert text.startswith(("Knos", flow.MARK)) and len(text) <= most, (len(text), text)
     assert not any(bad in text for bad in ("None", "{", "}", "  ", "Traceback", " ,")), text
     assert commands.parse(text) is None

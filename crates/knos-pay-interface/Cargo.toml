@@ -1,12 +1,14 @@
 [package]
 name = "knos-pay-interface"
-version = "0.3.13"
+version = "0.3.14"
 edition = "2021"
 rust-version = "1.84"
 license = "MIT"
 description = "Fund, top up, refund and read a Knos work order from another Solana program: ids, addresses, instruction builders, the Order reader."
 repository = "https://github.com/drexthealpha/Knos"
 readme = "README.md"
+documentation = "https://docs.rs/knos-pay-interface"
+homepage = "https://github.com/drexthealpha/Knos/blob/main/docs/COMPOSE.md"
 keywords = ["solana", "escrow", "cpi", "github-actions", "payments"]
 categories = ["cryptography::cryptocurrencies"]
 

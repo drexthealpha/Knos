@@ -1,5 +1,5 @@
 {
-  "version": "0.3.13",
+  "version": "0.3.14",
   "name": "knos_meter",
   "docs": [
     "Acceptance without escrow: a neutral on-chain count of evaluations that GitHub signed, paid from prepaid credits. It moves no customer money.",
@@ -14,7 +14,8 @@
     "A billable evaluation is one (buyer, work order, artifact, policy, milestone): billed and counted once, whatever the verdict; a later token for it is free and changes nothing while its Mark stands.",
     "The relayer puts up the Mark's rent and CloseMark returns all of it to that relayer from the Mark's closeAfter: the first second of the next UTC month plus 7200 seconds, when no token GitHub issued in the month of the count is accepted any more. A retry is free for the whole calendar month; after a Mark is closed, a token issued in a later month for the same evaluation is billed and counted again, in that month.",
     "Prices in whole units of the mint, kept in millionths: 50000 (0.05) per billable evaluation, or the owner's Plan rate (20000..=50000) until its expiry; the first 10000 of an owner in a UTC month are free.",
-    "Anyone may relay Record and pay its gas. tokenProgram is SPL Token or Token-2022, the owner of the mint."
+    "Anyone may relay Record and pay its gas. tokenProgram is SPL Token or Token-2022, the owner of the mint.",
+    "Batch mode (1.1): RecordBatch and ClaimBatch take one token for many evaluations and keep one Ledger per (buyer, seller, month); the evaluations themselves are in a ledger file off chain. The program cannot tell that an evaluation of a batch was also recorded by Record or in another batch; the ledger file shows it."
   ],
   "instructions": [
     {
@@ -324,6 +325,146 @@
         "type": "u8",
         "value": 4
       }
+    },
+    {
+      "name": "RecordBatch",
+      "docs": [
+        "Anyone relays. One token for many evaluations: audience knosm:batch:<buyer owner id>:<seller id>:<month yyyymm>:<seq>:<count>:<accepted>:<value>:<root hex32>, from the pinned attest.yml or prove.yml, first attempt, run in a repository of the buyer. count 1..=100000, accepted <= count, month the chain's or the one before (126); seq must be the Ledger's nextSeq (125). No account per evaluation. The owner's count of the chain's month goes up by count; the part above the first 10000 costs the rate each, from crtok to feeToken, and credits that hold less refuse the whole batch (118). The Ledger adds the totals and sets chain = sha256(chain || root || seq || count || accepted || value), integers u64 LE (logs knosm:batch)."
+      ],
+      "accounts": [
+        {
+          "name": "relayer",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "Anyone; pays the rent of the accounts created"
+        },
+        {
+          "name": "token",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The VERIFIED token account, owned by knos-oidc"
+        },
+        {
+          "name": "key",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "knos-oidc's account of the key that verified the token"
+        },
+        {
+          "name": "credits",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Credits of the audience's buyer, pinned to the token's workflows"
+        },
+        {
+          "name": "crtok",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"crtok\", credits]"
+        },
+        {
+          "name": "plan",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"plan\", buyer id u64 LE]: created on first use"
+        },
+        {
+          "name": "ledger",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"l\", buyerId u64 LE, sellerId u64 LE, yyyymm u32 LE]: the Ledger of the batch's month, created on first use (rent from the relayer)"
+        },
+        {
+          "name": "feeToken",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "A token account of the credits' mint owned by FEE_OWNER; not read while the evaluation is free"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The credits' mint"
+        },
+        {
+          "name": "auth",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "PDA [\"auth\"]"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint's owner"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      }
+    },
+    {
+      "name": "ClaimBatch",
+      "docs": [
+        "Anyone relays. The seller's own count: audience knosm:claim:<buyer owner id>:<seller id>:<month yyyymm>:<seq>:<count>:<accepted>:<value>:<root hex32>, from any workflow run in a repository whose owner id is the seller (117). The same bounds (126) and seq rule (125) as RecordBatch. No fee, no credits. Writes the Ledger at [\"lc\", ...] as RecordBatch writes the one at [\"l\", ...] (logs knosm:claim)."
+      ],
+      "accounts": [
+        {
+          "name": "relayer",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "Anyone; pays the rent of the accounts created"
+        },
+        {
+          "name": "token",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The VERIFIED token account, owned by knos-oidc"
+        },
+        {
+          "name": "key",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "knos-oidc's account of the key that verified the token"
+        },
+        {
+          "name": "claim",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "PDA [\"lc\", buyerId u64 LE, sellerId u64 LE, yyyymm u32 LE]: the seller's Ledger of the month, created on first use (rent from the relayer)"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      }
+    },
+    {
+      "name": "Version",
+      "docs": [
+        "Logs knosm:version 1.1. Simulate it to learn which build is live."
+      ],
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      }
     }
   ],
   "accounts": [
@@ -579,6 +720,81 @@
           }
         ]
       }
+    },
+    {
+      "name": "Ledger",
+      "docs": [
+        "PDA [\"l\", buyer id u64 LE, seller id u64 LE, yyyymm u32 LE] (kind 0: batches recorded by the buyer's runs) or [\"lc\", ...] (kind 1: batches claimed by the seller's runs). 96 bytes. version is 1. Never closed.",
+        "nextSeq: the seq the next batch must carry, and the number of batches so far. evaluations, accepted, value, fees: sums over the batches (fees is 0 in a claim). chain: 32 zero bytes, then sha256(chain || root || seq || count || accepted || value) for each batch, integers u64 LE.",
+        "root is the RFC 6962 Merkle root over the batch's evaluation keys (leaf sha256(0x00 || key), node sha256(0x01 || left || right)), keys sorted ascending and never repeated; the program stores it in the chain and never computes it."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "kind",
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "month",
+            "type": "u32"
+          },
+          {
+            "name": "buyerId",
+            "type": "u64"
+          },
+          {
+            "name": "sellerId",
+            "type": "u64"
+          },
+          {
+            "name": "nextSeq",
+            "type": "u64"
+          },
+          {
+            "name": "evaluations",
+            "type": "u64"
+          },
+          {
+            "name": "accepted",
+            "type": "u64"
+          },
+          {
+            "name": "value",
+            "type": "u64"
+          },
+          {
+            "name": "fees",
+            "type": "u64"
+          },
+          {
+            "name": "chain",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -686,6 +902,16 @@
       "code": 124,
       "name": "Early",
       "msg": "The Mark cannot be closed yet: its month has not closed, or a token issued in it could still be relayed"
+    },
+    {
+      "code": 125,
+      "name": "Seq",
+      "msg": "The batch's seq is not the Ledger's next: this token was taken before, or a batch before it is missing"
+    },
+    {
+      "code": 126,
+      "name": "Batch",
+      "msg": "A batch of no evaluations or of more than 100000, more accepted than counted, or a month that is neither this one nor the last"
     }
   ],
   "metadata": {

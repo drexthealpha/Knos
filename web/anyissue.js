@@ -119,7 +119,7 @@ export function readBoxes({ issue, amount, days, checks, paths }, c = priceConst
   const units = unitsOf(amount);
   if (units === null) refuse("Write the amount as a number like 20 or 7.5, with at most six decimals.");
   if (units < c.minAmount) refuse(`An order takes at least ${show(c.minAmount)} test USDC.`);
-  if (units > c.maxAmount) refuse(`An order takes at most ${show(c.maxAmount)} test USDC until an outside review.`);
+  if (units > c.maxAmount) refuse(`An order takes at most ${show(c.maxAmount)} test USDC on devnet.`);
   const d = /^\d{1,3}$/.test(String(days).trim()) ? Number(days) : 0;
   if (d < 1 || d > MAX_DAYS) refuse(`The days are a whole number from 1 to ${MAX_DAYS}.`);
   return { ref, amount: units, days: d, workS: d * 86_400, ...termsOf({ checks: listOf(checks), paths: listOf(paths) }) };
@@ -231,7 +231,7 @@ export function initAnyIssue(ctx) {
         <dl class="facts" id="any-facts">
           <dt>Issue</dt><dd><a id="any-issue-link" href="https://github.com/${esc(full)}/issues/${number}" target="_blank" rel="noopener">${esc(full)}#${number}</a>: ${esc(title)}</dd>
           <dt>Repository</dt><dd>GitHub repository id ${repo.id}. The order is for this repository's issue number ${number}.</dd>
-          <dt>You pay</dt><dd><strong id="any-pay">${show(q.funderPays)}</strong> test USDC: ${show(q.amount)} for the person who does the work, and ${show(q.fee)} fee on top (${percent(c.feeBps)} of the amount, at least ${show(c.feeMin)}, at most ${plain(c.feeMax)}).</dd>
+          <dt>You pay</dt><dd><strong id="any-pay">${show(q.funderPays)}</strong> test USDC: ${show(q.amount)} for the person who does the work, and ${show(q.fee)} fee on top (${percent(c.feeBps)} of the first ${(c.tier1 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps2)} from there to ${(c.tier2 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps3)} above; at least ${show(c.feeMin)}, no maximum).</dd>
           <dt>Time to do it</dt><dd id="any-time">${read.days} day${read.days === 1 ? "" : "s"}. Unpaid by then, the order can be sent back to your wallet.</dd>
           <dt>Paid when</dt><dd><ul id="any-sentences">${describeTerms(read.terms).map((s) => `<li>${esc(s).replace(/`([^`]*)`/g, "<code>$1</code>")}</li>`).join("")}</ul></dd>
           <dt>Paid only by</dt><dd id="any-pin">a signed run of the workflows of <a href="https://github.com/${esc(pin.repo)}" target="_blank" rel="noopener">${esc(pin.repo)}</a> at commit

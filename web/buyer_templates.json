@@ -1,0 +1,177 @@
+{
+ "note": "Written by scripts/buyer_templates.py from src/knos/terms_templates.py. Do not edit by hand.",
+ "money": "test USDC",
+ "default_days": 14,
+ "assurance": {
+  "in-process": "The checks load the pull request's code into the process that judges it: 7 of 63 cheating pull requests in Knos's tamper suite passed this mode (docs/TAMPER.md).",
+  "black-box": "The pull request's code runs as a separate process on the judge's machine and only its output is compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a proof for every attack.",
+  "hermetic": "The pull request's code runs black-box inside a container image pinned by digest, with no network, a read-only root, no host files but its own tree, and memory, CPU, process and time limits: 0 of 63 in that suite passed black-box, and anyone can run the same judge again on the same image. That is a count for that suite, not a proof for every attack."
+ },
+ "templates": [
+  {
+   "name": "bugfix",
+   "title": "A bug fix",
+   "sentence": "Pays 50 test USDC when checks `lint`, `unit` pass on a merge that only touches src/ and tests/; refund after 14 days",
+   "comment": "/knos fund 50 checks: unit, lint paths: src/**, tests/**",
+   "where": "an issue",
+   "parts": {
+    "kind": "fund",
+    "mode": "merge",
+    "checks": [
+     "unit",
+     "lint"
+    ],
+    "paths": [
+     "src/**",
+     "tests/**"
+    ],
+    "amount": "50",
+    "rate": "",
+    "vendor": "",
+    "holdback": 0,
+    "warranty": 0,
+    "days": 14,
+    "private": false
+   },
+   "assurance": "in-process",
+   "trusted": [
+    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+    "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+    "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+    "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+   ],
+   "passkey": true,
+   "passkey_why_not": ""
+  },
+  {
+   "name": "feature-blackbox",
+   "title": "A feature, checked black-box",
+   "sentence": "Pays 80 test USDC when check `unit` passes on a pull request that also passes the issue's black-box acceptance suite; refund after 14 days",
+   "comment": "/knos fund 80 checks: unit",
+   "where": "an issue that has .knos/acceptance/<issue>/ on the default branch",
+   "parts": {
+    "kind": "fund",
+    "mode": "tests",
+    "checks": [
+     "unit"
+    ],
+    "paths": [],
+    "amount": "80",
+    "rate": "",
+    "vendor": "",
+    "holdback": 0,
+    "warranty": 0,
+    "days": 14,
+    "private": false
+   },
+   "assurance": "black-box",
+   "trusted": [
+    "The pull request's code runs as a separate process on the judge's machine and only its output is compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a proof for every attack.",
+    "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+    "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+    "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+   ],
+   "passkey": false,
+   "passkey_why_not": "its terms carry the hash of your acceptance suite, which this page cannot read from your repository"
+  },
+  {
+   "name": "milestone",
+   "title": "A milestone with a warranty",
+   "sentence": "Pays 100 test USDC when check `unit` passes on a merge; 20% of it waits 30 days and goes back if the change is reverted; refund after 30 days",
+   "comment": "/knos fund 100 checks: unit holdback 20 warranty 30 days 30",
+   "where": "an issue",
+   "parts": {
+    "kind": "fund",
+    "mode": "merge",
+    "checks": [
+     "unit"
+    ],
+    "paths": [],
+    "amount": "100",
+    "rate": "",
+    "vendor": "",
+    "holdback": 20,
+    "warranty": 30,
+    "days": 30,
+    "private": false
+   },
+   "assurance": "in-process",
+   "trusted": [
+    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+    "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+    "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+    "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+   ],
+   "passkey": true,
+   "passkey_why_not": ""
+  },
+  {
+   "name": "standing-rate",
+   "title": "A rate per accepted pull request",
+   "sentence": "Pays @octocat 10 test USDC for each pull request of theirs, up to 100 test USDC in all, when check `unit` passes on a merge; refund after 90 days",
+   "comment": "/knos offer @octocat rate 10 budget 100 checks: unit days 90",
+   "where": "an issue",
+   "parts": {
+    "kind": "offer",
+    "mode": "merge",
+    "checks": [
+     "unit"
+    ],
+    "paths": [],
+    "amount": "100",
+    "rate": "10",
+    "vendor": "octocat",
+    "holdback": 0,
+    "warranty": 0,
+    "days": 90,
+    "private": false
+   },
+   "assurance": "in-process",
+   "trusted": [
+    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+    "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+    "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+    "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+   ],
+   "passkey": false,
+   "passkey_why_not": "a standing offer is funded from the organisation's Balance, by comment"
+  },
+  {
+   "name": "private-attested",
+   "title": "Work in a private repository",
+   "sentence": "Pays 50 test USDC when check `unit` passes on a merge that only touches src/; funded and paid by the organisation's attestor repository, so nothing public names the private one; refund after 14 days",
+   "comment": "/knos fund 50 checks: unit paths: src/**",
+   "where": "an issue of a private repository the attestor's policy lists",
+   "parts": {
+    "kind": "fund",
+    "mode": "merge",
+    "checks": [
+     "unit"
+    ],
+    "paths": [
+     "src/**"
+    ],
+    "amount": "50",
+    "rate": "",
+    "vendor": "",
+    "holdback": 0,
+    "warranty": 0,
+    "days": 14,
+    "private": true
+   },
+   "assurance": "in-process",
+   "trusted": [
+    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+    "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+    "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+    "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+   ],
+   "passkey": false,
+   "passkey_why_not": "a private order is funded by the organisation's attestor repository, by comment"
+  }
+ ]
+}

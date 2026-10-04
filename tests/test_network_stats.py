@@ -214,6 +214,11 @@ def test_money_that_goes_back_to_its_own_wallet_or_to_knos_is_never_outside():
     assert kind(funded2(10, 1, 1, USDC, 0, w, signer=w), paid2(20, 1, 1, 0, USDC, to=w)) == "self"
 
 
+def _table(m: dict) -> dict:
+    """What the Numbers table reads of a measurement."""
+    return {k: m[k] for k in ("count", "median", "p90", "slowest")}
+
+
 def test_the_spread_of_a_latency():
     assert network_stats._spread([]) == {"count": 0, "median": None, "p90": None, "slowest": None}
     assert network_stats._spread([40]) == {"count": 1, "median": 40, "p90": 40, "slowest": 40}
@@ -257,12 +262,18 @@ def test_the_relay_log_gives_the_latency_a_person_saw():
                 "repos/octo/widgets/pulls/12": {"merged_at": "1970-01-01T01:22:32Z"},                # 4952
                 "repos/octo/widgets/pulls/14": {"merged_at": None}}[path]                            # GitHub does not say
     ev = events(*history)
-    got = network_stats.latency(lines, ev, get)
+    whole = network_stats.latency(lines, ev, get)
+    got = {k: _table(v) for k, v in whole.items()}
+    # the one measurement says what it is over: the sample, the days, which escrow paid, and what gave no sample
+    m = whole["merge_to_paid"]
+    assert (m["n"], m["p50"], m["p95"], m["window"], m["deployment"]) == (1, 48, 48, {"from": "1970-01-01", "to": "1970-01-01"}, {"first": 0, "second": 1})
+    assert (m["lines"], m["not_timed"]) == (3, 2) and "merged_at" in m["definition"] and "samples" not in m       # one sent nothing, one has no merge time
+    assert network_stats.measure("merge_to_paid", lines, ev, get)["samples"] == [{"at": 5000, "seconds": 48, "t": 6.5, "sigs": ["PAY1"], "token": "1111111111111111", "v": 2}]
     assert got == {"comment_to_funded": {"count": 2, "median": 173, "p90": 226, "slowest": 226},         # 1000 - 774, and 6000 - 5880
                    "merge_to_paid": {"count": 1, "median": 48, "p90": 48, "slowest": 48}}                # 5000 - 4952
     assert "repos/octo/widgets/issues/2" not in asked            # that line carried its own start time
     # without GitHub only the lines that carry their start are measured, and nothing is guessed
-    assert network_stats.latency(lines, ev, None) == {"comment_to_funded": {"count": 1, "median": 120, "p90": 120, "slowest": 120},
+    assert {k: _table(v) for k, v in network_stats.latency(lines, ev, None).items()} == {"comment_to_funded": {"count": 1, "median": 120, "p90": 120, "slowest": 120},
                                                       "merge_to_paid": {"count": 0, "median": None, "p90": None, "slowest": None}}
 
     def down(path):
@@ -379,8 +390,9 @@ def test_stats_json_with_no_history_is_zeros_and_says_what_was_not_measured():
     assert set(s["outside"].values()) == {0} and all(set(side.values()) == {0} for side in s["apart"].values())
     assert s["funnel"] == {"installed": None, "installed_note": "not measured", "funded": 0, "completed": 0, "funded_again": 0}
     zero = {"count": 0, "median": None, "p90": None, "slowest": None}
-    assert s["latency"] == {"funded_to_paid": zero, "comment_to_funded": zero, "merge_to_paid": zero, "relay": {"fund": zero, "pay": zero},
-                            "note": "not measured: GitHub was not asked"}
+    assert {k: _table(v) if k in ("comment_to_funded", "merge_to_paid") else v for k, v in s["latency"].items()} == {
+        "funded_to_paid": zero, "comment_to_funded": zero, "merge_to_paid": zero, "relay": {"fund": zero, "pay": zero}, "note": "not measured: GitHub was not asked"}
+    assert s["latency"]["merge_to_paid"]["window"] is None and s["latency"]["merge_to_paid"]["n"] == 0
     no_orders = {"open": 0, "open_amount": 0, "held": 0, "held_amount": 0, "in_warranty": 0, "held_back": 0}
     assert s["recent"] == [] and s["live"]["second"] == {"open": 0, "open_amount": 0, "held": 0, "held_amount": 0, "orders": no_orders}
     assert set(s["orders"].values()) == {0} and s["meter"] == {"evaluations": 0, "accepted": 0, "rejected": 0, "fees": 0, "by_month": {}}
@@ -400,8 +412,8 @@ def test_stats_json_of_both_deployments_keeps_the_four_kinds_apart():
     assert (s["totals"]["held"], s["totals"]["refunded"], s["totals"]["bound"], s["totals"]["balances"]) == (1, 1, 1, 4)
     assert s["funnel"] == {"installed": 3, "installed_note": "GitHub code search: public repositories whose workflow files call Knos's",
                            "funded": 6, "completed": 3, "funded_again": 1, "funded_of_installed": 2}
-    assert s["latency"]["comment_to_funded"] == {"count": 3, "median": 226, "p90": 310, "slowest": 310}
-    assert s["latency"]["merge_to_paid"] == {"count": 4, "median": 61, "p90": 620, "slowest": 620}
+    assert _table(s["latency"]["comment_to_funded"]) == {"count": 3, "median": 226, "p90": 310, "slowest": 310}
+    assert _table(s["latency"]["merge_to_paid"]) == {"count": 4, "median": 61, "p90": 620, "slowest": 620}
     assert s["latency"]["relay"] == {"fund": {"count": 3, "median": 9, "p90": 12, "slowest": 12}, "pay": {"count": 4, "median": 6, "p90": 14, "slowest": 14}}
     assert s["latency"]["note"] == "over the lines of the public relay log" and s["latency"]["funded_to_paid"]["count"] == 14
     assert {k: v for k, v in s["live"]["second"].items() if k != "orders"} == {"open": 2, "open_amount": 20 * USDC, "held": 1, "held_amount": 12 * USDC}

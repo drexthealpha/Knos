@@ -15,6 +15,8 @@ at most 600 bytes.
     paths     when not empty, every changed file must match one of these globs
     deny      no changed file may match one of these (so a pull request cannot edit the checks that judge it)
     accept    tests mode: the hash of .knos/acceptance/<issue>/ (knos.judge.checks_hash); empty in merge mode
+    image     optional, tests mode only: the container image the black-box check runs the submission in, pinned by
+              digest: <registry>/<name>@sha256:<64 hex>. A tag is refused: a tag can be moved after funding
     reserve   days a `/knos take` reservation lasts (0: the issue cannot be reserved)
 
 Globs are GitHub's own, as in a workflow's `paths:` filter: `*` stays inside one directory, `**` crosses them, `?` is
@@ -42,7 +44,9 @@ RESERVE, MAX_RESERVE = 7, 90
 STATUS, ANY = 0, -1                # a check's `app`: a commit status; any source
 STATES = ("passed", "failed", "skipped", "pending", "absent", "unreadable")
 _KEYS = frozenset(("accept", "checks", "deny", "mode", "paths", "reserve", "v"))
-_ORDER_KEYS = frozenset(("policy", "vendor"))     # a work order's terms may also say these; a job's never do, so its bytes stay as they were
+_ORDER_KEYS = frozenset(("image", "policy", "vendor"))     # terms may also say these; without them a job's bytes stay as they were
+# <registry>/<name>@sha256:<64 hex>: a registry host (a dot, a port, or localhost), a lower-case path, and a digest. No tag.
+_IMAGE = re.compile(r"(?=[^/]*[.:]|localhost/)[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]{1,5})?(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)+@sha256:[0-9a-f]{64}")
 
 
 class Refused(ValueError):
@@ -81,6 +85,22 @@ def valid_glob(value) -> str:
     return g
 
 
+def valid_image(value) -> str:
+    """`value` when it names one container image for ever: <registry>/<name>@sha256:<64 hex>. Raises Refused, with what
+    to write instead, for a tag (it can be moved to other bytes after funding) and for anything else."""
+    text = value if isinstance(value, str) else ""
+    if len(text) <= 255 and _IMAGE.fullmatch(text):
+        return text
+    shown = str(value)[:80]
+    if text and "@sha256:" not in text:
+        raise Refused(f"image {shown!r} is a name or a tag, and a tag can be pointed at another image after funding. Pin it by "
+                      "digest: write <registry>/<name>@sha256:<64 hex>, for example docker.io/library/python@sha256:... "
+                      "(`docker buildx imagetools inspect <name>:<tag>` prints the digest).")
+    raise Refused(f"image {shown!r} is not <registry>/<name>@sha256:<64 hex>: write the registry in full "
+                  "(docker.io/library/python, not python), lower case, with no tag before the @, and all 64 hex "
+                  "characters of the digest.")
+
+
 def _int(value, low: int, high: int, what: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
         raise Refused(f"{what} must be a whole number from {low} to {high}")
@@ -98,6 +118,11 @@ def _clean(terms) -> dict:
         more["policy"] = terms["policy"]
     if "vendor" in terms:       # a standing offer: the GitHub id of the one account it pays
         more["vendor"] = _int(terms["vendor"], 1, 2**63 - 1, "vendor")
+    if "image" in terms:        # the hermetic judge's image (knos.judge): fixed at funding like every other field
+        more["image"] = valid_image(terms["image"])
+        if terms.get("mode") != "tests":
+            raise Refused("image goes with tests mode: it is what the acceptance checks run the pull request's code in. "
+                          "A bounty paid on a merge has no judge to pin.")
     if terms["v"] != 1 or type(terms["v"]) is not int:
         raise Refused("v is 1: the only version of the terms there is")
     if terms["mode"] not in ("merge", "tests"):
@@ -286,7 +311,7 @@ def _sources(name: str, pinned: set, runs: list, statuses: list, notes: list) ->
     return sorted(out)
 
 
-def build(fund, required=None, check_runs=None, statuses=None, accept: str = "", deny=DENY) -> Built:
+def build(fund, required=None, check_runs=None, statuses=None, accept: str = "", deny=DENY, image: str = "") -> Built:
     """The terms a fund command buys, decided once, here.
 
     `fund` is the parsed command (knos.commands.Fund: `checks` is None when the funder named none, an empty tuple
@@ -297,7 +322,8 @@ def build(fund, required=None, check_runs=None, statuses=None, accept: str = "",
     run that ran to an end on the default branch's head commit (never Knos's own, never one a comment, a schedule
     or a button started, never a skipped one, and not one whose workflow is known to run on pushes only). No check
     at all is allowed, and `describe` says so out loud.
-    `accept` is the acceptance bundle's hash in tests mode. Raises Refused, with the words to send the funder."""
+    `accept` is the acceptance bundle's hash in tests mode, and `image` the digest-pinned image its black-box check
+    runs the submission in ("" for none; ignored in merge mode). Raises Refused, with the words to send the funder."""
     named = getattr(fund, "checks", None)
     notes: list[str] = []
     if named is not None and not named:
@@ -326,6 +352,8 @@ def build(fund, required=None, check_runs=None, statuses=None, accept: str = "",
     paths = [str(p) for p in getattr(fund, "paths", None) or ()]
     terms = {"accept": accept or "", "checks": [{"app": app, "name": name} for name, app in pairs], "deny": list(deny),
              "mode": "tests" if accept else "merge", "paths": paths, "reserve": getattr(fund, "reserve", RESERVE), "v": 1}
+    if image and accept:
+        terms["image"] = image
     clean = _clean(terms)
     size = len(_dump(clean))
     if size > MAX_BYTES:
@@ -381,8 +409,33 @@ def _named(checks: list) -> str:
     return ", ".join(f"`{c['name']}`{kind.get(c['app'], '')}" for c in checks)
 
 
-def describe(terms: dict, source: str = "") -> list[str]:
-    """The terms in plain sentences, for the reply to the funder: what must be true for the bounty to be paid."""
+ASSURANCE = {      # what each way of judging was measured to stop: docs/TAMPER.md has the numbers, docs/ASSURANCE.md the table
+    "in-process": "The checks load the pull request's code into the process that judges it: 7 of 63 cheating pull "
+                  "requests in Knos's tamper suite passed this mode (docs/TAMPER.md).",
+    "black-box": "The pull request's code runs as a separate process on the judge's machine and only its output is "
+                 "compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a "
+                 "proof for every attack.",
+    "hermetic": "The pull request's code runs black-box inside a container image pinned by digest, with no network, a "
+                "read-only root, no host files but its own tree, and memory, CPU, process and time limits: 0 of 63 in "
+                "that suite passed black-box, and anyone can run the same judge again on the same image. That is a "
+                "count for that suite, not a proof for every attack.",
+}
+
+
+def assurance(terms: dict, black_box: bool | None = None) -> str:
+    """"in-process", "black-box" or "hermetic" for tests-mode terms; "" in merge mode (a person's merge is the
+    acceptance) and when `black_box` is None with no image (the terms alone do not say how the bundle is written)."""
+    if terms.get("mode") != "tests":
+        return ""
+    if terms.get("image"):
+        return "hermetic"
+    return "" if black_box is None else "black-box" if black_box else "in-process"
+
+
+def describe(terms: dict, source: str = "", black_box: bool | None = None) -> list[str]:
+    """The terms in plain sentences, for the reply to the funder: what must be true for the bounty to be paid.
+    `black_box`: whether the acceptance bundle is (knos.judge.black_box), when the caller knows; with it, or with an
+    image in the terms, the last sentence names the assurance of the judge."""
     out = []
     where = {"funder": "the checks you named", "rules": "this branch's required checks",
              "head": "the checks that ran on the default branch's latest commit"}.get(source, "")
@@ -403,6 +456,24 @@ def describe(terms: dict, source: str = "") -> list[str]:
         out.append((f"{may}, and {only}" if may and only else may or f"The pull request {only}") + ".")
     out.append(f"`/knos take` reserves the issue for {terms['reserve']} day{'s' if terms['reserve'] != 1 else ''}."
                if terms["reserve"] else "Nobody can reserve it: the first accepted pull request is paid.")
+    level = assurance(terms, black_box)
+    if level:
+        out.append(f"Judge: {level}" + (f", in `{terms['image']}`" if level == "hermetic" else "") + f". {ASSURANCE[level]}")
+    return out
+
+
+AUTO = ("It pays the first pull request that passes the black-box suite, without waiting for a merge: nobody assigns, reviews or "
+        "merges first. You chose this when you funded; it cannot be turned off afterwards, only cancelled with notice.")
+JUDGES = {2: "two", 3: "three"}
+
+
+def describe_options(auto: bool = False, quorum: int = 0) -> list[str]:
+    """The sentences for the reply to the funder about two options of a work order that are not in the terms JSON
+    (they are in the order's options, which the fund token also signs): `auto` and `quorum 2|3`."""
+    out = [AUTO] if auto else []
+    if quorum:
+        out.append(f"It is paid only after {JUDGES[quorum]} different judges have each passed the same pull request at the same commit. The "
+                   "judges an order can have: this repository's own run, a neutral run anyone can start, and the judge repository it names.")
     return out
 
 

@@ -62,15 +62,25 @@ function decimal(amount, decimals) {
 }
 
 // ---- terms, in words -------------------------------------------------------------------------------------------------
+// The fields every terms JSON has, and the three it may have beside them (knos.terms._clean writes them after `v`, and
+// sorted keys put each in its place): `image`, the hermetic judge's container by digest, in tests mode only; `policy`,
+// the hash of the repository's policy file at funding; `vendor`, the one GitHub id a standing offer pays. `auto` and
+// `quorum` are never here: they are options of the order (its flags), not terms.
 const TERM_KEYS = ["accept", "checks", "deny", "mode", "paths", "reserve", "v"];
+const TERM_MORE = {
+  image: (t) => typeof t.image === "string" && t.image.length <= 255 && /^[a-z0-9.-]+(:\d+)?\/[a-z0-9._\/-]+@sha256:[0-9a-f]{64}$/.test(t.image) && t.mode === "tests",
+  policy: (t) => typeof t.policy === "string" && /^[0-9a-f]{64}$/.test(t.policy),
+  vendor: (t) => Number.isSafeInteger(t.vendor) && t.vendor >= 1,
+};
 const named = (checks) => checks.map((c) => `\`${c.name}\`${c.app === 0 ? " (a commit status)" : c.app === -1 ? " (any source)" : ""}`).join(", ");
 
 /** The terms the funding logged (their JSON text), checked for their shape; null when they are not terms. */
-function parseTerms(text) {
+export function parseTerms(text) {
   let t;
   try { t = JSON.parse(text); } catch { return null; }
   const list = (v) => Array.isArray(v) && v.every((s) => typeof s === "string");
-  const ok = t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).sort().join() === TERM_KEYS.join() && t.v === 1 && (t.mode === "merge" || t.mode === "tests")
+  const ok = t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).filter((k) => !(k in TERM_MORE)).sort().join() === TERM_KEYS.join()
+    && Object.keys(TERM_MORE).every((k) => !(k in t) || TERM_MORE[k](t)) && t.v === 1 && (t.mode === "merge" || t.mode === "tests")
     && typeof t.accept === "string" && Number.isInteger(t.reserve) && t.reserve >= 0 && list(t.deny) && list(t.paths)
     && Array.isArray(t.checks) && t.checks.every((c) => c && typeof c.name === "string" && Number.isInteger(c.app));
   return ok ? t : null;

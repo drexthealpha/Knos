@@ -9,6 +9,10 @@ Steps, so the Pages build never scans:
     python scripts/agent_pr_index.py gate --rows rows.json --out index.json [--previous last.json]   # may it go out?
     python scripts/agent_pr_index.py check --out index.json    # the root matches the listed records
     python scripts/agent_pr_index.py restate --out index.json  # recount a published index from its own records
+    python scripts/agent_pr_index.py weekly --rows rows.json --out agent_weekly.json [--doc docs/INDEX.md]
+                                                               # the same scan by agent and by week (weekly() below)
+    python scripts/agent_pr_index.py weekly --sample docs/agent_pr_ci.json --out docs/agent_weekly.json --doc docs/INDEX.md
+                                                               # offline: the committed sample, by week
 
 index.yml uploads index.json as the asset of a GitHub Release tagged index-<date> (a release, not a data commit);
 network.yml downloads the newest one into the Pages site.
@@ -170,13 +174,164 @@ def scan(end, days, per_agent, max_seconds):
     keeps what it found, and the result says what is missing (`unfinished_search`, `unread`) so `gate` can refuse it."""
     agent_pr_ci.ARGS = SimpleNamespace(max_seconds=max_seconds)
     agent_pr_ci.SEARCH_PAUSE = 2.1  # concurrent agents share one 30/min search pacing; gh_get backs off on 403/429
+    del agent_pr_ci.NO_CLAIM[:]
     agent_pr_ci.prune(days + 7)     # answers about pull requests that have left the window
     kept, n, unfinished = agent_pr_ci.scan_collect(end, days, per_agent)
     agent_pr_ci.run_checks(kept)
     start = (dt.date.fromisoformat(end) - dt.timedelta(days=days - 1)).isoformat()
     unread = sum(1 for c in kept if c.get("class") is None or (c["class"] == "error" and c.get("transient")))
     return {"window": [start, end], "counts": n, "kept": len(kept), "unfinished_search": unfinished, "unread": unread,
+            "no_claim": sorted(agent_pr_ci.NO_CLAIM),
             "rows": [c for c in kept if c.get("class") not in (None, "error")]}
+
+
+# ---- by agent and by week ---------------------------------------------------------------------------------------------
+WEEKLY_DEFINITIONS = {
+    "week": "the Monday (UTC) of the week the pull request was created in; a week at either end of `window` is cut "
+            "short by it",
+    "sampled": "pull requests GitHub's search returned for the agent's query and the claim phrases (`agents`, "
+               "`claim_search`), created in that week, not on a repository owned by the pull request's author or by "
+               "the person who assigned the agent. null where the source did not keep the creation date of the hits "
+               "it then set aside",
+    "claimed_passing": "of those, the ones whose description, read line by line, says tests or CI pass (CLAIM_RE and "
+                       "NONCLAIM_RE in scripts/agent_pr_ci.py): an unticked box, a wish or a negation is not a claim",
+    "ci_finished": "of the claimed, the ones whose CI had finished at the head commit when it was read (classes "
+                   "failed, passed, other). The two rates below are over these",
+    "failed_a_check": "at least one failed check of any kind at the head commit (`any_check_failed` of the index); "
+                      "`test_or_build` counts the ones where a failed check is, by its name, a test, build, lint or "
+                      "type-check job",
+    "merged_despite_failed_check": "merged when read, with a failed check at the head commit, over the merged pull "
+                                   "requests with finished CI. null where the merge state was not read",
+    "share, ci95": "k over n, and the 95% Wilson score interval of that share (z = 1.96); null when n is 0",
+}
+WEEKLY_LIMITS = [
+    "An agent is told by its author account or by a line its tool writes in the description (`agents`). A person "
+    "who pastes that line is counted as the agent; an agent run under a person's own account without it is missed.",
+    "Public repositories only: GitHub's search does not return private ones.",
+    "One snapshot of the checks: what GitHub showed at the head commit when it was read. A check that was run again "
+    "later, or a commit pushed after, is not seen. The agent's own session run is not a check.",
+    "The search asks for a few claim phrases, so `sampled` is not every pull request the agent opened.",
+    "A week holds few pull requests for some agents: read the interval, not the share.",
+]
+
+
+def week_of(created_at):
+    """The Monday (UTC) of the week of a GitHub timestamp, as a date."""
+    day = dt.datetime.fromisoformat(str(created_at).replace("Z", "+00:00")).astimezone(dt.timezone.utc).date()
+    return (day - dt.timedelta(days=day.weekday())).isoformat()
+
+
+def _rate(k, n):
+    return {"k": k, "n": n, "share": round(k / n, 4) if n else None, "ci95": wilson(k, n)}
+
+
+def week_counts(mine, set_aside):
+    """One row of the series over the claimed pull requests `mine`; `set_aside`: how many more hits claimed nothing,
+    or None when that is not known."""
+    done = [r for r in mine if r.get("class") in COMPLETED]
+    failed = [r for r in done if r["class"] == "failed"]
+    known = all(isinstance(r.get("merged"), bool) for r in done)      # one pull request not read: null, never a guess
+    merged = [r for r in done if r.get("merged") is True]
+    return {"sampled": None if set_aside is None else len(mine) + set_aside, "claimed_passing": len(mine), "ci_finished": len(done),
+            "failed_a_check": {**_rate(len(failed), len(done)),
+                               "test_or_build": sum(1 for r in failed if agent_pr_ci.is_testish_failure(r))},
+            "merged_despite_failed_check": _rate(sum(1 for r in merged if r["class"] == "failed"), len(merged)) if known and done else None}
+
+
+def weekly(rows, window, read, source, no_claim=None, agents=None):
+    """The scan's claimed pull requests by agent and by week of creation. `rows`: classified candidates with
+    `created_at` (and `merged` where it was read); `no_claim`: [agent, created_at] of the hits that claimed nothing,
+    or None when the source did not keep them. Deterministic for the same rows."""
+    agents = agents or [list(a) for a in agent_pr_ci.AGENTS]
+    out = {"read": read, "window": list(window), "source": source, "agents_told_by": {n: q for n, q in agents},
+           "claim_search": agent_pr_ci.CLAIM_SEARCH, "definitions": WEEKLY_DEFINITIONS, "limits": WEEKLY_LIMITS, "agents": {}}
+    for name, _ in agents:
+        mine = [r for r in rows if r["agent"] == name and r.get("class") not in (None, "error")]
+        aside = None if no_claim is None else [week_of(at) for a, at in no_claim if a == name]
+        weeks = sorted({week_of(r["created_at"]) for r in mine} | set(aside or []))
+        out["agents"][name] = {
+            "weeks": [{"week": w, **week_counts([r for r in mine if week_of(r["created_at"]) == w],
+                                                None if aside is None else aside.count(w))} for w in weeks],
+            "all_weeks": week_counts(mine, None if aside is None else len(aside))}
+    return out
+
+
+def read_merged(rows):
+    """Ask GitHub whether each pull request with finished CI was merged (one request each, kept in the cache). A row
+    GitHub does not answer for keeps no `merged`, and its week then says null, not a guess."""
+    for r in rows:
+        if r.get("class") in COMPLETED and not isinstance(r.get("merged"), bool):
+            try:
+                got = agent_pr_ci.gh_get(f"repos/{r['repo']}/pulls/{r['number']}")
+            except agent_pr_ci.OutOfTime:
+                break       # the rest stay unread: their weeks say null, and the next run has these answers in its cache
+            if got["ok"]:
+                r["merged"] = bool(got["json"].get("merged"))
+    return rows
+
+
+BEGIN, END = "<!-- weekly:begin (written by scripts/agent_pr_index.py weekly; do not edit by hand) -->", "<!-- weekly:end -->"
+
+
+def _cell(rate):
+    if rate is None:
+        return "not read"
+    if not rate["n"]:
+        return "0 of 0"
+    lo, hi = rate["ci95"]
+    return f"{rate['k']} of {rate['n']} ({rate['share']:.1%}; {lo:.1%} to {hi:.1%})"
+
+
+def weekly_table(series):
+    """The latest week of each agent and its whole window, as the Markdown docs/INDEX.md shows between its markers."""
+    lines = [f"Read {series['read']}; pull requests created {series['window'][0]} to {series['window'][1]}; source: {series['source']}.",
+             "", "| Agent | Week of | Sampled | Claimed passing | CI finished | Failed a check (95% interval) | Merged despite a failed check (95% interval) |",
+             "| --- | --- | --- | --- | --- | --- | --- |"]
+    for name, a in series["agents"].items():
+        latest = a["weeks"][-1:] if a["weeks"] else []
+        for label, w in [(x["week"], x) for x in latest] + [("all weeks", a["all_weeks"])]:
+            lines.append(f"| {name} | {label} | {'not kept' if w['sampled'] is None else w['sampled']} | {w['claimed_passing']} | "
+                         f"{w['ci_finished']} | {_cell(w['failed_a_check'])} | {_cell(w['merged_despite_failed_check'])} |")
+    return "\n".join(lines)
+
+
+def render_doc(path, series):
+    """Replace what is between the markers of `path` with the table; a file without both markers is left alone, loudly."""
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    if BEGIN not in text or END not in text:
+        raise SystemExit(f"{path}: the markers are not there:\n{BEGIN}\n{END}")
+    head, rest = text.split(BEGIN, 1)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f"{head}{BEGIN}\n{weekly_table(series)}\n{END}{rest.split(END, 1)[1]}")
+
+
+def weekly_main(a):
+    if a.sample:
+        with open(a.sample, encoding="utf-8") as f:
+            sample = json.load(f)
+        days = sorted(r["created_at"][:10] for r in sample["prs"])
+        series = weekly(sample["prs"], (days[0], days[-1]), sample["generated_utc"][:10],
+                        f"{a.sample}, the sample read on {sample['generated_utc'][:10]}, reshaped by week (nothing was read "
+                        "again). Unlike the index, this sample kept pull requests on repositories their author owns",
+                        None, sample.get("agents"))
+        for name, agent in series["agents"].items():      # the hits it set aside are listed without a date: a total, no week
+            agent["all_weeks"]["sampled"] = agent["all_weeks"]["claimed_passing"] + sum(
+                1 for r in sample.get("rejected_no_claim", []) if r["agent"] == name)
+    else:
+        with open(a.rows, encoding="utf-8") as f:
+            got = json.load(f)
+        agent_pr_ci.ARGS = SimpleNamespace(max_seconds=a.max_seconds)
+        series = weekly(read_merged(got["rows"]), got["window"], dt.date.today().isoformat(),
+                        "the scan behind the Agent PR Index of the same day", got.get("no_claim"))
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    with open(a.out, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(series, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    if a.doc:
+        render_doc(a.doc, series)
+    print(f"weekly series: {sum(len(x['weeks']) for x in series['agents'].values())} agent-weeks, {a.out}", file=sys.stderr)
+    return 0
 
 
 MAX_UNREAD = 0.02       # of the pull requests a scan kept, the share GitHub may leave unanswered in a scan that goes out
@@ -206,7 +361,9 @@ def gate(scanned, index, previous=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["scan", "build", "gate", "check", "restate"])
+    ap.add_argument("step", choices=["scan", "build", "gate", "check", "restate", "weekly"])
+    ap.add_argument("--sample", help="weekly: reshape this committed sample (docs/agent_pr_ci.json) and read nothing")
+    ap.add_argument("--doc", help="weekly: also write the table between the markers of this file (docs/INDEX.md)")
     ap.add_argument("--rows", default="rows.json")
     ap.add_argument("--out", default="_site/index.json")
     ap.add_argument("--previous", help="gate: the index published last, when there is one")
@@ -215,6 +372,8 @@ def main():
     ap.add_argument("--per-agent", type=int, default=480)
     ap.add_argument("--max-seconds", type=int, default=3 * 3600)
     a = ap.parse_args()
+    if a.step == "weekly":
+        return weekly_main(a)
     if a.step == "scan":
         got = scan(a.end, a.days, a.per_agent, a.max_seconds)
         with open(a.rows, "w", encoding="utf-8") as f:

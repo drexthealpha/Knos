@@ -20,9 +20,9 @@ What a relay does with a verified token (anyone may relay; the money goes where 
                            faucet_balance_pda(owner id): faucet_open_ix first, in the same transaction, then
                            fund_balance_ix on it with faucet_mint(). A fund token works once, only from its run's
                            first attempt, and a Balance takes its tokens in the order GitHub issued them.
-                           With terms of MAX_TERMS bytes and one compute budget instruction the two together are 1223
-                           of a transaction's 1232 bytes: with a second one (a priority fee) send faucet_open_ix in a
-                           transaction of its own first.
+                           With one compute budget instruction the two fit a transaction's 1232 bytes for terms of
+                           up to 575 bytes; for longer terms (MAX_TERMS is 600) send faucet_open_ix in a transaction
+                           of its own first: the token's marker then says MINTED, and the funding still takes it.
     pay   knos2:pay:...    for each open job on (repository id, issue) with the token's terms hash and mode:
                            pay_ix(..., destination(read_bind(...), audience)); create the fee account and the wallet's
                            token account with create_ata_ix first.
@@ -55,14 +55,16 @@ USDC_MAINNET = Pubkey.from_string("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 COUNTED = (USDC_DEVNET, USDC_MAINNET)   # the record counts real money only in these mints (and test money in the faucet's)
 
 MERGE, TESTS = 0, 1
-FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT, FAUCET_CAP = 250, 50_000, 1_000_000, 500_000_000, 100_000_000
+FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT, FAUCET_CAP = 250, 50_000, 1_000_000, 100_000_000_000, 100_000_000
 MIN_WORK, MAX_WORK, HOLD, PAUSE_MAX = 60, 90 * 86_400, 180 * 86_400, 7 * 86_400
 FUND_PERIOD, CLOCK_SLACK, MAX_TERMS = 60, 30, 600
 TOKEN_AHEAD, TOKEN_LIFE = 300, 3600     # a token's iat is at most this far ahead of the chain's clock; its exp at most this long after its iat
 JOB_LEN, BALANCE_LEN, BIND_LEN, REP_LEN = 320, 160, 56, 64
 BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN = 152, 24, 512, 48
 # orders (2.1). Amounts are millionths of one whole unit of the mint: `units` gives the mint's smallest units.
-ORDER_FEE_MIN, ORDER_FEE_MAX, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN = 400_000, 25_000_000, 5_000_000, 50_000, 300_000, 50
+ORDER_FEE_MIN, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN = 400_000, 5_000_000, 50_000, 300_000, 50
+# an order's fee is marginal: FEE_BPS (or a Plan's rate) of the first FEE_TIER_1, FEE_BPS_2 up to FEE_TIER_2, FEE_BPS_3 above; no cap
+FEE_TIER_1, FEE_TIER_2, FEE_BPS_2, FEE_BPS_3 = 1_000_000_000, 50_000_000_000, 100, 50
 MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS, MAX_KILL_BPS, MAX_PAYEES = 5000, 90, 2000, 4
 F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022 = 1, 2, 4, 8, 16
 STATES = {1: "open", 3: "held", 4: "warranty"}
@@ -106,8 +108,14 @@ def fee_of(amount: int, decimals: int = 6) -> int:
 
 
 def order_fee(amount: int, bps: int = FEE_BPS, decimals: int = 6) -> int:
-    """The fee of an order (2.1), which its funder pays on top of the amount. `bps`: FEE_BPS, or the owner's Plan."""
-    return min(max(amount * bps // 10_000, units(ORDER_FEE_MIN, decimals)), units(ORDER_FEE_MAX, decimals))
+    """The fee of an order (2.1), which its funder pays on top of the amount, exactly as the program computes it
+    (lib.rs order_fee): `bps` (FEE_BPS, or the owner's Plan) of the first 1,000 whole units, 1% of what lies between
+    1,000 and 50,000, 0.5% of what lies above, each part rounded down; at least 0.40; no maximum."""
+    t1, t2 = units(FEE_TIER_1, decimals), units(FEE_TIER_2, decimals)
+    first = min(amount, t1)
+    second = min(amount, t2) - first
+    third = amount - first - second
+    return max(first * bps // 10_000 + second * FEE_BPS_2 // 10_000 + third * FEE_BPS_3 // 10_000, units(ORDER_FEE_MIN, decimals))
 
 
 def terms_json(terms: dict) -> bytes:
@@ -211,9 +219,21 @@ def sig_hash(token: str | bytes) -> bytes:
 
 
 def used_pda(token: str | bytes, program: Pubkey = PAY_ID) -> Pubkey:
-    """The marker of a token that works once (a 2.0 pay token, an order's fund token). `token`: as `sig_hash` takes it,
-    or the 32 bytes sig_hash returned."""
+    """The single-use marker of a token: every instruction that takes a token makes it, and refuses the token once it
+    is there. `token`: as `sig_hash` takes it, or the 32 bytes sig_hash returned."""
     return _pda([b"used", token if isinstance(token, bytes) and len(token) == 32 else sig_hash(token)], program)
+
+
+def marked(ix: Instruction, used: Pubkey | str | bytes | None, program: Pubkey = PAY_ID) -> Instruction:
+    """`ix` with the token's marker where the program reads it: after the instruction's fixed accounts (FundBalance:
+    before the Balance's side account; PayOrder: before the payees'; any other: last). None: `ix` as it is. `used`:
+    used_pda(...), or what used_pda takes (the JWT, or the token account's data). Every builder of an instruction
+    that takes a token calls this with its own `used`; one built without it is refused on chain until it is marked."""
+    if used is None:
+        return ix
+    marker = used if isinstance(used, Pubkey) else used_pda(used, program)
+    at = {3: 12, 17: 13}.get(ix.data[0], len(ix.accounts))
+    return Instruction(ix.program_id, bytes(ix.data), [*ix.accounts[:at], AccountMeta(marker, False, True), *ix.accounts[at:]])
 
 
 def ata(owner: Pubkey, mint: Pubkey, token_program: Pubkey = TOKEN) -> Pubkey:
@@ -409,18 +429,20 @@ def withdraw_ix(authority: Pubkey, balance: Pubkey, mint: Pubkey, amount: int = 
 
 
 def fund_balance_ix(relayer: Pubkey, fund_token: Pubkey, key: Pubkey, balance: Pubkey, mint: Pubkey, repo_id: int, issue: int, terms: bytes,
-                    token_program: Pubkey = TOKEN, program: Pubkey = PAY_ID, balx: bool = False) -> Instruction:
+                    token_program: Pubkey = TOKEN, program: Pubkey = PAY_ID, balx: bool = False, *,
+                    used: Pubkey | str | bytes | None = None) -> Instruction:
     """Funds the job a fund token describes from the Balance its audience names (`named_balance`). `key` is the
     verifier's account of the key that verified the token. `mint` is the Balance's; `repo_id` and `issue` are the
     token's; `terms` is the terms JSON whose hash the audience carries. `balx=True` adds the Balance's side account as a
-    13th account: the program requires it once the Balance has one (read_balance(...).has_x)."""
+    14th account: the program requires it once the Balance has one (read_balance(...).has_x). `used`: the token's
+    marker, as `marked` takes it (the 13th account)."""
     last = [AccountMeta(balx_pda(balance, program), False, True)] if balx else []
-    return Instruction(program, b"\x03" + terms,
+    return marked(Instruction(program, b"\x03" + terms,
                        [AccountMeta(relayer, True, True), AccountMeta(fund_token, False, False), AccountMeta(key, False, False),
                         AccountMeta(balance, False, True), AccountMeta(baltok_pda(balance, program), False, True),
                         AccountMeta(job_pda(repo_id, issue, balance, program), False, True), AccountMeta(vault_pda(mint, program), False, True),
                         AccountMeta(mint, False, False), AccountMeta(auth_pda(program), False, False), AccountMeta(token_program, False, False),
-                        AccountMeta(SYSTEM, False, False), AccountMeta(pause_pda(program), False, False), *last])
+                        AccountMeta(SYSTEM, False, False), AccountMeta(pause_pda(program), False, False), *last]), used, program)
 
 
 def fund_wallet_ix(funder: Pubkey, funder_token: Pubkey, mint: Pubkey, repo_id: int, issue: int, amount: int, wf_repo: str, wf_sha: str, terms: bytes,
@@ -472,10 +494,12 @@ def refund_ix(relayer: Pubkey, job: Pubkey, j: Job, refund_token: Pubkey | None 
                                           AccountMeta(j.mint, False, False), AccountMeta(j.token_program, False, False)])
 
 
-def bind_ix(relayer: Pubkey, bind_token: Pubkey, key: Pubkey, user_id: int, program: Pubkey = PAY_ID) -> Instruction:
-    """`key` is the verifier's account of the key that verified the token. `user_id` is the token's actor_id."""
-    return Instruction(program, b"\x08", [AccountMeta(relayer, True, True), AccountMeta(bind_token, False, False), AccountMeta(key, False, False),
-                                          AccountMeta(bind_pda(user_id, program), False, True), AccountMeta(SYSTEM, False, False)])
+def bind_ix(relayer: Pubkey, bind_token: Pubkey, key: Pubkey, user_id: int, program: Pubkey = PAY_ID, *,
+            used: Pubkey | str | bytes | None = None) -> Instruction:
+    """`key` is the verifier's account of the key that verified the token. `user_id` is the token's actor_id. `used`:
+    the token's marker, as `marked` takes it."""
+    return marked(Instruction(program, b"\x08", [AccountMeta(relayer, True, True), AccountMeta(bind_token, False, False), AccountMeta(key, False, False),
+                                                 AccountMeta(bind_pda(user_id, program), False, True), AccountMeta(SYSTEM, False, False)]), used, program)
 
 
 def pause_ix(guardian: Pubkey, payer: Pubkey, seconds: int, program: Pubkey = PAY_ID) -> Instruction:
@@ -490,17 +514,19 @@ def init_faucet_ix(payer: Pubkey, program: Pubkey = PAY_ID) -> Instruction:
                                           AccountMeta(auth_pda(program), False, False), AccountMeta(TOKEN, False, False), AccountMeta(SYSTEM, False, False)])
 
 
-def faucet_open_ix(relayer: Pubkey, fund_token: Pubkey, key: Pubkey, owner_id: int, repo_id: int, program: Pubkey = PAY_ID) -> Instruction:
+def faucet_open_ix(relayer: Pubkey, fund_token: Pubkey, key: Pubkey, owner_id: int, repo_id: int, program: Pubkey = PAY_ID, *,
+                   used: Pubkey | str | bytes | None = None) -> Instruction:
     """Devnet: mints the fund token's amount of test USDC into the faucet Balance of the token's repository owner
     (`owner_id`, `repo_id` are the token's), which the token's audience must name. `key` is the verifier's account of
     the key that verified the token. Send fund_balance_ix(..., faucet_balance_pda(owner_id), faucet_mint(), ...) after
-    it, in the same transaction."""
+    it, in the same transaction. `used`: the token's marker, as `marked` takes it: the faucet marks the token as
+    minted on, and the funding that follows is the one instruction that still takes it."""
     balance = faucet_balance_pda(owner_id, program)
-    return Instruction(program, b"\x0b", [AccountMeta(relayer, True, True), AccountMeta(fund_token, False, False), AccountMeta(key, False, False),
+    return marked(Instruction(program, b"\x0b", [AccountMeta(relayer, True, True), AccountMeta(fund_token, False, False), AccountMeta(key, False, False),
                                           AccountMeta(balance, False, True), AccountMeta(baltok_pda(balance, program), False, True),
                                           AccountMeta(faucet_mint(program), False, True), AccountMeta(auth_pda(program), False, False),
                                           AccountMeta(TOKEN, False, False), AccountMeta(SYSTEM, False, False),
-                                          AccountMeta(rate_pda(repo_id, program), False, True)])
+                                          AccountMeta(rate_pda(repo_id, program), False, True)]), used, program)
 
 
 # == orders (2.1) =====================================================================================================
@@ -754,18 +780,19 @@ def order_destination(bind: Bind | None, address: Pubkey | None) -> Pubkey | Non
 
 
 def pay_order_ix(relayer: Pubkey, pay_token: Pubkey, key: Pubkey, order: Pubkey, o: Order, payees, tip_token: Pubkey | None = None,
-                 program: Pubkey = PAY_ID, pr: int = 0) -> Instruction:
+                 program: Pubkey = PAY_ID, pr: int = 0, *, used: Pubkey | str | bytes | None = None) -> Instruction:
     """`o` is read_order of `order`. `payees`: for each payee of the audience, in its order, (GitHub id, wallet) or
     (GitHub id, wallet, dest_token); `wallet` is order_destination(read_bind(...), the address the audience carries).
     The program pays each a token account of its wallet (default: its associated token account, which the program
     creates when it does not exist, at the relayer's cost and for a larger tip). `tip_token`: a token account of the
     relayer for the tip (default: its associated token account; it must exist, as FEE_OWNER's must).
     -- order terms: a payee who assigned this order's payment is paid at its assignee: pass `payee_wallet(...)` as
-    its wallet. `pr`: the pull request the audience names (a STANDING order marks it)."""
+    its wallet. `pr`: the pull request the audience names (a STANDING order marks it). `used`: the token's marker, as
+    `marked` takes it: a pay token (or a ruling) pays, or holds, once; it comes before the payees' accounts."""
     per = [m for p in payees for m in _payee_accounts(o, p[0], p[1], p[2] if len(p) > 2 else None, program)]
-    return Instruction(program, b"\x11", [AccountMeta(relayer, True, True), AccountMeta(pay_token, False, False), AccountMeta(key, False, False),
-                                          *_order_common(relayer, order, o, tip_token, program), *per,
-                                          *_terms_accounts(order, o, [p[0] for p in payees], pr, program)])     # order terms
+    return marked(Instruction(program, b"\x11", [AccountMeta(relayer, True, True), AccountMeta(pay_token, False, False), AccountMeta(key, False, False),
+                                                 *_order_common(relayer, order, o, tip_token, program), *per,
+                                                 *_terms_accounts(order, o, [p[0] for p in payees], pr, program)]), used, program)     # order terms
 
 
 def settle_order_ix(relayer: Pubkey, order: Pubkey, o: Order, wallet: Pubkey, dest_token: Pubkey | None = None, tip_token: Pubkey | None = None,
@@ -844,12 +871,13 @@ def org_bind_audience(address: Pubkey | str) -> str:
     return f"knos3:bind:{address}"
 
 
-def bind_org_ix(relayer: Pubkey, bind_token: Pubkey, key: Pubkey, org_id: int, program: Pubkey = PAY_ID) -> Instruction:
+def bind_org_ix(relayer: Pubkey, bind_token: Pubkey, key: Pubkey, org_id: int, program: Pubkey = PAY_ID, *,
+                used: Pubkey | str | bytes | None = None) -> Instruction:
     """25 BindOrg. `key` is the verifier's account of the key that verified the token; `org_id` is the token's
     repository_owner_id. The Bind is the account a person's is, bind_pda(org_id): a payee id that is an organisation
-    is then paid like any other."""
-    return Instruction(program, b"\x19", [AccountMeta(relayer, True, True), AccountMeta(bind_token, False, False), AccountMeta(key, False, False),
-                                          AccountMeta(bind_pda(org_id, program), False, True), AccountMeta(SYSTEM, False, False)])
+    is then paid like any other. `used`: the token's marker, as `marked` takes it."""
+    return marked(Instruction(program, b"\x19", [AccountMeta(relayer, True, True), AccountMeta(bind_token, False, False), AccountMeta(key, False, False),
+                                                 AccountMeta(bind_pda(org_id, program), False, True), AccountMeta(SYSTEM, False, False)]), used, program)
 # == judges of an order: end ==========================================================================================
 # == order terms (2.1): BEGIN ========================================================================================
 # What an order can promise (programs-v2/knos_pay/src/order_terms.rs): a holdback kept through a warranty (Release,
@@ -859,6 +887,16 @@ def bind_org_ix(relayer: Pubkey, bind_token: Pubkey, key: Pubkey, org_id: int, p
 HB_LEN, DONE_LEN, AS_LEN, USED_LEN = 240, 65, 88, 41
 NOTICE = 7 * 86_400                                 # a cancelled order still takes a pay token for this long
 USED_KEEP = TOKEN_AHEAD + TOKEN_LIFE + 3600 + 3600  # a used marker can be closed this long after it was made
+# The instructions that take a token (tag: the index of the token account). Each takes the token's marker: `marked`
+# says where (FundOrderBalance, 16, has it at index 9). MINTED: a marker's first byte after the devnet faucet
+# took the token; the funding that follows still takes it. Any other marker: the token is used up.
+TOKEN_AT = {3: 1, 5: 1, 8: 1, 11: 1, 16: 1, 17: 1, 19: 1, 20: 1, 21: 2, 25: 1}
+MINTED = 2
+
+
+def spent(marker: bytes | None) -> bool:
+    """Whether a token is used up, from the data of its marker (used_pda): no funding, and nothing else, takes it again."""
+    return marker is not None and len(marker) > 0 and marker[0] != MINTED
 
 
 def hb_pda(order: Pubkey, program: Pubkey = PAY_ID) -> Pubkey:
@@ -961,31 +999,37 @@ def release_ix(relayer: Pubkey, order: Pubkey, o: Order, hb: Holdback, tip_token
 
 
 def revert_ix(relayer: Pubkey, revert_token: Pubkey, key: Pubkey, order: Pubkey, o: Order, hb: Holdback, refund_token: Pubkey | None = None,
-              program: Pubkey = PAY_ID) -> Instruction:
-    """Inside the warranty, on a revert token of one of the order's judges (a, b or c): everything the order holds back to its funder."""
+              program: Pubkey = PAY_ID, *, used: Pubkey | str | bytes | None = None) -> Instruction:
+    """Inside the warranty, on a revert token of one of the order's judges (a, b or c): everything the order holds back to its funder.
+    `used`: the token's marker, as `marked` takes it; the relayer pays its rent."""
     dest = refund_token if refund_token is not None else o.refund_to if o.from_balance else ata(o.refund_to, o.mint, o.token_program)
-    return Instruction(program, b"\x13", [AccountMeta(relayer, True, False), AccountMeta(revert_token, False, False), AccountMeta(key, False, False),
+    return marked(Instruction(program, b"\x13", [AccountMeta(relayer, True, True), AccountMeta(revert_token, False, False), AccountMeta(key, False, False),
                                           AccountMeta(order, False, True), AccountMeta(ov_pda(order, program), False, True),
                                           AccountMeta(hb_pda(order, program), False, True), AccountMeta(dest, False, True),
                                           AccountMeta(auth_pda(program), False, False), AccountMeta(o.rent_to, False, True),
-                                          AccountMeta(hb.payer, False, True), AccountMeta(o.mint, False, False), AccountMeta(o.token_program, False, False)])
+                                          AccountMeta(hb.payer, False, True), AccountMeta(o.mint, False, False), AccountMeta(o.token_program, False, False),
+                                          AccountMeta(SYSTEM, False, False)]), used, program)
 
 
-def reserve_ix(relayer: Pubkey, take_token: Pubkey, key: Pubkey, order: Pubkey, program: Pubkey = PAY_ID) -> Instruction:
-    """Reserves an order for the taker a take token names."""
-    return Instruction(program, b"\x14", [AccountMeta(relayer, True, False), AccountMeta(take_token, False, False), AccountMeta(key, False, False),
-                                          AccountMeta(order, False, True)])
+def reserve_ix(relayer: Pubkey, take_token: Pubkey, key: Pubkey, order: Pubkey, program: Pubkey = PAY_ID, *,
+               used: Pubkey | str | bytes | None = None) -> Instruction:
+    """Reserves an order for the taker a take token names. `used`: the token's marker, as `marked` takes it; the
+    relayer pays its rent."""
+    return marked(Instruction(program, b"\x14", [AccountMeta(relayer, True, True), AccountMeta(take_token, False, False), AccountMeta(key, False, False),
+                                                 AccountMeta(order, False, True), AccountMeta(SYSTEM, False, False)]), used, program)
 
 
-def cancel_ix(signer: Pubkey, order: Pubkey, cancel_token: Pubkey | None = None, key: Pubkey | None = None, program: Pubkey = PAY_ID) -> Instruction:
+def cancel_ix(signer: Pubkey, order: Pubkey, cancel_token: Pubkey | None = None, key: Pubkey | None = None, program: Pubkey = PAY_ID, *,
+              used: Pubkey | str | bytes | None = None) -> Instruction:
     """Gives notice: the deadline becomes min(deadline, now + NOTICE). A wallet's order: `signer` is the funding
-    wallet. A Balance's order: anyone signs and `cancel_token` (with its `key`) carries cancel_audience(order)."""
-    tok: list[AccountMeta] = []
-    if cancel_token is not None:
-        if key is None:
-            raise ValueError("cancel_ix: a cancel token is read with its key; give `key` too")
-        tok = [AccountMeta(cancel_token, False, False), AccountMeta(key, False, False)]
-    return Instruction(program, b"\x15", [AccountMeta(signer, True, False), AccountMeta(order, False, True), *tok])
+    wallet. A Balance's order: anyone signs and `cancel_token` (with its `key`) carries cancel_audience(order);
+    `used` is that token's marker, as `marked` takes it, and the signer pays its rent."""
+    if cancel_token is None:
+        return Instruction(program, b"\x15", [AccountMeta(signer, True, True), AccountMeta(order, False, True)])
+    if key is None:
+        raise ValueError("cancel_ix: a cancel token is read with its key; give `key` too")
+    return marked(Instruction(program, b"\x15", [AccountMeta(signer, True, True), AccountMeta(order, False, True), AccountMeta(cancel_token, False, False),
+                                                 AccountMeta(key, False, False), AccountMeta(SYSTEM, False, False)]), used, program)
 
 
 def assign_ix(signer: Pubkey, order: Pubkey, payee_id: int, to: Pubkey, program: Pubkey = PAY_ID) -> Instruction:

@@ -412,6 +412,9 @@ def scan_windows(end, days, width):
 SCAN_WIDTH = {"copilot": 5, "devin": 1, "claude-bot": 5, "claude-code": 1, "codex": 10}
 
 
+NO_CLAIM = []   # [agent, created_at] of every search hit whose description, read closely, claims nothing (list.append is atomic)
+
+
 def scan_agent(agent, qual, end, days, per_agent):
     """One agent's windows, newest first, up to 10 pages of 100 each (GitHub's 1,000-result cap is per query, so
     narrow windows reach past it), until `per_agent` claimed, non-self-repo PRs are kept. Returns (kept, counts,
@@ -447,6 +450,7 @@ def scan_agent(agent, qual, end, days, per_agent):
                 phrase, ctx = find_claim(it.get("body"))
                 if not phrase:
                     n["no_claim"] += 1
+                    NO_CLAIM.append([agent, it["created_at"]])   # when it was opened: the weekly series counts it as sampled
                     continue
                 kept.append({"agent": agent, "repo": repo, "number": it["number"],
                              "author": it["user"]["login"], "created_at": it["created_at"],

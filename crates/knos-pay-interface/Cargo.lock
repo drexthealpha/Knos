@@ -488,7 +488,7 @@ dependencies = [
 
 [[package]]
 name = "knos-pay-interface"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "serde_json",
  "solana-program",

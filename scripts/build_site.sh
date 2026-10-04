@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Assemble the Pages site:  bash scripts/build_site.sh <out dir> <commit sha>
-# The web app, the JavaScript client it imports, the passkey wallet's helper, the claim workflow and the second deployment's program ids (the
+# The web app, the JavaScript client it imports, the passkey wallet's helper, the claim workflow, the capability manifest
+# (docs/capabilities.json, which the Capabilities page reads) and the second deployment's program ids (the
 # first deployment's addresses are in the page, as history). A template that still names its workflows by
 # KNOS_COMMIT_SHA is given the commit the site was built from; the page hands out a file only when every workflow it
 # calls is named by a full commit, so a placeholder left in one is said on the page and never handed out.
 # The public record as static files (bounties.json, u/, r/, badge/, rank/, latency.json, operations.json) is written
 # here with nothing measured, so a build with no network has every file and each says it is empty; the Pages build
 # (.github/workflows/network.yml) writes them again from the chain and GitHub.
+# The upgrade feed (upgrades.json, upgrades.xml) is the committed one of web/; the Pages build runs
+# scripts/upgrade_feed.py on it, which writes nothing when the cluster does not answer, so the committed files stay.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 out="$1"; sha="$2"
@@ -18,6 +21,10 @@ cp src/knos/settle/v2/program_ids.json "$out/program_ids.json"
 cp sdk/settle/index.js "$out/settle.js"
 cp sdk/settle/passkey.js "$out/passkey.js"
 cp examples/knos-claim.yml "$out/knos-claim.yml"
+cp docs/capabilities.json "$out/capabilities.json"
+# The Buy page is web/buyer.js. A build without it gets a file that fills nothing, so the page asks for no file that
+# is not there and the menu does not offer Buy.
+[ -f "$out/buyer.js" ] || printf '%s\n' '// No Buy page in this build.' 'export const renderBuyer = () => {};' > "$out/buyer.js"
 sed -i.bak "s/KNOS_COMMIT_SHA/$sha/g" "$out/front.js" && rm -f "$out/front.js.bak"
 ! grep -q KNOS_COMMIT_SHA "$out/front.js"
 # The recording at the top of the first screen is a release asset: web/config.js says none until KNOS_VIDEO_URL (and,

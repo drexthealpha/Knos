@@ -290,11 +290,11 @@ const instructions = {
   "pay.withdraw (amount, token account)": await k2.withdrawIx({ authority: j.authority, balance: bal, mint: j.mint, amount: j.amount, destToken: j.dest_token }),
   "pay.withdraw (token-2022)": await k2.withdrawIx({ authority: j.authority, balance: bal22, mint: j.mint22, tokenProgram: knos.TOKEN_2022 }),
   "pay.fund_balance": await k2.fundBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: bal, mint: j.mint,
-    repoId: j.repo_id, issue: j.issue, terms }),
+    repoId: j.repo_id, issue: j.issue, terms, used: j.jwt }),
   "pay.fund_balance (with its side account)": await k2.fundBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: bal, mint: j.mint,
-    repoId: j.repo_id, issue: j.issue, terms, balx: true }),
+    repoId: j.repo_id, issue: j.issue, terms, balx: true, used: await v2.sigHash(j.jwt) }),
   "pay.fund_balance (faucet)": await k2.fundBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: faucetBal,
-    mint: await k2.faucetMint(), repoId: j.repo_id, issue: j.issue, terms: s.terms.json }),
+    mint: await k2.faucetMint(), repoId: j.repo_id, issue: j.issue, terms: s.terms.json, used: verifiedToken }),
   "pay.fund_wallet merge": await k2.fundWalletIx({ funder: j.funder, funderToken: j.funder_token, mint: j.mint, repoId: j.repo_id, issue: j.issue,
     amount: j.amount, wfRepo: j.wf_repo, wfSha: j.wf_sha, terms }),
   "pay.fund_wallet tests (token-2022)": await k2.fundWalletIx({ funder: j.funder, funderToken: j.funder_token, mint: j.mint22, repoId: j.repo_id,
@@ -309,11 +309,11 @@ const instructions = {
   "pay.refund (a Balance's job)": await k2.refundIx({ relayer: j.relayer, job: jobBal, j: jBal }),
   "pay.refund (a wallet's job)": await k2.refundIx({ relayer: j.relayer, job: jobWallet, j: jWallet }),
   "pay.refund (a wallet's job, token account)": await k2.refundIx({ relayer: j.relayer, job: jobWallet, j: jWallet, refundToken: j.dest_token }),
-  "pay.bind": await k2.bindIx({ relayer: j.relayer, bindToken: j.token_account, key: j.key, userId: j.payee_id }),
+  "pay.bind": await k2.bindIx({ relayer: j.relayer, bindToken: j.token_account, key: j.key, userId: j.payee_id, used: j.jwt }),
   "pay.pause": await k2.pauseIx({ guardian: s.programs.guardian, payer: j.payer, seconds: 3 * 86400 }),
   "pay.pause (lift)": await k2.pauseIx({ guardian: s.programs.guardian, payer: j.payer, seconds: 0 }),
   "pay.init_faucet": await k2.initFaucetIx({ payer: j.payer }),
-  "pay.faucet_open": await k2.faucetOpenIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, ownerId: j.owner_id, repoId: j.repo_id }),
+  "pay.faucet_open": await k2.faucetOpenIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, ownerId: j.owner_id, repoId: j.repo_id, used: verifiedToken }),
   create_ata: await knos.createAtaIx(j.relayer, j.address, j.mint),
   "create_ata (token-2022)": await knos.createAtaIx(j.relayer, j.address, j.mint22, knos.TOKEN_2022),
   "token.transfer_checked": transfer,
@@ -382,7 +382,14 @@ for (const [amount, fee] of Object.entries(s["fees (decimals)"])) { const [a, d]
 for (const [name, fee] of Object.entries(s["order fees"])) { const [a, bps, d] = name.split("/").map(Number); same(`order fee ${name}`, v2.orderFee(a, bps, d), fee); }
 for (const [name, want] of Object.entries(s.units)) { const [m, d] = name.split("/").map(Number); same(`units ${name}`, v2.units(m, d), want); }
 same("units saturate at the largest amount a token account holds", v2.units(10n ** 13n, 18), 2n ** 64n - 1n);
-same("the fee of an order is never above the cap, however large the amount", v2.orderFee(10n ** 12n), 25_000_000);
+same("the fee of an order has no maximum: 25 on the first 1,000, 490 on the next 49,000, 0.5% of what lies above", [v2.orderFee(1_000_000_000), v2.orderFee(50_000_000_000),
+  v2.orderFee(v2.MAX_AMOUNT), v2.orderFee(10n ** 12n)], [25_000_000, 515_000_000, 765_000_000, 5_265_000_000]);
+same("a plan lowers the first tier's rate only", v2.orderFee(2_000_000_000, 100) - v2.orderFee(2_000_000_000), 10_000_000 - 25_000_000);
+for (const [name, c] of Object.entries(s.spent)) same(`a token is used up: ${name}`, v2.spent(c.data === null ? null : knos.unhex(c.data)), c.want);
+for (const name of ["bindIx", "bindOrgIx", "reserveIx", "faucetOpenIx"]) {
+  await throws(`${name} without the token's marker is refused here, as the program would refuse it`, () => k2[name]({ relayer: j.relayer, key: j.key, order: j.address, userId: 1, orgId: 1, ownerId: 1, repoId: 1 }));
+}
+await throws("a cancel token without its marker is refused", () => k2.cancelIx({ signer: j.relayer, order: j.address, cancelToken: j.token_account, key: j.key }));
 const plansIn = { "no plan": null, "a plan in force": v2.readPlan(knos.unhex(s["order accounts"].plan.data)) };
 {
   const p = (over) => ({ ...plansIn["a plan in force"], ...over });
@@ -412,25 +419,25 @@ const orderIxs = {};
     "pay.fund_order_wallet (private)": await k2.fundOrderWalletIx({ ...fundW, repoId: 0, issue: 0, terms: knos.unhex(oth), seq: 1, options: opts("private"), scope: scopePrivate }),
     "pay.fund_order_balance": await k2.fundOrderBalanceIx({ ...erpt(), balance: bal, mint: j.mint, used: j.jwt, seq: 3 }),
     "pay.fund_order_balance (token-2022, marker given)": await k2.fundOrderBalanceIx({ ...erpt(), balance: bal22, mint: j.mint22, used: j.attest, seq: 0, tokenProgram: knos.TOKEN_2022 }),
-    "pay.pay_order (one payee, a bound wallet)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderW, o: oW, payees: [[j.payee_id, j.wallet]] }),
-    "pay.pay_order (one payee, held)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderW, o: oW, payees: [[j.payee_id, null]] }),
+    "pay.pay_order (one payee, a bound wallet)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderW, o: oW, payees: [[j.payee_id, j.wallet]], used: j.jwt }),
+    "pay.pay_order (one payee, held)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderW, o: oW, payees: [[j.payee_id, null]], used: j.attest }),
     "pay.pay_order (four payees, a tip account, a token account)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderB, o: oB,
-      payees: four, tipToken: j.dest_token }),
+      payees: four, tipToken: j.dest_token, used: j.jwt }),
     "pay.fund_order_balance (private)": await k2.fundPrivateOrderBalanceIx({ relayer: j.relayer, fundToken: j.token_account, key: j.key, balance: bal, mint: j.mint,
       ownerId: j.owner_id, scope: scopePrivate, termsHash: oth, used: j.jwt, seq: 3 }),
-    "pay.bind_org": await k2.bindOrgIx({ relayer: j.relayer, bindToken: j.token_account, key: j.key, orgId: j.owner_id }),
+    "pay.bind_org": await k2.bindOrgIx({ relayer: j.relayer, bindToken: j.token_account, key: j.key, orgId: j.owner_id, used: j.jwt }),
     "pay.pay_order (a holdback: its record)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderHb, o: oHb,
-      payees: [[j.payee_id, j.wallet], [j.maintainer_id, j.address]] }),
+      payees: [[j.payee_id, j.wallet], [j.maintainer_id, j.address]], used: j.jwt }),
     "pay.pay_order (a standing order: the pull request's marker)": await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderB, o: oB,
-      payees: [[j.payee_id, j.wallet]], pr: 40 }),
+      payees: [[j.payee_id, j.wallet]], pr: 40, used: j.jwt }),
     "pay.release (one payee)": await k2.releaseIx({ relayer: j.relayer, order: orderH, o: oH, hb: hbOne }),
     "pay.release (three payees, a tip account, token-2022)": await k2.releaseIx({ relayer: j.relayer, order: orderB, o: oB, hb: hbThree, tipToken: j.dest_token }),
-    "pay.revert (a wallet's order)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderH, o: oH, hb: hbOne }),
-    "pay.revert (a Balance's order)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderB, o: oB, hb: hbThree }),
-    "pay.revert (token account)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderH, o: oH, hb: hbOne, refundToken: j.dest_token }),
-    "pay.reserve": k2.reserveIx({ relayer: j.relayer, takeToken: j.token_account, key: j.key, order: orderW }),
-    "pay.cancel (a wallet's order)": k2.cancelIx({ signer: j.funder, order: orderW }),
-    "pay.cancel (a Balance's order, a token)": k2.cancelIx({ signer: j.relayer, order: orderB, cancelToken: j.token_account, key: j.key }),
+    "pay.revert (a wallet's order)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderH, o: oH, hb: hbOne, used: j.jwt }),
+    "pay.revert (a Balance's order)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderB, o: oB, hb: hbThree, used: j.jwt }),
+    "pay.revert (token account)": await k2.revertIx({ relayer: j.relayer, revertToken: j.token_account, key: j.key, order: orderH, o: oH, hb: hbOne, refundToken: j.dest_token, used: j.jwt }),
+    "pay.reserve": await k2.reserveIx({ relayer: j.relayer, takeToken: j.token_account, key: j.key, order: orderW, used: j.jwt }),
+    "pay.cancel (a wallet's order)": await k2.cancelIx({ signer: j.funder, order: orderW }),
+    "pay.cancel (a Balance's order, a token)": await k2.cancelIx({ signer: j.relayer, order: orderB, cancelToken: j.token_account, key: j.key, used: j.jwt }),
     "pay.assign": await k2.assignIx({ signer: j.wallet, order: orderW, payeeId: j.payee_id, to: j.dest_token }),
     "pay.close_marker (used)": k2.closeMarkerIx({ marker: await k2.usedPda(j.jwt), rentTo: j.relayer }),
     "pay.close_marker (done)": k2.closeMarkerIx({ marker: await k2.donePda(orderB, 40), rentTo: j.relayer, order: orderB }),
@@ -466,10 +473,10 @@ await throws("an order's workflow commit must be a full sha", () => k2.fundOrder
   amount: j.amount, wfRepo: j.wf_repo, wfSha: "abc", terms: orderTerms }));
 
 // every order instruction, read back from its bytes. The names are the table's (the IDL's) where an instruction has
-// one list of accounts; a payment's are written out here: thirteen, five for each payee, each payee's assignment,
+// one list of accounts; a payment's are written out here: fourteen (the last is the token's marker), five for each payee, each payee's assignment,
 // then the marker or the record; a release's: thirteen, then a wallet and its token account for each recorded payee.
 const perPayee = ["bind", "wallet", "destToken", "rep", "pair"];
-const paid = (payees, last) => [...v2.PAY_IXS[17][1].slice(0, 13), ...Array(payees).fill(perPayee).flat(), ...Array(payees).fill("assign"), ...last];
+const paid = (payees, last) => [...v2.PAY_IXS[17][1].slice(0, 14), ...Array(payees).fill(perPayee).flat(), ...Array(payees).fill("assign"), ...last];
 const written = { "pay.pay_order (one payee, a bound wallet)": paid(1, []), "pay.pay_order (one payee, held)": paid(1, []),
   "pay.pay_order (four payees, a tip account, a token account)": paid(4, ["doneOrHb"]), "pay.pay_order (a holdback: its record)": paid(2, ["doneOrHb"]),
   "pay.pay_order (a standing order: the pull request's marker)": paid(1, ["doneOrHb"]),
@@ -528,7 +535,8 @@ const audRejected = m.evalAudience(j.owner_id, j.maintainer_id, mi.order, "b".re
 const ev = m.parseAudience(aud), evRejected = m.parseAudience(audRejected);
 const evKey = await m.evalKey(ev.order, ev.artifact, ev.policy, ev.milestone), evKeyRejected = await m.evalKey(evRejected.order, evRejected.artifact, evRejected.policy, evRejected.milestone);
 const mAddresses = { auth: await mk.auth(), "credits(owner, authority, mint)": credits, "credits(owner, authority, mint22)": credits22, "crtok(credits)": await mk.crtokPda(credits),
-  "plan(owner)": await mk.planPda(j.owner_id), "mark(buyer, key)": await mk.markPda(j.owner_id, evKey), "month(buyer, seller, month)": await mk.monthPda(j.owner_id, j.maintainer_id, 202610) };
+  "plan(owner)": await mk.planPda(j.owner_id), "mark(buyer, key)": await mk.markPda(j.owner_id, evKey), "month(buyer, seller, month)": await mk.monthPda(j.owner_id, j.maintainer_id, 202610),
+  "ledger(buyer, seller, month)": await mk.ledgerPda(j.owner_id, j.maintainer_id, 202610), "ledger(buyer, seller, month, claim)": await mk.ledgerPda(j.owner_id, j.maintainer_id, 202610, true) };
 same("meter: every address has a check", Object.keys(mAddresses).sort(), Object.keys(M.addresses).sort());
 for (const [name, got] of Object.entries(mAddresses)) same(`meter address ${name}`, got, M.addresses[name]);
 same("meter: audiences", { eval: aud, "eval, rejected": audRejected, "parse(eval)": snake(ev), "parse(rejected)": snake(evRejected) }, M.audiences);
@@ -568,7 +576,32 @@ const meterIxs = {
   "record (a fee token account given)": await mk.recordIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits, c, audience: aud, now: j.now, feeToken: j.dest_token }),
   "record (token-2022, the fee owner's own)": await mk.recordIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits: credits22, c: c22, audience: audRejected, now: j.now + 40 * 86400 }),
   close_mark: mk.closeMarkIx({ payer: j.relayer, mark: await mk.markPda(j.owner_id, evKey) }),
+  "record_batch (a fee token account given)": await mk.recordBatchIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits, c, audience: M.batch.audience, feeToken: j.dest_token }),
+  "record_batch (token-2022, the fee owner's own)": await mk.recordBatchIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits: credits22, c: c22, audience: M.batch.audience }),
+  claim_batch: await mk.claimBatchIx({ relayer: j.relayer, token: j.token_account, key: j.key, audience: M.batch["claim audience"] }),
+  version: mk.versionIx(),
 };
+// the batch mode (1.1): the root both sides compute, the audiences, the ledger's running hash and its account
+{
+  const B = M.batch, root = (n) => m.merkleRoot(B.keys.slice(0, n));
+  for (const [n, want] of Object.entries(B.roots)) same(`the Merkle root of ${n} evaluation keys (RFC 6962)`, knos.hex(await root(Number(n))), want);
+  same("the root of bytes and of hex are the same", knos.hex(await m.merkleRoot(B.keys.map(knos.unhex))), B.roots["5"]);
+  await throws("keys out of order have no root", () => m.merkleRoot([B.keys[1], B.keys[0]]));
+  await throws("a key given twice has no root", () => m.merkleRoot([B.keys[0], B.keys[0]]));
+  await throws("no keys, no root", () => m.merkleRoot([]));
+  same("a batch's audience", m.batchAudience(j.owner_id, j.maintainer_id, 202610, 3, 5, 4, 8_000_000, B.roots["5"]), B.audience);
+  same("the seller's claim of it", m.batchAudience(j.owner_id, j.maintainer_id, 202610, 0, 5, 5, 10_000_000, knos.unhex(B.roots["5"]), "claim"), B["claim audience"]);
+  same("a batch's audience, read back", m.parseBatch(B.audience), { claim: false, buyerId: j.owner_id, sellerId: j.maintainer_id, month: 202610, seq: 3, count: 5, accepted: 4,
+    value: 8_000_000, root: B.roots["5"] });
+  await throws("an evaluation's audience is not a batch's", async () => m.parseBatch(aud));
+  await throws("a batch is the buyer's or the seller's, nothing else", async () => m.batchAudience(1, 2, 202610, 0, 1, 1, 1, B.roots["1"], "other"));
+  await throws("the buyer's count is not sent as a claim", () => mk.claimBatchIx({ relayer: j.relayer, token: j.token_account, key: j.key, audience: B.audience }));
+  await throws("a claim is not sent as the buyer's count", () => mk.recordBatchIx({ relayer: j.relayer, token: j.token_account, key: j.key, credits, c, audience: B["claim audience"] }));
+  const first = await m.chainHash(new Uint8Array(32), B.roots["3"], 0, 3, 3, 6_000_000), second = await m.chainHash(first, B.roots["5"], 1, 5, 4, 8_000_000);
+  same("a ledger's running hash, batch after batch", [knos.hex(first), knos.hex(second)], Object.values(B.chain));
+  for (const [name, a] of Object.entries(M.ledgers)) same(`meter ${name}`, snake(m.readLedger(a.data === null ? null : knos.unhex(a.data))), a.read);
+  same("the ledger's hash is the one recomputed from its batches", m.readLedger(knos.unhex(M.ledgers.ledger.data)).chain, knos.hex(second));
+}
 same("meter: every instruction has a check", Object.keys(meterIxs).sort(), Object.keys(M.instructions).sort());
 for (const [name, got] of Object.entries(meterIxs)) same(`meter instruction ${name}`, plain(got), M.instructions[name]);
 await throws("credits pin a full commit", () => mk.openCreditsIx({ authority: j.authority, ownerId: j.owner_id, mint: j.mint, wfRepo: j.wf_repo, wfSha: "main" }));
@@ -591,7 +624,7 @@ same("what a program itself logged", [knos.said(M.said.logs, M.said.program), kn
   const orderBal = await k2.orderPda(scope, bal, 3);
   const oBal = v2.readOrder(knos.unhex(s["order accounts"]["order (open, from a wallet, public)"].data));
   const oFor = { ...oBal, fromBalance: true, source: bal, refundTo: await k2.baltok(bal), rentTo: j.relayer, mint: j.mint, funder: j.owner_id };
-  const payFour = await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderBal, o: oFor, payees: four });
+  const payFour = await k2.payOrderIx({ relayer: j.relayer, payToken: j.token_account, key: j.key, order: orderBal, o: oFor, payees: four, used: j.jwt });
   const fund = await k2.fundOrderWalletIx({ funder: j.funder, funderToken: await knos.ata(j.funder, j.mint), mint: j.mint, repoId: j.repo_id, issue: j.issue, amount: j.amount,
     wfRepo: j.wf_repo, wfSha: j.wf_sha, terms: orderTerms });
   const cases = {
@@ -777,6 +810,18 @@ same("no window, no wallets", knos.wallets(undefined), []);
     same("a transaction nobody saw", await knos.confirmed("rpc", "pending", 3, async () => {}), null);
     await throws("an RPC error is an error", () => knos.rpc("rpc", "nope", []));
     same("each call went to the endpoint", [asked.length > 6, asked.every(([url]) => url === "rpc")], [true, true]);
+    // a public endpoint's rate limit says nothing about the request: HTTP 429 (its body not even JSON), then an error of
+    // code 429 in a body, are waited out (1 s, then 2 s) and the call is asked again; a limit that never ends is an error
+    const served = globalThis.fetch, limits = [{ status: 429, json: async () => { throw new SyntaxError("not JSON"); } },
+      { status: 200, json: async () => ({ jsonrpc: "2.0", id: 1, error: { code: 429, message: "Too many requests for a specific RPC call" } }) }];
+    let tries = 0;
+    const t0 = Date.now();
+    globalThis.fetch = async (url, init) => (tries++ < limits.length ? limits[tries - 1] : served(url, init));
+    same("a rate limit is waited out and the call asked again", [await knos.rpc("rpc", "getSlot", []), tries, Date.now() - t0 >= 2900], [500, 3, true]);
+    tries = 0;
+    globalThis.fetch = async () => { tries++; return { status: 429, json: async () => ({ jsonrpc: "2.0", id: 1, error: { code: 429, message: "Too Many Requests" } }) }; };
+    await throws("a rate limit that does not end is an error, after five tries", () => knos.rpc("rpc", "getSlot", []));
+    same("  five tries", tries, 5);
   } finally { globalThis.fetch = real; }
 }
 
@@ -853,6 +898,19 @@ same("no window, no wallets", knos.wallets(undefined), []);
   missing("verifier(program)", Object.keys(knos.verifier(knos.SYSTEM)), members("Verifier"));
   missing("meter.client(program)", Object.keys(mk), members("MeterClient"));
   same("every declaration of a value has a type that is declared", declared.has("Instruction") && declared.has("Order") && declared.has("Wallet"), true);
+}
+
+// the terms an agent reads: the fields knos.terms writes, `image` (the hermetic judge's) among them, and nothing else;
+// `auto` and `quorum` are options in the order's flags and never keys of the terms
+{
+  const { parseTerms } = await import("./agent.js");
+  const base = { accept: "ab".repeat(32), checks: [{ app: 15368, name: "test" }], deny: [], mode: "tests", paths: [], reserve: 7, v: 1 };
+  const image = "docker.io/library/python@sha256:" + "c".repeat(64), text = (t) => JSON.stringify(t);
+  same("terms an agent reads: the seven fields", parseTerms(text(base)), base);
+  same("terms an agent reads: with the hermetic judge's image", parseTerms(text({ ...base, image }))?.image, image);
+  same("terms an agent reads: with a policy and a vendor", parseTerms(text({ ...base, policy: "0f".repeat(32), vendor: 77 }))?.vendor, 77);
+  same("terms an agent reads: refused", [{ ...base, image: "python:3.12" }, { ...base, mode: "merge", accept: "", image }, { ...base, auto: true },
+    { ...base, quorum: 2 }, { ...base, policy: "x" }, { ...base, vendor: 0 }].map((t) => parseTerms(text(t))), [null, null, null, null, null, null]);
 }
 
 // the passkey wallet's helper and the agent calls have their own files and their own checks

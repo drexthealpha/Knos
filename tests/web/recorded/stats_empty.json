@@ -129,16 +129,38 @@
    "slowest": null
   },
   "comment_to_funded": {
+   "n": 0,
+   "p50": null,
+   "p95": null,
+   "slowest": null,
    "count": 0,
    "median": null,
    "p90": null,
-   "slowest": null
+   "window": null,
+   "deployment": {
+    "first": 0,
+    "second": 0
+   },
+   "lines": 0,
+   "not_timed": 0,
+   "definition": "seconds from the funding comment (GitHub's created_at) to the block time of the funding transaction, one sample per successful fund line of the public relay log, over its newest 500 such lines, both deployments, all time"
   },
   "merge_to_paid": {
+   "n": 0,
+   "p50": null,
+   "p95": null,
+   "slowest": null,
    "count": 0,
    "median": null,
    "p90": null,
-   "slowest": null
+   "window": null,
+   "deployment": {
+    "first": 0,
+    "second": 0
+   },
+   "lines": 0,
+   "not_timed": 0,
+   "definition": "seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank"
   },
   "relay": {
    "fund": {

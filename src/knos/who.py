@@ -89,6 +89,11 @@ def _once(permission):
     return ask
 
 
+def _agent(user) -> bool:
+    """A GitHub account of type Bot (an App's or an agent's own): never a person, and never the workflow's own token."""
+    return isinstance(user, dict) and bool(user.get("id")) and user.get("type") == "Bot" and not _workflow(user)
+
+
 def _said(comments, kind) -> list[tuple[dict, object]]:
     """(comment, command) for every unedited comment by a person whose `/knos` line is a `kind`, newest first."""
     out = []
@@ -169,14 +174,16 @@ class Outcome:
     then: str = ""                     # what is left for the caller, because it needs the chain: fund, tip, settle, status
 
 
-def take(issue: dict, events: list | None, terms: dict | None, commenter: dict, now: float) -> Outcome:
+def take(issue: dict, events: list | None, terms: dict | None, commenter: dict, now: float, auto: bool = False) -> Outcome:
     """What `/knos take` by `commenter` (the comment's `user`) does. `terms` is the issue's bounty (None: not
     funded). It reserves an issue nobody holds, for `reserve` days, once per person: a reservation that lapsed is
-    not renewed by taking again. Check GitHub's answer to the assignment: it ignores a login it cannot assign."""
+    not renewed by taking again. Check GitHub's answer to the assignment: it ignores a login it cannot assign.
+    A bot's account takes nothing, except with `auto` (the order was funded `auto`: it pays a pull request on the
+    black-box suite alone, and an agent's own account is who takes such work)."""
     n, login = issue.get("number"), commenter.get("login")
     if terms is None or issue.get("state") == "closed":
         return Outcome(f"Knos: issue #{n} " + ("is closed" if terms is not None else "has no bounty") + ", so there is nothing to reserve.")
-    if not _person(commenter):
+    if not (_person(commenter) or (auto and _agent(commenter))):
         return Outcome(commands.reply("not_allowed", "take"))
     holds = reservation(issue, events, terms, now)
     mine = next((h for h in holds if h.id == commenter["id"]), None)
@@ -294,7 +301,7 @@ def rejected(pull: dict, pull_comments: list | None, permission) -> dict | None:
 def payee(pull: dict, issue: dict | None = None, events: list | None = None, pull_comments: list | None = None,
           issue_comments: list | None = None, permission=None, terms: dict | None = None, now: float | None = None,
           head_message: str = "", user=None, strict: bool = False, closes: list | None = None, tip: bool = False,
-          edited: float | bool | None = False) -> dict:
+          edited: float | bool | None = False, auto: bool = False) -> dict:
     """Who this pull request's bounty is paid to: {"id", "login", "why"}; or {"id": None, "why", "fix", "kind"} when
     nobody is, where `fix` is the exact comment (or act) that would change that and `kind` is payee (nobody can be
     named), assigned (the issue is someone else's), rejected (a maintainer said no before the merge), issue (the
@@ -317,6 +324,12 @@ def payee(pull: dict, issue: dict | None = None, events: list | None = None, pul
     knos.closing.edited_late (when the description was last edited, if at or after the merge; None: GitHub did not
     say). A description can be edited after the merge, by its author among others, and what it closes follows the
     edit, so one edited then closes nothing here: the merge accepted what it said before.
+
+    `auto`: the order was funded `auto` and the pull request is open. Its funder chose that the first pull request the
+    black-box suite passes is paid to its author, nobody deciding in between, so a bot's pull request pays the bot's
+    own account (an agent with a GitHub account of its own is who such an order is for). Everything else holds as
+    it does for a person: the pull request closes the issue, a maintainer's `/knos reject` stops it, and an issue
+    someone else holds is theirs.
 
     `tip`: who a `/knos tip` on this pull request goes to. The same person, decided on the pull request alone: it
     must be merged; no issue is asked about and no assignment excludes anyone; a `/knos reject` is about the bounty
@@ -358,10 +371,11 @@ def payee(pull: dict, issue: dict | None = None, events: list | None = None, pul
     if no:
         return nobody(f"@{no['by']} rejected this pull request for the bounty" + (f" ({no['reason']})" if no["reason"] else ""),
                       f"To undo, @{no['by']} deletes that `/knos reject` comment.", "rejected")
-    if not bot:
+    if not bot or (auto and not tip and _agent(author)):
         if not author.get("id"):
             return nobody("GitHub did not say who opened this pull request", "Run this again.")
-        paid = {"id": author["id"], "login": author.get("login"), "why": "the pull request's author"}
+        paid = {"id": author["id"], "login": author.get("login"),
+                "why": "the pull request's author" + (", an agent's account: the order was funded `auto`" if bot else "")}
     else:
         paid = _for_agent(pull, issue, reservation(issue, events, terms, now), pull_comments, issue_comments,
                           permission, user, names, nobody, unread if strict or tip else None)
@@ -472,7 +486,7 @@ def payout_address(paid: dict, pull_comments: list | None, bound: str | None = N
 
 def answer(command, commenter: dict, pull: dict | None = None, issue: dict | None = None, events: list | None = None,
            pull_comments: list | None = None, issue_comments: list | None = None, permission=None,
-           terms: dict | None = None, now: float | None = None, user=None) -> Outcome | None:
+           terms: dict | None = None, now: float | None = None, user=None, auto: bool = False) -> Outcome | None:
     """What Knos does with one `/knos` comment: the reply to post, the assignees to change, and what is left for
     the caller (`then`). None when the comment holds no command.
 
@@ -481,7 +495,8 @@ def answer(command, commenter: dict, pull: dict | None = None, issue: dict | Non
     issue's bounty it is for. On an issue: `issue` and its `events`. `terms` is that issue's bounty (None: it has
     none). Who may give a command is decided here from what GitHub authenticates: a maintainer is whoever
     `permission(login)` says can write; `/knos mine` is for a person in a bot's pull request's assignees; and
-    `/knos address` for the person the pull request pays. Who may spend money (`/knos fund`, `/knos tip`) is the
+    `/knos address` for the person the pull request pays. `auto`: the issue's open order was funded `auto`, so
+    an agent's own account (GitHub type Bot) may take it; every other command still asks for a person. Who may spend money (`/knos fund`, `/knos tip`) is the
     chain's to decide, so those are handed on."""
     if command is None:
         return None
@@ -494,7 +509,7 @@ def answer(command, commenter: dict, pull: dict | None = None, issue: dict | Non
     if name == "help":
         return Outcome(commands.reply("understood", command))
     if name in ("take", "release"):
-        return (take if name == "take" else release)(issue or {}, events, terms, commenter, now)
+        return take(issue or {}, events, terms, commenter, now, auto) if name == "take" else release(issue or {}, events, terms, commenter, now)
     pull = pull or {}
     merged = bool(pull.get("merged_at") or pull.get("merged"))
     if name in ("tip", "settle"):

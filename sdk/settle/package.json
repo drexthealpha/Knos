@@ -1,6 +1,6 @@
 {
   "name": "knos-settle",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "description": "JavaScript client for knos-pay, knos-meter and knos-oidc on Solana: addresses, audiences, instructions, account layouts, and three calls for an agent platform (quote, eligible, statement). No dependencies.",
   "type": "module",
   "types": "./index.d.ts",
@@ -12,6 +12,10 @@
     "./agent": {
       "types": "./agent.d.ts",
       "default": "./agent.js"
+    },
+    "./passkey": {
+      "types": "./passkey.d.ts",
+      "default": "./passkey.js"
     }
   },
   "files": [
@@ -19,6 +23,8 @@
     "index.d.ts",
     "agent.js",
     "agent.d.ts",
+    "passkey.js",
+    "passkey.d.ts",
     "README.md"
   ],
   "scripts": {
@@ -32,7 +38,9 @@
     "oidc",
     "github-actions",
     "escrow",
-    "knos"
+    "knos",
+    "x402",
+    "payments"
   ],
   "license": "MIT",
   "homepage": "https://github.com/drexthealpha/Knos/tree/main/sdk/settle",
@@ -40,5 +48,13 @@
     "type": "git",
     "url": "git+https://github.com/drexthealpha/Knos.git",
     "directory": "sdk/settle"
+  },
+  "bugs": {
+    "url": "https://github.com/drexthealpha/Knos/issues"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

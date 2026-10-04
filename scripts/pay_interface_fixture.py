@@ -72,7 +72,12 @@ def build() -> str:
         "addresses": {"auth": str(pay.auth_pda()), "pause": str(pay.pause_pda()), "scope": pay.scope_of(REPO, ISSUE).hex(),
                       "private_scope": scope.hex(), "order": str(order), "ov": str(pay.ov_pda(order)), "ata": str(pay.ata(f, mint))},
         "fees": [[a, b, d, pay.order_fee(a, b, d)] for a, b, d in ((5_000_000, 250, 6), (16_000_040, 250, 6), (500_000_000, 250, 6),
-                                                                  (2_000_000_000, 250, 6), (100_000_000, 50, 6), (5_000_000_000, 250, 9), (500, 250, 2))],
+                                                                  (2_000_000_000, 250, 6), (100_000_000, 50, 6), (5_000_000_000, 250, 9), (500, 250, 2),
+                                                                  # the tier edges, a Plan's rate on the first tier, the cap, and past it
+                                                                  (999_999_999, 250, 6), (1_000_000_000, 250, 6), (1_000_000_100, 250, 6),
+                                                                  (49_999_999_999, 250, 6), (50_000_000_000, 250, 6), (50_000_000_200, 250, 6),
+                                                                  (2_000_000_000, 50, 6), (pay.MAX_AMOUNT, 250, 6), (10 ** 15, 250, 9), (2 ** 64 - 1, 250, 6),
+                                                                  (2 ** 64 - 1, 250, 18))],
         "order": {"address": str(order), "owner": str(pay.PAY_ID), "data": data.hex(), "fields": _order(o)},
         "instructions": [
             _ix("fund_order_wallet", fund),

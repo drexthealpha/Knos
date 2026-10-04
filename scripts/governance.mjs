@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The two Squads v4 multisigs of the second deployment, and everything they are ever asked to sign.
 //
-//   upgrade multisig   its vault is the upgrade authority of knos_oidc and knos_pay. Time lock 172800 s: an upgrade
+//   upgrade multisig   its vault is the upgrade authority of knos_oidc, knos_pay, knos_meter and knos_passkey. Time lock 172800 s: an upgrade
 //                      can be executed 48 hours after the vote that approved it, and not before. In that time a
 //                      vote of the members can cancel it, and anyone can read the proposal on chain.
 //   guardian multisig  its vault is the GUARDIAN both programs name. Time lock 0, so that a revocation is not
@@ -17,10 +17,12 @@
 //   node scripts/governance.mjs guardian approve <issuer> <key hash>    let a key GitHub's signature admitted be used
 //   node scripts/governance.mjs guardian revoke <issuer> <key hash>     end a key for ever: nothing undoes it
 //   node scripts/governance.mjs guardian pause <seconds>        refuse new funding for that long (at most 604800; 0 lifts it)
-//   node scripts/governance.mjs upgrade propose <knos_oidc|knos_pay> <buffer address> [--spill ADDRESS] [--ungated]
-//   node scripts/governance.mjs upgrade execute <index>         once the proposal is approved and its 172800 s have passed
+//   node scripts/governance.mjs upgrade propose <knos_oidc|knos_pay|knos_meter|knos_passkey> <buffer address> [--spill ADDRESS] [--ungated]
+//   node scripts/governance.mjs upgrade execute <index> [--expect-hash HASH]   once the proposal is approved and its 172800 s have passed
 //   node scripts/governance.mjs approve <upgrade|guardian> <index>   another member's vote for a proposal
-//   node scripts/governance.mjs cancel <upgrade|guardian> <index>    a vote to cancel an approved proposal that has not run
+//   node scripts/governance.mjs cancel <upgrade|guardian> <index>    the members' votes that withdraw a proposal that has not run: an
+//                               approved one is cancelled (inside its time lock too: the Squads program asks only that it is
+//                               approved), one still collecting approvals is rejected. Neither can be executed afterwards.
 //   node scripts/governance.mjs execute <upgrade|guardian> <index>   run an approved proposal (upgrade execute is this for upgrade)
 //   node scripts/governance.mjs derive                          the addresses the create keys give (no network)
 //   node scripts/governance.mjs inner guardian approve|revoke <issuer> <key hash>, inner guardian pause <seconds>,
@@ -54,6 +56,9 @@
 //                        (examples/upgrade_gate: GitHub's signed statement that its runner built these bytes from a commit of
 //                        this repository; program.yml's gate job asks for it and a relayer records it, so a release needs no
 //                        flag). Without it such a buffer is refused. The members then have only their own rebuild to go by.
+//   --expect-hash HASH   upgrade execute: refuse unless the proposal carries the loader's Upgrade and its buffer holds, now, the
+//                        build with this executable hash. scripts/schedule_upgrade.sh passes the hash that was proposed, so a
+//                        run arranged for one build never executes another.
 //   --unchecked          execute: send it without this script's own look at the proposal's state and time lock, so that
 //                        the Squads program itself answers. For scripts/drill_upgrade.sh, which shows the chain's refusal.
 //
@@ -82,6 +87,8 @@ export const WHICH = {
   upgrade: { timeLock: 172_800, multisig: IDS.upgrade_multisig, vault: IDS.upgrade_authority, createKey: "upgrade-create-key.json" },
   guardian: { timeLock: 0, multisig: IDS.guardian_multisig, vault: IDS.guardian, createKey: "guardian-create-key.json" },
 };
+// every program whose upgrade authority is the upgrade vault: what `upgrade propose` takes, in the order a release proposes them
+export const PROGRAMS = ["knos_oidc", "knos_pay", "knos_meter", "knos_passkey"];
 const PAUSE_MAX = 7 * 86_400;
 const CLUSTERS = { EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG: "devnet", "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY": "testnet",
                    "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d": "mainnet-beta" };
@@ -378,12 +385,12 @@ async function show(o) {
     bad.push(...problems.map((p) => `the ${name} multisig: ${p}`));
     lines.push(describe(name, ms));
   }
-  for (const name of ["knos_oidc", "knos_pay"]) {
+  for (const name of PROGRAMS) {
     const info = await conn.getAccountInfo(programData(new PublicKey(IDS[name])), "confirmed");
     const pd = info && readProgramData(info.data);
     const who = !pd ? "not deployed here" : !pd.authority ? "no upgrade authority (made immutable)"
       : pd.authority.toBase58() === IDS.upgrade_authority ? `upgrade authority ${pd.authority}, the upgrade vault` : `upgrade authority ${pd.authority}, NOT the upgrade vault`;
-    say(`${name.padEnd(9)} ${IDS[name]}   ${who}`);
+    say(`${name.padEnd(12)} ${IDS[name]}   ${who}`);
   }
   if (bad.length) {
     say(`on chain now: ${bad.join("; ")}.`);
@@ -434,19 +441,32 @@ function membersOf(ms, o, name) {
   return keys;
 }
 
-/** The votes of the member keys given that have not voted, no more than the threshold still needs: the program refuses a
- *  vote on a proposal that has its approvals already. `cancel` votes to cancel an approved proposal instead. Returns the
- *  proposal as the chain has it afterwards. */
+/** How a vote of the members withdraws a proposal that has not run, as the Squads program takes it. An approved one, inside
+ *  its time lock or after it: `threshold` votes to cancel (proposalCancel asks only that the proposal is approved). One
+ *  still collecting approvals: votes to reject, as many as leave too few members to approve it (the voters, less the
+ *  threshold, plus one). null: no vote changes it (a draft, or one executed, rejected or cancelled already). */
+export function withdrawal(ms, p) {
+  const kind = p.status.__kind;
+  if (kind === "Approved") return { how: "cancel", need: ms.threshold, done: p.cancelled.map(String) };
+  if (kind === "Active") return { how: "reject", need: ms.members.filter((m) => m.permissions.mask & 2).length - ms.threshold + 1, done: p.rejected.map(String) };
+  return null;
+}
+
+const VOTES = { approve: ["proposalApprove", "approved"], cancel: ["proposalCancel", "cancelled"], reject: ["proposalReject", "rejected"] };
+
+/** The votes of the member keys given that have not voted, no more than are still needed: the program refuses a vote on
+ *  a proposal that has its votes already. `cancel` withdraws the proposal instead (`withdrawal`). Returns the proposal as
+ *  the chain has it afterwards. */
 async function voteUpTo(ctx, name, ms, members, index, cancel, label) {
   const { multisigPda } = pinned(name);
-  let p = await proposal(ctx.conn, multisigPda, index);
-  if (p.status.__kind !== (cancel ? "Approved" : "Active")) return p;
-  const done = new Set((cancel ? p.cancelled : p.approved).map(String));
-  const voters = members.filter((m) => !done.has(m.publicKey.toBase58())).slice(0, Math.max(0, ms.threshold - done.size));
-  const build = cancel ? squads.instructions.proposalCancel : squads.instructions.proposalApprove;
+  const p = await proposal(ctx.conn, multisigPda, index);
+  const w = cancel ? withdrawal(ms, p) : p.status.__kind === "Active" ? { how: "approve", need: ms.threshold, done: p.approved.map(String) } : null;
+  if (!w) return p;
+  const done = new Set(w.done), [build, word] = VOTES[w.how];
+  const voters = members.filter((m) => !done.has(m.publicKey.toBase58())).slice(0, Math.max(0, w.need - done.size));
   if (!voters.length) return p;
-  await send(ctx, voters.map((m) => build({ multisigPda, transactionIndex: index, member: m.publicKey })), voters,
-             `${label}: ${cancel ? "cancelled" : "approved"} by ${voters.length} member${voters.length > 1 ? "s" : ""}`);
+  await send(ctx, voters.map((m) => squads.instructions[build]({ multisigPda, transactionIndex: index, member: m.publicKey })), voters,
+             `${label}: ${word} by ${voters.length} member${voters.length > 1 ? "s" : ""}`);
   return proposal(ctx.conn, multisigPda, index);
 }
 
@@ -577,8 +597,8 @@ export function proposalRecord(programRef, program, buffer, hash, index, timeLoc
 }
 
 function programOf(ref) {
-  if (ref === "knos_oidc" || ref === "knos_pay") return new PublicKey(IDS[ref]);
-  throw new Refused("upgrade takes knos_oidc or knos_pay, then the address of the buffer that holds the new build.");
+  if (PROGRAMS.includes(ref)) return new PublicKey(IDS[ref]);
+  throw new Refused(`upgrade takes ${PROGRAMS.slice(0, -1).join(", ")} or ${PROGRAMS.at(-1)}, then the address of the buffer that holds the new build.`);
 }
 
 async function upgrade(o, programRef, bufferRef) {
@@ -633,24 +653,63 @@ async function vote(o, name, indexText, cancel) {
   const members = membersOf(ms, o, name);
   let p = await proposal(ctx.conn, multisigPda, index);
   if (!p) throw new Refused(`the ${name} multisig has no proposal ${index}.`);
-  const kind = p.status.__kind;
-  if (cancel ? kind !== "Approved" : kind !== "Active") {
-    if (!cancel && kind === "Approved") { say(`on chain now: ${standing(name, ms, index, p)}. Nothing to do.`); return; }
+  const kind = p.status.__kind, w = cancel ? withdrawal(ms, p) : null;
+  if (cancel ? !w : kind !== "Active") {
+    // asked again after it worked (a run of deploy_v2.sh --propose --replace that stopped later): it is so already
+    if (cancel ? ["Cancelled", "Rejected"].includes(kind) : kind === "Approved") { say(`on chain now: ${standing(name, ms, index, p)}. Nothing to do.`); return; }
     throw new Refused(`proposal ${index} of the ${name} multisig is ${kind.toLowerCase()}: ` +
-                      (cancel ? "only an approved proposal that was not executed can be cancelled." : "only an active proposal takes approvals."));
+                      (cancel ? "only a proposal that is approved, or still collecting approvals, and was not executed can be withdrawn." : "only an active proposal takes approvals."));
   }
-  p = await voteUpTo(ctx, name, ms, members, index, cancel, `${cancel ? "cancel" : "approve"} proposal ${index}`);
-  say(`on chain now: ${standing(name, ms, index, p)}` + (cancel && p.status.__kind === "Approved" ? `, with ${p.cancelled.length} of the ${ms.threshold} votes that cancel it.` : "."));
+  p = await voteUpTo(ctx, name, ms, members, index, cancel, `${cancel ? "withdraw" : "approve"} proposal ${index}`);
+  const left = cancel && withdrawal(ms, p);
+  say(`on chain now: ${standing(name, ms, index, p)}` + (left ? `, with ${left.done.length} of the ${left.need} votes that ${left.how} it. It can STILL be ${left.how === "cancel" ? "executed" : "approved"}: ` +
+      `another member votes with: node scripts/governance.mjs cancel ${name} ${index} --member FILE` : cancel ? ": it can never be executed." : "."));
+  if (left) process.exitCode = 1;
+}
+
+/** The buffer that the loader's Upgrade in a vault transaction's message would deploy; null when it carries no Upgrade. */
+export function upgradeBuffer(message) {
+  for (const ix of message.instructions) {
+    if (message.accountKeys[ix.programIdIndex].equals(LOADER) && Buffer.from(ix.data).subarray(0, 4).equals(Buffer.from([3, 0, 0, 0])) && ix.accountIndexes.length >= 3) {
+      return message.accountKeys[ix.accountIndexes[2]];
+    }
+  }
+  return null;
+}
+
+/** `upgrade execute --expect-hash`: the line to print when proposal `index` would deploy exactly the build `want` (its
+ *  buffer, as getAccountInfo gives it now); a refusal for anything else. A run arranged for one build (the hash is in
+ *  the schedule scripts/schedule_upgrade.sh reads) can so never execute another, whatever the index it was given holds. */
+export function expected(index, buffer, info, want) {
+  if (!buffer) throw new Refused(`proposal ${index} of the upgrade multisig carries no upgrade of a program (or its transaction account is gone), and this run was arranged for the build ${want}. Nothing was sent.`);
+  const buf = info?.owner.equals(LOADER) ? readBuffer(info.data) : null;
+  if (!buf) throw new Refused(`the buffer ${buffer} of proposal ${index} is not a program buffer on this cluster (closed, or never written), so it does not hold the build ${want} this run was arranged for. Nothing was sent.`);
+  const have = executableHash(buf.bytes);
+  if (have !== want) {
+    throw new Refused(`proposal ${index} of the upgrade multisig would deploy the build ${have}, and this run was arranged for the build ${want}. Nothing was sent. ` +
+                      "The arrangement is for a build that was withdrawn or replaced: bash scripts/schedule_upgrade.sh --cancel, then arrange the run again after the next --propose.");
+  }
+  return `proposal ${index}: its buffer ${buffer} holds the build ${want}, the one this run was arranged for`;
 }
 
 async function execute(o, name, indexText) {
   const index = proposalArgs(name, indexText);
+  const want = o["expect-hash"];
+  if (want !== undefined && (name !== "upgrade" || !/^[0-9a-f]{64}$/.test(want))) throw new Refused("--expect-hash goes with an upgrade proposal and takes the build's executable hash: 64 lowercase hex characters.");
   const ctx = await context(o);
   const ms = await existing(ctx.conn, name);
   const members = membersOf(ms, o, name);
+  const { multisigPda } = pinned(name);
+  // one that ran already is left to executeProposal, which says so: its buffer was closed by the upgrade itself
+  if (want !== undefined && (await proposal(ctx.conn, multisigPda, index))?.status.__kind !== "Executed") {
+    const info = await ctx.conn.getAccountInfo(squads.getTransactionPda({ multisigPda, index })[0], "confirmed");
+    let buffer = null;
+    try { buffer = info && upgradeBuffer(VaultTransaction.fromAccountInfo(info)[0].message); } catch { /* not a vault transaction */ }
+    say(expected(index, buffer, buffer && await ctx.conn.getAccountInfo(buffer, "confirmed"), want));
+  }
   await executeProposal(ctx, name, ms, index, members[0], `${name} proposal`, Boolean(o.unchecked));
   const lines = [];
-  for (const program of ["knos_oidc", "knos_pay"]) {
+  for (const program of PROGRAMS) {
     const info = await ctx.conn.getAccountInfo(programData(new PublicKey(IDS[program])), "confirmed");
     const pd = info && readProgramData(info.data);
     if (pd) lines.push(`${program} runs the build ${executableHash(pd.bytes)} (deployed in slot ${pd.slot})`);
@@ -690,7 +749,7 @@ async function main(argv) {
   const { values: o, positionals: [command, ...rest] } = parseArgs({ args: argv, allowPositionals: true, options: {
     rpc: { type: "string" }, keys: { type: "string" }, "fee-payer": { type: "string" }, member: { type: "string", multiple: true }, threshold: { type: "string" },
     "upgrade-create-key": { type: "string" }, "guardian-create-key": { type: "string" }, spill: { type: "string" }, out: { type: "string" },
-    "priority-fee": { type: "string" }, check: { type: "boolean" }, json: { type: "boolean" }, unchecked: { type: "boolean" }, ungated: { type: "boolean" }, help: { type: "boolean", short: "h" } } });
+    "priority-fee": { type: "string" }, "expect-hash": { type: "string" }, check: { type: "boolean" }, json: { type: "boolean" }, unchecked: { type: "boolean" }, ungated: { type: "boolean" }, help: { type: "boolean", short: "h" } } });
   if (squads.PROGRAM_ID.toBase58() !== IDS.squads_program) throw new Refused(`the Squads SDK is for program ${squads.PROGRAM_ID}, and programs-v2/program_ids.json names ${IDS.squads_program}.`);
   if (o.help || !command) return say(usage());
   if (command === "create") return create(o);
@@ -701,7 +760,7 @@ async function main(argv) {
     if (sub === "propose") return upgrade(o, args[0], args[1]);
     if (sub === "execute") return execute(o, "upgrade", args[0]);
     if (sub === "approve" || sub === "cancel") return vote(o, "upgrade", args[0], sub === "cancel");
-    throw new Refused("upgrade takes propose <knos_oidc|knos_pay> <buffer address>, or execute <proposal index> once the delay has passed.");
+    throw new Refused(`upgrade takes propose <${PROGRAMS.join("|")}> <buffer address>, or execute <proposal index> once the delay has passed.`);
   }
   if (command === "approve" || command === "cancel") return vote(o, rest[0], rest[1], command === "cancel");
   if (command === "execute") return execute(o, rest[0], rest[1]);

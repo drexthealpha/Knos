@@ -30,6 +30,8 @@ from solders.system_program import CreateAccountParams, TransferParams, create_a
 from solders.transaction import VersionedTransaction
 
 from knos.settle.v2 import passkey as pk
+from knos.settle.v2 import passkey_fund as pf
+from knos.settle.v2 import pay
 from knos.settle.v2.pay import TOKEN, TOKEN_2022, ata, create_ata_ix
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -461,7 +463,7 @@ def test_the_client_reads_keys_and_signatures_as_a_browser_gives_them():
     assert int.from_bytes(half, "big") == pk.N // 2
     assert pk.challenge(Pubkey(bytes([1]) * 32), Pubkey(bytes([2]) * 32), Pubkey(bytes([3]) * 32), 5_000_000, 1) == hashlib.sha256(
         b"knos-passkey" + bytes([1]) * 32 + bytes([2]) * 32 + bytes([3]) * 32 + (5_000_000).to_bytes(8, "little") + (1).to_bytes(8, "little")).digest()
-    assert set(pk.ERRORS) == set(E.values()) and re.search(r'DOMAIN: &\[u8\] = b"knos-passkey"', SRC["lib.rs"])
+    assert set(pk.ERRORS) | set(pf.ERRORS) == set(E.values()) and re.search(r'DOMAIN: &\[u8\] = b"knos-passkey"', SRC["lib.rs"])
     assert re.search(r'SECP256R1_ID: Pubkey = pubkey!\("(\w+)"\)', SRC["lib.rs"]).group(1) == str(pk.SECP256R1_ID)
 
 
@@ -473,13 +475,16 @@ def test_the_idl_says_what_the_source_and_the_client_do():
     assert json.loads((ROOT / "src" / "knos" / "settle" / "v2" / "program_ids.json").read_text()) == ids
     # every instruction of the source, with its tag; every account of each builder, with its flags, in order
     tags = {name: int(tag) for tag, name in re.findall(r"//!   (\d+) (\w+) +\S", SRC["lib.rs"])}
-    assert tags == {i["name"]: i["discriminant"]["value"] for i in idl["instructions"]} == {"Open": 0, "Withdraw": 1}
+    assert tags == {"Open": 0, "Withdraw": 1, "Fund": 2}
+    assert {i["name"]: i["discriminant"]["value"] for i in idl["instructions"]} == tags
     assert sorted(int(t) for t in re.findall(r"^        (\d+) => \w+\(program_id", SRC["lib.rs"], re.M)) == sorted(tags.values())
     p, payer, mint, to = Passkey(6), Pubkey(bytes([1]) * 32), Pubkey(bytes([2]) * 32), Pubkey(bytes([3]) * 32)
     cdj = client_data_json(bytes(32))
+    inner = bytes([pf.FUND_ORDER_WALLET]) + bytes(pf.FUND_MIN - 1) + b"{}"      # a FundOrderWallet's data: its tag, 157 bytes, the terms
     built = {"Open": (pk.open_ix(payer, p.key), {"key": p.key}),
-             "Withdraw": (pk.withdraw_ix(p.key, mint, to, 7, 9, cdj), {"amount": 7, "nonce": 9, "clientDataJson": cdj})}
-    size = lambda t: {"u8": 1, "u64": 8}.get(t) if isinstance(t, str) else size(t["array"][0]) * t["array"][1]  # noqa: E731
+             "Withdraw": (pk.withdraw_ix(p.key, mint, to, 7, 9, cdj), {"amount": 7, "nonce": 9, "clientDataJson": cdj}),
+             "Fund": (pf.fund_ix(p.key, mint, inner, 77, 9, cdj), {"expirySlot": 77, "nonce": 9, "clientLen": len(cdj), "clientDataJson": cdj, "fundOrderWallet": inner})}
+    size = lambda t: {"u8": 1, "u16": 2, "u64": 8}.get(t) if isinstance(t, str) else size(t["array"][0]) * t["array"][1]  # noqa: E731
     for i in idl["instructions"]:
         ix, args = built[i["name"]]
         assert set(i) == {"name", "docs", "accounts", "args", "discriminant"} and i["discriminant"]["type"] == "u8"
@@ -487,7 +492,8 @@ def test_the_idl_says_what_the_source_and_the_client_do():
         data, at = bytes(ix.data), 1
         assert data[0] == i["discriminant"]["value"]
         for a in i["args"]:
-            n = size(a["type"]) if a["type"] != "bytes" else len(data) - at
+            # `bytes` runs to the end of the data, except Fund's clientDataJson, which the clientLen before it measures
+            n = size(a["type"]) if a["type"] != "bytes" else args["clientLen"] if "clientLen" in args and a["name"] == "clientDataJson" else len(data) - at
             want = args[a["name"]]
             assert data[at:at + n] == (want.to_bytes(n, "little") if isinstance(want, int) else want), a["name"]
             at += n
@@ -495,6 +501,10 @@ def test_the_idl_says_what_the_source_and_the_client_do():
     names = {"wallet": p.wallet, "from": ata(p.wallet, mint), "mint": mint, "to": to, "tokenProgram": TOKEN, "instructions": pk.INSTRUCTIONS}
     withdraw = next(i for i in idl["instructions"] if i["name"] == "Withdraw")
     assert [names[a["name"]] for a in withdraw["accounts"]] == [a.pubkey for a in built["Withdraw"][0].accounts]
+    order = pf.order_of(p.wallet, inner)
+    names |= {"order": order, "ov": pay.ov_pda(order), "payAuth": pay.auth_pda(), "systemProgram": pay.SYSTEM, "pause": pay.pause_pda(), "knosPay": pay.PAY_ID}
+    fund = next(i for i in idl["instructions"] if i["name"] == "Fund")
+    assert [names[a["name"]] for a in fund["accounts"]] == [a.pubkey for a in built["Fund"][0].accounts]
     # the wallet account's layout against the source's offsets and the client's reader
     (wallet,) = idl["accounts"]
     offsets, at = {}, 0
@@ -508,6 +518,7 @@ def test_the_idl_says_what_the_source_and_the_client_do():
     assert pk.read_wallet(bytes(raw)) == pk.Wallet(key=p.key, nonce=41)
     # every error code of the source, and no other
     assert {e["code"]: e["name"] for e in idl["errors"]} == {code: "".join(part.title() for part in name[2:].split("_")) for name, code in E.items()}
+    assert set(pk.ERRORS) | set(pf.ERRORS) == set(E.values()) and set(pf.ERRORS) == {E["E_EXPIRED"], E["E_FUND"]}
     assert idl["version"] == re.search(r'^version = "([\d.]+)"', (ROOT / "programs-v2" / "knos_passkey" / "Cargo.toml").read_text(), re.M).group(1)
 
 

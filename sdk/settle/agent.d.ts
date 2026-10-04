@@ -32,7 +32,17 @@ export interface Terms {
   reserve: number;
   /** In tests mode, the hash (64 hex characters) of the acceptance bundle; otherwise "". */
   accept: string;
+  /** Tests mode only: the container image the hermetic judge runs the acceptance checks in, <registry>/<name>@sha256:<64 hex>. */
+  image?: string;
+  /** The hash (64 hex characters) of the repository's .knos/policy.yml as it was at funding. */
+  policy?: string;
+  /** A standing offer: the GitHub id of the one account it pays. */
+  vendor?: number;
 }
+
+/** The terms the funding logged (their JSON text), checked for their shape; null when they are not terms. `auto` and
+ *  `quorum` are options of the order (its flags), never fields here. */
+export function parseTerms(text: string): Terms | null;
 
 /** What must be true for a work order to pay, in sentences. */
 export function describe(terms: Terms): string[];

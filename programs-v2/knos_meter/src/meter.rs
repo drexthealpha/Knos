@@ -1,4 +1,4 @@
-//! The five instructions: OpenCredits, WithdrawCredits, SetPlan, Record and CloseMark.
+//! The instructions: OpenCredits, WithdrawCredits, SetPlan, Record, CloseMark, RecordBatch, ClaimBatch and Version.
 use crate::{err, gh::*, state::*, token::*, *};
 use knos_oidc_interface::is_hex;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, system_program};
@@ -63,15 +63,15 @@ pub fn set_plan(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> P
     Ok(())
 }
 
-/// The owner's count of this month goes up by one (the Plan account, created on first use, started again when the
+/// The owner's count of this month goes up by `by` (the Plan account, created on first use, started again when the
 /// month changes). Returns (the count, the rate that applies now, in millionths of a whole unit).
-fn count_month<'a>(program_id: &Pubkey, payer: &AccountInfo<'a>, plan: &AccountInfo<'a>, sys: &AccountInfo<'a>, owner_id: u64, month: u32,
-                   now: i64) -> Result<(u64, u64), ProgramError> {
+#[allow(clippy::too_many_arguments)] fn count_month<'a>(program_id: &Pubkey, payer: &AccountInfo<'a>, plan: &AccountInfo<'a>, sys: &AccountInfo<'a>, owner_id: u64, month: u32,
+                   now: i64, by: u64) -> Result<(u64, u64), ProgramError> {
     let (new, bump) = open(program_id, payer, plan, sys, PLAN_LEN, &[b"plan", &owner_id.to_le_bytes()], E_ACCOUNTS)?;
     let mut d = plan.try_borrow_mut_data()?;
     if new { d[P_VERSION] = 1; d[P_BUMP] = bump; put_u64(&mut d, P_OWNER_ID, owner_id); }
     if u32_at(&d, P_MONTH) != month { put_u32(&mut d, P_MONTH, month); put_u64(&mut d, P_USED, 0); }
-    add(&mut d, P_USED, 1)?;
+    add(&mut d, P_USED, by)?;
     let rate = u64_at(&d, P_RATE);
     Ok((u64_at(&d, P_USED), if rate != 0 && now < i64_at(&d, P_EXPIRY) { rate } else { FEE }))
 }
@@ -104,7 +104,7 @@ pub fn record(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i
         return Ok(());
     }
     let ym = yyyymm(now);
-    let (n, rate) = count_month(program_id, relayer, plan, sys, e.buyer, ym, now)?;
+    let (n, rate) = count_month(program_id, relayer, plan, sys, e.buyer, ym, now, 1)?;
     let fee = if n <= FREE_PER_MONTH { 0 } else { fee_units(rate, m.decimals) };
     if fee > 0 {
         // credits never go below zero: an evaluation they cannot pay for is refused whole, and can be sent again
@@ -161,5 +161,100 @@ pub fn close_mark(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], no
     mark.assign(&system_program::ID);
     mark.resize(0)?;
     msg!("knosm:closed buyer={} month={} lamports={}", buyer, month, rent);
+    Ok(())
+}
+
+/// What every batch is held to, whoever signed it: 1..=MAX_BATCH evaluations, no more accepted than counted, and a
+/// month that is the chain's or the one before it (a batch for last month may arrive in the first days of this one).
+fn batch_bounds(b: &BatchAud, now: i64) -> ProgramResult {
+    let ym = yyyymm(now);
+    if b.count == 0 || b.count > MAX_BATCH || b.accepted > b.count || (b.month != ym && b.month != prev_month(ym)) { return Err(err(E_BATCH)); }
+    Ok(())
+}
+
+/// The Ledger of the batch's (buyer, seller, month) under `seed` (b"l" recorded, b"lc" claimed), created on first use
+/// with the relayer's rent, and the one rule that makes a batch token single-use: its seq is the Ledger's next.
+fn ledger_open<'a>(program_id: &Pubkey, payer: &AccountInfo<'a>, ledger: &AccountInfo<'a>, sys: &AccountInfo<'a>, seed: &[u8], b: &BatchAud) -> ProgramResult {
+    let (new, bump) = open(program_id, payer, ledger, sys, LEDGER_LEN, &[seed, &b.buyer.to_le_bytes(), &b.seller.to_le_bytes(), &b.month.to_le_bytes()], E_ACCOUNTS)?;
+    let mut d = ledger.try_borrow_mut_data()?;
+    if new {
+        d[L_VERSION] = 1; d[L_BUMP] = bump; d[L_KIND] = (seed == b"lc") as u8;
+        put_u32(&mut d, L_MONTH, b.month); put_u64(&mut d, L_BUYER, b.buyer); put_u64(&mut d, L_SELLER, b.seller);
+    }
+    if u64_at(&d, L_NEXT_SEQ) != b.seq { return Err(err(E_SEQ)); }
+    Ok(())
+}
+
+/// Adds a batch to its Ledger: the totals, the next seq and the running hash. Returns the hash.
+fn ledger_add(ledger: &AccountInfo, b: &BatchAud, fee: u64) -> Result<[u8; 32], ProgramError> {
+    let mut d = ledger.try_borrow_mut_data()?;
+    let chain = b.chain(&d[L_CHAIN..L_CHAIN + 32]);
+    add(&mut d, L_NEXT_SEQ, 1)?; add(&mut d, L_EVALS, b.count)?; add(&mut d, L_ACCEPTED, b.accepted)?; add(&mut d, L_VALUE, b.value)?; add(&mut d, L_FEES, fee)?;
+    d[L_CHAIN..L_CHAIN + 32].copy_from_slice(&chain);
+    Ok(chain)
+}
+
+/// Many evaluations in one token that GitHub signed for a run of the buyer: counted and billed once, by seq, with no
+/// account per evaluation. The token is held to everything Record holds one to.
+pub fn record_batch(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
+    let [relayer, tok, key, credits, crtok, plan, ledger, fee_tok, mint, auth, token, sys] = take(accounts)?;
+    if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
+    if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
+    let c = load_credits(program_id, credits)?;
+    let g = github(tok, key, now)?;
+    if (g.wf_file != b"attest.yml" && g.wf_file != b"prove.yml") || g.wf_repo != c.wf_repo || g.wf_sha[..] != c.wf_sha[..] { return Err(err(E_WORKFLOW)); }
+    if !g.first_attempt { return Err(err(E_CLAIMS)); }
+    let b = batch_aud(&g.aud, b"batch")?;
+    if g.owner_id != b.buyer || c.owner_id != b.buyer { return Err(err(E_OWNER)); }
+    batch_bounds(&b, now)?;
+    let (ak, ab) = auth_key(program_id);
+    if *auth.key != ak || *mint.key != c.mint || *crtok.key != crtok_key(program_id, credits.key).0 { return Err(err(E_ACCOUNTS)); }
+    let m = mint_of(mint, token, false)?;
+    ledger_open(program_id, relayer, ledger, sys, b"l", &b)?;
+
+    // the free allowance is the owner's, in the month of the chain's clock, as Record counts it: only the part of this
+    // batch that lies above it costs the rate
+    let (n, rate) = count_month(program_id, relayer, plan, sys, b.buyer, yyyymm(now), now, b.count)?;
+    let billable = n.saturating_sub(FREE_PER_MONTH.max(n - b.count));
+    let fee = billable.checked_mul(fee_units(rate, m.decimals)).ok_or(ProgramError::ArithmeticOverflow)?;
+    if fee > 0 {
+        // credits never go below zero: a batch they cannot pay for is refused whole, and can be sent again
+        if amount_of(crtok, token.key, E_ACCOUNTS)? < fee { return Err(err(E_FUNDS)); }
+        if !is_owned(fee_tok, token.key, &c.mint, &FEE_OWNER) { return Err(err(E_FEE)); }
+        transfer(token, crtok, mint, fee_tok, auth, fee, m.decimals, ab)?;
+    }
+    let chain = ledger_add(ledger, &b, fee)?;
+    {
+        let mut d = credits.try_borrow_mut_data()?;
+        add(&mut d, C_SPENT, fee)?;
+        add(&mut d, C_EVALS, b.count)?;
+    }
+    msg!("knosm:batch buyer={} seller={} month={} seq={} count={} accepted={} value={} root={} billable={} fee={} n={} chain={} mint={}",
+         b.buyer, b.seller, b.month, b.seq, b.count, b.accepted, b.value, hex(&b.root), billable, fee, n, hex(&chain), b58(&c.mint));
+    Ok(())
+}
+
+/// The seller's own count of the same month, from a run in a repository the seller owns. It costs nothing and moves
+/// nothing: it stands beside the buyer's Ledger so that the two can be compared.
+pub fn claim_batch(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
+    let [relayer, tok, key, claim, sys] = take(accounts)?;
+    if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
+    if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
+    let g = github(tok, key, now)?;
+    let b = batch_aud(&g.aud, b"claim")?;
+    // only the seller's own repositories speak for the seller: not the buyer's, not a third party's
+    if g.owner_id != b.seller { return Err(err(E_OWNER)); }
+    batch_bounds(&b, now)?;
+    ledger_open(program_id, relayer, claim, sys, b"lc", &b)?;
+    let chain = ledger_add(claim, &b, 0)?;
+    msg!("knosm:claim buyer={} seller={} month={} seq={} count={} accepted={} value={} root={} chain={}",
+         b.buyer, b.seller, b.month, b.seq, b.count, b.accepted, b.value, hex(&b.root), hex(&chain));
+    Ok(())
+}
+
+/// Which build this is.
+pub fn version(data: &[u8]) -> ProgramResult {
+    if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
+    msg!("knosm:version {}", VERSION);
     Ok(())
 }

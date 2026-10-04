@@ -148,3 +148,48 @@ def test_the_lessons_in_the_knos_memory_issue_are_nothing_without_sibyl(tmp_path
     monkeypatch.setitem(sys.modules, "sibyl_memory_client", None)                         # as if it were not installed
     with pytest.raises(ImportError):
         history.SibylStore.local(tmp_path / "run4")
+
+
+DONE = "The parser is finished and released."        # says nothing of tests: only what was refused before makes Knos run them
+
+
+def _tests(good: bool) -> dict:
+    return {**_runners(), "tests": lambda repo, claim, cfg: checks.Result("tests", good, "ok" if good else "3 failed in test_calc.py", {})}
+
+
+def test_what_was_refused_last_session_is_owed_in_the_next_and_only_sibyl_knows_it(knos_home, repo):
+    """Session one says "tests pass" and they fail: refused, and the refusal goes to Sibyl's journal with the running
+    count in its state document. Session two says only "finished": the check that failed is run anyway and the stop is
+    blocked with what failed last time. The same stop with no Sibyl, or with Sibyl's store deleted, is allowed."""
+    one = {"cwd": str(repo), "session_id": "one", "last_assistant_message": "All tests pass."}
+    two = {"cwd": str(repo), "session_id": "two", "last_assistant_message": DONE}
+    assert hook.stop(two, history.SibylStore.for_repo(repo), _tests(False))[0] == "allow"      # nothing remembered yet
+    assert hook.stop(one, history.SibylStore.for_repo(repo), _tests(False))[0] == "block"
+    st = history.SibylStore.for_repo(repo)
+    assert history.owed(st) == {"tests"} and history.track(st)["refused"] == 1
+    assert history.recall(st, "test_calc") == ["refused: tests (3 failed in test_calc.py)"]   # Sibyl's FTS5, in the journal
+    verdict, why = hook.stop(two, history.SibylStore.for_repo(repo), _tests(False))
+    assert verdict == "block" and "3 failed in test_calc.py" in why and "an earlier claim here was refused on it" in why
+    assert "Knos refused 1 of 2 claims of done" in why                      # the first stop was a claim too, and held
+    assert hook.stop(two, history.NullStore(), _tests(False))[0] == "allow"                    # same hook, no Sibyl
+    db = store.shared_store()
+    with contextlib.closing(sqlite3.connect(db)) as con:
+        assert con.execute("select count(*) from journal_events where tenant_id = ?", (store.tenant(repo),)).fetchone()[0] == 3   # one event per verdict
+    for f in db.parent.glob("memory.db*"):
+        f.unlink()
+    assert hook.stop(two, history.SibylStore.for_repo(repo), _tests(False))[0] == "allow"      # Sibyl's store gone: nothing owed
+
+
+def test_a_check_is_owed_until_it_is_seen_passing_and_an_edited_journal_changes_the_outcome(knos_home, repo):
+    one = {"cwd": str(repo), "session_id": "one", "last_assistant_message": "All tests pass."}
+    two = {"cwd": str(repo), "session_id": "two", "last_assistant_message": DONE}
+    assert hook.stop(one, history.SibylStore.for_repo(repo), _tests(False))[0] == "block"
+    assert hook.stop(two, history.SibylStore.for_repo(repo), _tests(True))[0] == "allow"       # run because owed, and it passes
+    assert history.owed(history.SibylStore.for_repo(repo)) == set()                           # seen passing: no longer owed
+    assert hook.stop(two, history.SibylStore.for_repo(repo), _tests(False))[0] == "allow"      # so a bare "finished" is not re-run
+    assert hook.stop(one, history.SibylStore.for_repo(repo), _tests(False))[0] == "block"      # refused again: owed again
+    with contextlib.closing(sqlite3.connect(store.shared_store())) as con:                     # someone edits Sibyl's journal by hand
+        con.execute("update journal_events set extra = replace(extra, '\"failed\":[\"tests\"]', '\"failed\":[]')")
+        con.commit()
+    assert history.owed(history.SibylStore.for_repo(repo)) == set()
+    assert hook.stop(two, history.SibylStore.for_repo(repo), _tests(False))[0] == "allow"      # the memory decided it, so the edit did too

@@ -12,7 +12,7 @@
 //   ... --execute INDEX --member FILE    once the approvals reach the threshold (and the multisig's time lock has passed)
 //
 // --amount is in the mint's smallest units (20000000 is 20 USDC): what the payees receive. The vault is debited the
-// amount plus knos_pay's fee (2.5%, at least 0.40 and at most 25 whole units), and pays the rent of the order's two
+// amount plus knos_pay's fee (2.5% of the first 1,000 whole units, 1% from there to 50,000, 0.5% above; at least 0.40), and pays the rent of the order's two
 // accounts, which returns to it when the order closes. So before it executes, the vault needs the tokens in its
 // associated token account and a little SOL. --terms is the terms JSON (a file, at most 600 bytes) the order is paid
 // under. Only devnet is written to. Install the packages first: npm ci --prefix scripts
@@ -66,10 +66,14 @@ const sha256 = (...parts) => { const h = createHash("sha256"); for (const p of p
 const le = (v, bytes) => { const b = Buffer.alloc(bytes); let n = BigInt(v); for (let i = 0; i < bytes; i++) { b[i] = Number(n & 255n); n >>= 8n; } return b; };
 const meta = (pubkey, isSigner, isWritable) => ({ pubkey, isSigner, isWritable });
 
-/** knos_pay's fee on top of an order's amount, for a mint with `decimals` decimals. */
+/** knos_pay's fee on top of an order's amount, for a mint with `decimals` decimals (lib.rs order_fee, no Plan): 2.5% of
+ *  the first 1,000 whole units, 1% of what lies between 1,000 and 50,000, 0.5% of what lies above, each part rounded
+ *  down; at least 0.40; no maximum. */
 export function orderFee(amount, decimals = 6) {
-  const unit = 10n ** BigInt(decimals), a = BigInt(amount), f = a * 250n / 10_000n, lo = 400_000n * unit / 1_000_000n, hi = 25n * unit;
-  return f < lo ? lo : f > hi ? hi : f;
+  const unit = 10n ** BigInt(decimals), a = BigInt(amount), t1 = 1_000n * unit, t2 = 50_000n * unit, min = (x, y) => (x < y ? x : y);
+  const first = min(a, t1), second = min(a, t2) - first, third = a - first - second;
+  const f = first * 250n / 10_000n + second * 100n / 10_000n + third * 50n / 10_000n, lo = 400_000n * unit / 1_000_000n;
+  return f < lo ? lo : f;
 }
 
 /** The addresses of one order funded by `funder`: the order, its token account, and knos_pay's auth and pause. */

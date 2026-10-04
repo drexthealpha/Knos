@@ -37,11 +37,14 @@ export function initClaim(ctx) {
   const remember = () => { try { localStorage.setItem(STORE, JSON.stringify({ credentialId: me.credentialId ? b64(me.credentialId) : null, key: hex(me.key) })); } catch { /* no storage: the page works the same */ } };
   const recall = () => { try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; } };
   const exportText = () => JSON.stringify({ credentialId: me.credentialId ? b64(me.credentialId) : null, key: hex(me.key), wallet: me.wallet });
+  // the knos_passkey of THIS build (program_ids.json), the program a withdrawal goes to: a wallet is its address for the
+  // key, never the one under the id passkey.js was written with, which a build of other ids would show and never pay
+  const program = async () => (await client()).ids.knos_passkey;
   async function adopt(details) {
     if (!details || typeof details !== "object") throw new Error("not details");
     const key = passkey.compressed(unhex(String(details.key || "")));
     const credentialId = details.credentialId ? unb64(String(details.credentialId)) : null;
-    const wallet = await passkey.wallet(key);
+    const wallet = await passkey.wallet(key, await program());
     if (details.wallet !== undefined && details.wallet !== wallet) throw new Error("the address does not belong to that key");
     me = { credentialId, key, wallet };
   }
@@ -65,7 +68,7 @@ export function initClaim(ctx) {
       const token = knos.readTokenAccount(held[i]);
       return { ...m, account: accounts[i], has: Boolean(token), amount: token && token.mint === m.mint ? token.amount : 0 };
     });
-    me.nonce = (opened?.owner === passkey.PASSKEY ? passkey.readWallet(opened.data)?.nonce : 0) ?? 0;
+    me.nonce = (opened?.owner === await program() ? passkey.readWallet(opened.data)?.nonce : 0) ?? 0;
     // the choice of what to withdraw: kept as the person left it, else the first mint the wallet holds any of
     const pick = $("pk-mint"), was = pick.value;
     pick.innerHTML = me.held.map((h) => `<option value="${esc(h.mint)}">${esc(h.name)}: ${esc(money(h.amount))}</option>`).join("");
@@ -87,7 +90,7 @@ export function initClaim(ctx) {
     try {
       say(st, "Asking your device to make a passkey…");
       const made = await passkey.create({ rpId, rpName: "Knos", userName: "Knos wallet" });
-      me = { credentialId: made.credentialId, key: made.key, wallet: made.wallet };
+      me = { credentialId: made.credentialId, key: made.key, wallet: await passkey.wallet(made.key, await program()) };
       remember();
       st.innerHTML = `<p class="status ok" id="pk-made">Your passkey wallet is made. Its address is below.</p>`;
       await show();

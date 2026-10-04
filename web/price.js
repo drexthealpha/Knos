@@ -4,13 +4,18 @@
 // decimals), as the programs hold them. priceConstants() takes each constant from what sdk/settle exports (settle.js
 // in the built site) and, for the ones the exported client does not have yet, from RECORDED below. RECORDED is the
 // only place a price is typed in this site; tests/web/site.mjs compares every value in it with the programs' own
-// source (programs-v2/knos_pay/src/lib.rs, programs-v2/knos_meter/src/lib.rs). When sdk/settle exports the 2.1
-// constants (ORDER_FEE_MIN or FEE_MIN beside FEE_MAX, ORDER_FEE_MAX, TIP, TIP_FIRST, PLAN_BPS_MIN), they are used
-// and `source` says "exported"; delete RECORDED then.
+// source (programs-v2/knos_pay/src/lib.rs, programs-v2/knos_meter/src/lib.rs). When sdk/settle exports an order's
+// constants (ORDER_FEE_MIN, FEE_TIER_1, FEE_TIER_2, FEE_BPS_2, FEE_BPS_3, TIP, TIP_FIRST, PLAN_BPS_MIN), they are
+// used and `source` says "exported"; delete RECORDED then.
+//
+// The fee of an order is marginal, in three tiers, and the funder pays it on top of the amount: FEE_BPS (2.5%, or a
+// Plan's lower rate) of the first FEE_TIER_1 (1,000), FEE_BPS_2 (1%) of what lies between FEE_TIER_1 and FEE_TIER_2
+// (50,000), FEE_BPS_3 (0.5%) of what lies above; at least FEE_MIN (0.40); no maximum.
 import * as settle from "./settle.js";
 
 export const RECORDED = Object.freeze({
-  FEE_BPS: 250, FEE_MIN: 400_000, FEE_MAX: 25_000_000, MIN_AMOUNT: 5_000_000, MAX_AMOUNT: 500_000_000, TIP: 50_000, TIP_FIRST: 300_000, PLAN_BPS_MIN: 50,
+  FEE_BPS: 250, FEE_MIN: 400_000, FEE_TIER_1: 1_000_000_000, FEE_TIER_2: 50_000_000_000, FEE_BPS_2: 100, FEE_BPS_3: 50,
+  MIN_AMOUNT: 5_000_000, MAX_AMOUNT: 100_000_000_000, TIP: 50_000, TIP_FIRST: 300_000, PLAN_BPS_MIN: 50,
   METER_FEE: 50_000, METER_PLAN_MIN: 20_000, METER_FREE: 10_000,
 });
 
@@ -19,15 +24,14 @@ const find = (lib, names) => { for (const holder of [lib?.v2, lib]) for (const n
 
 // The constants in use, and where each came from. `lib`: what settle.js exports.
 export function priceConstants(lib = settle) {
-  // today's FEE_MIN and MIN_AMOUNT of settle.js are the first kind of job's (0.05 and 1): an order's are ORDER_*
-  // there, or the plain names once FEE_MAX is exported beside them
-  const orders = find(lib, ["FEE_MAX", "ORDER_FEE_MAX"]) !== undefined;
+  // settle.js's plain FEE_MIN and MIN_AMOUNT are the first kind of job's (0.05 and 1): an order's are ORDER_* there
   const want = {
-    feeBps: ["FEE_BPS"], feeMin: orders ? ["ORDER_FEE_MIN", "FEE_MIN"] : ["ORDER_FEE_MIN"], feeMax: ["ORDER_FEE_MAX", "FEE_MAX"],
-    minAmount: orders ? ["ORDER_MIN_AMOUNT", "MIN_AMOUNT"] : ["ORDER_MIN_AMOUNT"], maxAmount: ["MAX_AMOUNT"], tip: ["TIP"], tipFirst: ["TIP_FIRST"], planBpsMin: ["PLAN_BPS_MIN"],
+    feeBps: ["FEE_BPS"], feeMin: ["ORDER_FEE_MIN"], tier1: ["FEE_TIER_1"], tier2: ["FEE_TIER_2"], feeBps2: ["FEE_BPS_2"], feeBps3: ["FEE_BPS_3"],
+    minAmount: ["ORDER_MIN_AMOUNT"], maxAmount: ["MAX_AMOUNT"], tip: ["TIP"], tipFirst: ["TIP_FIRST"], planBpsMin: ["PLAN_BPS_MIN"],
     meterFee: ["METER_FEE"], meterPlanMin: ["METER_PLAN_MIN"], meterFree: ["METER_FREE_PER_MONTH", "METER_FREE"],
   };
-  const recorded = { feeBps: "FEE_BPS", feeMin: "FEE_MIN", feeMax: "FEE_MAX", minAmount: "MIN_AMOUNT", maxAmount: "MAX_AMOUNT", tip: "TIP", tipFirst: "TIP_FIRST", planBpsMin: "PLAN_BPS_MIN",
+  const recorded = { feeBps: "FEE_BPS", feeMin: "FEE_MIN", tier1: "FEE_TIER_1", tier2: "FEE_TIER_2", feeBps2: "FEE_BPS_2", feeBps3: "FEE_BPS_3",
+    minAmount: "MIN_AMOUNT", maxAmount: "MAX_AMOUNT", tip: "TIP", tipFirst: "TIP_FIRST", planBpsMin: "PLAN_BPS_MIN",
     meterFee: "METER_FEE", meterPlanMin: "METER_PLAN_MIN", meterFree: "METER_FREE" };
   const out = { source: {} };
   for (const [name, names] of Object.entries(want)) {
@@ -35,11 +39,19 @@ export function priceConstants(lib = settle) {
     out[name] = got ?? RECORDED[recorded[name]];
     out.source[name] = got === undefined ? "recorded" : "exported";
   }
+  // a client built before the tiers has a MAX_AMOUNT of 500: the book's is the tiers' build, so take them together
+  if (out.source.tier1 === "recorded") { out.maxAmount = RECORDED.MAX_AMOUNT; out.source.maxAmount = "recorded"; }
   return Object.freeze(out);
 }
 
-// The fee of an order (2.1): the funder pays it on top of the amount. As order_fee in src/knos/settle/v2/pay.py.
-export const orderFee = (amount, bps, c) => Math.min(Math.max(Math.floor((amount * bps) / 10_000), c.feeMin), c.feeMax);
+// The fee of an order: the funder pays it on top of the amount. As order_fee in programs-v2/knos_pay/src/lib.rs:
+// each tier's part rounded down, then the floor. `bps` is the first tier's rate: the standard one, or a Plan's.
+const part = (amount, bps) => Math.floor((amount * bps) / 10_000);
+export function feeParts(amount, bps, c) {
+  const first = Math.min(amount, c.tier1), second = Math.min(amount, c.tier2) - first, third = amount - first - second;
+  return [{ of: first, bps, fee: part(first, bps) }, { of: second, bps: c.feeBps2, fee: part(second, c.feeBps2) }, { of: third, bps: c.feeBps3, fee: part(third, c.feeBps3) }];
+}
+export const orderFee = (amount, bps, c) => Math.max(feeParts(amount, bps, c).reduce((sum, p) => sum + p.fee, 0), c.feeMin);
 
 // What an amount of `amount` units costs and pays out, at `bps` (the standard rate unless a contract lowers it).
 // The tip is the relay's, out of the fee, never more than the fee; the rest of the fee is Knos's.

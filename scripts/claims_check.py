@@ -41,8 +41,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
          "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
-SENTENCE = ("Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they "
-            "were met, a Solana program settles.")
+SENTENCE = ("Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
+            "signed CI run attests they were met, a Solana program counts it or pays it.")
 # the long form, after the short one, in the README's lead and the home page's first view
 LONG = ("A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A bounty "
         "on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs says whether the "
@@ -64,6 +64,7 @@ NOT_CLAIMS = [
     r"bounty 20\b", r"\b20\.00 USDC\b", r"\b20 USDC\b",       # the amount typed in the example
     r"#\d+\b|#N\b", r"\bRS256\b|\bSHA-256\b|\bRSA-\d+\b|\bHS256\b|\buid \d+\b|\b360px\b|\bsecp256r1\b|\bP-256\b",
     r"\bscenes? \d+(?: to \d+)?\b",                          # the demo script naming its own scenes
+    r"\b[xX]402\b",                                          # the payment protocol's name
 ]
 
 

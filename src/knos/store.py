@@ -11,6 +11,11 @@ Two stores, both Sibyl's:
                                                  lessons travel as comments in the repository's `knos-memory` issue
                                                  (knos.proof.memory), and are loaded back into this store: no
                                                  secret, and nothing decides from the comments themselves.
+
+Three of Sibyl's tiers carry weight (knos.proof.history): entities (WARM) hold the proof rules and lessons; the journal
+(COLD, append-only) holds every verdict of the Stop hook, so a check refused in one session is owed in the next; one
+state document (HOT) holds the running count of claims and refusals. Sibyl's FTS5 search finds a past refusal by its
+words. Reference and archive are not used.
 """
 
 from __future__ import annotations

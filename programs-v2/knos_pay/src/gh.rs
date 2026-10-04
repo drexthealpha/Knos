@@ -25,19 +25,32 @@ pub struct Gh {
 /// that it lives longer than TOKEN_LIFE, was not written by GitHub's clock and is refused. So every token works only
 /// from TOKEN_AHEAD before its `iat` until TOKEN_LIFE + LATE after it: none works for ever, whatever expiry it
 /// carries, and none can date itself far ahead to count as newer than every job and every token still to come.
-pub fn github(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> { token_of(tok, key, now, |_| false) }
+pub fn github(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> { read(tok, key, now, false, |_| false) }
+
+/// `github`, for the two instructions of a work order that also take a gitlab.com token (FundOrderBalance here,
+/// PayOrder through `token_of`). No other instruction calls it, so a 2.0 job, a Bind, the faucet, a Reserve, a Cancel
+/// and a Revert refuse a GitLab token as they refuse any token GitHub did not sign (E_TOKEN), whatever it says.
+pub fn order_token(tok: &AccountInfo, key: &AccountInfo, now: i64) -> Result<Gh, ProgramError> { read(tok, key, now, true, |_| false) }
 
 /// `github`, for the one caller that also takes a token GitHub did not sign (order_judge::token): a token verified
 /// under a PRIVATE key (a key some wallet registered itself, which nobody checked) passes when `ours` accepts the
 /// wallet that registered it. Such a token is that wallet's word, not GitHub's, and every other rule above holds for
-/// it unchanged. A token of any other issuer (GitLab, a registered issuer) is refused whatever `ours` says.
+/// it unchanged. A token of a registered issuer is refused whatever `ours` says; a gitlab.com token is read by gl.rs.
 pub fn token_of(tok: &AccountInfo, key: &AccountInfo, now: i64, ours: impl Fn(&[u8; 32]) -> bool) -> Result<Gh, ProgramError> {
+    read(tok, key, now, true, ours)
+}
+
+/// `orders`: the caller is an instruction of a work order that gl.rs gives an audience to. Only then is a GitLab
+/// token read at all.
+fn read(tok: &AccountInfo, key: &AccountInfo, now: i64, orders: bool, ours: impl Fn(&[u8; 32]) -> bool) -> Result<Gh, ProgramError> {
     if *tok.owner != OIDC_ID { return Err(err(E_TOKEN)); }
     let d = tok.try_borrow_data()?;
     let v = knos_oidc::verified(&d).ok_or_else(|| err(E_TOKEN))?;
+    let gitlab = orders && v.issuer == knos_oidc::pins::ISSUER_GITLAB;    // read by gl.rs, into ids no GitHub token can carry
     let signed = v.issuer == knos_oidc::pins::ISSUER_GITHUB || knos_oidc::registrant(&d).is_some_and(ours);
-    if !signed || !knos_oidc::fresh(v.exp, now) { return Err(err(E_TOKEN)); }
+    if !(signed || gitlab) || !knos_oidc::fresh(v.exp, now) { return Err(err(E_TOKEN)); }
     key_good(&d, key, now)?;
+    if gitlab { return crate::gl::read(v.payload, v.exp, now); }
     let [repo_id, owner_id, actor_id, iat, wref, wsha, runner, aud, event, repository, run_attempt] = fields(v.payload,
         [b"repository_id", b"repository_owner_id", b"actor_id", b"iat", b"job_workflow_ref", b"job_workflow_sha", b"runner_environment", b"aud",
          b"event_name", b"repository", b"run_attempt"])?;
@@ -51,7 +64,8 @@ pub fn token_of(tok: &AccountInfo, key: &AccountInfo, now: i64, ours: impl Fn(&[
     let end = rest.iter().position(|&c| c == b'@').ok_or_else(|| err(E_CLAIMS))?;
     let wf_sha = text(wsha)?;
     if !claims::is_hex(&wf_sha, 40) { return Err(err(E_CLAIMS)); }
-    Ok(Gh { repo_id: number(repo_id)?, owner_id: number(owner_id)?, actor_id: number(actor_id)?, iat,
+    let id = crate::gl::not_ours;    // a GitHub id is below the ranges GitLab ids are read into
+    Ok(Gh { repo_id: id(number(repo_id)?)?, owner_id: id(number(owner_id)?)?, actor_id: id(number(actor_id)?)?, iat,
             wf_repo: hashv(&[&wf_ref[..at]]).to_bytes(), wf_file: rest[..end].to_vec(), wf_sha, aud: text(aud)?, event: text(event)?,
             repository: text(repository).ok(), first_attempt: number(run_attempt).ok() == Some(1), wf_ref })
 }
@@ -60,8 +74,8 @@ pub fn token_of(tok: &AccountInfo, key: &AccountInfo, now: i64, ours: impl Fn(&[
 /// a single-use marker ["used", sig] is named by. The verifier decodes the payload in place and leaves the signature
 /// as the token carried it, after the last dot; it took that text only in its one canonical base64url form and only
 /// as a number below the modulus, so one token has one hash and cannot be respelled to be used twice.
-/// Only the instructions that use a token up call this (Pay, FundOrderBalance): decoding the 342 characters costs
-/// 13,900 compute units (measured), which every other instruction that reads a token would pay for nothing.
+/// Every instruction that takes a token calls this once, for state::mark_used: decoding the 342 characters costs
+/// 13,900 compute units (measured).
 pub fn sig_hash(tok: &AccountInfo) -> Result<[u8; 32], ProgramError> {
     let tok = tok.try_borrow_data()?;
     let len = u16::from_le_bytes([tok[T_LEN], tok[T_LEN + 1]]) as usize;

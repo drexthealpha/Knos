@@ -191,7 +191,7 @@ def test_what_stops_a_normal_funding_stops_a_private_one_and_is_said_on_the_priv
     asks(MONA, "/knos fund 20")
     assert ".knos/policy.yml line 5: only hubot may fund; mona (4242) is not one of them." in answer()
     asks(HUBOT, "/knos fund 2")
-    assert "A work order holds from 5 to 500, and this one asks for 2." in answer()
+    assert "A work order holds from 5 to 100000, and this one asks for 2." in answer()
     asks(HUBOT, "/knos fund twenty")
     assert flow.ANSWER.format(w.hub.comments[ISSUE][-1]["id"]) in (got := answer()) and "/knos fund <amount>" in got
     # the organisation's Balance must list the attestor repository: without that, any repository of the owner could spend it

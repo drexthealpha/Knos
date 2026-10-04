@@ -146,7 +146,12 @@ export function unitsOf(text) {
 export const amountWords = (units) => `${Math.trunc(units / 1_000_000)}${units % 1_000_000 ? `.${String(units % 1_000_000).padStart(6, "0").replace(/0+$/, "")}` : ""}`;
 
 // What the person typed, as a task, or the first thing wrong with it as a sentence: { task } or { error }.
-// `limits`: { min, max } of the amount, in millionths.
+// `limits`: { min, max } of the amount, in millionths: a work order's, which is what `/knos fund` opens (5 to 100,000 on
+// devnet). `limits.job`, when given, is { min, max } of the older kind of bounty (a 2.0 job: from 1), which keeps its own
+// limits where the escrow holds no work orders yet; the refusal then names each kind's bound.
+const said = (units) => amountWords(units).replace(/^\d+/, (whole) => Number(whole).toLocaleString("en-US"));
+export const boundsWords = (limits) => `A work order holds from ${said(limits.min)} to ${said(limits.max)} test USDC, and \`/knos fund\` opens a work order.`
+  + (limits.job ? ` A bounty of the older kind (2.0) takes from ${said(limits.job.min)} to ${said(limits.job.max)}, where the escrow holds no work orders yet; this page writes the comment for a work order.` : "");
 export function check({ title, description, amount, command, login, repo, pairs }, limits) {
   const bad = (error) => ({ error });
   title = String(title ?? "").trim();
@@ -158,7 +163,7 @@ export function check({ title, description, amount, command, login, repo, pairs 
   if ([...description].length > 20000) return bad("The description is 20,000 characters at most.");
   const units = unitsOf(amount);
   if (units === null) return bad("The amount is a number like 20 or 7.5, with at most six decimals.");
-  if (units < limits.min || units > limits.max) return bad(`The amount is from ${amountWords(limits.min)} to ${amountWords(limits.max)} test USDC.`);
+  if (units < limits.min || units > limits.max) return bad(`The amount is from ${said(limits.min)} to ${said(limits.max)} test USDC. ${boundsWords(limits)}`);
   let argv;
   try { argv = shellSplit(String(command ?? "")); } catch (e) { return bad(`The command is not a command line (${e.message.toLowerCase()}). Write it as you would in a terminal, like python3 solution.py.`); }
   if (!argv.length) return bad("Name the command a solution is run as, like python3 solution.py. It reads one line on standard input and prints the answer.");
@@ -240,7 +245,9 @@ export function initTask(ctx) {
 
   $("task-form").onsubmit = (ev) => {
     ev.preventDefault();
-    const got = check(read(), { min: knos.MIN_AMOUNT, max: knos.MAX_AMOUNT });
+    // the second deployment's bounds, from the client: an order's, and beside them a 2.0 job's (knos.MIN_AMOUNT and MAX_AMOUNT are the first deployment's, 1 to 500)
+    const v2 = knos.v2;
+    const got = check(read(), { min: v2.ORDER_MIN_AMOUNT, max: v2.MAX_AMOUNT, job: { min: v2.MIN_AMOUNT, max: v2.MAX_AMOUNT } });
     if (got.error) { say(esc(got.error), "bad"); return; }
     const t = got.task, body = issueBody(t), comment = fundComment(t), where = `${t.login}/${t.repo}`;
     $("task-result").innerHTML = `<div id="task-made"><p class="status ok">Nothing has been sent. These are the steps, in order; each opens a GitHub page that is filled in, and you press its last button there.</p>

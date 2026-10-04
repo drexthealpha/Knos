@@ -22,12 +22,17 @@ a comment with its own GITHUB_TOKEN (`post_token` writes that comment, `found` r
     knos-verify: <jwt>    any GitHub Actions or GitLab CI token, or one of an issuer the verifier holds a key for (a
                           registered issuer's, or a private key): verified into an account another program can read,
                           and nothing more; 20 a day for one repository
-    knos-eval: <jwt>      an evaluation for knos_meter to count (`knosm:eval:`), from the buyer's repository
+    knos-eval: <jwt>      an evaluation for knos_meter to count (`knosm:eval:`), from the buyer's repository; and under
+                          the same marker a batch of them (`knosm:batch:`) and the seller's own count (`knosm:claim:`)
     knos-gate: <jwt>      on the "knos tokens" issue of drexthealpha/Knos, by program.yml's gate job: GitHub's word that
                           its runner built one program's executable (`gate:<program>:<hash>`), for examples/upgrade_gate
     knos-withdraw: <b64>  not a token: a passkey wallet's signed withdrawal (knos.settle.v2.passkey.request), on an
                           issue of its owner's repository named knos-claim. The relay sends it and pays its fee; the
                           money goes where the passkey signed, 20 a day for one repository
+    /knos passkey-fund <base64url>   not a token and not posted by a workflow: the line the site's Buy page shows after a
+                          passkey signed a funding (knos.settle.v2.passkey_fund), pasted on the issue it funds. The
+                          relay sends it and pays its fee and the order's rent, 20 a day for one repository, and
+                          answers on the issue where its GitHub token may write (always in its log)
     knos-veto: <jwt>      the first deployment's, as before: a bounty funded there finishes there
     knos-claim: <jwt>
 
@@ -81,6 +86,8 @@ from pathlib import Path
 
 TOKEN = re.compile(r"knos-(proof|fund|bind|veto|claim|key|verify|eval|take|cancel|revert|rule|gate):\s*(eyJ[\w-]+\.[\w-]+\.[\w-]+)")
 WITHDRAW = re.compile(r"knos-withdraw:\s*([A-Za-z0-9+/_-]{200,4000}={0,2})")    # a passkey wallet's withdrawal request: no token, see knos.settle.v2.passkey.request
+# a passkey's funding, as the Buy page writes it (the pattern of knos.settle.v2.passkey_fund.LINE, kept equal by a test)
+PASSKEY_FUND = re.compile(r"/knos passkey-fund\s+([A-Za-z0-9_-]{300,6000})")
 CLAIM_REPO = "/knos-claim"       # a withdrawal request is read only in a repository of this name (its owner's own, as for a claim)
 # a fund token's terms, in the same comment: the terms JSON, or (a private order) its scope and terms hash as 128 hex characters
 TERMS = re.compile(r"^knos-terms:[ \t]*(\{.*\}|[0-9a-f]{128})[ \t\r]*$", re.M)
@@ -88,6 +95,9 @@ ISSUER = re.compile(r"^knos-issuer:[ \t]*(https://[!-~]{1,192})[ \t\r]*$", re.M)
 MARK = "knosrelay"   # one word every token comment carries, so one search finds them all
 ROTATE_REPO = "drexthealpha/knos-oidc-rotate"
 RELAY_KIND = {"proof": "pay"}   # the comment marker says proof; the relays call that audience pay
+# knos_meter's three audiences are all posted as knos-eval: (knos attest --kind eval|batch|claim): one evaluation, the
+# buyer's count of a batch, the seller's own count of it
+METER_KINDS = ("eval", "batch", "claim")
 LOG_LABEL = "knos-relay"
 LOG_BOT = "github-actions[bot]"  # who writes the log: the log repository's own workflow. Nobody else's line counts.
 # The repository the relay keeps its public log in, and whose own issues it always scans: the one whose worker.yml runs
@@ -104,6 +114,7 @@ KNOWN_FOR = 2 * 86_400  # a repository is known this long after its last token
 EVERY_PASS = 15         # known repositories read on every pass: the ones whose tokens are newest
 IN_TURN = 5             # of the other known ones, this many a pass, in turn (GitHub allows 900 requests a minute)
 VERIFY_PER_DAY = 20     # verify-only tokens carried for one repository in a day (each locks rent for an hour)
+PASSKEY_FUND_PER_DAY = 20   # passkey fundings sent for one repository in a day (the relay pays each fee and the rent of the order's two accounts)
 WITHDRAW_PER_DAY = 20   # passkey withdrawals sent for one knos-claim repository in a day (the relay pays each fee, and a new wallet's rent)
 API = "https://api.github.com/"
 
@@ -261,7 +272,8 @@ def tokens(comments: list, since: str = "") -> list[Found]:
             continue
         body = c.get("body") or ""
         beside = {"fund": TERMS.search(body), "key": ISSUER.search(body)}
-        for kind, jwt in [*TOKEN.findall(body), *(("withdraw", asked) for asked in WITHDRAW.findall(body))]:
+        for kind, jwt in [*TOKEN.findall(body), *(("withdraw", asked) for asked in WITHDRAW.findall(body)),
+                          *(("passkey-fund", line) for line in PASSKEY_FUND.findall(body))]:
             out.append(Found(kind, int(c["issue_url"].rsplit("/", 1)[1]), jwt, (c.get("user") or {}).get("login", ""),
                              beside[kind].group(1).encode() if beside.get(kind) else None, _unix(c.get("created_at"))))
     return out
@@ -316,6 +328,15 @@ def carry(ledger, payer, jwt: str, terms: bytes | None = None) -> dict:
     return first.submit(ledger, payer, jwt) if audience(jwt).startswith("knos:") else second.submit(ledger, payer, jwt, terms)
 
 
+def fits(kind: str, named: str | None, aud: str | None = None) -> bool:
+    """Whether a comment's marker `kind` may carry what the relays call `named`: its own name (proof: pay), and under
+    `eval` any of the meter's three. `aud`, when known, keeps the meter's `claim` apart from the first deployment's
+    (`knos:claim:`), which has a marker of its own."""
+    if aud is not None and (aud.startswith("knosm:") or (kind == "eval" and named != "eval")):
+        return kind == "eval" and named in METER_KINDS and aud.startswith("knosm:")
+    return named == RELAY_KIND.get(kind, kind) or (kind == "eval" and named in METER_KINDS)
+
+
 def misposted(kind: str, jwt: str, terms: bytes | None = None) -> str | None:
     """Why a comment cannot carry the token it holds, or None: its marker does not fit the token's audience, or (a
     fund token of the second deployment) its `knos-terms:` line is not the terms the audience names. Anyone can copy
@@ -327,7 +348,7 @@ def misposted(kind: str, jwt: str, terms: bytes | None = None) -> str | None:
     named = (first if aud.startswith("knos:") else second).kind_of(aud)
     if kind == "verify":
         return f"it is a Knos {named} token, which is carried under its own marker" if named else None
-    if named is not None and named != RELAY_KIND.get(kind, kind):
+    if named is not None and not fits(kind, named, aud):
         return f"posted as knos-{kind}, but its audience is a {named} token's"
     if named == "fund" and aud.startswith(("knos2:", "knos3:")) and not second.carries_terms(aud, terms):
         return "its `knos-terms:` line is missing, or is not the terms the token names"
@@ -336,15 +357,20 @@ def misposted(kind: str, jwt: str, terms: bytes | None = None) -> str | None:
     return None
 
 
-def relay_one(ledger, payer, kind: str, jwt: str, submit=None, terms: bytes | None = None) -> dict:
+def relay_one(ledger, payer, kind: str, jwt: str, submit=None, terms: bytes | None = None, where: tuple[int, int] | None = None) -> dict:
     """Send one token a comment carried under the marker `kind` to the chain (`carry`); under the `verify` marker it
     is only verified. A comment that cannot carry its token (`misposted`) is refused before anything is sent. Returns
-    the relay's result, plus "note": what happened in words. `submit(ledger, payer, jwt)`: a relay to use instead."""
+    the relay's result, plus "note": what happened in words. `submit(ledger, payer, jwt)`: a relay to use instead.
+    `where`: for a passkey's funding line (`kind` passkey-fund, `jwt` the line's base64url text), the repository id and
+    the issue its comment is on."""
     if submit is not None:
         r = submit(ledger, payer, jwt)
     elif kind == "withdraw":
         from ..settle.v2 import relay as second
         r = second.withdraw(ledger, payer, jwt)
+    elif kind == "passkey-fund":
+        from ..settle.v2 import relay as second
+        r = second.passkey_fund(ledger, payer, jwt, *(where or (None, None)))
     else:
         wrong = misposted(kind, jwt, terms)
         if wrong:
@@ -354,7 +380,7 @@ def relay_one(ledger, payer, kind: str, jwt: str, submit=None, terms: bytes | No
             r = second.verify_only(ledger, payer, jwt)
         else:
             r = carry(ledger, payer, jwt, terms)
-    if r.get("ok") and r.get("kind") != RELAY_KIND.get(kind, kind):
+    if r.get("ok") and not fits(kind, r.get("kind")):
         return {"ok": False, "why": f"marker {kind} but audience {r.get('kind')}"}
     if r.get("ok"):
         r["note"] = note(r)
@@ -442,6 +468,13 @@ def _note2(r: dict) -> str | None:
         verdict = "accepted" if r["accepted"] else "rejected"
         return (f"Counted: buyer {r['buyer_id']}, seller {r['seller_id']}, artifact {r['artifact']}, milestone {r['milestone']}, {verdict}. "
                 f"Fee {_usdc(r['fee'])} from the buyer's credits; month {r['month']}.")
+    if k in ("batch", "claim") and "root" in r:
+        whose = "the seller's own count, at no fee" if k == "claim" else f"the buyer's count, fee {_usdc(r['fee'])} from the buyer's credits"
+        return (f"Counted batch {r['seq']} of month {r['month']} for buyer {r['buyer_id']} and seller {r['seller_id']}: {r['count']} "
+                f"evaluation{'s' if r['count'] != 1 else ''}, {r['accepted']} accepted ({whose}). Merkle root {r['root']}.")
+    if k == "passkey-fund":
+        from ..settle.v2 import relay as second
+        return second.passkey_fund_reply(r).removeprefix("Knos: ")
     if k == "gate":
         return (f"Recorded at the upgrade gate: GitHub's runner built the executable {r['hash']} for program {r['program']} from commit {r['commit']} "
                 f"(run {r['run_id']}). Record {r['record']}.")
@@ -615,6 +648,30 @@ def _origin(jwt: str, repo: str) -> str:
     return str(c["repository_id"]) if c.get("repository_id") else f"gitlab:{c['project_id']}" if c.get("project_id") else repo
 
 
+def _repo_id(repo: str, state: dict, get=None) -> int | None:
+    """GitHub's id of a repository, which is what the chain knows it by: asked once and kept in `state`. None when
+    GitHub did not say."""
+    ids = state.setdefault("ids", {})
+    if repo not in ids:
+        try:
+            ids[repo] = int((get or _api)(f"repos/{repo}")["id"])
+        except Exception:  # noqa: BLE001 - GitHub did not answer, or the repository is gone: asked again on a later pass
+            return None
+    return ids[repo]
+
+
+def _reply(repo: str, n: int, words: str) -> bool:
+    """Answers a passkey's funding line on its own issue. The public worker's GitHub token writes only to the worker's
+    repository, so there the answer is the log line alone; a relay whose token may write to `repo` (a repository that
+    relays for itself) answers where the line was posted."""
+    try:
+        _HUB.send(f"repos/{repo}/issues/{n}/comments", {"body": words})
+        return True
+    except Exception as why:  # noqa: BLE001 - no write access there: the log has the verdict
+        print(f"passkey-fund reply on {repo}#{n}: {why}", file=sys.stderr)
+        return False
+
+
 def _post(lines: list[str], state: dict) -> None:
     """Log lines now; the ones GitHub would not take are kept for the next pass, so that no verdict is lost."""
     try:
@@ -711,7 +768,9 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         # a token is done once as it was posted: under this marker, with these terms. A copy posted another way is
         # another matter, so nobody's copy can use up, or speak for, the token of the comment that posts it rightly
         astray = kind == "withdraw" and not repo.endswith(CLAIM_REPO)       # a copy of a request, posted where none is read: it is not the request
-        tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"") + (repo.encode() if astray else b"")).hexdigest()[:16]
+        # (a passkey's funding line is its own on each issue it is pasted on: a copy elsewhere never uses up the line on the issue it funds)
+        place = repo.encode() if astray else f"{repo}#{n}".encode() if kind == "passkey-fund" else b""
+        tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"") + place).hexdigest()[:16]
         known[repo] = now
         if tid in seen or tid in hold:
             continue
@@ -720,16 +779,24 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         if answer(kind, jwt) in answered:   # the log has its verdict, under this marker: the run before this one carried it
             continue
         wrong = ("a withdrawal request is read only on an issue of a repository named knos-claim" if astray else None) if kind == "withdraw" \
-            else misposted(kind, jwt, terms)
+            else None if kind == "passkey-fund" else misposted(kind, jwt, terms)
         if wrong:                   # logged without the token's id: whoever waits for that token is not answered by this
             lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its token ({token_id(jwt)[:8]}...): {wrong}")
             later.append(lines[-1])
             continue
         picked = time.time()
-        origin = f"withdraw:{repo}" if kind == "withdraw" else _origin(jwt, repo)
+        origin = f"{kind}:{repo}" if kind in ("withdraw", "passkey-fund") else _origin(jwt, repo)
+        rid = _repo_id(repo, state) if kind == "passkey-fund" else None
         if kind == "withdraw" and verified.get(origin, 0) >= WITHDRAW_PER_DAY:
             r = {"ok": False, "kind": "withdraw", "why": f"{WITHDRAW_PER_DAY} withdrawals a day are sent for one repository, and this one has had "
                                                          "them; post it again after midnight UTC, or send it yourself (anyone can pay its fee)"}
+        elif kind == "passkey-fund" and verified.get(origin, 0) >= PASSKEY_FUND_PER_DAY:
+            r = {"ok": False, "kind": kind, "why": f"{PASSKEY_FUND_PER_DAY} passkey fundings a day are sent for one repository, and this one has had "
+                                                   "them; post the line again after midnight UTC while its slot lasts, or sign again then"}
+        elif kind == "passkey-fund" and rid is None:
+            r = {"ok": False, "kind": kind, "retry": True, "transient": True, "why": f"GitHub did not say which repository {repo} is"}
+        elif kind == "passkey-fund":
+            r = relay_one(ledger, payer, kind, jwt, where=(rid, n))
         elif kind == "verify" and verified.get(origin, 0) >= VERIFY_PER_DAY:
             r = {"ok": False, "kind": "verify", "why": f"{VERIFY_PER_DAY} tokens a day are verified for one repository, and this one has had "
                                                        "them; post it again after midnight UTC, or relay it yourself (anyone can)"}
@@ -760,8 +827,15 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
                 continue            # another run of this relay carried it, and its line is in the log
         if r.get("ok") and not r.get("sigs") and not r.get("already"):
             continue                # nothing had to be done (a key the chain already has): no log line
-        if kind in ("verify", "withdraw") and r.get("ok") and r.get("sigs"):
+        if kind in ("verify", "withdraw", "passkey-fund") and r.get("ok") and r.get("sigs"):
             verified[origin] = verified.get(origin, 0) + 1
+        if kind == "passkey-fund":
+            from ..settle.v2 import relay as second
+            _reply(repo, n, second.passkey_fund_reply(r))
+            if r.get("astray"):     # a line the passkey signed for another issue: this comment is not that funding, and its line answers nobody who waits for it
+                lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its line ({token_id(jwt)[:8]}...): {' '.join(str(r['why']).split())}")
+                later.append(lines[-1])
+                continue
         took = max(0, round(finished - created)) if r.get("ok") and created is not None else None
         line = log_line(kind, repo, n, jwt, r, took, stages(jwt, created, picked, finished) if r.get("ok") else None)
         lines.append(line)

@@ -1,7 +1,8 @@
 """`python -m knos ...` and the `knos` console script: the same commands.
 
-The words a repository's workflow runs (knos.flow.WORDS) are handed to knos.flow before the rest of the command line is
-imported: the jobs that sign install only solders (requirements/sign.txt), and the rest needs typer and rich."""
+The words a repository's workflow runs (knos.flow.WORDS), and `relay`, which the public worker runs, are handed to
+knos.flow before the rest of the command line is imported: the jobs that sign or relay install only solders
+(requirements/sign.txt), and the rest needs typer and rich."""
 
 from __future__ import annotations
 

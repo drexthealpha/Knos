@@ -813,3 +813,173 @@ def test_a_copys_log_line_under_another_marker_does_not_answer_for_the_comment_t
     lines = passes(t0)
     assert relays.calls == [("verify", token, None)] and [ln.split()[1:5] for ln in lines] == [["verify", "octo/widgets#3", ghrelay.token_id(token), "ok"]]
     assert ghrelay.answer("verify", token) != ghrelay.answer("fund", token)
+
+
+# -- `knos relay`, read by knos.flow: the worker's command, and a job that relays its own token -------------------------------
+class Passes:
+    """knos.proof.ghrelay where flow.relay uses it for passes: `once` does what the test says, pass by pass."""
+    CRANK_EVERY = ghrelay.CRANK_EVERY
+
+    def __init__(self, *outcomes):
+        self.outcomes, self.ran = list(outcomes), []
+
+    def once(self, ledger, payer, crank=True):
+        self.ran.append(crank)
+        got = self.outcomes[min(len(self.ran), len(self.outcomes)) - 1] if self.outcomes else None
+        if isinstance(got, BaseException):
+            raise got
+        return []
+
+
+def _clock(step: float = 1.0):
+    """A clock a pass moves on by `step` seconds each time it is read, and a sleep that moves it."""
+    t = [0.0]
+
+    def clock() -> float:
+        t[0] += step
+        return t[0]
+    return clock, lambda s: t.__setitem__(0, t[0] + s)
+
+
+def test_the_relays_exit_status_says_whether_it_relayed(capsys, monkeypatch):
+    """worker.yml takes the relay's status as the step's. One bad pass never stops the worker (GitHub was down); a
+    relay that could not make one pass, or that lacks a module, is status 1 with one line that says why."""
+    from knos import flow
+    clock, sleep = _clock()
+    kw = dict(ledger="ledger", payer="payer", clock=clock, sleep=sleep, env={"GH_TOKEN": "t"})
+    good = Passes(None, OSError("GitHub is down"), None)
+    assert flow.relay(serve=30, ghrelay=good, **kw) == 0 and len(good.ran) > 3 and good.ran[0] is True and not any(good.ran[1:])
+    assert "relay pass: OSError: GitHub is down" in capsys.readouterr().err
+    down = Passes(OSError("GitHub is down"))
+    said = flow.relay(serve=30, ghrelay=down, **kw)
+    assert isinstance(said, str) and "not one pass finished in 30 seconds" in said and "OSError: GitHub is down" in said and len(down.ran) > 3
+    # what 0.3.13's worker met: a module the install does not have. The first pass ends the relay; nothing is retried
+    broken = Passes(ModuleNotFoundError("No module named 'typer'"))
+    said = flow.relay(serve=250, ghrelay=broken, **kw)
+    assert len(broken.ran) == 1 and said == ("knos relay cannot run in this install: ModuleNotFoundError: No module named 'typer'. Nothing was relayed.")
+    assert flow.relay(ghrelay=Passes(None), **kw) == 0                                          # one pass, with no option
+    assert "the pass did not finish: OSError: GitHub is down" in flow.relay(ghrelay=down, **kw)
+    # through the command line: the line is printed and the status is 1
+    assert flow.takes(["relay", "--serve", "250"]) and flow.main(["relay", "--token-file", "/nowhere/token"]) == 1
+    assert "No such file" in capsys.readouterr().out
+    # a key that is no key: said in a line, before any pass
+    for name in ("KNOS_RELAY_KEY", "KNOS_MEMBER_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("KNOS_FEE_KEY", "not a key")              # the name a repository's own workflow may give its fee key
+    ran = len(good.ran)
+    assert "knos relay cannot start" in flow.relay(serve=30, ghrelay=good) and len(good.ran) == ran
+
+
+def test_a_job_relays_its_own_token_from_a_file_with_knos_relay(monkeypatch, tmp_path, capsys):
+    """A run that holds a token and a fee key relays it itself: `knos relay --token-file F`, the same command path as
+    the worker's, with no comment to post and no worker to wait for. The file is the token, or the comment that would
+    have carried it (its `knos-terms:` line travels with a fund token). On LiteSVM, through the real relays."""
+    pytest.importorskip("solders.litesvm")
+    from _pay2 import Chain
+    from test_relay2 import JWKS, TERMS as terms, Net, faucet_jwt, pay_jwt, user
+
+    from knos import flow
+    from knos.settle.v2 import pay
+    c = Chain()
+    net = Net(c)
+    assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
+    monkeypatch.setattr(relay1, "fetch_jwks", lambda issuer: JWKS[issuer])
+    monkeypatch.setattr(relay2, "_KEPT", {})
+    asked = []
+    monkeypatch.setattr(ghrelay, "_HUB", ghrelay.Hub(lambda req, timeout=None: asked.append(req.full_url) or (_ for _ in ()).throw(OSError("no GitHub here"))))
+    org, repo, payee, wallet = user(), user(), user(), Keypair().pubkey()
+    kw = dict(ghrelay=ghrelay, ledger=net, payer=c.payer, env={})
+
+    def result() -> dict:
+        return json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    # the fund token, as the comment that carries it; then alone, with its terms in a file of their own
+    fund = faucet_jwt(c, 7, org, repo)
+    (tmp_path / "fund").write_text(ghrelay.token_comment("fund", fund, terms), encoding="utf-8")
+    assert flow.relay(str(tmp_path / "fund"), **kw) == 0
+    r, job = result(), pay.job_pda(repo, 7, pay.faucet_balance_pda(org))
+    assert r["ok"] and r["sigs"] and "5.00 test USDC is in escrow for issue #7" in r["note"] and pay.read_job(c.data(job)).state == "open"
+    c.warp(60)
+    (tmp_path / "bare").write_text(faucet_jwt(c, 8, org, repo) + "\n", encoding="utf-8")
+    (tmp_path / "terms").write_bytes(terms + b"\n")
+    assert flow.relay(str(tmp_path / "bare"), **kw) == 1 and not result()["ok"]                 # a fund token without its terms funds nothing
+    assert flow.relay(str(tmp_path / "bare"), str(tmp_path / "terms"), **kw) == 0 and result()["ok"]
+    # the pay token of the merging run: paid at once, with no comment read and no pass over GitHub
+    proof = pay_jwt(c, repo, 7, payee, wallet)
+    (tmp_path / "pay").write_text(proof, encoding="utf-8")
+    c.warp(60)
+    assert flow.relay(str(tmp_path / "pay"), **kw) == 0
+    r = result()
+    assert r["ok"] and f"4.88 test USDC was paid to {wallet} for issue #7" in r["note"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    # the same token a second time (the public worker finding a copy, or the step run again) pays nobody twice
+    flow.relay(str(tmp_path / "pay"), **kw)
+    again = result()
+    print(again)
+    assert (again.get("already") or not again["ok"]) and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert asked == []                                                                          # GitHub was never asked: no poll, no comment fetch
+    # the fee key under the name a repository's own workflow may give it: it is the relay's key, when there is no other
+    env = {"KNOS_FEE_KEY": json.dumps(list(bytes(c.payer)))}
+    flow.relay(str(tmp_path / "pay"), ghrelay=ghrelay, ledger=net, payer=c.payer, env=env)
+    assert env["KNOS_RELAY_KEY"] == env["KNOS_FEE_KEY"]
+    env = {"KNOS_FEE_KEY": "[1]", "KNOS_RELAY_KEY": "[2]"}
+    flow.relay(str(tmp_path / "pay"), ghrelay=ghrelay, ledger=net, payer=c.payer, env=env)
+    assert env["KNOS_RELAY_KEY"] == "[2]"
+
+
+# -- worker.yml: a relay that fails is seen, and starts nothing ----------------------------------------------------------------
+def _workflows() -> dict:
+    import yaml
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    files = sorted([*(root / ".github" / "workflows").glob("*.yml"), *(root / "examples").glob("*.yml")])
+    return {f.name if f.parent.name == "workflows" else f"examples/{f.name}": yaml.safe_load(f.read_text(encoding="utf-8")) for f in files}
+
+
+RELAYS = re.compile(r"\bknos(?:\.flow)?\s+relay\b")
+
+
+def test_no_workflow_hides_a_relay_that_failed():
+    """0.3.13's worker ran `python -m knos relay --serve 250 || true`: the relay failed at its first import in every
+    run, and every run was green. No workflow follows a relay command with anything that swallows its status."""
+    docs = _workflows()
+    seen = []
+    for name, doc in docs.items():
+        for job_name, job in (doc.get("jobs") or {}).items():
+            for step in job.get("steps") or []:
+                script = re.sub(r"\\\n\s*", " ", str(step.get("run") or ""))             # a command over two lines is one command
+                for line in script.splitlines():
+                    if RELAYS.search(line):
+                        seen.append(name)
+                        assert "||" not in line.split("relay", 1)[1] and not line.rstrip().endswith(("&", ";true", "; true")), (name, job_name, line)
+                        assert not step.get("continue-on-error") and not job.get("continue-on-error"), (name, job_name)
+    assert seen.count("worker.yml") == 3                         # the smoke step and the two that relay
+    assert "|| true" not in json.dumps(docs["worker.yml"])
+
+
+def test_the_worker_checks_the_relay_starts_before_it_relays_and_only_a_relay_that_succeeded_starts_the_next_run():
+    steps = _workflows()["worker.yml"]["jobs"]["relay"]["steps"]
+    runs = [str(s.get("run") or "") for s in steps]
+    install = next(i for i, r in enumerate(runs) if "requirements/sign.txt" in r)
+    assert "--require-hashes" in runs[install] and runs[install].count(" -r ") == 1       # the lean install: that list and nothing else
+    # the smoke step: right after the install, with what was installed, before the key is in any step's environment
+    smoke = steps[install + 1]
+    assert smoke["run"].strip() == "python -m knos relay --help" and smoke["if"] == "steps.chain.outputs.go == 'true'"
+    assert set(smoke["env"]) == {"PYTHONPATH"} and "secrets." not in json.dumps(steps[:install + 2])
+    relays = [i for i, r in enumerate(runs) if "knos relay --serve" in r]
+    starts = [i for i, r in enumerate(runs) if "gh workflow run worker.yml" in r]
+    assert install + 1 < relays[0] < starts[0] == relays[1] < starts[1] == len(steps) - 1
+    first = steps[relays[0]]
+    assert first["id"] == "relay" and "gh workflow run" not in first["run"]
+    lines = [ln.strip() for ln in first["run"].splitlines()]
+    at = lines.index("python -m knos relay --serve 250")
+    assert lines[-1] == 'echo "relayed=true" >> "$GITHUB_OUTPUT"' and at < len(lines) - 1      # said only after the relay ended well
+    assert "exit 1" in lines[at + 1] and "-ge 200" in lines[at + 1]                             # and had relayed its time: no quick loop
+    # every step between the relay and the end runs only while nothing failed (no status function: GitHub adds success())
+    for s in steps[relays[0] + 1:-1]:
+        assert s["if"] == "steps.chain.outputs.go == 'true'" and "always()" not in s["if"] and "failure()" not in s["if"]
+    # the last step runs whatever happened in the handover step, and starts a run only after a relay step that succeeded
+    last = steps[-1]["if"]
+    assert last.startswith("always() && ") and "steps.relay.outcome == 'success'" in last and "steps.relay.outputs.relayed == 'true'" in last
+    assert "||" not in last
+    # in the handover step the relay runs after the start, as its own command: its status is the step's
+    handover = [ln.strip() for ln in re.sub(r"\\\n\s*", " ", steps[relays[1]]["run"]).splitlines()]
+    assert handover[-1] == "python -m knos relay --serve 30" and handover[-2].startswith("gh workflow run worker.yml ")

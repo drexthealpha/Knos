@@ -1,0 +1,54 @@
+# .github/workflows/knos-count-on-deployment.yml: a deployment succeeded, so each pull request it contains is counted as
+# one evaluation at knos_meter (a count with no escrow), under a milestone of its own.
+#
+# For the BUYER, in the repository the pull requests are merged into. For each pull request merged in the last DAYS
+# days that the deployed commit contains, it starts this repository's `knos attest` workflow (examples/knos-attest.yml)
+# with kind `eval` and `<work order>.<milestone>.<rate>`. That run is Knos's pinned attest.yml: it reads GitHub's
+# record of the pull request (merged: accepted) and asks GitHub to sign one evaluation. knos_meter counts an
+# evaluation once per buyer, work order, artifact, policy and milestone, so a second deployment of the same commit
+# counts nothing more. Milestone 1 is "merged" by convention; this file uses 2 for "deployed".
+#
+# Who authenticates what. knos_meter authenticates the attest run: the pinned attest.yml at the commit the buyer's
+# Credits name, in a repository the buyer owns, on its first attempt (programs-v2/knos_meter/src/meter.rs). It reads
+# no event name, so any event may lead to that run. It does NOT authenticate the deployment: the milestone number is
+# this file's word. Trusted: this file on the default branch, and whoever can report a deployment status here.
+#
+# Set the repository variables KNOS_WORK_ORDER (the work order's 32-byte id, 64 hex characters) and KNOS_RATE (what
+# the seller bills per accepted evaluation, in the smallest unit).
+name: knos count on deployment
+
+on:
+  deployment_status:
+
+permissions: {}
+
+jobs:
+  count:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'production'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read          # the compare between a merge and the deployed commit
+      pull-requests: read     # the merged pull requests
+      actions: write          # start this repository's own knos attest workflow by hand
+    env:
+      GH_TOKEN: ${{ github.token }}
+      R: ${{ github.repository }}
+      KNOS_ATTEST: knos-attest.yml    # the file examples/knos-attest.yml is installed as
+      DAYS: "14"
+      SHA: ${{ github.event.deployment.sha }}
+      ORDER: ${{ vars.KNOS_WORK_ORDER }}
+      RATE: ${{ vars.KNOS_RATE }}
+      MILESTONE: "2"
+    steps:
+      - name: one evaluation per merged pull request in the deployed commit
+        run: |
+          set -euo pipefail
+          since=$(jq -rn --argjson days "$DAYS" 'now - $days * 86400 | strftime("%Y-%m-%d")')
+          gh api -X GET search/issues -f q="repo:$R is:pr is:merged merged:>=$since" -f per_page=100 --jq '.items[].number' > pulls.txt
+          while read -r n; do
+            merge=$(gh api "repos/$R/pulls/$n" --jq .merge_commit_sha)
+            case "$(gh api "repos/$R/compare/$merge...$SHA" --jq .status 2>/dev/null || true)" in ahead|identical) ;; *) continue ;; esac
+            gh workflow run "$KNOS_ATTEST" --repo "$R" -f repository="$R" -f pull="$n" -f order="$ORDER.$MILESTONE.$RATE" -f kind=eval
+            echo "pull request #$n: one evaluation asked for, milestone $MILESTONE"
+          done < pulls.txt

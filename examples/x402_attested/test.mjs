@@ -1,5 +1,5 @@
 // node --test examples/x402_attested/test.mjs
-// The x402 "attested" flow end to end on one machine: an HTTP server and a client, the chain replayed from fixtures.json
+// The x402 "knos-order" flow end to end on one machine: an HTTP server and a client, the chain replayed from fixtures.json
 // (what the test build of knos_pay did in LiteSVM). The messages exchanged are the ones docs/X402.md prints, exactly.
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -51,9 +51,9 @@ test("the client funds the order the 402 names, is served, and the seller is pai
     // the 402 named this payer's order, the fee on top, and the terms whose hash the order stores
     const req = got.messages.paymentRequired.accepts[0];
     assert.deepEqual([req.scheme, req.amount, req.asset, req.payTo, req.extra.order, req.extra.fee, req.extra.termsHash],
-                     ["attested", String(fx.amount), fx.mint, fx.seller.wallet, fx.order.address, String(fx.fee), fx.terms_hash]);
+                     ["knos-order", String(fx.amount), fx.mint, fx.seller.wallet, fx.order.address, String(fx.fee), fx.terms_hash]);
     // delivered against escrow: the settlement says the money is held, not paid
-    assert.deepEqual(got.settlement.extensions.attested.info, { order: fx.order.address, state: "escrowed", deadline: fx.order.deadline });
+    assert.deepEqual(got.settlement.extensions["knos-order"].info, { order: fx.order.address, state: "escrowed", deadline: fx.order.deadline });
     assert.equal(got.settlement.payer, fx.buyer);
     const at = async () => (await fetch(`${w.base}/orders/${fx.order.address}`)).json();
     assert.deepEqual(await at(), { order: fx.order.address, state: "escrowed", deadline: fx.order.deadline });

@@ -517,11 +517,11 @@ dependencies = [
 
 [[package]]
 name = "knos-oidc-interface"
-version = "0.3.13"
+version = "0.3.14"
 
 [[package]]
 name = "knos_oidc"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "solana-program",
  "solana-security-txt",

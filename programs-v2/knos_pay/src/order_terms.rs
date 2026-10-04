@@ -1,6 +1,6 @@
 //! What an order can promise beyond "paid on a judge's token" (2.1): a holdback kept through a warranty, a standing
 //! offer paid once per pull request, a reservation, a cancellation with notice and a kill fee, an assigned payment,
-//! and the markers that can be closed once they no longer matter. order_pay.rs calls this file from its hooks.
+//! a quorum of judges, and the markers that can be closed once they no longer matter. order_pay.rs calls this file from its hooks.
 //!
 //! WHERE AN ORDER'S MONEY CAN GO, beyond the four transfers order_pay.rs lists (all from ["ov", order], in its mint):
 //!   -> a token account of each wallet ["hb", order] recorded     Release: that payee's part of the holdback, whole
@@ -13,9 +13,12 @@
 //!   Hb   ["hb", order]            240 bytes: where the holdback of an order in WARRANTY goes. Closed with the order.
 //!   Done ["done", order, pr u64]  65 bytes: this standing order has paid this pull request.
 //!   As   ["as", order, payee id]  88 bytes: the wallet this order pays for that payee instead of the payee's own.
+//!   Q    ["q", order, kind u8]    106 bytes: judge `kind` (0 own repository, 1 neutral run, 2 judge repository) passed
+//!                                 this artifact for an order with a QUORUM. Closed by CloseMarker once it cannot count.
 //! PayOrder takes, after its payees' accounts: one ["as", order, payee] per payee, in the payees' order (it need not
 //! exist, but it cannot be left out: a relayer cannot hide an assignment), then ["done", order, pr](w) for a STANDING
-//! order, or ["hb", order](w) for one with a holdback. SettleOrder takes ["as", order, payee] after its sixteen.
+//! order, or ["hb", order](w) for one with a holdback; then, for an order with a QUORUM, the three ["q", order, kind](w),
+//! kinds 0, 1, 2, last. SettleOrder takes ["as", order, payee] after its sixteen.
 //! RefundOrder takes, after its eight, the taker's bind and a token account of his wallet (w) when a kill fee is due.
 //!
 //! INSTRUCTIONS (the first byte of the data is the tag; (s) signs, (w) is writable):
@@ -24,32 +27,36 @@
 //!                  Anyone, once the warranty is over: each recorded wallet receives its part of the holdback (its
 //!                  associated token account is created here when it does not exist), the relayer the tip, FEE_OWNER
 //!                  what is left; the order, its token account and the record are closed.
-//!   19 Revert      relayer(s) revert_token key order(w) ov(w) hb(w) refund_token(w) auth rent_to(w) hb_payer(w) mint token_program
+//!   19 Revert      relayer(s,w) revert_token key order(w) ov(w) hb(w) refund_token(w) auth rent_to(w) hb_payer(w) mint token_program
+//!                  system used(w)
 //!                  Inside the warranty, on a token of judge a, b or c (order_judge::judge: the order's own
 //!                  repository, a NEUTRAL attest.yml by hand in the runner's own repository, the judge repository)
 //!                  issued after the payment with audience knos3:revert:<order>:<head sha>: everything the order
 //!                  holds goes back to its funder; all closed. The arbiter rules on payments, not on reverts.
-//!   20 Reserve     relayer(s) take_token key order(w)
+//!                  This is also the CHALLENGE of a payment (see `revert`): anyone re-runs the pinned judge.
+//!   20 Reserve     relayer(s,w) take_token key order(w) system used(w)
 //!                  A command's token (order_judge::command) with audience knos3:take:<order>:<taker id>:<days>, days
 //!                  1..=the order's reserve_days: the pinned fund.yml (the COMMAND job) or prove.yml run in the order's
 //!                  own repository, or, for a NEUTRAL order, the pinned attest.yml started by hand in the taker's own
 //!                  repository. Its `actor_id` is the taker it names: a person reserves for himself. The order (OPEN,
 //!                  not cancelled, not reserved now) is reserved for the taker.
-//!   21 Cancel      signer(s) order(w) [cancel_token key]
+//!   21 Cancel      signer(s,w) order(w) [cancel_token key system used(w)]
 //!                  A wallet's order: the funding wallet signs. A Balance's order: a command's token with audience
 //!                  knos3:cancel:<order> from the pinned fund.yml or prove.yml run in the order's own repository,
 //!                  whose actor funded the order or owns the Balance. Once, on an OPEN order: the deadline becomes
-//!                  min(deadline, now + NOTICE). PayOrder is not changed by it.
+//!                  min(deadline, now + NOTICE). PayOrder is not changed by it. With a token the signer pays the rent
+//!                  of its marker `used`, and only then must it be writable.
 //!   24 Assign      signer(s,w) order bind as(w) system        data: payee id u64, to [32]
 //!                  The payee's bound wallet signs (or, once an assignment is set, its current assignee): this
 //!                  order's payment for that payee goes to `to`.
 //!   27 CloseMarker marker(w) rent_to(w) order
 //!                  Anyone. A ["used", ...] marker once no token it stands for can be accepted any more (`order` is
-//!                  not read), or a ["done", ...] marker once its order (`order`) is closed: its rent to who paid it.
+//!                  not read), or a ["done", ...] marker once its order (`order`) is closed, or a ["q", ...] marker
+//!                  once its order is no longer the OPEN order it was made for: its rent to who paid it.
 //!
 //! LOGS: knos3:warranty order= held= until=      knos3:released order= payee= amount= to=      knos3:reverted order= amount= head=
 //!       knos3:reserved order= taker= until=     knos3:cancelled order= at= deadline=          knos3:kill order= taker= amount= held=
-//!       knos3:assigned order= payee= to=
+//!       knos3:assigned order= payee= to=             knos3:quorum order= judge= have= of=
 use crate::{err, gh::*, order::*, order_judge::command, order_pay::{judge_ok, Judge, Payee}, pay::bound, state::*, token::*, *};
 use knos_oidc::claims::{self, parts};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, system_program};
@@ -75,6 +82,14 @@ pub const A_ORDER: usize = 16;
 pub const A_TO: usize = 48;         // the wallet that is paid
 pub const A_SINCE: usize = 80;      // i64: the `not_before` of the order it was made for: a later order at the same address ignores it
 pub const AS_LEN: usize = 88;
+// Q ["q", order, kind u8]
+pub const Q_BUMP: usize = 0;
+pub const Q_KIND: usize = 1;        // 0 the order's own repository (judges a and e), 1 a neutral run (b), 2 the judge repository (c)
+pub const Q_PAYER: usize = 2;       // who paid the rent
+pub const Q_ORDER: usize = 34;
+pub const Q_SINCE: usize = 66;      // i64: the `not_before` of the order it was made for: a later order at the same address ignores it
+pub const Q_ART: usize = 74;        // [32]: sha256 of what the judge passed: the audience after the order's address
+pub const Q_LEN: usize = 106;
 
 /// A cancelled order still takes a pay token for this long (or until its own deadline, if that is sooner).
 pub const NOTICE: i64 = 7 * 86_400;
@@ -115,7 +130,7 @@ pub fn not_yet(program_id: &Pubkey, o: &Order, payees: &[Payee], per: &[AccountI
 }
 
 /// After the payees, the tip and the fee of one payment were sent and `paid` was raised, before the order is closed
-/// when nothing is left. `per`: the accounts after PayOrder's thirteen (SettleOrder's eleven); `paid`: the order's
+/// when nothing is left. `per`: the accounts after PayOrder's fourteen (SettleOrder's eleven); `paid`: the order's
 /// `paid` after this payment.
 ///   - the taker was paid: his reservation is over, and with it any kill fee;
 ///   - a STANDING order: this pull request is marked ["done", order, pr] (E_REPLAY if it was paid before); the order
@@ -243,15 +258,26 @@ fn aud_of<'x, const N: usize>(aud: &'x [u8], word: &[u8], order: &Pubkey) -> Res
     Ok(p)
 }
 
-/// 19 Revert: inside the warranty a judge says the accepted change was reverted: the holdback, and the fee on it,
-/// go back to where the order's money came from. The token is a judge's as PayOrder's is (a the order's own
+/// 19 Revert: inside the warranty a judge says the accepted change was reverted, or does not pass after all: the
+/// holdback, and the fee on it, go back to where the order's money came from.
+///
+/// THE CHALLENGE. For an order that allows a neutral run (flag NEUTRAL), "a judge" includes anyone: a stranger starts
+/// the pinned attest.yml by hand in a repository of his own (judge b), it runs the pinned judge again on the head
+/// that was paid, and it signs knos3:revert:<order>:<head> only when that head fails the order's terms. No bond is
+/// asked of a challenger, because a false challenge cannot be made: the token is GitHub's signature over a run of
+/// the pinned file at the pinned commit on a GitHub-hosted runner, and that file decides what it signs, not the
+/// person who started it. A challenge costs its sender one transaction fee and a marker's rent. After the warranty
+/// Release pays and no challenge is heard (E_STATE). What the program itself checks is the judge and the window:
+/// the order keeps no record of the head it paid, so that the head named is the one that was paid is the pinned
+/// workflow's word. An order without NEUTRAL is challenged only from its own or its judge repository.
+/// The token is a judge's as PayOrder's is (a the order's own
 /// repository, b a NEUTRAL attest.yml by hand in the runner's own repository, c the judge repository), issued after
 /// the payment. Whoever signs it, the only thing it can do is return what the order still holds to its funder, and
 /// only inside the warranty: what was paid stays paid. A ruling is not a revert, so the arbiter signs none.
 pub fn revert(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, order, ov, hb, refund_tok, auth, rent_to, hb_payer, mint, token] = take(accounts)?;
+    let [relayer, tok, key, order, ov, hb, refund_tok, auth, rent_to, hb_payer, mint, token, sys, used] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
-    if !relayer.is_signer { return Err(err(E_ACCOUNTS)); }
+    if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let o = load_order(program_id, order)?;
     let g = github(tok, key, now)?;
     if o.state != WARRANTY || now > o.hold_until || g.iat < o.hold_until - o.warranty_s { return Err(err(E_STATE)); }
@@ -263,6 +289,7 @@ pub fn revert(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i
     if *rent_to.key != o.rent_to || *hb_payer.key != h.payer { return Err(err(E_ACCOUNTS)); }
     let ok = if o.kind == 1 { *refund_tok.key == o.refund_to } else { is_owned(refund_tok, token.key, &o.mint, &o.refund_to) };
     if !ok { return Err(err(E_PAYEE)); }
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, false)?;
     let amount = amount_of(ov, token.key, E_ACCOUNTS)?;
     if amount > 0 { transfer(token, ov, mint, refund_tok, auth, amount, m.decimals, Some(bump))?; }
     msg!("knos3:reverted order={} amount={} head={}", b58(order.key), amount, core::str::from_utf8(head).map_err(|_| err(E_AUD))?);
@@ -281,9 +308,9 @@ pub fn revert(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i
 /// kill fee for one. An order is reserved by one taker at a time, and not after a Cancel: a kill fee is for a taker
 /// who was working when the funder cancelled, not for one who arrives afterwards.
 pub fn reserve(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
-    let [relayer, tok, key, order] = take(accounts)?;
+    let [relayer, tok, key, order, sys, used] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
-    if !relayer.is_signer { return Err(err(E_ACCOUNTS)); }
+    if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let o = load_order(program_id, order)?;
     let g = github(tok, key, now)?;
     if o.state != OPEN || now > o.deadline || o.cancel_at != 0 || (o.reserved_by != 0 && now <= o.reserved_until) || g.iat < o.not_before {
@@ -294,6 +321,8 @@ pub fn reserve(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: 
     let (taker, days) = (n(taker)?, n(days)?);
     if taker == 0 || days == 0 || days > o.reserve_days as u64 { return Err(err(E_AUD)); }
     if g.actor_id != taker { return Err(err(E_CLAIMS)); }
+    // a take token reserves once: when its reservation has run out, the same token does not start another
+    mark_used(program_id, relayer, used, sys, &sig_hash(tok)?, USED, false)?;
     let until = now.saturating_add(days as i64 * 86_400);
     let mut d = order.try_borrow_mut_data()?;
     put_u64(&mut d, O_RESERVED_BY, taker); put_i64(&mut d, O_RESERVED_UNTIL, until);
@@ -315,11 +344,13 @@ pub fn cancel(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i
     if o.kind == 0 {
         if *signer.key != o.source { return Err(err(E_ACCOUNTS)); }
     } else {
-        let [tok, key] = take(accounts.get(2..).ok_or(ProgramError::NotEnoughAccountKeys)?)?;
+        let [tok, key, sys, used] = take(accounts.get(2..).ok_or(ProgramError::NotEnoughAccountKeys)?)?;
         let g = github(tok, key, now)?;
         if g.iat < o.not_before { return Err(err(E_STATE)); }
         if command(&o, &g)? != Judge::Own || (g.actor_id != o.funder_id && g.actor_id != o.owner_id) { return Err(err(E_CLAIMS)); }
         aud_of::<3>(&g.aud, b"cancel", order.key)?;
+        // a cancel token cancels once: an order funded later at this address is not cancelled by it
+        mark_used(program_id, signer, used, sys, &sig_hash(tok)?, USED, false)?;
     }
     let deadline = o.deadline.min(now.saturating_add(NOTICE));
     let mut d = order.try_borrow_mut_data()?;
@@ -418,13 +449,79 @@ pub fn assign(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Pro
     Ok(())
 }
 
-// ---- 5. markers ------------------------------------------------------------------------------------------------
+// ---- 5. quorum -------------------------------------------------------------------------------------------------
+
+pub fn q_key(program_id: &Pubkey, order: &Pubkey, kind: u8) -> (Pubkey, u8) { Pubkey::find_program_address(&[b"q", order.as_ref(), &[kind]], program_id) }
+
+/// What a judge passed, as two judges must agree on it: sha256 of the audience after its order's address, which is
+/// <head sha>:<terms hash hex>:<mode>:<pr>:<payees>. A pay token and an AUTO order's token (knos3:auto) of the same
+/// commit, pull request and payees are the same artifact.
+fn artifact(aud: &[u8]) -> Result<[u8; 32], ProgramError> {
+    let at = aud.iter().enumerate().filter(|(_, c)| **c == b':').nth(2).ok_or_else(|| err(E_AUD))?.0;
+    Ok(solana_program::hash::hashv(&[&aud[at + 1..]]).to_bytes())
+}
+
+/// Whether `q` is the marker of judge `kind` for this order as it is funded now, saying `art`. The account must be
+/// that marker's address whether or not it exists: a relayer can neither count one judge's marker as another's nor
+/// hide one that is there (which would use up the last judge's token without paying).
+fn said(program_id: &Pubkey, q: &AccountInfo, order: &Pubkey, o: &Order, kind: u8, art: &[u8; 32]) -> Result<bool, ProgramError> {
+    if *q.key != q_key(program_id, order, kind).0 { return Err(err(E_ACCOUNTS)); }
+    if q.owner != program_id || q.data_len() != Q_LEN { return Ok(false); }
+    let d = q.try_borrow_data()?;
+    Ok(i64_at(&d, Q_SINCE) == o.not_before && d[Q_ART..Q_ART + 32] == art[..])
+}
+
+/// HOOK of PayOrder, once the token is accepted and marked used. An order with a QUORUM of n pays only when n
+/// DISTINCT judges have passed the same artifact: a the order's own repository (prove.yml; an AUTO order's unmerged
+/// run counts as this one), b a neutral run, c the judge repository. Returns true when the payment goes on: the
+/// order has no quorum, or the token is the arbiter's ruling (he decides alone, as both sides agreed at funding), or
+/// this judge is the last one needed. Otherwise this judge's marker ["q", order, kind] is written (the relayer pays
+/// its rent; CloseMarker returns it) and nothing is paid: false.
+///   - Two tokens of one kind count once: the second rewrites the same marker. A judge who passes another artifact
+///     later (another head, pull request or payee) replaces his earlier word; the others' markers then say something
+///     else and do not count with it.
+///   - A neutral run counts only as a third party's: not one in the order's own repository, and not one started by
+///     the account that funded the order or owns its Balance. (GitHub signs no more than that about who a person
+///     is: two accounts of one person are two judges here. The judge repository is the funder's choice at funding.)
+///   - `accounts`: PayOrder's; the last three are the markers of kinds 0, 1, 2, each at its own address whether it
+///     exists or not, so none is counted twice and none is hidden.
+#[allow(clippy::too_many_arguments)]
+pub fn quorum<'a>(program_id: &Pubkey, relayer: &AccountInfo<'a>, order: &AccountInfo<'a>, sys: &AccountInfo<'a>, o: &Order, g: &Gh, judge: Judge,
+                  accounts: &[AccountInfo<'a>]) -> Result<bool, ProgramError> {
+    let need = o.quorum();
+    let kind = match judge { Judge::Arbiter => return Ok(true), Judge::Own | Judge::Auto => 0u8, Judge::Neutral => 1, Judge::Private => 2 };
+    if need == 0 { return Ok(true); }
+    if judge == Judge::Neutral && (g.repo_id == o.repo || (o.kind == 1 && (g.actor_id == o.funder_id || g.actor_id == o.owner_id))) { return Err(err(E_CLAIMS)); }
+    if accounts.len() < 17 { return Err(ProgramError::NotEnoughAccountKeys); }
+    let qs = &accounts[accounts.len() - 3..];
+    let art = artifact(&g.aud)?;
+    let mut have = 1u8;
+    for k in (0..3u8).filter(|k| *k != kind) {
+        if said(program_id, &qs[k as usize], order.key, o, k, &art)? { have += 1; }
+    }
+    if have >= need { return Ok(true); }
+    let mine = &qs[kind as usize];
+    let (_, bump) = open(program_id, relayer, mine, sys, Q_LEN, &[b"q", order.key.as_ref(), &[kind]], E_ACCOUNTS)?;
+    let mut d = mine.try_borrow_mut_data()?;
+    // a marker left by an earlier order at this address, or by this judge for another artifact, is rewritten; its
+    // rent stays whose it was (a marker never written has no payer yet)
+    if d[Q_PAYER..Q_PAYER + 32] == [0u8; 32] { put_key(&mut d, Q_PAYER, relayer.key); }
+    d[Q_BUMP] = bump; d[Q_KIND] = kind;
+    put_key(&mut d, Q_ORDER, order.key); put_i64(&mut d, Q_SINCE, o.not_before);
+    d[Q_ART..Q_ART + 32].copy_from_slice(&art);
+    msg!("knos3:quorum order={} judge={} have={} of={}", b58(order.key), kind, have, need);
+    Ok(false)
+}
+
+// ---- 6. markers ------------------------------------------------------------------------------------------------
 
 /// 27 CloseMarker: a marker that can no longer matter is closed and its rent goes back to whoever paid it. The two
 /// kinds are told by their length (no other account of this program has either):
 ///   ["used", sig]: after the time stored in it, by which no instruction can accept a token used when it was made
 ///                  (state::mark_used: an hour after the latest such a token can expire, plus the verifier's lateness);
-///   ["done", order, pr]: once nothing is at its order's address (the order was paid out or refunded).
+///   ["done", order, pr]: once nothing is at its order's address (the order was paid out or refunded);
+///   ["q", order, kind]: once its order is not the OPEN order it was made for: nothing is at that address, or the
+///                  order there was funded later, or it is no longer OPEN (paid and in WARRANTY, or HELD).
 pub fn close_marker(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
     let [marker, rent_to, order] = take(accounts)?;
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
@@ -434,6 +531,10 @@ pub fn close_marker(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], 
         match d.len() {
             USED_LEN => (key_at(&d, U_PAYER), now > i64_at(&d, U_AFTER)),
             DONE_LEN => (key_at(&d, D_PAYER), *order.key == key_at(&d, D_ORDER) && order.owner != program_id),
+            Q_LEN => (key_at(&d, Q_PAYER), *order.key == key_at(&d, Q_ORDER) && {
+                let o = order.try_borrow_data()?;
+                order.owner != program_id || o.len() != ORDER_LEN || o[O_STATE] != OPEN || i64_at(&o, O_NOT_BEFORE) != i64_at(&d, Q_SINCE)
+            }),
             _ => return Err(err(E_ACCOUNTS)),
         }
     };
@@ -476,9 +577,14 @@ mod tests {
         o.paid = 19_000_000;
         assert_eq!(kill_fee(&o), 1_000_000);
         // every kind of account that is told by its length has its own
-        let mut lens = [BALANCE_LEN, JOB_LEN, BIND_LEN, REP_LEN, PAIR_LEN, BALX_LEN, PLAN_LEN, ORDER_LEN, USED_LEN, PAUSE_LEN, RATE_LEN, HB_LEN, DONE_LEN, AS_LEN];
+        let mut lens = [BALANCE_LEN, JOB_LEN, BIND_LEN, REP_LEN, PAIR_LEN, BALX_LEN, PLAN_LEN, ORDER_LEN, USED_LEN, PAUSE_LEN, RATE_LEN, HB_LEN, DONE_LEN, AS_LEN, Q_LEN];
         lens.sort_unstable();
         assert!(lens.windows(2).all(|w| w[0] != w[1]));
         assert_eq!(H_ENTRIES + MAX_PAYEES * H_ENTRY, HB_LEN);
+        // an artifact is what follows the order's address, whichever word the audience carries
+        let tail = format!("{}:{}:1:7:5.10000.-", "a".repeat(40), "ab".repeat(32));
+        assert!(artifact(format!("knos3:pay:x:{tail}").as_bytes()) == artifact(format!("knos3:auto:yy:{tail}").as_bytes()));
+        assert!(artifact(format!("knos3:pay:x:{tail}").as_bytes()) != artifact(format!("knos3:pay:x:{}", tail.replace(":7:", ":8:")).as_bytes()));
+        assert!(artifact(b"knos3:pay").is_err() && Q_ART + 32 == Q_LEN);
     }
 }

@@ -315,18 +315,24 @@ refused token only when it takes the signature check on chain to tell. The token
 <!-- bench:devnet -->
 | the second deployment on devnet | measured |
 |---|---|
-| tasks funded | 49 |
-| tasks paid | 40 |
+| tasks funded | 51 |
+| tasks paid | 42 |
 | tasks funded with their own tokens by someone other than Knos, both deployments | 0 |
 | of those, paid to someone other than the funder | 0 |
 | funders among them | 0 |
 | funders who funded again after one of their tasks was paid | 0 |
-| payments timed from the merge, over the public relay's log | 36 |
-| seconds from the merge to the payment, median | 24 |
-| seconds from the merge to the payment, 90th percentile | 54 |
-| seconds from the funding comment to the funded task, median | 48 |
+| payments timed from the merge, over the public relay's log (n) | 38 |
+| seconds from the merge to the payment, median (p50) | 25 |
+| seconds from the merge to the payment, 95th percentile (p95) | 164 |
+| the day of the oldest of those payments (UTC) | 2026-10-02 |
+| the day of the newest | 2026-10-04 |
+| of those payments, made by the first deployment's escrow | 2 |
+| of those payments, made by the second deployment's escrow | 36 |
+| seconds from the funding comment to the funded task, median | 50 |
 
-Read from the site's `stats.json` of 2026-10-04 07:51 UTC (`python scripts/bench_docs.py --stats stats.json`).
+Merge to paid is defined as: seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank. One function measures it (`measure` in `scripts/network_stats.py`); this table, `docs/facts.json`, the site's Numbers page (`stats.json`) and `latency.json` all state that function's output.
+
+Read from the site's `stats.json` of 2026-10-04 19:50 UTC (`python scripts/bench_docs.py --stats stats.json`).
 <!-- /bench:devnet -->
 
 The site's [Numbers section](https://drexthealpha.github.io/Knos/#network) shows today's count, read from the

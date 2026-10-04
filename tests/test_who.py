@@ -263,6 +263,37 @@ def test_take_reserves_an_issue_nobody_holds():
     assert who.take(issue(), [assigned(MONA, HUBOT, T0 - 50 * DAY), assigned(MONA, HUBOT, T0 - 49 * DAY, "unassigned")], TERMS, MONA, T0).assign == ("mona",)
 
 
+def test_an_agents_own_account_takes_and_is_paid_only_where_the_order_was_funded_auto():
+    # take: a Bot account reserves an `auto` order's issue as a person would; without `auto` it is refused as before
+    got = who.take(issue(), [], TERMS, DEVIN, T0, auto=True)
+    assert got.assign == (DEVIN["login"],) and got.reply.startswith(f"Knos: issue #7 is reserved for @{DEVIN['login']} until {who.when(T0 + 7 * DAY)}.")
+    refusal = "Knos: `/knos take` is for people, not bot accounts. The person who runs the agent can take the issue from their own account."
+    assert who.take(issue(), [], TERMS, DEVIN, T0) == who.Outcome(refusal)
+    assert who.take(issue(), [], TERMS, BOT, T0, auto=True) == who.Outcome(refusal)                 # never the workflow's own token
+    assert who.take(issue(), [], TERMS, {"login": "acme", "id": 5, "type": "Organization"}, T0, auto=True) == who.Outcome(refusal)
+    assert who.take(issue(), [], TERMS, MONA, T0, auto=True).assign == ("mona",)                    # a person, as ever
+    from knos import commands
+    for auto, assign in ((True, (DEVIN["login"],)), (False, ())):
+        assert who.answer(commands.parse("/knos take", False), DEVIN, issue=issue(), events=[], terms=TERMS, now=T0, auto=auto).assign == assign
+    # every other command still asks for a person, `auto` or not
+    bot = pull(DEVIN, assignees=[{**MONA, "type": "Bot"}])
+    assert who.answer(commands.parse("/knos mine", True), {**MONA, "type": "Bot"}, pull=bot, permission=permission, now=T0, auto=True) \
+        == who.Outcome(commands.reply("not_allowed", "mine"))
+    # payee: on an `auto` order an open pull request pays its author, an agent's account too
+    got = paid(pull(DEVIN), issue(), [], [], [], strict=True, auto=True)
+    assert (got["id"], got["login"]) == (DEVIN["id"], DEVIN["login"]) and got["why"] == "the pull request's author, an agent's account: the order was funded `auto`"
+    assert paid(pull(MONA), issue(), [], [], [], strict=True, auto=True)["why"] == "the pull request's author"
+    # ... and where a human is required it still is: an order without `auto`, a tip, the workflow's own account
+    assert paid(pull(DEVIN), issue(), [], [], [], strict=True)["id"] is None
+    assert paid(pull(DEVIN, merged_at=stamp(T0)), None, None, [], None, strict=True, tip=True, auto=True)["id"] is None
+    assert paid(pull(BOT), issue(), [], [], [], strict=True, auto=True)["id"] is None
+    # what holds for a person holds for the agent: it must close the issue, a maintainer's reject stops it, a held issue is its holder's
+    assert paid(pull(DEVIN, body="no issue"), issue(), [], [], [], strict=True, auto=True)["kind"] == "issue"
+    assert paid(pull(DEVIN), issue(), [], [comment(1, HUBOT, "/knos reject")], [], strict=True, auto=True)["kind"] == "rejected"
+    assert paid(pull(DEVIN), issue(MONA), [assigned(MONA, BOT, T0 - DAY)], [], [], strict=True, auto=True)["kind"] == "assigned"
+    assert paid(pull(DEVIN), issue(DEVIN), [assigned(DEVIN, BOT, T0 - DAY)], [], [], strict=True, auto=True)["id"] == DEVIN["id"]
+
+
 def test_take_changes_nothing_when_it_cannot_reserve():
     def said(*args) -> str:
         got = who.take(*args)

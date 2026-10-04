@@ -391,6 +391,11 @@ class Relay:
             return {"ok": False, "kind": "pay", "why": "not from a judge this order takes: a run in the order's judge repository"}      # judge c
         if o.terms.hex() != aud[4] or str(o.mode) != aud[5] or sum(bps for _i, bps, _a in payees) != 10_000 or not 1 <= len(payees) <= pay.MAX_PAYEES:
             return {"ok": False, "kind": "pay", "why": "the order did not accept the token"}
+        need = o.flags >> 6                                  # order_terms.rs quorum: before its last judge an order writes a marker and pays nothing
+        judged = self.__dict__.setdefault("judged", {})
+        if need and judged.get(str(address), 0) + 1 < need:
+            judged[str(address)] = judged.get(str(address), 0) + 1
+            return {"ok": True, "kind": "pay", "sigs": [self._sig(), self._sig()], "order": address, "paid": [], "quorum": {"have": judged[str(address)], "of": need}}
         paid = []
         for pid, _bps, named in payees:
             bind = pay.read_bind(ledger.accounts.get(str(pay.bind_pda(pid))))

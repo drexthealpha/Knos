@@ -8,6 +8,13 @@
     program NAME    a program (one of those names, or an address) as the chain has it: "absent", or
                     "<executable hash> <upgrade authority, or none>"
     buffer ADDRESS  a program buffer as the chain has it: "absent", or "<executable hash> <its authority, or none>"
+    room NAME       how many bytes of program the data account of NAME can hold: a build larger than that cannot be
+                    upgraded to until the account is extended
+    extend NAME N   the upgradeable loader's ExtendProgram: N more bytes for NAME's data account, their rent paid by the
+                    fee payer. It changes no code, and anyone may send it while the cluster has not activated
+                    ExtendProgramChecked (devnet on 4 October 2026: `solana feature status` lists it inactive); once that
+                    is active only the upgrade authority can extend, which here is the upgrade vault. Exit 6 when the
+                    cluster refuses it
     gate NAME FILE [TOKEN]   whether the upgrade gate holds a record that GitHub built FILE for NAME. With TOKEN (a file
                     holding the token program.yml asked GitHub for, audience gate:<program>:<hash>), a missing record
                     is written. With --wait SECONDS a record that is not there yet is waited for (program.yml's gate
@@ -15,6 +22,13 @@
     rc-ids OIDC PAY OUT   write the staging ids file a client reads through KNOS_PROGRAM_IDS
     schedule OUT FILE...  join what `governance.mjs upgrade propose --out` wrote for each program into the one file
                     scripts/schedule_upgrade.sh reads, and print when the upgrades can be executed
+    stale [--replace] NAME=HASH...   the upgrade proposals that can still run and would deploy another build of NAME than
+                    HASH (this build's executable hash), one per line: "<index> <program> <its build's hash> <Squads status>".
+                    Without --replace, exit 5 and say so when there is one: nothing may be proposed beside it. With
+                    --replace they are listed for scripts/deploy_v2.sh to withdraw (node scripts/governance.mjs cancel)
+    kept NAME=HASH  the buffer of the newest proposal that can still run and carries exactly this build of NAME, or
+                    nothing: deploy_v2.sh proposes with that buffer, so governance.mjs continues that proposal
+                    and never makes a second one for the same build
     summary-new     one line about knos_meter, knos_passkey and upgrade_gate. Exit 1 unless all three are deployed
                     and held by the upgrade vault
     faucet          InitFaucet: the escrow's test-USDC mint
@@ -59,6 +73,7 @@ CLUSTERS = {"EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG": "devnet", "4uhcVJyU9
 
 
 NEW = ("knos_meter", "knos_passkey", "upgrade_gate")         # what 0.3.13 deploys for the first time
+UPGRADED = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")     # what --propose proposes: every program the upgrade vault holds
 LOADER = "BPFLoaderUpgradeab1e11111111111111111111111"
 
 
@@ -96,6 +111,24 @@ def program_state(ledger, name: str) -> tuple[str, str | None] | None:
         return None if data is None else ("", data)
     deployed, authority, elf = mc.program_data(account, program_id(name))
     return (mc.elf_hash(elf), authority) if deployed else None
+
+
+def room(ledger, name: str) -> int | None:
+    """How many bytes of program the data account of `name` holds room for; None when it is not deployed. The loader
+    refuses an Upgrade whose buffer is larger."""
+    data = ledger.account(mc.programdata_address(program_id(name)))
+    return None if data is None or len(data) < mc.PROGRAMDATA_HEADER else len(data) - mc.PROGRAMDATA_HEADER
+
+
+def extend_ix(program: str, payer: Pubkey, more: int):
+    """The upgradeable loader's ExtendProgram (variant 6, additional_bytes u32): programdata(w) program(w) system
+    payer(s,w). The payer pays the rent of the bytes added."""
+    from solders.instruction import AccountMeta, Instruction
+    if not 0 < more < 2 ** 32:
+        raise SystemExit(f"refused: a program is extended by 1 to {2 ** 32 - 1} bytes, not by {more}.")
+    return Instruction(Pubkey.from_string(LOADER), (6).to_bytes(4, "little") + more.to_bytes(4, "little"),
+                       [AccountMeta(mc.programdata_address(program), False, True), AccountMeta(Pubkey.from_string(program), False, True),
+                        AccountMeta(Pubkey.from_string("11111111111111111111111111111111"), False, False), AccountMeta(payer, True, True)])
 
 
 def buffer_state(ledger, address: str) -> tuple[str, str | None] | None:
@@ -180,6 +213,46 @@ def schedule(parts: list[dict], rpc: str, wait: int = 600) -> dict:
     return {"rpc": rpc, "executable_from": last, "executable_from_utc": when(last), "run_at": last + wait, "run_at_utc": when(last + wait),
             "proposals": sorted(({k: p[k] for k in ("program", "address", "buffer", "hash", "index", "approved_at", "executable_from")} for p in parts),
                                 key=lambda p: int(p["index"]))}
+
+
+def older(entries: list[dict], builds: dict[str, str]) -> list[dict]:
+    """The upgrade proposals that can still run and would deploy another build than this one, lowest index first.
+    `entries`: scripts/upgrade_feed.py's (its `pending` is a draft, an active or an approved proposal above the
+    multisig's stale index). `builds`: this build's executable hash by program name. A proposal whose buffer cannot be
+    read is not known to be this build, so it counts."""
+    return sorted((e for e in entries if e["status"] == "pending" and e["program"] in builds and e.get("build_hash") != builds[e["program"]]),
+                  key=lambda e: int(e["index"]))
+
+
+def replace_plan(entries: list[dict], builds: dict[str, str], replace: bool) -> tuple[list[dict], str | None]:
+    """(the proposals to withdraw before this build is proposed, the refusal). Without `replace` an older proposal
+    that can still run is a refusal and nothing is withdrawn: two approved proposals for one program would both
+    execute, and the later execution wins whatever was meant. With it, each is listed to be withdrawn first."""
+    found = older(entries, builds)
+    if not found or replace:
+        return found, None
+    said = "; ".join(f"proposal {e['index']} ({e['program']}, build {e.get('build_hash') or 'unknown: its buffer cannot be read'}, "
+                     + (f"approved: it can be executed from {when(e['earliest_execution'])}" if e.get("earliest_execution") else f"{e['squads_status'].lower()}: it can still be approved")
+                     + ")" for e in found)
+    return [], (f"refused: {said} would deploy another build than this one. Nothing was proposed. To withdraw "
+                f"{'it' if len(found) == 1 else 'them'} and propose this build in {'its' if len(found) == 1 else 'their'} place, pass --replace: "
+                "bash scripts/deploy_v2.sh --propose --replace")
+
+
+def kept(entries: list[dict], name: str, build: str) -> str | None:
+    """The buffer of the newest proposal that can still run and would deploy exactly `build` of `name`; None when
+    there is none. It is this build's own proposal, made by an earlier run (perhaps from another buffer file)."""
+    mine = [e for e in entries if e["status"] == "pending" and e["program"] == name and e.get("build_hash") == build]
+    return max(mine, key=lambda e: int(e["index"]))["buffer"] if mine else None
+
+
+def builds_of(pairs: list[str]) -> dict[str, str]:
+    """{program: executable hash} from NAME=HASH arguments."""
+    out = dict(p.split("=", 1) for p in pairs if "=" in p)
+    bad = [p for p in pairs if "=" not in p] + [n for n, h in out.items() if n not in UPGRADED or len(h) != 64]
+    if bad or not out:
+        raise SystemExit(f"stale takes NAME=HASH for programs among {', '.join(UPGRADED)} (got {' '.join(pairs) or 'nothing'})")
+    return out
 
 
 def summary_new(ledger) -> tuple[bool, str]:
@@ -296,7 +369,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rpc", default="https://api.devnet.solana.com")
     ap.add_argument("--payer", type=Path, help="the fee payer's keypair file")
     ap.add_argument("--wait", type=float, default=0, help="gate: seconds to wait for a record that is not there yet")
-    ap.add_argument("step", choices=["cluster", "hash", "id", "program", "buffer", "gate", "rc-ids", "schedule", "faucet", "keys", "fee-account",
+    ap.add_argument("--replace", action="store_true", help="stale: list the older proposals to withdraw instead of refusing")
+    ap.add_argument("step", choices=["cluster", "hash", "id", "program", "buffer", "gate", "rc-ids", "schedule", "stale", "kept", "room", "extend", "faucet", "keys", "fee-account",
                                      "addresses", "transactions", "summary", "summary-new"])
     ap.add_argument("arg", nargs="?")
     ap.add_argument("more", nargs="*")
@@ -315,7 +389,27 @@ def main(argv: list[str] | None = None) -> int:
     if a.step == "schedule":
         plan = schedule([json.loads(Path(f).read_text(encoding="utf-8")) for f in a.more], a.rpc)
         Path(a.arg).write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
-        print(f"  both upgrades can be executed from {plan['executable_from_utc']}; the scheduler runs them at {plan['run_at_utc']} ({a.arg})")
+        n = len(plan["proposals"])
+        print(f"  {'the upgrade' if n == 1 else f'all {n} upgrades'} can be executed from {plan['executable_from_utc']}; the scheduler runs "
+              f"{'it' if n == 1 else 'them'} at {plan['run_at_utc']} ({a.arg})")
+        return 0
+    if a.step in ("stale", "kept"):
+        import upgrade_feed                                     # the one reader of the multisig's proposals and their buffers
+        builds = builds_of([a.arg, *a.more] if a.arg else [])
+        ids = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+        _ms, got = retrying(lambda: upgrade_feed.entries(mc._rpc(a.rpc), ids), say=lambda line: print(line, file=sys.stderr))   # stdout is the list
+        if a.step == "kept":
+            if len(builds) != 1:
+                raise SystemExit("kept takes one NAME=HASH")
+            (name, build), = builds.items()
+            print(kept([vars(e) for e in got], name, build) or "")
+            return 0
+        withdraw, refusal = replace_plan([vars(e) for e in got], builds, a.replace)
+        if refusal:
+            print(refusal, file=sys.stderr)
+            return 5
+        for e in withdraw:
+            print(f"{e['index']} {e['program']} {e.get('build_hash') or 'unknown'} {e['squads_status']}")
         return 0
     ledger = chain.Ledger(a.rpc)
     if a.step == "cluster":
@@ -324,6 +418,20 @@ def main(argv: list[str] | None = None) -> int:
     if a.step in ("program", "buffer"):
         state = program_state(ledger, a.arg) if a.step == "program" else buffer_state(ledger, a.arg)
         print("absent" if state is None else f"{state[0]} {state[1] or 'none'}")
+        return 0
+    if a.step == "room":
+        have = room(ledger, a.arg)
+        print("absent" if have is None else have)
+        return 0
+    if a.step == "extend":
+        payer = Keypair.from_bytes(bytes(json.loads(a.payer.read_text(encoding="utf-8"))))
+        before, more = room(ledger, a.arg), int(a.more[0])
+        try:
+            sig = ledger.send([extend_ix(program_id(a.arg), payer.pubkey(), more)], payer)
+        except chain.RpcError as why:
+            print(f"  the cluster refused to extend {a.arg} by {more} bytes: {str(why)[:300]}", file=sys.stderr)
+            return 6
+        print(f"  {a.arg}: its data account holds room for {room(ledger, a.arg)} bytes of program now (before: {before}): {sig}")
         return 0
     if a.step == "gate":
         jwt = Path(a.more[1]).read_text(encoding="utf-8").strip() if len(a.more) > 1 else None

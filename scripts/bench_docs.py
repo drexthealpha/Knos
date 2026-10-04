@@ -10,6 +10,8 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
                                                      must match)
     python scripts/bench_docs.py --stats stats.json  first take what was measured on devnet from the site's stats.json
                                                      (scripts/network_stats.py): the release runs this once
+    python scripts/bench_docs.py --site _site        hold the documents to a built site's stats.json and latency.json:
+                                                     exit 1 when they disagree on any number both state
     python scripts/bench_docs.py --set NAME=NUMBER --source "where it was measured"
                                                      fill one slot that stats.json cannot (see SLOTS)
     python scripts/bench_docs.py --slots             list the slots that have no number yet; exit 1 if there is one
@@ -74,11 +76,21 @@ DEVNET = [
     ("of those, paid to someone other than the funder", "outside.completed"),
     ("funders among them", "outside.funders"),
     ("funders who funded again after one of their tasks was paid", "outside.repeat_funders"),
-    ("payments timed from the merge, over the public relay's log", "latency.merge_to_paid.count"),
-    ("seconds from the merge to the payment, median", "latency.merge_to_paid.median"),
-    ("seconds from the merge to the payment, 90th percentile", "latency.merge_to_paid.p90"),
+    ("payments timed from the merge, over the public relay's log (n)", "latency.merge_to_paid.count"),
+    ("seconds from the merge to the payment, median (p50)", "latency.merge_to_paid.median"),
+    ("seconds from the merge to the payment, 95th percentile (p95)", "latency.merge_to_paid.p95"),
+    ("the day of the oldest of those payments (UTC)", "latency.merge_to_paid.window.from"),
+    ("the day of the newest", "latency.merge_to_paid.window.to"),
+    ("of those payments, made by the first deployment's escrow", "latency.merge_to_paid.deployment.first"),
+    ("of those payments, made by the second deployment's escrow", "latency.merge_to_paid.deployment.second"),
     ("seconds from the funding comment to the funded task, median", "latency.comment_to_funded.median"),
 ]
+# Kept beside the rows, and printed under the table: what the merge-to-paid number is, in the words of the one function
+# that measures it (scripts/network_stats.py, measure()).
+DEFINITION = "latency.merge_to_paid.definition"
+# The numbers stats.json and latency.json both state, as (path in stats.json's latency.<wait>, path in latency.json's
+# <wait>): one build writes both, from one function, so they are equal or the build is broken.
+SITE_PAIRS = [(k, f"measure.{k}") for k in ("n", "p50", "p95", "slowest", "count", "median", "p90")] + [("n", "all_time.n"), ("p50", "all_time.p50"), ("p95", "all_time.p95")]
 # Every slot: name -> (what the number counts, its path in stats.json). With no path, the release run measures the
 # number itself and gives it with --set and --source.
 SLOTS = {
@@ -378,6 +390,12 @@ def devnet(d: dict) -> str:
     read = stats.get("updated")
     lines = ["| the second deployment on devnet | measured |", "|---|---|"]
     lines += [f"| {what} | {_said(_dig(stats, path))} |" for what, path in DEVNET]
+    if _dig(stats, DEFINITION):
+        lines += ["", f"Merge to paid is defined as: {_dig(stats, DEFINITION)}. One function measures it (`measure` in "
+                      "`scripts/network_stats.py`); this table, `docs/facts.json`, the site's Numbers page (`stats.json`) and "
+                      "`latency.json` all state that function's output."]
+    if stats.get("note"):
+        lines += ["", stats["note"]]
     lines += ["", (f"Read from the site's `stats.json` of {read} (`python scripts/bench_docs.py --stats stats.json`)." if read else
                    f"No row has a number yet: {d['second']} The release fills the table from the site's `stats.json` "
                    "(`python scripts/bench_docs.py --stats stats.json`).")]
@@ -495,6 +513,32 @@ def disagreements(root: Path = ROOT) -> list[str]:
     return out
 
 
+def site_disagreements(stats: dict, latency: dict | None = None, root: Path = ROOT) -> list[str]:
+    """Every number the documents share with the site's data, where the two differ, one line each. `stats` is the
+    site's stats.json and `latency` its latency.json (both of one build). Three comparisons: docs/bench.json's
+    `devnet.stats` (which docs/BENCH.md's table and docs/facts.json state) against stats.json, path by path, when
+    bench.json was filled from that very stats.json (`updated` is the same); every fact of docs/facts.json that points
+    into `devnet.stats` against bench.json; and stats.json against latency.json. The release runs it after `--stats`
+    (`python scripts/bench_docs.py --site _site`), and the Pages build can."""
+    src = json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8"))
+    kept, out = (src.get("devnet") or {}).get("stats") or {}, []
+    if kept.get("updated") == stats.get("updated"):
+        for what, path in DEVNET:
+            if _dig(kept, path) != _dig(stats, path):
+                out.append(f"{what}: {_said(_dig(kept, path))} in docs/bench.json, {_said(_dig(stats, path))} in the site's stats.json")
+    else:
+        out.append(f"docs/bench.json was filled from the stats.json of {kept.get('updated')}, the site's is of {stats.get('updated')}: run --stats on it first")
+    for f in json.loads((root / "docs" / "facts.json").read_text(encoding="utf-8"))["facts"]:
+        path = str(f.get("path", ""))
+        if f.get("json") == "docs/bench.json" and path.startswith("devnet.stats.") and f.get("equals") != _dig(src, path):
+            out.append(f"docs/facts.json says {f.get('equals')} for {path}, docs/bench.json {_dig(src, path)}")
+    for wait in ("merge_to_paid", "comment_to_funded"):
+        for a, b in SITE_PAIRS if latency is not None else []:
+            if _dig(stats, f"latency.{wait}.{a}") != _dig(latency, f"{wait}.{b}"):
+                out.append(f"{wait}: stats.json's {a} is {_dig(stats, f'latency.{wait}.{a}')}, latency.json's {b} is {_dig(latency, f'{wait}.{b}')}")
+    return out
+
+
 def fill(stats_path: str | None = None, given: dict | None = None, root: Path = ROOT) -> list[str]:
     """What the release does with its measurements. `stats_path`: the site's stats.json; the numbers the `devnet` block
     uses are kept in docs/bench.json, and every slot whose number it has is filled. `given`: {slot name: (number, where
@@ -505,7 +549,7 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
     stats = json.loads(Path(stats_path).read_text(encoding="utf-8")) if stats_path else None
     if stats is not None:
         kept: dict = {"updated": stats.get("updated")}
-        for _what, path in DEVNET:
+        for _what, path in [*DEVNET, ("", DEFINITION)]:
             _keep(kept, path, _dig(stats, path))
         src.setdefault("devnet", {})["stats"] = kept
     given = dict(given or {})
@@ -603,6 +647,14 @@ if __name__ == "__main__":
         given = {name: (value if name in WHEN else float(value) if "." in value else int(value), source)}
     if "--stats" in sys.argv or given:
         fill(_arg("--stats"), given)
+    if "--site" in sys.argv:      # a built site's folder: its stats.json and latency.json against the documents
+        site = Path(_arg("--site"))
+        lat = site / "latency.json"
+        wrong = site_disagreements(json.loads((site / "stats.json").read_text(encoding="utf-8")), json.loads(lat.read_text(encoding="utf-8")) if lat.exists() else None)
+        for line in wrong:
+            print("the documents and the site: " + line)
+        if wrong:
+            raise SystemExit(1)
     if "--slots" in sys.argv:
         left = slots()
         for doc, name in left:

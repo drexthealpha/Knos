@@ -1,0 +1,78 @@
+# .github/workflows/knos-meter-batch.yml: have GitHub sign one batch of your meter ledger, so that knos_meter counts it.
+# For a BUYER (the count that is billed, RecordBatch) and for a SELLER (its own count of the same month, ClaimBatch, no
+# fee), each in a repository of their own that holds their ledger file. It needs no secret.
+#
+# Before it runs: keep your ledger file in this repository (default path: knos-ledger.jsonl; another path goes in the
+# repository variable KNOS_LEDGER). `knos meter batch <events> --ledger <file> --month YYYY-MM` adds a batch to the
+# file on your own machine (a seller adds --claim); commit the file. A seller also sets the repository variable
+# KNOS_METER_KIND to `claim`. A buyer opens credits once (knos_meter OpenCredits) for Knos's workflows at the commit
+# named at the bottom of this file: the meter takes a buyer's batch only from attest.yml or prove.yml at that commit.
+# A seller's claim needs no such pin: the meter takes it from any workflow in a repository the seller owns.
+#
+# What starts it:
+#
+#   A timer, once a day. It signs the next batch of the file that the chain has not taken yet (this month's or last
+#       month's), one batch a run. When there is none it signs nothing and the run still succeeds.
+#   You, by hand (`workflow_dispatch`). Actions > knos meter batch > Run workflow. Name the file and whose count it
+#       is; add `:202610.0` (month and seq) after the path to sign that one batch instead of the next one.
+#
+# What it can do in this repository: read the ledger file through GitHub's API, ask GitHub for one signed statement
+# whose audience is the batch (`knosm:batch:<buyer>:<seller>:<yyyymm>:<seq>:<count>:<accepted>:<value>:<root>`, or
+# `knosm:claim:...`), and post that statement as a comment on the issue titled "knos tokens" here (made the first
+# time), where a relayer finds it and carries it to Solana. What it cannot do: change anything else. It checks out
+# nothing, writes no code, pull request, release or setting, and holds no secret of yours.
+#
+# What the statement is worth. The meter checks GitHub's signature and which workflow spoke, in whose repository, and
+# takes each batch once (its seq must be the ledger account's next one). It does not see the evaluations: the file
+# holds them, `knos meter verify <file> --rpc <url>` holds the file to the chain, and `knos meter reconcile` sets the
+# buyer's file against the seller's. A buyer's batch past the month's free 10,000 evaluations is paid from the buyer's
+# credits, whole or not at all.
+#
+# Name the commit of Knos's workflows in full, never a branch or a tag; it is the one the other Knos files name too.
+name: knos meter batch
+
+on:
+  schedule:
+    - cron: "23 4 * * *"      # once a day, at a minute few others use
+  workflow_dispatch:
+    inputs:
+      order:
+        description: "The ledger file's path in this repository; add :yyyymm.seq to name one batch (else: the next one the chain has not taken)"
+        required: true
+        type: string
+        default: knos-ledger.jsonl
+      kind:
+        description: "Whose count: batch (you are the buyer) or claim (you are the seller)"
+        required: true
+        type: choice
+        options: [batch, claim]
+        default: batch
+
+permissions: {}
+
+jobs:
+  timer:
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: read          # the ledger file, read through GitHub's API (there is no checkout)
+      issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
+      id-token: write
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    with:
+      repository: ${{ github.repository }}
+      pull: 0                 # a batch names no pull request
+      order: ${{ vars.KNOS_LEDGER || 'knos-ledger.jsonl' }}
+      kind: ${{ vars.KNOS_METER_KIND || 'batch' }}
+
+  hand:
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    with:
+      repository: ${{ github.repository }}
+      pull: 0
+      order: ${{ inputs.order }}
+      kind: ${{ inputs.kind }}

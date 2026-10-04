@@ -1,0 +1,53 @@
+name: hermetic judge (staging)
+
+# The hermetic judge end to end in a real container: tests/test_judge_hermetic.py::test_end_to_end_in_a_real_container
+# on a GitHub-hosted Ubuntu runner, where docker answers. The image is pulled by digest (scripts/tamper_bench.py
+# ESCAPE_IMAGE); the honest fix passes, a pull request that changes nothing does not, a rerun agrees, and the five
+# escapes are held. Everywhere else in the suite the judge runs against a stand-in runtime, and this test is skipped
+# where no runtime answers. Here a skip is a failure, and the job counts the containers docker started from that image.
+#
+# Staging only (drexthealpha/knos-rc). tests.yml is the release gate and runs every job it has, with no condition
+# (tests/test_release_gate.py), so this job, which pulls an image from Docker Hub, is a workflow of its own.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: hermetic-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  container:
+    if: github.repository == 'drexthealpha/knos-rc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e ".[dev]"
+      - run: git config --global user.email ci@example.invalid && git config --global user.name ci
+      - name: the judge in a real container (a skip fails the job; every container docker starts is counted)
+        shell: bash
+        run: |
+          docker version --format 'docker {{.Server.Version}}'
+          digest="$(python -c 'import re, pathlib; print(re.search(r"ESCAPE_IMAGE = \"[^\"]+@(sha256:[0-9a-f]{64})\"", pathlib.Path("scripts/tamper_bench.py").read_text(encoding="utf-8")).group(1))')"
+          docker events --filter type=container --filter event=start --format '{{.Actor.Attributes.image}} {{.ID}}' > "$RUNNER_TEMP/started" &
+          watch=$!
+          pytest -p no:cacheprovider -q -rA "tests/test_judge_hermetic.py::test_end_to_end_in_a_real_container" | tee "$RUNNER_TEMP/pytest.out"
+          sleep 2; kill "$watch"
+          grep -q "^PASSED tests/test_judge_hermetic.py::test_end_to_end_in_a_real_container" "$RUNNER_TEMP/pytest.out" \
+            || { echo "::error::the real-container test did not pass (skipped or not run)"; exit 1; }
+          started="$(grep -c "@$digest " "$RUNNER_TEMP/started" || true)"
+          [ "$started" -ge 1 ] || { echo "::error::docker started no container of the image $digest"; exit 1; }
+          echo "hermetic judge, end to end: passed; docker started $started containers of the image @$digest" | tee -a "$GITHUB_STEP_SUMMARY"

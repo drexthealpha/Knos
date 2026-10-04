@@ -3,6 +3,11 @@
 //
 //   node scripts/sas_receipt.mjs <receipt.json>                                 dry run: print the instructions as JSON, send nothing
 //   node scripts/sas_receipt.mjs <receipt.json> --send --keypair FILE [--rpc URL]   send them on devnet (the key pays and is the credential's authority)
+//   node scripts/sas_receipt.mjs --init --send --keypair FILE [--rpc URL]           the release step: create the credential and the schema, no receipt
+//
+// Issuing the attestation is on by default wherever Knos issues a receipt (knos.receipt.attest runs this script with
+// --send after the paying transaction is confirmed, and never fails the payment). A receipt of version 1 or 2 is taken;
+// the attestation's fields are the same for both. An order attested already is not an error: {"sent": false, "already": true}.
 //
 // The Solana Attestation Service is program 22zoJMtdu4tQc2PzL74ZUT7FrwgB1Udec8DdW4yw4BdG (the same address on devnet and on
 // mainnet); this script builds its instructions with the service's own library, sas-lib 1.0.10 (an optional package of
@@ -41,12 +46,16 @@ export const digest = (receipt) => createHash("sha256").update(canonical(receipt
 
 /** The attestation's data, field by field: what of the receipt goes on chain. A private order has repository_id and issue 0. */
 export function fields(r) {
-  if (r?.type !== "knos.acceptance-receipt" || r.version !== 1) throw new Refused("this is not a Knos acceptance receipt of version 1 (docs/RECEIPT.md).");
+  if (r?.type !== "knos.acceptance-receipt" || ![1, 2].includes(r.version)) throw new Refused("this is not a Knos acceptance receipt of version 1 or 2 (docs/RECEIPT.md).");
   const bytes = (hexText) => Array.from(Buffer.from(hexText, "hex"));
+  // version 2 says the same facts under its four parts; a GitLab token names its run `pipeline_id`
+  const two = r.version === 2, claims = two ? r.issuer_authenticated.claims : r.judge.claims;
+  const artifact = two ? r.evaluator_observed.artifact : r.artifact;
   return {
     receipt_sha256: Array.from(digest(r)), order: r.order, scope: bytes(r.scope), repository_id: BigInt(r.repository?.id ?? 0), issue: BigInt(r.repository?.issue ?? 0),
-    commit: r.artifact.commit, pull_request: BigInt(r.artifact.pull_request), terms_hash: bytes(r.terms.hash), judge_kind: JUDGES.indexOf(r.judge.kind),
-    judge_run_id: BigInt(r.judge.claims.run_id), payees: r.payees.map((p) => `${p.github_id}.${p.bps}.${p.amount}.${p.to}`).join(","),
+    commit: artifact.commit, pull_request: BigInt(artifact.pull_request), terms_hash: bytes(two ? r.policy.terms_hash : r.terms.hash),
+    judge_kind: JUDGES.indexOf(two ? r.evaluator_observed.judge.kind : r.judge.kind),
+    judge_run_id: BigInt(claims.run_id ?? claims.pipeline_id), payees: r.payees.map((p) => `${p.github_id}.${p.bps}.${p.amount}.${p.to}`).join(","),
     mint: r.amounts.mint, paid: BigInt(r.amounts.paid), fee: BigInt(r.amounts.fee), transaction: r.transaction.signature,
   };
 }
@@ -85,9 +94,40 @@ export async function plan(receipt, authority) {
   };
 }
 
+/** The release step: create the credential "knos" and the schema "acceptance-receipt" under the key given, when they do not exist yet. */
+async function init(o) {
+  const web3 = await import("@solana/web3.js");
+  let sas;
+  try { sas = await import("sas-lib"); } catch { throw new Refused("the package sas-lib is not installed: npm ci --prefix scripts"); }
+  const key = o.keypair ? web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(o.keypair, "utf8")))) : null;
+  if (o.send && !key) throw new Refused("--send needs --keypair FILE: the devnet key that pays and is the credential's authority.");
+  const authority = key ? key.publicKey.toBase58() : o.authority ?? "11111111111111111111111111111111";
+  const signer = { address: authority, signTransactions: async () => [] };
+  const [credential] = await sas.deriveCredentialPda({ authority, name: CREDENTIAL });
+  const [schema] = await sas.deriveSchemaPda({ credential, name: SCHEMA, version: SCHEMA_VERSION });
+  const instructions = [
+    plain("create credential", sas.getCreateCredentialInstruction({ payer: signer, authority: signer, credential, name: CREDENTIAL, signers: [authority] })),
+    plain("create schema", sas.getCreateSchemaInstruction({ payer: signer, authority: signer, credential, schema, name: SCHEMA,
+                                                           description: "Knos acceptance receipt, version 1: docs/RECEIPT.md", layout: localSchema().layout,
+                                                           fieldNames: FIELDS.map(([name]) => name) })),
+  ];
+  if (!o.send) return console.log(JSON.stringify({ dry_run: true, program: SAS, authority, credential, schema, instructions }, null, 1));
+  const conn = new web3.Connection(o.rpc ?? process.env.KNOS_RPC ?? "https://api.devnet.solana.com", "confirmed");
+  if (await conn.getGenesisHash() !== DEVNET_GENESIS) throw new Refused("this script writes to devnet only, and the cluster at --rpc is not devnet. Nothing was sent.");
+  const exists = async (a) => (await conn.getAccountInfo(new web3.PublicKey(a))) !== null;
+  const skip = { "create credential": await exists(credential), "create schema": await exists(schema) };
+  const todo = instructions.filter((ix) => !skip[ix.name]);
+  if (!todo.length) return console.log(JSON.stringify({ sent: false, already: true, credential, schema }, null, 1));
+  const ixs = todo.map((ix) => new web3.TransactionInstruction({ programId: new web3.PublicKey(ix.program), data: Buffer.from(ix.data, "hex"),
+    keys: ix.accounts.map((a) => ({ pubkey: new web3.PublicKey(a.pubkey), isSigner: a.signer, isWritable: a.writable })) }));
+  const signature = await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(...ixs), [key]);
+  console.log(JSON.stringify({ sent: true, signature, credential, schema, created: todo.map((ix) => ix.name) }, null, 1));
+}
+
 async function main(argv) {
   const { values: o, positionals: [file] } = parseArgs({ args: argv, allowPositionals: true, options: {
-    send: { type: "boolean" }, keypair: { type: "string" }, rpc: { type: "string" }, authority: { type: "string" } } });
+    send: { type: "boolean" }, keypair: { type: "string" }, rpc: { type: "string" }, authority: { type: "string" }, init: { type: "boolean" } } });
+  if (o.init) return init(o);
   if (!file) throw new Refused("give the receipt: node scripts/sas_receipt.mjs <receipt.json> [--send --keypair FILE]");
   const receipt = JSON.parse(fs.readFileSync(file, "utf8"));
   const web3 = await import("@solana/web3.js");
@@ -97,7 +137,9 @@ async function main(argv) {
   if (!o.send) return console.log(JSON.stringify({ dry_run: true, ...p }, null, 1));
   const conn = new web3.Connection(o.rpc ?? process.env.KNOS_RPC ?? "https://api.devnet.solana.com", "confirmed");
   if (await conn.getGenesisHash() !== DEVNET_GENESIS) throw new Refused("this script writes to devnet only, and the cluster at --rpc is not devnet. Nothing was sent.");
-  if (await conn.getAccountInfo(new web3.PublicKey(p.attestation))) throw new Refused(`this order's receipt is attested already, at ${p.attestation}. Nothing was sent.`);
+  if (await conn.getAccountInfo(new web3.PublicKey(p.attestation))) {       // one attestation per order: a second send is a clean no-op
+    return console.log(JSON.stringify({ sent: false, already: true, attestation: p.attestation, credential: p.credential, schema: p.schema, receipt_sha256: p.receipt_sha256 }, null, 1));
+  }
   const exists = async (a) => (await conn.getAccountInfo(new web3.PublicKey(a))) !== null;
   const skip = { "create credential": await exists(p.credential), "create schema": await exists(p.schema) };
   const ixs = p.instructions.filter((ix) => !skip[ix.name]).map((ix) => new web3.TransactionInstruction({ programId: new web3.PublicKey(ix.program),

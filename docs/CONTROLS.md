@@ -6,17 +6,59 @@ about and says what exists today, with the file that implements it, and what doe
 Read this first:
 
 - **No SOC 2 report. No ISO 27001 certificate. No penetration test. No outside audit.** No security firm has
-  audited anything. The reviews Knos has had are readers' reviews of the design and the documents. They are not
-  security audits.
+  audited anything.
 - **One operator.** One person writes the code, holds every member key of the upgrade multisig, and runs the relay. No second
   person reviews a change or shares a duty.
 - **Devnet only.** The money is test USDC. Nothing here has run with real money.
 - **No contract.** There is no named legal entity, no terms of service, no data-processing agreement and no
   service-level agreement.
 
-Where a file is marked (0.3.13) it is new in that release. Everything else has been in the repository since
-0.3.12. [SECURITY.md](SECURITY.md) is the full security model. [ASSURANCE.md](ASSURANCE.md) lists the invariants
+Where a file is marked (0.3.13) or (0.3.14) it is new in that release. Everything else has been in the repository
+since 0.3.12. [SECURITY.md](SECURITY.md) is the full security model. [ASSURANCE.md](ASSURANCE.md) lists the invariants
 and the tests that hold them. [REGULATION.md](REGULATION.md) covers law.
+
+## The control list
+
+Three columns, kept apart on purpose: what the code does today, what is written down and not built, and what no
+code can supply.
+
+**Exists: enforced by a program or a command in this repository.**
+
+| control | where it is enforced | how it is set today |
+|---|---|---|
+| An organisation's Balance: money a wallet sets aside for one GitHub owner's repositories | `knos_pay`, [`fund.rs`](../programs-v2/knos_pay/src/fund.rs) | `knos balance open`, `deposit`, `withdraw` |
+| A cap per order | the program (`B_CAP`) | `knos balance open --cap`, `knos balance set --cap` |
+| Spenders: up to four GitHub accounts that may fund by comment, beside the owner | the program (`may_spend`) | `knos balance set --spender` |
+| A daily limit and a total limit on what a Balance spends | the program: the Balance's side account, `X_DAY_LIMIT` and `X_TOTAL_LIMIT` in [`state.rs`](../programs-v2/knos_pay/src/state.rs); `tests/test_order_chain.py` | the instruction `SetBalanceX`, built by `set_balance_x_ix` in [`pay.py`](../src/knos/settle/v2/pay.py). **No `knos` command sends it yet**: it takes a script. |
+| A repository allow-list: the only repositories (up to eight) that may spend a Balance, and the one workflows commit that may sign for it | the program: the same side account (`X_REPOS`, `X_WF_SHA`) | the same instruction; no command yet |
+| A policy file: who may fund, the cap per order, a monthly budget, which payees and vendors may be paid, default checks, private orders | **the command job, not the program**: [`policy.py`](../src/knos/policy.py) is read before GitHub is asked to sign, and its hash is in every order's terms. A person who can change the workflow on the default branch can go round it; the Balance's limits above are what holds then. | `.knos/policy.yml` on the default branch |
+| Plans: a lower fee rate for one owner until a date | the program (`SetPlan`, signed by the fee wallet) | by Knos, per owner |
+| Audit export (0.3.14): every order of an organisation as a hash-chained CSV or JSON, recomputed from the program's log lines; a second export of the same period is the same bytes, and `knos audit verify` finds an edited or removed row | [`audit.py`](../src/knos/audit.py); `tests/test_audit.py` | `knos audit export --owner <org> --from --to`, `knos audit verify <file>` |
+| A delay before a program changes: 48 hours, by a multisig | Squads, section 2 | |
+
+What the audit export does not hold: names (it carries GitHub's numeric ids), the commit of the workflows that signed
+(the paying transaction it names carries the token that says it), and the accepted commit of a pull request (the
+log prints a commit only on a revert). It is a file. Nothing sends it anywhere, and nothing keeps it.
+
+**A design only: written down, not built.**
+
+| control | where it is written |
+|---|---|
+| An organisation tier with a price ("Control") | the price book; nobody has bought it, and it adds no code beyond the rows above |
+| An admin console, or any screen that sets a Balance's limits | not built: the limits are set by an instruction |
+| Roles beyond owner and spender (an approver, a read-only auditor) | not designed in the program. The audit export is public data: anyone can make it for any owner. |
+| Alerts when a limit is near or a refusal happens | not built: a refusal is a comment on the issue and a failed transaction |
+| A judge repository for a public order that attests on any event | the program has the rule; no command reaches it ([ADAPTERS.md](ADAPTERS.md)) |
+
+**Needs people or contracts: no code supplies it, and none of it exists.**
+
+| control | what it would take |
+|---|---|
+| Single sign-on | Knos has no accounts, so there is nothing to sign on to: identity is GitHub's and a wallet's. A company that enforces SAML single sign-on on its GitHub organisation gets that for the comments that fund and the runs that sign. A console with its own sign-on would be a hosted service, with an operator and a contract. |
+| Support, with a response time | people, and an agreement that names the time |
+| An entity to contract with, terms of service, a data-processing agreement | a company; there is none named |
+| Independent review: a security audit, a SOC 2 report, a penetration test | an outside firm; none has looked |
+| A second person: for code review, for the multisigs, on call | a second person |
 
 ## 1. Access: who can do what
 
@@ -72,7 +114,7 @@ are stored; a rotation schedule for the multisig member keys; any holder other t
 
 | what is logged | where it lives | how to get it out |
 |---|---|---|
-| Every funding, payment, refund, binding, pause and key change | The programs' own log lines on Solana (`knos2:` and `knos3:` lines). Public, and permanent. | [`scripts/network_stats.py`](../scripts/network_stats.py) reads them. `knos receipts` and `knos statement` recompute a period from them. `knos export --siem` writes JSON Lines, one event per line; CSV and an invoice per period for finance ([`src/knos/records.py`](../src/knos/records.py), 0.3.13). |
+| Every funding, payment, refund, binding, pause and key change | The programs' own log lines on Solana (`knos2:` and `knos3:` lines). Public, and permanent. | [`scripts/network_stats.py`](../scripts/network_stats.py) reads them. `knos receipts` and `knos statement` recompute a period from them. `knos audit export` (0.3.14) writes every order of an owner as a hash-chained file, and `knos audit verify` checks one. `knos export --siem` writes JSON Lines, one event per line; CSV and an invoice per period for finance ([`src/knos/records.py`](../src/knos/records.py), 0.3.13). |
 | The terms of every public order | logged on chain as JSON when the order is funded | the same |
 | What the workflows did | GitHub Actions run logs in the customer's own repository, and the comments Knos posts on the issue and the pull request | GitHub's own export and retention |
 | What the public relay carried | the relay's public log | the site's `stats.json` |

@@ -1,0 +1,85 @@
+# .github/workflows/knos-on-workflow-run.yml: a named workflow of this repository finished green on the default branch
+# (a deploy, a nightly suite, a scan), so the pull requests in that commit are accepted.
+#
+# What it does. For each pull request merged here in the last DAYS days that is contained in the commit the workflow
+# ran on
+# (and that does not carry the status yet):
+#   1. it writes the commit status green/deploy = success on the pull request's last commit, and
+#   2. it starts this repository's own `knos` workflow for that pull request (`gh workflow run knos.yml -f pull=N`),
+#      whose settle job is Knos's pinned prove.yml. That run reads GitHub's record again, and asks GitHub to sign only if
+#      every check the order's terms name passed at that commit. This file signs nothing and holds no token of GitHub's
+#      signature (no `id-token`).
+#
+# Make it a condition of payment, not only a moment: fund the order with the status as a named check,
+#     /knos fund 500 checks: test, green/deploy
+# The names are hashed into the order at funding, so the order cannot be paid before this status is there.
+# Without it in the terms this file only chooses WHEN the payment is tried.
+#
+# Who authenticates what. The chain authenticates the settle run: GitHub's signature over a run of the pinned prove.yml,
+# at the commit the order recorded, in the order's own repository (programs-v2/knos_pay/src/order_judge.rs, judge a;
+# that rule names no event, and the pinned prove.yml settles on `workflow_dispatch`). The chain does NOT authenticate
+# that workflow's result: `workflow_run` is GitHub's own record of a run in this repository, read by this file, and
+# the settle run sees only the status.
+# What it sees is a commit status of this repository, as the settle run read it from GitHub's API.
+# So what stays trusted: everyone who can write a commit status here (write access, or a token with `statuses: write`),
+# this file as it is on the default branch, and GitHub's API.
+#
+# Every merged pull request that matches gets Knos's answer on it, also "nothing is in escrow". To act on fewer, set
+# QUERY to more search terms (for example `label:funded`).
+#
+# Change `workflows: [deploy]` to the `name:` of your workflow, and CONTEXT with it. Only a run that a push to the default
+# branch started counts: a run for a pull request, or of a fork, is not the repository's word.
+name: knos on workflow run
+
+on:
+  workflow_run:
+    workflows: [deploy]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: knos-adapter-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  accept:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.id == github.event.repository.id &&
+      github.event.workflow_run.head_branch == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read          # the compare between a merge and the event's commit
+      pull-requests: read     # the merged pull requests
+      statuses: write         # the one status this file writes
+      actions: write          # start this repository's own knos workflow by hand
+    env:
+      GH_TOKEN: ${{ github.token }}
+      R: ${{ github.repository }}
+      KNOS_WORKFLOW: knos.yml         # the file examples/knos-workflow.yml is installed as
+      DAYS: "14"
+      QUERY: ""
+      CONTEXT: green/deploy
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      SAID: The deploy workflow finished green
+      URL: ${{ github.event.workflow_run.html_url }}
+    steps:
+      - name: say it on each merged pull request, and try its payment
+        run: |
+          set -euo pipefail
+          since=$(jq -rn --argjson days "$DAYS" 'now - $days * 86400 | strftime("%Y-%m-%d")')
+          gh api -X GET search/issues -f q="repo:$R is:pr is:merged merged:>=$since $QUERY" -f per_page=100 --jq '.items[].number' > pulls.txt
+          while read -r n; do
+            pr=$(gh api "repos/$R/pulls/$n")
+            head=$(jq -r .head.sha <<<"$pr")
+            said=$(gh api "repos/$R/commits/$head/status" --jq '.statuses[] | select(.state == "success") | .context')
+            if grep -qxF "$CONTEXT" <<<"$said"; then continue; fi        # said already: nothing is done twice
+            # the merge is in what the event is about: GitHub's compare says SHA is ahead of the merge commit, or is it
+            merge=$(jq -r .merge_commit_sha <<<"$pr")
+            case "$(gh api "repos/$R/compare/$merge...$SHA" --jq .status 2>/dev/null || true)" in ahead|identical) ;; *) continue ;; esac
+            gh api -X POST "repos/$R/statuses/$head" -f state=success -f context="$CONTEXT" -f description="$SAID" -f target_url="$URL" > /dev/null
+            gh workflow run "$KNOS_WORKFLOW" --repo "$R" -f pull="$n"
+            echo "pull request #$n: $CONTEXT, and its payment is tried"
+          done < pulls.txt

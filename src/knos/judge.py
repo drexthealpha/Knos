@@ -47,6 +47,13 @@ example inputs passes any check made of fixed examples; a blackbox check with ge
 weakness either. For everything else there is the default mode, which pays on a maintainer's merge instead (and, for
 a bounty funded on the first deployment, the review window in which its funder can veto a tests-mode payment).
 
+Assurance, said in every verdict (`assurance`, and one sentence, `assurance_means`): in-process (the first five
+runners), black-box (the blackbox runner on this machine, behind the sandbox above when the machine has one), hermetic
+(the blackbox runner with an `image`: "$KNOS_RUN" runs the pull request's code in a container of that image, pinned by
+digest, with no network, a read-only root, a tmpfs work directory, another user, no capabilities, the tree mounted
+read-only and memory, CPU, process and time limits; the check, its reference and the judge stay outside). The digest
+that ran and the hash of both trees are in the verdict, so `knos judge rerun` gives either party the same judgment.
+
 So on the second deployment, which has no veto, a bounty is paid by its acceptance checks alone only when the bundle
 is black-box by a mechanical test, `black_box`: an entry file blackbox / blackbox.sh / blackbox.py at its top that
 names KNOS_RUN, no file that names KNOS_TREE, and no other runner set in .knos/proof.toml. knos.flow funds any other
@@ -75,6 +82,8 @@ try:
 except ImportError:  # Python 3.10
     import tomli as tomllib  # type: ignore[no-redef]
 
+from .terms import ASSURANCE, valid_image
+from .terms import Refused as _TermsRefused
 from .terms import ours as _ours   # a check run that is Knos's own: never evidence about the pull request
 from .terms import state_of, status_state, together
 from .who import excluded, payee  # noqa: F401 - payee is this module's too: `knos proof payee` and callers use judge.payee
@@ -343,6 +352,8 @@ def judge_with_rules(base_dir, pr_dir, cfg: dict, changed: list[str] | None, dif
             pass
         ev["mode"] = "tests"
         return g
+    if terms is not None and terms.get("image"):       # the image that was funded, whatever proof.toml says today
+        cfg = {**cfg, "image": terms["image"]}
     v = judge(base_dir, pr_dir, cfg, changed, setup=setup, sandbox=sandbox)
     bad = [r for r in v["reasons"] if r.startswith("touches protected path")]
     if bad:
@@ -674,6 +685,198 @@ class Box:
             subprocess.run(([] if os.geteuid() == 0 else ["sudo", "-n"]) + ["rm", "-rf", str(self.root)],
                            capture_output=True, timeout=120)
         shutil.rmtree(self.root, ignore_errors=True)
+
+
+# ---- the hermetic judge: the submission in a container pinned by digest ---------------------------------------------
+#
+# What the host sandbox above leaves open, and a container closes: the sandbox user still sees the machine's files
+# that anyone may read, can write wherever anyone may write (/tmp, /dev/shm), and has no limit on memory or processes.
+# In the container the submission sees the image, its own tree (read-only) and an empty tmpfs, and nothing else.
+
+RUNTIMES = ("docker", "podman")
+SUBMISSION, WORK, SUITE = "/submission", "/work", "/suite"     # where the container sees the tree, its scratch, the public suite
+
+
+@dataclass(frozen=True)
+class Limits:
+    """What one "$KNOS_RUN" call may use. Fixed numbers, recorded in the verdict: a rerun uses the ones recorded."""
+    memory: str = "512m"
+    cpus: str = "1"
+    pids: int = 128
+    seconds: int = 45           # wall clock for one call; the container is killed after it (a made bundle waits 60)
+    scratch: str = "64m"        # the tmpfs work directory
+
+    @classmethod
+    def of(cls, raw) -> "Limits":
+        """The limits a proof.toml `[judge.limits]` table or a verdict's record names. Raises ValueError."""
+        raw = raw if isinstance(raw, dict) else {}
+        size = re.compile(r"[1-9][0-9]{0,5}[kmg]")
+        got = cls(**{k: raw[k] for k in ("memory", "cpus", "pids", "seconds", "scratch") if k in raw})
+        ok = (isinstance(got.memory, str) and size.fullmatch(got.memory) and isinstance(got.scratch, str)
+              and size.fullmatch(got.scratch) and isinstance(got.cpus, str) and re.fullmatch(r"[0-9]{1,2}(\.[0-9]{1,2})?", got.cpus)
+              and float(got.cpus) > 0 and type(got.pids) is int and 1 <= got.pids <= 4096
+              and type(got.seconds) is int and 1 <= got.seconds <= 3600)
+        if not ok:
+            raise ValueError('the judge\'s limits are memory and scratch like "512m", cpus like "1" or "0.5", pids from 1 to '
+                             "4096 and seconds from 1 to 3600")
+        return got
+
+
+def container_runtime(env: dict | None = None, which=shutil.which) -> str | None:
+    """The program that runs containers here: KNOS_CONTAINER when it is set (a name on PATH, or a path), else docker,
+    else podman. None when there is none. On PATH is not the same as usable: `runtime_ready` asks it."""
+    env = os.environ if env is None else env
+    named = (env.get("KNOS_CONTAINER") or "").strip()
+    if named:
+        return which(named)
+    return next((found for found in map(which, RUNTIMES) if found), None)
+
+
+def runtime_ready(runtime: str | None) -> bool:
+    """Whether `runtime` can run a container now (docker on PATH with no daemon cannot)."""
+    if not runtime:
+        return False
+    try:
+        return subprocess.run([runtime, "info"], capture_output=True, timeout=30).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def container_argv(runtime: str, image: str, tree: Path | str, limits: Limits = Limits(), name: str = "",
+                   label: str = "", suite: Path | str | None = None) -> list[str]:
+    """The command line that runs one command of the submission in `image`; the command's own argv is appended to it.
+    A pure function, so what isolates the submission can be read and tested as a list:
+
+      the image          by digest only (`valid_image`), and never pulled by this command: `pull` did that and checked it
+      no network         --network none
+      nothing to write   --read-only root; the tree at /submission read-only; a fresh tmpfs at /work (HOME, TMPDIR) that
+                         dies with the container and holds no executable or device
+      nobody             uid and gid 65534, every capability dropped, no way to gain one
+      no host            no mount but the tree and, when the bundle has a `public/` folder, that folder at /suite,
+                         read-only; no environment variable of the judge (a container starts with the image's, plus
+                         the four named here)
+      limits             memory (and no swap beyond it), CPUs, processes; the time limit is the caller's (`run_script`)
+
+    Raises ValueError for an image that is not pinned by digest and for a path a mount cannot name."""
+    try:
+        image = valid_image(image)
+    except _TermsRefused as why:
+        raise ValueError(str(why)) from None
+    mounts = [(str(tree), SUBMISSION)] + ([(str(suite), SUITE)] if suite else [])
+    for src, _ in mounts:
+        if not os.path.isabs(src) or any(ch in src for ch in ',"\n'):
+            raise ValueError(f"cannot mount {src!r}: the judge mounts absolute paths with no comma, quote or line break")
+    argv = [runtime, "run", "--rm", "--interactive", "--pull", "never", "--network", "none", "--read-only",
+            "--tmpfs", f"{WORK}:rw,noexec,nosuid,nodev,size={limits.scratch},mode=1777",
+            "--user", f"{SANDBOX_UID}:{SANDBOX_UID}", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+            "--memory", limits.memory, "--memory-swap", limits.memory, "--cpus", limits.cpus,
+            "--pids-limit", str(limits.pids), "--entrypoint", "", "--workdir", SUBMISSION,
+            "--env", f"HOME={WORK}", "--env", f"TMPDIR={WORK}", "--env", "LANG=C.UTF-8", "--env", "PYTHONDONTWRITEBYTECODE=1"]
+    for src, dst in mounts:
+        argv += ["--mount", f"type=bind,source={src},target={dst},readonly"]
+    if name:
+        argv += ["--name", name]
+    if label:
+        argv += ["--label", f"knos.judge={label}"]
+    return [*argv, image]
+
+
+def run_script(argv: list[str], runtime: str, seconds: int, label: str, has_timeout: bool = True) -> str:
+    """The text of "$KNOS_RUN" for a hermetic judge: a shell script that runs its arguments through `argv` (from
+    `container_argv`, with no --name), each call in a container of its own, killed after `seconds`. The client is
+    killed, and then the container by name: killing the client alone leaves the container running."""
+    import shlex
+    q = shlex.quote
+    run = " ".join(q(a) for a in argv[:-1]) + ' --name "$name" ' + q(argv[-1]) + ' "$@"'
+    limit = f"timeout -s KILL {int(seconds)} " if has_timeout else ""
+    return ("#!/bin/sh\n"
+            f"name=knos-{label}-$$\n"
+            f"{limit}{run}\n"
+            "code=$?\n"
+            'if [ "$code" -ge 124 ]; then\n'
+            f'  {q(runtime)} rm -f "$name" >/dev/null 2>&1\n'
+            "fi\n"
+            'exit "$code"\n')
+
+
+def digest_ran(inspected, image: str) -> str:
+    """The digest in `image` (sha256:<64 hex>), once the runtime's own record of the image it holds (`image inspect`,
+    parsed) names that digest. Raises ValueError when it names another or none: the judge runs the image in the
+    terms, or it does not run."""
+    want = valid_image(image).rsplit("@", 1)[1]
+    one = inspected[0] if isinstance(inspected, list) and inspected else inspected
+    listed = one.get("RepoDigests") if isinstance(one, dict) else None
+    have = sorted({str(d).rsplit("@", 1)[-1] for d in listed or []})
+    if want not in have:
+        raise ValueError(f"the image this machine holds for {image} has the digest {', '.join(have) or 'none it will say'}, "
+                         f"not {want}. Refusing to judge on an image other than the one in the terms; remove the local "
+                         "image and run the judge again.")
+    return want
+
+
+def pull(runtime: str, image: str, timeout: float = 900, run=subprocess.run) -> dict:
+    """Pull `image` by its digest and return what ran: {"ref", "digest", "id", "runtime", "version"}. Raises ValueError
+    with what to do when the image cannot be pulled or is not the one named. `run` is subprocess.run (injected by
+    the tests)."""
+    valid = container_argv(runtime, image, "/")[-1]
+    try:
+        got = run([runtime, "pull", valid], capture_output=True, timeout=timeout)
+        if got.returncode != 0:
+            said = " ".join(got.stderr.decode("utf-8", "replace").split())[-300:]
+            raise ValueError(f"could not pull {valid} with {Path(runtime).name}: {said or f'exit {got.returncode}'}. Check that "
+                             "the image exists at that digest and that this machine can reach its registry.")
+        seen = run([runtime, "image", "inspect", "--format", "{{json .}}", valid], capture_output=True, timeout=60)
+        version = run([runtime, "--version"], capture_output=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        raise ValueError(f"pulling {valid} took more than {int(timeout)} seconds. Run the judge again.") from None
+    except OSError as why:
+        raise ValueError(f"could not run {runtime}: {why}") from None
+    try:
+        inspected = json.loads(seen.stdout.decode("utf-8", "replace") or "null")
+    except ValueError:
+        inspected = None
+    one = inspected[0] if isinstance(inspected, list) and inspected else inspected
+    return {"ref": valid, "digest": digest_ran(inspected, valid), "id": str((one or {}).get("Id") or ""),
+            "runtime": Path(runtime).name, "version": version.stdout.decode("utf-8", "replace").strip()[:80]}
+
+
+def _sweep(runtime: str, label: str) -> None:
+    """Remove every container this judgment started that is still there (a call that outlived its time limit)."""
+    try:
+        left = subprocess.run([runtime, "ps", "-aq", "--filter", f"label=knos.judge={label}"], capture_output=True, timeout=60)
+        ids = left.stdout.decode("utf-8", "replace").split()
+        if ids:
+            subprocess.run([runtime, "rm", "-f", *ids], capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def _readable(root: Path) -> None:
+    """Let the container's user read a tree this user owns (a bind mount keeps the host's modes)."""
+    for p in [root, *root.rglob("*")]:
+        try:
+            if not p.is_symlink():
+                p.chmod(p.stat().st_mode | (0o555 if p.is_dir() else 0o444))
+        except OSError:
+            pass
+
+
+def image_of(cfg: dict | None) -> str:
+    """The image a parsed .knos/proof.toml names for its judge (`[judge] image = "..."`), or "". What funding puts in the
+    terms: knos.terms.build(..., image=image_of(cfg)) refuses a tag there, with the words for the funder."""
+    cfg = cfg if isinstance(cfg, dict) else {}
+    section = cfg.get("judge") if isinstance(cfg.get("judge"), dict) else {}
+    return str(cfg.get("image") or section.get("image") or "")
+
+
+def assurance_of(runner: str, image) -> str:
+    """Which of the three assurances a judgment has: in-process, black-box or hermetic (ASSURANCE says what each means)."""
+    return "in-process" if runner != "blackbox" else "hermetic" if image else "black-box"
+
+
+def tree_hash(root: Path) -> str:
+    """One hash for a checkout: sha256 over its files' paths and hashes (.git and build folders left out, as `_files`)."""
+    return hashlib.sha256(json.dumps(_files(root), sort_keys=True).encode()).hexdigest()
 
 
 # ---- the runners ---------------------------------------------------------------------------------------------------
@@ -1185,7 +1388,20 @@ def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run
     # would be readable by the code that is being judged, so no bundle of the repository stays there.
     shutil.rmtree(box.work / ".knos" / "acceptance", ignore_errors=True)
     box.open_up()
-    if os.name == "nt":
+    held = cfg.get("_container")        # set by judge() once the image was pulled and its digest checked
+    if held:
+        _readable(box.work)
+        os.chmod(box.root, 0o755)       # the path to the tree, for a runtime that is not root; the check's folder stays 0700
+        public = private / "public"     # what the buyer lets the submission read: mounted read-only, outside its tree
+        argv = container_argv(held["runtime"], held["ref"], box.work, held["limits"], label=held["label"],
+                              suite=public if public.is_dir() else None)
+        if public.is_dir():
+            _readable(public)
+            os.chmod(private, 0o711)    # reach public/ and nothing else: the folder cannot be listed
+        runner = private / "knos-run"
+        runner.write_text(run_script(argv, held["runtime"], held["limits"].seconds, held["label"],
+                                     bool(shutil.which("timeout"))), "utf-8")
+    elif os.name == "nt":
         runner = _windows_runner(box.root / "knos-run", box.work)
     else:
         argv, env = box.wrap(["sh", "-c", 'exec "$@"', "sh"], net=False)
@@ -1204,7 +1420,15 @@ def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run
         code, log = 124, "timed out"
     res = {"acceptance::blackbox": "passed" if code == 0 else "failed"}
     if cfg.get("tests"):
-        code, more = box.run(str(cfg["tests"]), timeout=timeout)
+        if held:                         # the repository's own suite is pull request code too: same container
+            try:
+                got = subprocess.run([str(runner), "sh", "-c", str(cfg["tests"])], capture_output=True, timeout=timeout,
+                                     stdin=subprocess.DEVNULL, env=mine)
+                code, more = got.returncode, (got.stdout + got.stderr).decode("utf-8", "replace")
+            except subprocess.TimeoutExpired:
+                code, more = 124, "timed out"
+        else:
+            code, more = box.run(str(cfg["tests"]), timeout=timeout)
         res["tests::suite"] = "passed" if code == 0 else "failed"
         log += more
     return Run(res, {"acceptance::blackbox"}, log=log[-2000:])
@@ -1257,6 +1481,31 @@ def _side(box: Box, runner: str, issue: str, test_dirs, timeout: float, cfg: dic
     return _RUN[runner](box, issue, test_dirs, timeout, cfg)
 
 
+def _hold(image: str, runner: str, setup: str | None, limits) -> dict:
+    """Everything a hermetic judgment needs before any pull request code runs: the runtime, the image pulled and its
+    digest checked, the limits. Raises ValueError with one sentence saying what is wrong and what to do."""
+    try:
+        valid_image(image)
+    except _TermsRefused as why:
+        raise ValueError(str(why)) from None
+    if runner != "blackbox":
+        raise ValueError(f"an image goes with a black-box bundle, and this one is run by `{runner}`, which loads the pull "
+                         "request's code into the judge's process. Write the check as `blackbox.py` (`knos accept init`), "
+                         "or take `image` out.")
+    if setup:
+        raise ValueError("a hermetic judge installs nothing: the container has no network. Put the dependencies in the "
+                         "image and run the judge without --setup.")
+    if os.name == "nt":
+        raise ValueError("the hermetic judge needs a POSIX shell on the judge's machine; run it on Linux or macOS.")
+    runtime = container_runtime()
+    if not runtime_ready(runtime):
+        raise ValueError(("no container runtime on this machine" if not runtime else f"{runtime} is installed and does not "
+                          "answer (is its daemon running?)") + ": these terms name an image, so the judge runs only in "
+                         "it. Install docker or podman, or set KNOS_CONTAINER to the one to use.")
+    return {"runtime": runtime, "ref": image, "limits": Limits.of(limits), "label": secrets.token_hex(6),
+            "pulled": pull(runtime, image)}
+
+
 def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: dict | None = None,
           setup: str | None = None, sandbox: str = "auto") -> dict:
     """The verdict on a pull request in tests mode: {"passed", "checks_hash", "reasons", "evidence"}.
@@ -1271,7 +1520,14 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
     ev: dict = {"issue": issue}
 
     def verdict(h: str, reasons: list[str]) -> dict:
-        return {"passed": not reasons, "checks_hash": h, "reasons": reasons, "evidence": ev}
+        out = {"passed": not reasons, "checks_hash": h, "reasons": reasons, "evidence": ev}
+        if ev.get("runner"):             # how much this verdict can carry, said with it wherever it goes
+            level = assurance_of(ev["runner"], "image" in ev)      # hermetic only when a container of the image ran
+            out.update({"assurance": level, "assurance_means": ASSURANCE[level]})
+        return out
+
+    section = cfg.get("judge") if isinstance(cfg.get("judge"), dict) else {}
+    image = image_of(cfg)                # the terms' image when the caller has them (cfg["image"]), else proof.toml's
 
     if not re.fullmatch(r"[A-Za-z0-9._-]+", issue):
         return verdict("", [f"bad issue id {issue!r}"])
@@ -1291,7 +1547,18 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
                 if n in changed and _pytest_section(base, n) != _pytest_section(pr, n)]
     if bad:
         return verdict(h, [f"touches protected path {f}" for f in bad])
-    boxed = sandbox != "off" and sandbox_available()
+    ev["artifact"] = {"base": tree_hash(base), "pr": tree_hash(pr)}     # what was judged: `knos judge rerun` checks it has the same
+    held = None
+    if image:
+        try:
+            held = _hold(image, runner, setup, cfg.get("limits") or section.get("limits"))
+        except ValueError as why:
+            return verdict(h, [str(why)])
+        cfg = {**cfg, "_container": held}
+        ev["image"] = {k: v for k, v in held["pulled"].items()} | {"limits": vars(held["limits"])}
+    boxed = sandbox != "off" and not held and sandbox_available()
+    if held:                             # the container is the sandbox: the host one is neither needed nor asked for
+        sandbox = "off"
     if boxed and runner in ("python", "command", "blackbox"):
         why = _sandbox_cannot_run(sys.executable)
         if why and sandbox == "require":
@@ -1302,8 +1569,10 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
         return verdict(h, ["no sandbox on this machine (needs Linux, setpriv, unshare and root or passwordless sudo); "
                            "refusing to run pull request code without it"])
     ev["sandbox"] = {"user": SANDBOX_UID, "network": "setup only" if setup else "none"} if boxed else None
+    if held:
+        ev["sandbox"] = {"user": SANDBOX_UID, "network": "none", "container": held["pulled"]["digest"]}
     reasons: list[str] = []
-    key = (json.dumps(_files(base), sort_keys=True), issue, tuple(test_dirs), runner, setup or "")
+    key = (json.dumps(_files(base), sort_keys=True), issue, tuple(test_dirs), runner, setup or "", image)
     boxes = []
     try:
         if cache is None or key not in cache:
@@ -1319,6 +1588,8 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
         sides = {"base": got if cache is None else cache[key],
                  "pr": _side(pb, runner, issue, test_dirs, timeout, cfg, setup)}
     finally:
+        if held:
+            _sweep(held["runtime"], held["label"])
         for b in boxes:
             b.clean()
     res = {}
@@ -1353,3 +1624,109 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
         if broke:
             reasons.append("pass-to-pass broken: " + ", ".join(broke))
     return verdict(h, reasons)
+
+
+# ---- the same judge again: `knos judge rerun` ------------------------------------------------------------------------
+
+def load_verdict(path: Path) -> tuple[dict, Path | None]:
+    """(the verdict, the folder that holds its trees or None) from a verdict file (`knos proof judge --evidence`), from a
+    JSON file that holds one under "verdict", from an evidence bundle (the .tar of `knos bundle make --verdict`, which
+    holds verdict.json and never the trees), or from a folder: verdict.json, and base/ and pr/ beside it when it
+    carries the trees. Raises ValueError."""
+    import tarfile
+    path = Path(path)
+    folder = path if path.is_dir() else None
+    try:
+        if path.is_file() and tarfile.is_tarfile(path):          # an evidence bundle (knos bundle make --verdict): the same verdict.json, in the tar
+            from . import bundle
+            held = bundle.read(path.read_bytes()).get("verdict.json")
+            if held is None:
+                raise ValueError("this bundle holds no verdict.json (a merge-mode payment has none; `knos bundle make --verdict FILE` adds a judge's)")
+            data = json.loads(held)
+        else:
+            data = json.loads((path / "verdict.json" if folder else path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as why:
+        raise ValueError(f"cannot read a verdict from {path}: {why}") from None
+    v = data.get("verdict") if isinstance(data, dict) and isinstance(data.get("verdict"), dict) else data
+    ev = v.get("evidence") if isinstance(v, dict) else None
+    if not isinstance(ev, dict) or not isinstance(v.get("passed"), bool) or not isinstance(ev.get("artifact"), dict):
+        raise ValueError(f"{path} holds no verdict this version can run again: it needs `passed` and `evidence.artifact` "
+                         "(the hashes of the two trees), which `knos proof judge --evidence FILE` writes since 0.3.14.")
+    return v, folder
+
+
+def rerun(first: dict, base: Path, pr: Path, cfg: dict | None = None, sandbox: str = "auto", judge_fn=None) -> dict:
+    """Judge the same artifact again as `first` records it was judged, and compare: {"agree", "differences", "again"}.
+    `cfg`: the base's .knos/proof.toml, parsed. The image and limits are the ones the verdict recorded, not today's.
+    Raises ValueError when the trees are not the ones the verdict was given on: that is no rerun."""
+    ev = first["evidence"]
+    for side, root in (("base", base), ("pr", pr)):
+        have = tree_hash(root) if Path(root).is_dir() else "no such folder"
+        if have != ev["artifact"].get(side):
+            raise ValueError(f"{root} is not the {side} tree this verdict was given on (its hash is {have[:16]}, the verdict "
+                             f"records {str(ev['artifact'].get(side))[:16]}). Check out the same commit and run this again.")
+    cfg = {**(cfg or {}), "issue": ev.get("issue", "")}
+    was = ev.get("image") or {}
+    if was:
+        cfg.update(image=was.get("ref", ""), limits=was.get("limits"))
+    else:                                # judged without a container: not in one now either, whatever proof.toml says today
+        cfg.pop("image", None)
+        cfg["judge"] = {k: v for k, v in (cfg.get("judge") or {}).items() if k != "image"} if isinstance(cfg.get("judge"), dict) else {}
+    again = (judge_fn or judge)(base, pr, cfg, sandbox=sandbox)
+    now = (again.get("evidence") or {}).get("image") or {}
+    pairs = [("verdict", "passed" if first["passed"] else "refused", "passed" if again["passed"] else "refused"),
+             ("acceptance checks", first.get("checks_hash", ""), again.get("checks_hash", "")),
+             ("image digest", was.get("digest", ""), now.get("digest", ""))]
+    return {"agree": all(a == b for _, a, b in pairs), "again": again,
+            "differences": [f"{what}: the verdict says {a or 'none'}, this run says {b or 'none'}" for what, a, b in pairs if a != b]}
+
+
+def _which(source: Path) -> str:
+    """For a bundle: which commit to check out, in words. "" for anything else (a verdict file names no commit)."""
+    try:
+        from . import bundle
+        art = json.loads(bundle.read(Path(source).read_bytes())["receipt.json"])["evaluator_observed"]["artifact"]
+        return (f" The bundle holds no source: check out commit {art['commit']} (pull request #{art['pull_request']}) for --pr and the "
+                "commit it was judged against for --base. Both are compared with the hashes the verdict records before anything runs.")
+    except Exception:  # noqa: BLE001 - not a bundle: the plain sentence stands
+        return ""
+
+
+def register(app, out, Stop) -> None:
+    """`knos judge rerun`: one line in knos.cli."""
+    import importlib
+    typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
+    group = typer.Typer(add_completion=False, no_args_is_help=True, help="The judge of a bounty's acceptance checks, run again by either party.")
+    app.add_typer(group, name="judge")
+
+    @group.command("rerun")
+    def rerun_cmd(source: Path = typer.Argument(..., help="a verdict file (knos proof judge --evidence), an evidence bundle (.tar), or a folder holding verdict.json"),
+                  base: Path = typer.Option(None, "--base", help="the base checkout the verdict was given on (default: base/ in the bundle)"),
+                  pr: Path = typer.Option(None, "--pr", help="the pull request's tree (default: pr/ in the bundle)"),
+                  sandbox: str = typer.Option("auto", "--sandbox", help="auto, require or off (a verdict with an image runs in the container)"),
+                  to: Path = typer.Option(None, "--out", help="write this run's verdict here as JSON")) -> None:
+        """Run the same judge on the same artifact and say whether it agrees with the verdict. With an image in the
+        verdict, the pull request's code runs in that image, by its digest. Exit 0 on agree, 1 on disagree."""
+        from .proof import engine
+        try:
+            first, folder = load_verdict(source)
+            base = base or (folder / "base" if folder else None)
+            pr = pr or (folder / "pr" if folder else None)
+            if base is None or pr is None:
+                raise ValueError("pass --base and --pr: the two checkouts the verdict was given on." + _which(source))
+            got = rerun(first, base, pr, dict(engine.config(base)), sandbox)
+        except ValueError as why:
+            raise Stop(str(why)) from None
+        if to:
+            to.write_text(json.dumps(got["again"], indent=1, default=str), encoding="utf-8")
+        level = got["again"].get("assurance") or first.get("assurance") or "not run"
+        was = (first["evidence"].get("image") or {}).get("ref")
+        out.print(f"judged again: {level}" + (f", in {was}" if was else "") + ". " + ASSURANCE.get(level, ""), markup=False, emoji=False)
+        for r in got["again"]["reasons"]:
+            out.print(f"NO  {r}", markup=False, emoji=False)
+        if not got["agree"]:
+            for d in got["differences"]:
+                out.print(f"DIFFERENT {d}", markup=False, emoji=False)
+            out.print("disagree", markup=False)
+            raise typer.Exit(1)
+        out.print("agree: " + ("passed" if first["passed"] else "refused") + " both times", markup=False)

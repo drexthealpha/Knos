@@ -37,11 +37,11 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from . import ghwords, version
+from . import badge, ghwords, version
 
 app = typer.Typer(add_completion=False, pretty_exceptions_enable=False, no_args_is_help=True,
-                  help="Knos pays for software work on signed acceptance: terms fixed before the work, a GitHub-signed run attests they "
-                       "were met, a Solana program settles. Start with `knos check`, `knos init`, `knos claim` or `knos status`.")
+                  help="Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
+                       "signed CI run attests they were met, a Solana program counts it or pays it. Start with `knos check`, `knos init`, `knos claim` or `knos status`.")
 
 for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page cannot encode everything a PR says
     try:
@@ -83,11 +83,13 @@ def _main(_v: bool = typer.Option(False, "--version", callback=_version, is_eage
 @app.command()
 def init(undo: bool = typer.Option(False, "--undo", help="remove what knos init added"),
          hosts: str = typer.Option(None, "--hosts",
-                                   help="claude,codex,cursor,gemini (default: every one installed here)")) -> None:
+                                   help="claude,codex,cursor,gemini (default: every one installed here)"),
+         pr: str = typer.Option(None, "--pr", help="owner/repo: instead, print the link that installs Knos in that repository by one pull request")) -> None:
     """Install the Stop hook for Claude Code and Codex: it compares what the agent says is done with what the repository's checks show. And register `knos mcp` with them,
     Cursor and Gemini CLI, so an agent can find paid bounties. Free; nothing leaves this machine except the public
     GitHub, PyPI and Solana lookups a claim or a tool needs."""
     from . import init as setup
+    if pr: raise typer.Exit(setup.pull_request(pr, lambda said: out.print(said, markup=False, highlight=False, soft_wrap=True)))  # noqa: E701
     picked = [h.strip() for h in hosts.split(",") if h.strip()] if hosts else None
     rep = setup.undo(picked) if undo else setup.install(picked)
     for what in rep["removed"]:
@@ -138,6 +140,10 @@ def _register_proof() -> None:
 
 
 _register_proof()
+badge.register(app)     # knos badge, knos record
+from .judge import register as _register_judge  # noqa: E402 - knos judge rerun
+_register_judge(app, out, Stop)
+__import__("knos.terms_templates", fromlist=["register"]).register(app)   # knos terms list | show
 
 
 def _register_flow() -> None:
@@ -1037,14 +1043,20 @@ _HELP = [    # (command or group, its panel (None: the first, "Commands"), the o
     ("canary", WORKFLOWS, "One timed round on devnet: fund, pull request, merge, payment."),
     ("relay", WORKFLOWS, "Carry GitHub-signed tokens to Solana (the always-on worker runs this; anyone can)."),
     ("mcp", WORKFLOWS, "Paid bounties and claim checks for a coding agent, over MCP on stdio."),
+    ("agent", WORKFLOWS, "A coding agent's payout key: `agent init`, `show`, `rotate`. The key is never printed."),
+    ("work", WORKFLOWS, "`work list`: open, funded, unreserved work, largest first."),
     ("proof", WORKFLOWS, "The same checks by hand, and the judge GitHub runs on a bounty's pull request."),
+    ("judge", WORKFLOWS, "`judge rerun`: judge a verdict's artifact again in the same image, and say agree or disagree."),
     ("accept", WORKFLOWS, "Scaffold a black-box acceptance bundle from a reference implementation."),
     ("bounty", MONEY, "What is in escrow for an issue, and its state."),
     ("due", MONEY, "Where a GitHub account is paid, what is held for it, and its record."),
     ("fund-wallet", MONEY, "Put a bounty on an issue straight from a wallet."),
+    ("terms", MONEY, "Terms from a template: the comment to post, and the exact terms it funds."),
     ("balance", MONEY, "Money a wallet sets aside for one GitHub owner's repositories."),
     ("keys", MONEY, "The signing keys the verifier holds, and whether GitHub's all verify."),
     ("receipt", MONEY, "Check an acceptance receipt against the specification and print its digest."),
+    ("record", MONEY, "A payee's record as the program keeps it: paid, distinct funders, test money and self-paid apart."),
+    ("badge", MONEY, "Write a \"paid on proof\" badge (SVG) for a repository or a pull request, and its Markdown."),
     ("receipts", MONEY, "One row per payment for an owner, from the chain's log (csv or jsonl)."),
     ("statement", MONEY, "What one seller was paid in a month; `statement --meter`: evaluations billed."),
     ("export", MONEY, "Every escrow event as JSON Lines for a SIEM."),
@@ -1073,6 +1085,11 @@ def _arrange() -> None:
     app.registered_groups.sort(key=lambda i: rank.get(name_of(i), len(rank)))
 
 
+__import__("knos.ledger", fromlist=["register"]).register(app, out, Stop, _HELP, MONEY)        # knos meter: batch, verify, prove, reconcile, export
+from . import bundle as _bundle  # noqa: E402 - `knos bundle`, and `knos receipt` with mirror and verify in place of the file-only command
+_bundle.register(app, _HELP)
+from . import audit as _audit; _audit.register(app, _HELP)      # knos audit export | verify (src/knos/audit.py)  # noqa: E402,E702
+__import__("knos.agentkey", fromlist=["register"]).register(app)     # knos agent init | show | rotate, knos work list
 _arrange()
 
 

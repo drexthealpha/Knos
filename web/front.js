@@ -199,7 +199,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@c319984edd726d3d779f0c5497a52c57044d59fb
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -220,7 +220,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@c319984edd726d3d779f0c5497a52c57044d59fb
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -240,7 +240,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@c319984edd726d3d779f0c5497a52c57044d59fb
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -289,7 +289,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@bbaf6e1c850bcc1a12954ffe252b100ef67f16b8
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@c319984edd726d3d779f0c5497a52c57044d59fb
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -470,10 +470,65 @@ async function check(ev) {
   }
 }
 
+export const MOUNTS = ["buy", "install", "capabilities"];
 if (typeof document !== "undefined" && $("pr-form")) {
   $("pr-form").addEventListener("submit", check);
   $("pr-url").addEventListener("paste", () => setTimeout(() => check(), 0));
   $("protect-form")?.addEventListener("submit", protectRepo);
   workflowFacts();
   loadIndex();
+  initBar();
+  initCopy();
+}
+
+// ---- addresses and hashes: shown whole, and each with a button that copies it ------------------------------------------
+// Whatever module drew it: an element in the code font (.mono, code) whose whole text is a Solana address, a
+// transaction signature or a 64-digit hash gets a button after it. The button's word is drawn by the stylesheet
+// (app.css, button.copy), so the text of the page is the address and nothing more.
+export function initCopy(root = document.querySelector("main") || document.body) {
+  const COPYABLE = /^(?:[1-9A-HJ-NP-Za-km-z]{32,44}|[1-9A-HJ-NP-Za-km-z]{86,88}|[0-9a-f]{64})$/;
+  const dress = (el) => {
+    if (el.dataset.copy !== undefined || el.closest("pre, button, textarea")) return;
+    const text = el.textContent.trim();
+    if (!COPYABLE.test(text)) return;
+    el.dataset.copy = "";
+    const b = document.createElement("button");
+    Object.assign(b, { type: "button", className: "copy" });
+    b.dataset.copy = text; b.setAttribute("aria-label", `Copy ${text}`);
+    (el.closest("a") || el).after(b);
+  };
+  const scan = (node) => { if (node.nodeType !== 1) return; if (node.matches(".mono, code")) dress(node); for (const el of node.querySelectorAll(".mono, code")) dress(el); };
+  new MutationObserver((list) => { for (const m of list) for (const n of m.addedNodes) scan(n); }).observe(root, { childList: true, subtree: true });
+  scan(root);
+  document.addEventListener("click", async (ev) => {
+    const b = ev.target.closest?.("button.copy[data-copy]");
+    if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.dataset.state = "done"; } catch { b.dataset.state = "failed"; }
+    setTimeout(() => { delete b.dataset.state; }, 2000);
+  });
+}
+
+// ---- the bar and the pages other modules fill -------------------------------------------------------------------------
+// MOUNTS: a module (buyer.js, install.js, capabilities.js) puts its page into <section id="buy|install|capabilities">.
+// A page that holds something gets its link in the menu and is shown alone at its hash; an empty one is not offered,
+// and its hash shows the first screen (for #install, at the lines that say how to install today).
+function initBar() {
+  const bar = document.querySelector(".bar"), menu = $("menu");
+  document.documentElement.classList.add("js");
+  menu?.addEventListener("click", () => menu.setAttribute("aria-expanded", String(bar.classList.toggle("open"))));
+  const filled = (id) => $(id) && $(id).childElementCount > 0;
+  const show = () => {
+    const name = location.hash.replace(/^#/, "").split("=")[0], on = MOUNTS.includes(name) && filled(name);
+    bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false");
+    for (const id of MOUNTS) { const a = document.querySelector(`nav a[data-mount="${id}"]`); if (a) a.hidden = !filled(id); if ($(id)) $(id).hidden = !filled(id); }
+    if (on) document.body.dataset.page = name; else delete document.body.dataset.page;
+    const mark = () => { if (on) for (const a of document.querySelectorAll("nav a")) { if (a.dataset.mount === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); } };
+    mark(); setTimeout(mark, 0);                 // app.js marks the menu for its own views on the same event; this one goes last
+    if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
+  };
+  addEventListener("hashchange", show);
+  for (const id of MOUNTS) if ($(id)) new MutationObserver(show).observe($(id), { childList: true });
+  show();
+  // "Check a pull request" on the first screen: to the box, ready to type in
+  $("go-check")?.addEventListener("click", (ev) => { ev.preventDefault(); $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true }); });
 }

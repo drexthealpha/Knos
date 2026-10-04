@@ -34,7 +34,7 @@ def test_every_place_names_the_version_of_the_package():
     assert named >= {"pyproject.toml", "uv.lock", "server.json", "gemini-extension.json", "plugin/.claude-plugin/plugin.json",
                      "plugin/.codex-plugin/plugin.json", "sdk/settle/package.json", "sdk/settle/README.md",
                      "crates/knos-oidc-interface/Cargo.toml", "crates/knos-pay-interface/Cargo.toml", "crates/knos-oidc-interface/Cargo.lock",
-                     "programs-v2/Cargo.lock", "programs-v2/knos_oidc/fuzz/Cargo.lock", "examples/upgrade_gate/Cargo.lock",
+                     "programs-v2/Cargo.lock", "programs-v2/knos_oidc/fuzz/Cargo.lock", "programs-v2/handlers/Cargo.lock", "examples/upgrade_gate/Cargo.lock",
                      "idl/knos_pay_v2.json", "idl/knos_oidc_v2.json", "idl/knos_meter.json", "idl/knos_passkey.json",
                      ".github/workflows/prove.yml", ".github/workflows/check.yml", "docs/INSTALL.md"}
     assert {f"programs-v2/{crate}/Cargo.toml" for crate in ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")} <= named

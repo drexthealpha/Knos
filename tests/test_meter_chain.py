@@ -17,6 +17,7 @@ from solders.account import Account  # noqa: E402
 from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 
+import _meter  # noqa: E402
 from _meter import BUYER, ORDER, PLAN_SETTER, POLICY, SELLER, Meter  # noqa: E402
 from _pay2 import WF_REPO, WF_SHA  # noqa: E402
 
@@ -507,22 +508,26 @@ def test_the_idl_is_the_program():
     assert pins == {"OIDC_ID": ids["knos_oidc"], "FEE_OWNER": ids["fee_owner"]}
     assert set(re.findall(r'pubkey!\("(\w+)"\)', re.search(r"pub const FEE_MINTS: \[Pubkey; 2\] = \[(.+?)\];", lib).group(1))) == {str(pay2.USDC_DEVNET), str(pay2.USDC_MAINNET)}     # credits open in Circle's USDC only (a test build takes any)
     # every instruction the header lists, by its number, with the accounts it lists, as the dispatch and the handlers take them
-    listed = {m.group(2): (int(m.group(1)), m.group(3).split()) for m in re.finditer(r"^//!   (\d+) (\w+) +(.+)$", lib, re.M)}
+    listed = {m.group(2): (int(m.group(1)), m.group(3).split()) for m in re.finditer(r"^//!   (\d+) (\w+) *(.*)$", lib, re.M)}
     arms = dict((int(n), f) for n, f in re.findall(r"^        (\d+) => meter::(\w+)\(", lib, re.M))
     assert {i["name"]: i["discriminant"]["value"] for i in IDL["instructions"]} == {name: n for name, (n, _) in listed.items()}
-    assert sorted(arms) == sorted(n for n, _ in listed.values()) == [0, 1, 2, 3, 4]
+    assert sorted(arms) == sorted(n for n, _ in listed.values()) == [0, 1, 2, 3, 4, 5, 6, 7]
     for ix in IDL["instructions"]:
         n, accounts = listed[ix["name"]]
         flags = [(a.split("(")[0], "s" in a.partition("(")[2], "w" in a.partition("(")[2]) for a in accounts]
         camel = lambda s: re.sub(r"_(\w)", lambda m: m.group(1).upper(), s).replace("system", "systemProgram")  # noqa: E731
         assert [(a["name"], a["isSigner"], a["isMut"]) for a in ix["accounts"]] == [(camel(name), s, w) for name, s, w in flags], ix["name"]
+        if not accounts:                         # Version takes no account
+            assert f"pub fn {arms[n]}(data: &[u8])" in SRC["meter.rs"]
+            continue
         taken = re.search(rf"pub fn {arms[n]}\(.*?let \[([^\]]+)\] = take\(accounts\)\?;", SRC["meter.rs"], re.S).group(1)
         assert len(taken.split(",")) == len(ix["accounts"]), ix["name"]
     # every account layout: the offsets of state.rs, the length, what the client reads
     state = consts(SRC["state.rs"])
     names = {"Credits": ("C_", {"tokenProgram": "C_T22", "wfRepo": "C_WF_REPO", "wfSha": "C_WF_SHA", "ownerId": "C_OWNER_ID", "evaluations": "C_EVALS"}, "CREDITS_LEN"),
              "Plan": ("P_", {"ownerId": "P_OWNER_ID"}, "PLAN_LEN"), "Mark": ("K_", {"buyerId": "K_BUYER", "sellerId": "K_SELLER", "closeAfter": "K_CLOSE_AFTER"}, "MARK_LEN"),
-             "Month": ("M_", {"buyerId": "M_BUYER", "sellerId": "M_SELLER", "evaluations": "M_EVALS"}, "MONTH_LEN")}
+             "Month": ("M_", {"buyerId": "M_BUYER", "sellerId": "M_SELLER", "evaluations": "M_EVALS"}, "MONTH_LEN"),
+             "Ledger": ("L_", {"buyerId": "L_BUYER", "sellerId": "L_SELLER", "nextSeq": "L_NEXT_SEQ", "evaluations": "L_EVALS"}, "LEDGER_LEN")}
     assert [a["name"] for a in IDL["accounts"]] == list(names)
     for a in IDL["accounts"]:
         prefix, special, length = names[a["name"]]
@@ -533,10 +538,10 @@ def test_the_idl_is_the_program():
                 assert state[const] == at, (a["name"], f["name"])
                 seen.add(const)
             at += size(f["type"])
-        assert at == state[length] == getattr(meter, length) and seen == {k for k in state if k.startswith(prefix)}, a["name"]
+        assert at == state[length] == getattr(meter, length, getattr(_meter, length, None)) and seen == {k for k in state if k.startswith(prefix)}, a["name"]
     # the error codes, the prices and the bounds
     codes = consts(lib, "u32") | consts(SRC["gh.rs"], "u32")
-    assert {e["code"] for e in IDL["errors"]} == set(codes.values()) | {61, 62, 63} == set(meter.ERRORS)
+    assert {e["code"] for e in IDL["errors"]} == set(codes.values()) | {61, 62, 63} == set(meter.ERRORS) | set(_meter.BATCH_ERRORS)
     assert len(set(codes.values())) == len(codes)
     prices = consts(lib, "u64")
     assert (prices["FEE"], prices["PLAN_MIN"], prices["FREE_PER_MONTH"], prices["MICRO"]) == (meter.FEE, meter.PLAN_MIN, meter.FREE_PER_MONTH, meter.MICRO) == (50_000, 20_000, 10_000, 10 ** 6)
@@ -570,13 +575,18 @@ def test_the_client_sends_what_the_idl_says():
     known = {"authority": K["authority"], "credits": credits, "crtok": meter.crtok_pda(credits), "mint": K["mint"], "auth": meter.auth_pda(), "tokenProgram": meter.TOKEN,
              "systemProgram": meter.SYSTEM, "destToken": meter.ata(K["authority"], K["mint"]), "feeOwner": meter.FEE_OWNER, "payer": K["payer"],
              "plan": meter.plan_pda(BUYER), "relayer": K["relayer"], "token": K["token"], "key": K["key"], "mark": meter.mark_pda(BUYER, e.key),
-             "month": meter.month_pda(BUYER, SELLER, 202609), "feeToken": meter.ata(meter.FEE_OWNER, K["mint"])}
+             "month": meter.month_pda(BUYER, SELLER, 202609), "feeToken": meter.ata(meter.FEE_OWNER, K["mint"]),
+             "ledger": _meter.ledger_pda(BUYER, SELLER, 202609), "claim": _meter.ledger_pda(BUYER, SELLER, 202609, True)}
+    batch, claim = (_meter.batch_audience(BUYER, SELLER, 202609, 3, 5000, 4321, 9, ORDER, kind) for kind in ("batch", "claim"))
     built = {"OpenCredits": (meter.open_credits_ix(K["authority"], BUYER, K["mint"], WF_REPO, WF_SHA),
                              dict(ownerId=BUYER, wfRepo=meter.wf_repo_hash(WF_REPO), wfSha=WF_SHA.encode())),
              "WithdrawCredits": (meter.withdraw_credits_ix(K["authority"], credits, K["mint"], 7), dict(amount=7)),
              "SetPlan": (meter.set_plan_ix(meter.FEE_OWNER, K["payer"], BUYER, 2, 20_000, now), dict(ownerId=BUYER, tier=2, rate=20_000, expiry=now)),
              "Record": (meter.record_ix(K["relayer"], K["token"], K["key"], credits, c, aud, now), {}),
-             "CloseMark": (meter.close_mark_ix(K["payer"], meter.mark_pda(BUYER, e.key)), {})}
+             "CloseMark": (meter.close_mark_ix(K["payer"], meter.mark_pda(BUYER, e.key)), {}),
+             "RecordBatch": (_meter.record_batch_ix(K["relayer"], K["token"], K["key"], credits, c, batch), {}),
+             "ClaimBatch": (_meter.claim_batch_ix(K["relayer"], K["token"], K["key"], claim), {}),
+             "Version": (_meter.version_ix(), {})}
     assert set(built) == {i["name"] for i in IDL["instructions"]}
     for ix in IDL["instructions"]:
         sent, args = built[ix["name"]]
@@ -602,6 +612,8 @@ def test_the_client_sends_what_the_idl_says():
     assert meter.read_mark(raw("Mark", version=1)) is None and meter.read_mark(raw("Mark", version=2)[:48]) is None
     assert meter.read_month(raw("Month", version=1, month=202609, buyerId=BUYER, sellerId=SELLER, evaluations=3, accepted=2, rejected=1, value=9, fees=7)) == meter.Statement(
         BUYER, SELLER, 202609, 3, 2, 1, 9, 7)
+    assert _meter.read_ledger(raw("Ledger", version=1, kind=1, month=202609, buyerId=BUYER, sellerId=SELLER, nextSeq=2, evaluations=3, accepted=2, value=9, fees=7,
+                                  chain=ORDER)) == _meter.BatchLedger(True, 202609, BUYER, SELLER, 2, 3, 2, 9, 7, ORDER)
     assert meter.read_credits(None) is None and meter.read_mark(b"") is None and meter.read_plan(None).used == 0 and meter.read_month(None, 1, 2, 3) == meter.Statement(1, 2, 3)
     with pytest.raises(ValueError):
         meter.eval_audience(BUYER, SELLER, ORDER[:31], SHA[0], POLICY, 0, 1, 1)

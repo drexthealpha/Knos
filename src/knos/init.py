@@ -420,3 +420,102 @@ def undo(hosts: list[str] | None = None) -> dict:
                 except Unreadable as why:
                     rep["skipped"].append((host, str(why)))
     return rep
+
+
+# ---- `knos init --pr`: Knos in a repository, by one pull request ---------------------------------------------------
+# GitHub opens its file editor with a file filled in from the address: /<owner>/<repo>/new/<branch>?filename=&value=.
+# Committing there offers a new branch and a pull request (or, without write access, a fork and "Propose new file").
+# So installing is one link, and the file is short enough for one: GitHub refuses an address over 8,191 bytes
+# (https://github.com/github/docs/issues/5136). Nothing here names a commit of the workflows: the wheel is built
+# before that commit exists, so the file is read from the release's examples/ when it is needed.
+
+WORKFLOW_PATH = ".github/workflows/knos.yml"
+URL_LIMIT = 8191
+_SPEC = re.compile(r"(?:https://github\.com/)?([A-Za-z0-9](?:-?[A-Za-z0-9]){0,38})/([A-Za-z0-9._-]{1,100}?)(?:\.git)?/?(?:@([A-Za-z0-9._/-]{1,200}))?")   # web/install.js reads the same
+_RAW = "https://raw.githubusercontent.com/drexthealpha/Knos/{ref}/examples/knos-install.yml"
+
+
+def spec(text: str) -> tuple[str, str, str]:
+    """(owner, repository, branch) from `owner/repo` or `owner/repo@branch`. The branch is `main` unless named."""
+    m = _SPEC.fullmatch(text.strip())
+    if not m or m.group(2) in (".", ".."):
+        raise ValueError(f"`{text}` is not a repository: write it as owner/repo, or owner/repo@branch when its default branch is not main")
+    return m.group(1), m.group(2), m.group(3) or "main"
+
+
+def install_link(repo: str, text: str, path: str = WORKFLOW_PATH) -> str:
+    """The address that opens GitHub's editor in `repo` with `text` as a new file at `path`. Raises ValueError when
+    GitHub would refuse it for its length."""
+    import urllib.parse
+    owner, name, branch = spec(repo)
+    url = (f"https://github.com/{owner}/{name}/new/{urllib.parse.quote(branch, safe='/')}"
+           f"?filename={urllib.parse.quote(path, safe='')}&value={urllib.parse.quote(text, safe='')}")
+    if len(url) > URL_LIMIT:
+        raise ValueError(f"the link would be {len(url)} bytes and GitHub takes at most {URL_LIMIT}: copy the file into {path} by hand")
+    return url
+
+
+def workflow_text(fetch=None) -> str:
+    """examples/knos-install.yml: from a source tree when this runs in one, else from this release's tag on GitHub."""
+    from . import version
+    local = Path(__file__).resolve().parents[2] / "examples" / "knos-install.yml"
+    if fetch is None and local.is_file():
+        return local.read_text(encoding="utf-8")
+    if fetch is None:
+        import urllib.request
+
+        def fetch(url: str) -> str:
+            with urllib.request.urlopen(url, timeout=20) as r:   # noqa: S310 (a fixed https address)
+                return r.read().decode("utf-8")
+    try:
+        return fetch(_RAW.format(ref=f"v{version()}"))
+    except OSError as why:
+        raise ValueError(f"the workflow file of knos {version()} could not be read from GitHub ({why}). Copy it from "
+                         "https://github.com/drexthealpha/Knos/blob/main/examples/knos-install.yml") from why
+
+
+def _gh_pull(owner: str, name: str, text: str, gh) -> str:
+    """Open the pull request with the GitHub CLI: a branch `knos-install` from the default branch, the one file, the
+    pull request. `gh(*args)` returns the CLI's output and raises OSError with its words. Returns the pull request's URL."""
+    import base64
+    repo = f"repos/{owner}/{name}"
+    base = gh("api", repo, "--jq", ".default_branch").strip()
+    sha = gh("api", f"{repo}/git/ref/heads/{base}", "--jq", ".object.sha").strip()
+    gh("api", "-X", "POST", f"{repo}/git/refs", "-f", "ref=refs/heads/knos-install", "-f", f"sha={sha}")
+    gh("api", "-X", "PUT", f"{repo}/contents/{WORKFLOW_PATH}", "-f", "message=Install Knos", "-f", "branch=knos-install",
+       "-f", "content=" + base64.b64encode(text.encode("utf-8")).decode("ascii"))
+    return gh("api", "-X", "POST", f"{repo}/pulls", "-f", "title=Install Knos", "-f", "head=knos-install", "-f", f"base={base}",
+              "-f", "body=Adds .github/workflows/knos.yml: a `/knos fund` comment funds an issue with test USDC on Solana devnet, and the merged "
+                    "pull request that closes it is paid. No secret, and no write access to this repository's code. "
+                    "https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md", "--jq", ".html_url").strip()
+
+
+def _gh(*args: str) -> str:
+    import subprocess
+    done = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=60)   # noqa: S603, S607
+    if done.returncode:
+        raise OSError((done.stderr or done.stdout).strip().splitlines()[-1] if (done.stderr or done.stdout).strip() else "gh failed")
+    return done.stdout
+
+
+def pull_request(repo: str, say=print, gh=None, text: str | None = None) -> int:
+    """`knos init --pr owner/repo`: print the link that opens the pull request, and the file it adds. With the GitHub
+    CLI on this machine, open the pull request too; when that fails, say why and leave the link."""
+    try:
+        owner, name, _ = spec(repo)
+        text = workflow_text() if text is None else text
+        link = install_link(repo, text)
+    except ValueError as why:
+        say(str(why))
+        return 1
+    say(f"The file, for {WORKFLOW_PATH} of {owner}/{name}:\n\n{text}")
+    say(f"Open this link, press \"Commit changes\", and choose the new branch and pull request GitHub offers:\n\n{link}\n")
+    gh = gh if gh is not None else (_gh if shutil.which("gh") else None)
+    if gh is None:
+        say("The GitHub CLI (gh) is not installed here, so nothing was sent: the link above is the whole install.")
+        return 0
+    try:
+        say(f"Opened the pull request with the GitHub CLI: {_gh_pull(owner, name, text, gh)}\nMerge it and Knos is installed.")
+    except OSError as why:
+        say(f"The GitHub CLI could not open the pull request ({why}), so nothing was changed by this command: use the link above.")
+    return 0

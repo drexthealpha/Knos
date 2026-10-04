@@ -3,10 +3,10 @@ order's own commands (offer, raise, cancel, split, take). The fakes are tests/_f
 whose escrow is 2.1. While it is 0 every comment does what it did before (tests/test_flow.py)."""
 from __future__ import annotations
 
-from _flow import ADDRESS, EVE, HUBOT, MONA, REPO, REPO_ID, WALLET, World, check, key
+from _flow import ADDRESS, DEVIN, EVE, HUBOT, MONA, REPO, REPO_ID, WALLET, World, check, key
 from _hub import user
 from knos import chain, commands, flow, policy, terms
-from knos.settle.v2 import pay, relay
+from knos.settle.v2 import order_auto, pay, relay
 from solders.keypair import Keypair
 from test_flow import BOUGHT, EXPLORER, FAUCET, MONEY, plain
 
@@ -67,7 +67,7 @@ def test_a_funding_comment_opens_a_work_order_and_the_reply_says_the_fee_the_war
     assert "The funder pays Knos's fee of 0.40 on top" in got and "No warranty: a payment is final when it is made. No arbiter is named." in got
     assert got.endswith(NEUTRAL) and len(w.chain.orders(7)) == 2
     # what cannot be an order is said with the comment that can
-    assert said(w, 7, HUBOT, "/knos fund 2") == ("Knos: nothing was funded. A work order holds from 5 to 500, and this one asks for 2. Comment "
+    assert said(w, 7, HUBOT, "/knos fund 2") == ("Knos: nothing was funded. A work order holds from 5 to 100000, and this one asks for 2. Comment "
                                                "`/knos fund 5` instead.")
     assert "`holdback` keeps a share of each payment back until the warranty ends, so it needs one: add `warranty 14`" in said(w, 7, HUBOT, "/knos fund 20 holdback 10")
     assert "GitHub gave no account named @nobody-here (the arbiter)" in said(w, 7, HUBOT, "/knos fund 20 arbiter @nobody-here")
@@ -214,8 +214,8 @@ def test_a_standing_offer_pays_its_vendor_for_each_accepted_change_until_its_bud
     w.hub.checks[w.hub.pull(13, EVE, "Fixes #7")["head"]["sha"]] = [check("test")]
     assert f"this standing offer pays one vendor (GitHub user id {MONA['id']}), and this pull request pays @eve" in settled(w, 13)
     # what the escrow cannot hold, and an escrow without orders, are said with what to type
-    assert said(w, 7, HUBOT, "/knos offer @mona rate 12 budget 600 checks: test") == (
-        "Knos: nothing was funded. A work order holds from 5 to 500, and this one asks for 600. Comment `/knos offer @mona rate 12 budget 500` instead.")
+    assert said(w, 7, HUBOT, "/knos offer @mona rate 12 budget 100001 checks: test") == (
+        "Knos: nothing was funded. A work order holds from 5 to 100000, and this one asks for 100001. Comment `/knos offer @mona rate 12 budget 100000` instead.")
     w.version, w.runs = 0, w.runs
     w2 = world(tmp_path / "v0", version=0)
     assert "A standing offer is a work order, and the escrow on this cluster does not hold work orders yet" in said(w2, 7, HUBOT, "/knos offer @mona rate 12 budget 30")
@@ -245,7 +245,7 @@ def test_raise_says_how_cancel_gives_notice_and_take_reserves_the_order_too(tmp_
     source = w.chain.balance("treasury", 100_000_000, spenders=[HUBOT["id"]])
     w.chain.order(7, 20_000_000, BOUGHT, source=source, flags=pay.F_NEUTRAL)
     got = said(w, 7, EVE, "/knos raise 10")
-    assert f"was funded from the balance `{source}`, and only the wallet that opened that balance can add to it: it signs knos_pay's TopUp for 10.00 {MONEY}, and pays Knos's fee of 0.40 on top" in got
+    assert f"was funded from the balance `{source}`, and only the wallet that opened that balance can add to it: it signs knos_pay's TopUp for 10.00 {MONEY}, and pays Knos's fee of 0.25 on top" in got
     # a job is neither, and no order is no order
     w = world(tmp_path / "job", version=0)
     w.chain.fund(7, 20_000_000, BOUGHT)
@@ -813,3 +813,136 @@ def test_replies_count_days_say_where_an_assigned_payment_went_and_do_not_ask_fo
     # a refusal that may clear still says to try again
     w.relay.refusals = [{"ok": False, "kind": "fund", "why": pay.ERRORS[94]}]
     assert said(w, 7, HUBOT, "/knos fund 5", code=1).endswith("To try again, post the comment again.")
+
+
+IMAGE = "ghcr.io/acme/judge@sha256:" + "ab" * 32
+
+
+def test_the_image_proof_toml_names_is_fixed_in_the_funded_terms_and_a_tag_is_refused_in_plain_words(tmp_path):
+    from test_flow import BLACKBOX
+    w = world(tmp_path)
+    w.hub.bundles[7], w.hub.contents = {"blackbox.sh": BLACKBOX}, {".knos/proof.toml": f'runner = "blackbox"\n\n[judge]\nimage = "{IMAGE}"\n'}
+    got = said(w, 7, HUBOT, "/knos fund 20 checks: none", most=4000)
+    raw = w.chain.logs[str(ORDER)]
+    bought = terms.parse(raw)
+    assert (bought["mode"], bought["image"]) == ("tests", IMAGE) and w.chain.orders(7)[0][1].terms == pay.terms_hash(raw)
+    # the hash the order holds covers the image: the same terms with another image, or none, hash differently
+    assert pay.terms_hash(terms.canonical({**bought, "image": IMAGE[:-1] + "c"})) != pay.terms_hash(raw)
+    assert pay.terms_hash(terms.canonical({k: v for k, v in bought.items() if k != "image"})) != pay.terms_hash(raw)
+    assert f"Judge: hermetic, in `{IMAGE}`. The pull request's code runs black-box inside a container image pinned by digest" in got
+    assert "`/knos take` reserves the issue for 7 days." in got.split("To earn it:")[1]         # the reserve sentence is still the one quoted there
+    # a tag can be pointed at another image after funding: nothing is funded, and the reply says what to write instead
+    w.hub.issue(8, "A second one.")
+    w.hub.bundles[8], w.hub.contents = {"blackbox.sh": BLACKBOX}, {".knos/proof.toml": 'runner = "blackbox"\n\n[judge]\nimage = "ghcr.io/acme/judge:latest"\n'}
+    w.clock.sleep(61)
+    got = said(w, 8, HUBOT, "/knos fund 20 checks: none", most=4000)
+    assert got.startswith("Knos: image 'ghcr.io/acme/judge:latest' is a name or a tag, and a tag can be pointed at another image after funding. Pin it by ")
+    assert w.chain.orders(8) == []
+    # without an image the same bundle is black-box, and the reply says so
+    w.hub.issue(9, "A third one.")
+    w.hub.bundles[9], w.hub.contents = {"blackbox.sh": BLACKBOX}, {}
+    w.clock.sleep(61)
+    got = said(w, 9, HUBOT, "/knos fund 20 checks: none", most=4000)
+    assert "Judge: black-box. The pull request's code runs as a separate process" in got and "image" not in terms.parse(w.chain.logs[str(w.chain.orders(9)[0][0])])
+
+
+def test_raise_quotes_the_fee_a_top_up_costs_by_the_tiers_on_the_new_whole_amount(tmp_path):
+    w = world(tmp_path)
+    funder = Keypair().pubkey()
+    w.chain.order(7, 900_000_000, BOUGHT, source=funder, flags=pay.F_NEUTRAL, kind=0)
+    got = said(w, 7, HUBOT, "/knos raise 200", most=4000)
+    # 900 paid 22.50; 1,100 costs 25.00 (2.5% of the first 1,000) + 1.00 (1% of the next 100): 3.50 more, not 2.5% of 200
+    assert pay.order_fee(1_100_000_000) - pay.order_fee(900_000_000) == 3_500_000
+    assert f"it signs knos_pay's TopUp for 200.00 {MONEY}, and pays Knos's fee of 3.50 on top" in got
+
+
+# ---- `auto` and `quorum`: options of the order, fixed at funding; the token under knos3:auto for an open pull request ---
+
+def test_auto_and_quorum_go_into_the_orders_options_and_the_reply_says_them_and_auto_needs_black_box_checks(tmp_path):
+    from test_flow import BLACKBOX
+    w = world(tmp_path)
+    # no acceptance checks: `auto` would pay on nothing, so nothing is funded and the reply says what to add
+    got = said(w, 7, HUBOT, "/knos fund 20 checks: none auto")
+    assert got.startswith("Knos: nothing was funded. `auto` pays the first pull request that passes the acceptance checks, without a merge, so "
+                          "those checks must be black-box. Issue #7 has none: add `.knos/acceptance/7/` on the default branch with a `blackbox.sh`")
+    assert got.endswith("or leave out `auto`; then post the comment again.") and w.chain.orders(7) == [] and w.signer.asked == []
+    # checks that share a process with the pull request's code are not black-box: the same refusal, with why
+    w.hub.bundles[7] = {"test_slug.py": b"from slug import slug\n"}
+    w.clock.sleep(61)
+    got = said(w, 7, HUBOT, "/knos fund 20 checks: none auto")
+    assert "those checks must be black-box. Its acceptance checks (.knos/acceptance/7/) " in got and "or leave out `auto`; then post the comment again." in got
+    assert w.chain.orders(7) == [] and w.signer.asked == []
+    # a quorum needs that many judges the order can have: its own run and a neutral one
+    assert "`quorum 3` asks for three different judges, and this order can have 2" in said(w, 7, HUBOT, "/knos fund 20 quorum 3")
+    assert ("`quorum 2` asks for two different judges, and this order can have 1: this repository's own run (you said `neutral off`). Leave out "
+            "`neutral off`, or leave out `quorum`, then post the comment again.") in said(w, 7, HUBOT, "/knos fund 20 quorum 2 neutral off")
+    assert w.chain.orders(7) == [] and w.signer.asked == []
+    # black-box checks: funded, the options carry both, and the terms sentences say both
+    w.hub.bundles[7] = {"blackbox.sh": BLACKBOX}
+    w.clock.sleep(61)
+    got = said(w, 7, HUBOT, "/knos fund 20 checks: none auto quorum 2", most=4000)
+    flags = pay.F_NEUTRAL | order_auto.F_AUTO | order_auto.quorum_flags(2)
+    raw = w.chain.logs[str(ORDER)]
+    assert w.signer.asked == [pay.order_fund_audience(7, 20_000_000, pay.TESTS, pay.terms_hash(raw), FAUCET, 14 * 86_400, 0, pay.opts(flags, reserve_days=7))]
+    (_a, o), = w.chain.orders(7)
+    assert o.flags == flags | pay.F_FAUCET and o.mode == pay.TESTS and order_auto.quorum_of(o.flags) == 2 and "auto" not in terms.parse(raw)
+    for sentence in terms.describe_options(True, 2):
+        assert sentence in got
+    assert terms.AUTO.startswith("It pays the first pull request that passes the black-box suite, without waiting for a merge")
+    # without the words the order has neither, and the reply says neither
+    w.clock.sleep(61)
+    got = said(w, 7, HUBOT, "/knos fund 20 checks: none", most=4000)
+    assert w.signer.asked[-1].endswith(pay.opts(pay.F_NEUTRAL, reserve_days=7).hex()) and terms.AUTO not in got and "different judges" not in got
+
+
+def auto_order(tmp_path, author: dict = MONA, flags: int = pay.F_NEUTRAL | pay.F_FAUCET | order_auto.F_AUTO, **more):
+    """Issue #7 with an order funded `auto` on black-box checks, and pull request #12 open by `author`, whose wallet is bound."""
+    from test_flow import BY_TESTS, CHECKS
+    w = world(tmp_path)
+    order = w.chain.order(7, 20_000_000, BY_TESTS, mode=pay.TESTS, flags=flags, **more)
+    w.hub.bundles[7] = dict(CHECKS)
+    w.clock.sleep(3600)
+    head = w.hub.pull(12, author, "Fixes #7")["head"]["sha"]
+    w.hub.checks[head] = [check("test"), check("build")]
+    w.chain.bind(author)
+    return w, order, head, pay.terms_hash(terms.canonical(BY_TESTS))
+
+
+def test_an_auto_orders_open_pull_request_is_signed_under_knos3_auto_for_its_author_and_a_plain_order_under_knos3_pay(tmp_path):
+    from test_flow import sha
+    w, order, head, bought = auto_order(tmp_path)
+    assert flow.settle(w.run(w.hub.ran(12), GITHUB_SHA=sha("main")), tests=True, pull=12, head=head) == 0
+    assert w.signer.asked == [order_auto.auto_audience(order, head, bought, 12, MONA["id"])]
+    assert w.signer.asked[0] == f"knos3:auto:{order}:{head}:{bought.hex()}:1:12:{MONA['id']}.10000.-"
+    assert w.hub.pulls[12]["state"] == "open" and w.chain.orders(7) == [] and "@mona" in plain(w.hub.knos(12)[-1], 1500)
+    # the same pull request for an order funded without `auto`: the pay token, as before
+    w, order, head, bought = auto_order(tmp_path / "plain", flags=pay.F_NEUTRAL | pay.F_FAUCET)
+    assert flow.settle(w.run(w.hub.ran(12), GITHUB_SHA=sha("main")), tests=True, pull=12, head=head) == 0
+    assert w.signer.asked == [pay.order_pay_audience(order, head, bought, pay.TESTS, 12, [(MONA["id"], 10_000, None)])]
+    # an agent's own account (GitHub type Bot) is the author an auto order pays; a plain order pays no bot
+    w, order, head, bought = auto_order(tmp_path / "agent", author=DEVIN)
+    assert flow.settle(w.run(w.hub.ran(12), GITHUB_SHA=sha("main")), tests=True, pull=12, head=head) == 0
+    assert w.signer.asked == [order_auto.auto_audience(order, head, bought, 12, DEVIN["id"])] and w.chain.orders(7) == []
+    w, order, head, bought = auto_order(tmp_path / "bot", author=DEVIN, flags=pay.F_NEUTRAL | pay.F_FAUCET)
+    assert flow.settle(w.run(w.hub.ran(12), GITHUB_SHA=sha("main")), tests=True, pull=12, head=head) == 0
+    assert w.signer.asked == [] and len(w.chain.orders(7)) == 1
+
+
+def test_an_agents_account_takes_an_auto_order_with_a_comment_and_no_other(tmp_path):
+    w, order, _head, _bought = auto_order(tmp_path, reserve_days=7)
+    got = said(w, 7, DEVIN, "/knos take")
+    assert got.startswith(f"Knos: issue #7 is reserved for @{DEVIN['login']} until ") and w.signer.asked == [f"knos3:take:{order}:{DEVIN['id']}:7"]
+    w, order, _head, _bought = auto_order(tmp_path / "plain", flags=pay.F_NEUTRAL | pay.F_FAUCET, reserve_days=7)
+    assert said(w, 7, DEVIN, "/knos take") == commands.reply("not_allowed", "take") and w.signer.asked == []
+
+
+def test_the_first_judge_of_an_order_with_a_quorum_is_recorded_and_the_reply_does_not_say_paid(tmp_path):
+    # rehearsed on devnet (0.3.14): the order's own run was judge 1 of 2 (knos3:quorum ... have=1 of=2, nothing moved),
+    # and the reply on the pull request said "Knos: paid. @... received 8.00"
+    w = ordered(tmp_path, flags=pay.F_NEUTRAL | pay.F_FAUCET | order_auto.quorum_flags(2))
+    w.chain.bind(MONA)
+    got = settled(w)
+    assert got.startswith("Knos: not paid yet. ") and "1 of the 2 different judges its funder asked for have passed this commit" in got, got
+    assert "received" not in got and "knos settle --neutral" in got
+    (_a, o), = w.chain.orders(7)
+    assert o.state == "open" and o.paid == 0

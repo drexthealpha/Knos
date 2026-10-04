@@ -1,7 +1,7 @@
 """What people tell Knos in a comment: one line that starts with `/knos`.
 
     /knos fund <amount> [checks: a, b] [paths: glob, ...] [days N] [reserve N]     (alias: /knos bounty)
-                        and, for a work order: [warranty N] [holdback N] [arbiter @login] [neutral off]
+                        and, for a work order: [warranty N] [holdback N] [arbiter @login] [neutral off] [auto] [quorum 2|3]
     /knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]
     /knos raise <amount>    /knos cancel    /knos split @a 60 @b 40
     /knos take          /knos release       /knos address <address>      /knos mine
@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 DAYS, MAX_DAYS = 14, 90                             # until an unpaid bounty goes back; knos-pay's MAX_WORK
 RESERVE, MAX_RESERVE = 7, 90                        # days a `/knos take` lasts
-MIN_UNITS, MAX_UNITS = 1_000_000, 500_000_000       # knos-pay's MIN_AMOUNT and MAX_AMOUNT, in millionths
+MIN_UNITS, MAX_UNITS = 1_000_000, 100_000_000_000   # knos-pay's MIN_AMOUNT and MAX_AMOUNT, in millionths
 MAX_BUDGET = 1_000_000_000_000                      # a standing offer's budget as written; the escrow's own cap is said at funding
 MONEY = "test USDC"                                 # what devnet's money is called, everywhere
 
@@ -42,6 +42,8 @@ class Fund:
     holdback: int | None = None                 # that share, in percent
     arbiter: str | None = None                  # the login of whoever rules on a dispute
     neutral: bool | None = None                 # False: only the funder's repository may sign the payment (`neutral off`)
+    auto: bool = False                          # `auto`: the first pull request that passes the black-box suite is paid, without a merge
+    quorum: int | None = None                   # `quorum 2` or `quorum 3`: that many distinct judges must pass the same pull request
     name = "fund"
 
 
@@ -120,6 +122,14 @@ class Tip:
 
 
 @dataclass(frozen=True)
+class PasskeyFund:
+    """`/knos passkey-fund <base64url>`: a funding a passkey signed on the site's Buy page. Not typed by hand, so it is
+    not in FORMS: `intent` is what knos.settle.v2.passkey_fund.read_intent reads, and a relay sends it."""
+    intent: str
+    name = "passkey-fund"
+
+
+@dataclass(frozen=True)
 class Settle:
     name = "settle"
 
@@ -161,7 +171,8 @@ FORMS = {   # the exact form to type, in the order `/knos help` lists them
 }
 ALIASES = {"bounty": "fund"}
 _ABOUT = {
-    "fund": "a maintainer, on an issue: put a bounty on it (a work order also takes `warranty N`, `holdback N`, `arbiter @login`, `neutral off`)",
+    "fund": "a maintainer, on an issue: put a bounty on it (a work order also takes `warranty N`, `holdback N`, `arbiter @login`, `neutral off`, "
+            "`auto`, `quorum 2`)",
     "offer": "a maintainer, on an issue: a standing offer that pays one vendor for each accepted change",
     "raise": "on a funded issue: how its work order is topped up",
     "cancel": "a maintainer, on a funded issue: end its work order with 7 days' notice",
@@ -238,11 +249,11 @@ def _show(text: str, most: int = 40) -> str:
 
 
 _LOGIN = r"[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}"
-_OPTION = re.compile(r"(checks|paths)\s*:|(days|reserve|warranty|holdback)\s*:?\s*([0-9]{1,4})(?!\S)|(review)\s+[0-9]+(?!\S)"
+_OPTION = re.compile(r"(checks|paths)\s*:|(days|reserve|warranty|holdback|quorum)\s*:?\s*([0-9]{1,4})(?!\S)|(review)\s+[0-9]+(?!\S)"
                      r"|(arbiter)\s*:?\s*@?(" + _LOGIN + r")(?!\S)|(neutral)\s*:?\s*(on|off)(?!\S)"
-                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)", re.I)
-_RANGE = {"days": (1, MAX_DAYS), "reserve": (0, MAX_RESERVE), "warranty": (0, 90), "holdback": (0, 50)}     # knos-pay's limits
-_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral")
+                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)|(auto)(?!\S)", re.I)
+_RANGE = {"days": (1, MAX_DAYS), "reserve": (0, MAX_RESERVE), "warranty": (0, 90), "holdback": (0, 50), "quorum": (2, 3)}     # knos-pay's limits
+_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral", "auto", "quorum")
 _OFFER_TAKES = ("checks", "paths", "days", "rate", "budget")
 
 
@@ -292,7 +303,7 @@ def _options(text: str, takes: tuple[str, ...] = _FUND_TAKES) -> dict | str:
             return f"`{_show(word)}` is not something this command takes"
         if m.group(4):
             return "there is no `review` any more (once a payment is made it is final)"
-        key = (m.group(1) or m.group(2) or m.group(5) or m.group(7) or m.group(9)).lower()
+        key = (m.group(1) or m.group(2) or m.group(5) or m.group(7) or m.group(9) or m.group(11)).lower()
         if key not in takes:
             return f"`{key}` is not something this command takes"
         if key in out:
@@ -302,6 +313,9 @@ def _options(text: str, takes: tuple[str, ...] = _FUND_TAKES) -> dict | str:
             if not low <= int(m.group(3)) <= high:
                 return f"`{key}` must be from {low} to {high}"
             out[key], i = int(m.group(3)), m.end()
+            continue
+        if m.group(11):         # a bare word: `auto`
+            out[key], i = True, m.end()
             continue
         if m.group(5) or m.group(7):
             out[key], i = (m.group(6) if m.group(5) else m.group(8).lower() == "on"), m.end()
@@ -391,6 +405,18 @@ def _pay(rest: str):
     return Pay(m.group(1)) if m and len(m.group(1)) <= 39 else _bad("pay", "name one GitHub account")
 
 
+_PASSKEY_FUND = re.compile(r"passkey-fund(?: +(\S*))?", re.I)     # its one argument is longer than any typed command's line
+
+
+def _passkey_fund(line: str, on_pull: bool | None):
+    """The line after `/knos`, when its word is passkey-fund: the intent whole, or what to do instead."""
+    text = (_PASSKEY_FUND.fullmatch(line) or [None, None])[1] or ""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{300,6000}", text):
+        return Error("malformed", "Knos: that passkey funding line is not whole (it was cut, or text was added to it), so nothing was funded. "
+                     "Sign again on the Buy page and paste the line exactly as it is shown, alone in a comment.", "passkey-fund")
+    return Error("misplaced", reply("misplaced", "passkey-fund"), "passkey-fund") if on_pull else PasskeyFund(text)
+
+
 def _bare(kind):
     return lambda rest: kind() if not rest else _bad(kind.name, "nothing goes after it")
 
@@ -410,6 +436,8 @@ def parse(body: str, on_pull: bool | None = None):
     line = _line(body)
     if line is None:
         return None
+    if _PASSKEY_FUND.match(line) and line[12:13] in ("", " "):
+        return _passkey_fund(line, on_pull)
     if len(line) > 1000:
         return Error("malformed", reply("malformed", why="that line is too long to be a command"))
     word, _, rest = line.partition(" ")

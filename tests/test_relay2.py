@@ -410,7 +410,7 @@ def test_the_longest_terms_ride_with_the_last_step_in_a_v1_transaction_and_not_i
     assert go(env, jwt, terms)["ok"]
     assert net.shape == [2, 1, 1, 1, 1] and max(net.sizes) <= relay.ROOM < chain.MAX_TX_BYTES, (net.shape, net.sizes)
     assert net.sizes[4] == chain.tx_size([pay.fund_balance_ix(c.payer.pubkey(), oidc.token_pda(c.payer.pubkey(), oidc.token_id(jwt)), c.key,
-                                                              pay.faucet_balance_pda(org), pay.faucet_mint(), repo, n, terms)], c.payer.pubkey()) == 1175
+                                                              pay.faucet_balance_pda(org), pay.faucet_mint(), repo, n, terms, used=jwt)], c.payer.pubkey()) == 1208
 
 
 # -- which escrow the cluster runs -----------------------------------------------------------------------------------------
@@ -503,8 +503,8 @@ FUND_REFUSALS = {
     "a self-hosted runner": (lambda c, n: fund_jwt(c, n, runner_environment="self-hosted"), TERMS, "not from a GitHub-hosted runner"),
     "terms that are not the ones GitHub signed for": (lambda c, n: fund_jwt(c, n), _OTHER, "not the terms GitHub signed for"),
     "no terms": (lambda c, n: fund_jwt(c, n), None, "the bounty's terms did not come with its token"),
-    "less than the smallest bounty": (lambda c, n: fund_jwt(c, n, pay.MIN_AMOUNT - 1), TERMS, "a bounty is from 1.00 to 500.00; this token asks for 1.00"),
-    "more than the largest bounty": (lambda c, n: fund_jwt(c, n, pay.MAX_AMOUNT + 1), TERMS, "a bounty is from 1.00 to 500.00"),
+    "less than the smallest bounty": (lambda c, n: fund_jwt(c, n, pay.MIN_AMOUNT - 1), TERMS, "a bounty is from 1.00 to 100,000.00; this token asks for 1.00"),
+    "more than the largest bounty": (lambda c, n: fund_jwt(c, n, pay.MAX_AMOUNT + 1), TERMS, "a bounty is from 1.00 to 100,000.00"),
     "more than 90 days to do the work": (lambda c, n: fund_jwt(c, n, work=pay.MAX_WORK + 1), TERMS, "a bounty is open for a minute to 90 days"),
     "a balance that does not exist": (lambda c, n: fund_jwt(c, n, balance=pay.balance_pda(OWNER, Keypair().pubkey(), c.usdc)), TERMS, "does not exist"),
     "a comment in another owner's repository": (lambda c, n: fund_jwt(c, n, repository_owner_id=999_999, repository_id=555_555), TERMS, "another GitHub owner's repositories"),
@@ -1370,6 +1370,26 @@ def test_a_comment_funds_a_work_order_and_a_proof_pays_its_four_payees_in_two_tr
     assert r["ok"] and c.balance(pay.ata(relayer.pubkey(), c.usdc)) == 300_000 + pay.TIP, r
 
 
+def test_a_used_fund_token_is_not_called_done_when_another_token_funded_its_address_again(oenv):
+    # rehearsed on devnet (0.3.14): two `/knos fund` comments of one maintainer on one issue name one order address;
+    # the first funded it, the order was paid, the second funded it again, and the first token relayed once more was
+    # answered "already", citing the second token's funding
+    c, net = oenv
+    n = issue()
+    first = order_fund_jwt(c, n)
+    r1 = go(oenv, first, TERMS)
+    assert r1["ok"], r1
+    order = Pubkey.from_string(r1["order"])
+    assert go(oenv, order_pay_jwt(c, order, [(user(), 10_000, Keypair().pubkey())]))["ok"] and c.order(order) is None
+    second = order_fund_jwt(c, n)
+    r2 = go(oenv, second, TERMS)
+    assert r2["ok"] and r2["order"] == str(order) and r2["sigs"][-1] != r1["sigs"][-1], r2
+    got = refused(oenv, first, TERMS, "this token was used already: it funded an earlier order at this address")
+    assert r2["sigs"][-1] not in str(got), got
+    n0 = net.txs
+    assert go(oenv, second, TERMS, c.fund()) == {**r2, "sigs": r2["sigs"][-1:], "already": True} and net.txs == n0
+
+
 def test_an_order_is_held_for_a_payee_with_no_wallet_then_settled_and_an_unproven_one_goes_back(oenv):
     c, net = oenv
     n, order = ordered(oenv, 30 * USDC)
@@ -1447,7 +1467,7 @@ def test_an_orders_fund_token_is_refused_before_any_fee_and_the_faucet_funds_one
     n = issue()
     private = pay.opts(flags=pay.F_PRIVATE, judge_repo_id=5, salted=True)
     for jwt, terms, want in (
-            (order_fund_jwt(c, n, 4 * USDC), TERMS, "an order is from 5.00 to 500.00; this token asks for 4.00"),
+            (order_fund_jwt(c, n, 4 * USDC), TERMS, "an order is from 5.00 to 100,000.00; this token asks for 4.00"),
             (order_fund_jwt(c, n, options=private), TERMS, "malformed audience or claims"),          # a private order's audience names issue 0
             (order_fund_jwt(c, 0, options=private), TERMS, "not the scope and the terms hash GitHub signed for"),
             (order_fund_jwt(c, n, options=pay.opts(flags=pay.F_PRIVATE, salted=True)), TERMS, "a private order names its scope and a judge repository"),
@@ -2246,8 +2266,9 @@ def test_every_audience_goes_through_one_table():
     assert relay.KINDS["gate:"].name == "gate" and relay.KINDS["gate:"].since == 0 and not relay.KINDS["gate:"].github
     assert {prefix: (k.name, k.since) for prefix, k in relay.KINDS.items() if prefix != "gate:"} == {
         "knos2:fund:": ("fund", 0), "knos2:pay:": ("pay", 0), "knos2:bind:": ("bind", 0), "knos-oidc:key:": ("key", 0), "knos-oidc:ikey:": ("key", 1),
-        "knos3:fund:": ("fund", 1), "knos3:pay:": ("pay", 1), "knos3:rule:": ("rule", 1), "knos3:take:": ("take", 1), "knos3:cancel:": ("cancel", 1),
-        "knos3:revert:": ("revert", 1), "knos3:bind:": ("bind", 1), "knosm:eval:": ("eval", 0)}     # the meter is a program of its own: no 2.1 escrow
+        "knos3:fund:": ("fund", 1), "knos3:pay:": ("pay", 1), "knos3:auto:": ("pay", 1), "knos3:rule:": ("rule", 1), "knos3:take:": ("take", 1), "knos3:cancel:": ("cancel", 1),
+        "knos3:revert:": ("revert", 1), "knos3:bind:": ("bind", 1), "knosm:eval:": ("eval", 0),
+        "knosm:batch:": ("batch", 0), "knosm:claim:": ("claim", 0)}     # the meter is a program of its own: no 2.1 escrow
     assert relay.kind_of("knos3:pay:x") == "pay" and relay.kind_of("knos3:take:x") == "take" and relay.kind_of("knos:fund:1") is None
     assert [prefix for prefix, k in relay.KINDS.items() if k.first] == ["knos-oidc:key:"]         # the first deployment is handed GitHub's and GitLab's keys, nothing else
 
