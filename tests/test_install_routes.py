@@ -559,3 +559,29 @@ def test_a_release_publishes_to_a_registry_only_when_its_token_exists(tmp_path):
     assert _job("crates")[0]["permissions"] == {"contents": "read"}
     assert _job("npmjs")[0]["permissions"] == {"contents": "read", "id-token": "write"}      # id-token: npm's provenance
     assert "'//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\\n'" in _job("npmjs")[1]["run"]
+
+
+# ---- one project, one host: `knos init --host` ------------------------------------------------------------------------
+
+def test_the_page_and_the_matrix_list_the_hosts_knos_init_writes_for_and_say_the_same_about_each():
+    """docs/INSTALL.md and integrations/hosts/README.md are read by a person choosing a host. Both name every route of
+    `knos init --host`, neither says a host holds a false "done" that the code says it cannot, and both say that no
+    route was run in its host. (tests/test_host_hooks.py holds what each route writes.)"""
+    from knos import init
+    page, matrix = _text("docs", "INSTALL.md"), _text("integrations", "hosts", "README.md")
+    section = page.split("## One project, in your coding agent: `knos init --host`")[1].split("\n## ")[0]
+    rows = dict(re.findall(r"^\| `(\w+)`[^|]*\|[^|]*\| ([^|]+) \|$", section, re.M))
+    assert set(rows) == set(init.ROUTES)
+    for host, (_route, gate, _name) in init.ROUTES.items():
+        assert rows[host].startswith("yes") == (gate == "yes"), host
+        [row] = [line for line in matrix.splitlines() if re.match(rf"\| [^|]*\(`{host}`[^|]*\) \|", line)][:1]
+        said = re.search(r"\*\*([a-z ]+)\*\*", row).group(1)
+        assert said == {"annotate": "annotate only"}.get(gate, gate), host
+    assert "None was run inside the real host." in section and "None of these routes was run inside the real host." in matrix
+    # every host whose event Knos could not confirm is marked so on both pages, and in the name of its tests
+    from _host_events import EVENTS
+    for client, (_source, confirmed, _event, _reason) in EVENTS.items():
+        [row] = [line for line in matrix.splitlines() if re.match(rf"\| [^|]*`{client}`", line)][:1] or [""]
+        assert confirmed or "`unconfirmed`" in row, client
+    assert "`unconfirmed`" in section and ["knos", "init", "--host", "cursor"] in [
+        shlex.split(line, comments=True) for block in _fences("bash") for line in block.splitlines() if line.strip()]

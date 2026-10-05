@@ -6,7 +6,7 @@ No measurement has been made yet: this is the page as it is committed, and the l
 
 ## The canary
 
-The canary is the scheduled workflow `canary.yml` of `drexthealpha/Knos`, meant to run every 30 minutes. These are its runs as GitHub lists them.
+The canary is the scheduled workflow `knos-canary.yml` of `drexthealpha/knos-e2e`, meant to run every 30 minutes. These are its runs as GitHub lists them.
 
 No runs to show. No canary run has been read: GitHub was not asked, or the canary workflow has not run.
 

@@ -312,6 +312,52 @@ def relay_seconds(lines: list[dict], most: int = MOST) -> dict:
             for name, kinds in (("fund", ("fund",)), ("pay", ("proof", "pay")))}
 
 
+_ANY = re.compile(r"^knos-relay (\w+) (\S+?)#(\d+) (\S+) (ok|fail)\b ?(.*)$")
+ATTEMPTS = {"fund": ("fund",), "pay": ("proof", "pay")}
+
+
+def attempts(comments: list[dict], kinds: tuple = ATTEMPTS["pay"]) -> dict:
+    """Every attempt the relay log shows for `kinds`, the ones that failed and the ones cut short included, counted
+    by what was asked for (one issue's funding, one pull request's payment):
+
+        asked         the issues or pull requests the log has a line for
+        completed     of those, how many have a line that says ok; `completion` is completed / asked (null for none)
+        lines         the lines with a token's id: one per token the relay answered for
+        failed        of those, the ones that say fail (with `reasons`: {the first words of the reason: how often})
+        retried       ok lines that took more than one try (` tries=<n>`: a send that failed, or a relay cut short),
+                      and `tries`, every send those lines add up to
+        after_failure asked for again after a failed line and then completed (a fresh token)
+        never         asked, and no line says ok
+        misposted     lines with `-` for the id: a comment that could not carry its token (they answer nobody)
+
+    The log holds only what a relay answered: a token no relay ever picked up has no line and is not counted here."""
+    asked: dict[tuple[str, int], list[bool]] = {}
+    out = {"lines": 0, "failed": 0, "retried": 0, "tries": 0, "misposted": 0}
+    reasons: dict[str, int] = {}
+    for c in sorted(comments, key=lambda c: _unix(c.get("created_at")) or 0):
+        for line in (c.get("body") or "").splitlines():
+            m = _ANY.match(line.strip())
+            if not m or m.group(1) not in kinds:
+                continue
+            if m.group(4) == "-":
+                out["misposted"] += 1
+                continue
+            ok = m.group(5) == "ok"
+            took = re.search(r"(?:^| )tries=(\d+)(?= )", re.split(r"(?:^| )note=", m.group(6), maxsplit=1)[0] + " ") if ok else None
+            out["lines"] += 1
+            out["failed"] += not ok
+            out["retried"] += bool(took)
+            out["tries"] += int(took.group(1)) if took else 1
+            asked.setdefault((m.group(2), int(m.group(3))), []).append(ok)
+            if not ok:
+                why = " ".join(m.group(6).split()[:6])
+                reasons[why] = reasons.get(why, 0) + 1
+    done = [k for k, oks in asked.items() if any(oks)]
+    return {"asked": len(asked), "completed": len(done), "completion": round(len(done) / len(asked), 4) if asked else None, **out,
+            "after_failure": sum(1 for k in done if not asked[k][0]), "never": len(asked) - len(done),
+            "reasons": dict(sorted(reasons.items(), key=lambda kv: (-kv[1], kv[0])))}
+
+
 # ---- GitHub ----------------------------------------------------------------------------------------------------------
 def github(path: str, token: str | None = None):
     """GET api.github.com/<path>, as JSON. Raises when GitHub refuses or does not answer."""
@@ -402,8 +448,10 @@ def collect(url: str, get=None, token: str | None = None, limit: int = 1000, now
         data["latency"].update(latency([], events), relay=relay_seconds([]), note="not measured: GitHub was not asked")
     else:
         try:
-            lines = relay_lines(relay_log(get))
+            log = relay_log(get)
+            lines = relay_lines(log)
             got = latency(lines, events, get)
+            data["latency"]["attempts"] = {name: attempts(log, kinds) for name, kinds in ATTEMPTS.items()}      # the failed and the retried, beside the waits of the ones that worked
             lost = {name: m["not_timed"] for name, m in got.items() if m["not_timed"]}      # said, so that a build GitHub refused is never read as "nothing happened"
             data["latency"].update(got, relay=relay_seconds(lines), note=note + "".join(
                 f"; {k} of {got[name]['lines']} {name.replace('_', ' ')} lines were not timed (the chain's history or GitHub did not give both ends)" for name, k in lost.items()))

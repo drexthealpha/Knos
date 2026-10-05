@@ -32,6 +32,14 @@ writes the three fields Pay writes when it holds a job (state, payee, hold time)
 that follows is the deployed program's. That row says "held state written". Money is a 6-decimal SPL Token mint made
 in the simulator, standing in for test USDC, except in the token drills, which use the program's own faucet mint.
 
+A second table, "When a dependency fails", is of another kind (`DEPENDENCIES`): GitHub's API down for ten minutes, a
+signing key expired on chain, the relay killed between a send and its confirmation, an RPC endpoint that errors, the
+evidence of a payment missing, and devnet reset. Each needs tokens signed on demand, so these rows run the programs'
+TEST builds (tests/fixtures/*.so, which trust a key this repository holds) in LiteSVM, with the fakes of GitHub and
+of the RPC that the tests use (tests/), under a clock the drill moves. They say so. Each row: what was broken, what
+the customer sees, how it recovers, and the recovery measured in simulated seconds. `--dependencies-only` runs these
+alone, reads no cluster, and replaces that one section of --out.
+
 Each drill prints one line: its name, what was checked, and pass or the exact error. The table goes to docs/DRILLS.md
 with the program hashes and this command. Exit 1 when a row fails (with --strict, also when a row was not run).
 """
@@ -40,10 +48,15 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
+import functools
 import hashlib
+import io
 import json
 import re
+import os
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -756,6 +769,423 @@ def upgrade_rows(log: Path | None, say: Callable[[str], None] = print) -> list[R
     return rows
 
 
+# ---- when a dependency fails ---------------------------------------------------------------------------------------------
+# On the programs' test builds, with the fakes the tests use: nothing but GitHub can sign a token the deployed build
+# takes, and these drills need a token for every step. Time is the simulator's: a drill moves the chain's clock and
+# hands the same time to the relay, so "recovered in N s" is N simulated seconds, not this machine's.
+HEADING = "## When a dependency fails"
+EVERY = 3           # seconds between two passes of the relay, as worker.yml runs it
+
+
+@dataclass
+class Outage:
+    name: str
+    broken: str         # what was broken
+    sees: str           # what the customer sees
+    recovers: str       # how it recovers
+    seconds: str        # measured recovery, in simulated seconds
+    result: str = "pass"
+
+
+def _harness() -> None:
+    """The tests' harness on the import path. Skipped when this script is run without the repository's tests/."""
+    tests = ROOT / "tests"
+    if not (tests / "_pay2.py").is_file():
+        raise Skipped("tests/ is not beside this script: these drills use its LiteSVM harness and its fakes")
+    if str(tests) not in sys.path:
+        sys.path.insert(0, str(tests))
+
+
+@contextlib.contextmanager
+def _relaying(repos: str = "octo/widgets"):
+    """A chain of the test builds with the faucet open, a fake GitHub behind the worker's reader, and notes of its
+    own: (chain, ledger, GitHub, the notes' file, GitHub's test key set). Everything patched is put back."""
+    _harness()
+    try:
+        import test_worker as tw
+        from _pay2 import Chain
+        from test_relay2 import JWKS, Net
+    except ImportError as why:
+        raise Skipped(f"the tests' harness could not be imported ({why}): pip install -e '.[dev]'") from None
+    from knos.proof import ghrelay
+    from knos.settle import relay as first
+
+    class GitHub(tw.GitHub):
+        out = False                 # the whole API answers 502
+
+        def _route(self, method, path, data):
+            return (502, None) if self.out else super()._route(method, path, data)
+
+    c = Chain()
+    assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
+    gh = GitHub()
+    gh.issues[ghrelay.HOME_REPO] = [{"number": 1, "state": "open", "labels": [ghrelay.LOG_LABEL]}]
+    with tempfile.TemporaryDirectory() as home:
+        notes = Path(home) / "ghrelay.json"
+        kept = (ghrelay._HUB, ghrelay._LOG, ghrelay._state_path, first.fetch_jwks, relay._KEPT, dict(os.environ))
+        ghrelay._HUB, ghrelay._LOG, ghrelay._state_path = ghrelay.Hub(gh.open, clock=c.now), {}, lambda: notes
+        first.fetch_jwks, relay._KEPT = (lambda issuer: JWKS[issuer]), {}
+        os.environ.update(KNOS_RELAY_REPOS=repos, KNOS_NO_SAS="1")
+        os.environ.pop("GITHUB_RUN_ID", None)
+        try:
+            yield c, Net(c), gh, notes, JWKS
+        finally:
+            ghrelay._HUB, ghrelay._LOG, ghrelay._state_path, first.fetch_jwks, relay._KEPT = kept[:5]
+            os.environ.clear()
+            os.environ.update(kept[5])
+
+
+def _funded(c, net, gh, n: int, count: int = 1) -> list[tuple[int, int, int, Pubkey]]:
+    """`count` bounties funded by comment, each in a repository of its own (the faucet serves one once a minute), and
+    carried by one pass: [(repository id, issue, payee id, the payee's wallet)]."""
+    from test_relay2 import TERMS as terms, faucet_jwt, user
+    from knos.proof import ghrelay
+    out = []
+    for i in range(count):
+        org, repo, payee, wallet = user(), user(), user(), Keypair().pubkey()
+        gh.comment("octo/widgets", n + i, ghrelay.token_comment("fund", faucet_jwt(c, n + i, org, repo), terms), at=c.now())
+        out.append((repo, n + i, payee, wallet))
+    lines = ghrelay.once(net, c.payer, now=c.now(), crank=False)
+    if sum(" ok sig=" in ln for ln in lines) != count:
+        raise Failed(f"the fundings were not all carried: {lines}")
+    return out
+
+
+def _proof(c, gh, job: tuple[int, int, int, Pubkey], pull: int) -> str:
+    from test_relay2 import pay_jwt
+    from knos.proof import ghrelay
+    repo, n, payee, wallet = job
+    jwt = pay_jwt(c, repo, n, payee, wallet)
+    gh.comment("octo/widgets", pull, ghrelay.token_comment("proof", jwt), at=c.now())
+    return jwt
+
+
+def _got(c, wallet: Pubkey) -> int:
+    account = pay.ata(wallet, pay.faucet_mint())
+    return c.balance(account) if c.data(account) is not None else 0
+
+
+def _passes(c, net, seconds: int, until: Callable[[list[str]], bool] = lambda lines: False) -> tuple[int, list[str]]:
+    """Passes of the relay every EVERY seconds of the chain's clock, for `seconds` or until `until(lines of the pass)`:
+    (the seconds that went by, every line logged)."""
+    from knos.proof import ghrelay
+    began, said = c.now(), []
+    while c.now() - began < seconds:
+        c.warp(EVERY)
+        lines = ghrelay.once(net, c.payer, now=c.now(), crank=False)
+        said += lines
+        if until(lines):
+            break
+    return c.now() - began, said
+
+
+def github_down_ten_minutes() -> Outage:
+    """GitHub's API answers nothing for 600 s while three proofs wait in comments."""
+    from knos.proof import ghrelay
+    net_of = 4_875_000
+    with _relaying() as (c, net, gh, notes, _jwks):
+        jobs = _funded(c, net, gh, 21, 3)
+        c.warp(120)
+        gh.out = True
+        proofs = [_proof(c, gh, job, 40 + i) for i, job in enumerate(jobs)]       # merged just as the API went away
+        posted = c.now()
+        down, said = _passes(c, net, 600)
+        if said or any(_got(c, w) for *_x, w in jobs):
+            raise Failed(f"something moved while GitHub was down: {said}")
+        gh.out = False
+        took, said = _passes(c, net, 60, until=lambda lines: bool(lines))
+        if [_got(c, w) for *_x, w in jobs] != [net_of] * 3 or len(said) != 3 or not all(any(f" {ghrelay.token_id(p)} ok sig=" in ln for ln in said) for p in proofs):
+            raise Failed(f"not every proof was paid once GitHub answered: {said}")
+        txs = net.txs
+        _extra, again = _passes(c, net, 30)
+        if again or net.txs != txs or [_got(c, w) for *_x, w in jobs] != [net_of] * 3:
+            raise Failed(f"a token was carried twice: {again}")
+        waited = c.now() - 30 - posted
+    return Outage("GitHub's API is down for ten minutes",
+                  f"every request the relay made to GitHub answered 502 for {down} s; three merged pull requests had their proof tokens posted just before",
+                  "the pull request is merged and no payment comment appears; `knos bounty` still shows the money in escrow",
+                  f"nothing to do. The relay asks again every {EVERY} s; a token is good for an hour past its expiry, so an outage under an hour "
+                  "loses none. Longer than that: run the workflow again (`/knos settle`) for a fresh token",
+                  f"all 3 paid on the first pass after GitHub answered, {took} s later ({waited} s after their comments); none paid twice in the passes that followed")
+
+
+def signing_key_expired_on_chain() -> Outage:
+    """The key GitHub signs with is past its 30 days in the verifier; a stranger's Refresh brings it back."""
+    _harness()
+    try:
+        from _oidc2 import attest_claims
+        from _pay2 import Chain
+        from _settle import modulus, sign_jwt
+        from test_relay2 import JWKS, TERMS as terms, Net, faucet_jwt, pay_jwt, user
+    except ImportError as why:
+        raise Skipped(f"the tests' harness could not be imported ({why}): pip install -e '.[dev]'") from None
+    kept, os.environ["KNOS_NO_SAS"] = os.environ.get("KNOS_NO_SAS"), "1"
+    try:
+        c = Chain()
+        net = Net(c)
+        assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
+        newer = c.second_key()                              # GitHub publishes several keys: this one is a day younger
+        expires = oidc.read_key(c.data(c.key)).expires_at
+        c.warp(expires - c.now() - 240)
+        org, repo, payee, wallet = user(), user(), user(), Keypair().pubkey()
+        r = relay.submit(net, c.payer, faucet_jwt(c, 31, org, repo), terms, JWKS, now=c.now())
+        if not r.get("ok"):
+            raise Failed(f"the funding was refused: {r.get('why')}")
+        c.warp(expires - c.now() + 1)                       # the key's 30 days are over
+        proof = pay_jwt(c, repo, 31, payee, wallet)
+        txs = net.txs
+        r = relay.submit(net, c.payer, proof, None, JWKS, now=c.now())
+        if r.get("ok") or _got(c, wallet):
+            raise Failed("a token under an expired key was paid")
+        why, free = str(r.get("why")), net.txs == txs
+        c.warp(120)
+        anyone = c.fund()                                   # a key that is nobody's in particular
+        c._n += 1
+        claims = attest_claims(oidc.GITHUB, c.github, iat=c.now(), nbf=c.now() - 600, exp=c.now() + 300, jti=f"drill{c._n}")
+        named = c.verify(sign_jwt(newer, claims), oidc.GITHUB, modulus(newer), anyone)
+        if named is None or not c.send([oidc.refresh_ix(anyone.pubkey(), oidc.GITHUB, c.github, named, c.key_of(named))], anyone):
+            raise Failed(f"a stranger's refresh was refused: {c.err}")
+        r = relay.submit(net, c.payer, proof, None, JWKS, now=c.now())
+        if not r.get("ok") or _got(c, wallet) != 4_875_000:
+            raise Failed(f"the same proof was not paid after the refresh: {r.get('why')}")
+        took = c.now() - expires
+    finally:
+        os.environ.pop("KNOS_NO_SAS") if kept is None else os.environ.__setitem__("KNOS_NO_SAS", kept)
+    return Outage("GitHub's signing key has expired on chain",
+                  "the verifier's 30 days for the key GitHub signs with ran out (no refresh landed); a second key of GitHub's was still good",
+                  f"a merged pull request is not paid, and the relay's log says why before any fee is spent ({'no transaction was sent' if free else 'after a transaction that failed'}): {why}",
+                  "anyone refreshes the key: a run of the pinned rotate workflow in which GitHub names the key, verified under a key that is "
+                  "still good, then `Refresh` (drills_recovery.md, case C). The proof that was refused is then paid; nothing is signed again",
+                  f"paid {took} s after the key expired: the refresh was sent 120 s in, by a key that holds nothing, and the same token paid on the next send")
+
+
+def relay_killed_mid_token() -> Outage:
+    """The relay's process ends after its transactions landed and before it wrote down or logged anything."""
+    from knos.proof import ghrelay
+    with _relaying() as (c, net, gh, notes, _jwks):
+        [job] = _funded(c, net, gh, 41)
+        c.warp(60)
+        proof = _proof(c, gh, job, 50)
+        real = ghrelay.relay_one
+
+        def killed(*a, **kw):
+            real(*a, **kw)
+            raise KeyboardInterrupt("the runner was stopped")      # after the chain took it, before the relay heard so
+        ghrelay.relay_one = killed
+        try:
+            c.warp(EVERY)
+            ghrelay.once(net, c.payer, now=c.now(), crank=False)
+            raise Failed("the relay was not killed")
+        except KeyboardInterrupt:
+            pass
+        finally:
+            ghrelay.relay_one = real
+        died = c.now()
+        entry = next(iter(json.loads(notes.read_text(encoding="utf-8"))["journal"].values()), {}) if notes.is_file() else {}
+        mid = [e for e in json.loads(notes.read_text(encoding="utf-8"))["journal"].values() if e.get("id") == ghrelay.token_id(proof)]
+        if not mid or mid[0].get("state") != "sending" or _got(c, job[3]) != 4_875_000:
+            raise Failed(f"the notes do not show the token in flight, or the chain did not take it: {entry}")
+        took, said = _passes(c, net, 30, until=lambda lines: bool(lines))
+        if len(said) != 1 or f" {ghrelay.token_id(proof)} ok " not in said[0] or _got(c, job[3]) != 4_875_000:
+            raise Failed(f"the token was not answered once after the restart: {said}")
+        _extra, again = _passes(c, net, 15)
+        if again or _got(c, job[3]) != 4_875_000:
+            raise Failed(f"the token was carried again: {again}")
+    return Outage("the relay is killed between a send and its confirmation",
+                  "the relay's process ended after the paying transaction landed and before it noted or logged anything (its notes said the token was being sent)",
+                  "the money arrives; the payment comment is late by one pass of the relay",
+                  "nothing to do. The token was written to the relay's notes before it was sent, so the next pass (or the next run) sends it "
+                  "again; the chain's single-use marker answers that it is done, nothing moves twice, and the log gets its line",
+                  f"answered {c.now() - 15 - died} s after the kill ({took} s of passes); the payee holds 4.875 once, after two sends of the same token")
+
+
+def rpc_errors_and_stale_blockhashes() -> Outage:
+    """Every transaction the relay sends fails for a minute: the endpoint does not answer, or says the blockhash is stale."""
+    from knos.proof import ghrelay
+    with _relaying() as (c, net, gh, notes, _jwks):
+        [job] = _funded(c, net, gh, 51)
+        c.warp(60)
+        proof = _proof(c, gh, job, 60)
+        began, bad = c.now(), 60
+
+        class Flaky:
+            """The ledger, whose sends fail while the endpoint is bad: in turn an error of the connection and Solana's
+            own "Blockhash not found". Reads answer, as they did on devnet when sends were dropped."""
+            failed = 0
+
+            def __getattr__(self, name):
+                return getattr(net, name)
+
+            def _fail(self):
+                Flaky.failed += 1
+                raise OSError("the RPC endpoint closed the connection") if Flaky.failed % 2 else chain.RpcError("Transaction simulation failed: Blockhash not found")
+
+            def send(self, ixs, payer, signers=None, v1=False):
+                return self._fail() if c.now() - began < bad else net.send(ixs, payer, signers, v1)
+
+            def send_all(self, groups, payer, signers=None, v1=False):
+                return self._fail() if c.now() - began < bad else net.send_all(groups, payer, signers, v1)
+        flaky = Flaky()
+        tried, said = [], []
+        while c.now() - began < 300 and not said:
+            c.warp(EVERY)
+            before = Flaky.failed
+            said = ghrelay.once(flaky, c.payer, now=c.now(), crank=False)
+            if Flaky.failed != before or said:
+                tried.append(c.now() - began)
+        if len(said) != 1 or f" {ghrelay.token_id(proof)} ok " not in said[0] or _got(c, job[3]) != 4_875_000:
+            raise Failed(f"the token was not paid once the endpoint answered: {said}")
+        if any(" fail " in ln for ln in gh.log()):
+            raise Failed("a failure of the endpoint was logged as a verdict on the token")
+        tries = int(re.search(r" tries=(\d+) ", said[0]).group(1))
+        _extra, again = _passes(c, net, 15)
+        if again or _got(c, job[3]) != 4_875_000:
+            raise Failed(f"the token was carried again: {again}")
+    return Outage("the RPC endpoint errors and returns stale blockhashes",
+                  f"for {bad} s every transaction the relay sent failed: a closed connection, or \"Blockhash not found\"; reads still answered",
+                  "the payment comment is late; nothing says \"failed\", because the failure says nothing about the token",
+                  "nothing to do. The relay tries the token again on its next pass, then after 10, 20, ... 60 s, and every 60 s from then "
+                  "while the chain would still take it; a failure of the endpoint never ends a token",
+                  f"paid {tried[-1] - bad} s after the endpoint answered again, on try {tries} (tries at {', '.join(str(t) for t in tried)} s); paid once")
+
+
+def evidence_missing() -> Outage:
+    """A required check run of the merged commit is gone from GitHub: nothing is signed, so nothing can be paid."""
+    _harness()
+    try:
+        import test_flow as tf
+        from _flow import check
+    except ImportError as why:
+        raise Skipped(f"the tests' harness could not be imported ({why}): pip install -e '.[dev]'") from None
+    from knos import flow
+    with tempfile.TemporaryDirectory() as tmp:
+        w = tf.bounty(Path(tmp))
+        w.chain.bind(tf.MONA)
+        head = w.hub.pulls[12]["head"]["sha"]
+        w.hub.checks[head] = [check("build")]                   # `test` ran and passed; its check run was deleted
+        t0 = w.clock()
+        code = flow.settle(w.run(w.hub.merge(12)))
+        said = w.hub.knos(12)[-1]
+        if code != 0 or w.signer.asked or len(w.chain.jobs(7)) != 1 or "- `test`: did not run on this commit" not in said or not said.startswith("Knos: not paid."):
+            raise Failed(f"a payment without its evidence was not refused with the reason: {said!r}")
+        refused = round(w.clock() - t0)
+        w.hub.checks[head] = [check("build"), check("test")]    # the check is run again on the same commit, and passes
+        t1 = w.clock()
+        code = flow.settle(w.run(w.hub.commented(12, tf.EVE, "/knos settle")))
+        paid = w.hub.knos(12)[-1]
+        if code != 0 or not paid.startswith("Knos: paid.") or len(w.signer.asked) != 1:
+            raise Failed(f"the payment did not follow once the evidence was back: {paid!r}")
+        took = round(w.clock() - t1)
+    return Outage("the evidence is missing (a required check run was deleted)",
+                  "the bounty's terms require the checks `build` and `test` at the merged commit; GitHub no longer lists `test` there",
+                  "one comment on the pull request: \"Knos: not paid.\", each required check with what GitHub shows (`test`: did not run on this "
+                  "commit), and what to do. No token is signed, so no relay and no program is asked to pay",
+                  "run the check again on that commit and comment `/knos settle` (anyone may); or a maintainer pays with `/knos tip`. "
+                  "Otherwise the money goes back to the funder at the deadline",
+                  f"refused by the job the merge started, after {refused} s of waiting (a check that is absent is not waited for); paid {took} s after `/knos settle`, "
+                  "once the check was back")
+
+
+def devnet_reset() -> Outage:
+    """The cluster forgets everything. What was paid before is still provable from the bundle and the receipt mirror."""
+    _harness()
+    try:
+        import test_bundle as tb
+    except ImportError as why:
+        raise Skipped(f"the tests' harness could not be imported ({why}): pip install -e '.[dev]'") from None
+    from knos import bundle, receipt
+    net = tb.Chain()
+    r, files = bundle.gather(net.call, net.events(), tb.ORDER, tb.host())
+    blob = bundle.make(files, r["order"])
+    with tempfile.TemporaryDirectory() as tmp:
+        mirror = Path(tmp) / "receipts"
+        receipt.mirror_write([r], mirror)                       # what `knos receipt mirror` writes while the chain has the record
+        net.reset = True
+        try:
+            bundle.gather(net.call, net.events(), tb.ORDER, tb.host())
+            raise Failed("the reset chain still gave the order")
+        except bundle.Unavailable:
+            pass
+        receipt.mirror_write([], mirror)                        # a mirror run after the reset finds nothing, and keeps what it has
+        held = receipt.mirror_find(str(mirror), tb.ORDER)
+        got, done = bundle.verify(blob, mirror=str(mirror))     # no cluster is asked
+        if held != [r] or got != r or receipt.check(r) is not None:
+            raise Failed("the receipt or the bundle did not verify from the mirror after the reset")
+    return Outage("devnet is reset",
+                  "the cluster lost every account: the programs, every order and Balance, every binding and signing key, and the test USDC itself",
+                  "`knos status` says the programs are not deployed; open orders are gone and cannot be refunded (it was test USDC from a faucet); "
+                  "explorer links to old transactions stop working",
+                  "what was accepted and paid stays provable: `knos bundle verify FILE --mirror DIR` and `knos receipt verify ORDER --mirror DIR` "
+                  "check the saved bundle and the mirrored receipt with no cluster. A funder waits until `knos status` passes again, then funds "
+                  "anew (drills_recovery.md, case A)",
+                  f"0 s for the record: {len(done)} checks of the bundle and the mirror's receipt passed with the chain gone. The orders are not "
+                  "recovered: redeploying is by hand and was not timed")
+
+
+DEPENDENCIES: list[tuple[str, Callable[[], Outage]]] = [
+    ("GitHub's API is down for ten minutes", github_down_ten_minutes),
+    ("GitHub's signing key has expired on chain", signing_key_expired_on_chain),
+    ("the relay is killed between a send and its confirmation", relay_killed_mid_token),
+    ("the RPC endpoint errors and returns stale blockhashes", rpc_errors_and_stale_blockhashes),
+    ("the evidence is missing (a required check run was deleted)", evidence_missing),
+    ("devnet is reset", devnet_reset),
+]
+
+
+@functools.lru_cache(maxsize=1)
+def _dependencies() -> tuple[Outage, ...]:
+    out = []
+    for name, drill in DEPENDENCIES:
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):     # the relay and the job print their own lines: the row says what matters
+                out.append(drill())
+        except Skipped as why:
+            out.append(Outage(name, "", "", "", "", f"not run: {why}"))
+        except Failed as why:
+            out.append(Outage(name, "", "", "", "", f"FAIL: {why}"))
+        except Exception as why:  # noqa: BLE001 - a drill that broke is a row that failed, with the exact error
+            out.append(Outage(name, "", "", "", "", f"FAIL: {type(why).__name__}: {why}"))
+    return tuple(out)
+
+
+def dependency_rows(say: Callable[[str], None] = print) -> list[Outage]:
+    """The rows of "When a dependency fails": run once in a process (they are the same every time: the harness's
+    clock and keys are fixed)."""
+    rows = list(_dependencies())
+    for r in rows:
+        say(f"when {r.name}: {r.seconds + ': ' if r.seconds else ''}{r.result}")
+    return rows
+
+
+def dependency_section(rows: list[Outage]) -> str:
+    cell = lambda s: s.replace("|", "\\|").replace("\n", " ")  # noqa: E731
+    fixtures = ROOT / "tests" / "fixtures"
+    builds = [f"`{name}` `{mc.elf_hash((fixtures / f'{name}_v2_test.so').read_bytes())}`" for name in PROGRAMS if (fixtures / f"{name}_v2_test.so").is_file()]
+    lines = [HEADING, "",
+             "These rows are of another kind than the ones above. Each breaks one thing Knos depends on and follows a payment through it. "
+             "They need a token signed for every step, and nothing but GitHub can sign one the deployed programs take, so they run the "
+             "programs' test builds (" + ("; ".join(builds) or "tests/fixtures") + ": the same source built with a key this repository holds) "
+             "in LiteSVM, with the relay's own code and the fakes of GitHub and of the RPC endpoint that the tests use. Seconds are the "
+             "simulator's: the drill moves the clock, and the relay makes a pass every " + f"{EVERY} s as the public worker does. No cluster and "
+             "no GitHub is touched, and none of these failures has been rehearsed on devnet.", "",
+             f"{sum(r.result == 'pass' for r in rows)} of {len(rows)} rows passed, {sum(r.result.startswith('FAIL') for r in rows)} failed, "
+             f"{sum(r.result.startswith('not run') for r in rows)} were not run.", "",
+             "| Failure | What was broken | What the customer sees | How it recovers | Measured recovery, simulated seconds | Result |", "|---|---|---|---|---|---|"]
+    lines += [f"| {cell(r.name)} | {cell(r.broken)} | {cell(r.sees)} | {cell(r.recovers)} | {cell(r.seconds)} | {cell(r.result)} |" for r in rows]
+    lines += ["", "These rows alone, with no cluster: `python scripts/drills.py --dependencies-only` (it rewrites this section, and appends the hand-written half of the page anew). "
+              "What each means for someone who is waiting for a payment is at the end of this page."]
+    return "\n".join(lines) + "\n"
+
+
+def with_dependencies(doc: str, section: str) -> str:
+    """`doc` with its dependency section replaced by `section` (put before "## Reproduce" when it has none)."""
+    start = doc.find(HEADING)
+    end = doc.find("\n## ", start + 1) + 1 if start >= 0 else doc.find("## Reproduce")
+    if end <= 0:
+        return doc.rstrip("\n") + "\n\n" + section
+    return doc[:start if start >= 0 else end] + section + "\n" + doc[end:]
+
+
 def document(programs: list[Program], rows: list[Row], rpc: str, cluster: str, now: int, tokens: str | None, n_tokens: int, upgrade_log: str | None = None) -> str:
     cell = lambda s: s.replace("|", "\\|").replace("\n", " ")  # noqa: E731
     ran = [r for r in rows if not r.result.startswith("not run")]
@@ -819,7 +1249,16 @@ def main(argv: list[str] | None = None, call: Callable = chain.call, say: Callab
     ap.add_argument("--out", type=Path, default=ROOT / "docs" / "DRILLS.md")
     ap.add_argument("--now", type=int, help="the simulator's clock at the start of a drill without tokens (default: this machine's)")
     ap.add_argument("--strict", action="store_true", help="exit 1 also when a row was not run")
+    ap.add_argument("--dependencies-only", action="store_true", help="run only the rows of \"When a dependency fails\" and replace that section of --out; no cluster is read")
     a = ap.parse_args(argv)
+    if a.dependencies_only:
+        outages = dependency_rows(say)
+        doc, tail = a.out.read_text(encoding="utf-8"), recovery()
+        cut = doc.find(tail.lstrip("\n").split("\n", 1)[0]) if tail else -1      # the hand-written half begins at its own first heading: it is appended anew
+        a.out.write_text(with_dependencies(doc[:cut].rstrip("\n") + "\n" if cut > 0 else doc, dependency_section(outages)) + (tail if cut > 0 else ""), encoding="utf-8")
+        bad = [r for r in outages if r.result != "pass"]
+        say(f"{len(outages) - len(bad)} of {len(outages)} dependency rows passed; the section is in {a.out}")
+        return 1 if [r for r in bad if r.result.startswith("FAIL")] or (a.strict and bad) else 0
     cluster = mc.GENESIS.get(call(a.rpc, "getGenesisHash", []), "a cluster of its own")
     programs = fetch(a.rpc, call)
     for p in programs:
@@ -827,11 +1266,14 @@ def main(argv: list[str] | None = None, call: Callable = chain.call, say: Callab
     tokens = corpus(a.tokens) if a.tokens else None
     now = a.now if a.now is not None else int(time.time())
     rows = run({p.name: p.elf for p in programs}, now, tokens, say) + upgrade_rows(a.upgrade_log, say)
-    a.out.write_text(document(programs, rows, a.rpc, cluster, now, str(a.tokens) if a.tokens else None, len(tokens or []),
-                              str(a.upgrade_log) if a.upgrade_log else None) + recovery(), encoding="utf-8")
+    outages = dependency_rows(say)
+    doc = document(programs, rows, a.rpc, cluster, now, str(a.tokens) if a.tokens else None, len(tokens or []), str(a.upgrade_log) if a.upgrade_log else None)
+    a.out.write_text(with_dependencies(doc, dependency_section(outages)) + recovery(), encoding="utf-8")
     failed, skipped = [r for r in rows if r.result.startswith("FAIL")], [r for r in rows if r.result.startswith("not run")]
+    broke, left = [r for r in outages if r.result.startswith("FAIL")], [r for r in outages if r.result.startswith("not run")]
+    say(f"when a dependency fails: {len(outages) - len(broke) - len(left)} passed, {len(broke)} failed, {len(left)} not run")
     say(f"{len(rows) - len(failed) - len(skipped)} passed, {len(failed)} failed, {len(skipped)} not run; the table is in {a.out}")
-    return 1 if failed or (a.strict and skipped) else 0
+    return 1 if failed or broke or (a.strict and (skipped or left)) else 0
 
 
 if __name__ == "__main__":

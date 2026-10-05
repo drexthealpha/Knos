@@ -221,6 +221,33 @@ def test_the_black_box_check_cannot_be_forged_from_inside(tmp_path):
     assert judge.judge(v["base"], v["edits"], CFG)["reasons"] == ["touches protected path .knos/acceptance/7/blackbox.py"]
 
 
+def test_a_suites_last_words_are_one_bounded_line_of_plain_text():
+    said = "collected 3\r\n\x1b[31mFAILED\x1b[0m case 2:\texpected 42,\x00 got\x07 21\u202e\u200b\n\n"
+    assert judge.last_words(said) == "collected 3 FAILED case 2: expected 42, got 21"
+    assert judge.last_words("") == "" and judge.last_words(" \n\x1b[0m\x00") == ""
+    long = judge.last_words("first line\n" + "x" * 400 + " the end")
+    assert len(long) == 300 and long.endswith(" the end") and "first" not in long
+    assert judge.last_words("a b c d", most=3) == "c d" and judge.last_words("abcdef", most=3) == "def"
+    assert judge.last_words("caf\u00e9 \u00e7a va: 2 \u2260 3") == "caf\u00e9 \u00e7a va: 2 \u2260 3"      # text in any language stays
+
+
+@posix
+def test_a_failed_black_box_suite_says_its_last_words_in_the_reason(tmp_path):
+    box = {**BOX, ".knos/acceptance/7/blackbox.py": BOX[".knos/acceptance/7/blackbox.py"].replace(
+        "sys.exit(0 if", "ok = got.stdout.decode().strip().splitlines()[-1:] == ['42']\n"
+                         "print('double(21): expected 42,\\x1b[31m got ' + got.stdout.decode().strip() + '\\x07\\n' + 'z' * 400 if not ok else 'ok')\n"
+                         "sys.exit(0 if")}
+    v = variants(tmp_path, box, good={"calc.py": "def double(x):\n    return 2 * x\n"}, wrong={"calc.py": "def double(x):\n    return 3 * x\n"})
+    assert judge.judge(v["base"], v["good"], CFG)["reasons"] == []
+    [why] = judge.judge(v["base"], v["wrong"], CFG)["reasons"]
+    head = "pr: acceptance checks not passed: acceptance::blackbox (the suite's last words: "
+    assert why.startswith(head) and why.endswith("z)") and len(why) == len(head) + 300 + 1
+    assert "\x1b" not in why and "\x07" not in why and "\n" not in why
+    short = {**box, ".knos/acceptance/7/blackbox.py": box[".knos/acceptance/7/blackbox.py"].replace("'z' * 400", "''")}
+    v = variants(tmp_path / "short", short, wrong={"calc.py": "def double(x):\n    return 3 * x\n"})
+    assert judge.judge(v["base"], v["wrong"], CFG)["reasons"] == [head + "double(21): expected 42, got 63)"]
+
+
 PY = {
     "pkg/__init__.py": "def add(a, b):\n    return a + b\n",
     "tests/test_add.py": "from pkg import add\n\n\ndef test_add():\n    assert add(1, 2) == 3\n",

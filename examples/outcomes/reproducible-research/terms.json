@@ -1,0 +1,19 @@
+{
+  "name": "outcome-reproducible-research",
+  "sentence": "Pays 90 test USDC when analysis.py, run again with seed 20261005 on the trial's rows, prints the estimate claimed in RESULT.json within 0.000001 minutes, and the estimate moves with the treatment arm when the arm is moved; refund after 14 days",
+  "where": "an issue that has this example's .knos/acceptance/<issue>/ on the default branch (bundle 1 here)",
+  "terms": {
+    "accept": "a370157d7afb2d43aba0e6285942c190a820fceec69061630273f0099a9ab71e",
+    "checks": [],
+    "deny": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "mode": "tests",
+    "paths": [],
+    "reserve": 7,
+    "v": 1
+  },
+  "terms_json": "{\"accept\":\"a370157d7afb2d43aba0e6285942c190a820fceec69061630273f0099a9ab71e\",\"checks\":[],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"tests\",\"paths\":[],\"reserve\":7,\"v\":1}",
+  "terms_hash": "d462ac02d89451c31819a4628e82aed95d5de8f9a8e72f6ca86804b598f5aa74"
+}

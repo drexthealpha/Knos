@@ -1,0 +1,89 @@
+name: Knos verify
+description: Checks a pull request against GitHub's own record of its checks and gives a verdict as JSON. No secret, no wallet, no chain.
+author: drexthealpha
+branding:
+  icon: check-circle
+  color: green
+
+# One step for a bounty or work platform, or any repository, that wants "the named checks really passed" as data
+# before it marks work accepted:
+#
+#     jobs:
+#       knos-verify:                       # a name that starts with "knos": Knos never counts its own job as evidence
+#         runs-on: ubuntu-latest
+#         permissions:
+#           checks: read
+#           statuses: read
+#           pull-requests: read
+#         steps:
+#           - id: knos
+#             uses: drexthealpha/Knos/.github/actions/knos-verify@<a release tag, or its full commit sha>
+#             with:
+#               checks: test, lint
+#           - run: echo "$VERDICT"
+#             env:
+#               VERDICT: ${{ steps.knos.outputs.verdict }}
+#
+# What it answers (verify.py, beside this file): when the description says "tests pass" or "CI is green", whether a
+# finished check failed at the head commit; and, for each name in `checks`, whether that check passed at the commit.
+# It reads GitHub's record with the job's read-only token and runs none of the pull request's code, so it is safe
+# under `pull_request`, under `pull_request_target` and after a merge. It needs no secret and no id-token, holds no
+# wallet and writes to no chain. Knos is installed from PyPI at one exact version.
+inputs:
+  pull-request:
+    description: the pull request's number (default, the one this run is for)
+    default: ${{ github.event.pull_request.number }}
+  repository:
+    description: owner/name (default, this repository)
+    default: ${{ github.repository }}
+  checks:
+    description: names of checks that must have passed at the commit, comma or newline separated (default, none)
+    default: ""
+  commit:
+    description: "where the named checks are read: `head` (the pull request's head commit) or `merge` (the merge commit of a merged pull request)"
+    default: head
+  fail:
+    description: "`true` (default) fails the step when the verdict is not passed; `false` only reports it"
+    default: "true"
+  token:
+    description: a token that can read the repository's checks (default, the job's own)
+    default: ${{ github.token }}
+outputs:
+  passed:
+    description: "`true` when no claim in the description is false and every named check passed"
+    value: ${{ steps.verify.outputs.passed }}
+  verdict:
+    description: "the verdict as one line of JSON (schema knos.verify/1)"
+    value: ${{ steps.verify.outputs.verdict }}
+  json:
+    description: the file the verdict was written to
+    value: ${{ steps.verify.outputs.json }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        version: "0.8.20"
+        enable-cache: false          # nothing is restored into this job and nothing is saved from it
+        ignore-empty-workdir: true   # the calling job has no need to check anything out
+    - name: knos verify
+      id: verify
+      shell: bash
+      env:
+        SCRIPT: ${{ github.action_path }}/verify.py
+        REPO: ${{ inputs.repository }}
+        NUM: ${{ inputs.pull-request }}
+        CHECKS: ${{ inputs.checks }}
+        AT: ${{ inputs.commit }}
+        FAIL: ${{ inputs.fail }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        case "$NUM" in *[!0-9]*|"")
+          echo "Knos verify reads a pull request. Give its number in the \`pull-request\` input, or run this on a pull_request event."
+          exit 2;;
+        esac
+        fail=--fail; [ "$FAIL" = "false" ] && fail=--no-fail
+        uv run --quiet --no-config --no-project --python 3.12 --with "knos==0.3.15" \
+          python "$SCRIPT" --pr "$REPO#$NUM" --checks "$CHECKS" --commit "$AT" --out "$RUNNER_TEMP/knos-verify.json" "$fail"

@@ -80,3 +80,18 @@ settle_pay2.TOKEN_AT
 _.hash_from
 # Typer registers these inside knos.agentkey's `register` and calls them when a person types the command.
 _._init, _._rotate              # knos agent init | rotate
+
+
+# 0.3.15. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.show_, _.check_, _.set_       # knos.controls.register: knos budget show | check | set
+_.correct_, _.close_, _.statement_      # knos.ledger.register: knos meter correct | close | statement
+_.observe_                      # knos.observe.register: knos observe
+# Python calls a module's own __getattr__ for a name the module does not have: `knos.cli.app` loads every command's
+# module the first time someone asks for the whole command line by name (tests, scripts), and not before.
+_.__getattr__
+# The price table of the Buy page, as the Python computes it: tests/test_controls.py holds web/controls_data.js to it,
+# row for row. And the size limits of the brand's files, which tests/test_brand.py reads from the tool that writes them.
+from knos import controls as controls_
+
+controls_.fee_table
+_.BOUNDS

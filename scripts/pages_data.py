@@ -68,7 +68,12 @@ import agent_pr_index  # noqa: E402 - the standard library only
 
 SITE = "https://drexthealpha.github.io/Knos"
 HOME_REPO = "drexthealpha/Knos"
-CANARY = "canary.yml"        # the workflow whose runs are the canary's (every 30 minutes)
+# The canary's runs: of the workflow examples/knos-canary.yml, under the name a repository installs it by, in the
+# repository kept for it (that file's header: "Knos runs one in drexthealpha/knos-e2e"; web/live.js reads the same
+# one). Never the home repository: the canary opens and merges pull requests all day where it runs. Both can be
+# named on the command line (--canary, --canary-repo) by whoever runs a canary of their own.
+CANARY = "knos-canary.yml"
+CANARY_REPO = "drexthealpha/knos-e2e"
 USDC = frozenset({"4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",     # Circle's, devnet
                   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"})    # Circle's, mainnet
 KINDS = ("real", "test", "self", "own")
@@ -565,7 +570,7 @@ def same_stats(stats: dict, latency: dict) -> dict:
 
 
 # ---- operations ------------------------------------------------------------------------------------------------------
-def canary_runs(get, repo: str = HOME_REPO, workflow: str = CANARY, pages: int = 20) -> list[dict] | None:
+def canary_runs(get, repo: str = CANARY_REPO, workflow: str = CANARY, pages: int = 20) -> list[dict] | None:
     """The canary workflow's runs, newest first; None when GitHub does not list them (no token, or no such workflow)."""
     out = []
     try:
@@ -618,9 +623,11 @@ def response_block(get, own: frozenset, repo: str = HOME_REPO, pages: int = 2) -
     return {**{k: v for k, v in spread(took).items() if k in ("n", "p50", "p95", "slowest")}, "waiting": len(waiting), "of": len(outside), "note": None if outside else "no outside issue or pull request yet"}
 
 
-def operations_json(get, now: float, own: frozenset, meta: dict, workflow: str = CANARY) -> dict:
-    runs = canary_runs(get, workflow=workflow) if get else None
-    return {**meta, "canary": {**canary_block(runs, now), "workflow": workflow, "repository": HOME_REPO}, "response": response_block(get, own),
+def operations_json(get, now: float, own: frozenset, meta: dict, workflow: str = CANARY, repository: str = CANARY_REPO) -> dict:
+    """operations.json. `workflow`, `repository`: the canary's file and the repository it is installed in; the answers
+    to outsiders are the home repository's whatever these are."""
+    runs = canary_runs(get, repository, workflow) if get else None
+    return {**meta, "canary": {**canary_block(runs, now), "workflow": workflow, "repository": repository}, "response": response_block(get, own),
             "definitions": {"success_rate": "successful runs of the canary over its finished runs (failure, timed out and startup failure are failures; cancelled runs are not counted), with the 95% Wilson interval",
                             "incident": "a finished canary run that did not succeed, with its run's link",
                             "response": "from an outside issue or pull request being opened to the first comment of a team member who is not its author, over the newest 200 of the repository"}}
@@ -647,7 +654,7 @@ def render_operations_md(ops: dict) -> str:
              "which is published beside it on the site (`" + SITE + "/operations.json`); nothing here is typed by hand.", ""]
     lines += [f"Generated {ops['generated']}." if ops.get("generated") else "No measurement has been made yet: this is the page as it is committed, and the live page on the site replaces it.", ""]
     lines += ["## The canary", "",
-              f"The canary is the scheduled workflow `{c.get('workflow') or CANARY}` of `{c.get('repository') or HOME_REPO}`, meant to run every 30 minutes. These are its runs as GitHub lists them.", ""]
+              f"The canary is the scheduled workflow `{c.get('workflow') or CANARY}` of `{c.get('repository') or CANARY_REPO}`, meant to run every 30 minutes. These are its runs as GitHub lists them.", ""]
     if not c.get("runs"):
         lines += [f"No runs to show. {_sentence(c.get('note')) or 'Nothing has been measured yet.'}", ""]
     else:
@@ -869,7 +876,7 @@ def rank_page(title: str, head: list[str], rows: list[list], note: str, meta: di
 # ---- everything ------------------------------------------------------------------------------------------------------
 def build(events: list[dict], comments: list[dict] | None, get, index: dict | None, accounts: dict | None, names: Names, now: float,
           own: frozenset | None = None, own_wallets: frozenset | None = None, canary: str = CANARY, source: dict | None = None,
-          partial: bool = False) -> dict[str, str]:
+          partial: bool = False, canary_repo: str = CANARY_REPO) -> dict[str, str]:
     """{path under the output folder: text} for every file this module writes. `events` are network_stats's, `comments`
     the relay log's comments (None: not read), `get` reads GitHub (None: not asked), `index` is the Agent PR Index,
     `accounts` maps job addresses to accounts (None: not read), `partial` says the history was not read whole (the
@@ -970,7 +977,7 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
     # latency and operations
     note = None if get else "not measured: GitHub was not asked, so a line of the relay log that does not carry its own start time is not measured"
     dump("latency.json", latency_json(samples, now, {"source": meta["source"], "generated": gen}, note))
-    ops = operations_json(get, now, own, {"source": meta["source"], "generated": gen}, canary)
+    ops = operations_json(get, now, own, {"source": meta["source"], "generated": gen}, canary, canary_repo)
     dump("operations.json", ops)
     files["OPERATIONS.md"] = render_operations_md(ops if (events or comments or get) else {**ops, "generated": None})      # a build that read nothing says so
     return files
@@ -999,7 +1006,8 @@ def main(argv=None) -> int:
     ap.add_argument("--index", help="the Agent PR Index (index.json), already checked")
     ap.add_argument("--docs", help="also write OPERATIONS.md here (docs/OPERATIONS.md)")
     ap.add_argument("--limit", type=int, default=1000, help="the newest transactions of each program to read when --events is not given")
-    ap.add_argument("--canary", default=CANARY, help="the file of the canary workflow in the home repository")
+    ap.add_argument("--canary", default=CANARY, help=f"the canary workflow's file in the repository it is installed in (default: {CANARY})")
+    ap.add_argument("--canary-repo", default=CANARY_REPO, help=f"OWNER/NAME of the repository the canary runs in (default: {CANARY_REPO})")
     ap.add_argument("--no-github", action="store_true")
     ap.add_argument("--empty", action="store_true", help="write every file with nothing measured")
     a = ap.parse_args(argv)
@@ -1043,7 +1051,9 @@ def main(argv=None) -> int:
                 comments = ns.relay_log(get)
             except Exception as e:  # noqa: BLE001
                 print(f"pages_data: the relay log was not read ({type(e).__name__})", file=sys.stderr)
-        files = build(events, comments, get, index, accounts, Names(), now, canary=a.canary, partial=partial)
+        if not re.fullmatch(r"[\w.-]+/[\w.-]+", a.canary_repo) or not re.fullmatch(r"[\w.-]+\.ya?ml", a.canary):
+            ap.error("--canary is a workflow file's name (knos-canary.yml) and --canary-repo is OWNER/NAME")
+        files = build(events, comments, get, index, accounts, Names(), now, canary=a.canary, partial=partial, canary_repo=a.canary_repo)
     write(files, Path(a.out))
     stats = Path(a.out) / "stats.json"
     if not a.empty and comments is not None and stats.exists():      # the relay log was read here: the page's table takes this build's one measurement

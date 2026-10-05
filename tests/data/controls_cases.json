@@ -1,0 +1,1174 @@
+{
+ "cases": [
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: a spender, 100",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 5000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 424242,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: the owner, the minimum fee on 5",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "8.00",
+    "fee": 400000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 5.00 and a fee of 0.40 (8.00%) leave the Balance: 5.40.",
+    "total": 5400000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": {
+     "expires": 1790000001,
+     "feeBps": 100,
+     "ownerId": 424242
+    },
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: a Plan at 1%",
+   "out": {
+    "bps": 100,
+    "code": 0,
+    "effectivePct": "1.00",
+    "fee": 1000000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 1.00 (1.00%) leave the Balance: 101.00.",
+    "total": 101000000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": {
+     "expires": 1790000000,
+     "feeBps": 100,
+     "ownerId": 424242
+    },
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: a Plan that ended is the standard rate",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": {
+     "expires": 1790000009,
+     "feeBps": 10,
+     "ownerId": 424242
+    },
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: a Plan under the lowest rate is held to it",
+   "out": {
+    "bps": 50,
+    "code": 0,
+    "effectivePct": "0.50",
+    "fee": 500000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 0.50 (0.50%) leave the Balance: 100.50.",
+    "total": 100500000
+   }
+  },
+  {
+   "in": {
+    "amount": 4935643565,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: exactly the daily limit",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "1.30",
+    "fee": 64356435,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 4,935.643565 and a fee of 64.356435 (1.30%) leave the Balance: 5,000.00.",
+    "total": 5000000000
+   }
+  },
+  {
+   "in": {
+    "amount": 4900000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20716,
+     "dayLimit": 6000000000,
+     "daySpent": 5900000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: yesterday's count is not today's",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "1.31",
+    "fee": 64000000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 4,900.00 and a fee of 64.00 (1.31%) leave the Balance: 4,964.00.",
+    "total": 4964000000
+   }
+  },
+  {
+   "in": {
+    "amount": 50000000000,
+    "balance": {
+     "capPerJob": 0,
+     "faucet": false,
+     "hasX": false,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": null,
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: no side account, 50,000",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "1.03",
+    "fee": 515000000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 50,000.00 and a fee of 515.00 (1.03%) leave the Balance: 50,515.00.",
+    "total": 50515000000
+   }
+  },
+  {
+   "in": {
+    "amount": 50000000000,
+    "balance": {
+     "capPerJob": 0,
+     "faucet": false,
+     "hasX": false,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: the side account is ignored until the Balance says it has one",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "1.03",
+    "fee": 515000000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 50,000.00 and a fee of 515.00 (1.03%) leave the Balance: 50,515.00.",
+    "total": 50515000000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 0,
+     "faucet": true,
+     "hasX": false,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": null,
+    "byId": 31337,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: the faucet's, any commenter",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+   },
+   "name": "fine: the pinned commit",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": 31337,
+    "wfSha": null
+   },
+   "name": "owner: a stranger's repository",
+   "out": {
+    "bps": 250,
+    "code": 92,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "owner",
+    "sentence": "Refused: the repository belongs to GitHub id 31337, and this Balance is for the repositories of GitHub id 424242. Fund from a repository of that owner.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 31337,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "spender: not listed",
+   "out": {
+    "bps": 250,
+    "code": 92,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "spender",
+    "sentence": "Refused: GitHub id 31337 is not the owner (424242) and is not one of this Balance's spenders (555000, 777000). The Balance's wallet can add a spender: knos budget set --spender.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 0,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "spender: nobody",
+   "out": {
+    "bps": 250,
+    "code": 92,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "spender",
+    "sentence": "Refused: GitHub id 0 is not the owner (424242) and is not one of this Balance's spenders (555000, 777000). The Balance's wallet can add a spender: knos budget set --spender.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 9000000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 31337,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "spender: before the cap",
+   "out": {
+    "bps": 250,
+    "code": 92,
+    "effectivePct": "1.17",
+    "fee": 105000000,
+    "ok": false,
+    "rule": "spender",
+    "sentence": "Refused: GitHub id 31337 is not the owner (424242) and is not one of this Balance's spenders (555000, 777000). The Balance's wallet can add a spender: knos budget set --spender.",
+    "total": 9105000000
+   }
+  },
+  {
+   "in": {
+    "amount": 5000000001,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "cap: one unit over",
+   "out": {
+    "bps": 250,
+    "code": 93,
+    "effectivePct": "1.30",
+    "fee": 65000000,
+    "ok": false,
+    "rule": "cap",
+    "sentence": "Refused: 5,000.000001 is over the cap of 5,000.00 for one order. Fund less, or the Balance's wallet raises the cap: knos budget set --cap.",
+    "total": 5065000001
+   }
+  },
+  {
+   "in": {
+    "amount": 5000000001,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 6,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "cap: before the repository",
+   "out": {
+    "bps": 250,
+    "code": 93,
+    "effectivePct": "1.30",
+    "fee": 65000000,
+    "ok": false,
+    "rule": "cap",
+    "sentence": "Refused: 5,000.000001 is over the cap of 5,000.00 for one order. Fund less, or the Balance's wallet raises the cap: knos budget set --cap.",
+    "total": 5065000001
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 6,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "repository: not listed",
+   "out": {
+    "bps": 250,
+    "code": 92,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "repository",
+    "sentence": "Refused: repository id 6 is not one of the 2 this Balance allows (987654321, 5). The Balance's wallet can allow it: knos budget set --repo.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": "dddddddddddddddddddddddddddddddddddddddd"
+   },
+   "name": "workflows: another commit",
+   "out": {
+    "bps": 250,
+    "code": 86,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "workflows",
+    "sentence": "Refused: this Balance accepts only runs of the workflows at commit cccccccccccccccccccccccccccccccccccccccc, and this run is at dddddddddddddddddddddddddddddddddddddddd. Point the repository's workflow file at that commit, or the Balance's wallet pins another: knos budget set --pin-workflows.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 4935643566,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "day: one unit over",
+   "out": {
+    "bps": 250,
+    "code": 100,
+    "effectivePct": "1.30",
+    "fee": 64356435,
+    "ok": false,
+    "rule": "day",
+    "sentence": "Refused: 4,935.643566 and a fee of 64.356435 (1.30%) leave the Balance: 5,000.000001, which with the 1,000.00 already spent today is over the daily limit of 6,000.00. 5,000.00 is left until midnight UTC. Fund less, wait, or the Balance's wallet raises it: knos budget set --per-day.",
+    "total": 5000000001
+   }
+  },
+  {
+   "in": {
+    "amount": 4950000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 59000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "day: before the total",
+   "out": {
+    "bps": 250,
+    "code": 100,
+    "effectivePct": "1.30",
+    "fee": 64500000,
+    "ok": false,
+    "rule": "day",
+    "sentence": "Refused: 4,950.00 and a fee of 64.50 (1.30%) leave the Balance: 5,014.50, which with the 1,000.00 already spent today is over the daily limit of 6,000.00. 5,000.00 is left until midnight UTC. Fund less, wait, or the Balance's wallet raises it: knos budget set --per-day.",
+    "total": 5014500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 0,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 59950000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "total: over",
+   "out": {
+    "bps": 250,
+    "code": 100,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "total",
+    "sentence": "Refused: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50, which with the 59,950.00 spent so far is over the total limit of 60,000.00. 50.00 is left. Fund less, or the Balance's wallet raises it: knos budget set --total.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": 102499999,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "funds: the Balance holds less than amount and fee",
+   "out": {
+    "bps": 250,
+    "code": 94,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": false,
+    "rule": "funds",
+    "sentence": "Refused: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50, and the Balance holds 102.499999. Add money to it: knos balance deposit.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000,
+    "balance": {
+     "capPerJob": 5000000000,
+     "faucet": false,
+     "hasX": true,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": {
+     "day": 20717,
+     "dayLimit": 6000000000,
+     "daySpent": 1000000000,
+     "repos": [
+      987654321,
+      5
+     ],
+     "totalLimit": 60000000000,
+     "totalSpent": 55000000000,
+     "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "byId": 555000,
+    "holds": 102500000,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "fine: the Balance holds exactly amount and fee",
+   "out": {
+    "bps": 250,
+    "code": 0,
+    "effectivePct": "2.50",
+    "fee": 2500000,
+    "ok": true,
+    "rule": "ok",
+    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
+    "total": 102500000
+   }
+  },
+  {
+   "in": {
+    "amount": 4999999,
+    "balance": {
+     "capPerJob": 0,
+     "faucet": false,
+     "hasX": false,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": null,
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "amount: under 5",
+   "out": {
+    "bps": 250,
+    "code": 81,
+    "effectivePct": "8.00",
+    "fee": 400000,
+    "ok": false,
+    "rule": "amount",
+    "sentence": "Refused: an order holds between 5.00 and 100,000.00, and 4.999999 is outside that.",
+    "total": 5399999
+   }
+  },
+  {
+   "in": {
+    "amount": 100000000001,
+    "balance": {
+     "capPerJob": 0,
+     "faucet": false,
+     "hasX": false,
+     "ownerId": 424242,
+     "spenders": [
+      555000,
+      777000
+     ]
+    },
+    "balx": null,
+    "byId": 555000,
+    "holds": null,
+    "now": 1790000000,
+    "plan": null,
+    "repoId": 987654321,
+    "repoOwnerId": null,
+    "wfSha": null
+   },
+   "name": "amount: over 100,000",
+   "out": {
+    "bps": 250,
+    "code": 81,
+    "effectivePct": "0.76",
+    "fee": 765000000,
+    "ok": false,
+    "rule": "amount",
+    "sentence": "Refused: an order holds between 5.00 and 100,000.00, and 100,000.000001 is outside that.",
+    "total": 100765000001
+   }
+  }
+ ],
+ "feeTable": [
+  {
+   "amount": 5000000,
+   "effectivePct": "8.00",
+   "fee": 400000,
+   "total": 5400000
+  },
+  {
+   "amount": 20000000,
+   "effectivePct": "2.50",
+   "fee": 500000,
+   "total": 20500000
+  },
+  {
+   "amount": 1000000000,
+   "effectivePct": "2.50",
+   "fee": 25000000,
+   "total": 1025000000
+  },
+  {
+   "amount": 5000000000,
+   "effectivePct": "1.30",
+   "fee": 65000000,
+   "total": 5065000000
+  },
+  {
+   "amount": 50000000000,
+   "effectivePct": "1.03",
+   "fee": 515000000,
+   "total": 50515000000
+  }
+ ]
+}

@@ -7,6 +7,8 @@
 //! `cargo test` on stable.
 #[path = "../../tests/oracle/mod.rs"]
 pub mod oracle;
+/// The second target's check: the RSA arithmetic against big integers and the `rsa` crate.
+pub mod rsa_diff;
 
 use oracle::{Claim, Read, WANT};
 use solana_program::program_error::ProgramError;

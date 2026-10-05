@@ -1,0 +1,71 @@
+name: reproductions
+
+# A pull request that adds a file under reproductions/ says: someone outside ran `knos reproduce` in a repository of
+# their own, and GitHub signed the result (docs/REPRODUCE.md). This checks that claim so the file can be merged without
+# trusting its sender or reading code:
+#
+#   the token carries GitHub's signature (GitHub's keys as they are now, and scripts/github_oidc_keys.json);
+#   its audience is knos-repro:<sha256 of the report in the file>, so the report was not edited after it was signed;
+#   the repository's owner and the account that started the run are not drexthealpha or an account of
+#   scripts/own_github_ids.json: Knos's own run is not an outside reproduction;
+#   no check in the report failed, and at least one passed;
+#   the pull request adds JSON files under reproductions/ and changes nothing else.
+#
+# It runs no code from the pull request. The checkout is the base commit, with no credentials kept; the pull request's
+# files are fetched through GitHub's API as data, into the runner's temporary folder, and read as JSON by the base
+# commit's scripts/capabilities.py on the runner's own Python (standard library only: nothing is installed). The job's
+# token only reads, which is all a pull request from a fork is given: so the result is the check's pass or fail and
+# the text on the run's page, not a comment.
+on:
+  pull_request:
+    paths:
+      - "reproductions/**"
+
+permissions: {}
+
+concurrency:
+  group: reproductions-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: the base commit, never the pull request's
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: the pull request's files, as data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          case "$PULL" in ''|*[!0-9]*) echo "not a pull request's number"; exit 1 ;; esac
+          case "$HEAD" in ''|*[!0-9a-f]*) echo "not a commit"; exit 1 ;; esac
+          mkdir -p "$RUNNER_TEMP/sent"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PULL/files?per_page=100" --jq '.[] | [.status, .filename] | @tsv' > "$RUNNER_TEMP/files.tsv"
+          other=""
+          while IFS="$(printf '\t')" read -r status name; do
+            base="${name#reproductions/}"
+            case "$name" in reproductions/*.json) ;; *) other="$name"; continue ;; esac
+            case "$base" in -*|*[!A-Za-z0-9._-]*) other="$name"; continue ;; esac
+            if [ "$status" != added ]; then other="$name"; continue; fi
+            gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/$name?ref=$HEAD" > "$RUNNER_TEMP/sent/$base"
+          done < "$RUNNER_TEMP/files.tsv"
+          if [ -n "$other" ]; then
+            echo "**Not accepted.** A reproduction is JSON files added under reproductions/ and nothing else, so that it can be merged without reading code. This pull request also changes another file, or changes a reproduction already there. Send the reproduction alone." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: GitHub's signature, the report's hash, whose run it is, what passed
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=("$RUNNER_TEMP"/sent/*.json)
+          python3 scripts/capabilities.py reproduction --live "${files[@]}" | tee -a "$GITHUB_STEP_SUMMARY"

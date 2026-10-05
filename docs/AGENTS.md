@@ -5,7 +5,12 @@ A coding agent can do paid work through the `knos mcp` server with no person in 
 no merge. Everything here is on Solana devnet, in test USDC.
 
 The host can be Claude Code, Codex, or any client that speaks the Model Context Protocol over stdio. `knos init`
-registers the server with the first two; any other client starts `knos mcp` (or `uvx knos mcp`).
+registers the server with the first two for the whole machine. `knos init --host <name>` writes it into one project
+for Cursor, Gemini CLI, GitHub Copilot and VS Code, opencode and Roo Code, and with `--global` for Hermes Agent and
+Cline, in every case with only the tools that read allowed to run unasked: the three that post (`knos_take_work`,
+`knos_submit_work`, `knos_collect`) stay behind the host's own question, and behind the switches below. Which hosts
+can also be made to hold a false "done" is in [integrations/hosts/README.md](../integrations/hosts/README.md). Any
+other client starts `knos mcp` (or `uvx knos mcp`).
 
 ## The loop, in six lines
 

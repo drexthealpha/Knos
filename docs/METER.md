@@ -62,9 +62,16 @@ JSON Lines. A batch is a header line and then one canonical line per evaluation 
 and lowercase hex only), so two parties who hold the same facts hold the same bytes:
 
     {"batch":{"accepted":3,"buyer":424242,"count":4,"month":202610,"root":"<64 hex>","seller":555000,"seq":0,"value":6000000}}
-    {"accepted":1,"artifact":"<40 hex>","buyer":424242,"id":"<64 hex>","milestone":0,"order":"<64 hex>","policy":"<64 hex>","rate":2000000,"seller":555000}
+    {"accepted":1,"artifact":"<40 hex>","buyer":424242,"deliverable":"<64 hex>","id":"<64 hex>","milestone":0,"order":"<64 hex>","policy":"<64 hex>","rate":2000000,"seller":555000}
+    {"correction":{"batch":"202610.0","by":424242,"id":"<64 hex>","kind":"duplicate"}}
 
-Code: [`src/knos/ledger.py`](../src/knos/ledger.py), standard library only. Tests: `tests/test_ledger.py`.
+`deliverable` is what was bought, sha256(work order, 32 bytes || milestone, u32 little-endian): the same for every
+artifact that carried the work. A line written before this field existed still reads; the field is derived from the
+order and the milestone, and a line whose `deliverable` is not theirs is refused. A `correction` line is described
+[below](#corrections).
+
+Code: [`src/knos/ledger.py`](../src/knos/ledger.py), standard library only (the two commands that touch GitHub or
+Solana say so). Tests: `tests/test_ledger.py`, `tests/test_ledger_periods.py`.
 
 | command | what it does |
 |---|---|
@@ -72,7 +79,14 @@ Code: [`src/knos/ledger.py`](../src/knos/ledger.py), standard library only. Test
 | `knos meter verify <ledger> [--rpc <url>] [--claim]` | recomputes every root, every total and the running hash; with `--rpc` it reads the Ledger account of every month in the file from that node and holds the file to it (the buyer's account, or with `--claim` the seller's), and prints the two on-chain counts side by side; exit 1 if anything differs. `--onchain totals.json` takes the account's five values from a file instead |
 | `knos meter prove <ledger> <id>` | the inclusion proof of one evaluation, as JSON; `knos meter prove --check <proof>` checks one without the ledger |
 | `knos meter reconcile <buyer ledger> <seller ledger> [--rpc <url>]` | what only one side has, what they judged differently, what was entered twice, and the statement; with `--rpc`, each month's two on-chain counts side by side and how far apart they are |
+| `knos meter correct <ledger> <id> --batch <yyyymm>.<seq> --kind duplicate\|verdict\|withdrawn` | writes a correction of one anchored entry to `<ledger>.corrections`; the next `knos meter batch` carries it in its root. Nothing is sent to the chain |
+| `knos meter close <buyer ledger> <seller ledger> --month YYYY-MM` | writes the month's close record, `agreed` or `disputed` with every line in dispute; exit 1 when disputed. `--sign <record> --as buyer\|seller` has GitHub sign it in a run of that party; `--check <record>` checks the tokens kept beside it, with no network |
+| `knos meter statement <ledger> --month YYYY-MM [--close <record>]` | the month's three numbers, the Meter fee, every repeat and correction; refuses a disputed month without `--disputed` |
 | `knos meter export <ledger>` | one CSV row per evaluation |
+| `knos meter export <ledger> --bundle <file> --close <record> --as buyer\|seller [--other <ledger>]` | one deterministic archive of a closed month; `knos meter verify <file> --bundle` checks it with no network |
+
+`verify`, `close` and `statement` take `--individual <file>`: the ids the individual mode recorded, one a line
+(`verify --rpc <url> --marks` reads the marks from the chain instead, one account read per evaluation).
 
 The file commands need only the standard library. `--rpc` uses Knos's Solana client
 ([`src/knos/settle/v2/meter.py`](../src/knos/settle/v2/meter.py): the addresses, the account reader and the
@@ -106,10 +120,24 @@ GitHub-hosted runner, a repository whose owner is the audience's seller. No work
 Not done: reading the ledger from a workflow artifact (the command reads a file in the repository); a batch larger
 than GitHub's API serves as one file (100 MB, about 300,000 evaluations; a batch token carries at most 100,000).
 
-**Where the file is kept.** In the customer's own storage: the buyer keeps the buyer's, the seller keeps the
-seller's. Knos needs no copy and keeps none; the commands above run on a laptop with no network. The cost of that is
-plain: the chain holds totals and roots, not evaluations, so a party that loses its file can still show how many it
-anchored and can no longer show which. Because each side keeps its own, one lost file leaves the other.
+## Who holds what
+
+| what | who holds it | where |
+|---|---|---|
+| the buyer's ledger file, with the buyer's corrections | the buyer | a repository of the buyer; any copies it likes |
+| the seller's ledger file, with the seller's corrections | the seller | a repository of the seller |
+| each batch's totals and root, and the running hash of a month | the chain | the two Ledger accounts of (buyer, seller, month) |
+| the close record of a month | both, the same bytes | beside each ledger |
+| each side's signed token for the close record, and the GitHub keys it names | both | beside the close record; in the month's archive |
+| the month's archive | whoever made one; either can | anywhere: it is checked with no network |
+
+Each party keeps its own ledger. Knos needs no copy and keeps none; every command here runs on a laptop. The cost
+of that is plain: the chain holds totals and roots, not evaluations, so a party that loses its file can still show
+how many it anchored and can no longer show which. Two things reduce that. Each side keeps its own file, so one lost
+file leaves the other. And a closed month goes into one archive ([below](#durable-copies)) that either party can
+hand to the other, to an auditor, or to cold storage, and that says so itself if one byte of it has changed. Nobody
+is made to keep a copy: retention is a term of the contract between the two, not something the program or Knos
+enforces.
 
 ## What each party can check alone
 
@@ -161,26 +189,209 @@ is in a batch it anchored (`knos meter prove`), and the GitHub-signed run that p
 next (the buyer adds the event in a later batch, or disputes it) is between the two; the path is agreed in the
 contract before the work, not decided by the program.
 
-## What the chain does not prove
+## What the count proves and what it does not
 
-The program authenticates **which workflow spoke**: a token GitHub signed, for a workflow file at a pinned commit, in
-a repository owned by the buyer (for `RecordBatch`) or by the seller (for `ClaimBatch`), taken once. It does not
-prove that what the workflow said is true.
+**What an anchored batch proves.** That a workflow file at a pinned commit, in a repository GitHub says is owned by
+the buyer (`RecordBatch`) or by the seller (`ClaimBatch`), stated these totals over this root, once, and that
+nothing after it changed the statement: the running hash of the month covers every batch in order. With the ledger
+file, that each evaluation under the root is exactly the line the party holds (`verify`, `prove`).
 
-- It does not check that a root is the root of real evaluations, or of any. A workflow can anchor a count of 5,000
-  over a root of nothing; only a party holding the lines can tell.
-- It does not check that a batch's count, accepted and value are those of the lines under its root. `verify` does.
-- In batch mode it cannot see an evaluation entered in two batches, because it keeps no account per evaluation.
-  `verify` refuses a ledger with one; `reconcile` lists them.
-- It cannot see an evaluation recorded both singly (`Record`) and in a batch: the marker of the single mode and the
-  root of the batch do not know of each other, so it is counted and billed in both. Only the ledger file shows it.
-  A buyer and a seller use one mode for one work order.
-- It does not say the verdict was right. That is the judge's and the policy's, named in each line.
-- It does not keep the data. If both files are lost, the totals remain and the evaluations behind them do not.
-- A buyer's count and a seller's claim are two statements by two parties. The chain records both and takes neither
-  side.
+**What it does not prove.**
+
+- That the statement is true. GitHub's signature says which workflow spoke and in whose repository; the workflow
+  derives the verdicts. A compromised runner or a wrong check signs just as well.
+- That a root is the root of real evaluations, or that a batch's count, accepted and value are those of the lines
+  under it. `verify` does that, from the file.
+- **Completeness.** A root commits to what was put under it and says nothing of what was left out. A buyer that
+  leaves an evaluation out anchors a perfectly valid smaller count. Only the other party's ledger shows it, which is
+  why the seller anchors its own and why a month is [closed](#closing-a-month) from both.
+- **That an evaluation was counted once.** In batch mode the program keeps no account per evaluation, so it cannot
+  see one repeated in two batches, or recorded both singly (`Record`) and in a batch: the marker of the single mode
+  and the root of a batch do not know of each other, and the buyer is billed for both. This is decided off chain, by
+  one function ([below](#one-function-decides-what-counts-once)).
+- That the verdict was right. That is the judge's and the policy's, named in each line.
+- That the data still exists. If both files are lost, the totals remain and the evaluations behind them do not.
+- That the two parties agree. A buyer's count and a seller's claim are two statements by two parties. The chain
+  records both and takes neither side. Agreement is the close record, and it is off chain.
 
 An order that needs each evaluation to stand on chain by itself uses the individual mode.
+
+## The three numbers
+
+A statement gives three numbers for a month and never adds them together.
+
+| number | what it counts | what it is for |
+|---|---|---|
+| **evaluations** | every evaluation that counts once: one run of a policy on one artifact for one deliverable, accepted or rejected | the Meter's billable unit: the first 10,000 a month are free, then 0.05 USD each (0.02 on a committed-volume plan) |
+| **accepted outcomes** | deliverables (work order + milestone) with an accepted evaluation, counted once, in the month it is first accepted | what a vendor's per-outcome price multiplies |
+| **rejected evaluations** | evaluations whose verdict is rejected | the work that was judged and not accepted; billable to the Meter, not an outcome |
+
+The first and the second differ whenever work is split. A deliverable carried by ten pull requests is at most ten
+evaluations (ten artifacts were judged) and one accepted outcome: the identity of what was bought is the order and
+the milestone, not the pull request. The same holds across months: a deliverable accepted in October and evaluated
+again in November is no second outcome. `tests/test_ledger_periods.py` holds both cases.
+
+The chain's `value` is the sum of the rates of the accepted *evaluations*, because the program sees evaluations and
+has no notion of a deliverable. For work that was split, that sum is larger than what a per-outcome price comes to,
+so the statement prints both: `value_of_accepted_evaluations` (what the chain adds) and `value_of_accepted_outcomes`
+(one rate per accepted deliverable, that of the evaluation that first accepted it). A vendor's invoice per outcome
+uses the second. Making the chain's `value` count per deliverable would need a program change and is not built.
+
+    $ knos meter statement seller.jsonl --month 2026-10
+    knos meter statement,1
+    buyer,424242
+    seller,555000
+    month,202610
+    state,open
+    evaluations,7
+    accepted_outcomes,6
+    rejected_evaluations,1
+    accepted_evaluations,6
+    meter_rate,50000
+    meter_free,10000
+    meter_fee,0
+    value_of_accepted_evaluations,12000000
+    value_of_accepted_outcomes,12000000
+    sha256,<of the lines above>
+    anchored,7,in 2 batch(es),running hash 1fa7e587e37168574bd1bded132314f0cd6a73dafd5067ba82f5a7893af496db
+    anchored_and_not_counted,0
+
+The lines down to `sha256` are made only of what both parties hold once a month is agreed, so the buyer and the
+seller compare that one hash. The lines after it are this ledger's own record: what it anchored, and below that one
+line for every repeat and every correction. `anchored_and_not_counted` is how many evaluations the chain's counter
+holds that the statement does not count (repeats and withdrawals). For the buyer, each of those past the free
+allowance was charged 0.05 USD in credits that the program cannot give back; the statement makes the number visible
+and settling it is between the buyer and Knos, off chain. Nobody has had to yet.
+
+## One function decides what counts once
+
+Identity is the 32-byte evaluation id the program bills by. `ledger.canonical` takes a ledger (and, when there is
+one, the list of ids the individual mode recorded) and returns the entries that count and every entry that does
+not, with the reason:
+
+- written twice in one batch (the root holds each id once, so this was never billed twice);
+- in another batch as well;
+- recorded singly as well: the individual mode has a mark for it.
+
+Of the entries that share an id, the first in time is kept: batches in the order the chain takes them (month, then
+`seq`), then by id; an individually recorded evaluation comes before any batch, because it stands on chain by
+itself. `verify`, `close`, `statement` and the archive all use this one function, so they cannot disagree.
+
+`knos meter verify` **fails** a ledger in which an evaluation is counted twice, and names it:
+
+    batch 1 of 202610: evaluation 7c1e... is already in batch 0 of 202610: it is counted twice. If batch 1 is not anchored yet, take the line out and build the batch again; if it is anchored, the chain billed it twice: run `knos meter correct <ledger> 7c1e... --batch 202610.1 --kind duplicate` and anchor the next batch, which carries the correction
+
+The pinned workflow runs the same check before it signs, so a ledger with an uncorrected repeat gets no further
+batch signed. Once the correction is in a batch, `verify` passes and the statement says
+`billed twice on chain, corrected in batch 2 of 202610`.
+
+The list of individually recorded ids comes from a file (`--individual`) or from the chain (`verify --rpc <url>
+--marks`). A mark can be closed from two hours into the month after its own, so for a month that is over, keep the
+list as a file. A buyer and a seller who use one mode for one work order never meet this case.
+
+## Corrections
+
+The program's counters only go up: no instruction of `knos_meter` lowers a count, changes a verdict or removes a
+batch. So a correction is a **signed ledger record, not a chain write**:
+
+    {"correction":{"batch":"202610.1","by":424242,"id":"<64 hex>","kind":"duplicate"}}
+
+| kind | what it says of the entry in that batch | what the statement does |
+|---|---|---|
+| `duplicate` | it is a repeat; the evaluation is counted elsewhere | drops that entry |
+| `verdict` | the verdict that stands is `accepted` (1 or 0) | counts it with the corrected verdict |
+| `withdrawn` | it should not have been counted | takes it out of all three numbers |
+
+`by` is the GitHub owner id of the party that issues it, the ledger's buyer or its seller. `knos meter correct`
+writes the line to `<ledger>.corrections`; the next `knos meter batch` puts it in that batch. There it is a leaf of
+the batch's Merkle tree with its own prefix, `sha256(0x02 || sha256(line))`, after the evaluations' leaves
+(`0x00`), so no correction can be read as an evaluation and a batch without corrections has exactly the tree it
+had before. The root GitHub signs for that batch therefore **anchors the correction**: `knos meter prove <ledger>
+<sha256 of the line>` gives its inclusion proof. The batch's count, accepted and value are of its evaluations only,
+and the chain's totals stay what they were; the statement nets the correction and shows it, and the close record
+lists every correction of the month with the party that issued it and the ledger that anchored it.
+
+What follows from the program being unchanged, said plainly: a correction rides in a batch that has at least one
+new evaluation, because the program takes no batch of none; a correction is a statement by one party, and it
+changes the month's result for both only when the other party's ledger then says the same (the close decides); and
+a fee already taken for a repeat is not returned by the program.
+
+## Closing a month
+
+`knos meter close <buyer ledger> <seller ledger> --month 2026-10` writes the close record, a canonical JSON that is
+the same bytes whoever computes it from the two files:
+
+- the buyer, the seller and the month;
+- for each ledger: the final running hash of its batches (what its Ledger account on chain holds), how many
+  evaluations and batches it anchored, and the three numbers;
+- every correction of the month, who issued it, which batch it corrects and which batch anchors it;
+- `state`: **`agreed`** when the two ledgers hold the same evaluations with the same verdicts and rates after
+  deduplication and corrections; otherwise **`disputed`**, with every line in dispute and why: missing from the
+  buyer's ledger, missing from the seller's, verdict differs, rate differs, month differs, or a duplicate that has
+  no correction.
+
+On the two example ledgers:
+
+    $ knos meter close examples/meter/buyer.jsonl examples/meter/seller.jsonl --month 2026-10 --out close.json
+    the buyer's ledger: 6 evaluation(s), 4 accepted outcome(s), 2 rejected evaluation(s); anchored 6 in 2 batch(es), running hash edb2b357...
+    the seller's ledger: 7 evaluation(s), 6 accepted outcome(s), 1 rejected evaluation(s); anchored 7 in 2 batch(es), running hash 1fa7e587...
+    IN DISPUTE a84efce01a23db3635166e574a8bb99b1ffcc55491dd67d03f9322f35dbdbac4: missing from the buyer's ledger
+    IN DISPUTE c9f06a898bc6dae84b02d8fabf6d608fa54706fbe1b356de72362c84019f3648: verdict differs
+    202610 is DISPUTED. Wrote close.json (sha256 cb64c5b0...).
+    A disputed month is not an invoice. Settle the lines above (add the missing evaluation in a later batch, or `knos meter correct`), then close again.
+
+**A disputed month never becomes an invoice silently.** `knos meter close` exits 1. `knos meter statement --close
+close.json` prints no totals for it and exits 1; with `--disputed` it prints them under
+`note,DISPUTED: this is not an invoice`, with one `disputed,<id>,<why>` line for every line in dispute. A statement
+made without a close record says `state,open`. The way out of a dispute is in the files: the buyer adds the missing
+evaluation in a later batch, or one side anchors a correction, and the month is closed again. Which side gives way
+is for the contract between them; nothing here decides it.
+
+**Signing.** Each side signs the close record by having its own GitHub run attest the record's sha256. In a job
+with `permissions: id-token: write`, in a repository of that party:
+
+    knos meter close --sign close.json --as buyer        # the seller: --as seller, in a repository of the seller
+
+The job asks GitHub for a token whose audience is
+
+    knosm:close:<buyer>:<seller>:<yyyymm>:<sha256 of the close record>
+
+and keeps it beside the record (`close.json.buyer.jwt`, `close.json.seller.jwt`) with the GitHub keys it names
+(`close.json.jwks.json`). The command refuses to keep a token whose repository owner is not the party named.
+`knos meter close --check close.json` verifies both tokens **offline**: the RS256 signature against those keys
+(the verifier the evidence bundle uses, `knos.bundle.rs256`), the issuer, the audience, and that the repository's
+owner id is the record's buyer or seller. It exits 0 only for an agreed month signed by both.
+
+**The chain holds the batches, not the close.** Period close and corrections are off chain and signed by each
+side's GitHub run. `knos_oidc` can verify any GitHub token on chain, but `knos_meter` has no instruction that reads
+a close audience, so nothing on chain says a month is closed, agreed or disputed. An on-chain close would need a
+program change and is not built. What ties the close to the chain is the pair of running hashes in the record:
+`knos meter verify <ledger> --rpc <url>` shows each is the one its Ledger account holds.
+
+Limits of the signature, also plainly: a close token is checked after GitHub's own few minutes of validity, so its
+expiry is not held against it; what is checked is that GitHub signed these bytes for that owner at the time `iat`
+names. The check trusts the keys it is given. That they are GitHub's is checked once, with a network, against
+`https://token.actions.githubusercontent.com/.well-known/jwks` or the `knos_oidc` key accounts; GitHub rotates its
+keys, which is why the keys used are kept. No close has been signed by a real GitHub run yet: the tokens in the
+tests are signed by a test key.
+
+## Durable copies
+
+    knos meter export buyer.jsonl --bundle 2026-10.tar --close close.json --as buyer --other seller.jsonl
+    knos meter verify 2026-10.tar --bundle
+
+The archive is one tar of a closed month: `MANIFEST.json` (the sha256 of every file), the close record, the ledger
+of the party that made it (and the other's with `--other`), the month's corrections drawn from each ledger, each
+side's signed token as far as there is one, and the GitHub keys those tokens name. It is deterministic (names in
+order, times zero, one mode, no owner), so the buyer and the seller building it from the same files get the same
+bytes and can compare one hash. `export --bundle` writes nothing that would not verify.
+
+`verify --bundle` needs no network. It checks every file against the manifest and the archive against its one
+form, recomputes every root, total and running hash of each ledger, recomputes the close record from the two
+ledgers (with one ledger: that side's hash and numbers; the other side's are then the record's word, and it says
+so), and checks each token. It names a party that has not signed. A changed byte anywhere fails it; the test
+changes a byte in every file and along the whole archive. What it does not do is ask the chain: comparing the
+running hashes with the Ledger accounts is `verify --rpc`.
 
 ## Design choices
 
@@ -197,8 +408,9 @@ program asks only that GitHub signed it for a run in a repository the seller own
 the published `attest.yml`, because that command checks the file before it signs; a seller may use any workflow.
 What follows: a claim is exactly as good as the seller's care for its own repository.
 
-**An evaluation recorded both singly and in a batch is visible only in the ledger.** See above. The program keeps no
-per-evaluation account in batch mode, which is the point of the mode.
+**An evaluation recorded both singly and in a batch is visible only in the ledger.** The program keeps no
+per-evaluation account in batch mode, which is the point of the mode. `verify --individual` (or `--marks`) fails
+such a ledger, and a `duplicate` correction answers it.
 
 **One batch, one token, in order.** `seq` must be the account's `next_seq`, so batches are recorded in the file's
 order and a token cannot be replayed. A batch skipped on chain blocks the ones after it until it is sent.
@@ -246,7 +458,8 @@ One buyer, one seller, 1,000,000 evaluations in the month, SOL at 121.50 USD.
 | credits that must be prepaid at one time | 0.05 USD: each evaluation is paid as it is recorded | 250 USD: a batch of 5,000 past the allowance is paid whole (100 USD at 0.02) |
 
 So the individual mode ties up about 133,000 USD of somebody's SOL for a month to count 49,500 USD of fees, and the
-batch mode ties up nothing per evaluation. What the batch mode gives up is in "What the chain does not prove".
+batch mode ties up nothing per evaluation. What the batch mode gives up is in "What the count proves and what it
+does not".
 
 Not in the tables, and not measured: the rent held against a verified token's account while it exists (it is closed
 after the instruction); priority fees; and any of this on devnet with tokens GitHub signed.

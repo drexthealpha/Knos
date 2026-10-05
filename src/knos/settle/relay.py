@@ -189,6 +189,16 @@ def precheck(ledger, c: dict, kind: str, aud: str, now: float) -> dict | None:
     return None
 
 
+_TWIN = ("custom program error: 0x43", "custom program error: 0x45", "custom program error: 0x54", "'Custom': 67", "'Custom': 69", "'Custom': 84")
+
+
+def answered(why: BaseException) -> bool:
+    """The program itself refused, with a number a twin run can cause (67, 69, 84). That clears within a pass or two
+    when a twin was why; when it does not clear it is the program's answer, so a relay counts these tries and stops
+    (`knos.proof.ghrelay.MAX_TRIES`), whatever life the token has left."""
+    return not isinstance(why, (OSError, TimeoutError)) and any(mark in str(why) for mark in _TWIN)
+
+
 def transient(why: BaseException) -> bool:
     """A failure that says nothing about the token: the cluster did not answer or dropped the transaction, or another
     run with this same relayer key was moving the same token account (knos-oidc refuses with 67 or 69, and knos-pay
@@ -281,7 +291,7 @@ def submit(ledger, payer: Keypair, jwt: str, jwks: dict | None = None, now: floa
         return out
     except Exception as why:  # noqa: BLE001 - one bad token never stops the relay loop
         return {"ok": False, "why": f"{type(why).__name__}: {str(why)[:200]}",
-                **({"retry": True, "transient": True} if transient(why) else {})}
+                **({"retry": True, "transient": True} if transient(why) else {}), **({"answered": True} if answered(why) else {})}
     finally:
         if opened:      # the token account has done its work, or failed to: take the rent back either way
             try:

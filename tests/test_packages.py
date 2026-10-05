@@ -50,15 +50,31 @@ def _versions() -> dict[str, str]:
     return v
 
 
+def _bump():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bump_version_for_packages", ROOT / "scripts" / "bump_version.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _of_a_program(where: str) -> bool:
+    """A crate a program is built from, its lock entry, or an IDL: held at the version of the builds on chain while
+    scripts/bump_version.py's PROGRAMS_FROZEN names it (a version is in a build's bytes), released with the package otherwise."""
+    return bool(_bump().PROGRAMS_FROZEN) and (where.startswith("idl/") or where.endswith(("Cargo.toml", "Cargo.lock")))
+
+
 def test_the_artifacts_carry_one_version():
     v = _versions()
-    assert len(v) >= 11 and len(set(v.values())) == 1, v
+    assert len(v) >= 11, v
+    assert len({got for where, got in v.items() if not _of_a_program(where)}) == 1, v
+    assert len({got for where, got in v.items() if _of_a_program(where)}) <= 1, v
 
 
 def test_it_is_the_version_of_the_python_package():
     """The crate, the IDLs and the npm package are released with the Python package, under its version (pyproject.toml)."""
     version = re.search(r'^version = "([^"]+)"', _read("pyproject.toml"), re.M).group(1)
-    stale = {where: got for where, got in _versions().items() if got != version}
+    stale = {where: got for where, got in _versions().items() if got != (_bump().FROZEN_AT if _of_a_program(where) else version)}
     assert not stale, f"pyproject.toml says {version}; these do not: {stale}"
 
 

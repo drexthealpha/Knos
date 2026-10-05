@@ -5,8 +5,9 @@ above. The rows above show that the safety paths work on the deployed bytes. Thi
 a **funder** does, step by step, in three failures, using only a Solana key of their own and public commands.
 
 What has and has not been rehearsed: every instruction named below is run by the tests named beside it, in a
-simulator. The refund of a bounty has also run on the deployed bytes (rows 1 and 2 above). **No funder outside Knos
-has run any of these steps, and none of the three failures has happened.** The rows above ran on the bytes deployed
+simulator. The refund of a bounty has also run on the deployed bytes (rows 1 and 2 above). The table "When a
+dependency fails" above walks a payment through six failures, also in a simulator, on the programs' test builds.
+**No funder outside Knos has run any of these steps, and none of these failures has been rehearsed on devnet.** The rows above ran on the bytes deployed
 on the day the table was written (0.3.12's); work orders, `RefundOrder` and `Cancel` are live only once the 2.1
 upgrade of 0.3.14 has executed ([`web/upgrades.json`](../web/upgrades.json)).
 
@@ -107,3 +108,27 @@ days"; refresh from a repository of one's own,
 its key is expired and accepted again after a refresh,
 `test_a_token_is_refused_while_its_key_is_expired_and_works_again_once_the_key_is_refreshed`. *Not rehearsed:* a
 refresh on devnet by an account other than Knos's; and the state with every key expired, on a cluster.
+
+## What you see when something Knos depends on fails
+
+For a funder or a payee who is waiting, not for an operator. Each case is a row of "When a dependency fails" above:
+it was run in a simulator, on the programs' test builds, with a fake GitHub and a fake RPC endpoint, and the seconds
+are the simulator's. None has been rehearsed on devnet, and nobody answers a page when one happens: today the
+service is run by its founder alone.
+
+First look at the relay's own account of itself. Its log is the open issue labelled `knos-relay` in
+`drexthealpha/Knos`; one comment there is rewritten every minute and says when the relay last ran, how many tokens
+wait and for how long, and how many it refused or retried in 24 hours. Then:
+
+| What happened | What you see | What you do | How long it took in the drill |
+| --- | --- | --- | --- |
+| GitHub's API is down | The pull request is merged and no payment comment appears. `knos bounty OWNER/REPO#ISSUE` still shows the money in escrow. | Nothing. The relay asks GitHub again every 3 seconds, and a signed token is good for an hour past its expiry. If GitHub was down for more than an hour, comment `/knos settle` on the pull request: a fresh token is signed. | All three waiting payments were paid 3 s after GitHub answered again, none twice. |
+| The key GitHub signs with has expired on chain | No payment, and the relay's log line says `this signing key expired ...: Run the rotate workflow and send Refresh with its token`. No fee was spent on the refusal. | Anyone can refresh the key (case C above). Then the same token is paid: nothing is signed again, as long as the refresh lands within the token's hour. | Paid 121 s after the expiry, the refresh having been sent 120 s in by a key that held nothing. |
+| The relay was stopped in the middle of your payment | The money arrives. The payment comment is a few seconds late. | Nothing. The token was written down before it was sent; the next pass sends it again and the program, which takes a token once, answers that it is done. | Answered 3 s after the stop; the payee held the payment once after two sends. |
+| The RPC endpoint errors, or its blockhashes are stale | The payment comment is late. Nothing says "failed": the failure says nothing about your token. | Nothing. The relay tries again after 3 s, twice, then 10, 20, up to 60 s apart, for as long as the token is good. | Paid 12 s after the endpoint answered again, on the sixth try; once. |
+| The evidence is missing: a check the terms require is no longer on the merged commit | One comment: `Knos: not paid.`, each required check with what GitHub shows for it, and what to do. No token is signed, so nothing can be paid by mistake. | Run the check again on that commit and comment `/knos settle` (anyone may). A maintainer can pay the work anyway with `/knos tip <amount>`. Otherwise the money goes back to the funder at the deadline. | Refused by the job the merge started; paid 30 s after `/knos settle` once the check was back. |
+| Devnet was reset | `knos status` says the programs are not deployed. Open orders are gone; it was test USDC. Explorer links to old transactions stop working. | Keep proving what was paid: `knos bundle verify FILE --mirror DIR` and `knos receipt verify ORDER --mirror DIR` check a saved bundle and the mirrored receipt with no cluster. Then case A above: wait until `knos status` passes again, and fund anew. | The bundle and the mirror's receipt verified with the chain gone, at once. The orders are not recovered; redeploying is by hand and was not timed. |
+
+What these rows do not cover: GitHub's Actions being down (no workflow runs, so no token is signed: wait, or use
+case B), a relay that never starts again (relay it yourself: `KNOS_RELAY_KEY=<your key file> knos relay`), and
+mainnet, which Knos has never touched.

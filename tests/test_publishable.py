@@ -33,7 +33,12 @@ def test_a_crate_has_what_crates_io_asks_for_and_no_dependency_it_cannot_resolve
     here = ROOT / "crates" / name
     doc = tomllib.loads((here / "Cargo.toml").read_text(encoding="utf-8"))
     p = doc["package"]
-    assert (p["name"], p["version"], p["license"], p["repository"], p["readme"], p["edition"]) == (name, _version(), "MIT", REPO, "README.md", "2021")
+    # its version is the package's, or, while scripts/bump_version.py holds the program crates (a release that changes
+    # no program: a version is in a build's bytes), the version of the builds made from it
+    bump = (ROOT / "scripts" / "bump_version.py").read_text(encoding="utf-8")
+    held = f'"{name}"' in re.search(r"(?m)^PROGRAMS_FROZEN: tuple\[str, \.\.\.\] = \((.*)\)$", bump).group(1)
+    version = re.search(r'(?m)^FROZEN_AT = "([^"]+)"$', bump).group(1) if held else _version()
+    assert (p["name"], p["version"], p["license"], p["repository"], p["readme"], p["edition"]) == (name, version, "MIT", REPO, "README.md", "2021")
     assert 20 <= len(p["description"]) <= 200 and re.fullmatch(r"1\.\d+", p["rust-version"])
     # crates.io: at most five keywords, each up to 20 characters of [a-z0-9_-+]; categories are slugs it knows
     assert 1 <= len(p["keywords"]) <= 5 and all(re.fullmatch(r"[a-z0-9][a-z0-9_+-]{0,19}", k) for k in p["keywords"]) and "solana" in p["keywords"]

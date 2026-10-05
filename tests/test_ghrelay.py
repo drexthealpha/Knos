@@ -245,3 +245,63 @@ def test_a_batch_and_a_sellers_claim_posted_as_knos_eval_reach_the_meters_batch_
     assert not again["ok"] and again["kind"] == "batch" and again["why"] == meter.ERRORS[meter.E_SEQ]
     # a relay's result of another kind under the marker is still refused
     assert not ghrelay.relay_one(None, None, "eval", "t", submit=lambda *a: {"ok": True, "kind": "fund", "sigs": ["f"]})["ok"]
+
+
+# -- what 0.3.15 added: the status line and its reader, and the page that says where a token waits -----------------------------
+
+def _node() -> str:
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    return node
+
+
+def test_the_status_views_data_is_worked_out_as_its_node_test_says():
+    """web/status_data.js is pure functions; tests/web/status_data.mjs works every expected value by hand."""
+    import subprocess
+    run = subprocess.run([_node(), str(ROOT / "tests" / "web" / "status_data.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert run.returncode == 0 and run.stdout.strip().endswith("all passed"), run.stdout + run.stderr
+
+
+def test_the_line_the_relay_writes_about_itself_is_the_line_the_status_view_reads():
+    """One format, two programs: ghrelay.status_line writes it and web/status_data.js reads it. A field renamed in one
+    and not the other shows here."""
+    import subprocess
+    now = 1_791_021_600.0
+    state = {"round": {"at": now - 2, "took": 4.2, "tokens": 3},
+             "journal": {"a": {"id": "1" * 16, "state": "waiting", "seen": now - 185, "last": now - 20, "tries": 4},
+                         "b": {"id": "2" * 16, "state": "sending", "seen": now - 5, "last": now - 5, "tries": 1},
+                         "c": {"id": "3" * 16, "state": "refused", "seen": now - 900, "last": now - 900, "tries": 1, "why": "no"},
+                         "d": {"id": "4" * 16, "state": "confirmed", "seen": now - 90_000, "last": now - 90_000, "tries": 9},      # more than a day ago
+                         "e": {"id": "5" * 16, "state": "waiting", "seen": now - 9000, "last": now - 9000, "tries": 2}}}            # its comment left the hour the relay reads
+    line = ghrelay.status_line(state, now)
+    assert line == f"knos-relay status - - ok at={ghrelay._stamp(now - 2)} round=4 tokens=3 waiting=2 oldest=185 retried=4 refused=1"
+    comments = [{"user": {"login": ghrelay.LOG_BOT}, "created_at": ghrelay._stamp(now - 4000), "updated_at": ghrelay._stamp(now), "body": line},
+                {"user": {"login": ghrelay.LOG_BOT}, "created_at": ghrelay._stamp(now - 30),
+                 "body": ghrelay.log_line("proof", "o/r", 9, "x.y.z", {"ok": True, "sigs": ["s"], "note": "paid"}, 12, {"wait": 3, "chain": 9, "tries": 2})
+                 + "\n" + ghrelay.log_line("fund", "o/r", 1, "a.b.c", {"ok": False, "why": "the balance does not hold that much"})}]
+    script = ("import { summarise, LOG_BOT } from " + json.dumps((ROOT / "web" / "status_data.js").as_uri()) + ";"
+              "const c = JSON.parse(process.argv[1]); console.log(JSON.stringify([LOG_BOT, summarise(c, null, Number(process.argv[2]))]));")
+    run = subprocess.run([_node(), "--input-type=module", "-e", script, json.dumps(comments), str(int(now))], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert run.returncode == 0, run.stderr
+    bot, got = json.loads(run.stdout)
+    assert bot == ghrelay.LOG_BOT
+    assert got["worker"] == {"ranRecently": True, "lastSeen": int(now), "ago": 0, "from": "status"}
+    assert got["lastRound"] == {"at": int(now) - 2, "seconds": 4, "tokens": 3} and got["waiting"] == {"tokens": 2, "oldestSeconds": 185, "asOf": int(now) - 2}
+    assert got["refused"] == {"count": 1, "reasons": [{"reason": "the balance does not hold that much", "count": 1, "last": int(now) - 30}]}
+    assert got["retries"] == {"count": 4, "carried": 1} and got["answered"] == {"ok": 1, "failed": 1}
+
+
+def test_the_page_about_the_relay_states_the_relays_own_constants():
+    doc = (ROOT / "docs" / "RELAY.md").read_text(encoding="utf-8")
+    assert f"up to {ghrelay.SEARCH_EVERY} s (`SEARCH_EVERY`)" in doc and f"{ghrelay.BACKOFF_MOST} s between two tries (`BACKOFF_MOST`)" in doc
+    assert f"{ghrelay.CHAIN_NAMES} a pass" in doc and (ghrelay.LATE, ghrelay.HORIZON) == (3600, 70 * 60)
+    from knos.settle.v2 import oidc
+    assert ghrelay.LATE == oidc.LATE                                  # "an hour past its expiry" is the verifier's rule, not the relay's
+    assert "knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>" in doc
+    assert "knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>" in ghrelay.__doc__
+    assert "none on devnet" in doc                                    # what is not done is said
+    # and what is done says when and on what: the stages were measured on the live log, with the dates of its reads
+    assert re.search(r"`scripts/latency_stages\.py` on the live log \(\d{1,2} \w+ 20\d\d, \d\d:\d\d to \d\d:\d\d UTC", doc)
+    assert "has not yet been run against the live log" not in doc

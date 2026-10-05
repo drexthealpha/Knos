@@ -14,7 +14,8 @@ import { initTask } from "./task.js";
 import { initAnyIssue } from "./anyissue.js";
 import { renderInstall } from "./install.js";
 import { renderCapabilities } from "./capabilities.js";
-import { pendingUpgrades, upgradeWords, runDay, feedLine } from "./upgrade.js";
+import { fillMounts } from "./mounts.js";
+import { pendingUpgrades, upgradeWords, runDay, feedLine, inWords } from "./upgrade.js";
 
 const $ = (id) => document.getElementById(id);
 const FIRST_PAY = $("first-deployment")?.querySelectorAll(".mono")[1]?.textContent.trim();
@@ -539,9 +540,15 @@ const upgradesP = (async () => {
 })();
 upgradesP.then(({ upgrades, ms, now }) => {
   if (!upgrades.length) return;
-  $("upgrade-banner").innerHTML = upgrades.map((p) => { const w = upgradeWords(p, ms.timeLock, now);
+  const each = upgrades.map((p) => { const w = upgradeWords(p, ms.timeLock, now);
     return `<p class="upgrade" data-program="${esc(p.name)}" data-status="${esc(p.status)}" data-index="${p.index}"><strong>${esc(w.what)}</strong>
-      <a class="mono" href="${esc(EXPLORER("address", p.buffer))}" target="_blank" rel="noopener">${esc(short(p.buffer))}</a>. ${esc(w.state)}</p>`; }).join("")
+      <a class="mono" href="${esc(EXPLORER("address", p.buffer))}" target="_blank" rel="noopener">${esc(short(p.buffer))}</a>. ${esc(w.state)}</p>`; }).join("");
+  // more than two at once (a release that upgrades every program): one line that says how many, which and from when, and each one under it
+  const approved = upgrades.filter((p) => p.status === "Approved"), first = approved.length ? Math.min(...approved.map((p) => p.executesAt)) : null;
+  const names = [...upgrades].reverse().map((p) => p.name).join(", ");
+  const state = approved.length === upgrades.length ? `The multisig has approved all of them; the first can be run from ${when(first)}${now !== null && now < first ? `, in ${inWords(first, now)}` : ""}.`
+    : `${approved.length} of them ${approved.length === 1 ? "is" : "are"} approved${first !== null ? `, the first to run from ${when(first)}` : ""}; the others are short of votes or not yet put to the vote.`;
+  $("upgrade-banner").innerHTML = (upgrades.length > 2 ? `<details id="upgrade-all"><summary><strong>${upgrades.length} upgrades of Knos's programs are pending</strong> (${esc(names)}). ${esc(state)}</summary>${each}</details>` : each)
     + `<p class="fine">A program's upgrade can change what it does, and the delay is there so that it can be seen coming: the proposal and the new bytes are on chain for anyone to read.
       What it protects and what it does not: <a id="upgrade-security" href="${SECURITY}" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p>` + feedLine;
   $("upgrade-banner").hidden = false;
@@ -564,6 +571,7 @@ fetch("capabilities.json").then((r) => (r.ok ? r.json() : null)).then((data) => 
   renderCapabilities($("capabilities-list"), data);
 }).catch(() => {});
 import("./buyer.js").then((m) => m.renderBuyer?.($("buy"), { $, esc, knos, RPC, EXPLORER, ids, client, gh, devnet })).catch(() => {});
+fillMounts({ $, esc, knos, RPC, EXPLORER, gh });       // Status, Index, Pilot, Reproduce (web/mounts.js)
 initTask({ $, esc, knos, gh });
 const anyShow = initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });
 

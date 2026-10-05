@@ -1,5 +1,128 @@
 # Changelog
 
+## 0.3.15 (October 2026)
+
+**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a
+signed CI run attests they were met, a Solana program counts it or pays it.**
+
+**Close a supplier's invoice with evidence both sides can check.** This release is for the person who has to
+authorise a payment and defend it afterwards, and for the supplier on the other side. It changes no program:
+everything in it is clients, workflows, the site, documents and tests. Everything is on Solana devnet with test USDC.
+Each line of [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) says how far a capability has got; everything this
+release adds is "tested locally", and nothing new was deployed, exercised on devnet or reproduced by someone else.
+What the 0.3.14 rehearsal ran on staging program ids of its own is "tested locally" too, with its transaction in the
+capability's note: only a public program id counts for "deployed" or "exercised", and
+`python scripts/capabilities.py check` refuses any other.
+
+### For a buyer and a supplier
+
+- **The console.** The site's Buy page answers on one screen what was bought, from whom and at what price; which
+  evidence establishes acceptance; whether this deliverable was billed before; whether the approver had the authority;
+  and who answers when the service fails (today the founder alone, and the page says so). It reads GitHub and devnet
+  in the browser and sends nothing. [`docs/CONSOLE.md`](docs/CONSOLE.md). `knos budget show|who|check|set` is the same
+  set of limits from a terminal; `check` names the rule that would refuse an order first.
+- **Billing by deliverable.** A deliverable is an order and a milestone, and it is one accepted outcome whatever number
+  of pull requests carried it. An evaluation is one run of one policy version on one artifact for one deliverable:
+  sending the same evidence again is not another evaluation, an evaluation that rejects is billable, and a failure of
+  Knos is not. A wrong verdict or a withdrawal is netted by a correction that names who issued it
+  (`knos meter correct`). [`docs/METER.md`](docs/METER.md).
+- **Closing a month.** `knos meter close` agrees a month only when both ledgers say the same after repeats and
+  corrections. A disputed close names the exact lines and is never an invoice. Each side signs the close with a
+  GitHub run of its own. This is off chain, and no real month has been closed or signed yet.
+- **Statements and receipts that verify with devnet gone.** `knos meter export --bundle` writes one deterministic
+  archive of a closed month that `knos meter verify --bundle` checks with no network. `knos bundle verify --no-chain`
+  checks a payment's bundle with no cluster and says which facts the issuer's signature proves, which are archived
+  copies, and which need a cluster. Devnet is reset from time to time; the signature survives that, the chain's own
+  record does not. [`docs/RECEIPT.md`](docs/RECEIPT.md).
+- **A receipt in five parts** (version 3; versions 1 and 2 still check): what the issuer authenticated, what the
+  evaluator observed, which policy produced the verdict, who authorised the money and under which limit, and what
+  remains trusted. It records whether each evaluator's run was the buyer's own, the seller's own or neither.
+- **A second run of the acceptance check, in another environment.** For an order with a black-box suite, the neutral
+  judge now runs the funded suite again itself, in a job that cannot sign, and signs only on its own result. A check
+  in the buyer's repository that wrongly says "success" is then not repeated. For an order paid on its merge there is
+  no suite to run: the neutral run still reads the checks' conclusions, and its verdict says so. The changed
+  `attest.yml` is published with this release and has never run on GitHub.
+  [`docs/SECURITY.md`](docs/SECURITY.md), section 20.
+- **Prices, said once.** The price book is the same table in the README, on the site and in
+  [`docs/MARKET.md`](docs/MARKET.md), with the effective fee by order size shown before funding (5 pays the 0.40
+  minimum, which is 8%). One offer is new: the Pilot, 30 days for one buyer and its suppliers, 2,500 USD invoiced off
+  chain ([`docs/PILOT.md`](docs/PILOT.md)). Nobody has bought it, nobody has been asked, and there is no legal entity
+  to invoice from yet. Advance and Assurance are not offered.
+- **Outcomes that are not a merged pull request.** Three worked examples (a labelled dataset, a transformation, a
+  reconciliation), each with a black-box suite that refuses a cheat a naive check passes
+  ([`docs/OUTCOMES.md`](docs/OUTCOMES.md)). They run locally; none was funded or paid on devnet.
+
+### For whoever operates a relay
+
+- **A journal and retries.** The relay writes a token to its notes before it sends it, so a relay killed at any point
+  finds the token again and nobody is paid twice. A send that fails for the cluster's reasons is tried again on fixed
+  times while the token is good; a refusal is final at once; when GitHub says to slow down, nothing is asked until
+  the time it named and no verdict is lost. One status comment, rewritten, says what waits.
+  [`docs/RELAY.md`](docs/RELAY.md).
+- **Drills of each dependency's failure,** on a local validator: GitHub's API down, GitHub's key expired on chain, the
+  relay killed between a send and its confirmation, an RPC endpoint that errors, missing evidence. Each row says what
+  broke, what a user sees, how it recovers and how long it took ([`docs/DRILLS.md`](docs/DRILLS.md)). These are
+  local drills, not outages on devnet.
+- **A capacity model** that names the first limit a given number of repositories and deliverables a day would meet,
+  and what lifts it ([`docs/LOAD.md`](docs/LOAD.md)). It is arithmetic on counted requests and published limits, not
+  a load test at that volume.
+- **Where a payment waits.** `scripts/latency_stages.py` splits each payment into its stages. The site shows the
+  latest canary round stage by stage and never draws an old round as live; a tab keeps what it read and says how old
+  a view is.
+
+### For builders
+
+- **A reproduction kit.** `knos reproduce` runs fixed checks in a repository of your own and GitHub signs the report's
+  hash; a file of it in `reproductions/` is what moves a capability to "reproduced". A run in an account of Knos's own
+  is refused. The folder is empty: nobody outside has sent one. [`docs/REPRODUCE.md`](docs/REPRODUCE.md).
+- **The `knos-verify` action, a receipt verifier and the badge** for a bounty or work platform: one composite step
+  with a read-only token; `verify(evidence, jwks)` in one Python file and one TypeScript file that answer every case
+  the same. No platform uses them, and the action has never run on GitHub.
+  [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+- **Routes for ten agent hosts.** `knos init` writes the hook each host reads, into the project only. Each route is
+  tested against the event its host documents; none was run inside a real host
+  ([`integrations/hosts/README.md`](integrations/hosts/README.md)).
+- **Differential tests of the verifier.** The built `knos_oidc` and a reference that shares no code with it gave the
+  same answer on 13,677 generated tokens, with 0 disagreements and no token accepted on an invalid signature
+  ([`docs/fuzz.json`](docs/fuzz.json)). A second fuzz target asks the program's RSA arithmetic, big integers and the
+  `rsa` crate the same question on every input. [`docs/ASSURANCE.md`](docs/ASSURANCE.md).
+- **One check for what the documents say.** `python scripts/doc_claims.py` holds every count, stage, upgrade time and
+  measured number in the documents to its one source. `knos --version` and each single command start without
+  importing the other commands. The mark and the wordmark are one drawing in every copy.
+- Also: `knos observe` (what anyone can read of an order on chain, and what a private order hides); a profile shown
+  only for an account that opted in; a weekly scan for the Agent PR Index, which has run as a dry run only.
+
+### What did not change
+
+- **No program was changed.** Nothing under `programs-v2/*/src` or `programs/`, and no committed program build. No
+  program was deployed, proposed or staged for this release.
+- **The four builds proposed by 0.3.14 execute on their own schedule,** through the multisig and its public 48-hour
+  delay: `knos_oidc 2.1`, `knos_pay 2.1`, `knos_meter 1.1`, `knos_passkey 1.1`. This file names no time for them:
+  the site's [upgrade record](https://drexthealpha.github.io/Knos/upgrades.json) and `knos status` are the record of
+  the live state ([`web/upgrades.json`](web/upgrades.json) is the committed copy, of the time it names). Until each
+  has executed, what it adds has run on staging program ids only, in the 0.3.14 rehearsal.
+- No outside security firm has examined anything. One person holds every key. Nobody outside Knos has funded an
+  order with their own tokens or bought anything.
+
+### Found and left open
+
+- **The claim reader accepts some issuer-signed payloads that are not strict JSON.** It finds the claims it reads and
+  steps over every other value by its brackets and quotes, so a payload the issuer's key really signed that a JSON
+  library refuses (a literal cut short, `NaN`, a comment, a control character in a string) still verifies. The
+  differential test put 13 such shapes to the program, 342 cases, and the program accepted every one. Nobody without
+  the issuer's key can make such a token, so it is not a forgery; a strict reader of the same payload can fail on a
+  token this verifier took. The fix is a program change, strict validation of the values the reader steps over, and
+  this release changes no program. [`docs/SECURITY.md`](docs/SECURITY.md), limit 33;
+  [`docs/ASSURANCE.md`](docs/ASSURANCE.md), "The verifier: left open".
+- **The 95th percentile from merge to paid, 164 s, is one payment.** Of the 39 timed payments the public relay
+  carried (the site's files of 5 October 2026), the 95th percentile by nearest rank is the second slowest. In the 37
+  that can be split, the relay's own part, from the token's comment to the last transaction, has a median of 9 s, a
+  95th percentile of 28 s and a maximum of 35 s. The long waits were before the token was posted, on GitHub's side:
+  the slowest payment spent 1,208 of its 1,220 s there. The relay cannot shorten that; it measures it.
+  [`docs/RELAY.md`](docs/RELAY.md), "Where a token waits".
+- The first real runs are still to come: the two-job `attest.yml`, the `knos-verify` action, the reproduce workflow
+  and the weekly index scan have run in tests only ([`docs/RELEASE.md`](docs/RELEASE.md), "After the tag").
+
 ## 0.3.14 (October 2026)
 
 **Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a
@@ -10,15 +133,17 @@ issue, relaying the second fund token after the first order was paid put a new o
 pay token that had paid the first order paid the second too. This was found during the 48-hour delay. That build was
 never live on any cluster, and only test USDC was involved. **Every token is now single-use in every instruction.**
 
-Everything is on Solana devnet with test USDC. Nothing in this release is deployed on the pinned programs yet: each
+Everything is on Solana devnet with test USDC. What this release adds to the programs runs at their public addresses
+only once its upgrade proposal has executed: each
 line of [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) says how far it has got. The new ones are "tested locally";
 "implemented" for two that no test runs here (the Kani proofs and the GitLab pipeline example); or "exercised on
 devnet", each with its transaction, where the release's rehearsal ran them on a staging deployment of this build
 ([`docs/CAPABILITIES.md`](docs/CAPABILITIES.md), "The 0.3.14 rehearsal on devnet").
-The 0.3.13 build was proposed and approved by the multisig on 2026-10-04 07:17 UTC. The release of 0.3.14 cancels
-that proposal and proposes this build in its place, as `knos_pay 2.1` and `knos_oidc 2.1`, with the same public
-48-hour delay. Until the release has done that, the chain shows the old proposal pending:
-[`web/upgrades.json`](web/upgrades.json), read from the chain, is the record of the live state, not this file.
+The 0.3.13 build was proposed on 2026-10-04 07:17 UTC and withdrawn before it could run. 0.3.14 proposes this build
+in its place, as `knos_pay 2.1` and `knos_oidc 2.1`, with the same public 48-hour delay. This file names no time for
+the new proposals: the site's [upgrade record](https://drexthealpha.github.io/Knos/upgrades.json), read from the
+chain, and `knos status` are the record of the live state ([`web/upgrades.json`](web/upgrades.json) is the committed
+copy, of the time it names).
 
 ### Security
 
@@ -81,7 +206,7 @@ that proposal and proposes this build in its place, as `knos_pay 2.1` and `knos_
 
 ### Orders that need no person, and what checks the programs
 
-All of this is tested locally and not deployed on the pinned programs. The release's rehearsal ran auto-accept, the
+None of this runs at the public program ids until the upgrade has executed. The release's rehearsal ran auto-accept, the
 challenge, the quorum, the agent's tools and the Buy page on a staging deployment of this build
 ([`docs/CAPABILITIES.md`](docs/CAPABILITIES.md), "The 0.3.14 rehearsal on devnet").
 
@@ -134,9 +259,9 @@ security firm has examined anything.
 ### What is live, and when
 
 The escrow and the verifier are upgraded at their existing addresses, through the multisig, with its public 48-hour
-delay. The upgrade was proposed and approved by the multisig on 2026-10-04 07:17 UTC and can execute from
-2026-10-06 07:17 UTC.
-`knos status` and the site's banner show it while it is pending.
+delay. That upgrade was proposed on 2026-10-04 07:17 UTC and withdrawn by 0.3.14 before 2026-10-06 07:17 UTC, when
+it could have run: it never ran ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md), section 3).
+`knos status` and the site's banner show a proposal while it is pending.
 
 | | live |
 |---|---|
@@ -152,8 +277,9 @@ the new paths carry audiences that start `knos3:`, so a token of one generation 
 
 ### If you fund work
 
-- **You pay the fee on top; the payee receives the posted amount.** 2.5%, at least 0.40 and at most 25 USDC. It is
-  escrowed with the amount and returned with it if nobody is paid. An order holds between 5 and 500 USDC.
+- **You pay the fee on top; the payee receives the posted amount.** 2.5%, at least 0.40 and at most 25 USDC (replaced
+  in 0.3.14, before this build ever ran, by three tiers with no maximum). It is
+  escrowed with the amount and returned with it if nobody is paid. An order holds between 5 and 500 USDC (replaced in 0.3.14 by 5 to 100,000 on devnet).
 - **Each order's money is in a token account of its own.** No vault is shared between orders.
 - **Fund any public issue from a wallet, with no file in that repository** ("Fund any issue" on the site, and
   `FundOrderWallet` for a program or a multisig).

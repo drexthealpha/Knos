@@ -97,11 +97,15 @@ export async function pendingProposals(knos, rpc, multisig, ms, lookBack = LOOK_
   });
 }
 
+// The programs the upgrade multisig holds, by address: every one program_ids.json names (scripts/upgrade_feed.py PROGRAMS).
+export const PROGRAMS = ["knos_oidc", "knos_pay", "knos_meter", "knos_passkey"];
+export const programNames = (ids) => Object.fromEntries(PROGRAMS.filter((n) => typeof ids[n] === "string" && ids[n]).map((n) => [ids[n], n]));
+
 // The upgrades of the Knos programs that are waiting, with the program's name: [{ ...pending, name: "knos_pay" }]. `ids`: program_ids.json.
 export async function pendingUpgrades(knos, rpc, ids) {
   const raw = await knos.account(rpc, ids.upgrade_multisig), ms = knos.readMultisig(raw);
   if (!ms) return { upgrades: [], ms: null };
-  const names = { [ids.knos_pay]: "knos_pay", [ids.knos_oidc]: "knos_oidc" };
+  const names = programNames(ids);
   const all = await pendingProposals(knos, rpc, ids.upgrade_multisig, ms);
   return { ms, upgrades: all.filter((p) => p.kind === "upgrade" && names[p.program]).map((p) => ({ ...p, name: names[p.program] })) };
 }

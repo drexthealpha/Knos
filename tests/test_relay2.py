@@ -23,7 +23,7 @@ from solders.pubkey import Pubkey  # noqa: E402
 
 from _oidc2 import ROTATE_REF, TEST_ROTATE_SHA, Chain2  # noqa: E402
 from _pay2 import GUARDIAN, TEST_CLAIM_SHA, WF_REPO, WF_SHA, Chain, github_claims  # noqa: E402
-from _settle import FIX, b64, modulus, sign_jwt, signing_key  # noqa: E402
+from _settle import FIX, SeedKey, b64, modulus, sign_jwt, signing_key  # noqa: E402
 
 from knos import chain  # noqa: E402
 from knos.settle import oidc as oidc1  # noqa: E402
@@ -168,11 +168,30 @@ class Net(chain.Ledger):
 
 @pytest.fixture(scope="module")
 def env():
-    c = Chain()
+    return _setup(Chain())
+
+
+def seeded(*seed: int) -> Keypair:
+    """A key that is the same in every run."""
+    return Keypair.from_seed(bytes(seed).ljust(32, b""))
+
+
+def _setup(c: Chain, fixed: bool = False) -> tuple[Chain, Net]:
+    """The faucet, a test USDC mint and the owner's Balance holding 10,000 of it. fixed: the payer, the mint and the
+    owner are keys that are the same in every run (by default each is new)."""
+    if fixed:
+        c.payer = seeded(1)
+        c.svm.airdrop(c.payer.pubkey(), 100 * 10 ** 9)
     net = Net(c)
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
-    c.usdc = c.new_mint()
-    c.owner, c.owner_tok = c.wallet(c.usdc, 1_000_000 * USDC)
+    c.usdc = c.new_mint(keypair=seeded(2) if fixed else None)
+    if fixed:
+        c.owner = seeded(3)
+        c.svm.airdrop(c.owner.pubkey(), 10 * 10 ** 9)
+        c.owner_tok = c.token_account(c.owner.pubkey(), c.usdc)
+        c.mint_to(c.usdc, c.owner_tok, 1_000_000 * USDC)
+    else:
+        c.owner, c.owner_tok = c.wallet(c.usdc, 1_000_000 * USDC)
     assert c.send([pay.open_balance_ix(c.owner.pubkey(), OWNER, c.usdc, spenders=[MAINT])], c.owner), c.err
     c.bal = pay.balance_pda(OWNER, c.owner.pubkey(), c.usdc)
     transfer(c, c.owner_tok, pay.baltok_pda(c.bal), 10_000 * USDC, c.owner)
@@ -998,7 +1017,7 @@ def test_a_hiccup_of_the_cluster_is_tried_again_and_a_refusal_is_not(env):
                            (2, twin, "another run moved this token's account (error 69)"),
                            (2, OSError("connection reset"), "OSError: connection reset")):
         r = relay.submit(Flaky(net).fail(nth, why), c.payer, fund, TERMS, JWKS, now=c.now())
-        assert r == {"ok": False, "kind": "fund", "why": said, "retry": True, "transient": True}, r
+        assert r == {"ok": False, "kind": "fund", "why": said, "retry": True, "transient": True, **({"answered": True} if why is twin else {})}, r
         assert c.data(oidc.token_pda(c.payer.pubkey(), oidc.token_id(fund))) is None           # the rent came back each time
         assert c.data(pay.job_pda(repo, n, pay.faucet_balance_pda(org))) is None
     assert go(env, fund, TERMS)["ok"]                            # the same token, on the next pass
@@ -2284,27 +2303,33 @@ def cost(env, send) -> tuple[int, int, list[int], int, int]:
     return net.txs, net.waits, list(net.shape), max(net.units), sum(net.units)
 
 
-def test_transactions_waits_and_compute_units_of_every_path(env):
+def test_transactions_waits_and_compute_units_of_every_path(monkeypatch):
     """A relay's time goes into waiting for confirmations, each after the one before. This relay sends a token's
     chunks side by side and puts the last verification step, the escrow's instruction and the Close into one
     transaction. Every path is counted here, so a change that costs a transaction or a wait fails; the compute units
-    are LiteSVM's (they move by a few thousand with the addresses involved). Run with -s to see the table."""
+    are LiteSVM's. Run with -s to see the table.
+    The paths are relayed on a chain of their own from fixed inputs (the payer, the mint, the owner, the ids, the
+    wallets and the added key), so they cost the same in every run: each address the programs derive costs 1,500
+    compute units for every bump it tries, and with new keys, and ids that depend on which tests ran before on the
+    same worker, the largest transaction of the faucet path ranged from about 1,084,000 to 1,104,600 from one run
+    to the next."""
+    env = _setup(Chain(), fixed=True)
     c, net = env
-    relay.refund_due(net, c.payer, c.now())                     # what earlier tests left past its deadline
+    monkeypatch.setitem(globals(), "_COUNT", [7_000, 6_000_000])     # issue() and user() from the same ids every run
     ok = lambda r: r["ok"] or pytest.fail(str(r))  # noqa: E731
     rows: dict[str, tuple] = {}
     org, repo, n_real, n_faucet, n_held = user(), user(), issue(), issue(), issue()
-    payee, waiting, wallet = user(), user(), Keypair().pubkey()
+    payee, waiting, wallet = user(), user(), seeded(4).pubkey()
     rows["fund from a Balance"] = cost(env, lambda: ok(go(env, fund_jwt(c, n_real), TERMS)))
     rows["fund, the faucet opened on the way"] = cost(env, lambda: ok(go(env, faucet_jwt(c, n_faucet, org, repo), TERMS)))
     rows["pay to the address in the proof"] = cost(env, lambda: ok(go(env, pay_jwt(c, repo, n_faucet, payee, wallet))))
     rows["pay held (no wallet known)"] = cost(env, lambda: ok(go(env, pay_jwt(c, REPO, n_real, waiting))))
     rows["bind (nothing held)"] = cost(env, lambda: ok(go(env, bind_jwt(c, payee, wallet))))
-    rows["bind, then settle the held job"] = cost(env, lambda: ok(go(env, bind_jwt(c, waiting, Keypair().pubkey()))))
+    rows["bind, then settle the held job"] = cost(env, lambda: ok(go(env, bind_jwt(c, waiting, seeded(5).pubkey()))))
     funded(env, n_held)
     rows["pay to a bound wallet"] = cost(env, lambda: ok(go(env, pay_jwt(c, REPO, n_held, payee))))
     # a key GitHub has added, named by the rotate workflow: registered, and two days later refreshed
-    new = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    new = SeedKey(2048, "the key GitHub added")
     jwks = {oidc.GITHUB: {"keys": [*JWKS[oidc.GITHUB]["keys"], _jwk("added", modulus(new))]}}
     key = lambda: relay.submit(net, c.payer, attestation(c, oidc.GITHUB, modulus(new)), None, jwks, now=c.now())  # noqa: E731
     rows["key registered"] = cost(env, lambda: ok(key()))
@@ -2316,12 +2341,14 @@ def test_transactions_waits_and_compute_units_of_every_path(env):
     assert go(env, pay_jwt(c, REPO, n_held, user()))["paid"][0]["to"] is None
     late = user()
     assert go(env, pay_jwt(c, REPO, funded(env)[0], late))["paid"][0]["to"] is None
-    tok = c.verify(bind_jwt(c, late, Keypair().pubkey()), oidc.GITHUB, c.github)
+    tok = c.verify(bind_jwt(c, late, seeded(6).pubkey()), oidc.GITHUB, c.github)
     assert c.send([pay.bind_ix(c.payer.pubkey(), tok, c.key, late)]), c.err
     c.warp(61)
     rows["refund of an unproven bounty"] = cost(env, lambda: relay.refund_due(net, c.payer, c.now()))
     rows["settle of a held bounty"] = cost(env, lambda: relay.settle_held(net, c.payer))
-    rows["verify only (a 1,7xx-byte token)"] = cost(env, lambda: ok(relay.verify_only(net, c.fund(), token(c, "sts.amazonaws.com"), JWKS, now=c.now())))
+    other = seeded(7)
+    c.svm.airdrop(other.pubkey(), 100 * 10 ** 9)
+    rows["verify only (a 1,7xx-byte token)"] = cost(env, lambda: ok(relay.verify_only(net, other, token(c, "sts.amazonaws.com"), JWKS, now=c.now())))
     print()
     for path, (txs, waits, shape, most, total) in rows.items():
         print(f"{path:38} {txs} transactions  {waits} waits  per wait {shape!s:15}  compute units: {total:9,} in all, {most:9,} in the largest")

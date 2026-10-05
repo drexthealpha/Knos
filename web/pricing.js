@@ -1,6 +1,6 @@
 // The Pricing view: the price book (index.html holds the words; the numbers in it come from price.js) and two
 // calculators. Nothing here is sent anywhere.
-import { priceConstants, quote, feeParts, orderFee, meterCost, unitsOf, bpsOf, show, plain, percent } from "./price.js";
+import { priceConstants, priceBook, effectiveFees, quote, feeParts, orderFee, meterCost, unitsOf, bpsOf, show, plain, percent } from "./price.js";
 import { programVersion } from "./version.js";
 
 const count = (n) => n.toLocaleString("en-US");
@@ -17,13 +17,23 @@ export function versionWords(version, jobFee, c, upgrade = "") {
   return "the program's version could not be read just now. Reload the page to try again.";
 }
 
+// The effective fee of five order sizes, and the warning that goes with it: index.html holds the table (id
+// "fee-effective") and the sentence in the price book's own numbers, and this writes both again from the constants in use.
+function drawEffective($, esc, c) {
+  const rows = effectiveFees(c), body = $("fee-effective")?.querySelector("tbody"), small = $("fee-small");
+  if (body) body.innerHTML = rows.map((r) => `<tr data-amount="${r.amount}"><th scope="row">${count(r.amount)}</th><td>${plain(r.fee)}</td><td>${esc(r.share)}</td></tr>`).join("");
+  if (small) small.textContent = `Knos is not cheaper on a small order: ${count(rows[0].amount)} test USDC pays the minimum, ${plain(rows[0].fee)}, which is ${rows[0].share} of it. `
+    + "The calculator above shows this share for any amount before you fund. On devnet the fee is test money: no real revenue.";
+}
+
 export function initPricing(ctx) {
   const { $, esc, knos, RPC, ids } = ctx, c = priceConstants();
-  // the Settle and Meter lines of the price book, in the book's own words (docs/MARKET.md, "The price book")
+  // the price book: its six rows are written here from price.js, in the book's own words (docs/MARKET.md, "The price book")
   const set = (id, words) => { const el = $(id); if (el) el.textContent = words; };
-  set("price-settle", `${percent(c.feeBps)} of the first ${count(c.tier1 / 1e6)}, ${percent(c.feeBps2)} from ${count(c.tier1 / 1e6)} to ${count(c.tier2 / 1e6)}, ${percent(c.feeBps3)} above; minimum ${plain(c.feeMin)}; plans ${c.planBpsMin / 100} to 1.5%`);
-  set("price-meter", `${count(c.meterFree)} a month free, then ${plain(c.meterFee)} USD; ${plain(c.meterPlanMin)} on a committed-volume plan`);
+  const book = $("price-book")?.querySelector("tbody");
+  if (book) book.innerHTML = priceBook(c).map(([line, unit, price]) => `<tr><th scope="row">${esc(line)}</th><td>${esc(unit)}</td><td>${esc(price)}</td></tr>`).join("");
   set("price-bounds", `${plain(c.minAmount)} to ${count(c.maxAmount / 1e6)}`);
+  drawEffective($, esc, c);
   // three amounts worked through the tiers, one in each: "2.5% of 1,000 + 1% of 4,000 = 25 + 40"
   const worked = $("fee-worked")?.querySelector("tbody");
   if (worked) worked.innerHTML = WORKED.map((whole) => {

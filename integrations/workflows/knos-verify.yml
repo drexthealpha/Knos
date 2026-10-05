@@ -1,0 +1,24 @@
+# .github/workflows/knos-verify.yml in a repository whose pull requests are paid for (by any platform, or by nobody).
+# It gives every pull request a check named "knos-verify" that a platform can read from GitHub before it marks the
+# work accepted, and a verdict as JSON in the job's output. Read-only: no secret, no id-token, no wallet.
+name: knos-verify
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, closed]
+permissions: {}
+jobs:
+  knos-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: read
+      statuses: read
+      pull-requests: read
+    outputs:
+      passed: ${{ steps.knos.outputs.passed }}
+      verdict: ${{ steps.knos.outputs.verdict }}
+    steps:
+      - id: knos
+        uses: drexthealpha/Knos/.github/actions/knos-verify@v0.3.15
+        with:
+          checks: test          # the names of the checks a bounty's work must pass, as GitHub shows them

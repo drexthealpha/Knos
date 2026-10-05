@@ -6,8 +6,8 @@
 //   node scripts/sas_receipt.mjs --init --send --keypair FILE [--rpc URL]           the release step: create the credential and the schema, no receipt
 //
 // Issuing the attestation is on by default wherever Knos issues a receipt (knos.receipt.attest runs this script with
-// --send after the paying transaction is confirmed, and never fails the payment). A receipt of version 1 or 2 is taken;
-// the attestation's fields are the same for both. An order attested already is not an error: {"sent": false, "already": true}.
+// --send after the paying transaction is confirmed, and never fails the payment). A receipt of version 1, 2 or 3 is taken;
+// the attestation's fields are the same for all three, and its digest is the digest of the receipt it was given. An order attested already is not an error: {"sent": false, "already": true}.
 //
 // The Solana Attestation Service is program 22zoJMtdu4tQc2PzL74ZUT7FrwgB1Udec8DdW4yw4BdG (the same address on devnet and on
 // mainnet); this script builds its instructions with the service's own library, sas-lib 1.0.10 (an optional package of
@@ -46,10 +46,11 @@ export const digest = (receipt) => createHash("sha256").update(canonical(receipt
 
 /** The attestation's data, field by field: what of the receipt goes on chain. A private order has repository_id and issue 0. */
 export function fields(r) {
-  if (r?.type !== "knos.acceptance-receipt" || ![1, 2].includes(r.version)) throw new Refused("this is not a Knos acceptance receipt of version 1 or 2 (docs/RECEIPT.md).");
+  if (r?.type !== "knos.acceptance-receipt" || ![1, 2, 3].includes(r.version)) throw new Refused("this is not a Knos acceptance receipt of version 1, 2 or 3 (docs/RECEIPT.md).");
   const bytes = (hexText) => Array.from(Buffer.from(hexText, "hex"));
-  // version 2 says the same facts under its four parts; a GitLab token names its run `pipeline_id`
-  const two = r.version === 2, claims = two ? r.issuer_authenticated.claims : r.judge.claims;
+  // versions 2 and 3 say the same facts under their parts (3 adds who authorised the money and who controls each judge:
+  // in the digest, not in a field of their own); a GitLab token names its run `pipeline_id`
+  const two = r.version >= 2, claims = two ? r.issuer_authenticated.claims : r.judge.claims;
   const artifact = two ? r.evaluator_observed.artifact : r.artifact;
   return {
     receipt_sha256: Array.from(digest(r)), order: r.order, scope: bytes(r.scope), repository_id: BigInt(r.repository?.id ?? 0), issue: BigInt(r.repository?.issue ?? 0),

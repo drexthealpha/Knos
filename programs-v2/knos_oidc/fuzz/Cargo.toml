@@ -1,9 +1,16 @@
-# The claim reader against serde_json, coverage-guided. Not a member of the programs-v2 workspace (the empty
-# [workspace] below), so the programs' build and lockfile know nothing of it.
+# Two coverage-guided targets. Not a member of the programs-v2 workspace (the empty [workspace] below), so the
+# programs' build and lockfile know nothing of it, and nothing here is in any build of a program.
+#
+#   claims       the claim reader against serde_json
+#   rsa_verify   the RSA arithmetic (src/rsa.rs of the program) against big integers and the `rsa` crate
 #
 #   cargo install cargo-fuzz
-#   cd programs-v2/knos_oidc/fuzz && cargo +nightly fuzz run claims -- -max_total_time=600
-#   cargo test          # stable: the same check on documents made at random from a fixed seed
+#   cd programs-v2/knos_oidc/fuzz && cargo +nightly fuzz run claims corpus/claims seeds/claims -- -max_total_time=600
+#   cd programs-v2/knos_oidc/fuzz && cargo +nightly fuzz run rsa_verify corpus/rsa_verify seeds/rsa_verify -- -max_total_time=600
+#   cargo test          # stable: the same checks on documents made at random from a fixed seed, and on seeds/
+#
+# seeds/ is committed and small: `python tests/test_oidc_differential.py --seeds` writes it (every kind of forged
+# token of that test, and Project Wycheproof's vectors). corpus/ is what the fuzzer finds; it is not committed.
 [package]
 name = "knos_oidc-fuzz"
 version = "0.0.0"
@@ -23,10 +30,20 @@ knos-oidc-interface = { path = "../../../crates/knos-oidc-interface" }
 solana-program = "=2.2.1"
 serde = "1"
 serde_json = "1"
+# The reference (the `rsa_verify` target). Only its public-key verification is used (RUSTSEC-2023-0071 is about the timing
+# of its private-key operations, which nothing here calls: the test key signs with plain big integers).
+rsa = { version = "0.9", features = ["sha2"] }
 
 [[bin]]
 name = "claims"
 path = "fuzz_targets/claims.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rsa_verify"
+path = "fuzz_targets/rsa_verify.rs"
 test = false
 doc = false
 bench = false

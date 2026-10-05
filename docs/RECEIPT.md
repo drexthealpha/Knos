@@ -5,34 +5,154 @@ terms were met, and a transaction that paid. The **acceptance receipt** is one J
 holds nothing private and nothing that is not already public, so anyone can rebuild it from the chain and compare
 digests. It is what a buyer files, what a seller shows, and what a third party attests to.
 
-A signature proves who signed, not that what was signed is true. So a receipt says four separate things, always in
-this order and under these headings, in the JSON and in what `knos receipt` prints:
+A signature proves who signed, not that what was signed is true. So a receipt keeps five things apart, always in
+this order and under these headings, in the JSON and in what `knos receipt` prints (version 3; version 2 has the
+four that are not the commercial authorisation, and `knos receipt` prints all five headings for it and says what it
+does not carry):
 
 1. **What the issuer authenticated** (`issuer_authenticated`). GitHub or GitLab signed: which workflow file, at which
    commit, ran in which repository, for which event, and when. `verified` names the `knos_oidc` program, the key
    account and the transaction in which that signature was verified on chain.
 2. **What the evaluator observed** (`evaluator_observed`). The pinned judge's verdict, the named checks and their
-   conclusions, the accepted commit and pull request, and the judge's version (the commit of its workflow).
+   conclusions, the accepted commit and pull request, and the judge's version (the commit of its workflow). And who
+   controls each judge that spoke, recorded and not asserted ([Evaluator independence](#evaluator-independence)).
 3. **Which policy produced the verdict** (`policy`). The hash of the terms fixed at funding, the mode, the allowed
    and denied paths, and the terms' version.
-4. **What trust remains** (`trust_remaining`). The list, in plain words: the host's signing key and its runner; the
+4. **Who authorised the money, and under which limit** (`commercial_authorisation`). Who funded, from what, under
+   which limit that funding passed, whether the funder was the Balance's owner or a listed spender, and whether this
+   deliverable (the order and its milestone) was paid before ([Version 3](#version-3)).
+5. **What trust remains** (`trust_remaining`). The list, in plain words: the host's signing key and its runner; the
    code of the pinned workflow; the repository's administrators for a merge-mode order; the account that ran the
    judge when it was not the order's own repository; and Knos's upgrade multisig (the programs are upgradeable only
    through a multisig with a public 48-hour delay, until an outside review). The list follows from the provider, the
    mode and the judge, and a receipt that leaves one out is not valid.
 
+Beside the verdict itself `knos receipt` prints the trusted parties in one line, so nobody reads "accepted" without
+them:
+
+```
+   The pinned judge (repository, version cccc...) gave the verdict: accepted.
+   trusted: GitHub's signing key and runner; the pinned workflow at cccc...; the repository's administrators (the merge is the acceptance); Knos's upgrade multisig (public 48-hour delay).
+```
+
 Then `amendments`: every change of the order's terms between its funding and this payment (a top-up, an assignment
 of the payment, a reservation, a cancellation, a change of the funder's plan), oldest first, each with its
 transaction, so an order's terms history is explicit. Then the payment itself.
 
-- Schema: [`docs/receipt/acceptance-receipt.v2.schema.json`](receipt/acceptance-receipt.v2.schema.json) (JSON Schema
-  2020-12); version 1: [`acceptance-receipt.v1.schema.json`](receipt/acceptance-receipt.v1.schema.json)
+- Schema: [`docs/receipt/acceptance-receipt.v3.schema.json`](receipt/acceptance-receipt.v3.schema.json) (JSON Schema
+  2020-12); version 2: [`acceptance-receipt.v2.schema.json`](receipt/acceptance-receipt.v2.schema.json); version 1:
+  [`acceptance-receipt.v1.schema.json`](receipt/acceptance-receipt.v1.schema.json). A reader accepts all three.
 - Conformance vectors: [`docs/receipt/vectors.json`](receipt/vectors.json): of version 1, five receipts a reader
-  must accept, with their digests, and nine a reader must refuse; of version 2, the same five and eight to refuse
-- Reference code: [`src/knos/receipt.py`](../src/knos/receipt.py) (`build2`, `upgrade`, `check`, `render`,
-  `canonical`, `digest`); the tests are `tests/test_receipt.py` and `tests/test_bundle.py`
+  must accept, with their digests, and nine a reader must refuse; of version 2, the same five and eight to refuse;
+  of version 3, five to accept and twelve to refuse
+- Reference code: [`src/knos/receipt.py`](../src/knos/receipt.py) (`build2`, `build3`, `authorisation`, `evaluator`,
+  `independence_of`, `upgrade`, `as2`, `check`, `render`, `canonical`, `digest`); the tests are
+  `tests/test_receipt.py`, `tests/test_bundle.py` and `tests/test_receipt_offline.py`
 - Commands: `knos receipt FILE` (check and print), `knos receipt mirror --out DIR`, `knos receipt verify ORDER
-  [--mirror DIR]`, `knos bundle make ORDER [--verdict FILE]`, `knos bundle verify FILE [--rpc URL] [--mirror DIR]`
+  [--mirror DIR]`, `knos bundle make ORDER [--verdict FILE]`, `knos bundle verify FILE [--rpc URL] [--mirror DIR]`,
+  and with the chain gone `knos bundle verify FILE --no-chain` and `knos receipt verify FILE --no-chain`
+
+## Version 3
+
+A version 3 receipt is a version 2 receipt (below) of the same payment with two additions: the fifth part,
+`commercial_authorisation`, between `policy` and `trust_remaining`, and inside `evaluator_observed` the record of who
+controls each judge. `knos bundle make` and `knos receipt mirror` write version 3. Versions 1 and 2 still verify;
+`knos.receipt.build3` writes a version 2 receipt as version 3 and `knos.receipt.as2` gives back the version 2 one it
+holds (the Solana Attestation Service attestation is still written from that version 2 form).
+
+The fifth part of the first version 3 vector (digest `sha256:b5e2275e4ed2a1b19ca2eb5dc79ba3a1303f321ad5db4784c42970f6d0ea1fa1`):
+
+```json
+{
+ "funder": {
+  "github_id": 424242,
+  "login": "octo",
+  "wallet": null
+ },
+ "source": {
+  "kind": "balance",
+  "address": "7tj9biW3KRJ7EEWmVUGigHiouCTXhV2dzcyvwma7Cyu7",
+  "owner_id": 424242
+ },
+ "limit": {
+  "cap_per_order": "50000000",
+  "daily": "200000000",
+  "total": "0",
+  "repositories": [
+   987654321
+  ]
+ },
+ "role": "owner",
+ "deliverable": {
+  "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+  "milestone": 0
+ },
+ "billed_before": false,
+ "funded": "32acN4jvkNEGnU1QuTZx2U8BFLdxJMfJPtyVHsDnvGxgnC8Kn9gVd6TpbofWWjCuXiEZyesEaSgHs3njsZxr3tLk"
+}
+```
+
+| field | what it is | where it comes from |
+|---|---|---|
+| `funder` | who funded: a GitHub account (`github_id`, and `login` as the funding token named it, `null` when the token's transactions are no longer in the records read), or a `wallet` | the `by=` field of the `knos3:funded` log line; the `actor` claim of the funding token |
+| `source` | from what: `wallet` (the funder's own money), `balance` (an organisation's Balance, with `owner_id`, its owner's id) or `passkey` (a passkey wallet) | the `source=` field of that line; the `knos2:balance` line; the `knosp:funded` line |
+| `limit` | the limit that funding passed under: the Balance's cap for one order, its daily and total limits (`"0"`: none of that kind) and its repository allow-list. `"no limit set"` when none is set, and for a wallet; `null` when the Balance was opened before the history read | the Balance's opening instruction (the cap); the `knos2:balancex` line and its instruction (the `balx` side account: daily, total, repositories), as last set before the funding |
+| `role` | `owner` when the funder is the Balance's owner, `spender` when the Balance lists it as one, `wallet` or `passkey` when the money's own key signed | computed: the program lets only the owner or a listed spender spend a Balance |
+| `deliverable` | what was bought: the `order` and its `milestone` (0, or the pull request of a standing order's payment). One identity, however many pull requests carried the work | the order; the token's audience |
+| `billed_before` | `false`, or the transaction of an earlier payment of this order and milestone | the escrow's history. The program pays an order's milestone once, so anything but `false` is a finding |
+| `funded` | the funding transaction, `null` when the history read does not reach it | the `knos3:funded` line |
+
+What this part does not show, said plainly. The cap is the one the Balance was opened with: the instruction that
+changes a cap or the spenders afterwards (SetBalance) prints no log line, so a later change is not in the record a
+receipt is built from. And the limits are the chain's record of what was set; whether the person who set them had
+the authority inside their company to do so is not something a chain can know.
+
+### Evaluator independence
+
+Two accounts run by one person are one judge. A receipt cannot know who is behind an account, so it does not say
+that judges are independent: it records who controls each judge that spoke, from the ids its issuer signed, and
+computes two flags from them. The judges of the third version 3 vector, a quorum of two:
+
+```json
+{
+ "evaluators": [
+  {
+   "kind": "repository",
+   "repository_id": 1353152983,
+   "owner_id": 640000,
+   "actor_id": 7001,
+   "runner": "github-hosted",
+   "independent_of_buyer": false,
+   "independent_of_seller": false
+  },
+  {
+   "kind": "neutral",
+   "repository_id": 900100200,
+   "owner_id": 7001,
+   "actor_id": 7001,
+   "runner": "github-hosted",
+   "independent_of_buyer": true,
+   "independent_of_seller": false
+  }
+ ],
+ "same_controller": true,
+ "independence": "These judges are not independent of each other: account 7001 owns or started more than one of them. Two accounts run by one person are one judge, and so are two runs of one account: count this quorum as one judge."
+}
+```
+
+| field | what it is |
+|---|---|
+| `kind` | which judge: `repository` (a run in the buyer's repository, the order's own), `neutral` (a run its starter owns), `attestor` (the judge repository the order named), `arbiter` |
+| `repository_id`, `owner_id` | the repository the run was in, and the id of its owner (`repository_owner_id` in the token) |
+| `actor_id` | who started the run |
+| `runner` | the token's `runner_environment`: `github-hosted`, or `self-hosted` (the program pays only on a hosted runner's token, so a receipt of a payment says hosted; the field is the signed value, not an assumption) |
+| `independent_of_buyer` | `true` when neither the owner nor the starter is the funder or the Balance's owner. Always `false` for the order's own repository: the buyer chose it and its administrators can accept. `null` when the funder is a wallet, which has no account id to compare with |
+| `independent_of_seller` | `true` when neither the owner nor the starter is a payee |
+| `same_controller` | on the quorum: `true` when two judges share an owner or a starter (or the starter of one owns the other). `knos receipt` then prints `SAME CONTROLLER.` and the sentence in `independence`: count the quorum as one judge |
+
+The flags are computed, not chosen: `check` computes them again and refuses a receipt whose flags differ, and the
+last entry must be the judge whose token paid, with the ids that token carries. A flag that says `true` says two
+ids differ. It does not say two people differ.
 
 ## Version 2
 
@@ -174,13 +294,18 @@ of its own). A version 1 receipt still checks, and `knos.receipt.upgrade` writes
 | file | what it is |
 |---|---|
 | `MANIFEST.json` | the sha256 of every other file |
-| `receipt.json` | the receipt, version 2, in canonical form |
+| `receipt.json` | the receipt, version 3, in canonical form (a bundle with a version 2 receipt still verifies) |
 | `token.jwt` | the raw token the issuer signed, read back from the transactions that wrote it to `knos_oidc` |
 | `key.json` | the issuer's public key that verified it (`issuer`, `kid`, `n`, `e`) and its key account |
 | `terms.json` | the order's terms: the bytes hashed at funding |
 | `checks.json` | the check runs, commit statuses and changed files of the accepted commit, as fetched, reduced to the fields a verdict reads and put in one order |
 | `judge.json` | the judge's kind and version, and `inputs_sha256`: the sha256 of `checks.json` |
 | `verdict.json` | optional, for an order in tests mode: the judge's verdict, added by `--verdict FILE` (below) |
+| `chain.json` | the archived copy of the chain record: the paying transaction, the funding transaction and the one that verified the token, each as the cluster gave it (logs, instructions, accounts) with its slot, block time and blockhash; and the verifier's key account |
+| `keys.json` | the list of keys the issuer published (GitHub: `https://token.actions.githubusercontent.com/.well-known/jwks`), as fetched, with `retrieved_at`. Left out when the list could not be fetched |
+
+A bundle that holds `chain.json` or `keys.json` says version 2 in its manifest; a bundle without them is version 1,
+the layout earlier releases wrote, and both verify.
 
 `knos bundle make <order> --verdict FILE` puts the judge's own verdict in the bundle as `verdict.json`. `FILE` is what
 `knos proof judge --evidence` wrote: the hashes of the two trees the judge ran on, the hash of the acceptance checks,
@@ -192,12 +317,14 @@ tests-mode order says "assurance: not said by this bundle"; in merge mode no jud
 is claimed.
 
 The tar is deterministic: names in order, times zero, mode 0644, no owner. Two builds of one order are the same
-bytes, whoever makes them (the test builds it twice with the host answering in another order).
+bytes, whoever makes them (the test builds it twice with the host answering in another order), with one exception:
+`keys.json` carries the time the issuer's key list was fetched, so two builds made at different times differ in that
+file and in the manifest's line for it. Every other file is the same.
 
 `knos bundle verify <tar>` uses no network. It checks every file against the manifest; the token's RS256 signature
 against the included key; that the key is the one at the key account the receipt names (the address is derived from
 the key); the claims, the order, the commit, the terms hash and the payees against the token; `terms.json` against
-the terms hash; and then derives the verdict again from the terms and the checks. It prints the four parts.
+the terms hash; and then derives the verdict again from the terms and the checks. It prints the five parts.
 
 **The offline limit.** Offline, the paid wallet is not checked against the chain. No signed token carries the wallet
 each payee was paid at or the amounts (the token names accounts and shares), so a bundle whose receipt names another
@@ -219,6 +346,64 @@ knos bundle verify FILE --mirror DIR   # DIR, or the https URL a mirror is serve
 What the bundle does not prove: the wallet each payee was paid at and the amounts are the chain's, not the
 token's, so they are confirmed by comparing the receipt's digest with the one the chain or a mirror gives; and
 `checks.json` is what the host answered when the bundle was made, which only the host can vouch for.
+
+## Verifying with the chain gone
+
+```
+knos bundle verify FILE --no-chain              # no cluster is asked; the issuer's key list is, when the network is there
+knos bundle verify FILE --no-chain --no-network # nothing is asked of anyone
+knos receipt verify FILE --no-chain             # the same, under `knos receipt`
+knos receipt verify ORDER --no-chain --mirror DIR   # the receipt alone, from a mirror
+```
+
+`--no-chain` proves from the bundle alone everything that does not need a cluster, and prints three lists so that
+nobody mistakes one kind of statement for another:
+
+1. **Verified from signatures.** The token's RS256 signature against the key in `key.json`; that the key is the
+   one whose address the receipt names (the address is derived from the key); the audience the issuer signed
+   against the order, the artifact (commit and pull request), the terms hash and the payees; `terms.json` against
+   that terms hash; and, when the network is there, that the issuer serves this key now.
+2. **Resting on an archived copy in the bundle, signed by nobody.** The verdict derived again from `checks.json`
+   (what the host answered when the bundle was made). The key's identity against the issuer's published list in
+   `keys.json`, with the time it was retrieved. The wallets paid, the amounts, the fee and the tip against the
+   archived paying transaction, printed with its slot and blockhash. The verifier's key account as it was. For a
+   version 3 receipt, the funder and the source of the money against the archived funding transaction.
+3. **Could not be checked without a cluster.** That a cluster holds the paying transaction at that slot; that the
+   key account holds this key today and has not been revoked since; that the token's single-use marker is on chain.
+
+An issuer's keys rotate out. When the issuer no longer serves the key that signed, `--no-chain` says so and falls
+back to the archived list, labelled as the archive. When a list names the key's id with another key, that is not a
+rotation and the check fails. When neither list has the key (the bundle was made after the rotation), the line
+moves to the third list and names what is left: the verifier's key account, in the archived chain record.
+
+The limit, in the command's own words: the archive is a copy and nobody signed it, so whoever rebuilds a bundle can
+rewrite the archive together with the receipt. What holds it is the other party's copy (compare the bundle's
+sha256, which `verify` prints) or a mirror's digest of the receipt (`--mirror`). The blockhash is recorded as
+fetched; with the cluster gone nothing can be compared with it.
+
+`tests/test_receipt_offline.py` builds a bundle on the LiteSVM harness with the programs as built, throws the
+harness away, verifies with no chain, then changes each archived piece in turn (seventeen changes, each with its
+manifest rebuilt, and a flipped byte in each of the eight files) and checks that the failure names the piece.
+
+## What survives a devnet reset
+
+Devnet is a test cluster and its ledger can be reset
+([Solana's cluster documentation](https://solana.com/docs/references/clusters)). After a reset:
+
+- **The receipt** still checks against the rules of this document and still has its digest.
+- **The bundle** still verifies with `--no-chain`: the issuer's signature, the terms, the audience and the verdict
+  need no cluster.
+- **The mirror** still serves every receipt it was given, checked against its own index.
+- **The chain record becomes an archived copy.** The transaction and its logs are in `chain.json` as they were
+  fetched, with the slot and blockhash, and every line that rests on them says so. The order's accounts, the
+  token's single-use marker and the key account are gone with the ledger, and a version 1 bundle (made before
+  0.3.15) has no `chain.json`: its wallets and amounts are then the receipt's word.
+
+Nothing a customer is invoiced for depends on devnet staying up: an invoice line is a deliverable with its
+evaluation and its receipt, and those verify from signatures. Money on devnet is test USDC; a reset loses test
+balances and open test orders, not the evidence of what was accepted. What a reset does take is the ability to ask
+a third party (the cluster) whether a rewritten bundle is the true one, which is why both sides hold the same
+bundle and a mirror holds its receipt's digest.
 
 ## The mirror
 

@@ -13,7 +13,7 @@ import { join, extname } from "node:path";
 
 export const WIDTHS = [320, 360, 390, 768, 1280];
 export const PAGES = ["", "#protect", "#fund", "#money", "#task", "#anyissue", "#claim", "#pricing", "#records", "#u=alice", "#r=octo/widgets", "#rank=earners",
-  "#network", "#build", "#buy", "#install", "#capabilities"];
+  "#network", "#build", "#buy", "#install", "#capabilities", "#status", "#index", "#pilot", "#reproduce"];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
 const skip = (why) => { console.log(`SKIP ${why}`); process.exit(0); };
 

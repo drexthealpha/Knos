@@ -701,14 +701,26 @@ def test_on_devnet_the_faucet_mints_an_orders_amount_and_the_fee_on_top():
 
 def test_compute_units_and_sizes_of_the_order_instructions_are_recorded(chain):
     """Not a limit of the program: what its instructions cost in this run. A payment to four payees whose token
-    accounts are created in it is the largest; it needs more than one legacy transaction's 1232 bytes."""
+    accounts are created in it is the largest; it needs more than one legacy transaction's 1232 bytes.
+    The two payments are made on a chain of their own from fixed inputs (funder, issue, payee ids, wallets), so they
+    cost the same in every run: each address the program or the token account program derives costs 1,500 compute
+    units for every bump it tries, and with fresh random keys and ids the four-payee payment ranged from about 358,000
+    to over 400,000 from one run to the next (the order's and the token marker's addresses, and each payee's bind, rep,
+    pair and token account)."""
     c = chain
     sizes = {}
+    d = OrderChain()                                        # its clock and token counter start where every run starts
+    funder = Keypair.from_seed(bytes(range(32)))
+    d.svm.airdrop(funder.pubkey(), 10 * 10 ** 9)
+    funder_tok = d.token_account(funder.pubkey(), d.usdc)
+    d.mint_to(d.usdc, funder_tok, 1_000 * USDC)
     for count in (1, 4):
-        order = c.fund_wallet(amount=100 * USDC)
-        payees = [(user(), 10_000 // count, Keypair().pubkey()) for _ in range(count)]
-        assert c.pay(order, payees, tag=f"pay_order, {count} new payee(s)"), c.err
-        sizes[count] = c.size
+        order = d.fund_wallet(910_000 + count, amount=100 * USDC, funder=funder, funder_tok=funder_tok)
+        payees = [(90_000_000 + 10 * count + k, 10_000 // count, Keypair.from_seed(bytes([count, k]) * 16).pubkey()) for k in range(count)]
+        assert d.pay(order, payees, tag=f"pay_order, {count} new payee(s)"), d.err
+        sizes[count] = d.size
+    for tag, used in d.cu.items():
+        c.cu.setdefault(tag, []).extend(used)
     top = {k: max(v) for k, v in sorted(c.cu.items())}
     print("\nCU of the order instructions, highest seen:", top, "bytes of a PayOrder transaction by payees:", sizes)
     assert all(v < 400_000 for v in top.values()) and sizes[1] <= 1232

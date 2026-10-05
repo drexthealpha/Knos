@@ -97,7 +97,7 @@ def test_attest_and_canary_are_listed_and_their_own_options_are_read_without_typ
         rc, said = _help(capsys, word, "--help")
         assert rc == 0 and option in said and "usage: knos " + word in said
     seen = []
-    monkeypatch.setattr(flow, "attest", lambda run, order, kind, pull, payees: seen.append((run.repo, order, kind, pull, payees)) or 0)
+    monkeypatch.setattr(flow, "attest", lambda run, order, kind, pull, payees, plan="", judge="": seen.append((run.repo, order, kind, pull, payees)) or 0)   # --plan and --judge: empty unless given
     assert _help(capsys, "attest", "--repository", "octo/widgets", "--order", "O", "--kind", "pay", "--pull", "7")[0] == 0
     assert seen == [("octo/widgets", "O", "pay", 7, "")]
     # reached through the full command line all the same (a caller that built it first): handed on as it came
@@ -107,3 +107,20 @@ def test_attest_and_canary_are_listed_and_their_own_options_are_read_without_typ
     with pytest.raises(SystemExit) as stop:
         group.commands["attest"].main(["--repository", "octo/widgets", "--order", "P", "--kind", "take"], standalone_mode=True, prog_name="knos attest")
     assert stop.value.code == 0 and seen[-1] == ("octo/widgets", "P", "take", None, "")
+
+
+def test_init_takes_a_host_and_says_which_hosts_there_are(capsys):
+    """`knos init --host <name>` writes one coding agent's project files; a name nobody knows lists the ten, exit 1."""
+    rc, said = _help(capsys, "init", "--help")
+    assert rc == 0 and "--host" in said and "--global" in said
+    rc, said = _help(capsys, "init", "--host", "no-such-host")
+    assert rc == 1 and "cursor" in said and "roo" in said
+
+
+def test_budget_observe_and_reproduce_are_commands_for_money(capsys):
+    rc, said = _help(capsys, "--help")
+    money = said[said.index("For money"):]
+    assert rc == 0 and all(f" {word} " in money for word in ("budget", "observe", "reproduce"))
+    for word, option in (("budget", "show"), ("observe", "--graph"), ("reproduce", "--only")):
+        rc, text = _help(capsys, word, "--help")
+        assert rc == 0 and option in text, word

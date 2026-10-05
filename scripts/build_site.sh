@@ -8,6 +8,9 @@
 # The public record as static files (bounties.json, u/, r/, badge/, rank/, latency.json, operations.json) is written
 # here with nothing measured, so a build with no network has every file and each says it is empty; the Pages build
 # (.github/workflows/network.yml) writes them again from the chain and GitHub.
+# The Index page reads the repository's weekly table (docs/agent_weekly.json). The Reproduce page counts the reproductions
+# people outside have sent: the build carries the JSON files of reproductions/ and reproductions.json, their names
+# ({"files": []} while the folder holds none).
 # The upgrade feed (upgrades.json, upgrades.xml) is the committed one of web/; the Pages build runs
 # scripts/upgrade_feed.py on it, which writes nothing when the cluster does not answer, so the committed files stay.
 set -euo pipefail
@@ -17,11 +20,28 @@ case "$sha" in *[!0-9a-f]*|"") echo "the commit must be a full sha"; exit 1;; es
 [ "${#sha}" = 40 ] || { echo "the commit must be a full sha"; exit 1; }
 mkdir -p "$out"
 cp -r web/. "$out/"
+# The name in the bar, the favicon and the card of a shared link are files of web/ (web/brand/, written by
+# scripts/brand.py and committed). The traced originals they were made from stay in the repository.
+rm -rf "$out/brand/src"
+for f in icon.svg brand/mark.svg brand/wordmark.svg brand/mark.js brand/apple-touch-icon.png brand/card.png; do
+  [ -s "$out/$f" ] || { echo "web/$f is missing: python scripts/brand.py --png writes it"; exit 1; }
+done
 cp src/knos/settle/v2/program_ids.json "$out/program_ids.json"
 cp sdk/settle/index.js "$out/settle.js"
 cp sdk/settle/passkey.js "$out/passkey.js"
 cp examples/knos-claim.yml "$out/knos-claim.yml"
 cp docs/capabilities.json "$out/capabilities.json"
+cp docs/agent_weekly.json "$out/agent_weekly.json"
+"${PYTHON:-python3}" - "$out" <<'PY'
+import json, shutil, sys
+from pathlib import Path
+out = Path(sys.argv[1])
+files = sorted(p for p in Path("reproductions").glob("*.json") if p.is_file())
+for p in files:
+    (out / "reproductions").mkdir(exist_ok=True)
+    shutil.copyfile(p, out / "reproductions" / p.name)
+(out / "reproductions.json").write_text(json.dumps({"files": [p.name for p in files]}) + "\n", encoding="utf-8", newline="")
+PY
 # The Buy page is web/buyer.js. A build without it gets a file that fills nothing, so the page asks for no file that
 # is not there and the menu does not offer Buy.
 [ -f "$out/buyer.js" ] || printf '%s\n' '// No Buy page in this build.' 'export const renderBuyer = () => {};' > "$out/buyer.js"

@@ -1,4 +1,10 @@
-# Knos
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/brand/wordmark-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="web/brand/wordmark-light.svg">
+    <img alt="Knos" src="web/brand/wordmark-light.svg" height="84">
+  </picture>
+</h1>
 
 **Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.**
 
@@ -154,34 +160,33 @@ ahead. "Nowhere else" means: not in anything we found, and the page lists what w
 
 Everything is on **Solana devnet**, and the money is **test USDC**. Mainnet is not touched.
 
-| program | address | state |
+<!-- programs:start -->
+| program | address | on devnet, as [`docs/capabilities.json`](docs/capabilities.json) records it |
 |---|---|---|
-| `knos-oidc`, the verifier | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | deployed as 0.3.12 left it; this release's build runs only once its proposal executes |
-| `knos-pay`, the escrow | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | the same |
-| `knos-meter`, the count | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | deployed (`1.0`); batches and the seller's count (`1.1`) are tested locally, not deployed |
-| `knos-passkey`, a wallet from a passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | deployed (`1.0`); funding an order with a passkey (`1.1`) is tested locally, not deployed |
+| `knos-oidc`, the verifier | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | runs `2.0`; `2.1` is proposed through the multisig and runs at this address only once its proposal has executed; the 0.3.14 rehearsal ran it at a staging address of its own ([docs/CAPABILITIES.md](docs/CAPABILITIES.md)) |
+| `knos-pay`, the escrow | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | runs `2.0`; `2.1` is proposed through the multisig and runs at this address only once its proposal has executed; the 0.3.14 rehearsal ran it at a staging address of its own ([docs/CAPABILITIES.md](docs/CAPABILITIES.md)) |
+| `knos-meter`, the count | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | runs `1.0`; `1.1` is proposed through the multisig and runs at this address only once its proposal has executed; the 0.3.14 rehearsal ran it at a staging address of its own ([docs/CAPABILITIES.md](docs/CAPABILITIES.md)) |
+| `knos-passkey`, a wallet from a passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | runs `1.0`; `1.1` is proposed through the multisig and runs at this address only once its proposal has executed; the 0.3.14 rehearsal ran it at a staging address of its own ([docs/CAPABILITIES.md](docs/CAPABILITIES.md)) |
+<!-- programs:end -->
 
-The release of 0.3.14 cancels the proposals 0.3.13 made for `knos-oidc` and `knos-pay` and proposes this build in
-their place; [`web/upgrades.json`](web/upgrades.json), read from the chain, carries the live state. The proposal on
-chain when this page was last filled was proposed and approved by the multisig on 2026-10-04 07:17 UTC and
-can execute from 2026-10-06 07:17 UTC, 48 hours later, and not before: Knos waits out its own delay like anyone else.
-Until a proposal executes, the two programs behave as 0.3.12 described them: the fee comes out of the payment, only
-the funder's repository can sign, and there is no work order, seller's settlement, any-issuer key or single-use pay
-token. `knos status` and the site's banner say whether an upgrade is pending ([CHANGELOG.md](CHANGELOG.md)).
+This page names no time for an upgrade, so that it is true before and after one: whether a proposal is pending, has
+executed or was withdrawn, and from when it can run, is read from the chain by `knos status`, the site's banner and
+the site's [upgrade record](https://drexthealpha.github.io/Knos/upgrades.json) ([`web/upgrades.json`](web/upgrades.json)
+is the committed copy, of the time it names). Knos waits out its own 48-hour delay like anyone else. While a program
+runs its older version, it behaves as 0.3.12 described it: the fee comes out of the payment, only the funder's
+repository can sign, and there is no work order, seller's settlement, any-issuer key or single-use pay token.
 
 Knos can change all four programs only through a Squads multisig whose vault
-(`CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2`) is their upgrade authority, and only after that public 48-hour
-delay, until an outside review. Every member key of that multisig is still the founder's, so the delay, not the
-number of signers, is what protects a user. A second multisig, the guardian
-(`AT1aKj1DpgaWerxmS4YjDkNpWPNUtCCKVDvxLhFxg5Jc`), can approve or revoke a signing key and pause new funding for at
-most 7 days. It cannot add a key or move money. The first deployment ([`programs`](programs), 0.3.10 and 0.3.11) has
-no upgrade authority and stays as the record of those releases; nothing new is funded there.
-
-No outside security firm has examined anything. This release fixes a double payment in the 0.3.13 build, found
-before that build ran on any cluster ([CHANGELOG.md](CHANGELOG.md)).
+(`CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2`) is their upgrade authority, and only after that public 48-hour delay,
+until an outside review. Every member key of that multisig is still the founder's, so the delay, not the number of
+signers, is what protects a user. A second multisig, the guardian (`AT1aKj1DpgaWerxmS4YjDkNpWPNUtCCKVDvxLhFxg5Jc`),
+can approve or revoke a signing key and pause new funding for at most 7 days. It cannot add a key or move money. The
+first deployment ([`programs`](programs), 0.3.10 and 0.3.11) has no upgrade authority and stays as the record of those
+releases; nothing new is funded there. No outside security firm has examined anything. 0.3.15 changes no program; what
+its tests found and left open is in [CHANGELOG.md](CHANGELOG.md).
 
 <!-- capabilities:start -->
-**Every capability and how far it has got** ([the table with the evidence](docs/CAPABILITIES.md), from [`docs/capabilities.json`](docs/capabilities.json); a stage needs its evidence and the stages below it). **Reproduced by someone else:** none recorded yet. **Exercised on devnet:** `work_orders`, `order_pay`, `tests_mode`, `order_auto_accept`, `order_challenge`, `order_quorum`, `warranty_revert`, `reserve_cancel`, `fee_tiers`, `single_use_tokens`, `meter_batch`, `meter_seller_claim`, `passkey_funder`, `passkey_fund_relay`, `buyer_page`, `x402_knos_order`. **Deployed on devnet:** `verify_github`, `verify_gitlab`, `key_guardian`, `fund_by_comment`, `fund_from_wallet`, `pay_on_merge`, `hold_and_bind`, `refund`, `pause`, `meter_single`, `passkey_payee_wallet`, `upgrade_gate`. **Tested locally:** `check`, `install_by_pull_request`, `terms_templates`, `stop_hook`, `mcp_tools`, `agent_tools`, `verify_any_issuer`, `hermetic_judge`, `holdback_release`, `seller_settle`, `neutral_attest`, `arbiter_rule`, `top_up`, `assign`, `advance_by_assignment`, `standing_order`, `org_balance_limits`, `org_wallet`, `plans`, `private_attestor`, `gitlab_pay`, `relay`, `adapters`, `canary`, `load_local_1000`, `invariants_state_machine`, `rust_handler_tests`, `receipt`, `evidence_bundle`, `receipt_mirror`, `sas_receipt`, `x402_example`, `cpi_fund`, `oidc_gate`, `upgrade_delay`, `upgrade_feed`, `policy`, `screening`, `statements`, `badge`, `audit_export`, `agent_pr_index`, `agent_weekly_rates`, `mainnet_check`. **Implemented:** `gitlab_ci_example`, `kani_fee_conservation`. **Not built:** none recorded yet.
+**Every capability and how far it has got** ([the table with the evidence](docs/CAPABILITIES.md), from [`docs/capabilities.json`](docs/capabilities.json); a stage needs its evidence and the stages below it). **Reproduced by someone else:** none recorded yet. **Exercised on devnet:** none recorded yet. **Deployed on devnet:** `verify_github`, `verify_gitlab`, `key_guardian`, `fund_by_comment`, `fund_from_wallet`, `pay_on_merge`, `hold_and_bind`, `refund`, `pause`, `meter_single`, `passkey_payee_wallet`, `upgrade_gate`. **Tested locally:** `check`, `install_by_pull_request`, `terms_templates`, `stop_hook`, `mcp_tools`, `agent_tools`, `verify_any_issuer`, `work_orders`, `order_pay`, `tests_mode`, `order_auto_accept`, `order_challenge`, `order_quorum`, `hermetic_judge`, `holdback_release`, `warranty_revert`, `seller_settle`, `neutral_attest`, `arbiter_rule`, `reserve_cancel`, `top_up`, `assign`, `advance_by_assignment`, `standing_order`, `org_balance_limits`, `org_wallet`, `plans`, `fee_tiers`, `single_use_tokens`, `private_attestor`, `meter_batch`, `meter_seller_claim`, `passkey_funder`, `passkey_fund_relay`, `buyer_page`, `gitlab_pay`, `relay`, `adapters`, `canary`, `load_local_1000`, `invariants_state_machine`, `rust_handler_tests`, `receipt`, `evidence_bundle`, `receipt_mirror`, `sas_receipt`, `x402_example`, `x402_knos_order`, `cpi_fund`, `oidc_gate`, `upgrade_delay`, `upgrade_feed`, `policy`, `screening`, `statements`, `badge`, `audit_export`, `agent_pr_index`, `agent_weekly_rates`, `mainnet_check`, `deliverable_identity`, `meter_corrections`, `meter_period_close`, `ledger_dedup`, `receipt_five_parts`, `evaluator_independence_record`, `verify_without_chain`, `budget_controls_cli`, `console`, `observer_view`, `relay_journal_and_retries`, `dependency_drills`, `workflow_capacity_model`, `reproduction_kit`, `neutral_reexecution`, `doc_claims_check`, `agent_index_weekly_scan`, `opt_in_profiles`, `outcome_examples`, `knos_verify_action`, `webhook_verifier`, `agent_host_routes`, `oidc_differential`, `fuzz_rsa_diff_target`, `cli_lazy_start`, `site_cache`, `live_round_view`, `brand`. **Implemented:** `gitlab_ci_example`, `kani_fee_conservation`. **Not built:** none recorded yet. Deployed and exercised are counted only at the public program ids; what the 0.3.14 rehearsal ran at staging addresses of its own is in the note of each capability it ran, with its transaction.
 <!-- capabilities:end -->
 
 ## Install
@@ -190,11 +195,9 @@ before that build ran on any cluster ([CHANGELOG.md](CHANGELOG.md)).
 
 - **A repository:** the workflow file above, or only the free check as a GitHub Action.
 - **A terminal:** `pip install knos`, then `knos --help`.
-- **Coding agents:** `knos init` adds a Stop hook and an MCP server to the agents on the machine. There are also a
-  plugin for Claude Code and Codex, an extension for Gemini CLI, and one-click links for Cursor and VS Code. The
-  hook runs the check itself when an agent says tests pass or it is done. The MCP tools list funded work, check a
-  pull request's claims, say whether a repository can still pay, and return the exact comment or transaction for
-  taking, funding and settling. They hold no key and send nothing themselves.
+- **Coding agents:** `knos init` adds a Stop hook and an MCP server for the agent hosts INSTALL lists; there are also
+  a plugin, an extension and one-click links. The hook runs the check itself when an agent says tests pass or it is
+  done. The MCP tools read and return the exact comment or transaction; they hold no key and send nothing.
 - **Other programs:** Rust crates that read a verified token and fund a work order, the programs' IDLs, a
   JavaScript client, and worked examples ([docs/COMPOSE.md](docs/COMPOSE.md), [docs/OIDC.md](docs/OIDC.md)).
 
@@ -203,15 +206,16 @@ before that build ran on any cluster ([CHANGELOG.md](CHANGELOG.md)).
 | Line | Unit | Price |
 | --- | --- | --- |
 | Check | pull request checked | free |
-| Meter | attested evaluation | 10,000 a month free, then 0.05 USD; 0.02 on a committed-volume plan |
-| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40; plans 0.5 to 1.5% |
+| Meter | evaluation | 10,000 a month free per organisation, then 0.05 USD; 0.02 on a committed-volume plan |
 | Control | organisation | 25,000 USD a year entry, 80,000 organisation tier (nobody has bought it) |
-| Advance | dollar advanced on accepted work waiting on a holdback | 1 to 3%, by a financier who takes the assignment (`Assign`); Knos charges nothing today |
-| Assurance | dollar warranted | a premium for the warranty that refunds a reverted order; not priced until there is loss history |
+| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40 |
+| Pilot | one buyer and its suppliers, 30 days | 2,500 USD, invoiced off chain: reconcile the buyer's accepted work from more than one supplier, name every mismatch between acceptance and billing, deliver a statement both sides verify (nobody has bought it; there is no legal entity to invoice from yet) |
+| Advance, Assurance | | not offered; needs loss history |
 
 Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. Nobody has bought anything.
-[docs/MARKET.md](docs/MARKET.md) has what each sale costs, what a fork can copy, and what 1 billion USD a year would
-require, as arithmetic and not as a forecast.
+A small order pays more than the first rate: 5 pays the 0.40 minimum, which is 8%. On devnet the settle fee is test
+money. [docs/MARKET.md](docs/MARKET.md) has the effective fee by order size, what each sale costs, one example
+customer worked through, the first milestone and what a fork can copy; [docs/PILOT.md](docs/PILOT.md) is the Pilot in full.
 
 ## Limits
 
@@ -240,18 +244,16 @@ require, as arithmetic and not as a forecast.
 | [`src/knos`](src/knos) | What the workflows run, the judge, the relay anyone can run, the policy reader, receipts and statements, the Stop hook and the MCP server. |
 | [`crates`](crates), [`idl`](idl), [`sdk/settle`](sdk/settle), [`examples`](examples) | What another team builds on: interface crates, IDLs, a JavaScript client with no dependency, and example programs with their tests. |
 | [`web`](web) | The site. It reads GitHub and Solana in the browser; there is no Knos server. |
-| [`docs`](docs) | [SECURITY](docs/SECURITY.md) (who is trusted for what, every known limit), [ASSURANCE](docs/ASSURANCE.md) (the rules the tests enforce, where a reviewer should start), [DRILLS](docs/DRILLS.md) (safety paths run on the deployed bytes), [BENCH](docs/BENCH.md) (every measured number), [MARKET](docs/MARKET.md), [COMPARE](docs/COMPARE.md), [WHY](docs/WHY.md), [OIDC](docs/OIDC.md), [COMPOSE](docs/COMPOSE.md), [INSTALL](docs/INSTALL.md), [DISCLOSURE](docs/DISCLOSURE.md). New in 0.3.14: [METER](docs/METER.md) (batches, the seller's own count, reconciling two ledgers), [RECEIPT](docs/RECEIPT.md) and [PRIVACY](docs/PRIVACY.md), [GOVERNANCE](docs/GOVERNANCE.md), [INVARIANTS](docs/INVARIANTS.md), [ADAPTERS](docs/ADAPTERS.md), [LOAD](docs/LOAD.md), [X402](docs/X402.md), [CONTROLS](docs/CONTROLS.md), [REGULATION](docs/REGULATION.md), [RELAY](docs/RELAY.md), [OPERATIONS](docs/OPERATIONS.md). |
+| [`docs`](docs) | [SECURITY](docs/SECURITY.md) (who is trusted for what, every known limit), [ASSURANCE](docs/ASSURANCE.md) (the rules the tests enforce, where a reviewer should start), [DRILLS](docs/DRILLS.md) (safety paths run on the deployed bytes), [BENCH](docs/BENCH.md) (every measured number), [MARKET](docs/MARKET.md), [COMPARE](docs/COMPARE.md), [WHY](docs/WHY.md), [OIDC](docs/OIDC.md), [COMPOSE](docs/COMPOSE.md), [INSTALL](docs/INSTALL.md), [DISCLOSURE](docs/DISCLOSURE.md), [METER](docs/METER.md) (deliverables, corrections, closing a month, a statement both sides verify), [RECEIPT](docs/RECEIPT.md) and [PRIVACY](docs/PRIVACY.md), [GOVERNANCE](docs/GOVERNANCE.md), [INVARIANTS](docs/INVARIANTS.md), [ADAPTERS](docs/ADAPTERS.md), [LOAD](docs/LOAD.md), [X402](docs/X402.md), [CONTROLS](docs/CONTROLS.md), [REGULATION](docs/REGULATION.md), [RELAY](docs/RELAY.md), [OPERATIONS](docs/OPERATIONS.md). New in 0.3.15: [CONSOLE](docs/CONSOLE.md) (the operator's screen: budgets, billed before or not, exceptions, a receipt's five parts), [PILOT](docs/PILOT.md) (the 30-day reconciliation, step by step), [OUTCOMES](docs/OUTCOMES.md) (three outcomes that are not a merged pull request), [REPRODUCE](docs/REPRODUCE.md) (run the checks in a repository of your own and have GitHub sign the report), [INTEGRATIONS](docs/INTEGRATIONS.md) (the verify action, a webhook verifier, the badge), [TEAM](docs/TEAM.md) (who answers today: the founder alone). [INDEX](docs/INDEX.md) is the Agent PR Index by week. |
 
 ## History
 
-Knos 0.1 (1–7 Sep 2026, before this hackathon) was shared memory for coding agents built on Sibyl, and it won the
-Sibyl Labs hackathon. 0.2 and 0.3.0–0.3.9 (29 Sep – 2 Oct) were built during this one and tried coordination,
-budgets and a jobs market before the measurement above showed where the problem was. Those are kept in
-[drexthealpha/knos-labs](https://github.com/drexthealpha/knos-labs). 0.3.10 and 0.3.11 were the first deployment,
-made immutable before anyone outside had read it. 0.3.12 was the second deployment. 0.3.13 added work orders, the
-count, the passkey wallet and any issuer. 0.3.14 is this release: every token is single-use in every instruction. [docs/DISCLOSURE.md](docs/DISCLOSURE.md) says what was built
-when, what is older than the hackathon, and what came from elsewhere; [CHANGELOG.md](CHANGELOG.md) is the dated
-record.
+Knos 0.1 (1–7 Sep 2026, before this hackathon) was shared memory for coding agents built on Sibyl. 0.2 and 0.3.0–0.3.9
+(29 Sep – 2 Oct) tried coordination, budgets and a jobs market before the measurement above showed where the problem
+was ([drexthealpha/knos-labs](https://github.com/drexthealpha/knos-labs)). 0.3.10 to 0.3.14 are the two deployments,
+work orders, the count and single-use tokens. 0.3.15 is this release: it changes no program.
+[docs/DISCLOSURE.md](docs/DISCLOSURE.md) says what was built when and what came from elsewhere;
+[CHANGELOG.md](CHANGELOG.md) is the dated record.
 
 MIT, all of it. Built by drexthealpha. Its memory engine is [Sibyl](https://sibyllabs.org).
 <!-- mcp-name: io.github.drexthealpha/knos -->

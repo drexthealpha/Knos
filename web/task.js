@@ -10,6 +10,8 @@
 // accept.bundle writes, byte for byte (tests/test_accept.py holds the recorded copies this file is tested against), with the
 // answers given by the person instead of recorded from a reference command: nothing here ran a reference.
 
+import { cache as kept, ghKey } from "./cache.js";
+
 export const TEMPLATE = "drexthealpha/knos-task";
 export const MIN_PAIRS = 5;
 export const MAX_PAIRS = 200;        // src/knos/accept.py MAX_CASES: one run of the command per case, each in the judge's sandbox
@@ -278,17 +280,21 @@ export function initTask(ctx) {
       if (!/^[1-9]\d{0,8}$/.test(number)) { say2(out, "The issue's number is digits, like 1: the end of its address.", "bad"); return; }
       say2(out, "Reading GitHub for the repository's default branch…");
       try {
-        const repo = await gh(`/repos/${t.login}/${t.repo}`);
-        const branch = repo.default_branch || "main", files = bundleFiles(Number(number), t.argv, t.cases);
-        const dir = `.knos/acceptance/${number}`;
-        out.innerHTML = `<p class="fine" id="task-branch">${esc(where)} is public; its default branch is <code>${esc(branch)}</code>. Open each link, and press “Commit new file” on GitHub (to the default branch, not a new one).</p>
-          <ul class="plain" id="task-file-list">${Object.entries(files).map(([name, text], i) => {
-            const link = fileLink(t.login, t.repo, branch, `${dir}/${name}`, text);
-            return `<li data-file="${esc(name)}"><a class="button quiet" href="${esc(link.href)}" target="_blank" rel="noopener">${link.filled ? "Create" : "Open the new-file page for"} ${esc(dir)}/${esc(name)}</a>
-              ${link.filled ? "" : `<span class="fine">This file is too long to carry in a link: copy it from the box below and paste it into the page that opens.</span>`}
-              <details><summary>${esc(name)}, to read first (${new TextEncoder().encode(text).length} bytes)</summary><textarea readonly rows="8" spellcheck="false" data-text="${esc(name)}">${esc(text)}</textarea></details></li>`;
-          }).join("")}</ul>
-          <p class="fine">The issue itself: <a href="${esc(issueAddress(t.login, t.repo, number))}" target="_blank" rel="noopener">${esc(where)}#${esc(number)}</a>.</p>`;
+        // twice (cache.js): a repository this tab has read is answered at once from what was kept, and GitHub is asked again behind it
+        await kept.twice(async (seen, pass) => {
+          const repo = await seen(ghKey(`/repos/${t.login}/${t.repo}`), () => gh(`/repos/${t.login}/${t.repo}`));
+          if (pass.same()) return;
+          const branch = repo.default_branch || "main", files = bundleFiles(Number(number), t.argv, t.cases);
+          const dir = `.knos/acceptance/${number}`;
+          out.innerHTML = `<p class="fine" id="task-branch">${esc(where)} is public; its default branch is <code>${esc(branch)}</code>. Open each link, and press “Commit new file” on GitHub (to the default branch, not a new one).</p>
+            <ul class="plain" id="task-file-list">${Object.entries(files).map(([name, text], i) => {
+              const link = fileLink(t.login, t.repo, branch, `${dir}/${name}`, text);
+              return `<li data-file="${esc(name)}"><a class="button quiet" href="${esc(link.href)}" target="_blank" rel="noopener">${link.filled ? "Create" : "Open the new-file page for"} ${esc(dir)}/${esc(name)}</a>
+                ${link.filled ? "" : `<span class="fine">This file is too long to carry in a link: copy it from the box below and paste it into the page that opens.</span>`}
+                <details><summary>${esc(name)}, to read first (${new TextEncoder().encode(text).length} bytes)</summary><textarea readonly rows="8" spellcheck="false" data-text="${esc(name)}">${esc(text)}</textarea></details></li>`;
+            }).join("")}</ul>
+            <p class="fine">The issue itself: <a href="${esc(issueAddress(t.login, t.repo, number))}" target="_blank" rel="noopener">${esc(where)}#${esc(number)}</a>.</p>`;
+        });
       } catch (e) { say2(out, e.message === "GitHub has no such public repository, issue or user." ? `GitHub has no public repository ${esc(where)} yet: do step 1 first.` : esc(e.message), "bad"); }
     };
   };

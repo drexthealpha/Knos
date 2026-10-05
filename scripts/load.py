@@ -626,7 +626,117 @@ def render(doc: dict) -> str:
             out.append(f"| {s} | {x['units_finalized']:,} of {x['units']:,} | {x['transactions']:,} | {x['failures']} | {x['retries']} | {t['p50']} | "
                        f"{t['p95']} | {t['p99']} | {u['p50']} | {u['p95']} | {u['p99']} |")
         out += ["", f"Wallet `{r['wallet']}`, key account `{r['key_account']}`, mint `{r.get('mint')}`." + (f" Stopped: {r['stopped']}." if r.get("stopped") else ""), ""]
+    if doc.get("workflow"):
+        out += render_workflow(doc["workflow"], runs)
     return "\n".join(out).rstrip() + "\n"
+
+
+def render_workflow(w: dict, runs: list) -> list[str]:
+    """Section 5, from docs/load.json's `workflow` section (scripts/capacity.py writes it): what one order costs outside
+    the chain, and which limit a customer meets first."""
+    L, c, rel, lat = w["limits"], w["counted"], w["relay"], w["latency"]
+    own, pub, m2p = w["budget"]["own"], w["budget"]["public"], lat["merge_to_paid_s"]
+    ways = {"own": "the job's own relay", "public": "the public worker"}
+    out = ["## 5. The whole workflow", "",
+           "A chain rate is not the system's capacity. An order is also two workflow jobs, the requests each makes of GitHub with a token "
+           "GitHub rations, the comments it posts, a token GitHub signs, a relay that carries it and a statement someone reads back. This "
+           "section counts those and asks which limit a customer meets first. `python scripts/capacity.py --write` wrote it; "
+           "`python scripts/capacity.py -R <repositories> -N <deliverables a day>` answers for any customer.", "",
+           "### What one word of the workflow asks of GitHub (counted)", "",
+           "Counted by running `command`, `settle` and `attest` of `src/knos/flow.py` against the tests' stand-in for api.github.com "
+           "(`tests/_flow.py`), on the simplest order: one issue, one pull request, one payee with a bound wallet. It is a count of the "
+           "code's requests, exact for that case; an order with more payees, more closing issues or a policy file reads more. It was not "
+           "counted on GitHub itself.", "",
+           "| Word | Token carried by | Requests read | Requests written | Comments made | Tokens GitHub signs | Jobs |",
+           "| --- | --- | --- | --- | --- | --- | --- |"]
+    for way in ("own", "public"):
+        for x in c[way].values():
+            out.append(f"| {x['word']} | {ways[way]} | {x['reads']} | {x['writes']} | {x['comments']} | {x['tokens_signed']} | {x['jobs']} |")
+    out += ["", "The job's own relay is the job sending the transactions itself with a fee key the repository keeps (`KNOS_RELAY_KEY`). "
+            "Without the key the token is posted as a comment and the public worker carries it; the job then reads the worker's log every "
+            f"{rel['wait_every_s']:g} s for up to {rel['wait_at_most_s']} s. Those reads use the repository's own token and are not "
+            "conditional, so each one counts.", "",
+            "### The budget of one deliverable (funded by a comment, paid on its merge)", "",
+            "| | The job's own relay | The public worker | Where the number is from |", "| --- | --- | --- | --- |",
+            f"| Workflow jobs | {own['jobs']} | {pub['jobs']} | counted |",
+            f"| GitHub requests with the repository's token, the work itself | {own['reads'] + own['writes']} | {pub['reads'] + pub['writes']} | counted |",
+            f"| Reads of the relay log while waiting, at the median wait | 0 | {pub['poll_requests']['median']} | derived: one read every "
+            f"{rel['wait_every_s']:g} s for the median of merge-to-paid, {m2p['median']} s |",
+            f"| the same at the p95 wait ({m2p['p95']} s) | 0 | {pub['poll_requests']['p95']} | derived |",
+            f"| the same when no relay answers ({rel['wait_at_most_s']} s) | 0 | {pub['poll_requests']['timeout']} | derived |",
+            f"| Requests in all, at the p95 wait | {own['token_requests']['p95']} | {pub['token_requests']['p95']} | counted + derived |",
+            f"| Comments made in the repository | {own['comments']} | {pub['comments']} | counted |",
+            f"| Comments the public worker adds to its log | 0 | {pub['relay_log_comments']} | from the code (`ghrelay.once` logs a carried token at once) |",
+            f"| Tokens GitHub signs (OIDC) | {own['tokens_signed']} | {pub['tokens_signed']} | counted |",
+            f"| Solana transactions | {own['transactions']} | {pub['transactions']} | measured in the simulator (section 2) |",
+            f"| Bytes of signed transactions | {own['bytes']:,} | {pub['bytes']:,} | measured in the simulator (p50) |",
+            f"| Compute units | {own['cu']:,} | {pub['cu']:,} | measured in the simulator (mean) |",
+            f"| Seconds from merge to paid | not timed apart | median {m2p['median']}, p95 {m2p['p95']} | recorded on devnet: {m2p['count']} "
+            f"payments in the public relay's log, {lat['window']['from']} to {lat['window']['to']} (`docs/bench.json`) |",
+            "| Actions minutes | not measured | not measured | a job's time on the runner was not recorded; standard runners are free in "
+            "public repositories |",
+            "| RPC requests to send the transactions | not measured | not measured | |", "",
+            f"Runner queue time: {lat['stage_split']}.", "",
+            "What the public worker itself spends: every pass (one every "
+            f"{rel['pass_every_s']:g} s) reads at most {rel['repositories_read_per_pass_at_most']} repositories' newest comments, each a "
+            "conditional request. GitHub does not count a conditional request it answers 304 when it carries an Authorization header, so a "
+            f"pass that finds nothing new costs nothing against the worker's {L['github_token_requests_per_hour']:,} an hour; a repository "
+            f"with a new token costs {rel['counted_reads_per_token']} counted read, and the token {rel['log_comments_per_token']} log comment. "
+            f"The search for repositories it does not know runs every {rel['search_every_s']} s, under the search limit of "
+            f"{L['search_per_minute']} a minute. A pass carries its tokens one at a time.", "",
+            "### The meter's statement (derived from the code)", "",
+            "`knos statement --meter` recomputes a month from the program's log lines: the month account's history "
+            f"{w['meter']['rows_per_history_request']} rows a request, one `getTransaction` for every transaction in it, and the account "
+            f"itself. It reads at most {w['meter']['statement_reads_at_most']:,} transactions. Solana's public endpoints take "
+            f"{L['rpc_one_method_per_10s']} requests of one method per 10 seconds from one address, and say they are not for production.", "",
+            "| Evaluations a day | RPC requests for a 30-day month, one transaction an evaluation | With one batch a day |", "| --- | --- | --- |"]
+    for n, x in w["statement_requests"].items():
+        out.append(f"| {int(n):,} | {x['one_by_one']:,} | {x['batched_daily']:,} |")
+    out += ["", "### Which limit binds first", "",
+            "For a customer with R repositories and N accepted deliverables a day, the work spread evenly over the repositories and over "
+            "the day (an assumption: a busier hour lowers every figure in proportion; `--peak` sets it). \"Binds at\" is the N at which "
+            "the limit is reached; the model is arithmetic on the numbers above and on the published limits, and none of these volumes was run. "
+            "\"Binds first\" is among the limits on the work; the meter's statement is a limit on reading the count back, listed in the last column.", "",
+            "| Repositories | Deliverables a day | Token carried by | Binds first | Binds at (a day) | This volume fits | Limits this volume is past |",
+            "| --- | --- | --- | --- | --- | --- | --- |"]
+    for a in w["customers"]:
+        out.append(f"| {a['repositories']:,} | {a['per_day']:,} | {ways[a['way']]} | {a['first']} | {a['at']:,} | {'yes' if a['fits'] else '**no**'} | "
+                   f"{'; '.join(a['binding']) or 'none'} |")
+    big = {a["way"]: a for a in w["customers"] if a["per_day"] == max(x["per_day"] for x in w["customers"])}
+    at = {way: {r["limit"]: r["at"] for r in big[way]["bounds"]} for way in big}
+    rows = []                           # a limit that is the same either way is one row; one that differs is a row for each way
+    for way in ("own", "public"):
+        other = at["public" if way == "own" else "own"]
+        for r in big[way]["bounds"]:
+            same = other.get(r["limit"]) == r["at"]
+            if not (same and way == "public"):
+                rows.append((r, "" if same else f" ({ways[way]})"))
+    out += ["", f"Every limit, for the largest of the three ({big['own']['repositories']:,} repositories, {big['own']['per_day']:,} a day), soonest first:", "",
+            "| Limit | Whose | Binds at (a day) | From | What lifts it without a program change |", "| --- | --- | --- | --- | --- |"]
+    for r, way in sorted(rows, key=lambda x: x[0]["at"]):
+        out.append(f"| {r['limit']}{way} | {r['scope']} | {r['at']:,} | {r['from']} | {r['lift']} |")
+    out += ["", "What this says. The public worker is a convenience for small volumes. The reads of its log that a waiting job makes "
+            "are what uses up a repository's hourly requests first, and its own two limits are shared by every repository it serves. A "
+            "customer past them relays in its own job with its own fee key, which removes the token comment, the polling and both "
+            "shared limits at once. After that the limits are GitHub's, per repository and per account, long before they are Solana's. "
+            "The one bound here that configuration cannot move is the fee account of the mint; of all of them only a single Balance's "
+            "is further away.", "",
+            "### Measured, recorded, derived", "",
+            "| What | How it is known |", "| --- | --- |",
+            "| Compute units, transactions and bytes of an order; paid once, none lost | measured in the local simulator, 1,000 orders (sections 1 and 2) |"]
+    for r in runs:
+        fails = sum(x["failures"] for x in r["stages"].values())
+        out.append(f"| Token verification, funding from a wallet, refund and close on a cluster | measured on {r['cluster']}, {r['date']}: "
+                   f"{r['orders']:,} orders, {fails} failures (section 4). PayOrder, funding from a Balance and the meter were not sent in that run |")
+    out += [f"| Seconds from merge to paid | recorded on devnet, {m2p['count']} payments (`docs/bench.json`) |",
+            "| Requests, comments, tokens and jobs of a word | counted from the code against a stand-in for GitHub; not observed on GitHub |",
+            "| Limits of GitHub and of Solana | published by them, read on " + w["read"] + " (links below); GitHub says its secondary limits "
+            "may change without notice, and its page does not say whether the content limit is counted per repository for a workflow's "
+            "token, which this page assumes |",
+            "| Cluster rates, the relay log polling, statement requests, every \"binds at\" | derived |",
+            "| Actions minutes, runner queue time apart from the rest, RPC requests per order, any GitHub limit actually being hit | not measured |", "",
+            "Sources: " + "; ".join(f"[{t}]({u})" for t, u in w["sources"].items()) + ".", ""]
+    return out
 
 
 SOURCES = {"Solana: 100M CU blocks (SIMD-0286), which also states the 12M per-account limit": "https://solana.com/upgrades/100m-cu-blocks",

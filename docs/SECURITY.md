@@ -10,10 +10,10 @@ found in the proposed escrow during its 48-hour delay ([section 15](#15-tokens-p
 and this release withdraws those proposals and proposes corrected builds in their place. Until the new proposal
 executes, the deployed escrow and verifier are 0.3.12's, and what this page says about work orders, judges,
 any-issuer keys, GitLab and the single-use rule is not live ([section 8](#8-versions-and-what-is-live-when)).
-The 2.1 proposal on chain when the release last filled this page was proposed and approved by the multisig on
-2026-10-04 07:17 UTC and can execute from 2026-10-06 07:17 UTC. Whether a proposal is still pending, has run, or
-was replaced is in [`web/upgrades.json`](../web/upgrades.json), read from the chain, and that file, not this
-sentence, is the record.
+This page names no time for a proposal. Whether one is still pending, has run or was replaced, and from when it can
+run, is read from the chain by `knos status` and by the site's
+[upgrade record](https://drexthealpha.github.io/Knos/upgrades.json); [`web/upgrades.json`](../web/upgrades.json) is the
+committed copy, of the time it names.
 
 Knos runs on Solana devnet and the money is test USDC. **Nobody outside Knos has reviewed the security of
 anything here:** not the programs, the workflows, the relay, the clients, the site or these documents. What the
@@ -112,7 +112,7 @@ first valid token pays, and the order closes.
 | judge | the run | who remains trusted | what it could do wrong |
 |---|---|---|---|
 | **a. The order's own repository** | `prove.yml`, in the repository the order names | that repository's maintainers and its runner. In an organisation on a paid plan the runner can be an image the organisation built | pay whoever it likes from this order, or never ask for the token. A sponsor who funds an issue in someone else's repository trusts that repository this far |
-| **b. Neutral** (on unless the funder wrote `neutral off`; never for a private order) | `attest.yml`, started by hand (`workflow_dispatch`) by the account that owns the repository it ran in | GitHub, to run a personal account's job on its own image and to answer its API truthfully; the pinned `attest.yml` and the `knos` release it installs, which read the public record of the pull request | sign a payment that the pinned code wrongly allows. The person who starts the run is the person who gains, so a fault in that code, or in GitHub's record, is found by someone with a reason to look for it. It cannot sign what the record does not support |
+| **b. Neutral** (on unless the funder wrote `neutral off`; never for a private order) | `attest.yml`, started by hand (`workflow_dispatch`) by the account that owns the repository it ran in | GitHub, to run a personal account's job on its own image and to answer its API truthfully; the pinned `attest.yml` and the `knos` release it installs. For an order with a black-box suite the run executes that suite again itself, in a job that cannot sign, and signs only on its own result; for an order paid on its merge it reads the checks' conclusions from the public record, and its verdict says which of the two it did (section 20) | sign a payment that the pinned code wrongly allows. For a merge-mode order it also repeats a check conclusion that was wrong in the buyer's repository: it reads that conclusion and does not run the check. The person who starts the run is the person who gains, so a fault in that code, or in GitHub's record, is found by someone with a reason to look for it. It cannot sign what the record does not support |
 | **c. A judge repository** the funder named | `prove.yml` or `attest.yml`, in that repository | that repository's maintainers and its runner, entirely. This is how a private order is paid | pay whoever it likes from this order, or never ask |
 | **d. The arbiter** the funder named | `attest.yml`, started by hand by the arbiter in a repository he owns, with a ruling (`knos3:rule:<order>:<payees>`) | one GitHub account, and whoever controls it | rule for either side, or for a third party, with no pull request. He cannot name himself among the payees, and a Balance's order cannot name its funder or its owner as arbiter. He can also never rule: the order then goes back at its deadline |
 
@@ -755,6 +755,102 @@ and is tested against stand-ins for GitHub and the chain; none of it has run on 
   an open pull request. An agent's account with no bound wallet is paid only at the address in its own
   `/knos address` comment on the pull request, and the reply to that comment still reads as a refusal.
 
+## 20. A neutral judge that runs the suite again
+
+GitHub signs which workflow ran, at which commit, in which repository, started by whom. It does not sign what that
+workflow read. Until 0.3.15 a neutral run (judge b, section 2) reached every verdict by reading: the conclusions of
+the checks at the merged commit, through GitHub's API. A check in the buyer's repository that was wrong, or that
+someone with write access there had made say "success", was repeated by the neutral judge, not caught. And an order
+paid by its acceptance checks (tests mode) took no neutral run at all: only its own repository ran the suite.
+
+**What changed, with no change to any program.** The pinned `attest.yml` now has two jobs
+([`.github/workflows/attest.yml`](../.github/workflows/attest.yml), `knos attest` in
+[`src/knos/flow.py`](../src/knos/flow.py)).
+
+- `rerun` has a read-only token, no `id-token` permission and no secret. For an order paid by its acceptance checks
+  it reads the order on Solana and the pull request, fetches two commits from the order's public repository by
+  their ids (the commit the pull request was merged onto, and the commit that was merged), checks that the bundle
+  in `.knos/acceptance/<issue>/` at the first one hashes to the `accept` of the funded terms, and runs the suite
+  itself: in the judge's sandbox (section 14), or in a container of the image the terms name by digest. It writes
+  a verdict and fails unless the suite passed.
+- `attest` starts only when `rerun` succeeded. It checks nothing out, runs no git and takes no artifact. It
+  receives the verdict as text in an environment variable and treats it as written by a job that ran a stranger's
+  code: one JSON object of fixed fields, each held to a shape, at most 8,192 characters. It reads the order, the
+  pull request and the bundle again itself, and asks GitHub for the token only when the verdict passed and names
+  this order, repository, pull request, issue, base commit, head commit and bundle hash, with the terms' image when
+  they name one. The token and its audience are what the program accepts today: `knos3:pay:...` with the order's
+  own mode.
+- `refused` starts only when `rerun` failed after it reached a verdict. It has no `id-token` permission. It runs the
+  same command with that verdict, which refuses it, and posts the verdict on the "knos tokens" issue with the sentence
+  that says why nothing was signed.
+
+**What the verdict records.** `reexecuted` (true or false), `passed`, `assurance` (`black-box` or `hermetic`),
+`image` (`ref` and the `digest` the runtime reported), `artifact` (a hash of each of the two trees, the ones
+`knos judge rerun` compares), `order`, `repository`, `pull`, `issue`, `head`, `base`, `accept`, `reasons`,
+`sentence`, and `environment`: the repository and run it happened in, the runner's operating system, architecture
+and image version, and the `knos` version. It is kept as the run's artifact `knos-verdict` (`verdict.json`), it is
+the job output `verdict`, and it is posted as a comment that starts `knos-verdict: ` beside the token on the "knos
+tokens" issue. GitHub's signature covers none of it: the token says which workflow ran and where, and the verdict
+is that workflow's own account of how it decided.
+
+**An order paid on the merge is not re-executed.** Its terms name checks that are the repository's own (its CI),
+and nothing outside that repository can run them. The neutral run keeps reading their conclusions, and its verdict
+says `reexecuted: false` with the sentence "this judge read the buyer repository's check results; it did not run
+them". The same holds for any other check that the terms of a tests-mode order name beside the suite: the suite is
+run again, those are read.
+
+**What the second environment adds.**
+
+- An independent execution. The suite runs on a GitHub-hosted runner in the attester's repository, under the
+  attester's account. Nothing the buyer configures reaches it: not the buyer's workflow files, runner, secrets,
+  cache, branch protection or check results.
+- A check result that lies is no longer enough. With `quorum 2` on an order paid by its checks, the buyer's own
+  run and a neutral run must each pass the same commit, and the neutral one has run the suite itself. When the suite
+  fails there, the neutral run signs nothing and the order does not pay
+  (`tests/test_attest_rerun.py::test_with_a_quorum_of_two_the_buyers_green_checks_alone_pay_nothing_when_the_second_run_fails`).
+- A record of how the verdict was reached, which a receipt can show beside the verdict.
+
+**What it does not add.**
+
+- A second suite. It is the same bundle, by its hash. A suite that is wrong is wrong twice: a check that a stub
+  passes in the buyer's repository is passed by the same stub in the attester's.
+- A second GitHub. Both runs are GitHub-hosted runners, the commits are fetched from GitHub, and the order's
+  record is read through GitHub's API. A fault in GitHub's runner image, or a GitHub that served other bytes for a
+  commit id, is common to both. (A commit id is a hash of its content and git names what it fetched by that
+  hash, so other bytes under the same id would need a collision in the hash git uses.)
+- A second copy of Knos. Both judges run the pinned workflow at the commit the order recorded, and the same
+  `knos` release. A fault in that code is common to both.
+- Independence of people. GitHub signs an account id, not who a person is. The program counts a neutral run toward
+  a quorum only when it is not in the order's own repository and was not started by the account that funded the
+  order or owns its Balance, and that is all it can know. **Two accounts of one person are one judge**: a buyer who starts the neutral
+  run from a second account of his own has two tokens and one opinion. Whoever relies on a quorum has to know who
+  controls each account; no field on chain says it.
+- A deterministic judge. A suite that draws its inputs at random draws new ones in the second run. Without an image
+  in the terms the two runners can differ in what is installed.
+- Without a quorum, a second judge at all: the first valid token pays (section 2), so on an order with no quorum
+  the buyer's own run alone still pays, and the re-execution only gives the seller a way to be paid that does not
+  rest on the buyer's check results.
+
+**What the run costs and what it risks for the attester.** The first job runs code from a pull request in the
+attester's repository. It has what the judge job of `prove.yml` has and no more: a token that reads, no secret, the
+sandbox's separate user with no network. Limit 16 applies to it as it does there: the sandbox is a user boundary,
+not a machine boundary. A submission that escaped it could write the verdict the next job reads; that job then
+still checks the order, the merge, the scope, the payee and the bundle hash itself, but it would take the suite's
+"passed" from the forged text. This is the trust judge a already places in its own judge job.
+
+**What is not done.** None of this has run on GitHub or on a cluster. It is tested against stand-ins for GitHub and
+the chain, the program's side in a simulator, and the real judge once on a sample tree
+([`tests/test_attest_rerun.py`](../tests/test_attest_rerun.py)); the workflow file is checked by actionlint and by
+[`tests/test_workflows2.py`](../tests/test_workflows2.py), and its fetch and sandbox steps have not been run on a
+runner. Whether the work-order instructions are live on the public program ids is in `web/upgrades.json`. The
+pinned workflows repository must publish this `attest.yml` before any order can pin it: it is republished at
+release, and an order funded earlier is held to the older file at the commit it recorded, which does not
+re-execute. A neutral run is still started by hand. The program does not know whether a neutral token came from a
+run that re-executed: it accepts a token from the pinned file at the pinned commit, and what that file does is fixed
+by that commit. An `auto` payment made before the merge is not re-executed by a neutral run, which judges merged
+pull requests only. This section narrows limit 15 below ("tests mode has no second look") for orders that ask for a
+quorum; it does not remove it.
+
 ## Before mainnet
 
 - **An outside review first.** `knos mainnet-check` prints every gate with its evidence. The last one, an outside
@@ -792,7 +888,11 @@ The first three cannot be removed. They come with the design.
 12. **A holdback returns to the funder on the funder's own repository's word.**
 13. **A Balance with no side account trusts every repository of its owner** (section 11).
 14. **A maintainer can pay a friend.** The record counts a payment apart only when funder and payee are the same.
-15. **Tests mode has no second look.** A submission that passes the black-box check is paid.
+15. **The second look covers black-box suites only, and has not run on GitHub.** A neutral run executes an order's
+    black-box suite again before it signs (section 20). For an order paid on its merge it reads the checks'
+    conclusions and runs nothing. The buyer's own run alone still pays, a neutral run is started by hand, and the
+    program cannot tell a token of a run that re-executed from one that only read. The two-job `attest.yml` is
+    tested locally; it has never run on GitHub.
 16. **The sandbox is a user boundary, not a machine boundary.**
 17. **The two jobs that cannot sign install by version, not by hash** (section 13).
 18. **The policy file and the screening are the workflow's rules, not the chain's** (section 3).
@@ -810,7 +910,8 @@ The first three cannot be removed. They come with the design.
     key refresh or revocation had run on devnet itself. No instruction of this release had run on devnet when this
     page was written: the tests run them in a simulator, on builds made for testing.
 27. **The assurance is the author's own.** [ASSURANCE.md](ASSURANCE.md) says what is tested, what is fuzzed, and
-    what is not.
+    what is not; its section "Fuzzing, mutation testing and model checking: the state of each" has the differential
+    test of the verifier and the fuzz targets, and [`fuzz.json`](fuzz.json) is the recorded run.
 28. **Devnet only, and no outside buyer.** By 3 Oct 2026 no outside repository had funded a task.
 29. **Everything depends on one personal GitHub account** that hosts the pinned workflows, the rotate workflow and
     the relay. If it is suspended, funded orders can only be refunded and keys run out within 30 days
@@ -821,3 +922,11 @@ The first three cannot be removed. They come with the design.
     tested, in one list", says what: a deployment whose verifier is another program, orderings of four and more
     moves (sampled, not enumerated), `RefundOrder` and two racing relayers on a running cluster, and, in the state
     machine, standing orders, kill fees, assigned payments, a second relayer and a second mint.
+33. **The claim reader accepts some issuer-signed payloads that are not strict JSON.** It finds the claims it reads
+    and steps over every other value by its brackets and quotes, so a payload the issuer's key really signed that a
+    JSON library refuses (a literal cut short, `NaN`, a comment, a control character in a string) still verifies. The
+    differential test put 13 such shapes to the program, 342 cases, and it accepted every one
+    ([ASSURANCE.md](ASSURANCE.md), "The verifier: left open"; [`fuzz.json`](fuzz.json), `outside_the_rule`). Nobody
+    without the issuer's key can make such a token, and GitHub and GitLab sign JSON. A reader of the same payload
+    that is strict can fail on a token this verifier took. The fix is a program change, strict validation of the
+    values the reader steps over, and 0.3.15 changes no program.

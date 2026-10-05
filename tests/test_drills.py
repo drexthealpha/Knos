@@ -201,3 +201,57 @@ def test_the_committed_table_has_a_row_for_every_drill_and_none_of_them_failed()
         assert pay.IDS[p] in doc
     logged = drills.upgrade_rows(docs / "drill_upgrade.log", lambda _line: None)
     assert all(f"| {r.name} | {r.how} | {r.checked} | {r.result} |" in doc for r in logged) and all(r.result == "pass" for r in logged)
+
+
+# -- when a dependency fails: the rows that run on the test builds, with the tests' fakes ------------------------------------
+def test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took():
+    said: list[str] = []
+    rows = drills.dependency_rows(said.append)
+    assert [r.name for r in rows] == [name for name, _f in drills.DEPENDENCIES] and len(rows) == 6
+    assert [r.result for r in rows] == ["pass"] * 6, [(r.name, r.result) for r in rows]
+    assert all(r.broken and r.sees and r.recovers and " s" in r.seconds for r in rows)
+    assert said == [f"when {r.name}: {r.seconds}: pass" for r in rows]
+    github, key, killed, rpc, evidence, reset = rows
+    assert "all 3 paid on the first pass after GitHub answered, 3 s later (603 s after their comments); none paid twice" in github.seconds and "502 for 600 s" in github.broken
+    assert "(no transaction was sent)" in key.sees and "this signing key expired" in key.sees and key.seconds.startswith("paid 121 s after the key expired")
+    assert killed.seconds == "answered 3 s after the kill (3 s of passes); the payee holds 4.875 once, after two sends of the same token"
+    assert "on try 6 (tries at 3, 6, 9, 21, 42, 72 s); paid once" in rpc.seconds and rpc.seconds.startswith("paid 12 s after the endpoint answered again")
+    assert "`test`: did not run on this commit" in evidence.sees and "No token is signed" in evidence.sees and "paid 30 s after `/knos settle`" in evidence.seconds
+    assert reset.seconds.startswith("0 s for the record: ") and "The orders are not recovered" in reset.seconds and "--mirror DIR" in reset.recovers
+    assert drills.dependency_rows(lambda _line: None) == rows          # run once in a process: the same rows
+
+
+def test_the_dependency_section_is_in_the_page_replaced_alone_and_a_row_that_fails_exits_1(tmp_path, monkeypatch):
+    said, out = [], tmp_path / "DRILLS.md"
+    assert drills.main(["--rpc", "http://cluster", "--out", str(out), "--now", str(NOW)], Rpc(), said.append) == 0
+    doc = out.read_text(encoding="utf-8")
+    section = drills.dependency_section(drills.dependency_rows(lambda _line: None))
+    assert section in doc and doc.index("## The drills") < doc.index(drills.HEADING) < doc.index("## Reproduce") < doc.index("## Recovery a funder can run")
+    assert "6 of 6 rows passed, 0 failed, 0 were not run." in section and "6 of 14 rows passed, 0 failed, 8 were not run." in doc     # the two counts stay apart
+    assert "| Failure | What was broken | What the customer sees | How it recovers | Measured recovery, simulated seconds | Result |" in section
+    assert said[-2] == "when a dependency fails: 6 passed, 0 failed, 0 not run"
+    # alone: no cluster is read, and the page is the same; a page that has no such section yet gets it before "Reproduce"
+    assert drills.main(["--out", str(out), "--dependencies-only"], None, said.append) == 0 and out.read_text(encoding="utf-8") == doc
+    start, end = doc.index(drills.HEADING), doc.index("## Reproduce")
+    out.write_text(doc[:start] + doc[end:], encoding="utf-8")
+    assert drills.main(["--out", str(out), "--dependencies-only"], None, said.append) == 0 and out.read_text(encoding="utf-8") == doc
+    # a drill that fails is a row with the exact error, and status 1 in both modes
+    monkeypatch.setattr(drills, "DEPENDENCIES", [("devnet is reset", lambda: (_ for _ in ()).throw(drills.Failed("the mirror lost a receipt")))])
+    drills._dependencies.cache_clear()
+    try:
+        assert drills.main(["--out", str(out), "--dependencies-only"], None, said.append) == 1
+        assert "| devnet is reset |  |  |  |  | FAIL: the mirror lost a receipt |" in out.read_text(encoding="utf-8") and said[-2] == "when devnet is reset: FAIL: the mirror lost a receipt"
+        assert drills.main(["--rpc", "http://cluster", "--out", str(out), "--now", str(NOW)], Rpc(), said.append) == 1
+    finally:
+        drills._dependencies.cache_clear()
+
+
+def test_the_committed_page_has_the_dependency_rows_as_the_script_writes_them_and_the_customers_version():
+    docs = FIX.parents[1] / "docs"
+    doc = (docs / "DRILLS.md").read_text(encoding="utf-8")
+    assert drills.dependency_section(drills.dependency_rows(lambda _line: None)) in doc, "run: python scripts/drills.py --dependencies-only"
+    recovery = (docs / "drills_recovery.md").read_text(encoding="utf-8")
+    assert doc.endswith(recovery) and "## What you see when something Knos depends on fails" in recovery
+    table = [line for line in recovery.splitlines() if line.startswith("| ") and line.count(" | ") == 3][2:]       # (after its heading and the rule under it)
+    assert len(table) == len(drills.DEPENDENCIES)                      # one row for the person waiting, per drill
+    assert "none of these failures has been rehearsed on devnet" in recovery and "None has been rehearsed on devnet" in recovery

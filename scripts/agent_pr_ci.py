@@ -52,6 +52,25 @@ AGENTS = [
     ("claude-code", "\"Generated with Claude Code\" in:body -author:app/claude"),
     ("codex",       "\"chatgpt.com/codex/tasks\" in:body"),
 ]
+# How each agent is told apart, and what that misses. Each qualifier returned pull requests when the committed sample
+# was read on 2026-10-01 (docs/agent_pr_ci.json: 179, 180, 180, 180 and 114 hits). The vendors' own pages say where the
+# heuristic stops: Devin can be set to open pull requests as the user (docs.devin.ai/integrations/gh), Claude Code's
+# line is a setting a user can turn off, and since 16 July 2026 GitHub's API also returns Copilot's pull requests
+# under `author:<the person who asked>` (github.blog/changelog/2026-06-18-copilot-authored-pull-requests-now-
+# included-in-author-searches), which does not change the app qualifier used here.
+HEURISTICS = {
+    "copilot": {"told_by": "the pull request's author is the GitHub App `copilot-swe-agent` (GitHub Copilot's cloud agent)",
+                "misses": "Copilot used in an editor or a terminal, which opens pull requests under the person's own account"},
+    "devin": {"told_by": "the author is the GitHub App `devin-ai-integration` (Devin's default: it opens pull requests as itself)",
+              "misses": "an organisation that set Devin to open pull requests as the user"},
+    "claude-bot": {"told_by": "the author is the GitHub App `claude` (Claude Code run from GitHub: the Action, or an @claude mention)",
+                   "misses": "an installation that runs the Action under its own app or a person's token"},
+    "claude-code": {"told_by": "the description holds the line \"Generated with Claude Code\" and the author is not the app `claude` "
+                               "(Claude Code run on a person's machine, under their account)",
+                    "misses": "anyone who turned the line off in settings; a person who pastes the line is counted"},
+    "codex": {"told_by": "the description holds a `chatgpt.com/codex/tasks` link (the task link Codex's cloud agent writes)",
+              "misses": "Codex run locally, which writes no link; a person who pastes a task link is counted"},
+}
 CLAIM_SEARCH = ('("tests pass" OR "all tests pass" OR "tests passing" OR '
                 '"CI passes" OR "CI is green" OR "CI passing") in:body')
 
@@ -415,14 +434,43 @@ SCAN_WIDTH = {"copilot": 5, "devin": 1, "claude-bot": 5, "claude-code": 1, "code
 NO_CLAIM = []   # [agent, created_at] of every search hit whose description, read closely, claims nothing (list.append is atomic)
 
 
-def scan_agent(agent, qual, end, days, per_agent):
-    """One agent's windows, newest first, up to 10 pages of 100 each (GitHub's 1,000-result cap is per query, so
-    narrow windows reach past it), until `per_agent` claimed, non-self-repo PRs are kept. Returns (kept, counts,
+SPLIT_FLOOR = 3600   # seconds: a span is not cut finer than an hour; one still over the cap is read to it and counted
+
+
+def _span(a, b):
+    """(first second, last second) of the days a..b, UTC."""
+    lo = dt.datetime.fromisoformat(a).replace(tzinfo=dt.timezone.utc)
+    return lo, dt.datetime.fromisoformat(b).replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1, seconds=-1)
+
+
+def created(lo, hi):
+    """The `created:` qualifier of a span: whole days as dates (the query a run of any earlier version asked, so its
+    answer is on disk), a part of a day to the second."""
+    whole = lo.time() == dt.time(0) and hi.time() == dt.time(23, 59, 59)
+    f = (lambda t: t.date().isoformat()) if whole else (lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ"))
+    return f"created:{f(lo)}..{f(hi)}"
+
+
+def halves(lo, hi):
+    """The span cut in two, newest half first; None when it is already at most SPLIT_FLOOR long."""
+    size = int((hi - lo).total_seconds()) + 1
+    if size <= SPLIT_FLOOR:
+        return None
+    mid = lo + dt.timedelta(seconds=size // 2)
+    return [(mid, hi), (lo, mid - dt.timedelta(seconds=1))]
+
+
+def scan_agent(agent, qual, end, days, per_agent, width=None):
+    """One agent's windows, newest first, up to 10 pages of 100 each, until `per_agent` claimed, non-self-repo PRs are
+    kept. GitHub answers a query with at most 1,000 results: a window whose first page says it holds more is cut in
+    two (down to an hour) and each half is asked by itself, so a busy day is read whole. Returns (kept, counts,
     finished): `finished` is False when a query was refused or the time ran out, so what was kept is the newest part
-    of the sample and not all of it."""
-    kept, seen, n = [], set(), {"hits": 0, "excluded": 0, "no_claim": 0, "cut_short": 0}
-    for a, b in scan_windows(end, days, SCAN_WIDTH.get(agent, 3)):
-        q = f"is:pr {qual} created:{a}..{b} {CLAIM_SEARCH}"
+    of the sample and not all of it. counts["capped"]: hour-long spans that still held more than 1,000."""
+    kept, seen, n = [], set(), {"hits": 0, "excluded": 0, "no_claim": 0, "cut_short": 0, "capped": 0}
+    todo = [_span(a, b) for a, b in scan_windows(end, days, width or SCAN_WIDTH.get(agent, 3))][::-1]   # a stack: newest on top
+    while todo:
+        lo, hi = todo.pop()
+        q = f"is:pr {qual} {created(lo, hi)} {CLAIM_SEARCH}"
         for page in range(1, 11):
             if len(kept) >= per_agent:
                 return kept, n, True
@@ -430,12 +478,18 @@ def scan_agent(agent, qual, end, days, per_agent):
                 r = gh_get("search/issues", {"q": q, "per_page": 100, "page": page,
                                               "sort": "created", "order": "desc"}, kind="search")
             except OutOfTime:
-                print(f"out of time searching {agent}: {a}..{b} page {page}", file=sys.stderr)
+                print(f"out of time searching {agent}: {created(lo, hi)} page {page}", file=sys.stderr)
                 return kept, n, False
             if not r["ok"]:
                 print("search error:", q, r["error"], file=sys.stderr)
                 return kept, n, False
             items = r["json"]["items"]
+            if page == 1 and (r["json"].get("total_count") or 0) > 1000:
+                cut = halves(lo, hi)
+                if cut:
+                    todo += cut[::-1]      # the newest half is read next; this page's hits come again in it
+                    break
+                n["capped"] += 1           # an hour with more than 1,000: its newest 1,000 are read, and the count says so
             n["cut_short"] += bool(r["json"].get("incomplete_results"))   # a page GitHub ran out of time on
             for it in items:
                 repo = it["repository_url"].split("/repos/")[1]
@@ -460,15 +514,15 @@ def scan_agent(agent, qual, end, days, per_agent):
     return kept, n, True
 
 
-def scan_collect(end, days, per_agent):
+def scan_collect(end, days, per_agent, width=None):
     """All agents concurrently (the search limit is shared; gh_get backs off on it). A PR found under two agents'
     queries counts once, for the first agent listed. Returns (kept, counts, unfinished): the agents whose search did
     not finish. What the others found is kept either way."""
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=len(AGENTS)) as ex:
         res = list(ex.map(lambda aq: scan_agent(aq[0], aq[1], end, days, per_agent.get(aq[0], 0)
-                                                    if isinstance(per_agent, dict) else per_agent), AGENTS))
-    kept, seen, n = [], set(), {"hits": 0, "excluded": 0, "no_claim": 0, "cut_short": 0}
+                                                    if isinstance(per_agent, dict) else per_agent, width), AGENTS))
+    kept, seen, n = [], set(), {"hits": 0, "excluded": 0, "no_claim": 0, "cut_short": 0, "capped": 0}
     for rows, cnt, _ in res:
         for k in n:
             n[k] += cnt[k]

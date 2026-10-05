@@ -6,7 +6,8 @@ Who this argument is for: the person accountable for approving a supplier's invo
 supplier who needs acceptance terms that cannot be changed after the work. The evidence below comes mostly from the
 smallest case, paid work for strangers on public issues, because that is where the failure is public and can be
 measured. The same failure sits inside every invoice priced per merged change: the seller's word, and the seller's
-count. [MARKET.md](MARKET.md) has the buyers, the prices and the arithmetic.
+count. [MARKET.md](MARKET.md) has the buyers, the prices and one customer worked through, and [PILOT.md](PILOT.md)
+has the one offer for money. Nobody has bought anything, and no buyer has been asked.
 
 The argument, with its sources. Every outside source was read on 2 or 3 Oct 2026; a date beside a link is the
 source's own date. "Secondary" marks a number read in coverage of the original, not in the original.
@@ -66,7 +67,7 @@ Intercom charges 0.99 USD per outcome for its support agent, Fin, which has pass
 recurring revenue ([Sacra](https://sacra.com/research/intercom), secondary). For code, Sourcegraph began billing one product per merged changeset on 14 Sep 2026: "If it doesn't get
 merged, you don't pay" ([changelog](https://sourcegraph.com/changelog/agentic-batch-changes-ga),
 [its note on pricing, 16 Sep 2026](https://sourcegraph.com/blog/agentic-batch-changes-pricing)). In both the
-seller's own system counts the results. Buyers object to that: "Attribution disputes are where these contracts
+seller's own system counts the results. One person who works on such contracts says where they break: "Attribution disputes are where these contracts
 fall apart" (a director at Twilio, in
 [CIO, 16 Jun 2026](https://www.cio.com/article/4184688/it-hurtles-toward-the-great-enterprise-pricing-reset.html)).
 

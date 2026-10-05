@@ -1,16 +1,39 @@
 {
- "read": "2026-10-01",
+ "name": "Agent PR Index",
+ "read": "2026-10-05",
  "window": [
   "2026-07-03",
-  "2026-09-30"
+  "2026-10-04"
  ],
- "source": "docs/agent_pr_ci.json, the sample read on 2026-10-01, reshaped by week (nothing was read again). Unlike the index, this sample kept pull requests on repositories their author owns",
+ "source": "the weeks read on 2026-10-05 are cut from a capped sample of 2026-09-21 to 2026-10-04 (each agent's newest claimed pull requests, up to a cap, by agent_pr_index.py scan), not whole weeks; the others are the sample read on 2026-10-01, cut by week",
  "agents_told_by": {
   "copilot": "author:app/copilot-swe-agent",
   "devin": "author:app/devin-ai-integration",
   "claude-bot": "author:app/claude",
   "claude-code": "\"Generated with Claude Code\" in:body -author:app/claude",
   "codex": "\"chatgpt.com/codex/tasks\" in:body"
+ },
+ "heuristics": {
+  "copilot": {
+   "told_by": "the pull request's author is the GitHub App `copilot-swe-agent` (GitHub Copilot's cloud agent)",
+   "misses": "Copilot used in an editor or a terminal, which opens pull requests under the person's own account"
+  },
+  "devin": {
+   "told_by": "the author is the GitHub App `devin-ai-integration` (Devin's default: it opens pull requests as itself)",
+   "misses": "an organisation that set Devin to open pull requests as the user"
+  },
+  "claude-bot": {
+   "told_by": "the author is the GitHub App `claude` (Claude Code run from GitHub: the Action, or an @claude mention)",
+   "misses": "an installation that runs the Action under its own app or a person's token"
+  },
+  "claude-code": {
+   "told_by": "the description holds the line \"Generated with Claude Code\" and the author is not the app `claude` (Claude Code run on a person's machine, under their account)",
+   "misses": "anyone who turned the line off in settings; a person who pastes the line is counted"
+  },
+  "codex": {
+   "told_by": "the description holds a `chatgpt.com/codex/tasks` link (the task link Codex's cloud agent writes)",
+   "misses": "Codex run locally, which writes no link; a person who pastes a task link is counted"
+  }
  },
  "claim_search": "(\"tests pass\" OR \"all tests pass\" OR \"tests passing\" OR \"CI passes\" OR \"CI is green\" OR \"CI passing\") in:body",
  "definitions": {
@@ -20,20 +43,28 @@
   "ci_finished": "of the claimed, the ones whose CI had finished at the head commit when it was read (classes failed, passed, other). The two rates below are over these",
   "failed_a_check": "at least one failed check of any kind at the head commit (`any_check_failed` of the index); `test_or_build` counts the ones where a failed check is, by its name, a test, build, lint or type-check job",
   "merged_despite_failed_check": "merged when read, with a failed check at the head commit, over the merged pull requests with finished CI. null where the merge state was not read",
-  "share, ci95": "k over n, and the 95% Wilson score interval of that share (z = 1.96); null when n is 0"
+  "share, ci95": "k over n, and the 95% Wilson score interval of that share (z = 1.96); null when n is 0",
+  "rank": "among the agents with at least `min_claims_to_rank` claimed pull requests whose CI had finished that week: 1 is the smallest share that failed a check; equal shares share a rank. null: too few to rank. A rank orders what was said against what was recorded that week. It is not a ranking of the agents' code",
+  "verified": "of the week's claimed pull requests, the ones that were also paid through Knos under terms with a black-box check, by the list of payments the script was given (`verified_against`). The only count here that rests on an acceptance check the pull request could not edit",
+  "read, full_week": "the day GitHub was read for that week; full_week is true when every hit of the week's searches was read, false for a week cut from a capped sample"
  },
  "limits": [
   "An agent is told by its author account or by a line its tool writes in the description (`agents`). A person who pastes that line is counted as the agent; an agent run under a person's own account without it is missed.",
   "Public repositories only: GitHub's search does not return private ones.",
   "One snapshot of the checks: what GitHub showed at the head commit when it was read. A check that was run again later, or a commit pushed after, is not seen. The agent's own session run is not a check.",
   "The search asks for a few claim phrases, so `sampled` is not every pull request the agent opened.",
-  "A week holds few pull requests for some agents: read the interval, not the share."
+  "A week holds few pull requests for some agents: read the interval, not the share.",
+  "A failed check is not proof that the claim was false. It says a check GitHub recorded at the head commit failed when it was read: the check may be a deploy preview or a label gate, may be flaky, or may have been failing before the pull request. What is concluded: the description said tests or CI pass, and the record shows a failed check. What is not: that the tests failed, that the code is wrong, or that one agent is better."
  ],
+ "min_claims_to_rank": 30,
+ "verified_against": "no list of Knos payments was joined to this sample, so the count is 0 for every agent: every Knos payment so far is test USDC on Solana devnet. It takes a sampled pull request that was also paid through Knos under terms with a black-box check, and that list given to the script (--paid)",
  "agents": {
   "copilot": {
    "weeks": [
     {
      "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 11,
      "ci_finished": 4,
@@ -55,10 +86,14 @@
        0.0,
        0.5615
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 6,
      "ci_finished": 4,
@@ -80,10 +115,14 @@
        0.0456,
        0.6994
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 4,
      "ci_finished": 4,
@@ -105,10 +144,14 @@
        0.0615,
        0.7923
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 12,
      "ci_finished": 10,
@@ -130,10 +173,14 @@
        0.2307,
        0.8824
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 13,
      "ci_finished": 12,
@@ -155,10 +202,14 @@
        0.1078,
        0.6032
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 5,
      "ci_finished": 5,
@@ -180,10 +231,14 @@
        0.3424,
        1.0
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 12,
      "ci_finished": 11,
@@ -205,10 +260,14 @@
        0.0257,
        0.5131
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 7,
      "ci_finished": 7,
@@ -230,63 +289,101 @@
        0.1582,
        0.7495
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
+    },
+    {
+     "week": "2026-09-21",
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 121,
+     "claimed_passing": 39,
+     "ci_finished": 35,
+     "failed_a_check": {
+      "k": 7,
+      "n": 35,
+      "share": 0.2,
+      "ci95": [
+       0.1004,
+       0.3589
+      ],
+      "test_or_build": 4
+     },
+     "merged_despite_failed_check": {
+      "k": 4,
+      "n": 22,
+      "share": 0.1818,
+      "ci95": [
+       0.0731,
+       0.3852
+      ]
+     },
+     "verified": 0,
+     "rank": 1
     },
     {
      "week": "2026-09-28",
-     "sampled": null,
-     "claimed_passing": 5,
-     "ci_finished": 3,
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 169,
+     "claimed_passing": 66,
+     "ci_finished": 58,
      "failed_a_check": {
-      "k": 1,
-      "n": 3,
-      "share": 0.3333,
+      "k": 13,
+      "n": 58,
+      "share": 0.2241,
       "ci95": [
-       0.0615,
-       0.7923
+       0.1359,
+       0.3466
       ],
-      "test_or_build": 1
+      "test_or_build": 7
      },
      "merged_despite_failed_check": {
-      "k": 1,
-      "n": 3,
-      "share": 0.3333,
+      "k": 12,
+      "n": 45,
+      "share": 0.2667,
       "ci95": [
-       0.0615,
-       0.7923
+       0.1596,
+       0.4104
       ]
-     }
+     },
+     "verified": 0,
+     "rank": 3
     }
    ],
    "all_weeks": {
-    "sampled": 179,
-    "claimed_passing": 75,
-    "ci_finished": 60,
+    "sampled": null,
+    "claimed_passing": 175,
+    "ci_finished": 150,
     "failed_a_check": {
-     "k": 21,
-     "n": 60,
-     "share": 0.35,
+     "k": 40,
+     "n": 150,
+     "share": 0.2667,
      "ci95": [
-      0.2417,
-      0.4764
+      0.2024,
+      0.3426
      ],
-     "test_or_build": 10
+     "test_or_build": 20
     },
     "merged_despite_failed_check": {
-     "k": 15,
-     "n": 44,
-     "share": 0.3409,
+     "k": 30,
+     "n": 108,
+     "share": 0.2778,
      "ci95": [
-      0.2188,
-      0.4886
+      0.202,
+      0.3688
      ]
-    }
+    },
+    "verified": 0
    }
   },
   "devin": {
    "weeks": [
     {
      "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 4,
      "ci_finished": 3,
@@ -308,10 +405,14 @@
        0.0,
        0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 14,
      "ci_finished": 14,
@@ -333,10 +434,14 @@
        0.15,
        0.85
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 9,
      "ci_finished": 6,
@@ -358,10 +463,14 @@
        0.0,
        0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 7,
      "ci_finished": 6,
@@ -383,10 +492,14 @@
        0.0362,
        0.6245
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 12,
      "ci_finished": 11,
@@ -408,10 +521,14 @@
        0.0,
        0.3903
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 11,
      "ci_finished": 10,
@@ -433,10 +550,14 @@
        0.0179,
        0.4042
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 11,
      "ci_finished": 9,
@@ -458,10 +579,14 @@
        0.0224,
        0.4709
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 5,
      "ci_finished": 3,
@@ -483,63 +608,72 @@
        0.0,
        0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-28",
-     "sampled": null,
-     "claimed_passing": 14,
-     "ci_finished": 6,
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 140,
+     "claimed_passing": 120,
+     "ci_finished": 109,
      "failed_a_check": {
-      "k": 1,
-      "n": 6,
-      "share": 0.1667,
+      "k": 70,
+      "n": 109,
+      "share": 0.6422,
       "ci95": [
-       0.0301,
-       0.5635
+       0.5488,
+       0.7259
       ],
-      "test_or_build": 0
+      "test_or_build": 5
      },
      "merged_despite_failed_check": {
-      "k": 0,
-      "n": 4,
-      "share": 0.0,
+      "k": 2,
+      "n": 37,
+      "share": 0.0541,
       "ci95": [
-       0.0,
-       0.4899
+       0.015,
+       0.177
       ]
-     }
+     },
+     "verified": 0,
+     "rank": 4
     }
    ],
    "all_weeks": {
-    "sampled": 180,
-    "claimed_passing": 87,
-    "ci_finished": 68,
+    "sampled": null,
+    "claimed_passing": 193,
+    "ci_finished": 171,
     "failed_a_check": {
-     "k": 15,
-     "n": 68,
-     "share": 0.2206,
+     "k": 84,
+     "n": 171,
+     "share": 0.4912,
      "ci95": [
-      0.1385,
-      0.3326
+      0.4173,
+      0.5655
      ],
-     "test_or_build": 11
+     "test_or_build": 16
     },
     "merged_despite_failed_check": {
-     "k": 5,
-     "n": 43,
-     "share": 0.1163,
+     "k": 7,
+     "n": 76,
+     "share": 0.0921,
      "ci95": [
-      0.0507,
-      0.2448
+      0.0453,
+      0.1781
      ]
-    }
+    },
+    "verified": 0
    }
   },
   "claude-bot": {
    "weeks": [
     {
      "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 15,
      "ci_finished": 15,
@@ -561,10 +695,14 @@
        0.0,
        0.2039
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 15,
      "ci_finished": 15,
@@ -586,10 +724,14 @@
        0.0,
        0.2039
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 13,
      "ci_finished": 11,
@@ -611,10 +753,14 @@
        0.0822,
        0.6411
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 7,
      "ci_finished": 7,
@@ -636,10 +782,14 @@
        0.0,
        0.3903
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 12,
      "ci_finished": 12,
@@ -661,10 +811,14 @@
        0.0,
        0.2775
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 11,
      "ci_finished": 11,
@@ -686,10 +840,14 @@
        0.0975,
        0.5657
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 5,
      "ci_finished": 5,
@@ -711,10 +869,14 @@
        0.0,
        0.4345
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 14,
      "ci_finished": 14,
@@ -736,63 +898,72 @@
        0.0,
        0.2281
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-28",
-     "sampled": null,
-     "claimed_passing": 9,
-     "ci_finished": 6,
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 242,
+     "claimed_passing": 120,
+     "ci_finished": 115,
      "failed_a_check": {
-      "k": 0,
-      "n": 6,
-      "share": 0.0,
+      "k": 13,
+      "n": 115,
+      "share": 0.113,
       "ci95": [
-       0.0,
-       0.3903
+       0.0673,
+       0.1838
       ],
-      "test_or_build": 0
+      "test_or_build": 2
      },
      "merged_despite_failed_check": {
-      "k": 0,
-      "n": 3,
-      "share": 0.0,
+      "k": 10,
+      "n": 101,
+      "share": 0.099,
       "ci95": [
-       0.0,
-       0.5615
+       0.0547,
+       0.1727
       ]
-     }
+     },
+     "verified": 0,
+     "rank": 1
     }
    ],
    "all_weeks": {
-    "sampled": 180,
-    "claimed_passing": 101,
-    "ci_finished": 96,
+    "sampled": null,
+    "claimed_passing": 212,
+    "ci_finished": 205,
     "failed_a_check": {
-     "k": 8,
-     "n": 96,
-     "share": 0.0833,
+     "k": 21,
+     "n": 205,
+     "share": 0.1024,
      "ci95": [
-      0.0428,
-      0.1559
+      0.068,
+      0.1515
      ],
-     "test_or_build": 5
+     "test_or_build": 7
     },
     "merged_despite_failed_check": {
-     "k": 5,
-     "n": 85,
-     "share": 0.0588,
+     "k": 15,
+     "n": 183,
+     "share": 0.082,
      "ci95": [
-      0.0254,
-      0.1304
+      0.0503,
+      0.1308
      ]
-    }
+    },
+    "verified": 0
    }
   },
   "claude-code": {
    "weeks": [
     {
      "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 1,
      "ci_finished": 0,
@@ -803,10 +974,14 @@
       "ci95": null,
       "test_or_build": 0
      },
-     "merged_despite_failed_check": null
+     "merged_despite_failed_check": null,
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 4,
      "ci_finished": 3,
@@ -828,10 +1003,14 @@
        0.0,
        0.5615
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 1,
      "ci_finished": 1,
@@ -853,10 +1032,14 @@
        0.0,
        0.7935
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 4,
      "ci_finished": 3,
@@ -878,10 +1061,14 @@
        0.0,
        0.5615
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 3,
      "ci_finished": 3,
@@ -903,10 +1090,14 @@
        0.0,
        0.5615
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 6,
      "ci_finished": 5,
@@ -928,10 +1119,14 @@
        0.0362,
        0.6245
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 2,
      "ci_finished": 1,
@@ -953,10 +1148,14 @@
        0.0,
        0.7935
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 6,
      "ci_finished": 5,
@@ -978,63 +1177,72 @@
        0.0,
        0.4345
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-28",
-     "sampled": null,
-     "claimed_passing": 4,
-     "ci_finished": 3,
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 423,
+     "claimed_passing": 120,
+     "ci_finished": 102,
      "failed_a_check": {
-      "k": 1,
-      "n": 3,
-      "share": 0.3333,
+      "k": 13,
+      "n": 102,
+      "share": 0.1275,
       "ci95": [
-       0.0615,
-       0.7923
+       0.076,
+       0.2059
       ],
-      "test_or_build": 0
+      "test_or_build": 6
      },
      "merged_despite_failed_check": {
-      "k": 1,
-      "n": 1,
-      "share": 1.0,
+      "k": 6,
+      "n": 76,
+      "share": 0.0789,
       "ci95": [
-       0.2065,
-       1.0
+       0.0367,
+       0.1617
       ]
-     }
+     },
+     "verified": 0,
+     "rank": 2
     }
    ],
    "all_weeks": {
-    "sampled": 180,
-    "claimed_passing": 31,
-    "ci_finished": 24,
+    "sampled": null,
+    "claimed_passing": 147,
+    "ci_finished": 123,
     "failed_a_check": {
-     "k": 2,
-     "n": 24,
-     "share": 0.0833,
+     "k": 14,
+     "n": 123,
+     "share": 0.1138,
      "ci95": [
-      0.0232,
-      0.2585
+      0.069,
+      0.182
      ],
-     "test_or_build": 0
+     "test_or_build": 6
     },
     "merged_despite_failed_check": {
-     "k": 2,
-     "n": 22,
-     "share": 0.0909,
+     "k": 7,
+     "n": 97,
+     "share": 0.0722,
      "ci95": [
-      0.0253,
-      0.2782
+      0.0354,
+      0.1415
      ]
-    }
+    },
+    "verified": 0
    }
   },
   "codex": {
    "weeks": [
     {
      "week": "2026-06-29",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 1,
      "ci_finished": 1,
@@ -1053,10 +1261,14 @@
       "n": 0,
       "share": null,
       "ci95": null
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 2,
      "ci_finished": 2,
@@ -1078,10 +1290,14 @@
        0.0,
        0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-13",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 3,
      "ci_finished": 3,
@@ -1103,10 +1319,14 @@
        0.0615,
        0.7923
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 7,
      "ci_finished": 7,
@@ -1128,10 +1348,14 @@
        0.0,
        0.3543
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 3,
      "ci_finished": 3,
@@ -1153,10 +1377,14 @@
        0.0,
        0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-03",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 1,
      "ci_finished": 1,
@@ -1178,10 +1406,14 @@
        0.0,
        0.7935
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 1,
      "ci_finished": 1,
@@ -1203,10 +1435,14 @@
        0.0,
        0.7935
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 2,
      "ci_finished": 2,
@@ -1228,10 +1464,14 @@
        0.0,
        0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 13,
      "ci_finished": 13,
@@ -1253,10 +1493,14 @@
        0.0715,
        0.5907
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 10,
      "ci_finished": 10,
@@ -1278,10 +1522,14 @@
        0.0,
        0.2992
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
      "sampled": null,
      "claimed_passing": 7,
      "ci_finished": 7,
@@ -1303,58 +1551,84 @@
        0.0,
        0.3543
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
+    },
+    {
+     "week": "2026-09-21",
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 3,
+     "claimed_passing": 0,
+     "ci_finished": 0,
+     "failed_a_check": {
+      "k": 0,
+      "n": 0,
+      "share": null,
+      "ci95": null,
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": null,
+     "verified": 0,
+     "rank": null
     },
     {
      "week": "2026-09-28",
-     "sampled": null,
-     "claimed_passing": 5,
-     "ci_finished": 5,
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 83,
+     "claimed_passing": 2,
+     "ci_finished": 2,
      "failed_a_check": {
       "k": 0,
-      "n": 5,
+      "n": 2,
       "share": 0.0,
       "ci95": [
        0.0,
-       0.4345
+       0.6576
       ],
       "test_or_build": 0
      },
      "merged_despite_failed_check": {
       "k": 0,
-      "n": 5,
+      "n": 2,
       "share": 0.0,
       "ci95": [
        0.0,
-       0.4345
+       0.6576
       ]
-     }
+     },
+     "verified": 0,
+     "rank": null
     }
    ],
    "all_weeks": {
-    "sampled": 114,
-    "claimed_passing": 55,
-    "ci_finished": 55,
+    "sampled": null,
+    "claimed_passing": 52,
+    "ci_finished": 52,
     "failed_a_check": {
      "k": 9,
-     "n": 55,
-     "share": 0.1636,
+     "n": 52,
+     "share": 0.1731,
      "ci95": [
-      0.0886,
-      0.2826
+      0.0938,
+      0.2973
      ],
      "test_or_build": 8
     },
     "merged_despite_failed_check": {
      "k": 3,
-     "n": 47,
-     "share": 0.0638,
+     "n": 44,
+     "share": 0.0682,
      "ci95": [
-      0.0219,
-      0.1716
+      0.0235,
+      0.1823
      ]
-    }
+    },
+    "verified": 0
    }
   }
- }
+ },
+ "latest_week": "2026-09-28"
 }

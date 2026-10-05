@@ -3,7 +3,8 @@
 // request: each page says which file it read, from what source and when it was generated, as the file itself says.
 // A person with no file gets a sentence, never a made-up zero.
 import { show } from "./price.js";
-import { renderBadge, renderRecord } from "./badge.js";
+import { renderBadge, renderRecord, readOptIn } from "./badge.js";
+import { cache as kept, fileKey, asOf } from "./cache.js";
 
 export const KIND_WORDS = { real: "real USDC", test: "test USDC", self: "paid to the funder's own account", own: "Knos's own accounts" };
 export const RANKS = { earners: "Earners", funders: "Funders", agents: "Agents by false-claim rate" };
@@ -26,16 +27,19 @@ export function lookup(text) {
   return null;
 }
 
-// a file of the site: its parsed JSON, or null when the site has none (a 404); anything else is an error with a sentence
-const cache = new Map();
-export async function jsonFile(path) {
-  if (cache.has(path)) return cache.get(path);
+// a file of the site, read now: its parsed JSON, or null when the site has none (a 404); anything else is an error with a sentence
+export async function readFile(path) {
   const r = await fetch(path, { cache: "no-cache" });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`The site's file ${path} did not load (${r.status}).`);
-  let data;
-  try { data = await r.json(); } catch { throw new Error(`The site's file ${path} is not JSON.`); }
-  cache.set(path, data);
+  try { return await r.json(); } catch { throw new Error(`The site's file ${path} is not JSON.`); }
+}
+// the same, read once for as long as the page is open (the lists and statements, which do not change under a reader)
+const cache = new Map();
+export async function jsonFile(path) {
+  if (cache.has(path)) return cache.get(path);
+  const data = await readFile(path);
+  if (data !== null) cache.set(path, data);
   return data;
 }
 const sharedTable = (esc, head, rows) => (rows.length ? `<div class="table-wrap"><table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="fine">Nothing to show yet.</p>`);
@@ -74,13 +78,26 @@ export function initRecords(ctx) {
     return `<span class="badge" id="rec-badge" role="img" aria-label="${esc(b.label)}: ${esc(b.message)}" data-color="${esc(color)}"><span class="badge-label">${esc(b.label)}</span><span class="badge-message">${esc(b.message)}</span></span>`;
   }
 
+  // A record is shown twice (cache.js): at once from what this tab read before, with its age, then from the files and
+  // devnet as they are now. A record seen before is on the page before any request is answered.
   async function record(kind, asked) {
-    const noun = kind === "u" ? "account" : "repository";
     say(`Reading records.json…`);
+    try { await kept.twice((read, pass) => draw(kind, asked, (path) => read(fileKey(path), () => readFile(path)), pass)); }
+    catch (e) {
+      const note = $("rec-asof");
+      if (!Number.isFinite(e?.kept) || !note) { $("rec-result").removeAttribute("data-kept"); throw e; }      // nothing of it is on the page: the sentence is the caller's
+      note.textContent = `Shown ${asOf(e.kept, kept.now())}. It could not be read again just now: ${e.message}`;
+    }
+  }
+
+  async function draw(kind, asked, file, pass) {
+    const noun = kind === "u" ? "account" : "repository";
     // records.json says who has a file: asking it first means no request for a file the site does not have
-    const index = await file("records.json").catch(() => null), list = index ? (kind === "u" ? index.accounts : index.repositories) : null;
+    const index = await file("records.json").catch((e) => { if (pass.kept) throw e; return null; }), list = index ? (kind === "u" ? index.accounts : index.repositories) : null;
     const name = list ? list.find((x) => x.toLowerCase() === asked.toLowerCase()) : asked, path = `${kind}/${name}.json`;
-    const rec = name ? await file(path) : null, badge = rec ? await file(`badge/${path}`).catch(() => null) : null;
+    const rec = name ? await file(path) : null, badge = rec ? await file(`badge/${path}`).catch((e) => { if (pass.kept) throw e; return null; }) : null;
+    $("rec-result").toggleAttribute("data-kept", pass.kept);      // set while what is shown is what was kept, gone once the files have been read again
+    if (pass.same()) { $("rec-asof")?.remove(); return chainRecord(rec, kind, pass); }      // what is on the page is what the files say now
     if (!rec) {
       say(`No record for ${esc(asked)}. Only an ${esc(noun)} that was paid or funded a task, and that GitHub named, has one${list ? `: this site has ${list.length} ${noun === "account" ? "accounts" : "repositories"} with a record` : ""}${index?.unnamed_accounts ? ` and ${index.unnamed_accounts} accounts GitHub did not name` : ""}.
         Nothing here means nothing was recorded, not that nothing was paid. <a href="#records">Everyone with a record</a>.`);
@@ -116,12 +133,41 @@ export function initRecords(ctx) {
     if (kind === "r") {
       renderBadge($("rec-paid"), badgeData(rec));
       $("rec-paid").insertAdjacentHTML("beforeend", `<p class="fine">Counted from ${esc(path)}: payments by someone else in the faucet's test money. A payment to the funder's own account, or to one of Knos's own accounts, is not in the badge.</p>`);
-    } else if (ctx.rep) {
-      // the program's own account for this GitHub id: read now, from devnet, and said when it cannot be
-      const box = $("rec-chain");
-      ctx.rep(rec.github_id).then((rep) => { if (box.isConnected) renderRecord(box, recordView(rep, rec.github_id, rec.login)); },
-        () => { if (box.isConnected) box.innerHTML = `<p class="fine">Solana devnet did not answer just now, so the program's own record is not shown. The numbers above are from the site's file.</p>`; });
-    } else $("rec-chain").innerHTML = "";
+    }
+    if (pass.kept) $("rec-card").insertAdjacentHTML("afterbegin", `<p class="fine" id="rec-asof">Shown ${esc(asOf(pass.at(), kept.now()))}. Reading it again…</p>`);
+    chainRecord(rec, kind, pass);
+  }
+
+  // the program's own account for this GitHub id: what was kept is shown with its age, then it is read from devnet, and said when it cannot be
+  function chainRecord(rec, kind, pass) {
+    const box = $("rec-chain");
+    if (!rec || kind !== "u" || !box) return;
+    if (!ctx.rep) { box.innerHTML = ""; return; }
+    const key = `rep:${rec.github_id}`, had = pass.peek(key), asked = pass.peek(`profile:${rec.github_id}`);
+    const show = (rep, at, profile) => {
+      renderRecord(box, { ...recordView(rep, rec.github_id, rec.login), profile });
+      if (at !== null) box.insertAdjacentHTML("beforeend", `<p class="fine" id="rec-chain-asof">Read from Solana devnet ${esc(asOf(at, kept.now()))}. Reading it again…</p>`);
+    };
+    if (had && pass.kept) show(had.value, had.at, asked?.value);
+    if (pass.kept) return;
+    Promise.all([ctx.rep(rec.github_id), profileOf(rec, asked)]).then(([rep, profile]) => { kept.set(key, rep); if (box.isConnected) show(rep, null, profile); },
+      () => {
+        if (!box.isConnected) return;
+        if (box.querySelector("#rec-chain-asof")) box.querySelector("#rec-chain-asof").textContent = `Solana devnet did not answer just now. This is the program's record as it was read ${asOf(had.at, kept.now())}.`;
+        else box.innerHTML = `<p class="fine">Solana devnet did not answer just now, so the program's own record is not shown. The numbers above are from the site's file.</p>`;
+      });
+  }
+
+  // Whether the account asked for a profile over its record: its own file on GitHub (web/badge.js, readOptIn). One read of
+  // GitHub's public API, kept for ten minutes of this tab, so that looking at records does not use up the 60 reads an hour
+  // a reader with no login has. An answer GitHub did not give is not kept, and is said as that, never as "not opted in".
+  const PROFILE_FOR = 10 * 60 * 1000;
+  async function profileOf(rec, asked) {
+    if (asked && kept.now() - asked.at < PROFILE_FOR) return asked.value;
+    const get = ctx.get || ((u) => fetch(u, { headers: { Accept: "application/vnd.github+json" } }).then((r) => { if (r.ok) return r.json(); if (r.status === 404) return null; throw new Error(`GitHub said ${r.status}`); }));
+    const profile = await readOptIn(rec.login, get, rec.github_id);
+    if (profile.why !== "GitHub did not answer for the file") kept.set(`profile:${rec.github_id}`, profile);
+    return profile;
   }
 
   const who = (login, id) => (login ? `<a href="#u=${encodeURIComponent(login)}">${esc(login)}</a>` : esc(`id ${id}`));

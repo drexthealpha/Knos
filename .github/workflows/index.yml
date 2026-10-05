@@ -18,10 +18,21 @@ name: agent-pr-index
 #            live, and the cache is saved all the same, so the next run continues where this one stopped.
 #   release  everything else is published, every 6 hours.
 #
-#   weekly   every run also cuts its scan by agent and by week (agent_weekly.json, a second asset of the release: see
-#            docs/INDEX.md). Once a week the `weekly` job takes the newest release's file and opens a pull request
-#            that puts it in docs/agent_weekly.json and writes its table into docs/INDEX.md. A person merges it:
-#            nothing reaches the default branch from here on its own.
+#   weekly   the publication "Agent PR Index, week of <Monday>" (docs/INDEX.md). Two jobs, on Mondays and Tuesdays:
+#            `week` reads the whole week that just ended: each agent, each day, every page of the search, then the
+#            checks and the merge state of each pull request that claimed passing tests. Its token can only read
+#            (permissions: contents: read), it makes GET requests to GitHub's API and nothing else, and it never
+#            fetches, checks out or runs a file of a sampled repository. `weekly` then adds that one week to
+#            docs/agent_weekly.json, writes the table into docs/INDEX.md and opens a pull request. A person merges
+#            it: nothing reaches the default branch from here on its own.
+#            Limits (docs.github.com/en/rest/search/search, .../rest/using-the-rest-api/rate-limits-for-the-rest-api):
+#            the search answers 30 requests a minute and 1,000 results a query, so the week is asked as 5 agents x 7
+#            days x up to 10 pages (350 requests, about 12 minutes; a day over 1,000 is cut in halves); the checks
+#            cost about 3 requests a pull request against this token's 1,000 an hour, so a week of thousands takes
+#            more than one run. A run that is out of budget waits for it, and one that is out of time fails where it
+#            can be seen with its answers saved: the next of the eight runs (every 6 hours, Monday and Tuesday)
+#            continues from them. The index job's 6-hourly scan also still cuts its own rows by week
+#            (agent_weekly.json in the release), for anyone who wants the capped series.
 #
 # With only the default token (GitHub allows it 1,000 API requests an hour) the first scan on an empty cache can take
 # more than one run: each run fails at the gate and the next continues from the cache. KNOS_INDEX_TOKEN (a read-only
@@ -29,7 +40,7 @@ name: agent-pr-index
 on:
   schedule:
     - cron: "17 */6 * * *"
-    - cron: "43 5 * * 1"   # Mondays: the weekly job below (the index job runs too; one more scan from the cache)
+    - cron: "43 5,11,17,23 * * 1,2"   # Mondays and Tuesdays: the week and weekly jobs below, until the week is read whole
   workflow_dispatch:
 
 permissions:
@@ -94,11 +105,52 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  week:
+    # The week that just ended, read whole. Read-only: this job's token cannot write anywhere, and the scan only asks
+    # GitHub's API (GET). It runs after the index job so the two do not spend the same hourly budget at once, and it
+    # starts from the answers that job saved.
+    needs: index
+    if: ${{ always() && (github.event.schedule == '43 5,11,17,23 * * 1,2' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: what GitHub already answered (search pages and CI verdicts)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/knos-agent-pr-ci
+          key: agent-pr-ci-week-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            agent-pr-ci-week-
+            agent-pr-ci-
+      - name: read the week (every agent, every day, every page; then checks and merge state)
+        run: python scripts/agent_pr_index.py scan --week last --rows week.json --max-seconds 18000
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: keep the answers, whether or not the week was read whole (the next run continues from them)
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/knos-agent-pr-ci
+          key: agent-pr-ci-week-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: week
+          path: week.json
+
   weekly:
-    # docs/agent_weekly.json and the table in docs/INDEX.md, from the newest release that has the file. It opens a
-    # pull request and merges nothing. If no release has the file yet, or it is the one already committed, it says
-    # so and ends.
-    if: github.event.schedule == '43 5 * * 1' || github.event_name == 'workflow_dispatch'
+    # Adds the week the `week` job read to docs/agent_weekly.json and writes the table into docs/INDEX.md. It reads
+    # nothing from GitHub's API and runs nothing but this repository's script on the counts. A week that was not
+    # read whole is not added: the step fails and says what is missing. It opens a pull request and merges nothing.
+    needs: week
+    if: ${{ always() && needs.week.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -109,25 +161,22 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - name: the newest release's agent_weekly.json, into docs/, and its table into docs/INDEX.md
-        run: |
-          for tag in $(gh release list -R "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
-                       --jq '[.[] | select(.tagName | startswith("index-"))] | sort_by(.createdAt) | reverse | .[].tagName'); do
-            if gh release download "$tag" -R "$GITHUB_REPOSITORY" -p agent_weekly.json -O docs/agent_weekly.json --clobber; then break; fi
-          done
-          python -c "import json, sys; sys.path.insert(0, 'scripts'); import agent_pr_index as i; i.render_doc('docs/INDEX.md', json.load(open('docs/agent_weekly.json', encoding='utf-8')))"
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: week
+      - name: add the week to docs/agent_weekly.json and write its table into docs/INDEX.md
+        run: python scripts/agent_pr_index.py weekly --rows week.json --into docs/agent_weekly.json --doc docs/INDEX.md
       - name: open a pull request when the numbers changed
         run: |
-          if git diff --quiet -- docs/agent_weekly.json docs/INDEX.md; then echo "No release has newer weekly numbers than the ones committed."; exit 0; fi
+          if git diff --quiet -- docs/agent_weekly.json docs/INDEX.md; then echo "This week is already in docs/agent_weekly.json with the same numbers."; exit 0; fi
+          week=$(python -c "import json; print(json.load(open('docs/agent_weekly.json', encoding='utf-8'))['latest_week'])")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B index-weekly
-          git commit -m "Weekly agent pull request rates" -- docs/agent_weekly.json docs/INDEX.md
+          git commit -m "Agent PR Index, week of $week" -- docs/agent_weekly.json docs/INDEX.md
           git push --force origin index-weekly
-          gh pr create -R "$GITHUB_REPOSITORY" --head index-weekly --title "Weekly agent pull request rates" \
-            --body "docs/agent_weekly.json and the table in docs/INDEX.md, from the newest index release. Method and limits: docs/INDEX.md." \
-            || gh pr edit index-weekly -R "$GITHUB_REPOSITORY" --title "Weekly agent pull request rates"
+          gh pr create -R "$GITHUB_REPOSITORY" --head index-weekly --title "Agent PR Index, week of $week" \
+            --body "One more week in docs/agent_weekly.json and the table in docs/INDEX.md, read whole by the week job of this run. Method and limits: docs/INDEX.md." \
+            || gh pr edit index-weekly -R "$GITHUB_REPOSITORY" --title "Agent PR Index, week of $week"
         env:
           GH_TOKEN: ${{ github.token }}

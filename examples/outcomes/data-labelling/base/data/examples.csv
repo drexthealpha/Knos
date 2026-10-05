@@ -1,0 +1,41 @@
+id,text,label
+m0010,"Support, the invoice shows the wrong amount. Please advise.",billing
+m0016,"Support, I need to change the email on my profile. This is urgent.",account
+m0019,"Support, the chart shows a wrong total. Please advise.",bug
+m0028,"Hi team, the price of my plan went up without notice. This is urgent.",billing
+m0074,"Hi team, please reset my password.",account
+m0082,"Good morning, the price of my plan went up without notice, after I logged in. Regards, a customer.",billing
+m0091,Quick one: I need to change the email on my profile. Please advise.,account
+m0097,"Quick one: could you support single sign-on, after I logged in. Regards, a customer.",feature
+m0101,"where is the receipt for my payment, no bug as far as I can tell. This is urgent.",billing
+m0115,"Hello, I was charged twice this month. Regards, a customer.",billing
+m0118,"Good morning, the invoice shows the wrong amount, from my account page. This is urgent.",billing
+m0130,"Hello, where is the receipt for my payment. Thanks.",billing
+m0157,"Support, I wish there was a weekly summary email. Thanks.",feature
+m0164,"Hello, my card was declined at renewal, no bug as far as I can tell. This is urgent.",billing
+m0172,"Hello, the price of my plan went up without notice. No rush.",billing
+m0177,"please reset my password, right after the payment page.",account
+m0195,"Hi team, please add an export to spreadsheet, it is not an error on your side. Thanks.",feature
+m0198,"Hello, I would like a refund for the last payment. Regards, a customer.",billing
+m0199,"Support, it would be great to have dark mode. Regards, a customer.",feature
+m0201,"Hi team, please reset my password. This is urgent.",account
+m0206,"Hello, I was charged twice this month.",billing
+m0217,"Good morning, can you add keyboard shortcuts, right after the payment page.",feature
+m0245,"Support, I cannot log in since this morning. Regards, a customer.",account
+m0251,"Support, could you support single sign-on, right after the payment page. No rush.",feature
+m0258,Quick one: could you support single sign-on. Please advise.,feature
+m0262,"Hello, how do I delete my account. This is urgent.",account
+m0276,could you support single sign-on. Please advise.,feature
+m0294,"Support, could you support single sign-on, nothing crashes. Please advise.",feature
+m0303,"Hello, I need to change the email on my profile. This is urgent.",account
+m0320,"Good morning, the screen freezes while saving, right after the payment page. Regards, a customer.",bug
+m0330,"Hello, my card was declined at renewal. This is urgent.",billing
+m0344,Quick one: the two-factor code never arrives. No rush.,account
+m0350,Quick one: the export page shows error 500.,bug
+m0351,"Hi team, the two-factor code never arrives. Please advise.",account
+m0361,"Support, it would be great to have dark mode.",feature
+m0364,"Hello, the chart shows a wrong total. Please advise.",bug
+m0371,"Hi team, I cannot log in since this morning, on the paid plan. This is urgent.",account
+m0378,"Support, can you add keyboard shortcuts.",feature
+m0396,"Quick one: I need to change the email on my profile, right after the payment page. Thanks.",account
+m0399,"please add an export to spreadsheet, since my last invoice. Regards, a customer.",feature

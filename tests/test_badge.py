@@ -166,4 +166,57 @@ def test_the_site_draws_the_same_badge_and_shows_the_record_with_its_caveats_in_
     head, apart = rec.split("Shown apart, not in the count above")
     assert "500.00" not in head and "5 payments, 500.00 test USDC" in apart and "1 payment (the program keeps their number" in apart
     assert all(c.replace("'", "&#x27;") in rec for c in rep["caveats"]) and len(rep["caveats"]) == 4     # the caveats are in the same view
-    assert "ann&lt;b&gt;" in rec and "<b>" not in rec.replace("<b>", "", 0).split("<h3>")[1].split("</h3>")[0]
+    # nobody looked for an opt-in: only what the chain shows anyway, under the id the chain knows it by, and no profile
+    assert 'data-profile="chain-only"' in rec and "<h3>GitHub id 42</h3>" in rec and "<h4>Profile</h4>" not in rec and "Accepted work" not in rec
+    assert "has not opted in to a profile" in rec and "no place in any list" in rec and "<strong>Devnet demonstration.</strong>" in rec
+    assert "ann&lt;b&gt;/ann&lt;b&gt;" in rec and "<b>" not in rec                                       # the login appears only where the file would go, as text
+
+
+def _node(script: str) -> dict:
+    got = subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True, text=True, encoding="utf-8")
+    assert got.returncode == 0, got.stderr
+    return json.loads(got.stdout)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_a_profile_is_shown_only_to_an_account_that_opted_in_and_every_line_has_its_sample_size():
+    rep = badge.record_view(REP, 42, "ann")
+    out = _node(f"""
+      import {{ recordHtml, optIn, readOptIn, profileUrl, PROFILE_FILE }} from {json.dumps((ROOT / "web" / "badge.js").as_uri())};
+      const rep = {json.dumps(rep)}, b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/(.{{20}})/g, "$1\\n");
+      const asked = [], get = (file) => async (url) => {{ asked.push(url); return file; }};
+      const yes = await readOptIn("ann", get({{ content: b64({{ public_record: true, github_id: 42 }}), encoding: "base64" }}), 42);
+      console.log(JSON.stringify({{ url: profileUrl("ann"), file: PROFILE_FILE, asked, yes,
+        plain: optIn({{ public_record: true }}, "ann", 42),
+        no: [optIn(null, "ann"), optIn({{ public_record: "true" }}, "ann"), optIn({{ public_record: false }}, "ann"), optIn([true], "ann"),
+             optIn({{ public_record: true, github_id: 7 }}, "ann", 42), optIn({{ content: "!!", encoding: "base64" }}, "ann"),
+             await readOptIn("ann", async () => {{ throw new Error("offline"); }}), await readOptIn("", get(null))],
+        without: recordHtml(rep), refused: recordHtml({{ ...rep, profile: optIn(null, "ann") }}),
+        with: recordHtml({{ ...rep, profile: yes }}),
+        counted: recordHtml({{ ...rep, profile: yes, history: {{ repeat_funders: 1, disputes: 0, reverts: 1, of: 3 }} }}),
+        mainnet: recordHtml({{ ...rep, cluster: "mainnet", profile: yes }}) }}));
+    """)
+    assert out["url"] == "https://api.github.com/repos/ann/ann/contents/.knos/profile.json" and out["asked"] == [out["url"]]   # the public API, the repository named after the account
+    assert out["yes"] == out["plain"] == {"opted_in": True, "source": "ann/ann/.knos/profile.json"}
+    assert [n["opted_in"] for n in out["no"]] == [False] * 8 and all(n["why"] for n in out["no"])       # only a literal true, in a file about this account
+    for html in (out["without"], out["refused"]):
+        assert 'data-profile="chain-only"' in html and "<h4>Profile</h4>" not in html and "Repeat funders" not in html and "<h3>GitHub id 42</h3>" in html
+        assert "Paid 3 times" in html and "rank" not in html.lower()                                 # what the chain shows anyway, and no ranking
+    assert "(the file is not there)" in out["refused"] and '{&quot;public_record&quot;: true}' in out["without"].replace('"', "&quot;")
+    prof = out["with"]
+    assert 'data-profile="opted-in"' in prof and "<h3>ann</h3>" in prof and "ann/ann/.knos/profile.json says" in prof and "rank" not in prof.lower()
+    assert "<dt>Accepted work</dt><dd>3 payments from someone else" in prof and prof.count("sample: 3 payments; too few to say much") == 3
+    assert "<dt>Distinct funders</dt><dd>2 <span" in prof
+    assert "1 of 3 payments came from a funder who had paid this account before" in prof
+    assert "not counted: the program's record of a payee keeps no count of disputes or reverts" in prof and "sample: 0 read" in prof
+    assert prof.count("sample:") == 4                                                                # every line of the profile has its sample size
+    counted = out["counted"]
+    assert "1 of 2 funders paid more than once" in counted and "sample: 2 distinct funders" in counted
+    assert "0 disputes and 1 revert" in counted and "sample: 3 accepted payments in the site's history" in counted
+    # test money and self-funded stay apart and are in no line of the profile or the headline; the devnet label is in the view
+    for html in (prof, counted, out["without"]):
+        head, rest = html.split("Shown apart, not in the count above")
+        section = rest.split("<h4>Profile</h4>")[1].split("<h4>How to read it</h4>")[0] if "<h4>Profile</h4>" in rest else ""
+        assert "500.00" not in head and "500.00" not in section and "5 payments" not in section and "750" not in html and "9 payments" not in html
+        assert html.index("<strong>Devnet demonstration.</strong>") < html.index("<h3>") and "is not a record of money earned" in html
+    assert "Devnet demonstration" not in out["mainnet"]

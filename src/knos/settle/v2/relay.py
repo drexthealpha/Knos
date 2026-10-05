@@ -40,7 +40,9 @@ worker calls it for every token a workflow posts instead (knos.proof.ghrelay).
                          `first` is what knos.settle.relay answered. When only the first deployment took the token,
                          "why" says what the second refused it for.
       refused            {"ok": False, "kind", "why"}; "retry": True when the same token may succeed later ("wait":
-                         seconds, when that is known), and "transient": True when the cluster, not the token, was why
+                         seconds, when that is known), and "transient": True when the cluster, not the token, was why;
+                         with it "answered": True when the program itself refused in a way a twin run can cause
+                         (67, 69, 84): tried a few passes, never for the token's whole life
       done before        the same result with "already": True and no fee spent, when the chain already shows what the
                          token asks for (another relayer carried it)
 
@@ -1825,7 +1827,14 @@ def transient(why: BaseException) -> bool:
         return True
     text = str(why)
     return _code(text) in (67, 69, 84) or any(mark in text for mark in ("Blockhash not found", "block height exceeded", "Too Many Requests",
-                                                                        "Node is behind", *_BROKE))
+                                                                        "Node is behind", "Node is unhealthy", "Internal error", *_BROKE))
+
+
+def answered(why: BaseException) -> bool:
+    """The program itself refused, with a number a twin run can cause (67, 69, 84). That clears within a pass or two
+    when a twin was why; when it does not clear it is the program's answer, so a relay counts these tries and stops
+    (`knos.proof.ghrelay.MAX_TRIES`), whatever life the token has left."""
+    return not isinstance(why, (OSError, TimeoutError)) and _code(str(why)) in (67, 69, 84)
 
 
 def _failed(kind: str | None, why: BaseException) -> dict:
@@ -1837,7 +1846,7 @@ def _failed(kind: str | None, why: BaseException) -> dict:
     said = pay.ERRORS.get(code) or _VERIFIER.get(code)
     words = ("the relayer's key has no SOL to pay the fees with" if any(mark in text for mark in _BROKE)
              else f"{said} (error {code})" if said else f"{type(why).__name__}: {text[:200]}")
-    return {"ok": False, "kind": kind, "why": words, **({"retry": True, "transient": True} if transient(why) else {})}
+    return {"ok": False, "kind": kind, "why": words, **({"retry": True, "transient": True} if transient(why) else {}), **({"answered": True} if answered(why) else {})}
 
 
 def why_failed(why: BaseException) -> str:

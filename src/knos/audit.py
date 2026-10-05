@@ -16,6 +16,9 @@ period. Events after the last day (`--to`) are not read at all: the file says wh
     order                     the order's address; funded_transaction says which funding of that address (an address
                               is used again once an order is closed)
     owner_id, funder          the Balance's owner (0: none), and gh:<id> or wallet:<address>; commenter_id: who funded by comment
+    authorised_by             who had authority over the money, and in which role, as the program found at funding:
+                              `gh:<id> (owner)`, `gh:<id> (spender)` (an id the Balance's owner had listed),
+                              `gh:<id> (faucet)` (test money any commenter spends), or `wallet:<address>` (knos.controls.authority_of)
     repository_id, issue      what was commissioned (0 and 0 for a private order: its line on chain names neither)
     private, standing, mode   1 or 0; 1 or 0 (a standing offer pays once per pull request); merge or tests
     price_units, price        what the order holds for its payees; funder_fee_units: what its funder put in on top
@@ -62,12 +65,12 @@ import json
 import sys
 from pathlib import Path
 
-from . import records
+from . import controls, records
 from .settle.v2 import pay as pay2
 
 TYPE, VERSION = "knos.audit-export", 1
-COLUMNS = ("seq", "date", "time", "kind", "order", "funded_transaction", "owner_id", "funder", "commenter_id", "repository_id", "issue",
-           "private", "standing", "mode", "price_units", "price", "funder_fee_units", "currency", "terms_hash", "pull_request", "artifact",
+COLUMNS = ("seq", "date", "time", "kind", "order", "funded_transaction", "owner_id", "funder", "commenter_id", "authorised_by", "repository_id",
+           "issue", "private", "standing", "mode", "price_units", "price", "funder_fee_units", "currency", "terms_hash", "pull_request", "artifact",
            "supplier_ids", "wallets", "judge", "evaluator", "verdict", "paid_units", "paid", "held_units", "refunded_units", "reverted_units",
            "fee_units", "fee", "transaction", "billing_key", "billed_before", "exception", "resolved_by", "prev")
 SUMS = ("paid_units", "fee_units", "refunded_units", "reverted_units")
@@ -141,7 +144,7 @@ def _order_lines(o: dict, f: dict) -> list[dict]:
     terms = o.get("terms")
     cancelled = f.get("cancelled")
     base = {"order": o["address"], "funded_transaction": o["tx"] or "", "owner_id": o["owner"], "funder": o["funder"], "commenter_id": o["by"],
-            "repository_id": o["repo"] or 0, "issue": o["issue"] or 0, "private": int(o["private"]), "standing": int(o["standing"]),
+            "authorised_by": controls.authority_of(o)["authorised_by"], "repository_id": o["repo"] or 0, "issue": o["issue"] or 0, "private": int(o["private"]), "standing": int(o["standing"]),
             "mode": "tests" if o["mode"] else "merge", "price_units": o["amount"], "price": text(o["amount"]), "funder_fee_units": o["fee_escrowed"],
             "currency": cur, "terms_hash": pay2.terms_hash(terms.encode()).hex() if terms else ""}
 

@@ -5,13 +5,16 @@ knos.terms_templates, and the page's own sentence and comment for a template are
 statement's Export CSV and Export JSON are, byte for byte, `knos.audit.export` of the same owner and month (the
 fixture is the month of tests/test_audit.py). And tests/web/buyer.mjs runs the page in headless Chromium with a
 virtual authenticator: the line its passkey signs is then sent to the programs in LiteSVM by the relay, and funds the
-order. No node, no `playwright` package or no browser: those parts are skipped, with the reason.
+order. The same run draws the console's views (web/console.js) from mocked chain data and counts the fields and clicks
+of a governed order; docs/CONSOLE.md must state that count. No node, no `playwright` package or no browser: those
+parts are skipped, with the reason.
 """
 from __future__ import annotations
 
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -118,6 +121,9 @@ def test_the_buy_page_in_a_browser_and_its_signed_line_on_chain(tmp_path: Path):
         pytest.skip(run.stdout.strip()[5:])
     assert run.returncode == 0, "\n".join(line for line in (run.stdout + run.stderr).splitlines() if not line.startswith("ok"))
     assert "the Buy page holds" in run.stdout
+    # the count of a governed order's fields and clicks, as the browser made one: docs/CONSOLE.md states the same number
+    counted = re.search(r"GOVERNED ORDER: (\d+) fields, (\d+) clicks on the page", run.stdout)
+    assert counted and f"**{counted[1]} fields and {counted[2]} clicks**" in (ROOT / "docs" / "CONSOLE.md").read_text(encoding="utf-8")
     # what the browser's passkey signed, carried by the relay to the programs: the order is funded, and a replay is refused
     pytest.importorskip("solders.litesvm")
     from solders.account import Account

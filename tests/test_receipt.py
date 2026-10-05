@@ -1,6 +1,6 @@
 """The acceptance receipt (docs/RECEIPT.md): the reference checker and the JSON Schema accept the five conformance
 vectors of each version and give their digests, both refuse every invalid one for the reason it names, a version 2
-receipt says its four parts in order, the page prints a vector of each version, and
+receipt says its parts in order (five in version 3), the page prints a vector of each version, and
 scripts/sas_receipt.mjs computes the same digest and builds the attestation's instructions (when its package is there)."""
 from __future__ import annotations
 
@@ -79,12 +79,12 @@ def test_the_json_schema_agrees_with_the_checker():
 
 def test_version_2_says_four_things_in_order_and_lists_amendments_and_version_1_still_checks():
     from knos.settle.v2 import oidc
-    assert receipt.VERSION == 2 and len(VECTORS["valid_v2"]) == 5 and len(VECTORS["invalid_v2"]) == 8
+    assert receipt.VERSION == 3 and len(VECTORS["valid_v2"]) == 5 and len(VECTORS["invalid_v2"]) == 8
     for v in VECTORS["valid_v2"]:
         r, old = v["receipt"], VECTORS["valid"][v["of"]]["receipt"]
         assert receipt.check(r) is None and receipt.digest(r) == v["sha256"] and receipt.check(old) is None, v["name"]
         keys = list(r)             # the four parts, in this order, in the document as it is written
-        assert [k for k in keys if k in receipt.PARTS] == list(receipt.PARTS) and keys.index("amendments") == keys.index("trust_remaining") + 1
+        assert [k for k in keys if k in receipt.PARTS] == list(receipt.PARTS2) and keys.index("amendments") == keys.index("trust_remaining") + 1
         assert receipt._as1(r) == old           # nothing version 1 said is lost
         a, o, p = r["issuer_authenticated"], r["evaluator_observed"], r["policy"]
         assert a["verified"]["program"] == str(oidc.OIDC_ID) and o["verdict"] == "accepted" and o["judge"]["version"] == a["claims"]["job_workflow_sha"]
@@ -96,7 +96,7 @@ def test_version_2_says_four_things_in_order_and_lists_amendments_and_version_1_
         lines = receipt.render(r)
         at = [lines.index(f"{i}. {receipt.HEADINGS[k]}") for i, k in enumerate(receipt.PARTS, 1)]
         assert at == sorted(at) and lines[-1] == f"Digest sha256:{v['sha256']}"
-        assert [line for line in receipt.render(old) if line[:2] in ("1.", "2.", "3.", "4.")] == [lines[i] for i in at]      # an old receipt reads the same way
+        assert [line for line in receipt.render(old) if line[:2] in ("1.", "2.", "3.", "4.", "5.")] == [lines[i] for i in at]      # an old receipt reads the same way
         terms = {"checks": [{"app": -1, "name": "build"}, {"app": 15368, "name": "test"}], "paths": ["src/**"], "deny": [".github/**", ".knos/**"], "v": 1}
         again = receipt.upgrade(old, oidc_program=a["verified"]["program"], verified_tx=a["verified"]["transaction"],
                                 terms=terms if p["version"] else None, amendments=r["amendments"])
@@ -225,13 +225,163 @@ def test_the_version_2_schema_agrees_with_the_checker():
     jsonschema = pytest.importorskip("jsonschema")
     jsonschema.Draft202012Validator.check_schema(SCHEMA2)
     ok = jsonschema.Draft202012Validator(SCHEMA2)
-    assert [k for k in SCHEMA2["properties"] if k in receipt.PARTS] == list(receipt.PARTS)
-    assert [SCHEMA2["properties"][k]["description"][:2] for k in receipt.PARTS] == ["1.", "2.", "3.", "4."]
+    assert [k for k in SCHEMA2["properties"] if k in receipt.PARTS] == list(receipt.PARTS2)
+    assert [SCHEMA2["properties"][k]["description"][:2] for k in receipt.PARTS2] == ["1.", "2.", "3.", "4."]
     for v in VECTORS["valid_v2"]:
         assert not list(ok.iter_errors(v["receipt"])), v["name"]
         assert list(ok.iter_errors(VECTORS["valid"][v["of"]]["receipt"]))          # each version has its own schema
     for v in VECTORS["invalid_v2"]:
         assert bool(list(ok.iter_errors(_changed(v, "valid_v2")))) == (v["name"] not in BEYOND_SCHEMA2), v["name"]
+
+
+# ---- version 3: the fifth part, and who controls each judge ------------------------------------------------------------------
+SCHEMA3 = json.loads((ROOT / "docs" / "receipt" / "acceptance-receipt.v3.schema.json").read_text(encoding="utf-8"))
+RUN = {"repository_id": "700700700", "repository_owner_id": "31", "actor_id": "32", "runner_environment": "github-hosted"}
+
+
+def test_version_3_keeps_five_things_apart_in_order_and_versions_1_and_2_still_check():
+    assert receipt.PARTS == ("issuer_authenticated", "evaluator_observed", "policy", "commercial_authorisation", "trust_remaining")
+    assert len(VECTORS["valid_v3"]) == 5 and len(VECTORS["invalid_v3"]) == 12
+    for v in VECTORS["valid_v3"]:
+        r, two = v["receipt"], VECTORS["valid_v2"][v["of"]]["receipt"]
+        assert receipt.check(r) is None and receipt.digest(r) == v["sha256"] and r["version"] == 3, v["name"]
+        assert [k for k in r if k in receipt.PARTS] == list(receipt.PARTS)          # the five parts, in this order, in the document as it is written
+        assert receipt.as2(r) == two and receipt.check(two) is None and receipt.check(VECTORS["valid"][two and VECTORS["valid_v2"][v["of"]]["of"]]["receipt"]) is None
+        lines = receipt.render(r)
+        at = [lines.index(f"{i}. {receipt.HEADINGS[k]}") for i, k in enumerate(receipt.PARTS, 1)]
+        assert at == sorted(at) and lines[-1] == f"Digest sha256:{v['sha256']}"
+        # the parties still trusted are on the line under the verdict itself, in one line
+        verdict = next(i for i, line in enumerate(lines) if "gave the verdict: accepted." in line)
+        trusted = lines[verdict + 1].strip()
+        assert trusted.startswith("trusted: GitHub's signing key and runner; the pinned workflow at " + r["evaluator_observed"]["judge"]["version"])
+        assert trusted.endswith("Knos's upgrade multisig (public 48-hour delay).") and "immutable" not in trusted
+        assert ("the repository's administrators" in trusted) == (r["policy"]["mode"] == "merge")
+        assert ("the account that ran the judge" in trusted) == (r["evaluator_observed"]["judge"]["kind"] != "repository")
+    for v in VECTORS["valid_v2"] + VECTORS["valid"]:          # an older receipt prints the same five headings, and says what it does not carry
+        lines = receipt.render(v["receipt"])
+        assert [line[:2] for line in lines if line[:3] in ("1. ", "2. ", "3. ", "4. ", "5. ")] == ["1.", "2.", "3.", "4.", "5."]
+        assert any(line.strip().startswith(f"Not recorded in a version {v['receipt']['version']} receipt: who funded") for line in lines)
+        assert any(line.strip().startswith("trusted: ") for line in lines)
+    for v in VECTORS["invalid_v3"]:
+        why = receipt.check(_changed(v, "valid_v3"))
+        assert why is not None and v["why"] in why, (v["name"], why)
+    assert "version 1, 2 or 3" in receipt.check({"type": receipt.TYPE, "version": 4})
+
+
+def test_the_version_3_schema_agrees_with_the_checker():
+    jsonschema = pytest.importorskip("jsonschema")
+    jsonschema.Draft202012Validator.check_schema(SCHEMA3)
+    ok = jsonschema.Draft202012Validator(SCHEMA3)
+    assert [k for k in SCHEMA3["properties"] if k in receipt.PARTS] == list(receipt.PARTS)
+    assert [SCHEMA3["properties"][k]["description"][:2] for k in receipt.PARTS] == ["1.", "2.", "3.", "4.", "5."]
+    for v in VECTORS["valid_v3"]:
+        assert not list(ok.iter_errors(v["receipt"])), v["name"]
+        assert list(ok.iter_errors(VECTORS["valid_v2"][v["of"]]["receipt"]))          # each version has its own schema
+    assert [v["name"] for v in VECTORS["invalid_v3"] if list(ok.iter_errors(_changed(v, "valid_v3")))] == ["the fifth part left out"]      # the rest are rules a schema cannot say
+
+
+def test_the_fifth_part_says_who_funded_from_what_under_which_limit_in_which_role_and_whether_it_was_billed_before():
+    owner, spender, wallet, passkey, unknown = (v["receipt"]["commercial_authorisation"] for v in VECTORS["valid_v3"])
+    assert owner["funder"] == {"github_id": 424242, "login": "octo", "wallet": None} and owner["source"]["kind"] == "balance" and owner["role"] == "owner"
+    assert owner["limit"] == {"cap_per_order": "50000000", "daily": "200000000", "total": "0", "repositories": [987654321]} and owner["billed_before"] is False
+    assert spender["funder"]["wallet"] and spender["funder"]["github_id"] is None and spender["limit"] == receipt.NO_LIMIT == "no limit set" and spender["role"] == "wallet"
+    assert passkey["source"]["kind"] == passkey["role"] == "passkey" and passkey["limit"] == receipt.NO_LIMIT
+    assert unknown["limit"] is None and unknown["funded"] is None and unknown["billed_before"] not in (False, None)
+    quorum = VECTORS["valid_v3"][2]["receipt"]
+    part = quorum["commercial_authorisation"]
+    assert part["role"] == "spender" and part["funder"]["github_id"] != part["source"]["owner_id"] and part["deliverable"] == {"order": quorum["order"], "milestone": 219}
+    said = ["\n".join(receipt.render(v["receipt"])) for v in VECTORS["valid_v3"]]
+    assert "Funded by GitHub account 424242 (octo, as its funding token named it), from the Balance" in said[0] and "The funder is the Balance's owner." in said[0]
+    assert "cap for one order 50.000000, a day 200.000000, in total none; repositories allowed: 987654321." in said[0]
+    assert "Limit the funding passed under: no limit set." in said[1] and "The wallet signed the funding itself" in said[1]
+    assert "the Balance lists it as a spender" in said[2] and "milestone 219. Billed before: no" in said[2]
+    assert "from the passkey wallet" in said[3] and "Limit the funding passed under: not in the records read" in said[4]
+    assert f"Billed before: yes, in transaction {unknown['billed_before']}." in said[4] and "Funding transaction: older than the history read." in said[4]
+    # a Balance with every limit at zero has no limit set; an account's login is kept only with its id
+    none = receipt.authorisation(order=quorum["order"], milestone=0, funded_tx=None, funder_id=5, login="five", source="balance", address=quorum["program"], owner_id=6)
+    assert none["limit"] == receipt.NO_LIMIT and none["role"] == "spender" and none["funder"]["login"] == "five"
+
+
+def test_each_independence_flag_is_computed_from_the_ids_the_issuer_signed():
+    ev = receipt.evaluator
+    apart = ev("neutral", RUN, buyers=(10, 11), sellers=[20])
+    assert apart == {"kind": "neutral", "repository_id": 700700700, "owner_id": 31, "actor_id": 32, "runner": "github-hosted",
+                     "independent_of_buyer": True, "independent_of_seller": True}
+    # of the buyer: the funder or the Balance's owner owns the judge's repository, or started its run
+    assert ev("neutral", {**RUN, "repository_owner_id": "10"}, (10, 11), [20])["independent_of_buyer"] is False       # the funder owns it
+    assert ev("neutral", {**RUN, "actor_id": "11"}, (10, 11), [20])["independent_of_buyer"] is False                    # the Balance's owner started it
+    assert ev("attestor", {**RUN, "actor_id": "11"}, (10, 11), [20])["independent_of_seller"] is True
+    assert ev("repository", RUN, (10, 11), [20])["independent_of_buyer"] is False        # the order's own repository is the buyer's choice, whoever owns it
+    assert ev("neutral", RUN, (None, None), [20])["independent_of_buyer"] is None        # a wallet has no account id to compare with
+    # of the seller: a payee owns the judge's repository, or started its run
+    assert ev("neutral", {**RUN, "repository_owner_id": "20"}, (10, 11), [20, 21])["independent_of_seller"] is False
+    assert ev("neutral", {**RUN, "actor_id": "21"}, (10, 11), [20, 21])["independent_of_seller"] is False
+    assert ev("neutral", {**RUN, "actor_id": "21"}, (10, 11), [20, 21])["independent_of_buyer"] is True
+    # the runner is the token's own word
+    assert ev("neutral", {**RUN, "runner_environment": "self-hosted"}, (10,), [20])["runner"] == "self-hosted"
+    # a quorum: two judges that share an owner or a starter are one judge
+    a, b = ev("repository", {**RUN, "repository_owner_id": "40", "actor_id": "41"}, (10,), [20]), ev("neutral", {**RUN, "repository_owner_id": "50", "actor_id": "50"}, (10,), [20])
+    assert receipt.independence_of([b]) == (False, receipt.ONE_JUDGE)
+    assert receipt.independence_of([a, b]) == (False, receipt.APART.format(n=2)) and "two accounts run by one person are one judge" in receipt.APART
+    for shared in ({"repository_owner_id": "40", "actor_id": "50"}, {"repository_owner_id": "51", "actor_id": "41"}, {"repository_owner_id": "41", "actor_id": "41"}):
+        same, said = receipt.independence_of([a, ev("neutral", {**RUN, **shared}, (10,), [20])])          # one owner; one starter; the starter of one owns the other
+        assert same is True and "Two accounts run by one person are one judge" in said and "count this quorum as one judge" in said
+    third = ev("attestor", {**RUN, "repository_owner_id": "40", "actor_id": "60"}, (10,), [20])
+    assert receipt.independence_of([a, b, third])[0] is True and receipt.independence_of([b, third])[0] is False
+    # in a receipt: the flagged quorum prints the sentence, and the neutral judge a payee runs is not independent of the seller
+    quorum = VECTORS["valid_v3"][2]["receipt"]["evaluator_observed"]
+    assert quorum["same_controller"] is True and [e["kind"] for e in quorum["evaluators"]] == ["repository", "neutral"]
+    assert [e["independent_of_seller"] for e in quorum["evaluators"]] == [False, False] and quorum["evaluators"][0]["independent_of_buyer"] is False
+    text = "\n".join(receipt.render(VECTORS["valid_v3"][2]["receipt"]))
+    assert "SAME CONTROLLER. These judges are not independent of each other: account 7001 owns or started more than one of them." in text
+    assert "run started by account 7001, GitHub-hosted runner; independent of the buyer, NOT independent of the seller." in text
+    alone = VECTORS["valid_v3"][1]["receipt"]["evaluator_observed"]
+    assert alone["same_controller"] is False and alone["independence"] == receipt.ONE_JUDGE and alone["evaluators"][0]["independent_of_buyer"] is None
+    assert "independence of the buyer cannot be computed (a wallet has no account id)" in "\n".join(receipt.render(VECTORS["valid_v3"][1]["receipt"]))
+
+
+def test_the_attestation_is_of_the_receipt_as_issued_and_a_reader_of_version_2_can_still_be_given_version_2(monkeypatch, tmp_path):
+    """The attestation script reads versions 1, 2 and 3, so a version 3 receipt is handed to it as it is: the digest
+    attested is the digest of the receipt that was issued. `as2` still gives a reader of version 2 the same payment."""
+    r3 = VECTORS["valid_v3"][0]["receipt"]
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "sas_receipt.mjs").write_text("", encoding="utf-8")
+    monkeypatch.setenv("KNOS_SAS_SCRIPT", str(tmp_path / "sas_receipt.mjs"))
+    monkeypatch.setenv("KNOS_SAS_KEYPAIR", str(tmp_path / "key.json"))
+    monkeypatch.delenv("KNOS_NO_SAS", raising=False)
+    monkeypatch.setattr("shutil.which", lambda name: "node")
+    seen = []
+
+    def run(args, **kw):
+        seen.append(json.loads(open(args[2], encoding="utf-8").read()))
+        return type("Done", (), {"returncode": 0, "stdout": json.dumps({"attestation": "A"}), "stderr": ""})()
+    assert receipt.attest(r3, run=run)["attested"] is True
+    assert seen == [r3] and seen[0]["version"] == 3
+    assert receipt.as2(r3) == VECTORS["valid_v2"][0]["receipt"] and receipt.as2(receipt.as2(r3)) is not r3
+
+
+def test_the_document_says_the_five_parts_the_independence_fields_and_what_survives_a_devnet_reset():
+    page = (ROOT / "docs" / "RECEIPT.md").read_text(encoding="utf-8")
+    doc = " ".join(page.split())
+    at = [page.index(f"**{receipt.HEADINGS[k]}** (`{k}`)") for k in receipt.PARTS]
+    assert at == sorted(at) and len(at) == 5 and "keeps five things apart" in doc
+    heads = [page.index(h) for h in ("## Version 3", "### Evaluator independence", "## Version 2", "## The evidence bundle", "## Verifying with the chain gone",
+                                     "## What survives a devnet reset", "## The mirror", "## Version 1")]
+    assert heads == sorted(heads)
+    shown = [json.loads(m) for m in re.findall(r"```json\n(.*?)\n```", page[heads[0]:heads[2]], re.S)]
+    quorum = VECTORS["valid_v3"][2]["receipt"]["evaluator_observed"]
+    assert shown == [VECTORS["valid_v3"][0]["receipt"]["commercial_authorisation"], {k: quorum[k] for k in ("evaluators", "same_controller", "independence")}]
+    assert VECTORS["valid_v3"][0]["sha256"] in page
+    for field in ("funder", "source", "limit", "role", "deliverable", "billed_before", "funded", "kind", "repository_id", "owner_id", "actor_id", "runner",
+                  "independent_of_buyer", "independent_of_seller", "same_controller", "chain.json", "keys.json"):
+        assert f"`{field}`" in page, field
+    for said in ("Two accounts run by one person are one judge.", "It does not say two people differ.", f'`"{receipt.NO_LIMIT}"`', "prints no log line",
+                 "knos bundle verify FILE --no-chain", "knos receipt verify FILE --no-chain", "**Verified from signatures.**",
+                 "**Resting on an archived copy in the bundle, signed by nobody.**", "**Could not be checked without a cluster.**", "An issuer's keys rotate out.",
+                 "**The chain record becomes an archived copy.**", "Nothing a customer is invoiced for depends on devnet staying up", "test USDC",
+                 "trusted: GitHub's signing key and runner; the pinned workflow at"):
+        assert said in doc, said
+    assert "immutable" not in doc and "audited" not in doc
 
 
 def test_the_attestation_is_on_by_default_and_fails_soft(monkeypatch, tmp_path):
@@ -265,7 +415,109 @@ def test_the_attestation_is_on_by_default_and_fails_soft(monkeypatch, tmp_path):
     monkeypatch.setenv("KNOS_NO_SAS", "1")      # the opt-out
     assert receipt.attest(r, run=run)["why"] == "attestations are turned off (KNOS_NO_SAS=1)" and len(sent) == 1
     script = (ROOT / "scripts" / "sas_receipt.mjs").read_text(encoding="utf-8")
-    assert "--init" in script and "[1, 2].includes(r.version)" in script and '"already": true' in script.replace("already: true", '"already": true')
+    assert "--init" in script and "[1, 2, 3].includes(r.version)" in script and "r.version >= 2" in script and '"already": true' in script.replace("already: true", '"already": true')
+
+
+# ---- how a judge outside the order's repository reached its verdict: its run's own words, held to the signed run ------------
+
+def _verdict(r: dict, **over) -> dict:
+    """The verdict attest.yml's first job hands on (knos.flow._rerun_verdict) for the payment of receipt `r`."""
+    c, o = r["issuer_authenticated"]["claims"], r["evaluator_observed"]
+    v = {"v": 1, "reexecuted": True, "passed": True, "sentence": "ran it", "order": r["order"], "repository": "octo/widgets",
+         "pull": o["artifact"]["pull_request"], "issue": r["repository"]["issue"], "head": o["artifact"]["commit"], "base": "b" * 40, "accept": "c" * 64,
+         "assurance": "black-box", "image": {}, "artifact": {"base": "d" * 64, "pr": "e" * 64},
+         "environment": {"knos": "0.0.0", "github_repository": "judge/neutral", "github_repository_id": str(c["repository_id"]), "github_run_id": str(c["run_id"]),
+                         "github_run_attempt": "1", "runner_os": "Linux", "runner_environment": "github-hosted", "imageos": "ubuntu24"},
+         "reasons": []}
+    return {**v, **over}
+
+
+def _with(r: dict, rerun, at: int = -1) -> dict:
+    out = json.loads(json.dumps(r))
+    out["evaluator_observed"]["evaluators"][at]["reexecution"] = rerun
+    return out
+
+
+def test_a_neutral_judges_entry_records_whether_it_ran_the_suite_itself_and_check_holds_it_to_the_signed_run():
+    from knos import bundle, flow
+    r = VECTORS["valid_v3"][1]["receipt"]                    # one neutral judge
+    commit, pull = r["evaluator_observed"]["artifact"]["commit"], r["evaluator_observed"]["artifact"]["pull_request"]
+    line = json.dumps(_verdict(r), sort_keys=True, separators=(",", ":"))
+    assert isinstance(flow._rerun_read(line), dict)
+    ran = bundle.reexecution_of(f"{flow.VERDICT}{line}\n\nHow this run reached its verdict: ran it.", r["order"], commit, pull)
+    assert ran == bundle.reexecution_of(line, r["order"], commit, pull)         # the comment, or the run's verdict.json
+    assert list(ran) == list(receipt.REEXECUTION) and (ran["reexecuted"], ran["assurance"], ran["image_digest"]) == (True, "black-box", None)
+    assert ran["environment"]["github_run_id"] == str(r["issuer_authenticated"]["claims"]["run_id"]) and ran["environment"]["imageos"] == "ubuntu24"
+    # built into the paying judge's entry, and nothing else of the receipt moves
+    built = receipt.build3(receipt.as2(r), r["commercial_authorisation"], rerun=ran)
+    assert built == _with(r, ran) and receipt.check(built) is None and receipt.chain_only(built) == r and receipt.chain_only(r) is not built
+    assert receipt.digest(built) != receipt.digest(r) and receipt.digest(receipt.chain_only(built)) == receipt.digest(r)
+    assert receipt.as2(built) == receipt.as2(r)
+    said = "\n".join(receipt.render(built))
+    assert "By its own run's word, it ran the acceptance suite itself (black-box; knos 0.0.0, on Linux, image ubuntu24)." in said
+    # a hermetic run names the image by its digest; a run that read the record says it did not run the suite
+    digest = "sha256:" + "a" * 64
+    hermetic = bundle.reexecution_of(json.dumps(_verdict(r, assurance="hermetic", image={"ref": "ghcr.io/x/y@" + digest, "digest": digest})), r["order"], commit, pull)
+    assert (hermetic["assurance"], hermetic["image_digest"]) == ("hermetic", digest) and receipt.check(_with(r, hermetic)) is None
+    assert f"(hermetic, image {digest}; " in "\n".join(receipt.render(_with(r, hermetic)))
+    read = bundle.reexecution_of(json.dumps({"v": 1, "reexecuted": False, "sentence": "read the record", "environment": _verdict(r)["environment"]}), r["order"], commit, pull)
+    assert read == {"reexecuted": False, "assurance": None, "environment": ran["environment"], "image_digest": None} and receipt.check(_with(r, read)) is None
+    assert "it did not run the acceptance suite: it read the record of the order's repository" in "\n".join(receipt.render(_with(r, read)))
+    # a verdict of another payment, a failed one, or text that is not a verdict, is refused in words
+    for text, why in ((json.dumps(_verdict(r, head="f" * 40)), "another order, pull request or commit"), (json.dumps(_verdict(r, pull=pull + 1)), "another order"),
+                      (json.dumps(_verdict(r, passed=False, reasons=["pr: acceptance checks not passed: blackbox"])), "did not pass"),
+                      ("not json", "is not JSON"), (json.dumps({**_verdict(r), "extra": 1}), "does not have the fields")):
+        with pytest.raises(ValueError, match=why):
+            bundle.reexecution_of(text, r["order"], commit, pull)
+    # check: the words are the run's own, so they must at least name the run the issuer signed for, and keep their shape
+    for name, bad, why in (
+            ("another run", {**ran, "environment": {**ran["environment"], "github_run_id": "1"}}, "names the run the issuer signed for"),
+            ("another repository", {**ran, "environment": {**ran["environment"], "github_repository_id": "1"}}, "names the run the issuer signed for"),
+            ("an assurance nobody defines", {**ran, "assurance": "trust me"}, "an evaluator's reexecution is {reexecuted"),
+            ("hermetic with no image", {**ran, "assurance": "hermetic"}, "an evaluator's reexecution is {reexecuted"),
+            ("an image on a run that is not hermetic", {**ran, "image_digest": digest}, "an evaluator's reexecution is {reexecuted"),
+            ("an assurance on a run that ran nothing", {**read, "assurance": "black-box"}, "an evaluator's reexecution is {reexecuted"),
+            ("a field more", {**ran, "passed": True}, "an evaluator's reexecution is {reexecuted"),
+            ("a long text", {**ran, "environment": {"knos": "x" * 201}}, "an evaluator's reexecution is {reexecuted"),
+            ("not an object", "ran it", "an evaluator's reexecution is {reexecuted")):
+        got = receipt.check(_with(r, bad))
+        assert got is not None and why in got, (name, got)
+    # the order's own repository runs the suite in prove.yml's judge job: no entry of that kind carries one, built or written
+    own = VECTORS["valid_v3"][0]["receipt"]
+    assert "a judge outside the order's repository" in receipt.check(_with(own, ran))
+    with pytest.raises(ValueError, match="a judge outside it"):
+        receipt.build3(receipt.as2(own), own["commercial_authorisation"], rerun=ran)
+    # in a quorum the paying judge's entry is the last, and it is the one held to the token
+    quorum = VECTORS["valid_v3"][2]["receipt"]
+    mine = {**ran, "environment": {**ran["environment"], "github_run_id": str(quorum["issuer_authenticated"]["claims"]["run_id"]),
+                                   "github_repository_id": str(quorum["issuer_authenticated"]["claims"]["repository_id"])}}
+    assert receipt.check(_with(quorum, mine)) is None and "a judge outside the order's repository" in receipt.check(_with(quorum, mine, at=0))
+
+
+def test_the_verdict_a_run_posted_beside_its_token_is_found_by_its_run_and_a_missing_one_is_not_an_error():
+    from knos import bundle, flow
+    r = VECTORS["valid_v3"][1]["receipt"]
+    claims = {**r["issuer_authenticated"]["claims"], "repository": "judge/neutral"}
+    commit, pull = r["evaluator_observed"]["artifact"]["commit"], r["evaluator_observed"]["artifact"]["pull_request"]
+    line = lambda **over: flow.VERDICT + json.dumps(_verdict(r, **over), sort_keys=True, separators=(",", ":")) + "\n\nHow this run reached its verdict: ran it."  # noqa: E731
+    other = {**_verdict(r)["environment"], "github_run_id": "5"}
+    asked = []
+
+    def get(path: str):
+        asked.append(path)
+        if path == "repos/judge/neutral/issues?state=open&per_page=100":
+            return [{"number": 3, "title": "knos tokens", "pull_request": {}}, {"number": 9, "title": flow.TOKENS}]
+        if path.startswith("repos/judge/neutral/issues/9/comments?since="):
+            return [{"body": "a token"}, {"body": flow.VERDICT + "{}"}, {"body": line(environment=other)}, {"body": line(head="f" * 40)}, {"body": line()}]
+        raise OSError(path)
+    found = bundle._verdict_beside(get, claims, r["order"], commit, pull)
+    assert found == bundle.reexecution_of(line(), r["order"], commit, pull) and receipt.check(_with(r, found)) is None
+    since = asked[1].split("since=")[1].split("&")[0]
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", since)                    # only comments from the hour before the token was signed
+    # another run's verdict, no issue, no host: nothing is recorded, and nothing is raised
+    assert bundle._verdict_beside(get, {**claims, "run_id": "6"}, r["order"], commit, pull) is None
+    assert bundle._verdict_beside(get, {**claims, "repository": "nobody/nothing"}, r["order"], commit, pull) is None
+    assert bundle._verdict_beside(lambda path: [], claims, r["order"], commit, pull) is None
 
 
 def test_a_script_that_crashes_after_sending_is_checked_on_chain_and_its_own_error_is_said(monkeypatch, tmp_path):
@@ -447,3 +699,25 @@ def test_the_document_names_the_bundles_options_and_states_the_offline_limit():
     code = inspect.getsource(bundle)
     assert '"--verdict"' in code and code.count('"--mirror"') == 2 and bundle.LIMIT.startswith("limit: the wallets paid and the amounts are the receipt's word here.")
     assert "still passes offline" in bundle.LIMIT and "No signed token carries" in doc and "still passes `knos bundle verify <tar>` with no option" in doc
+
+
+def test_the_attestation_script_reads_a_version_3_receipt_and_attests_its_own_digest(tmp_path):
+    """The fields of the attestation need no package of the script's: only Node. For a version 3 receipt they are the
+    version 2 receipt's, and the digest is the version 3 receipt's own."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("needs Node")
+    code = ("import fs from 'node:fs';\n"
+            f"import {{ fields }} from {json.dumps((ROOT / 'scripts' / 'sas_receipt.mjs').as_uri())};\n"
+            f"const v = JSON.parse(fs.readFileSync({json.dumps(str(ROOT / 'docs' / 'receipt' / 'vectors.json'))}, 'utf8'));\n"
+            "const text = (f) => Object.fromEntries(Object.entries(f).map(([k, x]) => [k, k === 'receipt_sha256' ? Buffer.from(x).toString('hex') : String(x)]));\n"
+            "let refused = ''; try { fields({ type: 'knos.acceptance-receipt', version: 4 }); } catch (e) { refused = e.message; }\n"
+            "console.log(JSON.stringify({ three: v.valid_v3.map((x) => text(fields(x.receipt))), two: v.valid_v3.map((x) => text(fields(v.valid_v2[x.of].receipt))), refused }));\n")
+    (tmp_path / "fields.mjs").write_text(code, encoding="utf-8")
+    done = subprocess.run([node, str(tmp_path / "fields.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 0, done.stderr
+    got = json.loads(done.stdout)
+    assert got["refused"] == "this is not a Knos acceptance receipt of version 1, 2 or 3 (docs/RECEIPT.md)."
+    for v, three, two in zip(VECTORS["valid_v3"], got["three"], got["two"]):
+        assert three["receipt_sha256"] == v["sha256"] != two["receipt_sha256"], v["name"]
+        assert {k: x for k, x in three.items() if k != "receipt_sha256"} == {k: x for k, x in two.items() if k != "receipt_sha256"}, v["name"]

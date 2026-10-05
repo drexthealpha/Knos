@@ -24,15 +24,19 @@ name: program
 #                   `stable` is that day: a lint added by a newer release must not fail a push that did not touch Rust.
 #                   programs/ (the first deployment) is not linted here.
 #   cargo-audit     RustSec advisories against each lockfile: the two deployments' and the interface crate's. No ignores.
-#   fuzz-claims     the claim parser (programs-v2/knos_oidc/fuzz, a cargo-fuzz target) for 5 minutes. Only on the
-#                   nightly run and when started by hand, and only once the fuzz target is in the repository: with no
-#                   target the job ends green and says so. It ends with the number of inputs tried, in the job summary
-#                   and in fuzz.json (the `fuzz-claims` artifact), which scripts/bench_docs.py takes as the slot
-#                   claim_parser_executions:
+#   fuzz-claims     the verifier's coverage-guided targets (programs-v2/knos_oidc/fuzz, cargo-fuzz), 5 minutes each:
+#                   `claims`, the claim parser against serde_json, and `rsa_verify`, the RSA arithmetic against big
+#                   integers and the `rsa` crate. Each starts from the corpus the nights before left and from the
+#                   committed seeds (forged tokens and Wycheproof's vectors). Only on the nightly run and when started
+#                   by hand; with no target the job ends green and says so. It ends with a line per target (inputs
+#                   tried, files in the corpus, crashes) in the job summary and in the `fuzz-claims` artifact
+#                   (fuzz_targets.jsonl, and fuzz.json, whose `executions` is the claim parser's own and is what
+#                   scripts/bench_docs.py takes as the slot claim_parser_executions):
 #                       gh run download <run id> -n fuzz-claims
 #                       python scripts/bench_docs.py --set claim_parser_executions=$(jq .executions fuzz.json) \
 #                           --source "$(jq -r .source fuzz.json)"
-#                   An input that makes the parser fail fails the job and is kept in the `fuzz-claims-crash` artifact.
+#                   The corpus is the `fuzz-claims-corpus` artifact. An input that fails a target fails the job and
+#                   is kept in the `fuzz-claims-crash` artifact. Nothing is committed by this job.
 #   kani            the fee and conservation arithmetic of knos-pay under the Kani model checker (cargo kani in
 #                   programs-v2/knos_pay: the harnesses of src/proofs.rs). Only on the nightly run and when started by
 #                   hand. A harness that fails fails the job.
@@ -103,7 +107,7 @@ jobs:
             also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target"
             cargo-test: programs-v2
             build: scripts/build_programs_v2.sh
-            tests: tests/test_oidc2_*.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py
+            tests: tests/test_oidc2_*.py tests/test_oidc_differential.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py
             suffix: "-v2"
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -258,8 +262,10 @@ jobs:
       # What the nightly fuzz target asks of any bytes, asked here on stable of documents made from fixed seeds: the two
       # copies of the claim reader that run today (claims.rs on chain, this crate in other programs) give the same
       # answer, and it is serde_json's, for every wanted claim under every spelling of its name.
-      - name: cargo test (claims.rs, the interface crate and serde_json agree on every document)
-        run: cd programs-v2/knos_oidc/fuzz && cargo test --release --locked --test random
+      # And the committed seed corpus (fuzz/seeds: every kind of forged token of tests/test_oidc_differential.py, and
+      # Project Wycheproof's vectors) through both fuzz targets' checks: the files the nightly fuzzer starts from.
+      - name: cargo test (claims.rs, the interface crate and serde_json agree on every document; the seed corpus passes both targets' checks)
+        run: cd programs-v2/knos_oidc/fuzz && cargo test --release --locked --test random --test seeds
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -309,16 +315,18 @@ jobs:
           (cd programs-v2 && cargo audit)
           (cd crates/knos-oidc-interface && cargo audit)
 
-  # The claim parser, fuzzed for 5 minutes a night with libFuzzer (programs-v2/knos_oidc/fuzz, a cargo-fuzz target).
-  # cargo-fuzz needs a nightly compiler, so this is the one job here on a nightly: dated, so that a night's result can
-  # be reproduced. The corpus of inputs that found new paths is kept from one night to the next, so each run starts
-  # where the last one ended. While the fuzz target is not in the repository every step that costs time is skipped
-  # (hashFiles) and the script ends green with a line in the summary saying nothing was fuzzed.
+  # The verifier's two cargo-fuzz targets (programs-v2/knos_oidc/fuzz), each fuzzed for 5 minutes a night with
+  # libFuzzer: `claims` (the claim parser against serde_json) and `rsa_verify` (the RSA arithmetic against big integers
+  # and the `rsa` crate). cargo-fuzz needs a nightly compiler, so this is the one job here on a nightly: dated, so that
+  # a night's result can be reproduced. The corpus of inputs that found new paths is kept from one night to the next,
+  # so each run starts where the last one ended (and from the committed seeds), and it is uploaded with the counts. While
+  # no fuzz target is in the repository every step that costs time is skipped (hashFiles) and the script ends green
+  # with a line in the summary saying nothing was fuzzed.
   fuzz-claims:
-    name: fuzz (the claim parser, 5 minutes)
+    name: fuzz (the claim parser and the RSA arithmetic, 5 minutes each)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       FUZZ_TOOLCHAIN: nightly-2026-10-01
       CARGO_FUZZ: "0.13.2"
@@ -342,13 +350,21 @@ jobs:
           path: programs-v2/knos_oidc/fuzz/corpus
           key: fuzz-claims-corpus-${{ github.run_id }}
           restore-keys: fuzz-claims-corpus-
-      - name: fuzz for 5 minutes, count the inputs tried (the job summary and fuzz.json)
+      - name: fuzz each target for 5 minutes, count the inputs tried (the job summary, fuzz.json and fuzz_targets.jsonl)
         run: bash scripts/fuzz_nightly.sh 300
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: fuzz-claims
-          path: fuzz.json
+          path: |
+            fuzz.json
+            fuzz_targets.jsonl
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: fuzz-claims-corpus
+          path: programs-v2/knos_oidc/fuzz/corpus
           if-no-files-found: ignore
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()

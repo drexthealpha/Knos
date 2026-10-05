@@ -39,7 +39,7 @@ from rich.console import Console
 
 from . import badge, ghwords, version
 
-app = typer.Typer(add_completion=False, pretty_exceptions_enable=False, no_args_is_help=True,
+_app = typer.Typer(add_completion=False, pretty_exceptions_enable=False, no_args_is_help=True,
                   help="Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
                        "signed CI run attests they were met, a Solana program counts it or pays it. Start with `knos check`, `knos init`, `knos claim` or `knos status`.")
 
@@ -75,21 +75,24 @@ def _version(show: bool) -> None:
         raise typer.Exit()
 
 
-@app.callback()
+@_app.callback()
 def _main(_v: bool = typer.Option(False, "--version", callback=_version, is_eager=True, help="print the version")) -> None:
     pass
 
 
-@app.command()
+@_app.command()
 def init(undo: bool = typer.Option(False, "--undo", help="remove what knos init added"),
          hosts: str = typer.Option(None, "--hosts",
                                    help="claude,codex,cursor,gemini (default: every one installed here)"),
-         pr: str = typer.Option(None, "--pr", help="owner/repo: instead, print the link that installs Knos in that repository by one pull request")) -> None:
+         pr: str = typer.Option(None, "--pr", help="owner/repo: instead, print the link that installs Knos in that repository by one pull request"),
+         host: str = typer.Option(None, "--host", help="instead, write Knos for one coding agent into this project: cursor, gemini, copilot, opencode, ... (a name nobody knows lists them all)"),
+         everywhere: bool = typer.Option(False, "--global", help="with --host: also write that agent's file in your home, where it reads nothing else")) -> None:
     """Install the Stop hook for Claude Code and Codex: it compares what the agent says is done with what the repository's checks show. And register `knos mcp` with them,
     Cursor and Gemini CLI, so an agent can find paid bounties. Free; nothing leaves this machine except the public
     GitHub, PyPI and Solana lookups a claim or a tool needs."""
     from . import init as setup
     if pr: raise typer.Exit(setup.pull_request(pr, lambda said: out.print(said, markup=False, highlight=False, soft_wrap=True)))  # noqa: E701
+    if host: raise typer.Exit(setup.project_cli(host, everywhere, lambda said: out.print(said, markup=False, highlight=False, soft_wrap=True)))  # noqa: E701
     picked = [h.strip() for h in hosts.split(",") if h.strip()] if hosts else None
     rep = setup.undo(picked) if undo else setup.install(picked)
     for what in rep["removed"]:
@@ -117,7 +120,7 @@ def init(undo: bool = typer.Option(False, "--undo", help="remove what knos init 
     out.print("Undo: knos init --undo")
 
 
-@app.command("hook", hidden=True, context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@_app.command("hook", hidden=True, context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def hook_cmd(ctx: typer.Context, which: str = typer.Argument(...)) -> None:
     """What the installed hook calls. A hook name from an older version does nothing, quietly."""
     if which == "proof":
@@ -126,7 +129,7 @@ def hook_cmd(ctx: typer.Context, which: str = typer.Argument(...)) -> None:
     raise typer.Exit(0)
 
 
-@app.command()
+@_app.command()
 def mcp() -> None:
     """Paid bounties and claim checks for a coding agent, over MCP on stdio. Read-only: no key, no wallet. An agent
     host starts this; `knos init` registers it."""
@@ -136,14 +139,11 @@ def mcp() -> None:
 
 def _register_proof() -> None:
     from .proof.cli import register
-    register(app, out, Stop, _repo)
+    register(_app, out, Stop, _repo)
 
 
 _register_proof()
-badge.register(app)     # knos badge, knos record
-from .judge import register as _register_judge  # noqa: E402 - knos judge rerun
-_register_judge(app, out, Stop)
-__import__("knos.terms_templates", fromlist=["register"]).register(app)   # knos terms list | show
+badge.register(_app)    # knos badge, knos record
 
 
 def _register_flow() -> None:
@@ -162,12 +162,12 @@ def _register_flow() -> None:
             raise Stop("Name the repository as owner/name.")
         raise typer.Exit(getattr(flow, name)(flow.Run(repo, payload), **more))
 
-    @app.command("command")
+    @_app.command("command")
     def command(event: Path = event_opt, repo: str = repo_opt) -> None:
         """A comment, or a new issue: act on its `/knos` line (fund, tip, take, release, the rest) and reply."""
         run("command", event, repo)
 
-    @app.command("settle")
+    @_app.command("settle")
     def settle(event: Path = event_opt, repo: str = repo_opt,
                tests: bool = typer.Option(False, "--tests", help="the job after the sandboxed judge passed: sign for the bounty "
                                                                  "paid by acceptance checks, for --pull at --head"),
@@ -182,13 +182,13 @@ def _register_flow() -> None:
             raise Stop("--pull, --head and --issue go with --tests: the job that follows the sandboxed judge.")
         run("settle", event, repo, **(dict(tests=True, pull=pull or None, head=head, issue=issue or None) if tests else {}))
 
-    @app.command("review")
+    @_app.command("review")
     def review(event: Path = event_opt, repo: str = repo_opt) -> None:
         """The "knos check" workflow finished for a pull request: one comment on it, kept up to date, saying whether
         it takes a bounty, what is missing and who would be paid."""
         run("review", event, repo)
 
-    @app.command("check")
+    @_app.command("check")
     def check(pr: str = typer.Argument(None, metavar="[OWNER/REPO#N]", help="the pull request to check, as owner/repo#number or its github.com URL"),
               event: Path = typer.Option(None, "--event", help="a workflow's job: the event GitHub handed it (GITHUB_EVENT_PATH)"),
               repo: str = typer.Option(None, "--repo", help="a workflow's job: owner/name (GITHUB_REPOSITORY)")) -> None:
@@ -217,14 +217,14 @@ def _register_flow() -> None:
     # (flow.takes). They are named here so that `knos --help` lists them; reached this way, they are handed on as they came.
     passed_on = {"allow_extra_args": True, "ignore_unknown_options": True, "help_option_names": []}
 
-    @app.command("attest", context_settings=passed_on)
+    @_app.command("attest", context_settings=passed_on)
     def attest(ctx: typer.Context) -> None:
         """Ask GitHub to sign that a work order's terms were met, from any repository: what attest.yml runs
         (`knos attest --help` lists its options)."""
         from . import flow
         raise typer.Exit(flow.main(["attest", *ctx.args]))
 
-    @app.command("canary", context_settings=passed_on)
+    @_app.command("canary", context_settings=passed_on)
     def canary(ctx: typer.Context) -> None:
         """One timed round on devnet: fund, pull request, merge, payment (`knos canary --help` lists its options)."""
         from . import flow
@@ -340,7 +340,7 @@ def _tx(sig: str) -> str:
     return f"  https://explorer.solana.com/tx/{sig}?cluster=devnet"
 
 
-@app.command()
+@_app.command()
 def relay(token_file: Path = typer.Option(None, "--token-file", "--token", help="relay this one token now and print the result as JSON"),
           terms_file: Path = typer.Option(None, "--terms-file", help="a fund token's terms JSON (as its `knos-terms:` line gave them)"),
           serve: float = typer.Option(None, "--serve", metavar="SECONDS", help="keep making passes for this long"),
@@ -389,7 +389,7 @@ def _waiting(k, now: int) -> bool:
     return k is not None and k.state == 1 and not k.revoked and now < k.active_at
 
 
-@app.command()
+@_app.command()
 def keys() -> None:
     """Every signing key the second verifier holds, and whether each key GitHub and GitLab publish today verifies
     there. Exit 1 when one of GitHub's is missing, cannot be used, or expires within 7 days, or when another issuer's is
@@ -437,7 +437,7 @@ def keys() -> None:
 
 balance_app = typer.Typer(add_completion=False, help="Money a wallet sets aside for bounties in one GitHub owner's repositories, spent by "
                                                      "GitHub-signed comments (/knos fund). The wallet is a Solana keypair file: --keypair, or KNOS_WALLET_KEY.")
-app.add_typer(balance_app, name="balance")
+_app.add_typer(balance_app, name="balance")
 _KEYPAIR = typer.Option(None, "--keypair", help="the wallet: a Solana keypair file (default: KNOS_WALLET_KEY)")
 _MINT = typer.Option(None, "--mint", help="the token's mint (default: test USDC, Circle's devnet mint)")
 _OWNER = typer.Argument(..., help="the GitHub user or organisation whose repositories spend it: a login, or its numeric id")
@@ -607,7 +607,7 @@ def _release_pin() -> tuple[str, str]:
     return found
 
 
-@app.command("fund-wallet")
+@_app.command("fund-wallet")
 def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), amount: str = typer.Argument(..., help="how much, like 20 or 12.5"),
                 checks: str = typer.Option(None, "--checks", help="the checks that must pass, comma-separated; `none` for none (default: the repository's own)"),
                 paths: str = typer.Option(None, "--paths", help="globs the pull request's files must match, comma-separated"),
@@ -695,7 +695,7 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
     out.print(_tx(sig), markup=False)
 
 
-@app.command()
+@_app.command()
 def bounty(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE")) -> None:
     """What is in escrow for an issue, read from Solana devnet."""
     from .settle import relay as first
@@ -721,7 +721,7 @@ def bounty(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE")) -> None
         out.print(f"{_usdc(j.amount)} test USDC  {state}  ({how}; refundable in {max(0, j.deadline - now) // 3600} h)  job {addr}  (first deployment)", markup=False)
 
 
-@app.command()
+@_app.command()
 def due(login: str = typer.Argument(..., help="a GitHub login")) -> None:
     """Where a GitHub account is paid, what is held for it, its record, and what the first deployment still owes it."""
     from .settle import pay as pay1
@@ -757,7 +757,7 @@ def due(login: str = typer.Argument(..., help="a GitHub login")) -> None:
         out.print("Send what the first deployment holds to any address: knos claim --v1 <address>", markup=False)
 
 
-@app.command()
+@_app.command()
 def claim(address: str = typer.Argument(..., help="the Solana address your GitHub account is paid at"),
           v1: bool = typer.Option(False, "--v1", help="send what the first deployment holds for your account to this address instead"),
           repo: str = typer.Option(None, "--repo", help="with --v1: a repository you own to run the claim in (default: <you>/knos-claim)"),
@@ -787,7 +787,7 @@ def claim(address: str = typer.Argument(..., help="the Solana address your GitHu
 # ---- end of the money block ---------------------------------------------------------------------------------------
 
 
-@app.command("mainnet-check")
+@_app.command("mainnet-check")
 def mainnet_check_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
     """Every gate that must hold before Knos moves real money, each with the evidence it was judged on. Exit 1
     while any gate fails."""
@@ -797,7 +797,7 @@ def mainnet_check_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
 
 # ---- knos status: the second deployment's health (one block, so it merges cleanly) ----------------
 
-@app.command("status")
+@_app.command("status")
 def status_cmd(as_json: bool = typer.Option(False, "--json", help='print the checks as data instead of lines: {"cluster", "checks": [{"check", "pass", "evidence", "next"}], "overall", "passed", "of"}; the exit code is the same')) -> None:
     """Is the second deployment running as designed? Reads Solana (KNOS_RPC, default devnet) and GitHub's key list, and
     says for each of twelve things whether it holds and, when it does not, what to do. Exit 1 while any fails. With
@@ -863,7 +863,7 @@ _LIMIT = typer.Option(1000, "--limit", help="how many of each escrow's newest tr
 _NO_NAMES = typer.Option(False, "--no-names", help="do not ask GitHub for repository and account names: ids only")
 
 
-@app.command("receipt")
+@_app.command("receipt")
 def receipt_check(path: str = typer.Argument(..., help="an acceptance receipt (JSON), as docs/RECEIPT.md specifies it; - reads standard input")) -> None:
     """Check an acceptance receipt against the specification (its shape, that shares and amounts add up, that the judge
     fits the order) and print its digest. Anyone can rebuild a receipt from the chain and compare digests."""
@@ -880,7 +880,7 @@ def receipt_check(path: str = typer.Argument(..., help="an acceptance receipt (J
     typer.echo(f"valid. digest sha256:{receipt.digest(doc)}")
 
 
-@app.command()
+@_app.command()
 def receipts(owner: str = typer.Option(..., "--owner", help="the GitHub login or id whose money paid"), first: str = _FIRST, last: str = _LAST,
              fmt: str = typer.Option("csv", "--format", help="csv or jsonl"), limit: int = _LIMIT, no_names: bool = _NO_NAMES,
              to_file: Path = typer.Option(None, "--out", help="write the rows here instead of printing them")) -> None:
@@ -919,7 +919,7 @@ def _meter_statement(buyer: str, seller: str, month: str, fmt: str) -> None:
             out.print(line, markup=False)
 
 
-@app.command()
+@_app.command()
 def statement(seller: str = typer.Option(..., "--seller", help="the GitHub login or id that was paid (with --meter: whose work was evaluated)"),
               month: str = typer.Option(..., "--month", help="like 2026-09"),
               fmt: str = typer.Option("text", "--format", help="text, csv or json"), limit: int = _LIMIT, no_names: bool = _NO_NAMES,
@@ -949,7 +949,7 @@ def statement(seller: str = typer.Option(..., "--seller", help="the GitHub login
             out.print(line, markup=False)
 
 
-@app.command()
+@_app.command()
 def export(siem: bool = typer.Option(False, "--siem", help="JSON Lines, one escrow event per line: time, actor, action, repository, issue, amount, transaction (fields: knos.records.SIEM_FIELDS)"),
            first: str = _FIRST, last: str = _LAST, limit: int = _LIMIT, no_names: bool = _NO_NAMES,
            to_file: Path = typer.Option(None, "--out", help="write the lines here instead of printing them")) -> None:
@@ -968,7 +968,7 @@ def export(siem: bool = typer.Option(False, "--siem", help="JSON Lines, one escr
         sys.stdout.write(text)
 
 
-@app.command()
+@_app.command()
 def invoice(owner: str = typer.Option(..., "--owner", help="the GitHub login or id whose money paid"), month: str = typer.Option(..., "--month", help="like 2026-09"),
             folder: Path = typer.Option(Path("."), "--out", help="the folder to write the .html and the .csv in"), limit: int = _LIMIT, no_names: bool = _NO_NAMES) -> None:
     """An owner's month as a plain HTML invoice and a CSV of its lines: every payment made out of their money, with the fee and the transaction. The evaluations knos_meter billed the owner for that month are listed after them, and in a CSV of their own."""
@@ -997,7 +997,7 @@ def invoice(owner: str = typer.Option(..., "--owner", help="the GitHub login or 
 # ---- accept: the acceptance checks a bounty can be paid on ----------------------------------------------------------------
 
 accept_app = typer.Typer(add_completion=False, no_args_is_help=True, help="The acceptance checks a bounty can be paid on, without a merge.")
-app.add_typer(accept_app, name="accept")
+_app.add_typer(accept_app, name="accept")
 
 
 @accept_app.command("init")
@@ -1073,7 +1073,7 @@ def _arrange() -> None:
 
     def name_of(info) -> str:
         return info.name or (info.callback.__name__.replace("_", "-") if info.callback else "")
-    for info in (*app.registered_commands, *app.registered_groups):
+    for info in (*_app.registered_commands, *_app.registered_groups):
         got = by.get(name_of(info))
         if got:
             info.rich_help_panel = got[0]
@@ -1081,26 +1081,68 @@ def _arrange() -> None:
                 info.short_help = got[1]
             elif hasattr(info, "help") and not getattr(info, "help", None):
                 info.help = got[1]
-    app.registered_commands.sort(key=lambda i: rank.get(name_of(i), len(rank)))
-    app.registered_groups.sort(key=lambda i: rank.get(name_of(i), len(rank)))
+    _app.registered_commands.sort(key=lambda i: rank.get(name_of(i), len(rank)))
+    _app.registered_groups.sort(key=lambda i: rank.get(name_of(i), len(rank)))
 
 
-__import__("knos.ledger", fromlist=["register"]).register(app, out, Stop, _HELP, MONEY)        # knos meter: batch, verify, prove, reconcile, export
-from . import bundle as _bundle  # noqa: E402 - `knos bundle`, and `knos receipt` with mirror and verify in place of the file-only command
-_bundle.register(app, _HELP)
-from . import audit as _audit; _audit.register(app, _HELP)      # knos audit export | verify (src/knos/audit.py)  # noqa: E402,E702
-__import__("knos.agentkey", fromlist=["register"]).register(app)     # knos agent init | show | rotate, knos work list
-_arrange()
+# ---- the command modules, loaded when a command of theirs is asked for ------------------------------------------------
+# Each of these modules costs tens of milliseconds to import (knos.records, solders, the judge), and `knos bounty x`
+# needs none of them. So a command line that names one command loads that command's module and no other; `knos --help`,
+# a command nobody knows, and anything that reads `cli.app` (the tests, a script) load them all. Whatever the order they
+# were loaded in, the commands and the help come out as they did when every module was imported here.
+
+def _mod(name: str):
+    import importlib
+    return importlib.import_module(f"knos.{name}")
+
+
+_MODULES = (    # (the commands it adds, how); in the order they were always registered, which `load` keeps
+    (("judge",), lambda: _mod("judge").register(_app, out, Stop)),                 # knos judge rerun
+    (("terms",), lambda: _mod("terms_templates").register(_app)),                  # knos terms list | show
+    (("meter",), lambda: _mod("ledger").register(_app, out, Stop, _HELP, MONEY)),  # knos meter: batch, verify, prove, reconcile, export
+    (("bundle", "receipt"), lambda: _mod("bundle").register(_app, _HELP)),         # `knos bundle`, and `knos receipt` with mirror and verify in place of the file-only command
+    (("audit",), lambda: _mod("audit").register(_app, _HELP)),                     # knos audit export | verify (src/knos/audit.py)
+    (("agent", "work"), lambda: _mod("agentkey").register(_app)),                  # knos agent init | show | rotate, knos work list
+    (("budget",), lambda: _mod("controls").register(_app, _HELP)),                 # knos budget show | set | check | who (src/knos/controls.py)
+    (("observe",), lambda: _mod("observe").register(_app, _HELP)),                 # knos observe: what an outsider can infer from public data
+    (("reproduce",), lambda: _mod("reproduce").register(_app, _HELP)),             # knos reproduce: an outside reproduction in one command
+)
+_OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
+_loaded: set[int] = set()
+
+
+def load(command: str | None = None) -> None:
+    """Register the module that defines `command`, or every module when it is None or a name nobody defines here."""
+    mine = [i for i, (names, _how) in enumerate(_MODULES) if command in names]
+    if not mine and (command is None or command not in _OWN):
+        mine = list(range(len(_MODULES)))
+    for i in mine:
+        if i not in _loaded:
+            _loaded.add(i)
+            _MODULES[i][1]()
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    _HELP[:] = [row for row in _HELP if row not in tail] + tail
+    _arrange()
+
+
+def __getattr__(name: str):
+    if name == "app":       # the whole command line, for whoever asks for it by name
+        load()
+        return _app
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def main(argv: list[str] | None = None) -> int:
     """The console script. Errors are one line, never a traceback."""
     args = list(sys.argv[1:] if argv is None else argv) or ["--help"]       # no argument: the four commands to start with
-    from . import flow
-    if flow.takes(args):        # a workflow's job: read without typer or rich (the console script comes this way before importing them)
-        return flow.main(args)
+    from .__main__ import FLOW_FIRST
+    if args[0] in FLOW_FIRST:       # only these can be a workflow's job: knos.flow (and solders) is not imported to ask about any other
+        from . import flow
+        if flow.takes(args):        # read without typer or rich (the console script comes this way before importing them)
+            return flow.main(args)
+    load(None if args[0].startswith("-") else args[0])
     try:
-        rc = app(args=args, standalone_mode=False, prog_name="knos")
+        rc = _app(args=args, standalone_mode=False, prog_name="knos")
         return int(rc) if isinstance(rc, int) else 0
     except Stop as why:
         out.print(why.said, markup=False)

@@ -1,131 +1,168 @@
-# Demo (three minutes): the shot list
+# Demo (three minutes): six shots
 
-Seven shots. Every shot is a screen recording of the real thing on Solana devnet, in test USDC, with nothing
-staged, so that each transaction shown can be found afterwards on the site's Numbers page
-(https://drexthealpha.github.io/Knos/#network), which is read from the programs' own logs.
+One commercial story, start to finish: a buyer orders work, a submission fails, a submission passes, a replay is
+refused, the two sides reconcile, and what outside use there has been is counted. Every shot is a screen recording
+of the real thing on Solana devnet, in test USDC, with nothing staged, so that each transaction shown can be found
+afterwards on the site's Numbers page (https://drexthealpha.github.io/Knos/#network), which is read from the
+programs' own logs.
 
-Two rules for the recording:
+## Three rules for the recording
 
-- **A shot whose feature is not marked as exercised on devnet in `docs/capabilities.json` on the day is cut, not
-  staged.** The narration of the shots that remain is not changed to cover for it.
+- **A shot whose capability has not run where the shot is recorded is cut, not staged.** On the public ids that
+  means the stage the table below gives from `docs/capabilities.json` on the day; on staging ids it means a
+  capability whose note there records the 0.3.14 staging rehearsal with its transaction. [CAPABILITIES.md](../CAPABILITIES.md)
+  is the table. The narration of the shots that remain is not changed to cover for a cut one.
+- **Every shot says which program ids it runs on.** The newer builds of the four programs are approved upgrade
+  proposals, and the multisig's public delay decides when each can execute. Until a proposal has executed, its
+  instructions are not on the public program ids: they were rehearsed on staging ids, which are other addresses on
+  devnet, and the manifest counts no stage for that rehearsal (those capabilities are "tested locally"). The live
+  state is in `web/upgrades.json`, and the recording is checked against it on the day, not against this page. A shot
+  recorded on staging ids carries the caption "staging program ids on devnet" for its whole length.
 - A number that only the release run can give is a slot, `[[stat: name]]`.
-
-Where each shot stands in `docs/capabilities.json` when this was written (the stage is the manifest's; the release
-moves a line only with a devnet transaction):
-
-| shot | capability | stage today | if it is not exercised on the day |
-|---|---|---|---|
-| A | `buyer_page`, `terms_templates`, `passkey_funder`, `passkey_fund_relay` | tested locally: a headless browser with a virtual passkey, and the local simulator | fund with the comment `/knos fund` instead (`fund_by_comment`), and say so |
-| B | `check`, `pay_on_merge` | deployed on devnet | none needed once a transaction of the day is recorded |
-| C | `receipt`, `work_orders` | tested locally | cut |
-| D | `pay_on_merge`; `order_pay` for a work order | deployed; tested locally | show a bounty, not a work order |
-| E | `single_use_tokens` | tested locally | show the closed bounty refusing the token, and say that is what it is |
-| F | `statements`, `meter_batch`, `meter_seller_claim`, `refund`, `warranty_revert` | tested locally, but for `refund`, which is deployed | the refund only |
-| G | `mainnet_check` | tested locally | it reads the chain and sends nothing: shown as it is |
-
-One more shot exists in the tree and is not in the three minutes until it is exercised on devnet. **Auto-accept**
-(`order_auto_accept`, `agent_tools`; tested locally): an order funded as auto on a black-box suite; an agent with
-its own key finds it, takes it, submits a pull request after the local check passes, and is paid when the suite
-passes, with no merge and no human step. If it is exercised by the day of recording it replaces shots B and C, with
-this narration: "Nobody merged this. The buyer chose, at funding, to pay the first pull request that passes a suite
-the author cannot see. The agent found the order, took it, and was paid." The challenge that goes with it
-(`order_challenge`: a neutral failing run inside the warranty returns the holdback) is the alternative exception
-of shot F.
 
 Caption under the first shot, no narration: "Built during the hackathon: everything shown. Older work is listed in
 docs/DISCLOSURE.md."
 
 | shot | starts | ends | what it shows |
 |---|---|---|---|
-| A | (0:00) | (0:25) | a buyer sets the task, the budget and the acceptance terms from a template |
-| B | (0:25) | (0:55) | a submission that claims success is refused, with the exact failed check |
-| C | (0:55) | (1:30) | a valid one passes: artifact, policy, evaluator and evidence on one screen |
-| D | (1:30) | (1:50) | the signed token pays on devnet |
-| E | (1:50) | (2:05) | the same token is replayed and refused |
-| F | (2:05) | (2:35) | buyer and seller compute the same statement, and an exception path |
-| G | (2:35) | (3:00) | the offer and the roadmap |
+| A | (0:00) | (0:30) | a buyer creates a work order in the console |
+| B | (0:30) | (0:55) | a plausible submission fails, and the exact unmet condition is shown |
+| C | (0:55) | (1:30) | a valid one passes: artifact, evidence, policy version, devnet transaction |
+| D | (1:30) | (1:50) | a replay is attempted, and the component that refuses it is named |
+| E | (1:50) | (2:25) | buyer and supplier reconcile to the same statement; a missing item becomes a dispute |
+| F | (2:25) | (3:00) | commercial evidence, as it is today |
 
-## A. The buyer sets the terms (0:00, 25 seconds)
+## Which program ids each shot can be recorded on
 
-**On screen.** The site's funding form. The buyer picks a terms template, and the form fills: the task (an issue's
-address), the budget, the checks that must pass, the paths that may change, the deadline. She changes one value.
-The page shows what she will pay: the amount, and the fee on top. She funds it; the passkey prompt; the order's
-account in the explorer and the log line that carries the hash of the terms.
+| shot | capability in `docs/capabilities.json` | while the proposal has not executed | after the proposal has executed |
+|---|---|---|---|
+| A | `buyer_page`, `terms_templates`, `work_orders`, `passkey_funder` | staging ids, captioned. On the public ids only the older path exists: fund by the comment `/knos fund` (`fund_by_comment`), which shows the same terms in the reply; say that it is the comment and not the console. | public ids |
+| B | `check`, `pay_on_merge` | public ids. The check needs no program; the refusal to pay is the deployed escrow's. | public ids |
+| C | `receipt`, `pay_on_merge`; `order_pay` for a work order | public ids for a task funded as a bounty; a work order only on staging ids, captioned | public ids, as a work order |
+| D | `single_use_tokens` | staging ids, captioned, for the marker. On the public ids the same token is refused for a different reason, that the paid task is closed: if that is what is recorded, the narration names that reason and not the marker. | public ids: the marker |
+| E | `statements`, `meter_batch`, `meter_seller_claim` | the two ledgers and the statement need no program at all; the two on-chain counts only on staging ids, captioned | public ids |
+| F | none: it reads the chain and sends nothing | public ids | public ids |
 
-**Narration.** A buyer who has to approve a supplier's invoice starts here. She picks a template, sets the budget
-and the checks that decide whether the work is done, and funds the order. Those terms are hashed into the order
-now. Nobody can change them after the work, not her and not the seller.
+## The stage of each capability a shot needs
 
-**Must be visible.** The terms in plain sentences before she funds. The same hash in the page and in the explorer.
+The last column is not typed: `python scripts/doc_claims.py --write` writes it from `docs/capabilities.json`, and
+the check fails when it differs.
 
-## B. A submission that claims success is refused (0:25, 30 seconds)
+| shot | capability | stage |
+|---|---|---|
+| A | `console` | tested locally |
+| A | `buyer_page` | tested locally |
+| A | `terms_templates` | tested locally |
+| A | `work_orders` | tested locally |
+| A | `passkey_funder` | tested locally |
+| B | `check` | tested locally |
+| B | `pay_on_merge` | deployed on devnet |
+| C | `receipt_five_parts` | tested locally |
+| C | `receipt` | tested locally |
+| C | `order_pay` | tested locally |
+| D | `single_use_tokens` | tested locally |
+| E | `statements` | tested locally |
+| E | `meter_batch` | tested locally |
+| E | `meter_seller_claim` | tested locally |
 
-**On screen.** A pull request for the task. Its description says "all tests pass". The check `test` is red at its
-head commit. She merges it anyway. The workflow runs. Knos's comment on the pull request: not paid, the required
-check `test` failed at this commit. The order on the site: still open, the money still in it.
+## A. A buyer creates a work order (0:00, 30 seconds)
 
-**Narration.** This submission says the tests pass. They did not. She merges it all the same, and nothing is paid.
-The refusal names the check that failed and the commit it failed at. The money has not moved.
+**On screen.** The console. The buyer picks a terms template and the form fills, each field in plain words: the
+deliverable (an issue's address and its milestone); the budget, and under it what she will pay, the amount and
+the fee on top with the fee as a share of the amount; the acceptance criteria (the checks that must pass, the
+paths that may change, the deadline); the beneficiary rule (who is paid: the author of the accepted pull request,
+or the wallets she names and their shares); the evaluator (which pinned workflow judges it, at which commit, and
+whether a neutral run from the supplier's side may also sign). She changes one value and funds it. The order's
+account in the explorer, and the log line that carries the hash of the terms.
 
-**Must be visible.** The words of the claim, the name of the failed check, and the unchanged balance of the order.
+**Narration.** This is the person who will have to approve the supplier's invoice. Before any work starts she
+writes down what she is buying, what it may cost, what decides that it is done, who gets paid, and who judges.
+She can read every one of those. They are hashed into the order now, and nobody can change them afterwards: not
+her, and not the supplier.
 
-## C. A valid one passes, with the evidence on one screen (0:55, 35 seconds)
+**Must be visible.** Budget, criteria, beneficiary rule and evaluator, all readable without opening a file. The
+effective fee before she funds. The same hash in the page and in the explorer.
 
-**On screen.** A second pull request: `test` is green. She merges it. Then the receipt, on one screen, in its four
-parts: the artifact (the head commit and its digest), the policy (the terms and their hash), the evaluator (the
-workflow file, its pinned commit, the runner), the evidence (each named check with its conclusion, and the token
-the forge signed, decoded: `repository_id`, `job_workflow_ref`, `job_workflow_sha`, `run_attempt`, and the `aud`
-line that names the order, the head commit and the hash of the terms).
+## B. A plausible submission fails (0:30, 25 seconds)
 
-**Narration.** This one meets the terms. One screen says what was delivered, which policy judged it, who ran the
-judgment, and the evidence. The forge signed which workflow ran, at which commit, in which repository. It did not
-sign what the workflow read: that part is the pinned workflow's reading, and the receipt says so.
+**On screen.** A pull request for the deliverable. It looks right: the description says "all tests pass", and the
+change is in the allowed paths. The check `test` is red at its head commit. She merges it anyway. The workflow
+runs. Knos's comment on the pull request: not accepted, the required check `test` concluded failure at this
+commit. The order: still open, the money still in it, nothing counted as accepted.
 
-**Must be visible.** All four parts at once, without scrolling, and the line that says what the signature does not
-cover.
+**Narration.** This submission says the tests pass. One did not. She merges it all the same, and nothing is
+accepted and nothing is paid. The refusal names the one condition that was not met, the check and the commit, in
+a sentence. The money has not moved.
 
-## D. The signed token pays (1:30, 20 seconds)
+**Must be visible.** The words of the claim, the name of the unmet condition, and the unchanged balance.
 
-**On screen.** Knos's comment with the payment's transaction. The explorer: the verifier program checking the RSA
-signature, then the escrow paying the full amount to the seller's wallet, and the fee split between the relayer's
-tip and Knos.
+## C. A valid one passes (0:55, 35 seconds)
 
-**Narration.** A Solana program checks the forge's signature itself and pays the seller the posted amount. The
-buyer paid the fee on top. Nobody approved this payment after the merge.
+**On screen.** A second pull request: `test` is green. She merges it. Then the receipt on one screen, which keeps
+five things apart: what the issuer authenticated (the repository, the workflow file, its pinned commit, the run);
+what the evaluator observed (the artifact, as the head commit and its digest, and each named check with its
+conclusion); which policy produced the verdict (the terms, their hash and the policy version); who authorised the
+money and under which limit; and what remains trusted. Then Knos's comment with the transaction, and the explorer:
+the verifier program checking the signature, the escrow paying the posted amount to the supplier.
 
-**Must be visible.** The seller's balance before and after, and the two program names in the transaction.
+**Narration.** This one meets the terms. The receipt says what was delivered, the evidence, which version of the
+policy judged it, and who authorised the payment. It also says what is still taken on trust: the forge signed
+which workflow ran, at which commit, in which repository. It did not sign what the workflow read. And here is the
+transaction on devnet: the supplier is paid the posted amount, in test USDC, and the buyer paid the fee on top.
 
-## E. The same token is replayed and refused (1:50, 15 seconds)
+**Must be visible.** Artifact, evidence, policy version and the transaction's signature; the line that says what
+the signature does not cover; the supplier's balance before and after.
 
-**On screen.** A terminal. The pay token of shot D, unchanged, sent again. The program's refusal as it is printed:
-this token was used already. The seller's balance: unchanged. The marker account for that token in the explorer.
+## D. A replay is attempted (1:30, 20 seconds)
 
-**Narration.** Now the same signed token, sent a second time. It is refused. Every token leaves a marker, and no
-instruction accepts a token whose marker exists.
+**On screen.** A terminal. The pay token of shot C, unchanged, sent again. The refusal as the program returns it.
+The supplier's balance: unchanged. The marker account for that token in the explorer.
 
-**Must be visible.** The error as the program returns it, and the balance not moving.
+**Narration.** Now the same signed token, sent a second time. It is refused, and the component that refuses it is
+the escrow program, `knos-pay`, on chain. The first use created a marker account for that token, and no
+instruction accepts a token whose marker exists. The relay did not stop it, and neither did the site: anyone can
+send this transaction, and the program is what says no.
 
-## F. Both sides compute the same statement, and an exception (2:05, 30 seconds)
+**Must be visible.** The error as the program returns it, the program's name, and the balance not moving.
 
-**On screen.** Two terminals side by side, labelled buyer and seller. Each runs the statement for the month from
-its own ledger and the chain: the same totals, to the last unit. Then the exception. Either a refund: a second
-order whose deadline has passed with no accepted work, and the transaction that returns the amount and the fee to
-the buyer, with no token and no action by Knos. Or a revert: an order with a warranty, the merged change reverted
-inside the period, and the holdback going back to the buyer. One of the two is shown; the caption names the other.
+*If this is recorded on the public ids before the newer escrow build has executed, the last two sentences of the
+narration are replaced by: "It is refused by the escrow program, `knos-pay`, because the task it pays is already
+closed. The marker rule that refuses every replayed token is in the newer build, which is shown here on staging
+ids."*
 
-**Narration.** At the end of the month the buyer and the seller each compute the statement, from their own
-records and the chain. They get the same number. And when something goes wrong there is a path fixed at funding:
-an order that was never fulfilled returns to the buyer, fee included, with nobody's permission.
+## E. Buyer and supplier reconcile (1:50, 35 seconds)
 
-**Must be visible.** The two totals, equal. The refund or the returned holdback as a transaction.
+**On screen.** Two terminals side by side, labelled buyer and supplier. Each holds its own ledger file for the
+month. The buyer's ledger has been made to leave out one accepted deliverable, on purpose, and the caption says
+so. `knos meter reconcile` is run on both sides: the same statement, to the last unit, counting only what both
+ledgers have and describe alike. Under it, on both screens, the item the buyer left out, listed by its id as held
+by the supplier only: a dispute line, not an invoice line. Then the two counts of the month on chain, the buyer's
+and the supplier's, which differ by that one.
 
-## G. The offer and the roadmap (2:35, 25 seconds)
+**Narration.** At the end of the month each side computes the statement from its own records. They get the same
+statement. We removed one accepted deliverable from the buyer's ledger to show what happens: it does not vanish,
+and it does not slip onto the invoice. Both sides see it by name, as a dispute to settle between them. The
+supplier did not need the buyer's file to know the counts differ, because both counts are public.
 
-**On screen.** The price book on the site's Pricing page. Then three lines: count first, settle second, capital
-third. Then `knos mainnet-check` with the gate that fails: no outside review.
+**Must be visible.** The two statements, equal. The missing item named on both screens. The caption that the
+omission was deliberate.
 
-**Narration.** The check is free. The count is sold first, because it needs no customer money on chain. Settlement
-is second, capital third. What this does not show: it is devnet and test money, there is no outside review, one
-person holds the keys behind a public 48-hour delay, and nobody has bought anything. Outside funders so far: 0.
+## F. Commercial evidence, as it is today (2:25, 35 seconds)
 
-**Must be visible.** The price book as printed in docs/MARKET.md, and the failing gate.
+**On screen.** The site's Numbers page, the rows for accounts that are not Knos's. Then the price book, with the
+Pilot line. Then the list of what does not exist, from docs/DISCLOSURE.md.
+
+**Narration.** Here is the commercial evidence, counted from the chain, and it is small. Funders other than Knos,
+with their own tokens: 0. One outside account has been paid, for 3 pull requests, on tasks Knos funded itself.
+That shows the path works between two accounts. It is not demand. There is no buyer, no pilot and no revenue, and
+nobody has been asked yet. Everything you saw moved test money. What I can sell while this stays on devnet is
+software: a 30-day pilot that reconciles one buyer's invoices from its suppliers. Nobody has bought it, and there
+is no company yet to send the invoice. One person holds every key, behind a public 48-hour delay, and there has
+been no outside security review.
+
+**Must be visible.** The outside rows of the Numbers page as they are on the day, and the Pilot line of the price
+book as printed in docs/MARKET.md.
+
+*On the day, the two counts in this narration are read again from the chain and from `docs/facts.json`. If an
+outside account has funded an order, the count is changed to what it is. A buyer, a pilot or revenue is said only
+if it exists and the other party agrees to be named.*

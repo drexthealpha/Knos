@@ -60,6 +60,28 @@ export function quote(amount, c, bps = c.feeBps) {
   return { amount, bps, fee, funderPays: amount + fee, payeeReceives: amount, tip, tipFirst: first, knos: fee - tip, knosFirst: fee - first };
 }
 
+// The price book, row by row, in the words of docs/MARKET.md ("The price book"): [line, unit, price]. The Meter and
+// Settle prices are written from the programs' constants; Control and the Pilot are contract prices nothing on chain
+// enforces, so they are words here and nowhere else in the site.
+const whole = (units) => (units / 1e6).toLocaleString("en-US");
+export function priceBook(c) {
+  return [
+    ["Check", "pull request checked", "free"],
+    ["Meter", "evaluation", `${c.meterFree.toLocaleString("en-US")} a month free per organisation, then ${plain(c.meterFee)} USD; ${plain(c.meterPlanMin)} on a committed-volume plan`],
+    ["Control", "organisation", "25,000 USD a year entry, 80,000 organisation tier (nobody has bought it)"],
+    ["Settle", "dollar settled, paid by the funder on top", `${percent(c.feeBps)} of the first ${whole(c.tier1)}, ${percent(c.feeBps2)} from ${whole(c.tier1)} to ${whole(c.tier2)}, ${percent(c.feeBps3)} above; minimum ${plain(c.feeMin)}`],
+    ["Pilot", "one buyer and its suppliers, 30 days", "2,500 USD, invoiced off chain: reconcile the buyer's accepted work from more than one supplier, name every mismatch between acceptance and billing, deliver a statement both sides verify (nobody has bought it; there is no legal entity to invoice from yet)"],
+    ["Advance, Assurance", "", "not offered; needs loss history"],
+  ];
+}
+
+// The effective settle fee at the standard rate, shown before funding: what an order of each size pays, and that as
+// a share of the order. A small order pays the minimum, which is a far larger share than the first tier's rate.
+export const EFFECTIVE = [5, 20, 1_000, 5_000, 50_000];      // whole units
+export function effectiveFees(c, amounts = EFFECTIVE) {
+  return amounts.map((amount) => { const fee = orderFee(amount * 1e6, c.feeBps, c); return { amount, fee, share: `${((fee / (amount * 1e6)) * 100).toFixed(2)}%` }; });
+}
+
 // Evaluations a month at the Meter: an owner's first `meterFree` are free; each after costs `rate`.
 export function meterCost(evaluations, c, rate = c.meterFee) {
   const billable = Math.max(0, evaluations - c.meterFree);

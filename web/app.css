@@ -44,12 +44,36 @@ strong, b { font-weight: 600; }
 /* ---- the bar ---------------------------------------------------------------------------------------------------- */
 .bar { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 12px max(16px, calc((100% - 1080px) / 2)); border-bottom: 1px solid var(--line); }
 .brand { display: flex; gap: 10px; align-items: center; font: 650 20px/1 var(--head); letter-spacing: -.01em; text-decoration: none; color: var(--fg); }
-.brand img { border-radius: 7px; }
+/* The wordmark (brand/wordmark.svg, a raven whose body and tail are the K) is drawn as a mask over the text colour, so
+   one file serves light and dark and the button in the bar. Where a browser has no masks, the name stays as text.
+   A window too narrow for the wordmark beside the buttons gets the mark alone (brand/mark.svg). */
+.brand .wordmark { display: none; }
+@supports ((mask-image: url("brand/mark.svg")) or (-webkit-mask-image: url("brand/mark.svg"))) {
+  .brand .wordmark { display: block; height: 38px; aspect-ratio: 3440 / 1268; margin: -4px 0 -4px -3px; background: currentColor;
+    -webkit-mask: url("brand/wordmark.svg") center / contain no-repeat; mask: url("brand/wordmark.svg") center / contain no-repeat;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .brand .name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (max-width: 339px) {
+    .brand .wordmark { aspect-ratio: 1856 / 1756; margin-left: 0; -webkit-mask-image: url("brand/mark.svg"); mask-image: url("brand/mark.svg"); }
+  }
+}
 nav { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; min-width: 0; }
 nav a { padding: 6px 10px; border-radius: 8px; text-decoration: none; color: var(--muted); font-size: var(--s0); font-weight: 500; white-space: nowrap; }
 nav a:hover { color: var(--fg); background: var(--soft); }
 nav a[aria-current="page"] { color: var(--fg); background: var(--soft); }
 nav a[hidden] { display: none; }
+/* "More": the links a first visitor does not need, one press away. Without scripts, and on a phone (where the whole
+   menu is behind one button), its links are plain links of the menu and the button is not shown. */
+.more, .more-list { display: contents; }
+.more-button { display: none; }
+.js .more { display: block; position: relative; }
+.js .more-button { display: block; font: 500 var(--s0)/1.6 var(--text); min-height: 0; padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.js .more-button::after { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 0 3px 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.js .more-button:hover, .js .more.open .more-button, .js .more.current .more-button { color: var(--fg); background: var(--soft); filter: none; }
+.js .more-list { display: none; position: absolute; z-index: 5; top: calc(100% + 6px); right: 0; min-width: 11.5em; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.js .more.open .more-list { display: grid; gap: 2px; }
+.js .more-list a { padding: 8px 10px; }
 .tools { display: flex; gap: 8px; margin-left: auto; }
 #menu { display: none; }
 @media (max-width: 860px) {
@@ -62,6 +86,8 @@ nav a[hidden] { display: none; }
   .js nav { display: none; }
   .js .bar.open nav { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; padding-top: 4px; }
   .js .bar.open nav a { padding: 10px; white-space: normal; }
+  .js .more, .js .more-list, .js .more.open .more-list { display: contents; }
+  .js .more-button { display: none; }
 }
 
 /* ---- the page ---------------------------------------------------------------------------------------------------- */
@@ -113,6 +139,7 @@ a.button.quiet:hover { background: var(--soft); filter: none; }
 .devnet::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-right: 7px; vertical-align: 1px; }
 .banner { width: calc(100% - 32px); max-width: 1080px; margin: 12px auto 0; padding: 8px 14px; border: 1px solid var(--warn); border-radius: 10px; background: color-mix(in srgb, var(--warn) 10%, var(--bg)); font-size: var(--s0); }
 .banner p { margin: 4px 0; } .banner a { overflow-wrap: anywhere; }
+.banner details { margin: 4px 0; } .banner summary { font-weight: 400; } .banner details[open] summary { margin-bottom: 6px; }
 
 /* ---- numbers, tables, addresses -------------------------------------------------------------------------------------- */
 .table-wrap, .scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
@@ -155,6 +182,8 @@ h1 .rest { color: var(--muted); }
 .how pre { margin: 0; }
 .receipt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); min-width: 0; }
 .receipt a { min-width: 0; } .receipt code { background: none; padding: 0; }
+/* an order that waits for a person (web/console.js): the facts take the row under its name */
+.receipt.exception { margin: 10px 0; } .receipt.exception .parts { flex-basis: 100%; }
 @media (max-width: 860px) { .how { grid-template-columns: minmax(0, 1fr); } }
 .kicker { font: 500 var(--s-1) var(--code); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 48px 0 8px; }
 .lead-with { counter-reset: lead; border-top: 1px solid var(--line); margin-bottom: 40px; }
@@ -253,12 +282,20 @@ table.capabilities tr[data-stage="deployed"] td:nth-child(2), table.capabilities
   #price-book td:nth-child(2) { font-size: var(--s0); }
 }
 #fee-worked td:last-child, #fee-worked th:last-child { text-align: right; padding-right: 0; white-space: nowrap; }
-#fee-worked th[scope="row"] { color: var(--fg); font-size: 15px; white-space: nowrap; }
+#fee-worked th[scope="row"], #fee-effective th[scope="row"] { color: var(--fg); font-size: 15px; white-space: nowrap; }
 
-/* ---- pages that other modules fill (Buy, Install, Capabilities): shown only once they hold something ----------------- */
+/* ---- pages that other modules fill (Buy, Install, Capabilities, Status, Index, Pilot, Reproduce): shown only once they hold something ----------------- */
 .mount { display: none; max-width: 800px; }
+body[data-page="index"] .mount { max-width: 1080px; }
+body[data-page="index"] .mount > .lede, #index-limits { max-width: 800px; }
+#relay-facts dd ul.plain { margin: 4px 0 0; } #relay-facts .status { min-height: 0; }
+#pilot-honest { border-left: 3px solid var(--warn); padding: 2px 0 2px 12px; max-width: 62ch; }
+#pilot-deliverables > li, #repro-lines > li { margin: 12px 0; }
+#repro-command { margin: 8px 0 0; }
+#index-card h3 { margin-top: 0; } #ib-table td:first-child { white-space: nowrap; }
 body[data-page] .view { display: none; }
-body[data-page="buy"] #buy, body[data-page="install"] #install, body[data-page="capabilities"] #capabilities { display: block; }
+body[data-page="buy"] #buy, body[data-page="install"] #install, body[data-page="capabilities"] #capabilities,
+body[data-page="status"] #status, body[data-page="index"] #index, body[data-page="pilot"] #pilot, body[data-page="reproduce"] #reproduce { display: block; }
 
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 @media print { .bar nav, .tools, .actions { display: none; } body { background: #fff; } }

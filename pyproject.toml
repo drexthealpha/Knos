@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.3.14"
+version = "0.3.15"
 description = "Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana. An escrow and a signature verifier on Solana devnet; a free check for pull requests and a Stop hook for coding agents."
 readme = "README.md"
 license = { file = "LICENSE" }

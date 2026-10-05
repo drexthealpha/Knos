@@ -54,3 +54,97 @@ Measured on devnet in the release's rehearsal, on a staging deployment: 33 payme
 them, with the repository's own key, took a median of 22 s and, at the 95th percentile, 24 s from GitHub's
 `merged_at` to the block of the paying transaction ([CAPABILITIES.md](CAPABILITIES.md), "The 0.3.14 rehearsal on
 devnet", item 10). The public relay's own figure, over its log, is in [BENCH.md](BENCH.md).
+
+## Where a token waits
+
+What was measured. The site's files of 5 October 2026, 00:37 UTC
+([stats.json](https://drexthealpha.github.io/Knos/stats.json),
+[latency.json](https://drexthealpha.github.io/Knos/latency.json)) time 39 payments the public relay carried, from
+GitHub's `merged_at` to the block that paid:
+
+| | n | median | 95th percentile | slowest |
+| --- | --- | --- | --- | --- |
+| merge to paid, the whole wait | 39 | 25 s | 164 s | 1,220 s |
+| of it, before the token's comment (GitHub's side) | 37 | 14 s | 51 s | 1,208 s |
+| of it, from the token's comment to the last transaction (the relay's side) | 37 | 9 s | 28 s | 35 s |
+| comment to funded, the relay's side | 38 | 29 s | 93 s | 887 s |
+
+Three things follow, and one does not.
+
+- With 39 samples the 95th percentile by nearest rank is the 38th value: the second slowest payment. 164 s is one
+  payment (of 2 October, a day with two), not a band of slow ones. The 4 October sample alone (36 payments) has a
+  95th percentile of 58 s and holds the slowest, 1,220 s.
+- In every payment that can be split (37 of the 39 lines carry the relay's seconds), the relay's side never passed
+  35 s. The slowest payment spent 1,208 of its 1,220 s before its token was posted: GitHub started, queued or re-ran
+  the workflow that proves the merge. The relay cannot shorten that; it can only measure it.
+- For fundings the relay's side is the tail: 887 s at the slowest, and of the three lines that carry stages one waited
+  875 s to be picked up. The paths below are how.
+- What the published files do not say: which stage the 164 s payment waited in. Two of the 39 lines carry no relay
+  seconds and cannot be split from those files. `scripts/latency_stages.py` splits a payment only where its log line
+  carries the stage fields (`workflow=`, `wait=`, `chain=`), and the 164 s payment's line does not.
+
+`scripts/latency_stages.py` on the live log (5 October 2026, 07:56 to 08:02 UTC; the escrows' history read by
+`scripts/network_stats.py` at 07:44 UTC, block times from devnet's public endpoint). Each row is measured only where
+the line carries it, so each has its own n:
+
+| stage | n | median | 95th percentile | slowest |
+| --- | --- | --- | --- | --- |
+| the whole wait, as this script timed it | 39 | 25 s | 164 s | 1,220 s |
+| runner queue: the merge to the start of the run | 3 | 4 s | 1,184 s | 1,184 s |
+| of it, the run waiting for a runner (GitHub's record) | 3 | 0 s | 0 s | 0 s |
+| workflow: the start of the run to the token's comment | 3 | 17 s | 24 s | 24 s |
+| relay wait: the comment to the relay picking it up | 3 | 3 s | 5 s | 5 s |
+| first send: the pickup to the first transaction's block | 3 | 3 s | 5 s | 5 s |
+| confirm: that block to the paying transaction's block | 3 | 5 s | 8 s | 8 s |
+| the relay's side (first send and confirm together) | 3 | 10 s | 11 s | 11 s |
+
+Few lines carry the stage fields yet, so the stage rows are a handful of payments, not a distribution: read them as
+those payments. The slowest of them spent its time in the runner queue (before the run began, with no wait for a
+runner recorded by GitHub), not in the relay.
+
+The attempts, over every payment line of the log: 42 of 51
+pull requests asked for were paid; the log has 55 lines with a token, of which
+13 say fail and 0 took more than one try;
+1 were paid only after a failed line, and 9 were never
+paid. A failure here is a relay's answer (a token too long, no bounty on the issue, a token for the other
+deployment), not a payment lost: a token no relay picked up has no line at all.
+
+Every path that can add minutes, with a test that reproduces it under a fake GitHub and a clock the test moves
+(`tests/test_relay_failures.py`), and its bound:
+
+| Path | What it adds | Bound | State |
+| --- | --- | --- | --- |
+| A repository the relay does not know: no open job or order on chain, no token in two days, not in `KNOS_RELAY_REPOS`. This is a first funding comment, never a proof (a proof's repository has money on chain, and the chain is read once a minute for those) | the delay of GitHub's comment search, then up to 30 s (`SEARCH_EVERY`) | GitHub publishes no bound for its search index; the relay adds at most 30 s | not fixable in the relay: the caller has no secret to call it with, and a search on every pass would be 1,200 requests an hour against the 1,000 a workflow's token gets ([GitHub's limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)). The way around is a relay in the run itself (`KNOS_RELAY_KEY`, above) |
+| A relay that starts with empty notes and many open repositories | it learned 20 repository names a minute, so a proof in the 45th waited two minutes | now 20 a pass: 45 repositories are known on the third pass, 6 s in | fixed |
+| A token posted while no run relays. Two runs overlap by 30 s and the next takes 10 to 21 s to start (`worker.yml`); a next run that waits longer for a runner leaves a gap, and a chain of runs that stopped waits for the 5-minute timer | the gap | the runner's wait less 30 s; after a stop, 5 minutes plus GitHub's own delay ("During periods of high load, your scheduled workflows may be delayed", [GitHub's documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)) | not fixed: it is the workflow's, and one worker is one point of failure. The relay adds nothing: the first pass of the next run carries what was posted, once |
+| A first send that fails for the cluster's reasons (no answer, a dropped transaction, "Blockhash not found", a node that is behind or unhealthy) | the next pass (3 s), twice; then 10, 20, ... 60 s; then every 60 s | 60 s between two tries (`BACKOFF_MOST`), with no random part. A transaction that is never confirmed is waited for 60 s (`knos.chain`), and tokens are carried one at a time, so a pass with one such token holds the others that long | the retry is fixed: 0.3.14 gave such a token up after 12 passes, about 6.5 minutes, and logged a failure. Now it is tried while the chain would still take it (an hour past its expiry). A refusal by the program that another run with the same key can cause (errors 67, 69, 84) is still given 12 passes and then logged as a failure: when it does not clear, it is the program's answer. The 60 s held by one unconfirmed transaction is not fixed |
+| GitHub's secondary rate limit (a 403 or 429 with `Retry-After`) | until the time GitHub names | what GitHub names, at most an hour | fixed: the relay used to ask again every 3 s, which GitHub's page says to stop doing. Now nothing is asked until that time, and a verdict GitHub would not take meanwhile is kept and posted after |
+| GitHub's hourly limit for a workflow's token: 1,000 requests | until the hour's reset, when it is spent | under an hour | not reached today. Each run starts with no saved answers, so every known repository costs one counted read per run, 12 runs an hour, beside 120 searches: by that arithmetic (not measured) the budget is spent at about 70 repositories read per run |
+| The workflow that signs the token waited for a runner, or behind another run | all of it is before the token exists | GitHub's; none is published | not the relay's. The log line carries it (`queue=`, `workflow=`), and `scripts/latency_stages.py` prints it per payment |
+| The faucet's minute (fundings on devnet only) | up to 60 s | 60 s (`FUND_PERIOD`) | by design: the faucet serves a repository once a minute |
+
+What a relay keeps, in `KNOS_HOME/ghrelay.json` (the public worker saves the folder between runs):
+
+- **A journal.** A token is written there before its first transaction is sent, with the comment it came from. Its
+  state is `sending`, then `confirmed`, `waiting` (to be tried again), `refused` (the program's or the relay's own
+  answer, with the reason: final, never sent again) or `expired`. The file is written whole or not at all.
+- **A relay killed between a send and its confirmation loses nothing and pays nobody twice.** The next pass finds the
+  token in its comment, sees it was in flight, and sends it again; the program takes a token once, so the second
+  send moves nothing and the log gets its one line. `tests/test_relay_failures.py` runs this on LiteSVM with the
+  programs as built: the payee holds the payment once and the fee account its fee once.
+- **A status line.** Once a minute the log repository's own worker (`worker.yml` of the repository that holds the log; a relay
+  of your own writes none unless `KNOS_RELAY_STATUS=1`) rewrites one comment of its log:
+  `knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>`.
+  `web/status_data.js` turns the log and `stats.json` into what a status view shows: whether the worker ran in the
+  last 10 minutes, the last pass and how long it took, the tokens waiting and the oldest's age, and the refusals
+  (with reasons) and retries of the last 24 hours.
+
+`scripts/latency_stages.py` splits each measured payment into runner queue, workflow, relay wait, first send and
+confirmation, with p50, p95 and the maximum of each stage and its own n, and counts the attempts: payments asked
+for, completed, lines that failed, lines that took more than one try, payments completed only after a failed line.
+`stats.json` carries the same count as `latency.attempts`. The log holds what a relay answered, so a token no relay
+ever picked up is in neither: that case shows only as a merged pull request with no payment.
+
+What is not done: these changes are in the repository and its tests. The public worker runs them from its next run
+after they reach `main`; no number on this page was measured with them. Each failure below was rehearsed in a
+simulator ([DRILLS.md](DRILLS.md), "When a dependency fails"), none on devnet.

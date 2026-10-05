@@ -359,19 +359,42 @@ def test_the_last_thirty_days_leave_out_what_is_older():
 
 # ---- operations ------------------------------------------------------------------------------------------------------
 def runs():
-    mk = lambda n, conclusion, t: {"id": n, "status": "completed", "conclusion": conclusion, "created_at": iso(t), "html_url": f"https://github.com/drexthealpha/Knos/actions/runs/{n}"}  # noqa: E731
+    mk = lambda n, conclusion, t: {"id": n, "status": "completed", "conclusion": conclusion, "created_at": iso(t), "html_url": f"https://github.com/drexthealpha/knos-e2e/actions/runs/{n}"}  # noqa: E731
     return [mk(1, "success", NOW - 3600), mk(2, "failure", NOW - 7200), mk(3, "success", NOW - 10_800), mk(4, "cancelled", NOW - 14_400), mk(5, "success", NOW - 40 * 86_400),
             {"id": 6, "status": "in_progress", "conclusion": None, "created_at": iso(NOW - 60), "html_url": "x"}]
 
 
 def test_operations_say_the_canarys_success_rate_and_each_incident_with_its_run():
-    ops = pages_data.operations_json(lambda path: {"workflow_runs": runs()} if "/actions/workflows/canary.yml/runs" in path else [], NOW, OWN, {"source": {}, "generated": "g"})
+    asked = []
+
+    def get(path: str):
+        asked.append(path)
+        return {"workflow_runs": runs()} if path.startswith("repos/drexthealpha/knos-e2e/actions/workflows/knos-canary.yml/runs?") else []
+    ops = pages_data.operations_json(get, NOW, OWN, {"source": {}, "generated": "g"})
     c = ops["canary"]
+    # the runs are read where the canary is installed, under the name it is installed by: not the home repository's
+    assert (c["workflow"], c["repository"]) == ("knos-canary.yml", "drexthealpha/knos-e2e") and not [p for p in asked if "Knos/actions" in p]
     assert c["runs"] == 6 and c["last_30_days"]["runs"] == 3 and c["last_30_days"]["failed"] == 1 and c["last_30_days"]["success_rate"]["k"] == 2
     assert c["all_runs_read"]["runs"] == 4 and c["all_runs_read"]["success_rate"]["share"] == 0.75        # the cancelled and the running one are not counted
-    assert c["incidents"] == [{"at": iso(NOW - 7200), "conclusion": "failure", "run": "https://github.com/drexthealpha/Knos/actions/runs/2"}]
+    assert c["incidents"] == [{"at": iso(NOW - 7200), "conclusion": "failure", "run": "https://github.com/drexthealpha/knos-e2e/actions/runs/2"}]
     md = pages_data.render_operations_md(ops)
-    assert "actions/runs/2" in md and "75.0%" in md
+    assert "actions/runs/2" in md and "75.0%" in md and "the scheduled workflow `knos-canary.yml` of `drexthealpha/knos-e2e`" in md
+    # someone else's canary: another file in another repository, and a home repository that lists no such workflow is not asked
+    theirs = pages_data.operations_json(lambda path: {"workflow_runs": runs()[:1]} if path.startswith("repos/octo/e2e/actions/workflows/canary.yml/runs?") else [],
+                                        NOW, OWN, {"source": {}, "generated": "g"}, "canary.yml", "octo/e2e")
+    assert (theirs["canary"]["runs"], theirs["canary"]["workflow"], theirs["canary"]["repository"]) == (1, "canary.yml", "octo/e2e")
+    assert pages_data.operations_json(lambda path: (_ for _ in ()).throw(OSError("404")), NOW, OWN, {"source": {}, "generated": "g"})["canary"]["runs"] == 0
+
+
+def test_the_canary_is_read_where_the_example_and_the_site_say_it_runs():
+    """One canary, named in three places: the example a repository installs (its file name, and where Knos runs one),
+    the site's live view, and the page of operations."""
+    example = ROOT / "examples" / pages_data.CANARY
+    assert example.is_file() and pages_data.CANARY == "knos-canary.yml"
+    said = example.read_text(encoding="utf-8")
+    assert f"# .github/workflows/{pages_data.CANARY}:" in said and f"Knos runs one in {pages_data.CANARY_REPO}" in said
+    assert f'export const CANARY_REPO = "{pages_data.CANARY_REPO}";' in (ROOT / "web" / "live.js").read_text(encoding="utf-8")
+    assert pages_data.CANARY_REPO != pages_data.HOME_REPO and not (ROOT / ".github" / "workflows" / "canary.yml").exists()
 
 
 def test_the_time_to_a_first_answer_counts_outside_issues_only_and_those_still_waiting():
@@ -395,7 +418,7 @@ def test_the_time_to_a_first_answer_counts_outside_issues_only_and_those_still_w
 def test_with_no_data_the_operations_document_says_so_and_shows_nothing_invented():
     md = pages_data.render_operations_md(pages_data.operations_json(None, 0, OWN, {"source": {"summary": ""}, "generated": None}))
     assert "No measurement has been made yet" in md and "No runs to show." in md and "No outside issue or pull request to show." in md
-    assert not any(ch.isdigit() for ch in md.split("## How these are counted")[0].replace("30 minutes", "").replace("0.3", ""))
+    assert not any(ch.isdigit() for ch in md.split("## How these are counted")[0].replace("30 minutes", "").replace("0.3", "").replace(pages_data.CANARY_REPO, ""))      # the repository's name has a digit; no number is a measurement
     committed = (ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
     assert committed == md, "docs/OPERATIONS.md is the document for no data: run python scripts/pages_data.py --docs docs/OPERATIONS.md --empty --out <dir> with nothing measured"
 

@@ -1,0 +1,2 @@
+# Seeds are bytes, whatever they look like: some hold CR LF on purpose, and git must not rewrite them.
+seeds/** binary

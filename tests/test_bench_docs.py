@@ -7,6 +7,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -71,12 +73,12 @@ def test_a_number_without_a_fact_and_a_stale_fact_both_fail(tmp_path, monkeypatc
     # a number a document says under a fact: the document must go on saying it, and the fact must go on holding
     doc_facts = [f for f in facts if "doc" in f]
     assert doc_facts and all(not cc.unsaid(f, {p: {t for t, _l in cc.numbers(p)} for p in cc.docs_of(facts)}) for f in doc_facts)
-    one = next(f for f in doc_facts if isinstance(f["doc"], str) and len(f["say"]) == 1 and f["say"][0] == "4,310")
+    one = next(f for f in doc_facts if isinstance(f["doc"], str) and len(f["say"]) == 1 and f["say"][0] == "15.9")
     page = tmp_path / one["doc"]
-    page.write_text(page.read_text(encoding="utf-8").replace("4,310", "4,311"), encoding="utf-8")
+    page.write_text(page.read_text(encoding="utf-8").replace("15.9", "15.8"), encoding="utf-8")
     capsys.readouterr()
     assert cc.main(["--offline"]) == 1
-    assert "no longer says ['4,310']" in capsys.readouterr().out
+    assert "no longer says ['15.9']" in capsys.readouterr().out
 
 
 def test_every_slot_in_the_submission_is_one_the_script_knows_and_holds_no_digit():
@@ -152,12 +154,12 @@ def _tree(tmp_path: Path, bd, cc) -> None:
 def test_the_documents_a_judge_opens_can_carry_slots_and_this_tree_states_each_fact_once():
     bd = _script("bench_docs")
     assert {"README.md", "docs/DISCLOSURE.md", "docs/WHY.md", "docs/COMPARE.md"} <= set(bd.SLOTTED)
-    assert set(bd.FRAMES) <= set(bd.SLOTS) and bd.WHEN <= set(bd.SLOTS)
+    assert set(bd.FRAMES) <= set(bd.SLOTS)
     assert "web/index.html" in bd.public_text() and bd.disagreements() == []
     # the facts the reviews found in two or three versions are each stated, and each in more than one document
     told = bd.said()
     assert len({doc for files in told["seconds_from_merge_to_paid"].values() for doc in files}) >= 4
-    assert len({doc for files in told["upgrade_proposed"].values() for doc in files}) >= 3
+    assert len({doc for files in told["payments_between_unrelated_accounts"].values() for doc in files}) >= 2
 
 
 def test_one_fact_has_one_value_across_every_document_and_the_site(tmp_path, capsys):
@@ -180,7 +182,10 @@ def test_one_fact_has_one_value_across_every_document_and_the_site(tmp_path, cap
     # the release fills the slots: every document then says the number docs/bench.json keeps
     why.write_text(kept[why] + "\nThe median from merge to payment is\n[[stat: seconds_from_merge_to_paid]] seconds.\n", encoding="utf-8")
     stats = tmp_path / "stats.json"
-    stats.write_text(json.dumps({"updated": "2026-10-05 10:00 UTC", "latency": {"merge_to_paid": {"count": 31, "median": 19, "p90": 44}}}), encoding="utf-8")
+    # (the stats keep the count the documents already state: a new reading with another count is two values, as it should be)
+    paid = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["devnet"]["stats"]["by_deployment"]
+    stats.write_text(json.dumps({"updated": "2026-10-05 10:00 UTC", "by_deployment": paid,
+                                 "latency": {"merge_to_paid": {"count": 31, "median": 19, "p90": 44}}}), encoding="utf-8")
     bd.fill(str(stats), root=tmp_path)
     assert bd.main(root=tmp_path) == 0                                                   # the generated blocks, written again
     assert "took 19 seconds" in readme.read_text(encoding="utf-8") and "is\n19 seconds" in why.read_text(encoding="utf-8")
@@ -204,39 +209,20 @@ def test_one_fact_has_one_value_across_every_document_and_the_site(tmp_path, cap
     assert bd.main(check=True, root=tmp_path) == 1 and "another fact's slot" in capsys.readouterr().out
 
 
-def test_the_upgrade_is_one_time_and_the_moment_it_can_execute_is_48_hours_later_everywhere(tmp_path, monkeypatch, capsys):
+def test_no_slot_is_a_time_so_the_one_commit_is_complete_before_the_push(tmp_path, capsys):
+    """When an upgrade was proposed and from when it can execute exist only after the push. They were slots once, and
+    the release could not fill them; now a document that carries such a slot names one this script does not know, and a
+    time is refused as a slot's value (tests/test_doc_claims.py holds the documents to the upgrade record instead)."""
     bd, cc = _script("bench_docs"), _script("claims_check")
+    assert not [name for name in bd.SLOTS if "upgrade" in name]
     _tree(tmp_path, bd, cc)
-    _unfill(tmp_path, bd, ("upgrade_proposed", "upgrade_executable"))
-    readme, sec = tmp_path / "README.md", tmp_path / "docs" / "SECURITY.md"
-    line = "\nThe upgrade was proposed on [[stat: upgrade_proposed]] and can execute from [[stat: upgrade_executable]].\n"
-    for doc in (readme, sec):
-        doc.write_text(doc.read_text(encoding="utf-8") + line, encoding="utf-8")
-    for bad in ({"upgrade_executable": ("2026-10-07 14:05 UTC", "by hand")}, {"upgrade_proposed": ("5 October", "by hand")},
-                {"upgrade_proposed": (20261005, "by hand")}):
-        try:
+    readme = tmp_path / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8") + "\nThe upgrade can execute from [[stat: upgrade_executable]].\n", encoding="utf-8")
+    assert bd.main(check=True, root=tmp_path) == 1 and "slots this script does not know" in capsys.readouterr().out
+    for bad in ({"upgrade_proposed": ("2026-10-05 14:05 UTC", "by hand")}, {"days_of_shipping": ("2026-10-05 14:05 UTC", "by hand")}):
+        with pytest.raises(SystemExit) as why:
             bd.fill(given=bad, root=tmp_path)
-        except SystemExit as why:
-            assert "upgrade_" in str(why)
-        else:
-            raise AssertionError(bad)
-    assert line in readme.read_text(encoding="utf-8")                                    # nothing was filled
-    assert bd.fill(given={"upgrade_proposed": ("2026-10-05 14:05 UTC", "governance.mjs upgrade propose, proposals 3 and 4")}, root=tmp_path) == []
-    said = "The upgrade was proposed on 2026-10-05 14:05 UTC and can execute from 2026-10-07 14:05 UTC."
-    assert said in readme.read_text(encoding="utf-8") and said in sec.read_text(encoding="utf-8")
-    bench = json.loads((tmp_path / "docs" / "bench.json").read_text(encoding="utf-8"))["release"]
-    assert bench["upgrade_proposed"]["value"] == "2026-10-05 14:05 UTC" and bench["upgrade_executable"]["value"] == "2026-10-07 14:05 UTC"
-    assert bd.main(check=True, root=tmp_path) == 0, capsys.readouterr().out
-    # the pitch-facing text is held to both times: they are not numbers without a fact, and a time nobody says is a stale fact
-    monkeypatch.setattr(cc, "ROOT", tmp_path)
-    assert cc.main(["--offline"]) == 0, capsys.readouterr().out
-    readme.write_text(readme.read_text(encoding="utf-8").replace("2026-10-07 14:05 UTC", "2026-10-07 15:05 UTC"), encoding="utf-8")
-    capsys.readouterr()
-    assert bd.main(check=True, root=tmp_path) == 1 and "upgrade_executable has 2 values" in capsys.readouterr().out
-    sec.write_text(sec.read_text(encoding="utf-8").replace("2026-10-07 14:05 UTC", "2026-10-07 15:05 UTC"), encoding="utf-8")
-    assert bd.main(check=True, root=tmp_path) == 1
-    assert "upgrade_executable is 2026-10-07 14:05 UTC in docs/bench.json and 2026-10-07 15:05 UTC in README.md, docs/SECURITY.md" in capsys.readouterr().out
-    assert cc.main(["--offline"]) == 1 and "nothing says '2026-10-07 14:05 UTC' any more" in capsys.readouterr().out
+        assert "not a slot this script knows" in str(why.value) or "not a number" in str(why.value)
 
 
 def test_the_one_sentence_and_its_long_form_are_on_the_first_screen_of_the_readme_and_of_the_site():

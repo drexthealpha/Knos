@@ -80,3 +80,28 @@ def test_null_store_learns_nothing():
     s = history.NullStore()
     history.learn_tamper(s, "widget", "codex", "deleted-tests", "x")
     assert history.tamper_checks_required(s, "widget", "codex") == set()
+
+
+@pytest.mark.parametrize("client", ["cursor", "gemini", "hermes", "goose-unconfirmed", "windsurf-unconfirmed"])
+def test_a_tamper_sibyl_kept_is_in_each_hosts_answer_and_not_in_it_once_the_record_is_changed(client, store, tmp_path, monkeypatch):
+    """Through the hosts' own events: a tamper caught here once makes its check part of every later "done", and an
+    unanswered tamper check fails closed, so the host is told "not done yet" for it. With the record gone (no Sibyl),
+    or changed so the rule belongs to another repository, the same event gets no answer; put back, it does."""
+    pytest.importorskip("sibyl_memory_client")            # the hook reads Sibyl's journal too, which the stand-in has not
+    from _host_events import deliver, reason
+    client = client.split("-")[0]
+    repo = tmp_path / "widget"
+    (repo / ".git").mkdir(parents=True)
+    monkeypatch.chdir(repo)
+    green = {n: (lambda r, c, cfg, n=n: engine.checks.Result(n, True, n, {})) for n in ("tests", "ci", "pypi", "author")}
+    said = "Done: tests pass"
+    assert deliver(client, repo, said, store, green, "-a") == ("", 0)
+    history.learn_tamper(store, repo, "codex", "forged-report", "junit.xml written by hand")
+    assert deliver(client, repo, said, history.NullStore(), green, "-b") == ("", 0)
+    for name, rule in store.rows("proof_rule"):            # someone rewrites the rule to name another repository
+        if rule.get("scope") == "repo":
+            store.put("proof_rule", name, {**rule, "repo": "elsewhere"})
+    assert deliver(client, repo, said, store, green, "-c") == ("", 0)
+    history.learn_tamper(store, repo, "codex", "forged-report", "junit.xml written by hand")    # the record as it was
+    why = reason(client, deliver(client, repo, said, store, green, "-d")[0])
+    assert "tamper:forged-report" in why and "Knos could not prove" in why

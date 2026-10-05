@@ -6,6 +6,35 @@ page says what existed before that moment, what of it is still in the repository
 what came from elsewhere. The repository's git history shows all of it, and the commands at the end reproduce
 every count.
 
+## What existed before the competition and what was built during it
+
+The short form, by date. Times are UTC and are the commits' own (`git log`); a release's date is its release
+commit's. The sections after this one give the detail and the line counts.
+
+| when (UTC) | what | before or during |
+|---|---|---|
+| 1 Sep 2026 | the public repository's first commit | before |
+| 1 to 7 Sep 2026 | Knos 0.1.0 to 0.1.8: shared local memory for coding agents, a different product | before |
+| 7 to 12 Sep 2026 | more work on that product, never released | before |
+| 13 Sep 2026 | two experiments begun outside this repository; none of their code is here | before |
+| **14 Sep 2026, 13:00** | **the contest period begins** | |
+| 14 to 29 Sep 2026 | automatic evidence commits, and 3 by hand for Knos 0.1; the two experiments ran until 28 Sep | during |
+| 30 Sep 2026, 03:07 | Knos 0.2.0 (commit `54ce98a`), then 0.2.1 at 03:43 and 0.3.0 at 19:19 | during |
+| 1 Oct 2026 | Knos 0.3.1 (08:57), 0.3.2 (09:55), 0.3.3 (12:06), 0.3.4 (15:12), then 0.3.5 to 0.3.7 | during |
+| 2 Oct 2026 | Knos 0.3.9 (04:56), 0.3.10 (09:51: the first deployment on devnet), 0.3.11 (14:10, commit `f3dfd3d`) | during |
+| 3 Oct 2026 | three pull requests by another account merged; Knos 0.3.12 (16:13: the second deployment) | during |
+| 4 Oct 2026 | Knos 0.3.13 (09:02), Knos 0.3.14 (21:46, commit `6eb81dd`) | during |
+| after 4 Oct 2026 | Knos 0.3.15: clients, workflows, site, documents and tests; no program changed | during |
+
+**Everything the product is today was built during the contest period.** What predates it is a different product,
+of which 1.1% of the lines at Knos 0.3.11 remain (the table below says which).
+
+To list the releases with their times from a full clone:
+
+```
+TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep ' Knos 0\.'
+```
+
 ## What existed before the hackathon
 
 The public repository's history starts on 1 Sep 2026. Of its 209 commits up to Knos 0.3.11 (commit `f3dfd3d`,
@@ -92,6 +121,10 @@ One dependency also carries over: Sibyl's memory client, which the judge and the
   by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
   [GOVERNANCE.md](GOVERNANCE.md).
 
+- **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
+  [CHANGELOG.md](../CHANGELOG.md) has the list. The offer of a paid [Pilot](PILOT.md) and the page on who builds
+  Knos ([TEAM.md](TEAM.md)) were written for it.
+
 In commits: 18 between the start of the hackathon and 29 Sep, and 108 from 30 Sep to Knos 0.3.11.
 
 The story in one line: we measured how often an agent's "tests pass" is false (in 17.8% of repositories, on the
@@ -111,12 +144,6 @@ that fixes it. The commit history shows those turns.
   days and then returning it to the funder; reserving an issue by comment for 7 days; paying a person when a bot
   account opened the pull request; and a waiting time before a new signing key is active. No code was copied; the
   programs here are written for Solana from scratch.
-- **Written feedback from readers of the repository.** Several things were built because people who read earlier
-  releases asked for them: the price book, the meter, the work order and its terms, the passkey wallet, attestation
-  by the seller, the single-use rule for every token, the statement of invariants and of governance, and the
-  documents [MARKET.md](MARKET.md), [REGULATION.md](REGULATION.md) and [CONTROLS.md](CONTROLS.md). The arithmetic
-  of what 1 billion USD a year would require comes from one such reader. None of that feedback is a security
-  review, none of those readers wrote code here, and none of them is a customer, an adviser or a member of a team.
 - **Three pull requests by another GitHub account.** `jaystay-bot` wrote pull requests #32, #33 and #34 for
   bounties Knos funded on this repository on 2 Oct 2026: what `knos_bounties` says about each bounty, a
   repository's own record on the site, and a Ruby runner for the judge. That code is in the tree from 0.3.12, in
@@ -146,6 +173,7 @@ Code cannot produce any of these, and none of them exists today. Each line is th
   founder's reasoning from public sources ([MARKET.md](MARKET.md)).
 - **No letter of intent.** Nobody has written that they would use or buy Knos.
 - **No paying customer.** Nobody has paid for anything. No price in the price book has been charged to anyone.
+- **No pilot.** The [Pilot](PILOT.md) is an offer. Nobody has bought it and nobody has been offered it.
 - **No outside funder.** Knos's own account funded every task on both deployments, in test money. Up to Knos
   0.3.11 every payment was Knos's own account paying itself. Since then 3 payments have gone to another GitHub
   account, for the three pull requests named above. The site's Numbers page counts outside use apart from Knos's
@@ -153,9 +181,10 @@ Code cannot produce any of these, and none of them exists today. Each line is th
 - **No outside signer.** Both multisigs are 2-of-3 and one person holds all three keys. Nobody has agreed to hold
   one ([GOVERNANCE.md](GOVERNANCE.md)).
 - **One founder, pseudonymous.** Knos is one person, known publicly only as the GitHub account drexthealpha. No
-  legal name is published. There is no team, no co-founder, no employee, no adviser.
-- **No legal entity.** No company exists. Nothing can sign a contract, hold a licence, be invoiced or be sued as
-  Knos. There are no terms of service, no service-level agreement and no data-processing agreement.
+  legal name is published. There is no team, no co-founder, no employee, no adviser. [TEAM.md](TEAM.md) describes
+  three roles the plan needs; nobody has been hired, approached or committed for any of them.
+- **No legal entity.** No company exists. Nothing can sign a contract, hold a licence, send an invoice, be
+  invoiced or be sued as Knos. There are no terms of service, no service-level agreement and no data-processing agreement.
 - **No legal review.** [REGULATION.md](REGULATION.md) says what the founder read. No lawyer has been asked anything.
 - **No outside security review, of anything.** Not the programs, the workflows, the relay, the clients, the site
   or the documents. No security firm has been engaged or asked for a quote. The defect fixed in 0.3.14 was found

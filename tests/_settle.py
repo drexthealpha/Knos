@@ -34,10 +34,10 @@ class SeedKey:
     (pins.rs TEST_GENESIS). Signs PKCS#1 v1.5 SHA-256 in plain Python."""
     DIGEST_INFO = bytes.fromhex("3031300d060960864801650304020105000420")
 
-    def __init__(self, bits: int):
+    def __init__(self, bits: int, seed: str | None = None):
         import math
         import random
-        rng = random.Random(f"knos-oidc test key {bits}")
+        rng = random.Random(seed or f"knos-oidc test key {bits}")
         count = 2 if bits == 2048 else 4
         size = bits // count
 
@@ -67,6 +67,8 @@ class SeedKey:
                 primes.append(c)
         self.bits, self.n, self.primes = bits, math.prod(primes), tuple(primes)
         self.d = pow(65537, -1, math.lcm(*(p - 1 for p in primes)))
+        # for `sign`: the exponent and the recombining factor of each prime (the Chinese remainder theorem)
+        self._crt = tuple((p, self.d % (p - 1), self.n // p * pow(self.n // p, -1, p)) for p in primes)
         assert self.n.bit_length() == bits
 
     def public_key(self):
@@ -78,7 +80,10 @@ class SeedKey:
         k = self.bits // 8
         t = self.DIGEST_INFO + hashlib.sha256(data).digest()
         em = b"\x00\x01" + b"\xff" * (k - len(t) - 3) + b"\x00" + t
-        return pow(int.from_bytes(em, "big"), self.d, self.n).to_bytes(k, "big")
+        # em ** d mod n, one prime at a time: the same number as pow(em, d, n), several times sooner, and every token
+        # of the suite is signed here (the program, and a reference library in tests/test_oidc2_chain.py, verify them)
+        m = int.from_bytes(em, "big")
+        return (sum(pow(m % p, dp, p) * back for p, dp, back in self._crt) % self.n).to_bytes(k, "big")
 
 
 _KEYS: dict[int, SeedKey] = {}

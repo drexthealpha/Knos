@@ -138,6 +138,7 @@ class Run:
         self._chain_time: tuple[int, float] | None = None
         self._reader, self._salt = reader, salt
         self.attestor, self.only = False, ""     # `--attestor`, `--target owner/name`: this run is an attestor's (for that one repository)
+        self.judged_at = ""                      # `knos attest` after a re-execution: the commit whose acceptance checks were run
         self.att = None                          # on the Run an attestor reads a target with (`reads`): the attestor
         self.private = False                     # that Run's words are about a private repository: none goes to this job's log
         self._hidden: dict[str, tuple[bytes, bytes]] = {}    # a private order's address -> (its salt, its terms JSON), from its issue
@@ -908,7 +909,7 @@ def _timing(run: Run, c: Case, pull: dict, tests: bool) -> None:
         return
     if c.terms:
         try:    # the commit the judge job checked out as the base: this run's own (GITHUB_SHA), on the default branch
-            ref = str(run.env.get("GITHUB_SHA") or _repo(run)["branch"])
+            ref = str(run.judged_at or run.env.get("GITHUB_SHA") or _repo(run)["branch"])
             have, files = _bundle(run, ref, c.issue)
             fooled = _not_black_box(run, ref, files) if c.terms["mode"] == "tests" and have == c.terms["accept"] else ""
         except terms.Refused as why:
@@ -2673,7 +2674,197 @@ def _attest_eval(run: Run, order: str, pull: int | None, no) -> int:
     return _attest_sign(run, "eval", aud, said, "", number, None, no)
 
 
-def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str = "") -> int:
+# ---- knos attest, re-executed: the acceptance suite run again in the attester's own repository ---------------------------
+# GitHub signs WHICH workflow ran, not what it read. For an order paid by its acceptance checks (tests mode: a black-box
+# bundle whose hash is in the terms) attest.yml therefore does not take anyone's word that the suite passed: its first
+# job, which can ask for no token, fetches the two commits from the order's repository and runs the suite itself, and
+# hands the job that signs one small JSON verdict. That job checks out nothing and runs none of that code; it reads the
+# verdict as untrusted text (`_rerun_read`), holds it to the order, the pull request, the commit and the terms it reads
+# again itself, and signs only then. An order paid on the merge has no suite to run: the verdict then says so.
+
+RERUN_ENV = "KNOS_RERUN"                # the token job's: the verdict the re-execution job handed it (needs.rerun.outputs.verdict)
+VERDICT = "knos-verdict: "              # the line the verdict travels in, in a comment on the "knos tokens" issue
+NOT_RERUN = "this judge read the buyer repository's check results; it did not run them"
+RERUN_MEANS = ("this judge fetched the two commits and ran the acceptance suite itself, in the repository the run was in; every other "
+               "check the terms name was read from GitHub's record")
+_HEX40, _HEX64 = r"[0-9a-f]{40}", r"[0-9a-f]{64}"
+_RERUN_KEYS = {"v": int, "reexecuted": bool, "passed": bool, "sentence": str, "order": str, "repository": str, "pull": int, "issue": int,
+               "head": str, "base": str, "accept": str, "assurance": str, "image": dict, "artifact": dict, "environment": dict,
+               "reasons": list}
+_ENVIRONMENT = ("GITHUB_REPOSITORY", "GITHUB_REPOSITORY_ID", "GITHUB_REPOSITORY_OWNER_ID", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
+                "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA", "RUNNER_OS", "RUNNER_ARCH", "RUNNER_ENVIRONMENT", "ImageOS", "ImageVersion")
+
+
+def _environment(env) -> dict:
+    """Where a verdict was reached, as the runner itself says it: the repository and run, the machine's kind and image.
+    It is the run's own word (the signed token says the repository and the hosted runner; nothing signs the rest)."""
+    from . import version
+    return {"knos": version(), **{k.lower(): _plain(env.get(k))[:120] for k in _ENVIRONMENT if env.get(k)}}
+
+
+def _rerun_plan(run: Run, address, o, pull: dict, c: Case) -> dict | None:
+    """What the re-execution job fetches and runs for a merged pull request of an order paid by its acceptance checks:
+    {"order", "repository", "pull", "issue", "head" (the commit that was merged), "base" (the commit it was merged
+    onto: the merge commit's first parent), "accept" (the bundle's hash, from the terms), "image" (the terms', or "")}.
+    None for an order paid on the merge: there is no suite to run. Raises OSError when GitHub does not name the base."""
+    if not c.terms or c.terms["mode"] != "tests" or o.mode != pay.TESTS:
+        return None
+    merge = str(pull.get("merge_commit_sha") or "")
+    parents = (_read(run, f"repos/{run.repo}/commits/{merge}") or {}).get("parents") if merge else None
+    base = str((parents[0] or {}).get("sha") if isinstance(parents, list) and parents and isinstance(parents[0], dict)
+               else (pull.get("base") or {}).get("sha") or "")
+    head = str((pull.get("head") or {}).get("sha") or "")
+    if not re.fullmatch(_HEX40, base) or not re.fullmatch(_HEX40, head):
+        raise OSError("GitHub did not name the commit the pull request was merged onto")
+    return {"order": str(address), "repository": run.repo, "pull": int(pull["number"]), "issue": int(o.issue), "head": head, "base": base,
+            "accept": str(c.terms["accept"]), "image": str(c.terms.get("image") or "")}
+
+
+def _rerun_verdict(plan: dict | None, env, judged: dict | None = None, why: str = "") -> dict:
+    """The verdict of one neutral run, as it is written to verdict.json, handed to the job that signs and posted. With no
+    `plan` (an order paid on the merge) nothing was run, and it says so. `judged`: knos.judge.judge's verdict."""
+    if plan is None:
+        return {"v": 1, "reexecuted": False, "sentence": NOT_RERUN, "environment": _environment(env)}
+    ev = (judged or {}).get("evidence") or {}
+    image = ev.get("image") if isinstance(ev.get("image"), dict) else {}
+    reasons = [why] if why else [_short(r)[:200] for r in (judged or {}).get("reasons") or []][:6]
+    return {"v": 1, "reexecuted": True, "passed": bool(judged and judged.get("passed") and not reasons), "sentence": RERUN_MEANS,
+            **{k: plan[k] for k in ("order", "repository", "pull", "issue", "head", "base", "accept")},
+            "assurance": str((judged or {}).get("assurance") or ""),
+            "image": {"ref": str(image.get("ref") or ""), "digest": str(image.get("digest") or "")} if image else {},
+            "artifact": {k: str(v) for k, v in (ev.get("artifact") or {}).items() if k in ("base", "pr")},
+            "environment": _environment(env), "reasons": reasons}
+
+
+def _rerun_read(text: str) -> dict | str:
+    """The verdict the re-execution job handed over, read as what it is: text from a job that ran a stranger's code.
+    Returns it only when it is one small JSON object of exactly the fields `_rerun_verdict` writes, each of its type and
+    shape; else one sentence saying what is wrong. Whether it is about THIS order is the caller's to check."""
+    if len(text) > 8192:
+        return "the re-execution's verdict is larger than a verdict is"
+    try:
+        v = json.loads(text)
+    except ValueError:
+        return "the re-execution's verdict is not JSON"
+    if not isinstance(v, dict) or v.get("v") != 1 or not isinstance(v.get("reexecuted"), bool):
+        return "the re-execution's verdict is not in a form this version reads"
+    want = _RERUN_KEYS if v["reexecuted"] else {k: _RERUN_KEYS.get(k, dict) for k in ("v", "reexecuted", "sentence", "environment")}
+    shapes = {"head": _HEX40, "base": _HEX40, "accept": _HEX64, "assurance": r"black-box|hermetic|in-process|", "repository": r"[\w.-]+/[\w.-]+",
+              "order": r"[1-9A-HJ-NP-Za-km-z]{32,44}"}
+    flat = lambda d, most: len(d) <= most and all(isinstance(k, str) and isinstance(x, str) and len(x) <= 200 for k, x in d.items())  # noqa: E731
+    if set(v) != set(want) or any(type(v[k]) is not t for k, t in want.items()) \
+            or any(k in v and not re.fullmatch(shape, v[k]) for k, shape in shapes.items()) \
+            or not flat(v["environment"], 16) or (v["reexecuted"] and not (
+                flat(v["image"], 2) and flat(v["artifact"], 2) and len(v["reasons"]) <= 6 and all(isinstance(r, str) and len(r) <= 200 for r in v["reasons"]))):
+        return "the re-execution's verdict does not have the fields a verdict has"
+    return v
+
+
+def _rerun_holds(v: dict, plan: dict) -> str:
+    """Why a verdict that was re-executed does not carry this payment; "" when it does: it is about this order, this
+    pull request and these two commits, on the bundle the terms were funded with, in the image they name, and it passed."""
+    for k in ("order", "repository", "pull", "issue", "head", "base", "accept"):
+        if v[k] != plan[k]:
+            return f"the re-execution was of another {k} (`{_plain(v[k])}`) than this payment's (`{plan[k]}`)"
+    if not v["passed"]:
+        return ("the acceptance suite did not pass when it was run again here" + (": " + "; ".join(_plain(r) for r in v["reasons"]) if v["reasons"] else "")
+                + ". Whatever the check results in the order's repository say, this judge signs only what it ran itself")
+    if set(v["artifact"]) != {"base", "pr"}:
+        return "the re-execution does not say which two trees it judged"
+    if plan["image"]:
+        if v["assurance"] != "hermetic" or v["image"].get("ref") != plan["image"] or v["image"].get("digest") != plan["image"].rsplit("@", 1)[-1]:
+            return f"the terms name the image `{plan['image']}`, and the re-execution did not run the suite in it"
+    elif v["assurance"] != "black-box":
+        return "the re-execution did not run the pull request's code black-box"
+    return ""
+
+
+def _rerun_judge(plan: dict, folder: Path, env, judge_fn=None, sandbox: str = "require") -> dict:
+    """Run the pinned acceptance suite on `folder`/base and `folder`/pr (plain files of the plan's two commits) and
+    return the verdict. The bundle is the base's and must hash to what the terms were funded with; the image is the
+    terms'. The pull request's code runs where the judge always runs it: the sandbox (required), or a container of the
+    image. Nothing here holds a secret or can ask for a token."""
+    from . import judge
+    base, pr = Path(folder) / "base", Path(folder) / "pr"
+    try:
+        have = judge.checks_hash(base / ".knos" / "acceptance" / str(plan["issue"]))
+    except (OSError, ValueError):
+        have = ""
+    if have != plan["accept"]:
+        return _rerun_verdict(plan, env, why=f"the acceptance checks in .knos/acceptance/{plan['issue']}/ at the base commit are not the ones this order was funded with")
+    try:
+        text = (base / ".knos" / "proof.toml").read_text(encoding="utf-8")
+    except OSError:
+        text = None
+    cfg = {**judge.proof_config(text), "issue": str(plan["issue"])}
+    if plan["image"]:
+        cfg["image"] = plan["image"]            # the image that was funded, whatever proof.toml says at this commit
+    try:
+        judged = (judge_fn or judge.judge)(base, pr, cfg, sandbox=sandbox)
+    except Exception as why:  # noqa: BLE001 - a judge that could not run is a suite that did not pass here
+        return _rerun_verdict(plan, env, why=f"the judge could not run here ({type(why).__name__}: {_short(why)})"[:200])
+    return _rerun_verdict(plan, env, judged)
+
+
+def _rerun_job(run: Run, plan: dict | None, folder: str, judging: bool, judge_fn=None) -> int:
+    """The re-execution job's two steps. `--plan DIR`: write DIR/plan.json and say what to fetch (outputs `rerun`, `base`,
+    `head`); for an order with no suite to run, write the verdict that says so. `--judge DIR`: run the suite on
+    DIR/base and DIR/pr as DIR/plan.json has it, write DIR/verdict.json, and end 1 unless it passed. Either way the
+    verdict is the job's output `verdict`, one line of JSON."""
+    where = Path(folder)
+    where.mkdir(parents=True, exist_ok=True)
+    if judging:
+        try:
+            plan = json.loads((where / "plan.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            plan = None
+        if not isinstance(plan, dict):
+            run.note("Knos attest: there is no plan to re-execute here: the step before this one writes it.")
+            return 1
+    v = _rerun_judge(plan, where, run.env, judge_fn) if judging else _rerun_verdict(plan, run.env) if plan is None else None
+    if v is None:
+        (where / "plan.json").write_text(json.dumps(plan, sort_keys=True), encoding="utf-8")
+        for k in ("base", "head"):
+            run.output(k, plan[k])
+        run.output("rerun", "1")
+        run.note(f"Knos attest: this order is paid by its acceptance checks, so they are run again here: `.knos/acceptance/{plan['issue']}/` as funded, on "
+                 f"commit `{plan['head'][:7]}` of {plan['repository']} against `{plan['base'][:7]}`" + (f", in `{plan['image']}`." if plan["image"] else "."))
+        return 0
+    line = json.dumps(v, sort_keys=True, separators=(",", ":"))
+    (where / "verdict.json").write_text(json.dumps(v, sort_keys=True, indent=1), encoding="utf-8")
+    run.output("verdict", line)
+    if not judging:
+        run.output("rerun", "")
+        run.note(f"Knos attest: nothing is re-executed for this order: {NOT_RERUN}.")
+        return 0
+    run.note(f"Knos attest: the acceptance suite was run again here and {'passed' if v['passed'] else 'did not pass'} ({v['assurance'] or 'not run'}"
+             + (f", image digest `{v['image'].get('digest')}`" if v["image"] else "") + ")."
+             + "".join(f"\n- {_plain(r)}" for r in v["reasons"]) + ("" if v["passed"] else "\n\nNothing is signed: the job that asks GitHub for the token does not start."))
+    return 0 if v["passed"] else 1
+
+
+def _rerun_said(run: Run, v: dict | None, refused: str = "") -> None:
+    """Post a verdict where the token is posted: one comment on the "knos tokens" issue of the repository the run is in.
+    `refused`: why nothing was signed on it, said after the verdict (attest.yml's job `refused` posts a suite that did
+    not pass here this way). It is a record, not a condition: when it cannot be posted the run's page still has it,
+    and says so."""
+    if v is None:
+        return
+    line = json.dumps(v, sort_keys=True, separators=(",", ":"))
+    run.output("verdict", line)
+    here = str(run.env.get("GITHUB_REPOSITORY") or "")
+    if here.count("/") != 1:
+        return
+    why = f"\n\nNothing was signed: {' '.join(refused.split()).rstrip('.')}." if refused else ""     # its untrusted parts are _plain already
+    try:
+        run.github(f"repos/{here}/issues/{_tokens_issue(run.github, here)}/comments",
+                   {"body": f"{VERDICT}{line}\n\nHow this run reached its verdict: {v['sentence']}.{why}"})
+    except Exception as why:  # noqa: BLE001
+        run.note(f"Knos attest: the verdict could not be posted on the \"{TOKENS}\" issue of {here} ({_short(why)}). It is this job's output `verdict`.")
+
+
+def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str = "", plan: str = "", judge: str = "",
+           judge_fn=None) -> int:
     """`knos attest --repository R --pull P --order O --kind pay|take|revert|rule|eval [--payees ...]`: what attest.yml runs,
     in ANY repository. `run.repo` is R, the repository the work order is for, and nothing is read of it but GitHub's
     public record: the pull request and its merge, each required check of the order's terms at its last commit, the
@@ -2693,13 +2884,24 @@ def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str
     relayer finds it: a comment on the issue titled "knos tokens" of the repository the run is in (GITHUB_REPOSITORY;
     the issue is made the first time, so the job's token needs `issues: write` there), with the word Knos's public
     relay searches for; the relay's verdict is waited for, and the comment's link is the job's output `comment`. The
-    token itself is always the output `token`."""
+    token itself is always the output `token`.
+
+    HOW A PAYMENT'S VERDICT IS REACHED (kind pay). For an order paid on the merge, from GitHub's record: the conclusions
+    of the checks its terms name, at the merged commit. For an order paid by its acceptance checks (tests mode), never
+    from anyone's record of the suite: attest.yml's first job, which has no token permission, runs the suite itself
+    (`plan`, then `judge`: `_rerun_job`) and hands this command its verdict in KNOS_RERUN; this command reads the
+    order, the pull request and the bundle again and signs only for a verdict that passed on exactly those. The
+    verdict (`reexecuted` true or false, and where it ran) is posted beside the token and is the output `verdict`."""
     def no(why: str, found: str = "") -> int:
         run.note(f"Knos attest: nothing was signed. {why}" + (f"\n\nWhat was found:{found}" if found else ""))
         return 1
     actor = {"id": int(run.env.get("GITHUB_ACTOR_ID") or 0), "login": str(run.env.get("GITHUB_ACTOR") or ""), "type": "User"}
     if kind not in KINDS:
         return no(f"`--kind` is one of {', '.join(KINDS)}.")
+    if (plan or judge) and kind != "pay":       # only a payment has a suite to run again: the job that signs decides the rest
+        return _rerun_job(run, None, plan, False)
+    if judge:
+        return _rerun_job(run, None, judge, True, judge_fn)
     if kind == "eval":
         return _attest_eval(run, order, pull, no)
     if kind in ("batch", "claim"):      # knos_meter's batch mode: one batch of a ledger file in the repository (knos.ledger.attest_batch)
@@ -2766,18 +2968,38 @@ def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str
                 c.why.append(f"pull request #{number} does not close issue #{o.issue} (its description would say `Fixes #{o.issue}`)")
             if o.state != "open":
                 c.why.append("the order is not open: it has paid already, or is held for its payee")
-            if _by_tests(c) and not own:
-                c.why.append("this order is paid by its acceptance checks, which only its own repository's workflow runs")
-            _decide(run, rp, pull_, [c], listed)
+            try:
+                todo = _rerun_plan(run, address, o, pull_, c)
+            except OSError as why:
+                return no(f"{_short(why)}. Run the workflow again.")
+            if plan:
+                return _rerun_job(run, todo, plan, False)
+            verdict, refused = _rerun_verdict(None, run.env), ""
+            if todo is not None:       # paid by its acceptance checks: only on a verdict this run's own first job reached by running them
+                verdict = _rerun_read(str(run.env.get(RERUN_ENV) or "")) if run.env.get(RERUN_ENV) else (
+                    "this order is paid by its acceptance checks, and they were not run again here: attest.yml's first job does that")
+                if isinstance(verdict, dict) and not verdict["reexecuted"]:
+                    verdict = "this order is paid by its acceptance checks, and the verdict handed to this job says they were not run"
+                refused = verdict if isinstance(verdict, str) else _rerun_holds(verdict, todo)
+                if refused:
+                    c.why.append(refused)
+                    verdict = verdict if isinstance(verdict, dict) else None
+                run.judged_at = todo["base"]
+            _decide(run, rp, pull_, [c], listed, tests=todo is not None)
             found = (f"\n- pull request #{number} by @{(pull_.get('user') or {}).get('login')}, merged on {who.when(who._ts(pull_.get('merged_at')) or 0)} "
                      f"at commit `{head[:7]}`" + _rows(c) + _pays(c, "pays").replace("\nIt pays", "\n- it pays"))
+            found += f"\n- how this verdict was reached: {(verdict or {}).get('sentence') or 'the acceptance suite was not run again here'}"
             if c.verdict() != "yes":
+                _rerun_said(run, verdict, refused)
                 return no(f"Pull request #{number} does not take {what} as GitHub's record stands"
                           + (", or something could not be read: run the workflow again." if c.verdict() in ("unread", "wait") else "."), found)
             aud = _order_audience(pull_, c, c.where.get("address") if c.where.get("from") == "comment" else None)
             if payees.strip() and payees.strip() != aud.split(":")[-1]:
                 return no(f"`--payees {_plain(payees.strip())}` is not who GitHub's record says is paid ({aud.split(':')[-1]}). Leave it empty.", found)
             said = f"pull request #{number} takes {what}: it pays {', '.join('@' + str(x[3]) for x in c.payees)}"
+            code = _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no)
+            _rerun_said(run, verdict)       # after the token, so that a relayer's first comment on the issue is the token's
+            return code
     return _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no)
 
 
@@ -2843,7 +3065,8 @@ def _reverted(run: Run, rp: dict, pull: dict, address, o) -> tuple[str, str]:
 def neutral(run: Run, url: str) -> int:
     """`knos settle --neutral <pull request URL>`, on the seller's own machine: for each NEUTRAL work order the merged
     pull request could take, start `knos attest` (kind pay) in the seller's own repository `knos-attest` through the
-    GitHub CLI. That run, not this command, decides and signs."""
+    GitHub CLI. That run, not this command, decides and signs: from GitHub's record for an order paid on the merge, and
+    from its own run of the acceptance checks for an order paid by them (`_rerun_job`)."""
     number = int(url.rstrip("/").rsplit("/", 1)[-1])
     rp, pull = _repo(run), _pull(run, number)
     if rp is None or pull is None:
@@ -2868,8 +3091,11 @@ def neutral(run: Run, url: str) -> int:
         for c in mine:
             run.gh("workflow", "run", "knos-attest.yml", "--repo", here, "-f", f"repository={run.repo}", "-f", f"pull={number}",
                    "-f", f"order={c.jobs[0][0]}", "-f", "kind=pay")
-            print(f"Started `knos attest` in {here} for {_what(run, c)} of {run.repo}, order {c.jobs[0][0]}. It reads GitHub's public "
-                  f"record of pull request #{number} and asks GitHub to sign; its page says what it found: https://github.com/{here}/actions")
+            how = (f"This order is paid by its acceptance checks, so the run does not take {run.repo}'s word for them: it fetches the two "
+                   f"commits of pull request #{number}, runs the checks again in {here}, and asks GitHub to sign only if they pass"
+                   if _by_tests(c) else f"It reads GitHub's public record of pull request #{number} and asks GitHub to sign")
+            print(f"Started `knos attest` in {here} for {_what(run, c)} of {run.repo}, order {c.jobs[0][0]}. {how}; its page says what it "
+                  f"found: https://github.com/{here}/actions")
     except OSError as why:
         print(f"The attest workflow was not started: {_short(why)}. It needs the GitHub CLI signed in (`gh auth login`) and a repository of your "
               "own named knos-attest that holds examples/knos-attest.yml from drexthealpha/Knos as .github/workflows/knos-attest.yml.")
@@ -3280,6 +3506,8 @@ def _relay_serve(ghrelay, ledger, payer, seconds: float, every: float, clock, sl
         except Exception as why:  # noqa: BLE001 - one bad pass never stops the worker
             last = f"{type(why).__name__}: {_short(why)}"
             _err(f"relay pass: {last}")
+        if crank and hasattr(ghrelay, "publish_status"):        # once a minute: the relay's own status line in its public log (never raises)
+            ghrelay.publish_status()
         cranked = began if crank else cranked
         sleep(max(0.0, min(every - (clock() - began), end - clock())))
     return 0 if done else f"knos relay: not one pass finished in {seconds:g} seconds. The last one stopped at: {last or 'no pass was started'}"
@@ -3360,6 +3588,10 @@ def _parser():
                                                                 "run in a repository of the buyer (merged: accepted, closed unmerged: rejected)")
     s.add_argument("--pull", type=int, default=0, help="the pull request's number (pay, revert, eval)")
     s.add_argument("--payees", default="", help="rule: who is paid, as id.bps.address entries separated by commas")
+    s.add_argument("--plan", default="", metavar="DIR", help="the job before the one that signs: write DIR/plan.json, what to fetch to run "
+                                                             "the order's acceptance suite again (nothing is signed)")
+    s.add_argument("--judge", default="", metavar="DIR", help="that job's next step: run the suite on DIR/base and DIR/pr as DIR/plan.json has "
+                                                              "it, in the sandbox, and write DIR/verdict.json (nothing is signed)")
     s = sub.add_parser("canary", help="One timed round on devnet: fund, pull request, merge, payment",
                        description="One full round on devnet from the faucet in the repository it runs in (GITHUB_REPOSITORY, with GH_TOKEN a token "
                                    "that may write its issues, pull requests and contents): prints the seconds of each leg, and exits 1 when "
@@ -3393,7 +3625,9 @@ def _dispatch(a, sub) -> int | str:
     if a.word == "attest":
         if a.repository.count("/") != 1:
             return "Name the repository as owner/name."
-        return attest(Run(a.repository, {}), a.order, a.kind, a.pull or None, a.payees)
+        if a.plan and a.judge:
+            return "--plan and --judge are two steps: give one."
+        return attest(Run(a.repository, {}), a.order, a.kind, a.pull or None, a.payees, a.plan, a.judge)
     if a.word == "relay":
         return relay(a.token_file, a.terms_file, a.serve, a.every)
     if a.word == "canary":

@@ -15,12 +15,25 @@
 #       month's), one batch a run. When there is none it signs nothing and the run still succeeds.
 #   You, by hand (`workflow_dispatch`). Actions > knos meter batch > Run workflow. Name the file and whose count it
 #       is; add `:202610.0` (month and seq) after the path to sign that one batch instead of the next one.
+#   You, by hand, to sign a month's close. `knos meter close <buyer ledger> <seller ledger> --month YYYY-MM` writes the
+#       close record on your own machine; commit it here, then Run workflow with its path in `close` and your side in
+#       `as`. Two jobs: `close-sign` asks GitHub to sign the audience
+#       `knosm:close:<buyer>:<seller>:<yyyymm>:<sha256 of the record>` for this repository's owner, and installs
+#       nothing; `close` installs the released knos and runs `knos meter close --sign <record> --as <side> --token
+#       <that token>`, which holds the token to the record (its bytes, your side, GitHub's keys) before keeping it. The
+#       token and the keys that verify it are the run's artifact `knos-close`, to keep beside the record and send to
+#       the other party (`knos meter close --check <record>` verifies both sides' tokens with no network). No program
+#       takes this token: the chain holds the batches, the close is between the two of you.
+#       Why two jobs: the one that can ask GitHub for a token runs nothing that was installed, and the one that
+#       installs knos cannot ask for a token.
 #
 # What it can do in this repository: read the ledger file through GitHub's API, ask GitHub for one signed statement
 # whose audience is the batch (`knosm:batch:<buyer>:<seller>:<yyyymm>:<seq>:<count>:<accepted>:<value>:<root>`, or
 # `knosm:claim:...`), and post that statement as a comment on the issue titled "knos tokens" here (made the first
 # time), where a relayer finds it and carries it to Solana. What it cannot do: change anything else. It checks out
-# nothing, writes no code, pull request, release or setting, and holds no secret of yours.
+# nothing, writes no code, pull request, release or setting, and holds no secret of yours. The two close jobs read one
+# file (the close record, through GitHub's API) and upload artifacts of their own run; they write nothing to the
+# repository and post nothing.
 #
 # What the statement is worth. The meter checks GitHub's signature and which workflow spoke, in whose repository, and
 # takes each batch once (its seq must be the ledger account's next one). It does not see the evaluations: the file
@@ -47,6 +60,17 @@ on:
         type: choice
         options: [batch, claim]
         default: batch
+      close:
+        description: "To sign a month's close instead: the close record's path in this repository (knos-close-202610.json). Empty: sign a batch"
+        required: false
+        type: string
+        default: ""
+      as:
+        description: "With close: whose signature this is"
+        required: false
+        type: choice
+        options: [buyer, seller]
+        default: buyer
 
 permissions: {}
 
@@ -57,7 +81,7 @@ jobs:
       contents: read          # the ledger file, read through GitHub's API (there is no checkout)
       issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
     with:
       repository: ${{ github.repository }}
       pull: 0                 # a batch names no pull request
@@ -65,14 +89,86 @@ jobs:
       kind: ${{ vars.KNOS_METER_KIND || 'batch' }}
 
   hand:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.close == ''
     permissions:
       contents: read
       issues: write
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
     with:
       repository: ${{ github.repository }}
       pull: 0
       order: ${{ inputs.order }}
       kind: ${{ inputs.kind }}
+
+  # Sign a month's close for your side. Started by hand only, so no pull request's code is ever in this run.
+  # This job may ask GitHub for a token, so it installs nothing: the runner's own curl, sha256sum and python3 read the
+  # record and build the audience. The audience can only be a close's: it is checked by shape before GitHub is asked.
+  close-sign:
+    if: github.event_name == 'workflow_dispatch' && inputs.close != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read          # the close record, read through GitHub's API (there is no checkout)
+      id-token: write         # the one signed statement: knosm:close:<buyer>:<seller>:<yyyymm>:<sha256 of the record>
+    steps:
+      - name: the close record, as this commit has it, and GitHub's signature for it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOSE: ${{ inputs.close }}
+        run: |
+          set -euo pipefail
+          case "$CLOSE" in ''|/*|*..*|*[!A-Za-z0-9._/-]*) echo "Name the close record by its path in this repository, like knos-close-202610.json."; exit 1 ;; esac
+          curl -sSf -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/contents/$CLOSE?ref=$GITHUB_SHA" > close.json
+          unset GH_TOKEN
+          who="$(python3 -c 'import json; r = json.load(open("close.json", encoding="utf-8")); print("%d:%d:%06d" % (r["buyer"], r["seller"], r["month"]))')"
+          audience="knosm:close:$who:$(sha256sum close.json | cut -d' ' -f1)"
+          if ! printf '%s' "$audience" | grep -Eqx 'knosm:close:[0-9]{1,20}:[0-9]{1,20}:[0-9]{6}:[0-9a-f]{64}'; then
+            echo "$CLOSE is not a close record as knos meter close writes one, so nothing is signed."; exit 1
+          fi
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$audience" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["value"])' > token.jwt
+      - name: the record and the token, for the job that checks them
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-close-token
+          path: |
+            close.json
+            token.jwt
+          if-no-files-found: error
+
+  # Hold the token to the record and keep it: `knos meter close --sign ... --token` checks the record is the one knos
+  # writes, the token is GitHub's for exactly its bytes, and this repository's owner is the side named. This job
+  # installs knos, so it can ask GitHub for nothing.
+  close:
+    needs: close-sign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+          ignore-empty-workdir: true
+      - name: install knos, the released wheel
+        run: uv tool install --no-config "knos==0.3.15"
+      - name: the record and the token the first job made
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: knos-close-token
+      - name: knos meter close --sign
+        env:
+          AS: ${{ inputs.as }}
+        run: knos meter close --sign close.json --as "$AS" --token token.jwt
+      - name: the token and the keys that verify it, to keep beside the record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-close
+          path: |
+            close.json.*.jwt
+            close.json.jwks.json
+          if-no-files-found: error

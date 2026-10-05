@@ -420,6 +420,13 @@ def test_attest_with_no_relay_key_posts_its_token_on_the_knos_tokens_issue_of_th
     assert code == 0 and [(i["number"], i["title"]) for i in sellers.issues] == [(1, "knos tokens")] and w.chain.orders() == []
     assert sellers.comments[0]["body"].startswith(f"knos-proof: {run.outputs['token']}\n") and run.outputs["comment"] == link
     assert "and Solana took it" in text and f"The token is posted for any relayer at {link}." in text
+    # beside the token, after it: how the run reached its verdict. This order is paid on the merge, so nothing was run again, and it says so
+    import json
+    line, _, rest = sellers.comments[1]["body"].partition("\n")
+    verdict = json.loads(line.removeprefix(flow.VERDICT))
+    assert line.startswith("knos-verdict: {") and verdict == json.loads(run.outputs["verdict"]) and len(sellers.comments) == 2
+    assert (verdict["reexecuted"], verdict["sentence"]) == (False, "this judge read the buyer repository's check results; it did not run them")
+    assert verdict["environment"]["github_repository"] == Sellers.HERE and verdict["sentence"] in rest and verdict["sentence"] in text
     # the next run posts on the same issue: it is made once
     w2 = ordered(tmp_path / "again")
     w2.env.pop("KNOS_RELAY_KEY")
@@ -428,7 +435,7 @@ def test_attest_with_no_relay_key_posts_its_token_on_the_knos_tokens_issue_of_th
     w2.hub.merge(12)
     w = w2
     code, run, text = attest(sellers)
-    assert code == 0 and len(sellers.issues) == 1 and [c["issue"] for c in sellers.comments] == [1, 1] and run.outputs["comment"].endswith("#issuecomment-2")
+    assert code == 0 and len(sellers.issues) == 1 and [c["issue"] for c in sellers.comments] == [1, 1, 1, 1] and run.outputs["comment"].endswith("#issuecomment-3")
 
 
 class Buyers(Sellers):

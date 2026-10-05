@@ -1,5 +1,5 @@
 {
- "note": "Conformance vectors of the acceptance receipt, versions 1 and 2 (docs/RECEIPT.md). `valid` and `invalid` are version 1, which a reader still accepts; `valid_v2` are the same five as version 2 (`of` is the version 1 receipt each was made from) and `invalid_v2` are made from them. A reader must accept every `valid` receipt and compute its digest, and refuse every `invalid` one: `of` is the index of the valid receipt it was made from and `set` the fields changed (dotted paths).",
+ "note": "Conformance vectors of the acceptance receipt, versions 1, 2 and 3 (docs/RECEIPT.md). `valid` and `invalid` are version 1 and `valid_v2` and `invalid_v2` version 2, both of which a reader still accepts; `valid_v2` are the same five as version 2 (`of` is the version 1 receipt each was made from). `valid_v3` are version 3: `of` is the version 2 receipt each was made from, with the fifth part and the judges' control added; `invalid_v3` are made from them. A reader must accept every valid receipt and compute its digest, and refuse every invalid one: `of` is the index of the valid receipt it was made from and `set` the fields changed (dotted paths).",
  "valid": [
   {
    "name": "one payee, judged by a run in the order's own repository",
@@ -992,7 +992,851 @@
    "set": {
     "version": 3
    },
-   "why": "version 1 or 2"
+   "why": "version 1, 2 or 3"
+  }
+ ],
+ "valid_v3": [
+  {
+   "name": "a Balance's owner funds under a cap and an allow-list; the order's own repository judges",
+   "of": 0,
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 3,
+    "cluster": "localnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+    "repository": {
+     "id": 987654321,
+     "issue": 77
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "555000",
+      "event_name": "pull_request_target",
+      "exp": 1790003880,
+      "iat": 1790003580,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "repository_id": "987654321",
+      "repository_owner_id": "424242",
+      "run_attempt": "1",
+      "run_id": "36905461215",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "uiy2jsRXoDV8p9AB2zSuwmYvPqAREwfiThScSKFgTdx4dVa473s3HjkAwPRPZ9ecArMYcCbzWAE9aVP96f3Ywme"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "repository",
+      "version": "cccccccccccccccccccccccccccccccccccccccc"
+     },
+     "verdict": "accepted",
+     "checks": [
+      {
+       "name": "build",
+       "conclusion": "passed"
+      },
+      {
+       "name": "test",
+       "conclusion": "passed"
+      }
+     ],
+     "artifact": {
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pull_request": 12
+     },
+     "evaluators": [
+      {
+       "kind": "repository",
+       "repository_id": 987654321,
+       "owner_id": 424242,
+       "actor_id": 555000,
+       "runner": "github-hosted",
+       "independent_of_buyer": false,
+       "independent_of_seller": true
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+     "mode": "merge",
+     "allowed_paths": [
+      "src/**"
+     ],
+     "denied_paths": [
+      ".github/**",
+      ".knos/**"
+     ],
+     "version": 1
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": 424242,
+      "login": "octo",
+      "wallet": null
+     },
+     "source": {
+      "kind": "balance",
+      "address": "7tj9biW3KRJ7EEWmVUGigHiouCTXhV2dzcyvwma7Cyu7",
+      "owner_id": 424242
+     },
+     "limit": {
+      "cap_per_order": "50000000",
+      "daily": "200000000",
+      "total": "0",
+      "repositories": [
+       987654321
+      ]
+     },
+     "role": "owner",
+     "deliverable": {
+      "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "32acN4jvkNEGnU1QuTZx2U8BFLdxJMfJPtyVHsDnvGxgnC8Kn9gVd6TpbofWWjCuXiEZyesEaSgHs3njsZxr3tLk"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 5550123,
+      "bps": 10000,
+      "amount": "20000000",
+      "to": "6JhaGdekBjU2RfiYWSjYdQAibx4LfSfTNFEeMUHnUVz7"
+     }
+    ],
+    "amounts": {
+     "mint": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+     "decimals": 6,
+     "paid": "20000000",
+     "of": "20000000",
+     "fee": "200000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "35uS8fqUd1ARccqYuFaEbZy2kbFHr9uGcWLSg8FP1358V5Y8EEThyu4USBfHEhMjxd3QMKoNUMtHuhtMYKBXWcye",
+     "slot": 412,
+     "time": 1790003600
+    }
+   },
+   "sha256": "b5e2275e4ed2a1b19ca2eb5dc79ba3a1303f321ad5db4784c42970f6d0ea1fa1"
+  },
+  {
+   "name": "a wallet funds with no limit; the neutral judge is run by a payee",
+   "of": 1,
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 3,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "CdqZoPKKKiLicdQZnSFpMc8Sn7Bx7dc2Y9tcb5w94aZP",
+    "scope": "5e7eb9ed0bde4f6d0d9aaaf3ea4f13490ecbf60af383eebb2d461e69007e12b2",
+    "repository": {
+     "id": 1353152983,
+     "issue": 214
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "7001",
+      "event_name": "workflow_dispatch",
+      "exp": 1790100300,
+      "iat": 1790100000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "900100200",
+      "repository_owner_id": "7001",
+      "run_attempt": "1",
+      "run_id": "37000000001",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "17b9639c99eebb8bf27dc599a4ae762accf05843cd8d926270098df9403f6c83",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "5n1Zd59k4s7dhNaMgRMSHe7R8NKKkUXpW5LwRXSAL12TPN4HRZi9P7qfJpbG1YKYWFkm41U93ZpNZwGGyeJsx5k1"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "neutral",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [
+      {
+       "name": "build",
+       "conclusion": "passed"
+      },
+      {
+       "name": "test",
+       "conclusion": "passed"
+      }
+     ],
+     "artifact": {
+      "commit": "3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f",
+      "pull_request": 219
+     },
+     "evaluators": [
+      {
+       "kind": "neutral",
+       "repository_id": 900100200,
+       "owner_id": 7001,
+       "actor_id": 7001,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": false
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "7cadccd2d5fae8de0b43c9bc56c67e45340c643d11488838a757e4f8bc2ec385",
+     "mode": "merge",
+     "allowed_paths": [
+      "src/**"
+     ],
+     "denied_paths": [
+      ".github/**",
+      ".knos/**"
+     ],
+     "version": 1
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "82ZjtKS4W1tZWR1nN4vZG3GLPWsw3cQH7SKF4XfJheYX"
+     },
+     "source": {
+      "kind": "wallet",
+      "address": "82ZjtKS4W1tZWR1nN4vZG3GLPWsw3cQH7SKF4XfJheYX",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "wallet",
+     "deliverable": {
+      "order": "CdqZoPKKKiLicdQZnSFpMc8Sn7Bx7dc2Y9tcb5w94aZP",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "34uenbpoCVYLYSFCkAHwy3y8aaEZrHUaFAMrXQejosA8G5TRKUobMjKjoQUDJ7HjfDBy2VrWMKinumC3Ni5hG16n"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [
+     {
+      "kind": "topup",
+      "transaction": "4etuuq8rM9UqvJf2nXCXuS7KmXecfc84o1cUS4cLwN6k5MGQV87K9x7cZ91G6sXeciERLUemiCYYQsPvS59iqv6b",
+      "time": 1790096400,
+      "detail": {
+       "add": "5000000",
+       "amount": "20000000",
+       "fee": "500000"
+      }
+     },
+     {
+      "kind": "assign",
+      "transaction": "2bWhqdSFrAp2JfzYavGB2oakY6LxJaNv95bseYEuZTbMfDtX4WLAXCGbS3ARG8P8LMAYPCqKAru5zeSfPm2F5fZx",
+      "time": 1790099940,
+      "detail": {
+       "payee": "7001",
+       "to": "CNsKNAm4jrw8uWHSJgUbgXY5vDduk4EHb9LFfPPyn8St"
+      }
+     }
+    ],
+    "payees": [
+     {
+      "github_id": 7001,
+      "bps": 7000,
+      "amount": "70000000",
+      "to": "CNsKNAm4jrw8uWHSJgUbgXY5vDduk4EHb9LFfPPyn8St"
+     },
+     {
+      "github_id": 8002,
+      "bps": 3000,
+      "amount": "30000000",
+      "to": "AXvyUbXteWBZDcBQYnpwRra6TFRZ9YyiHEmfMiUr5gX2"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "100000000",
+     "of": "100000000",
+     "fee": "2150000",
+     "tip": "350000"
+    },
+    "transaction": {
+     "signature": "yCa8j6G2hrVstnLjZt8oN1CfdqUAZ186KGCwCsd3178uQ5Jp5Sgyt6DP8CWiCaCHAdV7Xn6ffK4qkbUw6xs11Mb",
+     "slot": 507114715,
+     "time": 1790100031
+    }
+   },
+   "sha256": "35ad57d0e6dd7ffd0a8619099016a9ed29cdbd556b11b3ed96617c64ae6afbe6"
+  },
+  {
+   "name": "a listed spender funds a standing order's second milestone; a quorum of two judges one account controls",
+   "of": 1,
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 3,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "CdqZoPKKKiLicdQZnSFpMc8Sn7Bx7dc2Y9tcb5w94aZP",
+    "scope": "5e7eb9ed0bde4f6d0d9aaaf3ea4f13490ecbf60af383eebb2d461e69007e12b2",
+    "repository": {
+     "id": 1353152983,
+     "issue": 214
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "7001",
+      "event_name": "workflow_dispatch",
+      "exp": 1790100300,
+      "iat": 1790100000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "900100200",
+      "repository_owner_id": "7001",
+      "run_attempt": "1",
+      "run_id": "37000000001",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "17b9639c99eebb8bf27dc599a4ae762accf05843cd8d926270098df9403f6c83",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "5n1Zd59k4s7dhNaMgRMSHe7R8NKKkUXpW5LwRXSAL12TPN4HRZi9P7qfJpbG1YKYWFkm41U93ZpNZwGGyeJsx5k1"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "neutral",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [
+      {
+       "name": "build",
+       "conclusion": "passed"
+      },
+      {
+       "name": "test",
+       "conclusion": "passed"
+      }
+     ],
+     "artifact": {
+      "commit": "3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f",
+      "pull_request": 219
+     },
+     "evaluators": [
+      {
+       "kind": "repository",
+       "repository_id": 1353152983,
+       "owner_id": 640000,
+       "actor_id": 7001,
+       "runner": "github-hosted",
+       "independent_of_buyer": false,
+       "independent_of_seller": false
+      },
+      {
+       "kind": "neutral",
+       "repository_id": 900100200,
+       "owner_id": 7001,
+       "actor_id": 7001,
+       "runner": "github-hosted",
+       "independent_of_buyer": true,
+       "independent_of_seller": false
+      }
+     ],
+     "same_controller": true,
+     "independence": "These judges are not independent of each other: account 7001 owns or started more than one of them. Two accounts run by one person are one judge, and so are two runs of one account: count this quorum as one judge."
+    },
+    "policy": {
+     "terms_hash": "7cadccd2d5fae8de0b43c9bc56c67e45340c643d11488838a757e4f8bc2ec385",
+     "mode": "merge",
+     "allowed_paths": [
+      "src/**"
+     ],
+     "denied_paths": [
+      ".github/**",
+      ".knos/**"
+     ],
+     "version": 1
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": 640001,
+      "login": "buyer-bot",
+      "wallet": null
+     },
+     "source": {
+      "kind": "balance",
+      "address": "8AQLAvN5gcV1nbWoEfaPqnorsqJLPjmvEFeZBHkWCKBw",
+      "owner_id": 640000
+     },
+     "limit": {
+      "cap_per_order": "0",
+      "daily": "0",
+      "total": "1000000000",
+      "repositories": []
+     },
+     "role": "spender",
+     "deliverable": {
+      "order": "CdqZoPKKKiLicdQZnSFpMc8Sn7Bx7dc2Y9tcb5w94aZP",
+      "milestone": 219
+     },
+     "billed_before": false,
+     "funded": "37EhD8ufecrQJQUzas1wudp5uoqBQDHr6RkDkx5ghTMZjxnWrovh6NBf11Gv5VNZni9N5Lqn8CmHxUbLsrCYU7rp"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [
+     {
+      "kind": "topup",
+      "transaction": "4etuuq8rM9UqvJf2nXCXuS7KmXecfc84o1cUS4cLwN6k5MGQV87K9x7cZ91G6sXeciERLUemiCYYQsPvS59iqv6b",
+      "time": 1790096400,
+      "detail": {
+       "add": "5000000",
+       "amount": "20000000",
+       "fee": "500000"
+      }
+     },
+     {
+      "kind": "assign",
+      "transaction": "2bWhqdSFrAp2JfzYavGB2oakY6LxJaNv95bseYEuZTbMfDtX4WLAXCGbS3ARG8P8LMAYPCqKAru5zeSfPm2F5fZx",
+      "time": 1790099940,
+      "detail": {
+       "payee": "7001",
+       "to": "CNsKNAm4jrw8uWHSJgUbgXY5vDduk4EHb9LFfPPyn8St"
+      }
+     }
+    ],
+    "payees": [
+     {
+      "github_id": 7001,
+      "bps": 7000,
+      "amount": "70000000",
+      "to": "CNsKNAm4jrw8uWHSJgUbgXY5vDduk4EHb9LFfPPyn8St"
+     },
+     {
+      "github_id": 8002,
+      "bps": 3000,
+      "amount": "30000000",
+      "to": "AXvyUbXteWBZDcBQYnpwRra6TFRZ9YyiHEmfMiUr5gX2"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "100000000",
+     "of": "100000000",
+     "fee": "2150000",
+     "tip": "350000"
+    },
+    "transaction": {
+     "signature": "yCa8j6G2hrVstnLjZt8oN1CfdqUAZ186KGCwCsd3178uQ5Jp5Sgyt6DP8CWiCaCHAdV7Xn6ffK4qkbUw6xs11Mb",
+     "slot": 507114715,
+     "time": 1790100031
+    }
+   },
+   "sha256": "164ff9d67aec153b0339232db43fab547624ed4d3c3270985901f25f7596cd15"
+  },
+  {
+   "name": "a passkey wallet funds; an arbiter rules",
+   "of": 3,
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 3,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "364uSBHxyBwRXFYEycWhSLp5yJDp3N8tXfZ9sQNnKzkSpHWmYbD2BQZQU2xWUyKVQYSh4RBhdbtpeWUFoXutgcgE"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "arbiter",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [],
+     "artifact": {
+      "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "pull_request": 31
+     },
+     "evaluators": [
+      {
+       "kind": "arbiter",
+       "repository_id": 880000001,
+       "owner_id": 31337,
+       "actor_id": 31337,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM"
+     },
+     "source": {
+      "kind": "passkey",
+      "address": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "passkey",
+     "deliverable": {
+      "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "39ZjdfzY6kAU4NinRZjwrDf3F3Rnx977wh8azVWdb3Z1Dr7cQ93nq13aCc5crsTPvD6m8Bq3u5oo1BzeNzKPgEcr"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    }
+   },
+   "sha256": "eda55ed42b64b7d9d8a898236b55d920bf989f736b14d24580936b58e59abab0"
+  },
+  {
+   "name": "a Balance whose limits the records do not have, and a deliverable paid before",
+   "of": 4,
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 3,
+    "cluster": "mainnet-beta",
+    "program": "7cCMvXwKYeuuyUtkcEqZK8PQnB72wNatWdDNsj5pzNn4",
+    "order": "HVwCmgNZ8qyCHsSGFU5DaV731KvoXQFE3odbs6aEwrVq",
+    "scope": "3f4ef2ab031a1fb99dafdbfcf45aba02e900ee02415ed98bbb4ea79107f9ba55",
+    "repository": {
+     "id": 77,
+     "issue": 3
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "79",
+      "event_name": "pull_request_target",
+      "exp": 1790400300,
+      "iat": 1790400000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "efefefefefefefefefefefefefefefefefefefef",
+      "repository_id": "77",
+      "repository_owner_id": "78",
+      "run_attempt": "1",
+      "run_id": "37000000004",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "6701682e310e05bf1dc1da5602ae7c349709f21c9fe297a9c80a321cc4fd6806",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "5997hUMiSJUKrWLppFRN2vfqmvwUc4R6sREHgeUtznmPS8uDhLiGDho6pBXRA3aqZSNGUdmRRjR4s4FXVJTRFTPq"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "repository",
+      "version": "efefefefefefefefefefefefefefefefefefefef"
+     },
+     "verdict": "accepted",
+     "checks": [],
+     "artifact": {
+      "commit": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+      "pull_request": 4
+     },
+     "evaluators": [
+      {
+       "kind": "repository",
+       "repository_id": 77,
+       "owner_id": 78,
+       "actor_id": 79,
+       "runner": "github-hosted",
+       "independent_of_buyer": false,
+       "independent_of_seller": true
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "14660372955d1ee85cb8e5ce9c5994c614f5acb63d63bc28c602f21a333b8446",
+     "mode": "tests",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": 78,
+      "login": null,
+      "wallet": null
+     },
+     "source": {
+      "kind": "balance",
+      "address": "8NADbpm7TWNhCsGKYZZ9iR89cJvwQvqNuUeXMRtJSKA4",
+      "owner_id": 78
+     },
+     "limit": null,
+     "role": "owner",
+     "deliverable": {
+      "order": "HVwCmgNZ8qyCHsSGFU5DaV731KvoXQFE3odbs6aEwrVq",
+      "milestone": 0
+     },
+     "billed_before": "3D4JGUcqmw8ZhL5UBcpwm6RUEtpiH2q2ibD8qof3vRrASg7Fi8jSRxLT11Hg2wae7TXrhTJxZQNYaG6bdhVfVQku",
+     "funded": null
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 555,
+      "bps": 10000,
+      "amount": "500000000000",
+      "to": "9z2LMKJoUqvj9zF7bV9gLVFU9YP21SxwXUjtsAgvVEY7"
+     }
+    ],
+    "amounts": {
+     "mint": "CE5UN5UAUW99UrQWgKm2p51tqKqaqRy5Eem3vc1UwZhD",
+     "decimals": 9,
+     "paid": "500000000000",
+     "of": "18000000000000000000",
+     "fee": "12450000000",
+     "tip": "50000000"
+    },
+    "transaction": {
+     "signature": "2bVWBaqNCmgzr79rtN4bzx4iunojHRaehN3uSJ3fAopYi914t2xELdVCgRT2EVVtYcCNBVpvrrSPxrFXE8Z1TqLx",
+     "slot": 453037723,
+     "time": 1790400007
+    }
+   },
+   "sha256": "0ea9923647e9f283b0e1c85f5f7ed2b881dc493acfef375d1b1910c24b0f27bd"
+  }
+ ],
+ "invalid_v3": [
+  {
+   "name": "a judge said to be independent of the seller it is",
+   "of": 1,
+   "set": {
+    "evaluator_observed.evaluators.0.independent_of_seller": true
+   },
+   "why": "computed, not chosen"
+  },
+  {
+   "name": "a quorum one account controls, not flagged",
+   "of": 2,
+   "set": {
+    "evaluator_observed.same_controller": false
+   },
+   "why": "two accounts run by one person are one judge"
+  },
+  {
+   "name": "a quorum one account controls, with the sentence of an independent one",
+   "of": 2,
+   "set": {
+    "evaluator_observed.independence": "The 2 judges have different owners and starters, by account id. An id is all that is recorded: two accounts run by one person are one judge, and no receipt can show that they are not."
+   },
+   "why": "two accounts run by one person are one judge"
+  },
+  {
+   "name": "the paying judge's owner changed",
+   "of": 0,
+   "set": {
+    "evaluator_observed.evaluators.0.owner_id": 99,
+    "evaluator_observed.evaluators.0.independent_of_buyer": false
+   },
+   "why": "the judge whose token paid"
+  },
+  {
+   "name": "a self-hosted runner written over the signed one",
+   "of": 0,
+   "set": {
+    "evaluator_observed.evaluators.0.runner": "self-hosted"
+   },
+   "why": "the judge whose token paid"
+  },
+  {
+   "name": "a spender called the owner",
+   "of": 2,
+   "set": {
+    "commercial_authorisation.role": "owner"
+   },
+   "why": "commercial_authorisation.role"
+  },
+  {
+   "name": "a wallet said to spend a Balance",
+   "of": 1,
+   "set": {
+    "commercial_authorisation.source.kind": "balance",
+    "commercial_authorisation.source.owner_id": 5
+   },
+   "why": "do not fit"
+  },
+  {
+   "name": "a limit with nothing set",
+   "of": 0,
+   "set": {
+    "commercial_authorisation.limit": {
+     "cap_per_order": "0",
+     "daily": "0",
+     "total": "0",
+     "repositories": []
+    }
+   },
+   "why": "commercial_authorisation.limit"
+  },
+  {
+   "name": "an allow-list without the order's repository",
+   "of": 0,
+   "set": {
+    "commercial_authorisation.limit.repositories": [
+     5
+    ]
+   },
+   "why": "not on the allow-list"
+  },
+  {
+   "name": "another order's deliverable",
+   "of": 0,
+   "set": {
+    "commercial_authorisation.deliverable.order": "8VzotRh8e6y9V3mLRACzJAfg6dMLm4D22HyqUByVvyoU"
+   },
+   "why": "this order and its milestone"
+  },
+  {
+   "name": "billed before by the payment itself",
+   "of": 4,
+   "set": {
+    "commercial_authorisation.billed_before": "2bVWBaqNCmgzr79rtN4bzx4iunojHRaehN3uSJ3fAopYi914t2xELdVCgRT2EVVtYcCNBVpvrrSPxrFXE8Z1TqLx"
+   },
+   "why": "billed_before"
+  },
+  {
+   "name": "the fifth part left out",
+   "of": 0,
+   "set": {
+    "commercial_authorisation": null
+   },
+   "why": "is not an object"
   }
  ]
 }

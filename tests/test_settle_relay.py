@@ -239,7 +239,7 @@ def test_a_dropped_transaction_is_tried_again_and_a_second_relayer_does_no_harm(
                 raise chain.RpcError("transaction failed: {'InstructionError': [1, {'Custom': 69}]}")
             return ledger.send(ixs, payer)
     first = relay.submit(Flaky(1), c.payer, proof, jwks, now=c.now())
-    assert first == {"ok": False, "why": first["why"], "retry": True, "transient": True} and "'Custom': 69" in first["why"]
+    assert first == {"ok": False, "why": first["why"], "retry": True, "transient": True, "answered": True} and "'Custom': 69" in first["why"]
     assert not relay.transient(chain.RpcError("transaction failed: {'InstructionError': [0, {'Custom': 86}]}"))   # a real refusal
     assert relay.transient(TimeoutError("sig not confirmed within 60s"))
 
@@ -285,8 +285,10 @@ def test_a_dropped_transaction_is_tried_again_and_a_second_relayer_does_no_harm(
     c.warp(61)
     comments["octo/widgets"] = [("fund", 62, token(c, pay.fund_audience(62, 5 * USDC), file="fund.yml"), "github-actions[bot]")]
     flaky.fails = 99
-    assert ghrelay.once(ledger, c.payer, now=time.time()) == []
-    lines = ghrelay.once(ledger, c.payer, now=time.time())
+    # on the chain's clock the token is good for another hour and more: the program's refusal ends it all the same
+    assert ghrelay.expires(comments["octo/widgets"][0][2]) > c.now() + 3600
+    assert ghrelay.once(ledger, c.payer, now=c.now()) == []
+    lines = ghrelay.once(ledger, c.payer, now=c.now())
     assert len(lines) == 1 and " fail " in lines[0] and "gave up after 2 passes" in lines[0]
 
 

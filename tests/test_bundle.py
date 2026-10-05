@@ -130,9 +130,9 @@ def test_two_builds_of_one_order_are_the_same_bytes_and_the_verdict_follows_from
     assert bundle.make(files2, again["order"]) == blob and again == r
     with tarfile.open(fileobj=io.BytesIO(blob)) as tar:
         members = tar.getmembers()
-    assert [m.name for m in members] == sorted(["MANIFEST.json", *bundle.FILES]) and {(m.mtime, m.mode, m.uid, m.gid) for m in members} == {(0, 0o644, 0, 0)}
+    assert [m.name for m in members] == sorted(["MANIFEST.json", "chain.json", *bundle.FILES]) and {(m.mtime, m.mode, m.uid, m.gid) for m in members} == {(0, 0o644, 0, 0)}
     got, done = bundle.verify(blob)                                # no network: `call` is not given
-    assert got == r and receipt.check(r) is None and r["version"] == 2
+    assert got == r and receipt.check(r) is None and r["version"] == 3
     assert files["token.jwt"].decode().strip() == net.token and files["terms.json"] == TERMS
     assert json.loads(files["judge.json"])["inputs_sha256"] == bundle._sha(files["checks.json"])
     assert any("verdict follows again" in line for line in done) and "the chain was not asked" in done[-3]
@@ -211,6 +211,19 @@ def test_no_bundle_is_made_when_the_verdict_does_not_follow_or_the_chain_is_gone
         bundle.gather(gone.call, gone.events(), ORDER, host())
 
 
+def test_the_payment_of_an_issues_bounty_is_named_for_what_it_is_and_no_bundle_is_made_of_it():
+    """The first real run (0.3.15) on the public program ids, where every payment is an issue's bounty (knos2 lines):
+    `knos bundle make` of knos-e2e issue 211's paying transaction said the history showed no payment of it."""
+    paid_tx, keys = _sig(70), [RELAYER, _addr(71), PAY]
+    events = [{"event": "funded", "v": 2, "at": NOW, "tx": _sig(69), "signer": RELAYER, "keys": keys, "repo": REPO, "issue": 211, "amount": 5_000_000,
+               "mode": 0, "by": SELLER, "source": FUNDER, "faucet": 1},
+              {"event": "paid", "v": 2, "at": NOW + 59, "tx": paid_tx, "signer": RELAYER, "keys": keys, "repo": REPO, "issue": 211, "payee": SELLER,
+               "amount": 4_875_000, "fee": 125_000, "to": WALLET}]
+    with pytest.raises(ValueError, match=rf"{paid_tx} is the payment of an issue's bounty \(repository id {REPO}, issue 211\), not of a work order"):
+        bundle.gather(None, events, paid_tx, None)
+    with pytest.raises(bundle.Unavailable, match="shows no payment"):     # what the history does not hold is still not there
+        bundle.gather(None, events, _sig(72), None)
+
 def test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_it(net, built, tmp_path, monkeypatch):
     from knos import cli
     r = built[0]
@@ -218,7 +231,7 @@ def test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_
     assert got == [r] and left == []
     other = json.loads(json.dumps(r))
     other["order"], other["scope"], other["repository"] = _addr(31), pay2.scope_of(REPO, 78).hex(), {"id": REPO, "issue": 78}
-    other["transaction"]["signature"] = _sig(41)
+    other["transaction"]["signature"], other["commercial_authorisation"]["deliverable"]["order"] = _sig(41), _addr(31)
     a, b = tmp_path / "a", tmp_path / "b"
     receipt.mirror_write([r, other], a)
     receipt.mirror_write([other], b)
@@ -265,6 +278,7 @@ def test_the_bundle_commands_write_and_check_a_file(net, built, tmp_path, monkey
     monkeypatch.setattr(bundle, "_caller", lambda rpc: ("http://test", net.call))
     monkeypatch.setattr(bundle, "_history", lambda url, limit: net.events())
     monkeypatch.setattr(judge, "github", host())
+    monkeypatch.setattr(bundle, "published_keys", lambda issuer: None)      # no network in a test: tests/test_receipt_offline.py archives a key list
     run, path = CliRunner(), tmp_path / "order.tar"
     made = run.invoke(cli.app, ["bundle", "make", ORDER, "--out", str(path)])
     assert made.exit_code == 0 and path.read_bytes() == built[2], made.output
@@ -327,9 +341,9 @@ def test_a_bundle_carries_the_judges_verdict_and_verify_prints_its_assurance(tmp
     assert plain[-2].startswith("assurance: not said by this bundle. It holds no verdict.json") and f"the terms name the image `{IMAGE}`" in plain[-2]
     with_verdict = {**files, "verdict.json": bundle._json(_verdict())}
     blob = bundle.make(with_verdict, r["order"])
-    assert blob == bundle.make(dict(reversed(list(with_verdict.items()))), r["order"]) and set(bundle.read(blob)) == {*bundle.FILES, "verdict.json"}
+    assert blob == bundle.make(dict(reversed(list(with_verdict.items()))), r["order"]) and set(bundle.read(blob)) == {*bundle.FILES, "chain.json", "verdict.json"}
     done = bundle.verify(blob)[1]
-    assert done[0] == "every file is the one the manifest lists (7 files)"
+    assert done[0] == "every file is the one the manifest lists (8 files)"
     assert done[-2] == f"assurance: hermetic, in `{IMAGE}`. {terms.ASSURANCE['hermetic']}" and "signed by nobody" in done[-3] and "base 1111111111111111" in done[-3]
     # a verdict on other checks, in another image, with an image the terms do not name, or one that did not pass, is not this order's
     for bad, why in ((_verdict(checks_hash="6e" * 32), "other acceptance checks than the ones hashed at funding"),
@@ -351,6 +365,7 @@ def test_a_bundle_carries_the_judges_verdict_and_verify_prints_its_assurance(tmp
     monkeypatch.setattr(bundle, "_caller", lambda rpc: ("http://test", net.call))
     monkeypatch.setattr(bundle, "_history", lambda url, limit: net.events())
     monkeypatch.setattr(judge, "github", host())
+    monkeypatch.setattr(bundle, "published_keys", lambda issuer: None)      # no network in a test
     run, path, file = CliRunner(), tmp_path / "order.tar", tmp_path / "verdict.json"
     file.write_text(json.dumps(_verdict(), indent=1), encoding="utf-8")
     made = run.invoke(cli.app, ["bundle", "make", ORDER, "--out", str(path), "--verdict", str(file)])

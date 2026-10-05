@@ -13,7 +13,7 @@ Read this first:
 - **No contract.** There is no named legal entity, no terms of service, no data-processing agreement and no
   service-level agreement.
 
-Where a file is marked (0.3.13) or (0.3.14) it is new in that release. Everything else has been in the repository
+Where a file is marked (0.3.13), (0.3.14) or (0.3.15) it is new in that release. Everything else has been in the repository
 since 0.3.12. [SECURITY.md](SECURITY.md) is the full security model. [ASSURANCE.md](ASSURANCE.md) lists the invariants
 and the tests that hold them. [REGULATION.md](REGULATION.md) covers law.
 
@@ -27,14 +27,29 @@ code can supply.
 | control | where it is enforced | how it is set today |
 |---|---|---|
 | An organisation's Balance: money a wallet sets aside for one GitHub owner's repositories | `knos_pay`, [`fund.rs`](../programs-v2/knos_pay/src/fund.rs) | `knos balance open`, `deposit`, `withdraw` |
-| A cap per order | the program (`B_CAP`) | `knos balance open --cap`, `knos balance set --cap` |
-| Spenders: up to four GitHub accounts that may fund by comment, beside the owner | the program (`may_spend`) | `knos balance set --spender` |
-| A daily limit and a total limit on what a Balance spends | the program: the Balance's side account, `X_DAY_LIMIT` and `X_TOTAL_LIMIT` in [`state.rs`](../programs-v2/knos_pay/src/state.rs); `tests/test_order_chain.py` | the instruction `SetBalanceX`, built by `set_balance_x_ix` in [`pay.py`](../src/knos/settle/v2/pay.py). **No `knos` command sends it yet**: it takes a script. |
-| A repository allow-list: the only repositories (up to eight) that may spend a Balance, and the one workflows commit that may sign for it | the program: the same side account (`X_REPOS`, `X_WF_SHA`) | the same instruction; no command yet |
+| A cap per order | the program (`B_CAP`) | `knos budget set --owner <org> --cap N` (0.3.15); also `knos balance open --cap`, `knos balance set --cap` |
+| Spenders: up to four GitHub accounts that may fund by comment, beside the owner | the program (`may_spend`) | `knos budget set --owner <org> --spender <login>` (once for each; `--no-spenders` empties the list); also `knos balance set --spender` |
+| A daily limit and a total limit on what a Balance spends. They count what leaves the Balance: the amount and the fee. | the program: the Balance's side account, `X_DAY_LIMIT` and `X_TOTAL_LIMIT` in [`state.rs`](../programs-v2/knos_pay/src/state.rs); `tests/test_order_chain.py`, `tests/test_controls.py` | `knos budget set --owner <org> --per-day N --total N` (0.3.15; 0 lifts a limit). It sends the instruction `SetBalanceX`. |
+| A repository allow-list: the only repositories (up to eight) that may spend a Balance | the program: the same side account (`X_REPOS`) | `knos budget set --owner <org> --repo owner/name` (once for each; `--any-repo` empties the list) |
+| One workflows commit: the only commit of the workflows whose signed run may spend a Balance | the program: the same side account (`X_WF_SHA`) | `knos budget set --owner <org> --pin-workflows` (this release's commit, or `--workflows-commit <commit>`; `--no-pin-workflows` lifts it) |
+| Reading every limit back: the cap, the daily limit and what is spent today, the total limit and what is spent, the repositories and spenders by name, the workflows commit, the fee rate and a Plan's expiry | the chain's accounts, read by [`controls.py`](../src/knos/controls.py) (0.3.15) | `knos budget show --owner <org>` |
+| Asking before funding: would this comment's funding pass, which rule decides, and what it costs with the fee as an amount and a percentage | [`controls.py`](../src/knos/controls.py) `decide` repeats the program's checks in the program's order. `tests/test_controls.py` sends each funding to the program and compares the rule. | `knos budget check --owner <org> --repo owner/name --amount N --by <login>`. It sends nothing; it ends 1 on a refusal. |
+| Who has authority: who may spend, and who may change the limits | the program: only the wallet that opened the Balance signs `SetBalance` and `SetBalanceX` (anyone else: error 98) | `knos budget who --owner <org>` |
 | A policy file: who may fund, the cap per order, a monthly budget, which payees and vendors may be paid, default checks, private orders | **the command job, not the program**: [`policy.py`](../src/knos/policy.py) is read before GitHub is asked to sign, and its hash is in every order's terms. A person who can change the workflow on the default branch can go round it; the Balance's limits above are what holds then. | `.knos/policy.yml` on the default branch |
 | Plans: a lower fee rate for one owner until a date | the program (`SetPlan`, signed by the fee wallet) | by Knos, per owner |
 | Audit export (0.3.14): every order of an organisation as a hash-chained CSV or JSON, recomputed from the program's log lines; a second export of the same period is the same bytes, and `knos audit verify` finds an edited or removed row | [`audit.py`](../src/knos/audit.py); `tests/test_audit.py` | `knos audit export --owner <org> --from --to`, `knos audit verify <file>` |
 | A delay before a program changes: 48 hours, by a multisig | Squads, section 2 | |
+
+How `knos budget set` works. Only the wallet that opened the Balance can sign a change. With that wallet's key
+(`--keypair`, or `KNOS_WALLET_KEY`) the command sends it. Without a key, or with `--dry-run`, it sends nothing: it
+prints each setting before and after, and `--dry-run --json` prints the instructions as data, which is what a
+multisig that holds the Balance needs for its own proposal. What is not named stays as it is. A refusal counts
+nothing; lowering a limit does not reset what was spent; the total is counted from the day limits were first set.
+
+`SetBalanceX` and the side account are instructions of knos_pay 2.1. Whether 2.1 is the program at the public
+address is in [`web/upgrades.json`](../web/upgrades.json): until it is, the cluster refuses the instruction and
+`knos budget set` says so, and `budget show`, `check` and `who` read a Balance that has only its cap and spenders.
+The tests run the committed 2.1 build.
 
 What the audit export does not hold: names (it carries GitHub's numeric ids), the commit of the workflows that signed
 (the paying transaction it names carries the token that says it), and the accepted commit of a pull request (the
@@ -45,7 +60,8 @@ log prints a commit only on a revert). It is a file. Nothing sends it anywhere, 
 | control | where it is written |
 |---|---|
 | An organisation tier with a price ("Control") | the price book; nobody has bought it, and it adds no code beyond the rows above |
-| An admin console, or any screen that sets a Balance's limits | not built: the limits are set by an instruction |
+| A screen that sets a Balance's limits | not built: the limits are set from the command line (`knos budget set`). [`web/controls_data.js`](../web/controls_data.js) (0.3.15) is the same decision as `knos budget check` for a page to show; it sets nothing. |
+| An approval workflow with two people: one asks, another approves, before money is set aside | not built, and not in the program: a comment by the owner or one spender funds an order at once, within the limits. The nearest thing that exists is outside Knos: a Balance opened by a multisig's vault needs that multisig's threshold to change a limit or withdraw, not to fund. |
 | Roles beyond owner and spender (an approver, a read-only auditor) | not designed in the program. The audit export is public data: anyone can make it for any owner. |
 | Alerts when a limit is near or a refusal happens | not built: a refusal is a comment on the issue and a failed transaction |
 | A judge repository for a public order that attests on any event | the program has the rule; no command reaches it ([ADAPTERS.md](ADAPTERS.md)) |
@@ -66,13 +82,13 @@ log prints a commit only on a revert). It is a file. Nothing sends it anywhere, 
 |---|---|---|---|
 | The upgrade multisig | replace either program, 48 hours after the vote that approved it | act sooner; change its own members, threshold or delay without the same 48 hours | `upgrade_multisig` in [`programs-v2/program_ids.json`](../programs-v2/program_ids.json); [`scripts/governance.mjs`](../scripts/governance.mjs); read back by [`src/knos/mainnet_check.py`](../src/knos/mainnet_check.py) |
 | The guardian multisig | approve a signing key that an attestation admitted; revoke a key, for ever; refuse new funding for at most 7 days at a time | add a key alone, move money, pay, redirect a payment, block a refund or a withdrawal | `GUARDIAN` and `PAUSE_MAX` in [`programs-v2/knos_pay/src/lib.rs`](../programs-v2/knos_pay/src/lib.rs); [`programs-v2/knos_oidc/src/pins.rs`](../programs-v2/knos_oidc/src/pins.rs) |
-| The wallet that opened a Balance | name up to four GitHub accounts that may spend it by comment; set a cap per order, a daily limit, a total limit, the repositories that may spend it and the workflows commit that may sign for it; withdraw unspent money | spend another owner's Balance | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs); the limits are the Balance's side account, set by `SetBalanceX` (0.3.13) |
+| The wallet that opened a Balance | name up to four GitHub accounts that may spend it by comment; set a cap per order, a daily limit, a total limit, the repositories that may spend it and the workflows commit that may sign for it; withdraw unspent money | spend another owner's Balance | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs); the limits are the Balance's side account, set by `SetBalanceX` (0.3.13); `knos budget set` sends it and `knos budget who` names the wallet (0.3.15) |
 | A named spender | fund an order by comment, within those limits and the policy | withdraw; change the list or the limits | the same |
 | An organisation's policy file | say who may fund, the cap per order, the monthly budget, which payees and vendors may be paid, the default checks, and whether orders are private. It is hashed into every order's terms. | bind anyone outside the repository it is in | `.knos/policy.yml`; [`src/knos/policy.py`](../src/knos/policy.py) (0.3.13) |
 | A relayer | carry a signed token to the chain and pay the fee | decide anything: the program checks the signature and the terms | [`src/knos/settle/v2/relay.py`](../src/knos/settle/v2/relay.py) |
 | Knos, outside the two multisigs | nothing on a funded order | | |
 
-What does not exist: single sign-on; an admin console; roles inside Knos. Knos has no accounts of its own.
+What does not exist: single sign-on; an approval workflow with two people; an admin console; roles inside Knos. Knos has no accounts of its own.
 Identity is GitHub's and a wallet's, so a company's access rules for GitHub are its access rules here. **Every
 member key of the upgrade multisig is the founder's** ([SECURITY.md](SECURITY.md), section 7). No document names
 anyone but the founder as a holder of a guardian key. No outside signer sits on either.

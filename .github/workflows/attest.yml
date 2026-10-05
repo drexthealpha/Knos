@@ -2,13 +2,32 @@ name: knos attest (reusable workflow)
 
 # A reusable workflow: GitHub signs one statement that a work order's terms were met, so that anyone who did the work
 # can ask for the payment themselves. A seller's own file, knos-attest.yml (examples/knos-attest.yml, in a repository
-# the seller owns), calls it by hand after a merge; Knos's site and `knos settle --neutral` start it for them. One job:
-# install knos, run one command. The command holds the logic and is tested without GitHub:
+# the seller owns), calls it by hand after a merge; Knos's site and `knos settle --neutral` start it for them. The job
+# that signs (attest) installs knos and runs one command. The command holds the logic and is tested without GitHub:
 #
 #     knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K"
 #
 # It reads GitHub's public record of the pull request (who merged it, which checks passed at which commit) and the
-# order on Solana, and only when they agree with the order's terms asks GitHub for the signed statement. The kind says
+# order on Solana, and only when they agree with the order's terms asks GitHub for the signed statement.
+#
+# How a payment's verdict is reached, and why there are two jobs. GitHub signs WHICH workflow ran, at which commit, in
+# which repository. It does not sign what the workflow read. So for an order that is paid by its acceptance checks (a
+# black-box suite in .knos/acceptance/<issue>/ whose hash is in the order's terms) this workflow does not take the
+# order's repository's word that the suite passed. The first job (rerun) fetches two commits from that repository, the
+# one the pull request was merged onto and the one that was merged, and runs the suite itself: in the judge's sandbox,
+# or in the image the terms name by digest. That is a second execution, under another account, on a runner the order's
+# repository does not configure. The job runs a stranger's code, so it can ask GitHub for no token (it has no
+# id-token permission), holds no secret, and hands on one thing: a small JSON verdict, as a job output. The second job
+# (attest) reads that verdict as untrusted text, reads the order, the pull request and the bundle again itself, and
+# asks for the token only for a verdict that passed on exactly that order, pull request, pair of commits and bundle.
+# When the suite does not pass here, the first job fails, the second never starts, and nothing is signed, whatever
+# the check results in the order's repository say. A third job (refused) then starts instead: it can ask for no token
+# either, and it posts the failed verdict as a `knos-verdict:` comment that says why nothing was signed.
+# An order that is paid on the merge has no suite to run: its terms name checks of the repository's own, and those
+# cannot be run from outside. The first job then runs nothing, and the verdict says: "this judge read the buyer
+# repository's check results; it did not run them".
+# The verdict (reexecuted, passed, the assurance, the image's digest, a hash of each tree, where it ran) is kept as the
+# run's artifact `knos-verdict` and posted as a `knos-verdict:` comment beside the token. The kind says
 # which one: pay (the terms were met), take (reserve the order for someone), revert (inside the warranty, the holdback
 # goes back to the funder) or rule (the arbiter the order named decides). The audience of the statement names the
 # order, the pull request and the commit, so it is good for that one action and no other.
@@ -34,12 +53,14 @@ name: knos attest (reusable workflow)
 # the repository the run was in. So the caller's file decides only when this runs; it cannot change what it does, and a
 # buyer who deletes his own workflow can no longer hold back a payment that GitHub's record supports.
 #
-# What it can read and what it cannot do:
-#   - No checkout. It reads nothing of the repository it runs in and runs nothing from a pull request.
+# What the job that signs can read and what it cannot do:
+#   - No checkout. It reads nothing of the repository it runs in, runs nothing from a pull request, runs no git and
+#     takes no artifact: of the first job it reads the verdict's text and whether the job succeeded.
 #   - The job's token reads the repository's contents (the public record is read through GitHub's API with it) and
 #     writes one thing: a comment with the signed statement on the issue titled "knos tokens" in the repository the
 #     run is in (made the first time), where a relayer finds it. Without that nobody would carry the statement to
-#     Solana. It writes no code, no pull request, no release, no setting.
+#     Solana. For a payment a second comment there carries the verdict. It writes no code, no pull request, no
+#     release, no setting.
 #   - No secret. The other permission beyond reading is the id-token: the signed statement itself.
 #   - What people wrote reaches the command as environment variables, never inside a shell script.
 #
@@ -109,7 +130,109 @@ on:
 permissions: {}
 
 jobs:
+  # Runs the order's acceptance suite again, when the order has one. It runs code from a pull request, so it gets
+  # what prove.yml's judge job gets and no more: a token that can only read, no id-token, no secret. Its one output is
+  # the verdict, which the next job does not trust.
+  rerun:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    cache-mode: read
+    permissions:
+      contents: read          # GitHub's public record, read through its API by the plan step alone
+    outputs:
+      verdict: ${{ steps.judge.outputs.verdict || steps.plan.outputs.verdict }}
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
+          ignore-empty-workdir: true
+      - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
+        env:
+          UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.15"
+      - name: the plan (which two commits, which suite, which image), from the order on Solana and GitHub's record
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R: ${{ inputs.repository }}
+          P: ${{ inputs.pull }}
+          O: ${{ inputs.order }}
+          K: ${{ inputs.kind }}
+        run: knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" --plan "$RUNNER_TEMP/rerun"
+      - name: the two commits, as plain files, into base/ and pr/ (nothing in them is run here)
+        if: steps.plan.outputs.rerun == '1'
+        env:
+          R: ${{ inputs.repository }}
+          P: ${{ inputs.pull }}
+          BASE: ${{ steps.plan.outputs.base }}
+          HEAD: ${{ steps.plan.outputs.head }}
+        run: |
+          set -euo pipefail
+          case "$R" in ''|*[!A-Za-z0-9._/-]*|*/*/*|/*|*/|.*|-*) echo "The repository is named as owner/name."; exit 1;; esac
+          case "$P" in ''|*[!0-9]*) echo "The pull request is named by its number."; exit 1;; esac
+          case "$BASE$HEAD" in *[!0-9a-f]*) echo "The plan named no commits."; exit 1;; esac
+          [ "${#BASE}" = 40 ] && [ "${#HEAD}" = 40 ] || { echo "The plan named no commits."; exit 1; }
+          w="$RUNNER_TEMP/rerun"
+          git init -q "$w/git"
+          # the order's repository is public (a private order takes no neutral run): no credential is sent or kept
+          git -C "$w/git" -c credential.helper= fetch -q --no-tags --depth 1 "$GITHUB_SERVER_URL/$R.git" "$BASE" "+refs/pull/$P/head:refs/knos/head"
+          if [ "$(git -C "$w/git" rev-parse refs/knos/head)" != "$HEAD" ]; then
+            echo "The pull request's last commit is not the one GitHub's record named. Run the workflow again."
+            exit 1
+          fi
+          mkdir "$w/base" "$w/pr"
+          GIT_LFS_SKIP_SMUDGE=1 git -C "$w/git" archive "$BASE" | tar -x -C "$w/base"     # files only: no .git, no hooks, no large files
+          GIT_LFS_SKIP_SMUDGE=1 git -C "$w/git" archive "$HEAD" | tar -x -C "$w/pr"
+          rm -rf "$w/git"
+      - name: the sandbox has no network (checked here, before any pull request code runs)
+        if: steps.plan.outputs.rerun == '1'
+        run: |
+          set -euo pipefail
+          probe=$(cat <<'PY'
+          import socket
+          for host in ("1.1.1.1", "8.8.8.8", "140.82.112.3"):
+              s = socket.socket()
+              s.settimeout(3)
+              try:
+                  s.connect((host, 443))
+              except OSError:
+                  continue
+              print("reached " + host)
+              raise SystemExit(1)
+          print("no network")
+          PY
+          )
+          python=$(command -v python3)
+          out=$(sudo -n unshare -n -- sh -c 'ip link set lo up 2>/dev/null; exec "$@"' sh \
+                  setpriv --reuid=65534 --regid=65534 --clear-groups -- env -i "$python" -c "$probe" 2>&1) || true
+          if [ "$out" != "no network" ]; then
+            echo "The sandbox for the pull request's code is not safe on this machine ($out). None of that code was run."
+            exit 1
+          fi
+          echo "$out"
+      - name: the acceptance suite, run again here in the sandbox (no token of any kind is in this step)
+        id: judge
+        if: steps.plan.outputs.rerun == '1'
+        env:
+          R: ${{ inputs.repository }}
+          P: ${{ inputs.pull }}
+          O: ${{ inputs.order }}
+          K: ${{ inputs.kind }}
+        run: knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" --judge "$RUNNER_TEMP/rerun"
+      - name: keep the verdict, passed or not
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-verdict
+          path: ${{ runner.temp }}/rerun/verdict.json
+          if-no-files-found: ignore
+
+  # Signs. It starts only when the job above succeeded: a suite that did not pass there is a statement never asked for.
   attest:
+    needs: rerun
     runs-on: ubuntu-24.04
     timeout-minutes: 15     # the command waits up to 10 minutes (knos.flow.RELAY_WAIT) for a relayer, and then says what became of the token
     cache-mode: read
@@ -140,4 +263,44 @@ jobs:
           O: ${{ inputs.order }}
           K: ${{ inputs.kind }}
           PAYEES: ${{ inputs.payees }}
+          KNOS_RERUN: ${{ needs.rerun.outputs.verdict }}    # the first job's verdict: text this command validates and does not trust
+        run: knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" ${PAYEES:+--payees "$PAYEES"}
+
+  # Says why nothing was signed. It starts only when the job above failed after it reached a verdict (the suite ran
+  # here and did not pass), runs the same command as attest with that verdict, and has no id-token permission: the
+  # command refuses the verdict, posts it as a `knos-verdict:` comment on the "knos tokens" issue with the reasons,
+  # and ends 1. Like attest it checks nothing out and runs nothing of the pull request.
+  refused:
+    needs: rerun
+    if: ${{ failure() && needs.rerun.outputs.verdict != '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    cache-mode: read
+    permissions:
+      contents: read          # GitHub's public record, read through its API (there is no checkout)
+      issues: write           # the verdict is posted on the "knos tokens" issue of the repository the run is in
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
+          ignore-empty-workdir: true
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          KNOS_LOCK
+          LOCK
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: knos attest, refused, with the reasons posted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R: ${{ inputs.repository }}
+          P: ${{ inputs.pull }}
+          O: ${{ inputs.order }}
+          K: ${{ inputs.kind }}
+          PAYEES: ${{ inputs.payees }}
+          KNOS_RERUN: ${{ needs.rerun.outputs.verdict }}    # the first job's verdict: text this command validates and does not trust
         run: knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" ${PAYEES:+--payees "$PAYEES"}

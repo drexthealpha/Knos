@@ -1,29 +1,30 @@
 # Weekly update (one minute)
 
-Narration in the founder's own voice, about 140 words, over one screen recording. The number in the second part is
+Narration in the founder's own voice, about 150 words, over one screen recording. The number in the second part is
 a slot, `[[stat: name]]`, filled from the release run.
 
 ## What shipped (0:00)
 
-*On screen: the price book, then the two counts of one month side by side on chain.*
+*On screen: the price book with the Pilot line, then two statements side by side.*
 
-This week I changed what Knos is for. It is the neutral count and settlement for software work priced per outcome.
-The buyer is the person who approves a supplier's invoice. I shipped a count that needs no money on chain, where
-the supplier's own count sits beside the buyer's, and fees in tiers so that a large order pays a smaller share.
+This week I changed no program. I worked on the person Knos is for: whoever has to approve a supplier's invoice
+and defend it afterwards. There is now one thing I can sell while everything stays on devnet: a 30-day pilot that
+reconciles one buyer's accepted work from its suppliers and names every mismatch with what was billed. I also
+took out of the repository every sum about what the business might one day earn. It has earned nothing.
 
 ## One number (0:25)
 
 *On screen: the site's Numbers page.*
 
-From merge to paid took 25 seconds at the median, on devnet.
+From merge to paid took 25 seconds at the median, on devnet. Funders other than Knos: 0.
 
-## The hardest problem, and the decision (0:30)
+## The hardest problem, and the decision (0:32)
 
-*On screen: the section of docs/SECURITY.md that says what holds now.*
+*On screen: docs/PILOT.md, the section on what blocks it.*
 
-Before the new build went live, a defect was found in it: one pay token could pay a re-funded order twice. The fix
-is one rule for every token. This release cancels that upgrade and puts the fixed build through my own 48-hour delay.
+The pilot cannot be invoiced: there is no company. And nobody has been asked whether they want it. I wrote both
+down beside the offer, and the offer stays.
 
-## Next week (0:48)
+## Next week (0:50)
 
 Conversations with the people who approve these invoices. None has happened yet.

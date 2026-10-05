@@ -17,11 +17,20 @@ A ledger file is JSON Lines. A batch is one header line, then its evaluations, o
 no spaces, integers and lowercase hex only), in ascending order of id:
 
     {"batch":{"accepted":2,"buyer":424242,"count":3,"month":202610,"root":"<hex32>","seller":555000,"seq":0,"value":4000000}}
-    {"accepted":1,"artifact":"<hex40>","buyer":424242,"id":"<hex32>","milestone":0,"order":"<hex32>","policy":"<hex32>","rate":2000000,"seller":555000}
+    {"accepted":1,"artifact":"<hex40>","buyer":424242,"deliverable":"<hex32>","id":"<hex32>","milestone":0,"order":"<hex32>","policy":"<hex32>","rate":2000000,"seller":555000}
+    {"correction":{"batch":"202610.0","by":424242,"id":"<hex32>","kind":"duplicate"}}
 
 `id` is the 32 bytes the single mode already bills once: sha256(work order || artifact, its 40 characters || policy ||
-milestone u32 little-endian), `EvalAud::key` in programs-v2/knos_meter/src/gh.rs. The tree is RFC 6962's:
-leaf = sha256(0x00 || id), node = sha256(0x01 || left || right), over the ids sorted ascending, none twice.
+milestone u32 little-endian), `EvalAud::key` in programs-v2/knos_meter/src/gh.rs. `deliverable` is what was bought:
+sha256(work order || milestone), the same for every artifact that carried it. The tree is RFC 6962's:
+leaf = sha256(0x00 || id), node = sha256(0x01 || left || right), over the ids sorted ascending, none twice, then one
+leaf sha256(0x02 || sha256(line)) per correction line of the batch.
+
+What the program cannot see is decided here, off chain. `canonical` is the one function that says what counts once
+(within a batch, across batches, against the individual mode) and applies the corrections; `numbers` gives a month's
+three numbers (evaluations, accepted outcomes, rejected evaluations); `close` sets the buyer's ledger against the
+seller's and writes the record both sign, `agreed` or `disputed`; `statement` prints a month and refuses a disputed
+one; `month_bundle` and `verify_month` keep a closed month in one archive that is checked with no network.
 
 Standard library only for everything that reads and checks files: a buyer or a seller runs that without a Solana
 client. Only what reads the chain (`--rpc`, `attest_batch`) imports Knos's own client, inside the function.
@@ -51,7 +60,7 @@ def _sha(*parts: bytes) -> bytes:
     return hashlib.sha256(b"".join(parts)).digest()
 
 
-def canonical(obj) -> str:
+def canon(obj) -> str:
     """The one way a line is written, so that two parties who hold the same facts hold the same bytes."""
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
@@ -77,6 +86,13 @@ def month_of(text: str | int) -> int:
 
 
 # -- one evaluation ---------------------------------------------------------------------------------------------------
+def deliverable_id(order: bytes, milestone: int) -> bytes:
+    """What was bought: the work order and the milestone, sha256(order || milestone as u32 little-endian). It is the
+    same whatever number of pull requests or artifacts carried the work, so ten evaluations of ten artifacts for one
+    milestone share it. An accepted outcome is counted per deliverable, never per evaluation."""
+    return _sha(order, milestone.to_bytes(4, "little"))
+
+
 def eval_id(order: bytes, artifact: str, policy: bytes, milestone: int) -> bytes:
     """What makes an evaluation billable once. The same bytes as `EvalAud::key` on chain and `eval_key` in
     knos.settle.v2.meter: the artifact goes in as its 40 characters, not as 20 bytes."""
@@ -106,6 +122,10 @@ class Evaluation:
         return eval_id(bytes.fromhex(self.order), self.artifact, bytes.fromhex(self.policy), self.milestone)
 
     @property
+    def deliverable(self) -> str:
+        return deliverable_id(bytes.fromhex(self.order), self.milestone).hex()
+
+    @property
     def value(self) -> int:
         """What it adds to the batch's value: its rate when accepted, nothing when rejected."""
         return self.rate if self.accepted else 0
@@ -115,7 +135,7 @@ class Evaluation:
         return f"knosm:eval:{self.buyer}:{self.seller}:{self.order}:{self.artifact}:{self.policy}:{self.milestone}:{int(self.accepted)}:{self.rate}"
 
     def line(self) -> str:
-        return canonical({"accepted": int(self.accepted), "artifact": self.artifact, "buyer": self.buyer, "id": self.id.hex(), "milestone": self.milestone,
+        return canon({"accepted": int(self.accepted), "artifact": self.artifact, "buyer": self.buyer, "deliverable": self.deliverable, "id": self.id.hex(), "milestone": self.milestone,
                           "order": self.order, "policy": self.policy, "rate": self.rate, "seller": self.seller})
 
 
@@ -138,6 +158,8 @@ def parse(line: str | dict) -> Evaluation:
     e = Evaluation(o["buyer"], o["seller"], o["order"], o["artifact"], o["policy"], o["milestone"], o["accepted"] == 1, o["rate"])
     if "id" in o and o["id"] != e.id.hex():
         raise Bad(f"the id {str(o['id'])[:16]}... is not the id of this order, artifact, policy and milestone")
+    if "deliverable" in o and o["deliverable"] != e.deliverable:
+        raise Bad(f"the deliverable {str(o['deliverable'])[:16]}... is not the one of this order and milestone")
     return e
 
 
@@ -169,26 +191,40 @@ def _path(m: int, hashes: list[bytes]) -> list[bytes]:
     return _path(m, hashes[:k]) + [_tree(hashes[k:])] if m < k else _path(m - k, hashes[k:]) + [_tree(hashes[:k])]
 
 
-def merkle_root(ids) -> bytes:
-    """The root over these ids, sorted ascending, each once. No ids: sha256 of nothing, as the RFC has it."""
-    return _tree([leaf(i) for i in sorted(set(ids))])
+def correction_leaf(key: bytes) -> bytes:
+    """A correction's leaf. Its prefix is neither an evaluation's (0x00) nor a node's (0x01), so no correction can be
+    read as an evaluation and no evaluation as a correction."""
+    return _sha(b"\x02", key)
 
 
-def inclusion_path(ids, id_: bytes) -> tuple[int, list[bytes]]:
-    """(index among the sorted ids, the sibling hashes from the leaf up)."""
-    order = sorted(set(ids))
-    if id_ not in order:
-        raise Bad("that evaluation is not in the batch")
-    m = order.index(id_)
-    return m, _path(m, [leaf(i) for i in order])
+def _leaves(ids, corrections=()) -> list[bytes]:
+    """The evaluations' leaves in ascending order of id, then the corrections' in ascending order of key. A batch with
+    no correction has exactly the tree it had before corrections existed."""
+    return [leaf(i) for i in sorted(set(ids))] + [correction_leaf(k) for k in sorted(set(corrections))]
 
 
-def check_proof(id_: bytes, index: int, size: int, path: list[bytes], root: bytes) -> bool:
+def merkle_root(ids, corrections=()) -> bytes:
+    """The root over these ids, sorted ascending, each once, followed by the keys of the batch's corrections. No
+    leaves: sha256 of nothing, as the RFC has it."""
+    return _tree(_leaves(ids, corrections))
+
+
+def inclusion_path(ids, id_: bytes, corrections=()) -> tuple[int, list[bytes]]:
+    """(index among the leaves, the sibling hashes from the leaf up) of an evaluation's id, or of a correction's key."""
+    order, keys = sorted(set(ids)), sorted(set(corrections))
+    if id_ not in order and id_ not in keys:
+        raise Bad("that evaluation or correction is not in the batch")
+    m = order.index(id_) if id_ in order else len(order) + keys.index(id_)
+    return m, _path(m, _leaves(ids, corrections))
+
+
+def check_proof(id_: bytes, index: int, size: int, path: list[bytes], root: bytes, correction: bool = False) -> bool:
     """Whether `id_` is leaf `index` of a tree of `size` leaves with this root (RFC 9162, section 2.1.3.2). Needs
-    nothing but the proof and the root: not the ledger, not the other evaluations."""
+    nothing but the proof and the root: not the ledger, not the other evaluations. `correction`: `id_` is a
+    correction's key, not an evaluation's id."""
     if not 0 <= index < size:
         return False
-    fn, sn, r = index, size - 1, leaf(id_)
+    fn, sn, r = index, size - 1, (correction_leaf if correction else leaf)(id_)
     for p in path:
         if sn == 0:
             return False
@@ -215,13 +251,14 @@ class Batch:
     value: int          # the sum of the accepted evaluations' rates
     root: bytes
     evals: tuple[Evaluation, ...] = field(default=(), compare=False)
+    corrections: tuple["Correction", ...] = field(default=(), compare=False)
 
     def header(self) -> str:
-        return canonical({"batch": {"accepted": self.accepted, "buyer": self.buyer, "count": self.count, "month": self.month, "root": self.root.hex(),
+        return canon({"batch": {"accepted": self.accepted, "buyer": self.buyer, "count": self.count, "month": self.month, "root": self.root.hex(),
                                     "seller": self.seller, "seq": self.seq, "value": self.value}})
 
     def lines(self) -> list[str]:
-        return [self.header(), *(e.line() for e in self.evals)]
+        return [self.header(), *(e.line() for e in self.evals), *(c.line() for c in self.corrections)]
 
 
 def audience_of(kind: str, buyer: int, seller: int, month: int, seq: int, count: int, accepted: int, value: int, root: bytes) -> str:
@@ -252,10 +289,11 @@ def parse_batch_audience(aud: str) -> tuple[bool, Batch]:
     return p[1] == "claim", Batch(int(p[2]), int(p[3]), int(p[4]), int(p[5]), int(p[6]), int(p[7]), int(p[8]), bytes.fromhex(p[9]))
 
 
-def batch(lines, seq: int, month: int | str) -> Batch:
+def batch(lines, seq: int, month: int | str, corrections=()) -> Batch:
     """A batch from evaluations (ledger lines, audiences or Evaluation objects). The same evaluation given twice (a
     retry) is counted once; two that share an id and differ in verdict or rate are refused, because a batch says one
-    thing about each evaluation. All must be of one buyer and one seller."""
+    thing about each evaluation. All must be of one buyer and one seller. `corrections` ride in the batch's tree and
+    change none of its three numbers: the chain's counters only go up, and the statement nets them."""
     by: dict[bytes, Evaluation] = {}
     for item in lines:
         e = item if isinstance(item, Evaluation) else parse(item)
@@ -268,8 +306,9 @@ def batch(lines, seq: int, month: int | str) -> Batch:
     if len(pairs) != 1:
         raise Bad("a batch is for one buyer and one seller; these evaluations name more than one pair")
     (buyer, seller), = pairs
+    fixes = tuple(sorted({c.key: c for c in corrections}.values(), key=lambda c: c.key))
     return Batch(buyer, seller, month_of(month), _int(seq, "seq"), len(evals), sum(e.accepted for e in evals), sum(e.value for e in evals),
-                 merkle_root(by), evals)
+                 merkle_root(by, [c.key for c in fixes]), evals, fixes)
 
 
 def chain_hash(prev: bytes, root: bytes, seq: int, count: int, accepted: int, value: int) -> bytes:
@@ -285,6 +324,7 @@ class Stored:
     declared: dict
     evals: list[Evaluation]
     at: int             # the header's line number, for messages
+    corrections: list = field(default_factory=list)     # the correction lines under it
 
     @property
     def month(self) -> int:
@@ -296,7 +336,7 @@ class Stored:
 
     def batch(self) -> Batch:
         """The batch recomputed from the lines (never from the header's root or totals)."""
-        return batch(self.evals, self.seq, self.month)
+        return batch(self.evals, self.seq, self.month, self.corrections)
 
 
 def load(text: str | Path) -> list[Stored]:
@@ -326,6 +366,9 @@ def load(text: str | Path) -> list[Stored]:
         if not out:
             raise Bad(f"line {n}: an evaluation before any batch header")
         try:
+            if isinstance(o, dict) and "correction" in o:
+                out[-1].corrections.append(Correction.of(o))
+                continue
             out[-1].evals.append(parse(o))
         except Bad as why:
             raise Bad(f"line {n}: {why}") from None
@@ -373,15 +416,14 @@ def totals(ledger: list[Stored], month: int) -> Totals:
     return t
 
 
-def verify(ledger: list[Stored], onchain: Totals | None = None, month: int | None = None) -> list[str]:
-    """Everything wrong with a ledger, in words; an empty list means it holds. Every root and total is recomputed
-    from the lines; a month's batches must be numbered 0, 1, 2, ...; no evaluation may be in two batches (the chain
-    cannot see that in batch mode: it has no account per evaluation, so this check is the only one). With `onchain`,
-    the month's totals and running hash must be the chain's (`month` may be left out when the ledger has one)."""
+def _structure(ledger: list[Stored]) -> list[str]:
+    """What is wrong with a ledger as a file: roots, totals, numbering, corrections that point at nothing. Repeats are
+    `verify`'s second half: a repeat is a fact about what was anchored, and a correction answers it."""
     bad: list[str] = []
     if len({(s.declared["buyer"], s.declared["seller"]) for s in ledger}) > 1:
         bad.append("the file holds batches of more than one buyer and seller: keep one file per pair")
-    seen: dict[bytes, tuple[int, int]] = {}
+    held = {(s.month, s.seq): {e.id.hex() for e in s.evals} for s in ledger}
+    keys: set[bytes] = set()
     for s in ledger:
         where = f"batch {s.seq} of {s.month} (line {s.at})"
         try:
@@ -398,14 +440,36 @@ def verify(ledger: list[Stored], onchain: Totals | None = None, month: int | Non
             bad.append(f"{where}: the lines give root {b.root.hex()}, the header says {d['root']}: a line was changed, added or removed")
         if (b.count, b.accepted, b.value) != (d["count"], d["accepted"], d["value"]):
             bad.append(f"{where}: the lines give count {b.count}, accepted {b.accepted}, value {b.value}; the header says {d['count']}, {d['accepted']}, {d['value']}")
-        for e in b.evals:
-            first = seen.setdefault(e.id, (s.month, s.seq))
-            if first != (s.month, s.seq):
-                bad.append(f"{where}: evaluation {e.id.hex()} is already in batch {first[1]} of {first[0]}: it would be counted twice")
+        for c in s.corrections:
+            said = f"{where}: the correction of evaluation {c.id[:16]}... in batch {c.seq} of {c.month}"
+            if c.by not in (d["buyer"], d["seller"]):
+                bad.append(f"{said} is issued by GitHub id {c.by}, which is neither this ledger's buyer nor its seller")
+            if (c.month, c.seq) >= (s.month, s.seq) or c.id not in held.get((c.month, c.seq), ()):
+                bad.append(f"{said} names an evaluation that no earlier batch of this ledger holds there: a correction refers to a batch before its own")
+            if c.key in keys:
+                bad.append(f"{said} is written twice: keep one")
+            keys.add(c.key)
     for m in sorted({s.month for s in ledger}):
         seqs = sorted(s.seq for s in ledger if s.month == m)
         if seqs != list(range(len(seqs))):
             bad.append(f"month {m}: its batches are numbered {seqs}, not 0 to {len(seqs) - 1}: one is missing or repeated")
+    return bad
+
+
+def verify(ledger: list[Stored], onchain: Totals | None = None, month: int | None = None, individual=None) -> list[str]:
+    """Everything wrong with a ledger, in words; an empty list means it holds. Every root and total is recomputed
+    from the lines; a month's batches must be numbered 0, 1, 2, ...; and no evaluation may be counted twice: in two
+    batches, or in a batch and singly (`individual`: the ids the individual mode recorded). The chain cannot see a
+    repeat in batch mode, because it has no account per evaluation, so this check is the only one. A repeat that is
+    anchored was billed twice and cannot be taken back on chain; it stops failing here once a `duplicate` correction
+    for it is in a later batch. With `onchain`, the month's totals and running hash must be the chain's (`month` may
+    be left out when the ledger has one)."""
+    bad = _structure(ledger)
+    for r in canonical(ledger, individual or ()).dropped:
+        if r.reason in (BATCH, SINGLY) and r.corrected is None:
+            bad.append(f"batch {r.seq} of {r.month}: evaluation {r.id.hex()} is {r.where()}: it is counted twice. If batch {r.seq} is not anchored yet, take the line out "
+                       f"and build the batch again; if it is anchored, the chain billed it twice: run `knos meter correct <ledger> {r.id.hex()} --batch "
+                       f"{r.month}.{r.seq} --kind duplicate` and anchor the next batch, which carries the correction")
     if onchain is not None and not bad:
         months = sorted({s.month for s in ledger})
         if month is None and len(months) != 1:
@@ -429,32 +493,34 @@ class Proof:
     size: int
     path: tuple[bytes, ...]
     root: bytes
+    correction: bool = False    # `id` is a correction's key: its leaf has the corrections' prefix
 
     def ok(self) -> bool:
-        return check_proof(self.id, self.index, self.size, list(self.path), self.root)
+        return check_proof(self.id, self.index, self.size, list(self.path), self.root, self.correction)
 
     def json(self) -> dict:
         return {"id": self.id.hex(), "index": self.index, "month": self.month, "path": [p.hex() for p in self.path], "root": self.root.hex(), "seq": self.seq,
-                "size": self.size}
+                "size": self.size, **({"correction": 1} if self.correction else {})}
 
     @classmethod
     def of(cls, o: dict) -> "Proof":
         try:
             return cls(bytes.fromhex(_hex(o["id"], 64, "id")), _int(o["month"], "month"), _int(o["seq"], "seq"), _int(o["index"], "index"), _int(o["size"], "size"),
-                       tuple(bytes.fromhex(_hex(p, 64, "a path entry")) for p in o["path"]), bytes.fromhex(_hex(o["root"], 64, "root")))
+                       tuple(bytes.fromhex(_hex(p, 64, "a path entry")) for p in o["path"]), bytes.fromhex(_hex(o["root"], 64, "root")), o.get("correction") == 1)
         except (KeyError, TypeError):
             raise Bad("a proof has id, month, seq, index, size, path and root") from None
 
 
 def prove(ledger: list[Stored], id_: bytes) -> Proof:
-    """The inclusion proof of one evaluation, from the first batch that holds it."""
+    """The inclusion proof of one evaluation (by its id) or of one correction (by its key), from the first batch that
+    holds it. `size` is the batch's leaves: its evaluations and then its corrections."""
     for s in ledger:
         b = s.batch()
-        ids = [e.id for e in b.evals]
-        if id_ in ids:
-            index, path = inclusion_path(ids, id_)
-            return Proof(id_, b.month, b.seq, index, b.count, tuple(path), b.root)
-    raise Bad(f"evaluation {id_.hex()} is in no batch of this ledger")
+        ids, keys = [e.id for e in b.evals], [c.key for c in b.corrections]
+        if id_ in ids or id_ in keys:
+            index, path = inclusion_path(ids, id_, keys)
+            return Proof(id_, b.month, b.seq, index, len(ids) + len(keys), tuple(path), b.root, id_ not in ids)
+    raise Bad(f"{id_.hex()} is in no batch of this ledger, as an evaluation or as a correction")
 
 
 # -- two ledgers ------------------------------------------------------------------------------------------------------
@@ -517,17 +583,13 @@ class Reconciliation:
 
 
 def _events(ledger: list[Stored]) -> tuple[dict[bytes, tuple[int, Evaluation]], tuple[bytes, ...]]:
-    """id -> (month, evaluation), the first entry winning in order of month, seq and line; and the ids entered more
-    than once."""
-    first: dict[bytes, tuple[int, Evaluation]] = {}
-    twice: set[bytes] = set()
-    for s in sorted(ledger, key=lambda s: (s.month, s.seq, s.at)):
-        for e in s.evals:
-            if e.id in first:
-                twice.add(e.id)
-            else:
-                first[e.id] = (s.month, e)
-    return first, tuple(sorted(twice))
+    """id -> (month, evaluation) of everything that counts in one party's ledger, and the ids it entered more than
+    once with no correction for it. What counts is `canonical`'s to say, here as everywhere: the first entry of an
+    id in order of month, seq and id stands, a withdrawn evaluation is out, a corrected verdict is the verdict, and
+    an entry a `duplicate` correction names is settled (it is not a finding any more)."""
+    c = canonical(ledger)
+    return ({x.e.id: (x.month, x.e) for x in c.kept},
+            tuple(sorted({d.id for d in c.dropped if d.reason in (WITHIN, BATCH) and d.corrected is None})))
 
 
 def fee(count: int, rate: int = RATE, free: int = FREE_PER_MONTH) -> int:
@@ -579,6 +641,456 @@ def usd(micro: int) -> str:
     return f"{micro // MICRO}.{micro % MICRO:06d}".rstrip("0").rstrip(".") if micro % MICRO else str(micro // MICRO)
 
 
+# -- corrections, the canonical ledger, and the three numbers ------------------------------------------------------------
+KINDS = ("duplicate", "verdict", "withdrawn")
+WITHIN, BATCH, SINGLY, WITHDRAWN = "written twice in its batch", "in another batch", "recorded singly", "withdrawn"
+
+
+@dataclass(frozen=True)
+class Correction:
+    """What its issuer says about one evaluation in one earlier batch. The program's counters only go up, so this is
+    a ledger line and not a chain write: it rides in the next batch's tree under its own leaf prefix, so the root
+    GitHub signs for that batch anchors it, and the statement nets it.
+
+        duplicate   that entry is a repeat: the evaluation is counted elsewhere (another batch, or singly)
+        verdict     the verdict that stands is `accepted` (1 or 0), not the one the batch recorded
+        withdrawn   the evaluation should not have been counted at all"""
+    by: int             # the GitHub owner id that issues it: the ledger's buyer or its seller
+    id: str             # the evaluation, 32 bytes as hex
+    month: int          # the batch it corrects
+    seq: int
+    kind: str
+    accepted: bool | None = None
+
+    def __post_init__(self) -> None:
+        _int(self.by, "by", least=1), _hex(self.id, 64, "id"), month_of(_int(self.month, "month")), _int(self.seq, "seq")
+        if self.kind not in KINDS or (self.kind == "verdict") != isinstance(self.accepted, bool):
+            raise Bad("a correction is of kind duplicate, verdict or withdrawn, and only a verdict correction carries accepted (1 or 0)")
+
+    def line(self) -> str:
+        return canon({"correction": {"batch": f"{self.month}.{self.seq}", "by": self.by, "id": self.id, "kind": self.kind,
+                                     **({"accepted": int(self.accepted)} if self.accepted is not None else {})}})
+
+    @property
+    def key(self) -> bytes:
+        """What the batch's tree holds of it: the sha256 of its line."""
+        return _sha(self.line().encode())
+
+    @classmethod
+    def of(cls, o: dict) -> "Correction":
+        c = o.get("correction") if isinstance(o, dict) else None
+        if not isinstance(c, dict) or not {"batch", "by", "id", "kind"} <= set(c) <= {"accepted", "batch", "by", "id", "kind"}:
+            raise Bad("a correction has batch (<yyyymm>.<seq>), by, id and kind, and accepted when its kind is verdict")
+        m = re.fullmatch(r"([0-9]{6})\.(0|[1-9][0-9]{0,18})", str(c["batch"]))
+        if m is None or c.get("accepted", 0) not in (0, 1) or isinstance(c.get("accepted"), bool):
+            raise Bad("a correction's batch is written <yyyymm>.<seq>, and accepted is 1 or 0")
+        return cls(c["by"], c["id"], int(m[1]), int(m[2]), c["kind"], c["accepted"] == 1 if "accepted" in c else None)
+
+
+@dataclass(frozen=True)
+class Entry:
+    """One evaluation that counts, in the batch that has it first, with the verdict that stands."""
+    month: int
+    seq: int
+    e: Evaluation
+    fixed: tuple[int, int] | None = None    # the batch whose correction changed its verdict
+
+
+@dataclass(frozen=True)
+class Dropped:
+    """One entry that does not count, and why. `first`: where the evaluation is counted instead (a batch, or None for
+    the individual mode or unknown). `corrected`: the batch that carries the correction for it, None when there is none."""
+    id: bytes
+    month: int
+    seq: int
+    reason: str
+    first: tuple[int, int] | None = None
+    corrected: tuple[int, int] | None = None
+
+    def where(self) -> str:
+        return {BATCH: f"already in batch {self.first[1]} of {self.first[0]}" if self.first else "counted elsewhere",
+                SINGLY: "also recorded singly (the individual mode has a mark for it)"}.get(self.reason, self.reason)
+
+    def said(self) -> str:
+        """The statement's words for it."""
+        fix = f"corrected in batch {self.corrected[1]} of {self.corrected[0]}" if self.corrected else "not corrected"
+        return f"withdrawn, {fix}" if self.reason == WITHDRAWN else "written twice in its batch, counted once" if self.reason == WITHIN else \
+            f"billed twice on chain, {fix}"
+
+
+@dataclass(frozen=True)
+class Canon:
+    kept: tuple[Entry, ...]                                 # in order of (month, seq, id)
+    dropped: tuple[Dropped, ...]
+    corrections: tuple[tuple[int, int, Correction], ...]    # (the batch that carries it, the correction)
+
+
+def canonical(ledger: list[Stored], individual=()) -> Canon:
+    """THE ONE PLACE that decides what counts once. Identity is the 32-byte evaluation id the program bills by. Of the
+    entries that share an id, the first in order of time (month, then seq: the order the chain takes batches in), then
+    id, is kept; every other is dropped and listed with the reason: written twice in one batch, in another batch, or
+    recorded singly as well (`individual`: the ids the individual mode has marks for; they come first, because each
+    stands on chain by itself). Corrections are applied here too: a `duplicate` drops the entry it names, a
+    `withdrawn` takes the evaluation out, a `verdict` replaces the verdict (the last one anchored stands)."""
+    from dataclasses import replace
+    single = {bytes(i) for i in individual}
+    fixes = sorted(((s.month, s.seq, c) for s in ledger for c in s.corrections), key=lambda t: (t[0], t[1], t[2].key))
+    by_kind: dict[str, dict] = {k: {} for k in KINDS}
+    for m, q, c in fixes:
+        by_kind[c.kind][(c.id, c.month, c.seq)] = ((m, q), c)
+    places: dict[bytes, list[tuple[int, int]]] = {}
+    for s in ledger:
+        for i in {e.id for e in s.evals}:
+            places.setdefault(i, []).append((s.month, s.seq))
+    kept, dropped, seen = [], [], dict[bytes, tuple[int, int]]()
+    for s in sorted(ledger, key=lambda s: (s.month, s.seq, s.at)):
+        here, at = set(), (s.month, s.seq)
+        for e in sorted(s.evals, key=lambda e: e.id):
+            i, k = e.id, (e.id.hex(), *at)
+            if i in here:
+                dropped.append(Dropped(i, *at, WITHIN, at))
+            elif k in by_kind["duplicate"]:
+                other = min((p for p in places[i] if p != at), default=None)
+                dropped.append(Dropped(i, *at, SINGLY if i in single and other is None else BATCH, other, by_kind["duplicate"][k][0]))
+            elif i in single:
+                dropped.append(Dropped(i, *at, SINGLY))
+            elif i in seen:
+                dropped.append(Dropped(i, *at, BATCH, seen[i]))
+            elif k in by_kind["withdrawn"]:
+                seen[i] = at
+                dropped.append(Dropped(i, *at, WITHDRAWN, None, by_kind["withdrawn"][k][0]))
+            else:
+                seen[i] = at
+                where, c = by_kind["verdict"].get(k, (None, None))
+                kept.append(Entry(*at, replace(e, accepted=c.accepted) if c else e, where))
+            here.add(i)
+    return Canon(tuple(sorted(kept, key=lambda x: (x.month, x.seq, x.e.id))), tuple(sorted(dropped, key=lambda d: (d.month, d.seq, d.id))), tuple(fixes))
+
+
+@dataclass(frozen=True)
+class Numbers:
+    """One month, after `canonical`. The first three are the statement's three numbers and are never added together."""
+    evaluations: int            # the Meter's billable unit: every evaluation that counts, accepted or rejected
+    accepted_outcomes: int      # deliverables (order + milestone) accepted for the first time this month: what a per-outcome price multiplies
+    rejected: int               # evaluations whose verdict is rejected
+    accepted: int               # evaluations whose verdict is accepted: ten pull requests for one deliverable are ten here
+    value: int                  # the sum of the accepted evaluations' rates, as the chain's `value` adds them
+    outcome_value: int          # the sum over the accepted outcomes of the rate of the evaluation that first accepted each
+
+    def three(self) -> dict:
+        return {"accepted_outcomes": self.accepted_outcomes, "evaluations": self.evaluations, "rejected": self.rejected}
+
+
+def outcomes(c: Canon) -> dict[str, Entry]:
+    """deliverable -> the entry that first accepted it. One per deliverable, however many pull requests or artifacts
+    carried it and however many months it was evaluated in."""
+    first: dict[str, Entry] = {}
+    for x in c.kept:
+        if x.e.accepted:
+            first.setdefault(x.e.deliverable, x)
+    return first
+
+
+def numbers(c: Canon, month: int) -> Numbers:
+    mine = [x.e for x in c.kept if x.month == month]
+    won = [x.e for x in outcomes(c).values() if x.month == month]
+    return Numbers(len(mine), len(won), sum(not e.accepted for e in mine), sum(e.accepted for e in mine), sum(e.value for e in mine), sum(e.rate for e in won))
+
+
+def read_ids(text: str) -> list[bytes]:
+    """The ids the individual mode recorded, from a file: one 64-character hex id a line (`knosm:eval:...` audiences
+    and ledger lines are read too)."""
+    out = []
+    for raw in text.splitlines():
+        raw = raw.strip()
+        if raw:
+            out.append(bytes.fromhex(_hex(raw, 64, "an id")) if len(raw) == 64 else parse(raw).id)
+    return out
+
+
+def individual_onchain(net, ledger: list[Stored]) -> list[bytes]:
+    """The evaluations of this ledger that the individual mode has a mark for on chain now, one account read each.
+    A mark may be closed from two hours into the month after its own, so a month that is over is checked from a file
+    of ids kept while the marks stood."""
+    from .settle.v2 import meter
+    return [e.id for e in {e.id: e for s in ledger for e in s.evals}.values() if meter.read_mark(net.account(meter.mark_pda(e.buyer, e.id))) is not None]
+
+
+# -- the period close ----------------------------------------------------------------------------------------------------
+CLOSE_TYPE, MONTH_TYPE = "knos.meter-close", "knos.meter-month"
+GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
+GITHUB_JWKS = GITHUB_ISSUER + "/.well-known/jwks"
+ROLES = ("buyer", "seller")
+
+
+def side(ledger: list[Stored], month: int, individual=()) -> dict:
+    """What one party's ledger says of a month: the final running hash of its batches (what its Ledger account on
+    chain must hold), how many evaluations they anchored, and the three numbers after `canonical`."""
+    t, c = totals(ledger, month), canonical(ledger, individual)
+    return {**numbers(c, month).three(), "anchored": t.count, "batches": t.next_seq, "chain": t.chain.hex(),
+            "corrections": sum(1 for _m, _q, x in c.corrections if x.month == month)}
+
+
+def close(buyer_ledger: list[Stored], seller_ledger: list[Stored], month: int | str, individual=()) -> dict:
+    """The close record of one month for one buyer and one seller: both ledgers' final hashes and three numbers, every
+    correction and who issued it, and `state`: `agreed` when the two ledgers hold the same evaluations with the same
+    verdicts and rates after `canonical`, else `disputed` with every line in dispute and why. It is made only of what
+    the two files say, so both parties compute the same bytes (`close_bytes`) and each has its own GitHub run sign
+    their sha256. The chain holds the batches, not the close: knos_meter has no instruction for one."""
+    month = month_of(month)
+    for name, led in zip(ROLES, (buyer_ledger, seller_ledger)):
+        bad = _structure(led)
+        if bad:
+            raise Bad(f"the {name}'s ledger does not hold, so the month cannot be closed: {bad[0]}")
+    pairs = {(s.declared["buyer"], s.declared["seller"]) for s in (*buyer_ledger, *seller_ledger)}
+    if len(pairs) != 1 or not any(s.month == month for s in (*buyer_ledger, *seller_ledger)):
+        raise Bad("the two ledgers are not of the same buyer and seller" if len(pairs) > 1 else f"neither ledger has a batch of {month}")
+    (buyer, seller), = pairs
+    cb, cs = canonical(buyer_ledger, individual), canonical(seller_ledger, individual)
+    b_all, s_all = {x.e.id: x for x in cb.kept}, {x.e.id: x for x in cs.kept}
+    show = lambda x: {"accepted": int(x.e.accepted), "batch": f"{x.month}.{x.seq}", "rate": x.e.rate} if x else None  # noqa: E731
+    lines = []
+    for i in sorted(i for i in b_all.keys() | s_all.keys() if month in {x.month for x in (b_all.get(i), s_all.get(i)) if x}):
+        b, s = b_all.get(i), s_all.get(i)
+        why = "missing from the seller's ledger" if s is None else "missing from the buyer's ledger" if b is None else \
+            "month differs" if b.month != s.month else "verdict differs" if b.e.accepted != s.e.accepted else "rate differs" if b.e.rate != s.e.rate else ""
+        if why:
+            lines.append({"buyer": show(b), "id": i.hex(), "seller": show(s), "why": why})
+    for name, c in zip(ROLES, (cb, cs)):
+        lines += [{"buyer": None, "id": d.id.hex(), "seller": None, "why": f"duplicate in the {name}'s ledger: batch {d.seq} of {d.month}, {d.where()}"}
+                  for d in c.dropped if d.month == month and d.corrected is None and d.reason in (BATCH, SINGLY)]
+    fixes = [{"batch": f"{m}.{q}", "by": x.by, "id": x.id, "in": name, "kind": x.kind, "of": f"{x.month}.{x.seq}", **({"accepted": int(x.accepted)} if x.accepted is not None else {})}
+             for name, c in zip(ROLES, (cb, cs)) for m, q, x in c.corrections if x.month == month]
+    return {"buyer": buyer, "buyer_ledger": side(buyer_ledger, month, individual), "corrections": fixes, "disputed": sorted(lines, key=lambda d: (d["id"], d["why"])),
+            "month": month, "seller": seller, "seller_ledger": side(seller_ledger, month, individual), "state": "disputed" if lines else "agreed",
+            "type": CLOSE_TYPE, "version": 1}
+
+
+def close_bytes(record: dict) -> bytes:
+    """The close record as the bytes both parties sign: canonical JSON and one newline."""
+    return (canon(record) + "\n").encode()
+
+
+def read_close(raw: bytes | str) -> dict:
+    """A close record from its file. One that is not in the form `close` writes is refused: its sha256 would not be
+    the one anybody signed."""
+    raw = raw.encode() if isinstance(raw, str) else raw
+    try:
+        r = json.loads(raw)
+        assert r["type"] == CLOSE_TYPE and r["version"] == 1 and r["state"] in ("agreed", "disputed") and close_bytes(r) == raw
+        assert (r["state"] == "disputed") == bool(r["disputed"]) and all(set(r[k]) == set(side([], 0)) for k in ("buyer_ledger", "seller_ledger"))
+        _int(r["buyer"], "buyer", least=1), _int(r["seller"], "seller", least=1), month_of(r["month"])
+    except Exception:  # noqa: BLE001 - missing, not JSON, or not a close record: one sentence either way
+        raise Bad("this is not a close record as `knos meter close` writes one (canonical JSON, version 1)") from None
+    return r
+
+
+def close_audience(record: dict) -> str:
+    """The audience of the token by which one party's GitHub run signs a close record:
+    `knosm:close:<buyer>:<seller>:<yyyymm>:<sha256 of the record's bytes>`. knos_oidc can verify any GitHub token, but
+    knos_meter reads no such audience, so the token is kept beside the ledger and checked off chain (`check_close_token`)."""
+    return f"knosm:close:{record['buyer']}:{record['seller']}:{record['month']:06d}:{hashlib.sha256(close_bytes(record)).hexdigest()}"
+
+
+def _jwt_part(token: str, n: int) -> dict:
+    from . import bundle
+    try:
+        got = json.loads(bundle._unb64(token.strip().split(".")[n]))
+    except Exception:  # noqa: BLE001
+        got = None
+    if not isinstance(got, dict):
+        raise Bad("the token is not a signed token (three parts, the first two JSON)")
+    return got
+
+
+def keys_used(jwks: dict, tokens) -> dict:
+    """The JWKS document cut down to the keys these tokens name, in canonical order: what an archive keeps."""
+    kids = {_jwt_part(t, 0).get("kid") for t in tokens}
+    return {"keys": sorted((k for k in jwks.get("keys", []) if isinstance(k, dict) and k.get("kid") in kids), key=canon)}
+
+
+def check_close_token(record: dict, token: str, jwks: dict, role: str) -> dict:
+    """The claims of `token` when it is this party's signature of this close record, checked with no network: an RS256
+    signature of one of the keys in `jwks` (the verifier the evidence bundle uses, knos.bundle.rs256), issued by GitHub
+    Actions, for the record's audience, in a repository whose owner is the record's buyer (`role` buyer) or seller.
+    Raises Bad, in words, otherwise. The token's expiry is not held against it: a close is read long after GitHub's
+    few minutes, and what is asked is whether GitHub signed these bytes for this owner, at the time `iat` names.
+    Whether `jwks` really are GitHub's keys is the reader's to check once, against GITHUB_JWKS or the knos_oidc key
+    accounts; an archive carries the keys it was signed with so that the check is possible later."""
+    from . import bundle
+    token, head, claims = token.strip(), _jwt_part(token, 0), _jwt_part(token, 1)
+    moduli = [int.from_bytes(bundle._unb64(k["n"]), "big") for k in jwks.get("keys", [])
+              if isinstance(k, dict) and k.get("kty") == "RSA" and k.get("e") == "AQAB" and k.get("kid") == head.get("kid") and isinstance(k.get("n"), str)]
+    if not any(bundle.rs256(token, n) for n in moduli):
+        raise Bad(f"the {role}'s token does not carry the signature of any of the given keys (key id {head.get('kid')!r}): the token or the keys were changed")
+    if claims.get("iss") != GITHUB_ISSUER:
+        raise Bad(f"the {role}'s token was not issued by GitHub Actions")
+    if claims.get("aud") != close_audience(record):
+        raise Bad(f"the {role}'s token was signed for something else than this close record (its audience is not {close_audience(record)})")
+    if str(claims.get("repository_owner_id")) != str(record[role]):
+        raise Bad(f"the {role}'s token is from a repository of GitHub id {claims.get('repository_owner_id')}, and the record's {role} is {record[role]}")
+    return claims
+
+
+class Disputed(Bad):
+    """A month in dispute was asked for as if it were settled."""
+
+
+def statement(ledger: list[Stored], month: int | str, record: dict | None = None, individual=(), rate: int = RATE, free: int = FREE_PER_MONTH,
+              disputed: bool = False) -> str:
+    """One month of one ledger as text, for the invoice and for whoever checks it later. Three numbers that are never
+    added together (evaluations, accepted outcomes, rejected evaluations), the Meter fee on the evaluations, and the
+    value a per-outcome price multiplies. The lines down to the first `sha256` are made only of what both parties
+    hold once a month is agreed, so the buyer and the seller compare that hash; the lines after it are this ledger's
+    own record: what it anchored, every repeat, every correction.
+
+    `record` is the month's close record. Without one the state is `open`. A month whose close is `disputed` is
+    refused (Disputed) unless `disputed` is set, and then every line in dispute is listed and the text says it is
+    not an invoice."""
+    month = month_of(month)
+    bad = _structure(ledger)
+    if bad or not any(s.month == month for s in ledger):
+        raise Bad(f"the ledger does not hold: {bad[0]}" if bad else f"the ledger has no batch of {month}")
+    c, mine = canonical(ledger, individual), side(ledger, month, individual)
+    n = numbers(c, month)
+    state = "open"
+    if record is not None:
+        if record["month"] != month or mine not in (record["buyer_ledger"], record["seller_ledger"]):
+            raise Bad("the close record is not of this ledger and month (its hashes and numbers are another's): the ledger changed after the close, or this is "
+                      "another month. Run `knos meter close` again")
+        state = record["state"]
+        if state == "disputed" and not disputed:
+            raise Disputed(f"{month} is in dispute ({len(record['disputed'])} line(s)), so there are no totals to invoice. Settle the lines `knos meter close` "
+                           f"names, anchor the corrections and close again; or pass --disputed to see the numbers with every disputed line marked")
+    d = ledger[0].declared
+    body = (f"knos meter statement,1\nbuyer,{d['buyer']}\nseller,{d['seller']}\nmonth,{month}\nstate,{state}\n"
+            + (f"close,{hashlib.sha256(close_bytes(record)).hexdigest()}\n" if record is not None else "")
+            + ("note,DISPUTED: this is not an invoice; the lines marked disputed below are not settled\n" if state == "disputed" else "")
+            + f"evaluations,{n.evaluations}\naccepted_outcomes,{n.accepted_outcomes}\nrejected_evaluations,{n.rejected}\n"
+            f"accepted_evaluations,{n.accepted}\nmeter_rate,{rate}\nmeter_free,{free}\nmeter_fee,{fee(n.evaluations, rate, free)}\n"
+            f"value_of_accepted_evaluations,{n.value}\nvalue_of_accepted_outcomes,{n.outcome_value}\n")
+    body += "".join(f"disputed,{x['id']},{x['why']}\n" for x in (record["disputed"] if record is not None else []))
+    out = body + f"sha256,{hashlib.sha256(body.encode()).hexdigest()}\n"
+    out += f"anchored,{mine['anchored']},in {mine['batches']} batch(es),running hash {mine['chain']}\n"
+    out += f"anchored_and_not_counted,{mine['anchored'] - n.evaluations}\n"
+    out += "".join(f"repeat,{r.id.hex()},batch {r.seq} of {r.month},{r.said()}\n" for r in c.dropped if r.month == month)
+    out += "".join(f"correction,{x.kind},{x.id},of batch {x.seq} of {x.month},in batch {q} of {m},by {x.by}"
+                   + (f",accepted {int(x.accepted)}" if x.accepted is not None else "") + "\n" for m, q, x in c.corrections if x.month == month)
+    return out
+
+
+# -- a month in one archive ----------------------------------------------------------------------------------------------
+def _tar(files: dict[str, bytes]) -> bytes:
+    """One form only (names in order, times zero, one mode, no owner), as knos.bundle.make writes its own."""
+    import tarfile
+    out = io.BytesIO()
+    with tarfile.open(fileobj=out, mode="w", format=tarfile.USTAR_FORMAT) as tar:
+        for name, data in sorted(files.items()):
+            info = tarfile.TarInfo(name)
+            info.size, info.mtime, info.mode, info.uid, info.gid, info.uname, info.gname = len(data), 0, 0o644, 0, 0, "", ""
+            tar.addfile(info, io.BytesIO(data))
+    return out.getvalue()
+
+
+def _corrections_text(ledger: list[Stored], month: int) -> str:
+    return "".join(canon({"anchored_in": f"{m}.{q}", **json.loads(x.line())}) + "\n" for m, q, x in canonical(ledger).corrections if x.month == month)
+
+
+def month_bundle(record: dict, ledgers: dict[str, str], tokens: dict[str, str], jwks: dict) -> bytes:
+    """One archive of a closed month, the same bytes whoever builds it from the same files: the close record, the
+    ledger file of each party given (`ledgers`: buyer and/or seller -> the file's text), the month's corrections drawn
+    from them, each party's signed token as far as there is one, and the GitHub keys those tokens name. Everything in
+    it is checked first (`verify_month`), so no archive is written that would not verify."""
+    if not ledgers or not set(ledgers) <= set(ROLES) or not set(tokens) <= set(ROLES):
+        raise Bad("an archive holds the buyer's ledger, the seller's, or both")
+    files = {"close.json": close_bytes(record), "jwks.json": (canon(keys_used(jwks, tokens.values())) + "\n").encode()}
+    for role, text in ledgers.items():
+        files[f"ledger.{role}.jsonl"] = text.encode()
+        files[f"corrections.{role}.jsonl"] = _corrections_text(load(text), record["month"]).encode()
+    files.update({f"{role}.jwt": tokens[role].strip().encode() + b"\n" for role in tokens})
+    manifest = {"type": MONTH_TYPE, "version": 1, "buyer": record["buyer"], "seller": record["seller"], "month": record["month"],
+                "files": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())}}
+    blob = _tar({**files, "MANIFEST.json": (canon(manifest) + "\n").encode()})
+    verify_month(blob)
+    return blob
+
+
+def verify_month(blob: bytes) -> tuple[dict, list[str]]:
+    """(the close record, what was checked, one line each) for a month's archive that holds together, with no network.
+    Raises Bad with the first thing that does not: a file that is not the one the manifest lists, an archive that was
+    repacked, a ledger that does not recompute, a close record that is not the one these ledgers give, a token that
+    is not GitHub's signature of this record by that party."""
+    import tarfile
+    try:
+        with tarfile.open(fileobj=io.BytesIO(blob), mode="r:") as tar:
+            members = tar.getmembers()
+            if any(not m.isfile() for m in members) or len({m.name for m in members}) != len(members):
+                raise Bad("the archive holds something that is not a plain file, or a name twice")
+            files = {m.name: (tar.extractfile(m) or io.BytesIO()).read() for m in members}       # every member is a plain file (checked above), so each has bytes
+    except Bad:
+        raise
+    except Exception as e:  # noqa: BLE001 - a damaged tar fails in many ways; all of them are one answer
+        raise Bad(f"this is not a month's archive (not a tar: {e})") from None
+    try:
+        manifest = json.loads(files["MANIFEST.json"])
+        listed = manifest["files"]
+        assert manifest["type"] == MONTH_TYPE and manifest["version"] == 1 and isinstance(listed, dict)
+    except Exception:  # noqa: BLE001
+        raise Bad("the archive has no MANIFEST.json of a Knos meter month, version 1") from None
+    if set(listed) != set(files) - {"MANIFEST.json"} or not {"close.json", "jwks.json"} <= set(listed):
+        raise Bad("the archive's files are not the ones its manifest lists")
+    for name in sorted(listed):
+        if hashlib.sha256(files[name]).hexdigest() != listed[name]:
+            raise Bad(f"{name} is not the file the manifest lists (its sha256 differs): the archive was changed after it was made")
+    if blob != _tar(files):
+        raise Bad("the archive is not in the one form `knos meter export --bundle` writes (order of files, times, modes): it was repacked or changed")
+    done = [f"every file is the one the manifest lists ({len(listed)} files)"]
+    record = read_close(files["close.json"])
+    month = record["month"]
+    if (manifest.get("buyer"), manifest.get("seller"), manifest.get("month")) != (record["buyer"], record["seller"], month):
+        raise Bad("the manifest names another buyer, seller or month than the close record")
+    books = {}
+    for role in ROLES:
+        if f"ledger.{role}.jsonl" not in files:
+            continue
+        try:
+            text = files[f"ledger.{role}.jsonl"].decode("utf-8")
+            books[role] = load(text)
+        except (Bad, UnicodeDecodeError) as why:
+            raise Bad(f"the {role}'s ledger in the archive cannot be read: {why}") from None
+        bad = _structure(books[role])
+        if bad:
+            raise Bad(f"the {role}'s ledger in the archive does not hold: {bad[0]}")
+        if side(books[role], month) != record[f"{role}_ledger"]:
+            raise Bad(f"the close record's hash and numbers for the {role} are not what the {role}'s ledger in the archive gives")
+        if files.get(f"corrections.{role}.jsonl") != _corrections_text(books[role], month).encode():
+            raise Bad(f"corrections.{role}.jsonl is not the list of corrections the {role}'s ledger holds for {month}")
+        done.append(f"the {role}'s ledger recomputes: every root and total, its running hash {record[f'{role}_ledger']['chain'][:16]}... and the close record's three numbers for it")
+    if not books:
+        raise Bad("the archive holds no ledger")
+    if len(books) == 2:
+        if close(books["buyer"], books["seller"], month) != record:
+            raise Bad("the close record is not the one the two ledgers in the archive give")
+        done.append(f"the close record is the one the two ledgers give: {record['state']}" + (f", {len(record['disputed'])} line(s) in dispute" if record["disputed"] else ""))
+    else:
+        done.append(f"only the {next(iter(books))}'s ledger is in the archive: the other side's numbers and the state ({record['state']}) are the close record's word")
+    try:
+        jwks = json.loads(files["jwks.json"])
+        assert isinstance(jwks, dict)
+    except Exception:  # noqa: BLE001
+        raise Bad("jwks.json in the archive is not a set of keys") from None
+    for role in ROLES:
+        if f"{role}.jwt" in files:
+            claims = check_close_token(record, files[f"{role}.jwt"].decode("ascii", "replace"), jwks, role)
+            done.append(f"the {role} signed this close record: GitHub's token for run {claims.get('run_id')} of {claims.get('repository')} (owner id {record[role]}), "
+                        f"issued at {claims.get('iat')}, carries the signature of the included key")
+        else:
+            done.append(f"the {role} has NOT signed: there is no {role}.jwt in the archive")
+    done.append("the chain was not asked: compare each running hash with its Ledger account (`knos meter verify <ledger> --rpc <url>`), and the included keys with GitHub's "
+                f"({GITHUB_JWKS}) if you have not before")
+    return record, done
+
+
 # -- the chain's two accounts, and the run that asks GitHub to sign a batch ---------------------------------------------
 def onchain(net, buyer: int, seller: int, month: int) -> tuple[Totals, Totals]:
     """(the buyer's count, the seller's claim) for one month as the chain has them: the Ledger accounts RecordBatch
@@ -589,16 +1101,16 @@ def onchain(net, buyer: int, seller: int, month: int) -> tuple[Totals, Totals]:
     return count, claimed
 
 
-def verify_onchain(ledger: list[Stored], net, claim: bool = False) -> tuple[list[str], dict[int, tuple[Totals, Totals]]]:
+def verify_onchain(ledger: list[Stored], net, claim: bool = False, individual=None) -> tuple[list[str], dict[int, tuple[Totals, Totals]]]:
     """`verify`, with every month of the file held to the chain's account for it: the buyer's count, or with `claim`
     the seller's. Returns (what is wrong, {month: (the buyer's count, the seller's claim)} as read)."""
-    bad, seen = verify(ledger), dict[int, tuple[Totals, Totals]]()
+    bad, seen = verify(ledger, individual=individual), dict[int, tuple[Totals, Totals]]()
     if bad or not ledger:
         return bad, seen
     buyer, seller = ledger[0].declared["buyer"], ledger[0].declared["seller"]
     for m in sorted({s.month for s in ledger}):
         seen[m] = onchain(net, buyer, seller, m)
-        bad += [f"month {m}: {line}" for line in verify(ledger, seen[m][claim], m)]
+        bad += [f"month {m}: {line}" for line in verify(ledger, seen[m][claim], m, individual)]
     return bad, seen
 
 
@@ -675,10 +1187,10 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
     typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
     meter = typer.Typer(add_completion=False, help="The meter's off-chain ledger: build a batch, check a ledger against the chain, prove one evaluation, "
-                                                   "set the buyer's ledger against the seller's.")
+                                                   "set the buyer's ledger against the seller's, correct an entry, close a month and state it.")
     app.add_typer(meter, name="meter")
     if help_rows is not None:
-        help_rows.append(("meter", panel, "The meter's ledger: batch, verify, prove, reconcile, export."))
+        help_rows.append(("meter", panel, "The meter's ledger: batch, verify, prove, reconcile, correct, close, statement, export."))
 
     def read(path: Path) -> list[Stored]:
         try:
@@ -688,30 +1200,58 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
         except Bad as why:
             raise Stop(f"{path}: {why}.") from None
 
+    def text_of(path: Path, what: str) -> str:
+        try:
+            return Path(path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            raise Stop(f"Cannot read {what} {path}.") from None
+
+    def singles(path: Path | None) -> list[bytes]:
+        try:
+            return read_ids(text_of(path, "the list of individually recorded ids")) if path else []
+        except Bad as why:
+            raise Stop(f"{path}: {why}.") from None
+
+    def pending_of(ledger: Path) -> Path:
+        return ledger.with_name(ledger.name + ".corrections")
+
+    def beside(close_file: Path, name: str) -> Path:
+        return close_file.with_name(f"{close_file.name}.{name}")
+
     @meter.command("batch")
     def batch_(events: Path = typer.Argument(..., help="evaluations, one a line: ledger lines or knosm:eval:... audiences"),
                ledger: Path = typer.Option(..., "--ledger", help="the ledger file the batch is added to (made if it is not there)"),
                month: str = typer.Option(..., "--month", help="the month the batch is counted in, YYYY-MM"),
-               claim: bool = typer.Option(False, "--claim", help="the seller's own count (ClaimBatch) instead of the buyer's (RecordBatch)")) -> None:
-        """Add one batch to a ledger and print what its token must say: the root, the totals and the audience."""
+               claim: bool = typer.Option(False, "--claim", help="the seller's own count (ClaimBatch) instead of the buyer's (RecordBatch)"),
+               corrections: Path = typer.Option(None, "--corrections", help="correction lines to carry in this batch (default: <ledger>.corrections, where `knos meter correct` writes)")) -> None:
+        """Add one batch to a ledger and print what its token must say: the root, the totals and the audience. Corrections waiting beside the ledger ride in it."""
         try:
             had = read(ledger) if ledger.exists() else []
             known = {e.id for s in had for e in s.evals}
             given = [parse(x) for x in events.read_text(encoding="utf-8").splitlines() if x.strip()]
             new = [e for e in given if e.id not in known]
+            waiting = corrections or (pending_of(ledger) if pending_of(ledger).exists() else None)
+            carried = {c.key for s in had for c in s.corrections}
+            fixes = [c for c in (Correction.of(json.loads(x)) for x in (text_of(waiting, "the corrections") if waiting else "").splitlines() if x.strip()) if c.key not in carried]
             if not new:
-                raise Stop(f"All {len(given)} evaluation(s) in {events} are already in {ledger}: there is nothing to add.")
+                raise Stop(f"All {len(given)} evaluation(s) in {events} are already in {ledger}: there is nothing to add."
+                           + (f" {len(fixes)} correction(s) are waiting: a batch needs at least one new evaluation to carry them, because the program takes no batch of none." if fixes else ""))
             m = month_of(month)
-            b = batch(new, next_seq(had, m), m)
+            b = batch(new, next_seq(had, m), m, fixes)
+            wrong = _structure(load(dump([x.batch() for x in had] + [b]))) if fixes else []
+            if wrong:
+                raise Stop(f"A correction does not fit {ledger}: {wrong[0]}.", f"Fix or remove its line in {waiting}.")
             if had and (b.buyer, b.seller) != (had[0].declared["buyer"], had[0].declared["seller"]):
                 raise Stop(f"{ledger} is the ledger of buyer {had[0].declared['buyer']} and seller {had[0].declared['seller']}; these evaluations are of another pair.",
                            "Keep one ledger file per buyer and seller.")
         except OSError:
             raise Stop(f"Cannot read {events}.") from None
-        except Bad as why:
-            raise Stop(f"{events}: {why}.") from None
+        except (Bad, ValueError) as why:
+            raise Stop(f"{events}: {why}." if isinstance(why, Bad) else f"A line of {waiting} is not JSON.") from None
         with ledger.open("a", encoding="utf-8", newline="\n") as f:
             f.write(dump([b]))
+        if b.corrections:
+            out.print(f"Carries {len(b.corrections)} correction(s): they are in the root, and change none of the batch's numbers.", markup=False)
         if len(new) != len(given):
             out.print(f"Left out {len(given) - len(new)} evaluation(s) that {ledger} already has.", markup=False)
         out.print(f"Batch {b.seq} of {b.month}: {b.count} evaluation(s), {b.accepted} accepted, value {b.value}.", markup=False)
@@ -738,21 +1278,40 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                 onchain_: Path = typer.Option(None, "--onchain", help="the chain's Ledger account for the month as JSON: next_seq, count, accepted, value, chain"),
                 month: str = typer.Option(None, "--month", help="which month --onchain is for, YYYY-MM (needed when the ledger has several)"),
                 rpc: str = typer.Option(None, "--rpc", metavar="URL", help="read the Ledger accounts from this Solana RPC node and hold every month of the file to them"),
-                claim: bool = typer.Option(False, "--claim", help="with --rpc: the file is the seller's, so it is held to the seller's claim account")) -> None:
-        """Recompute every root, every total and the running hash of a ledger; with --rpc (or --onchain), compare them with the chain's. Exit 1 if anything differs."""
+                claim: bool = typer.Option(False, "--claim", help="with --rpc: the file is the seller's, so it is held to the seller's claim account"),
+                individual: Path = typer.Option(None, "--individual", help="ids the individual mode recorded, one a line: an evaluation here and in a batch is counted twice"),
+                marks: bool = typer.Option(False, "--marks", help="with --rpc: read the individual mode's mark of every evaluation in the file (one read each) instead of --individual"),
+                bundle_: bool = typer.Option(False, "--bundle", help="the file is a month's archive (`knos meter export --bundle`): check all of it, with no network")) -> None:
+        """Recompute every root, every total and the running hash of a ledger, and refuse one that counts an evaluation twice; with --rpc (or --onchain), compare
+        with the chain's. With --bundle, check a month's archive instead. Exit 1 if anything differs."""
+        if bundle_:
+            try:
+                record, done = verify_month(Path(ledger).read_bytes())
+            except OSError:
+                raise Stop(f"Cannot read {ledger}.") from None
+            except Bad as why:
+                out.print(f"{ledger} does not verify: {why}.", markup=False)
+                raise typer.Exit(1) from None
+            for line in done:
+                out.print(line, markup=False)
+            out.print(f"The archive holds: {record['month']} of buyer {record['buyer']} and seller {record['seller']} is {record['state'].upper()}.", markup=False)
+            return
         got = read(ledger)
         seen: dict = {}
+        single = singles(individual)
         try:
             chain = Totals.of(json.loads(onchain_.read_text(encoding="utf-8"))) if onchain_ else None
             if rpc:
                 try:
-                    bad, seen = verify_onchain(got, net_of(rpc), claim)
+                    net = net_of(rpc)
+                    single += individual_onchain(net, got) if marks else []
+                    bad, seen = verify_onchain(got, net, claim, single)
                 except Bad:
                     raise
                 except Exception as why:  # noqa: BLE001 - the node said no, or did not answer
                     raise Stop(f"{rpc} did not answer ({str(why)[:120]}).", "Try again, or name another node with --rpc.") from None
             else:
-                bad = verify(got, chain, month_of(month) if month else None)
+                bad = verify(got, chain, month_of(month) if month else None, single)
         except (OSError, ValueError) as why:
             raise Stop(f"--onchain: {why}." if isinstance(why, Bad) else f"Cannot read {onchain_} as JSON.") from None
         for line in bad:
@@ -831,9 +1390,171 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
         if not r.agreed:
             raise typer.Exit(1)
 
+    def close_of(path: Path) -> dict:
+        try:
+            return read_close(Path(path).read_bytes())
+        except OSError:
+            raise Stop(f"Cannot read {path}.") from None
+        except Bad as why:
+            raise Stop(f"{path}: {why}.") from None
+
+    def signed(close_file: Path) -> tuple[dict[str, str], dict]:
+        """The tokens and the keys kept beside a close record."""
+        tokens = {role: beside(close_file, f"{role}.jwt").read_text(encoding="ascii").strip() for role in ROLES if beside(close_file, f"{role}.jwt").exists()}
+        try:
+            jwks = json.loads(beside(close_file, "jwks.json").read_text(encoding="utf-8")) if beside(close_file, "jwks.json").exists() else {"keys": []}
+        except ValueError:
+            raise Stop(f"Cannot read {beside(close_file, 'jwks.json')} as JSON.") from None
+        return tokens, jwks
+
+    @meter.command("correct")
+    def correct_(ledger: Path = typer.Argument(..., help="your ledger file"),
+                 id_: str = typer.Argument(..., metavar="ID", help="the evaluation's id, 64 hex characters"),
+                 of: str = typer.Option(..., "--batch", metavar="YYYYMM.SEQ", help="the batch that holds the entry to correct"),
+                 kind: str = typer.Option(..., "--kind", help="duplicate (that entry is a repeat), verdict (the verdict was wrong) or withdrawn (it should not have been counted)"),
+                 accepted: int = typer.Option(None, "--accepted", help="with --kind verdict: the verdict that stands, 1 or 0"),
+                 by: str = typer.Option("buyer", "--by", help="who issues it: buyer or seller (the owner of this ledger)")) -> None:
+        """Write a correction of one anchored entry. The chain's counters only go up, so nothing is sent: the line waits in <ledger>.corrections, the next
+        `knos meter batch` carries it in its root, and `knos meter statement` nets it."""
+        got = read(ledger)
+        try:
+            if by not in ROLES or not got:
+                raise Bad("--by is buyer or seller, and the ledger needs at least one batch")
+            m = re.fullmatch(r"([0-9]{6})\.([0-9]{1,19})", of)
+            if m is None or (kind == "verdict") != (accepted in (0, 1)):
+                raise Bad("--batch is written <yyyymm>.<seq>, and --accepted 1 or 0 goes with --kind verdict and with no other")
+            c = Correction(got[0].declared[by], _hex(id_.lower(), 64, "the id"), int(m[1]), int(m[2]), kind, accepted == 1 if kind == "verdict" else None)
+            if not any((s.month, s.seq) == (c.month, c.seq) and any(e.id.hex() == c.id for e in s.evals) for s in got):
+                raise Bad(f"batch {c.seq} of {c.month} in {ledger} holds no evaluation {c.id}")
+        except Bad as why:
+            raise Stop(f"{why}.") from None
+        waiting = pending_of(ledger)
+        had = waiting.read_text(encoding="utf-8") if waiting.exists() else ""
+        if c.line() not in had.splitlines():
+            waiting.write_text(had + c.line() + "\n", encoding="utf-8", newline="\n")
+        out.print(f"Correction ({kind}) of evaluation {c.id} in batch {c.seq} of {c.month}, issued by the {by} (GitHub id {c.by}), is waiting in {waiting}.", markup=False)
+        out.print("Next: `knos meter batch` puts it in your next batch, whose root GitHub signs; until then it is only on your disk. Send the other party the line.", markup=False)
+
+    @meter.command("close")
+    def close_(buyer: Path = typer.Argument(None, help="the buyer's ledger"), seller: Path = typer.Argument(None, help="the seller's ledger"),
+               month: str = typer.Option(None, "--month", help="the month to close, YYYY-MM"),
+               to: Path = typer.Option(None, "--out", help="where the close record is written (default: knos-close-<yyyymm>.json)"),
+               individual: Path = typer.Option(None, "--individual", help="ids the individual mode recorded, one a line"),
+               sign: Path = typer.Option(None, "--sign", metavar="CLOSE", help="in a GitHub Actions job: have GitHub sign this close record for your side, and keep the token beside it"),
+               role: str = typer.Option(None, "--as", help="with --sign: buyer or seller"),
+               token_file: Path = typer.Option(None, "--token", metavar="FILE", help="with --sign: the token GitHub already signed for this record (a job that installs nothing "
+                                                                                    "asked for it): check it and keep it, and ask GitHub for none"),
+               check: Path = typer.Option(None, "--check", metavar="CLOSE", help="check the tokens kept beside this close record, with no network")) -> None:
+        """Close a month: set the two ledgers against each other and write the record both sides sign. `agreed`, or `disputed` with every line in dispute.
+        Exit 1 when disputed. --sign and --check handle the two GitHub-signed tokens; the chain holds the batches, not the close."""
+        if sign:
+            record = close_of(sign)
+            if role not in ROLES:
+                raise Stop("Say whose signature this is: --as buyer or --as seller.")
+            try:
+                import urllib.request
+
+                from . import flow
+                # With --token nothing is asked of GitHub: the job that may ask installs nothing (examples/knos-meter-batch.yml),
+                # and this one, which installs knos, holds the token to the record before it is kept.
+                token = token_file.read_text(encoding="ascii").strip() if token_file else flow.mint(close_audience(record))
+                with urllib.request.urlopen(GITHUB_JWKS, timeout=20) as r:  # noqa: S310 - a fixed https URL
+                    jwks = json.load(r)
+                check_close_token(record, token, jwks, role)
+            except Bad as why:
+                raise Stop(f"{why}.", f"Run this in a repository of the {role}.") from None
+            except Exception as why:  # noqa: BLE001 - GitHub said no, or did not answer
+                if token_file:
+                    raise Stop(f"{token_file} could not be checked ({str(why)[:160]}).", "Give the token as GitHub signed it, and try again when GitHub's keys can be read.") from None
+                raise Stop(f"GitHub gave no signed token ({str(why)[:160]}).", "Run this in a GitHub Actions job with `permissions: id-token: write`.") from None
+            tokens, had = signed(sign)
+            beside(sign, f"{role}.jwt").write_text(token + "\n", encoding="ascii", newline="\n")
+            keys = keys_used({"keys": [*had.get("keys", []), *jwks.get("keys", [])]}, [*tokens.values(), token])
+            beside(sign, "jwks.json").write_text(canon({"keys": sorted({canon(k): k for k in keys["keys"]}.values(), key=canon)}) + "\n", encoding="utf-8", newline="\n")
+            out.print(f"GitHub signed {close_audience(record)} for the {role}.", markup=False)
+            out.print(f"Kept: {beside(sign, f'{role}.jwt')} and {beside(sign, 'jwks.json')}. Commit them, or upload them as the run's artifact, and send them to the other party.", markup=False)
+            return
+        if check:
+            record = close_of(check)
+            tokens, jwks = signed(check)
+            wrong = 0
+            for r_ in ROLES:
+                if r_ not in tokens:
+                    out.print(f"The {r_} has not signed: there is no {beside(check, f'{r_}.jwt')}.", markup=False)
+                    continue
+                try:
+                    claims = check_close_token(record, tokens[r_], jwks, r_)
+                    out.print(f"The {r_} signed: GitHub's token for run {claims.get('run_id')} of {claims.get('repository')}, issued at {claims.get('iat')}.", markup=False)
+                except Bad as why:
+                    wrong += 1
+                    out.print(f"{why}.", markup=False)
+            both = not wrong and len(tokens) == 2
+            out.print(f"{record['month']} is {record['state'].upper()}" + (" and signed by both sides." if both else "; it is NOT signed by both sides."), markup=False)
+            if not both or record["state"] != "agreed":
+                raise typer.Exit(1)
+            return
+        if not buyer or not seller or not month:
+            raise Stop("Name the two ledgers and the month: knos meter close <buyer ledger> <seller ledger> --month YYYY-MM")
+        try:
+            record = close(read(buyer), read(seller), month, singles(individual))
+        except Bad as why:
+            raise Stop(f"{why}.") from None
+        to = to or Path(f"knos-close-{record['month']}.json")
+        to.write_bytes(close_bytes(record))
+        for name in ROLES:
+            n = record[f"{name}_ledger"]
+            out.print(f"the {name}'s ledger: {n['evaluations']} evaluation(s), {n['accepted_outcomes']} accepted outcome(s), {n['rejected']} rejected evaluation(s); "
+                      f"anchored {n['anchored']} in {n['batches']} batch(es), running hash {n['chain']}", markup=False)
+        for x in record["corrections"]:
+            out.print(f"correction ({x['kind']}) of {x['id']} in batch {x['of']}, anchored in batch {x['batch']} of the {x['in']}'s ledger, issued by GitHub id {x['by']}", markup=False)
+        for x in record["disputed"]:
+            out.print(f"IN DISPUTE {x['id']}: {x['why']}", markup=False)
+        out.print(f"{record['month']} is {record['state'].upper()}. Wrote {to} (sha256 {hashlib.sha256(close_bytes(record)).hexdigest()}).", markup=False)
+        if record["state"] == "agreed":
+            out.print(f"Next: each side has its own GitHub run sign it (`knos meter close --sign {to} --as buyer`, and `--as seller`), then `knos meter close --check {to}`.", markup=False)
+        else:
+            out.print("A disputed month is not an invoice. Settle the lines above (add the missing evaluation in a later batch, or `knos meter correct`), then close again.", markup=False)
+            raise typer.Exit(1)
+
+    @meter.command("statement")
+    def statement_(ledger: Path = typer.Argument(..., help="a ledger file"),
+                   month: str = typer.Option(..., "--month", help="the month, YYYY-MM"),
+                   close_file: Path = typer.Option(None, "--close", help="the month's close record; without it the statement's state is `open`"),
+                   individual: Path = typer.Option(None, "--individual", help="ids the individual mode recorded, one a line"),
+                   rate: int = typer.Option(RATE, "--rate", help="the Meter fee per evaluation in millionths of a USD (50000 is 0.05; a plan may be 20000)"),
+                   free: int = typer.Option(FREE_PER_MONTH, "--free", help="free evaluations the buyer has left for this seller in the month"),
+                   disputed: bool = typer.Option(False, "--disputed", help="print a disputed month anyway, with every disputed line marked")) -> None:
+        """One month as three numbers that are never added together: evaluations (what the Meter bills), accepted outcomes (one per deliverable, what a
+        per-outcome price multiplies) and rejected evaluations; with every repeat and correction. A disputed month is refused without --disputed."""
+        try:
+            sys.stdout.write(statement(read(ledger), month, close_of(close_file) if close_file else None, singles(individual), rate, free, disputed))
+        except Disputed as why:
+            out.print(f"{why}.", markup=False)
+            raise typer.Exit(1) from None
+        except Bad as why:
+            raise Stop(f"{why}.") from None
+
     @meter.command("export")
-    def export_(ledger: Path = typer.Argument(..., help="a ledger file"), to: Path = typer.Option(None, "--out", help="write the CSV here instead of printing it")) -> None:
-        """A ledger as CSV, one row per evaluation."""
+    def export_(ledger: Path = typer.Argument(..., help="a ledger file"), to: Path = typer.Option(None, "--out", help="write the CSV here instead of printing it"),
+                bundle_: Path = typer.Option(None, "--bundle", metavar="FILE", help="write one archive of a closed month here instead: ledger, corrections, close record, tokens, keys"),
+                close_file: Path = typer.Option(None, "--close", help="with --bundle: the month's close record (its tokens and keys are read from beside it)"),
+                role: str = typer.Option("buyer", "--as", help="with --bundle: whose ledger this is, buyer or seller"),
+                other: Path = typer.Option(None, "--other", help="with --bundle: the other party's ledger, to keep both in the archive")) -> None:
+        """A ledger as CSV, one row per evaluation; or, with --bundle, a closed month as one archive either party checks with `knos meter verify <file> --bundle`."""
+        if bundle_:
+            if role not in ROLES or not close_file:
+                raise Stop("An archive is of a closed month: pass --close <close record> and --as buyer or --as seller.")
+            record = close_of(close_file)
+            tokens, jwks = signed(close_file)
+            ledgers = {role: text_of(ledger, "the ledger"), **({ROLES[1 - ROLES.index(role)]: text_of(other, "the other ledger")} if other else {})}
+            try:
+                blob = month_bundle(record, ledgers, tokens, jwks)
+            except Bad as why:
+                raise Stop(f"{why}.", "Nothing was written.") from None
+            bundle_.write_bytes(blob)
+            out.print(f"Wrote {bundle_}: {record['month']}, {record['state']}, signed by {', '.join(sorted(tokens)) or 'nobody yet'} "
+                      f"(sha256 {hashlib.sha256(blob).hexdigest()}). Anyone checks it with `knos meter verify {bundle_} --bundle`.", markup=False)
+            return
         text = export_csv(read(ledger))
         if to:
             to.write_text(text, encoding="utf-8", newline="\n")

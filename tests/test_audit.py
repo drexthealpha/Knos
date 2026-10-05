@@ -112,6 +112,11 @@ def test_a_line_says_what_was_bought_who_supplied_who_evaluated_and_what_became_
     assert "prove.yml" in a["evaluator"] and "own repository" in a["evaluator"]
     assert (a["paid_units"], a["fee_units"], a["transaction"], a["funded_transaction"]) == (str(100 * U), "400000", "PA", "FA")
     assert a["exception"] == "" and a["resolved_by"] == ""
+    # who had authority over the money: the commenter the owner had listed, in the cell after commenter_id
+    assert (a["commenter_id"], a["owner_id"], a["authorised_by"]) == ("6001", "5001", "gh:6001 (spender)")
+    assert audit.COLUMNS.index("authorised_by") == audit.COLUMNS.index("commenter_id") + 1
+    own = [r for r in rows_of(audit.export(month(), ACME, wallets=[WALLET], **SEPT)) if r["order"] == "OrdH"]
+    assert own and all(r["authorised_by"] == f"wallet:{WALLET}" == r["funder"] for r in own)
     # a standing offer: one line per pull request, each its own milestone; its rest went back
     b1, b2 = by["OrdB", "paid", "11"], by["OrdB", "paid", "12"]
     assert (b1["standing"], b1["judge"], b1["billing_key"], b2["billing_key"]) == ("1", "neutral", "OrdB:FB:11", "OrdB:FB:12")

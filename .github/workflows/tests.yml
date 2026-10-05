@@ -79,15 +79,25 @@ jobs:
         with:
           node-version: "22"
       - run: node sdk/settle/test.mjs
+      - name: what the site computes with no browser (the status view's numbers; a Balance's limits, word for word as `knos budget check` answers)
+        run: |
+          node tests/web/status_data.mjs
+          node tests/web/controls.mjs
       - name: the built site in headless Chromium (mocked GitHub and Solana)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.0
           npx playwright install --with-deps chromium
           bash scripts/build_site.sh "$RUNNER_TEMP/site" "$(printf 'c%.0s' $(seq 40))"   # the commit the mocked chain pins
           node tests/web/site.mjs "$RUNNER_TEMP/site"
+      - name: a round anyone can watch, and the Agent PR Index board, in headless Chromium (the page's clock is the test's; nothing is asked of the network)
+        run: |
+          node tests/web/live.mjs
+          node tests/web/index_board.mjs
 
   # Every number in the README opening, the home page, the submission and the pitch script is checked against a file
-  # in the repo, devnet or GitHub (scripts/claims_check.py).
+  # in the repo, devnet or GitHub (scripts/claims_check.py). And no document says of a fact that several of them state
+  # (a count of capabilities at a stage, a program's version, an upgrade's time, the fee) anything but what its one
+  # source says (scripts/doc_claims.py; it reads files of the repository only).
   claims:
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -100,6 +110,7 @@ jobs:
       - run: python scripts/claims_check.py
         env:
           GH_TOKEN: ${{ github.token }}
+      - run: python scripts/doc_claims.py
 
   # ruff (imports, statements, syntax, pyflakes) and mypy over src/knos, each at one version, with the settings in
   # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule and 16

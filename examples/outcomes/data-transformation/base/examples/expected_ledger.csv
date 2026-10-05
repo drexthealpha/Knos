@@ -1,0 +1,4 @@
+customer_id,charges,gross_cents,refund_cents,net_cents
+c00017,2,1975,0,1975
+c00042,2,13075,3550,9525
+c00311,2,7250,850,6400

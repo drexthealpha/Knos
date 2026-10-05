@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from _host_events import EVENTS, NEEDS_CWD, deliver, reason
 
 from knos import judge, store
 from knos.proof import checks, engine, history, hook
@@ -193,3 +194,56 @@ def test_a_check_is_owed_until_it_is_seen_passing_and_an_edited_journal_changes_
         con.commit()
     assert history.owed(history.SibylStore.for_repo(repo)) == set()
     assert hook.stop(two, history.SibylStore.for_repo(repo), _tests(False))[0] == "allow"      # the memory decided it, so the edit did too
+
+
+def _hosts() -> list:
+    """Every host the hook answers; `unconfirmed` where the host's page does not state all of its event (tests/_host_events.py)."""
+    return [pytest.param(c, id=c if EVENTS[c][1] else f"{c}-unconfirmed") for c in sorted(EVENTS)]
+
+
+def _edit_the_journal() -> None:
+    with contextlib.closing(sqlite3.connect(store.shared_store())) as con:
+        con.execute("update journal_events set extra = replace(extra, '\"failed\":[\"tests\"]', '\"failed\":[]')")
+        con.commit()
+
+
+@pytest.mark.parametrize("client", _hosts())
+def test_in_every_host_the_answer_is_sibyls_memory_and_changes_when_it_is_gone_or_edited(client, knos_home, repo, monkeypatch):
+    """The same two sessions as above, through each host's own event and read back as that host reads the answer.
+    Session two's message says nothing of tests. What sends the agent back (or, in a host that cannot hold a turn,
+    what the person is shown) is the check Sibyl remembers failing, with the record of it. The same event with no
+    Sibyl, with the journal edited by hand, or with the store deleted, gets no answer at all."""
+    if client in NEEDS_CWD:
+        monkeypatch.chdir(repo)
+    sibyl = lambda: history.SibylStore.for_repo(repo)  # noqa: E731
+    two = lambda st: deliver(client, repo, DONE, st, _tests(False), "-two")  # noqa: E731
+    assert two(sibyl()) == ("", 0)                                               # nothing remembered yet
+    assert "3 failed in test_calc.py" in reason(client, deliver(client, repo, "All tests pass.", sibyl(), _tests(False), "-one")[0])
+    out, code = two(sibyl())
+    why = reason(client, out)
+    assert code == 0 and "3 failed in test_calc.py" in why and "an earlier claim here was refused on it" in why
+    assert "Knos refused 1 of 2 claims of done" in why and "The last refusal" in why   # the briefing, in this host's answer
+    assert two(history.NullStore()) == ("", 0)                                   # same event, no Sibyl
+    _edit_the_journal()
+    assert two(sibyl()) == ("", 0)                                               # the edited memory decided it
+    assert reason(client, deliver(client, repo, "All tests pass.", sibyl(), _tests(False), "-one")[0])    # refused again: owed again
+    assert reason(client, two(sibyl())[0])
+    for f in store.shared_store().parent.glob("memory.db*"):
+        f.unlink()
+    assert two(sibyl()) == ("", 0)                                               # Sibyl's store gone: nothing owed
+
+
+def test_aiders_test_command_says_what_sibyl_remembers_and_not_a_word_of_it_without(knos_home, repo, monkeypatch):
+    """aider has no message, so its test command always stands for "tests pass" and fails when they do, memory or
+    not. What the memory adds is what the model is given with the failure: the record of refusals here."""
+    monkeypatch.chdir(repo)
+    sibyl = lambda: history.SibylStore.for_repo(repo)  # noqa: E731
+    first, code = deliver("aider", repo, "", sibyl(), _tests(False))
+    assert code == 1 and "3 failed in test_calc.py" in first and "Knos refused" not in first
+    again, code = deliver("aider", repo, "", sibyl(), _tests(False))
+    assert code == 1 and "Knos refused 1 of 1 claims of done" in again and "Still owed, whatever the message says: tests" in again
+    bare, code = deliver("aider", repo, "", history.NullStore(), _tests(False))
+    assert code == 1 and "Knos refused" not in bare and "Still owed" not in bare
+    _edit_the_journal()
+    edited, _ = deliver("aider", repo, "", sibyl(), _tests(False))
+    assert "Knos refused" in edited and "Still owed" not in edited               # the edit took the debt out of the answer

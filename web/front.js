@@ -199,7 +199,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -220,7 +220,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -240,7 +240,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -289,7 +289,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -470,7 +470,7 @@ async function check(ev) {
   }
 }
 
-export const MOUNTS = ["buy", "install", "capabilities"];
+export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce"];
 if (typeof document !== "undefined" && $("pr-form")) {
   $("pr-form").addEventListener("submit", check);
   $("pr-url").addEventListener("paste", () => setTimeout(() => check(), 0));
@@ -509,20 +509,30 @@ export function initCopy(root = document.querySelector("main") || document.body)
 }
 
 // ---- the bar and the pages other modules fill -------------------------------------------------------------------------
-// MOUNTS: a module (buyer.js, install.js, capabilities.js) puts its page into <section id="buy|install|capabilities">.
-// A page that holds something gets its link in the menu and is shown alone at its hash; an empty one is not offered,
-// and its hash shows the first screen (for #install, at the lines that say how to install today).
+// MOUNTS: a module (buyer.js, install.js, capabilities.js, mounts.js) puts its page into <section id="buy|install|
+// capabilities|status|index|pilot|reproduce">. A page that holds something gets its link in the menu and is shown
+// alone at its hash; an empty one is not offered, and its hash shows the first screen (for #install, at the lines that
+// say how to install today).
+// MORE: the bar shows the pages a first visitor needs; the rest are one press away under "More" (index.html, #more).
+// On a phone, where the whole menu is behind one button, and in a page read without scripts, they are plain links in
+// the menu and there is no second button. "More" is marked when the page shown is one of its own.
 function initBar() {
   const bar = document.querySelector(".bar"), menu = $("menu");
   document.documentElement.classList.add("js");
   menu?.addEventListener("click", () => menu.setAttribute("aria-expanded", String(bar.classList.toggle("open"))));
   const filled = (id) => $(id) && $(id).childElementCount > 0;
+  const more = $("more"), moreButton = $("more-button");
+  const fold = (open) => { if (!more) return; more.classList.toggle("open", open); moreButton.setAttribute("aria-expanded", String(open)); };
+  moreButton?.addEventListener("click", () => fold(!more.classList.contains("open")));
+  document.addEventListener("click", (ev) => { if (more?.classList.contains("open") && (!more.contains(ev.target) || ev.target.closest?.("a"))) fold(false); });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && more?.classList.contains("open")) { fold(false); moreButton.focus(); } });
+  const within = () => more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]'));
   const show = () => {
     const name = location.hash.replace(/^#/, "").split("=")[0], on = MOUNTS.includes(name) && filled(name);
-    bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false");
+    bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); fold(false);
     for (const id of MOUNTS) { const a = document.querySelector(`nav a[data-mount="${id}"]`); if (a) a.hidden = !filled(id); if ($(id)) $(id).hidden = !filled(id); }
     if (on) document.body.dataset.page = name; else delete document.body.dataset.page;
-    const mark = () => { if (on) for (const a of document.querySelectorAll("nav a")) { if (a.dataset.mount === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); } };
+    const mark = () => { if (on) for (const a of document.querySelectorAll("nav a")) { if (a.dataset.mount === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); } within(); };
     mark(); setTimeout(mark, 0);                 // app.js marks the menu for its own views on the same event; this one goes last
     if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
   };

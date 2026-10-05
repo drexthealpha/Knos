@@ -44,7 +44,11 @@ def test_the_crate_names_the_deployed_program_and_depends_on_solana_program_only
     assert deps == ["solana-program"], deps
     # released with the Python package, under its version; the install line names that tag
     version = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
-    assert re.search(r'^version = "([^"]+)"', manifest, re.M).group(1) == version
+    # (while scripts/bump_version.py holds the program crates, the crate keeps the version of the builds made from it:
+    # a version is in a build's bytes; the tag it is installed from is the release's all the same)
+    held = re.search(r'(?m)^PROGRAMS_FROZEN: tuple\[str, \.\.\.\] = \((.*)\)$', (ROOT / "scripts" / "bump_version.py").read_text(encoding="utf-8")).group(1)
+    frozen_at = re.search(r'(?m)^FROZEN_AT = "([^"]+)"$', (ROOT / "scripts" / "bump_version.py").read_text(encoding="utf-8")).group(1)
+    assert re.search(r'^version = "([^"]+)"', manifest, re.M).group(1) == (frozen_at if '"knos-pay-interface"' in held else version)
     readme = (CRATE / "README.md").read_text(encoding="utf-8")
     assert re.search(r'git = "https://github.com/drexthealpha/Knos", tag = "v([^"]+)"', readme).group(1) == version
     assert ids["knos_pay"] not in readme or "ID" in readme

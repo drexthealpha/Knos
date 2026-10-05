@@ -1,0 +1,210 @@
+{
+ "note": "A sample of the public relay log in the exact format the relay writes (src/knos/proof/ghrelay.py), with the history events and the GitHub answers that go with it. It is constructed, not captured: the repository, the tokens and the signatures are made up, and each slow payment is one of the paths docs/RELAY.md names (a runner queue, a gap between two runs of the worker, sends the endpoint dropped, a run asked for late). tests/test_latency_stages.py and tests/web/status_data.test.mjs read it.",
+ "now": 1791105520,
+ "comments": [
+  {
+   "id": 1001,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T07:47:09Z",
+   "updated_at": "2026-10-04T07:47:09Z",
+   "body": "knos-relay proof octo/widgets#101 0b6112a77ca00b2d ok sig=sampleSig002,sampleSig003 queue=2 workflow=14 wait=3 chain=9 note=4.88 test USDC was paid to W101 for issue #11 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1002,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T07:57:13Z",
+   "updated_at": "2026-10-04T07:57:13Z",
+   "body": "knos-relay proof octo/widgets#102 401008a9618a1783 ok sig=sampleSig004,sampleSig005 queue=3 workflow=16 wait=2 chain=10 note=4.88 test USDC was paid to W102 for issue #12 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1003,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T08:07:09Z",
+   "updated_at": "2026-10-04T08:07:09Z",
+   "body": "knos-relay proof octo/widgets#103 19c27f67f01990f1 ok sig=sampleSig006,sampleSig007 queue=1 workflow=15 wait=4 chain=8 note=4.88 test USDC was paid to W103 for issue #13 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1004,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T08:17:14Z",
+   "updated_at": "2026-10-04T08:17:14Z",
+   "body": "knos-relay proof octo/widgets#104 31e3841d51b25ff5 ok sig=sampleSig008,sampleSig009 queue=2 workflow=17 wait=1 chain=11 note=4.88 test USDC was paid to W104 for issue #14 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1005,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T08:28:47Z",
+   "updated_at": "2026-10-04T08:28:47Z",
+   "body": "knos-relay proof octo/widgets#105 5a2943be9ba3ba0d ok sig=sampleSig010,sampleSig011 queue=95 workflow=18 wait=3 chain=9 note=4.88 test USDC was paid to W105 for issue #15 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1006,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T08:37:49Z",
+   "updated_at": "2026-10-04T08:37:49Z",
+   "body": "knos-relay proof octo/widgets#106 71f1b79219bd6915 ok sig=sampleSig012,sampleSig013 queue=2 workflow=15 wait=41 chain=10 note=4.88 test USDC was paid to W106 for issue #16 (GitHub user id 9). t=51"
+  },
+  {
+   "id": 1007,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T08:48:13Z",
+   "updated_at": "2026-10-04T08:48:13Z",
+   "body": "knos-relay proof octo/widgets#107 41f36a41a6facc3d ok sig=sampleSig014,sampleSig015 queue=3 workflow=14 wait=2 chain=72 tries=6 note=4.88 test USDC was paid to W107 for issue #17 (GitHub user id 9). t=74"
+  },
+  {
+   "id": 1008,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T09:16:51Z",
+   "updated_at": "2026-10-04T09:16:51Z",
+   "body": "knos-relay proof octo/widgets#108 296d36f5da26a12b ok sig=sampleSig016,sampleSig017 queue=2 workflow=16 wait=3 chain=9 note=4.88 test USDC was paid to W108 for issue #18 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1100,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T09:07:10Z",
+   "updated_at": "2026-10-04T09:07:10Z",
+   "body": "knos-relay proof octo/widgets#109 4dd395a0c98f9938 fail the terms the token names are not the bounty's (error 87)"
+  },
+  {
+   "id": 1101,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T09:10:41Z",
+   "updated_at": "2026-10-04T09:10:41Z",
+   "body": "knos-relay proof octo/widgets#109 d89c792304dc6e4d ok sig=sampleSig090,sampleSig091 queue=2 workflow=15 wait=3 chain=9 note=4.88 test USDC was paid to W109 for issue #19 (GitHub user id 9). t=12"
+  },
+  {
+   "id": 1102,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T09:16:40Z",
+   "updated_at": "2026-10-04T09:16:40Z",
+   "body": "knos-relay proof octo/widgets#110 808e83fc6074546e fail no open bounty for this issue: it was refunded at its deadline\nknos-relay proof octo/widgets#111 - fail this comment cannot carry its token (0a1b2c3d...): posted as knos-proof, but its audience is a fund token's\nknos-relay fund octo/widgets#20 468d33b1e0e7cdff ok sig=sampleSig093 wait=2 chain=8 note=5.00 test USDC is in escrow for issue #20. t=10\nknos-relay refund - - ok sig=sampleSig094 note=a bounty nobody could be paid from any more went back to its funder"
+  },
+  {
+   "id": 1103,
+   "user": {
+    "login": "github-actions[bot]"
+   },
+   "created_at": "2026-10-04T07:48:20Z",
+   "updated_at": "2026-10-04T09:17:40Z",
+   "body": "knos-relay status - - ok at=2026-10-04T09:17:38Z round=1 tokens=0 waiting=0 oldest=0 retried=5 refused=2"
+  },
+  {
+   "id": 1104,
+   "user": {
+    "login": "someone"
+   },
+   "created_at": "2026-10-04T09:18:20Z",
+   "updated_at": "2026-10-04T09:18:20Z",
+   "body": "thanks!"
+  }
+ ],
+ "events": [
+  {
+   "event": "paid",
+   "tx": "sampleSig003",
+   "at": 1791100028,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig005",
+   "at": 1791100632,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig007",
+   "at": 1791101228,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig009",
+   "at": 1791101833,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig011",
+   "at": 1791102526,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig013",
+   "at": 1791103068,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig015",
+   "at": 1791103692,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig017",
+   "at": 1791105410,
+   "v": 2
+  },
+  {
+   "event": "paid",
+   "tx": "sampleSig091",
+   "at": 1791105040,
+   "v": 2
+  }
+ ],
+ "merged_at": {
+  "octo/widgets#101": "2026-10-04T07:46:40Z",
+  "octo/widgets#102": "2026-10-04T07:56:40Z",
+  "octo/widgets#103": "2026-10-04T08:06:40Z",
+  "octo/widgets#104": "2026-10-04T08:16:40Z",
+  "octo/widgets#105": "2026-10-04T08:26:40Z",
+  "octo/widgets#106": "2026-10-04T08:36:40Z",
+  "octo/widgets#107": "2026-10-04T08:46:40Z",
+  "octo/widgets#108": "2026-10-04T08:56:40Z",
+  "octo/widgets#109": "2026-10-04T09:06:40Z"
+ },
+ "block_times": {
+  "sampleSig002": 1791100022,
+  "sampleSig003": 1791100028,
+  "sampleSig004": 1791100625,
+  "sampleSig005": 1791100632,
+  "sampleSig006": 1791101223,
+  "sampleSig007": 1791101228,
+  "sampleSig008": 1791101825,
+  "sampleSig009": 1791101833,
+  "sampleSig010": 1791102520,
+  "sampleSig011": 1791102526,
+  "sampleSig012": 1791103061,
+  "sampleSig013": 1791103068,
+  "sampleSig014": 1791103686,
+  "sampleSig015": 1791103692,
+  "sampleSig016": 1791105404,
+  "sampleSig017": 1791105410,
+  "sampleSig090": 1791105034,
+  "sampleSig091": 1791105040
+ }
+}

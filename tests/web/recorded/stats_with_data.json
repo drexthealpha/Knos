@@ -129,6 +129,34 @@
    "p90": 7201,
    "slowest": 7204
   },
+  "attempts": {
+   "fund": {
+    "asked": 3,
+    "completed": 3,
+    "completion": 1.0,
+    "lines": 3,
+    "failed": 0,
+    "retried": 0,
+    "tries": 3,
+    "misposted": 0,
+    "after_failure": 0,
+    "never": 0,
+    "reasons": {}
+   },
+   "pay": {
+    "asked": 4,
+    "completed": 4,
+    "completion": 1.0,
+    "lines": 4,
+    "failed": 0,
+    "retried": 0,
+    "tries": 4,
+    "misposted": 0,
+    "after_failure": 0,
+    "never": 0,
+    "reasons": {}
+   }
+  },
   "comment_to_funded": {
    "n": 3,
    "p50": 226,

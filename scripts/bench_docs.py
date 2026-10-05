@@ -14,7 +14,10 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
                                                      exit 1 when they disagree on any number both state
     python scripts/bench_docs.py --set NAME=NUMBER --source "where it was measured"
                                                      fill one slot that stats.json cannot (see SLOTS)
-    python scripts/bench_docs.py --slots             list the slots that have no number yet; exit 1 if there is one
+    python scripts/bench_docs.py --stages stages.json --source "where it was measured"
+                                                     fill the stage and attempt slots (STAGE_SLOTS) from
+                                                     `scripts/latency_stages.py --json` on the live relay log
+    python scripts/bench_docs.py --slots            list the slots that have no number yet; exit 1 if there is one
 
 A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in README.md or docs/BENCH.md:
 
@@ -36,9 +39,10 @@ the same path as in stats.json, or `release.<name>` with its source); and a fact
 scripts/claims_check.py can hold the text to it. A slot with no number is left as it stands. A slot is filled once:
 after that the text holds the number, and a later change is an edit of docs/bench.json and of the text.
 
-Two slots are a time, not a number (WHEN): `--set upgrade_proposed="2026-10-05 14:00 UTC"` says when the upgrade of the
-second deployment was approved by the multisig, and `upgrade_executable` is filled with it, 48 hours later, so the two
-cannot disagree.
+No slot is a time. When an upgrade was proposed and from when it can execute exist only after the push that the
+proposal's build record needs, so no committed document states them: the documents point at the site's upgrades.json
+(web/upgrades.json is the committed copy) and at `knos status`, and scripts/doc_claims.py refuses a document that names
+such a time. The release's one commit is therefore complete before the push.
 
 One fact, one value. FRAMES names the sentences in which a slot's fact is stated (in any public document and in the
 site's text). `--check` fails when two of them give different values for one fact (a slot in one file and a number in
@@ -53,7 +57,6 @@ import json
 import math
 import re
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,7 +68,7 @@ SUBMISSION = "docs/submission"       # every .md under it may carry [[stat: name
 # The other files that may carry slots. Everything a judge opens states a release-measured fact through one, so that the
 # release fills them all in one run and no document is left with an older number.
 SLOTTED = ["README.md", "CHANGELOG.md", "docs/DISCLOSURE.md", "docs/WHY.md", "docs/COMPARE.md", "docs/MARKET.md",
-           "docs/SECURITY.md", "docs/ASSURANCE.md", "docs/BENCH.md"]
+           "docs/SECURITY.md", "docs/ASSURANCE.md", "docs/BENCH.md", "docs/RELAY.md"]
 UNMEASURED = "measured at release"
 SLOT = re.compile(r"(?<!`)\[\[stat: ([a-z][a-z_]*)\]\]")      # not one quoted as code: that is the docs naming the syntax
 # The rows of the `devnet` block: (what was measured, its path in stats.json).
@@ -111,31 +114,58 @@ SLOTS = {
     "tests_passing": ("tests that passed in the release's own run of the suite (`pytest -q` on the release commit)", None),
     "claim_parser_executions": ("inputs the fuzzer ran against the claim parser in the latest nightly run of program.yml: "
                                 "`executions` and `source` in the fuzz.json of its `fuzz-claims` artifact", None),
-    "upgrade_proposed": ("when the upgrade of knos_oidc and knos_pay to 2.1 was proposed to the upgrade multisig and approved "
-                         "by its members on devnet (UTC, to the minute; the later of the two programs' approvals). `node "
-                         "scripts/governance.mjs upgrade propose` stops after the approvals and prints when the proposal can "
-                         "be executed, which is this time plus 48 hours; `knos status` reads the same from the chain", None),
-    "upgrade_executable": ("48 hours after that approval: the first moment the Squads program lets the upgrade execute. "
-                           "Filled with upgrade_proposed, never by itself", None),
     "days_of_shipping": ("days, from 1 Sep 2026 to the release, on which drexthealpha made a commit in the public "
                          "repository (the automatic commits of a workflow are left out): "
                          "`git log --author=drexthealpha --format=%ad --date=short | sort -u | wc -l`", None),
 }
-# The slots whose value is a time (UTC, to the minute), not a number.
-WHEN = {"upgrade_proposed", "upgrade_executable"}
-TIME = "%Y-%m-%d %H:%M UTC"
-DELAY_HOURS = 48                      # the upgrade multisig's time lock (programs-v2/program_ids.json, upgrade_multisig)
+# The stages of a payment and the attempts, as scripts/latency_stages.py --json reports them on the live relay log: each
+# a slot with no path in stats.json, filled by `--stages FILE --source "..."` (or one at a time with --set).
+STAGE_WORDS = {
+    "runner_queue": "the merge to the start of the workflow run (runner queue)",
+    "workflow": "the start of the workflow run to the token's comment (workflow)",
+    "relay_wait": "the token's comment to the relay picking it up (relay wait)",
+    "first_send": "the relay's pickup to the block of the token's first transaction (first send)",
+    "confirm": "that block to the block of the transaction that paid (confirm)",
+    "queued": "the run waiting for a runner, as GitHub records it (inside the runner queue)",
+    "chain": "the relay's pickup to its last confirmation (first send and confirm together)",
+}
+STAGE_STATS = {"payments": ("n", "payments in which this stage is measured"), "median": ("p50", "the median seconds"),
+               "ninety_fifth": ("p95", "the 95th percentile, by nearest rank, in seconds"), "slowest": ("max", "the longest, in seconds")}
+ATTEMPT_WORDS = {"asked": "pull requests whose payment the public relay log has a line for",
+                 "completed": "of those, the ones with a line that says ok",
+                 "lines": "log lines with a token's id, one per token a relay answered for",
+                 "failed": "of those lines, the ones that say fail",
+                 "retried": "ok lines that took more than one try",
+                 "after_failure": "payments completed only after a failed line",
+                 "never": "payments asked for that no line says ok"}
+STAGE_SLOTS = {f"stage_{stage}_{stat}": (f"{what}: {words}, over the public relay's log (scripts/latency_stages.py)", ("stages", stage, key))
+               for stage, words in STAGE_WORDS.items() for stat, (key, what) in STAGE_STATS.items()}
+STAGE_SLOTS |= {f"stage_whole_{stat}": (f"{what}: the merge to the payment, the whole wait, as scripts/latency_stages.py "
+                                        "timed it over the public relay's log", ("whole", key)) for stat, (key, what) in STAGE_STATS.items()}
+STAGE_SLOTS |= {f"pay_attempts_{name}": (f"{words} (scripts/latency_stages.py, network_stats.attempts)", ("attempts", name))
+                for name, words in ATTEMPT_WORDS.items()}
+SLOTS |= {name: (what, None) for name, (what, _where) in STAGE_SLOTS.items()}
+
+
+def stage_numbers(report: dict, source: str) -> dict:
+    """{slot name: (number, source)} for every stage slot `report` (latency_stages.py --json) has a number for."""
+    out = {}
+    for name, (_what, where) in STAGE_SLOTS.items():
+        value = _dig(report, ".".join(where))
+        if _number(value):
+            out[name] = (value, source)
+    return out
 _V = r"(\[\[stat: [a-z_]+\]\]|\d[\d,]*(?:\.\d+)?)"
-_T = r"(\[\[stat: [a-z_]+\]\]|\d{4}-\d\d-\d\d \d\d:\d\d UTC)"
 # The sentences in which a slot's fact is stated, each with one group: the value as written, a number or a slot.
 FRAMES = {
     "seconds_from_merge_to_paid": [rf"merge to (?:paid|payment|the payment)\b[^.|]{{0,60}}?{_V} seconds",
                                    rf"{_V} seconds from (?:the )?merge to (?:paid|payment|the payment)"],
     "payments_timed": [rf"seconds\b[^.|]{{0,40}}? over {_V} payments"],
+    "tasks_paid_on_the_second_deployment": [rf"{_V} tasks (?:had been |were |are )?paid on the second deployment"],
+    "payments_between_unrelated_accounts": [rf"{_V} payments have gone to another GitHub account",
+                                            rf"{_V} (?:payments )?to an outside contributor"],
     "tests_passing": [rf"{_V} tests pass"],
     "claim_parser_executions": [rf"{_V} inputs against the claim parser"],
-    "upgrade_proposed": [rf"proposed(?: and approved)?(?: by the multisig)? on {_T}"],
-    "upgrade_executable": [rf"can execute from {_T}"],
 }
 
 
@@ -553,21 +583,10 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
             _keep(kept, path, _dig(stats, path))
         src.setdefault("devnet", {})["stats"] = kept
     given = dict(given or {})
-    if "upgrade_executable" in given:
-        raise SystemExit("--set upgrade_executable: it is filled with upgrade_proposed, 48 hours later")
-    if "upgrade_proposed" in given:
-        when, source = given["upgrade_proposed"]
-        try:
-            later = (datetime.strptime(str(when), TIME) + timedelta(hours=DELAY_HOURS)).strftime(TIME)
-        except ValueError:
-            raise SystemExit('--set upgrade_proposed: a time like "2026-10-05 14:00 UTC"') from None
-        given["upgrade_executable"] = (later, f"{DELAY_HOURS} hours after upgrade_proposed ({source})")
     for name, (value, source) in given.items():
-        good = isinstance(value, str) if name in WHEN else _number(value)
-        if name not in SLOTS or SLOTS[name][1] is not None or not good:
+        if name not in SLOTS or SLOTS[name][1] is not None or not _number(value):
             raise SystemExit(f"--set {name}: " + ("not a slot this script knows" if name not in SLOTS else
-                                                  "stats.json fills this one (--stats)" if SLOTS[name][1] else
-                                                  "not a time" if name in WHEN else "not a number"))
+                                                  "stats.json fills this one (--stats)" if SLOTS[name][1] else "not a number"))
         src.setdefault("release", {})[name] = {"value": value, "source": source}
 
     where_said: dict[str, set[str]] = {}       # a fact's path -> the documents its slot was filled in
@@ -583,9 +602,7 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
             value, where, why = given[name][0], f"release.{name}.value", f"{what}. Measured: {given[name][1]}"
         else:
             return m.group(0)
-        fact = {"say": [] if name in WHEN else [_said(value)], "what": why, "json": "docs/bench.json", "path": where, "equals": value}
-        if name in WHEN:
-            fact["text"] = value                       # a time is held to its text, not to a number (claims_check.py)
+        fact = {"say": [_said(value)], "what": why, "json": "docs/bench.json", "path": where, "equals": value}
         facts["facts"] = [f for f in facts["facts"] if f.get("path") != where] + [fact]
         where_said.setdefault(where, set()).add(here[0])
         return _said(value)
@@ -642,9 +659,14 @@ if __name__ == "__main__":
     if "--set" in sys.argv:
         name, _, value = (_arg("--set") or "").partition("=")
         source = _arg("--source")
-        if not source or not (name in WHEN or re.fullmatch(r"\d+(?:\.\d+)?", value)):
+        if not source or not re.fullmatch(r"\d+(?:\.\d+)?", value):
             raise SystemExit('usage: python scripts/bench_docs.py --set NAME=NUMBER --source "where it was measured"')
-        given = {name: (value if name in WHEN else float(value) if "." in value else int(value), source)}
+        given = {name: (float(value) if "." in value else int(value), source)}
+    if "--stages" in sys.argv:      # scripts/latency_stages.py --json on the live log: every stage slot it has a number for
+        source = _arg("--source")
+        if not source:
+            raise SystemExit('usage: python scripts/bench_docs.py --stages stages.json --source "where and when it was measured"')
+        given = {**(given or {}), **stage_numbers(json.loads(Path(_arg("--stages") or "").read_text(encoding="utf-8")), source)}
     if "--stats" in sys.argv or given:
         fill(_arg("--stats"), given)
     if "--site" in sys.argv:      # a built site's folder: its stats.json and latency.json against the documents

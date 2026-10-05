@@ -174,7 +174,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.14"
+        run: uv tool install --no-config "knos==0.3.15"
       - name: knos review
         id: review
         env:
@@ -242,7 +242,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.14"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.15"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.

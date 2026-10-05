@@ -1,6 +1,7 @@
 # .github/workflows/knos-attest.yml: ask GitHub to sign that a work order's terms were met, so that you can ask for your
 # payment yourself. For the person who did the work (the seller), in a repository of your own, and for an arbiter. It
 # needs no secret. It reads, and it writes one comment: the statement GitHub signed, on an issue of this repository.
+# (For a payment it adds a second beside it: how the run reached its verdict.)
 #
 # What starts it:
 #
@@ -22,8 +23,15 @@
 # at which commit) and the order on Solana, ask GitHub for one signed statement that names the order, the pull request
 # and the commit, and post that statement as a comment on the issue titled "knos tokens" here (made the first time).
 # A relayer finds it there and carries it to Solana; without the comment nobody would. What it cannot do: change
-# anything else. It writes no code, pull request, release or setting, it checks out nothing and runs nothing from the
-# pull request, and it holds no secret of yours.
+# anything else. It writes no code, pull request, release or setting, and it holds no secret of yours.
+#
+# Two jobs, for a payment. When the order is paid by its acceptance checks (a black-box suite whose hash is in the
+# order's terms), the first job fetches two commits from the order's repository and runs that suite again here, in a
+# sandbox: your run does not repeat what a check in the buyer's repository said, it finds out. That job runs code you
+# did not write, so it can only read, holds no secret and cannot ask GitHub for a signed statement. The second job,
+# the one that asks, checks out nothing and runs nothing from the pull request: it takes the first job's verdict as
+# text and checks it against the order. The first job uses minutes of this repository's Actions; the verdict is kept
+# as the run's artifact `knos-verdict`. An order paid on the merge has no suite to run, and the verdict says so.
 #
 # Why a run started by hand in your own repository is trusted. The escrow does not take your word, and it does not take
 # this file's. It takes GitHub's signature, which says which workflow ran, at which commit, in which repository,
@@ -75,7 +83,7 @@ jobs:
       contents: read
       issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@c319984edd726d3d779f0c5497a52c57044d59fb
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
     with:
       repository: ${{ inputs.repository }}
       pull: ${{ fromJSON(inputs.pull) }}       # a number input started by hand reaches here as text, and the called workflow takes a number

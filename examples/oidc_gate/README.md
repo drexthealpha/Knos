@@ -15,7 +15,7 @@ program is passed that account and reads it. There is no CPI, no oracle and no k
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }   # no dependency of its own
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.15" }   # no dependency of its own
 ```
 
 ```rust

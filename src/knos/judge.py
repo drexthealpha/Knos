@@ -888,6 +888,18 @@ class Run:
     sentinel: str | None = None     # ids the report must show passed / failed (None: this runner has no sentinel)
     canary: str | None = None
     log: str = ""
+    words: str = ""                 # a black-box suite's own output (the check's, not the repository's tests'): see last_words
+
+
+def last_words(text: str, most: int = 300) -> str:
+    """The end of what a suite printed, fit to stand in a reason: one line, at most `most` characters, and nothing
+    but text. A suite prints what the code it judged printed, so this is a stranger's words: terminal colour codes,
+    control characters and characters that reorder or hide text (Unicode's control, format, surrogate and private-use
+    classes) are dropped, and every run of white space is one space."""
+    import unicodedata
+    text = re.sub(r"\x1b\[[0-9;?]*[ -/]*[@-~]", "", text)
+    text = "".join(" " if c.isspace() else c for c in text if c.isspace() or unicodedata.category(c)[0] != "C")
+    return re.sub(r" +", " ", text).strip()[-most:].lstrip()
 
 
 def _junit(path: Path) -> dict | None:
@@ -1418,6 +1430,7 @@ def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run
         code, log = got.returncode, (got.stdout + got.stderr).decode("utf-8", "replace")
     except subprocess.TimeoutExpired:
         code, log = 124, "timed out"
+    words = log[-2000:]
     res = {"acceptance::blackbox": "passed" if code == 0 else "failed"}
     if cfg.get("tests"):
         if held:                         # the repository's own suite is pull request code too: same container
@@ -1431,7 +1444,7 @@ def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run
             code, more = box.run(str(cfg["tests"]), timeout=timeout)
         res["tests::suite"] = "passed" if code == 0 else "failed"
         log += more
-    return Run(res, {"acceptance::blackbox"}, log=log[-2000:])
+    return Run(res, {"acceptance::blackbox"}, log=log[-2000:], words=words)
 
 
 _RUN = {"blackbox": _blackbox, "python": _python, "node": _node, "go": _go, "rust": _rust, "ruby": _ruby, "command": _command}
@@ -1615,7 +1628,12 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
         if gone and pa:
             reasons.append("pr: acceptance checks that ran on the base did not run: " + ", ".join(gone))
         if any(v != "passed" for v in pa.values()):
-            reasons.append("pr: acceptance checks not passed: " + ", ".join(k for k, v in pa.items() if v != "passed"))
+            # A black-box suite is one check with one exit status: without what it printed last, the seller is told
+            # "blackbox" and nothing else. Its author decides what it prints (a held-out set should say how many
+            # cases failed, not which); what is quoted is bounded and made plain text here.
+            said = last_words(sides["pr"].words) if runner == "blackbox" and pa.get("acceptance::blackbox") != "passed" else ""
+            reasons.append("pr: acceptance checks not passed: " + ", ".join(k for k, v in pa.items() if v != "passed")
+                           + (f" (the suite's last words: {said})" if said else ""))
         if ba and all(v == "passed" for v in ba.values()):
             reasons.append("base: the acceptance checks already pass on the base (not fail-to-pass)")
         if len(pm) < len(bm):

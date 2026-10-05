@@ -11,19 +11,21 @@ it must be one a fact in docs/facts.json says ("say"), and every fact must hold:
     {"say": ["1,470"], "what": "...", "source": "https://...", "read": "2026-10-02"}      an outside number, cited
     {"say": [...], "what": "...", "live": "immutable"}                                   checked on devnet (see LIVE)
     {"say": ["4.03"], "what": "...", "doc": "docs/MARKET.md", "source": "https://...", "read": "..."}   said in a document
-    {"say": [], "text": "2026-10-05 14:00 UTC", "what": "...", "json": "docs/bench.json", "path": "...", "equals": "..."}   a time
+    {"say": ["16"], "what": "...", "claim": "capabilities.exercised"}                    a registered fact (scripts/doc_claims.py)
 
 A fact with "doc" backs a number in a document that is not pitch-facing (docs/MARKET.md, docs/REGULATION.md, ...): the
 document must still say every number the fact lists, and the fact must hold like any other. Its numbers may be used in
 the pitch-facing text too, so a number has one fact wherever it is said.
 
-A fact with "text" is a time the release filled (scripts/bench_docs.py, WHEN): the pitch-facing text must say that text.
+A fact with "claim" names a fact of scripts/doc_claims.py's registry, which computes it from its one source (the
+capability manifest, the upgrade record, the program ids): "say" must be that value as the registry prints it. No fact is
+a time: when an upgrade can execute is on chain and in the site's upgrades.json, never in a committed sentence.
 
 The one sentence (SENTENCE) must be in README.md, the home page and the submission, word for word; the long form (LONG)
 in README.md and the home page, whatever the line breaks.
 
 Numbers that are not claims are ignored: versions, dates, clock times in the scripts, list numbering, names such as
-RS256, and anything inside code or a link's address. The generated benchmark table is checked by bench_docs.py.
+RS256, an image tag's attributes, and anything inside code or a link's address. The generated benchmark table is checked by bench_docs.py.
 Exit 1 on any number without a fact, any fact whose source no longer says it, or (online) a live fact that fails.
 """
 
@@ -38,6 +40,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
          "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
@@ -52,7 +55,7 @@ NOT_CLAIMS = [
     r"<!-- bench:(\w+) -->.*?<!-- /bench:\1 -->",            # generated; bench_docs.py --check covers it
     r"```.*?```", r"`[^`\n]*`", r"<pre.*?</pre>", r"<code>.*?</code>",   # code
     r"\]\([^)]*\)", r"https?://\S+",                           # link addresses
-    r"\b20\d\d-\d\d-\d\d(?: \d\d:\d\d(?: UTC)?)?",       # a date, or a time the release filled (bench_docs.py, WHEN)
+    r"\b20\d\d-\d\d-\d\d(?: \d\d:\d\d(?: UTC)?)?",       # a date or a time (scripts/doc_claims.py holds the upgrade's)
     r"\b\d+\.\d+\.\d+\b", r"\bKnos 0\.\d+\b", r"\b(?:knos[-_]pay|knos[-_]oidc) 2\.[01]\b", r"\b0\.\d–0\.\d\.\d\b",     # versions
     r"\b\d{1,2}(?:–\d{1,2})? (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?: \d{4})?\b", r"\b(?:Sep|Oct)[a-z]* 20\d\d\b",
     r"\b20[12]\d\b",                                           # years
@@ -65,6 +68,7 @@ NOT_CLAIMS = [
     r"#\d+\b|#N\b", r"\bRS256\b|\bSHA-256\b|\bRSA-\d+\b|\bHS256\b|\buid \d+\b|\b360px\b|\bsecp256r1\b|\bP-256\b",
     r"\bscenes? \d+(?: to \d+)?\b",                          # the demo script naming its own scenes
     r"\b[xX]402\b",                                          # the payment protocol's name
+    r"<(?:img|source|picture)\b[^>]*>",                      # an image's size in the README's header is layout
 ]
 
 
@@ -189,6 +193,10 @@ LIVE = {"immutable": live_immutable, "run": live_run, "upgrade_delay": live_upgr
 
 def check(fact: dict, offline: bool) -> tuple[bool | None, str]:
     """(ok, detail); ok is None for a fact that is not checked in this mode."""
+    if "claim" in fact:
+        import doc_claims                    # scripts/doc_claims.py: the one registry of facts said in more than one place
+        got = doc_claims.said_as(doc_claims.value(fact["claim"], ROOT))
+        return fact["say"] == [got], f"doc_claims {fact['claim']} = {got}"
     if "json" in fact:
         got = _dig(json.loads(read(fact["json"])), fact["path"])
         return got == fact["equals"], f"{fact['json']} {fact['path']} = {got!r}"
@@ -203,7 +211,7 @@ def check(fact: dict, offline: bool) -> tuple[bool | None, str]:
         if offline:
             return None, f"live: {fact['live']}"
         return LIVE[fact["live"]]()
-    return False, "a fact needs json, file, source or live"
+    return False, "a fact needs claim, json, file, source or live"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -233,11 +241,6 @@ def main(argv: list[str] | None = None) -> int:
             if gone:
                 fails += 1
                 print(f"FAIL  docs/facts.json: {f['doc']} no longer says {gone} ({f['what']}): fix the document or the fact")
-                continue
-        elif "text" in f:
-            if not any(f["text"] in words(path) for path in PITCH):
-                fails += 1
-                print(f"FAIL  docs/facts.json: nothing says {f['text']!r} any more ({f['what']}): remove the fact")
                 continue
         elif not (set(f["say"]) & used) and "live" not in f:
             fails += 1

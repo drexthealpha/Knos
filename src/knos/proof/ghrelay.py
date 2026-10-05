@@ -67,6 +67,29 @@ to this relay picking it up; `chain`, from there to the last confirmation. (`wai
 its token id (`wait_for`) and comments the verdict with its own token. A line with that id is a verdict on the token
 itself, the same whoever posted it. A comment that holds a token it cannot carry (someone's copy under another marker,
 or with other terms) is logged with `-` for the id, so it answers nobody who waits for the token.
+
+What a token can wait for, and the bound of each, is in docs/RELAY.md ("Where a token waits"). Three rules hold here:
+
+    journaled before sent   a token the relay has seen is written to its notes (`journal`, in KNOS_HOME/ghrelay.json)
+                            before its first transaction. A relay killed between the send and the confirmation finds
+                            the token again on its next pass and sends it again: the chain takes a token once, so the
+                            second send moves nothing (tests/test_relay_failures.py runs it on LiteSVM).
+    retried until an answer a failure that says nothing about the token (the cluster or GitHub did not answer) is
+                            tried again on the next pass, then after 10, 20, ... 60 seconds, and from then every 60
+                            seconds while the chain would still take the token (an hour past its `exp`). There is no
+                            random part: the same failures give the same times. A token with no readable `exp` gets
+                            MAX_TRIES passes. So does one the program itself refused with a number a twin run can
+                            cause (67, 69, 84; "answered" in the relay's result): if it does not clear, it is a refusal.
+    a refusal is final      what the program or the relay's own reads refuse is logged with the reason and never sent
+                            again.
+
+Once a minute the log repository's own worker (`publishes_status`) rewrites one comment of the log, the status line
+(`status_line`, `publish_status`):
+
+    knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>
+
+`round` is how long the last pass took and `tokens` what it carried; `waiting` the tokens seen and not yet answered,
+`oldest` the age of the first of them; `retried` and `refused` count the last 24 hours. web/status_data.js reads it.
 """
 
 from __future__ import annotations
@@ -103,7 +126,11 @@ LOG_BOT = "github-actions[bot]"  # who writes the log: the log repository's own 
 # The repository the relay keeps its public log in, and whose own issues it always scans: the one whose worker.yml runs
 # it (worker.yml passes its own name), Knos's by default.
 HOME_REPO = os.environ.get("KNOS_RELAY_LOG_REPO") or "drexthealpha/Knos"
-MAX_TRIES = 12          # failed passes a token gets when the failure may clear (the cluster dropped it, a twin run)
+MAX_TRIES = 12          # failed passes a token gets when the failure may clear (the cluster dropped it, a twin run) and its expiry cannot be read
+LATE = 3600             # the chain takes a token until this long after its `exp` (knos.settle.v2.oidc.LATE); until then a failure that may clear is tried again
+BACKOFF_MOST = 60       # the longest a token is left alone between two tries, in seconds
+REST_MOST = 3600        # the longest the relay stays away from GitHub because GitHub asked it to (its hourly limit resets within the hour)
+JOURNAL = 500           # tokens the journal keeps: the newest
 HORIZON = 70 * 60       # how far back a pass looks: a token is accepted for an hour
 SEARCH_EVERY = 30       # seconds between two searches for repositories the worker does not know yet
 CRANK_EVERY = 60        # seconds between two rounds of what needs no token (refunds, held payments), in `serve`
@@ -156,10 +183,30 @@ class Hub:
     for again with If-None-Match, and GitHub's 304 ("what you have is current") costs nothing against the rate limit.
     So reading a repository that has nothing new is one cheap request, however often it is done."""
 
-    def __init__(self, urlopen=None):
+    def __init__(self, urlopen=None, clock=time.time):
         self.kept: dict[str, tuple[str, object]] = {}   # path -> (its ETag, the answer)
         self.fresh = self.same = 0                      # answers that were new, and 304s
-        self._open = urlopen or urllib.request.urlopen
+        self.rest = 0.0                                 # GitHub asked not to be asked again before this time (a rate limit)
+        self._open, self._clock = urlopen or urllib.request.urlopen, clock
+
+    def _limited(self, e: urllib.error.HTTPError) -> None:
+        """A 403 or 429 that is a rate limit says how long to stay away: `Retry-After` seconds, or until
+        `X-RateLimit-Reset` when nothing remains, or (a 429 that names neither) a minute. Asking again before then
+        makes GitHub's secondary limit last longer, so until then nothing is asked at all (`_resting`). A 403 that
+        names no limit is one path's own refusal and rests nothing."""
+        if e.code not in (403, 429):
+            return
+        head = e.headers or {}
+        after, reset = str(head.get("Retry-After") or ""), str(head.get("X-RateLimit-Reset") or "")
+        wait = (int(after) if after.isdigit() else int(reset) - self._clock() if str(head.get("X-RateLimit-Remaining")) == "0" and reset.isdigit()
+                else 60 if e.code == 429 else 0)
+        if wait > 0:
+            self.rest = max(self.rest, self._clock() + min(wait, REST_MOST))
+
+    def _resting(self, what: str) -> None:
+        left = self.rest - self._clock()
+        if left > 0:
+            raise RuntimeError(f"GitHub asked for {left:.0f} more seconds without requests (its rate limit): {what} was not asked")
 
     def _request(self, path: str, data: dict | None = None, method: str | None = None, etag: str | None = None):
         head = {"Accept": "application/vnd.github+json", "User-Agent": "knos"}
@@ -174,6 +221,7 @@ class Hub:
 
     def get(self, path: str):
         kept = self.kept.get(path)
+        self._resting(path)
         try:
             with self._open(self._request(path, etag=kept[0] if kept else None), timeout=10) as resp:
                 got, etag = json.loads(resp.read() or b"null"), resp.headers.get("ETag")
@@ -181,6 +229,7 @@ class Hub:
             if e.code == 304 and kept:
                 self.same += 1
                 return kept[1]
+            self._limited(e)
             raise RuntimeError(f"GitHub answered {e.code} for {path}") from None
         except (OSError, ValueError) as why:
             raise RuntimeError(f"GitHub did not answer for {path}: {why}") from None
@@ -190,10 +239,12 @@ class Hub:
         return got
 
     def send(self, path: str, data: dict, method: str = "POST"):
+        self._resting(f"{method} {path}")
         try:
             with self._open(self._request(path, data, method), timeout=30) as resp:
                 return json.loads(resp.read() or b"null")
         except urllib.error.HTTPError as e:
+            self._limited(e)
             raise RuntimeError(f"GitHub answered {e.code} for {method} {path}") from None
         except (OSError, ValueError) as why:
             raise RuntimeError(f"GitHub did not answer for {method} {path}: {why}") from None
@@ -240,13 +291,17 @@ def watched(ledger, state: dict, now: float, getter=_api) -> set[str]:
             kept.update(at=now, ids=sorted(second.open_repositories(ledger)))
         except Exception as why:  # noqa: BLE001 - the cluster did not answer: the last answer stands, and it is asked again next pass
             print(f"watched: {type(why).__name__}: {why}", file=sys.stderr)
-        for rid in [i for i in kept["ids"] if str(i) not in names][:CHAIN_NAMES]:
-            try:
-                names[str(rid)] = str(getter(f"repositories/{rid}")["full_name"])
-            except Exception:  # noqa: BLE001, S110 - a private or deleted repository, or GitHub did not answer: asked again at the next read
-                pass
+        state["unnamed"] = [i for i in kept["ids"] if str(i) not in names]
         for gone in set(names) - {str(i) for i in kept["ids"]}:
             del names[gone]
+    # CHAIN_NAMES names a pass, each id once after a read of the chain: a relay that starts with no notes and many open
+    # repositories has them all within a few passes (it used to ask for twenty a minute)
+    ask, state["unnamed"] = list(state.get("unnamed", []))[:CHAIN_NAMES], list(state.get("unnamed", []))[CHAIN_NAMES:]
+    for rid in ask:
+        try:
+            names[str(rid)] = str(getter(f"repositories/{rid}")["full_name"])
+        except Exception:  # noqa: BLE001, S110 - a private or deleted repository, or GitHub did not answer: asked again at the next read
+            pass
     return {names[str(i)] for i in kept["ids"][:CHAIN_REPOS] if str(i) in names and "/" in names[str(i)]}
 
 
@@ -510,7 +565,7 @@ def note(r: dict) -> str:
     return f"Key {r['key']} {'added' if r.get('added') else 'already known'}."
 
 
-STAGES = ("queue", "workflow", "wait", "chain")
+STAGES = ("queue", "workflow", "wait", "chain", "tries")       # the four stages, in seconds, and how many tries the token took when more than one
 
 
 def stages(jwt: str, created: float | None, picked: float, done: float, get=None) -> dict[str, int]:
@@ -638,6 +693,86 @@ def _state_path() -> Path:
     return paths.home() / "ghrelay.json"
 
 
+def _save(sp: Path, state: dict) -> None:
+    """The notes, written whole or not at all: to a file beside them, then moved over them. A relay killed while it
+    writes leaves the notes it had."""
+    sp.parent.mkdir(parents=True, exist_ok=True)
+    tmp = sp.with_name(sp.name + ".tmp")
+    tmp.write_text(json.dumps(state), encoding="utf-8")
+    os.replace(tmp, sp)
+
+
+def expires(jwt: str) -> float | None:
+    """When the chain stops taking a token: LATE after its `exp`. None when it does not say (not a token)."""
+    try:
+        return float(claims(jwt)["exp"]) + LATE
+    except Exception:  # noqa: BLE001 - a passkey's line, or no token at all
+        return None
+
+
+def backoff(tries: int) -> int:
+    """Seconds a token is left alone after its `tries`-th failure that may clear: 0, 0, 10, 20, ... up to BACKOFF_MOST.
+    (Zero means the next pass, `--every` seconds later.) Nothing random: under a fake clock the times are the same."""
+    return max(0, min(BACKOFF_MOST, 10 * (tries - 2)))
+
+
+WAITING = ("sending", "waiting")        # a journal entry that has no answer yet: in flight when the notes were written, or to be tried again
+
+
+def status_line(state: dict, now: float) -> str:
+    """The relay's own account of itself, from its notes: when its last pass ran and how long it took, what waits,
+    and what the last 24 hours saw. One line of the public log, rewritten in place (`publish_status`)."""
+    journal, last = dict(state.get("journal", {})), dict(state.get("round", {}))
+    # (a token whose comment was deleted, or left the hour the relay reads, is never tried again: it stops counting as waiting)
+    waiting = [e for e in journal.values() if e.get("state") in WAITING and now - e.get("last", 0) <= HORIZON]
+    recent = [e for e in journal.values() if now - e.get("last", 0) <= 86_400]
+    oldest = max((now - e.get("seen", now) for e in waiting), default=0)
+    return (f"knos-relay status - - ok at={_stamp(last.get('at', now))} round={int(last.get('took', 0))} tokens={int(last.get('tokens', 0))} "
+            f"waiting={len(waiting)} oldest={int(oldest)} retried={sum(max(0, int(e.get('tries', 1)) - 1) for e in recent)} "
+            f"refused={sum(1 for e in recent if e.get('state') in ('refused', 'expired'))}")
+
+
+def publishes_status(env=None) -> bool:
+    """Whether this relay writes a status line: the log repository's own worker does (GitHub says which workflow of
+    which repository a run is: worker.yml of HOME_REPO), and nobody else, since only that workflow's lines count in
+    the log. KNOS_RELAY_STATUS=1 turns it on for a relay of one's own that may write to its log; =0 turns it off."""
+    env = os.environ if env is None else env
+    asked = env.get("KNOS_RELAY_STATUS", "")
+    if asked in ("0", "1"):
+        return asked == "1"
+    return env.get("GITHUB_REPOSITORY") == HOME_REPO and f"{HOME_REPO}/.github/workflows/worker.yml@" in env.get("GITHUB_WORKFLOW_REF", "")
+
+
+def publish_status(now: float | None = None) -> str | None:
+    """Writes `status_line` into the log: one comment, rewritten each time (its id is kept in the notes), so the log
+    grows by nothing. A comment that is gone is posted anew. Returns the line; None when this relay writes none
+    (`publishes_status`) or GitHub did not take it (the next minute tries again, and the status a reader sees is then
+    old, which is itself the news)."""
+    if not publishes_status():
+        return None
+    sp = _state_path()
+    try:
+        state = json.loads(sp.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None                 # no pass has finished yet: nothing to say
+    line = status_line(state, now or time.time())
+    try:
+        n = _log_issue()
+        if n is None:
+            return None             # the log issue is made by the first line of a token
+        try:
+            if not state.get("status_comment"):
+                raise RuntimeError("no status comment yet")
+            _HUB.send(f"repos/{HOME_REPO}/issues/comments/{int(state['status_comment'])}", {"body": line}, "PATCH")
+        except RuntimeError:
+            state["status_comment"] = int(_HUB.send(f"repos/{HOME_REPO}/issues/{n}/comments", {"body": line})["id"])
+            _save(sp, state)
+    except Exception as why:  # noqa: BLE001 - GitHub said no: the status is a minute older
+        print(f"relay status: {why}", file=sys.stderr)
+        return None
+    return line
+
+
 def _origin(jwt: str, repo: str) -> str:
     """Where a verify-only token was issued: GitHub's repository id (GitLab's project id) as the token itself says,
     else the repository its comment is in."""
@@ -715,8 +850,11 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         state = json.loads(sp.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         state = {}
+    skew = now - time.time() if now else 0.0            # a caller that gives the time (a drill, a test) gets its stages on that clock
     now = now or time.time()
+    began = time.monotonic()
     since = _stamp(now - HORIZON)
+    journal = dict(state.get("journal", {}))            # token (as posted) -> what the relay knows of it: see `status_line`
     order = list(state.get("seen", []))                 # what was done already (each token as it was posted), oldest first
     seen = set(order)
     tries = dict(state.get("tries", {}))
@@ -760,6 +898,14 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
             return int(claims(item[2]).get("iat", 0))
         except Exception:  # noqa: BLE001 - not a token: relay_one reports it
             return 0
+    def keep() -> None:
+        """The notes as they stand. A token whose answer is not in yet is left out of `seen`: whoever reads these
+        notes next (this run's next pass, or the run after a kill) finds it in its comment and carries it."""
+        open_ = {t for t, e in journal.items() if e.get("state") in WAITING}
+        state.update(seen=[t for t in dict.fromkeys(order) if t in seen and t not in open_][-2000:], tries=dict(list(tries.items())[-500:]), repos=known,
+                     hold=dict(list(hold.items())[-500:]), verify={"day": day, "n": verified}, run=run_id,
+                     journal=dict(list(journal.items())[-JOURNAL:]))
+        _save(sp, state)
     lines, later = [], []
     # oldest first, whatever repository it is in: a balance takes its fund tokens in the order GitHub issued them
     for repo, item in sorted(((repo, item) for repo, items in listed for item in items), key=lambda found: issued(found[1])):
@@ -784,7 +930,10 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
             lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its token ({token_id(jwt)[:8]}...): {wrong}")
             later.append(lines[-1])
             continue
-        picked = time.time()
+        entry = journal.setdefault(tid, {"id": token_id(jwt), "kind": kind, "where": f"{repo}#{n}", "seen": now, "tries": 0})
+        entry.update(state="sending", tries=int(entry.get("tries", 0)) + 1, last=now)
+        keep()                      # journaled before the first transaction: a relay killed from here on finds the token again
+        picked = time.time() + skew
         origin = f"{kind}:{repo}" if kind in ("withdraw", "passkey-fund") else _origin(jwt, repo)
         rid = _repo_id(repo, state) if kind == "passkey-fund" else None
         if kind == "withdraw" and verified.get(origin, 0) >= WITHDRAW_PER_DAY:
@@ -802,19 +951,27 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
                                                        "them; post it again after midnight UTC, or relay it yourself (anyone can)"}
         else:
             r = relay_one(ledger, payer, kind, jwt, **({"terms": terms} if terms else {}))
-        finished = time.time()
+        finished = time.time() + skew
+        entry.update(state="confirmed" if r.get("ok") else "waiting" if r.get("retry") else "refused",
+                     why=None if r.get("ok") else " ".join(str(r.get("why")).split())[:200])
         if r.get("retry"):          # the faucet's minute, or the cluster dropped it: a later pass tries again
             if r.get("transient"):  # only a failure counts toward giving up; waiting out the limit does not
                 tries[tid] = tries.get(tid, 0) + 1
-            if tries.get(tid, 0) < MAX_TRIES:
+            dead = expires(jwt)
+            # a failure that says nothing about the token never ends it while the chain would still take it; one whose
+            # expiry cannot be read gets MAX_TRIES passes. So does one the program itself answered (a twin run's
+            # interference clears in a pass or two; what does not clear is the program's refusal, and is not sent for an hour)
+            if tries.get(tid, 0) < MAX_TRIES or (dead is not None and now < dead and not r.get("answered")):
                 seen.discard(tid)
                 # the relay says how long to wait, when it knows; a failure that keeps coming is given more room each
                 # time, so that passes a few seconds apart do not give a token up within the same minute of trouble
-                wait = r.get("wait") or (min(60, 10 * (tries[tid] - 2)) if r.get("transient") else 0)
+                wait = r.get("wait") or (backoff(tries[tid]) if r.get("transient") else 0)
                 if wait > 0:
                     hold[tid] = now + wait
                 continue
-            r["why"] = f"{r.get('why')} (gave up after {MAX_TRIES} passes; run the workflow again for a fresh token)"
+            entry["state"] = "expired"
+            r["why"] = (f"{r.get('why')} (gave up after {tries[tid]} passes; run the workflow again for a fresh token)" if dead is None or r.get("answered") else
+                        f"{r.get('why')} (tried {tries[tid]} times until the token expired; run the workflow again for a fresh token)")
         tries.pop(tid, None)
         # carried already, or refused: when two runs overlap, the loser of the race sees one or the other (a passkey
         # withdrawal has no `already`: once the winner sent it, the wallet's nonce has moved on and the loser is refused)
@@ -837,7 +994,10 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
                 later.append(lines[-1])
                 continue
         took = max(0, round(finished - created)) if r.get("ok") and created is not None else None
-        line = log_line(kind, repo, n, jwt, r, took, stages(jwt, created, picked, finished) if r.get("ok") else None)
+        parts = stages(jwt, created, picked, finished) if r.get("ok") else None
+        if parts is not None and entry["tries"] > 1:
+            parts["tries"] = entry["tries"]         # carried on a later try: the log says how many it took
+        line = log_line(kind, repo, n, jwt, r, took, parts)
         lines.append(line)
         if r["ok"]:
             _post([line], state)    # at once: someone is waiting for it
@@ -856,10 +1016,8 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         later += more
     if later:
         _post(later, state)
-    state.update(seen=list(dict.fromkeys(t for t in order if t in seen))[-2000:], tries=dict(list(tries.items())[-500:]), repos=known,
-                 hold=dict(list(hold.items())[-500:]), verify={"day": day, "n": verified}, run=run_id)
-    sp.parent.mkdir(parents=True, exist_ok=True)
-    sp.write_text(json.dumps(state), encoding="utf-8")
+    state["round"] = {"at": now, "took": round(time.monotonic() - began, 1), "tokens": sum(1 for ln in lines if " ok sig=" in ln and " - - " not in ln)}
+    keep()
     for ln in lines:
         print(ln)
     return lines
@@ -882,6 +1040,8 @@ def serve(seconds: float, every: float = 3.0, ledger=None, payer=None, clock=tim
             logged += len(once(ledger, payer, crank=crank))
         except Exception as why:  # noqa: BLE001 - one bad pass never stops the worker
             print(f"relay pass: {type(why).__name__}: {why}", file=sys.stderr)
+        if crank:
+            publish_status()
         cranked = began if crank else cranked
         sleep(max(0.0, min(every - (clock() - began), end - clock())))
     return logged

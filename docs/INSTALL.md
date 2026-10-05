@@ -73,11 +73,62 @@ It looks for the agents installed on the machine and writes, for each one it fin
 | Cursor | | `~/.cursor/mcp.json` |
 | Gemini CLI | | `~/.gemini/settings.json` |
 
-Cursor and Gemini CLI have no hook Knos uses, so they get the server. Nothing else is written. A settings file is
-copied to `<file>.knos-backup` before its first change, and `knos init --undo` takes the entries out again.
+For the whole machine Cursor and Gemini CLI get the server; their hook is installed per project (the next section).
+Nothing else is written. A settings file is copied to `<file>.knos-backup` before its first change, and
+`knos init --undo` takes the entries out again.
 
 Run it from an installed `knos`, not as `uvx knos init`: it writes the path of the command it was started from into
 each agent's settings, and a path inside uv's cache stops working when the cache is cleaned.
+
+## One project, in your coding agent: `knos init --host`
+
+```bash
+knos init --host cursor              # in the project's folder; python -m knos.init --host cursor is the same
+knos init --host hermes --global     # also the file in your home, for a host that reads nothing from a project
+```
+
+It writes that host's files into the project, in the fields the host's own documentation names, and prints each file
+it wrote. A second run changes nothing, and your home is written only with `--global`. Files in a project start Knos
+as `uvx knos`, so they work for whoever clones it.
+
+| `--host` | Written into the project | Does a false "done" go back to the agent? |
+|---|---|---|
+| `cursor` | `.cursor/mcp.json`, `.cursor/hooks.json` (`stop`, `afterAgentResponse`), `.cursor/cli.json` | yes |
+| `gemini` | `.gemini/settings.json` (the server with `includeTools`, the `AfterAgent` hook) | yes |
+| `copilot` (also `vscode`) | `.github/hooks/knos.json` (`agentStop`; Copilot CLI, the cloud agent and VS Code read it), `.vscode/mcp.json` | yes |
+| `opencode` | `opencode.json`, `.opencode/plugins/knos.js` | yes, through the plugin |
+| `hermes` | nothing: Hermes Agent reads `~/.hermes/config.yaml` only. `--global` adds the server and the `pre_verify` and `pre_llm_call` hooks there | yes, on a turn that edited code |
+| `goose` | `.agents/plugins/knos/` (a `Stop` hook) | yes, by goose's documentation |
+| `aider` | `.aider.conf.yml` (`test-cmd`, `auto-test`) | aider has no hooks: it runs Knos after each edit and gives the model what failed |
+| `windsurf` | `.windsurf/hooks.json` (`post_cascade_response`) | no: the person is shown which check failed; a post hook there cannot hold a turn |
+| `cline` | `.clinerules/knos.md`; with `--global`, `~/.cline/mcp.json` | no: there is no hook for it in the editor extension; the rule asks |
+| `roo` | `.roo/mcp.json` | no: Roo Code has no hooks |
+
+The MCP server is written with only the tools that read allowed to run unasked (or offered at all, where that is the
+host's only switch); the three that post as the agent's account are asked about each time.
+
+Each field was read from the host's documentation on 5 October 2026, and each route is tested on a temporary folder
+with an end-of-turn event written from that documentation. None was run inside the real host. Where the
+documentation does not state something Knos depends on (Copilot's and VS Code's transcript lines, the fields of
+opencode's `session.idle`, the folder goose and Windsurf start a hook in), the route is marked `unconfirmed`. The
+pages, the dates they show, the exact event and answer for each host, and what Sibyl's memory adds to the answer are
+in [integrations/hosts/README.md](../integrations/hosts/README.md):
+
+| Host | Pages read (5 October 2026) |
+|---|---|
+| Cursor | [hooks](https://cursor.com/docs/agent/hooks), [MCP](https://cursor.com/docs/context/mcp), [CLI permissions](https://cursor.com/docs/cli/reference/permissions) |
+| Gemini CLI | [hooks reference](https://geminicli.com/docs/hooks/reference/) (dated 10 April 2026), [MCP servers](https://geminicli.com/docs/tools/mcp-server/) (dated 2 September 2026) |
+| GitHub Copilot | [hooks configuration](https://docs.github.com/en/copilot/reference/hooks-configuration), [MCP for the cloud agent](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp) |
+| VS Code | [hooks](https://code.visualstudio.com/docs/copilot/customization/hooks) (dated 30 September 2026; in preview), [MCP servers](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) |
+| opencode | [plugins](https://opencode.ai/docs/plugins/), [MCP servers](https://opencode.ai/docs/mcp-servers/) |
+| Hermes Agent | [event hooks](https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks), [MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp) |
+| goose | [hooks](https://goose-docs.ai/docs/guides/context-engineering/hooks/), [extensions](https://goose-docs.ai/docs/getting-started/using-extensions) |
+| aider | [linting and testing](https://aider.chat/docs/usage/lint-test.html), [YAML config](https://aider.chat/docs/config/aider_conf.html) |
+| Windsurf (now Devin Desktop) | [Cascade hooks](https://docs.devin.ai/desktop/cascade/hooks), [MCP](https://docs.devin.ai/desktop/cascade/mcp) |
+| Cline | [hooks](https://docs.cline.bot/customization/hooks), [plugins](https://docs.cline.bot/customization/plugins), [MCP](https://docs.cline.bot/mcp/mcp-overview) |
+| Roo Code | [MCP](https://roocodeinc.github.io/Roo-Code/features/mcp/using-mcp-in-roo/) (dated 15 May 2026, the day its makers ended the product) |
+
+What `--host` wrote is not removed by `knos init --undo`: delete the files it listed, or the `knos` entries in them.
 
 ## Claude Code
 
@@ -319,7 +370,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.14
+      - uses: drexthealpha/Knos@v0.3.15
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -352,7 +403,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.14
+    - python -m pip install knos==0.3.15
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -384,7 +435,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.14/knos-settle-0.3.14.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.15/knos-settle-0.3.15.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -399,7 +450,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.15" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

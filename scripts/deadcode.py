@@ -58,6 +58,11 @@ def imports(path: Path, current: str | None) -> set[str]:
         elif (isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)
               and (getattr(node.func, "id", "") == "__import__" or getattr(node.func, "attr", "") == "import_module")):
             got.add(node.args[0].value)        # a module named in a call: __import__("knos.x"), importlib.import_module("knos.x")
+        elif (isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)
+              and getattr(node.func, "id", "") == "_mod" and current):
+            # knos.cli loads a command's module when the command is asked for: `_mod("observe")` is
+            # importlib.import_module("knos.observe"), a sibling of the module that calls it
+            got.add(f"{current.rsplit('.', 1)[0]}.{node.args[0].value}")
     found = set()
     for name in got:
         parts = name.split(".")

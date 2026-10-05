@@ -1,6 +1,11 @@
-// Buy: the one page for the person who accepts and pays for the work. Four steps on one screen: what is bought, when it
-// is accepted (terms from a template, said in one sentence, with what is still trusted in that mode), how it is paid
-// (a passkey wallet, or the comment `/knos fund`), and what happened (the order's state, read from Solana devnet).
+// Buy: the console of the person who authorises a payment and has to defend it later. Four steps on one screen: what is
+// bought, when it is accepted (terms from a template, said in one sentence, with what is still trusted in that mode), how
+// it is paid (a passkey wallet, or the comment `/knos fund`), and what happened (the order's state, read from Solana
+// devnet). Beside the amount, before anything is funded: the fee as an amount and as a share of the order, whether the
+// organisation's budget would let this funding through and which rule decides, any earlier order or payment for the
+// same issue, and what a supplier can and cannot do alone when the repository is private. After: the receipt's five
+// parts, who answers when the service fails, and the orders that wait for a person. The words and the rules of those
+// panels are web/console.js; this file reads the chain and draws. docs/CONSOLE.md is the operator's guide.
 // renderBuyer(el, env) draws it into `el`. The page sends nothing to Solana: the passkey signs one intent
 // (passkey_fund.js) and the page shows the one line `/knos passkey-fund ...` to post on the issue, which a relay
 // carries and pays for. It asks GitHub for the repository's id and the issue, devnet for the wallet and the order, and
@@ -15,6 +20,8 @@ import { passkeyFundIntent, intentComment } from "./passkey_fund.js";
 import { termsOf, parseIssueUrl, workflowPin, orderAddress, listOf, F_NEUTRAL, SEQ_TRIES, MAX_DAYS, Refused } from "./anyissue.js";
 import { priceConstants, quote, unitsOf, show } from "./price.js";
 import { renderOrderStatement } from "./statements.js";
+import { jsonFile } from "./records.js";
+import * as con from "./console.js";
 
 const RPC = "https://api.devnet.solana.com", GH = "https://api.github.com";
 const DEVNET = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";      // the hash of devnet's first block
@@ -22,7 +29,6 @@ const STORE = "knos-passkey";                                        // where cl
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
 const ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 export const SLOTS = 9000;            // how long a signed intent is good for: about an hour, at devnet's 0.4 s a slot
-const HEADINGS = ["What the issuer authenticated", "What the evaluator observed", "Which policy produced the verdict", "What trust remains"];   // receipt.py HEADINGS
 const JUDGES = { 0: "the order's own repository", 1: "a neutral run, started by hand by the owner of the repository it ran in", 2: "the judge repository the order named",
   3: "the arbiter the order named", 9: "no token: a payment the program had already accepted" };                                             // audit.py JUDGES
 export const STATES = ["funded", "reserved", "accepted", "paid", "held", "refunded"];
@@ -112,7 +118,8 @@ export function renderBuyer(el, env = {}) {
   });
   let idsP;
   const ids = env.ids || (() => (idsP ||= fetch("program_ids.json").then((r) => { if (!r.ok) throw new Error("program_ids.json is missing from this build"); return r.json(); })));
-  const c = priceConstants();
+  const c = priceConstants(), file = env.file || jsonFile;
+  const clock = env.now || (() => Math.floor(Date.now() / 1000));
   const say = (node, html, kind = "") => { node.innerHTML = `<p class="status ${kind}">${html}</p>`; };
   const copyTo = (button, text, area) => { button.onclick = async () => { try { await navigator.clipboard.writeText(text); button.textContent = "Copied"; } catch { area?.select?.(); button.textContent = "Select it and copy by hand"; } }; };
 
@@ -133,7 +140,16 @@ export function renderBuyer(el, env = {}) {
       <div class="row">
         <div><label for="buy-amount" id="buy-amount-label">Amount (test USDC)</label><input id="buy-amount" inputmode="decimal" value="50"></div>
         <div><label for="buy-days">Deadline: days until unpaid money goes back</label><input id="buy-days" inputmode="numeric" value="14"></div></div>
-      <p class="fine" id="buy-cost"></p>
+      <p id="buy-cost"></p>
+      <div id="buy-fee-warning" role="note" hidden></div>
+      <details id="buy-fee-table" open><summary class="fine">The fee as a share of the order, at five sizes</summary><div id="buy-fee-rows"></div></details>
+      <div id="buy-private" hidden></div>
+      <h4>Is this allowed? <span class="pill">the organisation's budget, read from devnet</span></h4>
+      <div id="buy-allowed" role="status" aria-live="polite"><p class="fine">Write the issue above. The page then reads the budget of the organisation that owns the repository, and says whether this funding would pass and which rule decides.</p></div>
+      <label for="buy-by">Who will post the funding comment (a GitHub account; leave empty to check the budget alone)</label>
+      <input id="buy-by" autocomplete="off" spellcheck="false" placeholder="octocat">
+      <h4>Was this billed before?</h4>
+      <div id="buy-before" role="status" aria-live="polite"><p class="fine">Write the issue above. The page then lists every earlier order and payment for the same repository and issue, each with its transaction.</p></div>
     </section>
 
     <section class="card" id="buy-step-2"><span class="pill">Step 2 of 4</span>
@@ -189,6 +205,14 @@ export function renderBuyer(el, env = {}) {
       </dl>
     </section>
 
+    <section class="card" id="buy-exc-card"><h3>What needs a person</h3>
+      <p>The orders of an organisation, or of one repository, that will not finish by themselves. Each says what happened, the one thing that resolves it, and who can do it.</p>
+      <form id="buy-exc-form"><label for="buy-exc-scope">The organisation, or one repository as owner/repo</label>
+        <input id="buy-exc-scope" autocomplete="off" spellcheck="false" placeholder="acme, or acme/widgets">
+        <button type="submit">Show what needs a person</button></form>
+      <div id="buy-exc" role="status" aria-live="polite"></div>
+    </section>
+
     <section class="card" id="buy-statement"><h3>The month's statement, for both sides</h3>
       <p>Every work order your organisation's money funded in one month, with the totals, as a file the supplier can recompute from the chain and compare by one hash.</p>
       <div id="buy-statement-box"></div>
@@ -232,7 +256,12 @@ export function renderBuyer(el, env = {}) {
     $("buy-issue-label").textContent = rate ? "The issue the offer is posted on" : "The issue on GitHub";
     if (!t) return;
     const q = v && v.units !== null && v.units >= c.minAmount && v.units <= c.maxAmount ? quote(v.units, c) : null;
-    $("buy-cost").textContent = q ? `You pay ${show(q.funderPays)} test USDC: ${show(q.amount)} for whoever does the work, and a fee of ${show(q.fee)} on top. The person paid receives the whole ${show(q.amount)}.` : bad;
+    const fee = q ? con.feeView(v.units, c) : null;
+    $("buy-cost").textContent = fee ? fee.words : bad;
+    $("buy-cost").dataset.pct = fee ? fee.pct : "";
+    $("buy-fee-warning").hidden = !fee?.warning;
+    $("buy-fee-warning").innerHTML = fee?.warning ? `<div class="receipt"><strong>${esc(fee.warning)}</strong></div>` : "";
+    drawChecks();
     $("buy-sentence").innerHTML = v && !bad ? `${code(sentenceOf(v, book.money))}.` : esc(bad || "");
     $("buy-mode").textContent = `judged ${t.assurance}`;
     $("buy-trusted").innerHTML = t.trusted.map((s) => `<li>${esc(s)}</li>`).join("");
@@ -264,6 +293,87 @@ export function renderBuyer(el, env = {}) {
     if (t) { $("buy-amount").value = t.parts.amount; $("buy-days").value = String(t.parts.days); if (rate) { $("buy-rate").value = t.parts.rate; } }
     pick();
   }
+  // ---- before funding: the fee table, the private case, the budget, and what was billed before ---------------------------------------
+  // `facts` is what was read for the issue in the box: the repository and its owner from GitHub, the owner's Balances and the
+  // issue's open orders from devnet, the owner's statement from this site. It is read once per issue, when the box is left
+  // or typing stops, and drawn again with every change of the amount.
+  let facts = null, turn = 0, timer = 0;
+  const rules = con.controls;
+  Promise.resolve().then(() => { drawFees(); drawChecks(); });       // once everything below is defined
+  function drawFees() {
+    const rows = rules.feeTable(c.feeBps, c);       // controls_data.js: [{ amount, fee, effectivePct: "8.00" }]
+    const money = (n) => show(n), pct = (r) => `${String(r.effectivePct).replace(/%$/, "")}%`;
+    $("buy-fee-rows").innerHTML = `<div class="table-wrap"><table><thead><tr><th>Order (test USDC)</th><th>Fee</th><th>Fee as a share</th></tr></thead><tbody>${
+      rows.map((r) => `<tr><td>${esc(money(r.amount))}</td><td>${esc(money(r.fee))}</td><td>${esc(pct(r))}</td></tr>`).join("")}</tbody></table></div>
+      <p class="fine">The fee is paid by the funder, on top of the amount. On devnet it is test money.</p>`;
+  }
+  const link = (kind, id) => EXPLORER(kind, id);
+  function drawChecks() {
+    const t = template(), v = values(), f = facts, why = t?.name === "private-attested" || t?.parts.private ? "template" : f?.repo?.private ? "github" : f?.hidden ? "hidden" : "";
+    $("buy-private").hidden = !why;
+    $("buy-private").innerHTML = why ? con.privateHtml(why) : "";
+    $("buy-private").dataset.why = why;
+    const allowed = $("buy-allowed"), before = $("buy-before");
+    if (!f) return;
+    const name = `${f.repo?.full_name || `${f.ref.owner}/${f.ref.repo}`}#${f.ref.number}`;
+    if (f.loading) { say(allowed, "Reading GitHub and devnet…"); say(before, "Reading…"); return; }
+    if (!f.repo) { say(allowed, `${esc(f.error)} The budget is read by the repository's owner, so it cannot be read for this one.`); say(before, "Nothing can be matched without the repository's id, which GitHub did not give."); return; }
+    const org = f.repo.owner?.type === "Organization", who = `${esc(f.repo.owner?.login || f.ref.owner)} (${org ? "an organisation" : "a personal account"}, GitHub id ${esc(f.owner)})`;
+    if (f.budgetError) say(allowed, `Devnet did not give the budget of ${who}: ${esc(f.budgetError)}. Nothing is known about whether this funding would pass.`, "bad");
+    else if (!f.budgets.length) allowed.innerHTML = `<div class="receipt" data-ok="" data-rule="no Balance"><strong>${who} has opened no Balance on devnet, so no budget of its own governs this funding.</strong></div>
+      <p class="fine">A funding comment on this issue would draw on the devnet faucet: at most 100.00 test USDC per comment, for anyone who may comment. To put a cap, a daily and a total limit, the allowed repositories and the people who may spend in force, the organisation's wallet opens a Balance on the <a href="#money">Balance page</a>.</p>`;
+    else {
+      const amount = v && v.units !== null && v.units >= c.minAmount && v.units <= c.maxAmount ? v.units : null, now = clock();
+      allowed.innerHTML = `<p class="fine">Funder: ${who}${f.by ? `; comment by ${esc(f.by.login)} (GitHub id ${esc(f.by.id)})` : ""}. Read from devnet at ${esc(when(now))}.</p>` + f.budgets.map((b) => {
+        const ask = { balance: b.balance, balx: b.balx, repoId: f.repo.id, amount: amount ?? c.minAmount, byId: f.by?.id || 0, holds: b.holds, now };
+        let said = null;
+        // controls_data.js (the decision of `knos budget check`) refuses a comment by nobody, so the budget alone is asked as its owner
+        try { said = rules.explainFunding({ ...ask, byId: ask.byId || b.balance.ownerId, repoOwnerId: f.owner }) || null; } catch { said = null; }
+        const local = con.explainLocal(ask, c), use = said && typeof said.sentence === "string" && !(said.ok && !local.ok) ? { ...local, ...said } : local;   // what the Balance holds is read here
+        return con.budgetHtml(b, amount === null ? { ...use, ok: false, rule: "amount", sentence: "Write an amount an order can take, and this says whether the budget lets it through." } : use, now, link);
+      }).join("");
+    }
+    if (f.statementError) say(before, `The site's statement of ${who} did not load: ${esc(f.statementError)}`, "bad");
+    else before.innerHTML = con.earlierHtml(con.earlierOf(f.lines, f.repo.id, f.ref.number), f.live, name, link);
+  }
+  async function look(force = false) {
+    clearTimeout(timer);
+    const ref = parseIssueUrl($("buy-issue").value), by = $("buy-by").value.trim().replace(/^@/, "");
+    if (!ref || ref.kind === "pull") return;
+    const key = `${ref.owner}/${ref.repo}#${ref.number}@${by}`.toLowerCase();
+    if (!force && facts?.key === key) return drawChecks();       // read already, or being read: that reading draws when it ends
+    const mine = ++turn;
+    const f = { key, ref, loading: true, budgets: [], lines: [], live: [], by: null };
+    facts = f; drawChecks();
+    try { f.repo = await gh(`/repos/${ref.owner}/${ref.repo}`); } catch (e) { f.repo = null; f.error = e.message; f.hidden = /no such public/.test(e.message); }
+    if (f.repo && (!Number.isSafeInteger(f.repo.id) || !Number.isSafeInteger(f.repo.owner?.id))) { f.repo = null; f.error = "GitHub did not give this repository and its owner an id."; }
+    if (f.repo) {
+      f.owner = f.repo.owner.id;
+      if (LOGIN.test(by)) try { const u = await gh(`/users/${by}`); if (Number.isSafeInteger(u.id)) f.by = { id: u.id, login: u.login || by }; } catch { /* an account GitHub does not know: the budget is checked alone */ }
+      const i = await ids().catch(() => null);
+      try {
+        f.budgets = await con.readBudgets(knos, rpc, i, f.owner);
+        // the issue's open orders: from each of the owner's Balances, and from this browser's passkey wallet
+        const sources = [...f.budgets.map((b) => b.address), ...(me ? [me.wallet] : [])];
+        const at = (await Promise.all(sources.map((s) => Promise.all(Array.from({ length: SEQ_TRIES }, (_, n) => orderAddress(knos, i.knos_pay, f.repo.id, ref.number, s, n)))))).flat();
+        const got = at.length ? await knos.accounts(rpc, at) : [];
+        for (const [n, a] of got.entries()) {
+          const o = a && a.owner === i.knos_pay ? knos.v2.readOrder(a.data) : null;
+          if (!o) continue;
+          const sigs = await knos.rpc(rpc, "getSignaturesForAddress", [at[n], { limit: 25, commitment: "confirmed" }]).catch(() => []);
+          f.live.push({ ...o, address: at[n], fundedTx: sigs.length ? sigs[sigs.length - 1].signature : "" });
+        }
+      } catch (e) { f.budgetError = e.message; }
+      try { const got = await file(`audit/${f.owner}.json`); f.lines = got?.type === "knos.audit-statement" ? con.linesOf(got) : []; } catch (e) { f.statementError = e.message; }
+      if (!$("buy-exc-scope").value) $("buy-exc-scope").value = f.repo.full_name || `${ref.owner}/${ref.repo}`;
+    }
+    f.loading = false;
+    if (mine === turn) drawChecks();
+  }
+  $("buy-issue").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => look().catch(() => {}), 700); });
+  $("buy-issue").addEventListener("change", () => look().catch(() => {}));
+  $("buy-by").addEventListener("change", () => look().catch(() => {}));
+
   $("buy-kind").onchange = kinds;
   $("buy-template").onchange = () => { const t = template(); if (t) { $("buy-amount").value = t.parts.amount; $("buy-days").value = String(t.parts.days); } pick(); };
   for (const id of ["buy-issue", "buy-amount", "buy-days", "buy-vendor", "buy-rate", "buy-checks", "buy-paths"]) $(id).addEventListener("input", redraw);
@@ -387,20 +497,42 @@ export function renderBuyer(el, env = {}) {
         warranty: (e) => `${show(Number(e.held))} held back as the warranty`, released: (e) => `the holdback, ${show(Number(e.amount))}, released to GitHub id ${e.payee}`,
         refunded: (e) => `${show(Number(e.amount))} sent back to the funder`, reverted: (e) => `reverted: ${show(Number(e.amount))} went back to the funder`,
         kill: (e) => `a kill fee of ${show(Number(e.amount))} to the person who had reserved it`, topup: (e) => `topped up by ${show(Number(e.add))}`, assigned: () => "its payment was assigned" };
-      const paid = events.filter((e) => e.event === "paid"), settled = [...events].reverse().find((e) => e.event === "settled"), funded = events.find((e) => e.event === "funded");
-      const t = template();
-      const receipt = paid.length ? `<h4>The receipt, in its four parts</h4><dl class="parts" id="buy-receipt">
-          <dt>${HEADINGS[0]}</dt><dd>GitHub signed a token for one run of the pinned workflow${o ? ` at commit <code>${esc(o.wfSha.slice(0, 7))}</code>` : ""}. The verifier program checked that signature on chain before the payment, in ${tx(paid[0].tx)}.</dd>
-          <dt>${HEADINGS[1]}</dt><dd>Verdict: accepted${Number(paid[0].pr) ? `, for pull request #${esc(paid[0].pr)}` : ""}. Judged by ${esc(JUDGES[settled?.judge] || "the order's judge")}.</dd>
-          <dt>${HEADINGS[2]}</dt><dd>The terms fixed at funding${o ? `, hash <span class="mono">${esc(o.terms)}</span>` : funded ? `, in ${tx(funded.tx)}` : ""}. Nobody could change them after.</dd>
-          <dt>${HEADINGS[3]}</dt><dd>${t ? `<ul>${t.trusted.slice(1).map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "GitHub's signing key, the pinned workflow's code, and Knos's upgrade multisig."}</dd></dl>
-          <p class="fine">Paid ${esc(show(paid.reduce((n, e) => n + Number(e.amount), 0)))} test USDC to ${paid.length === 1 ? "one person" : `${paid.length} people`}. The receipt as a file with every claim is specified in docs/RECEIPT.md; <code>knos receipt &lt;file&gt;</code> checks one.</p>` : "";
+      const paid = events.filter((e) => e.event === "paid");
+      const t = template(), accepted = paid.length || events.some((e) => e.event === "held");
+      const receipt = accepted ? `<h4>Accepted: the receipt, in its five parts</h4><dl class="parts" id="buy-receipt">
+          ${con.receiptParts(o, events, tx, t ? t.trusted.slice(1) : null).map(([head, line]) => `<dt>${esc(head)}</dt><dd>${line}</dd>`).join("")}</dl>
+          <p class="fine">${paid.length ? `Paid ${esc(show(paid.reduce((n, e) => n + Number(e.amount), 0)))} test USDC to ${paid.length === 1 ? "one person" : `${paid.length} people`}. ` : ""}Each line is what the chain's log holds. The receipt as a file with every claim is specified in docs/RECEIPT.md.</p>` : "";
+      const answers = `<h4>Who answers if this fails</h4><p id="buy-answers">${esc(con.ANSWERS)}</p>`;
       out.innerHTML = `<p class="verdict ${st.state === "none" ? "" : "ok"}" id="buy-state" data-state="${esc(st.state)}">${esc(st.state === "none" ? "No order yet" : st.state[0].toUpperCase() + st.state.slice(1))}</p>
         <p id="buy-state-words">${esc(st.words)}</p>
         <ul class="inline" id="buy-states" aria-label="The states an order goes through">${STATES.map((s) => `<li class="pill" data-reached="${st.reached.includes(s) ? 1 : 0}">${st.reached.includes(s) ? `<strong>${esc(s)}</strong>` : esc(s)}${s === st.state ? " (now)" : ""}</li>`).join("")}</ul>
         ${events.length ? `<h4>What the program logged</h4><ul class="plain" id="buy-events">${events.filter((e) => said[e.event]).map((e) => `<li>${esc(when(e.at))}: ${esc(said[e.event](e))} ${tx(e.tx)}</li>`).join("")}</ul>` : ""}
-        ${receipt}`;
+        ${receipt}
+        ${st.state === "none" ? "" : answers}`;
     } catch (e) { say(out, `Devnet did not answer: ${esc(e.message)}. Try again.`, "bad"); }
+  };
+
+  // ---- what needs a person: an organisation's orders, or one repository's ---------------------------------------------------------------
+  $("buy-exc-form").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const out = $("buy-exc"), asked = $("buy-exc-scope").value.trim().replace(/^@/, ""), [owner, repo] = asked.split("/");
+    if (!(LOGIN.test(owner || "") || /^\d{1,15}$/.test(owner || "")) || (repo !== undefined && !/^[\w.-]+$/.test(repo)) || asked.split("/").length > 2) return say(out, "Write the organisation's GitHub name, or one repository as owner/repo.", "bad");
+    say(out, "Reading this site and devnet…");
+    try {
+      const got = repo ? await gh(`/repos/${owner}/${repo}`) : null, id = got ? got.owner?.id : /^\d+$/.test(owner) ? Number(owner) : (await gh(`/users/${owner}`)).id;
+      if (!Number.isSafeInteger(id) || (got && !Number.isSafeInteger(got.id))) throw new Error("GitHub did not give that account an id.");
+      const statement = await file(`audit/${id}.json`), all = statement?.type === "knos.audit-statement" ? con.linesOf(statement) : [];
+      const lines = got ? all.filter((r) => Number(r.repository_id) === got.id) : all, orders = [...new Set(lines.map((r) => r.order))].filter((a) => ADDRESS.test(a)).slice(0, 100);
+      const i = await ids(), live = new Map();
+      let chain = "";
+      try { for (const [n, a] of (orders.length ? await knos.accounts(rpc, orders) : []).entries()) live.set(orders[n], a && a.owner === i.knos_pay ? knos.v2.readOrder(a.data) : null); }
+      catch (e) { chain = `Devnet did not answer (${e.message}), so deadlines and reservations could not be read: this list is the statement's alone.`; }
+      const record = got ? await file(`r/${got.full_name}.json`).catch(() => null) : null, refused = record?.as_earner?.refusals_at_merge ?? null;
+      const rows = con.exceptionsOf({ lines, live, now: clock(), refused, repo: got?.full_name || "" });
+      out.innerHTML = `${con.exceptionsHtml(rows, link, asked)}
+        <p class="fine" id="buy-exc-source">From ${lines.length} line${lines.length === 1 ? "" : "s"} of the site's statement of GitHub id ${esc(id)}${all.length ? "" : " (this site has no statement for it)"} and the ${live.size} order account${live.size === 1 ? "" : "s"} read from devnet at ${esc(when(clock()))}. ${esc(chain)}
+          ${refused === null ? "Tokens the relay refused are not in this site's files for this scope." : ""}</p>`;
+    } catch (e) { say(out, esc(e.message), "bad"); }
   };
 
   // ---- the statement, the templates, and a wallet this browser kept ----------------------------------------------------------------------

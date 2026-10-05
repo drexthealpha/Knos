@@ -70,9 +70,11 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
     # work orders, the tests of its other two programs (the meter and the passkey wallet), and the tests of the
     # example programs that are built against it
     assert all((ROOT / t).is_file() for t in legs["first"]["tests"].split())
-    assert legs["second"]["tests"] == ("tests/test_oidc2_*.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py "
-                                       "tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py")
-    for pattern, harness in zip(legs["second"]["tests"].split(), ("_oidc2.py", "_pay2.py", "_order.py", "_meter.py", "test_passkey_chain.py",
+    assert legs["second"]["tests"] == ("tests/test_oidc2_*.py tests/test_oidc_differential.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py "
+                                       "tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py")
+    # the verifier against a reference that shares no code with it, on this commit's build (it loads the same test binary)
+    assert 'PROGRAM = "knos_oidc_v2_test.so"' in (ROOT / "tests" / "test_oidc_differential.py").read_text(encoding="utf-8")
+    for pattern, harness in zip(legs["second"]["tests"].split(), ("_oidc2.py", "test_oidc_differential.py", "_pay2.py", "_order.py", "_meter.py", "test_passkey_chain.py",
                                                                   "test_cpi_fund.py", "test_workflow_vault.py", "test_upgrade_gate.py")):
         assert (ROOT / "tests" / harness).is_file(), harness                 # a program's tests arrive with its harness
         assert list(ROOT.glob(pattern)), f"{pattern} matches no file: pytest would fail the second deployment's job"
@@ -93,8 +95,10 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
             "tests/test_order*.py", "tests/test_meter*.py", "tests/test_passkey*.py", "tests/test_cpi_fund.py", "tests/test_workflow_vault.py",
             "tests/test_upgrade_gate.py"} <= paths
     # every path the workflow watches exists (a pattern that matches nothing is a trigger that never fires)
+    # the first match is enough: walking all of `crates/**` races a test beside this one whose cargo build writes and
+    # removes files under crates/*/target while the walk lists them
     for path in paths:
-        assert list(ROOT.glob(path)) or (ROOT / path).exists(), path
+        assert next(iter(ROOT.glob(path)), None) is not None or (ROOT / path).exists(), path
     # what the job keeps: every program its workspace built (the second deployment's four, the first's two)
     upload = next(s for s in build["steps"] if (s.get("with") or {}).get("name") == "programs${{ matrix.suffix }}")
     assert upload["with"]["path"] == "${{ matrix.workspace }}/target/deploy/knos_*.so" and upload["with"]["if-no-files-found"] == "error"
@@ -289,9 +293,12 @@ def test_the_two_claim_readers_and_serde_json_are_asked_the_same_documents_on_ev
     job = _doc()["jobs"]["interface"]
     assert "if" not in job and "needs" not in job
     run = _runs(job)
-    assert "cd programs-v2/knos_oidc/fuzz && cargo test --release --locked --test random" in run
+    assert "cd programs-v2/knos_oidc/fuzz && cargo test --release --locked --test random --test seeds" in run
     fuzz = ROOT / "programs-v2" / "knos_oidc" / "fuzz"
     assert (fuzz / "Cargo.lock").is_file() and (fuzz / "tests" / "random.rs").is_file()
+    # the committed seeds, through both targets' checks, beside it: the files the nightly fuzzer starts from
+    seeds = (fuzz / "tests" / "seeds.rs").read_text(encoding="utf-8")
+    assert len(re.findall(r"^#\[test\]$", seeds, re.M)) >= 2 and all(f'each("{t}"' in seeds and any((fuzz / "seeds" / t).iterdir()) for t in ("rsa_verify", "claims"))
     tests = (fuzz / "tests" / "random.rs").read_text(encoding="utf-8")
     assert len(re.findall(r"^#\[test\]$", tests, re.M)) == 4 and "agree(" in tests
     # the number the workflow's header gives is the tests' own: 300,000 + 200,000 + 16 x (40,000 + 20,000), less the spellings
@@ -332,7 +339,7 @@ def test_clippy_denies_every_warning_on_the_second_deployment_and_the_interface_
     assert not [a for a in ("allow(", "-A ") if a in steps[lint]["run"]]     # nothing is let through on the command line
 
 
-def test_the_claim_parser_is_fuzzed_nightly_for_five_minutes_and_the_job_skips_cleanly_without_the_target():
+def test_the_verifiers_two_targets_are_fuzzed_nightly_for_five_minutes_each_and_the_job_skips_cleanly_without_them():
     from _ghexpr import runs
     doc = _doc()
     job = doc["jobs"]["fuzz-claims"]
@@ -341,18 +348,26 @@ def test_the_claim_parser_is_fuzzed_nightly_for_five_minutes_and_the_job_skips_c
     for event, runs_it in (("schedule", True), ("workflow_dispatch", True), ("push", False), ("pull_request", False)):
         assert runs(job["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
     assert re.fullmatch(r"nightly-\d{4}-\d{2}-\d{2}", job["env"]["FUZZ_TOOLCHAIN"])      # dated: a night can be reproduced
-    assert re.fullmatch(r"\d+\.\d+\.\d+", job["env"]["CARGO_FUZZ"]) and job["timeout-minutes"] >= 15
+    assert re.fullmatch(r"\d+\.\d+\.\d+", job["env"]["CARGO_FUZZ"]) and job["timeout-minutes"] >= 25      # two targets of 300 seconds, and the build
     steps = job["steps"]
     guard = "hashFiles('programs-v2/knos_oidc/fuzz/Cargo.toml') != ''"
     script = next(s for s in steps if "fuzz_nightly.sh" in str(s.get("run", "")))
-    assert script["run"] == "bash scripts/fuzz_nightly.sh 300" and "if" not in script   # 300 seconds; the script itself says "no target"
+    assert script["run"] == "bash scripts/fuzz_nightly.sh 300" and "if" not in script   # 300 seconds each; the script itself says "no target"
+    fuzz_dir = ROOT / "programs-v2" / "knos_oidc" / "fuzz"
+    targets = sorted(p.stem for p in (fuzz_dir / "fuzz_targets").glob("*.rs"))
+    assert targets == ["claims", "rsa_verify"] and all(f'name = "{t}"\npath = "fuzz_targets/{t}.rs"' in (fuzz_dir / "Cargo.toml").read_text(encoding="utf-8") for t in targets)
+    # each target has committed seeds, which the script hands the fuzzer beside the corpus (they are read, never written)
+    assert all(any((fuzz_dir / "seeds" / t).iterdir()) for t in targets) and "seeds" not in (fuzz_dir / ".gitignore").read_text(encoding="utf-8").split()
     # until the target exists every step that takes time is skipped, and the ones after still run
     for step in steps:
         if step is script or str(step.get("uses", "")).startswith(("actions/checkout@", "actions/upload-artifact@")):
             continue
         assert step.get("if") == guard, step
     uploads = {s["with"]["name"]: s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact@")}
-    assert uploads["fuzz-claims"]["with"]["path"] == "fuzz.json" and uploads["fuzz-claims"]["if"] == "always()"
+    assert uploads["fuzz-claims"]["with"]["path"].split() == ["fuzz.json", "fuzz_targets.jsonl"] and uploads["fuzz-claims"]["if"] == "always()"
+    # the corpus is published with the counts, crash or none; nothing in the job commits or pushes
+    assert uploads["fuzz-claims-corpus"]["with"]["path"] == "programs-v2/knos_oidc/fuzz/corpus" and uploads["fuzz-claims-corpus"]["if"] == "always()"
+    assert set(uploads) == {"fuzz-claims", "fuzz-claims-corpus", "fuzz-claims-crash"} and "git " not in _runs(job) and "permissions" not in job
     assert uploads["fuzz-claims-crash"]["with"]["path"] == "programs-v2/knos_oidc/fuzz/artifacts" and uploads["fuzz-claims-crash"]["if"] == "failure()"
     assert all(u["with"]["if-no-files-found"] == "ignore" and u["uses"] == _pin("actions/upload-artifact@v7") for u in uploads.values())
     # the corpus is kept from one night to the next, and no other job here is on a nightly compiler
@@ -403,7 +418,8 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
 # ---- the nightly fuzz script, with a stand-in for cargo-fuzz ----------------------------------------------------------
 
 CARGO_FUZZ = """#!/bin/sh
-# cargo +<toolchain> fuzz list | fuzz run <target> -- <libFuzzer arguments>, as far as the script can tell.
+# cargo +<toolchain> fuzz list | fuzz run <target> <corpus> [<seeds>] -- <libFuzzer arguments>, as far as the script
+# can tell. Like libFuzzer it keeps what it finds in the first folder: here three files, or FAKE_FOUND of them.
 echo "$@" >> "$FAKE_LOG"
 [ "$2" = fuzz ] || exit 9
 case "$3" in
@@ -412,6 +428,9 @@ case "$3" in
     target=$4
     echo "INFO: Running with entropic power schedule"
     [ "$FAKE_MODE" = nobuild ] && { echo "error: could not compile $target" >&2; exit 101; }
+    [ -d "$5" ] || { echo "no corpus folder $5 in $PWD" >&2; exit 102; }
+    for i in $(seq 1 "${FAKE_FOUND:-3}"); do echo x > "$5/found-$i"; done
+    [ "$FAKE_MODE" = crashes-in-keys ] && [ "$target" = keys ] && FAKE_MODE=crash
     echo "#9\tDONE cov: 14 ft: 15 corp: 1/1b exec/s: 3 rss: 40Mb"
     [ "$FAKE_MODE" = crash ] && echo "Test unit written to ./artifacts/$target/crash-0123abcd"
     echo "stat::number_of_executed_units: ${FAKE_RUNS:-1000}"
@@ -444,6 +463,7 @@ def fuzz(tmp_path):
                 (crate / "fuzz" / "fuzz_targets" / f"{name}.rs").write_text("// target\n", encoding="utf-8")
         for stale in ("fuzz.json", "summary.md", "calls"):
             (root / stale).unlink(missing_ok=True)
+        shutil.rmtree(crate / "fuzz" / "corpus", ignore_errors=True)
         env = {**os.environ, "PATH": str(fake) + os.pathsep + os.environ["PATH"], "FAKE_MODE": mode, "FAKE_RUNS": str(runs),
                "FAKE_TARGETS": " ".join(targets), "FAKE_LOG": str(root / "calls"), "GITHUB_STEP_SUMMARY": str(root / "summary.md"),
                "GITHUB_SHA": "a" * 40, "GITHUB_RUN_ID": "77", "GITHUB_REPOSITORY": "o/r", "GITHUB_SERVER_URL": "https://github.com",
@@ -457,25 +477,44 @@ def fuzz(tmp_path):
     return go
 
 
-def test_the_fuzz_script_counts_the_inputs_the_fuzzer_reports_and_says_so_twice(fuzz):
+def test_the_fuzz_script_counts_the_inputs_the_fuzzer_reports_and_says_so_three_times(fuzz):
     r, out, summary, calls = fuzz(runs=61_230)
     assert r.returncode == 0, r.stdout + r.stderr
     assert out["executions"] == 61_230 and out["seconds"] == 300 and out["crashed"] is False and out["target"] == "claims"
     assert out["commit"] == "a" * 40 and out["run"] == "https://github.com/o/r/actions/runs/77"
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", out["date"])
     assert "libFuzzer" in out["source"] and "300 seconds" in out["source"] and "aaaaaaa" in out["source"] and out["run"] in out["source"]
-    assert "| claims | 300 | 61230 | none |" in summary
-    # the nightly toolchain and libFuzzer's own time limit: the whole 300 seconds for the one target
+    # the line of the target: what it tried, the files in its corpus, its crashes; the same line in fuzz_targets.jsonl
+    [line] = out["targets"]
+    assert line == {"target": "claims", "executions": 61_230, "corpus": 3, "crashes": 0, "seconds": 300, "commit": "a" * 40, "run": out["run"], "date": line["date"]}
+    assert [json.loads(ln) for ln in (fuzz.root / "fuzz_targets.jsonl").read_text(encoding="utf-8").splitlines()] == [line]
+    assert "| claims | 300 | 61230 | 3 | none |" in summary
+    # the nightly toolchain, the corpus folder (no seeds here: the folder is not there), and libFuzzer's own time limit
     assert calls == ["+nightly-2026-10-01 fuzz list",
-                     "+nightly-2026-10-01 fuzz run claims -- -max_total_time=300 -print_final_stats=1 -rss_limit_mb=2048"]
+                     "+nightly-2026-10-01 fuzz run claims fuzz/corpus/claims -- -max_total_time=300 -print_final_stats=1 -rss_limit_mb=2048"]
 
 
-def test_with_two_targets_each_gets_an_equal_share_and_the_counts_add_up(fuzz):
+def test_with_two_targets_each_gets_the_whole_time_its_own_line_and_its_seeds(fuzz):
+    seeds = fuzz.root / "programs-v2" / "knos_oidc" / "fuzz" / "seeds" / "keys"
+    seeds.mkdir(parents=True)
+    (seeds / "one").write_bytes(b"seed")
+    lines = fuzz.root / "fuzz_targets.jsonl"
+    lines.unlink(missing_ok=True)
     r, out, summary, calls = fuzz(targets=("claims", "keys"), runs=500, seconds="300")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert out["executions"] == 1000 and out["target"] == "claims,keys" and out["seconds"] == 300
-    assert [c.split(" -- ")[1].split()[0] for c in calls if " fuzz run " in c] == ["-max_total_time=150"] * 2
-    assert "| claims,keys | 300 | 1000 | none |" in summary
+    # at the top, the claim parser's own count (what bench_docs takes as claim_parser_executions); the sum beside it
+    assert out["target"] == "claims" and out["executions"] == 500 and out["total_executions"] == 1000 and out["all_targets"] == "claims,keys"
+    assert [(t["target"], t["executions"], t["corpus"], t["crashes"], t["seconds"]) for t in out["targets"]] == [("claims", 500, 3, 0, 300), ("keys", 500, 3, 0, 300)]
+    assert "target claims," in out["source"]
+    runs = [c for c in calls if " fuzz run " in c]
+    assert [c.split(" -- ")[1].split()[0] for c in runs] == ["-max_total_time=300"] * 2
+    assert runs[0].split(" -- ")[0].endswith("fuzz run claims fuzz/corpus/claims") and runs[1].split(" -- ")[0].endswith("fuzz run keys fuzz/corpus/keys fuzz/seeds/keys")
+    assert (seeds / "one").read_bytes() == b"seed" and sorted(p.name for p in seeds.iterdir()) == ["one"]      # read, never written
+    assert "| claims | 300 | 500 | 3 | none |" in summary and "| keys | 300 | 500 | 3 | none |" in summary
+    # a second run appends its lines: the file is a history, fuzz.json is the last run
+    fuzz(targets=("claims", "keys"), runs=7)
+    kept = [json.loads(ln) for ln in lines.read_text(encoding="utf-8").splitlines()]
+    assert [(k["target"], k["executions"]) for k in kept] == [("claims", 500), ("keys", 500), ("claims", 7), ("keys", 7)]
 
 
 def test_the_fuzz_script_defaults_to_five_minutes_and_refuses_what_is_not_a_number_of_seconds(fuzz):
@@ -497,11 +536,16 @@ def test_the_fuzz_script_skips_cleanly_while_the_target_is_not_there(fuzz):
         assert "no fuzz target" in summary and "nothing was fuzzed" in summary, kind
 
 
-def test_an_input_that_crashes_the_parser_fails_the_job_and_is_still_counted(fuzz):
+def test_an_input_that_fails_a_target_fails_the_job_is_still_counted_and_the_next_target_still_runs(fuzz):
     r, out, summary, _calls = fuzz(mode="crash", runs=42)
     assert r.returncode == 1
-    assert out["crashed"] is True and out["executions"] == 42
-    assert "yes: the input is in the artifact" in summary and "makes the claim parser fail" in summary
+    assert out["crashed"] is True and out["executions"] == 42 and out["targets"][0]["crashes"] == 1
+    assert "yes: the input is in the artifact" in summary and "found an input that fails: claims." in summary
+    # the second of two targets finds one: the first is counted as clean, and the script says which one failed
+    r, out, summary, calls = fuzz(mode="crashes-in-keys", targets=("claims", "keys"), runs=9)
+    assert r.returncode == 1 and out["crashed"] is True and [t["crashes"] for t in out["targets"]] == [0, 1]
+    assert "| claims | 300 | 9 | 3 | none |" in summary and "| keys | 300 | 9 | 3 | yes: the input is in the artifact |" in summary
+    assert "found an input that fails: keys." in summary and len([c for c in calls if " fuzz run " in c]) == 2
 
 
 def test_a_run_that_did_not_finish_writes_no_count(fuzz):

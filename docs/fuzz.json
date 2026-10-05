@@ -1,0 +1,133 @@
+{
+ "differential": {
+  "what": "the built verifier in LiteSVM against a reference (OpenSSL and RFC 8017 section 8.2.2 on Python integers for the signature, Python's json for the header and the claims) on tokens made from a fixed seed: tests/test_oidc_differential.py",
+  "command": "python tests/test_oidc_differential.py --cases 14019 --record",
+  "date": "2026-10-05",
+  "seed": 20261005,
+  "kinds": 82,
+  "corpus_sha256": "733ffae228044fe5fce9462fd568dd5e230f907b8980a75045cc2383d4c317fa",
+  "program": "tests/fixtures/knos_oidc_v2_test.so",
+  "program_sha256": "05a33fdb946d68ddfd247df6ede80f20396cc026855a1d6737b213a740f021bb",
+  "cases": 13677,
+  "accepted_by_both": 2052,
+  "refused_by_both": 11625,
+  "disagreements": 0,
+  "accepted_with_an_invalid_signature": 0,
+  "refused_by_program_error": {
+   "60": 1008,
+   "61": 1017,
+   "62": 513,
+   "63": 1682,
+   "65": 1937,
+   "70": 4406,
+   "71": 821,
+   "72": 241
+  },
+  "refused_by_clause_of_the_rule": {
+   "alg": 1539,
+   "base64url": 1537,
+   "claims": 1026,
+   "exp": 684,
+   "iss": 684,
+   "parts": 341,
+   "signature": 5814
+  },
+  "key_bits": {
+   "2048": 12649,
+   "4096": 1370
+  },
+  "seconds": 600.1,
+  "outside_the_rule": {
+   "what": "payloads the test key signed that are not JSON in a value the verifier does not read; the reference refuses them all, and they are not counted in `cases`",
+   "cases": 342,
+   "by_kind": {
+    "NaN": {
+     "cases": 12,
+     "program_accepted": 12
+    },
+    "a bare word": {
+     "cases": 7,
+     "program_accepted": 7
+    },
+    "a comment as a value": {
+     "cases": 17,
+     "program_accepted": 17
+    },
+    "a control character in a string": {
+     "cases": 14,
+     "program_accepted": 14
+    },
+    "a form feed after a number": {
+     "cases": 19,
+     "program_accepted": 19
+    },
+    "a literal cut short": {
+     "cases": 22,
+     "program_accepted": 22
+    },
+    "a number with a leading zero": {
+     "cases": 10,
+     "program_accepted": 10
+    },
+    "a number with two points": {
+     "cases": 17,
+     "program_accepted": 17
+    },
+    "a single-quoted value": {
+     "cases": 9,
+     "program_accepted": 9
+    },
+    "a unicode escape cut short": {
+     "cases": 16,
+     "program_accepted": 16
+    },
+    "an escape JSON does not have": {
+     "cases": 11,
+     "program_accepted": 11
+    },
+    "brackets that do not match": {
+     "cases": 17,
+     "program_accepted": 17
+    },
+    "bytes that are not UTF-8 in a string": {
+     "cases": 171,
+     "program_accepted": 171
+    }
+   }
+  },
+  "failures": []
+ },
+ "coverage_guided": {
+  "what": "the cargo-fuzz targets of programs-v2/knos_oidc/fuzz, run with libFuzzer by scripts/fuzz_nightly.sh",
+  "targets": {
+   "claims": "any bytes, read by both copies of the claim reader and by serde_json",
+   "rsa_verify": "any bytes as a modulus, a digest and a signature (or an encoded message a test key signs), put to the program's rsa.rs, to big integers and to the rsa crate"
+  },
+  "seeds": "programs-v2/knos_oidc/fuzz/seeds, written by `python tests/test_oidc_differential.py --seeds`",
+  "nightly": "the fuzz-claims job of .github/workflows/program.yml, 300 seconds a target; its results are artifacts of each run (fuzz-claims: fuzz.json and fuzz_targets.jsonl; fuzz-claims-corpus; fuzz-claims-crash), not commits. No nightly run has included rsa_verify yet.",
+  "by_hand": {
+   "what": "one run here before the release, on the 0.3.15 source (the programs are 6eb81dd's, unchanged), 120 seconds a target",
+   "command": "FUZZ_TOOLCHAIN=nightly bash scripts/fuzz_nightly.sh 120",
+   "toolchain": "rustc 1.101.0-nightly (c36f14571 2026-10-01)",
+   "cargo_fuzz": "0.13.2",
+   "runs": [
+    {
+     "target": "claims",
+     "executions": 4413242,
+     "corpus": 2240,
+     "crashes": 0,
+     "seconds": 120,
+     "date": "2026-10-05T01:28:04Z"
+    },
+    {
+     "target": "rsa_verify",
+     "executions": 8406,
+     "corpus": 128,
+     "crashes": 0,
+     "seconds": 120,
+     "date": "2026-10-05T01:30:06Z"
+    }
+   ]
+  }
+ }
+}

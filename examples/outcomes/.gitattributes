@@ -1,0 +1,2 @@
+# every file here is hashed as bytes (the bundle hash in terms.json, the artifact digest in evaluation.json): keep line ends as committed
+* text eol=lf

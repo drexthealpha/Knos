@@ -1,70 +1,76 @@
-# Pitch (under three minutes, five beats)
+# Pitch (under three minutes, six beats)
 
-Narration in the founder's own voice, about 480 words: under three minutes read aloud at an even pace. The times in
-the headings are where each beat starts at that pace. A number written out here is in `docs/facts.json` with its
-source, and `python scripts/claims_check.py` checks it. A number that only the release run can measure is a slot,
-`[[stat: name]]`: `python scripts/bench_docs.py --slots` lists the ones still open, and nothing is recorded until
-they are filled.
+Narration in the founder's own voice, about 520 words: under three minutes read aloud at an even pace. The times in
+the headings are where each beat starts at that pace. The order is deliberate: the buyer and the problem first,
+what the product does for them second, who has said yes, the business, and only then how it works. The
+cryptography is the last thing explained, not the first.
+
+A number written out here is in `docs/facts.json` with its source, and `python scripts/claims_check.py` checks it.
+A number that only the release run can measure is a slot, `[[stat: name]]`: `python scripts/bench_docs.py --slots`
+lists the ones still open, and nothing is recorded until they are filled.
 
 The third beat is written to be true on the day it was written. Read it against the chain on the day of recording
 (the checklist in [SUBMISSION.md](SUBMISSION.md)), and change it only to what is true then.
 
-The second beat's clip shows terms hashed into a work order, which devnet runs only once the upgrade has executed.
-[`docs/capabilities.json`](../capabilities.json) is the index: what the clip shows must be at "exercised on devnet"
-there on the day, and what is not is cut from the clip and from the narration. The last sentence of that beat says
-what is tested and not yet on devnet; it is dropped, item by item, only as the manifest moves.
+The second beat's clip is cut from the demo. What it shows must be at the stage
+[`docs/capabilities.json`](../capabilities.json) gives on the day, and on the program ids `web/upgrades.json` says
+are live; what is not is cut from the clip and from the narration ([demo_script.md](demo_script.md) has the rule).
 
-## 1. The problem, with a number (0:00)
+## 1. The buyer, and the problem (0:00)
 
-*On screen: a supplier's invoice with a line "merged pull requests", then the measurement.*
+*On screen: a supplier's invoice with a line "merged pull requests", and a person about to approve it.*
 
-Software work is starting to be sold per outcome: per merged change, per resolution. The seller counts the
-outcomes, and the buyer approves the invoice on the seller's count. I measured what that count hides. Of 241
-merged pull requests by coding agents whose description said the tests pass, 30 had a failed check at that commit.
-That is 12.4%. A vendor that bills per merge bills for those. The person approving the invoice cannot see it,
-and the supplier has no terms it can hold the buyer to either.
+Somebody has to approve this invoice, and defend it afterwards. Software work is starting to be sold per outcome:
+per merged change, per resolution. The supplier counts the outcomes, and the buyer pays on the supplier's count.
+I measured what that count can hide. Of 241 merged pull requests by coding agents whose description said the
+tests pass, 30 had a failed check at that commit. That is 12.4%. The person approving the invoice cannot see
+that.
 
-## 2. The demo (0:35)
+## 2. What they get (0:35)
 
-*On screen, one clip: terms set, a submission refused with the failed check named, a valid one paid, the same token
-refused the second time.*
+*On screen, one clip from the demo: an order created, a submission refused with the unmet condition named, a valid
+one accepted, the two statements side by side.*
 
-Knos is the neutral count and settlement for software work priced per outcome. The buyer fixes the terms before
-the work: the checks that must pass and the paths that may change. They are hashed into the order. A submission
-that says it passed and did not is refused, and the refusal names the check. A valid one is merged; the forge signs
-the CI run; a Solana program verifies that signature itself and pays the seller in full. From merge to paid took
-25 seconds at the median, over 38 payments on devnet. Send the same token again and
-it pays nothing. Tested and not yet on devnet: an order that pays an agent's passing pull request with no merge
-and no person in between, and a batched count with the supplier's count beside the buyer's.
+Knos lets them close that invoice with evidence both sides can check. The buyer writes down, before the work,
+what is being bought and what decides that it is done. A submission that says it passed and did not is refused,
+and the refusal names the condition. A valid one is accepted, once, however the work was split. At the end of the
+month the buyer and the supplier each compute the statement from their own records and get the same one. What
+they disagree about shows up as a dispute, by name, not as a line on the invoice.
 
-## 3. Who said yes (1:28)
+## 3. Who said yes (1:10)
 
-*On screen: the site's Numbers page, the row for funders who are not Knos.*
+*On screen: the site's Numbers page, the rows for accounts that are not Knos's.*
 
-Here is who has said yes, counted from the chain. Funders other than Knos, with their own tokens: 0. Of the
-payments on devnet, 3 went to an outside contributor, for tasks Knos funded itself. Interviews with buyers: none
-yet. Letters of intent: none yet. Paying pilots: none yet. The questions I will ask, and whom, are in the
-repository.
+Here is who has said yes, counted from the chain. Funders other than Knos, with their own tokens: 0. One outside
+account has been paid, for 3 pull requests, on tasks I funded myself. Buyers interviewed: none. Pilots: none.
+Revenue: none.
 
-## 4. The business (1:58)
+## 4. The business (1:28)
 
 *On screen: the price book.*
 
-The check is free, and it is the distribution. The count comes first, because it needs no customer money on chain:
-five cents an attested evaluation, two under a committed plan, and a yearly contract for an organisation.
-Settlement is second: two and a half percent, falling in tiers, paid by the funder on top. Capital is third.
-The code is MIT. A fork can copy the code and the fee. It cannot copy neutrality, the record, a contract with
-someone accountable, or capital, and I have little of each today. It is devnet and test money, and nobody has
-bought anything.
+Checking is free, and it is the distribution. What I can sell today is software: a 30-day pilot for 2,500 dollars
+that reconciles one buyer's invoices from its suppliers, then a yearly contract from 25,000. The first milestone
+is 40 organisations at that price. Everything on chain is devnet and test money, so settlement earns nothing
+real, and I do not count it. Nobody has bought anything, and there is no company yet to send an invoice.
 
-## 5. The founder, and the next ninety days (2:33)
+## 5. How it works (1:58)
 
-*On screen: the repository, then the plan.*
+*On screen: the receipt, then the transaction in the explorer.*
+
+The forge already records each result and signs statements about a CI run. A Solana program checks that signature
+itself, then counts the outcome or pays the supplier. From merge to paid took 25 seconds at the median, over 39
+payments on devnet. Each signed token is accepted once. What is still trusted
+is on the receipt: the forge signs which workflow ran, not what it read.
+
+## 6. The founder, and what is missing (2:20)
+
+*On screen: the repository, then docs/TEAM.md.*
 
 I'm drexthealpha. That is a pseudonym, and the work is public. I built this alone, with coding agents, because my
-own agents told me the tests passed when they had not. In the next ninety days: ten conversations with people who
-approve these invoices and vendors who send them, and the count of who said yes, published. One vendor running the
-meter beside its own invoices. An outside security review. And keys and workflows moved from one person's account
-to an organisation with a second key holder.
+own agents told me the tests passed when they had not. I have not sold to the person who approves that invoice.
+So the plan names three people it needs first: someone who has sold to engineering or finance leaders, a security
+lead to run an outside review, and someone for partnerships with agent vendors. None is hired. In the next ninety
+days: the conversations, one pilot, and the review.
 
 *Closing card:* Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.

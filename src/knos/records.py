@@ -142,6 +142,9 @@ def _key(text) -> Pubkey:
     return Pubkey.from_string(str(text))
 
 
+JOB_EVENTS = ("funded", "terms", "paid", "held", "proven", "refunded", "vetoed")     # the lines of an issue's bounty (a job)
+
+
 def jobs_of(events: list[dict]) -> tuple[list[dict], dict]:
     """(every job the logs show, oldest first; counts of what is not about one job). A job:
 

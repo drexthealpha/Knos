@@ -1,0 +1,19 @@
+{
+  "name": "outcome-data-transformation",
+  "sentence": "Pays 150 test USDC when transform.sql turns each of 40 seeded, unseen pairs of tables into a ledger with one row per customer, every distinct charge counted once, and gross, refunds and net equal to the input's totals to the cent; refund after 14 days",
+  "where": "an issue that has this example's .knos/acceptance/<issue>/ on the default branch (bundle 1 here)",
+  "terms": {
+    "accept": "9d4381ba658fc5bfc89ee6a3dc067061a9c7731b65dd1be4c3850433fa45e251",
+    "checks": [],
+    "deny": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "mode": "tests",
+    "paths": [],
+    "reserve": 7,
+    "v": 1
+  },
+  "terms_json": "{\"accept\":\"9d4381ba658fc5bfc89ee6a3dc067061a9c7731b65dd1be4c3850433fa45e251\",\"checks\":[],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"tests\",\"paths\":[],\"reserve\":7,\"v\":1}",
+  "terms_hash": "e34bb6407b3ae80d7a86c3b87b40a356584bd1486aa25c8deb806983c7f7fe24"
+}

@@ -2,7 +2,7 @@
 //! a Solana program needs to act only on a fact GitHub signed: no CPI, no oracle, no key of anyone's.
 //!
 //! Cargo.toml:   solana-program = "2.2"
-//!               knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }
+//!               knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.15" }
 //!
 //! Accounts:     0  token  read-only   the token account knos-oidc wrote (the client verifies the token first)
 //!               1  key    read-only   the key account that verified it: its address is inside the token account

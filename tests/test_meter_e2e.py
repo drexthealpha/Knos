@@ -214,6 +214,7 @@ def test_knos_attest_signs_a_batch_of_the_repositorys_ledger_and_the_example_wor
     examples = Path(__file__).resolve().parents[1] / "examples"
     text, attest = (examples / "knos-meter-batch.yml").read_text(encoding="utf-8"), (examples / "knos-attest.yml").read_text(encoding="utf-8")
     pin = re.search(r"uses: (\S+/attest\.yml@\w+)", attest).group(1)
-    assert text.count(f"uses: {pin}") == 2 and "actions/checkout" not in text      # the pinned attest.yml, twice, and nothing else runs
+    assert text.count(f"uses: {pin}") == 2 and "actions/checkout" not in text      # a batch is the pinned attest.yml, by timer or by hand, and nothing is checked out
+    assert "run: knos meter close --sign close.json --as \"$AS\" --token token.jwt" in text            # the month's close, signed for one side by hand (tests/test_workflows2.py)
     assert "kind: ${{ vars.KNOS_METER_KIND || 'batch' }}" in text and "options: [batch, claim]" in text and "pull: 0" in text
     assert "schedule:" in text and "workflow_dispatch:" in text and "secrets" not in text.split("\nname:", 1)[1]

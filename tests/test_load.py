@@ -250,3 +250,5 @@ def test_the_page_is_what_the_script_renders_and_the_committed_run_is_a_thousand
     assert doc["limits"] == load.LIMITS and all(r["cluster"] != "local" for r in doc["runs"])
     text = load.DOC.read_text(encoding="utf-8")
     assert "measured in the local simulator" in text and "Compute units are exact" in text and "is derived" in text
+    # the builds the page reports are the ones in tests/fixtures: a number from another build is not a measurement of this one
+    assert doc["local"]["fixtures"] == load.fixtures()

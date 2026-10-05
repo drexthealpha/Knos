@@ -12,6 +12,7 @@ import { priceConstants, quote, unitsOf, show, plain, percent } from "./price.js
 import { programVersion } from "./version.js";
 import { pinsOf, WORKFLOW } from "./front.js";
 import { runDay } from "./upgrade.js";
+import { cache as kept, ghKey, asOf } from "./cache.js";
 
 export const MAX_TERMS = 600;               // knos-pay's MAX_TERMS
 export const DENY = [".github/**", ".knos/**"];
@@ -198,9 +199,12 @@ export function initAnyIssue(ctx) {
     out.className = `status ${state.avail.ok ? "ok" : ""}`;
     out.textContent = state.avail.words;
     refresh();
+    auto();
   }
 
+  let reads = 0, checks = 0, checked = null;       // which read of GitHub, and which check on devnet, is the one whose answer is still wanted; and the terms and wallet the check last ran for by itself
   function clear() {
+    reads++; checks++; checked = null;
     state.preview = state.pending = null;
     $("any-result").innerHTML = ""; $("any-tx").innerHTML = ""; $("any-status").innerHTML = "";
     refresh();
@@ -215,39 +219,48 @@ export function initAnyIssue(ctx) {
     try { read = readBoxes({ issue: field("any-issue"), amount: field("any-amount"), days: field("any-days"), checks: field("any-checks"), paths: field("any-paths") }, c); }
     catch (e) { return say(out, esc(e.message), "bad"); }
     say(out, "Reading GitHub…");
+    const asked = ++reads;
+    // Twice (cache.js): an issue this tab has read before is shown at once, as it was then and saying so, while GitHub is read
+    // again. It can be funded only from what GitHub says now: the kept one never fills `state.preview`.
     try {
-      const { owner, repo: name, number } = read.ref;
-      const [repo, issue] = await Promise.all([gh(`/repos/${owner}/${name}`), gh(`/repos/${owner}/${name}/issues/${number}`)]);
-      const full = /^[\w.-]+\/[\w.-]+$/.test(repo.full_name || "") ? repo.full_name : `${owner}/${name}`;
-      if (!Number.isSafeInteger(repo.id) || repo.id < 1) throw new Error("GitHub did not give this repository an id.");
-      if (issue.pull_request) throw new Error("That is a pull request. Fund the issue it closes.");
-      if (repo.archived) throw new Error(`${full} is archived: no pull request can be merged in it.`);
-      if (issue.state !== "open") throw new Error(`${full}#${number} is closed. Fund an open issue.`);
-      const pin = workflowPin();
-      if (!pin) throw new Error("This copy of the page names no published workflow commit yet, so an order cannot be made from it.");
-      const hash = knos.hex(await knos.sha256(read.bytes)), q = quote(read.amount, c), title = String(issue.title ?? "").slice(0, 150);
-      state.preview = { ...read, repoId: repo.id, full, pin, hash, q };
-      out.innerHTML = `<h4>What you would fund</h4>
-        <dl class="facts" id="any-facts">
-          <dt>Issue</dt><dd><a id="any-issue-link" href="https://github.com/${esc(full)}/issues/${number}" target="_blank" rel="noopener">${esc(full)}#${number}</a>: ${esc(title)}</dd>
-          <dt>Repository</dt><dd>GitHub repository id ${repo.id}. The order is for this repository's issue number ${number}.</dd>
-          <dt>You pay</dt><dd><strong id="any-pay">${show(q.funderPays)}</strong> test USDC: ${show(q.amount)} for the person who does the work, and ${show(q.fee)} fee on top (${percent(c.feeBps)} of the first ${(c.tier1 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps2)} from there to ${(c.tier2 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps3)} above; at least ${show(c.feeMin)}, no maximum).</dd>
-          <dt>Time to do it</dt><dd id="any-time">${read.days} day${read.days === 1 ? "" : "s"}. Unpaid by then, the order can be sent back to your wallet.</dd>
-          <dt>Paid when</dt><dd><ul id="any-sentences">${describeTerms(read.terms).map((s) => `<li>${esc(s).replace(/`([^`]*)`/g, "<code>$1</code>")}</li>`).join("")}</ul></dd>
-          <dt>Paid only by</dt><dd id="any-pin">a signed run of the workflows of <a href="https://github.com/${esc(pin.repo)}" target="_blank" rel="noopener">${esc(pin.repo)}</a> at commit
-            <a href="https://github.com/${esc(pin.repo)}/commit/${pin.sha}" target="_blank" rel="noopener"><code>${pin.sha.slice(0, 7)}</code></a>. The order records that commit, and the escrow takes a pay token from no other.</dd>
-          <dt>Terms</dt><dd><pre id="any-terms">${esc(read.text)}</pre>sha256 <span class="mono" id="any-hash">${hash}</span></dd>
-        </dl>
-        <p class="fine">The funding transaction carries these bytes and the order stores their hash, so the terms cannot change afterwards. No file is needed in the repository: it is funded
-          as a neutral order, which the repository's own workflow does not have to judge. Nothing is sent yet. The next step asks devnet whether it would accept the transaction, and shows
-          it to you before your wallet is asked.</p>`;
-    } catch (e) { say(out, esc(e.message), "bad"); }
+      await kept.twice(async (seen, pass) => {
+        if (asked !== reads) return;      // a box changed, or it was pressed again: this answer is for a form that is gone
+        const { owner, repo: name, number } = read.ref;
+        const [repo, issue] = await Promise.all([`/repos/${owner}/${name}`, `/repos/${owner}/${name}/issues/${number}`].map((path) => seen(ghKey(path), () => gh(path))));
+        const full = /^[\w.-]+\/[\w.-]+$/.test(repo.full_name || "") ? repo.full_name : `${owner}/${name}`;
+        if (!Number.isSafeInteger(repo.id) || repo.id < 1) throw new Error("GitHub did not give this repository an id.");
+        if (issue.pull_request) throw new Error("That is a pull request. Fund the issue it closes.");
+        if (repo.archived) throw new Error(`${full} is archived: no pull request can be merged in it.`);
+        if (issue.state !== "open") throw new Error(`${full}#${number} is closed. Fund an open issue.`);
+        const pin = workflowPin();
+        if (!pin) throw new Error("This copy of the page names no published workflow commit yet, so an order cannot be made from it.");
+        const hash = knos.hex(await knos.sha256(read.bytes)), q = quote(read.amount, c), title = String(issue.title ?? "").slice(0, 150);
+        const preview = { ...read, repoId: repo.id, full, pin, hash, q };
+        if (pass.same()) { $("any-asof")?.remove(); state.preview = preview; return; }     // GitHub says now what was shown: only now can it be funded
+        state.preview = pass.kept ? null : preview;
+        out.innerHTML = `${pass.kept ? `<p class="fine" id="any-asof">Shown ${esc(asOf(pass.at(), kept.now()))}. Reading GitHub again before anything can be funded…</p>` : ""}<h4>What you would fund</h4>
+          <dl class="facts" id="any-facts">
+            <dt>Issue</dt><dd><a id="any-issue-link" href="https://github.com/${esc(full)}/issues/${number}" target="_blank" rel="noopener">${esc(full)}#${number}</a>: ${esc(title)}</dd>
+            <dt>Repository</dt><dd>GitHub repository id ${repo.id}. The order is for this repository's issue number ${number}.</dd>
+            <dt>You pay</dt><dd><strong id="any-pay">${show(q.funderPays)}</strong> test USDC: ${show(q.amount)} for the person who does the work, and ${show(q.fee)} fee on top (${percent(c.feeBps)} of the first ${(c.tier1 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps2)} from there to ${(c.tier2 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps3)} above; at least ${show(c.feeMin)}, no maximum).</dd>
+            <dt>Time to do it</dt><dd id="any-time">${read.days} day${read.days === 1 ? "" : "s"}. Unpaid by then, the order can be sent back to your wallet.</dd>
+            <dt>Paid when</dt><dd><ul id="any-sentences">${describeTerms(read.terms).map((s) => `<li>${esc(s).replace(/`([^`]*)`/g, "<code>$1</code>")}</li>`).join("")}</ul></dd>
+            <dt>Paid only by</dt><dd id="any-pin">a signed run of the workflows of <a href="https://github.com/${esc(pin.repo)}" target="_blank" rel="noopener">${esc(pin.repo)}</a> at commit
+              <a href="https://github.com/${esc(pin.repo)}/commit/${pin.sha}" target="_blank" rel="noopener"><code>${pin.sha.slice(0, 7)}</code></a>. The order records that commit, and the escrow takes a pay token from no other.</dd>
+            <dt>Terms</dt><dd><pre id="any-terms">${esc(read.text)}</pre>sha256 <span class="mono" id="any-hash">${hash}</span></dd>
+          </dl>
+          <p class="fine">The funding transaction carries these bytes and the order stores their hash, so the terms cannot change afterwards. No file is needed in the repository: it is funded
+            as a neutral order, which the repository's own workflow does not have to judge. Nothing is sent yet. The next step asks devnet whether it would accept the transaction, and shows
+            it to you before your wallet is asked.</p>`;
+      });
+    } catch (e) { if (asked === reads) { state.preview = null; say(out, esc(e.message), "bad"); } }
     refresh();
+    if (asked === reads) auto();
   };
 
   // Build the transaction, check it against devnet and show it. Nothing is signed until "Sign" is pressed.
-  $("any-plan").onclick = async () => {
-    const st = $("any-status"), tx = $("any-tx"), p = state.preview, { address } = wallet;
+  async function plan() {
+    const st = $("any-status"), tx = $("any-tx"), p = state.preview, { address } = wallet, mine = ++checks, late = () => mine !== checks;
     tx.innerHTML = "";
     state.pending = null;
     if (!p || !address || !state.avail?.ok) return;
@@ -267,6 +280,7 @@ export function initAnyIssue(ctx) {
       const ix = await funding({ funder: address, funderToken: mine, mint, repoId: p.repoId, issue: p.ref.number, amount: p.amount, wfRepo: p.pin.repo, wfSha: p.pin.sha,
         terms: p.bytes, mode: knos.MERGE ?? 0, workS: p.workS, seq, options: optionsOf() });
       const sim = await knos.rpc(RPC, "simulateTransaction", [btoa(String.fromCharCode(...await sendable([ix]))), { encoding: "base64", sigVerify: false, replaceRecentBlockhash: true, commitment: "confirmed" }]);
+      if (late()) return;       // the form, the wallet or a newer check has taken its place
       if (sim.value.err) throw new Error(whyFailed(sim.value.err, sim.value.logs));
       state.pending = { ixs: [ix], address, order: orders[seq] };
       tx.innerHTML = `<h4>This is what you would sign</h4><p class="fine">On Solana devnet, from <span class="mono">${esc(address)}</span>. Devnet checked it just now and accepts it.</p>
@@ -276,8 +290,21 @@ export function initAnyIssue(ctx) {
         <p class="fine">The order's account will be ${link("address", orders[seq])}.</p><button type="button" id="any-send">Sign in my wallet</button>`;
       $("any-send").onclick = send;
       st.textContent = "";
-    } catch (e) { say(st, esc(e.message), "bad"); }
-  };
+    } catch (e) { if (!late()) say(st, esc(e.message), "bad"); }
+  }
+  $("any-plan").onclick = plan;
+
+  // The check asks devnet and signs nothing, so it does not wait to be asked for: once the terms are shown as GitHub has
+  // them now, a wallet is connected and the program takes the order, it runs, and what would be signed is on the page.
+  // The button stays, to check again. Each set of terms and wallet is checked by itself once.
+  function auto() {
+    const p = state.preview, { address } = wallet;
+    if (!p || !address || !state.avail?.ok || state.pending) return;
+    const what = `${address} ${p.repoId} ${p.ref.number} ${p.hash} ${p.amount} ${p.workS}`;
+    if (what === checked) return;
+    checked = what;
+    plan();
+  }
 
   async function send() {
     const st = $("any-status"), todo = state.pending, button = $("any-send");
@@ -293,7 +320,7 @@ export function initAnyIssue(ctx) {
     } catch (e) { button.disabled = false; say(st, esc(e.message), "bad"); }
   }
 
-  wallet.listeners.push(refresh);
+  wallet.listeners.push(() => { refresh(); auto(); });
   refresh();
   return () => (asked ||= ask());
 }

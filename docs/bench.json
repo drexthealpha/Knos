@@ -640,11 +640,11 @@
   },
   "second": "neither program id of the second deployment held an account on devnet when the cluster was read on 3 Oct 2026.",
   "stats": {
-   "updated": "2026-10-04 19:50 UTC",
+   "updated": "2026-10-05 00:32 UTC",
    "by_deployment": {
     "second": {
-     "funded": 51,
-     "completed": 42
+     "funded": 52,
+     "completed": 43
     }
    },
    "outside": {
@@ -655,7 +655,7 @@
    },
    "latency": {
     "merge_to_paid": {
-     "count": 38,
+     "count": 39,
      "median": 25,
      "p95": 164,
      "window": {
@@ -664,12 +664,12 @@
      },
      "deployment": {
       "first": 2,
-      "second": 36
+      "second": 37
      },
      "definition": "seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank"
     },
     "comment_to_funded": {
-     "median": 50
+     "median": 48
     }
    }
   }
@@ -695,13 +695,161 @@
    "value": 16024654,
    "source": "libFuzzer through cargo-fuzz on the claim parser (target claims), 300 seconds, commit 519dffc, https://github.com/drexthealpha/knos-rc/actions/runs/37185319408"
   },
-  "upgrade_proposed": {
-   "value": "2026-10-04 07:17 UTC",
-   "source": "the later of the two approvals on devnet: proposal 2 (knos_pay) approved 2026-10-04 07:17:29 UTC; proposal 1 (knos_oidc) 07:16:43 UTC"
+  "stage_runner_queue_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
   },
-  "upgrade_executable": {
-   "value": "2026-10-06 07:17 UTC",
-   "source": "48 hours after upgrade_proposed (the later of the two approvals on devnet: proposal 2 (knos_pay) approved 2026-10-04 07:17:29 UTC; proposal 1 (knos_oidc) 07:16:43 UTC)"
+  "stage_runner_queue_median": {
+   "value": 4,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_runner_queue_ninety_fifth": {
+   "value": 1184,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_runner_queue_slowest": {
+   "value": 1184,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_workflow_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_workflow_median": {
+   "value": 17,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_workflow_ninety_fifth": {
+   "value": 24,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_workflow_slowest": {
+   "value": 24,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_relay_wait_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_relay_wait_median": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_relay_wait_ninety_fifth": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_relay_wait_slowest": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_first_send_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_first_send_median": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_first_send_ninety_fifth": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_first_send_slowest": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_confirm_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_confirm_median": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_confirm_ninety_fifth": {
+   "value": 8,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_confirm_slowest": {
+   "value": 8,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_queued_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_queued_median": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_queued_ninety_fifth": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_queued_slowest": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_chain_payments": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_chain_median": {
+   "value": 10,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_chain_ninety_fifth": {
+   "value": 11,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_chain_slowest": {
+   "value": 11,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_whole_payments": {
+   "value": 39,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_whole_median": {
+   "value": 25,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_whole_ninety_fifth": {
+   "value": 164,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "stage_whole_slowest": {
+   "value": 1220,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_asked": {
+   "value": 51,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_completed": {
+   "value": 42,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_lines": {
+   "value": 55,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_failed": {
+   "value": 13,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_retried": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_after_failure": {
+   "value": 1,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
+  },
+  "pay_attempts_never": {
+   "value": 9,
+   "source": "scripts/latency_stages.py --json on the public relay log of drexthealpha/Knos, run 2026-10-05 07:56-08:02 UTC, events from scripts/network_stats.py --events-out at 07:44 UTC, block times from api.devnet.solana.com"
   }
  }
 }

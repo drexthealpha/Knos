@@ -1,0 +1,1285 @@
+{
+ "about": "Cases for knos_verify.py and knos-verify.ts: tests/test_integrations.py builds them and holds this file to them. The key is a test key, never GitHub's.",
+ "cases": [
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees",
+    "the receipt names this token and says what the token says",
+    "the terms are the ones hashed at funding"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 5550123,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 3
+    },
+    "terms": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"build\"},{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "name": "the token, the receipt and the terms of one payment",
+   "ok": true,
+   "refused": "",
+   "why": ""
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees"
+   ],
+   "evidence": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n",
+   "name": "the token alone",
+   "ok": true,
+   "refused": "",
+   "why": ""
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees",
+    "the receipt names this token and says what the token says"
+   ],
+   "evidence": "{\"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\\n\", \"receipt\": \"{\\\"amendments\\\": [{\\\"detail\\\": {\\\"add\\\": \\\"5000000\\\", \\\"amount\\\": \\\"20000000\\\", \\\"fee\\\": \\\"500000\\\"}, \\\"kind\\\": \\\"topup\\\", \\\"time\\\": 1789999400, \\\"transaction\\\": \\\"3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3\\\"}], \\\"amounts\\\": {\\\"decimals\\\": 6, \\\"fee\\\": \\\"200000\\\", \\\"mint\\\": \\\"ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu\\\", \\\"of\\\": \\\"20000000\\\", \\\"paid\\\": \\\"20000000\\\", \\\"tip\\\": \\\"300000\\\"}, \\\"cluster\\\": \\\"devnet\\\", \\\"commercial_authorisation\\\": {\\\"billed_before\\\": false, \\\"deliverable\\\": {\\\"milestone\\\": 0, \\\"order\\\": \\\"k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn\\\"}, \\\"funded\\\": \\\"2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2\\\", \\\"funder\\\": {\\\"github_id\\\": null, \\\"login\\\": null, \\\"wallet\\\": \\\"21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc\\\"}, \\\"limit\\\": \\\"no limit set\\\", \\\"role\\\": \\\"wallet\\\", \\\"source\\\": {\\\"address\\\": \\\"21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc\\\", \\\"kind\\\": \\\"wallet\\\", \\\"owner_id\\\": null}}, \\\"evaluator_observed\\\": {\\\"artifact\\\": {\\\"commit\\\": \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", \\\"pull_request\\\": 12}, \\\"checks\\\": [{\\\"conclusion\\\": \\\"passed\\\", \\\"name\\\": \\\"build\\\"}, {\\\"conclusion\\\": \\\"passed\\\", \\\"name\\\": \\\"test\\\"}], \\\"evaluators\\\": [{\\\"actor_id\\\": 1234567, \\\"independent_of_buyer\\\": false, \\\"independent_of_seller\\\": true, \\\"kind\\\": \\\"repository\\\", \\\"owner_id\\\": 424242, \\\"repository_id\\\": 987654321, \\\"runner\\\": \\\"github-hosted\\\"}], \\\"independence\\\": \\\"One judge spoke.\\\", \\\"judge\\\": {\\\"kind\\\": \\\"repository\\\", \\\"version\\\": \\\"cccccccccccccccccccccccccccccccccccccccc\\\"}, \\\"same_controller\\\": false, \\\"verdict\\\": \\\"accepted\\\"}, \\\"issuer_authenticated\\\": {\\\"claims\\\": {\\\"actor_id\\\": \\\"1234567\\\", \\\"event_name\\\": \\\"pull_request_target\\\", \\\"exp\\\": 1790000300, \\\"iat\\\": 1790000000, \\\"job_workflow_ref\\\": \\\"drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main\\\", \\\"job_workflow_sha\\\": \\\"cccccccccccccccccccccccccccccccccccccccc\\\", \\\"repository_id\\\": \\\"987654321\\\", \\\"repository_owner_id\\\": \\\"424242\\\", \\\"run_attempt\\\": \\\"1\\\", \\\"run_id\\\": \\\"36905461215\\\", \\\"runner_environment\\\": \\\"github-hosted\\\"}, \\\"issuer\\\": \\\"https://token.actions.githubusercontent.com\\\", \\\"provider\\\": \\\"github\\\", \\\"token_sha256\\\": \\\"815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0\\\", \\\"verified\\\": {\\\"key\\\": \\\"9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz\\\", \\\"program\\\": \\\"FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W\\\", \\\"transaction\\\": \\\"bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX\\\"}}, \\\"order\\\": \\\"k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn\\\", \\\"payees\\\": [{\\\"amount\\\": \\\"20000000\\\", \\\"bps\\\": 10000, \\\"github_id\\\": 5550123, \\\"to\\\": \\\"p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV\\\"}], \\\"policy\\\": {\\\"allowed_paths\\\": [\\\"src/**\\\"], \\\"denied_paths\\\": [\\\".github/**\\\", \\\".knos/**\\\"], \\\"mode\\\": \\\"merge\\\", \\\"terms_hash\\\": \\\"19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e\\\", \\\"version\\\": 1}, \\\"program\\\": \\\"5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k\\\", \\\"repository\\\": {\\\"id\\\": 987654321, \\\"issue\\\": 77}, \\\"scope\\\": \\\"3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc\\\", \\\"transaction\\\": {\\\"signature\\\": \\\"oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh\\\", \\\"slot\\\": 412, \\\"time\\\": 1790000020}, \\\"trust_remaining\\\": [\\\"GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.\\\", \\\"The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.\\\", \\\"The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.\\\", \\\"Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review.\\\"], \\\"type\\\": \\\"knos.acceptance-receipt\\\", \\\"version\\\": 3}\"}",
+   "name": "the evidence as one JSON text, the receipt as text inside it",
+   "ok": true,
+   "refused": "",
+   "why": ""
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees"
+   ],
+   "evidence": {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "jwks": {
+    "account": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+    "e": "AQAB",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "kid": "k",
+    "n": "4Z17Ed9x_WMjeD9edwGRAVOlTMB2nTV8q1gwd-svFxfnhXBhYYYNSDbDMq-p2OKT-ab1mbqgSUvIHdoRs_7K6nHGo05BVnqDUePnlZgNrDHx3R6AihX9Ss0kNvsa4GubSl9QYZY9vLfyR6DckbBT5QJAcskgRA2vA-bLWDI2qnUJpqAgQcAQmKzHZaBUTLMMqjnkV-GA0-P5SopiqFxGIly8TrPKjlfJPq34qtGjIQEB_6ze9dmbQs9DYeyXxku0mJBK5XZqKO4YjEYLWOTCp5Yq8u6uiOorZgoeAoqGeW_0qkQZLY9lAWAISKnhFysFrrU-dpJxQvE1_Cx4Flj64Q"
+   },
+   "name": "the bundle's own key.json as the keys",
+   "ok": true,
+   "refused": "",
+   "why": ""
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees",
+    "the receipt names this token and says what the token says",
+    "it is for the commit, mode, order, payee, pull request, repository id expected"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 5550123,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 3
+    },
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "expect": {
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "mode": "merge",
+    "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+    "payee": 5550123,
+    "pull_request": 12,
+    "repository_id": 987654321
+   },
+   "name": "every fact the platform expects",
+   "ok": true,
+   "refused": "",
+   "why": ""
+  },
+  {
+   "checked": [],
+   "evidence": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwAQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n",
+   "name": "one character of the signed claims changed",
+   "ok": false,
+   "refused": "token",
+   "why": "This is not a signed token (three base64url parts, the first two JSON)."
+  },
+  {
+   "checked": [],
+   "evidence": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n",
+   "jwks": {
+    "keys": [
+     {
+      "alg": "RS256",
+      "e": "AQAB",
+      "kid": "another",
+      "kty": "RSA",
+      "n": "4Z17Ed9x_WMjeD9edwGRAVOlTMB2nTV8q1gwd-svFxfnhXBhYYYNSDbDMq-p2OKT-ab1mbqgSUvIHdoRs_7K6nHGo05BVnqDUePnlZgNrDHx3R6AihX9Ss0kNvsa4GubSl9QYZY9vLfyR6DckbBT5QJAcskgRA2vA-bLWDI2qnUJpqAgQcAQmKzHZaBUTLMMqjnkV-GA0-P5SopiqFxGIly8TrPKjlfJPq34qtGjIQEB_6ze9dmbQs9DYeyXxku0mJBK5XZqKO4YjEYLWOTCp5Yq8u6uiOorZgoeAoqGeW_0qkQZLY9lAWAISKnhFysFrrU-dpJxQvE1_Cx4Flj64Q",
+      "use": "sig"
+     }
+    ]
+   },
+   "name": "a token signed by a key that is not among the keys",
+   "ok": false,
+   "refused": "token",
+   "why": "No key with the token's kid is among the keys given. Give the issuer's keys of the day the token was signed."
+  },
+  {
+   "checked": [],
+   "evidence": "eyJhbGciOiAibm9uZSIsICJraWQiOiAiayJ9.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.",
+   "name": "an unsigned token",
+   "ok": false,
+   "refused": "token",
+   "why": "The token is not signed with RS256, the only algorithm a Knos receipt uses."
+  },
+  {
+   "checked": [],
+   "evidence": "hello",
+   "name": "not a token",
+   "ok": false,
+   "refused": "token",
+   "why": "This is not a signed token (three base64url parts, the first two JSON)."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid"
+   ],
+   "evidence": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJtYWxsb3J5L3BheS1tZS8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.amVvq5wDa0hulOW-XRigVRcLbHwAw7ZAaa-w7UlpdAXYSN-FDfY_XkTs9_ZfspxsvYtnDaFlIyG94Teo1DySucuq5HQWDsVF1BMMBs6bvkfpKoVRZ4az5C0jGa4kjnSkk1M4QQVj7rMnRuKL-oPJTam3u-NSfdbhN4JIOKmtmi_EVeGe88jJVmCuWtM4xsxZRly8HEC9ri0j6PaZwygwE3DKS4YwNP0BvzIrhCJt39WZV9MZSkCn5hbIdnoroUfFm3PvBES4Wl4ubWnYGyu73Lk3DD3ZTwXYcE8QxjEj3bdOnbBvjLHQU2UHfADtI90wiaWTERtR0wdhAn3seXFolA",
+   "name": "a token another workflow asked GitHub for",
+   "ok": false,
+   "refused": "issuer",
+   "why": "The token is not GitHub's for a run of drexthealpha/Knos/.github/workflows/: another issuer or another workflow asked for it."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid"
+   ],
+   "evidence": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vZ2l0bGFiLmNvbSIsIm5iZiI6MTc4OTk5OTQwMCwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3OTAwMDAwMDB9.s9dBtARYIKTD8qLWUMHJonAbRVNzZAVE2zKWmHZ0--EFRI3QNAr2nvoVpCCgfvkv3MjIR7kf2mKIMv9QZAKGTWu0CnvssYC1JTHofhNQ67n5UlgLJMdhsyX5eLI0gi96EkdbU0sXIZ0gHL6NfzzsnRPo8NxOLrDJTg6x_mhYjA752VfANWuUa4RiE0mwoch_xwsrrHYKzo3A2bkqPs1s7nMSym0RSGnAh5jkQ-YRnCMPnbl-tBgMvLyfhlJxzUcxDqXz04savYqmJVatAVfZw1Zy8RUSCKuoFD6VZiVprB3rZ3X41AbPRvO_Xk7d8VwxuP5o55Uf77V53HXnqhKRZw",
+   "name": "a token of another issuer",
+   "ok": false,
+   "refused": "issuer",
+   "why": "The token is not GitHub's for a run of drexthealpha/Knos/.github/workflows/: another issuer or another workflow asked for it."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main"
+   ],
+   "evidence": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpmdW5kOms3RmFLODdXSEdWWHprYW9IYjdDZFZQZ2tLRFFoWjI5VkxEZUJWYkRmWW46YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYToxOWVmMDhhZTFlYmQwYzVlNDQwNGM4NTkzZGI0ZGFhMzI0MWEzMTdlYzQ2ZWM2MTM2ZmY1Y2Y0MzM0N2VmZjFlOjA6MTI6NTU1MDEyMy4xMDAwMC4tIiwicmVmIjoicmVmcy9oZWFkcy9tYWluIiwic2hhIjoiYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYSIsInJlcG9zaXRvcnkiOiJvY3RvL3dpZGdldHMiLCJyZXBvc2l0b3J5X293bmVyIjoib2N0byIsInJlcG9zaXRvcnlfb3duZXJfaWQiOiI0MjQyNDIiLCJydW5faWQiOiIzNjkwNTQ2MTIxNSIsInJ1bl9udW1iZXIiOiIxNyIsInJ1bl9hdHRlbXB0IjoiMSIsInJlcG9zaXRvcnlfdmlzaWJpbGl0eSI6InB1YmxpYyIsInJlcG9zaXRvcnlfaWQiOiI5ODc2NTQzMjEiLCJhY3Rvcl9pZCI6IjEyMzQ1NjciLCJhY3RvciI6Im1vbmEiLCJ3b3JrZmxvdyI6Imtub3MiLCJoZWFkX3JlZiI6IiIsImJhc2VfcmVmIjoiIiwiZXZlbnRfbmFtZSI6InB1bGxfcmVxdWVzdF90YXJnZXQiLCJyZWZfcHJvdGVjdGVkIjoidHJ1ZSIsInJlZl90eXBlIjoiYnJhbmNoIiwid29ya2Zsb3dfcmVmIjoib2N0by93aWRnZXRzLy5naXRodWIvd29ya2Zsb3dzL2tub3MueW1sQHJlZnMvaGVhZHMvbWFpbiIsIndvcmtmbG93X3NoYSI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJqb2Jfd29ya2Zsb3dfcmVmIjoiZHJleHRoZWFscGhhL0tub3MvLmdpdGh1Yi93b3JrZmxvd3MvcHJvdmUueW1sQHJlZnMvaGVhZHMvbWFpbiIsImpvYl93b3JrZmxvd19zaGEiOiJjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjIiwicnVubmVyX2Vudmlyb25tZW50IjoiZ2l0aHViLWhvc3RlZCIsImNoZWNrX3J1bl9pZCI6IjU1NTAwMDEiLCJpc3MiOiJodHRwczovL3Rva2VuLmFjdGlvbnMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwibmJmIjoxNzg5OTk5NDAwLCJleHAiOjE3OTAwMDAzMDAsImlhdCI6MTc5MDAwMDAwMH0.FLcihEVqNun657-tjTZhyubLWECOXkk304POMR1LYX7HAjuHLHGd2exIaxgY82E9HuViHPqrZXac1VoFMbCnIjCD3c8lomslI2fdRDrQlKpfxgqmNSm70nqy-9xoWzD0KCkfJGy5BZq1k4TaTaHAIQJgN6d1l_Fju3KvLa5kRRYJ7AYMxB_wxNkqERovxmTMrOOudZNAysV2YlEeuQjfVQX7z_vJsDQ_USMz1NlOczcYS8VbDFUZLgmr3ZdsALmFtDLADwXWufjsiEOEsskpKy5S9KZTROKwMK0oPOzOhESIJ2V_sFNLW85cS2VxLPJF8wkuzqWT2O51fW4dmo5RSw",
+   "name": "a token signed for something else than a Knos payment",
+   "ok": false,
+   "refused": "audience",
+   "why": "The token was not signed for a Knos payment (its audience is not knos3:pay:order:commit:terms:mode:pull:payees)."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 5550123,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 3
+    },
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "name": "a receipt that names another token",
+   "ok": false,
+   "refused": "receipt",
+   "why": "The receipt names another token than the one given (token_sha256 differs)."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 1,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 3
+    },
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "name": "a receipt whose payee is not the one the token names",
+   "ok": false,
+   "refused": "receipt",
+   "why": "The order, commit, terms, pull request or payees in the receipt are not the ones the token was signed for."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 5550123,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 1
+    },
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "name": "a receipt of version 1",
+   "ok": false,
+   "refused": "receipt",
+   "why": "This is not an acceptance receipt of version 2 or 3 with an accepted verdict (docs/RECEIPT.md)."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees",
+    "the receipt names this token and says what the token says"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 5550123,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 3
+    },
+    "terms": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"build\"},{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"**\"],\"reserve\":0,\"v\":1}",
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "name": "terms that are not the ones hashed at funding",
+   "ok": false,
+   "refused": "terms",
+   "why": "These are not the terms hashed at funding (their sha256 is not the terms hash the token names)."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees",
+    "the receipt names this token and says what the token says"
+   ],
+   "evidence": {
+    "receipt": {
+     "amendments": [
+      {
+       "detail": {
+        "add": "5000000",
+        "amount": "20000000",
+        "fee": "500000"
+       },
+       "kind": "topup",
+       "time": 1789999400,
+       "transaction": "3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3"
+      }
+     ],
+     "amounts": {
+      "decimals": 6,
+      "fee": "200000",
+      "mint": "ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu",
+      "of": "20000000",
+      "paid": "20000000",
+      "tip": "300000"
+     },
+     "cluster": "devnet",
+     "commercial_authorisation": {
+      "billed_before": false,
+      "deliverable": {
+       "milestone": 0,
+       "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn"
+      },
+      "funded": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "funder": {
+       "github_id": null,
+       "login": null,
+       "wallet": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc"
+      },
+      "limit": "no limit set",
+      "role": "wallet",
+      "source": {
+       "address": "21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc",
+       "kind": "wallet",
+       "owner_id": null
+      }
+     },
+     "evaluator_observed": {
+      "artifact": {
+       "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "pull_request": 12
+      },
+      "checks": [
+       {
+        "conclusion": "passed",
+        "name": "build"
+       },
+       {
+        "conclusion": "passed",
+        "name": "test"
+       }
+      ],
+      "evaluators": [
+       {
+        "actor_id": 1234567,
+        "independent_of_buyer": false,
+        "independent_of_seller": true,
+        "kind": "repository",
+        "owner_id": 424242,
+        "repository_id": 987654321,
+        "runner": "github-hosted"
+       }
+      ],
+      "independence": "One judge spoke.",
+      "judge": {
+       "kind": "repository",
+       "version": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "same_controller": false,
+      "verdict": "accepted"
+     },
+     "issuer_authenticated": {
+      "claims": {
+       "actor_id": "1234567",
+       "event_name": "pull_request_target",
+       "exp": 1790000300,
+       "iat": 1790000000,
+       "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+       "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+       "repository_id": "987654321",
+       "repository_owner_id": "424242",
+       "run_attempt": "1",
+       "run_id": "36905461215",
+       "runner_environment": "github-hosted"
+      },
+      "issuer": "https://token.actions.githubusercontent.com",
+      "provider": "github",
+      "token_sha256": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "verified": {
+       "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+       "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+       "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
+      }
+     },
+     "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+     "payees": [
+      {
+       "amount": "20000000",
+       "bps": 10000,
+       "github_id": 5550123,
+       "to": "p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV"
+      }
+     ],
+     "policy": {
+      "allowed_paths": [
+       "src/**"
+      ],
+      "denied_paths": [
+       ".github/**",
+       ".knos/**"
+      ],
+      "mode": "merge",
+      "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+      "version": 1
+     },
+     "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "repository": {
+      "id": 987654321,
+      "issue": 77
+     },
+     "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+     "transaction": {
+      "signature": "oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh",
+      "slot": 412,
+      "time": 1790000020
+     },
+     "trust_remaining": [
+      "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+      "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+      "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+      "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+     ],
+     "type": "knos.acceptance-receipt",
+     "version": 3
+    },
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "expect": {
+    "repository_id": 1
+   },
+   "name": "a receipt for another repository than the one expected",
+   "ok": false,
+   "refused": "expect",
+   "why": "The receipt is for another repository id than the one expected."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid",
+    "GitHub signed it for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+    "it names one order, commit, terms hash, pull request and its payees"
+   ],
+   "evidence": {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "expect": {
+    "payee": 1
+   },
+   "name": "a payee the platform did not expect",
+   "ok": false,
+   "refused": "expect",
+   "why": "The receipt is for another payee than the one expected."
+  },
+  {
+   "checked": [
+    "the token carries the RS256 signature of the key given for its kid"
+   ],
+   "evidence": {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
+   },
+   "expect": {
+    "workflow": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/"
+   },
+   "name": "a workflow the platform pins by its tag",
+   "ok": false,
+   "refused": "issuer",
+   "why": "The token is not GitHub's for a run of drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/: another issuer or another workflow asked for it."
+  }
+ ],
+ "facts": {
+  "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "exp": 1790000300,
+  "iat": 1790000000,
+  "mode": "merge",
+  "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+  "payees": [
+   {
+    "bps": 10000,
+    "github_id": 5550123
+   }
+  ],
+  "pull_request": 12,
+  "repository_id": "987654321",
+  "terms_hash": "19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e",
+  "workflow": "drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main",
+  "workflow_sha": "cccccccccccccccccccccccccccccccccccccccc"
+ },
+ "jwks": {
+  "keys": [
+   {
+    "alg": "RS256",
+    "e": "AQAB",
+    "kid": "k",
+    "kty": "RSA",
+    "n": "4Z17Ed9x_WMjeD9edwGRAVOlTMB2nTV8q1gwd-svFxfnhXBhYYYNSDbDMq-p2OKT-ab1mbqgSUvIHdoRs_7K6nHGo05BVnqDUePnlZgNrDHx3R6AihX9Ss0kNvsa4GubSl9QYZY9vLfyR6DckbBT5QJAcskgRA2vA-bLWDI2qnUJpqAgQcAQmKzHZaBUTLMMqjnkV-GA0-P5SopiqFxGIly8TrPKjlfJPq34qtGjIQEB_6ze9dmbQs9DYeyXxku0mJBK5XZqKO4YjEYLWOTCp5Yq8u6uiOorZgoeAoqGeW_0qkQZLY9lAWAISKnhFysFrrU-dpJxQvE1_Cx4Flj64Q",
+    "use": "sig"
+   }
+  ]
+ }
+}
