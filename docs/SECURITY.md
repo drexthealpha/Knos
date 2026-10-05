@@ -497,6 +497,11 @@ Nothing is posted in public only when the repository relays its own tokens, with
 - **The programs, reproducibly.** What is deployed is the `solana-verify` build of this repository in a pinned
   image. [ASSURANCE.md](ASSURANCE.md) has the commands, and [DRILLS.md](DRILLS.md) prints the hash of the bytes on
   chain.
+- **From source to chain.** docs/PROVENANCE.md follows each program from source commit to build hash to the hash on
+  chain to its upgrade proposal; a link the repository does not record is printed as MISSING.
+- **Two of the builds before the upgrade have no build record.** The knos_oidc and knos_pay builds that run at the
+  public ids until proposals 3 and 4 execute have no build record at the upgrade gate, so nothing on chain ties
+  those builds to a commit; knos_meter's and knos_passkey's have one ([PROVENANCE.md](PROVENANCE.md)).
 
 ## 14. The sandbox (tests mode)
 
@@ -922,11 +927,18 @@ The first three cannot be removed. They come with the design.
     tested, in one list", says what: a deployment whose verifier is another program, orderings of four and more
     moves (sampled, not enumerated), `RefundOrder` and two racing relayers on a running cluster, and, in the state
     machine, standing orders, kill fees, assigned payments, a second relayer and a second mint.
-33. **The claim reader accepts some issuer-signed payloads that are not strict JSON.** It finds the claims it reads
-    and steps over every other value by its brackets and quotes, so a payload the issuer's key really signed that a
-    JSON library refuses (a literal cut short, `NaN`, a comment, a control character in a string) still verifies. The
-    differential test put 13 such shapes to the program, 342 cases, and it accepted every one
-    ([ASSURANCE.md](ASSURANCE.md), "The verifier: left open"; [`fuzz.json`](fuzz.json), `outside_the_rule`). Nobody
-    without the issuer's key can make such a token, and GitHub and GitLab sign JSON. A reader of the same payload
-    that is strict can fail on a token this verifier took. The fix is a program change, strict validation of the
-    values the reader steps over, and 0.3.15 changes no program.
+33. **Until `knos-oidc` 2.2 is live, the claim reader accepts some issuer-signed payloads that are not strict JSON.**
+    2.1 finds the claims it reads and steps over every other value by its brackets and quotes, so a payload the
+    issuer's key really signed that a JSON library refuses (a literal cut short, `NaN`, a comment, a control
+    character in a string; 13 shapes in the differential test) verifies. Nobody without the issuer's key can make
+    such a token, and GitHub and GitLab sign JSON; but two readers of one verified payload can disagree about it.
+    2.2 (Knos 0.3.16) checks every byte of the header and the payload against RFC 8259, refuses a name that appears
+    twice in the top-level object, and takes at most 64 levels and 128 top-level members: the 13 shapes are refused,
+    and the differential test has no class outside its rule ([ASSURANCE.md](ASSURANCE.md), "The claim reader: strict
+    since 2.2"; [`fuzz.json`](fuzz.json)). 2.2 will be proposed after the pending upgrade executes; until that
+    proposal has executed after its 48-hour delay, devnet runs an earlier verifier (2.0, then 2.1 once proposal 3 has
+    executed), and [`web/upgrades.json`](../web/upgrades.json) says which is live. What stays: the
+    strict rule is this project's reading of RFC 8259 (a name twice inside a nested object is not looked for), and
+    `knos-pay` 2.1 and the interface crate still step over the values they do not read (2.2's strict reader is a
+    file only the verifier calls, so that `knos-pay` stays the build it is); they read only payloads the verifier
+    has verified, which under 2.2 are strict JSON: no other payload reaches the account they read.

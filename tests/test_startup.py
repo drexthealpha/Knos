@@ -77,6 +77,11 @@ def test_one_command_loads_no_other_commands_module():
     rc, names = _modules_after(["budget", "--help"])
     assert rc == 0 and "knos.controls" in names
     assert [m for m in ("knos.observe", "knos.reproduce", "knos.audit", "knos.judge", "knos.flow") if m in names] == []
+    rc, names = _modules_after(["shadow", "--help"])
+    assert rc == 0 and "knos.shadow" in names
+    assert [m for m in (*(m for m in COMMAND_MODULES if m != "knos.shadow"), "knos.flow") if m in names] == [] and not _has(names, "solders")
+    rc, names = _modules_after(["terms", "cite", "bugfix"])
+    assert rc == 0 and "knos.terms_registry" in names and "knos.shadow" not in names and not _has(names, "solders")
 
 
 def test_a_workflows_word_never_imports_the_command_line():
@@ -93,9 +98,9 @@ def test_the_help_is_the_same_whatever_was_loaded_first():
                           "        cli.main(first)\n"
                           "sys.exit(cli.main(['--help']))")
     assert whole.returncode == after.returncode == 0 and whole.stdout == after.stdout
-    for name in ("judge", "terms", "meter", "bundle", "receipt", "audit", "agent", "work", "budget", "observe", "reproduce"):
+    for name in ("judge", "terms", "meter", "bundle", "receipt", "audit", "agent", "work", "budget", "observe", "reproduce", "shadow"):
         assert f" {name} " in whole.stdout, name
-    for names in (("meter", "audit", "budget"), ("observe", "reproduce")):    # groups, then commands: each in the order named
+    for names in (("meter", "audit", "budget"), ("observe", "reproduce", "shadow")):    # groups, then commands: each in the order named
         order = [whole.stdout.index(f" {name} ") for name in names]
         assert order == sorted(order), names
 
@@ -104,7 +109,7 @@ def test_asking_for_the_whole_command_line_by_name_gives_every_command():
     got = _python("-c", "from typer.main import get_command; from knos import cli\n"
                         "print(' '.join(sorted(get_command(cli.app).commands)))")
     assert got.returncode == 0, got.stderr
-    assert {"judge", "terms", "meter", "bundle", "receipt", "audit", "agent", "work", "bounty", "check", "budget", "observe", "reproduce"} <= set(got.stdout.split())
+    assert {"judge", "terms", "meter", "bundle", "receipt", "audit", "agent", "work", "bounty", "check", "budget", "observe", "reproduce", "shadow"} <= set(got.stdout.split())
 
 
 def _first_byte(args: list[str]) -> float:

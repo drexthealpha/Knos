@@ -49,7 +49,7 @@ permissions:
 jobs:
   relay:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20     # 5 to relay; up to 10 more only in the first run after a release (the install step)
     env:
       KNOS_HOME: ${{ github.workspace }}/.knos-home
     steps:
@@ -105,11 +105,23 @@ jobs:
           enable-cache: false
       # Each package by its hash, from this repository's own list, and nothing else: no `-e .`, which would build the
       # package with a build tool fetched unpinned. Knos itself runs from the checkout (PYTHONPATH below).
+      # PyPI's index is a cached page and can show a release minutes after its upload: the first run after 0.3.15 was
+      # pushed found "no version of" that release, failed, and the chain stopped. So ONE error is waited for, and no
+      # other: the index not listing the release the list's last line names. It is asked again after 15, 30, 60, 120,
+      # 180 and 195 s (10 minutes in all), then the step fails as before. A hash that does not match, a package of
+      # another name, a network failure: red at once, as before.
       - name: install what the relay needs, each by its hash, and nothing else
         if: steps.chain.outputs.go == 'true'
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt
+          release=$(sed -n '$s/^knos==\([0-9][0-9.]*\) --hash=sha256:[0-9a-f]*$/\1/p' requirements/sign.txt)
+          for nap in 15 30 60 120 180 195 end; do
+            uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
+            cat "$RUNNER_TEMP/install.err" >&2
+            [ "$nap" != end ] && [ -n "$release" ] && grep -Fq "no version of knos==$release " "$RUNNER_TEMP/install.err" || exit 1
+            echo "PyPI's index does not list knos $release yet: asking again in $nap s."
+            sleep "$nap"
+          done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       # With exactly what was installed above. A relay that cannot even say its options ends the run here, red, before
       # the key is read and before any run is started.

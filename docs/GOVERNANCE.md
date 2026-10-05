@@ -9,6 +9,14 @@ the security model; [INVARIANTS.md](INVARIANTS.md) is what the programs guarante
 independent oversight: nobody else has to agree, and nobody else can refuse. No outside signer exists, and nobody
 has agreed to become one.
 
+**Three plans are on this page, and none of them is a fact.** Each waits on a person who does not exist yet.
+
+| plan | where | what has been done |
+|---|---|---|
+| An outside key holder on each multisig: what they would check before every vote | sections 4 and 5 | nothing: nobody has been asked |
+| A two-owner organisation for the pinned workflows and the relay | section 9; [TEAM.md](TEAM.md) | nothing: the organisation does not exist |
+| The verifier frozen after an outside review; the escrow kept upgradeable behind the delay | section 7 | nothing: no review has been done or commissioned |
+
 ## 1. Who can change what
 
 | what | who, today | how fast | what limits it |
@@ -128,7 +136,7 @@ in the script. The multisig itself would execute an ungated proposal.
 
 This is a decision, with its cost stated.
 
-- **`knos_oidc`, the verifier, is frozen after an outside review:** its upgrade authority is removed, and from
+- **`knos_oidc`, the verifier, is frozen after an outside review, and not before:** its upgrade authority is removed, and from
   then nobody can change which signatures it accepts or how it checks them. The verifier is small, does one thing,
   and is what every other program relies on.
 - **`knos_pay`, the escrow, stays upgradeable behind the public 48-hour delay.** It holds the money and has the
@@ -140,6 +148,11 @@ answered by deploying a new verifier at a new address and upgrading `knos_pay` t
 guardian revoking keys in the meantime. The constants in `pins.rs` freeze with the program: the genesis keys, the
 guardian's address, the pinned rotate workflow and the account whose runs admit new keys. So the dependency on one
 GitHub account (section 9) has to be resolved **before** the freeze, not after it.
+
+The order is fixed: the outside review and its fixes first; then the move of the attesting account (section 9);
+then the freeze, proposed through the multisig with its 48 hours like any other change. A release that changes
+the verifier, as a correction to how it reads a token's claims does, is a reason the freeze is not earlier: a
+frozen verifier could not have taken it.
 
 None of this has happened. No outside review has been done or commissioned, so both programs are upgradeable
 today, by one person.
@@ -218,7 +231,9 @@ it does:
 The step-by-step version for a funder, with what each step shows, is in [DRILLS.md](DRILLS.md). Work that was
 accepted but not yet paid when the account was suspended is not paid: the seller's remedy is outside the program.
 
-**The plan.** Move the workflows and the relay to an organisation account with at least two owners.
+**The plan.** Move the workflows and the relay to an organisation account with two owners: the founder and one
+other person, each signing in with their own second factor, so that losing or suspending either account leaves
+the other able to keep the workflows published. The six steps, in order, are in [TEAM.md](TEAM.md).
 
 - The pinned workflows are named in the programs by repository and commit (`ROTATE_REF`, `CLAIM_REF`), and each
   order stores the repository it pinned. So the move is an upgrade of `knos_oidc` and `knos_pay` that accepts the

@@ -284,3 +284,108 @@ def test_the_report_lists_the_escapes_and_claims_no_number_for_a_place_it_did_no
             assert "not run here" not in column and len(column) == len(bench.ESCAPES), title
     assert [e.expect for e in bench.ESCAPES if e.expect["hermetic"]] == []      # the container is built to hold all five
     assert "63" in doc.split("<!-- escape:begin -->")[0] and "cannot be cheated" not in doc
+
+
+# ---- honest work: a correct submission must not be refused ---------------------------------------------------------------
+
+def _honest():
+    bench = _bench()
+    return bench, bench._honest(), bench._real_modules()[0]
+
+
+def test_the_honest_set_is_fixed_text_for_every_task_and_at_least_thirty_submissions(tmp_path):
+    bench, H, R = _honest()
+    assert H.count() >= 30
+    assert set(H.SLUG) == set(bench.SAMPLES) and all(len(v) >= 3 for v in H.SLUG.values())
+    assert len(H.REAL) >= 3 and all((H.HERE / "real" / f"{key}.py").is_file() for key in R.TASKS)
+    assert set(H.PLAIN) == set(__import__("acceptance_examples").tasks()) and all(len(v) >= 2 for v in H.PLAIN.values())
+
+    def laid(root: Path) -> dict:
+        for key, subs in H.SLUG.items():
+            for i, (_, fn) in enumerate(subs):
+                fn(root / key / str(i))
+        for key, task in R.TASKS.items():
+            for i, (_, fn) in enumerate(H.REAL):
+                fn(root / key / str(i), task, root / "base")
+        for task, subs in H.PLAIN.items():
+            for i, (_, source) in enumerate(subs):
+                for rel, text in (source().items() if callable(source) else
+                                  {str(p.relative_to(source)): p.read_text(encoding="utf-8") for p in sorted(source.rglob("*")) if p.is_file()}.items()):
+                    bench._honest()._w(root / task / str(i), rel, text)
+        return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    first, second = laid(tmp_path / "a"), laid(tmp_path / "b")
+    assert first == second and len(first) > H.count()                      # nothing in a submission is drawn at random
+    names = [n for subs in [*H.SLUG.values(), H.REAL, *H.PLAIN.values()] for n, _ in subs]
+    assert H.EXPECTED_REFUSED <= set(names)
+
+
+@pytest.mark.parametrize("key", ["urljoin", "version", "sniff", "ini", "date", "glob"])
+def test_the_other_algorithm_of_each_real_task_answers_as_the_reference_does_on_fixed_draws(key):
+    """In this process, on a fixed seed: an honest submission that is wrong would make the honest count a false finding."""
+    import json
+    import random
+    _, H, R = _honest()
+    task = R.TASKS[key]
+    ns = R._namespace(task)
+    theirs: dict = {}
+    exec(compile((H.HERE / "real" / f"{key}.py").read_text(encoding="utf-8"), key, "exec"), theirs)   # noqa: S102 - our own text
+    rng, cases = random.Random(316), [*ns["FIXED"], *task.known]
+    while len(cases) < 600:
+        case = ns["gen"](rng)
+        if "accept" not in ns or ns["accept"](case):
+            cases.append(case)
+
+    def outcome(fn, args):
+        try:
+            return json.loads(json.dumps(["ok", fn(*args[:R.arity(task)])]))
+        except Exception:                                                  # noqa: BLE001 - a refusal is an answer here
+            return ["error"]
+    assert [c for c in cases if outcome(theirs[task.entry], c) != outcome(ns["ref"], c)] == []
+
+
+def test_a_sample_whose_delimiter_the_task_does_not_define_is_not_asked():
+    """Two delimiters in every line equally often: csv.Sniffer picks one by its own rules, the task names neither."""
+    _, _, R = _honest()
+    ns = R._namespace(R.TASKS["sniff"])
+    assert not ns["accept"](["28,6|c\np,q|869\n\"p|q\"|70,8\n", "|"])
+    assert ns["accept"](["a|b\n1|2\n3|4\n", "|"]) and ns["accept"](["name;price\nfoo;1,5\nbar;2,5\n", ";"])
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the black-box check reaches the tree through a shell wrapper")
+def test_honest_submissions_are_accepted_except_the_one_kind_that_touches_the_test_directory():
+    """A sample of the set through the judges (python scripts/tamper_bench.py --honest runs all of it)."""
+    bench, H, _ = _honest()
+    rows = bench.run_honest(tasks=("python", "glob", "summarise"))
+    assert len(rows) == len(H.SLUG["python"]) + len(H.REAL) + len(H.PLAIN["summarise"])
+    for r in rows:
+        judged = [r[j] for j in ("knos", "box") if r[j] is not None]
+        if r["name"] in H.EXPECTED_REFUSED:
+            assert judged and not any(judged) and "touches protected path" in r["why"], r
+        else:
+            assert judged and all(judged), r
+        assert r["ci"] in (True, None), r                                   # plain CI accepts every one of them
+    n = bench.honest_counts(rows)
+    assert n["box"] == (len(rows) - 2, len(rows)) and n["knos"] == (len(H.SLUG["python"]) - 1, len(H.SLUG["python"]))
+
+
+def test_the_report_states_both_rates_with_their_sample_sizes_and_lists_every_refused_honest_submission():
+    import re
+    bench, H, _ = _honest()
+    doc = DOC.read_text(encoding="utf-8")
+    block = doc.split("<!-- honest:begin -->")[1].split("<!-- honest:end -->")[0]
+    assert doc.index("<!-- honest:begin -->") < doc.index("## Python, pytest")       # beside the cheat numbers, not after them
+    m = re.search(r"\*\*Honest submissions accepted: Knos, black box (\d+) of (\d+); Knos, tests (\d+) of (\d+); "
+                  r"CI green (\d+) of (\d+)\.\*\*", block)
+    box, total, tests, tested, ci, ran = (int(x) for x in m.groups())
+    assert total == H.count() >= 30 and tested == sum(len(v) for v in H.SLUG.values()) and ci == ran
+    cheats = bench.cheat_totals(doc)
+    assert [b for _, b in cheats] == [63, 102, 25]
+    assert f"accepted by Knos, black box: {', '.join(f'{a} of {b}' for a, b in cheats)}**" in block
+    assert f"{sum(b for _, b in cheats)} cheating submissions and {total} honest ones" in block
+    assert f"| **all** | **{total}** | **{ci} of {ran}** | **{tests} of {tested}** | **{box} of {total}** |" in block
+    assert "on Knos's own tasks" in block and "nobody outside has run either set" in block
+    refused = [ln for ln in block.splitlines() if ln.startswith("| ") and "touches protected path" in ln]
+    assert len(refused) == total - box and all(f"| {H.IN_TEST_DIR} |" in ln for ln in refused)
+    assert "No other honest submission was refused." in block
+    again = bench.place_honest(doc, block.join(["<!-- honest:begin -->", "<!-- honest:end -->"]).split("\n"))
+    assert again == doc                                                     # the block is replaced in place, never doubled

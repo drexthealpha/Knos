@@ -467,7 +467,8 @@ def test_verify_only_is_limited_to_20_a_day_for_one_repository(world):
     relays.answers[ghrelay.token_id(mine[1])] = {"ok": True, "kind": "verify", "sigs": [], "already": True, "note": "done"}      # nor is one already there
     lines = passes(t0)
     ok, no = [ln for ln in lines if " ok " in ln], [ln for ln in lines if " fail " in ln]
-    assert len(lines) == 24 and len(ok) == 23 and len(no) == 1 and "the signature is not the issuer's" in no[0]
+    # (the one the chain already had is not logged at once: its line waits ALREADY_WAIT for the run that sent it to speak)
+    assert len(lines) == 23 and len(ok) == 22 and len(no) == 1 and "the signature is not the issuer's" in no[0]
     assert json.loads(state.read_text())["verify"] == {"day": "2026-10-03", "n": {"111": 20, "222": 1, "gitlab:20": 1}}
     # the twenty-first of that repository is refused without being carried; another repository's is not
     gh.comment("octo/widgets", 1, ghrelay.token_comment("verify", mine[22]), at=t0)
@@ -480,7 +481,8 @@ def test_verify_only_is_limited_to_20_a_day_for_one_repository(world):
     # the next day it is carried again
     late = jwt("sts.amazonaws.com", repository_id="111", iat=99_000)
     gh.comment("octo/widgets", 1, ghrelay.token_comment("verify", late), at=t0 + 86_400)
-    assert len(passes(t0 + 86_400)) == 1 and relays.calls[-1][1] == late
+    held, carried = passes(t0 + 86_400)                         # (with it, the line that waited: nobody else's line answered for that token)
+    assert "(another relayer carried it first) t=" in held and " sent_at=- confirmed_at=- " in held and f" {ghrelay.token_id(late)} ok " in carried and relays.calls[-1][1] == late
     assert json.loads(state.read_text())["verify"] == {"day": "2026-10-04", "n": {"111": 1}}
 
 
@@ -503,7 +505,7 @@ def test_a_withdrawal_request_is_read_only_in_a_knos_claim_repository_and_an_eva
     lines = passes(t0)
     assert relays.calls == [("withdraw", request, None), ("eval", ev, None), ("fund", order_fund, TERMS)]
     short = ghrelay.token_id(request)[:8]
-    assert sorted(re.sub(r" wait=\d+ chain=\d+", "", ln.rsplit(" t=", 1)[0]) for ln in lines) == sorted([
+    assert sorted(re.sub(r" wait=\d+ chain=\d+| \w+_at=[\d.]+", "", ln.rsplit(" t=", 1)[0]) for ln in lines) == sorted([
         f"knos-relay withdraw alice/knos-claim#1 {ghrelay.token_id(request)} ok sig=w1 note=sent",
         f"knos-relay withdraw a/copies#3 - fail this comment cannot carry its token ({short}...): a withdrawal request is read only on an issue of a repository named knos-claim",
         f"knos-relay eval octo/widgets#4 {ghrelay.token_id(ev)} ok sig=e1 note=counted",
@@ -548,7 +550,7 @@ def test_a_log_line_keeps_its_format_and_says_how_long_the_token_took(world, mon
     gh.comment("octo/widgets", 8, ghrelay.token_comment("fund", bad, TERMS), at=t0 - 5)
     gh.comment("octo/widgets", 9, ghrelay.token_comment("key", known), at=t0 - 5)
     lines = passes(t0)
-    m = re.fullmatch(rf"knos-relay fund octo/widgets#7 {ghrelay.token_id(good)} ok sig=s2,s3,s4 wait=(\d+) chain=0 note=5.00 test USDC is in escrow for issue #7. t=(\d+)", lines[0])
+    m = re.fullmatch(rf"knos-relay fund octo/widgets#7 {ghrelay.token_id(good)} ok sig=s2,s3,s4 wait=(\d+) chain=0 queued_at=[\d.]+ seen_at=[\d.]+ sent_at=[\d.]+ confirmed_at=[\d.]+ note=5.00 test USDC is in escrow for issue #7. t=(\d+)", lines[0])
     assert m and 5 <= int(m.group(1)) <= int(m.group(2)) <= 7, lines     # from the comment's creation to the last transaction; the stages come before the note
     assert lines[1:] == [f"knos-relay fund octo/widgets#8 {ghrelay.token_id(bad)} fail this commenter may not spend that balance"]      # one line; no time on a refusal;
     assert gh.log() == [lines[0], lines[1]]                      # and nothing for a key the chain already had. What worked was logged at once
@@ -595,8 +597,10 @@ def test_the_log_line_says_where_the_time_went_and_the_site_reads_it(world, monk
     monkeypatch.setattr(ghrelay, "relay_one", carried)
     lines = passes(t0)
     assert lines == [f"knos-relay proof octo/widgets#12 {ghrelay.token_id(proof)} ok sig=s1,s2 queue=3 workflow=28 wait=9 chain=4 "
+                     f"queued_at={t0 - 9:.1f} seen_at={t0:.1f} sent_at={t0:.1f} confirmed_at={t0 + 4:.1f} "
                      "note=4.88 test USDC was paid to W for issue #7 (GitHub user id 9). t=13",
                      f"knos-relay proof octo/widgets#13 {ghrelay.token_id(bare)} ok sig=s1,s2 wait=13 chain=4 "
+                     f"queued_at={t0 - 9:.1f} seen_at={t0 + 4:.1f} sent_at={t0 + 4:.1f} confirmed_at={t0 + 8:.1f} "
                      "note=4.88 test USDC was paid to W for issue #7 (GitHub user id 9). t=17"]
     assert ghrelay.stages("not a token", None, 5.0, 7.4) == {"chain": 2} and ghrelay.stages(proof, t0 - 50, t0, t0 + 1) == {"queue": 3, "wait": 50, "chain": 1}
     # the readers of the line: the site's latency split, the caller's verdict, the claim's
@@ -711,7 +715,7 @@ def test_a_pass_carries_a_fund_token_and_its_proof_to_the_second_deployment(monk
     gh.comment("octo/widgets", 7, ghrelay.token_comment("fund", fund, terms), at=time.time() - 4)
     [line] = ghrelay.once(net, c.payer)
     job = pay.job_pda(repo, 7, pay.faucet_balance_pda(org))
-    assert re.fullmatch(rf"knos-relay fund octo/widgets#7 {ghrelay.token_id(fund)} ok sig=\S+ wait=\d+ chain=\d+ note=5.00 test USDC is in escrow for issue #7, paid when .* Job {job}\. t=\d+", line), line
+    assert re.fullmatch(rf"knos-relay fund octo/widgets#7 {ghrelay.token_id(fund)} ok sig=\S+ wait=\d+ chain=\d+ queued_at=[\d.]+ seen_at=[\d.]+ sent_at=[\d.]+ confirmed_at=[\d.]+ note=5.00 test USDC is in escrow for issue #7, paid when .* Job {job}\. t=\d+", line), line
     assert pay.read_job(c.data(job)).terms == pay.terms_hash(terms) and net.terms_of(job) == terms
     # a fund token in a comment without its terms line (a copy somebody made, or a broken workflow) funds nothing; the
     # log says why without naming the token, and the token is still carried from the comment that posts it whole
@@ -774,9 +778,12 @@ def test_a_token_the_chain_shows_done_is_logged_once_whichever_run_carried_it(wo
         relays.answers[ghrelay.token_id(token)] = {"ok": True, "kind": "fund", "sigs": ["s1"], "note": "done", "already": True}
     # the run that relayed beside this one carried the first and logged it; someone else's relayer carried the second
     gh.comment(HOME, 1, f"knos-relay fund octo/widgets#7 {ghrelay.token_id(ours)} ok sig=s1 note=done t=3", at=t0 - 2)
-    [line] = passes(t0)
+    # (nothing is said of the second at once: had a run of this relay carried it, its own line would be on its way)
+    assert passes(t0) == [] and len(relays.calls) == 2 and passes(t0 + 3) == []
+    [line] = passes(t0 + ghrelay.ALREADY_WAIT)
     assert ghrelay.token_id(theirs) in line and "(another relayer carried it first)" in line and len(relays.calls) == 2
-    assert [ln for ln in gh.log() if ghrelay.token_id(ours) in ln] == [gh.log()[0]]
+    assert " sent_at=- confirmed_at=- " in line                  # this relay sent nothing: it claims no time for it
+    assert [ln for ln in gh.log() if ghrelay.token_id(ours) in ln] == [gh.log()[0]] and passes(t0 + 60) == []
 
 
 # -- two runs overlap: what the loser of a race sees, and which log line answers for which comment ------------------------------

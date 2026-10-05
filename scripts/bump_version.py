@@ -57,9 +57,13 @@ PROGRAM_PLACES: list[tuple[str, str]] = [
     ("crates/*/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
     ("programs-v2/knos_*/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
 ]
-# 0.3.15 changes no program: upgrade proposals 3 to 6 name builds of these crates at 0.3.14, approved and waiting out
-# their 48 hours. The committed builds (tests/fixtures/*.so) and whatever anyone builds from this tree to compare
-# with the chain must stay byte-identical to them until they execute, and a version is in the bytes.
+# 0.3.16 changes one program, knos_oidc (2.2: every byte of a token is checked as JSON, in strict.rs), and knos_oidc
+# stays in this list all the same. knos_pay compiles the knos_oidc crate in, and a crate's version goes into the
+# compiler's hash of the crate, which reaches a dependent's bytes: measured for 0.3.16, a knos_pay test build
+# with knos_oidc at 0.3.16 and not one other change was 405,240 bytes like the 0.3.14 one and differed from it in
+# 905 of them. knos_pay, knos_meter and knos_passkey are the builds upgrade proposals 4 to 6 name, at 0.3.14, and
+# whatever anyone builds from this tree to compare with the chain must stay byte-identical to them. So the program's
+# own number, 2.2, is knos_oidc::VERSION and `source_release` in its security.txt, not the crate's version.
 PROGRAMS_FROZEN: tuple[str, ...] = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey", "knos-oidc-interface", "knos-pay-interface")
 FROZEN_AT = "0.3.14"
 LOCKS = ("crates/*/Cargo.lock", "examples/*/Cargo.lock", "programs-v2/Cargo.lock", "programs-v2/knos_oidc/fuzz/Cargo.lock",

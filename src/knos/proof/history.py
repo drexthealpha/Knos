@@ -368,9 +368,105 @@ def tamper_checks_required(store, repo=None, agent=None) -> set[str]:
     return {r["require"] for r in required_for(store, repo, agent)}
 
 
+# ---- which terms worked: how each past order here ended, by template and policy version (Sibyl) ------------------
+
+OUTCOMES = ("accepted", "fixed", "reverted", "disputed")     # accepted first time; refused then fixed; reverted in warranty; disputed
+_TEMPLATE = re.compile(r"[a-z][a-z0-9-]{0,39}")
+# the published template (docs/TERMS.md, terms/) each kind of ending supports, and what that template does about it
+_SUPPORTS = {"reverted": ("milestone", "holding a share back"), "disputed": ("feature-blackbox", "paying on a black-box suite"),
+             "fixed": ("bugfix", "")}
+
+
+def _order_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("repo"), str) and isinstance(body.get("order"), str) and bool(body["order"])
+            and body.get("outcome") in OUTCOMES and isinstance(body.get("template"), str)
+            and bool(_TEMPLATE.fullmatch(body["template"]) or not body["template"])
+            and type(body.get("version")) is int and 0 <= body["version"] <= 10**6
+            and isinstance(body.get("policy"), str) and len(body["policy"]) <= 64
+            and type(body.get("seq")) is int and 0 <= body["seq"] <= 2**53
+            and isinstance(body.get("failed"), list) and len(body["failed"]) <= 12
+            and all(isinstance(x, str) and 1 <= len(x) <= 200 for x in body["failed"]))
+
+
+def order_outcome(store, repo, order, outcome: str, template: str = "", version: int = 0, policy: str = "",
+                  failed=(), seq: int | None = None) -> dict:
+    """Remember how one order in `repo` ended: `outcome` is one of OUTCOMES. `template` and `version` name the published
+    terms template it was funded with ("" and 0: its terms are no published template), `policy` the version of the
+    policy it was judged under (the hash of .knos/policy.yml in its terms; "" when it had none), `failed` the checks
+    a first pull request was refused on. `seq` puts the repository's orders in order (the issue's number; default:
+    the place the order already has, else one after the newest remembered). An order that ends twice (fixed, then
+    reverted in warranty) is remembered twice, under two names, and counts once, as the later ending. Raises
+    ValueError for what is not an outcome."""
+    repo_k, order = repo_key(repo), str(order)
+    if seq is None:         # the place it already has, else one after the newest
+        mine = [b for b in store.all("order") if _order_row(b) and b["repo"] == repo_k]
+        seq = next((b["seq"] for b in mine if b["order"] == order), 1 + max([b["seq"] for b in mine] or [0]))
+    body = {"repo": repo_k, "order": order, "outcome": outcome, "template": str(template), "version": int(version),
+            "policy": str(policy), "failed": sorted({str(x) for x in failed})[:12], "seq": int(seq)}
+    if not _order_row(body):
+        raise ValueError(f"an order's outcome is one of {', '.join(OUTCOMES)}, with a published template's name or none")
+    store.put("order", _id("order", repo_k, order, outcome), body)
+    return body
+
+
+def orders(store, repo, policy: str | None = None) -> list[dict]:
+    """The orders remembered for `repo`, oldest first, one row an order: its last ending, and every check any of
+    its pull requests was refused on. `policy`: only the orders judged under that policy version."""
+    repo_k, got = repo_key(repo), {}
+    for name, b in sorted(getattr(store, "rows", lambda _c: [])("order")):
+        if not _order_row(b) or b["repo"] != repo_k or name != _id("order", repo_k, b["order"], b["outcome"]):
+            continue                # a row that does not say what its name says is not a memory of an order
+        if policy is not None and b["policy"] != policy:
+            continue
+        have = got.get(b["order"])
+        if have is None or OUTCOMES.index(b["outcome"]) > OUTCOMES.index(have["outcome"]):
+            b = {**b, "failed": sorted(set(b["failed"]) | set(have["failed"] if have else ()))}
+            got[b["order"]] = b
+        else:
+            have["failed"] = sorted(set(have["failed"]) | set(b["failed"]))
+    return sorted(got.values(), key=lambda b: (b["seq"], b["order"]))
+
+
+def _tick(text) -> str:
+    return "`" + "".join(ch for ch in str(text) if ch >= " " and ch not in "`\x7f")[:60] + "`"
+
+
+def terms_supported(store, repo, policy: str | None = None, last: int = 3, versions=None) -> str:
+    """ONE line for a funding reply: what the last orders in this repository showed, and the published template that
+    supports. "last 3 orders here: 2 refused on `lint` first; `bugfix` v1 with `lint` named". Empty when nothing is
+    remembered: with no memory no template is proposed. `versions` maps a template's name to its newest published
+    version (terms/index.json); without it the newest version an order here was funded with, else 1."""
+    recent = orders(store, repo, policy)[-last:]
+    if not recent:
+        return ""
+    n = len(recent)
+    count = {o: sum(1 for b in recent if b["outcome"] == o) for o in OUTCOMES}
+    checks: dict[str, int] = {}
+    for b in recent:
+        for name in b["failed"] if b["outcome"] == "fixed" else ():
+            checks[name] = checks.get(name, 0) + 1
+    worst = max((o for o in OUTCOMES[1:] if count[o]), key=lambda o: (count[o], OUTCOMES.index(o)), default="accepted")
+    top = min(checks, key=lambda name: (-checks[name], name)) if worst == "fixed" and checks else ""
+    if worst == "accepted":
+        used = [b["template"] for b in recent if b["template"]]
+        template = max(sorted(set(used)), key=used.count) if used else ""
+        saw, tail = f"{n} accepted first time", " again"
+    else:
+        template, does = _SUPPORTS[worst]
+        saw = {"fixed": f"{count['fixed']} refused" + (f" on {_tick(top)}" if top else "") + " first",
+               "reverted": f"{count['reverted']} reverted in warranty", "disputed": f"{count['disputed']} disputed"}[worst]
+        tail = f" with {_tick(top)} named" if top else f", {does}" if does else ""
+    head = f"last {n} order{'s' if n != 1 else ''} here: {saw}"
+    if not template:
+        return head
+    seen = [b["version"] for b in orders(store, repo) if b["template"] == template and b["version"]]
+    version = (versions or {}).get(template) or max(seen, default=1)
+    return f"{head}; {_tick(template)} v{int(version)}{tail}"
+
+
 # ---- what the judge learned, to carry between runs (knos.proof.memory) -------------------------------------------
 
-LESSONS = ("tamper", "proof_rule", "repo_rule", "settlement")
+LESSONS = ("tamper", "proof_rule", "repo_rule", "settlement", "order")
 
 
 def lesson(row) -> dict | None:
@@ -389,6 +485,8 @@ def lesson(row) -> dict | None:
         ok = (isinstance(body.get("repo"), str) and isinstance(body.get("pull"), int) and isinstance(body.get("paid"), bool)
               and isinstance(body.get("failed"), dict) and all(isinstance(k, str) and isinstance(v, list) for k, v in body["failed"].items())
               and all(isinstance(body.get(k), list) and all(isinstance(x, str) for x in body[k]) for k in ("met", "false", "paths")))
+    elif row["category"] == "order":        # how one past order ended (order_outcome): its name is made of what it says
+        ok = _order_row(body) and name == _id("order", body["repo"], body["order"], body["outcome"])
     else:
         ok = isinstance(body.get("when"), str) and isinstance(body.get("require"), str)
         if ok and body["when"] == "tamper":     # the rule's name is made of what it says: one cannot pose as another

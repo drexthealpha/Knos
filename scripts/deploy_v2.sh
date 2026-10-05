@@ -45,6 +45,14 @@
 #                                           ANOTHER build, nothing is proposed: --replace first withdraws each of those
 #                                           by the member keys' votes (printing its index, program and build), then
 #                                           proposes. Two approved proposals for one program would both execute.
+#                                           Before any of that it makes its PLAN: the programs whose build here is not
+#                                           the one the chain runs. A release says which programs it changes
+#                                           (KNOS_CHANGES; 0.3.16: knos_oidc alone), and a program outside that list
+#                                           whose build differs STOPS the run with nothing withdrawn, written or
+#                                           proposed: its file is then not the verified build the chain runs (the
+#                                           earlier proposals have not executed, or it is a rebuild whose bytes moved
+#                                           with a version or a linked crate), and proposing it would upgrade a
+#                                           program the release never meant to touch.
 #   Each also takes --localnet with KNOS_RPC naming the validator a `--localnet --keep` run left running.
 #
 # Steps (each reads the chain first; a step that is already done says so and sends nothing)
@@ -87,6 +95,8 @@
 #                      above (a build of knos_pay whose OIDC_ID is the staging verifier, say)
 #   KNOS_GATE_TOKENS   --propose: a folder with <program>.jwt for each of the four, the tokens program.yml asked GitHub
 #                      for (audience gate:<program>:<executable hash>). With them a missing record is written
+#   KNOS_CHANGES       --propose: the programs this release changes, separated by spaces (default: knos_oidc, which is
+#                      0.3.16's one upgrade). Only these are proposed; see --propose above
 #   KNOS_GATE_WAIT     --propose: how many seconds to wait for a build's record at the upgrade gate before refusing
 #                      (default 1800: program.yml's verified builds and the relay take about that long after a push)
 #   KNOS_PRIORITY_FEE  micro-lamports per compute unit for the deploy (default 1000)
@@ -130,6 +140,10 @@ GATE_WAIT="${KNOS_GATE_WAIT:-1800}"
 PROGRAMS="knos_oidc knos_pay"
 NEW_PROGRAMS="knos_meter knos_passkey upgrade_gate"
 UPGRADES="knos_oidc knos_pay knos_meter knos_passkey"   # what --propose proposes: every program the upgrade vault holds, in the order they execute
+# The programs THIS release changes. --propose proposes these and no other: a build of another program that is not what
+# the chain runs stops the run before anything is sent (plan, below). 0.3.16 changes knos_oidc alone; the other three
+# stay the builds of the tag scripts/bump_version.py holds their crates at (FROZEN_AT).
+CHANGES="${KNOS_CHANGES:-knos_oidc}"
 RC="$KEYS/rc"                                  # the staging keypairs and ids file
 SCHEDULE="$KEYS/upgrade-schedule.json"         # when the proposed upgrades can be executed: scripts/schedule_upgrade.sh reads it
 WORK="" VALIDATOR=""
@@ -434,6 +448,29 @@ withdraw_older() {
   fi
 }
 
+# plan: PLAN is the programs this run will propose, in the order of UPGRADES: those whose build in SO_DIR is not the one
+# the chain runs. It only reads. A program this release does not change (it is not in CHANGES) must run the build in
+# SO_DIR already; when it does not, nothing may be proposed at all, and the run stops here saying the three things that
+# can be true. So a rebuild of an unchanged program is never proposed because its bytes moved with a version string.
+plan() {
+  local name id want held_at
+  PLAN=""
+  held_at="$(sed -n 's/^FROZEN_AT = "\(.*\)"$/\1/p' "$ROOT/scripts/bump_version.py")"
+  for name in $UPGRADES; do
+    id="$(pinned "$name")"
+    want="$(py hash "$SO_DIR/$name.so")"
+    program_state "$name"
+    [ "$HAVE" != absent ] || die "$name $id is not deployed on this cluster: there is nothing to upgrade. The plain run deploys it."
+    [ "$HAVE" != "$want" ] || continue
+    case " $CHANGES " in
+      *" $name "*) PLAN="$PLAN $name" ;;
+      *) die "$name is not a program this release changes (it changes: $CHANGES), and the build in $SO_DIR ($want) is not the one $name $id runs ($HAVE). Nothing was withdrawn, written or proposed. One of three things is true. (1) The proposals made before this release have not all executed: knos status says which program still runs its older build. Wait for them, then run this again. (2) This file is a rebuild from the release's tree, and its bytes moved though no line of $name did: a crate's version is in a build's bytes, and knos_pay links knos_oidc (programs-v2/knos_pay/Cargo.toml), so a change to what it reads from there changes knos_pay's build too. The chain runs the verified build of the v$held_at tag (program.yml's run on that tag): put that run's $name.so in KNOS_SO_DIR in place of this one, and say in the release's notes that $name is verified at v$held_at. (3) The release does change $name: say so with KNOS_CHANGES=\"$CHANGES $name\", and it is proposed with the others." ;;
+    esac
+  done
+  PLAN="${PLAN# }"
+  echo "  the plan: propose ${PLAN:-nothing} (this release changes: $CHANGES)"
+}
+
 propose() {
   local name id so want buffer address state held vault outs="" flag rc wait="$GATE_WAIT" kept size have
   vault="$(pinned upgrade_authority)"
@@ -443,6 +480,7 @@ propose() {
     echo "  UNGATED: proposed without waiting for one. Without the flag this script waits for program.yml's record and refuses a build that has none."
     wait=0
   fi
+  plan
   withdraw_older
   for name in $UPGRADES; do
     id="$(pinned "$name")" so="$SO_DIR/$name.so"

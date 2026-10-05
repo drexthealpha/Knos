@@ -137,7 +137,7 @@ def test_the_readme_header_shows_the_wordmark_on_both_of_githubs_themes():
     assert "<picture>" in head and "</picture>" in head and img and img[1] == "web/brand/wordmark-light.svg"
     for ref in {img[1], *(s for _, s in sources)}:
         assert (ROOT / ref).is_file() and not ref.startswith(("http", "/"))
-    assert "Knos is the neutral count and settlement for software work priced per outcome" in head
+    assert "**The neutral meter for AI agent work: neither side keeps the count.**" in head                                  # the one sentence, and no other
 
 
 def test_the_site_names_its_own_files_for_the_icon_and_the_card():
@@ -149,6 +149,30 @@ def test_the_site_names_its_own_files_for_the_icon_and_the_card():
     assert not re.findall(r'(?:href|src)="(?:https?:)?//', head)                     # the head asks no other host for anything
     css = _text(ROOT / "web" / "app.css")
     assert 'url("brand/wordmark.svg")' in css and 'url("brand/mark.svg")' in css
-    for slot in ("status", "index", "pilot", "reproduce"):                           # pages other modules fill: empty, hidden
+    for slot in ("status", "index", "pilot", "reproduce", "shadow", "verifier", "playground"):      # pages other modules fill: empty, hidden
         assert f'<section id="{slot}" class="mount" aria-label="{slot.capitalize()}" hidden></section>' in page
         assert f'<a href="#{slot}" data-mount="{slot}" hidden>' in page and f'"{slot}"' in _text(ROOT / "web" / "front.js")
+
+
+def test_the_mark_with_depth_is_the_same_drawing_and_costs_no_download():
+    """web/brand/mark3d.js draws no path of its own: every layer is brand/mark.svg as a mask (the stylesheet names the
+    file), stacked on the z axis. No canvas, no WebGL, no library, no address; with motion.js under 12 KB."""
+    js, motion, css = _text(BRAND / "mark3d.js"), _text(ROOT / "web" / "motion.js"), _text(ROOT / "web" / "app.css")
+    assert "export function mount3dMark(el" in js and len(js.encode()) + len(motion.encode()) < 12_000
+    code = re.sub(r"^\s*//.*$", "", js + motion, flags=re.M)
+    assert not re.search(r"canvas|webgl|three|fetch\(|XMLHttpRequest|https?:|import\s|require\(| d=", code, re.I)
+    assert "prefers-reduced-motion: reduce" in js and "prefers-reduced-motion: reduce" in motion and "prefers-reduced-motion: reduce" in css
+    for name in ("prefersReduced", "tilt", "reveal", "travel", "raven"):                 # the design contract's five
+        assert re.search(rf"export (?:const|function) {name}\b", motion), name
+    for rule in (".k-mark3d i {", ".k-raven {"):
+        assert 'mask: url("brand/mark.svg") center / contain no-repeat' in css.split(rule, 1)[1].split("}", 1)[0]
+    assert "aspect-ratio: 1856 / 1756" in css.split(".k-mark3d {", 1)[1].split("}", 1)[0]       # the box is the mark's before it is drawn
+    assert re.search(r'viewBox="0 0 1856 1756"', _text(BRAND / "mark.svg"))
+    page = _text(ROOT / "web" / "index.html")
+    assert '<div class="hero-mark" id="mark3d" aria-hidden="true"></div>' in page and "<canvas" not in page
+    for name in ("--ink", "--ink-2", "--paper", "--paper-2", "--line", "--accent", "--ok", "--bad", "--radius", "--depth-1", "--depth-2", "--depth-3", "--ease", "--dur-1", "--dur-2", "--dur-3"):
+        assert f"{name}:" in css, name
+    for cls in (".k-card", ".k-btn", ".k-btn.quiet", ".k-kicker", ".k-num", ".k-step", ".k-stage", ".k-reveal", ".k-table", "[data-tilt]"):
+        assert cls in css, cls
+    for state in ("live", "done", "bad"):
+        assert f'.k-step[data-state="{state}"]' in css

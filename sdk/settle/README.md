@@ -15,13 +15,13 @@ It speaks to the second deployment (`knos.v2`), whose programs are upgradeable o
 No registry account is needed. From the release:
 
 ```bash
-npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.15/knos-settle-0.3.15.tgz
+npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.16/knos-settle-0.3.16.tgz
 ```
 
 Or import it in a browser:
 
 ```js
-import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.15/sdk/settle/index.js";
+import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.16/sdk/settle/index.js";
 ```
 
 ## Fund an order from a wallet in the browser
@@ -38,7 +38,7 @@ if (!wallet) throw new Error("This page found no Solana wallet. Install one and 
 const funder = await wallet.connect("solana:devnet");    // the wallet asks the person, then gives an address
 const { id: repoId } = await (await fetch("https://api.github.com/repos/drexthealpha/Knos")).json();
 const ix = await k.fundOrderWalletIx({ funder, funderToken: await knos.ata(funder, mint), mint, repoId, issue: 7, amount, terms,
-  wfRepo: "drexthealpha/knos-workflows", wfSha: "7bf9621f519b19d9214eddfa45fac762aebeae0a" });   // the workflows that may pay it
+  wfRepo: "drexthealpha/knos-workflows", wfSha: "ff5f3df04abedd865f79a19cebc6848b6e048556" });   // the workflows that may pay it
 const { value } = await knos.rpc(RPC, "getLatestBlockhash", [{ commitment: "finalized" }]);
 const signature = await wallet.signAndSend(knos.serializeTx([ix], funder, value.blockhash), "solana:devnet");   // the wallet shows it first
 console.log(await knos.confirmed(RPC, signature), "- paid", amount / 1e6, "test USDC and a fee of", knos.v2.orderFee(amount) / 1e6, "on top");
@@ -117,5 +117,14 @@ or fix the time deadlines are judged by.
 | `rpc`, `account`, `programAccounts`, `confirmed` | The few RPC calls the rest needs, with `fetch`. |
 | `knos-settle/agent` | `quote`, `eligible`, `statement`, and `describe`, which puts terms in words. |
 | `knos-settle/passkey` | A wallet whose only key is a passkey (knos-passkey): `create`, `sign`, `withdrawIxs`, and `fundIxs`, which funds a work order from it. One file with no import, so a page can load it alone. |
+
+New in 0.3.16, each held to the vectors in [`conformance/`](https://github.com/drexthealpha/Knos/tree/main/conformance):
+
+- `knos.v2.canonicalTerms(terms)`: the canonical bytes of terms, every field checked, lists in order with nothing twice.
+- `knos.v2.autoAudience(order, headSha, termsHex, pr, payeeId, address)`: the audience that pays an AUTO order without a merge.
+- `knos.meter.batchRoot(keys, corrections)`: a batch's root from keys in any order, followed by its corrections.
+- `knos.meter.checkProof(key, index, size, path, root, correction)`: whether a key is that leaf of a batch with this root.
+- `knos.gateAudience(program, executable)`: the audience under which a program's build is recorded for an upgrade.
+- `knos.Refused`: the error thrown for input a format does not allow.
 
 Types for every export are in `index.d.ts`, `agent.d.ts` and `passkey.d.ts`; a test fails when an export has no declaration.

@@ -61,19 +61,23 @@ export function quote(amount, c, bps = c.feeBps) {
 }
 
 // The price book, row by row, in the words of docs/MARKET.md ("The price book"): [line, unit, price]. The Meter and
-// Settle prices are written from the programs' constants; Control and the Pilot are contract prices nothing on chain
-// enforces, so they are words here and nowhere else in the site.
+// Settle prices are written from the programs' constants; Verify, Control, a Supplier connection and the Pilot are
+// contract prices nothing on chain enforces, so they are words here and nowhere else in the site.
 const whole = (units) => (units / 1e6).toLocaleString("en-US");
 export function priceBook(c) {
   return [
-    ["Check", "pull request checked", "free"],
+    ["Check", "pull request checked", "free, forever"],
     ["Meter", "evaluation", `${c.meterFree.toLocaleString("en-US")} a month free per organisation, then ${plain(c.meterFee)} USD; ${plain(c.meterPlanMin)} on a committed-volume plan`],
-    ["Control", "organisation", "25,000 USD a year entry, 80,000 organisation tier (nobody has bought it)"],
-    ["Settle", "dollar settled, paid by the funder on top", `${percent(c.feeBps)} of the first ${whole(c.tier1)}, ${percent(c.feeBps2)} from ${whole(c.tier1)} to ${whole(c.tier2)}, ${percent(c.feeBps3)} above; minimum ${plain(c.feeMin)}`],
-    ["Pilot", "one buyer and its suppliers, 30 days", "2,500 USD, invoiced off chain: reconcile the buyer's accepted work from more than one supplier, name every mismatch between acceptance and billing, deliver a statement both sides verify (nobody has bought it; there is no legal entity to invoice from yet)"],
-    ["Advance, Assurance", "", "not offered; needs loss history"],
+    ["Verify", "dollar of outcome billing the count verifies", "0.5% to 1.0%, the greater of this and the Meter fee, capped per deliverable (proposed; nobody has bought it)"],
+    ["Control", "organisation, per year", "Team 25,000 USD; Business 80,000; Enterprise from 250,000 (Enterprise is not deliverable yet: it needs single sign-on, private deployment and support that do not exist)"],
+    ["Supplier connection", "supplier connected to a buyer, per year", "5,000 USD each beyond the first five; the buyer pays; a supplier never pays to be counted"],
+    ["Pilot", "one buyer and its suppliers, 30 days", "2,500 USD, credited against the first year of Control (nobody has bought it; no legal entity to invoice from yet)"],
+    ["Settle", "dollar settled, paid by the funder on top", `${percent(c.feeBps)} of the first ${whole(c.tier1)}, ${percent(c.feeBps2)} from ${whole(c.tier1)} to ${whole(c.tier2)}, ${percent(c.feeBps3)} above; minimum ${plain(c.feeMin)}. On devnet this is test money: zero revenue`],
+    ["Index data, Advance, Assurance", "", "not offered"],
   ];
 }
+// The rule the book is published with (docs/MARKET.md, section 3).
+export const RULE = "Knos never charges the party being rated.";
 
 // The effective settle fee at the standard rate, shown before funding: what an order of each size pays, and that as
 // a share of the order. A small order pays the minimum, which is a far larger share than the first tier's rate.

@@ -1,6 +1,6 @@
 // The Pricing view: the price book (index.html holds the words; the numbers in it come from price.js) and two
 // calculators. Nothing here is sent anywhere.
-import { priceConstants, priceBook, effectiveFees, quote, feeParts, orderFee, meterCost, unitsOf, bpsOf, show, plain, percent } from "./price.js";
+import { priceConstants, priceBook, RULE, effectiveFees, quote, feeParts, orderFee, meterCost, unitsOf, bpsOf, show, plain, percent } from "./price.js";
 import { programVersion } from "./version.js";
 
 const count = (n) => n.toLocaleString("en-US");
@@ -28,10 +28,12 @@ function drawEffective($, esc, c) {
 
 export function initPricing(ctx) {
   const { $, esc, knos, RPC, ids } = ctx, c = priceConstants();
-  // the price book: its six rows are written here from price.js, in the book's own words (docs/MARKET.md, "The price book")
+  // the price book: its eight rows are written here from price.js, in the book's own words (docs/MARKET.md, "The price book"),
+  // and the rule it is published with, where the page has a place for it (id "price-rule")
   const set = (id, words) => { const el = $(id); if (el) el.textContent = words; };
   const book = $("price-book")?.querySelector("tbody");
   if (book) book.innerHTML = priceBook(c).map(([line, unit, price]) => `<tr><th scope="row">${esc(line)}</th><td>${esc(unit)}</td><td>${esc(price)}</td></tr>`).join("");
+  set("price-rule", RULE);
   set("price-bounds", `${plain(c.minAmount)} to ${count(c.maxAmount / 1e6)}`);
   drawEffective($, esc, c);
   // three amounts worked through the tiers, one in each: "2.5% of 1,000 + 1% of 4,000 = 25 + 40"

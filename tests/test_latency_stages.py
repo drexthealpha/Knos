@@ -87,3 +87,59 @@ def test_the_command_prints_the_table_and_the_completion_line(tmp_path):
     assert ls.main(["--offline"], said.append) == 1 and ls.main(["--log", str(log), "--offline"], said.append) == 1 and "give --events FILE" in said[-1]
     said.clear()
     assert ls.main(["--log", str(log), "--events", str(events), "--offline", "--json"], said.append) == 0 and json.loads(said[0])["attempts"]["asked"] == 10
+
+
+def test_the_five_states_cover_every_payment_whose_line_has_its_times_and_the_others_are_listed_apart(tmp_path):
+    """0.3.15's run: 3 of 39 lines had stage fields, and the table spoke for 3 payments without saying so. Now every
+    ok line carries four times; the five-state table says its n, and a payment it cannot place is named under it."""
+    doc, get, when = sample()
+    old = ls.report(doc["comments"], doc["events"], get, when)
+    assert all(s["n"] == 0 for s in old["states"].values())                 # the recorded lines are 0.3.15's: no times on them
+    assert len(old["without_times"]) == old["whole"]["n"] == 9 and {x["why"] for x in old["without_times"]} == {"its line has no stage times (written before 0.3.16)"}
+    # the same log as 0.3.16 writes it: six lines with their four times, one whose relay sent nothing, two as they were
+    lines = ns.relay_lines(doc["comments"])
+    tokens = [s["token"] for s in ns.measure("merge_to_paid", lines, doc["events"], get)["samples"]]
+    assert len(tokens) == 9
+    done = {s["token"]: s for s in ns.measure("merge_to_paid", lines, doc["events"], get)["samples"]}
+    parts = ls.parts_of(doc["comments"])
+
+    def with_times(body: str) -> str:
+        out = []
+        for line in body.splitlines():
+            m = ns._RELAY.match(line.strip())
+            i = tokens.index(m.group(4)) if m and m.group(4) in tokens else -1
+            if 0 <= i < 7:
+                t, p = float(done[m.group(4)]["at"]), parts[m.group(4)]         # confirmed at the paying block; the relay took `chain` seconds, 2 of them to confirm
+                at = (t - p["chain"] - p["relay_wait"], t - p["chain"], t - 2, t)
+                said = " ".join(f"{k}={'-' if i == 6 and k in ('sent_at', 'confirmed_at') else format(v, '.1f')}" for k, v in zip(ls.TIMES, at))
+                line = line.replace(" note=", f" {said} note=", 1)
+            out.append(line)
+        return "\n".join(out)
+    now = [{**c, "body": with_times(c["body"])} for c in doc["comments"]]
+    paying = done[tokens[0]]["sigs"][-1]
+    now.append({"created_at": "2026-10-04T00:00:00Z", "user": {"login": "github-actions[bot]"},      # a settle comment, as `knos settle` leaves it on the pull request
+                "body": f"Knos: paid.\n\n<!-- knos-status -->\n<sub>…</sub>\n<!-- knos-states since=100.0 received=104.0 accepted=105.0 submitted=106.0 confirmed=110.0 finalized=123.4 tx={paying}\n-->"})
+    r = ls.report(now, doc["events"], get, when)
+    assert r["whole"] == old["whole"] and r["stages"] == old["stages"]      # the old table is as it was
+    assert [r["states"][k]["n"] for k in ls.STATES] == [6, 6, 6, 6, 1] and r["states"]["finalized"] == {"n": 1, "p50": 13, "p95": 13, "max": 13}
+    assert r["states"]["confirmed"] == {"n": 6, "p50": 2, "p95": 2, "max": 2}
+    # the states of one payment add up to its wait (finalized comes after it was paid, and is not part of the wait)
+    for token in tokens[:6]:
+        f = ls.states(done[token], parts[token], ls.times_of(now)[token])
+        assert f["received"] + f["accepted"] + f["submitted"] + f["confirmed"] == done[token]["seconds"], (token, f)
+        assert f["submitted"] == parts[token]["relay_wait"] + parts[token]["chain"] - 2 and f["accepted"] == parts[token]["workflow"]
+    # nothing is dropped: the three the table cannot place are named, each with why
+    assert [(x["token"], x["why"]) for x in r["without_times"]] == [
+        (tokens[6], "its relay sent nothing itself: another relayer carried it first"),
+        (tokens[7], "its line has no stage times (written before 0.3.16)"), (tokens[8], "its line has no stage times (written before 0.3.16)")]
+    assert len(r["without_times"]) + r["states"]["submitted"]["n"] == r["whole"]["n"]
+    text = "\n".join(ls.render(r))
+    assert "the five states, 6 of 9 payments (the ones whose log line carries queued_at, seen_at, sent_at and confirmed_at):" in text
+    assert "confirmed         6      2      2      2   (the cluster confirming)" in text and "finalized         1     13     13     13" in text
+    assert "not in that table, 3 payments:" in text and all(f"token {t} " in text for t in tokens[6:])
+    # the line the relay writes is the line this script reads
+    from knos.proof import ghrelay
+    assert ls.TIMES == ghrelay.TIMES
+    line = ghrelay.log_line("proof", "o/r", 9, "a.b.c", {"ok": True, "sigs": ["s"], "note": "paid sent_at=1 to W"}, 12, {"wait": 3, "chain": 9},
+                            {"queued_at": 100.0, "seen_at": 103.0, "sent_at": 104.25, "confirmed_at": None})
+    assert ls.times_of([{"body": line}]) == {ghrelay.token_id("a.b.c"): {"queued_at": 100.0, "seen_at": 103.0, "sent_at": 104.2, "confirmed_at": None}}

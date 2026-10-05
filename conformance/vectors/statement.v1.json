@@ -1,0 +1,112 @@
+{
+ "format": "statement",
+ "version": 1,
+ "about": "The meter's monthly statement and the hash both parties compare (src/knos/ledger.py `statement`; docs/CONFORMANCE.md, Statement). statement.hash: sha256 of the statement's bytes up to and without the first line that starts `sha256,`; `stated` is what that line says. statement.text: the statement of one month of a ledger file.",
+ "cases": [
+  {
+   "id": "statement/1",
+   "op": "statement.text",
+   "name": "a month of two batches, open (no close record)",
+   "input": {
+    "ledger": "{\"batch\":{\"accepted\":2,\"buyer\":424242,\"count\":3,\"month\":202610,\"root\":\"d5c7047f1fe5dce9b660359430682018489b29c2d38b95fabdd63053fab580c5\",\"seller\":555000,\"seq\":0,\"value\":4000000}}\n{\"accepted\":0,\"artifact\":\"78b3ba12002f9cab5cbb57fac87d8c703702a196\",\"buyer\":424242,\"deliverable\":\"1e50eb6eab5157dbc171e32b8b2e18769b81b3912e4525c72cda8a5e4e099d6e\",\"id\":\"0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f\",\"milestone\":0,\"order\":\"955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386\",\"policy\":\"90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee\",\"rate\":2000000,\"seller\":555000}\n{\"accepted\":1,\"artifact\":\"0f98b1f7eda33a4e9cfaab09506aa8094044085f\",\"buyer\":424242,\"deliverable\":\"1e50eb6eab5157dbc171e32b8b2e18769b81b3912e4525c72cda8a5e4e099d6e\",\"id\":\"53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0\",\"milestone\":0,\"order\":\"955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386\",\"policy\":\"90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee\",\"rate\":2000000,\"seller\":555000}\n{\"accepted\":1,\"artifact\":\"512572f7a6f150f3e8d2734f94ee4b49ae4f67ee\",\"buyer\":424242,\"deliverable\":\"1e50eb6eab5157dbc171e32b8b2e18769b81b3912e4525c72cda8a5e4e099d6e\",\"id\":\"d47204409b84bc54fceaf48fca6e33acde836322be93d3fa4c196826be5da474\",\"milestone\":0,\"order\":\"955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386\",\"policy\":\"90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee\",\"rate\":2000000,\"seller\":555000}\n{\"batch\":{\"accepted\":2,\"buyer\":424242,\"count\":2,\"month\":202610,\"root\":\"eed4640547f15b94820a275a268ab8a3af6b37b293bd6649cb9ec4e52a07d88f\",\"seller\":555000,\"seq\":1,\"value\":3500000}}\n{\"accepted\":1,\"artifact\":\"1bcfb39c7785c36d680bf0f930b4884f9ee8629a\",\"buyer\":424242,\"deliverable\":\"ac0f65b1b9b0b8571db470a0c2f5c21347aa113675df44038010f91072268ba2\",\"id\":\"67b35128540f4302c36efcaec3a91c9a38240411b5c7a153b019fe82c1c9d562\",\"milestone\":1,\"order\":\"e9ef6e25dd598a0f32ccbbc754408b976375055187b0f509d48150407b782b10\",\"policy\":\"90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee\",\"rate\":1500000,\"seller\":555000}\n{\"accepted\":1,\"artifact\":\"3633d884b9fa73308fd30ad256312f4a802f86e9\",\"buyer\":424242,\"deliverable\":\"1e50eb6eab5157dbc171e32b8b2e18769b81b3912e4525c72cda8a5e4e099d6e\",\"id\":\"a61cd4dc3cecbfc8afa24d4a81719f69b2edd4d6de2c62c795a5a2020977198d\",\"milestone\":0,\"order\":\"955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386\",\"policy\":\"90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee\",\"rate\":2000000,\"seller\":555000}\n",
+    "month": 202610
+   },
+   "expect": {
+    "output": "knos meter statement,1\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\nanchored,5,in 2 batch(es),running hash a35a16134a936fd486364667479cd6d16ffd0c654d82a5afc1470def4bed60ec\nanchored_and_not_counted,0\n"
+   }
+  },
+  {
+   "id": "statement/2",
+   "op": "statement.hash",
+   "name": "the statement as printed: the hash covers every line above the sha256 line and nothing below it",
+   "input": {
+    "statement": "knos meter statement,1\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\nanchored,5,in 2 batch(es),running hash a35a16134a936fd486364667479cd6d16ffd0c654d82a5afc1470def4bed60ec\nanchored_and_not_counted,0\n"
+   },
+   "expect": {
+    "output": {
+     "sha256": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "stated": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "agrees": true
+    }
+   }
+  },
+  {
+   "id": "statement/3",
+   "op": "statement.hash",
+   "name": "the lines below the sha256 line changed: the hash still agrees (they are one side's own record)",
+   "input": {
+    "statement": "knos meter statement,1\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\nanchored,6,in 2 batch(es),running hash a35a16134a936fd486364667479cd6d16ffd0c654d82a5afc1470def4bed60ec\nanchored_and_not_counted,0\n"
+   },
+   "expect": {
+    "output": {
+     "sha256": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "stated": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "agrees": true
+    }
+   }
+  },
+  {
+   "id": "statement/4",
+   "op": "statement.hash",
+   "name": "a number above the sha256 line changed: the hash does not agree",
+   "input": {
+    "statement": "knos meter statement,1\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,6\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\nanchored,5,in 2 batch(es),running hash a35a16134a936fd486364667479cd6d16ffd0c654d82a5afc1470def4bed60ec\nanchored_and_not_counted,0\n"
+   },
+   "expect": {
+    "output": {
+     "sha256": "5e23250d44533e36d0892a84bb36b4d7b0080c62c355a957f63f501daabd007a",
+     "stated": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "agrees": false
+    }
+   }
+  },
+  {
+   "id": "statement/5",
+   "op": "statement.hash",
+   "name": "only the lines both sides hold, nothing after the sha256 line",
+   "input": {
+    "statement": "knos meter statement,1\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\n"
+   },
+   "expect": {
+    "output": {
+     "sha256": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "stated": "e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd",
+     "agrees": true
+    }
+   }
+  },
+  {
+   "id": "statement/6",
+   "op": "statement.hash",
+   "name": "a line ending of another system changes the bytes, and so the hash",
+   "input": {
+    "statement": "knos meter statement,1\r\nbuyer,424242\r\nseller,555000\r\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\nanchored,5,in 2 batch(es),running hash a35a16134a936fd486364667479cd6d16ffd0c654d82a5afc1470def4bed60ec\nanchored_and_not_counted,0\n"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "statement/7",
+   "op": "statement.hash",
+   "name": "no sha256 line",
+   "input": {
+    "statement": "knos meter statement,1\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\n"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "statement/8",
+   "op": "statement.hash",
+   "name": "not a statement of version 1",
+   "input": {
+    "statement": "knos meter statement,2\nbuyer,424242\nseller,555000\nmonth,202610\nstate,open\nevaluations,5\naccepted_outcomes,2\nrejected_evaluations,1\naccepted_evaluations,4\nmeter_rate,50000\nmeter_free,10000\nmeter_fee,0\nvalue_of_accepted_evaluations,7500000\nvalue_of_accepted_outcomes,3500000\nsha256,e0b6a04a7564720e499ecd5a8ef8011b2441d52463316af32e160ec6373348bd\nanchored,5,in 2 batch(es),running hash a35a16134a936fd486364667479cd6d16ffd0c654d82a5afc1470def4bed60ec\nanchored_and_not_counted,0\n"
+   },
+   "expect": {
+    "refused": true
+   }
+  }
+ ]
+}

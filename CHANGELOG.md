@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.3.16 (October 2026)
+
+**The neutral meter for AI agent work: neither side keeps the count.**
+
+Everything is on Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested
+locally" in [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md); nothing new was deployed, exercised or reproduced.
+
+### For a visitor and a buyer
+
+- **A first screen you can drive.** The sentence, one measured figure, two buttons, and a recorded round in six
+  steps you move through with the keyboard. It replays what the repository records and says so.
+- **Check an invoice with no install.** Shadow mode reads an invoice that bills per merged change and says which
+  billed changes had a failed check when they were merged. It only reads GitHub. It has run on recordings, never
+  against live GitHub. [`docs/SHADOW.md`](docs/SHADOW.md).
+- **A playground.** Anyone funds a test order with one comment, inside limits on the amount and the day. It is not
+  live until its repository is published. [`docs/PLAYGROUND.md`](docs/PLAYGROUND.md).
+- **A console with the four records.** Each deliverable shows its authorisation, acceptance, commercial record and
+  settlement status, and exports as a bill line for accounting products. The SAP and Coupa files are best effort and
+  unverified. [`docs/FINANCE.md`](docs/FINANCE.md).
+- **One payment, five named states:** received, accepted, submitted, confirmed, finalized, the same in the comment,
+  the relay log and the site.
+- **Fewer words.** Every page leads with what you can do there, every fold says what is inside it, and the README's
+  first screen is the sentence, one figure and three links.
+- **The price book** has eight lines, with Verify and Supplier connection new and both unsold, and one rule: Knos
+  never charges the party being rated. [`docs/MARKET.md`](docs/MARKET.md).
+
+### The verifier
+
+- **`knos_oidc 2.2` reads every value of a token as strict JSON.** Before it, a payload the issuer signed that is
+  not JSON in a value the verifier does not read could verify. The strict reader is a file of its own that only the
+  verifier's own instructions call, so it is the one program this release changes: `knos_pay`, `knos_meter` and
+  `knos_passkey` are unchanged byte for byte. The recorded differential run: 8,855 cases, 0 disagreements, each of
+  the 13 formerly accepted shapes refused ([`docs/fuzz.json`](docs/fuzz.json)). 2.2 is not deployed: it will be
+  proposed through the multisig after the pending upgrade executes, and the live state is in
+  [`web/upgrades.json`](web/upgrades.json).
+- [`docs/UNWRAPS.md`](docs/UNWRAPS.md) lists every place a program could panic, each with whether it can be reached.
+- **Ten issuers documented.** [`docs/VERIFIER.md`](docs/VERIFIER.md) says what the verifier takes from each, and a
+  token of each one's shape verifies in the tests. Only GitHub and GitLab have signed a token Knos verified.
+- **A conformance kit** with vectors, for a team that implements Knos's formats itself
+  ([`docs/CONFORMANCE.md`](docs/CONFORMANCE.md)), and **terms cited by hash** from a registry whose files are never
+  rewritten: `knos terms cite` writes the sentence a contract quotes and `knos terms verify` checks a hash or a
+  terms file against the registry ([`docs/TERMS.md`](docs/TERMS.md)).
+
+### Operations and assurance
+
+- **A quorum of three readers**, the third a repository neither side owns, and **outcome orders** from a template:
+  a labelled dataset is funded by one comment and only the honest file is paid.
+- **Relay lines carry stage times**, and a settlement is one comment edited through the five states.
+- **The audit file, version 2:** bounties, what is still owed, the buyer's own references. Version 1 still verifies.
+- **Provenance.** [`docs/PROVENANCE.md`](docs/PROVENANCE.md) follows each program from source commit to build hash
+  to the hash on chain to its upgrade proposal. A link the repository does not record is printed as MISSING.
+- **The model checker's record, as it is.** One run is in `docs/kani.json`: four of five harnesses verified, fee
+  conservation among them. The fee-bounds harness timed out and is not proved.
+- **Honest work is measured too.** The black-box judge accepted 39 of 48 honest submissions. All 9 refusals are a
+  correct fix that also adds a test in the protected test directory: a known false rejection, with its workaround in
+  [`docs/ASSURANCE.md`](docs/ASSURANCE.md).
+- **The weekly index** is a bounded sample that always publishes and resumes from its checkpoint.
+- **A release publishes a crate at its own version,** and only a version the registry lacks.
+- **Numbers about outside use** are one generated table, zeros included:
+  [`docs/submission/NUMBERS.md`](docs/submission/NUMBERS.md).
+
+### What is still not true
+
+- Nobody outside Knos has funded an order with their own tokens.
+- No buyer has been interviewed, and nobody has run a pilot.
+- Every key of the multisig is the founder's: there is no outside signer.
+- There is no legal entity to invoice from.
+- The honest numbers are in [`docs/submission/NUMBERS.md`](docs/submission/NUMBERS.md).
+
 ## 0.3.15 (October 2026)
 
 **Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a

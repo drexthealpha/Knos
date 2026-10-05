@@ -1,0 +1,361 @@
+{
+ "about": "Written by tests/test_shadow.py from src/knos/shadow.py. A made-up repository: nobody's invoice.",
+ "book": {
+  "repos/acme/app/pulls/1": {
+   "number": 1,
+   "body": "Adds the parser.\n\nAll tests pass.\n\nFixes #10",
+   "merged_at": "2026-09-02T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003e9",
+   "head": {
+    "sha": "0000000000000000000000000000000000000001"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": {
+   "total_count": 3,
+   "check_runs": [
+    {
+     "name": "test",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/1/job/1"
+    },
+    {
+     "name": "Copilot",
+     "status": "completed",
+     "conclusion": "failure",
+     "html_url": "https://github.com/acme/app/actions/runs/2/job/2"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "skipped",
+     "html_url": "https://github.com/acme/app/actions/runs/3/job/3"
+    }
+   ]
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": {
+   "state": "x",
+   "total_count": 1,
+   "statuses": [
+    {
+     "context": "ci/build",
+     "state": "success",
+     "target_url": "https://ci.example/1"
+    }
+   ]
+  },
+  "repos/acme/app/pulls/2": {
+   "number": 2,
+   "body": "CI is green.\n\nCloses #11",
+   "merged_at": "2026-09-03T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003ea",
+   "head": {
+    "sha": "0000000000000000000000000000000000000002"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": {
+   "total_count": 4,
+   "check_runs": [
+    {
+     "name": "test",
+     "status": "completed",
+     "conclusion": "failure",
+     "html_url": "https://github.com/acme/app/actions/runs/21/job/21"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/22/job/22"
+    },
+    {
+     "name": "deploy",
+     "status": "completed",
+     "conclusion": "cancelled",
+     "html_url": "https://github.com/acme/app/actions/runs/23/job/23"
+    },
+    {
+     "name": "e2e",
+     "status": "completed",
+     "conclusion": "timed_out",
+     "html_url": "https://github.com/acme/app/actions/runs/24/job/24"
+    }
+   ]
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": {
+   "state": "x",
+   "total_count": 0,
+   "statuses": []
+  },
+  "repos/acme/app/pulls/3": {
+   "number": 3,
+   "body": "Draft.",
+   "merged_at": null,
+   "merge_commit_sha": null,
+   "head": {
+    "sha": "0000000000000000000000000000000000000003"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/pulls/5": {
+   "number": 5,
+   "body": "Second try. `Fixes #99` in code is not a link.\n\nresolves: acme/app#10",
+   "merged_at": "2026-09-06T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003ed",
+   "head": {
+    "sha": "0000000000000000000000000000000000000005"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000005/check-runs?per_page=100&page=1": {
+   "total_count": 1,
+   "check_runs": [
+    {
+     "name": "test",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/51/job/51"
+    }
+   ]
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000005/status?per_page=100&page=1": {
+   "state": "x",
+   "total_count": 0,
+   "statuses": []
+  },
+  "repos/acme/app/pulls/5/commits?per_page=100&page=1": [
+   {
+    "sha": "00000000000000000000000000000000000001f4",
+    "commit": {
+     "message": "second try"
+    }
+   }
+  ],
+  "repos/acme/private/pulls/7": {
+   "__unread": "not found or private"
+  },
+  "repos/acme/app/pulls/8": {
+   "__unread": "rate limit"
+  },
+  "repos/acme/app/pulls/9": {
+   "number": 9,
+   "body": "Refactor.\n\n- [ ] tests pass",
+   "merged_at": "2026-09-01T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003f1",
+   "head": {
+    "sha": "0000000000000000000000000000000000000009"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000009/check-runs?per_page=100&page=1": {
+   "total_count": 0,
+   "check_runs": []
+  },
+  "repos/acme/app/commits/0000000000000000000000000000000000000009/status?per_page=100&page=1": {
+   "state": "x",
+   "total_count": 0,
+   "statuses": []
+  },
+  "repos/acme/app/pulls/9/commits?per_page=100&page=1": [
+   {
+    "sha": "00000000000000000000000000000000000001f4",
+    "commit": {
+     "message": "wip"
+    }
+   },
+   {
+    "sha": "00000000000000000000000000000000000001f5",
+    "commit": {
+     "message": "fix: all tests pass now"
+    }
+   }
+  ],
+  "repos/acme/app/pulls/12": {
+   "number": 12,
+   "body": "Ready. Fixes #10",
+   "merged_at": "2026-09-04T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003f4",
+   "head": {
+    "sha": "000000000000000000000000000000000000000c"
+   },
+   "base": {
+    "ref": "release",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/000000000000000000000000000000000000000c/check-runs?per_page=100&page=1": {
+   "total_count": 3,
+   "check_runs": [
+    {
+     "name": "🚀 Publish",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/121/job/121"
+    },
+    {
+     "name": "=SUM(A1)",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/122/job/122"
+    },
+    {
+     "name": "Ａ wide",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/123/job/123"
+    }
+   ]
+  },
+  "repos/acme/app/commits/000000000000000000000000000000000000000c/status?per_page=100&page=1": {
+   "state": "x",
+   "total_count": 2,
+   "statuses": [
+    {
+     "context": "=ci/gate",
+     "state": "error",
+     "target_url": "javascript:alert(1)"
+    },
+    {
+     "context": "security",
+     "state": "pending",
+     "target_url": null
+    }
+   ]
+  },
+  "repos/acme/app/pulls/12/commits?per_page=100&page=1": [
+   {
+    "sha": "00000000000000000000000000000000000001f4",
+    "commit": {
+     "message": "ready"
+    }
+   }
+  ],
+  "repos/acme/app/pulls/13": {
+   "number": 13,
+   "body": "Tests pass.",
+   "merged_at": "2026-09-05T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003f5",
+   "head": {
+    "sha": "000000000000000000000000000000000000000d"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/000000000000000000000000000000000000000d/check-runs?per_page=100&page=1": {
+   "total_count": 1,
+   "check_runs": [
+    {
+     "name": "test",
+     "status": "in_progress",
+     "conclusion": null,
+     "html_url": "https://github.com/acme/app/actions/runs/131/job/131"
+    }
+   ]
+  },
+  "repos/acme/app/commits/000000000000000000000000000000000000000d/status?per_page=100&page=1": {
+   "state": "x",
+   "total_count": 0,
+   "statuses": []
+  },
+  "repos/acme/app/pulls/14": {
+   "number": 14,
+   "body": "Tests pass.",
+   "merged_at": "2026-09-06T10:00:00Z",
+   "merge_commit_sha": "00000000000000000000000000000000000003f6",
+   "head": {
+    "sha": "000000000000000000000000000000000000000e"
+   },
+   "base": {
+    "ref": "main",
+    "repo": {
+     "full_name": "acme/app",
+     "default_branch": "main"
+    }
+   }
+  },
+  "repos/acme/app/commits/000000000000000000000000000000000000000e/check-runs?per_page=100&page=1": {
+   "total_count": 1,
+   "check_runs": [
+    {
+     "name": "test",
+     "status": "completed",
+     "conclusion": "success",
+     "html_url": "https://github.com/acme/app/actions/runs/141/job/141"
+    }
+   ]
+  },
+  "repos/acme/app/commits/000000000000000000000000000000000000000e/status?per_page=100&page=1": {
+   "__unread": "no answer"
+  }
+ },
+ "cases": [
+  {
+   "name": "semicolons, a byte order mark, aliases, every class",
+   "invoice": "﻿Pull Request;Price;Vendor\r\nhttps://github.com/acme/app/pull/1;100.00;Acme Agents\r\nacme/app#2;250,00;Acme Agents\r\nacme/app#3;80;Acme Agents\r\nACME/App#1;100.00;Acme Agents\r\n\r\nacme/app#5;\"60.00\";Acme Agents\r\nacme/private#7;40.00;Acme Agents\r\nacme/app#8;30.00;Acme Agents\r\nacme/app#9;$ 20.00;Acme Agents\r\nthe March retainer;5.00;Acme Agents\r\nacme/app#12;1.015,50;Acme Agents\r\n# a note to the reader; not a line\r\nacme/app#13;10.00;Acme Agents\r\nacme/app#14;10.00;Acme Agents\r\n",
+   "json": "{\"amounts\":{\"billed\":\"1720.50\",\"clean\":\"100.00\",\"duplicate\":\"160.00\",\"failed\":\"1265.50\",\"not_merged\":\"80.00\",\"unreadable\":\"85.00\",\"unverified\":\"30.00\"},\"basis\":\"amount\",\"complete\":false,\"counts\":{\"clean\":1,\"duplicate\":2,\"failed\":2,\"not_merged\":1,\"unreadable\":4,\"unverified\":2},\"disputed\":{\"amount\":\"1505.50\",\"lines\":5,\"share\":\"87.50%\",\"share_bp\":8750},\"kind\":\"knos-shadow-statement\",\"lines\":[{\"agent_runs\":1,\"amount\":\"100.00\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"status\",\"name\":\"ci/build\",\"state\":\"passed\",\"url\":\"https://ci.example/1\"},{\"conclusion\":\"skipped\",\"kind\":\"run\",\"name\":\"docs\",\"state\":\"skipped\",\"url\":\"https://github.com/acme/app/actions/runs/3/job/3\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/1/job/1\"}],\"claimed\":\"description\",\"class\":\"clean\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000001\",\"issues\":[\"acme/app#10\"],\"line\":1,\"merge_commit\":\"00000000000000000000000000000000000003e9\",\"merged\":true,\"merged_at\":\"2026-09-02T10:00:00Z\",\"pr\":\"acme/app#1\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/1\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"250.00\",\"checks\":[{\"conclusion\":\"cancelled\",\"kind\":\"run\",\"name\":\"deploy\",\"state\":\"other\",\"url\":\"https://github.com/acme/app/actions/runs/23/job/23\"},{\"conclusion\":\"timed_out\",\"kind\":\"run\",\"name\":\"e2e\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"lint\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/22/job/22\"},{\"conclusion\":\"failure\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"claimed\":\"description\",\"class\":\"failed\",\"duplicate_of\":null,\"failed\":[{\"name\":\"e2e\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"name\":\"test\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"head\":\"0000000000000000000000000000000000000002\",\"issues\":[\"acme/app#11\"],\"line\":2,\"merge_commit\":\"00000000000000000000000000000000000003ea\",\"merged\":true,\"merged_at\":\"2026-09-03T10:00:00Z\",\"pr\":\"acme/app#2\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/2\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"80.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"not_merged\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000003\",\"issues\":[],\"line\":3,\"merge_commit\":\"\",\"merged\":false,\"merged_at\":\"\",\"pr\":\"acme/app#3\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/3\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"100.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"duplicate\",\"duplicate_of\":1,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":4,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"ACME/App#1\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/ACME/App/pull/1\",\"why\":\"same pull request as line 1\"},{\"agent_runs\":0,\"amount\":\"60.00\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/51/job/51\"}],\"claimed\":\"\",\"class\":\"duplicate\",\"duplicate_of\":1,\"failed\":[],\"head\":\"0000000000000000000000000000000000000005\",\"issues\":[\"acme/app#10\"],\"line\":5,\"merge_commit\":\"00000000000000000000000000000000000003ed\",\"merged\":true,\"merged_at\":\"2026-09-06T10:00:00Z\",\"pr\":\"acme/app#5\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/5\",\"why\":\"closes acme/app#10, as line 1 does\"},{\"agent_runs\":0,\"amount\":\"40.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":6,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/private#7\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/private/pull/7\",\"why\":\"not found or private\"},{\"agent_runs\":0,\"amount\":\"30.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":7,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/app#8\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/8\",\"why\":\"rate limit\"},{\"agent_runs\":0,\"amount\":\"20.00\",\"checks\":[],\"claimed\":\"commit\",\"class\":\"unverified\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000009\",\"issues\":[],\"line\":8,\"merge_commit\":\"00000000000000000000000000000000000003f1\",\"merged\":true,\"merged_at\":\"2026-09-01T10:00:00Z\",\"pr\":\"acme/app#9\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/9\",\"why\":\"no check ran\"},{\"agent_runs\":0,\"amount\":\"5.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":9,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"the March retainer\",\"supplier\":\"Acme Agents\",\"url\":\"\",\"why\":\"no pull request named\"},{\"agent_runs\":0,\"amount\":\"1015.50\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"=SUM(A1)\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/122/job/122\"},{\"conclusion\":\"error\",\"kind\":\"status\",\"name\":\"=ci/gate\",\"state\":\"failed\",\"url\":\"javascript:alert(1)\"},{\"conclusion\":\"pending\",\"kind\":\"status\",\"name\":\"security\",\"state\":\"pending\",\"url\":\"\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"🚀 Publish\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/121/job/121\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"Ａ wide\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/123/job/123\"}],\"claimed\":\"\",\"class\":\"failed\",\"duplicate_of\":null,\"failed\":[{\"name\":\"=ci/gate\",\"url\":\"javascript:alert(1)\"}],\"head\":\"000000000000000000000000000000000000000c\",\"issues\":[],\"line\":10,\"merge_commit\":\"00000000000000000000000000000000000003f4\",\"merged\":true,\"merged_at\":\"2026-09-04T10:00:00Z\",\"pr\":\"acme/app#12\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/12\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"10.00\",\"checks\":[{\"conclusion\":\"in_progress\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"pending\",\"url\":\"https://github.com/acme/app/actions/runs/131/job/131\"}],\"claimed\":\"description\",\"class\":\"unverified\",\"duplicate_of\":null,\"failed\":[],\"head\":\"000000000000000000000000000000000000000d\",\"issues\":[],\"line\":11,\"merge_commit\":\"00000000000000000000000000000000000003f5\",\"merged\":true,\"merged_at\":\"2026-09-05T10:00:00Z\",\"pr\":\"acme/app#13\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/13\",\"why\":\"a check has not finished\"},{\"agent_runs\":0,\"amount\":\"10.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":12,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/app#14\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/14\",\"why\":\"no answer\"}],\"lines_billed\":12,\"note\":\"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money.\",\"supplier\":\"Acme Agents\",\"version\":1}\n",
+   "csv": "line,pull_request,url,supplier,amount,class,why,merged_at,merge_commit,last_commit,claimed_passing,failed_checks,failed_check_links,duplicate_of\n1,acme/app#1,https://github.com/acme/app/pull/1,Acme Agents,100.00,clean,,2026-09-02T10:00:00Z,00000000000000000000000000000000000003e9,0000000000000000000000000000000000000001,description,,,\n2,acme/app#2,https://github.com/acme/app/pull/2,Acme Agents,250.00,failed,,2026-09-03T10:00:00Z,00000000000000000000000000000000000003ea,0000000000000000000000000000000000000002,description,e2e | test,https://github.com/acme/app/actions/runs/24/job/24 | https://github.com/acme/app/actions/runs/21/job/21,\n3,acme/app#3,https://github.com/acme/app/pull/3,Acme Agents,80.00,not_merged,,,,0000000000000000000000000000000000000003,,,,\n4,ACME/App#1,https://github.com/ACME/App/pull/1,Acme Agents,100.00,duplicate,same pull request as line 1,,,,,,,1\n5,acme/app#5,https://github.com/acme/app/pull/5,Acme Agents,60.00,duplicate,\"closes acme/app#10, as line 1 does\",2026-09-06T10:00:00Z,00000000000000000000000000000000000003ed,0000000000000000000000000000000000000005,,,,1\n6,acme/private#7,https://github.com/acme/private/pull/7,Acme Agents,40.00,unreadable,not found or private,,,,,,,\n7,acme/app#8,https://github.com/acme/app/pull/8,Acme Agents,30.00,unreadable,rate limit,,,,,,,\n8,acme/app#9,https://github.com/acme/app/pull/9,Acme Agents,20.00,unverified,no check ran,2026-09-01T10:00:00Z,00000000000000000000000000000000000003f1,0000000000000000000000000000000000000009,commit,,,\n9,the March retainer,,Acme Agents,5.00,unreadable,no pull request named,,,,,,,\n10,acme/app#12,https://github.com/acme/app/pull/12,Acme Agents,1015.50,failed,,2026-09-04T10:00:00Z,00000000000000000000000000000000000003f4,000000000000000000000000000000000000000c,,'=ci/gate,javascript:alert(1),\n11,acme/app#13,https://github.com/acme/app/pull/13,Acme Agents,10.00,unverified,a check has not finished,2026-09-05T10:00:00Z,00000000000000000000000000000000000003f5,000000000000000000000000000000000000000d,description,,,\n12,acme/app#14,https://github.com/acme/app/pull/14,Acme Agents,10.00,unreadable,no answer,,,,,,,\n",
+   "sha256": "ec33f23a1bdbc6fae2f4d48517b5cc30826a69b5d2662a36ecca038e76c1789b"
+  },
+  {
+   "name": "no header, commas, a quoted cell",
+   "invoice": "acme/app#1,12.5\nacme/app#2,\"1,200.00\",\"Smith, Jones\"\nacme/app#404,7\n",
+   "json": "{\"amounts\":{\"billed\":\"1219.50\",\"clean\":\"12.50\",\"duplicate\":\"0.00\",\"failed\":\"1200.00\",\"not_merged\":\"0.00\",\"unreadable\":\"7.00\",\"unverified\":\"0.00\"},\"basis\":\"amount\",\"complete\":false,\"counts\":{\"clean\":1,\"duplicate\":0,\"failed\":1,\"not_merged\":0,\"unreadable\":1,\"unverified\":0},\"disputed\":{\"amount\":\"1200.00\",\"lines\":1,\"share\":\"98.40%\",\"share_bp\":9840},\"kind\":\"knos-shadow-statement\",\"lines\":[{\"agent_runs\":1,\"amount\":\"12.50\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"status\",\"name\":\"ci/build\",\"state\":\"passed\",\"url\":\"https://ci.example/1\"},{\"conclusion\":\"skipped\",\"kind\":\"run\",\"name\":\"docs\",\"state\":\"skipped\",\"url\":\"https://github.com/acme/app/actions/runs/3/job/3\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/1/job/1\"}],\"claimed\":\"description\",\"class\":\"clean\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000001\",\"issues\":[\"acme/app#10\"],\"line\":1,\"merge_commit\":\"00000000000000000000000000000000000003e9\",\"merged\":true,\"merged_at\":\"2026-09-02T10:00:00Z\",\"pr\":\"acme/app#1\",\"supplier\":\"\",\"url\":\"https://github.com/acme/app/pull/1\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"1200.00\",\"checks\":[{\"conclusion\":\"cancelled\",\"kind\":\"run\",\"name\":\"deploy\",\"state\":\"other\",\"url\":\"https://github.com/acme/app/actions/runs/23/job/23\"},{\"conclusion\":\"timed_out\",\"kind\":\"run\",\"name\":\"e2e\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"lint\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/22/job/22\"},{\"conclusion\":\"failure\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"claimed\":\"description\",\"class\":\"failed\",\"duplicate_of\":null,\"failed\":[{\"name\":\"e2e\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"name\":\"test\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"head\":\"0000000000000000000000000000000000000002\",\"issues\":[\"acme/app#11\"],\"line\":2,\"merge_commit\":\"00000000000000000000000000000000000003ea\",\"merged\":true,\"merged_at\":\"2026-09-03T10:00:00Z\",\"pr\":\"acme/app#2\",\"supplier\":\"Smith, Jones\",\"url\":\"https://github.com/acme/app/pull/2\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"7.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":3,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/app#404\",\"supplier\":\"\",\"url\":\"https://github.com/acme/app/pull/404\",\"why\":\"not in the recording\"}],\"lines_billed\":3,\"note\":\"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money.\",\"supplier\":\"Smith, Jones\",\"version\":1}\n",
+   "csv": "line,pull_request,url,supplier,amount,class,why,merged_at,merge_commit,last_commit,claimed_passing,failed_checks,failed_check_links,duplicate_of\n1,acme/app#1,https://github.com/acme/app/pull/1,,12.50,clean,,2026-09-02T10:00:00Z,00000000000000000000000000000000000003e9,0000000000000000000000000000000000000001,description,,,\n2,acme/app#2,https://github.com/acme/app/pull/2,\"Smith, Jones\",1200.00,failed,,2026-09-03T10:00:00Z,00000000000000000000000000000000000003ea,0000000000000000000000000000000000000002,description,e2e | test,https://github.com/acme/app/actions/runs/24/job/24 | https://github.com/acme/app/actions/runs/21/job/21,\n3,acme/app#404,https://github.com/acme/app/pull/404,,7.00,unreadable,not in the recording,,,,,,,\n",
+   "sha256": "fab861723ba2b1bd94316ed3dea67443346d32d62bf49d960787ff5dbe47789b"
+  },
+  {
+   "name": "JSON, not every line priced: the share is by lines",
+   "invoice": "{\"lines\": [{\"change\": \"acme/app#1\", \"total\": 12.5, \"vendor\": \"Acme\"}, {\"URL\": \"https://github.com/acme/app/pull/2\"}, \"acme/app#3\", {\"pr\": \"acme/app#2\", \"amount\": 3}, {\"pr\": null}]}",
+   "json": "{\"amounts\":null,\"basis\":\"lines\",\"complete\":false,\"counts\":{\"clean\":1,\"duplicate\":1,\"failed\":1,\"not_merged\":1,\"unreadable\":1,\"unverified\":0},\"disputed\":{\"amount\":null,\"lines\":3,\"share\":\"60.00%\",\"share_bp\":6000},\"kind\":\"knos-shadow-statement\",\"lines\":[{\"agent_runs\":1,\"amount\":\"12.50\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"status\",\"name\":\"ci/build\",\"state\":\"passed\",\"url\":\"https://ci.example/1\"},{\"conclusion\":\"skipped\",\"kind\":\"run\",\"name\":\"docs\",\"state\":\"skipped\",\"url\":\"https://github.com/acme/app/actions/runs/3/job/3\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/1/job/1\"}],\"claimed\":\"description\",\"class\":\"clean\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000001\",\"issues\":[\"acme/app#10\"],\"line\":1,\"merge_commit\":\"00000000000000000000000000000000000003e9\",\"merged\":true,\"merged_at\":\"2026-09-02T10:00:00Z\",\"pr\":\"acme/app#1\",\"supplier\":\"Acme\",\"url\":\"https://github.com/acme/app/pull/1\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":null,\"checks\":[{\"conclusion\":\"cancelled\",\"kind\":\"run\",\"name\":\"deploy\",\"state\":\"other\",\"url\":\"https://github.com/acme/app/actions/runs/23/job/23\"},{\"conclusion\":\"timed_out\",\"kind\":\"run\",\"name\":\"e2e\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"lint\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/22/job/22\"},{\"conclusion\":\"failure\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"claimed\":\"description\",\"class\":\"failed\",\"duplicate_of\":null,\"failed\":[{\"name\":\"e2e\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"name\":\"test\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"head\":\"0000000000000000000000000000000000000002\",\"issues\":[\"acme/app#11\"],\"line\":2,\"merge_commit\":\"00000000000000000000000000000000000003ea\",\"merged\":true,\"merged_at\":\"2026-09-03T10:00:00Z\",\"pr\":\"acme/app#2\",\"supplier\":\"\",\"url\":\"https://github.com/acme/app/pull/2\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":null,\"checks\":[],\"claimed\":\"\",\"class\":\"not_merged\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000003\",\"issues\":[],\"line\":3,\"merge_commit\":\"\",\"merged\":false,\"merged_at\":\"\",\"pr\":\"acme/app#3\",\"supplier\":\"\",\"url\":\"https://github.com/acme/app/pull/3\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"3.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"duplicate\",\"duplicate_of\":2,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":4,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/app#2\",\"supplier\":\"\",\"url\":\"https://github.com/acme/app/pull/2\",\"why\":\"same pull request as line 2\"},{\"agent_runs\":0,\"amount\":null,\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":5,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"\",\"supplier\":\"\",\"url\":\"\",\"why\":\"no pull request named\"}],\"lines_billed\":5,\"note\":\"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money.\",\"supplier\":\"Acme\",\"version\":1}\n",
+   "csv": "line,pull_request,url,supplier,amount,class,why,merged_at,merge_commit,last_commit,claimed_passing,failed_checks,failed_check_links,duplicate_of\n1,acme/app#1,https://github.com/acme/app/pull/1,Acme,12.50,clean,,2026-09-02T10:00:00Z,00000000000000000000000000000000000003e9,0000000000000000000000000000000000000001,description,,,\n2,acme/app#2,https://github.com/acme/app/pull/2,,,failed,,2026-09-03T10:00:00Z,00000000000000000000000000000000000003ea,0000000000000000000000000000000000000002,description,e2e | test,https://github.com/acme/app/actions/runs/24/job/24 | https://github.com/acme/app/actions/runs/21/job/21,\n3,acme/app#3,https://github.com/acme/app/pull/3,,,not_merged,,,,0000000000000000000000000000000000000003,,,,\n4,acme/app#2,https://github.com/acme/app/pull/2,,3.00,duplicate,same pull request as line 2,,,,,,,2\n5,,,,,unreadable,no pull request named,,,,,,,\n",
+   "sha256": "f8b2ddc6e55bfe41ba54d352b0dc2610d2dbdd54a0dfe61f2f005ce4075facd8"
+  },
+  {
+   "name": "every answer one a browser gets over HTTP",
+   "invoice": "﻿Pull Request;Price;Vendor\nhttps://github.com/acme/app/pull/1;100.00;Acme Agents\nacme/app#2;250,00;Acme Agents\nacme/app#3;80;Acme Agents\nACME/App#1;100.00;Acme Agents\nacme/app#5;\"60.00\";Acme Agents\nacme/private#7;40.00;Acme Agents\nacme/app#9;$ 20.00;Acme Agents\nthe March retainer;5.00;Acme Agents\nacme/app#12;1.015,50;Acme Agents\n# a note to the reader; not a line\nacme/app#13;10.00;Acme Agents\nacme/app#14;10.00;Acme Agents\n",
+   "json": "{\"amounts\":{\"billed\":\"1690.50\",\"clean\":\"100.00\",\"duplicate\":\"160.00\",\"failed\":\"1265.50\",\"not_merged\":\"80.00\",\"unreadable\":\"55.00\",\"unverified\":\"30.00\"},\"basis\":\"amount\",\"complete\":false,\"counts\":{\"clean\":1,\"duplicate\":2,\"failed\":2,\"not_merged\":1,\"unreadable\":3,\"unverified\":2},\"disputed\":{\"amount\":\"1505.50\",\"lines\":5,\"share\":\"89.06%\",\"share_bp\":8906},\"kind\":\"knos-shadow-statement\",\"lines\":[{\"agent_runs\":1,\"amount\":\"100.00\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"status\",\"name\":\"ci/build\",\"state\":\"passed\",\"url\":\"https://ci.example/1\"},{\"conclusion\":\"skipped\",\"kind\":\"run\",\"name\":\"docs\",\"state\":\"skipped\",\"url\":\"https://github.com/acme/app/actions/runs/3/job/3\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/1/job/1\"}],\"claimed\":\"description\",\"class\":\"clean\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000001\",\"issues\":[\"acme/app#10\"],\"line\":1,\"merge_commit\":\"00000000000000000000000000000000000003e9\",\"merged\":true,\"merged_at\":\"2026-09-02T10:00:00Z\",\"pr\":\"acme/app#1\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/1\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"250.00\",\"checks\":[{\"conclusion\":\"cancelled\",\"kind\":\"run\",\"name\":\"deploy\",\"state\":\"other\",\"url\":\"https://github.com/acme/app/actions/runs/23/job/23\"},{\"conclusion\":\"timed_out\",\"kind\":\"run\",\"name\":\"e2e\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"lint\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/22/job/22\"},{\"conclusion\":\"failure\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"failed\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"claimed\":\"description\",\"class\":\"failed\",\"duplicate_of\":null,\"failed\":[{\"name\":\"e2e\",\"url\":\"https://github.com/acme/app/actions/runs/24/job/24\"},{\"name\":\"test\",\"url\":\"https://github.com/acme/app/actions/runs/21/job/21\"}],\"head\":\"0000000000000000000000000000000000000002\",\"issues\":[\"acme/app#11\"],\"line\":2,\"merge_commit\":\"00000000000000000000000000000000000003ea\",\"merged\":true,\"merged_at\":\"2026-09-03T10:00:00Z\",\"pr\":\"acme/app#2\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/2\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"80.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"not_merged\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000003\",\"issues\":[],\"line\":3,\"merge_commit\":\"\",\"merged\":false,\"merged_at\":\"\",\"pr\":\"acme/app#3\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/3\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"100.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"duplicate\",\"duplicate_of\":1,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":4,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"ACME/App#1\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/ACME/App/pull/1\",\"why\":\"same pull request as line 1\"},{\"agent_runs\":0,\"amount\":\"60.00\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/51/job/51\"}],\"claimed\":\"\",\"class\":\"duplicate\",\"duplicate_of\":1,\"failed\":[],\"head\":\"0000000000000000000000000000000000000005\",\"issues\":[\"acme/app#10\"],\"line\":5,\"merge_commit\":\"00000000000000000000000000000000000003ed\",\"merged\":true,\"merged_at\":\"2026-09-06T10:00:00Z\",\"pr\":\"acme/app#5\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/5\",\"why\":\"closes acme/app#10, as line 1 does\"},{\"agent_runs\":0,\"amount\":\"40.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":6,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/private#7\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/private/pull/7\",\"why\":\"not found or private\"},{\"agent_runs\":0,\"amount\":\"20.00\",\"checks\":[],\"claimed\":\"commit\",\"class\":\"unverified\",\"duplicate_of\":null,\"failed\":[],\"head\":\"0000000000000000000000000000000000000009\",\"issues\":[],\"line\":7,\"merge_commit\":\"00000000000000000000000000000000000003f1\",\"merged\":true,\"merged_at\":\"2026-09-01T10:00:00Z\",\"pr\":\"acme/app#9\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/9\",\"why\":\"no check ran\"},{\"agent_runs\":0,\"amount\":\"5.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":8,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"the March retainer\",\"supplier\":\"Acme Agents\",\"url\":\"\",\"why\":\"no pull request named\"},{\"agent_runs\":0,\"amount\":\"1015.50\",\"checks\":[{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"=SUM(A1)\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/122/job/122\"},{\"conclusion\":\"error\",\"kind\":\"status\",\"name\":\"=ci/gate\",\"state\":\"failed\",\"url\":\"javascript:alert(1)\"},{\"conclusion\":\"pending\",\"kind\":\"status\",\"name\":\"security\",\"state\":\"pending\",\"url\":\"\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"🚀 Publish\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/121/job/121\"},{\"conclusion\":\"success\",\"kind\":\"run\",\"name\":\"Ａ wide\",\"state\":\"passed\",\"url\":\"https://github.com/acme/app/actions/runs/123/job/123\"}],\"claimed\":\"\",\"class\":\"failed\",\"duplicate_of\":null,\"failed\":[{\"name\":\"=ci/gate\",\"url\":\"javascript:alert(1)\"}],\"head\":\"000000000000000000000000000000000000000c\",\"issues\":[],\"line\":9,\"merge_commit\":\"00000000000000000000000000000000000003f4\",\"merged\":true,\"merged_at\":\"2026-09-04T10:00:00Z\",\"pr\":\"acme/app#12\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/12\",\"why\":\"\"},{\"agent_runs\":0,\"amount\":\"10.00\",\"checks\":[{\"conclusion\":\"in_progress\",\"kind\":\"run\",\"name\":\"test\",\"state\":\"pending\",\"url\":\"https://github.com/acme/app/actions/runs/131/job/131\"}],\"claimed\":\"description\",\"class\":\"unverified\",\"duplicate_of\":null,\"failed\":[],\"head\":\"000000000000000000000000000000000000000d\",\"issues\":[],\"line\":10,\"merge_commit\":\"00000000000000000000000000000000000003f5\",\"merged\":true,\"merged_at\":\"2026-09-05T10:00:00Z\",\"pr\":\"acme/app#13\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/13\",\"why\":\"a check has not finished\"},{\"agent_runs\":0,\"amount\":\"10.00\",\"checks\":[],\"claimed\":\"\",\"class\":\"unreadable\",\"duplicate_of\":null,\"failed\":[],\"head\":\"\",\"issues\":[],\"line\":11,\"merge_commit\":\"\",\"merged\":null,\"merged_at\":\"\",\"pr\":\"acme/app#14\",\"supplier\":\"Acme Agents\",\"url\":\"https://github.com/acme/app/pull/14\",\"why\":\"no answer\"}],\"lines_billed\":11,\"note\":\"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money.\",\"supplier\":\"Acme Agents\",\"version\":1}\n",
+   "csv": "line,pull_request,url,supplier,amount,class,why,merged_at,merge_commit,last_commit,claimed_passing,failed_checks,failed_check_links,duplicate_of\n1,acme/app#1,https://github.com/acme/app/pull/1,Acme Agents,100.00,clean,,2026-09-02T10:00:00Z,00000000000000000000000000000000000003e9,0000000000000000000000000000000000000001,description,,,\n2,acme/app#2,https://github.com/acme/app/pull/2,Acme Agents,250.00,failed,,2026-09-03T10:00:00Z,00000000000000000000000000000000000003ea,0000000000000000000000000000000000000002,description,e2e | test,https://github.com/acme/app/actions/runs/24/job/24 | https://github.com/acme/app/actions/runs/21/job/21,\n3,acme/app#3,https://github.com/acme/app/pull/3,Acme Agents,80.00,not_merged,,,,0000000000000000000000000000000000000003,,,,\n4,ACME/App#1,https://github.com/ACME/App/pull/1,Acme Agents,100.00,duplicate,same pull request as line 1,,,,,,,1\n5,acme/app#5,https://github.com/acme/app/pull/5,Acme Agents,60.00,duplicate,\"closes acme/app#10, as line 1 does\",2026-09-06T10:00:00Z,00000000000000000000000000000000000003ed,0000000000000000000000000000000000000005,,,,1\n6,acme/private#7,https://github.com/acme/private/pull/7,Acme Agents,40.00,unreadable,not found or private,,,,,,,\n7,acme/app#9,https://github.com/acme/app/pull/9,Acme Agents,20.00,unverified,no check ran,2026-09-01T10:00:00Z,00000000000000000000000000000000000003f1,0000000000000000000000000000000000000009,commit,,,\n8,the March retainer,,Acme Agents,5.00,unreadable,no pull request named,,,,,,,\n9,acme/app#12,https://github.com/acme/app/pull/12,Acme Agents,1015.50,failed,,2026-09-04T10:00:00Z,00000000000000000000000000000000000003f4,000000000000000000000000000000000000000c,,'=ci/gate,javascript:alert(1),\n10,acme/app#13,https://github.com/acme/app/pull/13,Acme Agents,10.00,unverified,a check has not finished,2026-09-05T10:00:00Z,00000000000000000000000000000000000003f5,000000000000000000000000000000000000000d,description,,,\n11,acme/app#14,https://github.com/acme/app/pull/14,Acme Agents,10.00,unreadable,no answer,,,,,,,\n",
+   "sha256": "e1765e0ac6284cb54f0f8a6631a6da9f1cffa83e9f41615984f0fea7915503d6"
+  }
+ ]
+}

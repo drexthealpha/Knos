@@ -1,0 +1,461 @@
+{
+ "about": "Which RS256 issuers knos-oidc can verify, the claims each signs (the SHAPE recorded from the issuer's documentation, with example values) and which of them a program can gate on. Key sizes were read from each issuer's published key set on the `checked` day. tests/test_issuers.py verifies a token of each shape, signed by a test key, in the test build of the verifier; it also holds docs/VERIFIER.md and web/verifier.js to this file.",
+ "checked": "2026-10-05",
+ "accepts": {
+  "alg": "RS256",
+  "key_bits": [
+   2048,
+   4096
+  ],
+  "max_token_bytes": 8192,
+  "max_issuer_url_bytes": 200,
+  "exp": "a number, at most one day ahead of the chain's clock; a token is read until one hour after it"
+ },
+ "issuers": [
+  {
+   "id": "github",
+   "name": "GitHub Actions",
+   "supported": "yes",
+   "why": "RS256; four 2048-bit keys.",
+   "path": "numbered",
+   "iss": "https://token.actions.githubusercontent.com",
+   "jwks": "https://token.actions.githubusercontent.com/.well-known/jwks",
+   "key_bits": [
+    2048,
+    2048,
+    2048,
+    2048
+   ],
+   "source": "https://docs.github.com/en/actions/reference/security/oidc",
+   "get": "curl -sSf -H \"Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN\" \"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=my-app:release:v1.2.0\" | jq -r .value",
+   "where": "a job with `permissions: id-token: write`",
+   "claims": {
+    "jti": "8b2c1f0e-6a4d-4c3b-9e2a-5d7f1c0b9a8e",
+    "sub": "repo:octo/widgets:ref:refs/heads/main",
+    "aud": "my-app:release:v1.2.0",
+    "ref": "refs/heads/main",
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "repository": "octo/widgets",
+    "repository_owner": "octo",
+    "repository_owner_id": "424242",
+    "run_id": "36905461215",
+    "run_number": "17",
+    "run_attempt": "1",
+    "repository_visibility": "public",
+    "repository_id": "987654321",
+    "actor_id": "1234567",
+    "actor": "mona",
+    "workflow": "release",
+    "head_ref": "",
+    "base_ref": "",
+    "event_name": "push",
+    "ref_protected": "true",
+    "ref_type": "branch",
+    "workflow_ref": "octo/widgets/.github/workflows/release.yml@refs/heads/main",
+    "workflow_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "job_workflow_ref": "octo/widgets/.github/workflows/release.yml@refs/heads/main",
+    "job_workflow_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "runner_environment": "github-hosted",
+    "check_run_id": "5550001",
+    "iss": "https://token.actions.githubusercontent.com"
+   },
+   "gate": [
+    "repository_id",
+    "repository_owner_id",
+    "job_workflow_ref",
+    "job_workflow_sha",
+    "ref",
+    "sha",
+    "event_name",
+    "runner_environment",
+    "aud"
+   ],
+   "unreadable": [],
+   "note": "Compare `repository_id`, not `repository`: a name can pass to someone else."
+  },
+  {
+   "id": "gitlab",
+   "name": "GitLab CI (gitlab.com)",
+   "supported": "yes",
+   "why": "RS256; one 4096-bit and two 2048-bit keys.",
+   "path": "numbered",
+   "iss": "https://gitlab.com",
+   "jwks": "https://gitlab.com/oauth/discovery/keys",
+   "key_bits": [
+    4096,
+    2048,
+    2048
+   ],
+   "source": "https://docs.gitlab.com/ci/secrets/id_token_authentication/",
+   "get": "id_tokens:\n  KNOS_TOKEN:\n    aud: my-app:release:v1.2.0",
+   "where": "the job's entry in `.gitlab-ci.yml`; the token is in `$KNOS_TOKEN`",
+   "claims": {
+    "namespace_id": "72",
+    "namespace_path": "my-group",
+    "project_id": "20",
+    "project_path": "my-group/my-project",
+    "user_id": "1",
+    "user_login": "sample-user",
+    "user_email": "sample-user@example.com",
+    "user_access_level": "owner",
+    "pipeline_id": "574",
+    "pipeline_source": "push",
+    "job_id": "302",
+    "ref": "main",
+    "ref_type": "branch",
+    "ref_path": "refs/heads/main",
+    "ref_protected": "true",
+    "groups_direct": [
+     "my-group/my-subgroup"
+    ],
+    "runner_id": 1,
+    "runner_environment": "gitlab-hosted",
+    "sha": "dddddddddddddddddddddddddddddddddddddddd",
+    "project_visibility": "public",
+    "ci_config_ref_uri": "gitlab.com/my-group/my-project//.gitlab-ci.yml@refs/heads/main",
+    "ci_config_sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "jti": "235b3a54-b797-45c7-ae9a-f72d7bc6ef5b",
+    "iss": "https://gitlab.com",
+    "sub": "project_path:my-group/my-project:ref_type:branch:ref:main",
+    "aud": "my-app:release:v1.2.0"
+   },
+   "gate": [
+    "project_id",
+    "namespace_id",
+    "ref_path",
+    "ref_protected",
+    "ci_config_ref_uri",
+    "ci_config_sha",
+    "sha",
+    "runner_environment",
+    "aud"
+   ],
+   "unreadable": [
+    "groups_direct"
+   ],
+   "note": "A self-managed GitLab signs with its own URL as `iss`: register that URL as any other issuer."
+  },
+  {
+   "id": "google",
+   "name": "Google Cloud (service account and workload ID tokens)",
+   "supported": "yes",
+   "why": "RS256; two 2048-bit keys.",
+   "path": "url",
+   "iss": "https://accounts.google.com",
+   "jwks": "https://www.googleapis.com/oauth2/v3/certs",
+   "key_bits": [
+    2048,
+    2048
+   ],
+   "source": "https://docs.cloud.google.com/docs/authentication/get-id-token",
+   "get": "curl -H \"Metadata-Flavor: Google\" 'http://metadata/computeMetadata/v1/instance/service-accounts/default/identity?audience=my-app:mint:42'",
+   "where": "a VM, Cloud Run service or GKE pod that runs as the service account",
+   "claims": {
+    "iss": "https://accounts.google.com",
+    "azp": "104029292853099978293",
+    "aud": "my-app:mint:42",
+    "sub": "104029292853099978293",
+    "email": "minter@my-project.iam.gserviceaccount.com",
+    "email_verified": true
+   },
+   "gate": [
+    "sub",
+    "email",
+    "azp",
+    "aud"
+   ],
+   "unreadable": [
+    "email_verified"
+   ],
+   "note": "Google signs people's sign-ins under the same issuer: gate on one service account's `sub`, never on the issuer alone. With `format=full` the VM's details are nested under `google` and are not read."
+  },
+  {
+   "id": "entra",
+   "name": "Microsoft Entra ID (app and managed identity tokens)",
+   "supported": "yes",
+   "why": "RS256; seven 2048-bit keys.",
+   "path": "url",
+   "iss": "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0",
+   "iss_pattern": "https://login.microsoftonline.com/<tenant id>/v2.0",
+   "jwks": "https://login.microsoftonline.com/<tenant id>/discovery/v2.0/keys",
+   "key_bits": [
+    2048,
+    2048,
+    2048,
+    2048,
+    2048,
+    2048,
+    2048
+   ],
+   "measured_at": "https://login.microsoftonline.com/common/discovery/v2.0/keys",
+   "source": "https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference",
+   "get": "curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=api%3A%2F%2Fmy-app' -H Metadata:true -s | jq -r .access_token",
+   "where": "an Azure resource with a managed identity (the command is from https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token)",
+   "claims": {
+    "aud": "api://my-app",
+    "iss": "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0",
+    "azp": "6e74172b-be56-4843-9ff4-e66a39bb12e3",
+    "oid": "a1b2c3d4-0000-4000-8000-123456789abc",
+    "sub": "a1b2c3d4-0000-4000-8000-123456789abc",
+    "tid": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+    "ver": "2.0",
+    "roles": [
+     "Mint.Run"
+    ]
+   },
+   "gate": [
+    "tid",
+    "oid",
+    "azp",
+    "aud"
+   ],
+   "unreadable": [
+    "roles"
+   ],
+   "note": "One issuer URL per tenant. A resource that takes version 1.0 tokens gets `iss` `https://sts.windows.net/<tenant id>/`: register that URL instead. `aud` is the resource asked for, so it names your program and not one action."
+  },
+  {
+   "id": "aws",
+   "name": "AWS (IAM outbound identity federation)",
+   "supported": "partly",
+   "why": "RS256 only when asked for: AWS recommends ES384, which is not verified. The RSA key size is not in AWS's documentation and was not measured (the issuer is per account).",
+   "path": "url",
+   "iss": "https://abc123-def456-ghi789-jkl012.tokens.sts.global.api.aws",
+   "iss_pattern": "https://<account's id>.tokens.sts.global.api.aws",
+   "jwks": "<iss>/.well-known/jwks.json",
+   "key_bits": [],
+   "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html",
+   "get": "aws sts get-web-identity-token --audience my-app:mint:42 --signing-algorithm RS256 --duration-seconds 300",
+   "where": "any IAM principal, once `aws iam enable-outbound-web-identity-federation` has been run in the account (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html)",
+   "claims": {
+    "iss": "https://abc123-def456-ghi789-jkl012.tokens.sts.global.api.aws",
+    "aud": "my-app:mint:42",
+    "sub": "arn:aws:iam::123456789012:role/DataProcessingRole",
+    "jti": "xyz123-def456-ghi789-jkl012",
+    "https://sts.amazonaws.com/": {
+     "aws_account": "123456789012",
+     "source_region": "us-east-1",
+     "org_id": "o-abc1234567",
+     "principal_tags": {
+      "environment": "production"
+     },
+     "lambda_source_function_arn": "arn:aws:lambda:us-east-1:123456789012:function:process-data"
+    }
+   },
+   "gate": [
+    "sub",
+    "aud"
+   ],
+   "unreadable": [
+    "https://sts.amazonaws.com/"
+   ],
+   "note": "The account, organisation, tags and the Lambda or EC2 source are nested under `https://sts.amazonaws.com/` and are not read. `sub` (the role's ARN) carries the account."
+  },
+  {
+   "id": "kubernetes",
+   "name": "Kubernetes service account tokens (EKS, GKE, self-managed)",
+   "supported": "partly",
+   "why": "RS256 clusters only (a cluster may sign ES256, ES384 or ES512). `aud` is a list, so only `sub` can be gated on.",
+   "path": "url",
+   "iss": "https://oidc.eks.us-west-2.amazonaws.com/id/8EBD0000000000000000000000BAE",
+   "iss_pattern": "https://oidc.eks.<region>.amazonaws.com/id/<cluster id>",
+   "jwks": "<iss>/openid/v1/jwks on the API server; on EKS <iss>/keys",
+   "key_bits": [],
+   "source": "https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/",
+   "get": "kubectl create token build-robot --audience my-app --duration 10m",
+   "where": "anyone allowed to create tokens for the service account; a pod reads a projected token from its volume",
+   "claims": {
+    "aud": [
+     "my-app"
+    ],
+    "iss": "https://oidc.eks.us-west-2.amazonaws.com/id/8EBD0000000000000000000000BAE",
+    "jti": "aed34954-b33a-4142-b1ec-389d6bbb4936",
+    "kubernetes.io": {
+     "namespace": "my-namespace",
+     "node": {
+      "name": "my-node",
+      "uid": "646e7c5e-32d6-4d42-9dbd-e504e6cbe6b1"
+     },
+     "pod": {
+      "name": "my-pod",
+      "uid": "5e0bd49b-f040-43b0-99b7-22765a53f7f3"
+     },
+     "serviceaccount": {
+      "name": "my-serviceaccount",
+      "uid": "14ee3fa4-a7e2-420f-9f9a-dbc4507c3798"
+     }
+    },
+    "sub": "system:serviceaccount:my-namespace:my-serviceaccount"
+   },
+   "gate": [
+    "sub"
+   ],
+   "unreadable": [
+    "aud",
+    "kubernetes.io"
+   ],
+   "note": "The `iss` shown is EKS's; elsewhere it is the cluster's `--service-account-issuer`. With no readable audience a token cannot be bound to your program or to one action: any token of that service account passes. EKS changes its signing key every seven days (https://docs.aws.amazon.com/eks/latest/userguide/irsa-fetch-keys.html), and each new key waits a day here. A cluster whose issuer is not a public https URL can only be a private key."
+  },
+  {
+   "id": "buildkite",
+   "name": "Buildkite",
+   "supported": "yes",
+   "why": "RS256; one 2048-bit key.",
+   "path": "url",
+   "iss": "https://agent.buildkite.com",
+   "jwks": "https://agent.buildkite.com/.well-known/jwks",
+   "key_bits": [
+    2048
+   ],
+   "source": "https://buildkite.com/docs/agent/cli/reference/oidc",
+   "get": "buildkite-agent oidc request-token --audience my-app:release:v1.2.0 --lifetime 300",
+   "where": "a step of a Buildkite job",
+   "claims": {
+    "iss": "https://agent.buildkite.com",
+    "sub": "organization:acme-inc:pipeline:super-duper-app:ref:refs/heads/main:commit:9f3182061f1e2cca4702c368cbc039b7dc9d4485:step:build",
+    "aud": "my-app:release:v1.2.0",
+    "jti": "0184990a-4550-7000-8000-000000000001",
+    "organization_id": "0184990a-477b-4fa8-9968-496074483cec",
+    "organization_slug": "acme-inc",
+    "pipeline_id": "0184990a-4782-42b5-afc1-16715b10b1b0",
+    "pipeline_slug": "super-duper-app",
+    "build_id": "019583d7-3737-4e38-af67-f7cc356bd580",
+    "build_number": 1,
+    "build_branch": "main",
+    "build_commit": "9f3182061f1e2cca4702c368cbc039b7dc9d4485",
+    "step_key": "build_step",
+    "job_id": "0184990a-477b-4fa8-9968-496074483cee",
+    "agent_id": "0184990a-4782-42b5-afc1-16715b10b8ff",
+    "runner_environment": "self-hosted",
+    "build_source": "webhook"
+   },
+   "gate": [
+    "organization_id",
+    "pipeline_id",
+    "build_branch",
+    "build_commit",
+    "step_key",
+    "runner_environment",
+    "aud"
+   ],
+   "unreadable": [],
+   "note": "One issuer for every organisation: always gate on `organization_id` and `pipeline_id`."
+  },
+  {
+   "id": "circleci",
+   "name": "CircleCI",
+   "supported": "yes",
+   "why": "RS256; one 2048-bit key.",
+   "path": "url",
+   "iss": "https://oidc.circleci.com/org/c9035eb6-6eb2-4c85-8a81-d9ed6a1d1d1e",
+   "iss_pattern": "https://oidc.circleci.com/org/<organization id>",
+   "jwks": "<iss>/.well-known/jwks-pub.json",
+   "key_bits": [
+    2048
+   ],
+   "measured_at": "https://oidc.circleci.com/org/00000000-0000-0000-0000-000000000000/.well-known/jwks-pub.json",
+   "source": "https://circleci.com/docs/guides/permissions-authentication/openid-connect-tokens/",
+   "get": "circleci run oidc get --claims '{\"aud\": \"my-app:release:v1.2.0\"}'",
+   "where": "a CircleCI job; the default token (audience: the organisation's id) is in `$CIRCLE_OIDC_TOKEN` (the command is from https://circleci.com/docs/guides/permissions-authentication/oidc-tokens-with-custom-claims/)",
+   "claims": {
+    "iss": "https://oidc.circleci.com/org/c9035eb6-6eb2-4c85-8a81-d9ed6a1d1d1e",
+    "sub": "org/c9035eb6-6eb2-4c85-8a81-d9ed6a1d1d1e/project/3a2f5b1c-7d4e-4f6a-9b8c-0d1e2f3a4b5c/user/5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9",
+    "aud": "my-app:release:v1.2.0",
+    "oidc.circleci.com/context-ids": [
+     "7b6a5c4d-3e2f-4a1b-8c9d-0e1f2a3b4c5d"
+    ],
+    "oidc.circleci.com/job-id": "1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9",
+    "oidc.circleci.com/org-id": "c9035eb6-6eb2-4c85-8a81-d9ed6a1d1d1e",
+    "oidc.circleci.com/pipeline-definition-id": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    "oidc.circleci.com/pipeline-id": "9f8e7d6c-5b4a-4c3d-8e2f-1a0b9c8d7e6f",
+    "oidc.circleci.com/project-id": "3a2f5b1c-7d4e-4f6a-9b8c-0d1e2f3a4b5c",
+    "oidc.circleci.com/ssh-rerun": false,
+    "oidc.circleci.com/vcs-origin": "github.com/octo/widgets",
+    "oidc.circleci.com/vcs-ref": "refs/heads/main",
+    "oidc.circleci.com/workflow-id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+   },
+   "gate": [
+    "oidc.circleci.com/project-id",
+    "oidc.circleci.com/vcs-origin",
+    "oidc.circleci.com/vcs-ref",
+    "aud"
+   ],
+   "unreadable": [
+    "oidc.circleci.com/context-ids",
+    "oidc.circleci.com/ssh-rerun"
+   ],
+   "note": "One issuer URL per organisation. A job re-run with SSH carries `ssh-rerun` true, a boolean this reader does not read: a person could have typed the command."
+  },
+  {
+   "id": "okta",
+   "name": "Okta",
+   "supported": "yes",
+   "why": "RS256; two 2048-bit keys.",
+   "path": "url",
+   "iss": "https://acme.okta.com/oauth2/default",
+   "iss_pattern": "https://<Okta domain>/oauth2/<authorization server id>",
+   "jwks": "<iss>/v1/keys",
+   "key_bits": [
+    2048,
+    2048
+   ],
+   "measured_at": "https://okta.okta.com/oauth2/v1/keys",
+   "source": "https://developer.okta.com/docs/api/openapi/okta-oauth/guides/overview/",
+   "get": "curl --request POST --url https://acme.okta.com/oauth2/default/v1/token --header 'accept: application/json' --header \"authorization: Basic $(printf %s \"$CLIENT_ID:$CLIENT_SECRET\" | base64 -w0)\" --header 'content-type: application/x-www-form-urlencoded' --data 'grant_type=client_credentials&scope=mint' | jq -r .access_token",
+   "where": "a service app on a custom authorization server with one custom scope (https://developer.okta.com/docs/guides/implement-grant-type/clientcreds/main/)",
+   "claims": {
+    "ver": 1,
+    "jti": "AT.0mP4JKAZX1iACIT4vbEDF7LpvDVjxypPMf0D7uX39RE",
+    "iss": "https://acme.okta.com/oauth2/default",
+    "aud": "api://my-app",
+    "cid": "0oa1b2c3d4E5f6G7h8i9",
+    "scp": [
+     "mint"
+    ],
+    "sub": "0oa1b2c3d4E5f6G7h8i9"
+   },
+   "gate": [
+    "cid",
+    "sub",
+    "aud"
+   ],
+   "unreadable": [
+    "scp"
+   ],
+   "note": "The org server's `iss` is the domain alone. What `sub` names (an app or a person) is the administrator's choice. `aud` is set per authorization server, so it names your program and not one action."
+  },
+  {
+   "id": "auth0",
+   "name": "Auth0",
+   "supported": "yes",
+   "why": "RS256, the default; two 2048-bit keys. A tenant set to HS256 or PS256 is not verified.",
+   "path": "url",
+   "iss": "https://acme.us.auth0.com/",
+   "iss_pattern": "https://<tenant domain>/",
+   "jwks": "<iss>.well-known/jwks.json",
+   "key_bits": [
+    2048,
+    2048
+   ],
+   "measured_at": "https://auth0.auth0.com/.well-known/jwks.json",
+   "source": "https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles",
+   "get": "curl --request POST --url 'https://acme.us.auth0.com/oauth/token' --header 'content-type: application/x-www-form-urlencoded' --data grant_type=client_credentials --data client_id=$CLIENT_ID --data client_secret=$CLIENT_SECRET --data audience=my-app | jq -r .access_token",
+   "where": "a machine-to-machine application authorised for the API `my-app` (https://auth0.com/docs/get-started/authentication-and-authorization-flow/client-credentials-flow/call-your-api-using-the-client-credentials-flow)",
+   "claims": {
+    "iss": "https://acme.us.auth0.com/",
+    "sub": "Zk3mPq7RtXw2Yb9Lc4Nd8Vf1Hg6Js0Ae@clients",
+    "aud": "my-app",
+    "azp": "Zk3mPq7RtXw2Yb9Lc4Nd8Vf1Hg6Js0Ae",
+    "scope": "mint",
+    "gty": "client-credentials"
+   },
+   "gate": [
+    "sub",
+    "azp",
+    "aud"
+   ],
+   "unreadable": [],
+   "note": "The final slash of `iss` is part of it. `aud` can be a list: then it is not read. Access tokens last 86,400 seconds by default (https://auth0.com/docs/secure/tokens/access-tokens/update-access-token-lifetime), the longest the verifier takes: set a shorter lifetime."
+  }
+ ]
+}

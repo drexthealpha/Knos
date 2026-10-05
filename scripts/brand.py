@@ -46,8 +46,7 @@ TOLERANCE = 1.0            # units of the drawing: the furthest a sample of the 
 SMALL = 3.0                # the same, for the copy drawn at 16 to 32 px
 INK, PAPER = "#15171c", "#f6f5f1"          # web/app.css --fg and --bg (light); dark: #e9ebef on #0e1014
 INK_DARK = "#e9ebef"
-SENTENCE = ("Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the "
-            "work, a signed CI run attests they were met, a Solana program counts it or pays it.")
+SENTENCE = "The neutral meter for AI agent work: neither side keeps the count."
 BOUNDS = {"mark.svg": 6_000, "wordmark.svg": 12_000, "mark-small.svg": 3_000}      # bytes; tests/test_brand.py holds them
 
 _NUM = re.compile(r"-?\d*\.?\d+(?:e-?\d+)?")
@@ -378,14 +377,14 @@ def title_card(view: str, word: str) -> str:
 
 
 BADGE_PY = ROOT / "src" / "knos" / "badge.py"
-_BADGE_LINE = re.compile(r"^MARK = \{.*\}  # written by scripts/brand\.py$", re.M)
+_BADGE_LINE = re.compile(r"^(MARK(?:: dict)? = )\{.*\}  # written by scripts/brand\.py$", re.M)
 
 
 def badge_py(text: str, bm: dict) -> str:
-    line = f"MARK = {json.dumps(bm)}  # written by scripts/brand.py"
+    line = f"{json.dumps(bm)}  # written by scripts/brand.py"
     if not _BADGE_LINE.search(text):
         raise SystemExit("src/knos/badge.py has no `MARK = {...}  # written by scripts/brand.py` line to write the mark into.")
-    return _BADGE_LINE.sub(lambda _: line, text)
+    return _BADGE_LINE.sub(lambda m: m[1] + line, text)
 
 
 # ---- pictures: Chromium draws them (scripts/brand_shot.mjs) -----------------------------------------------------------------

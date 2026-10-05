@@ -1,0 +1,9 @@
+# A made-up invoice from a made-up supplier, to try `knos shadow` with no network. Not anyone's invoice.
+pull_request,amount,supplier
+https://github.com/example-co/storefront/pull/101,400.00,Example Agents Ltd (made up)
+example-co/storefront#102,650.00,Example Agents Ltd (made up)
+example-co/storefront#103,300.00,Example Agents Ltd (made up)
+example-co/storefront#104,400.00,Example Agents Ltd (made up)
+example-co/storefront#105,250.00,Example Agents Ltd (made up)
+example-co/storefront#101,400.00,Example Agents Ltd (made up)
+example-co/billing-internal#7,500.00,Example Agents Ltd (made up)

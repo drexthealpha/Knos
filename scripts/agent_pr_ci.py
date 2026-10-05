@@ -128,6 +128,34 @@ class OutOfTime(Exception):
     pass
 
 
+class OutOfBudget(OutOfTime):
+    """A bounded run has sent the requests it may send, or GitHub refused one for a rate limit it will not wait out."""
+
+
+# A bounded run (agent_pr_index.py sample): the most requests it may send, how many it has sent, and whether a
+# refusal for a rate limit ends the run (True) or is waited out (False, the unbounded scans).
+MAX_REQUESTS = None
+ASKED = [0]
+NO_WAIT = False
+STOPPED = [None]        # why a bounded run stopped early, in words: its minutes, its requests, or GitHub's refusal
+
+
+def _stop(why, exc):
+    """Raise `exc`, keeping the first reason a bounded run was given for stopping (STOPPED)."""
+    if STOPPED[0] is None:
+        STOPPED[0] = why
+    raise exc()
+
+
+def _spend():
+    """Count one request about to be sent; a bounded run that has none left stops here, before sending it."""
+    if time_left() < 15:
+        _stop("its minutes were spent", OutOfTime)
+    if MAX_REQUESTS is not None and ASKED[0] >= MAX_REQUESTS:
+        _stop("its requests were spent", OutOfBudget)
+    ASKED[0] += 1
+
+
 def time_left():
     return ARGS.max_seconds - (time.time() - START)
 
@@ -184,12 +212,13 @@ def gh_get(path, params=None, kind="core", max_age=None):
     if hit is not None:
         return hit
     if time_left() < 15:
-        raise OutOfTime()
+        _stop("its minutes were spent", OutOfTime)
     cmd = ["gh", "api", "-X", "GET", path, "-H", "Accept: application/vnd.github+json"]
     for k, v in (params or {}).items():
         cmd += ["-f", f"{k}={v}"]
     resp = None
     for attempt in range(6):
+        _spend()
         if kind == "search":
             _search_slot()  # 30 req/min search limit; complex OR queries trip secondary limits faster
         code, out, err = _gh(cmd)
@@ -199,13 +228,16 @@ def gh_get(path, params=None, kind="core", max_age=None):
             except ValueError:
                 code, out, err = 1, "", "the answer was cut off (not JSON)"
         if code == 0:
-            if kind == "search" and isinstance(body, dict) and body.get("incomplete_results") and attempt < 2:
+            if kind == "search" and isinstance(body, dict) and body.get("incomplete_results") and attempt < 2 and not NO_WAIT:
                 time.sleep(5)   # GitHub ran out of time on the query and returned what it had: ask twice more, then
                 continue        # take the page as it is (scan_agent counts it as cut short)
             resp = {"ok": True, "json": body}
             break
         err = err + out[:500]
         if re.search(r"rate limit|HTTP 429|secondary", err, re.I):
+            if NO_WAIT:                 # a bounded run never sleeps on a limit: it stops and writes what it has
+                limit = "a secondary rate limit" if re.search("secondary", err, re.I) else "a rate limit"
+                _stop(f"GitHub refused a {kind} request for {limit}", OutOfBudget)
             wait = min(90, 20 * (attempt + 1))
             if kind == "core" and not re.search("secondary", err, re.I):
                 wait = _core_reset() or wait   # the hourly budget is spent: it comes back at a known time, wait for it
@@ -336,6 +368,13 @@ def classify(c, max_age=None):
         su = gh_get(f"repos/{c['repo']}/commits/{sha}/check-suites", {"per_page": 100}, max_age=max_age)
         suites = su["json"]["check_suites"] if su["ok"] else []
 
+    out.update(verdict(runs, statuses, suites))
+    return out
+
+
+def verdict(runs, statuses, suites=()):
+    """The class of a head commit from its check runs ({name, status, conclusion}), its commit statuses ({context,
+    state}) and its check suites ({conclusion}), however they were read (REST below, GraphQL in read_rollup)."""
     agent_runs = [x for x in runs if AGENT_RUN_RE.match(x["name"].strip())]
     ci_runs = [x for x in runs if not AGENT_RUN_RE.match(x["name"].strip())]
     concl = [x["conclusion"] for x in ci_runs if x["status"] == "completed"]
@@ -344,9 +383,9 @@ def classify(c, max_age=None):
     failed_names = [x["name"] for x in ci_runs if x["conclusion"] in FAIL_CONCL] + \
                    [s["context"] for s in statuses if s["state"] in ("failure", "error")]
     awaiting = [s for s in suites if s.get("conclusion") == "action_required"]
-    out.update({"n_check_runs": len(ci_runs), "n_agent_runs_excluded": len(agent_runs),
-                "n_statuses": len(statuses), "failed_checks": failed_names[:10],
-                "awaiting_approval_suites": len(awaiting)})
+    out = {"n_check_runs": len(ci_runs), "n_agent_runs_excluded": len(agent_runs),
+           "n_statuses": len(statuses), "failed_checks": failed_names[:10],
+           "awaiting_approval_suites": len(awaiting)}
     if failed_names:
         cls = "failed"
     elif not ci_runs and not statuses:
@@ -359,6 +398,81 @@ def classify(c, max_age=None):
         cls = "other"  # e.g. cancelled / action_required / stale -- no hard failure
     out["class"] = cls
     out["other_conclusions"] = sorted({x for x in concl if x not in OK_CONCL})
+    return out
+
+
+# ---- the same reading in one GraphQL request for many pull requests --------------------------------------------------
+# `statusCheckRollup` on a Commit holds the commit's check runs and commit statuses together (`contexts`: CheckRun |
+# StatusContext; docs.github.com/en/graphql/reference/objects#statuscheckrollup), so the head commit's checks, its
+# check suites and the pull request's merge state come in one request for ROLLUP_BATCH pull requests, where REST takes
+# three to four requests for each one. Cost (docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-
+# the-graphql-api): the connections a query asks for, counted as requests and divided by 100. A batch of 20 asks 60
+# (commits, contexts and checkSuites for each) and costs 1 point of the 1,000 an hour the Actions token has; it
+# names at most 20 x (1 + 100 + 30) = 2,620 nodes of the 500,000 a query may. It is a query: it changes nothing.
+ROLLUP_BATCH = 20
+_SAFE = re.compile(r"^[A-Za-z0-9_.-]+$")
+_ROLLUP = ("p%d: repository(owner: %s, name: %s) { pullRequest(number: %d) { merged commits(last: 1) { nodes { commit { oid "
+           "statusCheckRollup { contexts(first: 100) { pageInfo { hasNextPage } nodes { __typename "
+           "... on CheckRun { name status conclusion } ... on StatusContext { context state } } } } "
+           "checkSuites(first: 30) { nodes { conclusion } } } } } } }")
+
+
+def rollup_query(cands):
+    parts = []
+    for i, c in enumerate(cands):
+        owner, _, name = c["repo"].partition("/")
+        if _SAFE.match(owner) and _SAFE.match(name):
+            parts.append(_ROLLUP % (i, json.dumps(owner), json.dumps(name), int(c["number"])))
+    return "query { " + " ".join(parts) + " }"
+
+
+def gh_graphql(query):
+    """One GraphQL query through `gh api graphql` (never kept on disk: the caller's checkpoint keeps what it reads).
+    {"ok": True, "data", "errors"} when GitHub answered, also when it answered null for some of it; otherwise
+    {"ok": False, "error", "transient"}: transient when the failure says nothing about the query."""
+    _spend()
+    code, out, err = _gh(["gh", "api", "graphql", "-f", f"query={query}"])
+    try:
+        body = json.loads(out or "null")
+    except ValueError:
+        body = None
+    if isinstance(body, dict) and isinstance(body.get("data"), dict):
+        return {"ok": True, "data": body["data"], "errors": body.get("errors") or []}
+    text = (err + out[:500]).strip() or "no answer"
+    if re.search(r"rate limit|HTTP 429|secondary", text, re.I):
+        raise OutOfBudget()
+    return {"ok": False, "error": text[:300], "transient": code == 0 or bool(_NO_ANSWER.search(text))}
+
+
+def read_rollup(cands):
+    """The verdict and merge state of each of `cands` from one GraphQL request. A list as long as `cands`: a dict
+    like classify's with `merged`, or None for one this request did not settle (GitHub timed out on it, or it has
+    more than 100 checks: the caller reads that one over REST). A whole request GitHub refuses comes back as
+    {"ok": False, ...} for the caller to decide (try again, or read over REST from now on)."""
+    got = gh_graphql(rollup_query(cands))
+    if not got["ok"]:
+        return got
+    gone = {str(e.get("path", [""])[0]) for e in got["errors"] if e.get("type") == "NOT_FOUND"}
+    out = []
+    for i, c in enumerate(cands):
+        pr = (got["data"].get(f"p{i}") or {}).get("pullRequest")
+        nodes = ((pr or {}).get("commits") or {}).get("nodes") or []
+        if not pr or not nodes:
+            out.append({"class": "error", "detail": "the pull request or its repository is gone", "transient": False}
+                       if f"p{i}" in gone or (pr and not nodes) else None)
+            continue
+        commit = nodes[0]["commit"]
+        contexts = (commit.get("statusCheckRollup") or {}).get("contexts") or {}
+        if (contexts.get("pageInfo") or {}).get("hasNextPage"):
+            out.append(None)
+            continue
+        low = lambda v: str(v or "").lower() or None  # noqa: E731
+        runs = [{"name": x.get("name") or "", "status": low(x.get("status")), "conclusion": low(x.get("conclusion"))}
+                for x in contexts.get("nodes") or [] if x and x.get("__typename") == "CheckRun"]
+        statuses = [{"context": x.get("context") or "", "state": {"expected": "pending"}.get(low(x.get("state")), low(x.get("state")))}
+                    for x in contexts.get("nodes") or [] if x and x.get("__typename") == "StatusContext"]
+        suites = [{"conclusion": low(x.get("conclusion"))} for x in (commit.get("checkSuites") or {}).get("nodes") or [] if x]
+        out.append({"sha": commit.get("oid"), **verdict(runs, statuses, suites), "merged": bool(pr.get("merged"))})
     return out
 
 

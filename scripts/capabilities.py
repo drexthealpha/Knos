@@ -336,14 +336,14 @@ def table(data: dict, prefix: str = "") -> str:
 
 
 def summary(data: dict) -> str:
-    """The manifest in one paragraph, for README.md (which a test keeps short): the ids at each stage, highest first,
-    and where the table with the evidence is."""
+    """The manifest in one short paragraph, for README.md: the ids at the stages above `tested`, highest first (a run
+    at a public program id, or someone else's), and where the table with every capability and its evidence is."""
     said = []
-    for s in (*reversed(STAGES), None):
+    for s in reversed(STAGES[2:]):
         ids = [f"`{c['id']}`" for c in data["capabilities"] if c["stage"] == s]
         said.append(f"**{WORDS[s].capitalize()}:** {', '.join(ids) if ids else 'none recorded yet'}.")
-    return (f"**Every capability and how far it has got** ([the table with the evidence]({FULL}), from [`{MANIFEST}`]({MANIFEST}); a stage needs "
-            "its evidence and the stages below it). " + " ".join(said) + " " + PUBLIC_ONLY)
+    return (" ".join(said) + f" Everything else is tested locally, implemented or not built: [the table with the evidence]({FULL}) has "
+            f"one row for each capability, from [`{MANIFEST}`]({MANIFEST}). " + PUBLIC_ONLY)
 
 
 def targets(root: Path = ROOT) -> list[Path]:

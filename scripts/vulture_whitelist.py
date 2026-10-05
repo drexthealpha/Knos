@@ -86,6 +86,8 @@ _._init, _._rotate              # knos agent init | rotate
 _.show_, _.check_, _.set_       # knos.controls.register: knos budget show | check | set
 _.correct_, _.close_, _.statement_      # knos.ledger.register: knos meter correct | close | statement
 _.observe_                      # knos.observe.register: knos observe
+_.shadow_                       # knos.shadow.register: knos shadow
+_._cite, _._verify              # knos.terms_templates.register: knos terms cite | verify (the registry of published terms)
 # Python calls a module's own __getattr__ for a name the module does not have: `knos.cli.app` loads every command's
 # module the first time someone asks for the whole command line by name (tests, scripts), and not before.
 _.__getattr__

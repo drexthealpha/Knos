@@ -5,7 +5,7 @@
 
 Two tiers, written to docs/load.json and rendered into docs/LOAD.md (`--write`; without it the result is printed).
 
-  --local N   The test builds of knos_oidc and knos_pay 2.1 (tests/fixtures) in LiteSVM, through the tests' own
+  --local N   The test builds of knos_oidc 2.2 and knos_pay 2.1 (tests/fixtures) in LiteSVM, through the tests' own
               harness. N orders on N repositories are funded from one Balance and are all open at once; then they are
               paid in a shuffled order, every 10th token is sent twice and every 50th again after its order closed.
               At the end: every order paid exactly once, paid + fees + refunds == funded, nothing left in any order's

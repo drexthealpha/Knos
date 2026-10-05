@@ -4,6 +4,8 @@
 // made from the rows on screen, in the browser, not fetched.
 import { jsonFile, tableHtml, sourceHtml, isLogin, KIND_WORDS } from "./records.js";
 import { show } from "./price.js";
+import { chained as auditChained, totals as auditTotals, auditWrite, recordsOf, exportAs, readRefs, FORMATS, UNVERIFIED } from "./finance_data.js";
+import { objectsHtml, chipOf } from "./console.js";
 
 const ROLES = { seller: ["as_seller", "Seller: what the account was paid"], owner: ["as_owner", "Owner: what the account's money paid out"] };
 const KINDS = Object.keys(KIND_WORDS);
@@ -107,60 +109,9 @@ export const AUDIT_COLUMNS = ["seq", "date", "time", "kind", "order", "funded_tr
 /** The columns of an export of these lines (or rows): all of them, or without `authorised_by` for a file written before it. */
 export const auditColumns = (lines) => (lines.some((r) => r[AUTHORISED] === undefined) ? AUDIT_COLUMNS.filter((c) => c !== AUTHORISED) : AUDIT_COLUMNS);
 export const AUDIT_SUMS = ["paid_units", "fee_units", "refunded_units", "reverted_units"];
-// audit._text: every value as text (None is "", True is "1")
-const auditText = (v) => (v === null || v === undefined ? "" : typeof v === "boolean" ? String(Number(v)) : String(v));
-// json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-const asciiJson = (v) => JSON.stringify(v).replace(/[\u007f-￿]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`);
-export function canonical(v) {
-  if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
-  if (v && typeof v === "object") return `{${Object.keys(v).sort().map((k) => `${asciiJson(k)}:${canonical(v[k])}`).join(",")}}`;
-  return asciiJson(v);
-}
-const sha256Hex = async (text) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
-/** audit._hash: sha256 of the canonical JSON of a row (or of the scope), every value as text. */
-export const auditHash = (doc) => sha256Hex(canonical(Object.fromEntries(Object.entries(doc).map(([k, v]) => [k, auditText(v)]))));
-
-/** audit.chained: { rows, head }: the lines numbered, each carrying the hash of the row before; the head of an empty export is its scope's hash. */
-export async function auditChained(lines, scope) {
-  let prev = await auditHash(scope);
-  const rows = [], columns = auditColumns(lines);
-  for (const [n, r] of lines.entries()) {
-    const full = { ...r, seq: n + 1, prev }, row = Object.fromEntries(columns.map((c) => [c, full[c]]));
-    rows.push(row);
-    prev = await auditHash(row);
-  }
-  return { rows, head: prev };
-}
-
-/** audit.totals: per currency (never added across mints), how many lines and the sum of each money column; currencies in order. */
-export function auditTotals(rows) {
-  const out = {};
-  for (const r of rows) {
-    const t = (out[auditText(r.currency)] ||= { lines: 0, ...Object.fromEntries(AUDIT_SUMS.map((c) => [c, 0])) });
-    t.lines++;
-    for (const c of AUDIT_SUMS) t[c] += Number(r[c] || 0);
-  }
-  return Object.fromEntries(Object.keys(out).sort().map((k) => [k, out[k]]));
-}
-
-const csvCell = (t) => (/[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t);                    // csv.writer, as Python quotes
-const formulaSafe = (t) => (/^[=+\-@\t\r]/.test(t) ? `'${t}` : t);                                 // records._cell
-/** audit.write: the file, "csv" or "json". */
-export function auditWrite(scope, rows, head, fmt) {
-  const sums = auditTotals(rows), columns = auditColumns(rows);
-  if (fmt === "json") return `${canonical({ scope, columns, rows, totals: sums, head, rows_count: rows.length })}\n`;
-  if (fmt !== "csv") throw new Error(`the format is csv or json; ${fmt} is neither`);
-  const line = (cells) => `${cells.map((c) => csvCell(String(c))).join(",")}\n`;
-  return line(columns) + rows.map((r) => line(columns.map((c) => formulaSafe(auditText(r[c]))))).join("")
-    + Object.entries(sums).map(([cur, t]) => line(["total", cur, t.lines, ...AUDIT_SUMS.map((c) => t[c])])).join("")
-    + line(["head", head, rows.length, canonical(scope)]);
-}
-
-/** audit.export, from the lines: { text, rows, head }. */
-export async function auditExport(scope, lines, fmt = "csv") {
-  const { rows, head } = await auditChained(lines, scope);
-  return { text: auditWrite(scope, rows, head, fmt), rows, head };
-}
+// The statement's own arithmetic (audit._text, _hash, chained, totals, write, export) is web/finance_data.js, which writes
+// version 2 and version 1 files byte for byte as src/knos/audit.py does; this file draws it.
+export { canonical, auditHash, chained as auditChained, totals as auditTotals, auditWrite, auditExport } from "./finance_data.js";
 
 // ---- the meter's three numbers, from a ledger file dropped onto the page ---------------------------------------------------------------
 // A meter ledger (src/knos/ledger.py, docs/METER.md) is JSON Lines: a batch's header line {"batch": {...}}, then its
@@ -194,6 +145,7 @@ export function meterNumbers(text) {
     batches, anchored, corrections: fixes.length, problems };
 }
 
+const EXPORT_NAMES = { generic: "Generic CSV", netsuite: "NetSuite", sap: "SAP", coupa: "Coupa", quickbooks: "QuickBooks" };
 const STATE_WORDS = { paid: "paid", released: "holdback released", kill: "kill fee paid", refunded: "refunded", reverted: "reverted", open: "funded, open", held: "accepted, held" };
 const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const explorer = (kind, id) => `https://explorer.solana.com/${kind}/${id}?cluster=devnet`;
@@ -251,6 +203,9 @@ export function renderOrderStatement(el, env = {}) {
     const money = (u) => (u ? show(Number(u)) : "");
     const back = (r) => money(Number(r.refunded_units) + Number(r.reverted_units));
     const said = rows.length > 0 && auditColumns(rows).includes(AUTHORISED);       // who authorised each order's money, when the file says
+    let records = [];
+    try { records = recordsOf(rows, loaded.refs || null); } catch { records = []; }          // a file written before the columns the objects need: the table stands, the objects are not guessed
+    const label = (r) => `${r.authorisation.scope.private ? "a private order" : `issue #${r.authorisation.scope.issue}`}, ${show(r.commercial.amount_units || r.commercial.price_units)}: ${chipOf(r)}`;
     const command = `knos audit export --owner ${s.owner_id} --from ${s.from} --to ${s.to} --format csv`;
     out.innerHTML = `<div id="ost-statement" data-owner="${esc(s.owner_id)}" data-month="${esc(month)}">
       <h4>${esc(loaded.name)}, ${esc(month)}: every work order</h4>
@@ -263,12 +218,35 @@ export function renderOrderStatement(el, env = {}) {
         Object.entries(sums).map(([cur, t]) => [esc(cur), esc(t.lines), esc(show(t.paid_units)), esc(show(t.fee_units)), esc(show(t.refunded_units)), esc(show(t.reverted_units))]))}</div>
       <p><button type="button" id="ost-csv" class="ghost small">Export CSV</button> <button type="button" id="ost-json" class="ghost small">Export JSON</button>
         <span class="fine">Made here, in your browser, from these rows.</span></p>
+      <h4>One order, as four linked objects</h4>
+      <div class="row"><div><label for="ost-order">The order</label><select id="ost-order">${records.map((r, n) => `<option value="${n}">${esc(label(r))}</option>`).join("")}</select></div>
+        <div><label for="ost-refs">Your refs file, if you keep one (order,ref,paid_outside,dispute)</label><input type="file" id="ost-refs" accept=".csv,text/csv"></div></div>
+      <p class="fine" id="ost-refs-said" role="status" aria-live="polite"></p>
+      <div id="ost-objects"></div>
+      <h4>For your finance system</h4>
+      <p id="ost-exports">${Object.entries(FORMATS).sort(([, a], [, b]) => Number(a.unverified) - Number(b.unverified)).map(([fmt, f]) => `<button type="button" class="ghost small" data-export="${esc(fmt)}" title="${esc(f.name)}">${esc(EXPORT_NAMES[fmt] || fmt)}</button>${f.unverified ? ` <span class="fine" data-unverified="${esc(fmt)}">${esc(UNVERIFIED)}</span>` : ""}`).join(" ")}</p>
+      <p class="fine">Accepted deliverables only. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/FINANCE.md" target="_blank" rel="noopener">What each file holds, and what nobody has imported yet.</a></p>
       <p class="fine" id="ost-recompute">How the other party recomputes it: <code>${esc(command)}</code> reads the same period from the chain and prints the same bytes as Export CSV
         (<code>--format json</code> for Export JSON). Compare one hash, the head: <span class="mono" id="ost-head">${esc(head)}</span>. <code>knos audit verify &lt;file&gt;</code>
         checks every row's hash, the totals and the head of a file someone sent you. Test USDC on devnet: not an invoice for real money.</p></div>`;
     const name = `knos-audit-${s.owner_id}-${month}`;
     $("ost-csv").onclick = () => save(auditWrite(s, rows, head, "csv"), `${name}.csv`, "text/csv;charset=utf-8");
     $("ost-json").onclick = () => save(auditWrite(s, rows, head, "json"), `${name}.json`, "application/json");
+    // one order's four objects (web/finance_data.js recordsOf, drawn by web/console.js), and the files a finance system imports
+    const drawOrder = () => { const rec = records[Number($("ost-order").value)]; $("ost-objects").innerHTML = rec ? objectsHtml(rec, EXPLORER) : `<p class="status">This month has no order.</p>`; };
+    const at = records.findIndex((r) => r.id === loaded.order);
+    if (at >= 0) $("ost-order").value = String(at);
+    $("ost-order").onchange = () => { loaded.order = records[Number($("ost-order").value)]?.id; drawOrder(); };
+    drawOrder();
+    if (loaded.refsName) $("ost-refs-said").textContent = `Read ${loaded.refsName} in this page. Not uploaded.`;
+    $("ost-refs").onchange = async (ev) => {
+      const f = ev.target.files?.[0];
+      if (!f) return;
+      try { loaded.refs = readRefs(await f.text()); loaded.refsName = f.name; await render(); } catch (e) { $("ost-refs-said").textContent = e.message; }
+    };
+    for (const b of out.querySelectorAll("[data-export]")) {
+      b.onclick = async () => { const fmt = b.dataset.export; save(await exportAs(fmt, s, rows, head, loaded.refs || null), `${name}-${fmt}.${FORMATS[fmt].extension}`, "text/csv;charset=utf-8"); };
+    }
   }
 
   async function open(asked) {

@@ -125,8 +125,9 @@ export function renderBuyer(el, env = {}) {
 
   el.innerHTML = `
     <h2>Buy work per outcome</h2>
-    <p class="lede">Fix the price and the acceptance terms before the work starts. The money waits in escrow and is paid when a signed CI run says the terms were met. No wallet app, and no command grammar to learn.</p>
+    <p class="lede">Fix price and terms first. Pay when a signed run accepts.</p>
     <p class="devnet">Solana devnet: test USDC, never real money</p>
+    <p><button type="button" class="k-btn quiet" id="buy-go-records">See one order as four records</button></p>
 
     <section class="card" id="buy-step-1"><span class="pill">Step 1 of 4</span>
       <h3>What are you buying?</h3>
@@ -213,8 +214,8 @@ export function renderBuyer(el, env = {}) {
       <div id="buy-exc" role="status" aria-live="polite"></div>
     </section>
 
-    <section class="card" id="buy-statement"><h3>The month's statement, for both sides</h3>
-      <p>Every work order your organisation's money funded in one month, with the totals, as a file the supplier can recompute from the chain and compare by one hash.</p>
+    <section class="card" id="buy-statement" style="scroll-margin-top:80px"><h3>The month's statement, and each order as four records</h3>
+      <p>One month of orders. Each order: authorisation, acceptance, commercial record, settlement status.</p>
       <div id="buy-statement-box"></div>
     </section>`;
 
@@ -509,6 +510,8 @@ export function renderBuyer(el, env = {}) {
         ${events.length ? `<h4>What the program logged</h4><ul class="plain" id="buy-events">${events.filter((e) => said[e.event]).map((e) => `<li>${esc(when(e.at))}: ${esc(said[e.event](e))} ${tx(e.tx)}</li>`).join("")}</ul>` : ""}
         ${receipt}
         ${st.state === "none" ? "" : answers}`;
+      // a payment that landed: the mark flies from the button to the verdict, once (web/motion.js; nothing moves for a reader who asked for that)
+      if (st.state === "paid") import("./motion.js").then((m) => m.raven?.(el.querySelector("#buy-order-form button"), $("buy-state"))).catch(() => {});
     } catch (e) { say(out, `Devnet did not answer: ${esc(e.message)}. Try again.`, "bad"); }
   };
 
@@ -535,6 +538,7 @@ export function renderBuyer(el, env = {}) {
     } catch (e) { say(out, esc(e.message), "bad"); }
   };
 
+  $("buy-go-records").onclick = () => { $("buy-statement").scrollIntoView?.({ block: "start" }); $("ost-owner")?.focus({ preventScroll: true }); };
   // ---- the statement, the templates, and a wallet this browser kept ----------------------------------------------------------------------
   renderOrderStatement($("buy-statement-box"), { EXPLORER, gh, file: env.file });
   const ready = (env.templates ? Promise.resolve(env.templates) : fetch("buyer_templates.json").then((r) => { if (!r.ok) throw new Error(`buyer_templates.json did not load (${r.status})`); return r.json(); }))

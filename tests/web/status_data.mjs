@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { summarise, relayLines, reason, headline, LOG_BOT, RECENT } from "../../web/status_data.js";
+import { summarise, relayLines, reason, headline, statesOfLine, statesHtml, STATES, LOG_BOT, RECENT } from "../../web/status_data.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const doc = JSON.parse(readFileSync(join(here, "recorded", "relay_log_stages.json"), "utf8"));
@@ -50,6 +50,30 @@ same("no status line: waiting and the last round are unknown, not zero", [old.wa
 same("an empty log", [summarise([], null, T).worker, summarise({ comments: [] }, null, T).headline], [{ ranRecently: false, lastSeen: null, ago: null, from: null }, "The relay's log has no line of its own yet."]);
 same("a reason keeps its words and drops what names one token", reason("this comment cannot carry its token (0a1b2c3d...): posted  as knos-proof"), "this comment cannot carry its token : posted as knos-proof");
 same("the headline is a function of the summary alone", headline(s), s.headline);
+
+// ---- the five states of the latest round, and the status comment's last rounds -------------------------------------------
+same("the recorded log is 0.3.15's: no line has its times, so no round's states are claimed, and it lists no rounds", [s.latest, s.rounds], [null, []]);
+const id = "ab".repeat(8), id2 = "cd".repeat(8);
+const timed = [{ user: bot, created_at: iso(T), updated_at: iso(T + 300), body: [`knos-relay status - - ok at=${iso(T + 299)} round=4 tokens=2 waiting=1 oldest=20 retried=0 refused=1`,
+    `knos-relay round o/r#6 ${id2.slice(0, 8)} ok order=- state=waiting seconds=20 kind=proof`, `knos-relay round o/r#5 ${id.slice(0, 8)} ok order=${"J".repeat(44)} state=confirmed seconds=12 kind=proof`,
+    "knos-relay round o/r#1 0123abcd ok order=- state=refused seconds=0 kind=fund"].join("\n") },
+  { user: bot, created_at: iso(T + 100), body: `knos-relay fund o/r#4 ${"ef".repeat(8)} ok sig=s0 wait=2 chain=3 note=funded t=5` },      // an older line, with no times
+  { user: bot, created_at: iso(T + 200), body: `knos-relay proof o/r#5 ${id} ok sig=s1,s2 queue=1 workflow=6 wait=3 chain=9 queued_at=${T + 188}.0 seen_at=${T + 191}.0 sent_at=${T + 191}.4 confirmed_at=${T + 200}.0 note=paid sent_at=1 to W t=12` },
+  { user: { login: "mallory" }, created_at: iso(T + 250), body: `knos-relay round o/r#9 deadbeef ok order=- state=confirmed seconds=1 kind=proof` }];
+const t = summarise(timed, null, T + 301);
+same("the latest round: the five states by name, each with the time its log line gives and its seconds from the one before", t.latest, { kind: "proof", where: "o/r#5", id, states: [
+  { name: "received", at: T + 182, seconds: null }, { name: "accepted", at: T + 188, seconds: 6 }, { name: "submitted", at: T + 191.4, seconds: 3 },
+  { name: "confirmed", at: T + 200, seconds: 9 }, { name: "finalized", at: null, seconds: null }] });
+same("the names are the five, in order", [STATES, t.latest.states.map((x) => x.name)], [["received", "accepted", "submitted", "confirmed", "finalized"], STATES]);
+same("the status comment's rounds, newest first: where, the order when the relay named one, the state and the seconds", t.rounds, [
+  { where: "o/r#6", id: id2.slice(0, 8), order: null, state: "waiting", seconds: 20, kind: "proof" }, { where: "o/r#5", id: id.slice(0, 8), order: "J".repeat(44), state: "confirmed", seconds: 12, kind: "proof" },
+  { where: "o/r#1", id: "0123abcd", order: null, state: "refused", seconds: 0, kind: "fund" }]);
+same("a round line is no token's verdict: the counts are as before (one carried with times, one without; nobody else's line counts)", [t.answered, t.refused.count, t.waiting], [{ ok: 2, failed: 0 }, 0, { tokens: 1, oldestSeconds: 20, asOf: T + 299 }]);
+same("a line whose relay sent nothing (`-`) claims no time for it", statesOfLine({ fields: { queued_at: "100.0", seen_at: "103.0", sent_at: "-", confirmed_at: "-" } }).map((x) => x.at), [null, 100, null, null, null]);
+const html = statesHtml(t.latest);
+same("the states as the page shows them: .k-step with data-state, a time only where the log has one", [(html.match(/class="k-step"/g) || []).length, (html.match(/data-state="done"/g) || []).length, html.includes('data-step="finalized" data-state="idle"><strong>finalized</strong> <span class="k-num">not in the log'),
+  html.includes(`data-step="accepted" data-state="done"><strong>accepted</strong> <span class="k-num">${iso(T + 188).slice(11, 19)} UTC, 6 s`), statesHtml(null)], [5, 4, true, true, ""]);
+same("text from the log is escaped", statesHtml({ where: '"><img src=x>', states: [] }).includes("<img"), false);
 
 console.log(failed ? `${failed} failed` : "all passed");
 process.exit(failed ? 1 : 0);

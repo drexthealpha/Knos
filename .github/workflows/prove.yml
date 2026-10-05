@@ -15,6 +15,13 @@ name: knos prove
 #            terms as they were funded, GitHub's record of the merged head commit, who is paid and where. Only then
 #            the token, its relay and a comment on the pull request. It checks out nothing and runs none of the pull
 #            request's code.
+#            THE COMMENT IS ONE, and it carries the five states of the payment (received, accepted, submitted,
+#            confirmed, finalized; docs/RELAY.md): posted when the command has found something in escrow for the pull
+#            request ("received"), edited when the terms hold and GitHub has signed ("accepted, settling": before the
+#            token goes to Solana), edited again when the payment lands, and once more when it is finalized. Never a
+#            new comment per state. No commit status or check is written on the merge commit: that needs
+#            `statuses: write` or `checks: write`, this job has both as `read`, and a called job may not ask for
+#            more than the calling job of every repository that installed Knos already grants.
 #   review   the check on a pull request ("knos check", examples/knos-check.yml) has finished:   knos review
 #            The same check again, where it may write: one comment on the pull request, edited in place on later
 #            runs, and what was learned as comments on the issue labelled knos-memory. No id-token and no secret.
@@ -113,9 +120,9 @@ jobs:
     permissions:
       contents: read          # the repository's files, read through GitHub's API (there is no checkout)
       issues: write           # comments on the issue
-      pull-requests: write    # the comment on the pull request
-      checks: read            # GitHub's record of the merged head commit: the evidence
-      statuses: read          # the same, for checks that report as commit statuses
+      pull-requests: write    # the one comment on the pull request: posted at "received", edited as the payment moves
+      checks: read            # GitHub's record of the merged head commit: the evidence (read: no check is written)
+      statuses: read          # the same, for checks that report as commit statuses (read: no commit status is written)
       actions: read           # which workflow run each check belongs to
       id-token: write         # the pay token
     steps:
@@ -174,7 +181,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.15"
+        run: uv tool install --no-config "knos==0.3.16"
       - name: knos review
         id: review
         env:
@@ -242,7 +249,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.15"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.16"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.

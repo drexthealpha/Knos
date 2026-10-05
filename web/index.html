@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos: the neutral count and settlement for software work priced per outcome</title>
-<meta name="description" content="Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.">
+<title>Knos: the neutral meter for AI agent work</title>
+<meta name="description" content="The neutral meter for AI agent work: neither side keeps the count. Close a supplier's invoice with evidence both sides can check.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
 <!-- The card of a shared link is a file of this site (web/brand/card.png, drawn by scripts/brand.py); the page itself asks for nothing here. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos: the neutral count and settlement for software work priced per outcome">
-<meta property="og:description" content="Terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.">
+<meta property="og:title" content="Knos: the neutral meter for AI agent work">
+<meta property="og:description" content="The neutral meter for AI agent work: neither side keeps the count. Close a supplier's invoice with evidence both sides can check.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The Knos wordmark, a raven whose body and tail are the letter K, above the sentence: Knos is the neutral count and settlement for software work priced per outcome.">
+<meta property="og:image:alt" content="The Knos wordmark, a raven whose body and tail are the letter K, above the sentence: The neutral meter for AI agent work: neither side keeps the count.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
@@ -29,24 +29,29 @@
 <header class="bar">
   <a class="brand" href="#check" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
   <nav id="nav" aria-label="Sections">
-    <a href="#check">Check</a>
-    <!-- A link with data-mount shows once its page below (section#buy, section#install, section#capabilities,
-         section#status, section#index, section#pilot, section#reproduce) holds something; web/front.js does the
-         showing. The links under "More" are in the bar's own row on a phone and in a page read without scripts. -->
-    <a href="#buy" data-mount="buy" hidden>Buy</a>
-    <a href="#claim">Get paid</a>
+    <!-- Five links at most in the bar; the rest are under "More". A link with data-mount shows once its page below
+         holds something (web/front.js does the showing). Without scripts every link is a plain link of the bar. -->
+    <a href="#demo">Demo</a>
+    <a href="#shadow" data-mount="shadow" hidden>Check an invoice</a>
+    <a href="#buy" data-mount="buy" hidden>Console</a>
     <a href="#pricing">Pricing</a>
-    <a href="#status" data-mount="status" hidden>Status</a>
-    <a href="#index" data-mount="index" hidden>Index</a>
-    <a href="#pilot" data-mount="pilot" hidden>Pilot</a>
+    <a href="https://github.com/drexthealpha/Knos/tree/main/docs" rel="noopener">Docs</a>
     <div class="more" id="more">
       <button id="more-button" class="more-button" type="button" aria-expanded="false" aria-controls="more-list">More</button>
       <div class="more-list" id="more-list">
-        <a href="#install" data-mount="install" hidden>Install</a>
-        <a href="#protect">Protect</a>
+        <a href="#check" id="go-check">Check a pull request</a>
+        <a href="#verifier" data-mount="verifier" hidden>Verify</a>
+        <a href="#playground" data-mount="playground" hidden>Playground</a>
+        <a href="#terms" data-mount="terms" hidden>Terms</a>
+        <a href="#claim">Get paid</a>
         <a href="#fund">Fund</a>
+        <a href="#protect">Protect</a>
+        <a href="#install" data-mount="install" hidden>Install</a>
         <a href="#records">Records</a>
         <a href="#network">Numbers</a>
+        <a href="#status" data-mount="status" hidden>Status</a>
+        <a href="#index" data-mount="index" hidden>Index</a>
+        <a href="#pilot" data-mount="pilot" hidden>Pilot</a>
         <a href="#capabilities" data-mount="capabilities" hidden>Capabilities</a>
         <a href="#reproduce" data-mount="reproduce" hidden>Reproduce</a>
         <a href="#build">Build</a>
@@ -62,65 +67,77 @@
 
 <main>
   <section id="view-check" class="view">
-    <p class="devnet">Solana devnet. The money is test USDC.</p>
-    <h1 id="check">Knos is the neutral count and settlement for software work priced per outcome: <span class="rest">terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.</span></h1>
-    <p class="actions">
-      <a class="button" id="go-check" href="#pr-form">Check a pull request</a>
-      <a class="button quiet" id="go-install" href="#install">Install</a>
-    </p>
-    <ol class="how" aria-label="How a task is paid">
-      <li><h3>A comment funds the task</h3>
-        <p>The owner comments on an issue. The checks named there are the terms, hashed into the order when the money
-          goes in. <a href="#fund">Fund a task</a></p>
-        <div class="show"><pre>/knos fund 20 checks: test</pre></div></li>
-      <li><h3>A signed run says the terms were met</h3>
-        <p>On the merge, the workflow reads the funded checks at the merged commit and asks GitHub to sign the run:
-          which workflow, at which commit, in which repository. <a href="#protect">Protect a repository</a></p>
-        <div class="show receipt"><span>GitHub signs:</span> <code>repository</code> <code>sha</code> <code>job_workflow_ref</code></div></li>
-      <li><h3>A Solana program pays</h3>
-        <p>The program checks that signature itself, then pays the person the pull request is for. Nobody holds the
-          money in between. <a href="#claim">Get paid</a></p>
-        <div class="show receipt"><span>A payment on devnet, a demonstration:</span>
-          <a href="https://explorer.solana.com/tx/4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt?cluster=devnet" target="_blank" rel="noopener" title="4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt"><code>4PovnMjD…2zcDxt</code></a></div></li>
-    </ol>
-    <figure id="demo" class="demo" hidden>
-      <video id="demo-video" controls preload="metadata" playsinline></video>
-      <figcaption class="fine">A recording of one task, from its funding to its payment.</figcaption>
-    </figure>
-    <p class="kicker">What is here</p>
-    <ul class="lead-with">
-      <li><span>A verifier on Solana for any <code>RS256</code> workload identity, readable by other programs.</span></li>
-      <li><span>Named checks and allowed paths, hashed into the order at funding.</span></li>
-      <li><span>A seller who can settle without the buyer.</span></li>
-      <li><span>Payment on a black-box check: 0 of 63 cheating pull requests passed it, 56 passed plain CI.</span></li>
-      <li><span>A neutral count of accepted outcomes, with no escrow.</span></li>
-    </ul>
-    <p class="lede">A work order is a task, its budget and the terms that decide whether it is done, fixed before the work
-      starts. A bounty on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs
-      says whether the terms were met, and a Solana program checks that signature itself before it pays. No person holds
-      the money in between.</p>
+    <!-- THE FIRST SCREEN: 40 words at most, bar included (tests/web/motion.mjs counts them). The sentence, the figure,
+         two buttons, the mark (web/brand/mark3d.js draws it into #mark3d), a cue at the foot that more follows, and the demo's mount: web/demo.js fills
+         #demo and web/front.js shows it once it holds something. -->
+    <div class="hero k-stage">
+      <div class="hero-words">
+        <h1 id="check">The neutral meter for AI agent work: neither side keeps the count.</h1>
+        <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/BENCH.md">17.8%</a> of agents' first “tests pass” pull requests had a failed check.</p>
+        <p class="actions">
+          <a class="k-btn" id="go-demo" href="#demo">Try it</a>
+          <a class="k-btn quiet" id="go-shadow" href="#shadow">Check your invoice</a>
+        </p>
+      </div>
+      <div class="hero-mark" id="mark3d" aria-hidden="true"></div>
+      <a class="hero-cue" id="hero-cue" href="#demo">Scroll</a>
+    </div>
+    <section id="demo" class="mount" aria-label="Demo" hidden></section>
+
     <h2 id="check-a-pull-request">Check a pull request</h2>
-    <p class="fine">Paste an agent pull request and see whether its "tests pass" is true: what the pull request
-      claims, against what GitHub's CI says at its head commit. Nothing to install, no login.</p>
     <form id="pr-form" class="card">
-      <label for="pr-url">Agent pull request, a repository's record, or the transaction that paid a task</label>
+      <label for="pr-url">Paste a pull request, a repository or a transaction</label>
       <input id="pr-url" name="pr-url" type="text" inputmode="url" autocomplete="off" required
         placeholder="https://github.com/owner/repo/pull/123, owner/repo or a transaction">
-      <p class="fine examples-row">Or see a result in one click:</p>
+      <p class="fine examples-row">Or open a result:</p>
       <div id="examples" class="examples"></div>
       <p id="example-says" class="fine" role="status" aria-live="polite"></p>
       <button type="submit" id="pr-check">Check it</button>
       <div id="pr-result" role="status" aria-live="polite"></div>
       <noscript><p class="fine">This check runs in your browser and needs JavaScript. The rest of the page reads without it.</p></noscript>
     </form>
-    <p class="fine">Devnet: the money is test USDC. This page is static files: it reads GitHub's public API and Solana
-      from your browser and sends nothing to Knos. Agent records come from the <a href="index.json">Agent PR Index</a>,
-      which a scheduled workflow rebuilds several times a day.</p>
-    <p class="fine" id="install-today"><strong>For your own agent:</strong> <code>pipx install knos</code> then <code>knos init</code>.
-      It adds a Stop hook to the coding agents on your machine (when the agent says tests pass, CI is green or it is
-      done, Knos runs that check itself before the agent may stop) and an MCP server, <code>knos mcp</code>, that can
-      check a pull request's claims and reads public data from GitHub and Solana. It holds no key and no wallet.
-      <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md">Every way to install it</a>.</p>
+    <details class="k-more">
+<summary>What the check reads</summary>
+<p class="fine">The check compares what a pull request claims with what GitHub's CI says at its head commit. No install, no login.</p>
+<p class="fine">This page is static files. It reads GitHub's public API and Solana from your browser and sends nothing to Knos.
+  Agent records come from the <a href="index.json">Agent PR Index</a>.</p>
+<p class="fine" id="install-today"><strong>For your own agent:</strong> <code>pipx install knos</code>, then <code>knos init</code>.
+  It adds a Stop hook (when the agent says tests pass, Knos runs the check before the agent may stop) and an MCP server,
+  <code>knos mcp</code>. It holds no key and no wallet. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md">Every way to install it</a>.</p>
+</details>
+
+    <h2 id="how-a-task-is-paid">Pay on a signed run</h2>
+    <p class="devnet">Solana devnet. The money is test USDC.</p>
+    <ol class="how" aria-label="How a task is paid">
+      <li><h3>Fund a task by comment</h3>
+        <p>Name the checks. They are the terms. <a href="#fund">Fund a task</a></p>
+        <div class="show"><pre>/knos fund 20 checks: test</pre></div></li>
+      <li><h3>Let GitHub sign the run</h3>
+        <p>Merge. GitHub signs which workflow ran, and where. <a href="#protect">Protect a repository</a></p>
+        <div class="show receipt"><span>GitHub signs:</span> <code>repository</code> <code>sha</code> <code>job_workflow_ref</code></div></li>
+      <li><h3>Watch a Solana program pay</h3>
+        <p>The program checks the signature, then pays. <a href="#claim">Get paid</a></p>
+        <div class="show receipt"><span>Paid on devnet, as a demonstration:</span>
+          <a href="https://explorer.solana.com/tx/4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt?cluster=devnet" target="_blank" rel="noopener" title="4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt"><code>4PovnMjD…2zcDxt</code></a></div></li>
+    </ol>
+    <figure id="film" class="film" hidden>
+      <video id="demo-video" controls preload="metadata" playsinline></video>
+      <figcaption class="fine">Watch one task, from funding to payment.</figcaption>
+    </figure>
+    <details class="k-more" id="what-is-here">
+      <summary>What is here</summary>
+      <ul class="lead-with">
+        <li><span>A verifier on Solana for any <code>RS256</code> workload identity, readable by other programs.</span></li>
+        <li><span>Named checks and allowed paths, hashed into the order at funding.</span></li>
+        <li><span>A seller who can settle without the buyer.</span></li>
+        <li><span>Payment on a black-box check: 0 of 63 cheating pull requests passed it, 56 passed plain CI.</span></li>
+        <li><span>A neutral count of accepted outcomes, with no escrow.</span></li>
+      </ul>
+      <p class="lede">A work order is a task, its budget and the terms that decide whether it is done, fixed before the work
+        starts. A bounty on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs
+        says whether the terms were met, and a Solana program checks that signature itself before it pays. No person holds
+        the money in between.</p>
+    </details>
   </section>
 
   <!-- PAGES OTHER MODULES FILL: web/buyer.js fills #buy and web/capabilities.js fills #capabilities (from
@@ -130,12 +147,15 @@
   <section id="buy" class="mount" aria-label="Buy" hidden></section>
   <section id="install" class="mount" aria-label="Install" hidden>
     <h2>Install by one pull request</h2>
-    <p class="lede">Write your repository. The page builds a link that opens GitHub's own editor with one workflow file
-      filled in; GitHub then offers the branch and the pull request. No secret, no wallet, and nothing is sent to Knos.</p>
+    <p class="lede">Write your repository. GitHub's editor opens with one file filled in.</p>
+    <details class="k-more">
+<summary>What the link does</summary>
+<p class="fine">The link opens GitHub's own editor with one workflow file filled in. GitHub offers the branch and the pull
+  request. No secret, no wallet; nothing is sent to Knos.</p>
+</details>
     <div id="install-pr" class="card"></div>
-    <p class="fine">With the check on every pull request as well, or from the command line:
-      <a href="#protect">Protect a repository</a> and
-      <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md">every way to install it</a>.</p>
+    <p class="fine">Add the check on every pull request: <a href="#protect">Protect a repository</a>.
+  <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md">Every way to install it</a>.</p>
   </section>
   <section id="capabilities" class="mount" aria-label="Capabilities" hidden></section>
   <!-- Filled by web/mounts.js: #status (the relay's log and the canary's round, read when the page is opened), #index
@@ -144,12 +164,21 @@
   <section id="index" class="mount" aria-label="Index" hidden></section>
   <section id="pilot" class="mount" aria-label="Pilot" hidden></section>
   <section id="reproduce" class="mount" aria-label="Reproduce" hidden></section>
+  <!-- 0.3.16: web/shadow.js fills #shadow (check an invoice), web/verifier.js #verifier, web/playground.js #playground,
+       web/terms.js #terms (the terms registry). -->
+  <section id="shadow" class="mount" aria-label="Shadow" hidden></section>
+  <section id="verifier" class="mount" aria-label="Verifier" hidden></section>
+  <section id="playground" class="mount" aria-label="Playground" hidden></section>
+  <section id="terms" class="mount" aria-label="Terms" hidden></section>
 
   <section id="view-protect" class="view" hidden>
     <h2 id="protect">Protect a repository</h2>
-    <p class="lede">One file, <code>.github/workflows/knos.yml</code>, is the whole payment flow. A second file,
-      <code>.github/workflows/knos-check.yml</code>, is optional: the check on every pull request. Neither needs a
-      wallet or a secret.</p>
+    <p class="lede">Add one workflow file. It needs no wallet and no secret.</p>
+    <details class="k-more">
+<summary>The two files</summary>
+<p class="fine"><code>.github/workflows/knos.yml</code> is the whole payment flow.
+  <code>.github/workflows/knos-check.yml</code> is optional: the check on every pull request.</p>
+</details>
     <form id="protect-form" class="card">
       <label for="protect-repo">Repository</label>
       <input id="protect-repo" name="protect-repo" type="text" autocomplete="off" required placeholder="owner/repo">
@@ -163,102 +192,101 @@
         request, <a href="https://github.com/drexthealpha/Knos/blob/main/examples/knos-check.yml">examples/knos-check.yml</a>
         to <code>.github/workflows/knos-check.yml</code>.</p></noscript>
     </form>
-    <p class="fine">Only the payment flow, by one pull request and with terms from a template: <a href="#install">Install</a>.</p>
+    <p class="fine">Install by one pull request, with terms from a template: <a href="#install">Install</a>.</p>
     <div class="card">
       <h3>What <code>knos.yml</code> does</h3>
-      <ul>
-        <li>Answers every comment with a line that starts with <code>/knos</code>, on issues and on pull requests.
-          <code>/knos help</code> lists the commands.</li>
-        <li>On <code>/knos fund</code> (or a new issue whose description has that line), asks GitHub to sign a
-          statement for one action: fund this task from this Balance. Anyone may carry a statement to Solana; it does
-          only what it names, once.</li>
-        <li>On a push to the default branch, for each merged pull request that closes a funded issue: reads GitHub's
-          record of the merged commit against the task's funded terms, and only when every funded check passed and the
-          changed files are in scope asks GitHub to sign the statement that pays.</li>
-        <li>Comments on issues and pull requests, and assigns an issue for <code>/knos take</code>.</li>
-        <li>Can be started by hand (Actions, then knos, then Run workflow, with a merged pull request's number) to
-          try a payment again.</li>
-      </ul>
+      <details class="k-more">
+<summary>The five jobs</summary>
+<ul>
+  <li>Answers every <code>/knos</code> comment. <code>/knos help</code> lists the commands.</li>
+  <li>On <code>/knos fund</code>: asks GitHub to sign one statement that funds this task. Anyone may carry it to Solana; it works once.</li>
+  <li>On a merge that closes a funded issue: reads GitHub's record against the funded terms, and asks GitHub to sign
+    the payment only when every funded check passed and the changed files are in scope.</li>
+  <li>Comments, and assigns an issue for <code>/knos take</code>.</li>
+  <li>Runs by hand (Actions, knos, Run workflow) to try a payment again.</li>
+</ul>
+</details>
       <h3>What it cannot do</h3>
-      <ul>
-        <li>Hold or move money. It has no wallet and no bounty's money. Money moves only on Solana, after the program
-          has checked GitHub's signature, and only as the statement and the task's terms say.</li>
-        <li>Change your code, branches or settings: it can read, comment and assign, and nothing else.</li>
-        <li>Spend a Balance past what its wallet allowed: only comments by the Balance's owner and the people it lists
-          count, and no task takes more than its cap.</li>
-        <li>Change a task's terms after funding, or take a payment back once it has been attested.</li>
-        <li>Be changed by a pull request: it runs from the default branch, it does not use
-          <code>pull_request_target</code>, and a pull request that edits <code>.github/</code> or
-          <code>.knos/</code> is out of a task's scope.</li>
-        <li>Vouch for more than its repository can: GitHub signs which workflow ran, at which commit, in which
-          repository, not what it read there. So a task's checks are judged in the funder's own repository, about the
-          funder's own money.</li>
-      </ul>
-      <p class="fine">No secret is needed. The signed statements are posted as comments and Knos's public relay carries
-        them to Solana and pays the fees. Optional: a repository secret <code>KNOS_RELAY_KEY</code>, a Solana key with
-        a little SOL for fees and never a bounty's money, lets the jobs carry their own statements instead of
-        waiting for the relay.</p>
+      <details class="k-more">
+<summary>Six limits, and why</summary>
+<ul>
+  <li>Hold or move money. It has no wallet. Money moves only on Solana, after the program has checked GitHub's signature.</li>
+  <li>Change your code, branches or settings: it can read, comment and assign.</li>
+  <li>Spend a Balance past its limits: only its owner's and listed people's comments count, and no task takes more than its cap.</li>
+  <li>Change a task's terms after funding, or take back an attested payment.</li>
+  <li>Be changed by a pull request: it runs from the default branch and never uses <code>pull_request_target</code>.</li>
+  <li>Vouch for more than its repository can: GitHub signs which workflow ran, at which commit, in which repository,
+    not what it read there.</li>
+</ul>
+<p class="fine">No secret is needed: Knos's public relay carries the signed statements and pays the fees.
+  <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md#what-knosyml-does-and-what-it-cannot">Each limit in full, and the optional relay key</a>.</p>
+</details>
       <div id="workflow-facts"></div>
     </div>
-    <p class="fine"><strong>The optional second file</strong>, <code>knos-check.yml</code>, checks every pull request,
-      forks included, and moves no money. It reads, and it reports through its own status
-      (<code>check / claims</code>) and the job's summary. A first-time contributor's first run waits for a maintainer's
-      approval on the pull request's page. GitHub runs it as the pull request has it, so a pull request
-      can change it for its own run: that is why it is advice, and nothing about money depends on it. With the first
-      file alone everything about money works; <code>/knos status</code> on a pull request then tells its author what
-      the check would have said.</p>
+    <details class="k-more">
+<summary>The optional check file</summary>
+<p class="fine"><code>knos-check.yml</code> checks every pull request, forks included, and moves no money. It reports
+  through its own status, <code>check / claims</code>. A pull request can change it for its own run, so it is advice:
+  nothing about money depends on it. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md#the-optional-second-file-knos-checkyml">The second file in full</a>.</p>
+</details>
   </section>
 
   <section id="view-fund" class="view" hidden>
     <h2 id="fund">Fund a task</h2>
-    <p class="lede">One comment on an issue, by the repository's owner or by someone the owner's Balance lists.</p>
+    <p class="lede">Comment on an issue. The checks you name are the terms.</p>
+    <details class="k-more">
+<summary>Who may fund</summary>
+<p class="fine">The repository's owner, or someone the owner's Balance lists.</p>
+</details>
     <div class="card">
       <h3>The comment</h3>
       <pre id="fund-comment">/knos fund 20 checks: test</pre>
-      <dl class="parts">
-        <dt><code>/knos fund</code></dt>
-        <dd>The command: a line of the comment (or of a new issue's description) that starts with it.
-          <code>/knos bounty</code> means the same.</dd>
-        <dt><code>20</code></dt>
-        <dd>The amount, from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.</dd>
-        <dt><code>checks: test</code></dt>
-        <dd>The checks that must have concluded <code>success</code> at the merged pull request's last commit, by
-          name, separated by commas. Left out, the task takes the default branch's required status checks, or, when
-          it requires none, the checks that ran on its latest commit. <code>checks: none</code> asks for none: your
-          merge alone is then the acceptance.</dd>
-        <dt>Optional</dt>
-        <dd><code>paths: src/**</code> (the pull request may change only files that match),
-          <code>days 30</code> (when an unpaid task's money goes back: 14 days unless you say, 90 at most) and
-          <code>reserve 3</code> (how many days <code>/knos take</code> holds the task for one person: 7 unless you
-          say).</dd>
-      </dl>
+      <details class="k-more">
+<summary>Each part of the comment</summary>
+<dl class="parts">
+  <dt><code>/knos fund</code></dt>
+  <dd>A line of a comment, or of a new issue's description, that starts with it. <code>/knos bounty</code> means the same.</dd>
+  <dt><code>20</code></dt>
+  <dd>The amount, from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.</dd>
+  <dt><code>checks: test</code></dt>
+  <dd>The checks that must have concluded <code>success</code> at the merged pull request's last commit. Left out: the
+    default branch's required checks, else the checks that ran on its latest commit. <code>checks: none</code>: your
+    merge alone is the acceptance.</dd>
+  <dt>Optional</dt>
+  <dd><code>paths: src/**</code> (the only files a pull request may change), <code>days 30</code> (when unpaid money
+    goes back: 14 days unless you say, 90 at most), <code>reserve 3</code> (days <code>/knos take</code> holds the
+    task: 7 unless you say).</dd>
+</dl>
+</details>
       <h3>What the reply says</h3>
-      <blockquote id="fund-reply">Knos: 20.00 test USDC is in escrow for issue #7. It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: <code>test</code> (the checks you named). The pull request may not change <code>.github/**</code> or <code>.knos/**</code>. If it is not paid by its deadline, the money goes back to where it came from. To earn it: open a pull request whose description says <code>Fixes #7</code>. <code>/knos take</code> reserves the issue for 7 days. For the money to reach you when it is paid, comment <code>/knos address &lt;your Solana address&gt;</code> on your pull request; without an address it waits for you until you bind a wallet (180 days at most).</blockquote>
-      <p class="fine">That is the shape of the reply. The terms in it are fixed: the funding transaction logs them and the
-        task stores their hash, so they cannot change afterwards. Knos answers on the issue when the money is in escrow,
-        or says what went wrong and what to type instead. How long that takes is measured, not promised:
-        <span id="fund-latency">see <a href="#network">Numbers</a></span>.</p>
-      <p class="fine">Every <code>/knos</code> comment gets a reply, and <code>/knos help</code> lists the commands:
-        among them <code>/knos take</code> (reserve a funded task), <code>/knos status</code>,
-        <code>/knos reject</code> (a maintainer, before merging: this pull request does not take the bounty) and
-        <code>/knos tip</code>.</p>
-      <p class="fine"><strong>Payment without a merge.</strong> Payment without a merge ("tests mode") is offered only
-        when the acceptance bundle is black-box: the submission runs as a separate process and only its output is
-        compared. Everything else is funded in merge mode, as above. The reason is measured: of 63 cheating pull
-        requests in <a href="https://github.com/drexthealpha/Knos/blob/main/docs/TAMPER.md">the tamper benchmark</a>,
-        plain CI passed 56, acceptance tests that run in the same process as the code passed 7, and the black-box
-        check passed none.</p>
+      <details class="k-more">
+        <summary>Read a whole reply</summary>
+        <blockquote id="fund-reply">Knos: 20.00 test USDC is in escrow for issue #7. It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: <code>test</code> (the checks you named). The pull request may not change <code>.github/**</code> or <code>.knos/**</code>. If it is not paid by its deadline, the money goes back to where it came from. To earn it: open a pull request whose description says <code>Fixes #7</code>. <code>/knos take</code> reserves the issue for 7 days. For the money to reach you when it is paid, comment <code>/knos address &lt;your Solana address&gt;</code> on your pull request; without an address it waits for you until you bind a wallet (180 days at most).</blockquote>
+      </details>
+      <details class="k-more">
+<summary>Fixed terms and tests mode</summary>
+<p class="fine">The terms are fixed: the funding transaction logs them and the task stores their hash. How long a
+  reply takes is measured: <span id="fund-latency">see <a href="#network">Numbers</a></span>.</p>
+<p class="fine">Every <code>/knos</code> comment gets a reply. <code>/knos help</code> lists the commands:
+  <code>/knos take</code>, <code>/knos status</code>, <code>/knos reject</code>, <code>/knos tip</code>.</p>
+<p class="fine"><strong>Payment without a merge</strong> is offered only for a black-box check: the submission runs as a
+  separate process and only its output is compared. Of 63 cheating pull requests in
+  <a href="https://github.com/drexthealpha/Knos/blob/main/docs/TAMPER.md">the tamper benchmark</a>, plain CI passed 56, in-process acceptance tests passed 7 and
+  the black-box check passed none.</p>
+</details>
     </div>
 
     <div class="card money" id="money">
       <p class="devnet">Solana devnet. The money here is test USDC: it is worth nothing.</p>
       <h3>Add money</h3>
-      <p>A comment spends a <strong>Balance</strong>: test USDC that a wallet set aside for the repositories of one
-        GitHub owner (a person or an organisation). The wallet that opened it says which people may spend it by comment
-        (up to four besides the owner) and how much one task may take, and only that wallet can take unspent money
-        back. A Balance that lists the commenter and holds the amount is spent first. When none can pay, on devnet,
-        the escrow's faucet gives the amount as free test USDC: at most 100 per comment, once per repository per minute.
-        Faucet money cannot be withdrawn, and every record counts it apart.</p>
+      <details class="k-more">
+<summary>What a Balance is</summary>
+<p>A comment spends a <strong>Balance</strong>: test USDC a wallet set aside for one GitHub owner's repositories.
+  That wallet names who may spend it (up to four besides the owner) and the cap per task; only it can take unspent money
+  back. With no Balance, the devnet faucet gives free test USDC: at most 100 per comment, once per repository per
+  minute. Faucet money cannot be withdrawn and is counted apart.
+  <a href="https://github.com/drexthealpha/Knos/blob/main/docs/SECURITY.md#11-a-balance-mints-and-extensions">A Balance in full</a>.</p>
+</details>
       <ol class="flow">
         <li>
           <button type="button" id="wallet-connect">Connect a wallet</button>
@@ -299,34 +327,42 @@
       <button type="submit" id="st-go">Read it from Solana</button>
       <div id="st-result" role="status" aria-live="polite"></div>
     </form>
-    <p class="fine"><strong>How it pays.</strong> A task is paid when a maintainer merges a pull request that closes
-      the issue and its funded checks passed at that pull request's last commit. There is no waiting period after
-      the merge: the payment is final. A maintainer who does not want a pull request to take the bounty comments
-      <code>/knos reject</code> on it before merging. With no payment by the deadline the money goes back
-      where it came from, and that needs no token. Fee: paid by the funder on top of the amount, 2.5% of the first
-      1,000, 1% from 1,000 to 50,000 and 0.5% above (at least 0.40 test USDC, no maximum), and only when someone is
-      paid: a refund returns it with the amount.
-      <a href="#pricing">Pricing</a> says which fee the program on devnet applies today.</p>
+    <details class="k-more">
+<summary>How it pays, the fee</summary>
+<p class="fine">A task is paid when a maintainer merges a pull request that closes the issue and its funded checks
+  passed at the last commit. The payment is final. <code>/knos reject</code> before merging keeps a pull request from
+  the bounty. Unpaid by the deadline, the money goes back; that needs no token.</p>
+<p class="fine">Fee: paid by the funder on top of the amount, 2.5% of the first 1,000, 1% from 1,000 to 50,000 and 0.5%
+  above (at least 0.40 test USDC, no maximum), and only when someone is paid: a refund returns it with the amount.
+  <a href="#pricing">Pricing</a> says which fee the program on devnet applies today.</p>
+</details>
 
     <div class="card money" id="anyissue">
       <p class="devnet">Solana devnet. The money here is test USDC: it is worth nothing.</p>
       <h3>Fund any issue</h3>
-      <p>Put test USDC in escrow, from your wallet, for an issue of any public repository. No file is needed in that repository. The page reads the issue from GitHub and shows the
-        terms whole; <strong>nothing is sent</strong> until your wallet shows you the transaction and you approve it.</p>
+      <details class="k-more">
+<summary>What this form does</summary>
+<p>Put test USDC in escrow, from your wallet, for an issue of any public repository. That repository needs no file.
+  <strong>Nothing is sent</strong> until your wallet shows you the transaction and you approve it.</p>
+</details>
       <p id="any-available" class="status" role="status" aria-live="polite">Asking devnet which version of knos_pay is live…</p>
       <form id="any-form" autocomplete="off" novalidate>
         <label for="any-issue">The issue, as GitHub writes its address</label>
         <input id="any-issue" type="text" autocomplete="off" spellcheck="false" placeholder="https://github.com/owner/repo/issues/7 or owner/repo#7">
         <label for="any-amount">Amount for the person who does the work (test USDC)</label>
         <input id="any-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="20">
-        <label for="any-days">Days to do it in (1 to 90): unpaid after that, the order can be sent back to you</label>
+        <label for="any-days">Days to do it in, 1 to 90</label>
         <input id="any-days" type="text" inputmode="numeric" autocomplete="off" value="14">
         <label for="any-checks">Checks that must have passed (optional): their names, separated by commas</label>
         <input id="any-checks" type="text" autocomplete="off" spellcheck="false" placeholder="test, lint">
         <label for="any-paths">Files the pull request may change (optional): globs, separated by commas</label>
         <input id="any-paths" type="text" autocomplete="off" spellcheck="false" placeholder="src/**, docs/*.md">
-        <p class="fine">A check named here counts from any source, a GitHub App or a commit status of that name. With no check, a maintainer's merge alone is the acceptance. The pull request
-          may never change <code>.github/**</code> or <code>.knos/**</code>.</p>
+        <details class="k-more">
+<summary>Rules for checks and paths</summary>
+<p class="fine">Unpaid after its days, the order can be sent back to you. A named check counts from any source: a GitHub
+  App or a commit status. With no check, a maintainer's merge alone is the acceptance. The pull request may never
+  change <code>.github/**</code> or <code>.knos/**</code>.</p>
+</details>
         <button type="submit" id="any-go">Read the issue and show the terms</button>
       </form>
       <div id="any-result" role="status" aria-live="polite"></div>
@@ -345,9 +381,12 @@
   
     <div class="card" id="task">
       <h3>A task with no repository</h3>
-      <p>You need no repository of your own to start. State the task as five or more pairs of an input and the answer it must get, and Knos pays the first
-        solution whose command prints every answer: its code runs as a separate process and only what it prints is compared. This page writes the files and the
-        text, and gives you links to GitHub pages that are filled in. <strong>It sends nothing:</strong> you press the last button on each page yourself.</p>
+      <details class="k-more">
+<summary>How a task is judged</summary>
+<p>State the task as five or more pairs: an input and the answer it must get. Knos pays the first solution whose
+  command prints every answer; its code runs as a separate process and only what it prints is compared.
+  <strong>It sends nothing:</strong> you press the last button on each GitHub page yourself.</p>
+</details>
       <form id="task-form" novalidate>
         <label for="task-title">Title of the issue</label>
         <input id="task-title" type="text" autocomplete="off" placeholder="Slugify a title">
@@ -357,7 +396,11 @@
         <input id="task-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="20">
         <label for="task-command">The command a solution is run as</label>
         <input id="task-command" type="text" autocomplete="off" spellcheck="false" placeholder="python3 slugify.py">
-        <p class="fine">It is run in the pull request's tree, with one input line on standard input; what it prints is compared with the answer, ignoring spaces at the end of a line and blank lines at the ends.</p>
+        <details class="k-more">
+<summary>How the command runs</summary>
+<p class="fine">It runs in the pull request's tree, with one input line on standard input. What it prints is compared
+  with the answer; spaces at the end of a line and blank lines at the ends are ignored.</p>
+</details>
         <label for="task-login">Your GitHub login</label>
         <input id="task-login" type="text" autocomplete="off" placeholder="octocat">
         <label for="task-repo-name">Name for the new repository</label>
@@ -374,8 +417,11 @@
 
   <section id="view-claim" class="view" hidden>
     <h2 id="claim">Get paid</h2>
-    <p class="lede">A task pays the person whose pull request is merged for it. You need no wallet to do the work.
-      Three ways to be paid, simplest first.</p>
+    <p class="lede">Merge the work. Say where to be paid: three ways.</p>
+    <details class="k-more">
+<summary>Who is paid</summary>
+<p class="fine">The person whose pull request is merged for the task. You need no wallet to do the work.</p>
+</details>
     <div class="card money">
       <p class="devnet">Solana devnet. What is paid here is test USDC.</p>
       <ol class="routes">
@@ -383,48 +429,58 @@
           <h3>Say where, on your pull request</h3>
           <p>Comment on it:</p>
           <pre>/knos address YOUR_SOLANA_ADDRESS</pre>
-          <p class="fine">The payment goes to that address when the pull request is merged and the payment is attested.
-            Do not edit the comment: an edited comment does not count. To change the address, post a new one.</p>
+          <details class="k-more">
+<summary>When the address counts</summary>
+<p class="fine">It is paid to that address once the pull request is merged and the payment is attested. An edited
+  comment does not count: to change the address, post a new one.</p>
+</details>
         </li>
         <li>
           <h3>Or bind a wallet once</h3>
-          <p>Every task then pays that wallet, whatever a pull request says: a bound wallet comes first. You do it by
-            hand on GitHub, in two steps:</p>
+          <p>A bound wallet comes first, whatever a pull request says. Two steps, by hand:</p>
           <ol class="steps" id="bind-steps">
             <li><a id="bind-template" href="https://github.com/new?template_owner=drexthealpha&amp;template_name=knos-claim&amp;name=knos-claim&amp;visibility=public&amp;owner=@me" target="_blank" rel="noopener">Create a repository from the template drexthealpha/knos-claim</a>
               (&ldquo;Use this template&rdquo;). Keep the name <code>knos-claim</code> and make it public, in your own
               account (a personal account, not an organisation).</li>
-            <li>Open that repository's <strong>Actions</strong> tab, choose <strong>knos claim</strong>, press
-              <strong>Run workflow</strong> and paste your Solana address into the box yourself.</li>
+            <li>Open that repository's <strong>Actions</strong> tab and choose <strong>knos claim</strong>.
+              Press <strong>Run workflow</strong> and paste your Solana address yourself.</li>
           </ol>
           <p>Or from a terminal, one command does both steps:</p>
           <pre>knos claim YOUR_SOLANA_ADDRESS</pre>
-          <p class="fine">Why by hand: an address carried in a link could be someone else's, so the address has to be one
-            you typed. The run asks GitHub to sign that the owner of the repository names that address; the escrow takes
-            that signature only from a run started by hand, by the owner, in a repository named
-            <code>knos-claim</code> in their account. A later binding replaces an earlier one.</p>
+          <details class="k-more">
+<summary>Why by hand</summary>
+<p class="fine">Why by hand: an address carried in a link could be someone else's, so you type it. GitHub signs that the
+  repository's owner names that address; the escrow takes that signature only from a run started by hand, by the
+  owner, in a repository named <code>knos-claim</code>. A later binding replaces an earlier one.</p>
+</details>
         </li>
         <li>
           <h3>Or do nothing yet</h3>
-          <p>With no address on the pull request and no bound wallet, the money is held for you for 180 days. Bind a
-            wallet in that time and what is held can be sent to it (<code>/knos settle</code> on the merged pull
-            request tries again). After 180 days it goes back to the funder.</p>
+          <details class="k-more">
+<summary>What happens then</summary>
+<p>With no address and no bound wallet, the money is held for you for 180 days. Bind a wallet in that time and
+  <code>/knos settle</code> on the merged pull request sends it. After 180 days it goes back to the funder.</p>
+</details>
         </li>
       </ol>
-      <p class="fine">A pull request that an agent opened under a bot account pays a person only when GitHub shows
-        whose it is: the issue is assigned to exactly one person (a maintainer assigned them, or they commented
-        <code>/knos take</code>), or a maintainer commented <code>/knos pay @login</code> on the pull request, or a
-        person named in its assignees commented <code>/knos mine</code> on it. A line in the description never
-        decides.</p>
+      <details class="k-more">
+<summary>When an agent opened it</summary>
+<p class="fine">A bot account's pull request pays a person only when GitHub shows whose it is: the issue is assigned
+  to one person, a maintainer commented <code>/knos pay @login</code>, or an assignee commented <code>/knos mine</code>.
+  A line in the description never decides.</p>
+</details>
     </div>
     <div class="card money" id="passkey">
       <p class="devnet">Solana devnet. What is paid here is test USDC.</p>
       <h3>No wallet app? Make a wallet from a passkey</h3>
-      <p>A passkey is the key your device already keeps behind its fingerprint, face, screen lock or a security key. This page
-        asks the device for one and shows the address of the wallet it controls; the private key never leaves the device and
-        this site never sees it. Name that address in either of the first two ways above, and what is paid arrives there.</p>
-      <p class="fine">A passkey works only at the web address it was made at (<span class="mono" id="pk-rp"></span>), and whether it is also on your other devices is
-        up to your device or password manager, not this site.</p>
+      <details class="k-more">
+<summary>What a passkey wallet is</summary>
+<p>A passkey is the key your device keeps behind its fingerprint, face or screen lock. This page asks the device for
+  one and shows its wallet's address; the private key never leaves the device. Name that address in either of the
+  first two ways above.</p>
+<p class="fine">A passkey works only at the web address it was made at (<span class="mono" id="pk-rp"></span>). Your
+  device or password manager decides whether it is on your other devices.</p>
+</details>
       <button type="button" id="pk-create">Create a passkey wallet</button>
       <div id="pk-status" role="status" aria-live="polite"></div>
       <div id="pk-wallet" hidden>
@@ -433,16 +489,19 @@
         <p>Two ways to name it:</p>
         <ol class="steps">
           <li>On your pull request, comment: <pre id="pk-address-comment"></pre></li>
-          <li>Or run the claim workflow by hand, as in the second way above, and paste this address into its box.</li>
+          <li>Or run the claim workflow by hand, as above. Paste this address into its box.</li>
         </ol>
         <div id="pk-balance" role="status" aria-live="polite"></div>
         <button type="button" id="pk-refresh" class="ghost small">Check the balance</button>
       </div>
       <form id="pk-form" novalidate>
         <h4>Withdraw</h4>
-        <p class="fine">You sign on your device; the signature is a line of text you post in your own <code>knos-claim</code> repository,
-          and the public relay carries it to Solana and pays its fee.</p>
-        <label for="pk-mint">Which test USDC: Circle's, or the devnet faucet's that a bounty funded by comment pays</label>
+        <details class="k-more">
+<summary>How a withdrawal travels</summary>
+<p class="fine">You sign on your device. The signature is a line of text you post in your own <code>knos-claim</code>
+  repository; the public relay carries it to Solana and pays its fee.</p>
+</details>
+        <label for="pk-mint">Which test USDC: Circle's, or the devnet faucet's</label>
         <select id="pk-mint"></select>
         <label for="pk-amount">Amount, in test USDC</label>
         <input id="pk-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="5">
@@ -478,25 +537,30 @@
 
   <section id="view-pricing" class="view" hidden>
     <h2 id="pricing">Pricing</h2>
-    <p class="lede">Checking is free. Knos is paid when money moves on signed acceptance, or when acceptance is counted. On
-      devnet every amount is test USDC.</p>
+    <p class="lede">Pay nothing to check. Pay when acceptance is counted or settled.</p>
+    <p class="lede" id="price-rule">Knos never charges the party being rated.</p>
     <div class="card">
       <h3>The price book</h3>
       <div class="table-wrap"><table id="price-book"><thead><tr><th>Line</th><th>Unit</th><th>Price</th></tr></thead><tbody>
-        <tr><th scope="row">Check</th><td>pull request checked</td><td>free</td></tr>
+        <tr><th scope="row">Check</th><td>pull request checked</td><td>free, forever</td></tr>
         <tr><th scope="row">Meter</th><td>evaluation</td><td>10,000 a month free per organisation, then 0.05 USD; 0.02 on a committed-volume plan</td></tr>
-        <tr><th scope="row">Control</th><td>organisation</td><td>25,000 USD a year entry, 80,000 organisation tier (nobody has bought it)</td></tr>
-        <tr><th scope="row">Settle</th><td>dollar settled, paid by the funder on top</td><td>2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40</td></tr>
-        <tr><th scope="row">Pilot</th><td>one buyer and its suppliers, 30 days</td><td>2,500 USD, invoiced off chain: reconcile the buyer's accepted work from more than one supplier, name every mismatch between acceptance and billing, deliver a statement both sides verify (nobody has bought it; there is no legal entity to invoice from yet)</td></tr>
-        <tr><th scope="row">Advance, Assurance</th><td></td><td>not offered; needs loss history</td></tr>
+        <tr><th scope="row">Verify</th><td>dollar of outcome billing the count verifies</td><td>0.5% to 1.0%, the greater of this and the Meter fee, capped per deliverable (proposed; nobody has bought it)</td></tr>
+        <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000 USD; Business 80,000; Enterprise from 250,000 (Enterprise is not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td></tr>
+        <tr><th scope="row">Supplier connection</th><td>supplier connected to a buyer, per year</td><td>5,000 USD each beyond the first five; the buyer pays; a supplier never pays to be counted</td></tr>
+        <tr><th scope="row">Pilot</th><td>one buyer and its suppliers, 30 days</td><td>2,500 USD, credited against the first year of Control (nobody has bought it; no legal entity to invoice from yet)</td></tr>
+        <tr><th scope="row">Settle</th><td>dollar settled, paid by the funder on top</td><td>2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40. On devnet this is test money: zero revenue</td></tr>
+        <tr><th scope="row">Index data, Advance, Assurance</th><td></td><td>not offered</td></tr>
       </tbody></table></div>
-      <p class="fine" id="price-tip">Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from
-        <span id="price-bounds">5 to 100,000</span> test USDC on devnet; a build for real money sets its own cap.</p>
-      <p class="fine" id="price-honest">What the programs enforce is the Settle and Meter lines. Control is a contract price
-        that nothing on chain enforces, and so is the Pilot, which is invoiced off chain (<a href="#pilot">what the Pilot is</a>).
-        Under a Plan the rate of Settle is set by a contract too: the program only lets the rate be lowered, never raised.</p>
       <p class="fine" id="price-version">Which fee applies to a task today is read from the program:
-        <span id="price-version-now">reading Solana devnet…</span></p>
+  <span id="price-version-now">reading Solana devnet…</span></p>
+<details class="k-more">
+<summary>What the programs enforce</summary>
+<p class="fine" id="price-tip">Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from
+  <span id="price-bounds">5 to 100,000</span> test USDC on devnet; a build for real money sets its own cap.</p>
+<p class="fine" id="price-honest">The programs enforce the Settle and Meter lines. Control is a contract price that nothing
+  on chain enforces, and so is the Pilot, invoiced off chain (<a href="#pilot">what the Pilot is</a>). Under a Plan the
+  program only lets the Settle rate be lowered, never raised.</p>
+</details>
     </div>
     <div class="card" id="calc-settle">
       <h3>What a task costs</h3>
@@ -518,8 +582,11 @@
     </div>
     <div class="card" id="arithmetic">
       <h3>The fee, worked</h3>
-      <p>Each tier's rate applies to the part of the amount inside that tier. The funder pays the fee on top; the payee
-        receives the amount in full.</p>
+      <details class="k-more">
+<summary>How the tiers apply</summary>
+<p>Each tier's rate applies to the part of the amount inside that tier. The funder pays the fee on top; the payee
+  receives the amount in full.</p>
+</details>
       <div class="table-wrap"><table id="fee-worked"><thead><tr><th>Amount</th><th>How</th><th>Fee</th></tr></thead><tbody></tbody></table></div>
       <h3>The effective fee, before you fund</h3>
       <div class="table-wrap"><table id="fee-effective"><thead><tr><th>Order</th><th>Fee</th><th>Effective fee</th></tr></thead><tbody>
@@ -529,15 +596,21 @@
         <tr data-amount="5000"><th scope="row">5,000</th><td>65</td><td>1.30%</td></tr>
         <tr data-amount="50000"><th scope="row">50,000</th><td>515</td><td>1.03%</td></tr>
       </tbody></table></div>
-      <p id="fee-small">Knos is not cheaper on a small order: 5 test USDC pays the minimum, 0.40, which is 8.00% of it. The calculator above shows this share for any amount before you fund. On devnet the fee is test money: no real revenue.</p>
+      <details class="k-more">
+<summary>Small orders pay more</summary>
+<p id="fee-small">Knos is not cheaper on a small order: 5 test USDC pays the minimum, 0.40, which is 8.00% of it. The calculator above shows this share for any amount before you fund. On devnet the fee is test money: no real revenue.</p>
+</details>
     </div>
   </section>
 
   <section id="view-records" class="view" hidden>
     <h2 id="records">Records and ranks</h2>
-    <p class="lede">What Knos has paid and to whom, counted from the public record of both escrows and from GitHub, and written as
-      files this site publishes beside its pages. Nothing here is typed by hand: each page says which file it read, what that
-      file was made from and when. A person or repository with no file has no record here, which is not the same as no payment.</p>
+    <p class="lede">Open what Knos paid, and to whom. Every page names its file.</p>
+    <details class="k-more">
+<summary>Where the records come from</summary>
+<p class="fine">Counted from the public record of both escrows and from GitHub, and published as files beside these pages.
+  Nothing is typed by hand. No file means no record here, which is not the same as no payment.</p>
+</details>
     <form id="rec-form" class="card">
       <h3>Open a record</h3>
       <label for="rec-q">A GitHub login, a repository as owner/name, or a link to either</label>
@@ -547,8 +620,11 @@
     <div id="rec-result" role="status" aria-live="polite"></div>
     <div class="card" id="statements">
       <h3>A statement for a month</h3>
-      <p class="fine">What an account was paid (a seller's statement) or what its money paid out (an owner's), one month at a time, with a CSV made in your browser.
-        Each payment is a row of the file <code>statements/&lt;login&gt;.json</code>; the totals are added here, by kind of money, and real and test money are never added together.</p>
+      <details class="k-more">
+<summary>What a statement holds</summary>
+<p class="fine">What an account was paid, or what its money paid out, one month at a time, with a CSV made in your
+  browser. Each payment is a row of <code>statements/&lt;login&gt;.json</code>. Real and test money are never added together.</p>
+</details>
       <form id="stm-form">
         <label for="stm-login">A GitHub login</label>
         <input id="stm-login" type="text" autocomplete="off" spellcheck="false" placeholder="octocat">
@@ -563,10 +639,10 @@
     <div class="card" id="rec-ranks">
       <h3>Ranks</h3>
       <ul class="plain">
-        <li><a href="#rank=earners">Earners</a>: by real money (Circle's USDC) received. Test money, self-payment and Knos's own accounts are not counted.</li>
-        <li><a href="#rank=funders">Funders</a>: by real money (Circle's USDC) paid out, with how reliably their jobs ended in payment.</li>
-        <li><a href="#rank=agents">Agents by false-claim rate</a>: from the Agent PR Index, lowest first, with 95% intervals.</li>
-      </ul>
+  <li><a href="#rank=earners">Earners</a>: by real money (Circle's USDC) received. Test money and self-payment are not counted.</li>
+  <li><a href="#rank=funders">Funders</a>: by real money (Circle's USDC) paid out, with how reliably they paid.</li>
+  <li><a href="#rank=agents">Agents by false-claim rate</a>: from the Agent PR Index, lowest first, with 95% intervals.</li>
+</ul>
     </div>
     <div class="card" id="rec-index" aria-live="polite"><p class="fine">Reading records.json…</p></div>
     <noscript><p class="fine">The records are files on this site; this page reads them in your browser and needs JavaScript. The same pages are at u/&lt;login&gt;.html, r/&lt;owner&gt;/&lt;repo&gt;.html and rank/earners.html.</p></noscript>
@@ -574,9 +650,12 @@
 
   <section id="view-network" class="view" hidden>
     <h2 id="network">Numbers</h2>
-    <p class="lede">Counted from the two escrow programs' own logs on Solana devnet, from the public relay log and
-      from GitHub. Knos's own activity, self-payment and free faucet money are shown apart and never added to
-      outside use. A zero is a zero.</p>
+    <p class="lede">Read the counts from the programs' own logs. Zero means zero.</p>
+    <details class="k-more">
+<summary>What is counted apart</summary>
+<p class="fine">Counted from the two escrow programs' logs on Solana devnet, the public relay log and GitHub. Knos's own
+  activity, self-payment and free faucet money are shown apart and never added to outside use.</p>
+</details>
     <div id="network-stats"></div>
     <noscript><p class="fine">The numbers are laid out by JavaScript. The file they come from is
       <a href="stats.json">stats.json</a>, written by
@@ -586,49 +665,57 @@
     <div id="network-programs" class="card"></div>
     <div id="first-deployment" class="card">
       <h3>The first deployment, as history</h3>
-      <p>Before the second deployment there was a first one on devnet: knos-oidc
-        <span class="mono">vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE</span> and knos-pay
-        <span class="mono">9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi</span>. It finishes the jobs that were funded
-        on it, and new funding goes to the second deployment only. Whether anyone can still change it is read from
-        Solana below, and what it paid is counted with the first deployment in the numbers above.</p>
+      <details class="k-more">
+<summary>Its two addresses</summary>
+<p>The first deployment on devnet: knos-oidc
+  <span class="mono">vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE</span> and knos-pay
+  <span class="mono">9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi</span>. It finishes the jobs funded on it; new
+  funding goes to the second deployment only. Whether anyone can still change it is read from Solana below.</p>
+</details>
     </div>
     <p class="fine" id="network-note"></p>
   </section>
 
   <section id="view-build" class="view" hidden>
     <h2 id="build">Build on it</h2>
-    <p class="lede"><strong>knos-oidc</strong> is a Solana program that verifies a GitHub Actions or GitLab CI token
-      on chain. Any program can then require a fact that GitHub signed: which repository, which commit, which
-      workflow, which account ran it.</p>
+    <p class="lede">Require a fact GitHub signed, from your own Solana program.</p>
+    <details class="k-more">
+<summary>What knos-oidc verifies</summary>
+<p class="fine"><strong>knos-oidc</strong> verifies a GitHub Actions or GitLab CI token on chain. Any program can then
+  require a signed fact: which repository, which commit, which workflow, which account ran it.</p>
+</details>
     <div class="card">
       <h3>Use it from your program</h3>
-      <p>A verified token is an account owned by knos-oidc. Read it; do not call anything. The interface crate has no
-        dependency, so it builds with solana-program, pinocchio or anchor of any version.</p>
-      <p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/OIDC.md">docs/OIDC.md</a> says how,
-        with the program's accounts and the checks a verified token has passed. A complete example program with its
-        test: <a href="https://github.com/drexthealpha/Knos/tree/main/examples/oidc_gate">examples/oidc_gate</a>. The
-        crate: <a href="https://github.com/drexthealpha/Knos/tree/main/crates/knos-oidc-interface">crates/knos-oidc-interface</a>.
-        IDLs of both programs: <a href="https://github.com/drexthealpha/Knos/tree/main/idl">idl/</a>. A JavaScript
-        client with no dependency: <a href="https://github.com/drexthealpha/Knos/tree/main/sdk/settle">sdk/settle</a>.</p>
+      <details class="k-more">
+<summary>Read one account</summary>
+<p>A verified token is an account owned by knos-oidc. Read it; call nothing. The interface crate has no dependency.</p>
+<p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/OIDC.md">docs/OIDC.md</a> says how. An example with its test:
+  <a href="https://github.com/drexthealpha/Knos/tree/main/examples/oidc_gate">examples/oidc_gate</a>. The crate:
+  <a href="https://github.com/drexthealpha/Knos/tree/main/crates/knos-oidc-interface">crates/knos-oidc-interface</a>.
+  IDLs: <a href="https://github.com/drexthealpha/Knos/tree/main/idl">idl/</a>. A JavaScript client:
+  <a href="https://github.com/drexthealpha/Knos/tree/main/sdk/settle">sdk/settle</a>.</p>
+</details>
     </div>
     <div class="card">
       <h3>How the signing keys are admitted</h3>
-      <ul>
-        <li>GitHub's keys are in the program from the start. Any other key enters only on a token GitHub signed for the
-          rotate workflow at its fixed commit, waits a day and needs the guardian's approval. Every key, the first ones
-          too, stops working after 30 days unless a token from that workflow attests it again. Nobody registers a key
-          by hand.</li>
-        <li>The guardian can approve a key and revoke one for good. It cannot add a key, and it cannot change a delay
-          or an expiry. Which keys are on chain, and until when, is on <a href="#network">Numbers</a>.</li>
-        <li>Who can change the program is read from Solana on <a href="#network">Numbers</a>.</li>
-      </ul>
+      <details class="k-more">
+<summary>Key rules</summary>
+<ul>
+  <li>GitHub's keys are built in. Any other key enters only on a token GitHub signed for the rotate workflow at its
+    fixed commit, waits a day and needs the guardian's approval.</li>
+  <li>Every key stops working after 30 days unless that workflow attests it again. Nobody registers a key by hand.</li>
+  <li>The guardian can approve a key or revoke one for good. It cannot add a key or change a delay.</li>
+  <li>The programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review.
+    Which keys are on chain: <a href="#network">Numbers</a>.</li>
+</ul>
+</details>
     </div>
   </section>
 </main>
 
 <footer class="foot">
-  <span>A Solana program holds the money, not Knos. The second deployment is upgradeable only through a multisig
-    with a public 48-hour delay, until an outside review. Devnet: test USDC.</span>
+  <span>Devnet is test mode: the money is test USDC.
+    <a href="https://github.com/drexthealpha/Knos/blob/main/docs/GOVERNANCE.md">Who can change the programs</a></span>
   <span><a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
 </footer>
 <script type="module" src="front.js"></script>

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -147,6 +148,8 @@ def _tree(tmp_path: Path, bd, cc) -> None:
     facts = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))["facts"]
     _copy(tmp_path, {*cc.PITCH, *bd.public_text(ROOT), "docs/bench.json", "docs/backtest.json", "docs/facts.json",
                      *({f.get("json") or f.get("file") for f in facts} - {None}), *cc.docs_of(facts)})
+    (tmp_path / "reproductions").mkdir(exist_ok=True)                 # what docs/submission/NUMBERS.md counts: no report, as in this tree
+    assert not list((ROOT / "reproductions").glob("*.json"))
     for rel in bd.slot_files(tmp_path):
         (tmp_path / rel).write_text(bd.SLOT.sub("not measured", (tmp_path / rel).read_text(encoding="utf-8")), encoding="utf-8")
 
@@ -156,7 +159,7 @@ def test_the_documents_a_judge_opens_can_carry_slots_and_this_tree_states_each_f
     assert {"README.md", "docs/DISCLOSURE.md", "docs/WHY.md", "docs/COMPARE.md"} <= set(bd.SLOTTED)
     assert set(bd.FRAMES) <= set(bd.SLOTS)
     assert "web/index.html" in bd.public_text() and bd.disagreements() == []
-    # the facts the reviews found in two or three versions are each stated, and each in more than one document
+    # the facts that once stood in two or three versions are each stated, and each in more than one document
     told = bd.said()
     assert len({doc for files in told["seconds_from_merge_to_paid"].values() for doc in files}) >= 4
     assert len({doc for files in told["payments_between_unrelated_accounts"].values() for doc in files}) >= 2
@@ -225,17 +228,23 @@ def test_no_slot_is_a_time_so_the_one_commit_is_complete_before_the_push(tmp_pat
         assert "not a slot this script knows" in str(why.value) or "not a number" in str(why.value)
 
 
-def test_the_one_sentence_and_its_long_form_are_on_the_first_screen_of_the_readme_and_of_the_site():
+def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_screen_is_forty_words():
     cc = _script("claims_check")
     for path in ("README.md", "web/index.html"):
-        words = cc.words(path)
-        assert cc.SENTENCE in words and cc.LONG in words and words.index(cc.SENTENCE) < words.index(cc.LONG), path
+        assert cc.SENTENCE in cc.words(path), path
+    page = cc.words("web/index.html")
+    assert page.index(cc.SENTENCE) < page.index(cc.LONG)                 # what a work order is comes after, folded
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    first = readme.split("\n## Why", 1)[0]
-    assert cc.SENTENCE in first and "demo.mp4" in first and "Try it in one minute" in first and len(readme.splitlines()) < 260
-    config = (ROOT / "web" / "config.js").read_text(encoding="utf-8")
-    labels = [line.split('label: "', 1)[1].split('"', 1)[0] for line in config.splitlines() if 'label: "' in line]
-    assert len(labels) == 3 and all(f"**{label}:**" in first for label in labels)      # the site's three buttons, by name
+    first = readme.split("</h1>", 1)[1].split("\n## ", 1)[0]             # what GitHub shows before scrolling, under the header
+    lines = [line for line in first.splitlines() if line.strip()]
+    assert lines[0] == f"**{cc.SENTENCE}**" and "17.8%" in lines[1] and "](docs/BENCH.md)" in lines[1] and len(lines) == 3
+    assert re.findall(r"\[([^\]]+)\]\(", lines[2]) == ["Try the demo", "Check an invoice", "Install"] and "(shadow mode)" in lines[2]
+    said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
+    assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 40, said
+    assert len(readme.splitlines()) < 260 and "first milestone" not in readme
+    for doc in ("SHADOW", "PLAYGROUND", "VERIFIER", "FINANCE", "TERMS", "PROVENANCE", "CONFORMANCE", "UNWRAPS", "CAPABILITIES"):
+        assert f"](docs/{doc}.md)" in readme, doc
+    assert "](docs/submission/NUMBERS.md)" in readme
 
 
 def _a_number_filled_only_outside_the_pitch_is_a_doc_fact_that_document_is_held_to(tmp_path):
@@ -250,3 +259,42 @@ def _a_number_filled_only_outside_the_pitch_is_a_doc_fact_that_document_is_held_
     fact = [f for f in json.loads((tmp_path / "docs" / "facts.json").read_text(encoding="utf-8"))["facts"]
             if f.get("path") == "release.claim_parser_executions.value"]
     assert fact and fact[0]["say"] == ["1,234,567"] and fact[0]["doc"] == "docs/ASSURANCE.md"
+
+
+def test_the_numbers_this_repository_holds_are_read_from_it_and_a_person_changes_them_in_one_place(tmp_path, capsys):
+    """Outside use (docs/submission/NUMBERS.md): two numbers come from the site's stats.json, five from the repository
+    itself. A count only a person can supply is a constant under "by_hand" in docs/facts.json; --set cannot give it.
+    The table is a generated block, so it cannot say another value than its sources."""
+    bd, cc = _script("bench_docs"), _script("claims_check")
+    assert (bd.SLOTS["outside_repositories"][1], bd.SLOTS["outside_payees"][1]) == ("outsiders.repositories", "outsiders.payees")
+    assert set(bd.REPO_SLOTS) == {"reproductions_signed", "buyer_interviews_held", "letters_of_intent", "outside_programs_reading_the_verifier",
+                                  "shadow_counts_published"} and all(bd.SLOTS[name][1] is None for name in bd.REPO_SLOTS)
+    now = bd.repo_numbers()
+    assert set(now) == set(bd.REPO_SLOTS) and now["reproductions_signed"][0] == len(list((ROOT / "reproductions").glob("*.json")))
+    _tree(tmp_path, bd, cc)
+    numbers = tmp_path / "docs" / "submission" / "NUMBERS.md"
+    assert "| 6 | Letters of intent | 0 |" in numbers.read_text(encoding="utf-8") and "docs/submission/NUMBERS.md" in bd.DOCS
+    # a slot that names one of them, in any document that may carry slots, is filled from the repository and from nowhere else
+    numbers.write_text(numbers.read_text(encoding="utf-8") + "\nLetters: [[stat: letters_of_intent]]. Reports: [[stat: reproductions_signed]].\n", encoding="utf-8")
+    with pytest.raises(SystemExit) as why:
+        bd.fill(given={"letters_of_intent": (3, "by hand")}, root=tmp_path)
+    assert "read from the repository" in str(why.value)
+    bd.fill(root=tmp_path)
+    assert "Letters: 0. Reports: 0." in numbers.read_text(encoding="utf-8") and bd.main(check=True, root=tmp_path) == 0, capsys.readouterr().out
+    # a report arrives and a person changes the constant: the check fails until the table is written again, and names what moved
+    (tmp_path / "reproductions" / "octo-widgets.json").write_text("{}", encoding="utf-8")
+    facts = json.loads((tmp_path / "docs" / "facts.json").read_text(encoding="utf-8"))
+    facts["by_hand"]["letters_of_intent"] = 1
+    (tmp_path / "docs" / "facts.json").write_text(json.dumps(facts), encoding="utf-8")
+    capsys.readouterr()
+    assert bd.main(check=True, root=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "docs/submission/NUMBERS.md" in out and "reproductions_signed is 0 in docs/bench.json and 1 in" in out and "letters_of_intent is 0 in docs/bench.json and 1 in" in out
+    bd.main(root=tmp_path)
+    table = numbers.read_text(encoding="utf-8")
+    assert "| 6 | Letters of intent | 1 |" in table and "| 7 | Reproductions signed by GitHub: files in `reproductions/` from a run in someone else's repository | 1 |" in table
+    # with the site's count of outsiders, rows 2 and 3 are that count; with nothing measured, a row says so and never 0
+    src = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))
+    src["devnet"]["stats"]["outsiders"] = {"repositories": 4, "payees": 6}
+    assert "in which a task was funded | 4 |" in bd.outside_use(src, now) and "that were paid | 6 |" in bd.outside_use(src, now)
+    assert bd.outside_use({}, {}).count("| not measured |") == 9

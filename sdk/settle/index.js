@@ -259,6 +259,14 @@ export const stepPlan = (bits) => (bits === 2048 ? [8, 8] : [2, 3, 3, 3, 4, 1]);
 /** What names an issuer on chain: sha256 of its URL, exactly as the issuer writes it in `iss`. */
 export const issuerHash = (url) => sha256(enc.encode(url));
 
+/** What program.yml asks GitHub to sign for the build of `program` (an address) whose executable hashes to
+ *  `executable` (32 bytes, or hex): the audience upgrade_gate records a build under. */
+export const gateAudience = (program, executable) => {
+  const raw = typeof executable === "string" ? unhex(executable) : executable;
+  if (raw.length !== 32 || (typeof executable === "string" && !/^[0-9a-f]{64}$/.test(executable))) throw new Error("an executable's hash is 32 bytes");
+  return `gate:${program}:${hex(raw)}`;
+};
+
 /** The audience the pinned rotate workflow asks GitHub to sign for a key it found in the issuer's JWKS. `issuer` is
  *  GitHub (0), GitLab (1), or any other RS256 issuer's URL. */
 export const rotateAudience = async (issuer, n) => (typeof issuer === "string"
@@ -494,6 +502,90 @@ function termsJson(terms) {
   return enc.encode(text);
 }
 
+/** Thrown for input a format does not allow (terms that are not valid, a batch audience knos_meter would refuse): the
+ *  message says what is wrong. Anything else thrown is a mistake in the call, not a refusal. */
+export class Refused extends Error {}
+
+const refuse = (why) => { throw new Refused(why); };
+const points = (text) => Array.from(text, (ch) => ch.codePointAt(0));
+const byPoints = (a, b) => {                // as Python orders text: by code point, not by UTF-16 unit
+  const x = points(a), y = points(b);
+  for (let i = 0; i < x.length && i < y.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return x.length - y.length;
+};
+const TERMS_KEYS = ["accept", "checks", "deny", "mode", "paths", "reserve", "v"], TERMS_MORE = ["image", "policy", "vendor"];
+const HASH64 = /^[0-9a-f]{64}$/;
+const IMAGE = /^(?=[^/]*[.:]|localhost\/)[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]{1,5})?(?:\/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)+@sha256:[0-9a-f]{64}$/;
+const EDGE_SPACE = /^[\t-\r\x1c- \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]|[\t-\r\x1c- \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]$/;
+const oneLine = (value, what) => {
+  const n = typeof value === "string" ? points(value).length : 0;
+  if (n < 1 || n > 200 || /[\x00-\x1f\x7f]/.test(value)) refuse(`${what} must be 1 to 200 characters on one line`);
+  return value;
+};
+const glob = (value) => {
+  const g = oneLine(value, "a glob");
+  if (EDGE_SPACE.test(g) || g.startsWith("/") || g.startsWith("!") || g.includes("\\") || g.split("/").includes("..")) refuse("a glob is a path from the repository's root, like src/** or docs/*.md");
+  return g;
+};
+const whole = (value, low, high, what) => {
+  const ok = typeof value === "bigint" || (typeof value === "number" && Number.isInteger(value));
+  if (!ok || BigInt(value) < BigInt(low) || BigInt(value) > BigInt(high)) refuse(`${what} must be a whole number from ${low} to ${high}`);
+  return value;
+};
+
+/** The canonical bytes of terms, as knos.terms.canonical writes them and knos-pay hashes them: every field checked,
+ *  the lists put in order with nothing twice (checks by name, then app; globs ascending), keys sorted, no spaces,
+ *  ASCII. Equal terms give equal bytes whatever order they were given in. Throws Refused for terms the format does not
+ *  allow (a missing or unknown field, a version other than 1, a mode other than merge or tests, an `accept` that does
+ *  not go with the mode, a glob from outside the repository, a reserve outside 0 to 90, an image named by a tag) and
+ *  for a result over 600 bytes. A `vendor` above 2^53 is given as a BigInt and keeps every digit. termsJson writes
+ *  what it is handed and checks only the length: use this one for terms that did not come from Knos. */
+function canonicalTerms(terms) {
+  if (!terms || typeof terms !== "object" || Array.isArray(terms)) refuse("terms are an object");
+  const given = Object.keys(terms).filter((k) => !TERMS_MORE.includes(k)).sort();
+  if (given.length !== TERMS_KEYS.length || given.some((k, i) => k !== TERMS_KEYS[i])) refuse(`a bounty's terms have exactly these fields: ${TERMS_KEYS.join(", ")}`);
+  const out = {};
+  if ("policy" in terms && !(typeof terms.policy === "string" && HASH64.test(terms.policy))) refuse("policy is the hash of the repository's policy file (64 hex characters)");
+  if ("vendor" in terms) whole(terms.vendor, 1, 2n ** 63n - 1n, "vendor");
+  if ("image" in terms) {
+    if (typeof terms.image !== "string" || terms.image.length > 255 || !IMAGE.test(terms.image)) refuse("image is <registry>/<name>@sha256:<64 hex>: a tag can be pointed at another image after funding");
+    if (terms.mode !== "tests") refuse("image goes with tests mode");
+  }
+  if (terms.v !== 1) refuse("v is 1: the only version of the terms there is");
+  if (terms.mode !== "merge" && terms.mode !== "tests") refuse("mode is merge or tests");
+  if (typeof terms.accept !== "string" || (terms.mode === "tests" ? !HASH64.test(terms.accept) : terms.accept !== "")) {
+    refuse("accept is the acceptance bundle's hash (64 hex characters) in tests mode, and empty in merge mode");
+  }
+  if (!Array.isArray(terms.checks)) refuse("checks is a list");
+  const checks = new Map();
+  for (const c of terms.checks) {
+    if (!c || typeof c !== "object" || Array.isArray(c) || Object.keys(c).sort().join() !== "app,name") refuse("each check is {app, name}");
+    oneLine(c.name, "a check's name");
+    const app = Number(whole(c.app, -1, 2 ** 31 - 1, "a check's app"));
+    checks.set(`${app} ${c.name}`, { app, name: c.name });
+  }
+  out.accept = terms.accept;
+  out.checks = [...checks.values()].sort((a, b) => byPoints(a.name, b.name) || a.app - b.app);
+  for (const key of ["deny", "paths"]) {
+    if (!Array.isArray(terms[key])) refuse(`${key} is a list of globs`);
+    out[key] = [...new Set(terms[key].map(glob))].sort(byPoints);
+  }
+  out.mode = terms.mode;
+  out.reserve = Number(whole(terms.reserve, 0, 90, "reserve"));
+  out.v = 1;
+  for (const key of TERMS_MORE) if (key in terms) out[key] = terms[key];
+  // keys sorted; a BigInt is written as its digits (JSON.stringify has no way to), which no text of the terms can be mistaken for
+  const mark = "\u0000big:", json = JSON.stringify(sorted(out), (_k, v) => (typeof v === "bigint" ? mark + v : v))
+    .replace(/"\\u0000big:(\d+)"/g, "$1");
+  let text = "";
+  for (let i = 0; i < json.length; i++) {
+    const code = json.charCodeAt(i);
+    text += code < 127 ? json[i] : "\\u" + code.toString(16).padStart(4, "0");
+  }
+  if (text.length > MAX_TERMS) refuse(`these terms take ${text.length} bytes; a bounty's terms hold at most ${MAX_TERMS}`);
+  return enc.encode(text);
+}
+
 /** sha256 of the terms JSON bytes: what a job stores and what the fund and pay audiences carry. */
 const termsHash = (terms) => sha256(bytesOf(terms));
 
@@ -624,6 +716,11 @@ const payeesText = (payees) => payees.map(([id, bps, address]) => `${id}.${bps}.
 
 /** What a judge's workflow asks GitHub to sign to pay an order. `payees` as payeesText takes them. */
 const orderPayAudience = (order, headSha, termsHex, mode, pr, payees) => `knos3:pay:${order}:${headSha}:${termsHex}:${mode}:${pr}:${payeesText(payees)}`;
+
+/** What the pinned prove.yml asks GitHub to sign when the black-box suite passed on the head of an open pull request
+ *  for an AUTO order: the pay audience under the word `auto`, mode 1 (tests), one payee (the author) paid in full. */
+const autoAudience = (order, headSha, termsHex, pr, payeeId, address = null) =>
+  `knos3:auto:${order}:${headSha}:${termsHex}:1:${pr}:${payeesText([[payeeId, 10_000, address]])}`;
 
 /** The payees a pay audience of an order names: [GitHub id, basis points, address or null], in its order. */
 const payeesOf = (audience) => audience.split(":").at(-1).split(",").map((entry) => {
@@ -1227,8 +1324,8 @@ export const v2 = Object.freeze({
   KEY_DELAY, KEY_TTL, K_HDR, KEY_TAIL, OTHER, PRIVATE, PRIVATE_FLAG, MAX_ISS, T_IHASH, ERRORS, PAY_IXS,
   BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN, ORDER_FEE_MIN, FEE_TIER_1, FEE_TIER_2, FEE_BPS_2, FEE_BPS_3, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN, MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS,
   MAX_KILL_BPS, MAX_PAYEES, F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022, COUNTED, HB_LEN, DONE_LEN, AS_LEN, USED_LEN, NOTICE, USED_KEEP, TOKEN_AT, MINTED,
-  units, feeOf: feeOf2, termsJson, termsHash, wfRepoHash, funderKey, fundAudience: fundAudience2, namedBalance, payAudience: payAudience2, bindAudience, destination,
-  orderFee, scopeOf, sigHash, opts, orderFundAudience, payeesText, orderPayAudience, payeesOf, orderDestination, planBps,
+  units, feeOf: feeOf2, termsJson, canonicalTerms, termsHash, wfRepoHash, funderKey, fundAudience: fundAudience2, namedBalance, payAudience: payAudience2, bindAudience, destination,
+  orderFee, scopeOf, sigHash, opts, orderFundAudience, payeesText, orderPayAudience, autoAudience, payeesOf, orderDestination, planBps,
   privateFundTerms, ruleAudience, orgBindAudience, takeAudience, cancelAudience, revertAudience, payeeWallet, killFee, accountNames,
   readJob, readBalance, readBind, readRep, readPause, readRate, readOrder, readBalx, readPlan, readKey, tokenIssuer, readIss, keyAccountHash, keyUsable,
   readHoldback, readAssign, readMarker, spent, errorWords, client: client2,
@@ -1379,26 +1476,60 @@ function batchAudience(buyerId, sellerId, month, seq, count, accepted, value, ro
   return `knosm:${kind}:${buyerId}:${sellerId}:${month}:${seq}:${count}:${accepted}:${value}:${hex(hex32(root, "a batch's root"))}`;
 }
 
-/** The fields of a knosm:batch or knosm:claim audience: { claim, buyerId, sellerId, month, seq, count, accepted, value, root (hex) }. */
+/** The fields of a knosm:batch or knosm:claim audience: { claim, buyerId, sellerId, month, seq, count, accepted, value, root (hex) }.
+ *  Throws Refused for everything knos_meter refuses: another prefix or word, a part too many or too few, a number
+ *  that is not written the one way (no sign, no leading zero, at most 20 digits) or is 2^64 or more, a buyer or a
+ *  seller of zero, a month that is not six digits, a root that is not 64 lower-case hex characters. */
 function parseBatch(audience) {
-  const p = audience.split(":");
-  if (p.length !== 10 || p[0] !== "knosm" || (p[1] !== "batch" && p[1] !== "claim") || !/^[0-9a-f]{64}$/.test(p[9])) throw new Error("this is not a knosm:batch or knosm:claim audience");
+  const p = String(audience).split(":"), one = /^(?:0|[1-9][0-9]{0,19})$/;
+  const numbers = p.length === 10 && p.slice(2, 9).every((x) => one.test(x) && BigInt(x) < 2n ** 64n);
+  if (!numbers || p[0] !== "knosm" || (p[1] !== "batch" && p[1] !== "claim") || p[4].length !== 6 || !HASH64.test(p[9]) || p[2] === "0" || p[3] === "0") {
+    throw new Refused("a batch's audience is knosm:batch:<buyer>:<seller>:<yyyymm>:<seq>:<count>:<accepted>:<value>:<root, 64 lowercase hex> (or knosm:claim:...)");
+  }
   const n = (at) => num(BigInt(p[at]));
   return { claim: p[1] === "claim", buyerId: n(2), sellerId: n(3), month: Number(p[4]), seq: n(5), count: n(6), accepted: n(7), value: n(8), root: p[9] };
 }
+
+const rfc6962 = async (leaves) => {
+  if (leaves.length <= 1) return leaves[0] ?? sha256(new Uint8Array(0));
+  let half = 1;
+  while (half * 2 < leaves.length) half *= 2;       // the largest power of two below the number of leaves
+  return sha256(cat(Uint8Array.of(1), await rfc6962(leaves.slice(0, half)), await rfc6962(leaves.slice(half))));
+};
 
 /** The root both sides compute for one batch and the program stores: RFC 6962 over the evaluation keys (evalKey's
  *  bytes, or hex), sorted ascending, none repeated: a leaf is sha256(0x00 || key), a node sha256(0x01 || left || right). */
 async function merkleRoot(keys) {
   const ids = keys.map((id) => hex32(id, "an evaluation key")), ordered = ids.every((id, at) => !at || hex(ids[at - 1]) < hex(id));
   if (!ids.length || !ordered) throw new Error("a batch's keys are sorted ascending, none repeated, and there is at least one");
-  const tree = async (leaves) => {
-    if (leaves.length === 1) return sha256(cat(Uint8Array.of(0), leaves[0]));
-    let half = 1;
-    while (half * 2 < leaves.length) half *= 2;       // the largest power of two below the number of leaves
-    return sha256(cat(Uint8Array.of(1), await tree(leaves.slice(0, half)), await tree(leaves.slice(half))));
-  };
-  return tree(ids);
+  return rfc6962(await Promise.all(ids.map((id) => sha256(cat(Uint8Array.of(0), id)))));
+}
+
+/** A batch's root from what a ledger holds, in any order: the evaluation keys, each once, ascending, then the keys of
+ *  the batch's corrections, each once, ascending. A correction's leaf is sha256(0x02 || key), so it can never be read
+ *  as an evaluation's (0x00) or a node (0x01), and a batch with no correction has the root merkleRoot gives. No
+ *  leaves at all: sha256 of nothing. */
+async function batchRoot(keys, corrections = []) {
+  const each = (list, what) => [...new Set(list.map((id) => hex(hex32(id, what))))].sort().map(unhex);
+  const leaves = [...each(keys, "an evaluation key").map((id) => cat(Uint8Array.of(0), id)), ...each(corrections, "a correction's key").map((id) => cat(Uint8Array.of(2), id))];
+  return rfc6962(await Promise.all(leaves.map((leaf) => sha256(leaf))));
+}
+
+/** Whether `key` is leaf `index` of a batch of `size` leaves with this root (RFC 9162, 2.1.3.2): needs the proof and
+ *  the root, nothing else of the ledger. `correction`: `key` is a correction's, not an evaluation's. */
+async function checkProof(key, index, size, path, root, correction = false) {
+  if (!Number.isInteger(index) || !Number.isInteger(size) || index < 0 || index >= size) return false;
+  let fn = index, sn = size - 1, r = await sha256(cat(Uint8Array.of(correction ? 2 : 0), hex32(key, "a key")));
+  for (const step of path) {
+    const p = hex32(step, "a step of the path");
+    if (sn === 0) return false;
+    if (fn % 2 === 1 || fn === sn) {
+      r = await sha256(cat(Uint8Array.of(1), p, r));
+      while (fn % 2 === 0 && fn !== 0) { fn = Math.floor(fn / 2); sn = Math.floor(sn / 2); }
+    } else r = await sha256(cat(Uint8Array.of(1), r, p));
+    fn = Math.floor(fn / 2); sn = Math.floor(sn / 2);
+  }
+  return sn === 0 && hex(r) === hex(hex32(root, "a batch's root"));
 }
 
 /** A ledger's running hash after one more batch: sha256(before || root || seq || count || accepted || value), the four
@@ -1546,7 +1677,7 @@ function meterClient(program) {
 
 export const meter = Object.freeze({
   MICRO, FEE: M_FEE, PLAN_MIN: M_PLAN_MIN, FREE_PER_MONTH, MIN_DECIMALS, MAX_DECIMALS, EXTENSIONS: M_EXTENSIONS, CREDITS_LEN, PLAN_LEN: M_PLAN_LEN, MARK_LEN, MONTH_LEN,
-  MARK_LEN_1, MARK_PAYER, MARK_GRACE, CLOSED, LEDGER_LEN, MAX_BATCH, batchAudience, parseBatch, merkleRoot, chainHash, readLedger, WORKFLOWS: M_WORKFLOWS, EVAL, ERRORS: M_ERRORS, feeUnits, yyyymm, nextMonth, closeAfter, closable, evalAudience, parseAudience, evalKey, readCredits, readPlan: readMeterPlan, rateAt, usedIn,
+  MARK_LEN_1, MARK_PAYER, MARK_GRACE, CLOSED, LEDGER_LEN, MAX_BATCH, batchAudience, parseBatch, merkleRoot, batchRoot, checkProof, chainHash, readLedger, WORKFLOWS: M_WORKFLOWS, EVAL, ERRORS: M_ERRORS, feeUnits, yyyymm, nextMonth, closeAfter, closable, evalAudience, parseAudience, evalKey, readCredits, readPlan: readMeterPlan, rateAt, usedIn,
   readMark, readMonth, quote: meterQuote, parseEval, statement: meterStatement, client: meterClient,
 });
 

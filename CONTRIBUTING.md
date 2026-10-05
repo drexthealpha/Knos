@@ -63,7 +63,7 @@ final tree, its hash is locked in `requirements/sign.txt`, the pinned workflows 
 commit is stamped into the tree, and then there is one commit, the wheel goes to PyPI, one push, and the tag:
 
 ```bash
-git tag v0.3.15 && git push origin v0.3.15
+git tag v0.3.16 && git push origin v0.3.16
 ```
 
 `.github/workflows/release.yml` then runs the whole test workflow on that commit and, only when every job of it has

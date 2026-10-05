@@ -184,7 +184,8 @@ def programs_table(root: Path = ROOT) -> str:
         staged = re.search(rf"\b{name}\s+`[1-9A-HJ-NP-Za-km-z]{{32,44}}`", rehearsal) is not None
         state = f"runs `{p['on_chain']}`"
         if later:
-            state += (f"; `{later[0]}` is proposed through the multisig and runs at this address only once its proposal has executed"
+            state += (f" until its upgrade proposal has executed; `{later[0]}` was proposed through the multisig and runs at this address "
+                      f"only once that proposal has executed (the live state is in [`{UPGRADES}`]({UPGRADES}))"
                       + (f"; the 0.3.14 rehearsal ran it at a staging address of its own ([{cap.FULL}]({cap.FULL}))" if staged else ""))
         lines.append(f"| `{name.replace('_', '-')}`, {NAMES.get(name, 'a program')} | `{ids[name]}` | {state} |")
     return "\n".join(lines)

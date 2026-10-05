@@ -13,8 +13,9 @@ Read this first:
 - **No contract.** There is no named legal entity, no terms of service, no data-processing agreement and no
   service-level agreement.
 
-Where a file is marked (0.3.13), (0.3.14) or (0.3.15) it is new in that release. Everything else has been in the repository
-since 0.3.12. [SECURITY.md](SECURITY.md) is the full security model. [ASSURANCE.md](ASSURANCE.md) lists the invariants
+Where a file is marked (0.3.13), (0.3.14), (0.3.15) or (0.3.16) it is new in that release. Everything else has been in the repository
+since 0.3.12. [SECURITY.md](SECURITY.md) is the full security model. [FINANCE.md](FINANCE.md) is the page for a controller: one
+deliverable as four linked records, the statement, and the files a finance system imports. [ASSURANCE.md](ASSURANCE.md) lists the invariants
 and the tests that hold them. [REGULATION.md](REGULATION.md) covers law.
 
 ## The control list
@@ -37,7 +38,11 @@ code can supply.
 | Who has authority: who may spend, and who may change the limits | the program: only the wallet that opened the Balance signs `SetBalance` and `SetBalanceX` (anyone else: error 98) | `knos budget who --owner <org>` |
 | A policy file: who may fund, the cap per order, a monthly budget, which payees and vendors may be paid, default checks, private orders | **the command job, not the program**: [`policy.py`](../src/knos/policy.py) is read before GitHub is asked to sign, and its hash is in every order's terms. A person who can change the workflow on the default branch can go round it; the Balance's limits above are what holds then. | `.knos/policy.yml` on the default branch |
 | Plans: a lower fee rate for one owner until a date | the program (`SetPlan`, signed by the fee wallet) | by Knos, per owner |
-| Audit export (0.3.14): every order of an organisation as a hash-chained CSV or JSON, recomputed from the program's log lines; a second export of the same period is the same bytes, and `knos audit verify` finds an edited or removed row | [`audit.py`](../src/knos/audit.py); `tests/test_audit.py` | `knos audit export --owner <org> --from --to`, `knos audit verify <file>` |
+| Audit export (0.3.14; version 2 in 0.3.16): every work order and every bounty on an issue that an organisation's money funded, as a hash-chained CSV or JSON, recomputed from the program's log lines; a second export of the same period is the same bytes, and `knos audit verify` finds an edited or removed row. Version 1 listed work orders only; a version 1 file still verifies. | [`audit.py`](../src/knos/audit.py); `tests/test_audit.py` | `knos audit export --owner <org> --from --to`, `knos audit verify <file>` |
+| One deliverable as four linked records (0.3.16): authorisation (buyer, supplier, scope, budget, who approved and in which role), acceptance (artifact, the terms' hash and version, evaluators, evidence, verdict), commercial record (amount, fee, the buyer's reference, billed before, dispute, credit) and settlement status | [`audit.py`](../src/knos/audit.py) `record`; [`web/finance_data.js`](../web/finance_data.js) is the same for a page. `tests/test_audit.py`, `tests/web/finance.mjs` | `knos audit show <order>`; the buyer's own references come from a side file, `--refs` ([FINANCE.md](FINANCE.md)) |
+| Who approved an order that a multisig's vault funded (0.3.16): the vault, the multisig's threshold, its members and the members who approved the proposal, read from the chain | [`audit.py`](../src/knos/audit.py) `squads_approval`, with the account layouts of [`mainnet_check.py`](../src/knos/mainnet_check.py). `tests/test_audit.py` builds the accounts' bytes; it has not been run against a funding on the public cluster. | `knos audit show <order>` |
+| Files a finance system imports (0.3.16): one line per accepted deliverable for NetSuite, SAP, Coupa and QuickBooks, and a generic file that carries the statement and gives back the same head | [`exports.py`](../src/knos/exports.py); golden files in `tests/data/finance`, `tests/test_exports.py`. The SAP and Coupa files are best effort, unverified, and no file has been loaded into any of the four products ([FINANCE.md](FINANCE.md), section 4). | `knos audit export --owner <org> --format netsuite\|sap\|coupa\|quickbooks\|generic` |
+| What a supplier is owed and why it is not paid yet (0.3.16): held for a wallet, in a review window until a date, reverted, disputed; from the chain's records alone | [`audit.py`](../src/knos/audit.py) `owed` | `knos audit owed --payee <login>` |
 | A delay before a program changes: 48 hours, by a multisig | Squads, section 2 | |
 
 How `knos budget set` works. Only the wallet that opened the Balance can sign a change. With that wallet's key
@@ -52,8 +57,10 @@ address is in [`web/upgrades.json`](../web/upgrades.json): until it is, the clus
 The tests run the committed 2.1 build.
 
 What the audit export does not hold: names (it carries GitHub's numeric ids), the commit of the workflows that signed
-(the paying transaction it names carries the token that says it), and the accepted commit of a pull request (the
-log prints a commit only on a revert). It is a file. Nothing sends it anywhere, and nothing keeps it.
+(the paying transaction it names carries the token that says it), the accepted commit of a pull request (the
+log prints a commit only on a revert), a Balance's limits when it funded (the acceptance receipt of a work order's
+payment has them; a bounty has no receipt), and the first deployment's bounties (`knos receipts` lists those). It is
+a file. Nothing sends it anywhere, and nothing keeps it.
 
 **A design only: written down, not built.**
 
@@ -61,8 +68,9 @@ log prints a commit only on a revert). It is a file. Nothing sends it anywhere, 
 |---|---|
 | An organisation tier with a price ("Control") | the price book; nobody has bought it, and it adds no code beyond the rows above |
 | A screen that sets a Balance's limits | not built: the limits are set from the command line (`knos budget set`). [`web/controls_data.js`](../web/controls_data.js) (0.3.15) is the same decision as `knos budget check` for a page to show; it sets nothing. |
-| An approval workflow with two people: one asks, another approves, before money is set aside | not built, and not in the program: a comment by the owner or one spender funds an order at once, within the limits. The nearest thing that exists is outside Knos: a Balance opened by a multisig's vault needs that multisig's threshold to change a limit or withdraw, not to fund. |
-| Roles beyond owner and spender (an approver, a read-only auditor) | not designed in the program. The audit export is public data: anyone can make it for any owner. |
+| An approval workflow with two people: one asks, another approves, before money is set aside | not built, and not in the program: a comment by the owner or one spender funds an order at once, within the limits, and the order's record says one account approved. What exists is outside Knos, in two forms. An order funded from a multisig's vault ([`scripts/squads_fund.mjs`](../scripts/squads_fund.mjs)) needs that multisig's threshold to fund, and `knos audit show` prints the threshold and who approved (0.3.16): this is the two-person approval Knos has today. A Balance opened by a multisig's vault needs the threshold to change a limit or withdraw, not to fund by comment. |
+| Roles beyond owner and spender (an approver, a read-only auditor) | not designed in the program. The audit export is public data: anyone can make it for any owner, and a supplier makes its own side with `knos audit owed`. |
+| A connection to a finance system | not built: `knos audit export --format ...` writes files. Nothing sends them, and no import has been tried in NetSuite, SAP, Coupa or QuickBooks. |
 | Alerts when a limit is near or a refusal happens | not built: a refusal is a comment on the issue and a failed transaction |
 | A judge repository for a public order that attests on any event | the program has the rule; no command reaches it ([ADAPTERS.md](ADAPTERS.md)) |
 
@@ -88,7 +96,8 @@ log prints a commit only on a revert). It is a file. Nothing sends it anywhere, 
 | A relayer | carry a signed token to the chain and pay the fee | decide anything: the program checks the signature and the terms | [`src/knos/settle/v2/relay.py`](../src/knos/settle/v2/relay.py) |
 | Knos, outside the two multisigs | nothing on a funded order | | |
 
-What does not exist: single sign-on; an approval workflow with two people; an admin console; roles inside Knos. Knos has no accounts of its own.
+What does not exist: single sign-on; an approval workflow with two people inside Knos (a multisig's vault as the funder is the only
+two-person approval, and it is the multisig's rule); an admin console; roles inside Knos. Knos has no accounts of its own.
 Identity is GitHub's and a wallet's, so a company's access rules for GitHub are its access rules here. **Every
 member key of the upgrade multisig is the founder's** ([SECURITY.md](SECURITY.md), section 7). No document names
 anyone but the founder as a holder of a guardian key. No outside signer sits on either.
@@ -130,7 +139,7 @@ are stored; a rotation schedule for the multisig member keys; any holder other t
 
 | what is logged | where it lives | how to get it out |
 |---|---|---|
-| Every funding, payment, refund, binding, pause and key change | The programs' own log lines on Solana (`knos2:` and `knos3:` lines). Public, and permanent. | [`scripts/network_stats.py`](../scripts/network_stats.py) reads them. `knos receipts` and `knos statement` recompute a period from them. `knos audit export` (0.3.14) writes every order of an owner as a hash-chained file, and `knos audit verify` checks one. `knos export --siem` writes JSON Lines, one event per line; CSV and an invoice per period for finance ([`src/knos/records.py`](../src/knos/records.py), 0.3.13). |
+| Every funding, payment, refund, binding, pause and key change | The programs' own log lines on Solana (`knos2:` and `knos3:` lines). Public, and permanent. | [`scripts/network_stats.py`](../scripts/network_stats.py) reads them. `knos receipts` and `knos statement` recompute a period from them. `knos audit export` (0.3.14; with bounties from 0.3.16) writes every order and bounty of an owner as a hash-chained file, and `knos audit verify` checks one; `--format netsuite`, `sap`, `coupa`, `quickbooks` or `generic` writes it as a finance system's import ([FINANCE.md](FINANCE.md)). `knos export --siem` writes JSON Lines, one event per line; CSV and an invoice per period for finance ([`src/knos/records.py`](../src/knos/records.py), 0.3.13). |
 | The terms of every public order | logged on chain as JSON when the order is funded | the same |
 | What the workflows did | GitHub Actions run logs in the customer's own repository, and the comments Knos posts on the issue and the pull request | GitHub's own export and retention |
 | What the public relay carried | the relay's public log | the site's `stats.json` |

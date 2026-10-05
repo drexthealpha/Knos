@@ -11,6 +11,15 @@
 //!     every integer below 10^18 and every plain string of at most 18 digits with no leading zero.
 //!
 //! For anything else (not JSON, not an object) the reader may answer what it likes, and must not panic.
+//!
+//! That is `check`, the rule of a reader that passes over the values it does not read: the interface crate's, and
+//! claims.rs's, which knos-pay reads a verified token with (knos-oidc's own reader before 2.2). `check_strict` is the
+//! rule of the reader knos-oidc 2.2 verifies a token with (src/strict.rs), which reads every byte:
+//!   - a document serde_json does not read as a JSON object is refused. (One exception, where serde_json is the
+//!     narrower of the two: a number too large for it, `1E400`, is a number by RFC 8259's grammar.)
+//!   - a document serde_json reads is accepted unless a name appears twice in its top-level object (62), it is more
+//!     than 64 levels deep or its top-level object has more than 128 members (61);
+//!   - and for a document it accepts, everything `check` says.
 #![allow(dead_code)]
 use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde_json::Value;
@@ -43,6 +52,39 @@ impl<'de> Deserialize<'de> for Pairs {
     }
 }
 pub fn pairs(b: &[u8]) -> Option<Vec<(String, Value)>> { serde_json::from_slice::<Pairs>(b).ok().map(|p| p.0) }
+
+/// How many levels a value has: 0 for a string, a number or a literal, 1 for an empty array or object.
+pub fn depth(v: &Value) -> usize {
+    match v {
+        Value::Array(a) => 1 + a.iter().map(depth).max().unwrap_or(0),
+        Value::Object(o) => 1 + o.values().map(depth).max().unwrap_or(0),
+        _ => 0,
+    }
+}
+pub const MAX_DEPTH: usize = 64;
+pub const MAX_MEMBERS: usize = 128;
+
+/// Panics, saying what differs, if `read` is not what the strict rule allows for `b` (see the top of this file).
+pub fn check_strict(b: &[u8], read: &Read, who: &str) {
+    let doc = String::from_utf8_lossy(b);
+    let pairs = match serde_json::from_slice::<Pairs>(b) {
+        Ok(p) => p.0,
+        Err(e) if e.to_string().starts_with("number out of range") => return,
+        Err(e) => { assert!(matches!(read, Read::Refused(_)), "{who} accepted what serde_json does not read ({e}): {doc}"); return; }
+    };
+    let twice = pairs.iter().enumerate().any(|(k, (name, _))| pairs[..k].iter().any(|(earlier, _)| earlier == name));
+    let large = pairs.len() > MAX_MEMBERS || 1 + pairs.iter().map(|(_, v)| depth(v)).max().unwrap_or(0) > MAX_DEPTH;
+    match read {
+        Read::Refused(code) => {
+            assert!(twice || large, "{who} refused ({code}) an object serde_json reads: {doc}");
+            assert!((*code == 62 && twice) || (*code == 61 && large), "{who} refused with {code} (a name twice: {twice}; too deep or too many: {large}): {doc}");
+        }
+        Read::Claims(_) => {
+            assert!(!twice && !large, "{who} accepted an object with a name twice ({twice}) or too deep or with too many members ({large}): {doc}");
+            check(b, read, who);
+        }
+    }
+}
 
 fn plain_digits(s: &[u8]) -> Option<u64> {
     if s.is_empty() || s.len() > 18 || !s.iter().all(u8::is_ascii_digit) || (s.len() > 1 && s[0] == b'0') { return None; }

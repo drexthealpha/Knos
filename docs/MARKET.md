@@ -1,16 +1,19 @@
 # Market, money, and what can stop this
 
-**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.**
+**The neutral meter for AI agent work: neither side keeps the count.**
 
-Nine parts: who buys and who sells; the adjacent market, with every source; the price book; what each sale costs
-to deliver; the revenue formula and the fee an order actually pays; one customer worked through, and the first
-milestone; what a fork can copy, and the moats that would have to be earned; the phases, and what devnet can and
-cannot earn; and what can stop this.
+Of first agent pull requests that claimed passing tests, 17.8% had a failed check (147 of 826 repositories in the
+Agent PR Index; [BENCH.md](BENCH.md)).
+
+Nine parts: who buys and who sells; the adjacent market and the competition, with every source; the price book;
+what each sale costs to deliver; the addressable market as a formula, and the fee an order actually pays; one
+customer worked through, how one customer expands, and the first steps; what a fork can copy, and the moats in
+the order they could form; devnet as test mode, and the phases; and what can stop this.
 
 Every outside figure carries its link and one of three labels: **[vendor page]** (the seller's own price list or
 product page), **[press]** (reported by someone else, often from an unnamed source), **[company-reported]** (the
 company's own statement of its results; audited only where it is a public company's filing). Each was read on
-4 Oct 2026 unless it says otherwise. **[measured]** is ours, with where. **[assumption]** has no source. The rest is
+4 Oct 2026 unless it says otherwise (5 Oct 2026 where the line says so). **[measured]** is ours, with where. **[assumption]** has no source. The rest is
 arithmetic on those inputs. Nothing here is a forecast. Knos runs on Solana devnet and its money is test USDC. No
 real money has moved, nobody has bought anything, and no buyer or supplier has been asked.
 
@@ -78,10 +81,12 @@ these contracts say so:
   read 3 Oct 2026). The seller decides them.
 
 For code, the count can be wrong in a way we measured. Of 241 merged agent pull requests whose description said
-tests or CI pass, 30 (12.4%) had a failed check at the head commit **[measured]**
-([agent_pr_ci.json](agent_pr_ci.json), `summary.one_pr_per_repo`; [BENCH.md](BENCH.md), "Merged anyway"; 95%
-interval 8.9% to 17.2%). A vendor that bills per merge bills those. A count that reads the checks from the
-system of record does not.
+tests or CI pass, 30 had a failed check at the head commit: 12.4% **[measured]** (95% interval 8.9% to 17.2%).
+The pull requests and each one's checks are in [agent_pr_ci.json](agent_pr_ci.json) (303 with finished CI, read on
+1 Oct 2026); the count of the merged ones is in [backtest.json](backtest.json), `sample.merged.overall`, and
+[BENCH.md](BENCH.md), "Merged anyway", prints it. **A buyer paying per merge on that sample would have paid for 30
+changes with a failed check.** That is a statement about that sample. It is not a promise that any buyer saves
+12%: a failed check is not always a defect, and no buyer's invoices have been read.
 
 Code has what support does not: a third party that already records the result and signs statements about it.
 GitHub and GitLab record the merge and the checks, and sign a CI run. Knos counts and settles on that signature,
@@ -117,16 +122,69 @@ shortest path from devnet to real settlement.
 No source says what part of any of these would move to a neutral count or to payment on signed acceptance. The
 part that goes through Knos today is zero. We do not multiply any of them by a share.
 
+### Beyond code: neutral measurement of agent work priced per outcome
+
+The meter is not a GitHub feature. The verifier takes any RS256 workload identity, which is the token format of
+GitLab CI, of the cloud providers' workload identity and of most enterprise identity providers. Any system of
+record that can sign "this workload ran and produced this result" can feed the count. The support rows of the
+first table above are the same dispute as code, at larger volume: a resolution the seller counts and the buyer
+pays for.
+
+The hard part: code has a third party that already signs the result, and support does not. Each new kind of work
+needs its own signed system of record, an agreed definition of the outcome (what a resolution is, how long it may
+be reopened), and an acceptance policy someone maintains. That is one attestor at a time. None beyond code exists
+in Knos today; [OUTCOMES.md](OUTCOMES.md) has three worked examples and their stage.
+
+The precedent is advertising. Sellers of advertising counted their own impressions, and measurement by a company
+that neither buys nor sells the advertising became a business of its own:
+
+| company | what it sells | revenue | label and source |
+|---|---|---|---|
+| DoubleVerify | independent measurement and verification of digital advertising | 748.3 million USD in 2025 | **[company-reported]**, a public company's results: [DoubleVerify, 26 Feb 2026](https://s206.q4cdn.com/961864615/files/doc_financials/2025/q4/DoubleVerify-Q4-FY25-Earnings-Release.pdf), read 5 Oct 2026 |
+| Integral Ad Science | the same | 530.1 million USD in 2024, the last full year it reported as a listed company | **[company-reported]**: [IAS, 28 Feb 2025](https://www.stocktitan.net/news/IAS/ias-reports-fourth-quarter-and-full-year-2024-financial-1k4428b0o95b.html), read 5 Oct 2026; taken private since ([PE Hub](https://www.pehub.com/novacap-completes-take-private-buyout-of-media-measurement-platform-integral-ad-science-private/)) |
+
+Those are two companies in another industry. They show that buyers have paid a third party to count what a
+seller bills. They do not show that buyers of agent work will, and neither figure is a size for Knos's market.
+
+### The competition, stated plainly
+
+Counting what an agent does and moving money for it are both sold already, by companies far larger than Knos:
+
+| who | what it sells | source |
+|---|---|---|
+| Amazon Web Services, Bedrock AgentCore | agent identity, policy, evaluations and payments as priced services; a custom evaluation is listed at 1.50 USD per 1,000 | **[vendor page]** [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 5 Oct 2026 |
+| Stripe, Billing | subscription and usage billing at 0.7% of billing volume, with metered events included | **[vendor page]** [pricing](https://stripe.com/billing/pricing), read 5 Oct 2026 |
+
+So "we meter agents and move payments" is not a difference. A cloud platform meters the agents that run on it,
+and a billing company bills what its customer, the seller, reports. In both the count belongs to one side or to
+that side's vendor.
+
+**The difference Knos has to earn is independent acceptance across vendors, including the disagreements**: terms
+fixed before the work, a verdict from evidence a third party signed, the same record for every supplier whatever
+platform its agents run on, and each side's count beside the other's so that a difference is a named dispute and
+not an invoice line. The AWS price is also a ceiling on what plain counting is worth: 0.02 USD an evaluation is
+more than thirteen times 1.50 USD per 1,000, so the Meter's price has to buy commercial evidence, not a count.
+
 ## 3. The price book
 
 | Line | Unit | Price |
 | --- | --- | --- |
-| Check | pull request checked | free |
+| Check | pull request checked | free, forever |
 | Meter | evaluation | 10,000 a month free per organisation, then 0.05 USD; 0.02 on a committed-volume plan |
-| Control | organisation | 25,000 USD a year entry, 80,000 organisation tier (nobody has bought it) |
-| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40 |
-| Pilot | one buyer and its suppliers, 30 days | 2,500 USD, invoiced off chain: reconcile the buyer's accepted work from more than one supplier, name every mismatch between acceptance and billing, deliver a statement both sides verify (nobody has bought it; there is no legal entity to invoice from yet) |
-| Advance, Assurance | | not offered; needs loss history |
+| Verify | dollar of outcome billing the count verifies | 0.5% to 1.0%, the greater of this and the Meter fee, capped per deliverable (proposed; nobody has bought it) |
+| Control | organisation, per year | Team 25,000 USD; Business 80,000; Enterprise from 250,000 (Enterprise is not deliverable yet: it needs single sign-on, private deployment and support that do not exist) |
+| Supplier connection | supplier connected to a buyer, per year | 5,000 USD each beyond the first five; the buyer pays; a supplier never pays to be counted |
+| Pilot | one buyer and its suppliers, 30 days | 2,500 USD, credited against the first year of Control (nobody has bought it; no legal entity to invoice from yet) |
+| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40. On devnet this is test money: zero revenue |
+| Index data, Advance, Assurance | | not offered |
+
+**The rule: Knos never charges the party being rated.** A supplier pays nothing to be counted, to
+keep its ledger, to verify a receipt or to appear in the Agent PR Index. The buyer pays, or nobody does.
+
+**Why Verify exists.** A flat price per evaluation cannot grow with the value it verifies: an evaluation that
+accepts a 12 USD change and one that accepts a 40,000 USD milestone would cost the same 0.02 USD. So Verify is
+proposed as a price on the dollar of outcome billing the count verifies, with the Meter fee as its floor and a cap
+per deliverable so that the bill stays forecastable.
 
 Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee.
 
@@ -146,30 +204,37 @@ devnet the settle fee is test money: zero real revenue.
 
 Where each price is fixed:
 
-- **Check.** Nowhere: it is free. The claim check, the Stop hook, the MCP tools, the Agent PR Index and on-chain
-  verification cost nothing, and they are the distribution.
+- **Check.** Nowhere: it is free, and stays free. The claim check, the Stop hook, the MCP tools, the Agent PR
+  Index and on-chain verification cost nothing, and they are the distribution.
 - **Meter.** In `knos-meter`. It moves no customer money: it counts evaluations and takes its fee from credits the
   customer prepaid. Sending the same evidence again is not another evaluation. An evaluation that rejects is
   billable, because evaluating it took the same work; a Knos failure is not. The 0.02 covers processing the
   attestation, keeping the evidence and reconciling the count. It does not cover running the customer's tests or
   an agent's inference: those run in the customer's own CI, on the customer's bill. A committed-volume rate is a
   `Plan` the program holds for one owner; the commitment itself is a contract off chain.
+- **Verify.** Nowhere yet. It is a proposal: no contract states it, no program computes it, the cap per
+  deliverable has no number, and nobody has been asked whether they would pay it. It would be invoiced off chain
+  on outcome billing the buyer and the supplier both report, so it needs no customer money on chain.
 - **Control.** In a contract. Nothing on chain enforces it, and the software it covers is in this repository under
   the MIT licence. What is sold is policy, budgets, private repositories, statements, exports, and a party that
-  answers for the service. That party does not exist yet.
+  answers for the service. That party does not exist yet. Team is one business unit; Business is several
+  suppliers with approval workflows and accounting exports; Enterprise is not deliverable.
+- **Supplier connection.** In the same contract: the first five suppliers a buyer connects are inside Control, and
+  each one after is 5,000 USD a year, paid by the buyer. Nobody has bought it.
 - **Settle.** In `knos-pay`. The fee is marginal: each rate applies only to the part of the amount inside its
   tier. It is escrowed on top of the amount when the order is funded and leaves only when someone is paid; a refund
   returns amount and fee. Under a contract a `Plan` can lower the first tier's rate for one owner: the
   program allows 0.5% at the least, and the plans considered are 0.5 to 1.5%. No such contract exists. On devnet an order holds between 5 and 100,000 test USDC; a build for real
   money decides its own cap. The second deployment is upgradeable only through a multisig with a public 48-hour
   delay, until an outside review, so any change to these constants is public two days before it can run.
-- **Pilot.** In an invoice, off chain. [PILOT.md](PILOT.md) is the offer in full: who it is for, the four
-  deliverables, what each side does, what is measured, and what blocks it today.
-- **Advance, Assurance.** Not offered. An order can already hold back a share for a warranty period and return it
-  if the work is reverted, and a payee can assign an order's payment to another wallet. Pricing an advance or a
-  warranty needs a history of losses, and there is none.
-- **An enterprise tier (120,000 to 300,000 USD a year).** Not offered: it would need single sign-on, private
-  deployment, retention and support that do not exist.
+- **Pilot.** In an invoice, off chain: reconcile the buyer's accepted work from more than one supplier, name
+  every mismatch between acceptance and billing, deliver a statement both sides verify. Its price is credited
+  against the first year of Control if the buyer goes on. It starts in shadow mode: the count runs beside the
+  invoices the buyer already receives and changes nothing. [PILOT.md](PILOT.md) is the offer in full.
+- **Index data, Advance, Assurance.** Not offered. The Agent PR Index is free. An order can already hold back a
+  share for a warranty period and return it if the work is reverted, and a payee can assign an order's payment to
+  another wallet; pricing an advance or a warranty needs a history of losses, a licence and real money, and there
+  is none of the three.
 
 ## 4. What each sale costs to deliver
 
@@ -229,14 +294,28 @@ USD per evaluation to deliver it. In batch mode the chain takes 0.00000036 of th
 is not measured: storing and serving the ledgers, running a relay, and support. Running the customer's tests is not
 in it: they run in the customer's own CI, on the customer's bill.
 
-## 5. Revenue, and the fee actually collected
+## 5. The addressable market, and the fee actually collected
 
-**Revenue opportunity = qualified customers × annual platform price + billable evaluations × realised unit price,**
+We do not call IT services spending, or the revenue of the coding-agent sellers, Knos's market. The addressable
+market is built from accounts that can be named:
+
+**qualified organisations × contract value + billable evaluations × realised price,**
 and, once real money settles, **+ orders × the fee collected on each.**
 
-Each input has to be shown, and none is today: qualified customers are 0, billable evaluations are 0, and the
-realised unit price is unknown, because the free allowance and committed-volume plans come off the list price
-first.
+**What makes an organisation qualified.** All four, each checkable in a first conversation:
+
+1. **Measurable spend** on work bought per outcome from outside suppliers (agent vendors, agencies, contractors
+   paid per merged change or per milestone), from two suppliers at least.
+2. **Acceptance criteria explicit enough to write down** before the work: checks that must pass, paths that may
+   change, a milestone. Work judged by taste does not qualify.
+3. **A buyer with authority**: the person who approves the supplier's invoice and can sign for a tool.
+4. **A problem worth another system**: disputed lines, duplicate billing, or days between acceptance and approval
+   that somebody already complains about.
+
+Each input has to be shown, and none is today: qualified organisations are 0 because nobody has been asked,
+billable evaluations are 0, and the realised price is unknown, because the free allowance and committed-volume
+plans come off the list price first. No source counts organisations that meet the four conditions, so this page
+prints no total.
 
 The settlement line is not "volume × a percentage". The tiers and the floor decide what an order pays:
 
@@ -261,13 +340,13 @@ What is and is not revenue:
 - Customer money in escrow, prepaid credits not yet used, rent that returns, money a financier advances and the
   payments a customer makes to its suppliers are never Knos's revenue.
 
-## 6. One customer, worked, and the first milestone
+## 6. One customer, worked; how one customer expands; the first steps
 
-**One customer at the organisation tier** *(an example at the price book's prices; no such customer exists)*:
+**One customer on the Business tier** *(an example at the price book's prices; no such customer exists)*:
 
 | line | arithmetic | USD a year |
 |---|---|---|
-| Control, organisation tier | | 80,000 |
+| Control, Business | | 80,000 |
 | Meter | 100,000 evaluations a month, less 10,000 free, is 90,000 billable; × 12 months × 0.02 | 21,600 |
 | **What the customer pays** | | **101,600** |
 
@@ -278,13 +357,26 @@ paid for that did not meet its acceptance terms, and days between acceptance and
 any of these with Knos.** The [Pilot](PILOT.md) exists to measure them once, for 2,500 USD, before anyone is asked
 for an annual contract.
 
-**The first milestone is 1 million USD a year: 40 organisations at the 25,000 USD entry price.** It needs no
-mainnet: Control is a subscription invoiced off chain. It does need a legal entity to invoice from, and 40
-organisations that have said yes. Today there is neither. Two other ways to the same figure, for scale only: 50
-million billable evaluations a year at 0.02 (137,000 a day); or, with real money on a mainnet, 40 million USD
-settled in orders of 1,000 or less.
+**How one customer expands.** Five steps, each of which the customer takes for its own reasons. None has
+happened.
 
-## 7. What a fork can copy, and the moats that would have to be earned
+| step | what happens | what it costs the customer | the measure |
+|---|---|---|---|
+| 1. Land in shadow mode | The free count runs beside one supplier's invoices for a period. No money moves through Knos and no process changes. | nothing | organisations with a shadow count running |
+| 2. Convert on the first disputed line | The first statement that names a line both sides have to settle is what a Pilot is bought for. | 2,500 USD, credited against Control | shadow counts that became a Pilot |
+| 3. Expand by supplier | Each further supplier is connected once, by the buyer. | 5,000 USD a year beyond the first five | suppliers per buyer |
+| 4. Expand by vertical | A second kind of work with its own signed record (support resolutions, data operations) opens a second budget in the same company. | a second policy, and its evaluations | kinds of work per buyer |
+| 5. Expand by usage | The customer's agents do more work, and the count grows with them. | evaluations beyond the allowance; Verify, if it is ever sold | billable evaluations per buyer, period on period |
+
+Every measure reads zero today.
+
+**The first steps.** 40 organisations on the Team tier at 25,000 USD are 1 million USD a year of platform
+revenue. 125 on the Business tier at 80,000 USD are 10 million. Neither needs a mainnet: Control is a subscription
+invoiced off chain. Each needs a legal entity to invoice from and that number of organisations to have said yes,
+and the second should not be assumed until the first has renewed. Today there is no entity and nobody has been
+asked.
+
+## 7. What a fork can copy, and the moats in the order they could form
 
 Knos is MIT. Anyone can deploy the same programs with every fee set to zero, and MergePay already charges no
 platform fee ([COMPARE.md](COMPARE.md)).
@@ -293,43 +385,52 @@ platform fee ([COMPARE.md](COMPARE.md)).
 public settlement fee, since the program tips whoever relays and anyone can relay at no loss; and the public
 payment history, which anyone can read from the chain. Settlement alone will be priced toward zero.
 
-**What a fork does not start with** is not something Knos has either. Each line below is an advantage only once it
-exists, and each has a measure that would show it. Every measure reads zero today.
+**What a fork does not start with** is not something Knos has either. Each of the four below is an advantage only
+once it exists. They are listed in the order they could form, each with the measure that would show it, and every
+measure reads zero today.
 
-| what would have to be earned | why code alone does not give it | how it would be measured | today |
-|---|---|---|---|
-| **Suppliers that reuse it** | A supplier that has integrated one acceptance format for one buyer can serve the next buyer without new work. That is worth something only when buyers who do not know each other ask for the same format. | Suppliers with accepted outcomes under two or more unrelated buyers; the share of a supplier's outcomes that came from a buyer after its first. | 0 suppliers; 0 buyers |
-| **Buyers that come back** | A buyer who funds a second period after seeing the first statement has found it worth the fee. Wallet counts and Knos's own orders show nothing. | Repeat buyer spend: buyers who fund or renew again without being asked, and what they spend in the second period against the first. | 0 repeat buyers |
-| **Short onboarding** | Each installation and each terms template that worked makes the next one faster, if someone records what went wrong. | Time from a first conversation to a first reconciled statement, and from the install pull request to a first accepted outcome, per customer in order. | never measured: no customer |
-| **A record of delivery** | Which suppliers deliver, which are reverted, which disputes were upheld. A fork starts at zero; so does Knos. | Accepted outcomes, reverts and disputes per supplier, with the sample size beside each. | Knos's own activity on devnet only |
-| **An accountable party** | Procurement signs with a legal entity that answers for support, security reports and uptime. Code cannot sign. | A signed contract; a support request answered by someone other than the founder. | none: no company, one person |
-| **Neutrality** | A count run by the vendor is the vendor's count again. A count run by one person is that person's. | An operator that neither side controls: outside signers on the multisig, an outside review, more than one independent evaluator. | one operator, who holds every key |
+| order | what would have to be earned | why code alone does not give it | how it would be measured | today |
+|---|---|---|---|---|
+| 1 | **Supplier reuse** | A supplier that has integrated one acceptance format for one buyer can serve the next buyer without new work. It starts with the free check, because a supplier integrates once. It is worth something only when buyers who do not know each other ask for the same format. | Suppliers with accepted outcomes under two or more unrelated buyers; the share of a supplier's outcomes that came from a buyer after its first. | 0 suppliers; 0 buyers |
+| 2 | **The terms standard, cited by hash** | An order's terms are a document with a hash. If contracts between buyers and suppliers name a Knos terms template by its hash, changing the meter means renegotiating the contract. A fork can copy the templates; it cannot copy the contracts that cite them. | Orders and contracts, outside Knos's own, that cite a published terms template by its hash; templates cited by two or more unrelated buyers. | 0 |
+| 3 | **The delivery record** | Which suppliers deliver, which are reverted, which disputes were upheld. A fork starts at zero; so does Knos. | Accepted outcomes, reverts and disputes per supplier, with the sample size beside each; buyers who say they used the record to choose a supplier. | Knos's own activity on devnet only |
+| 4 | **Neutrality** | A count run by the vendor is the vendor's count again. A count run by one person is that person's. Neutrality cannot be bought as a certificate: it has to show in who holds the keys, who can appeal, and whether a customer can leave with its records. | Outside signers on the multisig; an outside review; more than one independent evaluator; a customer that exported its records and verified them without Knos. | one operator, who holds every key; no review |
 
-The order they could form in: reuse by suppliers first, because the check is free and a supplier integrates once;
-then buyers that return; then a record large enough to inform a purchase. None exists at any scale today, and
-none of them should be called a moat until its measure is above zero for accounts that are not Knos's.
+Two things are needed before any of the four and are not moats: **buyers that come back** (a buyer who funds a
+second period without being asked; measured as repeat buyer spend, 0 today) and **an accountable party** (a legal
+entity that signs a contract and answers a support request; none today, and one person).
 
-## 8. The phases, and what devnet can and cannot earn
+None of the four should be called a moat until its measure is above zero for accounts that are not Knos's.
+
+## 8. Devnet is Knos's test mode
+
+A payments company onboards a customer in a test mode first: integrate there, with money that is not money, and
+change one setting later. Devnet is that mode for Knos. Every integration starts here, and the evidence is
+portable: a receipt verifies from GitHub's signatures with no chain ([RECEIPT.md](RECEIPT.md)), so nothing a
+customer keeps depends on devnet's history, which Solana does not promise to keep
+([clusters](https://solana.com/docs/references/clusters)).
+
+| can be real while the programs stay on devnet | is a demonstration |
+|---|---|
+| Subscriptions in ordinary money: Control, the Meter, a Supplier connection, invoiced off chain. None is sold, and there is no legal entity to invoice from. | Escrow and settlement: the money is test USDC. |
+| A Pilot on a buyer's own repositories and its real invoices. None has been run. | Every settle fee: test money, zero revenue. |
+| The count: evaluations of real work, signed by the forge, in ledgers each side keeps. | Cost, congestion and reliability under mainnet load and priority fees. |
+| Use by accounts that are not Knos's, a supplier reused by a second buyer, a statement both sides compute. All zero today. | Security against an attacker who risks real money. |
+| Records a customer keeps and verifies without the cluster. | Devnet as the ledger of record. It is not one. |
 
 Count first, settle second, capital third. The count needs no customer money on chain, so it can be sold before
 any mainnet deployment. The gates are targets we set **[assumption]**, not commitments from anyone.
 
 | phase | what ships | who buys | the gate to the next phase |
 |---|---|---|---|
-| 0. Proof, on devnet | The free check; the meter beside real invoices; settlement in test USDC; the Pilot | Nobody has paid. There is no design partner. | Outside accounts funding orders on devnet, and one vendor or agency running the meter beside its own invoice count |
+| 0. Proof, in test mode | The free check; the meter in shadow beside real invoices; settlement in test USDC; the Pilot | Nobody has paid. There is no design partner. | Outside accounts funding orders on devnet, and one vendor or agency running the meter beside its own invoice count |
 | 1. Count | Meter and Control as subscriptions invoiced off chain; private repositories; an outside security review; the verifier and the meter on mainnet | Vendors that bill per accepted change, and their customers | 10 paying organisations and a published review |
 | 2. Settle | Escrow on mainnet with real USDC; bank money in and out through a licensed partner; milestones | Teams that already pay per outcome in stablecoins, then agencies | 50 million USD settled in a year |
 | 3. Capital | Advance and Assurance, which are not offered today, priced from the settlement record | Agencies and their financiers | Losses below premiums for four quarters |
 
-**What devnet can earn.** Meter, Control and the Pilot are software. They hold no customer money, so they can be
-invoiced off chain, in ordinary money, while the programs stay on devnet. None has been sold, and there is no legal
-entity to send the invoice. Devnet can also show that the product works end to end, use by accounts that are not
-Knos's, a supplier and a buyer computing the same statement, and reproducible refusals and refunds.
-
-**What devnet cannot earn.** Settlement revenue. A settle fee on devnet is test money: zero. Nor can devnet show
-behaviour under mainnet load and priority fees, or be a ledger a customer relies on: it carries no guarantee that
-its history is kept, which is why every receipt and each side's ledger can be kept off chain
-([RECEIPT.md](RECEIPT.md)) and why a customer's invoice must be checkable without the cluster.
+Until settlement is real, a customer pays its suppliers the way it already does, through its bank. Knos records
+the settlement status of each deliverable as paid outside Knos, payable, held, refunded, or a devnet
+demonstration, and says which.
 
 **Tokenless.** Knos has no token and plans none. Revenue is subscriptions and fees in USD and USDC.
 
@@ -341,8 +442,9 @@ differ by country and by state. Legal advice is needed before any real money mov
 
 | what | why it could | what Knos does about it | what Knos cannot do |
 |---|---|---|---|
-| **Nobody wants a neutral count** | The vendors of section 2 sell on their own count today, and their customers accept it. | Makes the count free to try: 10,000 evaluations a month cost nothing, and the meter runs beside the vendor's invoices without changing them. | Create the dispute. If buyers do not object to the seller's count, there is no Meter business. |
+| **Nobody wants a neutral count** | The vendors of section 2 sell on their own count today, and their customers accept it. | Makes the count free to try: 10,000 evaluations a month cost nothing, and in shadow mode the meter runs beside the vendor's invoices without changing them. | Create the dispute. If buyers do not object to the seller's count, there is no Meter business. |
 | **GitHub ships it** | GitHub owns the record Knos reads. A request for bounties on issues has been open since 6 Jul 2021 ([discussion 4517](https://github.com/orgs/community/discussions/4517)). | Takes signed statements from other issuers. Stays neutral between agents: GitHub sells an agent of its own, so it would be counting its own sales. | Stop it, or outlast it on public repositories. Knos also depends on GitHub's tokens and API, and on one GitHub account ([submission/DEPENDENCY.md](submission/DEPENDENCY.md)). |
+| **A cloud platform or a billing company adds acceptance** | Section 2: they already sell agent identity, policy, evaluation, payments and usage billing, and they have the customers. | Stays independent of every vendor of agents and every platform they run on, which a platform cannot be about its own. | Match their distribution, or stop a buyer from deciding that its platform's count is good enough. |
 | **A payment rail adds acceptance** | The rails have the distribution. x402 reports 75.41 million transactions and 24.24 million USD in 30 days ([x402.org](https://x402.org), read 3 Oct 2026). It is pay before access, with no check of delivery. The draft ERC-8183 has a slot for one: an evaluator address that "alone may mark the job completed" ([EIP](https://eips.ethereum.org/EIPS/eip-8183), read 3 Oct 2026). | Builds the evaluator, not the rail: the verifier is free for any program to read. | Match a rail's reach. |
 | **Zero-fee copies** | MIT, and MergePay charges no platform fee. Algora charges 9% ([pricing](https://algora.io/pricing), read 3 Oct 2026), so the direction of prices is down. | Section 7: charges for software and a service, not for a fee constant. | Keep a percentage on public settlement once someone relays as well for less. |
 | **The attestor gap** | The issuer signs which workflow ran, at which commit, in which repository. It does not sign what the workflow read. | Pins the workflow by commit; requires a hosted runner and a first attempt; lets the supplier have the pinned workflow read the public record from a repository of its own. | Prove the reading without trusting the forge's hosted runners. A private order trusts the repository its funder named as judge ([SECURITY.md](SECURITY.md)). |
@@ -356,6 +458,8 @@ differ by country and by state. Legal advice is needed before any real money mov
   [submission/INTERVIEWS.md](submission/INTERVIEWS.md) is the kit for asking.
 - Whether anyone will fund a second order with real money. There is no outside funder.
 - Whether the five-times benefit of section 6 exists for any customer. Nobody has measured it.
+- Whether anyone would pay Verify, and what its cap per deliverable should be. Nobody has been asked.
+- How many organisations meet the four conditions of section 5. No source counts them.
 - The realised price of an evaluation, and what a batch costs on a cluster. Neither is measured.
 - What relaying costs on mainnet. Priority fees are in no measurement.
 - What share of the spend on coding agents would move to payment per accepted outcome. No source gives it.

@@ -186,3 +186,222 @@ def test_publish_uploads_only_the_locked_wheel_from_a_committed_tree_with_a_toke
     pinned = re.search(r'^requires = \["hatchling==([\d.]+)"\]', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
     assert f"hatchling=={pinned} \\\n    --hash=sha256:" in build
     assert all("--hash=sha256:" in block for block in re.split(r"\n(?=[a-z])", build) if re.match(r"[a-z][\w.-]*==", block))
+
+
+# ---- crates.io and npm: a package is published at its own version -----------------------------------------------------------
+
+def _crate(root: Path, name: str, version: str) -> None:
+    (root / "crates" / name).mkdir(parents=True, exist_ok=True)
+    (root / "crates" / name / "Cargo.toml").write_text(f'[package]\nname = "{name}"\nversion = "{version}"\nedition = "2021"\n', encoding="utf-8")
+
+
+def _index(versions: list[str] | None, asked: list[str] | None = None):
+    """crates.io's index for one crate: a JSON line per version; None: no such crate (404)."""
+    def fetch(url: str):
+        if asked is not None:
+            asked.append(url)
+        return None if versions is None else "".join(json.dumps({"name": "x", "vers": v, "yanked": False}) + "\n" for v in versions).encode()
+    return fetch
+
+
+def test_a_crate_held_at_an_older_version_is_a_green_skip_and_a_version_that_is_neither_is_red(tmp_path):
+    """0.3.15: crates-trusted compared the interface crates' version with the tag. They are held at 0.3.14 on purpose
+    (a version is in a build's bytes), so the job could never pass. The rule: a crate is published at its own version,
+    which is the tag's or the one it is held at; only a version the registry lacks is published."""
+    r = _release_script()
+    name, asked = "knos-oidc-interface", []
+    _crate(tmp_path, name, "0.3.14")
+    # held at 0.3.14, release 0.3.15, the crate not on crates.io yet: green, one notice, nothing to publish
+    code, said, publish = r.registry_plan("crates", name, "v0.3.15", "0.3.14", fetch=_index(None, asked), root=tmp_path)
+    assert (code, publish) == (0, False) and said.startswith("::notice title=crates.io::Skipped: knos-oidc-interface is not on crates.io yet")
+    assert "is published by hand (docs/RELEASE.md)" in said and "held at 0.3.14" in said and "published at its own version" in said
+    assert asked == ["https://index.crates.io/kn/os/knos-oidc-interface"]
+    # held, and crates.io has that version already: green, a notice, nothing to publish
+    code, said, publish = r.registry_plan("crates", name, "v0.3.15", "0.3.14", fetch=_index(["0.3.13", "0.3.14"]), root=tmp_path)
+    assert (code, publish) == (0, False) and said.startswith("::notice ") and "already has knos-oidc-interface 0.3.14" in said
+    # held, on crates.io, without this version: it is published at ITS version, not the tag's
+    code, said, publish = r.registry_plan("crates", name, "v0.3.15", "0.3.14", fetch=_index(["0.3.13"]), root=tmp_path)
+    assert (code, publish) == (0, True) and "publishing knos-oidc-interface 0.3.14" in said
+    # neither the tag's version nor the held one: red, and the registry is not even asked
+    asked.clear()
+    _crate(tmp_path, name, "0.3.13")
+    code, said, publish = r.registry_plan("crates", name, "v0.3.15", "0.3.14", fetch=_index(["0.3.13"], asked), root=tmp_path)
+    assert (code, publish) == (1, False) and said.startswith("::error title=crates.io::") and asked == []
+    assert "neither the tag's version (v0.3.15) nor the 0.3.14 that scripts/bump_version.py holds it at" in said and "Nothing is published" in said
+    # a crate nothing holds must carry the tag's version: an older one is red, the tag's is published once
+    code, said, publish = r.registry_plan("crates", name, "v0.3.15", None, fetch=_index([]), root=tmp_path)
+    assert (code, publish) == (1, False) and "It is not held at an earlier version" in said
+    _crate(tmp_path, name, "0.3.15")
+    assert r.registry_plan("crates", name, "v0.3.15", None, fetch=_index(["0.3.14"]), root=tmp_path)[::2] == (0, True)
+    assert r.registry_plan("crates", name, "v0.3.15", None, fetch=_index(["0.3.14", "0.3.15"]), root=tmp_path)[::2] == (0, False)
+    assert r.registry_plan("crates", name, "v0.3.15", "0.3.14", fetch=_index(["0.3.14"]), root=tmp_path)[::2] == (0, True)   # held elsewhere, moved on here: the tag's
+    # a registry that does not answer is red and says to run the job again: nothing is published on a guess
+
+    def down(url: str):
+        raise OSError("timed out")
+    code, said, publish = r.registry_plan("crates", name, "v0.3.15", None, fetch=down, root=tmp_path)
+    assert (code, publish) == (1, False) and "did not answer" in said and "run this job again" in said
+    # the folder of crates.io's index is made of the name's first letters
+    for crate, where in (("a", "1/a"), ("ab", "2/ab"), ("abc", "3/a/abc"), ("knos-pay-interface", "kn/os/knos-pay-interface")):
+        asked.clear()
+        r.on_registry("crates", crate, _index(None, asked))
+        assert asked == [f"https://index.crates.io/{where}"]
+
+
+def test_the_npm_package_follows_the_same_rule_and_its_version_is_always_the_tags(tmp_path):
+    r = _release_script()
+    (tmp_path / "sdk" / "settle").mkdir(parents=True)
+    (tmp_path / "sdk" / "settle" / "package.json").write_text(json.dumps({"name": "knos-settle", "version": "0.3.15"}), encoding="utf-8")
+
+    def npm(versions):
+        return lambda url: None if versions is None else json.dumps({"name": "knos-settle", "versions": {v: {} for v in versions}}).encode()
+    code, said, publish = r.registry_plan("npm", "knos-settle", "v0.3.15", None, fetch=npm(None), root=tmp_path)
+    assert (code, publish) == (0, False) and said.startswith("::notice title=npm::Skipped: knos-settle is not on npm yet") and "by hand (docs/RELEASE.md)" in said
+    assert r.registry_plan("npm", "knos-settle", "v0.3.15", None, fetch=npm(["0.3.14"]), root=tmp_path)[::2] == (0, True)
+    assert r.registry_plan("npm", "knos-settle", "v0.3.15", None, fetch=npm(["0.3.15"]), root=tmp_path)[::2] == (0, False)
+    code, said, publish = r.registry_plan("npm", "knos-settle", "v0.3.16", None, fetch=npm(["0.3.15"]), root=tmp_path)
+    assert (code, publish) == (1, False) and said.startswith("::error title=npm::knos-settle is at 0.3.15, and the tag is v0.3.16")
+
+
+def test_what_is_held_comes_from_bump_version_alone_and_this_trees_packages_pass_the_rule():
+    """One source: scripts/bump_version.py (PROGRAMS_FROZEN, FROZEN_AT). Whatever it holds, each package of this tree is
+    at a version its release may publish, so no publishing job of the release this commit becomes is red by its rule."""
+    r = _release_script()
+    bump = r._load("bump_version")
+    tag = f"v{bump.project()}"
+    for crate in ("knos-oidc-interface", "knos-pay-interface"):
+        assert r.held(crate) == (bump.FROZEN_AT if crate in bump.PROGRAMS_FROZEN else None)
+        assert r.version_rule(crate, r.own_version("crates", crate), tag, r.held(crate)) is None, crate
+    assert r.held("knos-settle") is None and r.version_rule("knos-settle", r.own_version("npm", "knos-settle"), tag, None) is None
+    assert "PROGRAMS_FROZEN" not in (WORKFLOWS / "release.yml").read_text(encoding="utf-8").replace("#", "\n#").split("\n  tests:")[1]     # no second list
+
+
+def test_the_publishing_jobs_ask_the_one_rule_and_none_compares_a_held_crate_with_the_tag(tmp_path, monkeypatch, capsys):
+    jobs = _yaml("release.yml")["jobs"]
+
+    def plan(job: str) -> str:
+        [step] = [s for s in jobs[job]["steps"] if s.get("id") == "plan"]
+        return step["run"]
+    crates, npm = plan("crates-trusted"), plan("npm-trusted")
+    assert 'python3 scripts/release.py registry-plan crates "$CRATE" --tag "$TAG"' in crates
+    assert 'python3 scripts/release.py registry-plan npm knos-settle --tag "$TAG"' in npm
+    for run in (crates, npm):
+        assert '= "$TAG"' not in run and "cargo metadata" not in run       # the comparison that a held crate can never pass is gone
+    for job in ("crates-trusted", "npm-trusted"):                          # and a publish still happens only on the plan's word
+        later = [s for s in jobs[job]["steps"] if "publish" in str(s.get("run", "")) and s.get("id") != "plan"]
+        assert later and all(s["if"] == "steps.plan.outputs.publish == 'true'" for s in later), job
+    # the token job (the fallback, dormant while the secret is unset) holds each crate to the same two versions
+    token = "\n".join(str(s.get("run", "")) for s in jobs["crates"]["steps"])
+    for crate in ("knos-oidc-interface", "knos-pay-interface"):
+        assert f'[ "$version" = "$(python3 ../../scripts/release.py held {crate})" ] || test "v$version" = "$TAG"' in token
+    # the command writes the plan where the next steps read it: publish=true only when there is something to publish
+    r = _release_script()
+    out = tmp_path / "out"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    monkeypatch.setattr(r, "registry_plan", lambda *a, **k: (0, "said", True))
+    assert r.main(["registry-plan", "crates", "knos-oidc-interface", "--tag", "v9.9.9"]) == 0
+    assert out.read_text(encoding="utf-8").splitlines() == [f"version={r.own_version('crates', 'knos-oidc-interface')}", "publish=true"]
+    out.write_text("", encoding="utf-8")
+    monkeypatch.setattr(r, "registry_plan", lambda *a, **k: (1, "::error::no", False))
+    assert r.main(["registry-plan", "crates", "knos-oidc-interface", "--tag", "v9.9.9"]) == 1 and out.read_text(encoding="utf-8") == ""
+    assert capsys.readouterr().out.splitlines() == ["said", "::error::no"]
+
+
+# ---- PyPI's index lags an upload: the push waits for it, and the worker's install waits for that one error ---------------------
+
+def test_publish_says_push_only_once_the_index_an_installer_reads_lists_the_locked_wheel(tmp_path):
+    r = _release_script()
+    want = "a" * 64
+    root = _tree(tmp_path, "knos" + f"==9.8.7 --hash=sha256:{want}\n")
+    wheel = "knos-9.8.7-py3-none-any.whl"
+
+    def index(files: dict):
+        return json.dumps({"name": "knos", "files": [{"filename": n, "hashes": {"sha256": h}} for n, h in files.items()]}).encode()
+    old = {"knos-9.8.6-py3-none-any.whl": "c" * 64}
+    asked, naps = [], []
+    pages = iter([index(old), index(old), index({**old, wheel: want})])
+    ok, said = r.index_check(wait=600, fetch=lambda url: asked.append(url) or next(pages), sleep=naps.append, root=root)
+    assert ok and naps == [20, 20] and set(asked) == {"https://pypi.org/simple/knos/"} and "PyPI's index lists" in said
+    # bounded: it asks for the time it was given and no longer, then says not to push
+    naps.clear()
+    ok, said = r.index_check(wait=600, fetch=lambda url: index(old), sleep=naps.append, root=root)
+    assert not ok and sum(naps) == 600 and len(naps) == 30 and "Do NOT push yet" in said and "after 600 seconds" in said
+    naps.clear()
+    assert not r.index_check(fetch=lambda url: index(old), sleep=naps.append, root=root)[0] and naps == []           # no wait asked: asked once
+    # another file under that name is never waited for
+    ok, said = r.index_check(wait=600, fetch=lambda url: index({wheel: "b" * 64}), sleep=naps.append, root=root)
+    assert not ok and naps == [] and "DIFFERENT" in said
+    # `publish` ends with it, after PyPI took the upload; and the release's own check asks the index too
+    text = (ROOT / "scripts" / "release.py").read_text(encoding="utf-8")
+    body = text[text.index("def publish_cmd"):text.index("def main")]
+    assert body.index("pypi_check(wait=300)") < body.index("index_check(wait=600)") < body.index("Next: git push, then the tag.")
+    assert body.count("Next: git push") == 1 and "return _pushable() if ok else 1" in body
+    assert "ok, said = index_check(wait=a.wait)" in text[text.index("def main"):]
+
+
+def _worker_install() -> str:
+    [step] = [s for s in _yaml("worker.yml")["jobs"]["relay"]["steps"] if "requirements/sign.txt" in str(s.get("run", ""))]
+    return step["run"]
+
+
+def test_the_workers_install_waits_only_for_the_index_to_list_the_release_and_for_ten_minutes_at_most(tmp_path):
+    """The first worker run after 0.3.15 was pushed failed on "no version of knos==0.3.16" (PyPI's index was minutes
+    behind the upload), and a run that fails starts no next run. The step now waits for that error alone, 600 s in all."""
+    import os
+    import subprocess
+
+    import _posix
+    run = _worker_install()
+    assert "for nap in 15 30 60 120 180 195 end; do" in run and sum((15, 30, 60, 120, 180, 195)) == 600
+    assert run.count("uv pip install ") == 1 and run.count("sleep ") == 1 and "while" not in run and "until" not in run     # no loop without an end
+    assert _yaml("worker.yml")["jobs"]["relay"]["timeout-minutes"] >= 15                                # the wait and the 5 minutes of relaying fit
+    if os.name == "nt":
+        pytest.skip("runs the step with stand-ins for uv and sleep on a POSIX shell")
+    bash = _posix.bash()
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    # uv: `venv` does nothing; `pip install` fails with the next line of $ANSWERS on stderr until that file is empty
+    (fake / "uv").write_text('#!/bin/sh\n[ "$1" = venv ] && exit 0\necho x >> "$LOG/tries"\nsaid=$(head -n 1 "$ANSWERS")\n[ -n "$said" ] || exit 0\n'
+                             'tail -n +2 "$ANSWERS" > "$ANSWERS.next"; mv "$ANSWERS.next" "$ANSWERS"\necho "$said" >&2\nexit 1\n', encoding="utf-8")
+    (fake / "sleep").write_text('#!/bin/sh\necho "$1" >> "$LOG/naps"\n', encoding="utf-8")
+    for tool in ("uv", "sleep"):
+        (fake / tool).chmod(0o755)
+    pin = "knos" + "==9.8.7"                                           # in two parts: this file is read for version pins too
+    lag = f"  x No solution found when resolving dependencies: Because there is no version of {pin} and you require {pin}, we can conclude"
+
+    def go(answers: list[str], last: str = "knos" + "==9.8.7 --hash=sha256:" + "a" * 64 + "\n"):
+        work = tmp_path / f"run-{len(list(tmp_path.iterdir()))}"
+        (work / "requirements").mkdir(parents=True)
+        (work / "requirements" / "sign.txt").write_text("solders==0.29.0 \\\n    --hash=sha256:" + "0" * 64 + "\n" + last, encoding="utf-8")
+        (work / "answers").write_text("".join(a + "\n" for a in answers), encoding="utf-8")
+        env = _posix.environ({**os.environ, "RUNNER_TEMP": _posix.path(work), "GITHUB_PATH": _posix.path(work / "path"), "LOG": _posix.path(work),
+                              "ANSWERS": _posix.path(work / "answers")}, first=[fake])
+        done = subprocess.run([bash, "--noprofile", "--norc", "-e", "-c", run], env=env, cwd=str(work), capture_output=True, text=True, encoding="utf-8", timeout=60)
+        naps = [int(n) for n in (work / "naps").read_text(encoding="utf-8").split()] if (work / "naps").exists() else []
+        return done, len((work / "tries").read_text(encoding="utf-8").split()), naps, (work / "path").exists()
+    done, tries, naps, installed = go([])                               # the usual run: one try, no wait
+    assert (done.returncode, tries, naps, installed) == (0, 1, [], True), done.stderr
+    done, tries, naps, installed = go([lag, lag])                       # the index shows the release on the third try
+    assert (done.returncode, tries, naps, installed) == (0, 3, [15, 30], True), done.stderr
+    assert done.stdout.count("PyPI's index does not list knos 9.8.7 yet") == 2
+    done, tries, naps, installed = go([lag] * 20)                       # it never does: seven tries, 600 s, then red
+    assert (done.returncode, tries, sum(naps), installed) == (1, 7, 600, False) and naps == [15, 30, 60, 120, 180, 195]
+    # any other failure is red at once: a hash that does not match, another package, another release of knos, the network
+    for other in (f"  x Failed to download `{pin}`: Hash mismatch for `{pin}`",
+                  "Because there is no version of solders==0.29.0 and you require solders==0.29.0, we can conclude",
+                  f"Because there is no version of {pin}0 and you require {pin}0, we can conclude",
+                  "error: Failed to fetch: `https://pypi.org/simple/knos/`"):
+        done, tries, naps, installed = go([other, lag])
+        assert (done.returncode, tries, naps, installed) == (1, 1, [], False), other
+        assert other.strip() in done.stderr                             # and uv's own words are shown
+    # a list whose last line names no release (a tree before its lock) has no release to wait for
+    done, tries, naps, installed = go([lag], last="")
+    assert (done.returncode, tries, naps) == (1, 1, [])
+
+
+def test_the_release_page_says_how_the_worker_chain_is_restarted_and_that_a_rerun_does_not():
+    page = " ".join((ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8").split())
+    assert "gh workflow run worker.yml --repo drexthealpha/Knos --ref main" in page
+    assert "Re-running the failed run restarts nothing" in page
+    worker = (WORKFLOWS / "worker.yml").read_text(encoding="utf-8")
+    assert 'if [ "${GITHUB_RUN_ATTEMPT:-1}" != "1" ]; then' in worker and "A re-run" in worker        # what the page says is what the file does

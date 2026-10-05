@@ -983,9 +983,9 @@ def test_a_proof_the_chain_refuses_or_nobody_relays_is_said_with_what_to_do(tmp_
     assert flow.settle(w.run(w.hub.merge(12))) == 1
     assert only(w, 12) == (
         f"Knos: not confirmed yet. The bounty on issue #7 (20.00 {MONEY}) met its terms for @mona and GitHub signed the token (it is posted "
-        "above), but no relayer carried it to Solana within 10 minutes. Solana takes the signed token until an hour after it expires: if one carries it, the "
+        "below), but no relayer carried it to Solana within 10 minutes. Solana takes the signed token until an hour after it expires: if one carries it, the "
         "payment is made, and `/knos status` shows it. Otherwise comment `/knos settle` for a new token.")
-    posted = w.hub.comments[12][0]["body"]                                                 # a pay token travels as knos-proof, with no terms line
+    posted = w.hub.comments[12][1]["body"]                                                 # a pay token travels as knos-proof, with no terms line (under the comment that said "received")
     assert posted.startswith("knos-proof: eyJ") and "knos-terms" not in posted and "<sub>knosrelay: " in posted and w.clock.slept[-1] == 600
     # the public worker carries it: the same comment as this job's own relay writes, read back from the chain
     for bound in (True, False):
@@ -1606,9 +1606,116 @@ def test_mint_asks_github_for_this_runs_token_with_one_audience(monkeypatch):
     assert flow.Run(REPO, {}, env=env).mint(audience) == "a.b.c"                           # a Run without a signer of its own uses this
 
 
+# ---- the five states: one comment, posted at "received" and edited as the payment moves ---------------------------------------
+
+def _watched(w: World, events: list | None = None) -> list[tuple[str, str, float]]:
+    """Every write of a comment on #12 from here on, in order: (POST or PATCH, the comment's words, the clock). Each is
+    also noted in `events`, by its first two words, among whatever else the test notes there."""
+    seen, github = [], w.hub.__call__
+
+    class Watching(type(w.hub)):
+        def __call__(self, path, data=None, method=None):
+            if data is not None and ("/issues/12/comments" in path or method == "PATCH") and not str(data.get("body", "")).startswith("knos-"):
+                seen.append((method or "POST", data["body"], w.clock()))
+                if events is not None:
+                    events.append(" ".join(data["body"].split()[:2]))
+            return github(path, data, method)
+    w.hub.__class__ = Watching
+    return seen
+
+
+def test_a_settlement_is_one_comment_posted_at_received_and_edited_through_the_five_states(tmp_path):
+    """The merge is answered before anything is decided, "accepted" is said before the token goes to the chain, and
+    the same comment ends as the payment with the time of each state. A fake GitHub, a fake chain, a fake clock."""
+    w = bounty(tmp_path)
+    w.chain.bind(MONA)
+    order: list = []
+    writes, submit, sign = _watched(w, order), w.relay.submit, w.signer.__call__
+    w.relay.submit = lambda *a, **k: (order.append("the relay sends"), submit(*a, **k))[1]         # the first call that sends anything to the chain
+
+    class Signing(type(w.signer)):
+        def __call__(self, audience):
+            order.append("GitHub signs")
+            return sign(audience)
+    w.signer.__class__ = Signing
+    w.chain.finalized = lambda sig, within: (order.append(("finalized", sig, within)), w.clock.sleep(13))[0] is None       # the cluster finalizes 13 s later
+    merged = w.hub.merge(12)
+    w.clock.sleep(4)                                                    # GitHub took 4 s to start the runner: nobody controls that
+    assert flow.settle(w.run(merged)) == 0
+    # ONE comment of Knos's on the pull request: one POST, then edits of that comment and nothing else
+    assert [m for m, _b, _t in writes] == ["POST", "PATCH", "PATCH", "PATCH"] and len(w.hub.knos(12)) == 1
+    received, accepted, paid, final = (b for _m, b, _t in writes)
+    assert received.startswith("Knos: received. Pull request #12 is being checked against what was funded for it.")
+    assert accepted.startswith(f"Knos: accepted, settling. Everything the bounty on issue #7 (20.00 {MONEY}) asks for holds at this pull request's "
+                               "last commit and GitHub signed this run. The payment to @mona is on its way to Solana")
+    assert only(w, 12) == PAID and paid.startswith("Knos: paid. @mona received 19.50")
+    for words in (received, accepted):                                  # neither reads as a payment to a program that waits for one (the canary, the site)
+        assert plain(words.split("\n\n" + flow.STATUS)[0]) and not any(mark in words for mark in ("paid.", "held for", "not paid", "nothing to pay", "stopped"))
+    # "received" before anything is signed; "accepted" once GitHub signed and BEFORE the first call that sends to the
+    # chain; the payment when it confirmed; finality last, in the same comment
+    assert order == ["Knos: received.", "GitHub signs", "Knos: accepted,", "the relay sends", "Knos: paid.", ("finalized", "sig2", flow.FINAL_WAIT), "Knos: paid."]
+    assert [b.count("accepted ") for b in (received, accepted)] == [0, 1] and "submitted" not in accepted and "confirmed" not in accepted
+    # each state with its time: received when the job began (4 s after the merge), accepted at once, submitted when the
+    # relay sent, confirmed 30 s later when the payment landed, finalized 13 s after that
+    t = T0 + 3600
+    assert w.hub.states(12) == {"since": t, "received": t + 4, "accepted": t + 4, "submitted": t + 4, "confirmed": t + 34, "finalized": t + 47}
+    assert "tx=sig2" in final
+    line = final.split(flow.STATUS)[1]
+    assert ("<sub>received 15:13:24 UTC (+4 s) · accepted 15:13:24 UTC (+4 s) · submitted 15:13:24 UTC (+4 s) · confirmed 15:13:54 UTC (+34 s) · "
+            "finalized 15:14:07 UTC (+47 s); seconds are counted from the merge.</sub>") in line
+    assert "finalized" not in paid and "confirmed 15:13:54 UTC" in paid                 # the payment is said as soon as it confirmed; finality is added after
+    # the relay's own log line travels in the comment, with the four times the public worker's line carries
+    logged = re.search(r"^knos-relay proof o/r#12 [0-9a-f]{16} ok sig=sig1,sig2 queued_at=(\S+) seen_at=(\S+) sent_at=(\S+) confirmed_at=(\S+) note=", final, re.M)
+    assert logged and [float(x) for x in logged.groups()] == [t + 4, t + 4, t + 4, t + 34]
+    assert len(final) < 2500                                            # far under GitHub's 65,536 characters, whatever the round
+
+
+def test_the_states_follow_the_public_workers_line_and_a_refusal_ends_in_the_same_comment(tmp_path):
+    # no relay key: the token is posted under the comment, and the worker's line says when it sent and when it confirmed
+    w = bounty(tmp_path, relay_key=False)
+    w.chain.bind(MONA)
+    wait = w.worker.wait_for
+
+    def line(tid, *a, **k):         # the worker's line as 0.3.16 writes it: its four times, on its own clock
+        said = wait(tid, *a, **k)
+        return said.replace(" note=", f" queued_at={w.clock() - 39:.1f} seen_at={w.clock() - 2:.1f} sent_at={w.clock() - 1:.1f} confirmed_at={w.clock():.1f} note=")
+    w.worker.wait_for = line
+    writes = _watched(w)
+    assert flow.settle(w.run(w.hub.merge(12))) == 0
+    t = T0 + 3600
+    assert [m for m, _b, _t in writes] == ["POST", "PATCH", "PATCH"] and only(w, 12).startswith("Knos: paid. @mona received 19.50")
+    assert w.hub.states(12) == {"since": t, "received": t, "accepted": t, "submitted": t + 38, "confirmed": t + 39}       # this chain has no word on finality: no state is claimed
+    assert [c["body"][:11] for c in w.hub.comments[12] if c["user"] == BOT] == ["Knos: paid.", "knos-proof:"]             # the token under the one comment
+    # a pull request that does not take the bounty: received, then the refusal, in one comment, and no state it did not reach
+    w = bounty(tmp_path)
+    head = w.hub.pulls[12]["head"]["sha"]
+    w.hub.checks[head] = [check("test", "failure"), check("build")]
+    writes = _watched(w)
+    assert flow.settle(w.run(w.hub.merge(12))) == 0
+    assert [m for m, _b, _t in writes] == ["POST", "PATCH"] and only(w, 12) == REFUSED and set(w.hub.states(12)) == {"since", "received"}
+    assert w.signer.asked == [] and w.relay.submitted == []
+    # GitHub will not let the job edit: the last words are a comment of their own, as before, and nothing is lost
+    w = bounty(tmp_path)
+    w.chain.bind(MONA)
+    github = w.hub.__call__
+
+    class NoEdits(type(w.hub)):
+        def __call__(self, path, data=None, method=None):
+            if method == "PATCH":
+                raise OSError("403 Resource not accessible by integration")
+            return github(path, data, method)
+    w.hub.__class__ = NoEdits
+    assert flow.settle(w.run(w.hub.merge(12))) == 0
+    assert [plain(x)[:14] for x in w.hub.knos(12)] == ["Knos: received", "Knos: paid. @m"]
+    # a push that merged a pull request with nothing in escrow says nothing at all, as before
+    w = world(tmp_path)
+    w.hub.pull(12, MONA, "Fixes #7")
+    assert flow.settle(w.run(w.hub.merge(12))) == 0 and w.hub.knos(12) == []
+
+
 def test_deliver_gives_one_shape_whoever_relays(tmp_path):
     def detail(r: dict) -> dict:
-        return {k: v for k, v in r.items() if k not in ("sigs", "seconds", "note", "why")}
+        return {k: v for k, v in r.items() if k not in ("sigs", "seconds", "note", "why", "times", "line")}
     raw = terms.canonical(BOUGHT)
     results = {}
     for relay_key in (True, False):

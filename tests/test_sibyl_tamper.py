@@ -105,3 +105,15 @@ def test_a_tamper_sibyl_kept_is_in_each_hosts_answer_and_not_in_it_once_the_reco
     history.learn_tamper(store, repo, "codex", "forged-report", "junit.xml written by hand")    # the record as it was
     why = reason(client, deliver(client, repo, said, store, green, "-d")[0])
     assert "tamper:forged-report" in why and "Knos could not prove" in why
+
+
+def test_how_an_order_ended_is_kept_per_repository_by_template_and_policy_version(store):
+    made = history.order_outcome(store, "acme/widget", "31", "fixed", "bugfix", 1, policy="ab" * 32, failed=["lint", "lint"])
+    assert made == {"repo": "widget", "order": "31", "outcome": "fixed", "template": "bugfix", "version": 1,
+                    "policy": "ab" * 32, "failed": ["lint"], "seq": 1}
+    assert history.order_outcome(store, "acme/widget", "32", "accepted")["seq"] == 2            # no template: none is named
+    history.order_outcome(store, "acme/widget", "31", "fixed", "bugfix", 1, policy="ab" * 32, failed=["lint"])     # told twice: kept once
+    assert [(b["order"], b["outcome"], b["template"]) for b in history.orders(store, "/w/acme/widget")] == [("31", "fixed", "bugfix"), ("32", "accepted", "")]
+    assert history.orders(store, "acme/other") == [] and history.terms_supported(store, "acme/other") == ""
+    assert history.terms_supported(store, "acme/widget") == "last 2 orders here: 1 refused on `lint` first; `bugfix` v1 with `lint` named"
+    assert history.terms_supported(store, "acme/widget", policy="") == "last 1 order here: 1 accepted first time"   # nothing to name: no template is claimed

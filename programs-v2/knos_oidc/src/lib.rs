@@ -89,7 +89,11 @@
 //!                  token only from the registrant it itself trusts for that purpose.
 //!
 //! A consumer program takes the token account, checks that its owner is this program, and calls `verified(&data)`
-//! for the issuer, the expiry and the decoded payload, then reads claims with `claims::fields`. Replay protection
+//! for the issuer, the expiry and the decoded payload, then reads claims with `claims::fields`. That reader passes
+//! over the values it is not asked for (it is 2.1's, unchanged, so that a consumer built from this tree is the build
+//! it was); the strict one is strict.rs, which Step reads the header and the payload with before it writes VERIFIED.
+//! So a payload that is VERIFIED is one JSON object of RFC 8259 in every byte, no name twice at its top level, and
+//! no payload that is not ever reaches the account a consumer reads. Replay protection
 //! (and the expiry check against the clock, `fresh`) is the consumer's: the same token can be verified into any
 //! number of accounts. A token account that is VERIFIED stays so if its key is revoked or expires afterwards.
 //! `fresh` bounds that to an hour past the token's own expiry, and Step bounds that expiry to AHEAD past the moment
@@ -99,10 +103,12 @@
 //! attestation (`attest_key`): a token verified under a key that has since been revoked or has expired attests
 //! nothing from that second on.
 pub mod claims;
+pub mod strict;
 pub mod pins;
 pub mod rsa;
 
-use claims::{err, fields, number, text};
+use claims::{err, number, text};
+use strict::fields;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -116,6 +122,10 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
+/// The version of this program, as the documents and the upgrade proposals name it. 2.2: every byte of a token's
+/// header and payload is checked as JSON (strict.rs), where 2.1 passed over the values it did not read. The build
+/// carries it in its security.txt (`source_release`), so it can be read from the deployed bytes.
+pub const VERSION: &str = "2.2";
 pub const MAX_JWT: usize = 8192;
 /// How long after its `exp` a token is still accepted, here and by consumers that call `fresh`. The issuers' tokens
 /// live five minutes, which is shorter than it can take a public relay to find one and land several transactions.
@@ -212,7 +222,8 @@ solana_security_txt::security_txt! {
     project_url: "https://github.com/drexthealpha/Knos",
     contacts: "link:https://github.com/drexthealpha/Knos/security/advisories/new",
     policy: "https://github.com/drexthealpha/Knos/blob/main/SECURITY.md",
-    source_code: "https://github.com/drexthealpha/Knos"
+    source_code: "https://github.com/drexthealpha/Knos",
+    source_release: "knos-oidc 2.2"
 }
 
 /// What a consumer reads from a token account it has checked is owned by this program: None unless VERIFIED.
@@ -433,7 +444,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Pr
             // the signature: exactly as long as the modulus, and below it
             let mut sig = vec![0u8; 4 * l];
             if claims::b64_len(sp.1 - sp.0) != Some(4 * l) { return Err(err(E_SIG)); }
-            claims::b64url_into(&d[T_JWT + sp.0..T_JWT + sp.1], &mut sig)?;
+            strict::b64url_into(&d[T_JWT + sp.0..T_JWT + sp.1], &mut sig)?;
             let mut s = vec![0u32; l];
             rsa::be_to_limbs(&sig, &mut s);
             if rsa::geq(&s, &k.n) { return Err(err(E_SIG)); }
@@ -462,11 +473,14 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Pr
             if !rsa::pkcs1_sha256_ok(&sig, &digest) { return Err(err(E_BADSIG)); }
             let hl = claims::b64_len(hp.1 - hp.0).ok_or_else(|| err(claims::E_B64))?;
             let mut header = vec![0u8; hl];
-            claims::b64url_into(&d[T_JWT + hp.0..T_JWT + hp.1], &mut header)?;
+            strict::b64url_into(&d[T_JWT + hp.0..T_JWT + hp.1], &mut header)?;
             let [alg] = fields(&header, [b"alg"])?;
             if text(alg)? != b"RS256" { return Err(err(E_ALG)); }
             let poff = T_JWT + pp.0;
-            let plen = claims::b64url_in_place(&mut d, poff, pp.1 - pp.0)?;
+            let plen = strict::b64url_in_place(&mut d, poff, pp.1 - pp.0)?;
+            // strict::fields, here and for the header above: the payload is refused unless every byte of it is JSON
+            // (RFC 8259). Nothing below writes VERIFIED for a payload it refused, so a consumer, whose reader
+            // (claims::fields) passes over the values it does not read, is never handed one.
             let exp = {
                 let [iss, exp] = fields(&d[poff..poff + plen], [b"iss", b"exp"])?;
                 let iss = text(iss)?;

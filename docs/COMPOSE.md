@@ -7,9 +7,14 @@ the programs are upgradeable only through a multisig with a public 48-hour delay
 the meter and the passkey wallet are new in 0.3.13: [SECURITY.md](SECURITY.md), section 8, says what is live when,
 and [ASSURANCE.md](ASSURANCE.md) which test holds which rule.
 
+**Start with [VERIFIER.md](VERIFIER.md)**: one page on the verifier as a primitive of its own. It verifies any RS256
+workload identity (GitHub Actions, GitLab CI, Google Cloud, Microsoft Entra ID, Buildkite, CircleCI, Okta, Auth0, and
+AWS and Kubernetes in part), and the page has the three calls, the issuer table and what a verified token does and
+does not prove. [`examples/issuers`](../examples/issuers) has one example per issuer.
+
 | you want to | use | a whole example, with its test |
 |---|---|---|
-| require a GitHub-signed fact in your own program (which repository, commit, workflow, audience) | [`crates/knos-oidc-interface`](../crates/knos-oidc-interface): no dependency, reads a verified token account; no CPI | [`examples/oidc_gate`](../examples/oidc_gate) (`tests/test_oidc_gate.py`): a release gate |
+| require a fact an issuer signed in your own program (which repository, branch and workflow; which cloud service account) | [`crates/knos-oidc-interface`](../crates/knos-oidc-interface): no dependency, reads a verified token account; no CPI | [`examples/oidc_gate`](../examples/oidc_gate) (`tests/test_oidc_gate.py`): a release gate, and the template to copy; [`examples/issuers`](../examples/issuers) (`tests/test_issuers.py`): ten issuers |
 | hold tokens that only a workflow can spend, with no private key | the same crate, with the key account so a revoked key stops at once | [`examples/workflow_vault`](../examples/workflow_vault) (`tests/test_workflow_vault.py`): a vault that pays on `vault:<vault>:<to>:<amount>:<nonce>` from one workflow file at one commit |
 | state on chain that GitHub's runner built an executable from a commit, and gate upgrades on it | the same crate | [`examples/upgrade_gate`](../examples/upgrade_gate) (`tests/test_upgrade_gate.py`); `scripts/governance.mjs upgrade propose` refuses a buffer without a record unless `--ungated` |
 | fund a work order from your own program (a DAO treasury, a grants program) | [`crates/knos-pay-interface`](../crates/knos-pay-interface): `solana-program` only; ids, addresses, FundOrderWallet, TopUp, RefundOrder, the Order reader | [`examples/cpi_fund`](../examples/cpi_fund) (`tests/test_cpi_fund.py`): a treasury PDA funds, tops up, and is refunded |
@@ -37,7 +42,8 @@ The verifier on devnet is `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`knos-
    "v0.3.14" }`. It depends on nothing and does not allocate, so it sits beside any version of `solana-program`,
    `pinocchio` or `anchor`.
 2. **Five minutes: the check.** Copy [`examples/oidc_gate/template.rs`](../examples/oidc_gate/template.rs) and
-   change the three marked lines: your audience prefix, the repository's numeric id, the workflow file. Your
+   change the three marked lines: your audience prefix, the repository's numeric id, the workflow file (or name a
+   Google Cloud service account: for another issuer, the lines are in [`examples/issuers`](../examples/issuers)). Your
    instruction takes two more read-only accounts, the token account and its key account;
    [`examples/oidc_gate/README.md`](../examples/oidc_gate/README.md) has the lines and what each check refuses.
 3. **Three minutes: the token.** In the workflow that may act, give the job `id-token: write` and ask GitHub for a
@@ -47,7 +53,8 @@ The verifier on devnet is `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`knos-
    Python, `knos.settle.v2.oidc`.
 
 What you then hold in your program is GitHub's signature over which repository, which commit, which workflow file at
-which commit and which audience, checked by a program on chain. The examples in this repository are Knos's own; no
+which commit and which audience, checked by a program on chain. It is the issuer's word that these claims were
+signed, not proof of what the workflow read or decided ([VERIFIER.md](VERIFIER.md)). The examples in this repository are Knos's own; no
 program outside it is known to read a token yet, and this page will say so when one does.
 
 To rebuild the example programs and re-pin their test binaries: `bash scripts/build_programs_v2.sh examples`.

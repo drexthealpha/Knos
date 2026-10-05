@@ -109,7 +109,9 @@ def load(files, path):
 def test_every_file_carries_its_source_and_when_it_was_generated():
     files = build(get=github())
     for path, text in files.items():
-        if path.endswith(".json"):
+        if path.startswith("audit/"):       # a statement is the bytes `knos audit export` chains: the same from every build, with no time of its own
+            assert set(json.loads(text)) == {"type", "version", "owner_id", "months"}, path
+        elif path.endswith(".json"):
             data = json.loads(text)
             assert data["generated"] == iso(NOW) and data["source"]["summary"], path
             assert data["source"]["chain"]["events"] == len(scenario())
@@ -647,7 +649,7 @@ def test_the_repository_s_documents_agree_on_merge_to_paid():
 
 
 # ---- order statements ------------------------------------------------------------------------------------------------
-def test_each_owner_of_a_work_order_gets_an_audit_file_whose_months_are_what_knos_audit_export_writes():
+def test_each_owner_of_a_work_order_or_a_bounty_gets_an_audit_file_whose_months_are_what_knos_audit_export_writes():
     """audit/<owner id>.json is what the site's order statement and the Buy page's statement read (web/statements.js).
     Its lines and scope for a month are the ones `knos audit export --owner <id> --from <first day> --to <last day>`
     chains, so the file the page writes is that command's file and both parties compare one head."""
@@ -675,5 +677,23 @@ def test_each_owner_of_a_work_order_gets_an_audit_file_whose_months_are_what_kno
     cut = pages_data.build(evs, None, None, None, None, pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset(), partial=True)
     assert load(cut, "audit/501.json")["months"][month]["scope"]["partial"] == 1
     assert not [p for p in pages_data.empty(NOW) if p.startswith("audit/")]
-    # jobs of the older kind are no work orders: they are in statements/<login>.json, and nobody gets an audit file for them
-    assert not [p for p in build(get=github()) if p.startswith("audit/")]
+    # an owner whose money funded only bounties on issues has a statement too (knos.audit VERSION 2 has bounty lines):
+    # its lines are that owner's bounties, each a `bounty` record, and they are what the command chains
+    bounties = build(get=github())
+    assert sorted(p for p in bounties if p.startswith("audit/")) == ["audit/142920951.json", "audit/501.json", "audit/502.json"]
+    for path, issues in (("audit/501.json", [1, 2, 3, 4]), ("audit/502.json", [1]), ("audit/142920951.json", [5])):
+        doc = load(bounties, path)
+        (month, got), = doc["months"].items()
+        first, last = f"{month}-01", f"{month}-{calendar.monthrange(int(month[:4]), int(month[5:]))[1]:02d}"
+        assert sorted(r["issue"] for r in got["lines"]) == issues and {r["record"] for r in got["lines"]} == {"bounty"}, path
+        assert got["lines"] == audit.lines(scenario(), doc["owner_id"], (), first, last) and got["scope"] == audit.scope_of(doc["owner_id"], first, last)
+        assert audit.verify(audit.export(scenario(), doc["owner_id"], "json", first, last)) == []
+    # the first deployment's jobs are in no statement: an owner with nothing but those gets no file
+    assert not [p for p in pages_data.audit_files([ev for ev in scenario() if ev["v"] != 2])]
+
+
+def test_outsiders_json_holds_the_three_outside_counts_with_their_definitions_and_says_when_nothing_was_read():
+    empty = json.loads(pages_data.empty(NOW)["outsiders.json"])
+    assert (empty["measured"], empty["funders"], empty["repositories"], empty["payees"], empty["summed"]) == (False, 0, 0, 0, False)
+    assert "outside funder, Knos repository, faucet money" in empty["definitions"]["funders_in_knos_repositories_faucet"]
+    assert {"funders", "repositories", "payees"} <= set(empty["definitions"]) and "generated" in empty and "source" in empty

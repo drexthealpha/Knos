@@ -249,10 +249,30 @@ def gen(rng):
     return [out.getvalue(), d]
 
 
+def outside_quotes(line, d):
+    quoted, n = False, 0
+    for c in line:
+        if c == '"':
+            quoted = not quoted
+        elif c == d and not quoted:
+            n += 1
+    return n
+
+
 def accept(case):
-    """Only samples on which csv.Sniffer itself finds the delimiter that wrote them (it is wrong or gives up on others)."""
+    """Only samples on which csv.Sniffer itself finds the delimiter that wrote them (it is wrong or gives up on others),
+    and on which no other candidate is in every line as often as that one or more often: the task says "the one every
+    line has the same, highest number of times" and does not say which of two such wins, so a sample with two of
+    them has no answer the task defines (csv.Sniffer picks one by rules of its own) and is not asked."""
+    text, d = case
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    mine = {outside_quotes(ln, d) for ln in lines}
+    for other in ",;\t|":
+        counts = {outside_quotes(ln, other) for ln in lines}
+        if other != d and len(counts) == 1 and len(mine) == 1 and min(counts) >= min(mine):
+            return False
     try:
-        return ref(case[0]) == case[1]
+        return ref(text) == d
     except csv.Error:
         return False
 

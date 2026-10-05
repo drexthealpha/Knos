@@ -83,16 +83,48 @@ jobs:
         run: |
           node tests/web/status_data.mjs
           node tests/web/controls.mjs
+      - name: shadow mode and the finance view's files, byte for byte what the Python writes (no browser)
+        run: |
+          node tests/web/shadow.mjs
+          node tests/web/finance.mjs
       - name: the built site in headless Chromium (mocked GitHub and Solana)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.0
           npx playwright install --with-deps chromium
           bash scripts/build_site.sh "$RUNNER_TEMP/site" "$(printf 'c%.0s' $(seq 40))"   # the commit the mocked chain pins
           node tests/web/site.mjs "$RUNNER_TEMP/site"
+      - name: the first screen's round, the verifier, the playground, the Terms page and the budget of what moves, each in headless Chromium on that build
+        run: |
+          node tests/web/demo.mjs "$RUNNER_TEMP/site"
+          node tests/web/verifier.mjs "$RUNNER_TEMP/site"
+          node tests/web/playground.mjs
+          node tests/web/terms.mjs "$RUNNER_TEMP/site"
+          node tests/web/motion.mjs "$RUNNER_TEMP/site"
       - name: a round anyone can watch, and the Agent PR Index board, in headless Chromium (the page's clock is the test's; nothing is asked of the network)
         run: |
           node tests/web/live.mjs
           node tests/web/index_board.mjs
+
+  # The conformance kit (conformance/: vectors for the formats, with expected results) against Knos's own Python, which
+  # must do every case, and against the JavaScript client, which may say a case is not its to do and may fail none.
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+      - run: pip install -q -e .
+      - run: python conformance/run.py --impl "python conformance/impl/knos_python.py" --require-all
+      - run: python conformance/run.py --impl "node conformance/impl/knos_js.mjs"
+      - name: the chain of each program from source to chain, and the registry of published terms, are what the records give
+        run: |
+          python scripts/provenance.py --check
+          python scripts/terms_registry.py build --check
 
   # Every number in the README opening, the home page, the submission and the pitch script is checked against a file
   # in the repo, devnet or GitHub (scripts/claims_check.py). And no document says of a fact that several of them state

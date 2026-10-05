@@ -1,0 +1,78 @@
+{
+ "_about": "One recorded run of the Kani harnesses of programs-v2/knos_pay/src/proofs.rs, each run alone with a limit of 180 seconds. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed before Kani answered, so nothing is proved by this record. `failed`: Kani found a failing check. tests/test_provenance.py holds the harness names here to the names in proofs.rs and the file's hash to the file. A harness is proved only for what its own text assumes (proofs.rs says what each assumes); a proof about the model is a proof about the program only as far as the test `the_model_is_the_arithmetic_of_the_source` ties the two.",
+ "tool": "Kani Rust Verifier",
+ "version": "0.68.0",
+ "cbmc": "6.11.0",
+ "solver": "CaDiCaL 3.0.0",
+ "rust_toolchain": "nightly-2026-08-21",
+ "command": "timeout 180 cargo kani --harness <name>",
+ "directory": "programs-v2/knos_pay",
+ "limit_seconds": 180,
+ "date": "2026-10-05",
+ "machine": "x86_64 Linux, 2 CPUs shared with other work (load average between 3 and 7 during the run)",
+ "source": {
+  "commit": "72511b393bafd939141698c2013477f4634e836b",
+  "path": "programs-v2/knos_pay/src/proofs.rs",
+  "sha256": "4f201c63e3d8d79ebf5dc024e097a946824ef1eca35c014854ad2060cb30b30c",
+  "last_changed_in": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5"
+ },
+ "harnesses": [
+  {
+   "name": "the_remainder_of_a_share_is_never_more_than_the_remainder",
+   "result": "verified",
+   "proved": true,
+   "checks": 11,
+   "failed_checks": 0,
+   "unreachable_checks": 0,
+   "verification_seconds": 4.9,
+   "seconds": 120.0,
+   "attempts": 1,
+   "note": "The 120 seconds include the first compilation of the crate and its dependencies; Kani's own verification time was 4.9 seconds."
+  },
+  {
+   "name": "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount",
+   "result": "timed out",
+   "proved": false,
+   "checks": null,
+   "failed_checks": null,
+   "unreachable_checks": null,
+   "verification_seconds": null,
+   "seconds": 180.0,
+   "attempts": 2,
+   "note": "Not proved by this record. Run twice with everything already compiled; both times the solver had not answered when the 180 seconds were over. The machine was shared and busy, so this says the proof was not obtained here within the limit, not that the property is false: no failing check was reported."
+  },
+  {
+   "name": "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
+   "result": "verified",
+   "proved": true,
+   "checks": 156,
+   "failed_checks": 0,
+   "unreachable_checks": 4,
+   "verification_seconds": 36.4,
+   "seconds": 41.7,
+   "attempts": 1
+  },
+  {
+   "name": "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
+   "result": "verified",
+   "proved": true,
+   "checks": 158,
+   "failed_checks": 0,
+   "unreachable_checks": 6,
+   "verification_seconds": 4.6,
+   "seconds": 7.3,
+   "attempts": 1
+  },
+  {
+   "name": "an_order_that_has_paid_nothing_has_given_out_none_of_its_fee",
+   "result": "verified",
+   "proved": true,
+   "checks": 5,
+   "failed_checks": 0,
+   "unreachable_checks": 0,
+   "verification_seconds": 0.04,
+   "seconds": 1.4,
+   "attempts": 1
+  }
+ ]
+}

@@ -7,7 +7,7 @@ a slot, `[[stat: name]]`, filled from the release run.
 
 *On screen: the price book with the Pilot line, then two statements side by side.*
 
-This week I changed no program. I worked on the person Knos is for: whoever has to approve a supplier's invoice
+This release deployed and proposed no program. I worked on the person Knos is for: whoever has to approve a supplier's invoice
 and defend it afterwards. There is now one thing I can sell while everything stays on devnet: a 30-day pilot that
 reconciles one buyer's accepted work from its suppliers and names every mismatch with what was billed. I also
 took out of the repository every sum about what the business might one day earn. It has earned nothing.

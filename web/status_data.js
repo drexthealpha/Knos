@@ -5,9 +5,14 @@
 // The log has one line per token the relay answered for, and one comment the relay rewrites once a minute, its
 // status line (src/knos/proof/ghrelay.py, status_line):
 //
-//   knos-relay <kind> <owner/repo>#<n> <token id> ok sig=... [queue= workflow= wait= chain= tries=] note=... t=<s>
+//   knos-relay <kind> <owner/repo>#<n> <token id> ok sig=... [queue= workflow= wait= chain= tries=] queued_at= seen_at= sent_at= confirmed_at= note=... t=<s>
 //   knos-relay <kind> <owner/repo>#<n> <token id | -> fail <reason>
 //   knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>
+//   knos-relay round <owner/repo>#<n> <first 8 of the token id> ok order=<address or -> state=<state> seconds=<s> kind=<kind>
+//
+// The `round` lines are in the status comment, under its counts: the last ten tokens the relay took up, newest first.
+// The four `_at` fields (Unix seconds; `-` where the relay measured none) place a payment among the FIVE STATES every
+// part of Knos names the same way: received, accepted, submitted, confirmed, finalized (docs/RELAY.md).
 //
 // Only lines the log's own workflow wrote count (anyone can comment on a public issue). What the log cannot say is
 // null here, never a guess: a relay older than the status line writes none, and then `waiting` and `lastRound` are null.
@@ -15,6 +20,7 @@
 export const LOG_BOT = "github-actions[bot]";
 export const RECENT = 600;          // "the worker ran": something of its own in the log within this many seconds
 export const DAY = 86400;
+export const STATES = ["received", "accepted", "submitted", "confirmed", "finalized"];
 
 const LINE = /^knos-relay (\S+) (\S+) (\S+) (ok|fail)\b ?(.*)$/;
 const seconds = (stamp) => { const t = Date.parse(stamp); return Number.isFinite(t) ? Math.floor(t / 1000) : null; };
@@ -35,6 +41,32 @@ export function relayLines(comments) {
   return out.sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
 }
 
+// The five states of one payment as its log line gives them: [{ name, at (seconds, or null: the line does not say),
+// seconds (since the state before, or null) }]. accepted is when the token was posted for a relay (`queued_at`: the
+// workflow posts it the moment it has decided), received is `workflow` seconds before that (the run's start), submitted
+// and confirmed are the relay's first send and last confirmation. No relay waits for finality, so the log never has
+// `finalized`: the settle comment on the pull request does (web/live.js reads it).
+export function statesOfLine(line) {
+  const f = (line && line.fields) || {}, num = (v) => (v !== undefined && /^\d+(\.\d+)?$/.test(v) ? Number(v) : null);
+  const queued = num(f.queued_at), workflow = num(f.workflow);
+  const at = { received: queued !== null && workflow !== null ? queued - workflow : null, accepted: queued, submitted: num(f.sent_at), confirmed: num(f.confirmed_at), finalized: null };
+  let before = null;
+  return STATES.map((name) => {
+    const t = at[name], row = { name, at: t, seconds: t !== null && before !== null ? Math.max(0, Math.round(t - before)) : null };
+    if (t !== null) before = t;
+    return row;
+  });
+}
+
+// The five states as a list a page can show: `.k-step` with data-state (done: the line gives its time; idle: it does not).
+// `esc` escapes text for HTML; times are UTC, to the second.
+export function statesHtml(latest, esc = (x) => String(x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)) {
+  if (!latest) return "";
+  const hms = (t) => `${new Date(t * 1000).toISOString().slice(11, 19)} UTC`;
+  return `<ol class="k-states" data-round="${esc(latest.where)}">${latest.states.map((s) => `<li class="k-step" data-step="${s.name}" data-state="${s.at !== null ? "done" : "idle"}"><strong>${s.name}</strong> `
+    + `<span class="k-num">${s.at !== null ? esc(hms(s.at)) + (s.seconds !== null ? `, ${esc(s.seconds)} s` : "") : "not in the log"}</span></li>`).join("\n")}</ol>`;
+}
+
 // A refusal's reason without what is particular to one token, so that the same reason counts as one.
 export function reason(text) {
   return String(text).replace(/\([0-9a-f]{8}\.\.\.\)/g, "").replace(/\b[1-9A-HJ-NP-Za-km-z]{32,}\b/g, "<address>").replace(/\s+/g, " ").trim().slice(0, 160);
@@ -49,11 +81,15 @@ export function reason(text) {
 //                                                      the part that shows on lines that went through)
 //   answered    { ok, failed }                         token lines in the last 24 h
 //   measured    { n, p50, p95, completion, updated } | null     merge to paid, from stats.json
+//   latest      { kind, where, id, states: statesOfLine(...) } | null   the newest carried token whose line has its times
+//   rounds      [{ where, id, order, state, seconds, kind }]    the status comment's last ten rounds, newest first
 //   headline    one sentence
 export function summarise(relayLog, stats, now) {
   const lines = relayLines(relayLog), since = now - DAY;
   const status = lines.filter((l) => l.kind === "status").sort((a, b) => (a.written ?? 0) - (b.written ?? 0)).pop() || null;
-  const tokens = lines.filter((l) => l.kind !== "status" && l.where !== "-"), day = tokens.filter((l) => (l.at ?? 0) >= since);
+  const tokens = lines.filter((l) => l.kind !== "status" && l.kind !== "round" && l.where !== "-"), day = tokens.filter((l) => (l.at ?? 0) >= since);
+  const newestRounds = lines.filter((l) => l.kind === "round").reduce((w, l) => Math.max(w, l.written ?? 0), 0);
+  const timed = tokens.filter((l) => l.ok && l.fields.queued_at !== undefined).pop() || null;
   const num = (v) => (v !== undefined && /^\d+$/.test(v) ? Number(v) : null);
   const said = status ? { at: seconds(status.fields.at) ?? status.written, round: num(status.fields.round), tokens: num(status.fields.tokens),
     waiting: num(status.fields.waiting), oldest: num(status.fields.oldest), retried: num(status.fields.retried), refused: num(status.fields.refused) } : null;
@@ -76,6 +112,9 @@ export function summarise(relayLog, stats, now) {
     retries: { count: said && said.retried !== null ? Math.max(said.retried, carried) : carried, carried },
     answered: { ok: day.filter((l) => l.ok).length, failed: failed.length },
     measured: m && m.n ? { n: m.n, p50: m.p50, p95: m.p95, completion: tried ? tried.completion : null, updated: stats.updated || null } : null,
+    latest: timed ? { kind: timed.kind, where: timed.where, id: timed.id, states: statesOfLine(timed) } : null,
+    rounds: lines.filter((l) => l.kind === "round" && (l.written ?? 0) === newestRounds).slice(0, 10).map((l) => ({ where: l.where, id: l.id, order: l.fields.order && l.fields.order !== "-" ? l.fields.order : null,
+      state: l.fields.state || null, seconds: num(l.fields.seconds), kind: l.fields.kind || null })),
   };
   out.headline = headline(out);
   return out;

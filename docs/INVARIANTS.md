@@ -59,8 +59,9 @@ account is closed with the order.
   `test_up_to_four_payees_share_an_order_and_every_unit_is_paid` in `tests/test_order_chain.py`;
   `test_a_random_walk_over_every_promise_conserves_every_orders_money` in `tests/test_order_terms.py`; the machine
   above. The arithmetic
-  alone is proved for every 64-bit amount by the Kani harnesses in
-  [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs), which also say what they assume and do not cover.
+  alone is model-checked by the Kani harnesses in [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs), which also
+  say what they assume and do not cover. The one recorded run ([`kani.json`](kani.json)) verified four of the five,
+  the ones about shares, payments and conservation; the fee-bounds harness timed out and is not proved.
 - **A 0.3.12 bounty** shares one vault per mint with the other bounties, so for it the guarantee is arithmetic, not
   a separate account: `Pay`, `Settle` and `Refund` move exactly the job's amount and close the job
   (`test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs` in `tests/test_pay2_chain.py`).
@@ -224,7 +225,10 @@ The fee of an order is one pure function of its amount, `order_fee`: 2.5% of the
   8%. The schedule, not a percentage, is the bound.
 - **Checked by:** the unit tests of `order_fee` at the tier edges in
   [`lib.rs`](../programs-v2/knos_pay/src/lib.rs) and the Kani harnesses in
-  [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs) (run by `cargo test` and `cargo kani`, not by pytest);
+  [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs) (run by `cargo test` and `cargo kani`, not by pytest). The
+  harness for the fee's bounds, `an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount`, timed
+  out in the recorded run ([`kani.json`](kani.json)): the bound is tested at the tier edges and is not proved for every
+  amount;
   `test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top`,
   `test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate`,
   `test_the_orders_repository_pays_one_payee_in_full_and_the_fee_is_split` and
@@ -284,6 +288,54 @@ or a seller's own books must still reconcile these:
    ledgers say which events one side has and the other does not; the chain shows only that two counts differ.
 7. **Devnet can be reset.** Every account then disappears, and no record on chain survives
    ([DRILLS.md](DRILLS.md), "Recovery a funder can run"). Keep exports.
+
+## Safety and liveness
+
+"Exactly once" is two claims, and only one of them is a guarantee.
+
+**Safety: a payment happens at most once.** Nothing above depends on anything being up. If GitHub, every relay and
+the cluster's RPC endpoints all fail in the middle of a payment, the worst outcome is that it has not happened yet;
+it has never happened twice. This is what invariants 1 to 5 and 7 state and what their tests check: the machine in
+`tests/test_invariants_machine.py`, and, for the moment a relay dies between sending and hearing back,
+`test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody_is_paid_twice` in
+`tests/test_relay_failures.py`.
+
+**Liveness: a valid payment eventually happens.** This is not guaranteed, and no test can make it so. A payment
+needs all of these to work within a window of time. Knos controls neither GitHub nor the cluster, and nobody is
+obliged to run a relay:
+
+| it depends on | for what | if it fails |
+|---|---|---|
+| GitHub | running the workflow, signing its token, serving the comment that carries it | no token, so no payment; a token already signed is good for an hour past its expiry |
+| a relay | carrying the token to the chain (anyone may run one; none is obliged to) | nothing is sent until some relay runs |
+| the cluster | an RPC endpoint that answers and blocks that are produced | the relay tries again for as long as the token is good |
+| a signing key of GitHub's that is still registered on chain | the verifier takes a token only under one; a key lapses after 30 days without a refresh | the token is refused until anyone refreshes the key |
+| the program as deployed | the instruction still exists and still reads this token | an upgrade can change either, after 48 hours in public ([GOVERNANCE.md](GOVERNANCE.md)) |
+
+What is tested is recovery from named failures, in a simulator, with times that are simulated seconds: the six rows
+of [DRILLS.md](DRILLS.md), "When a dependency fails" (GitHub's API down for ten minutes, GitHub's signing key expired
+on chain, the relay killed between a send and its confirmation, the RPC endpoint erroring with stale blockhashes, the
+evidence missing, devnet reset), held to the page by
+`test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took` in
+`tests/test_drills.py`; and the relay's own behaviour when its dependencies fail, in `tests/test_relay_failures.py`:
+`test_a_send_that_fails_for_the_clusters_reasons_is_tried_again_on_fixed_times_and_never_given_up_while_the_token_is_good`,
+`test_a_token_posted_in_a_gap_between_two_runs_is_carried_once_by_the_first_pass_of_the_next`,
+`test_when_github_says_slow_down_nothing_is_asked_until_the_time_it_named_and_no_verdict_is_lost` and
+`test_a_token_past_its_hour_ends_with_the_reason_and_a_refusal_is_final_at_once`.
+
+What those tests do not show: that an outage ends, that somebody runs a relay, or that a token is carried before
+its hour is over. When it is not, the token is spent time and the payment needs a new one (`/knos settle` signs a
+fresh token when GitHub is back); if nobody asks, nothing pays. An outage of GitHub or of the cluster that outlasts an
+order's deadline means the accepted work is not paid by this order at all.
+
+**What is guaranteed in place of liveness: a refund path always exists.** Invariant 6: after its deadline an unpaid
+order's whole balance goes back where it came from on an instruction that needs no token, no GitHub, no relay of
+Knos's and no signature of the funder's, sent by anyone
+(`test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before` in `tests/test_order_chain.py`). The path
+exists; it is not instant and not unconditional. It needs the cluster to be producing blocks and one reachable RPC
+endpoint, and invariant 6 lists what can still stop it (the mint's issuer freezing the account, an upgrade that
+removed the instruction). So the money of a payment that never happens is not lost and not stuck behind Knos; the
+payee, whose work was accepted, is the one who bears a liveness failure.
 
 ## Not yet tested, in one list
 

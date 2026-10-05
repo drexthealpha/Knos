@@ -759,3 +759,109 @@ def test_a_build_larger_than_the_programs_data_account_is_seen_and_the_extension
     for bad in (0, -1, 2 ** 32):
         with pytest.raises(SystemExit, match="a program is extended by 1 to"):
             d.extend_ix(pay.IDS["knos_pay"], payer.pubkey(), bad)
+
+
+# ---- --propose makes its plan first: a release proposes the programs it changes, and no other ---------------------------------
+
+FOUR = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
+
+
+def _plan_world(tmp_path, chain: dict[str, str], built: dict[str, str]):
+    """deploy_v2.sh's plan() under the script's shell options. `chain`: the build each program runs (or "absent");
+    `built`: the build of each file in the folder --propose was given. Everything that could send is a stand-in that
+    writes its name to a file, so a test sees that the plan only reads."""
+    import os
+    import re
+    import subprocess
+
+    import _posix
+    if os.name == "nt":
+        pytest.skip("runs the script's function with bash, on paths as a POSIX system writes them")
+    bash = _posix.bash()                                    # the one way a test finds a bash (tests/_posix.py)
+    text = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    func = re.search(r"(?ms)^plan\(\) \{.*?^\}$", text).group(0)
+    changes = re.search(r'(?m)^CHANGES="\$\{KNOS_CHANGES:-(.*)\}"$', text).group(1)
+    world = tmp_path / f"plan-{len(list(tmp_path.iterdir()))}"
+    world.mkdir()
+    for name in FOUR:
+        (world / f"chain-{name}").write_text(chain[name], encoding="utf-8")
+        (world / f"built-{name}").write_text(built[name], encoding="utf-8")
+    body = "\n".join([
+        "set -euo pipefail", f"ROOT={ROOT} SO_DIR=/so", f'UPGRADES="{" ".join(FOUR)}"', f'CHANGES="${{KNOS_CHANGES:-{changes}}}"',
+        'die() { echo "stopped: $*" >&2; exit 1; }', 'pinned() { echo "id-of-$1"; }',
+        f'py() {{ [ "$1" = hash ] || {{ echo "py $*" >> {world}/sent; return 1; }}; cat {world}/built-$(basename "$2" .so); }}',
+        f'program_state() {{ HAVE="$(cat {world}/chain-$1)"; AUTHORITY=vault; }}',
+        f'governance() {{ echo "governance $*" >> {world}/sent; }}', f'sol() {{ echo "sol $*" >> {world}/sent; }}',
+        func, "plan", 'echo "PLAN=[$PLAN]"'])
+
+    def run(**env) -> subprocess.CompletedProcess:
+        done = subprocess.run([bash, "-c", body], capture_output=True, text=True, encoding="utf-8", timeout=60, env={"PATH": "/usr/bin:/bin", **env})
+        assert not (world / "sent").exists(), "the plan sent something: it only reads"
+        return done
+    return run, changes
+
+
+def test_the_plan_of_this_release_is_knos_oidc_alone_and_a_rebuild_of_an_unchanged_program_is_never_proposed(tmp_path):
+    """0.3.16 proposes ONE upgrade. After proposals 3 to 6 the chain runs the verified builds of the v0.3.14 tag; the
+    release's build of knos_oidc differs from it and nothing else may. The plan is made before anything is withdrawn,
+    written or proposed, so a file whose bytes moved without the release meaning it stops the run instead of becoming
+    a proposal."""
+    old = {name: f"{name}-at-0.3.14" for name in FOUR}
+    run, changes = _plan_world(tmp_path, old, {**old, "knos_oidc": "knos_oidc-2.2"})
+    assert changes == "knos_oidc"                                 # what this tree's script proposes when nothing overrides it
+    done = run()
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.splitlines() == ["  the plan: propose knos_oidc (this release changes: knos_oidc)", "PLAN=[knos_oidc]"]
+    # the upgrade has executed (or the run is repeated after it): nothing is left to propose
+    run, _ = _plan_world(tmp_path, {**old, "knos_oidc": "knos_oidc-2.2"}, {**old, "knos_oidc": "knos_oidc-2.2"})
+    assert run().stdout.splitlines() == ["  the plan: propose nothing (this release changes: knos_oidc)", "PLAN=[]"]
+    # a rebuild of knos_pay from the release's tree whose bytes are not the chain's: nothing is proposed, not even knos_oidc
+    run, _ = _plan_world(tmp_path, old, {**old, "knos_oidc": "knos_oidc-2.2", "knos_pay": "knos_pay-rebuilt"})
+    done = run()
+    assert done.returncode == 1 and "PLAN=" not in done.stdout and "the plan:" not in done.stdout
+    said = done.stderr
+    assert said.startswith("stopped: knos_pay is not a program this release changes (it changes: knos_oidc)")
+    assert "the build in /so (knos_pay-rebuilt) is not the one knos_pay id-of-knos_pay runs (knos_pay-at-0.3.14)" in said
+    assert "Nothing was withdrawn, written or proposed" in said and "have not all executed: knos status" in said
+    assert "The chain runs the verified build of the v0.3.14 tag" in said and 'KNOS_CHANGES="knos_oidc knos_pay"' in said
+    # the same stop while the earlier proposals have not executed: every program still runs an older build
+    before = {name: f"{name}-older" for name in FOUR}
+    run, _ = _plan_world(tmp_path, before, {**old, "knos_oidc": "knos_oidc-2.2"})
+    done = run()
+    assert done.returncode == 1 and "stopped: knos_pay is not a program this release changes" in done.stderr
+    # a release that does change a second program says so, and both are proposed in the order they execute
+    run, _ = _plan_world(tmp_path, old, {**old, "knos_oidc": "knos_oidc-2.2", "knos_pay": "knos_pay-2.2"})
+    done = run(KNOS_CHANGES="knos_pay knos_oidc")
+    assert done.returncode == 0 and done.stdout.splitlines()[-1] == "PLAN=[knos_oidc knos_pay]"
+    # a program that is not there cannot be upgraded
+    run, _ = _plan_world(tmp_path, {**old, "knos_meter": "absent"}, {**old, "knos_oidc": "knos_oidc-2.2"})
+    assert "knos_meter id-of-knos_meter is not deployed on this cluster" in run().stderr
+
+
+def test_the_plan_comes_before_anything_is_withdrawn_and_the_three_unchanged_programs_are_held_where_the_chain_has_them():
+    import re
+    import shutil
+    import subprocess
+    text = (ROOT / "scripts" / "deploy_v2.sh").read_text(encoding="utf-8")
+    pr = text[text.index("propose() {"):text.index("# ---- run")]
+    assert pr.index("\n  plan\n") < pr.index("withdraw_older\n") < pr.index("for name in $UPGRADES") and "runs this build already" in pr
+    assert text.index("\nplan() {") < text.index("\npropose() {") and "KNOS_CHANGES" in text[:text.index("set -euo pipefail")]
+    # one source for the tag the unchanged programs' builds are of: scripts/bump_version.py
+    bump = (ROOT / "scripts" / "bump_version.py").read_text(encoding="utf-8")
+    held = re.search(r"(?m)^PROGRAMS_FROZEN: tuple\[str, \.\.\.\] = \((.*)\)$", bump).group(1)
+    at = re.search(r'(?m)^FROZEN_AT = "([^"]+)"$', bump).group(1)
+    assert """sed -n 's/^FROZEN_AT = "\\(.*\\)"$/\\1/p' "$ROOT/scripts/bump_version.py\"""" in text
+    unchanged = [name for name in FOUR if name != "knos_oidc"]
+    for name in unchanged:
+        # held by bump_version, at that version: a bump cannot move its bytes with a version string
+        assert f'"{name}"' in held and f'name = "{name}"\nversion = "{at}"' in (ROOT / "programs-v2" / name / "Cargo.toml").read_text(encoding="utf-8").replace("\r\n", "\n")
+    # what the stop says about knos_pay is true of this tree: it is the one program that links knos_oidc
+    links = [name for name in FOUR if re.search(r'(?m)^knos_oidc = \{ path = "\.\./knos_oidc"', (ROOT / "programs-v2" / name / "Cargo.toml").read_text(encoding="utf-8"))]
+    assert links == ["knos_pay"] and "knos_pay links knos_oidc (programs-v2/knos_pay/Cargo.toml)" in text
+    # and no line of the three, or of what only they are built from, moved since that tag (where git has it)
+    git = shutil.which("git")
+    if git and subprocess.run([git, "rev-parse", "-q", "--verify", f"v{at}^{{commit}}"], cwd=ROOT, capture_output=True).returncode == 0:
+        own = [p for name in unchanged for p in (f"programs-v2/{name}/src", f"programs-v2/{name}/Cargo.toml")]
+        shared = ["crates/knos-oidc-interface/src", "crates/knos-oidc-interface/Cargo.toml", "crates/knos-pay-interface/src", "crates/knos-pay-interface/Cargo.toml"]
+        moved = subprocess.run([git, "diff", "--name-only", f"v{at}", "--", *own, *shared], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout.split()
+        assert moved == [], f"this release changes knos_oidc alone, and these moved since v{at}: {moved}"

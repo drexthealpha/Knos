@@ -547,8 +547,14 @@ class GitHub(Hub):
                                  "head_repository": p["head"]["repo"], "pull_requests": [], "conclusion": "success"}}
 
     def knos(self, n: int) -> list[str]:
-        """What Knos said on `n`, oldest first (not the tokens it posted for the worker)."""
-        return [c["body"] for c in self.comments.get(n, []) if c["user"] == BOT and not c["body"].startswith("knos-")]
+        """What Knos said on `n`, oldest first (not the tokens it posted for the worker). A settlement's comment is
+        given by its words: the five states under them (after flow.STATUS) are read by `states`."""
+        return [c["body"].split("\n\n" + flow.STATUS)[0] for c in self.comments.get(n, []) if c["user"] == BOT and not c["body"].startswith("knos-")]
+
+    def states(self, n: int) -> dict[str, float]:
+        """The states the settlement's comment on `n` carries, each with its time (the `knos-states` line)."""
+        body = next(c["body"] for c in reversed(self.comments.get(n, [])) if flow.STATUS in c["body"])
+        return {k: float(v) for k, v in re.findall(r"(\w+)=([0-9.]+)(?=[ \n])", body.split("<!-- knos-states ", 1)[1].split("\n")[0] + " ")}
 
     # -- api.github.com --------------------------------------------------------------------------------------------------
     def __call__(self, path: str, data: dict | None = None, method: str | None = None):
@@ -607,6 +613,8 @@ class GitHub(Hub):
                                                         "closingIssuesReferences": {"totalCount": len(nodes), "nodes": nodes}}}}}
 
     def _memory(self, q, data, method):
+        if data is None and q.get("creator"):                # GET issues?creator=<login>&since=...: that account's issues, as GitHub lists them
+            return [i for i in self.issues.values() if (i.get("user") or {}).get("login") == q["creator"] and i["created_at"] >= q.get("since", "")]
         if data is None:
             return [i for i in self.issues.values() if {"name": "knos-memory"} in i.get("labels", []) and i["state"] == "open"]
         if "labels" not in data:

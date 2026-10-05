@@ -21,8 +21,8 @@ A fact with "claim" names a fact of scripts/doc_claims.py's registry, which comp
 capability manifest, the upgrade record, the program ids): "say" must be that value as the registry prints it. No fact is
 a time: when an upgrade can execute is on chain and in the site's upgrades.json, never in a committed sentence.
 
-The one sentence (SENTENCE) must be in README.md, the home page and the submission, word for word; the long form (LONG)
-in README.md and the home page, whatever the line breaks.
+The one sentence (SENTENCE) must be in README.md, the home page and the submission, word for word; what a work order is
+(LONG) on the home page, whatever the line breaks.
 
 Numbers that are not claims are ignored: versions, dates, clock times in the scripts, list numbering, names such as
 RS256, an image tag's attributes, and anything inside code or a link's address. The generated benchmark table is checked by bench_docs.py.
@@ -44,9 +44,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
          "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
-SENTENCE = ("Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
-            "signed CI run attests they were met, a Solana program counts it or pays it.")
-# the long form, after the short one, in the README's lead and the home page's first view
+SENTENCE = "The neutral meter for AI agent work: neither side keeps the count."
+# what a work order is, in four sentences: on the home page, folded under "What is here"
 LONG = ("A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A bounty "
         "on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs says whether the "
         "terms were met, and a Solana program checks that signature itself before it pays. No person holds the money in between.")
@@ -230,10 +229,10 @@ def main(argv: list[str] | None = None) -> int:
         if SENTENCE not in words(path):
             fails += 1
             print(f"FAIL  {path}: the one sentence is missing")
-    for path in ("README.md", "web/index.html"):
+    for path in ("web/index.html",):
         if LONG not in words(path):
             fails += 1
-            print(f"FAIL  {path}: the long form of the sentence is missing")
+            print(f"FAIL  {path}: what a work order is (LONG) is missing")
     said = {path: {tok for tok, _line in numbers(path)} for path in docs_of(facts)}
     for f in facts:
         if "doc" in f:

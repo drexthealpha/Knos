@@ -4,20 +4,28 @@
 [`reproductions/`](../reproductions) is empty. This page is how the first one gets there without anyone taking the
 maintainer's word, or yours.
 
-## Three lines
+## Two clicks and one button
 
-By hand, on any machine with Python 3.10 or later (a report on your screen and in `report.json`; not signed):
+Signed by GitHub, in a repository of your own, with nothing installed (this is the one that counts):
+
+1. Open [**Use this template**](https://github.com/new?template_owner=drexthealpha&template_name=knos-task&name=knos-reproduce&visibility=public&owner=@me)
+   and press **Create repository**. The template is [drexthealpha/knos-task](https://github.com/drexthealpha/knos-task);
+   it already holds [`knos-reproduce.yml`](../examples/knos-reproduce.yml), and a repository made from a template has
+   Actions on (a fork does not).
+2. In your new repository open **Actions**, choose **knos reproduce** and press **Run workflow**.
+
+Then download the run's artifact `knos-reproduction` and send the file in it (below).
+
+The same workflow runs anywhere else: in a fork of [drexthealpha/Knos](https://github.com/drexthealpha/Knos) once you
+enable Actions there, or copied to `.github/workflows/` of any repository of yours.
+
+## From a terminal
+
+On any machine with Python 3.10 or later (a report on your screen and in `report.json`; not signed):
 
 ```
 pipx run --spec knos knos reproduce
 ```
-
-Signed by GitHub, in a repository of your own (this is the one that counts):
-
-1. Fork [drexthealpha/Knos](https://github.com/drexthealpha/Knos) and enable Actions in the fork, or copy
-   [`examples/knos-reproduce.yml`](../examples/knos-reproduce.yml) to `.github/workflows/` of any repository of yours.
-2. Actions > **knos reproduce** > **Run workflow**.
-3. Download the run's artifact `knos-reproduction` and send the file in it (below).
 
 It needs no secret, no wallet and no money, and it writes nothing to your repository.
 

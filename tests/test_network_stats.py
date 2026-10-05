@@ -649,3 +649,57 @@ if __name__ == "__main__":
     for name, data in samples().items():
         (RECORDED / name).write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
         print(f"wrote tests/web/recorded/{name}")
+
+
+# ---- outside funders, outside repositories, outside payees: three numbers, never added -------------------------------------------
+def test_an_outside_account_that_funds_in_a_knos_repository_from_the_faucet_is_an_outside_funder_and_no_outside_repository():
+    """The playground: the repository and the faucet Balance are Knos's, the commenter is a stranger. kind_of() calls
+    such a job own (Knos's id is on it); the three outside numbers count the stranger, apart and under its own name."""
+    import outsiders as rules
+    w = {name: str(Pubkey(bytes([n]) * 32)) for n, name in enumerate(["usdc", "a", "b", "knos"], 1)}
+    bal = {name: str(pay2.balance_pda(owner, Pubkey.from_string(w[name]), Pubkey.from_string(w["usdc"]))) for name, owner in (("a", 5001), ("knos", KNOS))}
+    ours, theirs = str(pay2.faucet_balance_pda(KNOS)), str(pay2.faucet_balance_pda(5005))
+    history = [
+        tx(1, w["a"], f"knos2:balance owner=5001 authority={w['a']} mint={w['usdc']}", program=PAY2),
+        tx(2, w["knos"], f"knos2:balance owner={KNOS} authority={w['knos']} mint={w['usdc']}", program=PAY2),
+        tx(3, "relayer", f"knos2:balance owner=5005 authority={pay2.auth_pda()} mint={pay2.faucet_mint()}", program=PAY2),
+        # the line that opened Knos's faucet Balance is NOT here: its address alone says whose it is
+        funded2(100, 7100, 1, 5 * USDC, 6001, ours, faucet=1),            # a stranger funds in the playground, from the faucet
+        paid2(200, 7100, 1, 8001, 5 * USDC),                              # ... another stranger is paid
+        funded2(300, 7100, 3, 5 * USDC, 6002, ours, faucet=1),            # a second stranger funds there
+        paid2(400, 7100, 3, 6002, 5 * USDC),                              # ... and takes the task: no payee
+        funded2(500, 7100, 5, 5 * USDC, KNOS, ours, faucet=1),            # Knos funds there
+        paid2(600, 7100, 5, 8002, 5 * USDC),                              # ... a stranger is paid: an outside payee, no funder
+        funded2(700, 7100, 7, 9 * USDC, 6003, bal["knos"]),               # a stranger spends Knos's own tokens: Knos's money
+        funded2(800, 7001, 1, 20 * USDC, 6001, bal["a"]),                 # the first stranger, in an outside repository
+        funded2(900, 7006, 1, 25 * USDC, 6005, theirs, faucet=1),         # the faucet in an outside repository
+        funded2(1000, 7003, 3, 15 * USDC, 0, w["b"], signer=w["b"]),      # a wallet funds
+        paid2(1100, 7003, 3, 0, 15 * USDC, to=w["b"]),                    # ... and is paid back: no payee
+        funded2(1200, 7008, 2, 6 * USDC, 5001, bal["a"]),
+        paid2(1300, 7008, 2, KNOS, 6 * USDC),                             # Knos is paid: no outside payee
+    ]
+    jobs = network_stats.jobs_of(events(*history))[0]
+    got = network_stats.outsiders(jobs, OWN, frozenset({w["knos"]}), frozenset())
+    assert {k: got[k] for k in ("funders", "funders_in_outside_repositories", "funders_in_knos_repositories_faucet", "repositories", "payees")} == {
+        "funders": 5,                                   # 6001, 6002, 6005, the wallet b, 5001: each once
+        "funders_in_outside_repositories": 4,           # 6001, 6005, the wallet b, 5001
+        "funders_in_knos_repositories_faucet": 2,       # 6001 and 6002; 6003 spent Knos's tokens, Knos is Knos
+        "repositories": 4,                              # 7001, 7006, 7003, 7008: never the playground, 7100
+        "payees": 2}                                    # 8001 and 8002
+    assert got["measured"] is True and got["summed"] is False
+    assert rules.LABEL_KNOS_FAUCET == "outside funder, Knos repository, faucet money" and got["definitions"]["funders_in_knos_repositories_faucet"].startswith(rules.LABEL_KNOS_FAUCET)
+    assert set(got["definitions"]) == {"funders", "funders_in_outside_repositories", "funders_in_knos_repositories_faucet", "repositories", "payees"}
+    by_issue = {(j["repo"], j["issue"]): rules.funder_of(j, OWN, frozenset({w["knos"]}), frozenset(), frozenset({ours})) for j in jobs}
+    assert by_issue[(7100, 1)] == ("gh:6001", "knos_faucet") and by_issue[(7100, 5)] is None and by_issue[(7100, 7)] is None
+    assert by_issue[(7001, 1)] == ("gh:6001", "outside") and by_issue[(7003, 3)] == (f"wallet:{w['b']}", "outside")
+    # the summary carries them, and kind_of() still puts none of the playground's jobs under outside: faucet money never is
+    s = network_stats.summarize(events(*history), OWN, frozenset({w["knos"]}))
+    assert s["outsiders"]["funders_in_knos_repositories_faucet"] == 2 and s["outsiders"]["repositories"] == 4
+    assert "outside" not in {network_stats.kind_of(j, OWN, frozenset({w["knos"]})) for j in jobs if j["repo"] == 7100}
+    # a repository listed as Knos's by its id is Knos's whoever owns the Balance on record
+    listed = network_stats.outsiders(jobs, OWN, frozenset({w["knos"]}), frozenset({7006}))
+    assert (listed["repositories"], listed["funders_in_outside_repositories"], listed["funders_in_knos_repositories_faucet"]) == (3, 3, 3)
+    # nothing read is three zeros that say they are not a count; Knos alone is three zeros that are
+    assert rules.count([], OWN, frozenset(), measured=False)["measured"] is False
+    alone = network_stats.outsiders([j for j in jobs if (j["repo"], j["issue"]) == (7100, 7) or j["by"] == KNOS and j["payee"] == 0], OWN, frozenset({w["knos"]}), frozenset())
+    assert (alone["funders"], alone["repositories"], alone["payees"], alone["measured"]) == (0, 0, 0, True)

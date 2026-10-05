@@ -17,11 +17,15 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
     python scripts/bench_docs.py --stages stages.json --source "where it was measured"
                                                      fill the stage and attempt slots (STAGE_SLOTS) from
                                                      `scripts/latency_stages.py --json` on the live relay log
+    python scripts/bench_docs.py --repo             first fill the slots this repository answers itself (REPO_SLOTS: the
+                                                     files of reproductions/, and the constants a person keeps under
+                                                     "by_hand" in docs/facts.json)
     python scripts/bench_docs.py --slots            list the slots that have no number yet; exit 1 if there is one
 
 A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in README.md or docs/BENCH.md:
 
     headline      README: the index's two named figures, and the merged pull requests
+    outside-use   docs/submission/NUMBERS.md: nine numbers about use by anyone who is not Knos, each from where it is kept
     market        the index: a failed check of any kind, per agent
     market-tests  the same pull requests, counting only failed tests and builds
     backtest      the merged ones
@@ -60,7 +64,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ["README.md", "docs/BENCH.md"]
+DOCS = ["README.md", "docs/BENCH.md", "docs/submission/NUMBERS.md"]
 # The pitch-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
          "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
@@ -79,6 +83,8 @@ DEVNET = [
     ("of those, paid to someone other than the funder", "outside.completed"),
     ("funders among them", "outside.funders"),
     ("funders who funded again after one of their tasks was paid", "outside.repeat_funders"),
+    ("repositories that are not Knos's in which an outside funder funded a task (scripts/outsiders.py)", "outsiders.repositories"),
+    ("accounts and wallets that are not Knos's, paid by a task somebody else funded (scripts/outsiders.py)", "outsiders.payees"),
     ("payments timed from the merge, over the public relay's log (n)", "latency.merge_to_paid.count"),
     ("seconds from the merge to the payment, median (p50)", "latency.merge_to_paid.median"),
     ("seconds from the merge to the payment, 95th percentile (p95)", "latency.merge_to_paid.p95"),
@@ -145,6 +151,38 @@ STAGE_SLOTS |= {f"stage_whole_{stat}": (f"{what}: the merge to the payment, the 
 STAGE_SLOTS |= {f"pay_attempts_{name}": (f"{words} (scripts/latency_stages.py, network_stats.attempts)", ("attempts", name))
                 for name, words in ATTEMPT_WORDS.items()}
 SLOTS |= {name: (what, None) for name, (what, _where) in STAGE_SLOTS.items()}
+# Use by anyone who is not Knos (docs/submission/NUMBERS.md). Two are counted by the site's build (stats.json,
+# `outsiders`: scripts/outsiders.py). The others are read from this repository: the report files of reproductions/, and
+# the counts only a person can supply, which are constants under BY_HAND in docs/facts.json that a person changes when
+# the other party agrees to be counted. The table of NUMBERS.md is written from them (the block `outside-use`), and
+# `--repo` (like every fill) fills a slot that names one in any other document; nothing else may set them.
+SLOTS |= {
+    "outside_repositories": ("repositories that are not Knos's in which an outside funder funded a task", "outsiders.repositories"),
+    "outside_payees": ("accounts and wallets that are not Knos's and were paid by a task somebody else funded", "outsiders.payees"),
+}
+BY_HAND = "by_hand"
+REPO_SLOTS = {
+    "reproductions_signed": ("report files in reproductions/ from a run GitHub signed in someone else's repository", "reproductions/*.json"),
+    "buyer_interviews_held": ("interviews held with someone who approves a supplier's invoice", f"docs/facts.json, {BY_HAND}"),
+    "letters_of_intent": ("letters of intent signed by another party", f"docs/facts.json, {BY_HAND}"),
+    "outside_programs_reading_the_verifier": ("programs that are not Knos's and are known to read a token knos-oidc verified",
+                                              f"docs/facts.json, {BY_HAND}"),
+    "shadow_counts_published": ("neutral counts published beside a supplier's own invoice count", f"docs/facts.json, {BY_HAND}"),
+}
+SLOTS |= {name: (what, None) for name, (what, _where) in REPO_SLOTS.items()}
+
+
+def repo_numbers(root: Path = ROOT) -> dict:
+    """{slot name: (number, where it was read)} for every slot of REPO_SLOTS this tree can answer."""
+    out: dict = {}
+    folder, facts = root / "reproductions", root / "docs" / "facts.json"
+    if folder.is_dir():
+        out["reproductions_signed"] = (len(list(folder.glob("*.json"))), "the count of reproductions/*.json in this repository")
+    by_hand = json.loads(facts.read_text(encoding="utf-8")).get(BY_HAND, {}) if facts.is_file() else {}
+    for name in REPO_SLOTS:
+        if _number(by_hand.get(name)):
+            out[name] = (by_hand[name], f"docs/facts.json, {BY_HAND}.{name}: a constant a person changes")
+    return out
 
 
 def stage_numbers(report: dict, source: str) -> dict:
@@ -184,6 +222,40 @@ def blocks(src: dict, bt: dict | None = None) -> dict[str, str]:
         out["devnet"] = devnet(src["devnet"])
         out["devnet1"] = devnet_first(src["devnet"]["first"])
     return out
+
+
+def outside_use(src: dict, repo: dict) -> str:
+    """docs/submission/NUMBERS.md's table: nine numbers about use by anyone who is not Knos, each from where it is kept.
+    `repo` is repo_numbers(): what this repository answers itself. A number nothing has measured is said so, never 0."""
+    stats, release = (src.get("devnet") or {}).get("stats") or {}, src.get("release") or {}
+    between = release.get("payments_between_unrelated_accounts") or {}
+    repositories, payees = _dig(stats, "outsiders.repositories"), _dig(stats, "outsiders.payees")
+    where_r = where_p = "`docs/bench.json`, `devnet.stats.outsiders` (scripts/outsiders.py, in the site's build)"
+    if repositories is None and _dig(stats, "outside.funded") == 0:        # no outside task was funded, so in no outside repository
+        repositories, where_r = 0, "`docs/bench.json`, `devnet.stats.outside.funded` is 0: no outside task, so no outside repository"
+    if payees is None and between.get("source"):                           # the accounts the measured payments name
+        payees = len(set(re.findall(r"to another GitHub account \((\d+)\)", between["source"])))
+        where_p = "`docs/bench.json`, `release.payments_between_unrelated_accounts.source`: the accounts it names, on tasks Knos funded itself"
+    by_hand = "`docs/facts.json`, `by_hand`: a person changes it; [DISCLOSURE.md](../DISCLOSURE.md) says the same"
+    rows = [
+        ("Outside funders: accounts other than Knos's that funded a task with their own tokens", _dig(stats, "outside.funders"),
+         "`docs/bench.json`, `devnet.stats.outside.funders`"),
+        ("Outside repositories: repositories not owned by Knos in which a task was funded", repositories, where_r),
+        ("Outside payees: GitHub accounts other than the funder's that were paid", payees, where_p),
+        ("Payments between unrelated accounts: payments whose payee is another GitHub account than the funder", between.get("value"),
+         "`docs/bench.json`, `release.payments_between_unrelated_accounts`, read from the escrows' logs"),
+        ("Buyer interviews held", (repo.get("buyer_interviews_held") or [None])[0], by_hand + "; [INTERVIEWS.md](INTERVIEWS.md) is the kit, unused"),
+        ("Letters of intent", (repo.get("letters_of_intent") or [None])[0], by_hand),
+        ("Reproductions signed by GitHub: files in `reproductions/` from a run in someone else's repository",
+         (repo.get("reproductions_signed") or [None])[0], "the report files of [`reproductions/`](../../reproductions/README.md)"),
+        ("Outside programs reading the verifier", (repo.get("outside_programs_reading_the_verifier") or [None])[0],
+         by_hand + "; the examples in [COMPOSE.md](../COMPOSE.md) are Knos's own"),
+        ("Shadow counts published: a neutral count printed beside a supplier's own invoice count, with every mismatch",
+         (repo.get("shadow_counts_published") or [None])[0], by_hand + "; [PILOT.md](../PILOT.md), \"How it starts: shadow mode\""),
+    ]
+    lines = ["| # | number | value | where it is read |", "|---|---|---|---|"]
+    lines += [f"| {i} | {what} | {_said(value) if _number(value) else 'not measured'} | {where} |" for i, (what, value, where) in enumerate(rows, 1)]
+    return "\n".join(lines)
 
 
 def _share(k: int, n: int) -> str:
@@ -540,6 +612,10 @@ def disagreements(root: Path = ROOT) -> list[str]:
                 out.append(f"{name} is stated with another fact's slot: {where}")
         elif _said(_kept(src, name)) != value:
             out.append(f"{name} is {_said(_kept(src, name))} in docs/bench.json and {where}")
+    for name, (value, where) in sorted(repo_numbers(root).items()):       # a number of the repository that moved since it was filled
+        kept = _dig(src, f"release.{name}.value")
+        if kept is not None and kept != value:
+            out.append(f"{name} is {_said(kept)} in docs/bench.json and {_said(value)} in {where}: change the documents that say it, then run --repo")
     return out
 
 
@@ -582,7 +658,10 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
         for _what, path in [*DEVNET, ("", DEFINITION)]:
             _keep(kept, path, _dig(stats, path))
         src.setdefault("devnet", {})["stats"] = kept
-    given = dict(given or {})
+    for name in given or {}:
+        if name in REPO_SLOTS:
+            raise SystemExit(f"--set {name}: this one is read from the repository ({REPO_SLOTS[name][1]}); change it there")
+    given = {**repo_numbers(root), **(given or {})}
     for name, (value, source) in given.items():
         if name not in SLOTS or SLOTS[name][1] is not None or not _number(value):
             raise SystemExit(f"--set {name}: " + ("not a slot this script knows" if name not in SLOTS else
@@ -626,11 +705,14 @@ def fill(stats_path: str | None = None, given: dict | None = None, root: Path = 
 
 
 def main(check: bool = False, root: Path = ROOT) -> int:
-    gen = blocks(json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8")),
-                 json.loads((root / "docs" / "backtest.json").read_text(encoding="utf-8")))
+    src = json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8"))
+    gen = blocks(src, json.loads((root / "docs" / "backtest.json").read_text(encoding="utf-8")))
+    gen["outside-use"] = outside_use(src, repo_numbers(root))
     drift = []
     for d in DOCS:
         p = root / d
+        if not p.is_file():
+            continue
         old = p.read_text(encoding="utf-8")
         new = apply(old, gen)
         if new != old:
@@ -667,7 +749,7 @@ if __name__ == "__main__":
         if not source:
             raise SystemExit('usage: python scripts/bench_docs.py --stages stages.json --source "where and when it was measured"')
         given = {**(given or {}), **stage_numbers(json.loads(Path(_arg("--stages") or "").read_text(encoding="utf-8")), source)}
-    if "--stats" in sys.argv or given:
+    if "--stats" in sys.argv or "--repo" in sys.argv or given:      # --repo: only the numbers this repository holds (REPO_SLOTS)
         fill(_arg("--stats"), given)
     if "--site" in sys.argv:      # a built site's folder: its stats.json and latency.json against the documents
         site = Path(_arg("--site"))

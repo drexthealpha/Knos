@@ -1,0 +1,38 @@
+{
+  "standard": "Knos Terms 1",
+  "name": "milestone",
+  "version": 1,
+  "sentence": "Pays 100 test USDC when check `unit` passes on a merge; 20% of it waits 30 days and goes back if the change is reverted; refund after 30 days",
+  "comment": "/knos fund 100 checks: unit holdback 20 warranty 30 days 30",
+  "where": "an issue",
+  "trust": {
+    "judge": "merge",
+    "quorum": 1,
+    "checks": [
+      "unit"
+    ]
+  },
+  "terms": {
+    "accept": "",
+    "checks": [
+      {
+        "app": 15368,
+        "name": "unit"
+      }
+    ],
+    "deny": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "mode": "merge",
+    "paths": [],
+    "reserve": 7,
+    "v": 1
+  },
+  "terms_json": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+  "terms_hash": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+  "assumes": {
+    "checks": "each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit"
+  },
+  "cite": "Acceptance is governed by Knos Terms 1, template milestone version 1, sha256 d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0"
+}

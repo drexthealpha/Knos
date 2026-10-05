@@ -6,8 +6,30 @@ another CI system, a cloud's workload identity). Once a token is verified, any o
 and trust them as much as it trusts the issuer and the account the workflow ran in: which repository, which commit,
 which workflow file at which commit, which account started the run, and any audience string the workflow asked for.
 
-2.1 is the upgrade this release proposes. Until it executes, the second deployment on devnet is 0.3.12's: GitHub's
+2.1 is the upgrade Knos 0.3.14 proposed. Until it executes, the second deployment on devnet is 0.3.12's: GitHub's
 and GitLab's keys only, and no private keys ([SECURITY.md](SECURITY.md), section 8).
+
+**2.2** is the build Knos 0.3.16 makes, and it will be proposed after the pending upgrade executes. It changes one thing: the token's header and payload must be JSON
+in every byte. 2.1 reads the claims it needs and steps over every other value by its brackets and quotes, so it
+verifies a payload the issuer really signed that is not strict JSON in a value nobody reads (`tru`, a number with a
+leading zero, brackets that do not match, a control character, bytes that are not UTF-8, `NaN`, a comment: 13
+shapes in [the differential test](../tests/test_oidc_differential.py)). That is not a forgery, since only the
+issuer's key can sign one, but two readers of one verified token can disagree about it. 2.2 checks every value
+against RFC 8259 as it passes it, refuses a name that appears twice in the top-level object (error 62), and takes at
+most 64 levels of nesting and 128 top-level members (error 61). Nothing else changes: the same instructions, the
+same accounts, the same token account layout, the same error codes, so a program that reads a verified token reads
+it as before. It costs no more compute than 2.1 ([ASSURANCE.md](ASSURANCE.md), "The claim reader: strict since 2.2").
+The strict reader is [`strict.rs`](../programs-v2/knos_oidc/src/strict.rs), and only the verifier's own instructions
+call it: Step reads the header and the payload with it before it marks the token account VERIFIED. The reader a
+consumer compiles in, [`claims.rs`](../programs-v2/knos_oidc/src/claims.rs), is 2.1's source unchanged and still
+passes over the values it is not asked for; `knos_pay` links it, and a change to it would change `knos_pay`'s bytes,
+which this release does not. It does not need the strictness: the verifier refuses a payload that is not strict JSON
+at verification, so no such payload ever reaches the account `knos_pay` reads. For the same reason the `knos_oidc`
+crate's version stays 0.3.14 (a crate's version is in the bytes of what depends on it); the program is 2.2 by its
+`VERSION` constant and its `security.txt`.
+Until a 2.2 proposal has executed after its 48-hour delay, devnet runs a build that is lenient in the values it does
+not read: 2.0 until the 2.1 proposal executes, then 2.1. Which build is live is in [`web/upgrades.json`](../web/upgrades.json), not on this page. A 2.2 build says so
+in its bytes: its `security.txt` carries `source_release: knos-oidc 2.2`.
 
 It charges nothing and does not know Knos's escrow exists. There are two deployments on devnet:
 
@@ -47,7 +69,7 @@ The interface crate, [`crates/knos-oidc-interface`](../crates/knos-oidc-interfac
 allocate, so it builds with solana-program, pinocchio or anchor of any version:
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.15" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.16" }
 ```
 
 ```rust
@@ -159,8 +181,8 @@ key and to the program.
 
 ## GitLab
 
-knos-oidc verifies a gitlab.com ID token as it verifies GitHub's. This release proposes that `knos-pay` reads one
-too ([`programs-v2/knos_pay/src/gl.rs`](../programs-v2/knos_pay/src/gl.rs)), for two things: funding a work order
+knos-oidc verifies a gitlab.com ID token as it verifies GitHub's. `knos-pay` 2.1, the build of proposal 4 of the
+upgrade multisig, reads one too ([`programs-v2/knos_pay/src/gl.rs`](../programs-v2/knos_pay/src/gl.rs)), for two things: funding a work order
 from a Balance, and paying one. It is tested in LiteSVM against tokens shaped as GitLab documents them
 ([`tests/test_gitlab_pay.py`](../tests/test_gitlab_pay.py)); it has not run against a token gitlab.com signed, and
 [`examples/gitlab/.gitlab-ci.yml`](../examples/gitlab/.gitlab-ci.yml) has not run in a project. The claims are
@@ -221,6 +243,9 @@ job does not yet check the order's terms on Solana; it says so where it would.
 ## Limits
 
 - Tokens up to 8,192 bytes. RS256 only, 2048- or 4096-bit keys. ES256 tokens are not verified.
+- Since 2.2 a token's header and payload are each one JSON object of RFC 8259, at most 64 levels deep, with at most
+  128 members at the top level and no name there twice (the GitHub-shaped token of the tests has 31 members and
+  one level). A name twice inside a nested object is not looked for. Before 2.2 a value the verifier does not read is not checked.
 - A key of an issuer other than GitHub is registered only by the one account whose run counts, and then approved by
   the guardian. Nobody else can admit an issuer, except as a private key.
 - A token is accepted until one hour after its `exp` (the issuers' tokens live five minutes; relaying takes time).

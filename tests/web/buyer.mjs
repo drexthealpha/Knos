@@ -390,6 +390,40 @@ const head = JSON.parse(expected.json).head, rowsCount = JSON.parse(expected.jso
 check("the organisation's month: every line, the totals, the head both sides compare", (await page.$eval("#ost-statement", (e) => e.dataset.month)) === "2026-09"
   && (await page.$$eval("#ost-table tbody tr", (l) => l.length)) === rowsCount && (await text(page, "#ost-head")) === head && (await page.$$eval("#ost-totals tbody tr", (l) => l.length)) === 1, await text(page, "#ost-head"));
 check("  a line says how the other party recomputes it", (await text(page, "#ost-recompute")).includes("knos audit export --owner 5001 --from 2026-09-01 --to 2026-09-30 --format csv"));
+// one order of the month as four linked objects, on one screen, and the files a finance system imports
+{
+  const fd = await import(pathToFileURL(join(root, "finance_data.js")).href), con = await import(pathToFileURL(join(root, "console.js")).href);
+  const cards = await page.$$eval("#ost-objects [data-object]", (l) => l.map((c) => ({ key: c.dataset.object, card: c.classList.contains("k-card"), tilt: c.hasAttribute("data-tilt"), head: c.querySelector(".k-kicker").childNodes[0].textContent.trim(),
+    labels: [...c.querySelectorAll("dl.facts > dt")].map((d) => d.textContent), top: Math.round(c.getBoundingClientRect().top) })));
+  check("the four linked objects of the chosen order are on one screen: Authorisation, Acceptance, Commercial record, Settlement status, each a card of six labelled values at most",
+    cards.map((c) => c.head).join("|") === "Authorisation|Acceptance|Commercial record|Settlement status" && cards.map((c) => c.key).join() === fd.OBJECTS.join() && cards.every((c) => c.card && c.tilt && c.labels.length >= 3 && c.labels.length <= 6)
+    && cards[0].labels.join("|") === "Buyer|Supplier|Scope|Budget|Approved by|Second approver" && cards[1].labels.join("|") === "Verdict|Artifact|Policy|Policy version|Evaluator|Evidence"
+    && cards[2].labels.join("|") === "Billable deliverable|Amount|Fee|Invoice line|Dispute|Credit", JSON.stringify(cards));
+  const WORDS = ["paid outside Knos", "payable", "held", "refunded", "devnet demonstration"];
+  const options = await page.$$eval("#ost-order option", (l) => l.map((o) => o.textContent));
+  const chips = [];
+  for (let n = 0; n < options.length; n++) {
+    await pick(page, "#ost-order", String(n));
+    chips.push(await page.$eval("#ost-objects .k-objects", (e) => [e.dataset.chip, e.querySelector('[data-object="settlement"] .pill').textContent, e.querySelectorAll("[data-object]").length, e.querySelector("[data-object-trust]").textContent.trim().length > 20,
+      e.querySelector("[data-object-said]").textContent.trim().length > 10]));
+  }
+  check("  every order of the month has its four, a status chip in the settlement words, what remains trusted under Acceptance, and the status said in a sentence",
+    options.length >= 3 && chips.every(([chip, shown, n, trust, said]) => WORDS.includes(chip) && shown === chip && n === 4 && trust && said) && options.every((o, n) => o.endsWith(`: ${chips[n][0]}`)), JSON.stringify([options, chips]));
+  check("  a payment on devnet is a demonstration in test money, never called paid", chips.some(([chip]) => chip === "devnet demonstration") && !chips.some(([chip]) => /^paid$|paid on/.test(chip)) && Object.values(con.CHIP).every((w) => WORDS.includes(w))
+    && Object.keys(con.CHIP).sort().join() === [...fd.SETTLEMENTS].sort().join());
+  const offered = await page.$$eval("#ost-exports [data-export]", (l) => l.map((b) => [b.dataset.export, b.textContent, b.nextElementSibling?.dataset.unverified === b.dataset.export ? b.nextElementSibling.textContent : ""]));
+  check("  five files for a finance system: the generic one, then NetSuite, SAP, Coupa and QuickBooks, each of those four marked best effort, unverified (docs/FINANCE.md)",
+    offered.map((o) => o[0]).sort().join() === "coupa,generic,netsuite,quickbooks,sap" && offered[0][0] === "generic" && offered.every(([fmt, , mark]) => (fmt === "generic" ? mark === "" : mark === "best effort, unverified"))
+    && Object.entries(fd.FORMATS).every(([fmt, f]) => f.unverified === (fmt !== "generic")) && /best effort|unverified/i.test(readFileSync(new URL("../../docs/FINANCE.md", import.meta.url), "utf8")), JSON.stringify(offered));
+  const shownHead = await text(page, "#ost-head");
+  for (const fmt of ["generic", "netsuite"]) {
+    const [download] = await Promise.all([page.waitForEvent("download"), page.click(`#ost-exports [data-export="${fmt}"]`)]);
+    const got = readFileSync(await download.path(), "utf8");
+    check(`  the ${fmt} file is made in the page from the rows on screen${fmt === "generic" ? ", and carries the statement and its head" : ""}`, download.suggestedFilename() === `knos-audit-5001-2026-09-${fmt}.csv`
+      && (fmt === "generic" ? got.startsWith("knos.finance-export,version,1,generic\n") && fd.statementOf(got).head === shownHead : got.startsWith("External ID,Vendor,Date,")), got.slice(0, 160));
+  }
+  check("  nothing of it runs off the side", (await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
+}
 // 7. a meter ledger dropped onto the statement: its three numbers, and the exports stay what they were
 const evalLine = (order, artifact, milestone, accepted) => JSON.stringify({ accepted, artifact: artifact.repeat(40), buyer: 5001, id: createHash("sha256").update(`${order}${artifact}${milestone}`).digest("hex"), milestone, order: order.repeat(64), policy: "c".repeat(64), rate: 2000000, seller: 555000 });
 const evals = [evalLine("a", "1", 0, 1), evalLine("a", "2", 0, 1), evalLine("a", "3", 1, 1), evalLine("b", "4", 0, 0), evalLine("b", "5", 0, 0)];
@@ -465,8 +499,10 @@ await cdp3.send("WebAuthn.enable");
 await cdp3.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
 await pick(third.page, "#buy-template", "bugfix");
 await third.page.fill("#buy-issue", "https://github.com/octo/widgets/issues/7");
+// the issue's budget and earlier orders are drawn above the button a moment after the box is filled: wait for them, so the press does not land while the page is still moving
+await third.page.waitForFunction(() => { const t = document.getElementById("buy-before").textContent.trim(); return !/^Write the issue above|^Reading/.test(t); }, null, { timeout: 15000 }).catch(() => {});
 await third.page.click("#buy-pk-create");
-await third.page.waitForSelector("#buy-pk-made");
+await third.page.waitForSelector("#buy-pk-made").catch(async (e) => { console.error("DEBUG status:", await third.page.textContent("#buy-pk-status"), "| errors:", JSON.stringify(third.errors), "| focus:", await third.page.evaluate(() => document.hasFocus())); throw e; });
 const kept3 = await third.page.evaluate(() => JSON.parse(localStorage.getItem("knos-passkey")));
 const staged3 = await passkeyLib.wallet(Buffer.from(kept3.key, "hex"), STAGED);
 check("on a build of other program ids, the wallet made is the address under that build's knos_passkey", (await text(third.page, "#buy-pk-address")) === staged3

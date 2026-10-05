@@ -20,6 +20,20 @@ names the last three of a token's transactions, so "first" is the first of those
 without it the two are left out and `chain` stands for both). A stage is measured only where the line carries it:
 every stage prints its own n.
 
+THE FIVE STATES. A payment is received, accepted, submitted, confirmed, finalized (docs/RELAY.md has the table), and
+the second table says how long each state took to reach from the one before it:
+
+    received    the merge                              -> the workflow run's start         (runner_queue: GitHub's)
+    accepted    the run's start                        -> the token posted for a relay     (`workflow=`; ends at `queued_at=`)
+    submitted   the token posted (`queued_at=`)        -> the relay's first send (`sent_at=`)
+    confirmed   the first send                         -> the last confirmation (`confirmed_at=`)
+    finalized   the last confirmation                  -> the cluster finalized it         (the settle comment's `knos-states`
+                                                          line, when --log holds those comments too; no relay waits for it)
+
+Since 0.3.16 every ok line carries queued_at, seen_at, sent_at and confirmed_at, whoever relayed. A payment whose line
+has none of them (an older line), or whose relay sent nothing itself (`sent_at=-`: someone else carried it first), is
+NOT in that table and is NOT dropped: it is listed under it, by token, with its whole wait.
+
 Then the attempts (network_stats.attempts): the payments asked for, the ones that completed, the lines that failed,
 the ones that took more than one try, the ones completed only after a failed line. That is "successful completion
 across all attempts, including interrupted ones". The log holds what a relay answered: a token no relay picked up
@@ -51,6 +65,58 @@ import network_stats as ns  # noqa: E402
 STAGES = ("runner_queue", "workflow", "relay_wait", "first_send", "confirm")
 ALSO = ("queued", "chain")      # GitHub's own record of the wait for a runner (inside runner_queue); the relay's pickup-to-confirmed (first_send + confirm)
 _PART = {"queue": "queued", "workflow": "workflow", "wait": "relay_wait", "chain": "chain", "tries": "tries"}
+STATES = ("received", "accepted", "submitted", "confirmed", "finalized")       # each: seconds from the state before it (received: from the merge)
+TIMES = ("queued_at", "seen_at", "sent_at", "confirmed_at")                     # on every ok line since 0.3.16 (src/knos/proof/ghrelay.py)
+_STATES_LINE = re.compile(r"<!-- knos-states ([^\n]*)")                          # the settle comment's own line: since= received= ... tx=<signature>
+
+
+def _head(rest: str) -> list[list[str]]:
+    """The `key=value` fields of an ok line, read before `note=`: the note is free text."""
+    return [p.split("=", 1) for p in re.split(r"(?:^| )note=", rest, maxsplit=1)[0].split() if "=" in p]
+
+
+def times_of(comments: list[dict]) -> dict[str, dict[str, float | None]]:
+    """token id -> the four times its ok line carries, in Unix seconds (None for one the line gives as `-`). A token
+    whose line has none of the four is not in the answer."""
+    out: dict[str, dict[str, float | None]] = {}
+    for c in comments:
+        for line in (c.get("body") or "").splitlines():
+            m = ns._RELAY.match(line.strip())
+            got = {k: (float(v) if re.fullmatch(r"\d+(\.\d+)?", v) else None) for k, v in (_head(m.group(5)) if m else []) if k in TIMES}
+            if got:
+                out[m.group(4)] = got
+    return out
+
+
+def finalized_of(comments: list[dict]) -> dict[str, float]:
+    """signature -> seconds from confirmed to finalized, from the `knos-states` line of each settle comment that names
+    its paying transaction (`tx=`) and reached both states."""
+    out: dict[str, float] = {}
+    for c in comments:
+        for m in _STATES_LINE.finditer(c.get("body") or ""):
+            f = dict(p.split("=", 1) for p in m.group(1).split() if "=" in p)
+            try:
+                if f.get("tx") and float(f["finalized"]) >= float(f["confirmed"]):
+                    out[f["tx"]] = float(f["finalized"]) - float(f["confirmed"])
+            except (KeyError, ValueError):
+                continue
+    return out
+
+
+def states(sample: dict, parts: dict[str, int], at: dict[str, float | None] | None, final: dict[str, float] | None = None) -> dict[str, int] | None:
+    """One payment's five states, each in seconds from the state before it and only where it can be told; None when
+    its line cannot say when it was submitted and confirmed (no `_at` fields, or a relay that sent nothing itself)."""
+    if not at or any(at.get(k) is None for k in TIMES):
+        return None
+    queued, sent, confirmed = float(at["queued_at"] or 0), float(at["sent_at"] or 0), float(at["confirmed_at"] or 0)
+    out = {"submitted": max(0, round(sent - queued)), "confirmed": max(0, round(confirmed - sent))}
+    if "workflow" in parts:
+        out["accepted"] = parts["workflow"]
+        out["received"] = max(0, int(sample["seconds"]) - parts["workflow"] - out["submitted"] - out["confirmed"])
+    done = next((final[s] for s in sample.get("sigs") or [] if final and s in final), None)
+    if done is not None:
+        out["finalized"] = round(done)
+    return out
 
 
 def parts_of(comments: list[dict]) -> dict[str, dict[str, int]]:
@@ -61,8 +127,7 @@ def parts_of(comments: list[dict]) -> dict[str, dict[str, int]]:
         for line in (c.get("body") or "").splitlines():
             m = ns._RELAY.match(line.strip())
             if m:
-                head = re.split(r"(?:^| )note=", m.group(5), maxsplit=1)[0]
-                out[m.group(4)] = {_PART[k]: int(v) for k, v in (p.split("=", 1) for p in head.split() if "=" in p) if k in _PART and v.isdigit()}
+                out[m.group(4)] = {_PART[k]: int(v) for k, v in _head(m.group(5)) if k in _PART and v.isdigit()}
     return out
 
 
@@ -88,13 +153,21 @@ def spread(values: list[int]) -> dict:
 
 
 def report(comments: list[dict], events: list[dict], get=None, when: Callable[[str], int | None] | None = None, most: int = ns.MOST) -> dict:
-    """{"whole": merge to paid as measure() gives it, "stages": {stage: {n, p50, p95, max}}, "slowest": the slowest
-    payments with their own stages, "attempts": network_stats.attempts(...)}."""
+    """{"whole": merge to paid as measure() gives it, "stages": {stage: {n, p50, p95, max}}, "states": the same for
+    each of the five states, "without_times": the payments whose line cannot place them in that table ([{token, at,
+    seconds, why}], every one of them), "slowest": the slowest payments with their own stages, "attempts":
+    network_stats.attempts(...)}."""
     m = ns.measure("merge_to_paid", ns.relay_lines(comments), events, get, most)
-    parts = parts_of(comments)
+    parts, at, final = parts_of(comments), times_of(comments), finalized_of(comments)
     rows = [{"token": s["token"], "at": s["at"], "seconds": s["seconds"], **split(s, parts.get(s["token"], {}), when)} for s in m["samples"]]
+    five = {s["token"]: states(s, parts.get(s["token"], {}), at.get(s["token"]), final) for s in m["samples"]}
+    apart = [{"token": s["token"], "at": s["at"], "seconds": s["seconds"],
+              "why": "its line has no stage times (written before 0.3.16)" if s["token"] not in at else "its relay sent nothing itself: another relayer carried it first"}
+             for s in m["samples"] if five[s["token"]] is None]
     return {"whole": {**spread([r["seconds"] for r in rows]), "lines": m["lines"], "not_timed": m["not_timed"], "window": m["window"]},
             "stages": {name: spread([r[name] for r in rows if name in r]) for name in (*STAGES, *ALSO)},
+            "states": {name: spread([f[name] for f in five.values() if f and name in f]) for name in STATES},
+            "without_times": apart,
             "slowest": sorted(rows, key=lambda r: -r["seconds"])[:5],
             "attempts": ns.attempts(comments, ns.ATTEMPTS["pay"])}
 
@@ -111,6 +184,17 @@ def render(r: dict) -> list[str]:
         out.append(f"{name:<14}{s['n']:>5}{cell(s['p50']):>7}{cell(s['p95']):>7}{cell(s['max']):>7}"
                    + ("   (inside runner_queue: GitHub's record of the run waiting for a runner)" if name == "queued" else
                       "   (first_send + confirm: the relay's pickup to its last confirmation)" if name == "chain" else ""))
+    covered = w["n"] - len(r["without_times"])
+    out += ["", f"the five states, {covered} of {w['n']} payments (the ones whose log line carries queued_at, seen_at, sent_at and confirmed_at):",
+            f"{'state':<14}{'n':>5}{'p50':>7}{'p95':>7}{'max':>7}   seconds from the state before"]
+    notes = {"received": "from the merge: GitHub starting the run", "accepted": "the run: install, checks read, GitHub's signature",
+             "submitted": "the token waiting for a relay, and its first send", "confirmed": "the cluster confirming",
+             "finalized": "the cluster finalizing (from settle comments in --log)"}
+    for name in STATES:
+        s = r["states"][name]
+        out.append(f"{name:<14}{s['n']:>5}{cell(s['p50']):>7}{cell(s['p95']):>7}{cell(s['max']):>7}   ({notes[name]})")
+    out += [f"not in that table, {len(r['without_times'])} payment{'' if len(r['without_times']) == 1 else 's'}:"]
+    out += [f"  token {x['token']}  {x['seconds']:>6} s  {x['why']}" for x in r["without_times"]] or ["  none"]
     out += ["", "the slowest, each with its own stages:"]
     out += [f"  {x['seconds']:>6} s  token {x['token']}  " + " ".join(f"{k}={x[k]}" for k in (*STAGES, *ALSO) if k in x) for x in r["slowest"]] or ["  none"]
     share = "-" if a["completion"] is None else f"{a['completion'] * 100:.1f}%"

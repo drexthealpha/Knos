@@ -913,6 +913,57 @@ same("no window, no wallets", knos.wallets(undefined), []);
     { ...base, quorum: 2 }, { ...base, policy: "x" }, { ...base, vendor: 0 }].map((t) => parseTerms(text(t))), [null, null, null, null, null, null]);
 }
 
+// the conformance kit's vectors (conformance/vectors, in a checkout) for what the client does itself: terms in
+// canonical form with every refusal, a batch's root with corrections, an inclusion proof, a batch audience read as
+// knos_meter reads one, and the auto and gate audiences. A whole number above 2^53 is read from the vector's own text.
+{
+  const kit = join(here, "..", "..", "conformance", "vectors");
+  const big = (_key, value, context) => (typeof value === "number" && context && Number.isInteger(value) && !Number.isSafeInteger(value) ? BigInt(context.source) : value);
+  const m = knos.meter, v = knos.v2;
+  const does = {
+    "terms.canonical": async (x) => { const raw = v.canonicalTerms(x.terms); return { json: new TextDecoder().decode(raw), sha256: knos.hex(await v.termsHash(raw)) }; },
+    "ledger.batch_root_any": async (x) => knos.hex(await m.batchRoot(x.ids, x.corrections)),
+    "ledger.check_proof": (x) => m.checkProof(x.id, x.index, x.size, x.path, x.root, x.correction),
+    "audience.parse_knosm_batch": (x) => { const b = m.parseBatch(x.audience); return [b.claim, b.buyerId, b.sellerId, b.month, b.seq, b.count, b.accepted, b.value, b.root]; },
+    "audience.knos3_auto": (x) => v.autoAudience(x.order, x.head_sha, x.terms, x.pr, x.payee_id, x.address),
+    "audience.gate": (x) => knos.gateAudience(x.program, x.executable),
+  };
+  let ran = 0;
+  for (const name of existsSync(kit) ? ["terms", "ledger", "audiences"] : []) {
+    for (const c of JSON.parse(readFileSync(join(kit, `${name}.v1.json`), "utf8"), big).cases) {
+      if (!does[c.op]) continue;
+      ran++;
+      let got;
+      try { got = { output: await does[c.op](c.input) }; } catch (e) { if (!(e instanceof knos.Refused)) throw e; got = { refused: true }; }
+      const e = c.expect.output, want = c.expect.refused ? { refused: true }
+        : { output: c.op === "audience.parse_knosm_batch" ? [e.kind === "claim", e.buyer_id, e.seller_id, e.month, e.seq, e.count, e.accepted, e.value, e.root] : e };
+      same(`conformance ${c.id} (${c.op}): ${c.name}`, got, want);
+    }
+  }
+  if (existsSync(kit)) same("the conformance vectors the client answers itself", ran >= 50, true);
+  // and without the kit: order, repeats and a refusal; a correction changes the root; a strict reader
+  const base = { v: 1, mode: "merge", accept: "", checks: [{ app: 5, name: "b" }, { app: 0, name: "b" }, { app: 9, name: "a" }, { app: 5, name: "b" }], deny: ["b/**", "a/**", "b/**"], paths: [], reserve: 7 };
+  same("terms in canonical form: lists in order, nothing twice", new TextDecoder().decode(v.canonicalTerms(base)),
+    '{"accept":"","checks":[{"app":9,"name":"a"},{"app":0,"name":"b"},{"app":5,"name":"b"}],"deny":["a/**","b/**"],"mode":"merge","paths":[],"reserve":7,"v":1}');
+  same("a vendor above 2^53 keeps every digit", new TextDecoder().decode(v.canonicalTerms({ ...base, checks: [], deny: [], vendor: 9007199254740993n })).endsWith('"v":1,"vendor":9007199254740993}'), true);
+  for (const [why, bad] of [["a field nobody defined", { ...base, bonus: 1 }], ["version 2", { ...base, v: 2 }], ["a glob that climbs out", { ...base, paths: ["src/../x"] }],
+    ["a reserve above 90", { ...base, reserve: 91 }], ["an image named by a tag", { ...base, mode: "tests", accept: "ab".repeat(32), image: "python:3.12" }]]) {
+    let refused = false;
+    try { v.canonicalTerms(bad); } catch (e) { refused = e instanceof knos.Refused; }
+    same(`terms refused: ${why}`, refused, true);
+  }
+  const keys = fx.second.meter.batch.keys, root5 = fx.second.meter.batch.roots["5"];
+  same("a batch's root from keys in any order, some twice", knos.hex(await m.batchRoot([keys[3], keys[0], keys[4], keys[1], keys[2], keys[0]])), root5);
+  same("a correction changes the root", knos.hex(await m.batchRoot(keys, ["ab".repeat(32)])) !== root5, true);
+  same("no leaves: sha256 of nothing", knos.hex(await m.batchRoot([])), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  same("a batch of one: the leaf is its own proof", [await m.checkProof(keys[0], 0, 1, [], fx.second.meter.batch.roots["1"]), await m.checkProof(keys[1], 0, 1, [], fx.second.meter.batch.roots["1"])], [true, false]);
+  let strict = 0;
+  for (const bad of [fx.second.meter.batch.audience.replace(":3:5:", ":03:5:"), fx.second.meter.batch.audience.toUpperCase().replace("KNOSM:BATCH", "knosm:batch"), fx.second.meter.batch.audience + ":1"]) {
+    try { m.parseBatch(bad); } catch (e) { strict += e instanceof knos.Refused; }
+  }
+  same("a batch audience knos_meter would refuse is refused", strict, 3);
+}
+
 // the passkey wallet's helper and the agent calls have their own files and their own checks
 await import("./passkey.test.mjs");
 await import("./agent.test.mjs");

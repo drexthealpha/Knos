@@ -1,0 +1,534 @@
+{
+ "format": "ledger",
+ "version": 1,
+ "about": "The meter's evaluation id, deliverable id, batch root (RFC 6962 section 2.1 over the ids) and a ledger's running hash (src/knos/ledger.py; docs/CONFORMANCE.md, Ledger). Every id, key, root and hash is lower-case hex.",
+ "cases": [
+  {
+   "id": "ledger/1",
+   "op": "ledger.eval_id",
+   "name": "milestone 0",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 0
+   },
+   "expect": {
+    "output": "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0"
+   }
+  },
+  {
+   "id": "ledger/2",
+   "op": "ledger.eval_id",
+   "name": "milestone 1: another id for the same artifact",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 1
+   },
+   "expect": {
+    "output": "f3f2ec308143ef5ffec18ebe2790dd24f6165160dbae8a4f64831a2a3fecf8d5"
+   }
+  },
+  {
+   "id": "ledger/3",
+   "op": "ledger.eval_id",
+   "name": "the largest milestone",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 4294967295
+   },
+   "expect": {
+    "output": "01e19435d38424239119639fd583aaab73f475011070f37c163c98c706719e2e"
+   }
+  },
+  {
+   "id": "ledger/4",
+   "op": "ledger.eval_id",
+   "name": "another artifact",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "78b3ba12002f9cab5cbb57fac87d8c703702a196",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 0
+   },
+   "expect": {
+    "output": "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f"
+   }
+  },
+  {
+   "id": "ledger/5",
+   "op": "ledger.eval_id",
+   "name": "another order",
+   "input": {
+    "order": "e9ef6e25dd598a0f32ccbbc754408b976375055187b0f509d48150407b782b10",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 0
+   },
+   "expect": {
+    "output": "2a4a8ce8a0b3932bc670251479a525b90cd62c2b817e0d167dee6377aebaa1cf"
+   }
+  },
+  {
+   "id": "ledger/6",
+   "op": "ledger.eval_id",
+   "name": "another policy",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "04def335f62f4faf23f2839c984839b9b22f07b5b85249dff99c691d8da054bf",
+    "milestone": 0
+   },
+   "expect": {
+    "output": "62db7ab415b18047422cf68e57f8bb2255ac080597c2e027ea2cc2b3971ec45a"
+   }
+  },
+  {
+   "id": "ledger/7",
+   "op": "ledger.deliverable_id",
+   "name": "milestone 0",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "milestone": 0
+   },
+   "expect": {
+    "output": "1e50eb6eab5157dbc171e32b8b2e18769b81b3912e4525c72cda8a5e4e099d6e"
+   }
+  },
+  {
+   "id": "ledger/8",
+   "op": "ledger.deliverable_id",
+   "name": "milestone 7",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "milestone": 7
+   },
+   "expect": {
+    "output": "9099bc032efe0368c1dcf96f6478e9562481aeb2c2423afb67b773c4de607619"
+   }
+  },
+  {
+   "id": "ledger/9",
+   "op": "ledger.deliverable_id",
+   "name": "the largest milestone",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "milestone": 4294967295
+   },
+   "expect": {
+    "output": "f1f11a8f80f64dbff5328ffd94f0f7c3694fbbad44ad18884b9a153218286e72"
+   }
+  },
+  {
+   "id": "ledger/10",
+   "op": "ledger.batch_root",
+   "name": "1 evaluation, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b"
+    ]
+   },
+   "expect": {
+    "output": "f87f1a13614ef7f951fabe963d07a364b0ce92221153a42a47a7999b8b1182a5"
+   }
+  },
+  {
+   "id": "ledger/11",
+   "op": "ledger.batch_root",
+   "name": "2 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f"
+    ]
+   },
+   "expect": {
+    "output": "a0b59f38906a0ff153999635af0f2672aabf93aee32d2af05a7cbed20881a790"
+   }
+  },
+  {
+   "id": "ledger/12",
+   "op": "ledger.batch_root",
+   "name": "3 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e"
+    ]
+   },
+   "expect": {
+    "output": "c2ec676d82fa1dd47086711939e5b4284c1840cfb01ebb43c32aedcd617f1c09"
+   }
+  },
+  {
+   "id": "ledger/13",
+   "op": "ledger.batch_root",
+   "name": "4 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da"
+    ]
+   },
+   "expect": {
+    "output": "a1a5a0d0d0a07fc2a5b2da9b21b383f9dc235139d3a96223db084a062d61db60"
+   }
+  },
+  {
+   "id": "ledger/14",
+   "op": "ledger.batch_root",
+   "name": "5 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d"
+    ]
+   },
+   "expect": {
+    "output": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   }
+  },
+  {
+   "id": "ledger/15",
+   "op": "ledger.batch_root",
+   "name": "7 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+     "474b2cb79fd324a728ec639b4b72635e637f696b8edb041923edfc54033d753c",
+     "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0"
+    ]
+   },
+   "expect": {
+    "output": "4ad3e73284e06553465c9e4c05a7eb53a669d229345cbc1d32e2ed5dd57a02cf"
+   }
+  },
+  {
+   "id": "ledger/16",
+   "op": "ledger.batch_root",
+   "name": "8 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+     "474b2cb79fd324a728ec639b4b72635e637f696b8edb041923edfc54033d753c",
+     "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0",
+     "6c7be39169c73ae4ea3acf47f437db13a4139a1c25603bc680edae1a320499e1"
+    ]
+   },
+   "expect": {
+    "output": "48c123ede09d8d7884ebddc4ba3d0040adccd4065c36ca46897f50efb3f67f41"
+   }
+  },
+  {
+   "id": "ledger/17",
+   "op": "ledger.batch_root",
+   "name": "9 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+     "474b2cb79fd324a728ec639b4b72635e637f696b8edb041923edfc54033d753c",
+     "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0",
+     "6c7be39169c73ae4ea3acf47f437db13a4139a1c25603bc680edae1a320499e1",
+     "75075487f0f7eb23d7a6d1033bff4fc206f7d5625a53641d5651a4f3a467dddb"
+    ]
+   },
+   "expect": {
+    "output": "44d6fbc99b4a0f8538213d03a13865da6eb98cdf1751a7f5d724b4bb6c9ee765"
+   }
+  },
+  {
+   "id": "ledger/18",
+   "op": "ledger.batch_root",
+   "name": "16 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+     "474b2cb79fd324a728ec639b4b72635e637f696b8edb041923edfc54033d753c",
+     "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0",
+     "6c7be39169c73ae4ea3acf47f437db13a4139a1c25603bc680edae1a320499e1",
+     "75075487f0f7eb23d7a6d1033bff4fc206f7d5625a53641d5651a4f3a467dddb",
+     "9b01eb9314987d8afc1009ac206a13527e6a2bd6498e457ef5d9d6979356cf5e",
+     "9eb5fbf04993ea641fc701626758a0854a855826a82d820702d849ac79251a32",
+     "9f2197b134b15a35a34dc4fbcca6bae011676939a30e9bf35333daf0e48d06a0",
+     "a61cd4dc3cecbfc8afa24d4a81719f69b2edd4d6de2c62c795a5a2020977198d",
+     "aa0ee87a1d9ab41e720ba204199dac1ea8fc3b440c8ae7626cb7316d640dc802",
+     "ac635eaa01c154245f2df182ab5e3fc1ebc366e9a94696609b5087c8f7b1fa74",
+     "bc2754c313e3c9314752bd792766a6fe80177dec6c712cb4622e9faaee1e16c8"
+    ]
+   },
+   "expect": {
+    "output": "6e02da4088b8ae165a0f641b56ee118bf6f6a951f892873a8e69b152165e5ae8"
+   }
+  },
+  {
+   "id": "ledger/19",
+   "op": "ledger.batch_root",
+   "name": "19 evaluations, ids ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+     "474b2cb79fd324a728ec639b4b72635e637f696b8edb041923edfc54033d753c",
+     "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0",
+     "6c7be39169c73ae4ea3acf47f437db13a4139a1c25603bc680edae1a320499e1",
+     "75075487f0f7eb23d7a6d1033bff4fc206f7d5625a53641d5651a4f3a467dddb",
+     "9b01eb9314987d8afc1009ac206a13527e6a2bd6498e457ef5d9d6979356cf5e",
+     "9eb5fbf04993ea641fc701626758a0854a855826a82d820702d849ac79251a32",
+     "9f2197b134b15a35a34dc4fbcca6bae011676939a30e9bf35333daf0e48d06a0",
+     "a61cd4dc3cecbfc8afa24d4a81719f69b2edd4d6de2c62c795a5a2020977198d",
+     "aa0ee87a1d9ab41e720ba204199dac1ea8fc3b440c8ae7626cb7316d640dc802",
+     "ac635eaa01c154245f2df182ab5e3fc1ebc366e9a94696609b5087c8f7b1fa74",
+     "bc2754c313e3c9314752bd792766a6fe80177dec6c712cb4622e9faaee1e16c8",
+     "c4739981d5599e9d25624f3706cc1df7c4a18edff08caf85580f42b5c9e11a02",
+     "d47204409b84bc54fceaf48fca6e33acde836322be93d3fa4c196826be5da474",
+     "ddfdb6b955d86880599dd97eea2fa61e5d8a4778bc7413842b968828906787b0"
+    ]
+   },
+   "expect": {
+    "output": "491c0114a96dc740862cf004aaa5059231a9797e6b24f7426b16f0253661d392"
+   }
+  },
+  {
+   "id": "ledger/20",
+   "op": "ledger.batch_root_any",
+   "name": "ids in any order and two of them twice: the root of the five, ascending",
+   "input": {
+    "ids": [
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d"
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   }
+  },
+  {
+   "id": "ledger/21",
+   "op": "ledger.batch_root_any",
+   "name": "three evaluations and two corrections: correction leaves (prefix 02) follow, ascending",
+   "input": {
+    "ids": [
+     "0bcdbfb44c913df65c893d18ead69ab6fc50a09af7a49e573fe9e109dbcab15b",
+     "0cac64ecbbb9babc47915cc737e6c68b7e19354d7c2290e59f0a8ab07201728f",
+     "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e"
+    ],
+    "corrections": [
+     "76a36d57edde720083a8ef8cdbabad27080b9ddfea3ae960ca0ac4bb0ef9e582",
+     "0bcbad7a9b277508ed3d222341277632858f8d74c184f14ba0d575305a096348"
+    ]
+   },
+   "expect": {
+    "output": "fc2be8e88c7cdec3d8844fc050fb5a544179d50f3ee378691561193d3410a9d3"
+   }
+  },
+  {
+   "id": "ledger/22",
+   "op": "ledger.batch_root_any",
+   "name": "no evaluation and no correction: sha256 of nothing",
+   "input": {
+    "ids": [],
+    "corrections": []
+   },
+   "expect": {
+    "output": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   }
+  },
+  {
+   "id": "ledger/23",
+   "op": "ledger.check_proof",
+   "name": "the fourth of five evaluations is in the batch",
+   "input": {
+    "id": "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+    "index": 3,
+    "size": 5,
+    "path": [
+     "42ced6966216b0522ff780c4d6d37c4de88fa810f6990e3933efe62f863c618b",
+     "a0b59f38906a0ff153999635af0f2672aabf93aee32d2af05a7cbed20881a790",
+     "6aa873c6f7971bc601e5b150616a057df3dffc11db0c41a2ed1407946faa8123"
+    ],
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c",
+    "correction": false
+   },
+   "expect": {
+    "output": true
+   }
+  },
+  {
+   "id": "ledger/24",
+   "op": "ledger.check_proof",
+   "name": "the same path at another index",
+   "input": {
+    "id": "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+    "index": 2,
+    "size": 5,
+    "path": [
+     "42ced6966216b0522ff780c4d6d37c4de88fa810f6990e3933efe62f863c618b",
+     "a0b59f38906a0ff153999635af0f2672aabf93aee32d2af05a7cbed20881a790",
+     "6aa873c6f7971bc601e5b150616a057df3dffc11db0c41a2ed1407946faa8123"
+    ],
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c",
+    "correction": false
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger/25",
+   "op": "ledger.check_proof",
+   "name": "the same path for another id",
+   "input": {
+    "id": "164dccfd4e1560af24561931a3dcdf5b2d2cf7a4141a273fa6e117d50af0b98e",
+    "index": 3,
+    "size": 5,
+    "path": [
+     "42ced6966216b0522ff780c4d6d37c4de88fa810f6990e3933efe62f863c618b",
+     "a0b59f38906a0ff153999635af0f2672aabf93aee32d2af05a7cbed20881a790",
+     "6aa873c6f7971bc601e5b150616a057df3dffc11db0c41a2ed1407946faa8123"
+    ],
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c",
+    "correction": false
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger/26",
+   "op": "ledger.check_proof",
+   "name": "an evaluation's path offered as a correction's",
+   "input": {
+    "id": "3cca6ae8657686ace7d0397c6623ced4edefdc53e37dd7a9983f3be8364690da",
+    "index": 3,
+    "size": 5,
+    "path": [
+     "42ced6966216b0522ff780c4d6d37c4de88fa810f6990e3933efe62f863c618b",
+     "a0b59f38906a0ff153999635af0f2672aabf93aee32d2af05a7cbed20881a790",
+     "6aa873c6f7971bc601e5b150616a057df3dffc11db0c41a2ed1407946faa8123"
+    ],
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c",
+    "correction": true
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger/27",
+   "op": "ledger.check_proof",
+   "name": "the last of five: a shorter path",
+   "input": {
+    "id": "47347c79d4bae7fc315c88418133d7b66887dd0dbd8dd4535af8e0dedd6a623d",
+    "index": 4,
+    "size": 5,
+    "path": [
+     "a1a5a0d0d0a07fc2a5b2da9b21b383f9dc235139d3a96223db084a062d61db60"
+    ],
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c",
+    "correction": false
+   },
+   "expect": {
+    "output": true
+   }
+  },
+  {
+   "id": "ledger/28",
+   "op": "ledger.chain_hash",
+   "name": "batch 0: the running hash after it",
+   "input": {
+    "before": "0000000000000000000000000000000000000000000000000000000000000000",
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c",
+    "seq": 0,
+    "count": 5,
+    "accepted": 3,
+    "value": 6000000
+   },
+   "expect": {
+    "output": "82e7a9e25b1363d913e113086b74f42b3af9afdd2371c85c090708fe3f0405cb"
+   }
+  },
+  {
+   "id": "ledger/29",
+   "op": "ledger.chain_hash",
+   "name": "batch 1: the running hash after it",
+   "input": {
+    "before": "82e7a9e25b1363d913e113086b74f42b3af9afdd2371c85c090708fe3f0405cb",
+    "root": "44d6fbc99b4a0f8538213d03a13865da6eb98cdf1751a7f5d724b4bb6c9ee765",
+    "seq": 1,
+    "count": 9,
+    "accepted": 9,
+    "value": 18000000
+   },
+   "expect": {
+    "output": "14e7586e0e70a5724baf8e9e7febfaa4c95f3a5cee044e8889d44fa4544e1159"
+   }
+  },
+  {
+   "id": "ledger/30",
+   "op": "ledger.chain_hash",
+   "name": "batch 2: the running hash after it",
+   "input": {
+    "before": "14e7586e0e70a5724baf8e9e7febfaa4c95f3a5cee044e8889d44fa4544e1159",
+    "root": "f87f1a13614ef7f951fabe963d07a364b0ce92221153a42a47a7999b8b1182a5",
+    "seq": 2,
+    "count": 1,
+    "accepted": 0,
+    "value": 0
+   },
+   "expect": {
+    "output": "296ca544c6e9e4edb6ceac8969e794f7b5949058b137fe7132033fe72192469e"
+   }
+  },
+  {
+   "id": "ledger/31",
+   "op": "ledger.chain_hash",
+   "name": "numbers at the top of 64 bits",
+   "input": {
+    "before": "296ca544c6e9e4edb6ceac8969e794f7b5949058b137fe7132033fe72192469e",
+    "root": "f87f1a13614ef7f951fabe963d07a364b0ce92221153a42a47a7999b8b1182a5",
+    "seq": 18446744073709551615,
+    "count": 18446744073709551615,
+    "accepted": 9007199254740993,
+    "value": 18446744073709551615
+   },
+   "expect": {
+    "output": "632a70766a9a9cdb30ab29b6d1b900ba286154ba6078d20f8d1deb17b7705395"
+   }
+  }
+ ]
+}

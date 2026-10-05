@@ -2,6 +2,9 @@
 // PR's head commit, read in the browser with the public GitHub REST API (no login, no install). The claim regexes are
 // ported from scripts/agent_pr_ci.py (the Agent PR Index uses the same ones), so the page and the index agree.
 
+import { prefersReduced, morph, init as initMotionRoot } from "./motion.js";
+import { VIEWS, ALIAS } from "./views.js";
+
 const $ = (id) => document.getElementById(id);
 const API = "https://api.github.com";
 // The commit the templates below name is the example's own (scripts/front_workflow.py writes them from examples/).
@@ -199,7 +202,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -220,7 +223,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -240,7 +243,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -289,7 +292,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@7bf9621f519b19d9214eddfa45fac762aebeae0a
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -470,7 +473,11 @@ async function check(ev) {
   }
 }
 
-export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce"];
+export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms"];
+// Which page a hash shows: a filled mount, or one of web/app.js's views (web/views.js: its VIEWS and ALIAS), or the
+// first screen.
+const viewOf = (name) => { const v = ALIAS[name] || name; return VIEWS.includes(v) && v !== "check" ? v : null; };
+export const pageOf = (hash, filled = () => true) => { const name = String(hash).replace(/^#/, "").split("=")[0]; return MOUNTS.includes(name) && filled(name) ? name : viewOf(name) || "check"; };
 if (typeof document !== "undefined" && $("pr-form")) {
   $("pr-form").addEventListener("submit", check);
   $("pr-url").addEventListener("paste", () => setTimeout(() => check(), 0));
@@ -479,6 +486,7 @@ if (typeof document !== "undefined" && $("pr-form")) {
   loadIndex();
   initBar();
   initCopy();
+  initMotion();
 }
 
 // ---- addresses and hashes: shown whole, and each with a button that copies it ------------------------------------------
@@ -526,19 +534,63 @@ function initBar() {
   moreButton?.addEventListener("click", () => fold(!more.classList.contains("open")));
   document.addEventListener("click", (ev) => { if (more?.classList.contains("open") && (!more.contains(ev.target) || ev.target.closest?.("a"))) fold(false); });
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && more?.classList.contains("open")) { fold(false); moreButton.focus(); } });
-  const within = () => more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]'));
-  const show = () => {
+  const within = () => more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]:not([href="#check"])'));        // the first screen is nobody's page
+  const show = (moved) => {
     const name = location.hash.replace(/^#/, "").split("=")[0], on = MOUNTS.includes(name) && filled(name);
-    bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); fold(false);
+    // a change of page closes the menu; a page that fills while the menu is open leaves it under the reader's hand
+    if (moved) { bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); fold(false); }
     for (const id of MOUNTS) { const a = document.querySelector(`nav a[data-mount="${id}"]`); if (a) a.hidden = !filled(id); if ($(id)) $(id).hidden = !filled(id); }
     if (on) document.body.dataset.page = name; else delete document.body.dataset.page;
+    // a page the stylesheet has no rule for yet (a section added after it was written) is shown from here
+    for (const id of MOUNTS) if ($(id)) $(id).style.display = "";
+    if (on && getComputedStyle($(name)).display === "none") $(name).style.display = "block";
     const mark = () => { if (on) for (const a of document.querySelectorAll("nav a")) { if (a.dataset.mount === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); } within(); };
     mark(); setTimeout(mark, 0);                 // app.js marks the menu for its own views on the same event; this one goes last
     if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
   };
-  addEventListener("hashchange", show);
-  for (const id of MOUNTS) if ($(id)) new MutationObserver(show).observe($(id), { childList: true });
-  show();
-  // "Check a pull request" on the first screen: to the box, ready to type in
-  $("go-check")?.addEventListener("click", (ev) => { ev.preventDefault(); $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true }); });
+  addEventListener("hashchange", () => show(true));
+  for (const id of MOUNTS) if ($(id)) new MutationObserver(() => show(false)).observe($(id), { childList: true });
+  show(false);
+  // THE DEMO'S MOUNT is in the first screen, not a page: web/demo.js fills <section id="demo"> and it is shown while it
+  // holds something. Until it does, "Try it" goes to the box that checks a pull request, ready to type in.
+  const demo = $("demo");
+  const showDemo = () => { const empty = demo.childElementCount === 0; if (demo.hidden !== empty) demo.hidden = empty; };
+  if (demo) { new MutationObserver(showDemo).observe(demo, { childList: true, attributes: true, attributeFilter: ["hidden"] }); showDemo(); }
+  // Once it holds the round, "Try it" (and the cue at the foot of the hero, and "Demo" in the bar) brings it under the
+  // bar and puts the focus on its first action, so one more press of Enter starts it.
+  const toDemo = () => { demo.scrollIntoView?.({ block: "start" }); (demo.querySelector(".kd-go:not([hidden])") || demo.querySelector("button:not([hidden]), a[href], input"))?.focus({ preventScroll: true }); };
+  for (const a of document.querySelectorAll('a[href="#demo"], #go-check')) a.addEventListener("click", (ev) => {
+    if (a.id !== "go-check" && demo && !demo.hidden) {
+      if (location.hash === "#demo") { ev.preventDefault(); return toDemo(); }
+      return addEventListener("hashchange", () => setTimeout(toDemo, 0), { once: true });      // the link itself changes the page
+    }
+    ev.preventDefault();
+    const go = () => { $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true }); };
+    if (pageOf(location.hash, filled) === "check") return go();
+    addEventListener("hashchange", () => setTimeout(go, 0), { once: true }); location.hash = "#check";
+  });
+  // The recording (web/first.js sets its file): its figure is shown once the browser has the file, and not otherwise.
+  const film = $("film"), video = $("demo-video");
+  if (film && video) { video.addEventListener("loadedmetadata", () => { film.hidden = false; }); video.addEventListener("error", () => { film.hidden = true; }); }
+}
+
+// ---- motion (web/motion.js) and the mark with depth (web/brand/mark3d.js) ----------------------------------------------
+// Cards and sections of every page enter once; [data-tilt] leans to the pointer; a link to another page of this site
+// morphs into it where the browser has view transitions. A reader who asked for no movement gets the plain page.
+function initMotion() {
+  const filled = (id) => $(id) && $(id).childElementCount > 0;
+  import("./brand/mark3d.js").then((m) => m.mount3dMark($("mark3d"))).catch(() => {});
+  if (prefersReduced()) return;
+  const main = document.querySelector("main");
+  const dress = (root) => { for (const el of root.querySelectorAll?.(".view > .card, .mount > .card, .view > form.card, .how > li, .stats > .stat, .k-card") || []) el.classList.add("k-reveal"); };
+  dress(main);
+  new MutationObserver((list) => { for (const m of list) for (const n of m.addedNodes) if (n.nodeType === 1) dress(n.parentNode || n); }).observe(main, { childList: true, subtree: true });
+  initMotionRoot(main);
+  document.addEventListener("click", (ev) => {
+    if (ev.defaultPrevented || ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    const to = ev.target.closest?.('a[href^="#"]')?.getAttribute("href");
+    if (!to || to === location.hash || pageOf(to, filled) === pageOf(location.hash, filled)) return;
+    ev.preventDefault();
+    morph(() => new Promise((done) => { addEventListener("hashchange", () => setTimeout(done, 0), { once: true }); setTimeout(done, 400); location.hash = to; }));
+  });
 }

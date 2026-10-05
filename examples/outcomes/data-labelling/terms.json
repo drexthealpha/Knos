@@ -1,6 +1,7 @@
 {
   "name": "outcome-data-labelling",
   "sentence": "Pays 40 test USDC when labels.csv labels every item of data/items.csv, at least 90% of the 120 held-out gold items carry the gold label, no class has recall below 80% on them, and the 40 visible examples do not score more than 10 points above them; refund after 14 days",
+  "comment": "/knos fund 40 checks: none",
   "where": "an issue that has this example's .knos/acceptance/<issue>/ on the default branch (bundle 1 here)",
   "terms": {
     "accept": "8445799b6b70bde0dcf4a73465d9a34b0e180a9c88daa305acf4926c5d62acc5",

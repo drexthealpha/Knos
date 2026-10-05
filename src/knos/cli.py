@@ -40,8 +40,8 @@ from rich.console import Console
 from . import badge, ghwords, version
 
 _app = typer.Typer(add_completion=False, pretty_exceptions_enable=False, no_args_is_help=True,
-                  help="Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
-                       "signed CI run attests they were met, a Solana program counts it or pays it. Start with `knos check`, `knos init`, `knos claim` or `knos status`.")
+                  help="The neutral meter for AI agent work: neither side keeps the count. "
+                       "Start with `knos check`, `knos init`, `knos claim` or `knos status`.")
 
 for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page cannot encode everything a PR says
     try:
@@ -1098,14 +1098,15 @@ def _mod(name: str):
 
 _MODULES = (    # (the commands it adds, how); in the order they were always registered, which `load` keeps
     (("judge",), lambda: _mod("judge").register(_app, out, Stop)),                 # knos judge rerun
-    (("terms",), lambda: _mod("terms_templates").register(_app)),                  # knos terms list | show
+    (("terms",), lambda: _mod("terms_templates").register(_app)),                  # knos terms list | show | diff | cite | verify
     (("meter",), lambda: _mod("ledger").register(_app, out, Stop, _HELP, MONEY)),  # knos meter: batch, verify, prove, reconcile, export
     (("bundle", "receipt"), lambda: _mod("bundle").register(_app, _HELP)),         # `knos bundle`, and `knos receipt` with mirror and verify in place of the file-only command
-    (("audit",), lambda: _mod("audit").register(_app, _HELP)),                     # knos audit export | verify (src/knos/audit.py)
+    (("audit",), lambda: _mod("audit").register(_app, _HELP)),                     # knos audit export | verify | show | owed (src/knos/audit.py)
     (("agent", "work"), lambda: _mod("agentkey").register(_app)),                  # knos agent init | show | rotate, knos work list
     (("budget",), lambda: _mod("controls").register(_app, _HELP)),                 # knos budget show | set | check | who (src/knos/controls.py)
     (("observe",), lambda: _mod("observe").register(_app, _HELP)),                 # knos observe: what an outsider can infer from public data
     (("reproduce",), lambda: _mod("reproduce").register(_app, _HELP)),             # knos reproduce: an outside reproduction in one command
+    (("shadow",), lambda: _mod("shadow").register(_app, _HELP)),                   # knos shadow: an invoice against GitHub's record (src/knos/shadow.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
 _loaded: set[int] = set()
@@ -1120,7 +1121,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     _HELP[:] = [row for row in _HELP if row not in tail] + tail
     _arrange()
 

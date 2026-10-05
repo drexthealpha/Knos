@@ -10,6 +10,10 @@
 //   Solana devnet         the transactions of the escrow account the funding comment links: when each was confirmed
 //   this site             stats.json (the measured wait from merge to payment), operations.json (the canary's runs)
 //
+// THE FIVE STATES of the payment (received, accepted, submitted, confirmed, finalized: docs/RELAY.md) are shown by name
+// under the timeline, each with the time Knos's workflow wrote into its one comment on the pull request (the line
+// `knos-states`, which `knos settle` edits as each state is reached). A state not reached has no time.
+//
 // Every time shown is the time GitHub or devnet gives. A stage that has not happened has no time. A round older than
 // two hours is shown as the last round with the sentence that the canary has not run since, never as something happening
 // now. Nothing here is signed or sent.
@@ -36,6 +40,25 @@ const knosSays = (comments, ...marks) => (comments || []).find((c) => String(c.b
 export const explorerLinks = (body) => [...String(body || "").matchAll(/\[([^\]]{1,80})\]\(https:\/\/explorer\.solana\.com\/(tx|address)\/([1-9A-HJ-NP-Za-km-z]{32,90})(?:\?cluster=devnet)?\)/g)]
   .map((m) => ({ text: m[1], kind: m[2], id: m[3] }));
 
+// The five states of a payment, in order, and what each means in a few words (docs/RELAY.md has the table).
+export const STATES = [["received", "the merge reached the workflow"], ["accepted", "terms checked, run signed"], ["submitted", "first transaction sent"],
+  ["confirmed", "payment confirmed"], ["finalized", "cluster finalized it"]];
+// What Knos's comment says of them: { since, received, accepted, submitted, confirmed, finalized (ms, or absent), tx } or null.
+export function statesOf(body) {
+  const m = /<!-- knos-states ([^\n]*)/.exec(String(body || ""));
+  if (!m) return null;
+  const out = {};
+  for (const part of m[1].split(" ")) {
+    const i = part.indexOf("="), key = part.slice(0, i), value = part.slice(i + 1);
+    if (key === "tx" && /^[1-9A-HJ-NP-Za-km-z]{32,90}$/.test(value)) out.tx = value;
+    else if ((key === "since" || STATES.some(([name]) => name === key)) && /^\d+(\.\d+)?$/.test(value)) out[key] = Math.round(Number(value) * 1000);
+  }
+  return out;
+}
+// the workflow run that signs: Knos's own, never the check
+const signs = (r) => /settle|knos/i.test(`${r.name} ${r.path}`) && !/check/i.test(r.name || "");
+const ENDED = ["paid.", "held for", "not paid", "nothing to pay", "stopped"];      // Knos's last words on a pull request (src/knos/flow.py canary)
+
 // The newest round among a repository's issues (GitHub lists pull requests with them): { issue, pull } or null.
 export function newestRound(items) {
   const rounds = (items || []).filter((i) => TITLE.test(i.title || ""));
@@ -57,9 +80,12 @@ export function roundOf({ issue, comments = [], pull = null, pullComments = [], 
   const onChain = [...chain].filter((s) => !s.err && s.blockTime).sort((a, b) => a.blockTime - b.blockTime);
   const fundTx = onChain[0] || null, payTx = merged && onChain.length > 1 && onChain.at(-1).blockTime * 1000 >= merged - 5000 ? onChain.at(-1) : null;
   const txs = explorerLinks(paid?.body).filter((l) => l.kind === "tx");
-  const paidAt = payTx ? payTx.blockTime * 1000 : ms(paid?.created_at);
+  // Knos's one comment on the pull request carries the five states from "received" on (it is edited, so its creation
+  // is when the merge was received, not when it was paid)
+  const said = statesOf((pullComments || []).map((c) => (String(c.body || "").startsWith("Knos") ? c.body : "")).reverse().find((b) => b.includes("knos-states")));
+  const paidAt = payTx ? payTx.blockTime * 1000 : said?.confirmed ?? ms(paid?.created_at);
   const run = [...runs].sort((a, b) => (ms(a.run_started_at || a.created_at) ?? 0) - (ms(b.run_started_at || b.created_at) ?? 0))
-    .find((r) => /settle|knos/i.test(`${r.name} ${r.path}`) && !/check/i.test(r.name || "")) || runs[0] || null;
+    .find(signs) || runs[0] || null;
   const stages = [
     { id: "ask", name: "Issue opened, asking for 5 test USDC", at: started, links: [link(`issue #${issue.number}`, issue.html_url)] },
     { id: "fund", name: "In escrow on devnet", at: ms(funded?.created_at), links: [...(funded ? [link("funding comment", funded.html_url)] : []), ...(escrow ? [link("escrow account", explorer("address", escrow.id))] : []),
@@ -72,14 +98,22 @@ export function roundOf({ issue, comments = [], pull = null, pullComments = [], 
     { id: "pay", name: paid && String(paid.body).startsWith("Knos: held for") ? "Held for the payee on devnet" : "Paid on devnet", at: paid || payTx ? paidAt : null,
       links: [...(paid ? [link("payment comment", paid.html_url)] : []), ...txs.map((t, i) => link(txs.length > 1 ? (i === txs.length - 1 ? "the payment" : "the verifier transaction") : "the transaction that verified and paid", explorer("tx", t.id))),
         ...(!txs.length && payTx ? [link("the payment", explorer("tx", payTx.signature))] : [])],
-      note: payTx ? "the time devnet confirmed it" : paid ? "the time of Knos's comment (devnet's own time was not read)" : unpaid ? String(unpaid.body).split("\n")[0].slice(0, 200) : "" },
+      note: payTx ? "the time devnet confirmed it" : paid && said?.confirmed ? "the time Knos's workflow recorded (devnet's own time was not read)" : paid ? "the time of Knos's comment (devnet's own time was not read)" : unpaid ? String(unpaid.body).split("\n")[0].slice(0, 200) : "" },
   ];
   // seconds: fund from the issue, open from the funding, merge from the pull request, sign and pay from the merge
   const since = { fund: "ask", open: "fund", merge: "open", sign: "merge", pay: "merge" }, by = Object.fromEntries(stages.map((s) => [s.id, s]));
   for (const s of stages) s.seconds = s.at !== null && since[s.id] && by[since[s.id]].at !== null ? Math.max(0, Math.round((s.at - by[since[s.id]].at) / 1000)) : null;
   const done = by.pay.at !== null, failed = !!(refused || unpaid) || (pull && pull.state === "closed" && !merged);
   const state = done ? (by.pay.name.startsWith("Held") ? "held" : "paid") : failed ? "failed" : now - started > ROUND_LIMIT * 1000 ? "unfinished" : "running";
-  return { number: issue.number, title: issue.title, started, state, stages, escrow: escrow?.id || null, total: done ? Math.round((by.pay.at - started) / 1000) : null,
+  // the five states by name: each with the workflow's own time, and its seconds from the state before (received: from the merge)
+  let before = merged;
+  const states = STATES.map(([name, means]) => {
+    const at = said && Number.isFinite(said[name]) ? said[name] : null;
+    const row = { name, means, at, seconds: at !== null && before !== null ? Math.max(0, Math.round((at - before) / 1000)) : null };
+    if (at !== null) before = at;
+    return row;
+  });
+  return { number: issue.number, title: issue.title, started, state, stages, states, tx: said?.tx || null, escrow: escrow?.id || null, total: done ? Math.round((by.pay.at - started) / 1000) : null,
     mergeToPaid: done && merged ? by.pay.seconds : null, stale: now - started > STALE * 1000 };
 }
 
@@ -110,9 +144,14 @@ export async function advance(env, raw) {
     return r;
   }
   if (!r.pull.merged_at || !r.pull.merge_commit_sha) { r.pull = await gh(`/repos/${repo}/pulls/${r.pull.number}`); return r; }
-  if (!r.runs.length && !r.askedRuns) { r.askedRuns = true; r.runs = await gh(`/repos/${repo}/actions/runs?head_sha=${r.pull.merge_commit_sha}&per_page=20`).then((x) => x.workflow_runs || [], () => []); return r; }
+  const askRuns = () => gh(`/repos/${repo}/actions/runs?head_sha=${r.pull.merge_commit_sha}&per_page=20`).then((x) => x.workflow_runs || [], () => r.runs);
+  if (!r.runs.some(signs) && !r.askedRuns) { r.askedRuns = true; r.runs = await askRuns(); return r; }
   r.askedRuns = false;
   r.pullComments = await gh(`/repos/${repo}/issues/${r.pull.number}/comments?per_page=100`);
+  // The round ends with this look when Knos has said its last word, and nothing looks again after that. GitHub may not
+  // have listed the signing run when it was asked for (right after the merge), so it is asked for once more now: without
+  // this the "signed" stage stayed without its time until the page was loaded again.
+  if (!r.runs.some(signs) && knosSays(r.pullComments, ...ENDED)) r.runs = await askRuns();
   return r;
 }
 
@@ -120,7 +159,10 @@ const STYLE = `.live-line{list-style:none;margin:12px 0;padding:0}.live-line li{
 .live-line li:last-child{border-left-color:transparent}.live-line li::before{content:"";position:absolute;left:-8px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--card,#fff);border:2px solid var(--line,#ccc)}
 .live-line li[data-state="done"]::before{background:var(--ok,#17703f);border-color:var(--ok,#17703f)}.live-line li[data-state="now"]::before{border-color:var(--accent,#2b3bb5);animation:live-pulse 1.2s ease-in-out infinite}
 .live-line li[data-state="failed"]::before{background:var(--bad,#b3261e);border-color:var(--bad,#b3261e)}.live-line li[data-state="wait"]{color:var(--muted,#666)}
-.live-line .live-took{font-variant-numeric:tabular-nums;font-weight:600}@keyframes live-pulse{50%{transform:scale(1.35)}}@media (prefers-reduced-motion: reduce){.live-line li[data-state="now"]::before{animation:none}}`;
+.live-line .live-took{font-variant-numeric:tabular-nums;font-weight:600}
+.live-states{list-style:none;margin:4px 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:8px}.live-states li{flex:1 1 150px;min-width:0;padding:8px 10px;border:1px solid var(--line,#ccc);border-radius:var(--radius,8px)}
+.live-states li[data-state="done"]{border-color:var(--ok,#17703f)}.live-states li[data-state="live"]{border-color:var(--accent,#2b3bb5)}.live-states li[data-state="bad"]{border-color:var(--bad,#b3261e)}
+.live-states li[data-state="idle"]{color:var(--ink-2,var(--muted,#666))}.live-states strong{display:block}.live-states .k-num{font-variant-numeric:tabular-nums}@keyframes live-pulse{50%{transform:scale(1.35)}}@media (prefers-reduced-motion: reduce){.live-line li[data-state="now"]::before{animation:none}}`;
 
 // The timeline of one round. The first stage with no time is the one in progress while the round runs: its seconds count
 // up from the stage before it, by the clock, until GitHub or devnet gives its time.
@@ -136,6 +178,29 @@ export function timelineHtml(round, now, esc = escHtml) {
     return `<li data-stage="${s.id}" data-state="${state}"><strong>${esc(s.name)}</strong> <span class="fine">${right}</span>
       ${links(s).length ? `<br>${links(s).map((l) => `<a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join(" · ")}` : ""}${s.note ? `<br><span class="fine">${esc(s.note)}</span>` : ""}</li>`;
   }).join("")}</ol>`;
+}
+
+// The five states of the round's payment, by name, each with its time. `.k-step` and data-state (idle | live | done | bad)
+// are the site's design contract: a state reached is done; the first one not reached is live while the round runs after
+// its merge, bad when the round failed there; the rest are idle. Nothing here moves: a state changes, and says so.
+export function statesHtml(round, esc = escHtml) {
+  const rows = round.states || [], merged = round.stages.find((s) => s.id === "merge")?.at ?? null;
+  const next = rows.findIndex((s) => s.at === null), ended = round.state === "paid" || round.state === "held";
+  return `<ol class="live-states" id="live-states" aria-label="The five states of this payment">${rows.map((s, i) => {
+    const state = s.at !== null ? "done" : i !== next || merged === null || ended ? "idle" : round.state === "running" ? "live" : "bad";
+    const right = s.at !== null ? `<span class="k-num">${esc(clock(s.at).slice(11))}</span>${s.seconds !== null ? `, <span class="k-num">${esc(took(s.seconds))}</span>` : ""}`
+      : state === "live" ? "now" : state === "bad" ? "did not happen" : ended ? "not recorded" : "not yet";
+    return `<li class="k-step" data-step="${s.name}" data-state="${state}" title="${esc(s.means)}"><strong>${esc(s.name)}</strong> <span class="fine">${right}</span></li>`;
+  }).join("\n")}</ol>`;
+}
+
+// Whether a round that was paid still lacks something GitHub will give on another look: devnet can show the payment
+// before GitHub lists the signing run or Knos's comment says it, and the comment gets "finalized" some seconds after "paid".
+export const EXTRA_LOOKS = 4;
+export function incomplete(round) {
+  if (round.state !== "paid" && round.state !== "held") return false;
+  const reached = (round.states || []).filter((s) => s.at !== null).length;
+  return round.stages.some((s) => s.at === null) || !round.stages.at(-1).links.some((l) => l.text === "payment comment") || (reached > 0 && reached < STATES.length);
 }
 
 // What the round is, in one sentence, with nothing claimed that the data does not say.
@@ -175,15 +240,24 @@ export function renderLive(el, env = {}) {
     <p id="live-measured" class="fine"></p>
   </div>`;
   const $ = (id) => doc.getElementById(id);
-  let shown = null, cur = null, watchUntil = 0, poll = null, stopped = false, seenAtPress = null, unread = false;
+  let moves = null;
+  const motion = () => (moves ??= (env.motion ? Promise.resolve(env.motion) : import("./motion.js")).catch(() => null));      // guarded: a site without motion.js loses nothing
+  let shown = null, cur = null, watchUntil = 0, poll = null, stopped = false, seenAtPress = null, unread = false, extra = 0, extraFor = null;
 
   function show(round, asof = null) {
+    const was = round && shown && shown.number === round.number ? new Set((shown.states || []).filter((s) => s.at !== null).map((s) => s.name)) : null;
+    const landed = Boolean(was && shown.state !== "paid" && round.state === "paid");          // paid while someone watched
     shown = round; unread = false;
     const head = round ? headline(round, now()) : { kind: "", words: `The canary has not run: ${repo} has no round among its newest issues. Nothing is shown as live.` };
     $("live-head").className = `status ${head.kind}`;
     $("live-head").textContent = head.words;
-    $("live-round").innerHTML = (round ? timelineHtml(round, now(), esc) : "")
+    $("live-round").innerHTML = (round ? timelineHtml(round, now(), esc) + statesHtml(round, esc) : "")
       + (asof !== null ? `<p class="fine" id="live-asof">Shown ${esc(asOf(asof, now()))}. Reading it again…</p>` : "");
+    // a state reached while someone watches arrives once (web/motion.js, when the site has it; the page is whole without it)
+    const fresh = was ? [...el.querySelectorAll('#live-states .k-step[data-state="done"]')].filter((li) => !was.has(li.dataset.step)) : [];
+    if (fresh.length) motion().then((m) => { if (m && !stopped && !(m.prefersReduced && m.prefersReduced())) for (const li of fresh) if (li.isConnected && m.reveal) m.reveal(li); });
+    // the payment landed while someone watched: the mark flies from the merge to the payment, once
+    if (landed) motion().then((m) => { const line = el.querySelectorAll("#live-line li"); if (m?.raven && !stopped && line.length > 1) m.raven(el.querySelector('#live-line li[data-stage="merge"]') || line[0], line[line.length - 1]); });
     tick();
   }
 
@@ -233,7 +307,11 @@ export function renderLive(el, env = {}) {
     if (stopped || !watchUntil) return;
     const at = () => `${clock(now()).slice(11, 19)} UTC`, list = `/repos/${repo}/issues?state=all&sort=created&direction=desc&per_page=20`;
     try {
-      if (cur && roundOf(cur, now(), explorer).state === "running") cur = await advance(io, cur);
+      const was = cur ? roundOf(cur, now(), explorer) : null;
+      if (was && was.number !== extraFor) { extraFor = was.number; extra = 0; }
+      // a round that ended is looked at a few times more while a stage or a state is still without its time: watching used
+      // to stop at the first sight of the payment, and what GitHub had not said by then stayed blank until a reload
+      if (was && (was.state === "running" || (incomplete(was) && extra++ < EXTRA_LOOKS))) cur = await advance(io, cur);
       else {
         const found = newestRound(kept.set(ghKey(list), await gh(list)).value);
         if (found && found.issue.number !== cur?.issue.number) cur = { issue: found.issue, comments: [], pull: null, pullComments: [], runs: [], chain: [] };
@@ -242,7 +320,7 @@ export function renderLive(el, env = {}) {
       const round = cur ? roundOf(cur, now(), explorer) : null;
       if (cur) kept.set(`live:${repo}:${cur.issue.number}`, cur);
       show(round);
-      if (round?.state === "running") $("live-watching").textContent = `Watching round ${round.number}. Looked at ${at()}; looking again every ${POLL} s.`;
+      if (round?.state === "running" || (round && incomplete(round) && extra < EXTRA_LOOKS)) $("live-watching").textContent = `Watching round ${round.number}. Looked at ${at()}; looking again every ${POLL} s.`;
       else if (round && round.number !== seenAtPress) endWatch(`Round ${round.number} ended (${round.state}). That was a real round: every time above is GitHub's or devnet's.`);
       else $("live-watching").textContent = `Waiting for the next round to start. Looked at ${at()}; looking again every ${POLL} s (GitHub answers 60 reads an hour without login).`;
     } catch (e) { $("live-watching").textContent = `Could not look just now (${e.message}); trying again in ${POLL} s.`; }

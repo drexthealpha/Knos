@@ -400,7 +400,8 @@ def test_answers_about_pull_requests_that_left_the_window_are_forgotten(github, 
 def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way():
     yaml = pytest.importorskip("yaml")
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
-    assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}, {"cron": "43 5,11,17,23 * * 1,2"}]   # `on`: every 6 hours, as the docs say; Mondays and Tuesdays for the week
+    assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}, {"cron": "43 5 * * 1"}]   # `on`: every 6 hours, as the docs say; Mondays for the week
+    assert doc["jobs"]["index"]["timeout-minutes"] < 30 and "github.event.schedule == '17 */6 * * *'" in doc["jobs"]["index"]["if"]
     steps = doc["jobs"]["index"]["steps"]
     runs = [str(s.get("run", "")) for s in steps]
     scan = next(i for i, r in enumerate(runs) if "agent_pr_index.py scan" in r)
@@ -419,6 +420,8 @@ def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way()
     # and the gate asks for nothing the scan cannot reach: before, 480 an agent could keep 2,400 and 2,000 had to have
     # finished CI; now the floor is half the last index (1,216 after the 2,431 one) and the scan may keep 4,000
     per_agent = int(runs[scan].split("--per-agent")[1].split()[0])
+    # one run reads for 20 minutes at most, and its steps together fit the job's limit
+    assert sum(int(r.split("--max-seconds")[1].split()[0]) for r in runs if "--max-seconds" in r) <= (doc["jobs"]["index"]["timeout-minutes"] - 5) * 60
     assert per_agent * len(agent_pr_ci.AGENTS) >= 3 * agent_pr_index.MIN_OF_PREVIOUS * 2431
 
 
@@ -510,13 +513,17 @@ def test_the_weekly_series_counts_each_agent_by_the_week_a_pull_request_was_open
     assert agent_pr_index.week_of("2026-09-27T23:59:59Z") == "2026-09-21" and agent_pr_index.week_of("2026-09-28T00:00:00Z") == "2026-09-28"
     got = agent_pr_index.weekly(WEEK_ROWS, WINDOW, "2026-10-02", "a test", [["copilot", "2026-09-22T01:00:00Z"], ["codex", "2026-09-29T01:00:00Z"]])
     first, second = got["agents"]["copilot"]["weeks"]
-    assert first == {"week": "2026-09-21", "read": "2026-10-02", "full_week": False, "verified": 0, "rank": None, "sampled": 5, "claimed_passing": 4, "ci_finished": 3,
+    how = {"design": "newest-first-capped-v0", "capped": True, "strata": None, "not_derived": {"strata": agent_pr_index.NO_STRATA}, "ranked_by": "verified_acceptance_rate"}
+    assert first == {"week": "2026-09-21", "read": "2026-10-02", "full_week": False, "verified": 0, "rank": None, "sampled": 5, "claimed_passing": 4, "ci_finished": 3, **how,
+                     "checks": {"passed": 1, "failed": 2, "other": 0, "pending": 1, "no_checks": 0, "not_read": 0},
+                     "verified_acceptance_rate": {"k": 1, "n": 4, "share": 0.25, "ci95": agent_pr_index.wilson(1, 4)},     # pending when read: not verified
                      "failed_a_check": {"k": 2, "n": 3, "share": 0.6667, "ci95": agent_pr_index.wilson(2, 3), "test_or_build": 1},
                      "merged_despite_failed_check": {"k": 1, "n": 2, "share": 0.5, "ci95": agent_pr_index.wilson(1, 2)}}
     assert second["week"] == "2026-09-28" and second["sampled"] == 1 and second["failed_a_check"]["k"] == 0
     assert got["agents"]["copilot"]["all_weeks"]["failed_a_check"]["n"] == 4
     assert got["agents"]["devin"]["weeks"][0]["merged_despite_failed_check"] is None      # not read is null, never 0
-    assert got["agents"]["codex"]["weeks"] == [{"week": "2026-09-28", "read": "2026-10-02", "full_week": False, "verified": 0, "rank": None, "sampled": 1, "claimed_passing": 0, "ci_finished": 0,
+    assert got["agents"]["codex"]["weeks"] == [{"week": "2026-09-28", "read": "2026-10-02", "full_week": False, "verified": 0, "rank": None, "sampled": 1, "claimed_passing": 0, "ci_finished": 0, **how,
+                                                "checks": {k: 0 for k in agent_pr_index.CHECKS}, "verified_acceptance_rate": {"k": 0, "n": 0, "share": None, "ci95": None},
                                                 "failed_a_check": {"k": 0, "n": 0, "share": None, "ci95": None, "test_or_build": 0},
                                                 "merged_despite_failed_check": None}]
     assert agent_pr_index.weekly(WEEK_ROWS, WINDOW, "d", "s")["agents"]["copilot"]["weeks"][0]["sampled"] is None   # hits set aside not kept
@@ -548,6 +555,11 @@ def test_a_scan_keeps_when_the_hits_it_set_aside_were_opened(monkeypatch):
     assert [c["number"] for c in kept] == [1] and finished and agent_pr_ci.NO_CLAIM == [["codex", "2026-09-22T00:00:00Z"]]
 
 
+# What 0.3.15 published for the weeks of 21 and 28 September (read 2026-10-05, a capped scan), as the release left it:
+# sampled, claimed passing, CI finished, failed a check, merged despite a failed check, place. The file must keep them.
+PUBLISHED_0315 = {"copilot": {"2026-09-21": (121, 39, 35, 7, 4, 1), "2026-09-28": (169, 66, 58, 13, 12, 3)}, "devin": {"2026-09-28": (140, 120, 109, 70, 2, 4)}, "claude-bot": {"2026-09-28": (242, 120, 115, 13, 10, 1)}, "claude-code": {"2026-09-28": (423, 120, 102, 13, 6, 2)}, "codex": {"2026-09-21": (3, 0, 0, 0, None, None), "2026-09-28": (83, 2, 2, 0, 0, None)}}
+
+
 def test_the_committed_weekly_file_is_the_committed_sample_cut_by_week_and_the_page_shows_its_table(tmp_path):
     """Nothing in docs/agent_weekly.json is typed by hand: it is docs/agent_pr_ci.json reshaped, with the weeks a later
     scan read put in by the script in place of the sample's (each says the day it was read, and whether that was the
@@ -566,7 +578,8 @@ def test_the_committed_weekly_file_is_the_committed_sample_cut_by_week_and_the_p
     for name, agent in reshaped["agents"].items():
         s = sample["summary"][name]
         assert agent["all_weeks"]["claimed_passing"] == s["N"] == sum(w["claimed_passing"] for w in agent["weeks"])
-        assert all(w["rank"] is None and w["verified"] == 0 for w in agent["weeks"])   # nobody has 30 finished claims in a week of this sample
+        assert all(w["rank"] is None and w["verified"] == 0 for w in agent["weeks"])   # nobody has 30 claims in a week of this sample
+        assert all(w["design"] == "search-window-sample-v0" and w["capped"] is True and w["verified_acceptance_rate"]["n"] == w["claimed_passing"] for w in agent["weeks"])
         assert agent["all_weeks"]["failed_a_check"] == {"k": s["failed"], "n": s["with_completed_ci"], "share": s["share_failed_among_completed_ci"],
                                                         "ci95": agent_pr_index.wilson(s["failed"], s["with_completed_ci"]), "test_or_build": s["failed_testish"]}
         assert all(w["sampled"] is None for w in agent["weeks"])                 # the sample kept no date for the hits it set aside
@@ -583,11 +596,32 @@ def test_the_committed_weekly_file_is_the_committed_sample_cut_by_week_and_the_p
     if later:
         assert ("not whole weeks" in series["source"]) == any(not w["full_week"] for a in series["agents"].values() for w in a["weeks"] if w["week"] in later)
     assert series["name"] == "Agent PR Index" and series["latest_week"] == "2026-09-28" and "**Agent PR Index, week of 2026-09-28.**" in page
-    whole = all(w.get("full_week") for a in series["agents"].values() for w in a["weeks"] if w["week"] == "2026-09-28")
-    assert ("every pull request the week's searches returned." if whole else "a capped sample cut by week, not the whole week.") in page
+    # the two weeks read on 2026-10-05 keep every number they were published with (0.3.15), and say what cannot be derived
+    for name, was in PUBLISHED_0315.items():
+        for week, (sampled, claimed, finished, failed, merged, place) in was.items():
+            w = next(w for w in series["agents"][name]["weeks"] if w["week"] == week)
+            if w["design"] == agent_pr_index.DESIGN:     # read again with the design since: the newer reading replaced the week (weekly --into)
+                assert w["read"] >= "2026-10-05" and len(w["strata"]) == 7 and w["verified_acceptance_rate"] is not None and w["capped"] is not None
+                continue
+            assert (w["sampled"], w["claimed_passing"], w["ci_finished"], w["failed_a_check"]["k"], (w["merged_despite_failed_check"] or {}).get("k"), w["rank"]) == (sampled, claimed, finished, failed, merged, place)
+            assert w["read"] == "2026-10-05" and w["design"] == "newest-first-capped-v0" and w["capped"] is True and w["ranked_by"] == "failed_a_check"
+            assert w["verified_acceptance_rate"] is None and w["checks"] is None and w["strata"] is None
+            assert set(w["not_derived"]) == {"verified_acceptance_rate", "checks", "strata"} and "were not kept" in w["not_derived"]["verified_acceptance_rate"]
+            assert agent_pr_index.with_new_fields(w) is w                       # written once: a second pass changes nothing
+    assert sum(c for was in PUBLISHED_0315.values() for _, c, *_ in was.values()) == 467      # the capped sample of 467
+    assert set(series["designs"]) >= {w["design"] for a in series["agents"].values() for w in a["weeks"]} | {agent_pr_index.DESIGN}
+    devin = next(w for w in series["agents"]["devin"]["weeks"] if w["week"] == "2026-09-28")
+    assert "Capped: true" in page and ("| not ranked: rate not recorded | devin | not recorded | 140 | 120 | 70 of 109 (64.2%;" in page
+                                       if devin["design"] == "newest-first-capped-v0" else "| capped: drew " in page)
+    again = tmp_path / "again.json"
+    again.write_text(json.dumps(series), encoding="utf-8")                   # the format is the script's: restating the file changes nothing
+    assert subprocess.run([sys.executable, str(ROOT / "scripts" / "agent_pr_index.py"), "weekly", "--sample", "docs/agent_pr_ci.json", "--restate", str(again)],
+                          cwd=ROOT, capture_output=True, text=True, encoding="utf-8").returncode == 0 and json.loads(again.read_text(encoding="utf-8")) == series
     assert set(series["heuristics"]) == set(series["agents"])
     for words in ("Bot-author heuristics", "Public repositories only", "One snapshot of the checks", "Wilson", "not proof that the claim was false",
-                  "30 requests a minute", "1,000 results", "docs.github.com/en/rest/search/search"):
+                  "30 requests a minute", "1,000 results", "docs.github.com/en/rest/search/search", "statusCheckRollup", "--max-requests", "--max-minutes",
+                  "sha256(", "day of the week", "never charges an agent vendor for its rating", "cannot pay to change it", "too few to rank",
+                  "docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api"):
         assert words in page
     with pytest.raises(SystemExit):
         (tmp_path / "bare.md").write_text("no markers", encoding="utf-8")
@@ -622,18 +656,25 @@ def test_the_weekly_job_opens_a_pull_request_and_merges_nothing_and_the_job_that
     yaml = pytest.importorskip("yaml")
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
     week, job = doc["jobs"]["week"], doc["jobs"]["weekly"]
-    assert "github.event.schedule == '43 5,11,17,23 * * 1,2'" in week["if"] and week["needs"] == "index"
-    assert week["permissions"] == {"contents": "read"}                       # the token that reads public GitHub cannot write
+    assert "github.event.schedule == '43 5 * * 1'" in week["if"] and "needs" not in week      # weekly, and behind no other job
+    assert doc["permissions"] == {"contents": "read"} and week["permissions"] == {"contents": "read"}   # the token that reads public GitHub cannot write
     read = "\n".join(str(s.get("run", "")) for s in week["steps"])
-    assert read.strip() == "python scripts/agent_pr_index.py scan --week last --rows week.json --max-seconds 18000"   # the only command: API reads
+    assert read.strip() == "python scripts/agent_pr_index.py sample --week last --rows week.json --max-requests 500 --max-minutes 20"   # the only command: API reads
     assert not any(w in read for w in ("git clone", "pip install", "npm ", "curl ", "gh pr checkout"))
+    # inside the limits: the budget is the script's default, the searches are under 30 a minute, and the whole run under 30 minutes
+    assert (agent_pr_index.MAX_REQUESTS, agent_pr_index.MAX_MINUTES) == (500, 20)
+    assert 60 / agent_pr_index.SEARCH_PAUSE < 28 and 35 * 10 * agent_pr_index.SEARCH_PAUSE < agent_pr_index.MAX_MINUTES * 60   # under 30 searches a minute, and the whole design fits
+    assert agent_pr_index.MAX_MINUTES < week["timeout-minutes"] and week["timeout-minutes"] + job["timeout-minutes"] < 30
+    restore = next(s for s in week["steps"] if str(s.get("uses", "")).startswith("actions/cache/restore@"))
     save = next(s for s in week["steps"] if str(s.get("uses", "")).startswith("actions/cache/save@"))
-    assert save["if"] == "always()"                                          # out of budget or time: the answers are kept for the next run
+    upload = next(s for s in week["steps"] if str(s.get("uses", "")).startswith("actions/upload-artifact@"))
+    assert save["if"] == upload["if"] == "always()" and restore["with"]["path"] == save["with"]["path"] == upload["with"]["path"] == "week.json"   # a cut run leaves its checkpoint
     assert all("@" in s["uses"] and len(s["uses"].split("@")[1]) == 40 for j in (week, job) for s in j["steps"] if "uses" in s)
-    assert job["needs"] == "week" and "needs.week.result == 'success'" in job["if"]
+    assert job["needs"] == "week" and "always()" in job["if"] and "success" not in job["if"]           # a capped or cut week is published all the same
     runs = "\n".join(str(s.get("run", "")) for s in job["steps"])
     assert "agent_pr_index.py weekly --rows week.json --into docs/agent_weekly.json --doc docs/INDEX.md" in runs
-    assert "gh pr create" in runs and "gh pr merge" not in runs and "origin main" not in runs and "Agent PR Index, week of $week" in runs
+    assert runs.count("gh pr create") == 1 and "gh pr merge" not in runs and "Agent PR Index, week of $week" in runs
+    assert "origin main" not in runs and "git push --force origin index-weekly" in runs and runs.count("git push") == 1       # one branch, never the default one
     assert job["permissions"] == {"contents": "write", "pull-requests": "write"}
     index = "\n".join(str(s.get("run", "")) for s in doc["jobs"]["index"]["steps"])
     assert "agent_pr_index.py weekly --rows rows.json --out agent_weekly.json" in index and "index.json agent_weekly.json" in index
@@ -721,16 +762,233 @@ def test_one_whole_week_is_read_day_by_day_past_the_cap_and_added_to_the_publish
     assert week["devin"]["sampled"] == 42 and week["devin"]["rank"] is None and week["claude-bot"]["sampled"] == 0
     assert [week[a]["rank"] for a in ("devin", "claude-bot", "claude-code", "codex")] == [None] * 4            # too few: never placed
     page = doc.read_text(encoding="utf-8")
-    assert "**Agent PR Index, week of 2026-09-28.** Read 2026-10-05: every pull request the week's searches returned." in page
-    assert "| 1 | copilot | 84 | 56 | 56 | 14 of 56 (25.0%;" in page and page.count("| too few to rank |") == 4 and "not kept | 5 | 3" not in page
+    assert "**Agent PR Index, week of 2026-09-28.** Read 2026-10-05. Design: whole-week-v0. Capped: false." in page
+    assert "| 1 | copilot | 42 of 56 (75.0%;" in page and "| 84 | 56 | 14 of 56 (25.0%;" in page and page.count("| too few to rank |") == 4 and "not kept | 5 | 3" not in page
+    assert page.count("| not capped: whole-week-v0 |") == 5
     assert page.index("| 1 | copilot") < page.index("| too few to rank | devin")
     # the same week again changes nothing; a week that was not read whole is refused and says what to do
-    assert subprocess.run(cli, capture_output=True, text=True, check=False, env=env).returncode == 0 and json.loads(into.read_text(encoding="utf-8")) == after
+    assert subprocess.run(cli, capture_output=True, text=True, encoding="utf-8", check=False, env=env).returncode == 0 and json.loads(into.read_text(encoding="utf-8")) == after
     rows.write_text(json.dumps({**got, "unfinished_search": ["codex"]}), encoding="utf-8")
     r = subprocess.run(cli, capture_output=True, text=True, check=False, env=env)
     assert r.returncode == 1 and "not added: the search did not finish for codex" in r.stderr and json.loads(into.read_text(encoding="utf-8")) == after
     rows.write_text(json.dumps({**got, "no_claim": None}), encoding="utf-8")
     assert "`sampled` would be unknown" in subprocess.run(cli, capture_output=True, text=True, check=False, env=env).stderr
+
+
+# ---- the weekly sample: bounded, stratified, seeded, resumable (a GitHub that answers from a table; no network) -----
+SAMPLE_WEEK = "2026-09-28"
+HOLDS = {"copilot": 250, "devin": 150, "claude-bot": 0, "claude-code": 40, "codex": 3}     # results a day; nothing here is a measured number
+
+
+def _holds(agent, day):
+    return 1500 if (agent, day) == ("devin", "2026-09-30") else HOLDS[agent]      # one day over GitHub's 1,000
+
+
+class SampleApi:
+    """`gh` for the week of 2026-09-28, as agent_pr_ci._gh sees it. A result's number is its place in the day (0 is the
+    newest) plus 100,000 x the day of the month, and says everything about it: every third claims nothing, every
+    eleventh sits on its author's own repository, every fourth has a failed build, every seventh has no check, even
+    ones were merged."""
+
+    def __init__(self, graphql="ok", refuse_search_after=None):
+        self.asked, self.graphql, self.refuse_search_after = [], graphql, refuse_search_after
+
+    def hit(self, agent, day, place):
+        n = int(day[8:10]) * 100_000 + place
+        return {"repository_url": f"https://api.github.com/repos/acme/{agent}", "number": n, "user": {"login": "acme" if n % 11 == 0 else f"{agent}[bot]"},
+                "assignees": [], "created_at": f"{day}T12:00:00Z", "body": "Please make sure tests pass" if n % 3 == 0 else "All tests pass."}
+
+    @staticmethod
+    def checks(n):
+        return [] if n % 7 == 0 else [{"name": "build", "status": "completed", "conclusion": "failure" if n % 4 == 0 else "success"}]
+
+    def __call__(self, cmd):
+        if cmd[2] == "graphql":
+            query = cmd[4].split("query=", 1)[1]
+            prs = re.findall(r'p(\d+): repository\(owner: "acme", name: "([a-z-]+)"\) \{ pullRequest\(number: (\d+)\)', query)
+            self.asked.append(("graphql", len(prs)))
+            if self.graphql != "ok":
+                return 1, "", self.graphql
+            assert "mutation" not in query and len(prs) <= agent_pr_ci.ROLLUP_BATCH
+            data = {f"p{i}": {"pullRequest": {"merged": int(n) % 2 == 0, "commits": {"nodes": [{"commit": {"oid": f"s{n}", "checkSuites": {"nodes": []}, "statusCheckRollup": None if not self.checks(int(n)) else {
+                "contexts": {"pageInfo": {"hasNextPage": False}, "nodes": [{"__typename": "CheckRun", "name": c["name"], "status": "COMPLETED", "conclusion": c["conclusion"].upper()} for c in self.checks(int(n))]}}}}]}}}
+                    for i, _, n in prs}
+            return 0, json.dumps({"data": data}), ""
+        path, params = cmd[4], dict(x.split("=", 1) for x in cmd[cmd.index("-f") + 1::2]) if "-f" in cmd else {}
+        if path == "search/issues":
+            agent = next(a for a, qual in agent_pr_ci.AGENTS if f"is:pr {qual} created:" in params["q"])
+            day = params["q"].split("created:")[1][:10]
+            page, order, total = int(params["page"]), params["order"], _holds(agent, day)
+            self.asked.append(("search", agent, day, order, page))
+            if self.refuse_search_after is not None and sum(a[0] == "search" for a in self.asked) > self.refuse_search_after:
+                return 1, "", "gh: API rate limit exceeded (HTTP 403)"
+            assert page * 100 <= 1000, "GitHub answers no query past its first 1,000 results"
+            places = [p for p in range((page - 1) * 100, page * 100) if p < total]
+            return 0, json.dumps({"total_count": total, "items": [self.hit(agent, day, p if order == "desc" else total - 1 - p) for p in places]}), ""
+        self.asked.append(("rest", path))
+        n = int(re.search(r"/(?:pull|pulls|commits/s)/?(\d+)", path).group(1))
+        if "/refs/pull/" in path:
+            return 0, json.dumps({"sha": f"s{n}", "statuses": []}), ""
+        if path.endswith("check-runs"):
+            return 0, json.dumps({"check_runs": self.checks(n)}), ""
+        if path.endswith("check-suites"):
+            return 0, json.dumps({"check_suites": []}), ""
+        return 0, json.dumps({"merged": n % 2 == 0}), ""
+
+
+@pytest.fixture()
+def sampled(tmp_path, monkeypatch):
+    """Run the sample against a SampleApi: run(api, checkpoint, **budget) -> the checkpoint's state. No sleep is allowed."""
+    def no_sleep(seconds):
+        raise AssertionError(f"a bounded run slept {seconds} s")
+    monkeypatch.setattr(agent_pr_ci.time, "sleep", no_sleep)
+    monkeypatch.setattr(agent_pr_ci, "SEARCH_PAUSE", 0)
+    fresh = iter(range(1000))
+
+    def run(api, checkpoint, **budget):
+        monkeypatch.setattr(agent_pr_ci, "CACHE", str(tmp_path / f"cache{next(fresh)}"))   # never the real ~/.cache, and never an earlier run's: only the checkpoint carries over
+        monkeypatch.setattr(agent_pr_ci, "_gh", api)
+        return agent_pr_index.sample_week(SAMPLE_WEEK, str(checkpoint), read="2026-10-05", **budget)
+    return run
+
+
+def _week(state):
+    one = agent_pr_index.week_from_sample(state)
+    return {name: a["weeks"][0] for name, a in one["agents"].items()}
+
+
+def test_the_seeded_order_is_fixed_by_the_iso_week_and_reaches_both_ends_of_a_day_over_the_cap():
+    assert agent_pr_index.iso_week("2026-09-28") == "2026-W40" and agent_pr_index.week_days("2026-09-28")[-1] == "2026-10-04"
+    order = agent_pr_index.draw_order("2026-W40", "devin", "2026-09-30", 250)
+    assert sorted(order) == list(range(250)) and order == agent_pr_index.draw_order("2026-W40", "devin", "2026-09-30", 250)
+    assert order != agent_pr_index.draw_order("2026-W41", "devin", "2026-09-30", 250) != list(range(250))        # another week, another order
+    digest = lambda p: __import__("hashlib").sha256(f"2026-W40|devin|2026-09-30|{p}".encode()).hexdigest()  # noqa: E731
+    assert order == sorted(range(250), key=digest)                           # the rule the method page states, and nothing else
+    assert len(agent_pr_index.reachable(1500)) == 1500 and len(agent_pr_index.reachable(2000)) == 2000
+    assert agent_pr_index.reachable(2600) == list(range(1000)) + list(range(1600, 2600))                         # the middle of a day over 2,000 cannot be asked for
+    assert agent_pr_index.page_of(0, 1500) == ("desc", 1, 0) and agent_pr_index.page_of(999, 1500) == ("desc", 10, 99)
+    assert agent_pr_index.page_of(1499, 1500) == ("asc", 1, 0) and agent_pr_index.page_of(1000, 1500) == ("asc", 5, 99)
+
+
+def test_the_weekly_sample_stays_in_its_budget_publishes_what_it_has_and_resumes_from_its_checkpoint(sampled, tmp_path):
+    """The dry run of the weekly job: a run cut by its budget publishes a capped week in which every stratum holds a
+    prefix of its own seeded order; a second run continues from the checkpoint, asks for nothing twice, and ends with
+    exactly the sample one uncut run draws."""
+    whole_api, cut_api, more_api = SampleApi(), SampleApi(), SampleApi()
+    whole = sampled(whole_api, tmp_path / "whole.json", max_requests=5000, max_minutes=20)
+    assert whole["runs"][-1]["complete"] and whole["runs"][-1]["requests"] == len(whole_api.asked) <= 35 * 10 + 53 + 30   # at most ten pages a stratum, 20 pull requests a query, a short one a turn
+    full = _week(whole)
+    for name, w in full.items():
+        assert w["design"] == "stratified-seeded-v1" and w["capped"] is False and w["seed"] == "2026-W40" and list(w["strata"]) == list(agent_pr_index.DAY_NAMES)
+        for d in w["strata"].values():
+            assert d["reported"] == _holds(name, d["date"]) and d["planned"] == d["drawn"] == min(30, HOLDS[name]) and d["checks_read"] == d["claimed"]   # the same number in every stratum
+        assert w["verified_acceptance_rate"]["n"] == w["claimed_passing"] == sum(d["claimed"] for d in w["strata"].values())
+        assert w["checks"]["not_read"] == 0 and w["checks"]["passed"] == w["verified_acceptance_rate"]["k"]
+    assert full["devin"]["strata"]["Wed"]["reachable"] == 1500 and any(a[3] == "asc" for a in whole_api.asked if a[0] == "search")   # a day over 1,000 is drawn from both ends
+    assert full["claude-bot"]["sampled"] == 0 and full["claude-bot"]["rank"] is None and full["codex"]["rank"] is None    # too few to rank: never placed
+    assert sorted(w["rank"] for w in full.values() if w["rank"] is not None) == sorted({1, 2, 3} & {w["rank"] for w in full.values()}) and full["copilot"]["rank"] is not None
+    assert sum(n for kind, *rest in whole_api.asked if kind == "graphql" for n in rest) == sum(w["claimed_passing"] for w in full.values())   # one request for 20, each asked once
+    assert not any(kind == "rest" for kind, *_ in whole_api.asked)
+
+    # cut by its budget: it stops at the request it may not send, sleeps for nothing, and the week is still published
+    cut = sampled(cut_api, tmp_path / "week.json", max_requests=90, max_minutes=20)
+    assert 84 <= len(cut_api.asked) == cut["runs"][-1]["requests"] <= 90 and not cut["runs"][-1]["complete"]
+    last_search = max(i for i, a in enumerate(cut_api.asked) if a[0] == "search")
+    assert last_search < 90 - agent_pr_index.CHECK_RESERVE[0] and cut_api.asked[-1][0] == "graphql"   # the search left the checks their requests
+    capped = _week(cut)
+    assert all(w["checks"]["not_read"] == 0 for w in capped.values())                        # what was drawn had its checks read
+    assert set(capped) == set(full) and any(w["capped"] for w in capped.values())            # every agent has a row, and the cap is said
+    assert capped["devin"]["capped"] is True and 0 < sum(d["drawn"] for d in capped["devin"]["strata"].values()) < 7 * 30
+    spread = [d["drawn"] for d in capped["devin"]["strata"].values()]
+    assert max(spread) - min(spread) <= 1 and min(spread) > 0                               # the strata were served in turns: none was left behind
+    for agent, _ in agent_pr_ci.AGENTS:
+        for day in agent_pr_index.week_days(SAMPLE_WEEK):
+            some, every = agent_pr_index.drawn(cut, agent, day), agent_pr_index.drawn(whole, agent, day)
+            assert some == every[:len(some)]                                                 # a prefix of the same order: a valid sample, only smaller
+
+    # the next run starts from the checkpoint (its disk cache is empty), asks for no page twice, and completes the same sample
+    more = sampled(more_api, tmp_path / "week.json", max_requests=5000, max_minutes=20)
+    searches = [a for a in cut_api.asked + more_api.asked if a[0] == "search"]
+    assert len(searches) == len(set(searches)) == sum(a[0] == "search" for a in whole_api.asked)
+    assert [r["complete"] for r in more["runs"]] == [False, True] and _week(more) == full and more["checks"] == whole["checks"]
+    again_api = SampleApi()
+    assert sampled(again_api, tmp_path / "week.json", max_requests=5000, max_minutes=20)["runs"][-1]["requests"] == 0 and not again_api.asked   # a finished week reads nothing
+    # another week's checkpoint is not this week's
+    assert agent_pr_index.load_checkpoint(str(tmp_path / "week.json"), "2026-09-21", 30)["strata"] == {}
+
+
+def test_a_run_out_of_minutes_or_refused_for_a_rate_limit_stops_without_sleeping_and_still_writes_every_agent_s_row(sampled, tmp_path):
+    late = SampleApi()
+    state = sampled(late, tmp_path / "late.json", max_requests=500, max_minutes=0.2)       # 12 seconds: no request fits before the end
+    assert not late.asked and state["runs"][-1] == {"read": "2026-10-05", "requests": 0, "max_requests": 500, "max_minutes": 0.2, "complete": False,
+                                                    "stopped": "its minutes were spent"}
+    week = _week(state)
+    assert set(week) == {a for a, _ in agent_pr_ci.AGENTS}
+    assert all(w["capped"] is True and w["sampled"] == 0 and w["rank"] is None and w["strata"]["Mon"] == {"date": "2026-09-28", "reported": None, "reachable": None, "planned": None, "drawn": 0, "claimed": 0, "checks_read": 0} for w in week.values())
+    limited = SampleApi(refuse_search_after=50)
+    state = sampled(limited, tmp_path / "limited.json", max_requests=500, max_minutes=20)   # the 51st search is refused: the run ends there (the fixture fails on any sleep)
+    assert sum(a[0] == "search" for a in limited.asked) == 51 and len(limited.asked) > 51 and not state["runs"][-1]["complete"]
+    assert state["runs"][-1]["stopped"] == "GitHub refused a search request for a rate limit"   # the run says why it ended
+    week = _week(state)
+    assert any(w["capped"] for w in week.values()) and sum(w["sampled"] for w in week.values()) > 0 and all(w["checks"]["not_read"] == 0 for w in week.values())
+    assert not agent_pr_ci.NO_WAIT and agent_pr_ci.MAX_REQUESTS is None                     # the bound is this run's, not the next caller's
+
+
+def test_a_bounded_run_refused_for_a_secondary_limit_names_it_and_does_not_sleep(sampled, tmp_path):
+    """GitHub's secondary limit on search (a few heavy searches close together) ends a bounded run at once, and the run
+    says so: on 2026-10-05 a run from the release machine was refused at its third search, and said only "capped"."""
+    class Secondary(SampleApi):
+        def __call__(self, cmd):
+            if "search/issues" in cmd and sum(a[0] == "search" for a in self.asked) >= 2:
+                return 1, "", "gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again."
+            return super().__call__(cmd)
+    state = sampled(Secondary(), tmp_path / "secondary.json", max_requests=500, max_minutes=20)
+    assert not state["runs"][-1]["complete"] and state["runs"][-1]["stopped"] == "GitHub refused a search request for a secondary rate limit"
+    assert not agent_pr_ci.NO_WAIT and agent_pr_ci.MAX_REQUESTS is None
+
+
+def test_when_graphql_refuses_the_token_the_checks_are_read_over_rest_and_say_the_same(sampled, tmp_path):
+    budget = {"per_stratum": 4, "max_requests": 5000, "max_minutes": 20}
+    by_graphql, by_rest = SampleApi(), SampleApi(graphql="gh: Resource not accessible by integration (HTTP 403)")
+    one, two = sampled(by_graphql, tmp_path / "g.json", **budget), sampled(by_rest, tmp_path / "r.json", **budget)
+    assert one["graphql"] is True and two["graphql"] is False and one["checks"] == two["checks"] and len(one["checks"]) > 20
+    assert _week(one) == _week(two)
+    claims = len(one["checks"])
+    assert sum(a[0] == "graphql" for a in by_graphql.asked) == -(-claims // agent_pr_ci.ROLLUP_BATCH)        # one request for each 20 pull requests
+    assert sum(a[0] == "graphql" for a in by_rest.asked) == 1 and 2 * claims <= sum(a[0] == "rest" for a in by_rest.asked) <= 4 * claims   # refused once, then never asked again
+    # the classes are the REST reading's: a failed build, no check at all, a pass
+    kinds = {c["class"] for c in one["checks"].values()}
+    assert kinds == {"failed", "no-ci", "passed"} and all(isinstance(c["merged"], bool) for c in one["checks"].values() if c["class"] != "no-ci")
+
+
+def test_the_weekly_command_adds_a_capped_sample_to_the_series_and_never_refuses_it(sampled, tmp_path):
+    """What the workflow's second job runs, offline: the checkpoint of a run cut by its budget goes into a copy of the
+    committed series with its design, its counts for each stratum and `capped`, and the earlier weeks stay."""
+    ck, into, doc = tmp_path / "week.json", tmp_path / "agent_weekly.json", tmp_path / "INDEX.md"
+    sampled(SampleApi(), ck, max_requests=60, max_minutes=20)
+    before = json.loads((ROOT / "docs" / "agent_weekly.json").read_text(encoding="utf-8"))
+    into.write_text(json.dumps(before), encoding="utf-8")
+    doc.write_text((ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8"), encoding="utf-8")
+    cli = [sys.executable, str(ROOT / "scripts" / "agent_pr_index.py"), "weekly", "--rows", str(ck), "--into", str(into), "--doc", str(doc)]
+    env = {**os.environ, "GH_TOKEN": "", "PATH": ""}                         # no gh to call: this step reads nothing
+    r = subprocess.run(cli, capture_output=True, text=True, encoding="utf-8", check=False, env=env)
+    assert r.returncode == 0 and "Agent PR Index, week of 2026-09-28" in r.stderr, r.stderr
+    after = json.loads(into.read_text(encoding="utf-8"))
+    for name, agent in after["agents"].items():
+        old = {w["week"]: w for w in before["agents"][name]["weeks"]}
+        new = {w["week"]: w for w in agent["weeks"]}
+        assert {k: v for k, v in new.items() if k != SAMPLE_WEEK} == {k: v for k, v in old.items() if k != SAMPLE_WEEK}   # 21 September keeps its place by the old count
+        w = new[SAMPLE_WEEK]
+        assert w["design"] == "stratified-seeded-v1" and isinstance(w["capped"], bool) and len(w["strata"]) == 7 and w["read"] == "2026-10-05"
+        assert w["verified_acceptance_rate"] is not None and w["ranked_by"] == "verified_acceptance_rate" and w["sampled"] is not None
+        assert agent["all_weeks"] == agent_pr_index._add(agent["weeks"])
+    assert any(a["weeks"][-1]["capped"] for a in after["agents"].values()) and after["latest_week"] == SAMPLE_WEEK
+    cut = {w["week"] for a in after["agents"].values() for w in a["weeks"] if w.get("full_week") is False and w["read"] == after["read"]}
+    assert ("not whole weeks" in after["source"]) == bool(cut) and all(week in after["source"] for week in cut)   # the weeks a scan cut are still said
+    page = doc.read_text(encoding="utf-8")
+    assert "**Agent PR Index, week of 2026-09-28.** Read 2026-10-05. Design: stratified-seeded-v1. Capped: true" in page and "| capped: drew " in page
+    assert agent_pr_index.weekly_table(after) in page
+    assert subprocess.run(cli, capture_output=True, text=True, encoding="utf-8", check=False, env=env).returncode == 0 and json.loads(into.read_text(encoding="utf-8")) == after
 
 
 def test_a_rank_needs_thirty_finished_claims_and_equal_shares_share_a_place_and_verified_counts_only_what_knos_paid():
@@ -758,4 +1016,5 @@ def test_the_site_draws_the_index_board_from_the_committed_file_and_asks_nobody(
         env["PLAYWRIGHT_BROWSERS_PATH"] = "/opt/pw-browsers"
     run = subprocess.run([node, str(ROOT / "tests" / "web" / "index_board.mjs")], capture_output=True, text=True, encoding="utf-8", env=env, timeout=300)
     assert run.returncode == 0 and "all passed" in run.stdout, "\n".join(x for x in (run.stdout + run.stderr).splitlines() if not x.startswith("ok"))
-    assert "ok   in the committed sample verified is 0 and the page says what it would take" in run.stdout
+    assert "ok   every row of the committed file says whether it is capped, and none is called complete without the file saying so" in run.stdout
+    assert "ok   every statement keeps to 12 words" in run.stdout

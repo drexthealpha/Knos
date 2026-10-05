@@ -13,7 +13,7 @@
 // Every sentence here is true with nothing read: a file that is not there, a GitHub that does not answer and a relay
 // that has written nothing are each said as that. Nothing is sent anywhere, and nothing is asked of any host but
 // GitHub's API and Solana devnet.
-import { summarise, RECENT } from "./status_data.js";
+import { summarise, statesHtml, RECENT } from "./status_data.js";
 import { renderLive, clock } from "./live.js";
 import { renderIndexBoard } from "./index_board.js";
 import { priceBook, priceConstants } from "./price.js";
@@ -80,14 +80,15 @@ const code = (text, esc) => esc(text).replace(/`([^`]+)`/g, "<code>$1</code>");
 export function renderStatus(el, env = {}) {
   const esc = env.esc || escHtml, now = env.now || (() => Date.now()), file = env.file || jsonFile, doc = el.ownerDocument, $ = (id) => doc.getElementById(id);
   el.innerHTML = `<h2>Status</h2>
-    <p class="lede">Is the service working now? Two things anyone can check: whether the public relay is carrying signed tokens to Solana, and whether a whole round
-      (fund, merge, pay) went through on devnet. Your browser reads both from GitHub and Solana devnet; nothing here is Knos's word for it.</p>
+    <p class="lede">Check the relay and a whole round. Your browser reads both.</p>
     <div class="card" id="relay-status">
       <h3>The public relay</h3>
-      <p>A signed token is a comment on GitHub until someone carries it to Solana. The public relay does that about once a minute and pays the transaction fee;
-        anyone else can carry the same token with <code>knos relay</code>. It writes one line in a public log for every token it answers for.</p>
+      <details class="k-more"><summary>More</summary><p>A signed token is a comment on GitHub until someone carries it to Solana. The public relay does that about once a minute and pays the transaction fee;
+        anyone else can carry the same token with <code>knos relay</code>. It writes one line in a public log for every token it answers for.</p></details>
       <p id="relay-head" class="status" role="status" aria-live="polite">Open this page to read the relay's log.</p>
+      <div id="relay-latest"></div>
       <dl class="facts" id="relay-facts"></dl>
+      <div id="relay-rounds"></div>
       <p id="relay-note" class="fine"></p>
       <p><button type="button" id="relay-again" class="ghost small" hidden>Read it again</button></p>
     </div>
@@ -105,12 +106,19 @@ export function renderStatus(el, env = {}) {
     if (!log) {
       $("relay-head").className = "status bad";
       $("relay-head").textContent = `${RELAY_REPO} has no open issue labelled ${RELAY_LABEL}, so the relay's log was not found and nothing is said about the relay.`;
-      $("relay-facts").innerHTML = ""; $("relay-note").textContent = "";
+      $("relay-facts").innerHTML = ""; $("relay-note").textContent = ""; $("relay-latest").innerHTML = ""; $("relay-rounds").innerHTML = "";
       return;
     }
     const v = relayView(log, stats, now(), esc);
     $("relay-head").className = `status ${v.kind}`;
     $("relay-head").innerHTML = code(v.headline, esc);
+    // the newest payment the relay carried, in the five states every part of Knos names the same way, and its last rounds
+    const latest = v.summary.latest, rounds = v.summary.rounds;
+    $("relay-latest").innerHTML = latest ? `<p class="k-kicker">Newest payment carried: ${esc(latest.kind)}, ${esc(latest.where)}</p>${statesHtml(latest, esc)}` : "";
+    $("relay-latest").querySelector("ol")?.setAttribute("style", "padding:0;margin:12px 0");          // a timeline of .k-step, not a numbered list
+    $("relay-rounds").innerHTML = rounds.length ? `<h4>Last rounds</h4><div class="k-table"><table id="relay-rounds-table"><thead><tr><th scope="col">Where</th><th scope="col">Kind</th><th scope="col">State</th><th scope="col">Seconds</th><th scope="col">Order</th></tr></thead>
+      <tbody>${rounds.map((r) => `<tr><td>${esc(r.where)}</td><td>${esc(r.kind || "")}</td><td>${esc(r.state || "")}</td><td class="k-num">${r.seconds === null ? "" : esc(r.seconds)}</td>
+        <td>${r.order && env.EXPLORER ? `<a class="mono" href="${esc(env.EXPLORER("address", r.order))}" target="_blank" rel="noopener">${esc(r.order.slice(0, 6))}…</a>` : esc(r.order ? `${r.order.slice(0, 6)}…` : "")}</td></tr>`).join("")}</tbody></table></div>` : "";
     $("relay-facts").innerHTML = v.facts.map(([name, html]) => `<dt>${esc(name)}</dt><dd>${html}</dd>`).join("");
     $("relay-note").innerHTML = v.note + (asof !== null ? ` <span id="relay-asof">Shown ${esc(asOf(asof, now()))}. Reading it again…</span>` : "");
   }
@@ -202,7 +210,7 @@ export function renderPilot(el, esc = escHtml) {
     <div class="card" id="pilot-price">
       <h3>What it costs</h3>
       <dl class="facts"><dt>${esc(row[0])}</dt><dd>${esc(row[1])}</dd><dt>Price</dt><dd id="pilot-price-words">${esc(row[2])}</dd></dl>
-      <p class="fine">The suppliers pay nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test money is not revenue. It is not a discount on an annual contract and commits the buyer to none. <a href="#pricing">The whole price book</a>.</p>
+      <p class="fine">The suppliers pay nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test money is not revenue. Its price is credited against a first year of Control, and it commits the buyer to none. <a href="#pricing">The whole price book</a>.</p>
     </div>
     <div class="card" id="pilot-blockers">
       <h3>What stands in the way, plainly</h3>

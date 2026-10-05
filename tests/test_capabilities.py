@@ -167,9 +167,11 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     text, full = (ROOT / "README.md").read_text(encoding="utf-8"), (ROOT / cap.FULL).read_text(encoding="utf-8")
     assert text.count(cap.START) == text.count(cap.END) == full.count(cap.START) == full.count(cap.END) == 1
     assert cap.rendered(text, cap.summary(DATA)) == text and cap.rendered(full, cap.table(DATA, "../")) == full and cap.render(check=True) == []
-    # README.md names every capability under its stage; the document has one row each, with the evidence
+    # README.md names the capabilities above `tested` under their stage and sends the rest to the document, which has one row each
     block = text[text.index(cap.START):text.index(cap.END)]
-    assert all(f"`{c['id']}`" in block for c in DATA["capabilities"]) and "**Reproduced by someone else:** none recorded yet." in block
+    above = [c for c in DATA["capabilities"] if c["stage"] in cap.STAGES[2:]]
+    assert all(f"`{c['id']}`" in block for c in above) and block.count("`") == 2 * len(above) + 2      # and the manifest's name, once
+    assert "**Reproduced by someone else:** none recorded yet." in block and f"]({cap.FULL})" in block
     exercised = block[block.index("**Exercised on devnet:**"):block.index("**Deployed on devnet:**")]
     now = [c["id"] for c in DATA["capabilities"] if c["stage"] == "exercised"]
     assert all(f"`{cid}`" in exercised for cid in now) and exercised.count("`") == 2 * len(now)
@@ -177,11 +179,9 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     # README.md and the document say that a stage above `tested` is a run at a public program id, and where the rehearsal is
     assert block.count(cap.PUBLIC_ONLY) == 1 and full[full.index(cap.START):full.index(cap.END)].count(cap.PUBLIC_ONLY) == 1
     assert {cap.ids_of(c) for c in DATA["capabilities"] if c["stage"] == "exercised"} <= {"public"} and cap.ids_of(BY_ID["pay_on_merge"]) is None
-    # what the rehearsal ran is tested locally, never exercised or deployed, in README.md
-    tested = block[block.index("**Tested locally:**"):block.index("**Implemented:**")]
-    assert all(f"`{cid}`" in tested for cid in REHEARSED) and not any(f"`{cid}`" in block[:block.index("**Tested locally:**")] for cid in REHEARSED)
-    deployed = block[block.index("**Deployed on devnet:**"):block.index("**Tested locally:**")]
-    assert "`pay_on_merge`" in deployed and "`work_orders`" not in deployed
+    # what the rehearsal ran is tested locally, never exercised or deployed: README.md names none of it
+    assert not any(f"`{cid}`" in block for cid in REHEARSED)
+    assert "`pay_on_merge`" in block and "`work_orders`" not in block
     rows = full[full.index(cap.START):full.index(cap.END)]
     assert all(f"| {BY_ID[cid]['what']} | tested locally | " in rows for cid in REHEARSED) and "_staging" not in rows
     assert all(c["what"] in rows for c in DATA["capabilities"]) and rows.count("\n| ") == len(DATA["capabilities"]) + 1
@@ -192,11 +192,13 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
         shutil.copy(ROOT / rel, tmp_path / rel)
     data = _with("work_orders", what="A work order, said another way.", stage=None, evidence={})
     (tmp_path / "docs" / "capabilities.json").write_text(json.dumps(data), encoding="utf-8")
-    assert cap.render(tmp_path, check=True) == ["README.md", cap.FULL] and "said another way" not in (tmp_path / cap.FULL).read_text(encoding="utf-8")
-    assert cap.render(tmp_path) == ["README.md", cap.FULL] and cap.render(tmp_path) == []
+    assert cap.render(tmp_path, check=True) == [cap.FULL] and "said another way" not in (tmp_path / cap.FULL).read_text(encoding="utf-8")
+    assert cap.render(tmp_path) == [cap.FULL] and cap.render(tmp_path) == []
     assert "A work order, said another way. | not built |" in (tmp_path / cap.FULL).read_text(encoding="utf-8")
-    readme = (tmp_path / "README.md").read_text(encoding="utf-8")
-    assert "`work_orders`" in readme[readme.index("**Not built:**"):readme.index(cap.END)]
+    # a capability that leaves a stage above `tested` leaves README.md too
+    data = _with("pay_on_merge", stage="tested")
+    (tmp_path / "docs" / "capabilities.json").write_text(json.dumps(data), encoding="utf-8")
+    assert "README.md" in cap.render(tmp_path) and "`pay_on_merge`" not in (tmp_path / "README.md").read_text(encoding="utf-8")
 
 
 def test_the_site_module_renders_the_same_rows_and_filters_by_stage():

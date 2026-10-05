@@ -9,6 +9,12 @@ last day): exactly what `knos audit export --owner <id> --from <first day> --to 
 page chains and writes them itself (web/statements.js: auditExport), so its CSV and JSON are the bytes that command
 prints, and the head is the one hash both parties compare. A month is listed when it has at least one line. A month
 that is not over yet says what was true when the file was written; its head changes until the month ends.
+
+From 0.3.16 the lines are those of version 2 of the audit export (`scope.version` says so): the organisation's bounties
+on issues are among them (`record` is `bounty`), and every line has `source`, `terms_version`, `paid_each` and
+`held_until`. web/finance_data.js chains and writes version 2 (and version 1 as it was), shapes each deliverable into
+its four linked objects and writes the finance systems' import files; an owner whose money only ever funded bounties
+has lines here too, so whoever lists the owners (scripts/pages_data.py) must count the funders of bounties.
 """
 from __future__ import annotations
 

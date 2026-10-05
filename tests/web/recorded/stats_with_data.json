@@ -58,6 +58,22 @@
    "fees": 625000
   }
  },
+ "outsiders": {
+  "measured": true,
+  "funders": 6,
+  "funders_in_outside_repositories": 6,
+  "funders_in_knos_repositories_faucet": 0,
+  "repositories": 7,
+  "payees": 5,
+  "summed": false,
+  "definitions": {
+   "funders": "accounts and wallets that are not Knos's and funded a job: the commenter, or the wallet that funded it",
+   "funders_in_outside_repositories": "of those, the ones that funded in a repository that is not Knos's",
+   "funders_in_knos_repositories_faucet": "outside funder, Knos repository, faucet money: an outside account's comment in a repository of Knos's, paid by the devnet faucet's test USDC",
+   "repositories": "repositories that are not Knos's in which an outside funder funded a job",
+   "payees": "accounts and wallets that are not Knos's and were paid by a job somebody else funded"
+  }
+ },
  "totals": {
   "funded": 23,
   "completed": 14,

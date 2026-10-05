@@ -213,6 +213,28 @@ def test_permissions_start_empty_and_each_job_gets_the_least():
                 s for s, lv in job["permissions"].items() if lv == "write"}, (path.name, name)
 
 
+def test_the_settlement_says_its_five_states_in_one_comment_and_writes_no_commit_status():
+    """0.3.16: `knos settle` posts one comment at "received" and edits it through accepted, submitted, confirmed and
+    finalized. That needs nothing the jobs did not have: a comment is edited with the permission that posts it. A commit
+    status or a check on the merge commit would need `statuses: write` or `checks: write` in the called job, and GitHub
+    starts a called job only when the calling job grants what it asks for: every repository that installed Knos
+    would have to change its knos.yml first. So neither is written, the file says so, and the command is still one."""
+    from knos import flow
+    for name in ("settle", "attest"):
+        job = _jobs("prove.yml")[name]
+        assert job["permissions"] == MINTS and (job["permissions"]["statuses"], job["permissions"]["checks"]) == ("read", "read"), name
+        assert job["permissions"]["pull-requests"] == job["permissions"]["issues"] == "write"       # the comment, and its edits
+        assert [s["run"].split()[:2] for s in job["steps"] if "run" in s][-1] == ["knos", "settle"]     # install, then the one command: no step posts a status
+    text = (WF / "prove.yml").read_text(encoding="utf-8")
+    assert "No commit status or check is written on the merge commit" in text and "THE COMMENT IS ONE" in text
+    assert all(state in text.split("THE COMMENT IS ONE")[1].split("\n#   review")[0] for state in flow.STATES)
+    assert "statuses: write" not in "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+    # the command writes nothing of GitHub's but comments: every path it posts or patches in a settlement is one
+    src = (ROOT / "src" / "knos" / "flow.py").read_text(encoding="utf-8")
+    status = src.split("class _Status:")[1].split("\ndef _status_of")[0]
+    assert "/statuses/" not in src and "check-runs\", {" not in src and status.count("self.run.github(") == 2 and '"PATCH"' in status
+
+
 def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_check_nothing_out():
     minting = {(path.name, name) for path in _mine() for name, job in _doc(path)["jobs"].items()
                if job["permissions"].get("id-token") == "write"}
@@ -1433,7 +1455,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.15 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.16 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1470,7 +1492,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.15 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.16 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()
@@ -1754,3 +1776,24 @@ def test_a_worker_run_saves_its_notes_before_it_starts_the_next_run():
     key = "knos-relay-home-${{ github.run_id }}"
     assert steps[restore]["with"] == {"path": ".knos-home", "key": key, "restore-keys": "knos-relay-home-"}
     assert steps[save]["with"] == {"path": ".knos-home", "key": key}
+
+
+def test_the_test_workflow_runs_every_node_test_of_the_site_and_the_conformance_kit_on_both_implementations():
+    """tests.yml: each file of tests/web/ that is run by hand is run there (a new page's test that no job runs is found
+    here), the conformance kit must be done whole by the Python and failed nowhere by the JavaScript client, and the
+    site's build carries the registry of published terms."""
+    import yaml
+    jobs = yaml.safe_load((WF / "tests.yml").read_text(encoding="utf-8"))["jobs"]
+    ran = "\n".join(str(s.get("run", "")) for s in jobs["sdk"]["steps"])
+    for name in ("demo", "shadow", "verifier", "playground", "terms", "finance", "motion", "site", "status_data", "controls", "live", "index_board"):
+        assert re.search(rf"^\s*node tests/web/{name}\.mjs\b", ran, re.M), name
+    built = ran.index("bash scripts/build_site.sh")                              # the pages that need a build come after it
+    assert all(ran.index(f"node tests/web/{name}.mjs") > built for name in ("demo", "terms", "motion", "site"))
+    kit = [str(s.get("run", "")) for s in jobs["conformance"]["steps"]]
+    assert 'python conformance/run.py --impl "python conformance/impl/knos_python.py" --require-all' in kit
+    assert 'python conformance/run.py --impl "node conformance/impl/knos_js.mjs"' in kit
+    assert "if" not in jobs["conformance"] and jobs["conformance"]["timeout-minutes"] <= 5      # part of the release gate, like every job
+    site = (ROOT / "scripts" / "build_site.sh").read_text(encoding="utf-8")
+    assert 'cp -r terms "$out/terms"' in site and "scripts/demo_data.py --check" in site
+    paths = yaml.safe_load((WF / "network.yml").read_text(encoding="utf-8"))[True]["push"]["paths"]
+    assert {"terms/**", "scripts/demo_data.py", "scripts/build_site.sh"} <= set(paths)

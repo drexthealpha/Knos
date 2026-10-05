@@ -60,7 +60,7 @@ from pathlib import Path
 
 from solders.pubkey import Pubkey
 
-from . import badge, closing, commands, policy, terms, who
+from . import badge, closing, commands, playground, policy, terms, who
 from .settle.v2 import order_auto, pay
 
 MARK = "<!-- knos-review -->"       # the first line of the one comment `knos review` keeps up to date
@@ -299,7 +299,12 @@ class Run:
 
     def say(self, number, body: str) -> bool:
         """Post one comment on an issue or a pull request. When GitHub will not take it the words go to the job's
-        summary instead of nowhere, and the job fails."""
+        summary instead of nowhere, and the job fails. While a settlement keeps its one comment on that pull request
+        (`_Status`: posted at "received", edited as the payment moves), these words go into that comment, not under it."""
+        st = getattr(self, "_status", None)
+        if st is not None and int(number) == st.number and st.write(body):
+            self.note(f"Commented on #{number}:\n\n{body}")
+            return True
         try:
             self.github(f"repos/{self.repo}/issues/{number}/comments", {"body": body})
         except Exception as why:  # noqa: BLE001 - a read-only token, or GitHub did not answer
@@ -598,7 +603,7 @@ def deliver(kind: str, jwt: str, number: int, terms_json: bytes | None = None, *
     want = "pay" if kind == "proof" else kind
     run.relayed += 1
     try:
-        r = _relay_here(run, jwt, terms_json) if run.env.get("KNOS_RELAY_KEY") else _relay_there(run, want, jwt, number, terms_json, where)
+        r = _relay_here(run, jwt, terms_json, MARKER.get(want, want), number) if run.env.get("KNOS_RELAY_KEY") else _relay_there(run, want, jwt, number, terms_json, where)
     except Exception as why:  # noqa: BLE001 - whatever went wrong is said in the comment, never raised past it
         r = {"ok": False, "kind": want, "why": f"{type(why).__name__}: {_short(why)}"}
     ok = bool(r.get("ok"))
@@ -607,15 +612,27 @@ def deliver(kind: str, jwt: str, number: int, terms_json: bytes | None = None, *
             "seconds": max(0, round(run.clock() - began))}
 
 
-def _relay_here(run: Run, jwt: str, terms_json: bytes | None) -> dict:
+def _relay_here(run: Run, jwt: str, terms_json: bytes | None, marker: str = "", number: int = 0) -> dict:
     """This job's own relay. A refusal the relay marks `retry` (the faucet serves a repository once a minute; the
-    cluster dropped a transaction) is tried again while the token is good."""
-    ledger, payer = run.ledger, run.payer()
+    cluster dropped a transaction) is tried again while the token is good. The result carries what the public
+    worker's log line carries: `times` (queued_at, seen_at, sent_at, confirmed_at, on this job's clock) and `line`,
+    the worker's own line for this token (knos.proof.ghrelay.own_line), which goes to the run's page."""
+    from .proof.ghrelay import Timed, own_line, times
+    ledger, payer, seen = Timed(run.ledger, run.clock), run.payer(), run.clock()
     for left in range(RETRIES, -1, -1):
         r = dict(run.relay.submit(ledger, payer, jwt, terms_json))
         if r.get("ok") or not r.get("retry") or not left:
             break
         run.sleep(RETRY_AFTER)
+    done = run.clock()
+    try:
+        if r.get("ok"):
+            r["times"] = times(r, None, seen, done, ledger)
+        if marker and r.get("ok"):
+            r["line"] = own_line(marker, run.repo, int(number), jwt, r, None, seen, done, ledger)
+            run.note(f"`{r['line']}`")
+    except Exception:  # noqa: BLE001, S110 - the times are a record of the payment, never a reason for it to fail
+        pass
     return r
 
 
@@ -660,8 +677,9 @@ def _verdict(line: str | None, kind: str, tid: str) -> dict:
     if m.group(1) == "fail":
         return {"ok": False, "kind": kind, "why": _short(m.group(2)) or "the relay gave no reason"}
     sig, note = re.search(r"\bsig=(\S+)", m.group(2)), re.search(r"\bnote=(.*?)(?:\s+t=[0-9.]+)?\s*$", m.group(2), re.S)
+    at = {k: float(v) for k, v in re.findall(r"\b(queued_at|seen_at|sent_at|confirmed_at)=(\d+(?:\.\d+)?)(?= )", re.split(r"(?:^| )note=", m.group(2), maxsplit=1)[0])}
     return {"ok": True, "kind": kind, "sigs": [x for x in (sig.group(1).split(",") if sig else []) if x and x != "none"],
-            "note": _short(note.group(1)) if note else ""}
+            "note": _short(note.group(1)) if note else "", **({"times": at} if at else {})}
 
 
 def _note(r: dict) -> str:
@@ -1044,7 +1062,7 @@ def _relayed(run: Run, c: Case, r: dict, after: str, how: str) -> str:
     if not r.get("ok"):
         if r.get("timeout"):
             return (f"not confirmed yet. {name[0].upper()}{name[1:]} met its terms for {payee} and GitHub signed the token (it is posted "
-                    f"{'in ' + run.att.run.repo if run.att is not None else 'above'}), but no relayer carried it to Solana within {RELAY_WAIT // 60} minutes. Solana takes the signed token "
+                    f"{'in ' + run.att.run.repo if run.att is not None else 'below' if _status_of(run) is not None else 'above'}), but no relayer carried it to Solana within {RELAY_WAIT // 60} minutes. Solana takes the signed token "
                     f"until an hour after it expires: if one carries it, the payment is made, and `/knos status` shows it. Otherwise "
                     f"{how} for a new token.")
         return (f"not paid yet. {name[0].upper()}{name[1:]} met its terms for {payee} and GitHub signed the token, but Solana did not take "
@@ -1332,7 +1350,13 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
         run.failed = True
         return (f"Knos: GitHub did not answer whether @{commenter.get('login')} can write to this repository, so nothing was "
                 f"funded. {retry}.")
-    if not may:
+    # the playground (knos.playground): one repository where an account that cannot write may fund a test task, from the faucet only
+    stranger = not may and att is None and isinstance(cmd, commands.Fund) and playground.is_playground(run.repo, rp["owner"], _devnet(run))
+    if stranger:
+        no = playground.refuses(run.github, run.repo, run.event, cmd.units, run.now())
+        if no:
+            return no
+    elif not may:
         return commands.reply("not_allowed", cmd, who=WRITERS)
     if str(run.env.get("GITHUB_RUN_ATTEMPT") or "1") != "1":      # the chain refuses it: a re-run keeps the first actor's name
         return f"Knos: nothing was funded. This is a re-run, and money moves only on the first run of a comment. {retry}."
@@ -1341,12 +1365,12 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
     asked = cmd         # as the funder wrote it: what they left unsaid is what memory may propose
     plan = None         # a work order's options (knos_pay 2.1); None: a job, as before
     if not tip and (offer or run.version() or att is not None):
-        plan = _order_plan(run, rp, cmd, commenter, again, att)
+        plan = _order_plan(run, rp, cmd, commenter, again, att, on)
         if isinstance(plan, str):
             return plan
         cmd = plan["cmd"]
-    elif getattr(cmd, "auto", False) or getattr(cmd, "quorum", None):
-        return ("Knos: nothing was funded. `auto` and `quorum` are options of a work order, and the escrow on this cluster does not hold "
+    elif getattr(cmd, "auto", False) or getattr(cmd, "quorum", None) or getattr(cmd, "judge", None):
+        return ("Knos: nothing was funded. `auto`, `quorum` and `judge` are options of a work order, and the escrow on this cluster does not hold "
                 f"work orders yet (knos_pay 2.1 is not live here). Leave them out, then {again}.")
     try:
         paused = pay.read_pause(run.ledger.account(pay.pause_pda()))
@@ -1358,6 +1382,8 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
             plan["fee"] = pay.order_fee(cmd.units, pay.plan_bps(pay.read_plan(run.ledger.account(pay.plan_pda(pays["owner"]))), run.now()))
         balance, mint_, faucet, no = _balance(run, pays, att.actor if att is not None else commenter, cmd, number, again,
                                               plan["fee"] if plan else 0, plan is not None)
+        if stranger and balance is not None and not faucet:
+            return "Knos: nothing was funded. In the playground only the devnet faucet pays."
         if att is not None:
             balance, no = _listed_for(run, att, balance, faucet, no, again)
         elif plan is not None and balance is not None:
@@ -1456,7 +1482,33 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
         f"until you bind a wallet ({HOLD_DAYS} days at most).")) + _proposed(run, asked, built)
 
 
-def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None) -> dict | str:
+def _judge_repo(run: Run, rp: dict, name: str, commenter: dict, on: dict | None, again: str) -> tuple[str, int] | str:
+    """The judge repository a funding comment names (`judge: owner/repo`), as (its full name, its id): the id is what
+    the order's options carry and what knos_pay holds a judge's token to (order_judge.rs, judge c). Or the words that
+    say why it cannot be a third reader: GitHub does not know it, it is the buyer's own repository, or its owner is
+    the buyer repository's owner, the funder, or whoever the issue is assigned to (the one who would be paid). Two
+    repositories of one owner are one judge, and the chain cannot see who owns a repository: it is refused here."""
+    shown = _plain(name)
+    got = _read(run, f"repos/{name}")
+    try:
+        full, jid, owner = str(got["full_name"]), int(got["id"]), got["owner"]
+        owner_id, login = int(owner["id"]), str(owner.get("login") or "")
+    except (KeyError, TypeError, ValueError):
+        return f"GitHub gave no repository named {shown} that this run can read (the judge). Check the name, then {again}."
+    another = f"Name a repository that someone else owns, then {again}."
+    if jid == rp["id"]:
+        return (f"`judge: {shown}` is this repository, and its own run is already one of the readers: it would count once. {another}")
+    sides = [(rp["owner"], "this repository's owner"), (commenter.get("id"), "you, the funder")]
+    sides += [(a.get("id"), f"@{_plain(a.get('login'))}, who holds this issue and would be paid") for a in (on or {}).get("assignees") or []
+              if isinstance(a, dict)]
+    for uid, role in sides:
+        if uid and int(uid) == owner_id:
+            return (f"`judge: {shown}` belongs to @{_plain(login)}, and so does a side of this order ({role}). Two accounts of one owner are "
+                    f"one judge, not two. {another}")
+    return full, jid
+
+
+def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None, on: dict | None = None) -> dict | str:
     """What a funding comment fixes about a work order beside its amount and its terms, or the reply that says why
     nothing is funded. The repository's .knos/policy.yml speaks first (who may fund, the cap per order, the monthly
     budget, which vendors an offer may name; a policy that cannot be used stops funding), then gives the defaults
@@ -1521,18 +1573,33 @@ def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None) 
     auto, quorum = bool(getattr(cmd, "auto", False)), int(getattr(cmd, "quorum", None) or 0)
     if (auto or quorum) and att is not None:
         return stop + f"`auto` and `quorum` are for a public order that pays one pull request, and this one is private. Leave them out, then {again}."
-    if quorum > 1 + neutral:        # the judges a public order can have: its own repository's run, and a neutral run
-        return (stop + f"`quorum {quorum}` asks for {terms.JUDGES[quorum]} different judges, and this order can have {1 + neutral}: this "
+    named = getattr(cmd, "judge", None)
+    if named and att is not None:
+        return stop + f"A private order's judge is its attestor repository already. Leave out `judge:`, then {again}."
+    if named and not quorum:        # with no quorum the judge repository's word alone would pay the order
+        return (stop + "`judge:` names a reader of a quorum, and this comment asks for no quorum: on its own, that repository's run could "
+                f"have the order paid. Add `quorum 2` or `quorum 3`, or leave out `judge:`, then {again}.")
+    judge_repo = ("", 0)
+    if named:
+        found = _judge_repo(run, rp, named, commenter, on, again)
+        if isinstance(found, str):
+            return stop + found
+        judge_repo = found
+    if quorum > 1 + neutral + bool(named):      # the readers a public order can have: its own run, a neutral run, a judge repository
+        return (stop + f"`quorum {quorum}` asks for {terms.JUDGES[quorum]} different judges, and this order can have {1 + neutral + bool(named)}: this "
                 "repository's own run" + (", and a neutral run anyone can start" if neutral else " (you said `neutral off`)")
-                + f". {'Comment it with `quorum 2`' if neutral else 'Leave out `neutral off`, or leave out `quorum`'}, then {again}.")
+                + (f", and the judge repository {judge_repo[0]}" if named else "")
+                + ". " + (("No judge repository is named for the third: add `judge: owner/repo`, a repository that neither you nor this "
+                           "repository's owner owns, or comment it with `quorum 2`") if neutral and not named else
+                          "Leave out `neutral off`" + ("" if named and quorum == 3 else ", or leave out `quorum`")) + f", then {again}.")
     flags = ((pay.F_NEUTRAL if neutral else 0) | (pay.F_STANDING if offer else 0) | (pay.F_PRIVATE if att is not None else 0)
              | (order_auto.F_AUTO if auto else 0) | order_auto.quorum_flags(quorum))
     return {"cmd": cmd, "opts": pay.opts(flags, holdback, warranty, 0, cmd.reserve, cmd.rate if offer else 0, ids.get("arbiter", ("", 0))[1],
-                                         att.rp["id"] if att is not None else 0, att is not None),
+                                         att.rp["id"] if att is not None else judge_repo[1], att is not None),
             "attestor": att.run.repo if att is not None else "",
             "terms": {**({"policy": policy.digest(rules)} if rules is not None else {}), **({"vendor": ids["vendor"][1]} if offer else {})},
             "warranty": warranty, "holdback": holdback, "arbiter": ids.get("arbiter", ("", 0))[0], "neutral": neutral,
-            "vendor": ids.get("vendor", ("", 0))[0], "from_policy": from_policy, "fee": 0, "seq": 0, "auto": auto, "quorum": quorum}
+            "vendor": ids.get("vendor", ("", 0))[0], "from_policy": from_policy, "fee": 0, "seq": 0, "auto": auto, "quorum": quorum, "judge": judge_repo[0]}
 
 
 def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: bool, plan: dict, built, r: dict, money: str, took: str,
@@ -1571,7 +1638,7 @@ def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: 
     return "\n\n".join((
         f"Knos: {money} from {source} is in escrow for issue #{number} as a {'private ' if plan.get('attestor') else ''}work order ({order}), {took}. The funder pays Knos's fee of "
         f"{fee} on top, so whoever is paid receives the full amount.",
-        " ".join([*told[:-1], *terms.describe_options(plan.get("auto", False), plan.get("quorum", 0)), *built.notes, warranty, arbiter, back]),
+        " ".join([*told[:-1], *terms.describe_options(plan.get("auto", False), plan.get("quorum", 0), plan["neutral"], plan.get("judge", "")), *built.notes, warranty, arbiter, back]),
         f"To earn it: open a pull request whose description says `Fixes #{number}`. {told[-1]} For the money to reach you when it "
         "is paid, comment `/knos address <your Solana address>` on your pull request; without an address it waits for you "
         f"until you bind a wallet ({HOLD_DAYS} days at most). {neutral}"))
@@ -1904,6 +1971,116 @@ def _nothing(run: Run, pull: dict, closes: list[int], listed: list | None, held:
 
 # ---- knos settle -----------------------------------------------------------------------------------------------------
 
+# ---- the five states of a payment, and the one comment that carries them --------------------------------------------------
+# received    the event (the merge, the comment, the judge's success) reached this command: the job's own clock at its start
+# accepted    every case that is paid was checked against the pull request's last commit and passed, and GitHub signed the
+#             token for this run. Written BEFORE the token goes anywhere: no chain wait stands between a merge and this word
+# submitted   the relay handed the first transaction to the cluster (its `sent_at`: this job's clock when it relays its own
+#             token, the public worker's from its log line otherwise)
+# confirmed   the paying transaction confirmed (the relay's `confirmed_at`; a token another relayer carried first has no
+#             such time, and then it is when this job learned of it)
+# finalized   the cluster finalized that transaction, asked for at most FINAL_WAIT seconds
+# ONE comment: posted at `received`, then edited in place as each state is reached, and ending as the comment a
+# settlement always wrote (paid, held, refused, with the transaction). A new comment per state would be five of GitHub's
+# content-creating requests for one payment; an edit is none of the pull request's readers' notifications.
+STATES = ("received", "accepted", "submitted", "confirmed", "finalized")
+STATUS = "<!-- knos-status -->"         # everything after this line of the comment is the states: people read one line, programs another
+FINAL_WAIT = 40                         # seconds the job waits for the cluster to finalize a payment it has already reported
+
+
+def _hms(t: float) -> str:
+    return time.strftime("%H:%M:%S", time.gmtime(t))
+
+
+class _Status:
+    """The one comment of a settlement on a pull request, and the time each of the five states was reached.
+
+        reach(state, at=None)      note the time (once: the first time counts)
+        write(text)                the comment says `text`, with the states under it: posted the first time, edited after
+
+    A comment GitHub would not take, or would not let be edited, is not an error here: `write` answers False and the
+    caller says its last words the way it always did (`Run.say`)."""
+
+    def __init__(self, run: Run, number: int, since: float, after: str) -> None:
+        self.run, self.number, self.since, self.after = run, int(number), since, after
+        self.at: dict[str, float] = {}
+        self.id: int | None = None
+        self.lines: list[str] = []      # the relay's own log lines for this pull request's tokens, when this job relayed them
+        self.sig = ""                   # the paying transaction, once there is one
+        self.writes, self.text = 0, ""  # how often the comment was written, and its words now
+
+    def reach(self, state: str, at: float | None = None) -> None:
+        if state in STATES and state not in self.at:
+            self.at[state] = float(self.run.clock() if at is None else at)
+
+    def block(self) -> str:
+        """The states under the comment's words: one line a person reads (each state reached, its time and the seconds
+        since `after`), one a program reads (`knos-states`, Unix seconds), and the relay's log lines."""
+        said = " · ".join(f"{s} {_hms(self.at[s])} UTC (+{max(0, round(self.at[s] - self.since))} s)" for s in STATES if s in self.at)
+        data = " ".join([f"since={self.since:.1f}", *(f"{s}={self.at[s]:.1f}" for s in STATES if s in self.at), *([f"tx={self.sig}"] if self.sig else [])])
+        lines = "".join(f"\n{ln.replace('--', '- -')}" for ln in self.lines[:4])
+        return f"{STATUS}\n<sub>{said}; seconds are counted from {self.after}.</sub>\n<!-- knos-states {data}{lines}\n-->"
+
+    def write(self, text: str) -> bool:
+        body = f"{text}\n\n{self.block()}"
+        try:
+            if self.id is None:
+                self.id = int(self.run.github(f"repos/{self.run.repo}/issues/{self.number}/comments", {"body": body})["id"])
+            else:
+                self.run.github(f"repos/{self.run.repo}/issues/comments/{self.id}", {"body": body}, "PATCH")
+        except Exception:  # noqa: BLE001 - a read-only token, or GitHub did not answer: the caller falls back to `say`
+            return False
+        self.writes, self.text = self.writes + 1, text
+        return True
+
+
+def _status_of(run: Run) -> _Status | None:
+    return getattr(run, "_status", None)
+
+
+def _accepted(run: Run, c: "Case") -> None:
+    """A case passed and GitHub signed for it: the comment says so now, before the token goes to the chain."""
+    st = _status_of(run)
+    if st is None or "accepted" in st.at:
+        return
+    st.reach("accepted")
+    st.write(f"Knos: accepted, settling. Everything {_what(run, c)} asks for holds at this pull request's last commit and GitHub signed "
+             f"this run. The payment to @{c.paid.get('login')} is on its way to Solana; this comment is edited when it lands.")
+
+
+def _settled(run: Run, cases: list) -> None:
+    """After the relay: when the first transaction was sent and when the payment confirmed, from the relay's own times."""
+    st = _status_of(run)
+    done = [c.result for c in cases if c.result is not None]
+    if st is None or not done:
+        return
+    sent = [float(r["times"]["sent_at"]) for r in done if (r.get("times") or {}).get("sent_at") is not None]
+    if sent:        # (the public worker's clock is not this job's: a state is never shown before the one it follows)
+        st.reach("submitted", max(min(sent), st.at.get("accepted", 0.0)))
+    paid = [r for r in done if r.get("ok") and not r.get("quorum")]
+    if paid:
+        ends = [float(r["times"]["confirmed_at"]) for r in paid if (r.get("times") or {}).get("confirmed_at") is not None]
+        st.reach("confirmed", max(max(ends) if len(ends) == len(paid) else run.clock(), st.at.get("submitted", 0.0)))
+        st.sig = next((str(r["sigs"][-1]) for r in reversed(paid) if r.get("sigs")), "")
+    st.lines = [str(r["line"]) for r in done if r.get("line")]
+
+
+def _finalized(run: Run, sig: str) -> bool:
+    """Whether the cluster finalized `sig` within FINAL_WAIT seconds. A ledger with no way to ask says nothing."""
+    try:
+        ask = getattr(run.ledger, "finalized", None)
+        if ask is not None:
+            return bool(ask(sig, FINAL_WAIT))
+        url = getattr(run.ledger, "url", None)
+        if not url:
+            return False
+        from . import chain
+        chain.wait(str(url), sig, float(FINAL_WAIT), "finalized")
+        return True
+    except Exception:  # noqa: BLE001 - not finalized in time, or the cluster did not answer: the state stays unreached
+        return False
+
+
 def settle(run: Run, tests: bool = False, pull: int | None = None, head: str = "", issue: int | None = None) -> int:
     """`knos settle`: pay what merged pull requests earned. A push to the default branch settles every pull request it
     merged, and says nothing about one with nothing in escrow. A `/knos settle` comment and a workflow_dispatch with
@@ -2047,10 +2224,12 @@ def _settle_safely(run: Run, rp: dict, pull: dict, since: float, after: str, ask
         text = (f"Knos: this pull request's payment stopped before it was finished ({type(why).__name__}: {_short(why)}). "
                 + (f"To try again, {_again(run)}." if run.att is not None else
                    "`/knos status` shows what is in escrow" + ("." if tests is not None else "; comment `/knos settle` to try again.")))
-        if asked or run.relayed != sent:
+        if asked or run.relayed != sent or _status_of(run) is not None:      # (a comment that said "received" says how it ended)
             run.say(pull["number"], text)
         else:
             run.note(f"#{pull['number']}: {text}")
+    finally:
+        setattr(run, "_status", None)       # the comment is this pull request's settlement's, and that is over
 
 
 def _judged(cases: list[Case], issue: int = 0) -> list[Case]:
@@ -2070,6 +2249,14 @@ def _settle_one(run: Run, rp: dict, pull: dict, since: float, after: str, asked:
     if by_tests:
         cases = _judged(cases, tests)
         blind = [n for n in blind if n != number and tests in (0, n)]
+    st = None
+    if run.att is None and (cases or asked):     # (an attestor's token for a repository it reads posts comments there and edits none)
+        st = _Status(run, number, since, after)
+        st.reach("received", run.began)
+        if not st.write(f"Knos: received. Pull request #{number} is being checked against what was funded for it. This comment is "
+                        "edited as the payment moves."):
+            st = None
+    setattr(run, "_status", st)
     runs, statuses = _decide(run, rp, pull, cases, listed, by_tests)
     for c in cases:
         if c.verdict() == "yes":
@@ -2097,7 +2284,13 @@ def _settle_one(run: Run, rp: dict, pull: dict, since: float, after: str, asked:
                      f"Knos settle: nothing is in escrow for pull request #{number}, so there is nothing to pay.")
             return
         parts = [_nothing(run, pull, closes, listed, held, tips_only, True)]
-    run.say(number, badge.said(run.repo, number, _join(parts), run.now()))
+    _settled(run, cases)
+    before = st.writes if st is not None else 0
+    run.say(number, badge.said(run.repo, number, _join(parts), run.now()))       # into the one comment, when it is there (Run.say)
+    if st is not None and st.sig and st.writes > before and _finalized(run, st.sig):     # the payment is said already: this adds the last state to the same comment
+        st.reach("finalized")
+        st.write(st.text)
+    setattr(run, "_status", None)
     if cases and run.att is None:       # paid or refused: what this settlement showed goes to the judge's memory, for the next funding
         _learn(run, pull, cases, runs, statuses)        # (an attestor writes nothing in a repository it reads but its replies)
 
@@ -2157,6 +2350,7 @@ def _prove(run: Run, rp: dict, pull: dict, c: Case, since: float) -> None:
                      f"run used `{pin[1][:7]}`")
         c.fix.append(f"Point this repository's workflow file at commit `{job.wf_sha}` of Knos's workflows again.")
         return
+    _accepted(run, c)
     c.result = _carried(run, "proof", jwt, since) if run.att is not None else deliver("proof", jwt, int(pull["number"]), run=run, since=since)
 
 
@@ -2540,7 +2734,9 @@ def _dirs(changed: list[str]) -> list[str]:
 def _learn(run: Run, pull: dict, cases: list[Case], runs, statuses) -> None:
     """After a settlement, paid or refused, one lesson in the memory the check keeps (category `settlement`): which
     checks failed at the merged commit and on which paths, whether the description claimed what a failed check
-    contradicts, which of the terms' checks the change met, and whether it was paid. Its failure never touches the
+    contradicts, which of the terms' checks the change met, and whether it was paid; and for each work order it paid,
+    how that order ended (category `order`: accepted first time, or fixed after an earlier pull request was refused,
+    with the published template and the policy version it was funded with). Its failure never touches the
     settlement: it is a note on the run's page."""
     try:
         from . import judge
@@ -2554,16 +2750,43 @@ def _learn(run: Run, pull: dict, cases: list[Case], runs, statuses) -> None:
                 "failed": {name: dirs for name in failed[:12]}, "false": [_short(report.get("said"))] if report.get("state") == "false" else [],
                 "met": sorted({str(name) for c in cases for name, state in c.checks.items() if state == "passed"})[:12], "paths": dirs,
                 "at": int(run.clock())}
+        orders = [c for c in cases if c.order and not c.tip]
+        refused = {str(c.issue): sorted(str(name) for name, state in c.checks.items() if state in ("failed", "skipped", "absent"))[:12]
+                   for c in orders if c.verdict() == "no"}
+        if refused:         # which work orders this pull request did not take, and on which checks: a later one that is paid was "fixed"
+            body["refused"] = refused
         store = _memory(run)
         if store is None:
             run.note("Knos: the judge's memory (the knos-memory issue) could not be read, so what this settlement showed was not kept.")
             return
+        for c in orders:    # how each work order ended, by the published template and the policy version it was funded with (Sibyl)
+            if c.result is not None and c.result.get("ok"):
+                before = [b["refused"][str(c.issue)] for _name, b in store.rows("settlement")
+                          if isinstance(b, dict) and b.get("repo") == body["repo"] and b.get("pull") != number
+                          and isinstance(b.get("refused"), dict) and isinstance(b["refused"].get(str(c.issue)), list)]
+                template, version = _published(c.raw)
+                history.order_outcome(store, run.repo, c.issue, "fixed" if before else "accepted", template, version,
+                                      policy=str((c.terms or {}).get("policy") or ""),
+                                      failed=[str(name) for names in before for name in names if isinstance(name, str) and name][:12], seq=c.issue)
         # as a lesson read from the issue is loaded: a "not paid" never takes back a "paid" for the same pull request at
         # the same commit (a merge's settlement and the attestor's run can settle it at the same moment)
         history.import_lessons(store, [{"category": "settlement", "name": history._id("settlement", body["repo"], number, head), "body": body}])
         memory.push(run.repo, store, run.github, run.github, str(run.env.get("GITHUB_RUN_ID") or ""))
     except Exception as why:  # noqa: BLE001
         run.note(f"Knos: what this settlement showed could not be written to the knos-memory issue ({_short(why)}).")
+
+
+def _published(raw: bytes | None = None):
+    """With terms' bytes: (the published template they are, its version), or ("", 0) when they are no published
+    template or this installation has no registry (knos.terms_registry). With none: {template: its newest version}."""
+    try:
+        from . import terms_registry
+        if raw is None:
+            return {name: row["version"] for name, row in terms_registry.latest(terms_registry.check()).items()}
+        found = terms_registry.verify(bytes(raw).decode("ascii")) if raw else []
+        return (found[-1]["name"], found[-1]["version"]) if found else ("", 0)
+    except ValueError:      # no registry here, or one that is not what its index says: nothing is named from it
+        return {} if raw is None else ("", 0)
 
 
 def suggest_terms(repo: str, memory) -> dict:
@@ -2598,16 +2821,21 @@ def suggest_terms(repo: str, memory) -> dict:
 
 def _proposed(run: Run, asked, built) -> str:
     """The last paragraph of a funding reply: what the judge's memory proposes, for what the funder left unsaid
-    (checks when they named none, paths when they named none). Empty when memory proposes nothing or cannot be read."""
+    (checks when they named none, paths when they named none), after one line on how the last work orders here ended
+    and the published template that supports (knos.proof.history.terms_supported; nothing with no memory of one).
+    Empty when memory proposes nothing or cannot be read."""
     if asked.checks is not None and asked.paths:
         return ""
     try:
+        from .proof import history
         store = _memory(run)
         got = suggest_terms(run.repo, store) if store is not None else {"checks": [], "paths": [], "said": []}
+        line = history.terms_supported(store, run.repo, versions=_published()) if store is not None else ""
     except Exception:  # noqa: BLE001 - a proposal, never a reason to fail a funding that is done
         return ""
     have = {str(c.get("name")) for c in built.terms.get("checks") or []}
-    keep = [text for name, text in zip(got["checks"], got["said"]) if asked.checks is None and name not in have]
+    keep = [line + "."] if line else []     # how the last work orders here ended, and the published template that supports
+    keep += [text for name, text in zip(got["checks"], got["said"]) if asked.checks is None and name not in have]
     keep += got["said"][len(got["checks"]):] if not asked.paths else []
     return ("\n\nFrom what Knos remembers of this repository: " + " ".join(keep)
             + " To change the terms, fund another issue with them: these are fixed.") if keep else ""
@@ -3475,14 +3703,20 @@ def _relay_file(ghrelay, ledger, payer, text: str, given: bytes | None) -> int:
     found = ghrelay.TOKEN.search(text)
     said = (ghrelay.ISSUER if found and found.group(1) == "key" else ghrelay.TERMS).search(text)
     terms_json = given if given is not None else said.group(1).encode() if said else None
+    jwt, timed, seen = found.group(2) if found else text.strip(), getattr(ghrelay, "Timed", None), time.time()
+    ledger = timed(ledger) if timed is not None else ledger
     try:
-        r = dict(ghrelay.carry(ledger, payer, found.group(2) if found else text.strip(), terms_json))
+        r = dict(ghrelay.carry(ledger, payer, jwt, terms_json))
     except BROKEN:
         raise
     except Exception as why:  # noqa: BLE001 - not a token, or the cluster did not answer: the result says so
         r = {"ok": False, "why": f"{type(why).__name__}: {_short(why)}"}
     if r.get("ok"):
         r["note"] = ghrelay.note(r)
+        if timed is not None:       # the line the public worker would have logged, with its four times: a payment relayed by hand is timed too
+            c = _claims(jwt)        # (on stderr: what is printed on stdout is the result as JSON, and nothing else)
+            _err(ghrelay.own_line(found.group(1) if found else {"pay": "proof"}.get(str(r.get("kind")), str(r.get("kind") or "token")),
+                                         str(c.get("repository") or "-"), int(r.get("issue") or 0), jwt, r, None, seen, time.time(), ledger))
     print(json.dumps(r, default=str), flush=True)
     return 0 if r.get("ok") else 1
 

@@ -202,6 +202,119 @@ def test_a_passkey_funding_line_on_an_issue_is_sent_by_the_worker_and_answered(m
     assert " fail 20 passkey fundings a day are sent for one repository" in capped and net.sent == 1 and w.nonce() == 1
 
 
+# ---- two runs relay together at a handover: log nothing the log already has --------------------------------------------
+
+def test_two_overlapping_runs_log_one_funding_once(monkeypatch, tmp_path):
+    """worker.yml starts the next run before this one stops, so for some seconds two runs relay. A fund token posted
+    then is found by both. Run 41 sends its three transactions; run 42, a moment behind, finds the chain already shows
+    the job (`already`, the same three signatures) BEFORE run 41 has written its line. 0.3.15 logged both: the check
+    "is it in the log?" came before the other run's write. One payment, one line."""
+    import test_worker as tw
+    t0, gh, three = 1_791_021_600.0, tw.GitHub(), ["sA", "sB", "sC"]
+    notes = {"41": tmp_path / "run41.json", "42": tmp_path / "run42.json"}
+    monkeypatch.setattr(ghrelay, "_HUB", ghrelay.Hub(gh.open))
+    monkeypatch.setattr(ghrelay, "_LOG", {})
+    monkeypatch.setattr(ghrelay, "_state_path", lambda: notes[ghrelay.os.environ["GITHUB_RUN_ID"]])
+    monkeypatch.delenv("KNOS_RELAY_REPOS", raising=False)
+    gh.issues[tw.HOME] = [{"number": 1, "state": "open", "labels": [ghrelay.LOG_LABEL]}]
+    gh.search = ["octo/widgets"]
+    fund, stranger = tw.jwt(tw.fund_aud(7), iat=1000), tw.jwt(tw.fund_aud(8), iat=1001)
+    sent, second = [], []
+
+    def run(n: str, now: float) -> list[str]:
+        monkeypatch.setenv("GITHUB_RUN_ID", n)
+        try:
+            return ghrelay.once(tw.Ledger(), tw.PAYER, now=now, crank=False)
+        finally:
+            monkeypatch.setenv("GITHUB_RUN_ID", "41")
+
+    def relay_one(ledger, payer, kind, jwt, terms=None):
+        if jwt == stranger:             # someone else's relayer carried this one: nobody of ours will ever log it
+            return {"ok": True, "kind": "fund", "sigs": ["x1"], "note": "done", "already": True}
+        if not sent:                    # run 41 sends; while its last transaction confirms, run 42 makes its pass
+            sent.append(jwt)
+            second.extend(run("42", t0 + 1))
+            return {"ok": True, "kind": "fund", "sigs": three, "note": "done"}
+        return {"ok": True, "kind": "fund", "sigs": three, "note": "done", "already": True}       # run 42: the chain shows it done
+    monkeypatch.setattr(ghrelay, "relay_one", relay_one)
+    assert run("41", t0 - 40) == [] and run("42", t0 - 39) == []        # both are up and have their own notes: the handover's overlap
+    gh.comment("octo/widgets", 7, ghrelay.token_comment("fund", fund, tw.TERMS), at=t0 - 1)
+    [line] = run("41", t0)
+    tid = ghrelay.token_id(fund)
+    assert second == [] and f" {tid} ok sig=sA,sB,sC " in line and "another relayer" not in line
+    assert [body for body in gh.log() if tid in body] == [line]         # one payment, one line (0.3.15: two, with the same three signatures)
+    # run 42 kept its line back; on its next passes the log answers for the token, and the line is dropped for good
+    held = json.loads(notes["42"].read_text(encoding="utf-8"))["held"]
+    assert [h["answer"] for h in held] == [f"fund {tid}"] and "sig=sA,sB,sC" in held[0]["line"]
+    assert run("42", t0 + 4) == [] and json.loads(notes["42"].read_text(encoding="utf-8"))["held"] == []
+    assert run("42", t0 + 60) == [] and run("41", t0 + 60) == [] and sum(tid in body for body in gh.log()) == 1
+    # a token a stranger carried is still answered, once, after the wait: nobody else will say so
+    gh.comment("octo/widgets", 8, ghrelay.token_comment("fund", stranger, tw.TERMS), at=t0 + 61)
+    assert run("41", t0 + 62) == [] and run("42", t0 + 63) == [] and run("41", t0 + 65) == []
+    [late] = run("41", t0 + 62 + ghrelay.ALREADY_WAIT)
+    sid = ghrelay.token_id(stranger)
+    assert f" {sid} ok sig=x1 " in late and late.count("(another relayer carried it first)") == 1
+    assert run("42", t0 + 63 + ghrelay.ALREADY_WAIT) == [] and sum(sid in body for body in gh.log()) == 1       # and run 42 sees that line and adds none
+
+
+def test_every_ok_line_carries_the_four_times_whoever_relayed():
+    """queued_at, seen_at, sent_at, confirmed_at: the public worker, a job that relays its own token and `knos relay
+    --token-file` all write the line through `log_line` with `times`. The first send and the last confirmation are
+    noted by the ledger the relay was handed (`Timed`); a relay that sent nothing claims neither."""
+    clock, sends = [100.0], []
+
+    class Chain:
+        takes_v1 = True
+
+        def send(self, ixs, payer, v1=False):
+            clock[0] += 2.5
+            sends.append(ixs)
+            return f"sig{len(sends)}"
+
+        def account(self, address):
+            return b"data"
+    inner = Chain()
+    ledger = ghrelay.Timed(inner, lambda: clock[0]).start()
+    assert ledger.account("a") == b"data" and (ledger.sent, ledger.confirmed) == (None, None)       # reading sends nothing
+    assert getattr(ledger, "send_all", None) is None and getattr(ledger, "simulate", None) is None    # what the ledger lacks, it still lacks
+    clock[0] = 101.2
+    assert [ledger.send(["a"], None), ledger.send(["b"], None, v1=True)] == ["sig1", "sig2"]
+    assert (ledger.sent, ledger.confirmed) == (101.2, 106.2)            # handed the first at 101.2; the last confirmed at 106.2
+    ledger.takes_v1 = False
+    assert inner.takes_v1 is False                                      # a relay's note on the ledger reaches the ledger
+    token, r = jwt("knos2:pay:1:7:9:" + "a" * 40 + ":" + "0" * 64 + ":0:-"), {"ok": True, "kind": "pay", "sigs": ["sig1", "sig2"], "note": "paid"}
+    got = ghrelay.times(r, 95.0, 100.0, 106.4, ledger)
+    assert got == {"queued_at": 95.0, "seen_at": 100.0, "sent_at": 101.2, "confirmed_at": 106.2}
+    line = ghrelay.log_line("proof", "o/r", 9, token, r, 11, {"wait": 5, "chain": 6}, got)
+    assert line.endswith(" ok sig=sig1,sig2 wait=5 chain=6 queued_at=95.0 seen_at=100.0 sent_at=101.2 confirmed_at=106.2 note=paid t=11")
+    # a relay that reads no comment (same-run, by hand): the token was queued when it was handed over
+    own = ghrelay.own_line("proof", "o/r", 9, token, r, None, 100.0, 106.4, ledger)
+    assert own.endswith(" ok sig=sig1,sig2 queued_at=100.0 seen_at=100.0 sent_at=101.2 confirmed_at=106.2 note=paid t=6")
+    # the chain already showed it done: this relay sent nothing, and the line says no time for what it did not do
+    assert ghrelay.log_line("proof", "o/r", 9, token, {**r, "already": True}, 1, None, ghrelay.times({**r, "already": True}, 95.0, 100.0, 100.3, ledger.start())).endswith(
+        " queued_at=95.0 seen_at=100.0 sent_at=- confirmed_at=- note=paid (another relayer carried it first) t=1")
+    # a relay that sent through something else than the ledger it was given: from pickup to answer
+    assert ghrelay.times(r, 95.0, 100.0, 104.0, ledger.start()) == {"queued_at": 95.0, "seen_at": 100.0, "sent_at": 100.0, "confirmed_at": 104.0}
+    assert ghrelay.TIMES == ("queued_at", "seen_at", "sent_at", "confirmed_at") and all(f"{k}=<t>" in ghrelay.__doc__ for k in ghrelay.TIMES)
+
+
+def test_the_status_comment_lists_the_last_ten_rounds_and_stays_small():
+    now = 1_791_021_600.0
+    journal = {f"t{i}": {"id": f"{i:08x}{'0' * 8}", "kind": "proof", "where": f"octo/widgets#{i}", "seen": now - 1000 + i, "last": now - 1000 + i, "tries": 1,
+                         "state": "confirmed", "took": 20 + i, "order": "J" * 44} for i in range(30)}
+    journal["t29"].update(state="waiting", took=None, seen=now - 75)
+    journal["t28"].update(state="refused", order=None)
+    got = ghrelay.rounds({"journal": journal}, now)
+    assert len(got) == ghrelay.ROUNDS == 10 and got[0] == f"knos-relay round octo/widgets#29 {29:08x} ok order={'J' * 44} state=waiting seconds=75 kind=proof"
+    assert got[1] == f"knos-relay round octo/widgets#28 {28:08x} ok order=- state=refused seconds=48 kind=proof"
+    assert got[2].endswith(" state=confirmed seconds=47 kind=proof") and got[-1].startswith("knos-relay round octo/widgets#20 ")
+    # bounded whatever a journal holds, and no line of it answers a job that waits for a token (those ask for all sixteen characters)
+    wild = {"x": {"id": "f" * 16, "kind": "k" * 400, "where": "w" * 4000, "state": "s" * 400, "order": "o" * 4000, "last": now, "seen": now}}
+    assert all(len(ln) <= 230 for ln in [*got, *ghrelay.rounds({"journal": wild}, now)]) and len("\n".join(got)) < 2000
+    assert not any(f" {e['id']} " in ln for e in journal.values() for ln in got) and ghrelay.rounds({}, now) == []
+    assert "knos-relay round <owner/repo>#<n> <first 8 of the token id> ok order=<address or -> state=<state> seconds=<s> kind=<kind>" in ghrelay.__doc__
+
+
 def test_a_batch_and_a_sellers_claim_posted_as_knos_eval_reach_the_meters_batch_path(monkeypatch):
     """`knos attest --kind batch|claim` posts its token under the same marker as one evaluation. The worker hands it
     to the relay of the second deployment, which sends RecordBatch or ClaimBatch (knos_meter as built, on LiteSVM)."""
@@ -277,9 +390,12 @@ def test_the_line_the_relay_writes_about_itself_is_the_line_the_status_view_read
                          "e": {"id": "5" * 16, "state": "waiting", "seen": now - 9000, "last": now - 9000, "tries": 2}}}            # its comment left the hour the relay reads
     line = ghrelay.status_line(state, now)
     assert line == f"knos-relay status - - ok at={ghrelay._stamp(now - 2)} round=4 tokens=3 waiting=2 oldest=185 retried=4 refused=1"
-    comments = [{"user": {"login": ghrelay.LOG_BOT}, "created_at": ghrelay._stamp(now - 4000), "updated_at": ghrelay._stamp(now), "body": line},
+    state["journal"]["a"].update(kind="proof", where="o/r#3", order="J" * 44)
+    listed = ghrelay.rounds(state, now)
+    comments = [{"user": {"login": ghrelay.LOG_BOT}, "created_at": ghrelay._stamp(now - 4000), "updated_at": ghrelay._stamp(now), "body": "\n".join([line, *listed])},
                 {"user": {"login": ghrelay.LOG_BOT}, "created_at": ghrelay._stamp(now - 30),
-                 "body": ghrelay.log_line("proof", "o/r", 9, "x.y.z", {"ok": True, "sigs": ["s"], "note": "paid"}, 12, {"wait": 3, "chain": 9, "tries": 2})
+                 "body": ghrelay.log_line("proof", "o/r", 9, "x.y.z", {"ok": True, "sigs": ["s"], "note": "paid"}, 12, {"workflow": 6, "wait": 3, "chain": 9, "tries": 2},
+                                          ghrelay.times({"ok": True, "sigs": ["s"]}, now - 42, now - 39, now - 30))
                  + "\n" + ghrelay.log_line("fund", "o/r", 1, "a.b.c", {"ok": False, "why": "the balance does not hold that much"})}]
     script = ("import { summarise, LOG_BOT } from " + json.dumps((ROOT / "web" / "status_data.js").as_uri()) + ";"
               "const c = JSON.parse(process.argv[1]); console.log(JSON.stringify([LOG_BOT, summarise(c, null, Number(process.argv[2]))]));")
@@ -291,6 +407,12 @@ def test_the_line_the_relay_writes_about_itself_is_the_line_the_status_view_read
     assert got["lastRound"] == {"at": int(now) - 2, "seconds": 4, "tokens": 3} and got["waiting"] == {"tokens": 2, "oldestSeconds": 185, "asOf": int(now) - 2}
     assert got["refused"] == {"count": 1, "reasons": [{"reason": "the balance does not hold that much", "count": 1, "last": int(now) - 30}]}
     assert got["retries"] == {"count": 4, "carried": 1} and got["answered"] == {"ok": 1, "failed": 1}
+    # the five states of the newest carried token, from the four times its line carries, and the rounds under the counts
+    assert got["latest"] == {"kind": "proof", "where": "o/r#9", "id": ghrelay.token_id("x.y.z"), "states": [
+        {"name": "received", "at": int(now) - 48, "seconds": None}, {"name": "accepted", "at": int(now) - 42, "seconds": 6},
+        {"name": "submitted", "at": int(now) - 39, "seconds": 3}, {"name": "confirmed", "at": int(now) - 30, "seconds": 9}, {"name": "finalized", "at": None, "seconds": None}]}
+    assert len(listed) == 5 and [(r["where"], r["id"], r["state"], r["seconds"], r["order"]) for r in got["rounds"]][:2] == [
+        ("-", "22222222", "sending", 5, None), ("o/r#3", "11111111", "waiting", 185, "J" * 44)]
 
 
 def test_the_page_about_the_relay_states_the_relays_own_constants():
@@ -302,6 +424,15 @@ def test_the_page_about_the_relay_states_the_relays_own_constants():
     assert "knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>" in doc
     assert "knos-relay status - - ok at=<time> round=<s> tokens=<n> waiting=<n> oldest=<s> retried=<n> refused=<n>" in ghrelay.__doc__
     assert "none on devnet" in doc                                    # what is not done is said
+    # the five states: one table, in order, each with where its timestamp is taken from; and the constants the page names
+    from knos import flow
+    table = doc.split("## The five states of a payment")[1].split("## Where a token waits")[0]
+    rows = [ln for ln in table.splitlines() if ln.startswith("| `")]
+    assert [ln.split("`")[1] for ln in rows] == list(flow.STATES) == ["received", "accepted", "submitted", "confirmed", "finalized"]
+    assert all(len(ln.split(" | ")) == 4 for ln in rows) and "Its timestamp is taken from" in table and "GitHub's: starting a runner" in table
+    assert f"at most {flow.FINAL_WAIT} s (`FINAL_WAIT`)" in table and "No commit status or check on the merge commit" in table
+    assert f"for {ghrelay.ALREADY_WAIT} s (`ALREADY_WAIT`)" in doc and f"the last {ghrelay.ROUNDS} tokens the relay took up (`ROUNDS`)" in doc
+    assert all(f"`{k}=`" in table for k in ghrelay.TIMES) and "<!-- knos-states since=<t> received=<t>" in table
     # and what is done says when and on what: the stages were measured on the live log, with the dates of its reads
     assert re.search(r"`scripts/latency_stages\.py` on the live log \(\d{1,2} \w+ 20\d\d, \d\d:\d\d to \d\d:\d\d UTC", doc)
     assert "has not yet been run against the live log" not in doc

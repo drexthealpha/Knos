@@ -50,6 +50,7 @@ def the_terms(name: str) -> dict:
 def terms_file(name: str) -> dict:
     t = the_terms(name)
     return {"name": f"outcome-{name}", "sentence": EXAMPLES[name][2],
+            "comment": f"/knos fund {EXAMPLES[name][0] // 1_000_000} checks: none",      # what `knos terms show <name>` gives
             "where": "an issue that has this example's .knos/acceptance/<issue>/ on the default branch (bundle 1 here)",
             "terms": t, "terms_json": terms.canonical(t).decode(), "terms_hash": terms.terms_hash(t)}
 

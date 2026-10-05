@@ -467,13 +467,27 @@ AUTO = ("It pays the first pull request that passes the black-box suite, without
 JUDGES = {2: "two", 3: "three"}
 
 
-def describe_options(auto: bool = False, quorum: int = 0) -> list[str]:
-    """The sentences for the reply to the funder about two options of a work order that are not in the terms JSON
-    (they are in the order's options, which the fund token also signs): `auto` and `quorum 2|3`."""
+def readers(neutral: bool = True, judge: str = "") -> list[str]:
+    """Who can pass a pull request for an order, each in a few words: the buyer repository's own run, a neutral run
+    (unless the funder said `neutral off`), and the judge repository named at funding (`judge`, owner/name)."""
+    return ["this repository's own run",
+            *(["a neutral run that someone other than its funder starts by hand in a repository of their own (for an order paid by its "
+               "acceptance suite, that run executes the suite again itself)"] if neutral else []),
+            *([f"a run in {judge}, the judge repository named at funding, which belongs to neither the funder nor this repository's owner"]
+              if judge else [])]
+
+
+def describe_options(auto: bool = False, quorum: int = 0, neutral: bool = True, judge: str = "") -> list[str]:
+    """The sentences for the reply to the funder about the options of a work order that are not in the terms JSON
+    (they are in the order's options, which the fund token also signs): `auto`, `quorum 2|3` and `judge: owner/repo`.
+    The quorum's sentence says who the readers are."""
     out = [AUTO] if auto else []
     if quorum:
-        out.append(f"It is paid only after {JUDGES[quorum]} different judges have each passed the same pull request at the same commit. The "
-                   "judges an order can have: this repository's own run, a neutral run anyone can start, and the judge repository it names.")
+        who = readers(neutral, judge)
+        names = "; ".join(f"{i}. {w}" for i, w in enumerate(who, 1))
+        count = "all of these" if quorum == len(who) else f"any {JUDGES[quorum]} of these"
+        out.append(f"It is paid only after {JUDGES[quorum]} independent readers have each passed the same pull request at the same commit, "
+                   f"{count}: {names}. One reader counts once, however often it passes; two repositories of one owner are one reader.")
     return out
 
 

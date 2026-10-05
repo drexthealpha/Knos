@@ -1,6 +1,8 @@
 # Knos: the submission
 
-**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.**
+**The neutral meter for AI agent work: neither side keeps the count.**
+
+Of first agent pull requests that claimed passing tests, 17.8% had a failed check.
 
 - Site: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)
 - Code: [github.com/drexthealpha/Knos](https://github.com/drexthealpha/Knos) (MIT)
@@ -10,12 +12,14 @@ What is in this folder:
 
 | file | what it is |
 |---|---|
-| this file | the text for each field of the form, each under a thousand characters, and the checklist for the day of submission |
-| [pitch_script.md](pitch_script.md) | the pitch video, in six beats: the buyer and the problem first, how it works last |
-| [demo_script.md](demo_script.md) | the demo video: six shots with timestamps, and for each the program ids it can be recorded on |
-| [CRITERIA.md](CRITERIA.md) | how the submission answers each factor Colosseum lists and each criterion in the rules, one paragraph each |
+| this file | the text for each field of the form, each under its limit of a thousand characters, and the checklist for the day of submission |
+| [NUMBERS.md](NUMBERS.md) | the nine numbers about outside use, each with today's true value and the slot the release fills |
+| [pitch_script.md](pitch_script.md) | the pitch video, two minutes in five beats: the buyer and the problem first |
+| [demo_script.md](demo_script.md) | the demo video, two minutes: one buyer's story in seven moments, each captioned with the program ids it ran on |
+| [CRITERIA.md](CRITERIA.md) | one paragraph for each factor Colosseum lists, founder and market fit included, and for each criterion in the rules |
 | [../PILOT.md](../PILOT.md) | the one offer for money: a 30-day pilot for one buyer and its suppliers, and what blocks it |
 | [../TEAM.md](../TEAM.md) | who builds Knos today, and the three roles the plan needs first, none hired |
+| [../GOVERNANCE.md](../GOVERNANCE.md) | who can change what today, and three plans: an outside key holder, a two-owner organisation, the verifier frozen after an outside review |
 | [../DISCLOSURE.md](../DISCLOSURE.md) | what existed before the competition and what was built during it, by date; and what does not exist |
 | [DEPENDENCY.md](DEPENDENCY.md) | the plan for the dependency on one personal GitHub account |
 | [INTERVIEWS.md](INTERVIEWS.md) | the kit for buyer conversations: whom to ask, what to ask, and a letter of intent to offer |
@@ -23,49 +27,53 @@ What is in this folder:
 | [../CAPABILITIES.md](../CAPABILITIES.md) | the index of evidence: every capability, the stage it has reached (implemented, tested locally, deployed, exercised on devnet, reproduced by someone else) and the file that shows it |
 
 A number that only the release run can measure is a slot, `[[stat: name]]`; `python scripts/bench_docs.py --slots`
-lists the ones still open. Three fields state facts about the founder that nothing in the repository can back;
+lists the ones still open. Every field is under a thousand characters, and `tests/test_business_docs.py` counts them. Three fields state facts about the founder that nothing in the repository can back;
 each says so, and the founder confirms it before pasting.
 
 ## Checklist for the day of submission
 
 - [ ] **Confirm the Solana ecosystem track is selected in the form.** A submission with no track selected is not
       in that track.
-- [ ] Both videos open for someone who is not signed in, and neither is longer than three minutes.
+- [ ] Both videos open for someone who is not signed in, and neither is longer than two minutes.
+- [ ] Every shot that is a replay, or is played faster than it happened, carries its caption for its whole length.
+- [ ] Every moment of the demo is captioned with the program ids it ran on: staging program ids until
+      `web/upgrades.json` shows the pending upgrade executed and a moment has run on the public ones.
+- [ ] Every slot of [NUMBERS.md](NUMBERS.md) holds the number its source gives on the day, zeros included.
 - [ ] The repository link opens for someone who is not signed in.
 - [ ] `python scripts/bench_docs.py --slots` prints no open slot, and `python scripts/claims_check.py` passes.
 - [ ] `python scripts/capabilities.py check --rpc` passes, and every field and every shot says of a capability
       only the stage `docs/capabilities.json` gives it on the day, on the program ids `web/upgrades.json` says are
       live. No field states a count of capabilities: [../CAPABILITIES.md](../CAPABILITIES.md) is the count.
-- [ ] `web/upgrades.json` has been read on the day. If a proposal has not executed, the fields below are already
-      true as written; the demo's shots follow the "before" column of its table.
+- [ ] `web/upgrades.json` has been read on the day. A moment of the demo shows only what ran, on the program ids
+      its caption names; a moment whose capability has run nowhere is cut, not staged.
 - [ ] The three fields marked "the founder confirms this" have been read and are true on the day.
-- [ ] The "who said yes" beat of the pitch and shot F of the demo have been read against the chain on the day: if an outside account has
+- [ ] The last beat of the pitch and the last moment of the demo have been read against the chain on the day: if an outside account has
       funded an order since this was written, the count is updated from `docs/facts.json`; if a conversation has
       happened, it is added only with the other party's agreement to be named.
 - [ ] Every team member is registered on colosseum.com. Today the team is one person.
 
 ## whatBuilding
 
-Knos lets a buyer close a supplier's invoice with evidence both sides can check. Before the work, the buyer fixes what is bought and what decides
-it is done: the checks that must pass and the paths that may change, hashed into the order at funding. A workflow
-at a pinned commit reads the forge's record, the forge signs that run, and a Solana program verifies the signature
-on chain. It then counts the outcome, with no money on chain, or pays the supplier in full, the buyer paying the
-fee on top. Buyer and supplier each compute the month's statement from their own ledger; a difference shows as a
-named dispute. Live on the public program ids on devnet: funding by comment, payment on a merge, refunds, the
-single count. Work orders, the batched count, passkey funding and one single-use rule for every token were
-rehearsed on staging ids, not the public ones, and go live when their approved upgrades execute (web/upgrades.json). docs/CAPABILITIES.md has each
-stage. Test USDC only.
+The neutral meter for AI agent work: neither side keeps the count. When agent work is sold per outcome, the
+seller counts the outcomes and the buyer pays on that count. With Knos the buyer fixes, before the work, the
+budget and what decides that it is done: the checks that must pass and the paths that may change, hashed at
+funding. A workflow at a pinned commit reads the forge's record, the forge signs that run, and a Solana program
+verifies the signature. The outcome is then counted, with no money on chain, or paid in test USDC. Each side
+keeps its own ledger and computes the same statement; a difference is a named dispute, not an invoice line. A
+buyer starts in shadow mode: the count runs beside the invoices it already receives and changes nothing. Devnet
+is the test mode: the record verifies from GitHub's signatures with no chain. docs/CAPABILITIES.md has the stage
+of every capability, and web/upgrades.json has which builds are live on the public program ids.
 
 ## whyNow
 
-Coding agents open pull requests in very large numbers, and a description is not evidence. In 826 repositories, the
-first agent pull request that said tests pass had a failed check of some kind in 147 (17.8%), and a failed test or
-build in 80 (9.7%). Of 241 merged ones that said so, 30 had a failed check at the head commit (12.4%). Billing by outcome
-has begun, and the seller keeps the count: on 14 Sep 2026 one vendor started billing per merged changeset, another
-advertises that customers pay only for merged pull requests, and support agents are sold per resolution that the
-vendor itself counts. The person who approves that invoice has no count of their own. The forge already records
-each result and signs statements about a CI run, so its signature is a count that neither side owns. On Solana,
-checking that RSA signature takes two transactions.
+Of first agent pull requests that claimed passing tests, 17.8% had a failed check: 147 of 826 repositories, and
+in 80 of them (9.7%) the failed check was a test or a build. Of 241 merged ones that said so, 30 had a failed
+check at the head commit (12.4%): a buyer paying per merge on that sample would have paid for 30 changes with a
+failed check. Billing by outcome has begun, and the seller keeps the count: on 14 Sep 2026 one vendor started
+billing per merged changeset, another advertises that customers pay only for merged pull requests, and support
+agents are sold per resolution that the vendor itself counts. The person who approves that invoice has no count
+of their own. The forge already records each result and signs statements about a CI run, so its signature is a
+count that neither side owns. On Solana, checking that RSA signature takes two transactions.
 
 ## repoContext
 
@@ -81,60 +89,60 @@ commands that reproduce every count.
 
 ## marketValidation
 
-None yet. No buyer or supplier has been interviewed, there is no letter of intent, no pilot, and nobody has
-paid. What exists is a measurement, an offer and a plan to ask. The measurement: of 241 merged agent
-pull requests whose description said tests pass, 30 had a failed check at the head commit (12.4%), so a vendor
-that bills per merge bills for those. The buyer is whoever must authorise a supplier's invoice and defend it
-afterwards; the second user is the supplier, who needs terms that cannot change after the work. A maintainer's
-bounty is the smallest case and not the market: all open bounties on every board came to 64,291 USD on
-2 Oct 2026. The offer is a 30-day pilot (docs/PILOT.md): reconcile one buyer's accepted work from more than one
-supplier, name every mismatch with billing, and deliver a statement both sides verify. The plan to ask is
-INTERVIEWS.md. The free check is the distribution; software is sold first (docs/MARKET.md).
+None yet. No buyer or supplier has been interviewed, there is no letter of intent, no pilot, no shadow count,
+and nobody has paid. NUMBERS.md prints each of those as a zero. What exists is a measurement, an offer and a
+plan to ask. The measurement: of 241 merged agent pull requests whose description said tests pass, 30 had a
+failed check at the head commit. The buyer is whoever must approve a supplier's invoice and defend it
+afterwards. An organisation is qualified when it has measurable spend on work bought per outcome, acceptance
+criteria it can write down, a buyer with authority, and a problem worth another system; nobody has counted how
+many there are. A maintainer's bounty is the smallest case and not the market: all open bounties on every board
+came to 64,291 USD on 2 Oct 2026. The offer starts free, in shadow mode, and becomes a 30-day pilot
+(docs/PILOT.md). The plan to ask is INTERVIEWS.md.
 
 ## traction
 
 No traction is claimed beyond what the chain counts. Knos's own account funded every task paid so far, in test
 USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one outside contributor, for bounties
-Knos funded itself, and the rest to Knos's own accounts. When the release ran, 43 tasks had been
+Knos funded itself, and the rest to Knos's own accounts. When the release ran, 44 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
-their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 39
+their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 40
 payments. 1,905 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
-sold. Revenue: none; test USDC is not money. Outside reproductions: none known. The site's Numbers page
-shows today's counts, read from the programs' own logs, with Knos's own accounts kept apart from everyone else's.
+sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
+source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 
 ## competition
 
-Vendors that bill per accepted outcome count their own outcomes; none offers a count the buyer can check. GitHub's
-own controls (required checks, rulesets, the merge queue) gate a merge and move no money. Bounty boards (Algora,
-Opire, BountyHub, TaskBounty) pay on a person's decision, or on a test run in the board's own sandbox. MergePay
-verified GitHub's signature on an EVM chain before Knos did on Solana; it is on a mainnet with real USDC, charges
-no platform fee, and is ahead there. Its payment condition is the merge alone. What Knos adds: named checks and
-allowed paths fixed at funding; a seller who can settle without the buyer; a black-box check that refused all 63
-cheating pull requests of our benchmark, 56 of which passed plain CI; a verifier for any RS256 issuer; and a count
-with no escrow, where the seller's count sits beside the buyer's. Where Knos is behind: devnet only, no outside
-security review, no payout to a bank, one person. docs/COMPARE.md has every source.
+Counting what an agent does and moving money for it are already sold: cloud platforms sell agent identity,
+policy, evaluation and payments, and billing companies sell usage billing. So metering agents and moving
+payments is not our difference. Each of them counts for one side: the platform for its own agents, the billing
+system for the seller. Knos's difference is acceptance that is independent of every vendor, disagreements
+included. Vendors that bill per accepted outcome count their own. GitHub's own controls gate a merge and move no
+money. Bounty boards pay on a person's decision. MergePay verified GitHub's signature on an EVM chain before
+Knos did on Solana; it is on a mainnet with real USDC, charges no platform fee, and is ahead there. Where Knos is
+behind: devnet only, no outside security review, no payout to a bank, one person, and nobody outside has used
+it. docs/COMPARE.md has every source.
 
 ## monetization
 
-The price book (docs/MARKET.md). Check: free. Meter: 10,000 evaluations a month free per organisation, then 0.05
-USD, or 0.02 on a committed-volume plan. Control: 25,000 USD a year entry, 80,000 for the organisation tier.
-Settle, paid by the funder on top: 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above, minimum 0.40.
-The effective fee is shown before funding, and Knos is not cheaper on a small order: a 5 USDC order pays 8%.
-Pilot: 2,500 USD for one buyer and its suppliers for 30 days. Nobody has bought any of it. On devnet, Meter, Control and the Pilot are software and can be invoiced off chain; a settle
-fee is test money, so settlement revenue is zero. There is no legal entity to invoice from yet. The first
-milestone is 40 organisations at the entry price. The code is MIT, so a fork can charge nothing; what it would
-lack must be earned and is measured: supplier reuse across unrelated buyers, repeat buyer spend, onboarding
-time. Each is zero today. No token.
+The price book (docs/MARKET.md). Check: free, forever. Meter: 10,000 evaluations a month free per organisation,
+then 0.05 USD, or 0.02 on a committed-volume plan. Verify, proposed: 0.5% to 1.0% of the outcome billing the
+count verifies. Control, per year: Team 25,000 USD, Business 80,000; Enterprise from 250,000 is not deliverable
+yet. Supplier connection: 5,000 USD a year each beyond the first five, paid by the buyer. Pilot: 2,500 USD for 30
+days, credited against Control. Settle: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, minimum 0.40; on
+devnet it is test money, zero revenue. Knos never charges the party being rated. Nobody has bought anything, and
+there is no legal entity to invoice from. The first steps: 40 organisations at 25,000 are 1 million USD a year
+of platform revenue; 125 at 80,000 are 10 million. No token.
 
 ## teamCommitment
 
 One person, full time, under the handle drexthealpha, which is a pseudonym. I work with coding agents every day,
-and this repository was built with them; I review and commit every change. I built what is here because my own agents
-told me the tests passed when they had not. What I have not done: sold to an engineering or finance leader, run a
-security review, or kept a service running for a customer. docs/TEAM.md names the three roles the plan needs
-first and what each would own in the first ninety days: someone who has sold to engineering or finance leaders, a
-security lead to run an outside review, and agent-vendor partnerships. None is hired, approached or committed.
-The pinned workflows and the relay live in my personal account; moving them to an organisation is a plan. What I am asking for: a place in the accelerator, introductions to buyers and vendors of
+and this repository was built with them; I review and commit every change. I built it because my own agents told
+me the tests passed when they had not. What I have not done: sold to the person who approves a supplier's
+invoice, run a security review, or kept a service running for a customer. docs/TEAM.md names the three roles the
+plan needs first: someone who has sold to engineering or finance leaders, a security lead to run an outside
+review, and agent-vendor partnerships. None is hired, approached or committed. docs/GOVERNANCE.md has three
+plans, none done: an outside key holder, a two-owner organisation for the pinned workflows, and the verifier
+frozen after an outside review. What I am asking for: a place in the accelerator, introductions to buyers of
 outcome-priced work, and an outside security review.
 
 ## externalContributors

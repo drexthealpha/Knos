@@ -1,5 +1,7 @@
 # How the submission answers what the judges ask
 
+**The neutral meter for AI agent work: neither side keeps the count.**
+
 Colosseum's hackathon page lists seven factors its judges weigh
 ([colosseum.com/hackathon](https://colosseum.com/hackathon), read 5 Oct 2026; the question under each heading
 below is quoted from it). The same page says teams "must disclose all relevant past development work in the
@@ -10,7 +12,7 @@ that is the answer.
 No count of capabilities is given on this page. How far each capability has got (implemented, tested, deployed,
 exercised on devnet, reproduced by someone else) is in [CAPABILITIES.md](../CAPABILITIES.md), written from
 [`docs/capabilities.json`](../capabilities.json), and which builds are live on the public program ids is in
-`web/upgrades.json`.
+`web/upgrades.json`. The numbers about outside use are in [NUMBERS.md](NUMBERS.md), zeros included.
 
 ## The seven factors on Colosseum's page
 
@@ -19,16 +21,16 @@ exercised on devnet, reproduced by someone else) is in [CAPABILITIES.md](../CAPA
 > "Does the team have the right skills and experience to succeed in this market, and why is it motivated to solve
 > this problem?"
 
-Evidence only. For: one person shipped everything in this repository, with coding agents, in public, and the
-dated history is in [DISCLOSURE.md](../DISCLOSURE.md) and [TEAM.md](../TEAM.md); he works with coding agents every
-day, which is where the problem comes from, since his own agents reported passing tests that had not passed; he
-measured that problem on public data before building for it ([BENCH.md](../BENCH.md)); and he found and disclosed
-a double-payment defect in his own build during its upgrade delay, before it ran
-([SECURITY.md](../SECURITY.md), section 15). Against: he is pseudonymous; he has never sold to an engineering or
-finance leader, who is the buyer; he has not spoken to one about this; he has run no security review and no
-service for a customer. So the fit is with the supplier's side of this market and with the engineering, and not
-yet with the buyer's side. [TEAM.md](../TEAM.md) names the three roles the plan needs first and says that none is
-hired or committed.
+Half. The motivation is first-hand: the founder works with coding agents every day, and his own agents reported
+passing tests that had not passed. He measured that on public data before building for it
+([BENCH.md](../BENCH.md)), shipped everything here in public with a dated history
+([DISCLOSURE.md](../DISCLOSURE.md)), and found and disclosed a double-payment defect in his own build during its
+upgrade delay, before it ran ([SECURITY.md](../SECURITY.md), section 15). That is fit with the supplier's side of
+this market and with the engineering. The buyer is the person who approves a supplier's invoice, and with that
+person there is no fit yet: he has never sold to one, has not spoken to one about this, has not worked in
+procurement or finance, has run no service for a customer, and is pseudonymous, which a procurement process may
+refuse. [TEAM.md](../TEAM.md) says so, names the three roles the plan needs first, and says that none is hired,
+approached or committed.
 
 ### Insight
 
@@ -38,74 +40,81 @@ Work is starting to be priced per outcome, and the seller keeps the count. For c
 third party already records the outcome and signs statements about it: the forge records the merge and the checks
 and signs a CI run. So the count can belong to neither side. We measured why it matters: of 241 merged agent pull
 requests whose description said tests pass, 30 had a failed check at the head commit
-([BENCH.md](../BENCH.md)). The second half of the insight is about what is bought: the unit is a deliverable, an
-order and a milestone, and not a pull request, so that splitting one piece of work into many pull requests does
-not multiply the bill. The limit is stated wherever the insight is used: the forge signs which workflow ran, not
-what it read. Whether buyers object to the seller's count enough to pay for another is not known.
+([BENCH.md](../BENCH.md)), so a buyer paying per merge on that sample would have paid for those 30. The second
+half is about what is bought: the unit is a deliverable, not a pull request, so splitting one piece of work into
+many pull requests does not multiply the bill. The third is about price: a flat price per evaluation cannot grow
+with the value it verifies, which is why a price on the outcome billing verified is proposed
+([MARKET.md](../MARKET.md), section 3). The limit is stated wherever the insight is used: the forge signs which
+workflow ran, not what it read. Whether buyers object to the seller's count enough to pay for another is not
+known.
 
 ### Product + Execution
 
 > "How well does the product work? How does it stack up against the competition?"
 
-On the public program ids on devnet, in test USDC, a task is funded by a comment, a submission whose required
-check failed is refused with the check named, a valid one is paid on the forge's signature, and an unfulfilled
-task refunds without anyone's permission. Work orders, the batched count with the supplier's own count beside the
-buyer's, funding by passkey and the single-use rule for every token were rehearsed on staging program ids, which
-are not the public ones, so the manifest holds them at "tested locally"; they reach the public ids only when their
-approved upgrade proposals execute, and `web/upgrades.json` says whether they have. [CAPABILITIES.md](../CAPABILITIES.md) gives the stage of each, and the demo cuts any shot whose
-capability is not at the stage it needs on the day. Against the competition ([COMPARE.md](../COMPARE.md)):
-MergePay is on a mainnet with real USDC and no platform fee, and is ahead there; its condition is the merge
-alone. Knos adds terms fixed at funding, a supplier who can settle without the buyer, a black-box check, and a
-count with no escrow. Knos is not cheaper on a small order, has no outside security review, and has never run
-with real money. Nobody outside Knos is known to have reproduced any of it.
+On Solana devnet, in test USDC: a task is funded, a submission whose required check failed is refused with the
+check named, a valid one is paid on the forge's signature, a replayed token is refused, and an unfulfilled task
+refunds without anyone's permission. Which of these runs on the public program ids on a given day is not stated
+here: [CAPABILITIES.md](../CAPABILITIES.md) gives each capability's stage and `web/upgrades.json` the live builds,
+and the demo captions each moment with the program ids it ran on. From merge to paid took 25 seconds at the
+median, over 40 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
+([COMPARE.md](../COMPARE.md)): cloud platforms and billing companies already meter agents and move payments, with
+customers and real money, so that is not a difference; the difference is acceptance independent of every vendor,
+and nobody has yet paid for that. MergePay is on a mainnet with real USDC and no platform fee, and is ahead
+there. Knos is not cheaper on a small order, has no outside security review, and has never run with real money.
+Nobody outside Knos is known to have reproduced any of it.
 
 ### Potential Market Size
 
 > "How big is the total addressable market for this project? Is it already large, or small but growing rapidly?"
 
-We do not multiply a large number by a share, and we print no revenue scenario. [MARKET.md](../MARKET.md) gives
-the adjacent market with a source for every figure: vendors that already bill per accepted outcome and count
-their own, the revenue of coding-agent sellers, IT services spending, and buyers who already pay strangers per
-outcome. None of those is Knos's market: its market is what buyers would spend on acceptance, reconciliation and
-controls, and no source gives that. What the document does state is the revenue formula, one customer worked
-through at the price book's prices, and the first milestone: 40 organisations at the entry price. Every input of
-the formula is zero today.
+Not known, and we do not multiply a large number by a share. [MARKET.md](../MARKET.md) builds the addressable
+market as qualified organisations times contract value, plus billable evaluations times the realised price, and
+says what makes an organisation qualified: measurable spend on work bought per outcome, acceptance criteria that
+can be written down, a buyer with authority, and a problem worth another system. No source counts those
+organisations, so no total is printed. What is sourced: vendors that already bill per accepted outcome and count
+their own; the revenue of coding-agent sellers, almost all of it billed by the seat or the token today; and one
+precedent from another industry, independent measurement of advertising, where two companies each report several
+hundred million USD a year. So the market is small today and depends on outcome pricing spreading, beyond code as
+well. That is a bet, and the document says so.
 
 ### Founder Communication
 
 > "Are the founders communicating the product vision clearly and capable of growing the product's user base?"
 
 One sentence on every surface, and one thing the buyer hears first: close a supplier's invoice with evidence both
-sides can check. The pitch puts the buyer and the problem first and the cryptography last
-([pitch_script.md](pitch_script.md)); the demo is six shots of one commercial story
-([demo_script.md](demo_script.md)); and every number in either has a source that a script checks
-(`scripts/claims_check.py`). The documents say what is not done in the same place as what is. Growing a user
-base is unproven: no buyer has heard any of this, and nobody outside Knos is known to run the free check.
+sides can check. The pitch is two minutes with the buyer and the problem first
+([pitch_script.md](pitch_script.md)); the demo is two minutes, one buyer's story in seven moments, with a caption
+on any shot that is a replay or is played faster than it happened ([demo_script.md](demo_script.md)); and every
+number in either has a source that a script checks (`scripts/claims_check.py`). The documents say what is not
+done in the same place as what is. Growing a user base is unproven: no buyer has heard any of this, and nobody
+outside Knos is known to run the free check.
 
 ### Viability
 
 > "Can this project become a scalable, sustainable business?"
 
-Not shown. What can be said: the settlement fee alone cannot carry it, because the code is MIT and a fork can
-charge nothing, and while the programs are on devnet a settle fee is test money. What can earn real money on
-devnet is software, invoiced off chain: the Meter, Control and a 30-day [Pilot](../PILOT.md). None has been sold,
-and there is no legal entity to invoice from. The unit economics are in [MARKET.md](../MARKET.md), including the
-one that did not work, a meter whose rent exceeded its price, and the batch mode that replaces it. The advantages
-a fork would lack (suppliers that reuse one integration across unrelated buyers, buyers that return, short
-onboarding) are written there as things to be earned, each with the measure that would show it, and each measure
-reads zero. What would make it not viable is there too: nobody wanting a neutral count is first on the list.
+Not shown. Devnet is the test mode, and what can be real while the programs stay there is software invoiced off
+chain: Control, the Meter, a Supplier connection and a 30-day [Pilot](../PILOT.md) that starts free in shadow
+mode. Escrow and every settle fee on devnet are a demonstration in test money. None of the software has been
+sold, and there is no legal entity to invoice from. The first steps are written as arithmetic, not as a forecast:
+40 organisations at 25,000 USD are 1 million USD a year of platform revenue, and 125 at 80,000 are 10 million.
+The code is MIT, so a fork can charge nothing; what it would lack has to be earned, in the order it could form:
+supplier reuse, a terms standard cited by hash, a delivery record, neutrality. Each has a measure in
+[MARKET.md](../MARKET.md), and each measure reads zero. One rule is published with the prices: Knos never charges
+the party being rated. What would make it not viable is there too: nobody wanting a neutral count is first.
 
 ### Traction
 
 > "Does the product already have demand or revenue? If so, how durable are its revenue and user base?"
 
-No. There is no revenue, and test USDC is not money. Counted from the chain: no account other than Knos's has
-funded an order with its own tokens. One outside contributor wrote three pull requests that were paid on devnet,
+No. There is no revenue, and test USDC is not money. [NUMBERS.md](NUMBERS.md) has the nine numbers about outside
+use with today's value of each: no account other than Knos's has funded a task with its own tokens; no buyer has
+been interviewed; there is no letter of intent, no shadow count, no reproduction by anyone else, and no outside
+program known to read the verifier. One outside contributor wrote three pull requests that were paid on devnet,
 for bounties Knos funded itself; that shows the path working between two accounts, not demand. With no revenue
-and no outside funder there is nothing whose durability could be judged. No buyer has been
-interviewed, there is no letter of intent, and nobody has bought or been offered the Pilot. The site's Numbers
-page shows the live counts with Knos's own accounts kept apart, and the submission will say whatever those counts
-are on the day.
+and no outside funder there is nothing whose durability could be judged. The submission will say whatever those
+numbers are on the day.
 
 ## The six criteria in the rules
 
@@ -155,9 +164,9 @@ has published a reproduction.
 
 ### Business plan
 
-The price book, the effective fee of each order size, what each unit costs to deliver, one customer worked
-through, the first milestone, the phases with the gate to each, and what a zero-fee fork can and cannot copy are
-in [MARKET.md](../MARKET.md); the one offer for money is [PILOT.md](../PILOT.md); who is needed is
+The price book, the effective fee of each order size, what each unit costs to deliver, the addressable market
+as a formula, one customer worked through and how it would expand, the first steps, devnet as test mode, and
+what a zero-fee fork can and cannot copy are in [MARKET.md](../MARKET.md); the one offer for money is [PILOT.md](../PILOT.md); who is needed is
 [TEAM.md](../TEAM.md). It is tokenless. Its weakest points are stated in it: no buyer has been asked, no company
 exists to sign a contract or send an invoice, escrow and money transmission need legal advice that has not been
 taken, and one person holds every key and the one GitHub account the workflows live in

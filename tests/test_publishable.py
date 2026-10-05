@@ -84,7 +84,11 @@ def test_the_release_publishes_all_three_without_a_stored_secret_once_a_first_ve
     for job, after in ((crates, "crates"), (npm, "npmjs")):
         # behind the gate, after the token job (so a version is never published twice), with this run's identity and no secret
         assert f"needs: [tests, pypi, {after}]" in job and "id-token: write" in job and "contents: read" in job and "secrets." not in job
-        assert "is published by hand (docs/RELEASE.md)" in job and "already has" in job
+        # what it says of a package that is not on its registry yet, or of a version the registry has, is the one
+        # rule's (scripts/release.py registry-plan: tests/test_release_gate.py runs it)
+        assert "python3 scripts/release.py registry-plan " in job and "published by hand" in job
+    plan = (ROOT / "scripts" / "release.py").read_text(encoding="utf-8")
+    assert "Its first version is published by hand (docs/RELEASE.md)" in plan and "already has {name} {version}" in plan
     pins = json.loads((ROOT / "scripts" / "action_pins.json").read_text(encoding="utf-8"))["pins"]
     sha = pins["rust-lang/crates-io-auth-action@v1.0.5"]
     assert f"uses: rust-lang/crates-io-auth-action@{sha} # v1.0.5" in crates and "CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}" in crates
@@ -103,6 +107,8 @@ def test_the_release_page_gives_the_first_publish_and_claims_nothing_is_publishe
         assert line in part, line
     assert "none published yet" in part and "by hand, once, by the owner, signed in to each registry" in part and "has not been done" in part
     assert "workflow `release.yml`" in part and "crates-trusted" in part and "npm-trusted" in part
+    # a package is published at its own version: the page says why a held crate's is not the tag's, and names the one rule
+    assert "A package is published at ITS OWN version" in part and "python scripts/release.py registry-plan" in part and "`PROGRAMS_FROZEN`" in part
 
 
 def test_copying_the_gate_is_a_readme_and_a_template_and_no_outside_user_is_claimed():

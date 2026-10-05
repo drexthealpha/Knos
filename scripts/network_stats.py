@@ -70,6 +70,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 from knos import chain  # noqa: E402
 from knos.settle import oidc, pay  # noqa: E402
@@ -83,6 +84,7 @@ from knos.records import PROGRAMS, events_of, history, jobs_of, meter_months, or
 _OWN = json.loads((ROOT / "scripts" / "own_github_ids.json").read_text(encoding="utf-8"))
 OWN = frozenset(_OWN["ids"])
 OWN_WALLETS = frozenset(_OWN.get("wallets", []))
+OWN_REPOS = frozenset(_OWN.get("repositories", []))      # repository ids; a repository whose owner is in OWN needs no entry
 RELAY_LOG_REPO = "drexthealpha/Knos"
 # Workflow files that call Knos's reusable workflows or its Action, as GitHub's code search finds them.
 INSTALLED_QUERIES = ('"drexthealpha/knos-workflows/.github/workflows" path:.github/workflows',
@@ -104,6 +106,16 @@ def kind_of(job: dict, own: frozenset = OWN, own_wallets: frozenset = OWN_WALLET
     if paid(job) and (back or (payees - {0}) & {job["owner"], job["by"]}):
         return "self"
     return "test" if job["faucet"] else "outside"
+
+
+def outsiders(jobs: list[dict], own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS, own_repos: frozenset = OWN_REPOS,
+              measured: bool = True) -> dict:
+    """Outside funders, outside repositories and outside payees: three numbers, never added (scripts/outsiders.py has
+    the definitions). kind_of() calls a job in a repository of Knos's "own" whoever commented; this is where an outside
+    account that funds there from the faucet is counted, as "outside funder, Knos repository, faucet money", apart
+    from the funders in outside repositories."""
+    import outsiders as rules
+    return rules.count(jobs, own, own_wallets, own_repos, measured, frozenset(str(pay2.faucet_balance_pda(i)) for i in own))
 
 
 def paid(job: dict) -> bool:
@@ -149,6 +161,8 @@ def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset =
     return {
         "outside": sides["outside"],
         "apart": {"own": sides["own"], "self": sides["self"], "test": sides["test"]},
+        # who outside Knos took part, whichever kind the job is: three numbers that are never added to each other
+        "outsiders": outsiders(jobs, own, own_wallets),
         "totals": {"funded": len(jobs), "completed": len(done) + other["unmatched_paid"], "open": state("open") + state("proven"),
                    "held": state("held"), "funded_amount": sum(j["amount"] for j in jobs), "paid_amount": sum(j["net"] for j in done), **other},
         "by_deployment": {name: {"funded": sum(1 for j in jobs if j["v"] == v), "completed": sum(1 for j in done if j["v"] == v)}

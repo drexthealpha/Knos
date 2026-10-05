@@ -19,6 +19,37 @@ the black-box suite and, beside it, a naive check that looks only at what the su
 is accepted by both. The cheating submission (copied visible labels; the worked example's answer written down; a
 result pasted into the script) is accepted by the naive check and refused by the black-box suite.
 
+## Funded by a comment, paid by the suite
+
+Each example is an order the ordinary flow funds and pays: a comment, a pull request, the black-box verdict, the
+payment. Put the example's `base/` in a repository (its suite becomes `.knos/acceptance/<issue>/` for the issue you
+fund), then comment on that issue:
+
+| Outcome | The comment | The terms it funds |
+|---|---|---|
+| Data labelling | `/knos fund 40 checks: none` | `knos terms show data-labelling` |
+| Data transformation | `/knos fund 150 checks: none` | `knos terms show data-transformation` |
+| Reproducible research | `/knos fund 90 checks: none` | `knos terms show reproducible-research` |
+
+`checks: none` because the suite is the acceptance: the terms are in tests mode and carry the suite's hash, and the
+reply to the comment says so. 150 is more than the devnet faucet gives per comment (100), so that one needs a Balance.
+Each `terms show` prints the terms as bytes and their hash; they are the example's own `terms.json`
+(`tests/test_flow_quorum3.py::test_each_outcome_has_a_template_whose_terms_are_the_examples_own`).
+
+**What was run.** One test, for data labelling, from the comment to the payment:
+`tests/test_flow_quorum3.py::test_a_labelled_dataset_is_funded_by_a_comment_and_only_the_honest_file_is_paid`.
+The comment funds a work order whose terms are byte for byte the example's; the cheating `labels.csv` (the 40 visible
+answers copied) passes the naive check and is refused by the suite, so nothing is signed and nothing is paid; the
+honest file passes, the job after the judge signs for its commit, and the order pays 40 test USDC in full. The test
+then names what the meter would count: one deliverable, `sha256(order || milestone)`, and two evaluations under one
+policy version (the hash of the terms), one rejected and one accepted, with the audience the meter's token carries.
+
+**What was not run.** GitHub and the relay in that test are stand-ins (`tests/_flow.py`), and the program is the
+real `knos_pay` build in a simulator (LiteSVM), funded there with the same terms bytes and paid on a token with the
+same fields. The pull requests are stand-ins too: the judge ran on the example's folders, not on commits. All of it ran in tests:
+never on devnet, and never by a customer. The transformation and research examples have a template and a verdict
+test (`tests/test_outcomes.py`) and no flow test of their own. No evaluation of these was sent to the meter.
+
 ## What is the same in every domain
 
 - **The terms are fixed before the work.** Each example's `terms.json` holds the hash of its suite (`accept`). Change a

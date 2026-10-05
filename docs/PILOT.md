@@ -2,9 +2,26 @@
 
 **Close a supplier's invoice with evidence both sides can check.**
 
+The neutral meter for AI agent work: neither side keeps the count.
+
 This is the one thing Knos offers for money today. It is an offer, not a record: **nobody has bought it, nobody has
 been asked, and there is no legal entity to invoice from yet.** Nothing on this page reports demand. The last
 section says what blocks it.
+
+## How it starts: shadow mode
+
+A Pilot starts in shadow mode. For the first period the count runs beside the invoices the buyer already receives
+and changes nothing: no money moves through Knos, nobody's process changes, no supplier is paid differently, and
+the buyer approves its invoices exactly as before. Shadow mode asks the buyer for no trust and no money. It is
+free, with or without a Pilot after it, inside the Meter's free allowance.
+
+What shadow mode produces is two numbers side by side for each supplier, the supplier's invoice count and the
+neutral count, and every line where they differ. The first line the two sides have to settle between them is the
+reason to buy the Pilot: the Pilot is the same work done for every supplier in scope, for 30 days, with the four
+deliverables below and someone answerable for them. A shadow count that finds no difference is a result too, and
+the buyer should then not buy the Pilot.
+
+No shadow count has been run with anyone, and none is published.
 
 ## Who it is for
 
@@ -64,7 +81,12 @@ has measured it, and a Pilot that finds less will say how much less.
 
 2,500 USD for one buyer and its suppliers, for 30 days, invoiced off chain in ordinary money. The suppliers pay
 nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test
-money is not revenue. The Pilot is not a discount on an annual contract and commits the buyer to none.
+money is not revenue.
+
+**The price is credited against the first year of Control.** A buyer who goes on to an annual Control contract
+([MARKET.md](MARKET.md), section 3) pays that year's price less the 2,500 USD already paid: 22,500 USD for the Team
+tier in its first year. The Pilot commits the buyer to no contract, and a buyer who stops after it owes nothing
+more. No Control contract exists to credit it against today.
 
 ## What it does not include
 

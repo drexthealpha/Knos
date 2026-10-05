@@ -307,6 +307,46 @@ without its comment lines (with them it does not fit in a link). That is more th
 needs `.knos/policy.yml` (`private: true`, `attestor:`, `targets:`) and a secret `KNOS_READ_TOKEN`, a fine-grained
 token that reads the repositories it attests for.
 
+### What `knos.yml` does, and what it cannot
+
+What it does:
+
+- Answers every comment with a line that starts with `/knos`, on issues and on pull requests. `/knos help` lists the
+  commands.
+- On `/knos fund` (or a new issue whose description has that line), asks GitHub to sign a statement for one action:
+  fund this task from this Balance. Anyone may carry a statement to Solana; it does only what it names, once.
+- On a push to the default branch, for each merged pull request that closes a funded issue: reads GitHub's record of
+  the merged commit against the task's funded terms, and only when every funded check passed and the changed files
+  are in scope asks GitHub to sign the statement that pays.
+- Comments on issues and pull requests, and assigns an issue for `/knos take`.
+- Can be started by hand (Actions, then knos, then Run workflow, with a merged pull request's number) to try a
+  payment again.
+
+What it cannot do:
+
+- Hold or move money. It has no wallet and no bounty's money. Money moves only on Solana, after the program has
+  checked GitHub's signature, and only as the statement and the task's terms say.
+- Change your code, branches or settings: it can read, comment and assign, and nothing else.
+- Spend a Balance past what its wallet allowed: only comments by the Balance's owner and the people it lists count,
+  and no task takes more than its cap.
+- Change a task's terms after funding, or take a payment back once it has been attested.
+- Be changed by a pull request: it runs from the default branch, it does not use `pull_request_target`, and a pull
+  request that edits `.github/` or `.knos/` is out of a task's scope.
+- Vouch for more than its repository can: GitHub signs which workflow ran, at which commit, in which repository, not
+  what it read there. So a task's checks are judged in the funder's own repository, about the funder's own money.
+
+No secret is needed. The signed statements are posted as comments, and Knos's public relay carries them to Solana and
+pays the fees. Optional: a repository secret `KNOS_RELAY_KEY`, a Solana key with a little SOL for fees and never a
+bounty's money, lets the jobs carry their own statements instead of waiting for the relay.
+
+### The optional second file, `knos-check.yml`
+
+`knos-check.yml` checks every pull request, forks included, and moves no money. It reads, and it reports through its
+own status (`check / claims`) and the job's summary. A first-time contributor's first run waits for a maintainer's
+approval on the pull request's page. GitHub runs it as the pull request has it, so a pull request can change it for
+its own run: that is why it is advice, and nothing about money depends on it. With the first file alone everything
+about money works; `/knos status` on a pull request then tells its author what the check would have said.
+
 ### Terms from a template
 
 ```bash
@@ -370,7 +410,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.15
+      - uses: drexthealpha/Knos@v0.3.16
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -403,7 +443,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.15
+    - python -m pip install knos==0.3.16
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -435,7 +475,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.15/knos-settle-0.3.15.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.16/knos-settle-0.3.16.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -450,7 +490,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.15" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.16" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

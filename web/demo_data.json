@@ -1,0 +1,82 @@
+{
+ "_about": "Written by scripts/demo_data.py from the documents under `sources`; tests/test_site_demo.py holds every signature and number to them.",
+ "cluster": "devnet",
+ "ids": "staging",
+ "date": "4 October 2026",
+ "money": "test USDC",
+ "fund": {
+  "comment": "/knos fund 10",
+  "tx": "4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL",
+  "order": "72mT1tBvTsf82bmttzfoytG7xhMJdWZyErRJYS5TJgh6",
+  "amount": "10.00",
+  "fee": "0.40"
+ },
+ "claim": {
+  "says": "tests pass",
+  "share": "17.8%",
+  "failed": 147,
+  "of": 826,
+  "attack": 17,
+  "pull": "no-op PR (README only)",
+  "ci": "fail",
+  "knos": "fail",
+  "check": ".knos.acceptance.1.test_issue::test_mixed"
+ },
+ "fixed": {
+  "ci": "passes",
+  "tests": "passes",
+  "black_box": "passes",
+  "claims": [
+   {
+    "name": "repository_id",
+    "is": "repository"
+   },
+   {
+    "name": "sha",
+    "is": "commit"
+   },
+   {
+    "name": "job_workflow_ref",
+    "is": "workflow"
+   }
+  ]
+ },
+ "paid": {
+  "tx": "63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq",
+  "amount": "10.00",
+  "seconds": 25,
+  "payments": 40,
+  "window": {
+   "from": "2026-10-02",
+   "to": "2026-10-05"
+  }
+ },
+ "replay": {
+  "tx": "3hHdViZzWAtjpmYLU95XuX9byLovPBo9N1FPoLTSW3yg1x3btF7zrVtwMhDAnyUKsc195yMXs1ctmm6aveaxu259",
+  "error": 83,
+  "means": "not in the state this needs",
+  "single_use_error": 91,
+  "single_use": "a token works once"
+ },
+ "count": {
+  "buyer": 5000,
+  "seller": 5003,
+  "apart": 3,
+  "buyer_tx": [
+   "4doE2MRiw7sjKNmw8LYGkSgm2KNNKh1D4aMDGXRBTCUieU1iNyftSGLsxo2o95kBAMsDkK7CaH3pCjnte6nYAttJ",
+   "5NVNK5nHiegrQDffQBuziqqrrDEWyN66zWPKfetb3q8tavoBpsD1LwCh4BirwWPTBewuFFYarNPKQrU7RU1t37XX"
+  ],
+  "seller_tx": [
+   "4UYkZzTdEoz1M2FxQSDYX9Nq9ZzEbJ54JBZDGSsfJHVr1NKg9hnfAfvsv24pFDUmYUBLq1sZAZLbJHhGUeuP8b3M",
+   "4KThmRd6XFohHrkX3cqXdUCoLnfMiwuTkt8WigFpB7any9pJpYeBHP3eVg7jsqhaqJNmQ6dYuLK3zhqZMCKRGQup"
+  ]
+ },
+ "sources": [
+  "docs/CAPABILITIES.md",
+  "docs/capabilities.json",
+  "docs/TAMPER.md",
+  "docs/bench.json",
+  "docs/facts.json",
+  "docs/OIDC.md"
+ ]
+}

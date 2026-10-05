@@ -11,7 +11,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "=2.2.1"
-# What an outside team writes: knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.15" }
+# What an outside team writes: knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.16" }
 knos-pay-interface = { path = "../../crates/knos-pay-interface" }
 
 [lints.rust]

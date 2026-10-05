@@ -27,15 +27,15 @@ Everything in the first three sections was **measured in the local simulator** (
 | Tokens sent twice at once, accepted the second time | 200 sent, 0 accepted |
 | Tokens sent again after their order closed, accepted | 60 sent, 0 accepted |
 
-The measured builds: `knos_oidc_v2_test.so` sha256 `05a33fdb946d68dd`, `knos_pay_v2_test.so` sha256 `575f1d38bab53a9e`.
+The measured builds: `knos_oidc_v2_test.so` sha256 `a88034e9f1d342c5`, `knos_pay_v2_test.so` sha256 `575f1d38bab53a9e`.
 
 ## 2. What one order costs
 
 | Stage | Transactions per order | Compute units per order p50 | p95 | max | Largest transaction (CU) | Bytes per order p50 | Largest transaction (bytes) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Token verification (knos_oidc), two tokens | 10 | 3,281,797 | 3,313,269 | 3,371,814 | 869,210 | 7,091 | 1,196 |
-| Fund (FundOrderBalance) | 1 | 135,290 | 142,942 | 156,754 | 156,754 | 748 | 748 |
-| Pay (PayOrder) | 1 | 172,305 | 243,520 | 257,431 | 257,431 | 808 | 1,006 |
+| Token verification (knos_oidc), two tokens | 10 | 3,225,977 | 3,253,707 | 3,311,230 | 847,640 | 7,091 | 1,196 |
+| Fund (FundOrderBalance) | 1 | 145,904 | 152,177 | 160,853 | 160,853 | 748 | 748 |
+| Pay (PayOrder) | 1 | 171,820 | 243,919 | 258,909 | 258,909 | 808 | 1,006 |
 
 What each number is:
 
@@ -49,7 +49,7 @@ What each number is:
 
 Solana's limits: a block holds 100M compute units (60M until SIMD-0286; mainnet has had the larger blocks since 29 July 2026, devnet since earlier), the transactions that write any one account may use 12M of a block, and a block is produced every 400 ms. Sources: [Solana: 100M CU blocks (SIMD-0286), which also states the 12M per-account limit](https://solana.com/upgrades/100m-cu-blocks), [Agave's block cost limits (development branch)](https://github.com/anza-xyz/agave/blob/master/cost-model/src/block_cost_limits.rs), [Solana: slots of 400 ms](https://solana.com/docs/core/transactions/confirmation). The two sources disagree on one figure: Solana's page says the per-account limit stays at 12M, while the development branch of the Agave validator carries 24,000,000 for that constant (read on 4 October 2026). This page uses 12M, the published figure for the live clusters; with 24M the per-relayer, per-Balance and fee-account rates below double.
 
-One order costs 3,604,971 compute units in all (the mean of the measured orders). The accounts that every transaction of a stage writes, and so the ones that cap it:
+One order costs 3,559,369 compute units in all (the mean of the measured orders). The accounts that every transaction of a stage writes, and so the ones that cap it:
 
 - **Token verification (knos_oidc), two tokens**: the relayer's own account, which pays the transaction fee (one per relayer).
 - **Fund (FundOrderBalance)**: the Balance's side account (one per funder); the Balance's token account (one per funder); the funder's Balance (one per funder); the relayer's own account, which pays the transaction fee (one per relayer).
@@ -57,17 +57,17 @@ One order costs 3,604,971 compute units in all (the mean of the measured orders)
 
 So there are three points of contention, and the shared vault is not one of them: each order's money is in its own token account, which only that order's transactions write.
 
-1. **A relayer's own account.** Everything a relayer sends writes the account that pays its fees, so one relayer fits 12M units in a block: **8.32 orders a second**, verification included. Verification is nearly all of it, and it is the only stage more relayers speed up.
-2. **The fee account.** Every PayOrder of a mint writes the one fee account, whoever relays it: at most **162.6 payments a second** in that mint, however many relayers there are.
-3. **A Balance.** Every order funded from one Balance writes it: at most 221.1 fundings a second per Balance. Orders funded from different Balances, or by wallets, do not share it.
+1. **A relayer's own account.** Everything a relayer sends writes the account that pays its fees, so one relayer fits 12M units in a block: **8.43 orders a second**, verification included. Verification is nearly all of it, and it is the only stage more relayers speed up.
+2. **The fee account.** Every PayOrder of a mint writes the one fee account, whoever relays it: at most **162.8 payments a second** in that mint, however many relayers there are.
+3. **A Balance.** Every order funded from one Balance writes it: at most 205.5 fundings a second per Balance. Orders funded from different Balances, or by wallets, do not share it.
 
 Time for 1,000 orders submitted at once, all from one Balance, if the block held nothing else and was packed perfectly:
 
 | Relayers | Blocks (100M) | Seconds | Orders a second | Bound by | All settled within a minute | Seconds with 60M blocks |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 301 | 120.4 | 8.3 | the relayers' own accounts | no | 120.4 |
-| 4 | 76 | 30.4 | 32.9 | the relayers' own accounts | yes | 30.4 |
-| 16 | 37 | 14.8 | 67.6 | the block | yes | 24.4 |
+| 1 | 297 | 118.8 | 8.4 | the relayers' own accounts | no | 118.8 |
+| 4 | 75 | 30.0 | 33.3 | the relayers' own accounts | yes | 30.0 |
+| 16 | 36 | 14.4 | 69.4 | the block | yes | 24.0 |
 
 How it is derived: blocks = the largest of (all compute / the block limit), (all compute / relayers x 12M), (fund compute / 12M) and (pay compute / 12M), rounded up; seconds = blocks x 0.4. It is a floor on the time, not a forecast: it counts only the compute the transactions consumed (a cluster also charges signatures, write locks and data against the same limits), it assumes the relayers split the tokens evenly and that no other transaction is in the block, and it ignores that the transactions of one token must land one after another. With one relayer the claim of a minute does **not** hold for 1,000 orders arriving together; the table shows from how many relayers it does.
 
@@ -108,11 +108,11 @@ Counted by running `command`, `settle` and `attest` of `src/knos/flow.py` agains
 | Word | Token carried by | Requests read | Requests written | Comments made | Tokens GitHub signs | Jobs |
 | --- | --- | --- | --- | --- | --- | --- |
 | command (`/knos fund`) | the job's own relay | 9 | 1 | 1 | 1 | 1 |
-| settle (on the merge) | the job's own relay | 14 | 3 | 2 | 1 | 1 |
+| settle (on the merge) | the job's own relay | 14 | 5 | 2 | 1 | 1 |
 | attest (pay) | the job's own relay | 12 | 0 | 0 | 1 | 1 |
 | attest (eval) | the job's own relay | 2 | 0 | 0 | 1 | 1 |
 | command (`/knos fund`) | the public worker | 9 | 2 | 2 | 1 | 1 |
-| settle (on the merge) | the public worker | 14 | 4 | 3 | 1 | 1 |
+| settle (on the merge) | the public worker | 14 | 6 | 3 | 1 | 1 |
 
 The job's own relay is the job sending the transactions itself with a fee key the repository keeps (`KNOS_RELAY_KEY`). Without the key the token is posted as a comment and the public worker carries it; the job then reads the worker's log every 3 s for up to 600 s. Those reads use the repository's own token and are not conditional, so each one counts.
 
@@ -121,18 +121,18 @@ The job's own relay is the job sending the transactions itself with a fee key th
 | | The job's own relay | The public worker | Where the number is from |
 | --- | --- | --- | --- |
 | Workflow jobs | 2 | 2 | counted |
-| GitHub requests with the repository's token, the work itself | 27 | 29 | counted |
+| GitHub requests with the repository's token, the work itself | 29 | 31 | counted |
 | Reads of the relay log while waiting, at the median wait | 0 | 20 | derived: one read every 3 s for the median of merge-to-paid, 25 s |
-| the same at the p95 wait (164 s) | 0 | 112 | derived |
+| the same at the p95 wait (58 s) | 0 | 42 | derived |
 | the same when no relay answers (600 s) | 0 | 404 | derived |
-| Requests in all, at the p95 wait | 27 | 141 | counted + derived |
+| Requests in all, at the p95 wait | 29 | 73 | counted + derived |
 | Comments made in the repository | 3 | 5 | counted |
 | Comments the public worker adds to its log | 0 | 2 | from the code (`ghrelay.once` logs a carried token at once) |
 | Tokens GitHub signs (OIDC) | 2 | 2 | counted |
 | Solana transactions | 12 | 12 | measured in the simulator (section 2) |
 | Bytes of signed transactions | 8,647 | 8,647 | measured in the simulator (p50) |
-| Compute units | 3,604,971 | 3,604,971 | measured in the simulator (mean) |
-| Seconds from merge to paid | not timed apart | median 25, p95 164 | recorded on devnet: 39 payments in the public relay's log, 2026-10-02 to 2026-10-04 (`docs/bench.json`) |
+| Compute units | 3,559,369 | 3,559,369 | measured in the simulator (mean) |
+| Seconds from merge to paid | not timed apart | median 25, p95 58 | recorded on devnet: 40 payments in the public relay's log, 2026-10-02 to 2026-10-05 (`docs/bench.json`) |
 | Actions minutes | not measured | not measured | a job's time on the runner was not recorded; standard runners are free in public repositories |
 | RPC requests to send the transactions | not measured | not measured | |
 
@@ -156,12 +156,12 @@ For a customer with R repositories and N accepted deliverables a day, the work s
 
 | Repositories | Deliverables a day | Token carried by | Binds first | Binds at (a day) | This volume fits | Limits this volume is past |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 10 | the job's own relay | GITHUB_TOKEN requests an hour | 888 | yes | none |
-| 1 | 10 | the public worker | GITHUB_TOKEN requests an hour | 170 | yes | none |
-| 10 | 1,000 | the job's own relay | concurrent jobs (Free plan) | 5,268 | yes | none |
-| 10 | 1,000 | the public worker | GITHUB_TOKEN requests an hour | 1,702 | yes | none |
-| 100 | 100,000 | the job's own relay | concurrent jobs (Free plan) | 5,268 | **no** | the meter's statement, recomputed from the logs; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
-| 100 | 100,000 | the public worker | the public relay's pass, one token at a time | 1,728 | **no** | the public relay's pass, one token at a time; the meter's statement, recomputed from the logs; concurrent jobs (Free plan); the public relay's log comments; GITHUB_TOKEN requests an hour |
+| 1 | 10 | the job's own relay | GITHUB_TOKEN requests an hour | 827 | yes | none |
+| 1 | 10 | the public worker | GITHUB_TOKEN requests an hour | 328 | yes | none |
+| 10 | 1,000 | the job's own relay | GITHUB_TOKEN requests an hour | 8,275 | yes | none |
+| 10 | 1,000 | the public worker | the public relay's pass, one token at a time | 1,728 | yes | none |
+| 100 | 100,000 | the job's own relay | concurrent jobs (Free plan) | 14,896 | **no** | the meter's statement, recomputed from the logs; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
+| 100 | 100,000 | the public worker | the public relay's pass, one token at a time | 1,728 | **no** | the public relay's pass, one token at a time; the meter's statement, recomputed from the logs; the public relay's log comments; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
 
 Every limit, for the largest of the three (100 repositories, 100,000 a day), soonest first:
 
@@ -169,15 +169,15 @@ Every limit, for the largest of the three (100 repositories, 100,000 a day), soo
 | --- | --- | --- | --- | --- |
 | the public relay's pass, one token at a time (the public worker) | every customer of the public worker | 1,728 | 2 tokens a deliverable, carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many) | the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it) |
 | the meter's statement, recomputed from the logs | each buyer and seller, each month | 3,333 | `knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short | batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume |
-| concurrent jobs (Free plan) | the customer's account | 5,268 | 2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 39 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub) | a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count |
 | the public relay's log comments (the public worker) | every customer of the public worker | 6,000 | 2 tokens a deliverable, one log comment each (src/knos/proof/ghrelay.py posts a carried token's line at once); 500 content-generating requests an hour (GitHub) | the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO) |
-| GITHUB_TOKEN requests an hour (the public worker) | each repository | 17,021 | 141 requests a deliverable (23 reads and 6 writes counted, 112 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub) | the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour) |
-| GITHUB_TOKEN requests an hour (the job's own relay) | each repository | 88,888 | 27 requests a deliverable (23 reads and 4 writes counted); 1,000 an hour for a repository (GitHub) | more repositories; GitHub Enterprise Cloud (15,000 an hour) |
+| concurrent jobs (Free plan) | the customer's account | 14,896 | 2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub) | a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count |
+| GITHUB_TOKEN requests an hour (the public worker) | each repository | 32,876 | 73 requests a deliverable (23 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub) | the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour) |
+| GITHUB_TOKEN requests an hour (the job's own relay) | each repository | 82,758 | 29 requests a deliverable (23 reads and 6 writes counted); 1,000 an hour for a repository (GitHub) | more repositories; GitHub Enterprise Cloud (15,000 an hour) |
 | comments made in one repository (the public worker) | each repository | 240,000 | 5 comments a deliverable (counted); 500 content-generating requests an hour (GitHub) | more repositories; or the job's own relay, which posts no token comment |
 | comments made in one repository (the job's own relay) | each repository | 400,000 | 3 comments a deliverable (counted); 500 content-generating requests an hour (GitHub) | more repositories |
-| the fee key's own account (the job's own relay) | each fee key | 718,848 | 8.32 orders a second for one key that pays the fees (derived by scripts/load.py) | a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret) |
-| the fee account of the mint | every customer, every relayer | 14,048,640 | 162.6 payments a second in one mint (derived by scripts/load.py) | NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it |
-| the Balance, one writable account | each Balance | 19,103,040 | 221.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block) | one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds |
+| the fee key's own account (the job's own relay) | each fee key | 728,352 | 8.43 orders a second for one key that pays the fees (derived by scripts/load.py) | a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret) |
+| the fee account of the mint | every customer, every relayer | 14,065,920 | 162.8 payments a second in one mint (derived by scripts/load.py) | NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it |
+| the Balance, one writable account | each Balance | 17,755,200 | 205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block) | one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds |
 
 What this says. The public worker is a convenience for small volumes. The reads of its log that a waiting job makes are what uses up a repository's hourly requests first, and its own two limits are shared by every repository it serves. A customer past them relays in its own job with its own fee key, which removes the token comment, the polling and both shared limits at once. After that the limits are GitHub's, per repository and per account, long before they are Solana's. The one bound here that configuration cannot move is the fee account of the mint; of all of them only a single Balance's is further away.
 
@@ -187,7 +187,7 @@ What this says. The public worker is a convenience for small volumes. The reads 
 | --- | --- |
 | Compute units, transactions and bytes of an order; paid once, none lost | measured in the local simulator, 1,000 orders (sections 1 and 2) |
 | Token verification, funding from a wallet, refund and close on a cluster | measured on devnet, 2026-10-04: 200 orders, 0 failures (section 4). PayOrder, funding from a Balance and the meter were not sent in that run |
-| Seconds from merge to paid | recorded on devnet, 39 payments (`docs/bench.json`) |
+| Seconds from merge to paid | recorded on devnet, 40 payments (`docs/bench.json`) |
 | Requests, comments, tokens and jobs of a word | counted from the code against a stand-in for GitHub; not observed on GitHub |
 | Limits of GitHub and of Solana | published by them, read on 2026-10-05 (links below); GitHub says its secondary limits may change without notice, and its page does not say whether the content limit is counted per repository for a workflow's token, which this page assumes |
 | Cluster rates, the relay log polling, statement requests, every "binds at" | derived |

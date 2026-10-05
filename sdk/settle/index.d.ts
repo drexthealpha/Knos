@@ -122,6 +122,10 @@ export function stepPlan(bits: number): number[];
 export function issuerHash(url: string): Promise<Bytes>;
 /** `issuer` is GitHub (0), GitLab (1), or any other RS256 issuer's URL. */
 export function rotateAudience(issuer: number | string, n: Num): Promise<string>;
+/** What program.yml asks GitHub to sign for a build of `program`: upgrade_gate records the build under it. `executable`: its sha256. */
+export function gateAudience(program: Address, executable: Bytes | string): string;
+/** Thrown for input a format does not allow: terms canonicalTerms refuses, a batch audience knos_meter would refuse. */
+export class Refused extends Error {}
 export function jwksKeys(jwks: { keys?: Record<string, unknown>[] }): [string, bigint][];
 export interface Token { stage: number; issuer: number; done: number; exp: Num; key: Address; payer: Address; payload: Bytes; verified: boolean; claims(): Record<string, unknown> }
 export function readToken(raw: Bytes | null): Token | null;
@@ -334,6 +338,9 @@ export interface V2 {
   /** The fee of a job (2.0), taken out of its amount. */
   feeOf(amount: Num, decimals?: number): Num;
   termsJson(terms: unknown): Bytes;
+  /** The canonical bytes of terms as knos-pay hashes them: every field checked, lists in order with nothing twice.
+   *  Throws Refused for terms the format does not allow. A `vendor` above 2^53 is given as a bigint. */
+  canonicalTerms(terms: unknown): Bytes;
   termsHash(terms: Bytes | string): Promise<Bytes>;
   wfRepoHash(repository: string): Promise<Bytes>;
   funderKey(funder: Address | Num): Promise<Bytes>;
@@ -381,6 +388,8 @@ export interface V2 {
   /** What the fund audience of a PRIVATE order carries as its terms: sha256(scope || terms hash). */
   privateFundTerms(scope: Bytes | string, termsHash: Bytes | string): Promise<Bytes>;
   /** The arbiter's ruling: who is paid, in what shares. Relayed with payOrderIx. */
+  /** What prove.yml asks GitHub to sign to pay an AUTO order without a merge: mode 1, one payee paid in full. */
+  autoAudience(order: Address, headSha: string, termsHex: string, pr: Num, payeeId: Num, address?: Address | null): string;
   ruleAudience(order: Address, payees: Payee[]): string;
   /** An organisation's bind token. */
   orgBindAudience(address: Address): string;
@@ -458,9 +467,14 @@ export interface Meter {
   readonly LEDGER_LEN: number; readonly MAX_BATCH: number;
   /** What the buyer's run ("batch") or the seller's ("claim") asks GitHub to sign for one batch. `root`: merkleRoot's. */
   batchAudience(buyerId: Num, sellerId: Num, month: number, seq: Num, count: Num, accepted: Num, value: Num, root: Bytes | string, kind?: "batch" | "claim"): string;
+  /** Throws Refused for everything knos_meter refuses in a batch audience. */
   parseBatch(audience: string): MeterBatch;
   /** RFC 6962 over the evaluation keys (evalKey's), sorted ascending, none repeated. */
   merkleRoot(keys: (Bytes | string)[]): Promise<Bytes>;
+  /** A batch's root from keys in any order, each once, followed by the keys of its corrections (leaf prefix 0x02). No leaves: sha256 of nothing. */
+  batchRoot(keys: (Bytes | string)[], corrections?: (Bytes | string)[]): Promise<Bytes>;
+  /** Whether `key` is leaf `index` of a batch of `size` leaves with this root (RFC 9162, 2.1.3.2). */
+  checkProof(key: Bytes | string, index: number, size: number, path: (Bytes | string)[], root: Bytes | string, correction?: boolean): Promise<boolean>;
   /** A ledger's running hash after one more batch; a new ledger starts from 32 zero bytes. */
   chainHash(before: Bytes | string, root: Bytes | string, seq: Num, count: Num, accepted: Num, value: Num): Promise<Bytes>;
   readLedger(raw: Bytes | null): MeterBatchLedger | null;

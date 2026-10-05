@@ -44,10 +44,10 @@ def test_every_place_names_the_version_of_the_package():
                 "idl/knos_pay_v2.json", "idl/knos_oidc_v2.json", "idl/knos_meter.json", "idl/knos_passkey.json",
                 *(f"programs-v2/{crate}/Cargo.toml" for crate in ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey"))}
     held = b.frozen_places()
-    assert programs <= {rel for rel, _l, _g in (held if b.PROGRAMS_FROZEN else b.places())}
     places = b.places()                                                               # read once: every call reads every place again
+    assert programs <= {rel for rel, _l, _g in (*held, *places)}                      # held or moved: scripts/bump_version.py says which
     assert sum(r == "server.json" for r, _l, _g in places) == 2                      # the server and its package
-    assert sum(r == "programs-v2/Cargo.lock" for r, _l, _g in (held if b.PROGRAMS_FROZEN else places)) >= 5      # five crates of ours
+    assert sum(r == "programs-v2/Cargo.lock" for r, _l, _g in (*held, *places)) >= 5  # five crates of ours
     # the first deployment is never a place, and neither is a third party's version that happens to sit in a lock file
     assert not [rel for rel in named if rel.startswith("programs/") or rel.endswith("package-lock.json")]
 
@@ -58,15 +58,19 @@ def test_a_release_that_changes_no_program_leaves_every_program_crate_where_its_
     if not b.PROGRAMS_FROZEN:
         assert b.frozen_places() == [] and b.LOCKED_FROZEN is None
         return
-    assert set(b.PROGRAMS_FROZEN) == set(b.OURS[1:]) - {"knos-handler-tests"} and re.fullmatch(r"\d+\.\d+\.\d+", b.FROZEN_AT)
+    # which crates are frozen is scripts/bump_version.py's to say (PROGRAMS_FROZEN): nothing here lists them, so a crate
+    # that leaves the set (a program this release changes) is held to the package's version instead, with no edit here
+    crates = set(b.OURS[1:]) - {"knos-handler-tests"}
+    assert set(b.PROGRAMS_FROZEN) <= crates and re.fullmatch(r"\d+\.\d+\.\d+", b.FROZEN_AT)
     held = b.frozen_places()
     assert held and {got for _r, _l, got in held} == {b.FROZEN_AT}
     assert not {(rel, line) for rel, line, _g in held} & {(rel, line) for rel, line, _g in b.places()}       # a place is one or the other
-    # each frozen crate's own manifest says it, and so does every lock file that names the crate
-    for crate, folder in (("knos_oidc", "programs-v2"), ("knos_pay", "programs-v2"), ("knos_meter", "programs-v2"), ("knos_passkey", "programs-v2"),
-                          ("knos-oidc-interface", "crates"), ("knos-pay-interface", "crates")):
+    # each crate's own manifest says its version: FROZEN_AT when frozen, the package's otherwise
+    for crate in sorted(crates):
+        folder = "programs-v2" if (ROOT / "programs-v2" / crate).is_dir() else "crates"
         manifest = (ROOT / folder / crate / "Cargo.toml").read_text(encoding="utf-8")
-        assert f'name = "{crate}"\nversion = "{b.FROZEN_AT}"' in manifest.replace("\r\n", "\n"), crate
+        want = b.FROZEN_AT if crate in b.PROGRAMS_FROZEN else b.project()
+        assert f'name = "{crate}"\nversion = "{want}"' in manifest.replace("\r\n", "\n"), crate
     for lock in (path for pattern in b.LOCKS for path in ROOT.glob(pattern)):
         for name, version in re.findall(r'name = "([^"]+)"\r?\nversion = "([^"]+)"', lock.read_text(encoding="utf-8")):
             if name in b.OURS[1:]:
@@ -86,11 +90,14 @@ def test_a_bump_holds_the_frozen_crates_puts_back_one_that_was_moved_and_check_n
     assert b.frozen_places(root) == held                                             # every frozen place, as it was
     assert before and {rel: (root / rel).read_bytes() for rel in before} == before   # and not one byte of a file that holds only such places
     assert b.disagreements(NEW, root, changelog=False) == []
-    moved = root / "programs-v2" / "knos_pay" / "Cargo.toml"
+    crate = sorted(b.PROGRAMS_FROZEN)[0]                                              # any frozen crate: the script names them
+    rel = f"{'programs-v2' if (root / 'programs-v2' / crate).is_dir() else 'crates'}/{crate}/Cargo.toml"
+    moved = root / rel
+    assert f'version = "{b.FROZEN_AT}"'.encode() in moved.read_bytes()
     moved.write_bytes(moved.read_bytes().replace(f'version = "{b.FROZEN_AT}"'.encode(), f'version = "{NEW}"'.encode(), 1))
     [said] = b.disagreements(NEW, root, changelog=False)
-    assert said.startswith(f"programs-v2/knos_pay/Cargo.toml:3: {NEW}, not {b.FROZEN_AT} (a program crate, frozen")
-    assert b.bump(NEW, root) == ["programs-v2/knos_pay/Cargo.toml"] and {rel: (root / rel).read_bytes() for rel in before} == before
+    assert re.fullmatch(rf"{re.escape(rel)}:\d+: {re.escape(NEW)}, not {re.escape(b.FROZEN_AT)} \(a program crate, frozen.*", said), said
+    assert b.bump(NEW, root) == [rel] and {rel: (root / rel).read_bytes() for rel in before} == before
 
 
 def _copy(tmp_path: Path) -> Path:

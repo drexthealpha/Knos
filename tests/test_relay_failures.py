@@ -174,7 +174,7 @@ def test_a_send_that_fails_for_the_clusters_reasons_is_tried_again_on_fixed_time
     # the endpoint answers: carried on the next try, and the line says how many it took
     del relays.answers[ghrelay.token_id(proof)]
     [(at, [line])] = run(clock, clock[0] + 70, stop=bool)
-    assert f" {ghrelay.token_id(proof)} ok sig=s1,s2 " in line and f" tries={len(tried) + 1} note=" in line and at - tried[-1] <= 63
+    assert f" {ghrelay.token_id(proof)} ok sig=s1,s2 " in line and f" tries={len(tried) + 1} queued_at=" in line and at - tried[-1] <= 63
     saved = notes(state)
     assert [e["state"] for e in saved["journal"].values()] == ["confirmed"] and saved["tries"] == {} and saved["hold"] == {}
     assert run(clock, clock[0] + 30) == []                          # once
@@ -353,8 +353,11 @@ def test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody
     monkeypatch.setattr(ghrelay, "relay_one", real)
     c.warp(3)
     sent = net.txs
+    # the chain shows it done. This relay had sent it (its notes say so), so nobody else will log it: the line is
+    # written at once, not kept back as the line of a token another run carried is (ALREADY_WAIT)
     [line] = ghrelay.once(net, c.payer, now=c.now(), crank=False)
     assert f" {ghrelay.token_id(proof)} ok " in line and " tries=2 " in line and line.count("(another relayer carried it first)") == 1
+    assert " sent_at=- confirmed_at=- " in line                     # it sent nothing this time, and says no time it did not measure
     assert c.balance(got) == 4_875_000 and c.balance(fee) == 125_000                             # the second send moved nothing
     assert relay2.submit(net, c.payer, proof, None, JWKS, now=c.now()).get("already") is True    # and a third is answered the same, from reads
     assert net.txs - sent <= 1 and ghrelay.once(net, c.payer, now=c.now() + 3, crank=False) == [] and len(gh.log()) == 2
@@ -373,11 +376,18 @@ def test_the_status_line_is_one_comment_rewritten_and_says_what_waits(world):
     run(clock, T0 + 60)
     line = ghrelay.publish_status(T0 + 60)
     assert re.fullmatch(rf"knos-relay status - - ok at={ghrelay._stamp(T0 + 60)} round=\d+ tokens=0 waiting=1 oldest=60 retried=4 refused=1", line), line
-    assert gh.log()[-1] == line and len(gh.log()) == 3              # the paid token's line, the refusal's, and the status
+    said = gh.log()[-1].split("\n")
+    assert said[0] == line and len(gh.log()) == 3                   # the paid token's line, the refusal's, and the status
+    # under the counts, each round the relay took up, newest first: where, the first of its id, its state and its seconds
+    ids = [ghrelay.token_id(t)[:8] for t in (waits, ok, refused)]
+    assert said[1:] == [f"knos-relay round octo/widgets#2 {ids[0]} ok order=- state=waiting seconds=60 kind=fund",
+                        f"knos-relay round octo/widgets#1 {ids[1]} ok order=- state=confirmed seconds=0 kind=proof",
+                        f"knos-relay round octo/widgets#3 {ids[2]} ok order=- state=refused seconds=0 kind=fund"]
     comment = notes(state)["status_comment"]
     run(clock, T0 + 120)
     again = ghrelay.publish_status(T0 + 120)
-    assert " waiting=1 oldest=120 " in again and gh.log()[-1] == again and len(gh.log()) == 3 and notes(state)["status_comment"] == comment
+    assert " waiting=1 oldest=120 " in again and gh.log()[-1].split("\n")[0] == again and len(gh.log()) == 3 and notes(state)["status_comment"] == comment
+    assert f" {ids[0]} ok order=- state=waiting seconds=120 " in gh.log()[-1]
     assert ("PATCH", f"repos/{HOME}/issues/comments/{comment}", 200) in gh.asked
     # a line that names no token id never answers a job that waits for its token
     assert ghrelay.wait_for(ghrelay.token_id(waits), HOME, 0.02, every=0.01) is None

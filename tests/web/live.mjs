@@ -55,7 +55,10 @@ const iso = (t) => new Date(t).toISOString().replace(".000Z", "Z");
 const ESCROW = "7".repeat(44), FUND_TX = "2".repeat(88), PAY_TX = "3".repeat(88), VERIFY_TX = "4".repeat(88), SHA = "e".repeat(40);
 const stampOf = (t) => iso(t).replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
 // one round as GitHub and devnet would hold it `upTo` a stage: ask < fund < open < merge < sign < pay
-function world(start, upTo, n = 40, { held = false, refused = false } = {}) {
+// `states`: Knos's one comment on the pull request as 0.3.16 writes it, posted at "received" and edited through the
+// five states (`knos-states`); "upTo" a state, the comment has reached that one and no later
+const FIVE = ["received", "accepted", "submitted", "confirmed", "finalized"];
+function world(start, upTo, n = 40, { held = false, refused = false, states = null } = {}) {
   const at = { ask: start, fund: start + 41_000, open: start + 44_000, merge: start + 95_000, sign: start + 99_000, pay: start + 121_000 };
   const has = (stage) => ["ask", "fund", "open", "merge", "sign", "pay"].indexOf(stage) <= ["ask", "fund", "open", "merge", "sign", "pay"].indexOf(upTo);
   const title = `knos canary ${stampOf(start)}`, w = { items: [], comments: {}, pulls: {}, runs: {}, sigs: {} };
@@ -78,6 +81,17 @@ function world(start, upTo, n = 40, { held = false, refused = false } = {}) {
       : `Knos: paid. @canary received 4.60 test USDC for issue #${n}: the bounty of 5.00 less Knos's fee of 0.40. It went to \`W\` ([verified](https://explorer.solana.com/tx/${VERIFY_TX}?cluster=devnet), [transaction](https://explorer.solana.com/tx/${PAY_TX}?cluster=devnet), 26 s after the merge).`,
       created_at: iso(at.pay + 4000), html_url: `https://github.com/${REPO}/pull/${n + 1}#issuecomment-2` }];
     w.sigs[ESCROW] = [{ signature: PAY_TX, blockTime: Math.floor(at.pay / 1000), err: null }, ...w.sigs[ESCROW]];
+  }
+  if (states && has("merge")) {
+    // received 4 s after the merge (the run began), accepted 2 s on, submitted 1 s on, confirmed 19 s on (the paying block), finalized 13 s on
+    const when = { received: at.merge + 4000, accepted: at.merge + 6000, submitted: at.merge + 7000, confirmed: at.pay, finalized: at.pay + 13_000 };
+    const reached = FIVE.slice(0, FIVE.indexOf(states) + 1), paid = reached.includes("confirmed");
+    if (!paid) w.sigs[ESCROW] = w.sigs[ESCROW].filter((x) => x.signature !== PAY_TX);
+    const words = paid ? w.comments[n + 1][0]?.body || `Knos: paid. @canary received 4.60 test USDC for issue #${n} ([transaction](https://explorer.solana.com/tx/${PAY_TX}?cluster=devnet), 26 s after the merge).`
+      : reached.includes("accepted") ? "Knos: accepted, settling. Everything the bounty asks for holds and GitHub signed this run. The payment to @canary is on its way to Solana; this comment is edited when it lands."
+      : `Knos: received. Pull request #${n + 1} is being checked against what was funded for it. This comment is edited as the payment moves.`;
+    w.comments[n + 1] = [{ body: `${words}\n\n<!-- knos-status -->\n<sub><img src=x onerror=alert(2)></sub>\n<!-- knos-states since=${at.merge / 1000}.0 ${reached.map((k) => `${k}=${(when[k] / 1000).toFixed(1)}`).join(" ")}${paid ? ` tx=${PAY_TX}` : ""}\n-->`,
+      created_at: iso(when.received), updated_at: iso(when[reached.at(-1)]), html_url: `https://github.com/${REPO}/pull/${n + 1}#issuecomment-2` }];
   }
   return { w, at, title };
 }
@@ -250,13 +264,99 @@ const stages = (page) => page.$$eval("#live-line li", (l) => l.map((x) => `${x.d
   const toMerge = await step("merge", "ask:done fund:done open:done merge:done sign:now pay:wait");
   check("  GitHub merges: the stage gets GitHub's time, and the next one starts counting", (await stages(page)) === "ask:done fund:done open:done merge:done sign:now pay:wait" && (await text(page, "#live-line")).includes("Checks passed, merged 2026-10-05 12:10:35 UTC, 51 s"), await stages(page));
   const toPay = await step("pay", "ask:done fund:done open:done merge:done sign:done pay:done");
-  await page.waitForFunction(() => document.getElementById("live-watching").textContent.startsWith("Round 40 ended"));
+  // devnet can show the payment a look before GitHub shows Knos's comment about it: the round is watched until that is read too
+  for (let i = 0; i < 4 && !(await text(page, "#live-watching")).startsWith("Round 40 ended"); i++) { const was = await text(page, "#live-watching"); await page.clock.runFor(30_000); await page.waitForFunction((n) => document.getElementById("live-watching").textContent.replace(/\s+/g, " ").trim() !== n, was).catch(() => {}); }
+  check("  and the comment that says so is on the page when watching ends", (await page.$$eval("#live-line a", (a) => a.map((x) => x.textContent))).includes("payment comment"));
   check("  the payment lands: every stage has its time, the round is paid, and watching ends by itself", (await stages(page)) === "ask:done fund:done open:done merge:done sign:done pay:done" && (await text(page, "#live-head")).includes("was paid 2 min 01 s later, 26 s after the merge")
     && (await text(page, "#live-watching")) === "Round 40 ended (paid). That was a real round: every time above is GitHub's or devnet's." && (await text(page, "#live-watch")) === "Watch it happen", await text(page, "#live-head"));
   check("  each look asked GitHub one thing", toMerge <= 2 && toPay <= 4, `${toMerge} ${toPay}`);
   const quiet = net.github.length;
   await page.clock.runFor(120_000);
   check("  after the round ended nothing more is asked", net.github.length === quiet);
+  await ctx.close();
+}
+
+// ---- the five states, by name, with their times ---------------------------------------------------------------------------
+const five = (page) => page.$$eval("#live-states li.k-step", (l) => l.map((x) => `${x.dataset.step}:${x.dataset.state}`).join(" "));
+{
+  // a round paid ten minutes ago whose comment went through all five
+  const { ctx, page } = await open(world(NOW - 600_000, "pay", 40, { states: "finalized" }).w);
+  await page.goto(`${base}live.html`);
+  await settled(page);
+  check("states: the latest round shows the five states by name, each done", (await five(page)) === "received:done accepted:done submitted:done confirmed:done finalized:done", await five(page));
+  const said = await text(page, "#live-states");
+  check("  each with the time the workflow wrote and its seconds from the state before (received: from the merge)", said === "received 12:01:39 UTC, 4 s accepted 12:01:41 UTC, 2 s submitted 12:01:42 UTC, 1 s confirmed 12:02:01 UTC, 19 s finalized 12:02:14 UTC, 13 s", said);
+  check("  the timeline above it is as it was, and the payment has devnet's time", (await stages(page)) === "ask:done fund:done open:done merge:done sign:done pay:done" && (await text(page, "#live-line")).includes("Paid on devnet 2026-10-05 12:02:01 UTC, 26 s"));
+  check("  the comment's markup is still never the page's, and the states are a list of .k-step", (await page.$$("#status img")).length === 0 && (await page.$$("#live-states li.k-step[data-state]")).length === 5);
+  await ctx.close();
+
+  // a comment from before 0.3.16 has no states: none is claimed
+  const old = await open(world(NOW - 600_000, "pay").w);
+  await old.page.goto(`${base}live.html`);
+  await settled(old.page);
+  check("  a round whose comment carries no states: all five idle, and none has a time", (await five(old.page)) === "received:idle accepted:idle submitted:idle confirmed:idle finalized:idle" && !/\d\d:\d\d/.test(await text(old.page, "#live-states")), await text(old.page, "#live-states"));
+  await old.ctx.close();
+
+  // devnet's own time could not be read: the payment's time is the one the workflow recorded, never the comment's creation
+  const noChain = world(NOW - 600_000, "pay", 40, { states: "confirmed" });
+  noChain.w.sigs = {};
+  const blind = await open(noChain.w);
+  await blind.page.goto(`${base}live.html`);
+  await settled(blind.page);
+  check("  with devnet unread, 'paid' is when the workflow saw it confirmed (the comment was created at 'received')", (await text(blind.page, "#live-line")).includes("Paid on devnet 2026-10-05 12:02:01 UTC, 26 s") && (await text(blind.page, "#live-line")).includes("the time Knos's workflow recorded")
+    && (await five(blind.page)) === "received:done accepted:done submitted:done confirmed:done finalized:idle", await text(blind.page, "#live-line"));
+  await blind.ctx.close();
+}
+
+// ---- watched: "accepted" shows before the payment, and the signed stage gets its time without a reload ----------------------
+{
+  const start = NOW - 60_000, { ctx, page, net } = await open(world(start, "open").w);
+  await page.goto(`${base}live.html`);
+  await settled(page);
+  check("watched states: before the merge nothing is live among the five", (await five(page)) === "received:idle accepted:idle submitted:idle confirmed:idle finalized:idle");
+  await page.click("#live-watch");
+  await page.waitForFunction(() => document.getElementById("live-watching").textContent.startsWith("Watching round 40"));
+  const look = async () => { const was = await text(page, "#live-watching"); await page.clock.runFor(30_000); await page.waitForFunction((n) => document.getElementById("live-watching").textContent.replace(/\s+/g, " ").trim() !== n, was).catch(() => {}); };
+  const until = async (want, read = stages) => { for (let i = 0; i < 6 && (await read(page)) !== want; i++) await look(); return read(page); };
+  net.w = world(start, "merge").w;
+  await until("ask:done fund:done open:done merge:done sign:now pay:wait");
+  check("  merged, and Knos has said nothing yet: 'received' is the state awaited", (await five(page)) === "received:live accepted:idle submitted:idle confirmed:idle finalized:idle", await five(page));
+  // GitHub is asked for the signing run right after the merge and does not list it yet
+  const asked = net.github.filter((p) => p.includes("/actions/runs")).length;
+  for (let i = 0; i < 4 && net.github.filter((p) => p.includes("/actions/runs")).length === asked; i++) await look();
+  check("  (the signing run was asked for and GitHub did not list it yet)", net.github.filter((p) => p.includes("/actions/runs")).length === asked + 1 && (await stages(page)).includes("sign:now"));
+  // the workflow has decided: "accepted" is on the page while the payment is still on its way
+  net.w = world(start, "merge", 40, { states: "accepted" }).w;
+  await until("received:done accepted:done submitted:live confirmed:idle finalized:idle", five);
+  check("  accepted shows as soon as the workflow decided, before any payment: the round is still running", (await five(page)) === "received:done accepted:done submitted:live confirmed:idle finalized:idle"
+    && (await text(page, "#live-states")).startsWith("received 12:10:39 UTC, 4 s accepted 12:10:41 UTC, 2 s submitted now") && (await text(page, "#live-head")).startsWith("A round is running now") && (await stages(page)).endsWith("pay:wait"), await text(page, "#live-states"));
+  // the payment lands, and by now GitHub lists the run
+  net.w = world(start, "pay", 40, { states: "finalized" }).w;
+  await until("received:done accepted:done submitted:done confirmed:done finalized:done", five);
+  await page.waitForFunction(() => document.getElementById("live-watching").textContent.startsWith("Round 40 ended"));
+  const line = await text(page, "#live-line");
+  check("  the payment lands: all five states done, and watching ends", (await five(page)) === "received:done accepted:done submitted:done confirmed:done finalized:done" && (await text(page, "#live-head")).includes("26 s after the merge"), await five(page));
+  check("  the signed stage has its time without a reload (it was left without one when the run was listed late)", (await stages(page)) === "ask:done fund:done open:done merge:done sign:done pay:done" && line.includes("GitHub ran the workflow that signs 2026-10-05 12:10:39 UTC, 4 s"), `${await stages(page)} | ${line}`);
+  await ctx.close();
+}
+
+// ---- the defect of the 0.3.15 run, by itself: the signing run listed late, the payment seen at the next look ------------------
+{
+  const start = NOW - 60_000, { ctx, page, net } = await open(world(start, "open").w);
+  await page.goto(`${base}live.html`);
+  await settled(page);
+  await page.click("#live-watch");
+  await page.waitForFunction(() => document.getElementById("live-watching").textContent.startsWith("Watching round 40"));
+  const look = async () => { const was = await text(page, "#live-watching"); await page.clock.runFor(30_000); await page.waitForFunction((n) => document.getElementById("live-watching").textContent.replace(/\s+/g, " ").trim() !== n, was).catch(() => {}); };
+  const runsAsked = () => net.github.filter((p) => p.includes("/actions/runs")).length;
+  net.w = world(start, "merge").w;
+  for (let i = 0; i < 6 && (await stages(page)) !== "ask:done fund:done open:done merge:done sign:now pay:wait"; i++) await look();
+  for (let i = 0; i < 4 && runsAsked() === 0; i++) await look();          // asked right after the merge: GitHub lists no run yet
+  net.w = world(start, "pay").w;                                          // by the next look the run is listed, and Knos has said "paid"
+  for (let i = 0; i < 6 && !(await text(page, "#live-watching")).startsWith("Round 40 ended"); i++) await look();
+  check("signed, watched: a signing run GitHub listed late still gets its time when the payment is seen (0.3.15 left it blank until a reload)",
+    (await stages(page)) === "ask:done fund:done open:done merge:done sign:done pay:done" && (await text(page, '#live-line li[data-stage="sign"]')).includes("2026-10-05 12:10:39 UTC, 4 s"), `${await stages(page)} | ${await text(page, '#live-line li[data-stage="sign"]')}`);
+  check("  and it cost one more read of GitHub, once", runsAsked() === 2, runsAsked());
   await ctx.close();
 }
 

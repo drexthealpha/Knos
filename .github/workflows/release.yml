@@ -2,7 +2,7 @@ name: release
 
 # Everything a release publishes, behind one gate. docs/RELEASE.md has the whole order; this is its last part.
 #
-# A release starts by pushing its tag, and only that way:  git tag v0.3.15 && git push origin v0.3.15
+# A release starts by pushing its tag, and only that way:  git tag v0.3.16 && git push origin v0.3.16
 # By then the tagged commit holds the lock (the last line of requirements/sign.txt: the knos wheel by its sha256) and
 # PyPI holds that very wheel: it was built once, before the commit, and uploaded before the push (scripts/release.py).
 #
@@ -15,7 +15,8 @@ name: release
 #                   version each of them carries.
 #   pypi            uploads NOTHING. It asks PyPI for the wheel of this version and fails loudly unless PyPI serves a
 #                   file with exactly the locked sha256. A wheel built here is never uploaded: if it differed from the
-#                   locked one by a byte, every signing job (they install by hash) would refuse it.
+#                   locked one by a byte, every signing job (they install by hash) would refuse it. It also asks
+#                   PyPI's index, the cached page an installer resolves from, which can show a release minutes later.
 #   github-release  creates the GitHub release for the tag, with the wheel, the sdist, sign.txt and the npm tarball attached
 #                   (`npm i https://github.com/drexthealpha/Knos/releases/download/vX.Y.Z/knos-settle-X.Y.Z.tgz`).
 #   registry        lists `knos mcp` in the official MCP registry (registry.modelcontextprotocol.io). It proves it owns
@@ -31,6 +32,12 @@ name: release
 #                   NPM_TOKEN). Without the secret the job says so in one line and passes. A version the registry
 #                   already has is left alone. These are the fallback: the normal path is the two jobs below, and
 #                   with them the secrets stay unset.
+#                   A package is published at ITS OWN version, which is the tag's, or, for a crate that
+#                   scripts/bump_version.py holds (PROGRAMS_FROZEN: a version is in a build's bytes, so the interface
+#                   crates stay at FROZEN_AT while no program changes), the version it is held at. Any other version
+#                   is red. (Until 0.3.15 these jobs asked for the tag's version alone, which a held crate can
+#                   never have: crates-trusted failed on a release that had nothing to publish.) The rule and the
+#                   look at the registry are `scripts/release.py registry-plan`, tested in tests/test_release_gate.py.
 #   crates-trusted, npm-trusted
 #                   publish the same packages with NO stored secret (trusted publishing): the registry exchanges this
 #                   run's GitHub OIDC token for a credential that lives minutes. crates.io:
@@ -223,7 +230,8 @@ jobs:
           (
             cd crates/knos-pay-interface
             version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-            test "v$version" = "$TAG"
+            # its own version: the one scripts/bump_version.py holds it at, or else the tag's
+            [ "$version" = "$(python3 ../../scripts/release.py held knos-pay-interface)" ] || test "v$version" = "$TAG"
             if curl -fs https://index.crates.io/kn/os/knos-pay-interface | jq -e --arg v "$version" 'select(.vers == $v)' > /dev/null; then
               echo "crates.io already has knos-pay-interface $version"; exit 0
             fi
@@ -231,7 +239,7 @@ jobs:
           )
           cd crates/knos-oidc-interface
           version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          test "v$version" = "$TAG"
+          [ "$version" = "$(python3 ../../scripts/release.py held knos-oidc-interface)" ] || test "v$version" = "$TAG"
           # crates.io's index lists every published version of a crate, one JSON line each (no such file: none yet)
           if curl -fs https://index.crates.io/kn/os/knos-oidc-interface | jq -e --arg v "$version" 'select(.vers == $v)' > /dev/null; then
             echo "crates.io already has knos-oidc-interface $version"; exit 0
@@ -289,19 +297,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          version=$(cd "crates/$CRATE" && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          test "v$version" = "$TAG"
-          # crates.io's index lists every published version of a crate, one JSON line each; 404: the crate is not there
-          code=$(curl -s -o index.jsonl -w '%{http_code}' "https://index.crates.io/kn/os/$CRATE")
-          if [ "$code" = 404 ]; then
-            echo "::notice title=crates.io::Skipped: $CRATE is not on crates.io yet. Its first version is published by hand (docs/RELEASE.md); after that this job publishes."
-          elif [ "$code" != 200 ]; then
-            echo "::error title=crates.io::The index answered $code for $CRATE: run this job again."; exit 1
-          elif jq -e --arg v "$version" 'select(.vers == $v)' index.jsonl > /dev/null; then
-            echo "crates.io already has $CRATE $version"
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
+          # Red only when the crate's version is neither the tag's nor the one scripts/bump_version.py holds it at.
+          # Green with a notice when the crate is not on crates.io yet (its first version is published by hand:
+          # docs/RELEASE.md) or crates.io already has this version; publish=true only for a version it lacks.
+          python3 scripts/release.py registry-plan crates "$CRATE" --tag "$TAG"
       - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
         id: auth
         if: steps.plan.outputs.publish == 'true'
@@ -335,20 +334,11 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          cd sdk/settle
-          version=$(node -p "require('./package.json').version")
-          test "v$version" = "$TAG"
           node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) { console.error(`npm ${process.argv[1]} cannot do trusted publishing: 11.5.1 or later is needed`); process.exit(1); }' "$(npm --version)"
-          if [ "$(npm view "knos-settle@$version" version 2>/dev/null)" = "$version" ]; then
-            echo "npm already has knos-settle $version"
-          elif npm view knos-settle name > /dev/null 2> view.err; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          elif grep -q E404 view.err; then
-            echo "::notice title=npm::Skipped: knos-settle is not on npm yet. Its first version is published by hand (docs/RELEASE.md); after that this job publishes."
-          else
-            cat view.err; echo "::error title=npm::The registry did not answer for knos-settle: run this job again."; exit 1
-          fi
-          rm -f view.err
+          # The same rule as the crates: its own version, which for this package is always the tag's (it moves with
+          # every release). Green with a notice when knos-settle is not on npm yet (its first version is
+          # published by hand: docs/RELEASE.md) or npm already has this version.
+          python3 scripts/release.py registry-plan npm knos-settle --tag "$TAG"
       - name: test, then publish with this run's identity
         if: steps.plan.outputs.publish == 'true'
         run: |

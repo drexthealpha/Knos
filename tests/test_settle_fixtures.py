@@ -175,9 +175,12 @@ def test_the_one_thing_the_second_claim_reader_does_that_the_first_does_not():
     # the interface crate (what other programs read a token with) carries the second deployment's rule
     interface = _functions((ROOT / "crates" / "knos-oidc-interface" / "src" / "lib.rs").read_text(encoding="utf-8"))
     assert "if key_is(key, escaped, w) {" in interface["fields"] and "key_is" in interface
-    # and all three are asked the same questions: serde_json, claims.rs and the interface crate, by one function
+    # and all are asked the same questions by one function: serde_json, claims.rs and the interface crate, which must
+    # agree with each other on everything; and since 2.2 the verifier's own strict reader, which must agree with
+    # claims.rs on every document it accepts
     fuzz = (ROOT / "programs-v2" / "knos_oidc" / "fuzz" / "src" / "lib.rs").read_text(encoding="utf-8")
-    assert 'oracle::check(b, &p, "claims.rs");' in fuzz and 'oracle::check(b, &i, "knos-oidc-interface");' in fuzz and "assert_eq!(p, i," in fuzz
+    assert 'oracle::check(b, &c, "claims.rs");' in fuzz and 'oracle::check(b, &i, "knos-oidc-interface");' in fuzz and "assert_eq!(c, i," in fuzz
+    assert 'oracle::check_strict(b, &p, "strict.rs");' in fuzz and "assert_eq!(p, c," in fuzz
     assert "knos_oidc_fuzz::agree(data)" in (ROOT / "programs-v2" / "knos_oidc" / "fuzz" / "fuzz_targets" / "claims.rs").read_text(encoding="utf-8")
     assert "agree(" in (ROOT / "programs-v2" / "knos_oidc" / "fuzz" / "tests" / "random.rs").read_text(encoding="utf-8")
 
@@ -295,6 +298,10 @@ def test_the_site_is_built_at_one_commit(tmp_path):
     assert (site / "settle.js").read_bytes() == (ROOT / "sdk" / "settle" / "index.js").read_bytes()
     # the second deployment's addresses ship as a file, and the first deployment's are only in the page, as history
     assert (site / "program_ids.json").read_bytes() == (ROOT / "src" / "knos" / "settle" / "v2" / "program_ids.json").read_bytes()
+    # the registry of published terms is carried whole: the Terms page reads it, and `knos terms cite` prints an address in it
+    assert {p.relative_to(site / "terms").as_posix(): p.read_bytes() for p in (site / "terms").rglob("*.json")} == {
+        p.relative_to(ROOT / "terms").as_posix(): p.read_bytes() for p in (ROOT / "terms").rglob("*.json")}
+    assert (site / "demo_data.json").read_bytes() == (ROOT / "web" / "demo_data.json").read_bytes()        # held to the documents by scripts/demo_data.py --check
     assert subprocess.run([_posix.bash(), _posix.path(ROOT / "scripts" / "build_site.sh"), _posix.path(tmp_path / "x"), "main"], capture_output=True,
                           env=_posix.environ(dict(os.environ))).returncode != 0
 
@@ -313,8 +320,16 @@ def _text(html: str) -> str:
 
 
 def _view(name: str) -> str:
+    """The whole of a view's <section>, to the tag that closes it: a section inside it (the first view holds the
+    demo's mount) does not end it."""
     page = (WEB / "index.html").read_text(encoding="utf-8")
-    return re.search(rf'<section id="view-{name}".*?</section>', page, re.S).group(0)
+    start = page.index(f'<section id="view-{name}"')
+    depth = 0
+    for tag in re.finditer(r"<(/?)section\b", page[start:]):
+        depth += -1 if tag.group(1) else 1
+        if depth == 0:
+            return page[start:page.index(">", start + tag.start()) + 1]
+    raise AssertionError(f"the section view-{name} is never closed")
 
 
 def test_the_site_ships_the_second_deployments_ids_and_names_the_first_once_as_history():
@@ -363,7 +378,9 @@ def test_the_numbers_the_site_states_are_the_codes():
     assert f"stops working after {oidc.KEY_TTL // 86_400} days" in build and "waits a day" in build and oidc.KEY_DELAY == 86_400
     app = (WEB / "app.js").read_text(encoding="utf-8")
     plan = "upgradeable only through a multisig with a public 48-hour delay, until an outside review"
-    assert plan in app and plan in _text((WEB / "index.html").read_text(encoding="utf-8"))
+    # the page that draws the upgrade authority says it in full; the foot of every page links to who can change the programs
+    assert plan in app and re.search(r'<a href="https://github\.com/drexthealpha/Knos/blob/main/docs/GOVERNANCE\.md">Who can change the programs</a>',
+                                     (WEB / "index.html").read_text(encoding="utf-8"))
     assert "172800" in app and 172_800 == 48 * 3600                                  # the delay the page checks the chain against
     assert "PAUSE_MAX" in app and pay.PAUSE_MAX == 7 * 86_400                          # the pause length shown is the client's constant
 
@@ -384,14 +401,24 @@ def test_the_sample_reply_says_what_the_terms_say():
 
 def test_the_first_view_has_no_numbers_outside_code_but_the_one_measurement_it_leads_with():
     """scripts/claims_check.py holds every number in this view to a fact; the easiest way to keep it true is to have
-    almost none. A command shown in a <pre> is code, like one in <code>. The one measurement the view states (how many
-    cheating pull requests passed the black-box check, and how many passed plain CI) is the totals row of docs/TAMPER.md."""
-    view = re.sub(r"<pre>(.*?)</pre>", lambda m: "<code>" + m.group(1) + "</code>", _view("check"), flags=re.S)
+    almost none. A command shown in a <pre> is code, like one in <code>. The whole view is read, the demo's mount and
+    the folds under it too. The one measurement the view leads with (the share of repositories whose first agent pull
+    request that says its tests pass had a failed check) is docs/bench.json's, the Agent PR Index: any_check_failed of
+    first_pr_per_repo. The only other numbers are one line under a fold, held here to its source: how many cheating
+    pull requests passed the black-box check and how many passed plain CI, the totals row of docs/TAMPER.md."""
+    whole = _view("check")
+    assert '<section id="demo"' in whole and 'id="what-is-here"' in whole and whole.count("<section") == whole.count("</section>")
+    view = re.sub(r"<pre>(.*?)</pre>", lambda m: "<code>" + m.group(1) + "</code>", whole, flags=re.S)
     said = re.sub(r"`[^`]*`", " ", _text(view))
+    first = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["market"]["index"]["overall"]["first_pr_per_repo"]
+    share = f"{first['any_check_failed']['share'] * 100:.1f}%"
+    assert round(first["any_check_failed"]["repos"] / first["repos"], 3) == first["any_check_failed"]["share"]
+    assert f"{share} of" in said and "had a failed check" in said
     row = re.search(r"^\| \*\*all\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \|$", (ROOT / "docs" / "TAMPER.md").read_text(encoding="utf-8"), re.M)
     cases, plain_ci, _in_process, black_box = row.groups()
     assert f"{black_box} of {cases} cheating pull requests passed it, {plain_ci} passed plain CI" in said
-    assert re.findall(r"\d+", said) == [black_box, cases, plain_ci], re.findall(r"\d+", said)
+    assert said.index(share) < said.index(f"{black_box} of {cases}")
+    assert re.findall(r"\d+(?:\.\d+)?%?", said) == [share, black_box, cases, plain_ci], re.findall(r"\d+(?:\.\d+)?%?", said)
 
 
 def test_the_site_says_nothing_it_may_not():

@@ -1,6 +1,7 @@
 {
   "name": "outcome-data-transformation",
   "sentence": "Pays 150 test USDC when transform.sql turns each of 40 seeded, unseen pairs of tables into a ledger with one row per customer, every distinct charge counted once, and gross, refunds and net equal to the input's totals to the cent; refund after 14 days",
+  "comment": "/knos fund 150 checks: none",
   "where": "an issue that has this example's .knos/acceptance/<issue>/ on the default branch (bundle 1 here)",
   "terms": {
     "accept": "9d4381ba658fc5bfc89ee6a3dc067061a9c7731b65dd1be4c3850433fa45e251",

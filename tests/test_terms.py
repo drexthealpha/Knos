@@ -788,3 +788,64 @@ def test_the_terms_say_which_assurance_they_buy():
     assert tests.startswith("Judge: in-process. ") and "7 of 63" in tests
     assert box.startswith("Judge: black-box. ") and "0 of 63" in box and "not a proof for every attack" in box
     assert hermetic.startswith(f"Judge: hermetic, in `{IMAGE}`. ") and "0 of 63" in hermetic and "not a proof for every attack" in hermetic
+
+
+# ---- an acceptance policy is the terms; its version is their hash; `knos terms diff` says what changed ----------------
+
+def test_the_sentence_about_a_quorum_names_each_reader_and_how_many_must_agree():
+    two, = terms.describe_options(False, 2)
+    assert two.startswith("It is paid only after two independent readers have each passed the same pull request at the same commit, all of these: "
+                          "1. this repository's own run; 2. a neutral run that someone other than its funder starts by hand in a repository of their own")
+    assert "judge repository" not in two and two.endswith("One reader counts once, however often it passes; two repositories of one owner are one reader.")
+    three, = terms.describe_options(False, 3, True, "acme/judge")
+    assert "all of these: 1." in three and "3. a run in acme/judge, the judge repository named at funding, which belongs to neither" in three
+    any_two, = terms.describe_options(False, 2, True, "acme/judge")
+    assert "any two of these: 1." in any_two and "3. a run in acme/judge" in any_two
+    assert terms.readers(False, "acme/judge") == [terms.readers()[0], terms.readers(True, "acme/judge")[2]] and len(terms.readers(False)) == 1
+    assert terms.describe_options() == [] and terms.describe_options(True) == [terms.AUTO]
+
+
+def test_terms_diff_says_in_plain_words_what_changed_between_two_versions_of_a_policy(tmp_path):
+    from typer.testing import CliRunner
+
+    from knos import terms_templates as tt
+    from knos.cli import app
+    v1 = {**TESTS, "checks": [{"app": 15368, "name": "unit"}], "paths": ["src/**"]}
+    v2 = {**v1, "accept": "c" * 64, "checks": [{"app": 15368, "name": "lint"}, {"app": 0, "name": "unit"}], "paths": ["src/**", "docs/*.md"],
+          "deny": [".github/**"], "reserve": 0, "image": IMAGE, "policy": "d" * 64}
+    assert tt.diff(v1, v1) == [] and tt.version(v1) == terms.terms_hash(v1) != tt.version(v2)
+    assert tt.diff(v1, v2) == [
+        f"The acceptance suite changed: its files are not the same (hash {v1['accept'][:12]} before, cccccccccccc now). Work accepted by one "
+        "suite is not thereby accepted by the other.",
+        f"Where the suite runs the work changed: before, on the runner, with no pinned image; now, in the image `{IMAGE}`.",
+        "A check must now pass that did not have to: `lint` from GitHub App 15368.",
+        "A check must now pass that did not have to: `unit` as a commit status.",
+        "A check no longer has to pass: `unit` from GitHub App 15368.",
+        "The work may now also change files matching `docs/*.md`.",
+        "The work may now touch `.knos/**`.",
+        "How long the issue can be reserved changed: 7 days before, not at all now.",
+        "The repository's rules for funding (.knos/policy.yml) are named by one version and not by the other: who may fund, the caps, the defaults.",
+    ]
+    back = tt.diff(v2, v1)
+    assert len(back) == 9 and "The work may no longer touch `.knos/**`." in back and "The work may no longer change files matching `docs/*.md`." in back
+    merge = {**BASE, "paths": []}
+    assert tt.diff({**TESTS, "paths": []}, merge)[0] == "What decides payment changed: it was the acceptance suite passing; it is now a maintainer's merge."
+    assert tt.diff({**BASE, "paths": []}, {**BASE, "paths": ["src/**"]}) == ["Before, any file could change; now only files matching `src/**`."]
+    assert tt.diff({**BASE, "vendor": 5}, {**BASE, "vendor": 6}) == ["The one account it pays changed: account id 5 before, 6 now."]
+    # the command: two templates, a template and a file, the same version twice, and a name that is neither
+    a, b = tmp_path / "v1.json", tmp_path / "v2.json"
+    a.write_text(terms.canonical(v1).decode(), encoding="utf-8")
+    b.write_text(json.dumps({"name": "x", "terms": v2}), encoding="utf-8")
+    cli = CliRunner()
+    got = cli.invoke(app, ["terms", "diff", str(a), str(b)])
+    assert got.exit_code == 0 and got.output.startswith(f"Acceptance policy, version {tt.version(v1)[:12]} ({a}) to version {tt.version(v2)[:12]} ({b}):\n\n  - The acceptance suite changed")
+    assert "9 differences. An order keeps the version it was funded on: its hash is in the order, and a payment under any other version is refused." in got.output
+    same = cli.invoke(app, ["terms", "diff", "bugfix", "bugfix"])
+    assert same.exit_code == 0 and same.output == f"Nothing changed: both are version {tt.export('bugfix')['terms_hash']} of the acceptance policy.\n"
+    mixed = cli.invoke(app, ["terms", "diff", "feature-blackbox", "data-labelling"])
+    assert mixed.exit_code == 0 and "A check no longer has to pass: `unit` from GitHub App 15368." in mixed.output and "2 differences." in mixed.output
+    for bad, why in (("nope", "nope is neither a template (bugfix, "), (str(tmp_path / "missing.json"), "nor a file that holds terms")):
+        said = cli.invoke(app, ["terms", "diff", "bugfix", bad])
+        assert said.exit_code == 1 and why in said.output
+    (tmp_path / "junk.json").write_text('{"terms": {"v": 1}}', encoding="utf-8")
+    assert "does not hold terms: a bounty's terms have exactly these fields" in cli.invoke(app, ["terms", "diff", "bugfix", str(tmp_path / "junk.json")]).output

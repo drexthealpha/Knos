@@ -8,26 +8,46 @@
 @font-face { font-family: "Geist"; src: url("fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; src: url("fonts/jetbrains-mono.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }
 
+/* THE DESIGN CONTRACT (0.3.16). Every module uses these names and nothing else:
+   --ink --ink-2 --paper --paper-2 --line --accent --ok --bad --radius --depth-1 --depth-2 --depth-3 --ease --dur-1 --dur-2 --dur-3
+   .k-card (data-tilt) .k-btn (.quiet) .k-kicker .k-num .k-step[data-state] .k-stage .k-reveal .k-table
+   Dark is the first palette: the paper is the black of a raven's back, the one accent is the blue of its sheen. The
+   light one follows the reader's system (or the button in the bar). The names of 0.3.15 (--bg --fg --muted --card
+   --soft) stay as other names for the same colours, so a module written before the contract has the new look. */
 :root {
-  --bg: #f6f5f1; --fg: #15171c; --muted: #5a606b; --card: #ffffff; --line: #e1dfd7; --soft: #eeece5;
-  --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100;
+  --paper: #07080c; --paper-2: #0f1118; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634; --soft: #151822;
+  --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
+  --light: rgb(255 255 255 / .06);
+  --depth-1: inset 0 1px 0 var(--light), 0 1px 2px rgb(0 0 0 / .5);
+  --depth-2: inset 0 1px 0 var(--light), 0 2px 4px rgb(0 0 0 / .4), 0 12px 28px -8px rgb(0 0 0 / .6);
+  --depth-3: inset 0 1px 0 var(--light), 0 4px 8px rgb(0 0 0 / .4), 0 32px 64px -16px rgb(0 0 0 / .8);
+  --radius: 14px; --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms; --dur-3: 480ms;
+  --bg: var(--paper); --fg: var(--ink); --muted: var(--ink-2); --card: var(--paper-2);
   --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* the scale: 13 14 16 18 22 28, and a first-screen heading that grows with the window */
-  --s-1: 13px; --s0: 14px; --s1: 16px; --s2: 18px; --s3: 22px; --s4: 28px;
-  --gap: 24px; --radius: 12px;
-  color-scheme: light;
+  /* the scale: 13 14 16 20 28 40, and a first-screen heading that grows with the window */
+  --s-1: 13px; --s0: 14px; --s1: 16px; --s2: 20px; --s3: 28px; --s4: 40px;
+  --gap: 24px;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e1014; --fg: #e9ebef; --muted: #9aa1ad; --card: #15181e; --line: #272b34; --soft: #1b1f27;
-    --accent: #a3acff; --accent-fg: #0e1014; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354; color-scheme: dark;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --paper: #f4f4f0; --paper-2: #ffffff; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4; --soft: #eaeae4;
+    --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; --light: rgb(255 255 255 / .9);
+    --depth-1: 0 1px 2px rgb(17 19 26 / .06);
+    --depth-2: 0 1px 2px rgb(17 19 26 / .06), 0 12px 28px -10px rgb(17 19 26 / .16);
+    --depth-3: 0 2px 4px rgb(17 19 26 / .06), 0 32px 64px -20px rgb(17 19 26 / .28);
+    color-scheme: light;
   }
 }
-:root[data-theme="dark"] {
-  --bg: #0e1014; --fg: #e9ebef; --muted: #9aa1ad; --card: #15181e; --line: #272b34; --soft: #1b1f27;
-  --accent: #a3acff; --accent-fg: #0e1014; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354; color-scheme: dark;
+:root[data-theme="light"] {
+  --paper: #f4f4f0; --paper-2: #ffffff; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4; --soft: #eaeae4;
+  --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; --light: rgb(255 255 255 / .9);
+  --depth-1: 0 1px 2px rgb(17 19 26 / .06);
+  --depth-2: 0 1px 2px rgb(17 19 26 / .06), 0 12px 28px -10px rgb(17 19 26 / .16);
+  --depth-3: 0 2px 4px rgb(17 19 26 / .06), 0 32px 64px -20px rgb(17 19 26 / .28);
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -167,7 +187,6 @@ details { margin: 8px 0; } summary { cursor: pointer; font-weight: 500; }
 @media (max-width: 560px) { .row, .parts, .facts { grid-template-columns: minmax(0, 1fr); } .facts dt, .parts dt { margin-top: 6px; } }
 
 /* ---- the first screen -------------------------------------------------------------------------------------------------- */
-h1 .rest { color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 40px; }
 .actions a.button { margin: 0; }
 .how, .lead-with { list-style: none; padding: 0; margin: 0; }
@@ -299,3 +318,189 @@ body[data-page="status"] #status, body[data-page="index"] #index, body[data-page
 
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 @media print { .bar nav, .tools, .actions { display: none; } body { background: #fff; } }
+
+/* ==== 0.3.16: the contract's classes, and the classes of 0.3.15 given the same look =================================== */
+@supports (transition-timing-function: linear(0, 1)) { :root { --ease: linear(0, .22 6%, .6 16%, .86 26%, .98 36%, 1.03 46%, 1.03 58%, 1.01 74%, 1); } }
+body { background: var(--paper); line-height: 1.55; }
+::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-weight: 600; letter-spacing: -.02em; }
+h2 { font-size: clamp(var(--s3), 4vw, var(--s4)); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; }
+h3 { font-size: var(--s2); line-height: 1.25; }
+.lede { font-size: var(--s2); line-height: 1.45; max-width: 46ch; }
+html { scroll-padding-top: 112px; }
+main { padding: 0 16px 96px; }
+.view > details + h2, .view > .card + h2 { margin-top: 64px; }
+.view, .mount { padding-top: 48px; }
+.view > h2 + .lede { margin-bottom: 32px; }
+
+/* the bar: stays at the top, the page passes under it */
+.bar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 82%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); view-transition-name: bar; }
+.brand .wordmark { height: 32px; margin: -2px 0 -2px -3px; }
+nav { gap: 4px; }
+nav a, .js .more-button { transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease); }
+nav a[aria-current="page"] { background: var(--soft); box-shadow: var(--depth-1); }
+.js .more-list { background: var(--paper-2); border-radius: var(--radius); box-shadow: var(--depth-3); }
+.js .more.open .more-list { grid-template-columns: 1fr 1fr; min-width: 20em; }
+@supports (transition-behavior: allow-discrete) {
+  .js .more-list { transition: opacity var(--dur-1) var(--ease), translate var(--dur-1) var(--ease), display var(--dur-1) allow-discrete; opacity: 0; translate: 0 -4px; }
+  .js .more.open .more-list { opacity: 1; translate: 0 0; }
+  @starting-style { .js .more.open .more-list { opacity: 0; translate: 0 -4px; } }
+}
+@media (max-width: 860px) {
+  /* a phone: Menu opens the five; More, inside it, opens the rest */
+  .js .bar.open nav { grid-template-columns: 1fr; }
+  .js .more { display: block; position: static; }
+  .js .more-button { display: block; width: 100%; text-align: left; padding: 10px; }
+  .js .more-list, .js .more.open .more-list { position: static; min-width: 0; border: 0; box-shadow: none; background: none; padding: 0 0 0 10px; }
+  .js .more-list { display: none; } .js .more.open .more-list { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
+/* .k-card: a raised surface. [data-tilt]: it leans to the pointer (web/motion.js) and a light follows */
+.k-card, .card, .stat, .how > li { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--depth-1); }
+.k-card { padding: 20px; margin: var(--gap) 0; min-width: 0; position: relative; }
+@media (min-width: 700px) { .k-card { padding: 24px 28px; } }
+.k-card > :first-child { margin-top: 0; } .k-card > :last-child { margin-bottom: 0; }
+[data-tilt] { position: relative; transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)); transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+[data-tilt]::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity var(--dur-2) var(--ease);
+  background: radial-gradient(22em circle at var(--light-x, 50%) var(--light-y, 0%), color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%); }
+@media (hover: hover) { [data-tilt]:hover { box-shadow: var(--depth-2); } [data-tilt]:hover::after { opacity: 1; } }
+
+/* .k-btn: the one action; .quiet: the second */
+.k-btn, button, a.button { font: 600 15px/1.3 var(--text); border: 1px solid var(--accent); border-radius: 10px; padding: 11px 18px; min-height: 44px; background: var(--accent); color: var(--accent-fg); cursor: pointer; text-decoration: none;
+  box-shadow: var(--depth-1); transition: translate var(--dur-1) var(--ease), filter var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
+.k-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.k-btn:hover { filter: brightness(1.08); box-shadow: var(--depth-2); }
+.k-btn:active, button:active, a.button:active { translate: 0 1px; }
+.k-btn:focus-visible { outline-offset: 3px; border-radius: 10px; }
+.k-btn.quiet, button.ghost, a.button.quiet { background: color-mix(in srgb, var(--paper-2) 70%, transparent); color: var(--ink); border-color: var(--line); }
+.k-btn.quiet:hover { background: var(--soft); filter: none; }
+.more-button, button.copy { box-shadow: none; }
+
+.k-kicker, .kicker { font: 500 var(--s0)/1.4 var(--text); letter-spacing: 0; text-transform: none; color: var(--accent); margin: 0 0 8px; }
+.k-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; white-space: nowrap; }
+.k-table { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+.k-table table { min-width: 100%; }
+th, td { border-bottom-color: var(--line); }
+pre, code, .receipt { background: var(--soft); }
+textarea, input, select { background: var(--paper); transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
+textarea:focus-visible, input:focus-visible, select:focus-visible { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.stat b { font-size: var(--s3); } .verdict { font-weight: 600; }
+
+/* .k-step: a step of a timeline. data-state: idle (not yet), live (now), done, bad (refused: shakes once) */
+.k-step { position: relative; margin: 0; padding: 0 0 20px 32px; list-style: none; color: var(--ink-2); transition: color var(--dur-2) var(--ease); }
+.k-step::before { content: ""; position: absolute; left: 4px; top: 5px; width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--line); background: var(--paper);
+  transition: background-color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+.k-step::after { content: ""; position: absolute; left: 10px; top: 22px; bottom: 0; width: 1px; background: var(--line); }
+.k-step:last-child::after { display: none; } .k-step:last-child { padding-bottom: 0; }
+.k-step[data-state="live"] { color: var(--ink); } .k-step[data-state="live"]::before { border-color: var(--accent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent); }
+.k-step[data-state="done"] { color: var(--ink); } .k-step[data-state="done"]::before { border-color: var(--ok); background: var(--ok); }
+.k-step[data-state="done"]::after { background: var(--ok); }
+.k-step[data-state="bad"] { color: var(--bad); } .k-step[data-state="bad"]::before { border-color: var(--bad); background: var(--bad); }
+.k-step[data-state="bad"], .k-shake { animation: k-shake var(--dur-2) linear 1; }
+@keyframes k-shake { 20% { translate: -5px 0; } 40% { translate: 5px 0; } 60% { translate: -3px 0; } 80% { translate: 3px 0; } }
+
+/* .k-stage: where depth happens. Its children keep their own z */
+.k-stage { perspective: 1100px; perspective-origin: 50% 40%; }
+.k-stage > * { transform-style: preserve-3d; }
+
+/* .k-reveal: enters once (web/motion.js adds .in). Held back only once motion.js says it will let it go (html.k-motion) */
+.k-motion .k-reveal { opacity: 0; translate: 0 14px; transition: opacity var(--dur-3) var(--ease), translate var(--dur-3) var(--ease); }
+.k-motion .k-reveal.in { opacity: 1; translate: 0 0; }
+
+/* the mark in flight (motion.js raven) and with depth (brand/mark3d.js) */
+.k-raven { display: block; width: 30px; aspect-ratio: 1856 / 1756; background: var(--accent); -webkit-mask: url("brand/mark.svg") center / contain no-repeat; mask: url("brand/mark.svg") center / contain no-repeat; }
+.k-mark3d { display: block; position: relative; width: 100%; aspect-ratio: 1856 / 1756; perspective: 900px; --face: var(--ink); --glint: #ffffff; --edge-near: color-mix(in srgb, var(--accent) 70%, var(--paper)); --edge-far: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
+.k-mark3d .body { position: absolute; inset: 9%; transform-style: preserve-3d; transform: rotateX(var(--turn-x, 6deg)) rotateY(var(--turn-y, -20deg)); transition: transform var(--dur-3) var(--ease), opacity var(--dur-3) var(--ease); }
+@starting-style { .k-mark3d .body { transform: rotateX(18deg) rotateY(-58deg); opacity: 0; } }
+.k-mark3d i { position: absolute; inset: 0; transform: translateZ(var(--z, 0px)); -webkit-mask: url("brand/mark.svg") center / contain no-repeat; mask: url("brand/mark.svg") center / contain no-repeat; }
+.k-mark3d .edge { background: color-mix(in srgb, var(--edge-near) calc(var(--k, 1) * 100%), var(--edge-far)); }
+.k-mark3d .face { background: radial-gradient(circle at var(--light-x, 34%) var(--light-y, 18%), var(--glint), var(--face) 34%, color-mix(in srgb, var(--accent) 55%, var(--face)) 100%); }
+.k-mark3d .shade { -webkit-mask: none; mask: none; opacity: .55; filter: blur(18px); translate: 5% 9%; }
+.k-mark3d .shade::before { content: ""; position: absolute; inset: 0; background: #000; -webkit-mask: url("brand/mark.svg") center / contain no-repeat; mask: url("brand/mark.svg") center / contain no-repeat; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .k-mark3d { --glint: #7d8df0; --edge-near: #8a97ee; --edge-far: #c9cef5; } :root:not([data-theme="dark"]) .k-mark3d .shade { opacity: .22; } }
+:root[data-theme="light"] .k-mark3d { --glint: #7d8df0; --edge-near: #8a97ee; --edge-far: #c9cef5; } :root[data-theme="light"] .k-mark3d .shade { opacity: .22; }
+
+/* ---- the first screen: the sentence, the figure, two buttons, the mark; the demo under them --------------------------- */
+#view-check { padding-top: 0; }
+/* the hero is as tall as the window under the bar, so the first screen is the hero and nothing else: what follows
+   (the demo first) starts at the fold */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; align-items: center; gap: 8px 48px; padding: 24px 0 32px; position: relative; min-height: min(calc(100svh - 65px), 900px); }
+.hero::before { content: ""; position: absolute; z-index: -1; inset: -64px -16px 0; pointer-events: none;
+  background: radial-gradient(closest-side at 50% 36%, color-mix(in srgb, var(--accent) 20%, transparent), transparent); }
+h1 { font-size: clamp(36px, 5.6vw, 72px); line-height: 1.02; font-weight: 600; letter-spacing: -.04em; margin: 0 0 24px; max-width: 12.5em; }
+.hero-fact { font-size: var(--s2); line-height: 1.4; color: var(--ink-2); max-width: 30em; margin: 0 0 32px; }
+.hero-fact a { color: var(--ink); font-weight: 600; text-decoration-color: var(--accent); }
+.actions { margin: 0; }
+/* the cue at the foot of the hero: more follows, and a press goes to it. It nudges once when the page opens and
+   then is still; for a reader who asked for no movement it never moves */
+.hero-cue { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 12px; line-height: 1; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; padding: 4px 8px; border-radius: var(--radius); }
+.hero-cue::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+.hero-cue:hover { color: var(--ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-cue::after { animation: k-cue var(--dur-3) var(--ease); }
+  @keyframes k-cue { 50% { transform: translateY(4px) rotate(45deg); } }
+}
+.hero-mark { width: min(64vw, 300px); margin: 0 auto 8px; order: -1; }
+@media (min-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); padding: 48px 0; }
+  .hero-mark { width: 100%; max-width: 440px; margin: 0 0 0 auto; order: 0; }
+  .hero::before { background: radial-gradient(closest-side at 79% 50%, color-mix(in srgb, var(--accent) 22%, transparent), transparent); }
+}
+#demo.mount { display: block; max-width: none; padding-top: 0; margin: 0 0 72px; scroll-margin-top: 80px; }
+#demo.mount[hidden] { display: none; }
+.film { margin: 16px 0; max-width: 800px; } .film video { width: 100%; max-height: 60vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); box-shadow: var(--depth-2); }
+#check-a-pull-request { margin-top: 24px; scroll-margin-top: 80px; }
+.how { gap: 16px; margin: 32px 0 12px; }
+.how > li { padding: 20px; box-shadow: var(--depth-1); }
+.how > li::before { color: var(--accent); }
+.how h3 { font-size: var(--s2); }
+.lead-with { margin-bottom: 16px; } .lead-with > li { font-size: var(--s1); }
+
+/* "More": a longer explanation, one press away. The page shows the thing; the words wait here */
+details.k-more { margin: 12px 0; border-top: 1px solid var(--line); }
+details.k-more > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 0 6px; font-size: var(--s0); font-weight: 500; color: var(--ink-2); border-radius: 6px; }
+details.k-more > summary::-webkit-details-marker { display: none; }
+details.k-more > summary::before { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: -45deg; transition: rotate var(--dur-1) var(--ease); }
+details.k-more[open] > summary::before { rotate: 45deg; }
+details.k-more > summary:hover { color: var(--ink); }
+details.k-more > :not(summary) { max-width: 68ch; }
+details.k-more > .table-wrap, details.k-more > pre { max-width: 100%; }
+@supports (interpolate-size: allow-keywords) {
+  details.k-more { interpolate-size: allow-keywords; }
+  details.k-more::details-content { block-size: 0; overflow: clip; transition: block-size var(--dur-2) var(--ease), content-visibility var(--dur-2) allow-discrete; }
+  details.k-more[open]::details-content { block-size: auto; }
+}
+.foot { border-top-color: var(--line); padding-top: 32px; padding-bottom: 40px; }
+
+/* the pages other modules fill, 0.3.16: the demo is in the first screen; these three are pages */
+body[data-page="shadow"] #shadow, body[data-page="verifier"] #verifier, body[data-page="playground"] #playground { display: block; }
+body[data-page="shadow"] .mount, body[data-page="playground"] .mount { max-width: 1080px; }
+body[data-page="terms"] #terms { display: block; }
+/* the Terms page: a hash is shown whole and wraps inside its card; what was copied and what was found wrap too */
+#terms code, #terms output { overflow-wrap: anywhere; }
+#terms .terms-hash code { white-space: normal; }
+#terms output { display: block; }
+/* .k-objects: the console's four linked objects of one deliverable, a grid that falls to one column on a phone */
+.k-objects { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 12px 0; }
+.k-objects > .k-card { margin: 0; }
+.k-objects .k-card > * + .k-kicker { margin-top: 12px; }
+/* .k-states: the five named states of a payment, as one timeline of .k-step */
+.k-states { margin: 12px 0; padding: 0; list-style: none; }
+
+/* a change of page morphs (web/front.js, where the browser has view transitions): the bar stays, the page crosses */
+main { view-transition-name: page; }
+::view-transition-old(page) { animation: k-out var(--dur-1) var(--ease) both; }
+::view-transition-new(page) { animation: k-in var(--dur-2) var(--ease) both; }
+::view-transition-group(bar) { animation: none; } ::view-transition-old(bar) { display: none; } ::view-transition-new(bar) { animation: none; }
+@keyframes k-out { to { opacity: 0; translate: 0 -8px; } }
+@keyframes k-in { from { opacity: 0; translate: 0 12px; } }
+
+/* a reader who asked for no movement gets none: states still change, at once */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  [data-tilt] { transform: none; }
+}
+@media print { .bar { position: static; } .hero-mark, .hero-cue, .hero::before { display: none; } }

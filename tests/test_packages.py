@@ -59,20 +59,25 @@ def _bump():
 
 
 def _of_a_program(where: str) -> bool:
-    """A crate a program is built from, its lock entry, or an IDL: held at the version of the builds on chain while
-    scripts/bump_version.py's PROGRAMS_FROZEN names it (a version is in a build's bytes), released with the package otherwise."""
-    return bool(_bump().PROGRAMS_FROZEN) and (where.startswith("idl/") or where.endswith(("Cargo.toml", "Cargo.lock")))
+    """Whether this place is held at the version of the builds on chain: scripts/bump_version.py says which crates are
+    (PROGRAMS_FROZEN; a version is in a build's bytes) and which files it holds for them (frozen_places). Nothing is
+    listed here: a crate that leaves the frozen set there is released with the package here, with no edit to this file."""
+    b = _bump()
+    if where.endswith(("Cargo.toml", "Cargo.lock")):        # the interface crate's own manifest, and its entry in a lock file
+        return "knos-oidc-interface" in b.PROGRAMS_FROZEN
+    return where in {rel for rel, _l, _g in b.frozen_places()} and where not in {rel for rel, _l, _g in b.places()}
 
 
 def test_the_artifacts_carry_one_version():
     v = _versions()
     assert len(v) >= 11, v
     assert len({got for where, got in v.items() if not _of_a_program(where)}) == 1, v
-    assert len({got for where, got in v.items() if _of_a_program(where)}) <= 1, v
+    assert {got for where, got in v.items() if _of_a_program(where)} <= {_bump().FROZEN_AT}, v
 
 
 def test_it_is_the_version_of_the_python_package():
-    """The crate, the IDLs and the npm package are released with the Python package, under its version (pyproject.toml)."""
+    """The crate, the IDLs and the npm package are released with the Python package, under its version (pyproject.toml);
+    what scripts/bump_version.py holds for a frozen program crate stays at its FROZEN_AT."""
     version = re.search(r'^version = "([^"]+)"', _read("pyproject.toml"), re.M).group(1)
     stale = {where: got for where, got in _versions().items() if got != (_bump().FROZEN_AT if _of_a_program(where) else version)}
     assert not stale, f"pyproject.toml says {version}; these do not: {stale}"

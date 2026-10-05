@@ -189,6 +189,10 @@ Code cannot produce any of these, and none of them exists today. Each line is th
 - **No outside security review, of anything.** Not the programs, the workflows, the relay, the clients, the site
   or the documents. No security firm has been engaged or asked for a quote. The defect fixed in 0.3.14 was found
   by the founder.
+- **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples, and no
+  comparison of two counts is published.
+- **No outside program is known to read the verifier.** The interface and the examples are in the repository
+  ([COMPOSE.md](COMPOSE.md)); nobody outside Knos is known to call them.
 - **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash,
   rerunning the benchmarks, or running the drills.
 - **The Rust crates and the npm package are not on crates.io or npm.** A first publish to each needs the owner to

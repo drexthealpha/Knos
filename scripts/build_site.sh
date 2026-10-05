@@ -11,6 +11,7 @@
 # The Index page reads the repository's weekly table (docs/agent_weekly.json). The Reproduce page counts the reproductions
 # people outside have sent: the build carries the JSON files of reproductions/ and reproductions.json, their names
 # ({"files": []} while the folder holds none).
+# The registry of published terms (terms/) is carried whole, and web/demo_data.json is held to the documents it is cut from.
 # The upgrade feed (upgrades.json, upgrades.xml) is the committed one of web/; the Pages build runs
 # scripts/upgrade_feed.py on it, which writes nothing when the cluster does not answer, so the committed files stay.
 set -euo pipefail
@@ -32,6 +33,12 @@ cp sdk/settle/passkey.js "$out/passkey.js"
 cp examples/knos-claim.yml "$out/knos-claim.yml"
 cp docs/capabilities.json "$out/capabilities.json"
 cp docs/agent_weekly.json "$out/agent_weekly.json"
+# The registry of published terms (terms/, which scripts/terms_registry.py builds): the Terms page reads terms/index.json,
+# and the address `knos terms cite` prints is a file here.
+rm -rf "$out/terms" && cp -r terms "$out/terms"
+# The round the first screen replays (web/demo_data.json) is cut out of this repository's documents: a build whose
+# copy is not what they say stops here.
+"${PYTHON:-python3}" scripts/demo_data.py --check
 "${PYTHON:-python3}" - "$out" <<'PY'
 import json, shutil, sys
 from pathlib import Path

@@ -19,6 +19,8 @@ number that could not be measured is null with a note, never a guess. Written un
                                      site's order statement (scripts/audit_statements.py writes them; web/statements.js reads them)
     latency.json                     merge to paid and comment to funded, last 30 days and all time
     operations.json                  the canary's runs, its incidents, the time to a first answer to outsiders
+    outsiders.json                   outside funders, outside repositories, outside payees: three numbers, never added,
+                                     each with its definition (scripts/outsiders.py); a build that read nothing says so
     records.json                     which accounts and repositories have a file, and how many could not be named
     docs/OPERATIONS.md (--docs)      operations.json in words; with no data it says so
 
@@ -782,10 +784,10 @@ def bounties_rss(bounties: list[dict], meta: dict) -> str:
 
 
 # ---- html ------------------------------------------------------------------------------------------------------------
-# the one sentence, as scripts/claims_check.py SENTENCE has it; every page of the record starts with it
-SENTENCE = ("Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a "
-            "signed CI run attests they were met, a Solana program counts it or pays it.")
-TAGLINE = SENTENCE[len("Knos is "):]
+# the one sentence, as scripts/claims_check.py SENTENCE has it; every page of the record starts with its first half
+# after the name ("Knos: the neutral meter for AI agent work"), so the line has one colon
+SENTENCE = "The neutral meter for AI agent work: neither side keeps the count."
+TAGLINE = SENTENCE.split(":")[0][0].lower() + SENTENCE.split(":")[0][1:]
 CSS = ("body{font:16px/1.55 system-ui,sans-serif;margin:0;background:#fbfbf9;color:#16181d}main{max-width:860px;margin:0 auto;padding:24px 16px 48px}"
        "table{border-collapse:collapse;width:100%;margin:12px 0}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e3e4e8}"
        "code,pre{background:#eef;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}a{color:#3b46c4}.muted{color:#5b616e;font-size:14px}"
@@ -853,7 +855,8 @@ def paid_on_proof(rec: dict, meta: dict) -> str:
 
 
 def audit_files(events: list[dict], partial: bool = False) -> dict[str, str]:
-    """audit/<owner id>.json for every account whose Balance funded a work order (scripts/audit_statements.py `files`):
+    """audit/<owner id>.json for every account whose Balance funded a work order or a bounty on an issue, the second
+    escrow's (an owner whose money funded only bounties has a statement too; scripts/audit_statements.py `files`):
     the months, and for each the scope and the lines that `knos audit export --owner <id>` writes for that month, so
     the page's export is that command's bytes. Named by id: the chain holds ids, and a file needs no name from GitHub.
     `partial`: the history was not read whole, and every scope then says so. No history, no statement: and then nothing
@@ -865,7 +868,8 @@ def audit_files(events: list[dict], partial: bool = False) -> dict[str, str]:
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)            # (it puts src/ on the path, as scripts/network_stats.py does)
     from knos import records
-    owners = {int(o["owner"] or o["by"]) for o in records.orders_of(events)[0] if o["v"] == 2 and o["from_balance"] and (o["owner"] or o["by"])}
+    funded = [*records.orders_of(events)[0], *records.jobs_of(events)[0]]       # a statement has bounty lines too (knos.audit VERSION 2)
+    owners = {int(o["owner"] or o["by"]) for o in funded if o["v"] == 2 and o["from_balance"] and (o["owner"] or o["by"])}
     return mod.files(events, owners, partial)
 
 
@@ -906,6 +910,10 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
     stamp = lambda d: {"source": meta["source"], "generated": gen, **d}  # noqa: E731
     files: dict[str, str] = {}
     dump = lambda path, data: files.__setitem__(path, json.dumps(data, indent=1, sort_keys=False, ensure_ascii=False) + "\n")  # noqa: E731
+
+    # outside funders, outside repositories, outside payees: three numbers with their definitions, never added
+    import outsiders as outside_rules
+    dump("outsiders.json", stamp(ns.outsiders(jobs, own, own_wallets) if ns else outside_rules.count([], own, own_wallets, measured=False)))
 
     # bounties
     bounties, expired = open_bounties(jobs, accounts, names, now)

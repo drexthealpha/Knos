@@ -10,7 +10,14 @@ docs/RELEASE.md is the plan; this is what it runs.
     python scripts/release.py publish           upload THAT wheel (and the sdist) to PyPI: `uv publish`, token from the
                                                 environment (UV_PUBLISH_TOKEN). Before the push
     python scripts/release.py pypi-check [--dist DIR] [--wait SECONDS]
-                                                exit 1 unless PyPI serves the wheel with exactly the locked hash
+                                                exit 1 unless PyPI serves the wheel with exactly the locked hash, and
+                                                its index (what an installer reads) lists that file
+    python scripts/release.py registry-plan crates|npm NAME --tag vX.Y.Z
+                                                release.yml's question before it publishes a crate or the npm package:
+                                                is its version one this release may publish, and does the registry
+                                                lack it? Exit 1 only for a version that is neither the tag's nor held
+    python scripts/release.py held NAME         the version scripts/bump_version.py holds a crate at; nothing when it
+                                                moves with the release
 
 Why the wheel can be built before the commit that pins the workflows exists: nothing in it names that commit
 (scripts/pinned_workflows.py, in_the_wheel), so the same bytes come out before and after `stamp`. Why it is the same
@@ -19,6 +26,15 @@ hash from requirements/build.txt (`uv build --build-constraints ... --require-ha
 requirements/sign.txt: `knos==X.Y.Z --hash=sha256:<the wheel>`. A file on PyPI can never be replaced, so `publish`
 refuses when PyPI already holds this version with another hash, and release.yml uploads nothing there: it only holds
 what PyPI serves to the lock.
+
+PyPI answers from two places. The JSON page of a version shows an upload at once; the index an installer resolves from
+(https://pypi.org/simple/knos/) is cached and showed 0.3.15 a few minutes later, so the first runs after that push
+found "no version of" the release they asked for. `publish` therefore says "git push" only once the index lists the locked wheel.
+
+A package is published at ITS OWN version. The Python package and the JavaScript client move with every release. The
+program crates and the two interface crates stay at FROZEN_AT while scripts/bump_version.py names them in
+PROGRAMS_FROZEN (a version is in a build's bytes), so their version is not the tag's, on purpose. `registry-plan`
+takes both as right, refuses anything else, and publishes only a version the registry does not have.
 """
 from __future__ import annotations
 
@@ -27,6 +43,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -40,6 +57,8 @@ ROOT = Path(__file__).resolve().parents[1]
 EPOCH = 1767225600                  # 2026-01-01T00:00:00Z: the time every file inside the wheel and the sdist carries
 BUILD = "requirements/build.txt"    # the build backend and what it needs, by hash
 PYPI = "https://pypi.org/pypi/knos/{version}/json"
+SIMPLE = "https://pypi.org/simple/knos/"        # the index an installer resolves from (PEP 691: asked for as JSON)
+REGISTRIES = {"crates": "crates.io", "npm": "npm"}
 
 
 def _load(name: str):
@@ -216,6 +235,124 @@ def pypi_check(dist: Path | None = None, wait: int = 0, fetch=None, sleep=time.s
     return True, f"PyPI serves {wheel} with the locked sha256 {want}."
 
 
+def _get(url: str, accept: str) -> bytes | None:
+    """The body at `url`; None for 404. Any other failure is the caller's to report."""
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "knos-release"}), timeout=30) as r:
+            return r.read()
+    except urllib.error.HTTPError as why:
+        if why.code == 404:
+            return None
+        raise
+
+
+def on_index(fetch=None) -> dict[str, str]:
+    """{file name: sha256} of every file PyPI's index lists for knos: what `uv pip install` and pip resolve from."""
+    body = (fetch or (lambda url: _get(url, "application/vnd.pypi.simple.v1+json")))(SIMPLE)
+    return {} if body is None else {f["filename"]: f.get("hashes", {}).get("sha256", "") for f in json.loads(body)["files"]}
+
+
+def index_check(wait: int = 0, fetch=None, sleep=time.sleep, root: Path = ROOT) -> tuple[bool, str]:
+    """(ok, what to say): the index lists the locked wheel with the locked hash. It asks every 20 s for at most `wait`
+    seconds and then gives up: the index is a cached page, and it has shown a release minutes after its upload."""
+    locked = lock_hash(root)
+    if locked is None:
+        return False, "requirements/sign.txt holds no line for the knos wheel: there is no release to look for in PyPI's index."
+    version, want = locked
+    wheel = names(version)[0]
+    asked = 0
+    while True:
+        files = on_index(fetch)
+        if files.get(wheel) == want:
+            return True, f"PyPI's index lists {wheel} with the locked sha256: an install of knos=={version} by hash finds it."
+        if wheel in files:
+            return False, f"PyPI's index lists {wheel} with sha256 {files[wheel]}, and this commit locks {want}. They are DIFFERENT files."
+        if asked >= wait:
+            return False, (f"PyPI's index ({SIMPLE}) does not list {wheel} after {asked} seconds, though the upload was taken. Do NOT push yet: every job that "
+                           f"installs knos=={version} would fail with \"no version of knos=={version}\". Ask again: python scripts/release.py pypi-check --wait 600")
+        sleep(20)
+        asked += 20
+
+
+# ---- crates.io and npm: a package is published at its own version ---------------------------------------------------------
+
+def held(name: str) -> str | None:
+    """The version scripts/bump_version.py holds this crate at (PROGRAMS_FROZEN, FROZEN_AT); None when it moves with a release."""
+    bump = _load("bump_version")
+    return bump.FROZEN_AT if name in bump.PROGRAMS_FROZEN else None
+
+
+def own_version(registry: str, name: str, root: Path = ROOT) -> str:
+    """The version the package's own manifest carries: what a publish from this commit would upload."""
+    if registry == "crates":
+        text = (root / "crates" / name / "Cargo.toml").read_text(encoding="utf-8")
+        found = re.search(r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "([^"]+)"', text)
+        if not found or f'name = "{name}"' not in text:
+            raise SystemExit(f"crates/{name}/Cargo.toml does not name the crate {name} with a version")
+        return found.group(1)
+    manifest = json.loads((root / "sdk" / "settle" / "package.json").read_text(encoding="utf-8"))
+    if manifest["name"] != name:
+        raise SystemExit(f"sdk/settle/package.json is {manifest['name']}, not {name}")
+    return manifest["version"]
+
+
+def version_rule(name: str, version: str, tag: str, held_at: str | None) -> str | None:
+    """None when this release may publish `name` at `version`: it is the tag's version, or the one the crate is held
+    at. Otherwise what is wrong, in one sentence."""
+    if f"v{version}" == tag:
+        return None
+    if held_at is not None and version == held_at:
+        return None
+    if held_at is not None:
+        return (f"{name} is at {version}: neither the tag's version ({tag}) nor the {held_at} that scripts/bump_version.py holds it at "
+                "(PROGRAMS_FROZEN, FROZEN_AT). Nothing is published.")
+    return (f"{name} is at {version}, and the tag is {tag}. It is not held at an earlier version by scripts/bump_version.py (PROGRAMS_FROZEN), "
+            "so its version must be the tag's. Nothing is published.")
+
+
+def on_registry(registry: str, name: str, fetch=None) -> set[str] | None:
+    """Every version of the package the registry has; None when the package is not there at all (its first version is
+    published by hand)."""
+    if registry == "crates":
+        # crates.io's index: one JSON line per published version, in a folder made of the name's first letters
+        folder = {1: "1", 2: "2", 3: f"3/{name[:1]}"}.get(len(name), f"{name[:2]}/{name[2:4]}")
+        body = (fetch or (lambda url: _get(url, "text/plain")))(f"https://index.crates.io/{folder}/{name}")
+        return None if body is None else {json.loads(line)["vers"] for line in body.decode("utf-8").splitlines() if line.strip()}
+    body = (fetch or (lambda url: _get(url, "application/vnd.npm.install-v1+json")))(f"https://registry.npmjs.org/{name}")
+    return None if body is None else set(json.loads(body).get("versions") or {})
+
+
+def registry_plan(registry: str, name: str, tag: str, held_at: str | None, fetch=None, root: Path = ROOT) -> tuple[int, str, bool]:
+    """(exit status, what to say, publish now?). Red only for a version this release may not publish, or a registry that
+    did not answer. A package that is not on its registry yet, and a version it already has, are green and say so."""
+    where = REGISTRIES[registry]
+    version = own_version(registry, name, root)
+    wrong = version_rule(name, version, tag, held_at)
+    if wrong:
+        return 1, f"::error title={where}::{wrong}", False
+    why = "" if f"v{version}" == tag else f" (held at {version} by scripts/bump_version.py while the release is {tag}: it is published at its own version)"
+    try:
+        have = on_registry(registry, name, fetch)
+    except (OSError, ValueError, KeyError) as failed:
+        return 1, f"::error title={where}::The registry did not answer for {name} ({failed}): run this job again.", False
+    if have is None:
+        return 0, (f"::notice title={where}::Skipped: {name} is not on {where} yet. Its first version is published by hand (docs/RELEASE.md); "
+                   f"after that this job publishes.{why}"), False
+    if version in have:
+        return 0, f"::notice title={where}::Skipped: {where} already has {name} {version}{why}. Nothing to publish.", False
+    return 0, f"{where} has {name} without {version}{why}: publishing {name} {version}.", True
+
+
+def registry_plan_cmd(registry: str, name: str, tag: str) -> int:
+    code, said, publish = registry_plan(registry, name, tag, held(name))
+    print(said)
+    out = os.environ.get("GITHUB_OUTPUT")
+    if out and code == 0:
+        with open(out, "a", encoding="utf-8") as f:
+            f.write(f"version={own_version(registry, name)}\n" + ("publish=true\n" if publish else ""))
+    return code
+
+
 def publish_cmd() -> int:
     locked = lock_hash()
     if locked is None:
@@ -232,7 +369,7 @@ def publish_cmd() -> int:
     if files and wheel.name in files:
         ok, said = pypi_check()
         print(said + (" Nothing to upload." if ok else ""))
-        return 0 if ok else 1
+        return _pushable() if ok else 1
     if not os.environ.get("UV_PUBLISH_TOKEN"):
         raise SystemExit("refused: UV_PUBLISH_TOKEN is not set. Export a PyPI token for the knos project (it is never printed). Nothing was uploaded.")
     upload = [str(wheel)] + ([str(sdist)] if sdist.is_file() else [])
@@ -241,6 +378,13 @@ def publish_cmd() -> int:
         print("uv publish failed (the lines above say why). Run this again: files PyPI already has are skipped.")
         return 1
     ok, said = pypi_check(wait=300)
+    print(said)
+    return _pushable() if ok else 1
+
+
+def _pushable() -> int:
+    """The last word of `publish`: push only once the index an installer reads lists the wheel (at most 10 minutes)."""
+    ok, said = index_check(wait=600)
     print(said + (" Next: git push, then the tag." if ok else ""))
     return 0 if ok else 1
 
@@ -255,6 +399,11 @@ def main(argv: list[str] | None = None) -> int:
     check = sub.add_parser("pypi-check", help="exit 1 unless PyPI serves the wheel with exactly the locked hash")
     check.add_argument("--dist", help="a folder whose wheel must be that file too")
     check.add_argument("--wait", type=int, default=0, help="seconds to keep asking while PyPI does not show the release")
+    plan = sub.add_parser("registry-plan", help="may this release publish the package at its own version, and does the registry lack it")
+    plan.add_argument("registry", choices=sorted(REGISTRIES))
+    plan.add_argument("name")
+    plan.add_argument("--tag", required=True, help="the release's tag, vX.Y.Z")
+    sub.add_parser("held", help="the version scripts/bump_version.py holds a crate at; nothing when it moves with the release").add_argument("name")
     a = ap.parse_args(argv)
     if a.command == "wheel":
         return wheel_cmd(a.check)
@@ -264,7 +413,15 @@ def main(argv: list[str] | None = None) -> int:
         return verify_cmd(Path(a.dir) if a.dir else None)
     if a.command == "publish":
         return publish_cmd()
+    if a.command == "registry-plan":
+        return registry_plan_cmd(a.registry, a.name, a.tag)
+    if a.command == "held":
+        print(held(a.name) or "")
+        return 0
     ok, said = pypi_check(Path(a.dist) if a.dist else None, a.wait)
+    if ok:
+        print(said)
+        ok, said = index_check(wait=a.wait)
     print(said if ok else f"::error title=PyPI::{said}" if os.environ.get("GITHUB_ACTIONS") else said)
     return 0 if ok else 1
 

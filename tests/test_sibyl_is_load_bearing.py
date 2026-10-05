@@ -247,3 +247,87 @@ def test_aiders_test_command_says_what_sibyl_remembers_and_not_a_word_of_it_with
     _edit_the_journal()
     edited, _ = deliver("aider", repo, "", sibyl(), _tests(False))
     assert "Knos refused" in edited and "Still owed" not in edited               # the edit took the debt out of the answer
+
+
+# ---- which terms worked: the template a funding reply proposes is Sibyl's memory of how past orders here ended ----
+
+def _three_orders(mem) -> None:
+    """Three orders in o/r, each funded with the published `bugfix` template, version 1: two were refused on `lint`
+    before a second pull request fixed it, one was accepted first time."""
+    history.order_outcome(mem, "o/r", "7", "fixed", "bugfix", 1, failed=["lint"], seq=7)
+    history.order_outcome(mem, "o/r", "9", "accepted", "bugfix", 1, seq=9)
+    history.order_outcome(mem, "o/r", "12", "fixed", "bugfix", 1, failed=["lint", "unit"], seq=12)
+
+
+def test_the_template_a_funding_reply_proposes_is_what_sibyl_remembers_of_past_orders(tmp_path):
+    """The one line a funding reply adds about terms comes from how the last orders here ended, kept in Sibyl's
+    store. With no memory there is no line; with the store deleted there is none; another repository gets none."""
+    line = "last 3 orders here: 2 refused on `lint` first; `bugfix` v1 with `lint` named"
+    assert history.terms_supported(history.SibylStore.local(tmp_path / "m"), "o/r") == ""      # nothing remembered: no claim
+    _three_orders(history.SibylStore.local(tmp_path / "m"))
+    assert history.terms_supported(history.SibylStore.local(tmp_path / "m"), "o/r") == line     # a new client, the same store
+    assert history.terms_supported(history.SibylStore.local(tmp_path / "m"), "someone/else") == ""
+    assert history.terms_supported(history.NullStore(), "o/r") == ""                           # the same question, no Sibyl
+    with contextlib.closing(sqlite3.connect(tmp_path / "m" / "sibyl.db")) as con:              # it is in Sibyl's own store
+        assert con.execute("select count(*) from entities where category = 'order'").fetchone()[0] == 3
+    assert not [p for p in tmp_path.rglob("*") if p.is_file() and not p.name.startswith("sibyl.db")]   # and nowhere else
+    shutil.rmtree(tmp_path / "m")
+    assert history.terms_supported(history.SibylStore.local(tmp_path / "m"), "o/r") == ""      # Sibyl's store gone: no line
+
+
+def test_the_proposal_follows_the_memory_when_an_order_ends_another_way(tmp_path):
+    mem = history.SibylStore.local(tmp_path / "m")
+    _three_orders(mem)
+    history.order_outcome(mem, "o/r", "12", "reverted", "bugfix", 1, seq=12)    # the last one is reverted in its warranty
+    history.order_outcome(mem, "o/r", "15", "reverted", "bugfix", 1, seq=15)
+    assert [b["outcome"] for b in history.orders(mem, "o/r")] == ["fixed", "accepted", "reverted", "reverted"]   # an order counts once, as it ended last
+    assert history.terms_supported(mem, "o/r") == "last 3 orders here: 2 reverted in warranty; `milestone` v1, holding a share back"
+    assert history.terms_supported(mem, "o/r", versions={"milestone": 2}).endswith("`milestone` v2, holding a share back")
+    history.order_outcome(mem, "o/r", "16", "disputed", "milestone", 1, policy="ab" * 32, seq=16)
+    history.order_outcome(mem, "o/r", "17", "accepted", "milestone", 1, policy="ab" * 32, seq=17)
+    assert history.terms_supported(mem, "o/r", policy="ab" * 32) == "last 2 orders here: 1 disputed; `feature-blackbox` v1, paying on a black-box suite"
+    assert history.terms_supported(mem, "o/r", policy="cd" * 32) == ""          # no order was judged under that policy version
+    clean = history.SibylStore.local(tmp_path / "clean")
+    history.order_outcome(clean, "o/r", "1", "accepted", "milestone", 2)
+    assert history.terms_supported(clean, "o/r") == "last 1 order here: 1 accepted first time; `milestone` v2 again"
+    with pytest.raises(ValueError):
+        history.order_outcome(clean, "o/r", "2", "paid twice", "milestone", 2)
+
+
+def test_an_edited_order_memory_changes_the_proposal_and_a_row_that_lies_about_its_name_is_dropped(tmp_path):
+    """Someone edits Sibyl's store by hand. Rewriting which check the orders were refused on changes the line:
+    the memory decided it, so the edit did too. Rewriting an outcome makes the row say something its name does
+    not, and such a row is no memory of an order: the line loses it."""
+    mem = lambda: history.SibylStore.local(tmp_path / "m")  # noqa: E731
+    _three_orders(mem())
+    db = tmp_path / "m" / "sibyl.db"
+    with contextlib.closing(sqlite3.connect(db)) as con:
+        con.execute("update entities set body = replace(body, 'lint', 'types') where category = 'order'")
+        con.commit()
+    assert history.terms_supported(mem(), "o/r") == "last 3 orders here: 2 refused on `types` first; `bugfix` v1 with `types` named"
+    with contextlib.closing(sqlite3.connect(db)) as con:
+        con.execute("update entities set body = replace(body, '\"fixed\"', '\"accepted\"') where category = 'order'")
+        con.commit()
+    assert history.terms_supported(mem(), "o/r") == "last 1 order here: 1 accepted first time; `bugfix` v1 again"
+    with contextlib.closing(sqlite3.connect(db)) as con:
+        con.execute("delete from entities where category = 'order'")
+        con.commit()
+    assert history.terms_supported(mem(), "o/r") == ""
+
+
+def test_order_outcomes_travel_in_the_knos_memory_issue_and_are_nothing_without_sibyl(tmp_path):
+    from _hub import Issues
+    from knos.proof import memory
+    github = Issues()
+    run1 = history.SibylStore.local(tmp_path / "run1")
+    _three_orders(run1)
+    assert memory.push("o/r", run1, github, github) == 3
+    shutil.rmtree(tmp_path / "run1")
+    run2 = history.SibylStore.local(tmp_path / "run2")
+    assert history.terms_supported(run2, "o/r") == ""                           # nothing loaded: nothing claimed
+    assert memory.pull("o/r", run2, github) == 3
+    assert history.terms_supported(run2, "o/r") == "last 3 orders here: 2 refused on `lint` first; `bugfix` v1 with `lint` named"
+    assert memory.pull("o/r", history.NullStore(), github) == 3                 # the same comments, with no Sibyl behind them
+    assert history.terms_supported(history.NullStore(), "o/r") == ""
+    forged = {"category": "order", "name": "0" * 24, "body": {**history.orders(run2, "o/r")[0], "outcome": "disputed"}}
+    assert history.lesson(forged) is None                                       # a lesson whose name is not made of what it says

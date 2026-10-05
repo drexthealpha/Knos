@@ -1,5 +1,5 @@
 """The gate with a bounty's terms: a description's words can be found false, and they never stand in for a check.
-The cases a reviewer reproduced against 0.3.11 are the first two tests."""
+The two cases reproduced against 0.3.11 are the first two tests."""
 
 from __future__ import annotations
 

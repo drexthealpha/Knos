@@ -29,7 +29,7 @@ fn spelled(name: &[u8], mask: u32, upper: bool) -> String {
 
 /// The three voices on the one thing the second deployment's reader changed: a key is the text it spells. Every
 /// wanted claim, under its plain name and under spellings with one, two or all characters escaped: found by
-/// claims.rs, by the interface crate and by serde_json alike; and written twice under two spellings, refused by both
+/// the program's reader (strict.rs), by the interface crate and by serde_json alike; and written twice under two spellings, refused by both
 /// readers (`agree` holds each to serde_json's view, which has the claim twice).
 #[test]
 fn all_three_read_a_wanted_claim_under_every_spelling_of_its_name_and_see_a_second_copy_behind_any() {

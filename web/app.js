@@ -15,6 +15,7 @@ import { initAnyIssue } from "./anyissue.js";
 import { renderInstall } from "./install.js";
 import { renderCapabilities } from "./capabilities.js";
 import { fillMounts } from "./mounts.js";
+import { VIEWS, ALIAS } from "./views.js";
 import { pendingUpgrades, upgradeWords, runDay, feedLine, inWords } from "./upgrade.js";
 
 const $ = (id) => document.getElementById(id);
@@ -44,8 +45,7 @@ $("theme").hidden = false;
 $("theme").onclick = () => setTheme((document.documentElement.dataset.theme
   || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark");
 
-const VIEWS = ["check", "protect", "fund", "claim", "pricing", "records", "network", "build"];
-const ALIAS = { bounty: "fund", money: "fund", numbers: "network", u: "records", r: "records", rank: "records", statement: "records", task: "fund", anyissue: "fund" };       // links from earlier pages and comments; #u=, #r= and #rank= are records
+export { VIEWS, ALIAS };          // web/views.js holds the two lists; web/front.js reads the same ones
 function route() {
   const [raw, ...rest] = location.hash.replace(/^#/, "").split("=");
   const arg = rest.length ? decodeURIComponent(rest.join("=")) : "";
@@ -571,6 +571,16 @@ fetch("capabilities.json").then((r) => (r.ok ? r.json() : null)).then((data) => 
   renderCapabilities($("capabilities-list"), data);
 }).catch(() => {});
 import("./buyer.js").then((m) => m.renderBuyer?.($("buy"), { $, esc, knos, RPC, EXPLORER, ids, client, gh, devnet })).catch(() => {});
+// The round on the first screen, and the pages of 0.3.16. Each is its own module and its own section; a build without
+// the module, or a page without the section, loses that page and nothing else.
+const mount = (file, name, id, env) => { if ($(id)) import(file).then((m) => m[name]?.($(id), env)).catch(() => {}); };
+mount("./demo.js", "renderDemo", "demo", { esc, EXPLORER });
+mount("./shadow.js", "renderShadow", "shadow");
+ids().catch(() => null).then((i) => mount("./verifier.js", "renderVerifier", "verifier", { esc, ids: i || undefined }));          // the verifier shows this build's knos-oidc address
+// the playground reads GitHub, so it reads when its page is first shown, as Status does
+const shownOnce = (name) => new Promise((done) => { const look = () => { if (location.hash.replace(/^#/, "").split("=")[0] === name) { removeEventListener("hashchange", look); done(); } }; addEventListener("hashchange", look); look(); });
+mount("./playground.js", "renderPlayground", "playground", { wait: shownOnce("playground") });
+mount("./terms.js", "renderTerms", "terms");
 fillMounts({ $, esc, knos, RPC, EXPLORER, gh });       // Status, Index, Pilot, Reproduce (web/mounts.js)
 initTask({ $, esc, knos, gh });
 const anyShow = initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });

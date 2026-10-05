@@ -1,6 +1,12 @@
 # Why Knos
 
-**Knos is the neutral count and settlement for software work priced per outcome: terms fixed before the work, a signed CI run attests they were met, a Solana program counts it or pays it.**
+**The neutral meter for AI agent work: neither side keeps the count.**
+
+Of first agent pull requests that claimed passing tests, 17.8% had a failed check. That is 147 of 826 repositories in the Agent PR Index ([BENCH.md](BENCH.md)).
+
+How: terms fixed before the work, a CI run the forge signs attests they were met, and a Solana program counts the
+outcome or pays for it. Devnet is Knos's test mode: integrate here, and keep the evidence, which verifies from
+GitHub's signatures with no chain.
 
 Who this argument is for: the person accountable for approving a supplier's invoice for software work, and the
 supplier who needs acceptance terms that cannot be changed after the work. The evidence below comes mostly from the

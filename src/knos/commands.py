@@ -2,6 +2,7 @@
 
     /knos fund <amount> [checks: a, b] [paths: glob, ...] [days N] [reserve N]     (alias: /knos bounty)
                         and, for a work order: [warranty N] [holdback N] [arbiter @login] [neutral off] [auto] [quorum 2|3]
+                        [judge: owner/repo]
     /knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]
     /knos raise <amount>    /knos cancel    /knos split @a 60 @b 40
     /knos take          /knos release       /knos address <address>      /knos mine
@@ -44,6 +45,7 @@ class Fund:
     neutral: bool | None = None                 # False: only the funder's repository may sign the payment (`neutral off`)
     auto: bool = False                          # `auto`: the first pull request that passes the black-box suite is paid, without a merge
     quorum: int | None = None                   # `quorum 2` or `quorum 3`: that many distinct judges must pass the same pull request
+    judge: str | None = None                    # `judge: owner/repo`: the third reader of a quorum, a repository neither side owns
     name = "fund"
 
 
@@ -172,7 +174,7 @@ FORMS = {   # the exact form to type, in the order `/knos help` lists them
 ALIASES = {"bounty": "fund"}
 _ABOUT = {
     "fund": "a maintainer, on an issue: put a bounty on it (a work order also takes `warranty N`, `holdback N`, `arbiter @login`, `neutral off`, "
-            "`auto`, `quorum 2`)",
+            "`auto`, `quorum 2`, `quorum 3 judge: owner/repo`)",
     "offer": "a maintainer, on an issue: a standing offer that pays one vendor for each accepted change",
     "raise": "on a funded issue: how its work order is topped up",
     "cancel": "a maintainer, on a funded issue: end its work order with 7 days' notice",
@@ -251,9 +253,10 @@ def _show(text: str, most: int = 40) -> str:
 _LOGIN = r"[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}"
 _OPTION = re.compile(r"(checks|paths)\s*:|(days|reserve|warranty|holdback|quorum)\s*:?\s*([0-9]{1,4})(?!\S)|(review)\s+[0-9]+(?!\S)"
                      r"|(arbiter)\s*:?\s*@?(" + _LOGIN + r")(?!\S)|(neutral)\s*:?\s*(on|off)(?!\S)"
-                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)|(auto)(?!\S)", re.I)
+                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)|(auto)(?!\S)"
+                     r"|(judge)\s*:?\s*(?:https://github\.com/)?(" + _LOGIN + r"/[A-Za-z0-9._-]{1,100})(?!\S)", re.I)
 _RANGE = {"days": (1, MAX_DAYS), "reserve": (0, MAX_RESERVE), "warranty": (0, 90), "holdback": (0, 50), "quorum": (2, 3)}     # knos-pay's limits
-_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral", "auto", "quorum")
+_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral", "auto", "quorum", "judge")
 _OFFER_TAKES = ("checks", "paths", "days", "rate", "budget")
 
 
@@ -297,13 +300,13 @@ def _options(text: str, takes: tuple[str, ...] = _FUND_TAKES) -> dict | str:
             word = text[i:].split()[0]
             if word.lower().rstrip(":") in _RANGE:
                 return f"`{word.lower().rstrip(':')}` needs a whole number after it, like `days 30`"
-            if word.lower().rstrip(":") in ("arbiter", "neutral", "rate", "budget"):
-                return {"arbiter": "`arbiter` needs a GitHub login after it, like `arbiter @octocat`", "neutral": "`neutral` is `neutral off` or `neutral on`",
+            if word.lower().rstrip(":") in ("arbiter", "neutral", "rate", "budget", "judge"):
+                return {"judge": "`judge` needs a repository after it, like `judge: owner/repo`", "arbiter": "`arbiter` needs a GitHub login after it, like `arbiter @octocat`", "neutral": "`neutral` is `neutral off` or `neutral on`",
                         "rate": "`rate` needs an amount after it, like `rate 12`", "budget": "`budget` needs an amount after it, like `budget 100`"}[word.lower().rstrip(":")]
             return f"`{_show(word)}` is not something this command takes"
         if m.group(4):
             return "there is no `review` any more (once a payment is made it is final)"
-        key = (m.group(1) or m.group(2) or m.group(5) or m.group(7) or m.group(9) or m.group(11)).lower()
+        key = (m.group(1) or m.group(2) or m.group(5) or m.group(7) or m.group(9) or m.group(11) or m.group(12)).lower()
         if key not in takes:
             return f"`{key}` is not something this command takes"
         if key in out:
@@ -316,6 +319,9 @@ def _options(text: str, takes: tuple[str, ...] = _FUND_TAKES) -> dict | str:
             continue
         if m.group(11):         # a bare word: `auto`
             out[key], i = True, m.end()
+            continue
+        if m.group(12):         # `judge: owner/repo`: GitHub is asked for it at funding (knos.flow)
+            out[key], i = m.group(13), m.end()
             continue
         if m.group(5) or m.group(7):
             out[key], i = (m.group(6) if m.group(5) else m.group(8).lower() == "on"), m.end()

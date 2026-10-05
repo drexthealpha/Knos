@@ -13,10 +13,16 @@ The reference is written here and shares no code with the program or with the cl
        the bytes of the first two parts and the dot between them (RFC 8017 section 8.2.2). Two voices are asked and
        must agree with each other: OpenSSL through the `cryptography` package, and RFC 8017's own steps on Python
        integers (RSAVP1, I2OSP, the encoding made again and compared);
-    3. its header is a JSON object (RFC 8259, read by Python's `json`) in which `alg` appears once and is the
-       string RS256;
-    4. its payload is a JSON object in which `iss` appears once and is the issuer's URL, and `exp` appears once
-       and is a whole number written in plain digits, below 10^18 and at most one day ahead of the clock.
+    3. its header is a JSON document (see below) in which `alg` is the string RS256;
+    4. its payload is a JSON document in which `iss` is the issuer's URL and `exp` is a whole number written in
+       plain digits, below 10^18 and at most one day ahead of the clock.
+  A JSON document here is one object of RFC 8259 in every byte, read by Python's `json` from strict UTF-8 (so:
+  the literals `true`, `false` and `null` and no other word, numbers by the grammar, no control character in a
+  string, only JSON's escapes, brackets that match, nothing after the object), and three things more, each of them
+  a place where two JSON readers are known to differ: no name appears twice in the top-level object (RFC 8259
+  section 4 leaves the outcome to the reader), no string holds half a surrogate pair written as an escape (section
+  8.2: Python reads one, serde_json refuses it), and the document is at most 64 levels deep with at most 128
+  members in its top-level object (section 9 lets a reader set such limits, and every reader has some).
   The rule says nothing of `aud`, `iat`, `nbf` or whether `exp` has passed: the verifier records what was signed,
   and the program that spends the token reads those (a second `aud` is refused there, with error 62).
 
@@ -24,16 +30,17 @@ The corpus is valid tokens and the classic ways a verifier is fooled (each kind 
 does): signatures that open to a wrong encoding, as Bleichenbacher's 2006 forgery needs (bytes after the digest, short
 padding, no 00 01, another DigestInfo, the NULL left out or doubled, more leading zeros), the cube root forgery
 itself, signatures not below the modulus or of another length, headers that name another algorithm, claims written
-twice, nested, escaped, with exponents or out of range, and base64 in other spellings.
+twice, nested, escaped, with exponents or out of range, payloads the issuer's key really signed that are not JSON
+in a value the verifier has no use for, and base64 in other spellings.
 
 Three things are asserted for every case:
   - the program's answer is the reference's;
   - a token the program accepts has a signature both voices call valid, and the `exp` it recorded is the one signed;
   - the reference's answer is what the kind was written to get (so a broken generator cannot pass by making
     everything refused).
-One class is outside the rule and is counted apart, never as agreement: BEYOND, a payload the issuer's key really
-signed that is not JSON in a value the verifier does not read (see `beyond_*`). The reference refuses those; what the
-program does with each is recorded in docs/fuzz.json and pinned in LENIENT below.
+No class of token is outside the rule. (Until knos-oidc 2.2 one was: a payload that is not JSON in a value the
+verifier does not read. The 2.1 program accepted all thirteen shapes of it that this file makes, `NOT_JSON` below
+and bytes that are not UTF-8, and the reference refused them; 2.2 refuses each, and they are kinds like any other.)
 
     python -m pytest -q -s tests/test_oidc_differential.py           250 cases (KNOS_DIFF_CASES=N for more)
     python tests/test_oidc_differential.py --minutes 10 --record     the long run; writes docs/fuzz.json
@@ -122,16 +129,38 @@ class Digits(str):
     """A JSON integer as it was written."""
 
 
-def _object(doc: bytes, once: tuple[str, ...]) -> dict | None:
-    """A JSON object's members, or None when the bytes are not one JSON object or name a member of `once` twice."""
+DEEPEST = 64          # levels: the top-level object is one
+MOST = 128            # members of the top-level object
+
+
+def _walk(value):
+    """(level, value) for a document and every value inside it, the document itself at level 1. A loop, not a
+    recursion: a document nested a thousand deep is one the rule must be able to refuse."""
+    todo = [(1, value)]
+    while todo:
+        level, v = todo.pop()
+        yield level, v
+        if type(v) is Members:
+            todo += [(level + 1, x) for pair in v for x in pair]      # a name is a string one level in, like a value
+        elif type(v) is list:
+            todo += [(level + 1, x) for x in v]
+
+
+def _object(doc: bytes) -> dict | None:
+    """A JSON document's top-level members, or None when the bytes are not a JSON document as the rule has it."""
     def refuse(_):
         raise ValueError("NaN and Infinity are not JSON")
     try:
         got = json.loads(doc.decode("utf-8"), object_pairs_hook=Members, parse_int=Digits, parse_float=float, parse_constant=refuse)
     except (ValueError, RecursionError):
         return None
-    if type(got) is not Members or any(sum(1 for key, _ in got if key == name) > 1 for name in once):      # twice at the top level only
+    if type(got) is not Members or len({name for name, _ in got}) != len(got) or len(got) > MOST:
         return None
+    for level, v in _walk(got):
+        if type(v) in (Members, list) and level > DEEPEST:
+            return None
+        if type(v) is str and any("\ud800" <= c <= "\udfff" for c in v):
+            return None
     return dict(got)
 
 
@@ -151,10 +180,10 @@ def reference(token: str, key, issuer: str, now: int) -> tuple[bool, str, bool |
         return False, "base64url", signed, None
     if not signed:
         return False, "signature", signed, None
-    header = _object(head, ("alg",))
+    header = _object(head)
     if header is None or type(header.get("alg")) is not str or header["alg"] != "RS256":
         return False, "alg", signed, None
-    claims = _object(body, ("iss", "exp"))
+    claims = _object(body)
     if claims is None:
         return False, "claims", signed, None
     if type(claims.get("iss")) is not str or claims["iss"] != issuer:
@@ -249,7 +278,7 @@ class Make:
         return f"{si}.{b64(sig(si) if callable(sig) else sig)}"
 
 
-KINDS: dict[str, tuple[str, object]] = {}      # name -> (what the rule answers: "accept", the clause it fails, or "beyond", the maker)
+KINDS: dict[str, tuple[str, object]] = {}      # name -> (what the rule answers: "accept" or the clause it fails, the maker)
 
 
 def kind(want: str):
@@ -447,8 +476,8 @@ def iss_twice(m):
 @kind("claims")
 def exp_twice(m):
     return m.token(body=b64((m.text()[:-1] + "," + m.rng.choice(['"exp"', '"\\u0065xp"', '"ex\\u0070"']) + f":{NOW + m.rng.choice([5, 10 ** 9])}}}").encode()))
-@kind("accept")
-def aud_twice(m):                            # not the verifier's claim: the program that spends the token refuses it (62)
+@kind("claims")
+def aud_twice(m):                            # not a claim the verifier reads, and a name twice all the same (62)
     return m.token(body=b64((m.text()[:-1] + "," + m.rng.choice(['"aud"', '"\\u0061ud"']) + ':"knos2:someone-else"}').encode()))
 @kind("iss")
 def iss_not_a_string(m):
@@ -499,7 +528,7 @@ def payload_with_nested_values(m):
 @kind("claims")
 def payload_cut_short(m):
     text = m.text()
-    return m.token(body=b64(text[:m.rng.randrange(0, len(text))].encode()))
+    return m.token(body=b64(text[:m.rng.randrange(1, len(text))].encode()))
 @kind("claims")
 def payload_with_more_after_it(m):
     return m.token(body=b64(m.text().encode() + m.rng.choice([b"{}", b"}", b" x", b"\x00", b",", b'{"iss":"x"}', b"\xef\xbb\xbf", b"\x0c", b"//", b"]"])))
@@ -509,19 +538,61 @@ def payload_not_an_object(m):
     return m.token(body=b64(m.rng.choice([f"[{t}]", f'"{t[1:-1]}"', "null", "[]", "7", f"\ufeff{t}", f"\x0c{t}", f"/**/{t}", t[1:], t.replace(":", "=", 1), t.replace('"', "'"),
                                           "{" + t, t[:-1] + ",}", "{," + t[1:], t.replace(",", ",,", 1), t.replace(",", ";", 1), t.replace('":', '"', 1)]).encode()))
 
-# -- BEYOND the rule: a payload the test key really signed that is not JSON, in a value the verifier does not read
-BEYOND = {"a literal cut short": '"x":tru', "a number with a leading zero": '"x":01', "brackets that do not match": '"x":[}', "a control character in a string": '"x":"a\x01b"',
-          "an escape JSON does not have": '"x":"\\q"', "NaN": '"x":NaN', "a bare word": '"x":@#$', "a form feed after a number": '"x":1\x0c', "a comment as a value": '"x":/**/1',
-          "a single-quoted value": "\"x\":'y'", "a number with two points": '"x":1.2.3', "a unicode escape cut short": '"x":"\\u12"'}
-@kind("beyond")
-def beyond_not_json_in_an_unread_value(m):
-    what = m.rng.choice(sorted(BEYOND))
-    m.what = what
-    return m.token(body=b64((m.text()[:-1] + "," + BEYOND[what] + "}").encode()))
-@kind("beyond")
-def beyond_bytes_that_are_not_utf8(m):
-    m.what = "bytes that are not UTF-8 in a string"
-    return m.token(body=b64(m.text()[:-1].encode() + b',"x":"' + m.rng.choice([b"\xff", b"\xc3\x28", b"\xed\xa0\x80", b"\xc0\x80"]) + b'"}'))
+# -- a payload the test key really signed that is not JSON, in a value the verifier has no use for. Each shape is a
+# kind of its own, so that every one of them is in any run of len(KINDS) cases and in the fuzz targets' seed corpus.
+NOT_JSON = {"a literal cut short": '"x":tru', "a number with a leading zero": '"x":01', "brackets that do not match": '"x":[}', "a control character in a string": '"x":"a\x01b"',
+            "an escape JSON does not have": '"x":"\\q"', "NaN": '"x":NaN', "a bare word": '"x":@#$', "a form feed after a number": '"x":1\x0c', "a comment as a value": '"x":/**/1',
+            "a single-quoted value": "\"x\":'y'", "a number with two points": '"x":1.2.3', "a unicode escape cut short": '"x":"\\u12"'}
+
+
+def _not_json(what: str, written: str):
+    def make(m):
+        return m.token(body=b64((m.text()[:-1] + "," + written + "}").encode()))
+    make.__name__ = "unread_value_" + re.sub(r"[^a-z0-9]+", "_", what.lower())
+    return kind("claims")(make)
+
+
+for _what, _written in NOT_JSON.items():
+    _not_json(_what, _written)
+@kind("claims")
+def unread_value_bytes_that_are_not_utf8(m):
+    return m.token(body=b64(m.text()[:-1].encode() + b',"x":"' + m.rng.choice([b"\xff", b"\xc3\x28", b"\xed\xa0\x80", b"\xc0\x80", b"\xf4\x90\x80\x80", b"\xe4\xb8"]) + b'"}'))
+@kind("claims")
+def unread_value_other_ways_not_to_be_json(m):
+    written = m.rng.choice(['"x":True', '"x":nul', '"x":-', '"x":1.', '"x":.5', '"x":1e', '"x":+1', '"x":0x10', '"x":[1,]', '"x":{"k":1,}', '"x":{"k"}', '"x":[1 2]', '"x":{]',
+                            '"x":[1}', '"x":"a\tb"', '"x":"a\nb"', '"x":"\\x41"', '"x":"\\u12g4"', '"x":Infinity', '"x":-Infinity', '"x":undefined', '"x":1//', "'x':1", 'x:1',
+                            '"x":"a\x00b"', '"x\x01":1', '"\\q":1'])
+    return m.token(body=b64((m.text()[:-1] + "," + written + "}").encode()))
+@kind("claims")
+def unread_value_half_a_surrogate_pair(m):                     # Python's json reads these and serde_json does not: the rule refuses them
+    written = m.rng.choice(['"\\ud800"', '"\\udc00"', '"\\ud83d"', '"\\ude00\\ud83d"', '"\\ud83dx"', '"\\ud83d\\u0041"', '["\\udfff"]', '{"\\ud800":1}'])
+    return m.token(body=b64((m.text()[:-1] + ',"x":' + written + "}").encode()))
+@kind("claims")
+def unread_name_twice(m):
+    first, second = m.rng.choice([('"x"', '"x"'), ('"x"', '"\\u0078"'), ('"caf\u00e9"', '"caf\\u00e9"'), ('"\U0001f600"', '"\\ud83d\\ude00"'), ('""', '""'), ('"jti"', '"jti"')])
+    return m.token(body=b64((m.text()[:-1] + f',{first}:1,"y":2,{second}:1}}').encode()))
+@kind("accept")
+def unread_name_twice_below_the_top_level(m):                  # the rule compares the names of the top-level object only
+    return m.token(body=b64((m.text()[:-1] + ',"x":{"k":1,"k":2,"iss":"a","iss":"b"},"y":[{"exp":1,"exp":2}]}').encode()))
+@kind("accept")
+def unread_values_of_every_json_form(m):
+    return m.token(body=b64((m.text()[:-1] + ',"x":[true,false,null,0,-0,1.5,-1.25e+7,1E400,12345678901234567890123,"","\\" \\\\ \\/ \\b \\f \\n \\r \\t \\u0000 \\ud83d\\ude00",'
+                             '"caf\u00e9 \u4e2d \U0001f600 \x7f",[],{},[ ] ,{ }],"X":1,"x ":2}').encode()))
+@kind("claims")
+def nested_deeper_than_the_rule_allows(m):
+    deep = m.rng.choice([DEEPEST, DEEPEST + 1, 200])
+    nest = m.rng.choice(["[" * deep + "]" * deep, '{"k":' * deep + "1" + "}" * deep, "[" * 900 + "]" * 900])      # 900: deeper than many a reader's own stack
+    return m.token(body=b64((m.text()[:-1] + ',"x":' + nest + "}").encode()))
+@kind("accept")
+def nested_as_deep_as_the_rule_allows(m):
+    deep = DEEPEST - 1
+    return m.token(body=b64((m.text()[:-1] + ',"x":' + m.rng.choice(["[" * deep + "]" * deep, '{"k":' * deep + "1" + "}" * deep, '[{"k":' * (deep // 2) + "[]" + "}]" * (deep // 2)]) + "}").encode()))
+@kind("claims")
+def more_members_than_the_rule_allows(m):
+    return m.token(body=b64((m.text()[:-1] + "".join(f',"m{k}":{k}' for k in range(MOST + 1 - len(m.claims))) + "}").encode()))
+@kind("accept")
+def as_many_members_as_the_rule_allows(m):
+    return m.token(body=b64((m.text()[:-1] + "".join(f',"m{k}":{k}' for k in range(MOST - len(m.claims))) + "}").encode()))
 
 # -- base64url in other spellings
 @kind("base64url")
@@ -616,7 +687,7 @@ def pss(m: Make, si: str) -> bytes:
 
 
 def corpus(n: int, seed: int = SEED):
-    """n cases from the seed: (index, kind, key bits, token, what the rule answers, a note). Every kind comes round
+    """n cases from the seed: (index, kind, the maker with its key, token, what the rule answers). Every kind comes round
     in turn, so any n of at least len(KINDS) has them all; one case in ten is under the 4096-bit key."""
     names = list(KINDS)
     for i in range(n):
@@ -624,13 +695,10 @@ def corpus(n: int, seed: int = SEED):
         name = names[i % len(names)]
         m = Make(rng, 4096 if rng.random() < 0.1 else 2048, i)
         want, make = KINDS[name]
-        yield i, name, m, make(m), want, getattr(m, "what", "")
+        yield i, name, m, make(m), want
 
 
 # ---- the run ----------------------------------------------------------------------------------------------------------
-
-LENIENT = set(BEYOND) | {"bytes that are not UTF-8 in a string"}      # every one of them: the run found the program takes them all (docs/ASSURANCE.md, "left open")
-
 
 def code(c: Chain2) -> int | None:
     found = re.search(r"Custom\((\d+)\)", c.err or "")
@@ -645,33 +713,26 @@ def run(n: int, seed: int = SEED, budget: float | None = None) -> dict:
     for bits, issuer in ((2048, GH), (4096, GL)):
         assert c.register(issuer, modulus(signing_key(bits))), c.err
     out = {"cases": 0, "accepted": 0, "refused": 0, "disagreements": [], "unsound": [], "generator": [], "kinds": {}, "refused_by_error": {},
-           "refused_by_clause": {}, "beyond": {}, "bits": {"2048": 0, "4096": 0}}
-    for i, name, m, token, want, what in corpus(n, seed):
+           "refused_by_clause": {}, "bits": {"2048": 0, "4096": 0}}
+    for i, name, m, token, want in corpus(n, seed):
         if budget is not None and time.monotonic() - started > budget:
             break
         ref, clause, signed, exp = reference(token, m.key, m.url, NOW)
         account = c.verify(token, m.issuer, m.key.n)
         got, err = account is not None, code(c)
         out["bits"][str(m.bits)] += 1
-        if want == "beyond":                       # outside the rule: counted apart, never as agreement
-            if ref or not signed:
-                out["generator"].append(f"case {i} ({name}): the reference says {ref} ({clause}), signature {signed}")
-            cell = out["beyond"].setdefault(what, {"cases": 0, "program_accepted": 0})
-            cell["cases"] += 1
-            cell["program_accepted"] += got
-        else:
-            out["cases"] += 1
-            out["accepted" if got else "refused"] += 1
-            kinds = out["kinds"].setdefault(name, {"cases": 0, "accepted": 0})
-            kinds["cases"] += 1
-            kinds["accepted"] += got
-            if got != ref:
-                out["disagreements"].append(f"case {i} ({name}, {m.bits} bits): the program {'accepts' if got else f'refuses ({err})'}, the reference {'accepts' if ref else f'refuses ({clause})'}: {token}")
-            if ref != (want == "accept") or (not ref and clause != want):
-                out["generator"].append(f"case {i} ({name}): written to get {want!r}, the reference says {'accept' if ref else clause!r}")
-            if not got:
-                out["refused_by_error"][str(err)] = out["refused_by_error"].get(str(err), 0) + 1
-                out["refused_by_clause"][clause] = out["refused_by_clause"].get(clause, 0) + 1
+        out["cases"] += 1
+        out["accepted" if got else "refused"] += 1
+        kinds = out["kinds"].setdefault(name, {"cases": 0, "accepted": 0})
+        kinds["cases"] += 1
+        kinds["accepted"] += got
+        if got != ref:
+            out["disagreements"].append(f"case {i} ({name}, {m.bits} bits): the program {'accepts' if got else f'refuses ({err})'}, the reference {'accepts' if ref else f'refuses ({clause})'}: {token}")
+        if ref != (want == "accept") or (not ref and clause != want):
+            out["generator"].append(f"case {i} ({name}): written to get {want!r}, the reference says {'accept' if ref else clause!r}")
+        if not got:
+            out["refused_by_error"][str(err)] = out["refused_by_error"].get(str(err), 0) + 1
+            out["refused_by_clause"][clause] = out["refused_by_clause"].get(clause, 0) + 1
         if got:
             tok = oidc.read_token(c.data(account))
             if signed is not True or tok is None or not tok.verified or tok.issuer != m.issuer or (exp is not None and tok.exp != exp):
@@ -687,22 +748,21 @@ def program_hash() -> str:
 def test_the_program_and_the_reference_give_the_same_answer_on_every_case():
     r = run(CASES)
     print(f"\ndifferential: {r['cases']} cases in {r['seconds']} s (seed {SEED}): {r['accepted']} accepted by both, {r['refused']} refused by both, "
-          f"{len(r['disagreements'])} disagreements; refused by error {dict(sorted(r['refused_by_error'].items()))}; "
-          f"{sum(b['cases'] for b in r['beyond'].values())} more outside the rule")
+          f"{len(r['disagreements'])} disagreements; refused by error {dict(sorted(r['refused_by_error'].items()))}")
     assert not r["generator"], "\n".join(r["generator"][:10])
     assert not r["unsound"], "\n".join(r["unsound"][:10])
     assert not r["disagreements"], "\n".join(r["disagreements"][:10])
-    assert r["cases"] + sum(b["cases"] for b in r["beyond"].values()) == CASES
+    assert r["cases"] == CASES
     if CASES >= len(KINDS):
-        assert set(r["kinds"]) == {k for k, (want, _) in KINDS.items() if want != "beyond"}
+        assert set(r["kinds"]) == set(KINDS)
         assert all(cell["accepted"] in (0, cell["cases"]) for cell in r["kinds"].values())      # a kind is all one answer
         assert r["accepted"] >= 10 and r["bits"]["4096"] >= 1
         # every way the program has to say no is reached: base64 (60), JSON (61), twice (62), a claim (63), the
         # signature's length or range (65), its encoding (70), alg (71), iss (72)
         assert {"60", "61", "62", "63", "65", "70", "71", "72"} <= set(r["refused_by_error"]), r["refused_by_error"]
-    # outside the rule: what the program does with each is fixed, and written down
-    for what, cell in r["beyond"].items():
-        assert cell["program_accepted"] == (cell["cases"] if what in LENIENT else 0), (what, cell)
+        # each of the thirteen shapes 2.1 accepted (a payload not JSON in a value the verifier does not read) is refused
+        unread = [k for k in KINDS if k.startswith("unread_value_") and KINDS[k][0] == "claims"]
+        assert len(unread) >= len(NOT_JSON) + 1 == 13 and all(r["kinds"][k]["accepted"] == 0 for k in unread)
 
 
 def test_the_reference_knows_a_good_signature_from_each_classic_forgery_without_the_program():
@@ -729,8 +789,8 @@ def test_the_reference_knows_a_good_signature_from_each_classic_forgery_without_
 
 
 def test_the_corpus_is_the_same_on_every_machine_and_holds_every_kind():
-    first = [(name, token) for _, name, _, token, _, _ in corpus(len(KINDS))]
-    assert first == [(name, token) for _, name, _, token, _, _ in corpus(len(KINDS))]
+    first = [(name, token) for _, name, _, token, _ in corpus(len(KINDS))]
+    assert first == [(name, token) for _, name, _, token, _ in corpus(len(KINDS))]
     assert [name for name, _ in first] == list(KINDS) and len(KINDS) >= 80
     assert hashlib.sha256("\n".join(token for _, token in first).encode()).hexdigest() == CORPUS_SHA256
 
@@ -751,9 +811,11 @@ def test_the_recorded_long_run_is_of_this_program_this_seed_and_this_corpus():
     assert rec["program"] == f"tests/fixtures/{PROGRAM}" and rec["program_sha256"] == sums[f"tests/fixtures/{PROGRAM}"]
     assert rec["seed"] == SEED and rec["kinds"] == len(KINDS) and rec["corpus_sha256"] == CORPUS_SHA256
     assert rec["disagreements"] == 0 and rec["accepted_with_an_invalid_signature"] == 0
-    assert rec["cases"] == rec["accepted_by_both"] + rec["refused_by_both"] and rec["cases"] >= 10_000
+    assert rec["cases"] == rec["accepted_by_both"] + rec["refused_by_both"] and rec["cases"] >= 10 * len(KINDS)
     assert re.fullmatch(r"\d{4}-\d\d-\d\d", rec["date"])
-    assert {what for what, cell in rec["outside_the_rule"]["by_kind"].items() if cell["program_accepted"]} == LENIENT
+    assert "outside_the_rule" not in rec                      # since 2.2 no class of token is outside the rule
+    unread = rec["not_json_in_an_unread_value"]["by_kind"]
+    assert len(unread) >= 13 and all(cell["accepted"] in (0, cell["cases"]) for cell in unread.values())
     # the document says the run's numbers and no others
     page = (ROOT / "docs" / "ASSURANCE.md").read_text(encoding="utf-8")
     assert f"{rec['cases']:,} cases" in page and rec["date"] in page and rec["program_sha256"] in page
@@ -767,7 +829,7 @@ def test_the_seed_corpus_of_the_fuzz_targets_is_made_from_these_cases_and_the_wy
     assert sum(len(b) for b in want.values()) < 400_000 and {name.split("/")[0] for name in want} == {"claims", "rsa_verify"}
 
 
-CORPUS_SHA256 = "733ffae228044fe5fce9462fd568dd5e230f907b8980a75045cc2383d4c317fa"      # the first len(KINDS) tokens: change a kind and this changes
+CORPUS_SHA256 = "95bceb45540b619bd79a74dc82036419ba8bee3dabdbd86b7fb3bb307372b37b"      # the first len(KINDS) tokens: change a kind and this changes
 
 
 # ---- the fuzz targets' seed corpus ------------------------------------------------------------------------------------
@@ -779,7 +841,7 @@ def seeds() -> dict[str, bytes]:
     and Project Wycheproof's vectors under their own keys (all of the 2048-bit file with exponent 65537; of the
     4096-bit file the valid ones and the first of each set of flags)."""
     out: dict[str, bytes] = {}
-    for _, name, m, token, _, _ in corpus(len(KINDS)):
+    for _, name, m, token, _ in corpus(len(KINDS)):
         parts = token.split(".")
         for which, part in zip(("header", "payload"), parts[:2]):
             doc = unbase64url(part)
@@ -829,10 +891,9 @@ def main(argv: list[str]) -> int:
     r = run(10 ** 9 if a.minutes else a.cases, budget=a.minutes and 60 * a.minutes)
     bad = r["disagreements"] + r["unsound"] + r["generator"]
     print("\n".join(bad[:20]))
-    beyond = sum(b["cases"] for b in r["beyond"].values())
-    total = r["cases"] + beyond
+    total = r["cases"]
     print(f"{r['cases']} cases in {r['seconds']} s: {r['accepted']} accepted by both, {r['refused']} refused by both, {len(r['disagreements'])} disagreements, "
-          f"{len(r['unsound'])} accepted with an invalid signature; {beyond} outside the rule")
+          f"{len(r['unsound'])} accepted with an invalid signature")
     if a.record and not r["generator"]:
         doc = json.loads(RECORD.read_text(encoding="utf-8")) if RECORD.exists() else {}
         doc["differential"] = {
@@ -845,8 +906,10 @@ def main(argv: list[str]) -> int:
             "disagreements": len(r["disagreements"]), "accepted_with_an_invalid_signature": len(r["unsound"]),
             "refused_by_program_error": dict(sorted(r["refused_by_error"].items())), "refused_by_clause_of_the_rule": dict(sorted(r["refused_by_clause"].items())),
             "key_bits": r["bits"], "seconds": r["seconds"],
-            "outside_the_rule": {"what": "payloads the test key signed that are not JSON in a value the verifier does not read; the reference refuses them all, "
-                                         "and they are not counted in `cases`", "cases": beyond, "by_kind": dict(sorted(r["beyond"].items()))},
+            "not_json_in_an_unread_value": {"what": "payloads the test key signed that are not JSON, or are JSON two readers take differently, in a value the verifier "
+                                                    "does not read (the thirteen shapes knos-oidc 2.1 accepted, and more): counted in `cases`; each kind's cases and "
+                                                    "how many of them the program accepted",
+                                            "by_kind": {k: v for k, v in sorted(r["kinds"].items()) if k.startswith("unread_")}},
             "failures": bad[:50]}
         RECORD.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"wrote {RECORD.relative_to(ROOT)}")

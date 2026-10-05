@@ -8,7 +8,7 @@ from _hub import user
 from knos import chain, commands, flow, policy, terms
 from knos.settle.v2 import order_auto, pay, relay
 from solders.keypair import Keypair
-from test_flow import BOUGHT, EXPLORER, FAUCET, MONEY, plain
+from test_flow import BLACKBOX, BOUGHT, EXPLORER, FAUCET, MONEY, plain
 
 ERIN = user("erin", 77)
 ORDER = pay.order_pda(pay.scope_of(REPO_ID, 7), FAUCET, 0)
@@ -756,6 +756,126 @@ def test_a_pull_request_paid_stays_paid_in_memory_when_another_run_settles_it_la
     store = history.SibylStore.local(tmp_path / "next")
     memory.pull("o/r", store, w.hub)
     assert [b["paid"] for b in store.all("settlement")] == [True] and flow.suggest_terms("o/r", store)["checks"] == []
+
+
+def test_a_funding_reply_says_in_one_line_how_the_last_work_orders_here_ended_and_nothing_with_no_memory(tmp_path):
+    """Sibyl's terms memory, through the flow: `_learn` remembers how each work order a settlement paid ended
+    (knos.proof.history.order_outcome: accepted first time, or fixed after an earlier pull request was refused, and
+    on which checks), and `_proposed` puts history.terms_supported's one line in the next funding's reply."""
+    import json
+
+    from knos.proof import history, memory
+    linted = {**BOUGHT, "checks": [*BOUGHT["checks"], {"app": 15368, "name": "lint"}]}
+    w = world(tmp_path)
+    w.chain.bind(MONA)
+
+    def attempt(issue: int, number: int, lint: str = "success") -> str:
+        head = w.hub.pull(number, MONA, f"Fixes #{issue}")["head"]["sha"]
+        w.hub.files[number] = [{"filename": "src/slug.py", "patch": "@@ -1 +1 @@\n+x"}]
+        w.hub.checks[head] = [check("test"), check("build"), check("lint", lint)]
+        return settled(w, number)
+
+    def fund(n: int) -> str:
+        w.hub.issue(n)
+        assert flow.command(w.run(w.hub.commented(n, HUBOT, "/knos fund 20"))) == 0
+        return w.hub.knos(n)[-1]
+
+    assert "as a work order" in fund(8) and "orders here" not in w.hub.knos(8)[-1] and "Knos remembers" not in w.hub.knos(8)[-1]      # no memory: no line
+    for issue in (21, 22, 23):
+        w.hub.issue(issue)
+        w.chain.order(issue, 20_000_000, linted)
+    w.clock.sleep(3600)
+    assert attempt(21, 41).startswith("Knos: paid.")                                   # accepted first time
+    assert history.terms_supported(flow._memory(w.run({})), REPO) == "last 1 order here: 1 accepted first time"
+    for issue, first, second in ((22, 42, 43), (23, 44, 45)):                          # refused on lint, then fixed by another pull request
+        assert attempt(issue, first, "failure").startswith("Knos: not paid.") and w.chain.orders(issue)[0][1].state == "open"
+        assert attempt(issue, second).startswith("Knos: paid.")
+    kept = [x["body"] for x in memory.read(REPO, w.hub)[1] if x["category"] == "order"]
+    assert sorted((b["order"], b["outcome"], b["failed"], b["seq"], b["template"], b["version"], b["policy"]) for b in kept) == [
+        ("21", "accepted", [], 21, "", 0, ""), ("22", "fixed", ["lint"], 22, "", 0, ""), ("23", "fixed", ["lint"], 23, "", 0, "")]
+    refused = [x["body"] for x in memory.read(REPO, w.hub)[1] if x["category"] == "settlement" and not x["body"]["paid"]]
+    assert sorted(json.dumps(b["refused"]) for b in refused) == ['{"22": ["lint"]}', '{"23": ["lint"]}']
+    line = "last 3 orders here: 2 refused on `lint` first; `bugfix` v1 with `lint` named"
+    assert history.terms_supported(flow._memory(w.run({})), REPO) == line              # a fresh runner: read back from the knos-memory issue
+    reply = plain(fund(9), 3000)
+    assert f"\n\nFrom what Knos remembers of this repository: {line}. " in reply and reply.count("orders here") == 1
+    assert reply.endswith("To change the terms, fund another issue with them: these are fixed.")
+    assert "orders here" not in fund_named(w, 10)                                      # a funder who named checks and paths is told nothing
+    # the template and its version are named only for terms that are a published template's, byte for byte
+    from pathlib import Path
+    body = json.loads((Path(__file__).resolve().parents[1] / "terms" / "bugfix" / "1.json").read_text(encoding="utf-8"))
+    assert flow._published(body["terms_json"].encode("ascii")) == ("bugfix", 1) and flow._published(terms.canonical(linted)) == ("", 0)
+    assert flow._published()["bugfix"] >= 1 and flow._published(b"") == ("", 0)
+    # another repository's world remembers nothing
+    other = world(tmp_path / "other")
+    other.hub.issue(9)
+    assert flow.command(other.run(other.hub.commented(9, HUBOT, "/knos fund 20"))) == 0 and "orders here" not in other.hub.knos(9)[-1]
+
+
+def fund_named(w: World, n: int) -> str:
+    w.hub.issue(n)
+    assert flow.command(w.run(w.hub.commented(n, HUBOT, "/knos fund 20 checks: test paths: src/**"))) == 0
+    return w.hub.knos(n)[-1]
+
+
+# ---- the playground: the one repository where an account that cannot write may fund, from the faucet ------------------
+
+def test_a_stranger_funds_a_playground_task_from_the_faucet_three_times_a_day_and_nowhere_else(tmp_path, monkeypatch):
+    """knos.flow._fund asks knos.playground before it asks GitHub to sign. The world's repository is made the
+    playground (its name and its owner's id; devnet) for the first part, and is any other repository for the second."""
+    from knos import playground
+
+    def opened(w: World, n: int, who_: dict = EVE, body: str = playground.FUND) -> str:
+        w.hub.issue(n, f"A task.\n\n{body}\n", who_)
+        w.hub.bundles[n] = {"blackbox.sh": BLACKBOX}
+        assert flow.command(w.run({"action": "opened", "issue": w.hub.issues[n], "repository": w.hub.repo})) == 0
+        return w.hub.knos(n)[-1]
+
+    w = World(tmp_path)
+    w.version = 1
+    assert w.hub.can.get("eve") is None and playground.FUND == "/knos fund 5 checks: none auto"
+    refused = "Knos: `/knos fund` is for people with write access to this repository."
+    assert opened(w, 60).startswith(refused) and w.signer.asked == [] and w.chain.orders() == []      # o/r is not the playground
+    monkeypatch.setattr(playground, "REPO", "O/R")                                                     # GitHub's names ignore case
+    assert opened(w, 61).startswith(refused)                                                            # the name alone is not it: the owner's id too
+    monkeypatch.setattr(playground, "OWNER_ID", HUBOT["id"])
+    said = opened(w, 62)
+    assert said.startswith(f"Knos: 5.00 {MONEY} from the devnet faucet is in escrow for issue #62 as a work order") and "auto" in playground.FUND
+    (_address, order), = w.chain.orders(62)
+    assert (order.amount, order.state) == (playground.MOST, "open") and len(w.signer.asked) == 1
+    # only as the issue is opened: a comment from the same account is refused, and so is more than the playground holds
+    w.hub.issue(63, "A task.", EVE)
+    assert flow.command(w.run(w.hub.commented(63, EVE, playground.FUND))) == 0
+    assert "In the playground a task is funded as it is opened" in w.hub.knos(63)[-1] and w.chain.orders(63) == []
+    w.clock.sleep(61)                                                                                   # the faucet serves a repository once a minute
+    assert "A playground task holds at most 5 test USDC" in opened(w, 64, body="/knos fund 6 checks: none auto") and w.chain.orders(64) == []
+    # 60 to 64 are five issues of this account's today already: a new day, then three are funded and the fourth is refused
+    w.clock.sleep(86_400)
+    for n in (70, 71, 72):
+        w.clock.sleep(61)
+        assert opened(w, n).startswith(f"Knos: 5.00 {MONEY} from the devnet faucet is in escrow for issue #{n}"), n
+    w.clock.sleep(61)
+    assert opened(w, 73) == ("Knos: nothing was funded. One account funds at most 3 playground tasks in a day (UTC), and this is @eve's issue "
+                             "number 4 today. Take one of the open tasks instead, or come back tomorrow.")
+    assert w.chain.orders(73) == [] and len(w.signer.asked) == 4
+    assert opened(w, 74, MONA).startswith(f"Knos: 5.00 {MONEY} from the devnet faucet")                # another account has its own day
+    # never from a real Balance, even one that lists the stranger as a spender
+    w.clock.sleep(86_400)
+    w.chain.balance("real", 50_000_000, spenders=(EVE["id"],))
+    asked = len(w.signer.asked)
+    assert opened(w, 80) == "Knos: nothing was funded. In the playground only the devnet faucet pays."
+    assert w.chain.orders(80) == [] and len(w.signer.asked) == asked
+    # any other repository: as before, whatever the account opens
+    monkeypatch.undo()
+    w.clock.sleep(86_400)
+    assert not playground.is_playground(w.hub.name, HUBOT["id"], True)
+    assert opened(w, 90).startswith(refused) and w.chain.orders(90) == [] and len(w.signer.asked) == asked
+    # and the playground off devnet is not one
+    monkeypatch.setattr(playground, "REPO", "o/r")
+    monkeypatch.setattr(playground, "OWNER_ID", HUBOT["id"])
+    w.env["KNOS_CLUSTER"] = "mainnet"
+    assert opened(w, 91).startswith(refused) and len(w.signer.asked) == asked
+
 
 def _assign_bytes(order, payee_id: int, to, since: int) -> bytes:
     """An assignment as knos_pay 24 Assign lays it out (order_terms.rs A_*): the wallet an order pays in a payee's place."""

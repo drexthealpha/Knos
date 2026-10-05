@@ -32,7 +32,7 @@ export function paidLines(tx, programs) {
 // The recording: shown only once the browser has the file's metadata, so a release with no recording, a missing asset
 // or a file the browser cannot play leaves no empty box on the page.
 export function showVideo(doc, video = CONFIG.video) {
-  const fig = doc.getElementById("demo"), el = doc.getElementById("demo-video");
+  const fig = doc.getElementById("film"), el = doc.getElementById("demo-video");
   const ok = (s) => typeof s === "string" && /^(https:\/\/[^\s"'<>]+|[\w./-]+)$/.test(s.trim());
   if (!fig || !el || !video || !ok(video.src)) return;
   el.addEventListener("loadedmetadata", () => { fig.hidden = false; }, { once: true });

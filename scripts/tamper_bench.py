@@ -4,6 +4,7 @@
     python scripts/tamper_bench.py --real        # only the six real-behaviour tasks: rewrites their block of docs/TAMPER.md
     python scripts/tamper_bench.py --accept      # only the three non-code tasks (scripts/acceptance_examples.py), same
     python scripts/tamper_bench.py --escape      # only the five escapes from where the submission runs, same
+    python scripts/tamper_bench.py --honest      # only the honest submissions (tests/bench_tamper/honest.py), same
 
 The samples (tests/bench_tamper/) are the same small project with the same bug, in Python (pytest), JavaScript
 (node:test) and Ruby (minitest), and each has its own 21 attacks: the same 21 ideas, each as that language's tools
@@ -20,6 +21,10 @@ urllib.parse.urljoin, packaging.version, csv.Sniffer, configparser, datetime.fro
 box against that code on generated inputs. Each has an honest fix, a constant-returning stub and the attacks above that
 apply (attacks_real.py), judged by CI green and by Knos's black box. And three tasks that are not code
 (examples/acceptance/) are run through `knos proof judge` by scripts/acceptance_examples.py. docs/TAMPER.md reports both.
+
+The honest set (tests/bench_tamper/honest.py) asks the opposite question of every task above: correct work written
+in other ways (another algorithm, another layout, slower, with checks of its own) goes through the same judges, and
+the report says how many each accepted and why each refused one was refused. A refused honest submission is a finding.
 
 Five escapes (ESCAPES) are not about the verdict: each is something a submission does to the machine that judges it,
 tried in each place a submission can run (the judge's machine with no sandbox, its sandbox, a container of a pinned
@@ -401,6 +406,156 @@ def accept_section(results: dict, repeat: int) -> list[str]:
     return out
 
 
+# ---- honest work: does a judge refuse a submission that did what the task asked? ------------------------------------
+
+def _honest():
+    import honest
+    return honest
+
+
+def run_honest(only: tuple = (), tasks: tuple = ()) -> list[dict]:
+    """One row for each honest submission: {"group", "task", "name", "ci", "knos", "box", "why"}. A judge that does not
+    apply to a group is None (the real tasks and the tasks that are not code have a black-box bundle only; the tasks
+    that are not code have no CI). `only` keeps some groups ("slug", "real", "plain") and `tasks` some tasks (a sample's key, a real task's,
+    a folder of examples/acceptance)."""
+    H = _honest()
+    rows: list[dict] = []
+    for key, sample in SAMPLES.items() if not only or "slug" in only else ():
+        if tasks and key not in tasks:
+            continue
+        if not available(sample):
+            rows += [{"group": "slug", "task": sample.title, "name": name, "ci": None, "knos": None, "box": None,
+                      "why": "not run here: the language is not installed"} for name, _ in H.SLUG[key]]
+            continue
+        with tempfile.TemporaryDirectory(prefix="knos-honest-") as t:
+            tmp = Path(t)
+            base = tmp / "base"
+            shutil.copytree(BENCH / sample.folder, base, ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+            cache: dict = {}
+            for i, (name, fn) in enumerate(H.SLUG[key]):
+                got = one(sample, base, tmp, i, name, fn, cache)
+                why = "; ".join(x for x in (None if got["knos"] else f"tests: {_stable(got['why'])}",
+                                            None if got["box"] in (True, None) else f"black box: {got['box_why']}") if x)
+                rows.append({"group": "slug", "task": sample.title, "name": name, "ci": got["ci"], "knos": got["knos"],
+                             "box": got["box"], "why": why or "-"})
+    if not only or "real" in only:
+        R, _ = _real_modules()
+        for key, task in R.TASKS.items():
+            if tasks and key not in tasks:
+                continue
+            with tempfile.TemporaryDirectory(prefix="knos-honest-") as t:
+                tmp = Path(t)
+                base = tmp / "base"
+                R.materialise(task, base)
+                cache = {}
+                for i, (name, fn) in enumerate(H.REAL):
+                    got = one_real(task, base, tmp, i, name, fn, cache)
+                    rows.append({"group": "real", "task": key, "name": name, "ci": got["ci"], "knos": None,
+                                 "box": got["box"], "why": "-" if got["box"] else f"black box: {got['why']}"})
+    if not only or "plain" in only:
+        import acceptance_examples as ex
+        for task, subs in H.PLAIN.items():
+            for name, source in subs if not tasks or task in tasks else ():
+                with tempfile.TemporaryDirectory(prefix="knos-honest-") as t:
+                    folder = source
+                    if callable(source):
+                        folder = Path(t) / "submission"
+                        for rel, text in source().items():
+                            (folder / rel).parent.mkdir(parents=True, exist_ok=True)
+                            (folder / rel).write_text(text, encoding="utf-8", newline="\n")
+                    got = ex.judged(task, name, folder)
+                rows.append({"group": "plain", "task": task, "name": name, "ci": None, "knos": None, "box": got["accepted"],
+                             "why": "-" if got["accepted"] else "black box: " + ("; ".join(got["reasons"]) or got["output"][-200:])})
+    return rows
+
+
+def honest_counts(rows: list[dict]) -> dict:
+    """{judge: (accepted, judged)} over the rows a judge saw."""
+    return {j: (sum(bool(r[j]) for r in rows if r[j] is not None), sum(r[j] is not None for r in rows))
+            for j in ("ci", "knos", "box")}
+
+
+def cheat_totals(doc: str) -> list[tuple[int, int]]:
+    """(accepted by Knos's black box, cheating submissions) for the three groups, read from the tables of docs/TAMPER.md:
+    the 63 attacks on slugify, the attacks on the six real tasks, and the cheats on the tasks that are not code."""
+    slug = re.search(r"^\| \*\*all\*\* \| \*\*(\d+)\*\* \| \*\*\d+\*\* \| \*\*\d+\*\* \| \*\*(\d+)\*\* \|$", doc, re.M)
+    real = re.search(r"^\| \*\*all\*\* \| \| \| \| \*\*(\d+)\*\* \| \*\*\d+\*\* \| \*\*(\d+)\*\* \|$", doc, re.M)
+    plain = re.findall(r"^\| [\w-]+ \| \d+ of \d+ \| (\d+) \| (\d+) of \d+ \| \d+ \| \d+ of \d+ \|$", doc, re.M)
+    out = [(int(m.group(2)), int(m.group(1))) if m else (0, 0) for m in (slug, real)]
+    return [*out, (sum(int(b) for _, b in plain), sum(int(a) for a, _ in plain))]
+
+
+HONEST_GROUPS = (("slug", "slugify, three repositories"), ("real", "real open-source behaviour, six tasks"),
+                 ("plain", "tasks that are not code, three"))
+
+
+def honest_section(rows: list[dict], cheats: list[tuple[int, int]]) -> list[str]:
+    """The block of docs/TAMPER.md for the honest submissions, from run_honest() and cheat_totals()."""
+    H = _honest()
+    n = honest_counts(rows)
+    of = lambda pair: f"{pair[0]} of {pair[1]}" if pair[1] else "n/a"  # noqa: E731
+    refused = [r for r in rows if False in (r["knos"], r["box"])]
+    expected = [r for r in refused if r["name"] in H.EXPECTED_REFUSED]
+    other = [r for r in refused if r["name"] not in H.EXPECTED_REFUSED]
+    out = ["<!-- honest:begin -->", "## Honest work: is a correct submission refused?", "",
+           "A judge that refuses every cheat and every honest submission is worth nothing, so the same judges see "
+           f"{len(rows)} honest submissions (tests/bench_tamper/honest.py; `python scripts/tamper_bench.py --honest`): for "
+           "every task on this page, correct work written in other ways than the benchmark's own fix: another "
+           "algorithm, another style, the code moved to new files, a slower way that is still right, checks of its "
+           "own. The submissions are fixed text. The black-box checks draw new inputs on every run, so a count below "
+           "can differ between runs only if a submission is wrong on a rare input or a check asks for something the task "
+           "does not define (one such fault was found, below).", "",
+           f"**Honest submissions accepted: Knos, black box {of(n['box'])}; Knos, tests {of(n['knos'])}; CI green {of(n['ci'])}.** "
+           f"**Cheating submissions accepted by Knos, black box: {', '.join(f'{a} of {b}' for a, b in cheats)}** "
+           "(the three groups below, in the same order; the tables of each follow on this page).", "",
+           "| tasks | honest submissions | CI green accepted | Knos, tests accepted | Knos, black box accepted |",
+           "|---|---|---|---|---|"]
+    for group, title in HONEST_GROUPS:
+        g = honest_counts([r for r in rows if r["group"] == group])
+        out.append(f"| {title} | {sum(r['group'] == group for r in rows)} | {of(g['ci'])} | {of(g['knos'])} | {of(g['box'])} |")
+    out += [f"| **all** | **{len(rows)}** | **{of(n['ci'])}** | **{of(n['knos'])}** | **{of(n['box'])}** |", "",
+            "Both rates are measured on Knos's own tasks, with submissions written by the people who wrote the judge: "
+            f"{sum(b for _, b in cheats)} cheating submissions and {len(rows)} honest ones. Neither is a rate for other "
+            "people's repositories or for attacks and solutions somebody else wrote; nobody outside has run either set.", ""]
+    if refused:
+        out += [f"Every honest submission a Knos judge refused ({len(refused)}), with the judge's reason:", "",
+                "| task | submission | refused by | reason |", "|---|---|---|---|"]
+        for r in refused:
+            by = " and ".join(t for j, t in (("knos", "Knos, tests"), ("box", "Knos, black box")) if r[j] is False)
+            why = r["why"].replace("|", "\\|")
+            out.append(f"| {r['task']} | {r['name']} | {by} | {why if len(why) <= 160 else why[:157] + '...'} |")
+        out.append("")
+    if expected:
+        out += [f"{'All ' + str(len(expected)) if len(expected) == len(refused) else str(len(expected)) + ' of them'} are one kind, and the refusal is the judge working as written, which is the finding: "
+                "a contributor who fixes the issue and adds a regression test where the repository keeps its tests "
+                "touches a protected path, and the judge refuses the pull request before it runs anything. It cannot "
+                "tell a test that was added from a test that was weakened, so it refuses both. The same fix with its "
+                "checks kept outside the test directory is accepted. Until the judge can tell the two apart, a "
+                "repository that pays on a Knos verdict has to say so to its contributors (new tests go in a second "
+                "pull request, or the funder lists what is protected in `.knos/proof.toml`), and this count stays "
+                "on this page.", ""]
+    out += [("No other honest submission was refused." if not other else
+             f"{len(other)} refused for another reason: each is a false refusal that is not explained above."), "",
+            "One fault was found in the suite itself while this set was written, and fixed there, not in a submission. "
+            "The csv.Sniffer task says \"the delimiter every line has the same, highest number of times\", and its "
+            "generator sometimes drew a sample in which two delimiters are in every line equally often (`a,b|c` on every "
+            "line). The task does not say which of the two wins; csv.Sniffer picks one by rules of its own, and the check "
+            "took that pick as the answer. The benchmark's own honest fix disagreed on 22 of 200,000 generated samples, "
+            "which is about one refused run in sixty at 150 samples a run. The generator now leaves such samples out "
+            "(tests/bench_tamper/real_tasks.py, `accept`); on 150,000 samples drawn after the change the honest fix and "
+            "the other algorithm of this set both agreed with csv.Sniffer on every one.",
+            "<!-- honest:end -->"]
+    return out
+
+
+def place_honest(doc: str, lines: list[str]) -> str:
+    """`doc` with the honest block replaced, or put in before the first repository's section when there is none."""
+    if "<!-- honest:begin -->" in doc:
+        return update_block(doc, "honest", lines)
+    head, sep, tail = doc.partition("\n## ")
+    return head.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n" + sep + tail
+
+
 # ---- escapes: what a submission can do to the machine that judges it -------------------------------------------------
 
 # The image the hermetic column runs the probe in: python 3.12 on Alpine, as Docker Hub's registry named it on
@@ -664,8 +819,9 @@ def main(argv=None) -> int:
     ap.add_argument("--accept", action="store_true", help="run the three non-code tasks and rewrite their block of --out")
     ap.add_argument("--repeat", type=int, default=5, help="with --accept: judgments of each submission (new inputs each time)")
     ap.add_argument("--escape", action="store_true", help="run the five escapes and rewrite their block of --out")
+    ap.add_argument("--honest", action="store_true", help="run the honest submissions and rewrite their block of --out")
     a = ap.parse_args(argv)
-    if a.real or a.accept or a.escape:
+    if a.real or a.accept or a.escape or a.honest:
         path = Path(a.out)
         doc = path.read_text(encoding="utf-8")
         if a.real:
@@ -674,6 +830,8 @@ def main(argv=None) -> int:
             doc = update_block(doc, "accept", accept_section(run_accept(a.repeat), a.repeat))
         if a.escape:
             doc = update_block(doc, "escape", escape_section(run_escapes()))
+        if a.honest:
+            doc = place_honest(doc, honest_section(run_honest(), cheat_totals(doc)))
         path.write_text(doc, encoding="utf-8")
         return 0
     if a.only:
@@ -687,6 +845,7 @@ def main(argv=None) -> int:
     extra = [*real_section({k: run_real(k) for k in _real_modules()[0].TASKS}), "",
              *accept_section(run_accept(a.repeat), a.repeat), "", *escape_section(run_escapes())]
     text = render({key: run(key) for key in SAMPLES}, extra) + "\n"
+    text = place_honest(text, honest_section(run_honest(), cheat_totals(text)))
     Path(a.out).write_text(text, encoding="utf-8")
     print(text)
     return 0

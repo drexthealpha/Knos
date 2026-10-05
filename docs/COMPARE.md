@@ -5,9 +5,10 @@ again on 3 Oct 2026. The Knos row is the second deployment (`programs-v2`) as Kn
 Solana devnet and its money is test USDC; several of the others move real money today. Where another product is
 ahead, this page says so.
 
-Knos is the neutral count and settlement for software work priced per outcome. Two comparisons follow from that.
-The first is with whoever keeps the count today. The second, which most of this page is about, is with the other
-ways to pay for a merged pull request.
+**The neutral meter for AI agent work: neither side keeps the count.** Three comparisons follow from that. The first is with whoever keeps the count today. The second is with
+the platforms and billing companies that already meter agents and move payments. The third, which most of this
+page is about, is with the other ways to pay for a merged pull request. No count of capabilities is given here:
+[CAPABILITIES.md](CAPABILITIES.md) has each one and its stage.
 
 ## Counting an accepted outcome
 
@@ -21,6 +22,20 @@ Where the others are ahead here: a vendor's count needs nothing installed and co
 for it. Knos's count trusts the forge's hosted runner and the pinned workflow's reading of the forge's record, runs
 on devnet, and has been used by nobody but Knos.
 
+## Platforms and billing companies
+
+| | what it sells | whose count it is | source |
+|---|---|---|---|
+| **Amazon Web Services, Bedrock AgentCore** | Agent identity, policy, evaluations and payments, as priced services for agents that run on it. A custom evaluation is listed at 1.50 USD per 1,000. | The platform's, for the agents on the platform. | [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 5 Oct 2026 |
+| **Stripe, Billing** | Subscription and usage billing at 0.7% of billing volume. | The seller's: it bills the usage its customer, the seller, reports. | [pricing](https://stripe.com/billing/pricing), read 5 Oct 2026 |
+| **Knos** | Acceptance that is independent of every vendor: terms fixed before the work, a verdict from evidence the forge signed, one record for every supplier, and each side's count beside the other's. | Neither side's. A difference is a named dispute, not an invoice line. | this repository |
+
+Where they are ahead: everywhere but independence. They have customers, companies that answer for the service,
+real money, and the agents already run there. Metering agents and moving payments is what they sell, so it is not
+what makes Knos different. The one thing a platform cannot be is neutral about the agents it hosts or sells, and a
+billing system cannot be neutral about the seller who is its customer. Whether buyers want that neutrality enough
+to pay for it is not known ([MARKET.md](MARKET.md), section 9).
+
 ## Paying for a merged pull request
 
 | | who holds the money | what releases it | what is verified, and by whom | time from merge to paid | fee | who can change the rules | chain |
@@ -28,7 +43,7 @@ on devnet, and has been used by nobody but Knos.
 | **GitHub's own controls** (rulesets, required checks, required reviews, merge queue, the February and June 2026 pull request limits, Copilot code review) | Nobody. There is no money in them. | Nothing. They gate a merge, not a payment. | GitHub checks, before a merge, what the repository requires: named status checks (from a named app if set), approving reviews, code-owner review. A merge queue keeps those checks satisfied. Copilot code review can count as an approval when an admin turns that on (preview, off by default). | Not applicable. | None. | Repository and organisation admins. They set the rules and decide who may bypass them. | None. |
 | **MergePay** | A contract on Arc. Anyone funds an issue from a wallet (`fund(...)`, native USDC). | A GitHub-signed token from its pinned workflow, relayed to `award()`. The award then waits for the payee to link a wallet; unlinked after 180 days, it goes back to the funders. | On chain, by the contract: GitHub's RSA signature, the issuer, expiry, `event_name`, the audience, `repository_id` and the workflow's ref. That the pull request was merged is decided by the workflow's own `if:`, not by a signed claim. There is no test or check condition. | 9 seconds on its one award (merged 07:56:18, awarded 07:56:27 UTC, 24 Sep 2026). Its site says 4.5 seconds. | No platform fee. A relayer fee the funder sets: 0.03 USDC by default, 1 USDC at most. | One key. `owner()` is the relayer's hot wallet, the key its relay service signs with (read on chain, 2 Oct 2026). It can propose a signing key, active after 3 days (funders may refund while one is pending), revoke a key at once, and transfer ownership. It cannot take escrowed money. A multisig owner is an open item on its roadmap. | Arc mainnet (chain id 5042) since 24 Sep 2026. Real USDC. |
 | **Bounty boards** (Algora, Opire, BountyHub, TaskBounty) | Algora: its pages do not say the money is held before the work; the funder pays through Stripe when rewarding. Opire: nobody; the creator pays the developer through Stripe after accepting. BountyHub: the board, when the creator pays in advance. TaskBounty: not stated. | A person. Algora: the maintainer clicks Reward, or sets up auto-pay on merge. Opire and BountyHub: the bounty's creator decides whether the pull request meets the issue. TaskBounty: a run of the repository's tests and a new regression test in its own sandbox. | Nothing is signed by a third party. On Algora, Opire and BountyHub a person judges. TaskBounty runs tests in a sandbox it operates. | Algora: payout typically 1 to 3 business days after the payment. TaskBounty: 1 to 2 business days by bank, at once in USDC. Opire and BountyHub: not published. | Algora 9%. Opire 4% plus Stripe's fees. BountyHub 10%. TaskBounty 20%. | The board, through its terms, and the person paying. | None: Stripe, and PayPal on BountyHub. TaskBounty can pay out USDC on Base or Solana. |
-| **Knos** (second deployment) | A Solana program (`knos-pay`). Each order's money sits in a token account of its own, at an address the program derives. A repository owner's prefunded Balance sits in a token account the program controls; only the wallet that opened it can withdraw it. | A GitHub-signed token from the workflow commit fixed at funding. The payee is paid in the transaction that verifies it. No veto after the merge. Money returns to the funder only at the deadline, after a cancellation with 7 days' notice, or from a holdback the funder set at funding. A refund needs no token. | On chain: GitHub's RSA signature (`knos-oidc`), then the order, the workflow file and its commit, the payees, the head commit and the hash of the terms fixed at funding (`knos-pay`). In the workflow, on a GitHub-hosted runner: that the pull request was merged, that every check named in the terms concluded `success` at its head commit, and that its changed files are inside the paths the terms allow. The workflow runs in the order's repository, or, after a merge, by hand in a repository of the seller's own, reading GitHub's public record. GitHub signs that this workflow ran there; it does not sign what the workflow read. | No waiting period: paid in the transaction that verifies the token. Before it come one GitHub Actions job and the relay. Measured: a median of 25 seconds from merge to payment, over 39 payments ([BENCH.md](BENCH.md)). | The funder pays the fee on top of the amount: 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above, at least 0.40. The payee receives the posted amount. 0.5% to 1.5% on the first tier under a contract. Nothing on a refund. | Knos, only through a multisig with a public 48-hour delay, until an outside review. A second multisig, the guardian, can approve or revoke a signing key and pause new funding for at most 7 days. It cannot add a key or move money. No instruction changes what must be true for payment after funding. | Solana devnet. Test USDC. |
+| **Knos** (second deployment) | A Solana program (`knos-pay`). Each order's money sits in a token account of its own, at an address the program derives. A repository owner's prefunded Balance sits in a token account the program controls; only the wallet that opened it can withdraw it. | A GitHub-signed token from the workflow commit fixed at funding. The payee is paid in the transaction that verifies it. No veto after the merge. Money returns to the funder only at the deadline, after a cancellation with 7 days' notice, or from a holdback the funder set at funding. A refund needs no token. | On chain: GitHub's RSA signature (`knos-oidc`), then the order, the workflow file and its commit, the payees, the head commit and the hash of the terms fixed at funding (`knos-pay`). In the workflow, on a GitHub-hosted runner: that the pull request was merged, that every check named in the terms concluded `success` at its head commit, and that its changed files are inside the paths the terms allow. The workflow runs in the order's repository, or, after a merge, by hand in a repository of the seller's own, reading GitHub's public record. GitHub signs that this workflow ran there; it does not sign what the workflow read. | No waiting period: paid in the transaction that verifies the token. Before it come one GitHub Actions job and the relay. Measured: a median of 25 seconds from merge to payment, over 40 payments ([BENCH.md](BENCH.md)). | The funder pays the fee on top of the amount: 2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above, at least 0.40. The payee receives the posted amount. 0.5% to 1.5% on the first tier under a contract. Nothing on a refund. | Knos, only through a multisig with a public 48-hour delay, until an outside review. A second multisig, the guardian, can approve or revoke a signing key and pause new funding for at most 7 days. It cannot add a key or move money. No instruction changes what must be true for payment after funding. | Solana devnet. Test USDC. |
 
 ## Where the others are ahead
 
@@ -97,7 +112,7 @@ Knos: 0.
 - Nothing it sells has been bought. The one offer for money, a 30-day [Pilot](PILOT.md), cannot be invoiced yet:
   there is no legal entity.
 - Its speed is measured on few payments. From merge to payment took 25 seconds
-  at the median, over 39 payments ([BENCH.md](BENCH.md)). MergePay has shown 9 seconds on its
+  at the median, over 40 payments ([BENCH.md](BENCH.md)). MergePay has shown 9 seconds on its
   one award. On the first deployment the
   median from the funding transaction to the payment, over the 6 payments it had made by 2 Oct 2026, was 159
   seconds.

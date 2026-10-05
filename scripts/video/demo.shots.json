@@ -1,0 +1,29 @@
+{
+ "_about": "The shot list of the two-minute demo (docs/submission/demo_script.md): seven moments of one buyer's story on devnet. Knos 0.3.16 is released before the pending upgrade executes, so what needs the newer builds ran on the staging program ids of the 0.3.14 rehearsal, and a shot of it carries the `staging` caption; `web/upgrades.json` has the live state. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 120`. tests/test_business_docs.py holds this file to the script.",
+ "limit_seconds": 120,
+ "program_ids": "staging",
+ "captions": {
+  "first": "Built during the hackathon: everything shown. Older work is listed in docs/DISCLOSURE.md.",
+  "replay": "Replay of a run recorded earlier",
+  "faster": "Recorded at N times speed",
+  "offline": "The network is off",
+  "money": "Solana devnet. Test USDC.",
+  "staging": "Staging program ids on Solana devnet"
+ },
+ "shots": [
+  {"moment": "one", "start": "0:00", "end": "0:15", "kind": "live", "faster": false, "captions": ["first"],
+   "shows": "a public pull request from the measured sample: the claim, the merged state, the failed check; an invoice line billed per merge"},
+  {"moment": "two", "start": "0:15", "end": "0:30", "kind": "live", "faster": false, "captions": ["money"],
+   "shows": "the console: budget, checks, paths, deadline, payee; the fee before funding; the hash of the terms in the page and in the explorer"},
+  {"moment": "three", "start": "0:30", "end": "0:50", "kind": "replay", "faster": true, "captions": ["replay", "faster", "money"],
+   "shows": "a submission whose required check failed is merged and refused, with the check named; the order's balance unchanged"},
+  {"moment": "four", "start": "0:50", "end": "1:10", "kind": "replay", "faster": true, "captions": ["replay", "faster", "money"],
+   "shows": "a valid submission; the record in four linked parts, its settlement status reading devnet demonstration; the paying transaction"},
+  {"moment": "five", "start": "1:10", "end": "1:30", "kind": "live", "faster": false, "captions": ["money"],
+   "shows": "the same pay token sent again and refused by the program; buyer and supplier each computing the same statement"},
+  {"moment": "six", "start": "1:30", "end": "1:45", "kind": "live", "faster": false, "captions": ["offline"],
+   "shows": "the evidence bundle verified from the file with the network off; the line that says what remains trusted"},
+  {"moment": "seven", "start": "1:45", "end": "2:00", "kind": "live", "faster": false, "captions": [],
+   "shows": "the Numbers page, the rows for accounts that are not Knos's; the price book"}
+ ]
+}

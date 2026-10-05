@@ -13,7 +13,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/upgrade_feed.py", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
+    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/demo_data.py", "terms/**", "scripts/upgrade_feed.py", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:

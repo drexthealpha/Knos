@@ -179,18 +179,30 @@ def test_the_plans_fit_the_longest_token_the_program_takes(chain):
             cu = [chain.cu[f"size{size}_{bits}_step{i + 1}"][-1] for i in range(len(oidc.step_plan(bits)))]
             print(f"\nCU {bits}-bit, {len(jwt)}-byte token, plan {oidc.step_plan(bits)}: {cu}")
             assert max(cu) < 1_340_000, cu                  # at least 60,000 compute units to spare in every step
-    # the old 4096-bit plan on the longest token: the sixth step runs out
+    # the old 4096-bit plan on the longest token: the sixth step runs out of compute units (the runtime has two names
+    # for that, by where the last unit went: in the program's own instructions, or in a call it made to the runtime)
     key, n = signing_key(4096), modulus(signing_key(4096))
     jwt = sized_jwt(key, gitlab_claims(aud="knos2:pay:1:0"), oidc.MAX_JWT)
-    assert chain.verify(jwt, GL, n, plan=[2, 3, 3, 3, 3, 2]) is None and "ProgramFailedToComplete" in chain.err
-    # claims of the costliest shape we could build (many two-byte pairs that are not ASCII), at the largest size
+    assert chain.verify(jwt, GL, n, plan=[2, 3, 3, 3, 3, 2]) is None
+    assert "ProgramFailedToComplete" in chain.err or "ComputationalBudgetExceeded" in chain.err, chain.err
+    # claims of the costliest shapes we could build, at the largest size. Every byte of a payload is checked as JSON
+    # and every name is compared with every other, so: as many members as the reader takes (128), then the value that
+    # costs most for its length, an array of one-digit numbers. And the same with every name written with an escape
+    # (each is decoded to be compared), which is also the most the reader asks of the program's heap.
     base = json.dumps(gitlab_claims(), separators=(",", ":")).encode()[:-1]
-    pairs = next(k for k in range(2000, 0, -1) if jwt_size(key, len(base) + 6 * k + 1) <= oidc.MAX_JWT)
-    worst = sign_jwt(key, {}, raw_payload=base + b"," + b",".join([b'"\xff":\xff'] * pairs) + b"}")
-    assert oidc.MAX_JWT - 8 <= len(worst) <= oidc.MAX_JWT
-    assert chain.verify(worst, GL, n, tag="worst") is not None, chain.err
-    cu = [chain.cu[f"worst_4096_step{i + 1}"][-1] for i in range(6)]
-    print(f"CU 4096-bit, {len(worst)}-byte token of the costliest claims: {cu}")
+    for shape, members in (("worst", b"".join(b',"m%d":1' % k for k in range(128 - len(gitlab_claims()) - 1))),
+                           ("escaped", b"".join(b',"\\u006d%d":1' % k for k in range(128 - len(gitlab_claims()) - 1)))):
+        head = base + members + b',"x":['
+        ones = next(k for k in range(4000, 0, -1) if jwt_size(key, len(head) + 2 * k + 1) <= oidc.MAX_JWT)
+        worst = sign_jwt(key, {}, raw_payload=head + b",".join([b"1"] * ones) + b"]}")
+        assert oidc.MAX_JWT - 8 <= len(worst) <= oidc.MAX_JWT and len(signed_claims(worst)) == 128
+        assert chain.verify(worst, GL, n, tag=shape) is not None, chain.err
+        cu = [chain.cu[f"{shape}_4096_step{i + 1}"][-1] for i in range(6)]
+        print(f"CU 4096-bit, {len(worst)}-byte token of the costliest claims ({shape}): {cu}")
+        assert max(cu) < 1_340_000, cu
+    # one member more is one too many, and so is a payload that is not JSON in a value nobody reads (2.1 took these)
+    for bad in (base + b"".join(b',"m%d":1' % k for k in range(129 - len(gitlab_claims()))) + b"}", base + b',"x":tru}', base + b',"x":01}', base + b',"\xff":1}'):
+        assert chain.verify(sign_jwt(key, {}, raw_payload=bad), GL, n) is None and code(chain) == 61
     # exactly the maximum fits (base64 cannot make the 4096-bit token 8,192 bytes long); one byte more is refused
     # before anything is written
     assert longest == {2048: oidc.MAX_JWT, 4096: oidc.MAX_JWT - 1}
@@ -991,10 +1003,12 @@ def test_claims_are_read_at_the_top_level_only_and_a_time_is_plain_digits():
     # exp: an unsigned whole number of at most 18 digits, written once
     good, at = dumps(github_claims(jti="exp")), '"exp":%d' % (NOW + 300)
     assert at in good
-    for form in ("1.7900003e9", "17900003e2", f"+{NOW + 300}", "-1", f"0{NOW + 300}", f"{NOW + 300}.0", "1" + "0" * 18, "null", "true",
-                 f"[{NOW + 300}]", '{"exp":%d}' % (NOW + 300)):
+    for form in ("1.7900003e9", "17900003e2", "-1", f"{NOW + 300}.0", "1" + "0" * 18, "null", "true", f"[{NOW + 300}]", '{"exp":%d}' % (NOW + 300)):
         jwt = sign_jwt(key, {}, raw_payload=good.replace(at, '"exp":' + form).encode())
         assert c.verify(jwt, GH, sn) is None and code(c) == 63, f"exp {form}: {c.err}"
+    for form in (f"+{NOW + 300}", f"0{NOW + 300}", f"{NOW + 300}.", "0x6ab1f230", "NaN"):       # not a number of JSON at all
+        jwt = sign_jwt(key, {}, raw_payload=good.replace(at, '"exp":' + form).encode())
+        assert c.verify(jwt, GH, sn) is None and code(c) == 61, f"exp {form}: {c.err}"
     assert c.verify(sign_jwt(key, {}, raw_payload=good.replace(at, at + "," + at).encode()), GH, sn) is None and code(c) == 62
     # a claim's name inside a nested object, inside a list, or inside a string's text is not that claim: with the
     # right values only there, and one wrong value where the claims are, the attestation names nothing
@@ -1014,11 +1028,12 @@ def test_claims_are_read_at_the_top_level_only_and_a_time_is_plain_digits():
     tok = c.verify(sign_jwt(key, claims), GH, sn)
     assert tok is not None and oidc.read_token(c.data(tok)).claims() == claims, c.err
     assert reg(n, tok), c.err
-    # a claim RegisterKey reads, written twice: the token verifies (Step reads iss and exp), the attestation is refused
+    # a claim RegisterKey reads, written twice: since 2.2 Step refuses the token itself (a name twice at the top
+    # level, whoever reads it), so there is nothing to attest with
     _new, n2 = new_key()
     twice = dumps(attest_claims(GH, n2, jti="twice", aud="evil"))[:-1] + ',"aud":"%s"}' % oidc.rotate_audience(GH, n2)
     tok = c.verify(sign_jwt(key, {}, raw_payload=twice.encode()), GH, sn)
-    assert tok is not None and not reg(n2, tok) and code(c) == 62
+    assert tok is None and code(c) == 62
     # alg twice in the header
     head = b'{"alg":"none","typ":"JWT","alg":"RS256"}'
     body = b64(dumps(github_claims(jti="alg")).encode())

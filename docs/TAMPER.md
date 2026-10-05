@@ -23,6 +23,43 @@ Three judges see each one:
 | Ruby, minitest | 21 | 19 | 2 | 0 |
 | **all** | **63** | **56** | **7** | **0** |
 
+<!-- honest:begin -->
+## Honest work: is a correct submission refused?
+
+A judge that refuses every cheat and every honest submission is worth nothing, so the same judges see 48 honest submissions (tests/bench_tamper/honest.py; `python scripts/tamper_bench.py --honest`): for every task on this page, correct work written in other ways than the benchmark's own fix: another algorithm, another style, the code moved to new files, a slower way that is still right, checks of its own. The submissions are fixed text. The black-box checks draw new inputs on every run, so a count below can differ between runs only if a submission is wrong on a rare input or a check asks for something the task does not define (one such fault was found, below).
+
+**Honest submissions accepted: Knos, black box 39 of 48; Knos, tests 15 of 18; CI green 42 of 42.** **Cheating submissions accepted by Knos, black box: 0 of 63, 0 of 102, 0 of 25** (the three groups below, in the same order; the tables of each follow on this page).
+
+| tasks | honest submissions | CI green accepted | Knos, tests accepted | Knos, black box accepted |
+|---|---|---|---|---|
+| slugify, three repositories | 18 | 18 of 18 | 15 of 18 | 15 of 18 |
+| real open-source behaviour, six tasks | 24 | 24 of 24 | n/a | 18 of 24 |
+| tasks that are not code, three | 6 | n/a | n/a | 6 of 6 |
+| **all** | **48** | **42 of 42** | **15 of 18** | **39 of 48** |
+
+Both rates are measured on Knos's own tasks, with submissions written by the people who wrote the judge: 190 cheating submissions and 48 honest ones. Neither is a rate for other people's repositories or for attacks and solutions somebody else wrote; nobody outside has run either set.
+
+Every honest submission a Knos judge refused (9), with the judge's reason:
+
+| task | submission | refused by | reason |
+|---|---|---|---|
+| Python, pytest | the fix, and a regression test added in the repository's test directory | Knos, tests and Knos, black box | tests: touches protected path tests/test_punctuation.py; black box: touches protected path tests/test_punctuation.py |
+| JavaScript, node:test | the fix, and a regression test added in the repository's test directory | Knos, tests and Knos, black box | tests: touches protected path test/punctuation.test.js; black box: touches protected path test/punctuation.test.js |
+| Ruby, minitest | the fix, and a regression test added in the repository's test directory | Knos, tests and Knos, black box | tests: touches protected path test/test_punctuation.rb; black box: touches protected path test/test_punctuation.rb |
+| urljoin | the fix, and a regression test added in the repository's test directory | Knos, black box | black box: touches protected path tests/test_urls_again.py |
+| version | the fix, and a regression test added in the repository's test directory | Knos, black box | black box: touches protected path tests/test_vers_again.py |
+| sniff | the fix, and a regression test added in the repository's test directory | Knos, black box | black box: touches protected path tests/test_sniffing_again.py |
+| ini | the fix, and a regression test added in the repository's test directory | Knos, black box | black box: touches protected path tests/test_inifile_again.py |
+| date | the fix, and a regression test added in the repository's test directory | Knos, black box | black box: touches protected path tests/test_isodate_again.py |
+| glob | the fix, and a regression test added in the repository's test directory | Knos, black box | black box: touches protected path tests/test_globs_again.py |
+
+All 9 are one kind, and the refusal is the judge working as written, which is the finding: a contributor who fixes the issue and adds a regression test where the repository keeps its tests touches a protected path, and the judge refuses the pull request before it runs anything. It cannot tell a test that was added from a test that was weakened, so it refuses both. The same fix with its checks kept outside the test directory is accepted. Until the judge can tell the two apart, a repository that pays on a Knos verdict has to say so to its contributors (new tests go in a second pull request, or the funder lists what is protected in `.knos/proof.toml`), and this count stays on this page.
+
+No other honest submission was refused.
+
+One fault was found in the suite itself while this set was written, and fixed there, not in a submission. The csv.Sniffer task says "the delimiter every line has the same, highest number of times", and its generator sometimes drew a sample in which two delimiters are in every line equally often (`a,b|c` on every line). The task does not say which of the two wins; csv.Sniffer picks one by rules of its own, and the check took that pick as the answer. The benchmark's own honest fix disagreed on 22 of 200,000 generated samples, which is about one refused run in sixty at 150 samples a run. The generator now leaves such samples out (tests/bench_tamper/real_tasks.py, `accept`); on 150,000 samples drawn after the change the honest fix and the other algorithm of this set both agreed with csv.Sniffer on every one.
+<!-- honest:end -->
+
 ## Python, pytest
 
 tests/bench_tamper/sample, attacked by tests/bench_tamper/attacks.py. Measured with Python 3.11.15 and pytest 9.1.1.

@@ -16,6 +16,7 @@ import * as rules from "./controls_data.js";
 export const SMALL = 20_000_000;          // under this the page warns: the minimum fee is a large share of a small order
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const code = (s) => esc(s).replace(/`([^`]*)`/g, "<code>$1</code>");
 const when = (t) => `${new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 const short = (a) => `${String(a).slice(0, 6)}…`;
 /** A fee as a share of the amount, to two decimals: 400000 of 5000000 -> "8.00%". */
@@ -228,4 +229,76 @@ export function receiptParts(o, events, tx, trusted = null) {
     [PARTS[3], authorised],
     [PARTS[4], trusted?.length ? `<ul>${trusted.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "GitHub's signing key, the pinned workflow's code, and Knos's upgrade multisig."],
   ];
+}
+
+// ---- 7. one order as four linked objects: what a finance reader sees on one screen ----------------------------------------------------------
+// `rec` is one record of web/finance_data.js recordsOf (audit.record in the Python): authorisation, acceptance,
+// commercial record, settlement status. Each is a card of at most six labelled values; the chip is the settlement
+// status in the five words every document uses; under Acceptance stands what is still trusted. Nothing here is
+// worked out again: every value is the record's own.
+export const OBJECT_NAMES = { authorisation: "Authorisation", acceptance: "Acceptance", commercial: "Commercial record", settlement: "Settlement status" };
+/** finance_data.js SETTLEMENTS -> the settlement words: paid outside Knos, payable, held, refunded, devnet demonstration.
+ *  A payment on devnet is test money, so it is a demonstration, never "paid"; a revert sends money back, as a refund does. */
+export const CHIP = { "paid on devnet (test money)": "devnet demonstration", held: "held", refunded: "refunded", reverted: "refunded", payable: "payable", "paid outside Knos": "paid outside Knos" };
+export const chipOf = (rec) => CHIP[rec?.settlement?.status] || "held";
+const cut = (v, n = 10) => { const t = String(v ?? ""); return t.length > n + 6 ? `${t.slice(0, n)}…${t.slice(-4)}` : t; };
+const units = (u, cur) => (cur === "test USDC" ? `${show(Number(u))} test USDC` : `${u} units of ${cur}`);
+
+/** [[label, html]] of each object, six at most: { authorisation, acceptance, commercial, settlement }. `explorer(kind, id)` makes a link. */
+export function objectValues(rec, explorer) {
+  const a = rec.authorisation, c = rec.acceptance, m = rec.commercial, s = rec.settlement, cur = m.currency;
+  const tx = (e) => `<a href="${esc(explorer("tx", e.transaction))}" target="_blank" rel="noopener">${esc(e.what)}</a>`;
+  const none = `<span class="fine">none</span>`;
+  return {
+    authorisation: [
+      ["Buyer", `GitHub id ${esc(a.buyer.owner_id)}${a.buyer.login ? ` (${esc(a.buyer.login)})` : ""}`],
+      ["Supplier", a.supplier.length ? a.supplier.map((x) => `GitHub id ${esc(x.github_id)}`).join(", ") : `<span class="fine">nobody yet</span>`],
+      ["Scope", a.scope.private ? "a private order" : `repository ${esc(a.scope.repository_id)}, issue #${esc(a.scope.issue)}`],
+      ["Budget", `${esc(a.budget.kind)}${a.budget.address ? ` <span class="mono" title="${esc(a.budget.address)}">${esc(cut(a.budget.address, 6))}</span>` : ""}`],
+      ["Approved by", `${esc(a.approved_by.funder)} (${esc(a.approved_by.role)})`],
+      ["Second approver", a.approved_by.two_person ? `${esc(a.approved_by.multisig.threshold)} of ${esc(a.approved_by.multisig.members.length)}, a multisig` : "none"],
+    ],
+    acceptance: [
+      ["Verdict", esc(c.verdict || (c.accepted ? "accepted" : "none yet"))],
+      ["Artifact", c.artifact ? `<span class="mono" title="${esc(c.artifact)}">${esc(cut(c.artifact, 14))}</span>` : none],
+      ["Policy", c.policy.terms_hash ? `<span class="mono" title="${esc(c.policy.terms_hash)}">${esc(cut(c.policy.terms_hash))}</span>` : none],
+      ["Policy version", esc(c.policy.version || "not recorded")],
+      ["Evaluator", c.evaluators.length ? esc(c.evaluators.map((e) => e.kind).join(", ")) : `<span class="fine">none yet</span>`],
+      ["Evidence", c.evidence.length ? c.evidence.map(tx).join(" · ") : none],
+    ],
+    commercial: [
+      ["Billable deliverable", `<span class="mono" title="${esc(m.deliverable)}">${esc(cut(m.deliverable))}</span>`],
+      ["Amount", esc(units(m.amount_units, cur))],
+      ["Fee", esc(units(m.fee_units, cur))],
+      ["Invoice line", m.invoice_ref ? esc(m.invoice_ref) : `<span class="fine">none given</span>`],
+      ["Dispute", m.dispute ? esc(m.dispute) : none],
+      ["Credit", m.correction ? `${esc(m.correction.kind)} of ${esc(units(m.correction.units, cur))}` : none],
+    ],
+    settlement: [
+      ["Paid", esc(units(s.paid_units, cur))],
+      ["Held", esc(units(s.held_units, cur))],
+      ["Sent back", esc(units(s.refunded_units + s.reverted_units, cur))],
+      ...(s.held_until ? [["Held until", esc(s.held_until)]] : []),
+      ...(s.paid_outside ? [["Paid outside Knos", esc(s.paid_outside)]] : []),
+    ],
+  };
+}
+
+/** What a reader still has to trust for this acceptance, in sentences: the record's own words about its evaluators. */
+export function trustedOf(rec) {
+  const c = rec.acceptance, own = c.evaluators.some((e) => e.independent_of_buyer === false);
+  return [c.independence || "Nothing has judged this order yet.", ...(own ? ["The evaluator ran in the buyer's own repository."] : []), "GitHub's signing key, and the workflow the order pinned."];
+}
+
+/** The four cards of one record, side by side where there is room. */
+export function objectsHtml(rec, explorer) {
+  const v = objectValues(rec, explorer), chip = chipOf(rec);
+  const card = (key, more = "") => `<section class="k-card" data-tilt data-object="${key}">
+      <p class="k-kicker">${esc(OBJECT_NAMES[key])}${key === "settlement" ? ` <span class="pill" data-chip="${esc(chip)}">${esc(chip)}</span>` : ""}</p>
+      <dl class="facts">${v[key].map(([k, html]) => `<dt>${esc(k)}</dt><dd>${html}</dd>`).join("")}</dl>${more}</section>`;
+  return `<div class="k-objects k-stage" data-deliverable="${esc(rec.id)}" data-chip="${esc(chip)}">
+    ${card("authorisation")}
+    ${card("acceptance", `<p class="k-kicker">What remains trusted</p><ul class="plain" data-object-trust>${trustedOf(rec).map((t) => `<li class="fine">${code(t)}</li>`).join("")}</ul>`)}
+    ${card("commercial")}
+    ${card("settlement", `<p class="fine" data-object-said>${esc(rec.settlement.said)}</p>`)}</div>`;
 }
