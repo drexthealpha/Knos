@@ -6,15 +6,20 @@ the security model; [INVARIANTS.md](INVARIANTS.md) is what the programs guarante
 
 **The short version.** One person can change every program, 48 hours after saying so in public. Both multisigs are
 2-of-3 over the same three member keys, and all three are the founder's. So the 48-hour delay gives **notice**. It does not give
-independent oversight: nobody else has to agree, and nobody else can refuse. No outside signer exists, and nobody
-has agreed to become one.
+independent oversight: nobody else has to agree, and nobody else can refuse.
+
+**Outside key holders today: 0.** What would change it: one person opens a "Key holder request"
+([KEYHOLDER.md](KEYHOLDER.md), one page) and the founder runs one command (section 5).
+
+**One machine holds enough keys to do everything:** the founder's key folder has the key that writes build buffers
+and all three member keys (section 6).
 
 **Three plans are on this page, and none of them is a fact.** Each waits on a person who does not exist yet.
 
 | plan | where | what has been done |
 |---|---|---|
-| An outside key holder on each multisig: what they would check before every vote | sections 4 and 5 | nothing: nobody has been asked |
-| A two-owner organisation for the pinned workflows and the relay | section 9; [TEAM.md](TEAM.md) | nothing: the organisation does not exist |
+| An outside key holder on each multisig: what they would check before every vote | sections 4 and 5; [KEYHOLDER.md](KEYHOLDER.md) | nothing: nobody has been asked. The page they would read and the command that adds their key are written and tested |
+| A two-owner organisation for the pinned workflows and the relay | section 9 | nothing: the organisation does not exist |
 | The verifier frozen after an outside review; the escrow kept upgradeable behind the delay | section 7 | nothing: no review has been done or commissioned |
 
 ## 1. Who can change what
@@ -49,8 +54,7 @@ accounts. On devnet the Squads program itself has an upgrade authority, which is
   48 hours, so the order's money is still in the program when the upgrade runs unless its deadline was already
   near. An order funded from a Balance by comment is cancelled by a comment in its repository. So the notice fully
   protects Balances, and protects orders only when their deadline falls inside it.
-- **They are not oversight.** The same person proposes, approves and executes. A second approval by the same person
-  is a second key, not a second opinion.
+- **They are not oversight.** The same person proposes, approves and executes.
 - **Nothing is sent to anyone.** No comment is posted on repositories with open orders, and no email exists. The
   notice reaches someone who looks, or who subscribed to the feed.
 
@@ -62,17 +66,15 @@ proposed `knos_pay`: a pay token that had paid an order could pay a second order
 at the same address ([SECURITY.md](SECURITY.md), section 15). The build never ran, so no order was ever exposed to
 it. 0.3.14 withdraws both proposals and proposes corrected builds in their place, which start a new 48 hours.
 
-Two things to take from this. The defect was found by reading and testing during the delay, which is the use the
-delay is for. And it was not found by an independent signer, because there is none: had nobody looked, one person
-could have executed the defective build on schedule.
+The defect was found by the founder reading and testing during the delay, which is the use the delay is for. Had
+he not looked, the defective build could have been executed on schedule.
 
 The chain is the record of this, not this page: in `web/upgrades.json` proposals 1 and 2 read `replaced` once the
 cancelling votes are on chain, and `pending` until then.
 
 ## 4. An independent signer: what they would be asked to do
 
-Nobody holds this role. This section is the job description, written so that the day a person agrees there is
-nothing left to invent.
+This section is the job description of an outside key holder.
 
 **Before voting for an upgrade, an independent signer checks four things, on their own machine:**
 
@@ -101,36 +103,74 @@ be available at short notice for anything but a revocation.
 
 ## 5. The procedure to add one
 
-It waits on a person. No one has agreed, so none of these steps has been taken.
+Nothing here has been sent: there is no outside key to add. The commands exist and are tested against the multisig
+accounts as devnet holds them (`scripts/governance.test.mjs`, with `tests/fixtures/governance_v2.json`).
 
-1. The person makes a Solana key on a device they alone control and sends its address over a channel where the
-   founder can confirm it is theirs.
-2. A config transaction of the upgrade multisig replaces one of the founder's three keys with theirs, so that the
-   multisig stays 2-of-3 with two of the founder's keys and one independent: Squads v4's `ConfigTransaction` with
-   the actions `AddMember` and `RemoveMember` ([Squads v4](https://github.com/Squads-Protocol/v4)).
-   `scripts/governance.mjs` has no command for this yet; it is written when there is a key to add.
-3. The founder's two votes approve it. The multisig's own 48 hours apply. The proposal shows in `knos status` as
-   "a change to the upgrade multisig itself".
-4. After it runs, `node scripts/governance.mjs show --check` and `knos status` print the new member list, and
-   this page and [DISCLOSURE.md](DISCLOSURE.md) name the signer, if they agree to be named.
-5. The same for the guardian multisig, with no delay.
+1. The person makes a key on their own machine and opens a "Key holder request" with its public key
+   ([KEYHOLDER.md](KEYHOLDER.md)). The founder confirms over the contact they gave that the key is theirs.
+2. The founder prints the change, and what will be true once it has executed, for both multisigs:
 
-**One independent key of three does not yet bind the founder,** who still holds two. The step that does is the
-next one: two independent keys of three, or a threshold of 3 of 3 with a recovery rule. Which of the two is not
-decided; it will be decided with the first signer, and written here.
+   ```
+   node scripts/governance.mjs replace-member <one of the founder's keys> <the new public key>
+   ```
 
-## 6. Separating who deploys from who approves
+   It sends nothing. It prints the members afterwards, the threshold, how many voting keys the founder holds, how
+   many outside key holders there are, and in one line whether the founder alone can still approve. The new key gets
+   the permission to vote and no other (`--permissions` changes that). `add-member <key>` adds without removing;
+   `set-threshold <N>` changes how many must approve; `--on upgrade` or `--on guardian` takes one multisig.
+3. The same command with `--send` creates the proposal (a Squads v4 config transaction carrying `AddMember`,
+   `RemoveMember` and, if asked, `ChangeThreshold`:
+   [Squads documentation](https://docs.squads.so/main/development/typescript/instructions/create-config-transaction))
+   and casts the founder's two votes.
+4. `node scripts/governance.mjs execute upgrade <index>` runs it once the multisig's own 48 hours have passed;
+   `execute guardian <index>` at once. When a change of members or threshold executes, every proposal of that
+   multisig that was not yet approved becomes stale and must be proposed again; one already approved can still run.
+5. `node scripts/governance.mjs show --check` prints the new member list. The holder is added to
+   [`web/keyholders.json`](../web/keyholders.json), and the count at the top of this page changes.
 
-Today one person builds the program, writes the buffer, proposes the upgrade, casts both votes and executes it.
+**What has not been run:** `--send` and the execution of a config transaction have never been sent to a cluster or
+a local validator. What is tested is the plan, its refusals, and the bytes of the instruction the Squads SDK builds
+from it.
 
-The target, once a second person exists: the key that writes buffers and creates proposals has the Squads
-permission to initiate and no vote; the keys that vote do not deploy. Squads v4 gives each member its own
-permissions (initiate, vote, execute), so the split is enforced by the multisig and not by a promise. Until a
-second person exists the split would be two keys of one person, which separates nothing, so it has not been made.
+**One outside key of three does not bind the founder,** who still holds two: the command prints "the founder alone
+can STILL approve an upgrade". The step that binds is the next one: two outside keys of three, or a threshold of 3 of
+3, where one lost key ends upgrades for good. Which of the two is decided with the first key holder.
 
-What already separates a build from the person who proposes it is the gate: `scripts/governance.mjs upgrade
-propose` refuses a buffer whose bytes GitHub's runner did not build from a commit of this repository. That check is
-in the script. The multisig itself would execute an ungated proposal.
+## 6. Who deploys and who approves: what one key can do
+
+Three kinds of key are involved in an upgrade. The addresses are the ones devnet holds.
+
+| key | address | what it can do alone |
+|---|---|---|
+| The deploy fee payer (`payer.json` in the key folder) | not published; it is no member of either multisig | Write a build to a buffer and hand the buffer to the vault. It cannot propose, vote or execute, and it cannot sign the loader's `Upgrade`. |
+| One member key | `8fjcaqHZ6RLPZfz9SmgA2QaUgmfLtEYnypKVWTK5VQKH`, `9bhAo5aP3FMe4kcENkrKtCKcth189xK4A4uiB1QMZBC5` or `DnfkiqUyTAKvBwFr8ZR7iV9FKL2QuG857NmfLf5Tb2iE` | Create a proposal, cast one of the two approvals, and execute a proposal the others approved once its delay has passed. Alone it cannot approve, reject or cancel. |
+| The upgrade vault | `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` | It is the upgrade authority of all four programs and the only signer the loader's `Upgrade` takes. It has no private key: it is an address of the Squads program, which signs for it only when executing a proposal of multisig `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK` that 2 members approved 48 hours before. |
+
+**So the key that deploys a build buffer cannot by itself authorise the upgrade.** Where this is checked:
+
+- `scripts/governance.test.mjs`, "the key that writes a build buffer cannot authorise the upgrade, and one member
+  key cannot either": the `Upgrade` instruction's one signer is the vault; the vault is not on the Ed25519 curve, so
+  no key file signs for it; the vault and the fee payer are not members; one member key has one vote of the two
+  needed; two member keys have every power. It reads the multisig account as devnet holds it.
+- [DRILLS.md](DRILLS.md), the four rows of the upgrade drill, run against the real Squads program on a local
+  validator: an approved upgrade is refused before its 48 hours (`TimeLockNotReleased`) and a cancelled one never
+  runs (`InvalidProposalStatus`).
+- Not drilled: a key that is no member sending a proposal or a vote to the Squads program and being refused. The
+  test above reads the member list; it does not send that transaction.
+
+**What one compromised key can do.**
+
+- *The deploy fee payer:* spend its own SOL, and put a buffer of any bytes in the vault's name. Nothing runs from a
+  buffer until 2 members approve a proposal that names it, and `upgrade propose` refuses bytes GitHub's runner did
+  not build (that check is in the script, not in the multisig).
+- *One member key:* create proposals, which are public and do nothing without a second approval, and cast one vote.
+- *Two member keys:* everything, 48 hours later for the programs and at once for the guardian.
+
+**The present setup does not separate these duties.** One key folder (`.knos-keys`) on one machine holds the deploy
+fee payer and all three member keys, so whoever has that machine has every power above. Splitting them between two
+of the founder's own machines would separate nothing that matters. The separation is a second person's key
+(section 5); Squads v4 gives each member its own permissions (initiate, vote, execute), so a key that deploys and
+proposes can be given no vote.
 
 ## 7. The long-term upgrade model
 
@@ -154,8 +194,7 @@ then the freeze, proposed through the multisig with its 48 hours like any other 
 the verifier, as a correction to how it reads a token's claims does, is a reason the freeze is not earlier: a
 frozen verifier could not have taken it.
 
-None of this has happened. No outside review has been done or commissioned, so both programs are upgradeable
-today, by one person.
+None of this has happened: both programs are upgradeable today.
 
 ## 8. Keys and procedures
 
@@ -231,31 +270,56 @@ it does:
 The step-by-step version for a funder, with what each step shows, is in [DRILLS.md](DRILLS.md). Work that was
 accepted but not yet paid when the account was suspended is not paid: the seller's remedy is outside the program.
 
-**The plan.** Move the workflows and the relay to an organisation account with two owners: the founder and one
-other person, each signing in with their own second factor, so that losing or suspending either account leaves
-the other able to keep the workflows published. The six steps, in order, are in [TEAM.md](TEAM.md).
+**The plan: a second owner for the workflows.** Not done: the organisation does not exist, no repository has
+moved, and its first step needs a second person. Move the workflows and the relay to
+an organisation account with two owners, the founder and one other person, each signing in with their own second
+factor, so that losing or suspending either account leaves the other able to keep the workflows published.
 
-- The pinned workflows are named in the programs by repository and commit (`ROTATE_REF`, `CLAIM_REF`), and each
-  order stores the repository it pinned. So the move is an upgrade of `knos_oidc` and `knos_pay` that accepts the
-  organisation's repositories beside the old ones; orders funded before it keep their old pin until they close.
-  The old repositories stay where they are for that long.
-- The relay moves by running the same workflow in the organisation; it holds one fee-paying key and nobody's
-  money.
+What the programs hold, which decides how the move must be made:
+
+- **An order stores the repository and the commit of the workflows it pinned** (`wf_repo`, the sha256 of
+  `<owner>/<name>`, and `wf_sha`; [`gh.rs`](../programs-v2/knos_pay/src/gh.rs)). A token pays it only if GitHub
+  signed it for a workflow file in exactly that repository at exactly that commit.
+- **The rotate and claim workflows, and the account whose runs admit a new signing key, are constants of the
+  programs** (`ROTATE_REF`, `CLAIM_REF`, `ATTEST_OWNER_ID`, `ATTEST_REPO_IDS`; [`pins.rs`](../programs-v2/knos_oidc/src/pins.rs)).
+
+The steps, in order:
+
+1. **Create the organisation with two owners.** Each owner signs in with a second factor of their own. An
+   organisation with one owner changes little: it depends on that owner's account.
+2. **Publish the pinned workflows there as a new repository, by pushing the same commits.** Do not use GitHub's
+   "transfer repository" on `drexthealpha/knos-workflows`: a transfer changes `<owner>/<name>`, and an open order
+   is paid only by a token that names the old one. Which name GitHub signs after a transfer has not been tested
+   here, so the plan does not depend on it. Pushed commits keep their hashes, so `wf_sha` stays the same; only the
+   owner in the name changes. This needs no program change.
+3. **Change what the installer writes.** `examples/knos-install.yml`, `examples/knos-workflow.yml` and
+   `knos init` name the organisation's repository in their `uses:` lines. New orders then record the new `wf_repo`.
+4. **What a paying repository must re-pin.** The `uses:` lines of its `.github/workflows/knos.yml` (the long form has
+   three: `fund.yml` once and `prove.yml` twice): the owner changes, the commit does not. A repository with open orders funded
+   under the old pin keeps the old lines until those orders are paid or refunded, holdbacks included, because they
+   are paid only by the old repository's workflow. Then it re-pins. A repository that never re-pins keeps working
+   for as long as the old repository is available.
+5. **Move the rotate and claim workflows by a program upgrade.** `knos_oidc` and `knos_pay` accept the
+   organisation's `ROTATE_REF`, `CLAIM_REF` and owner id beside the old ones. It passes through the multisig and its
+   48 hours like any upgrade.
+6. **Run the relay from the organisation,** and a second one somewhere that is not GitHub. A relay holds one
+   fee-paying key and nobody's money ([OPERATOR.md](OPERATOR.md)).
+7. **Retire the old location.** When no open order records the old `wf_repo` (the chain says: every Order account's
+   `wf_repo`), archive `drexthealpha/knos-workflows` read-only; do not delete it, so that a late token can still be
+   checked against its source. A later upgrade removes the personal account's `ROTATE_REF`, `CLAIM_REF` and owner
+   id from the constants.
+
 - **One part is not solved.** The run that admits a *new* signing key must be on a runner GitHub itself controls.
   A personal account cannot have runners with its own image; an organisation on a paid plan can
   ([SECURITY.md](SECURITY.md), section 1). So the attesting account cannot simply become an organisation. The
   options are an organisation that stays on the free plan, or several independent personal accounts of which more
   than one must attest. Neither is chosen.
-- **An organisation with one owner changes little:** it depends on that owner's account. The second owner is a
-  person, and that person does not exist yet. This move, the independent signer and the verifier's freeze all
-  wait on the same thing.
-
-Not done: the organisation does not exist, and no repository has moved.
 
 ## 10. What is missing, in one list
 
-- An independent signer on either multisig. Nobody has agreed to be one.
-- A second person for any duty: review, deploy, approve, relay, respond.
+- An outside key holder on either multisig ([KEYHOLDER.md](KEYHOLDER.md)).
+- A second person for any duty: review, deploy, approve, relay, respond ([OPERATOR.md](OPERATOR.md) is the
+  checklist; nobody has run it).
 - An outside review of anything. The verifier's freeze waits on it.
 - A written description of how the member keys are stored and recovered.
 - A notice pushed to funders. The feed and the banner are pulled, not pushed.

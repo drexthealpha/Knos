@@ -30,6 +30,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 MARK = "knos-guard"   # every hook Knos ever installed carries this marker in its command
 
@@ -257,7 +258,7 @@ def _toml_without(text: str) -> str:
 def _mcp_toml(path: Path, install: bool) -> bool:
     text = _read_text(path)
     before = _toml(text, path)
-    servers = before.get("mcp_servers") if isinstance(before.get("mcp_servers"), dict) else {}
+    servers: dict = before["mcp_servers"] if isinstance(before.get("mcp_servers"), dict) else {}
     have = servers.get("knos")
     if install and have is not None and _works(have):
         return False                          # this product's server is already there: leave the user's file alone
@@ -341,7 +342,7 @@ def _remove_project_servers(path: Path) -> list[str]:
         data = _load(path)
     except Unreadable:
         return []
-    projects = data.get("projects")
+    projects: Any = data.get("projects")
     stale = [p for p, v in projects.items() if isinstance(v, dict) and isinstance(v.get("mcpServers"), dict)
              and "knos" in v["mcpServers"] and not _works(v["mcpServers"]["knos"])] if isinstance(projects, dict) else []
     for p in stale:
@@ -593,7 +594,7 @@ def _cursor(root: Path, home: Path | None, argv: list[str], rep: dict) -> None:
     f = root / ".cursor" / "cli.json"
     def allow(d: dict) -> None:
         perms = _table(d, "permissions", f)
-        have = perms.get("allow") if isinstance(perms.get("allow"), list) else []
+        have: list = perms["allow"] if isinstance(perms.get("allow"), list) else []
         perms["allow"] = [*have, *(a for a in (f"Mcp(knos:{t})" for t in read_only_tools()) if a not in have)]
     rep["files"].append((f, "tools the Cursor CLI may run without asking: the reading ones", _edit(f, allow)))
     rep["notes"].append("Cursor's editor asks before each MCP tool unless you allow it in its settings; mcp.json has no field for that.")

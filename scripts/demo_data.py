@@ -8,9 +8,15 @@ repository by a pattern, and a pattern that finds nothing stops the script. What
 out (the rehearsal's order is recorded with its address, not with its terms hash, so the demo shows the address; the
 signed token of that order is not printed anywhere, so the demo names the three claims and shows no values).
 
-`ids` says where the round ran: "public" when docs/capabilities.json holds exercised evidence, at the public program ids,
-for the very funding and payment shown; "staging" otherwise (the 0.3.14 rehearsal). The script prefers the first and
-prints which it used; web/demo.js says it over the demo.
+`ids` says where the round ran: "public" when docs/capabilities.json holds a `public_round` (written by
+scripts/exercise_public.py record from a run at the public program ids) whose funding and payment are the exercised
+evidence of `work_orders` and `order_pay`; "staging" otherwise (the 0.3.14 rehearsal). The script prefers the first
+and prints which it used; web/demo.js says it over the demo. A public round's fund, paid, replay and count are that
+run's own transactions, each one linked.
+
+The refusal shown is the single-use rule's own: the order's fund token sent a second time, refused with the error
+programs-v2/knos_pay/src/lib.rs calls E_REPLAY ("a token works once"). Until 0.3.16 the demo showed the pay token's
+second use, which the program refuses earlier and for another reason (83: the order is not in the state this needs).
 
 Where each part comes from:
 - fund, paid, replay, count: docs/CAPABILITIES.md, "The 0.3.14 rehearsal on devnet" (parts 1, 2 and 5): transactions
@@ -31,7 +37,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "web" / "demo_data.json"
-SOURCES = ("docs/CAPABILITIES.md", "docs/capabilities.json", "docs/TAMPER.md", "docs/bench.json", "docs/facts.json", "docs/OIDC.md")
+SOURCES = ("docs/CAPABILITIES.md", "docs/capabilities.json", "docs/TAMPER.md", "docs/bench.json", "docs/facts.json", "docs/OIDC.md",
+           "programs-v2/knos_pay/src/lib.rs")
 SIG = r"[1-9A-HJ-NP-Za-km-z]{60,90}"
 TX = rf"\[[^\]]+\]\(https://explorer\.solana\.com/tx/({SIG})\?cluster=devnet\)"
 CLAIMS = (("repository_id", "repository"), ("sha", "commit"), ("job_workflow_ref", "workflow"))
@@ -52,25 +59,29 @@ def _number(text: str) -> int:
     return int(text.replace(",", ""))
 
 
-def ids_used(capabilities: list[dict], fund_tx: str, pay_tx: str) -> tuple[str, str]:
-    """Which program ids the round shown ran at, and why, in words. "public" only when docs/capabilities.json holds
-    `exercised` evidence for the order's funding and its payment (which scripts/capabilities.py takes at the public
-    program ids alone) and those two transactions are the round's own. Anything else is the staging rehearsal."""
-    by = {c["id"]: c for c in capabilities}
+def public_round(manifest: dict) -> dict | None:
+    """The round scripts/exercise_public.py recorded at the public program ids, when its funding and its payment are
+    the exercised evidence of `work_orders` and `order_pay`. None otherwise: the staging rehearsal is then shown."""
+    got = manifest.get("public_round")
+    by = {c["id"]: c for c in manifest["capabilities"]}
     sigs = [by.get(i, {}).get("evidence", {}).get("exercised", {}).get("signature") for i in ("work_orders", "order_pay")]
-    if all(sigs) and sigs == [fund_tx, pay_tx]:
-        return "public", "the round is the one docs/capabilities.json records as exercised at the public program ids"
-    if all(sigs):
-        return "staging", ("docs/capabilities.json records exercised transactions at the public program ids, but docs/CAPABILITIES.md records no whole "
-                           "round with them (order, refusal, counts): the staging rehearsal is shown until it does")
-    return "staging", "docs/capabilities.json records no exercised funding and payment at the public program ids: the staging rehearsal is shown"
+    return got if got and all(sigs) and sigs == [got["fund"]["tx"], got["paid"]["tx"]] else None
+
+
+def ids_used(manifest: dict) -> tuple[str, str]:
+    """Which program ids the round shown ran at, and why, in words."""
+    if public_round(manifest):
+        return "public", "the round is the one docs/capabilities.json records as exercised at the public program ids (`public_round`)"
+    return "staging", ("docs/capabilities.json records no whole round at the public program ids (funding, payment, refusal and the two counts): "
+                       "the staging rehearsal is shown")
 
 
 def build() -> str:
     cap = _read("docs/CAPABILITIES.md")
     start = cap.index("## The 0.3.14 rehearsal on devnet")
     reh = cap[start:]
-    capabilities = json.loads(_read("docs/capabilities.json"))["capabilities"]
+    manifest = json.loads(_read("docs/capabilities.json"))
+    capabilities = manifest["capabilities"]
     notes = {c["id"]: c.get("note", "") for c in capabilities}
     bench = json.loads(_read("docs/bench.json"))
     facts = json.loads(_read("docs/facts.json"))["facts"]
@@ -81,11 +92,18 @@ def build() -> str:
     fund = _find(rf"\| The first fund token is relayed \| {TX} \| order `([1-9A-HJ-NP-Za-km-z]{{32,44}})` funded with ([\d.,]+), its fee of ([\d.]+) on top",
                  reh, "the funded order")
     paid = _find(rf"\| The merged pull request's pay token is relayed \| {TX} \| ([\d.,]+) paid to the payee", reh, "the payment")
-    again = _find(rf"\| The first pay token, sent again \| {TX}[^|]*\| refused, error (\d+)", reh, "the refused replay")
-    means = " ".join(_find(rf"\b{again[2]}: ([^;.]+)[;.]", reh, "what the replay's error means")[1].split())
     once = _find(r"(\d+): (a token works\s+once)", reh, "the single-use error")
-    if ids_used(capabilities, fund[1], paid[1])[0] != "public" and (fund[1] not in notes["work_orders"] or paid[1] not in notes["order_pay"]):
-        raise SystemExit("docs/capabilities.json no longer names the rehearsal's fund and pay transactions")
+    lib = _read("programs-v2/knos_pay/src/lib.rs")
+    if int(_find(r"pub const E_REPLAY: u32 = (\d+);", lib, "the single-use error of knos_pay")[1]) != int(once[1]):
+        raise SystemExit("docs/CAPABILITIES.md and programs-v2/knos_pay/src/lib.rs disagree on the single-use error")
+    # the order's own fund token, sent again: the first transaction of the FundOrderBalance row's "sent again" cell
+    again = _find(rf"\| FundOrderBalance \| {TX}[^|]*\| {TX}[^|]*: (\d+) \|", reh, "the refused second use of the fund token")
+    if again[1] != fund[1] or again[3] != once[1]:
+        raise SystemExit("the rehearsal no longer records the fund token's second use as refused by the single-use rule")
+    stages = {c["id"]: c["stage"] for c in capabilities}
+    for cid, sig in (("work_orders", fund[1]), ("order_pay", paid[1])):     # a capability exercised since then no longer carries the rehearsal's note
+        if stages[cid] != "exercised" and sig not in notes[cid]:
+            raise SystemExit("docs/capabilities.json no longer names the rehearsal's fund and pay transactions")
     count = _find(rf"([\d,]+) evaluations were anchored in two batches of [\d,]+ \({TX}, {TX}\), and the\s+seller wrote its own count of the same month, "
                   rf"([\d,]+), in two claims \({TX}, {TX}\)", reh, "the two counts")
     apart = _find(r"found the two counts (\d+) evaluations apart", reh, "how far apart the counts were")[1]
@@ -108,7 +126,7 @@ def build() -> str:
     doc = {
         "_about": "Written by scripts/demo_data.py from the documents under `sources`; tests/test_site_demo.py holds every signature and number to them.",
         "cluster": "devnet",
-        "ids": ids_used(capabilities, fund[1], paid[1])[0],
+        "ids": ids_used(manifest)[0],
         "date": date,
         "money": "test USDC",
         "fund": {"comment": comment, "tx": fund[1], "order": fund[2], "amount": fund[3], "fee": fund[4]},
@@ -116,17 +134,23 @@ def build() -> str:
                   "attack": int(row[1]), "pull": row[2], "ci": row[3], "knos": row[4], "check": row[6]},
         "fixed": {"ci": control[1], "tests": control[2], "black_box": control[3], "claims": [{"name": n, "is": w} for n, w in CLAIMS]},
         "paid": {"tx": paid[1], "amount": paid[2], "seconds": wait["median"], "payments": wait["count"], "window": wait["window"]},
-        "replay": {"tx": again[1], "error": int(again[2]), "means": means, "single_use_error": int(once[1]), "single_use": " ".join(once[2].split())},
+        "replay": {"tx": again[2], "error": int(again[3]), "means": " ".join(once[2].split()), "single_use_error": int(once[1]),
+                   "single_use": " ".join(once[2].split())},
         "count": {"buyer": buyer, "seller": seller, "apart": int(apart), "buyer_tx": [count[2], count[3]], "seller_tx": [count[5], count[6]]},
         "sources": list(SOURCES),
     }
+    shown = public_round(manifest)
+    if shown:       # the run at the public program ids replaces the rehearsal's four parts, whole
+        if shown["replay"]["error"] != int(once[1]) or shown["count"]["seller"] - shown["count"]["buyer"] != shown["count"]["apart"]:
+            raise SystemExit("the public round's refusal is not the single-use error, or its counts and their difference disagree")
+        doc.update(date=shown["date"], fund=shown["fund"], paid={**doc["paid"], **shown["paid"]}, count=shown["count"],
+                   replay={**shown["replay"], "single_use_error": int(once[1]), "single_use": " ".join(once[2].split())})
     return json.dumps(doc, indent=1, ensure_ascii=False) + "\n"
 
 
 def main(argv: list[str]) -> int:
     text = build()
-    doc = json.loads(text)
-    used = ids_used(json.loads(_read("docs/capabilities.json"))["capabilities"], doc["fund"]["tx"], doc["paid"]["tx"])
+    used = ids_used(json.loads(_read("docs/capabilities.json")))
     print(f"program ids of the round shown: {used[0]} ({used[1]})")
     if "--check" in argv:
         if not OUT.exists() or OUT.read_text(encoding="utf-8") != text:

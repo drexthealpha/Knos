@@ -47,6 +47,11 @@ It does not hide:
 It also changes who is trusted: nobody outside the organisation can check what the attestor read. That is on the
 receipt, under "What trust remains".
 
+A buyer who cannot let even an attestor's tokens name its repositories, or a supplier who will not rely on a judge
+the buyer alone controls, has another path: the acceptance runs on a runner inside the network, only a verdict, hashes
+and the forge's signed token leave, and the evidence is sealed to both parties ([PRIVATE.md](PRIVATE.md)). No
+customer has run it.
+
 A private repository that relays its own tokens with its own key posts nothing as a comment and writes nothing to
 the public relay's log. `knos receipt mirror` and `knos bundle make` build nothing for a private order, so neither
 publishes one.
@@ -74,6 +79,7 @@ buyer's, so a difference between them is public as two numbers; which evaluation
 | Closed accounts | An order's or a token's account can be closed and its rent returned. The transactions that created it, with their data and logs, stay. | nobody |
 | The receipt mirror | Until whoever serves it removes a file. `knos receipt mirror` never removes one. A copy someone else took is theirs. | the mirror's owner |
 | Evidence bundles | Until each holder deletes its copy. A bundle holds the signed token, so treat it as you treat the token's claims. | each holder |
+| Sealed bundles (the vault) | As long as the retention policy file says: N years of 365 days from sealing, then the sealed file is deleted, or removed with its hash kept. `knos vault retain --policy FILE --dry-run` prints what would go. A copy another recipient holds is theirs. ([VAULT.md](VAULT.md)) | whoever holds the vault folder |
 | Batch ledgers | As long as the party who keeps them decides. Knos keeps none. | the buyer and the seller, each for its own |
 | The host | Workflow logs, check runs and comments follow GitHub's or GitLab's retention and the repository's settings. | the repository's owner |
 

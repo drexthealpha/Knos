@@ -168,7 +168,7 @@ export function availability({ version, funding, up = { upgrades: [] } }) {
           : "Available when the upgrade of knos_pay executes. None is proposed that this page can see, so it has no date.";
     return { ok: false, kind: "upgrade", words };
   }
-  if (version === null || version === undefined) return { ok: false, kind: "unread", words: "This page could not ask devnet which version of knos_pay is live, so nothing can be sent from here. Reload the page to try again." };
+  if (version === null || version === undefined) return { ok: false, kind: "unread", words: "Devnet did not say which knos_pay is live. Nothing can be sent. Reload to try again." };
   if (!funding) return { ok: false, kind: "client", words: "This copy of the page's client library (settle.js) has no call that builds the funding of an order yet, so nothing can be sent from here." };
   return { ok: true, kind: "live", words: version === 1 ? "The program on devnet is 2.1: it takes this." : `knos_pay on devnet answers version ${version}: it takes this.` };
 }

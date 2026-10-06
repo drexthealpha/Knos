@@ -1,5 +1,100 @@
 # Changelog
 
+## 0.3.17 (October 2026)
+
+**Bring your own invoice: correct work is accepted, every line has one of four verdicts and four ids, and every
+recording mode writes to one ledger of events.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) unless a line below says otherwise; nothing new was reproduced by
+anyone else.
+
+### For a visitor, a buyer and a supplier
+
+- **The front door is your invoice.** Paste a supplier's invoice or type a public repository on the site's first
+  screen: a neutral count and every mismatch, with no install, no wallet and no sign-up. The recorded round moved
+  below it, and one page tells it in eight steps, each with one piece of evidence
+  ([`docs/STORY.md`](docs/STORY.md)).
+- **Correct work is accepted.** The black-box judge used to refuse a correct fix that added its own regression
+  test in a protected place: 39 of 48 honest submissions passed. It now accepts 61 of 61, and still accepts 0 of 63
+  cheats on the sample project, 0 of 102 on six real tasks, 0 of 25 on tasks that are not code and 0 of 14 aimed
+  at what a pull request may add, all from one run of the whole benchmark with this judge. Both rates are measured on
+  Knos's own tasks, by the people who wrote the judge ([`docs/TAMPER.md`](docs/TAMPER.md)).
+- **Four verdicts, four ids.** A verdict is accepted, rejected, insufficient evidence or disputed. A deliverable, an
+  evaluation, an invoice line and a settlement each have an id of their own, built the same way everywhere
+  (`src/knos/ids.py`). A judge that did not reach an answer says insufficient evidence, never rejected.
+- **A statement for accounts payable.** `knos statement` turns a checked invoice into a statement whose lines are
+  agreed, disputed, duplicate or insufficient evidence, as JSON, CSV and PDF with the same content, and records who
+  approved it and how it was paid. It needs no chain and no wallet
+  ([`docs/FINANCE.md`](docs/FINANCE.md), section 4a).
+- **It looks like procurement.** Rate cards that cite terms by hash, standing offers, budget envelopes, roles and
+  approval chains are files in the buyer's own repository, read by the command line and the console with the same
+  code. The program does not enforce them ([`docs/CONTROLS.md`](docs/CONTROLS.md), section 9).
+- **The supplier is a user.** `knos preflight` says before a pull request is opened what the terms protect and what
+  the change would be refused for. Every refusal has a code and two plain sentences. `/knos appeal <reason>` makes
+  a verdict disputed and has the neutral judge run the checks again, at no cost to the supplier; the workflow does
+  not act on that comment yet. `knos keep` writes the supplier's own copy of the evidence
+  ([`docs/SUPPLIER.md`](docs/SUPPLIER.md)).
+- **The price book has seven lines and one billing rule:** a month's invoice is the subscription, plus the greater
+  of Meter charges and Verify charges, plus anything agreed separately. Meter and Verify are never added for the
+  same activity, and the rated party never pays. These are proposed prices: nobody has paid one
+  ([`docs/MARKET.md`](docs/MARKET.md), section 3).
+
+### Underneath
+
+- **One ledger of events.** Recording singly, in a batch, by settlement, in shadow mode and by import now pass
+  through one function. An id that arrives twice is counted once and both arrivals stay on record; the same id with
+  different content is refused. A correction names the event it changes, and the other party signs the log up to a
+  head with a GitHub token, checked off chain ([`docs/EVENTS.md`](docs/EVENTS.md)).
+- **Evidence that outlives devnet.** `knos vault` seals a bundle to the buyer, the supplier and an auditor, exports
+  a plain archive, applies a retention policy and writes a checkpoint. A test deletes the working copy and the
+  chain's record and restores from the archive alone. No customer keeps a vault
+  ([`docs/VAULT.md`](docs/VAULT.md)).
+- **A path for private repositories.** The acceptance runs inside the customer's network; only the verdict, hashes
+  and the forge's signed token leave, and what a dispute needs is sealed to both parties. No private-repository
+  customer has run it, and its record pays nothing yet ([`docs/PRIVATE.md`](docs/PRIVATE.md)).
+- **A signer that is not a forge.** A Kubernetes cluster's service-account token signs one evaluation of the
+  data-transformation example. The check is tested on a token of the same shape, and a kind cluster's token was
+  verified offline in staging run 37483745385; nothing of it is on chain, and the meter does not count it
+  ([`docs/OUTCOMES.md`](docs/OUTCOMES.md)).
+- **ES256 tokens, in one transaction.** `knos_oidc` gains an instruction that checks what Solana's secp256r1
+  precompile verified. A token's signing input can be 780 bytes at most. It ships in the same build as the strict
+  JSON reader of 0.3.16, and that build is not deployed ([`docs/ES256.md`](docs/ES256.md)).
+- **The fee's bounds, tier by tier.** A crate of model-checker harnesses over the program's own lines verifies
+  every bound in every tier but one: "at most 2.5% of the amount" at the default rate in the first tier, which is
+  tested at every amount instead ([`docs/INVARIANTS.md`](docs/INVARIANTS.md), [`docs/kani.json`](docs/kani.json)).
+- **The relay can be woken by an event,** and carries tokens from a queue with several workers; the timer's pass
+  stays as the sweep. One event run has happened, in the staging repository, and it carried no token: no token
+  carried by an event has been timed ([`docs/RELAY.md`](docs/RELAY.md)).
+- **The Agent PR Index has a leaderboard,** as a page, a file and a feed: a place only for an agent with at least
+  30 merged pull requests, an interval beside every rate, and a link to dispute each row
+  ([`docs/INDEX.md`](docs/INDEX.md)).
+- **A program of your own that reads the verifier:** `examples/reader_template` is a whole program in a workspace of
+  its own, built against the interface crate by tag ([`docs/COMPOSE.md`](docs/COMPOSE.md)).
+- **Hold a key, run it without the founder.** One page for a first outside key holder: make a key, keep it, ask;
+  adding it is then one command ([`docs/KEYHOLDER.md`](docs/KEYHOLDER.md)). And a checklist and a drill for a
+  second operator ([`docs/OPERATOR.md`](docs/OPERATOR.md)). Nobody has done either.
+- **Types.** mypy checks `src/knos` in full except one module named in `pyproject.toml`, `knos.settle.v2.relay`,
+  which is to come out after this release.
+- **No program crate moved.** The four programs and the two interface crates stay at the version their builds were
+  made at, so three programs are byte for byte the builds already proposed, and no crate is published.
+
+### Not true yet
+
+- No outside funder, no buyer interview, no letter of intent, no outside key holder, no outside reproduction, and
+  no outside program that reads the verifier.
+- The upgraded builds (`knos_oidc` 2.1, `knos_pay` 2.1, `knos_meter` 1.1, `knos_passkey` 1.1) run on the public
+  program ids only once the pending upgrades execute. No round of this release ran on the public program ids; they
+  are exercised there only after those upgrades have executed. The live state is in [`web/upgrades.json`](web/upgrades.json).
+- ES256 and strict JSON are tested, not deployed: their build will be proposed through the multisig after the
+  pending upgrades execute.
+- Two findings of this release's adversarial tests are open: a quorum counts repositories, not people, and a
+  judge's marker outlives its order by a second. Both are fixed in the next `knos_pay` build, which is not in this
+  release ([`docs/SECURITY.md`](docs/SECURITY.md)).
+- Single sign-on, private deployment and a support contract do not exist, so the Control plans cannot be delivered.
+- Nothing has been sold.
+
 ## 0.3.16 (October 2026)
 
 **The neutral meter for AI agent work: neither side keeps the count.**

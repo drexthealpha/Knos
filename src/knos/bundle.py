@@ -2,7 +2,7 @@
 seller hold the same bytes and either can re-derive the verdict with no network.
 
     MANIFEST.json   {"type", "version", "order", "files": {name: sha256}}
-    receipt.json    the acceptance receipt, version 3 (or 2), in canonical form (docs/RECEIPT.md)
+    receipt.json    the acceptance receipt, version 4 (or 3, or 2), in canonical form (docs/RECEIPT.md)
     token.jwt       the raw token the issuer signed, as it was written to knos_oidc
     key.json        the issuer's public key that verified it: {issuer, kid, n, e, account}
     terms.json      the order's terms, the bytes that were hashed at funding
@@ -176,8 +176,13 @@ def _assurance(files: dict[str, bytes], terms: dict) -> list[str]:
 
 def _paid_as_recorded(r: dict, call) -> str:
     """Compare the wallets and amounts of the receipt with what the escrow logged in the paying transaction on the
-    cluster behind `call`. Raises ValueError when they differ or the transaction is gone."""
+    cluster behind `call`. Raises ValueError when they differ, the transaction is gone, or the receipt names an escrow
+    this knos does not read (a bundle made on another deployment: it is refused as that, not as a changed receipt)."""
     from . import records
+    if r["program"] not in records.PROGRAMS:
+        raise ValueError(f"the receipt names the escrow program {r['program']}, and this knos reads the escrow at {' and '.join(records.PROGRAMS)}: the "
+                         "bundle was made on another deployment of the programs (or its receipt was edited to name one), so its wallets cannot be "
+                         "compared with that program's lines here. For a staging deployment, verify with its ids: KNOS_PROGRAM_IDS=<its ids file>")
     sig = r["transaction"]["signature"]
     tx = call("getTransaction", [sig, {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}])
     if not tx:
@@ -231,8 +236,8 @@ def _core(blob: bytes) -> tuple[dict, dict[str, bytes], int, list[tuple[str, str
     except Exception as e:  # noqa: BLE001
         raise ValueError(f"a file of the bundle cannot be read as what it is ({e})") from None
     why = rc.check(r)
-    if why or r["version"] not in (2, 3) or files["receipt.json"] != _json(r):
-        raise ValueError(f"receipt.json is not a valid version 2 or 3 receipt in canonical form{': ' + why if why else ''}")
+    if why or r["version"] not in (2, 3, 4) or rc.as3(r) is None or files["receipt.json"] != _json(r):     # a version 4 one of a paid, accepted deliverable
+        raise ValueError(f"receipt.json is not a valid version 2, 3 or 4 receipt of a payment in canonical form{': ' + why if why else ''}")
     a, o, p = r["issuer_authenticated"], r["evaluator_observed"], r["policy"]
     # 1. what the issuer authenticated
     if key.get("e") != "AQAB" or not rs256(token, n):
@@ -450,7 +455,7 @@ def verify_offline(blob: bytes, live=None, mirror: str = "") -> tuple[dict, dict
         v = arch.get("verified")
         if not v or v["signature"] != r["issuer_authenticated"]["verified"]["transaction"]:
             raise ValueError("chain.json's verifying transaction is not the one the receipt names")
-        if r["version"] == 3:
+        if r["version"] >= 3:
             line = _funding_as_archived(r, arch)
             (out[COPY] if line else out["unchecked"]).append(line or "who funded and from what: the archive holds no funding transaction (it was older than the history read)")
         # the escrow's lines of the archived payment, again: nothing in it may name another order as paid
@@ -745,8 +750,8 @@ def gather(call, events: list[dict], target: str, get, published=None, verdict: 
             _verdict_beside(get, claims, o["order"], aud[3], int(aud[6])) if get is not None else None
     elif verdict is not None:
         raise ValueError("a re-execution is recorded for a judge outside the order's repository, run on GitHub: this payment's judge was not one")
-    r = rc.build3(r, part, _quorum_before(call, events, o, sig, start, end, rc.JUDGES[settled["judge"]],
-                                          (part["funder"]["github_id"], part["source"]["owner_id"]), list(shares)), rerun)
+    r = rc.build4(rc.build3(r, part, _quorum_before(call, events, o, sig, start, end, rc.JUDGES[settled["judge"]],
+                                                    (part["funder"]["github_id"], part["source"]["owner_id"]), list(shares)), rerun))
     genesis = call("getGenesisHash", [])
     archive = {"type": CHAIN_ARCHIVE, "version": 1, "cluster": r["cluster"], "genesis": genesis, "payment": _copy(call, sig, tx),
                "funding": _copy(call, o["tx"], funding) if funding else None, "verified": _copy(call, verified_tx),
@@ -906,7 +911,8 @@ def register(app, help_lines: list | None = None) -> None:
         if wrong:
             stop(f"not a valid receipt: {wrong}")
         _show(doc, typer.echo)
-        typer.echo(f"valid. digest sha256:{rc.digest(doc)}")
+        pays = "it authorises payment" if rc.authorises_payment(doc) else "it authorises no payment"
+        typer.echo(f"valid. verdict: {rc.verdict_of(doc).replace('_', ' ')}; {pays}. digest sha256:{rc.digest(doc)}")
 
     def offline(path: Path, mirror: str, no_network: bool) -> None:
         """`--no-chain`: the bundle alone, and the issuer's key list when the network is there."""

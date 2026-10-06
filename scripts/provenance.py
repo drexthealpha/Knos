@@ -101,10 +101,37 @@ def scenario(data: dict, program: str, address: str, version: str | None) -> dic
     for c in data["capabilities"].get("capabilities", []):
         ev = c.get("evidence") or {}
         dep, ex = ev.get("deployed") or {}, ev.get("exercised") or {}
-        if dep.get("program") == program and dep.get("id") == address and dep.get("version") == version \
+        # the version that carries the capability, or a run scripts/exercise_public.py made at this id (`round`): that
+        # run starts only once the public id runs the proposal's build, whichever version first carried the capability
+        if dep.get("program") == program and dep.get("id") == address and (dep.get("version") == version or ex.get("round")) \
                 and _SIG.fullmatch(str(ex.get("signature", ""))):
             return {"id": c["id"], "what": c["what"], "signature": ex["signature"]}
     return None
+
+
+def exercises(data: dict, program: str, address: str) -> list[tuple[str, str]]:
+    """(capability, signature) for every capability exercised by a transaction at this public id."""
+    out = []
+    for c in data["capabilities"].get("capabilities", []):
+        ev = c.get("evidence") or {}
+        dep, ex = ev.get("deployed") or {}, ev.get("exercised") or {}
+        if dep.get("program") == program and dep.get("id") == address and _SIG.fullmatch(str(ex.get("signature", ""))):
+            out.append((c["id"], ex["signature"]))
+    return out
+
+
+def summary(c: dict) -> list[str]:
+    """One table for a program: the build its chain is about, where it runs, since when, and what was run on it. The
+    slot and the exercise transactions are filled by `scripts/exercise_public.py record`, only once the public id
+    runs this build."""
+    e, links = c["entry"] or {}, c["links"]
+    live = bool(links["hash on chain"].get("same"))
+    commit, build = links["source commit"]["value"], links["build hash"]["value"]
+    ran = ", ".join(f"[{sig[:8]}...](https://explorer.solana.com/tx/{sig}?cluster=devnet) (`{cid}`)" for cid, sig in c["exercises"])
+    return ["| source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |", "|---|---|---|---|---|---|",
+            f"| {f'`{commit}`' if commit else MISSING} | {f'`{build}`' if build else MISSING} | `{c['address']}` | {e.get('index', MISSING)} | "
+            + (str(c["slot"]) if c["slot"] is not None else "not recorded" if live else "not live yet") + " | "
+            + (ran or ("none recorded" if live else "none: the public id does not run this build yet")) + " |", ""]
 
 
 def link(value: str | None, where: str, why: str = "") -> dict:
@@ -158,6 +185,7 @@ def chain_of(data: dict, program: str) -> dict:
     else:
         out["exercised scenario"] = link(None, "docs/capabilities.json", f"no capability has a transaction at this id for {program} {version or '?'}")
     return {"program": program, "address": address, "runs": runs, "version": version, "entry": entry,
+            "slot": seen.get("live_slot") if same else None, "exercises": exercises(data, program, str(address)) if same else [],
             "release": release_note(data, program, version), "links": {name: out[name] for name in LINKS},
             "now": {"hash": h, "commit": seen.get("on_chain_commit"), "run": seen.get("on_chain_run")} if h else None}
 
@@ -244,8 +272,8 @@ def render(data: dict) -> str:
                       "web/upgrades.json." if e.get("squads_status") == "Approved"
                       else ", which was pending when web/upgrades.json was generated."))
                 + (f" Release note: CHANGELOG.md, {c['release']}." if c["release"] else f" Release note: **{MISSING}**: no section of CHANGELOG.md names this build."),
-                "", _now(c),
-                "", "| # | link | what is recorded | recorded in |", "|---|---|---|---|"]
+                "", _now(c), "", *summary(c),
+                "| # | link | what is recorded | recorded in |", "|---|---|---|---|"]
         for i, (name, v) in enumerate(c["links"].items(), 1):
             out.append(f"| {i} | {name} | {_show(name, v, c)} | {v['where']} |")
         gone = missing(c)
@@ -302,6 +330,9 @@ def live(data: dict, url: str) -> tuple[dict, list[str]]:
         address, entry = ids[program], subject(data, program)
         now = feed.program_hash(account, address)
         row: dict = {"address": address, "on_chain_hash": now}
+        pd = account(str(mc.programdata_address(address)))
+        if pd and len(pd[1]) >= 12:
+            row["live_slot"] = int.from_bytes(pd[1][4:12], "little")        # the slot of the last deployment: when this build went live
         rec = feed.gate_record(account, address, now)
         if rec:
             row["on_chain_commit"], row["on_chain_run"] = rec.sha, rec.run_id
@@ -323,6 +354,8 @@ def live(data: dict, url: str) -> tuple[dict, list[str]]:
             elif p and p.status != entry.get("squads_status"):
                 lines.append("  the feed is older than the cluster: run scripts/upgrade_feed.py, then this again")
         seen["programs"][program] = row
+    if data["record"].get("next"):          # the build scripts/exercise_public.py propose-oidc named: not something a read replaces
+        seen["next"] = data["record"]["next"]
     return seen, lines
 
 
@@ -348,14 +381,14 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
             say(line)
         bad += any("PROBLEM" in line for line in lines)
         if a.record:
-            RECORD.write_text(json.dumps(seen, indent=1) + "\n", encoding="utf-8")
+            RECORD.write_text(json.dumps(seen, indent=1) + "\n", encoding="utf-8", newline="")
             data = load()
     elif a.record:
         say("--record needs --rpc: only a read of the cluster is kept")
         return 2
     block = render(data)
     if a.write:
-        DOC.write_text(placed(DOC.read_text(encoding="utf-8"), block), encoding="utf-8")
+        DOC.write_text(placed(DOC.read_text(encoding="utf-8"), block), encoding="utf-8", newline="")
     elif a.check:
         if not DOC.is_file() or placed(DOC.read_text(encoding="utf-8"), block) != DOC.read_text(encoding="utf-8"):
             say("docs/PROVENANCE.md is not what the records give: run python scripts/provenance.py --write")

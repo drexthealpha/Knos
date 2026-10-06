@@ -24,7 +24,9 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
 
 A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in README.md or docs/BENCH.md:
 
-    headline      README: the index's two named figures, and the merged pull requests
+    headline      the index's two named figures, and the merged pull requests
+    today         README: what runs on the public program ids, what is tested only, and the outside-use numbers of
+                  NUMBERS.md, zeros included, from the same sources
     outside-use   docs/submission/NUMBERS.md: nine numbers about use by anyone who is not Knos, each from where it is kept
     market        the index: a failed check of any kind, per agent
     market-tests  the same pull requests, counting only failed tests and builds
@@ -224,9 +226,9 @@ def blocks(src: dict, bt: dict | None = None) -> dict[str, str]:
     return out
 
 
-def outside_use(src: dict, repo: dict) -> str:
-    """docs/submission/NUMBERS.md's table: nine numbers about use by anyone who is not Knos, each from where it is kept.
-    `repo` is repo_numbers(): what this repository answers itself. A number nothing has measured is said so, never 0."""
+def outside_rows(src: dict, repo: dict) -> list[tuple[str, object, str]]:
+    """(what, value, where it is read) for the nine numbers about use by anyone who is not Knos. `repo` is
+    repo_numbers(): what this repository answers itself. A value nothing has measured is None."""
     stats, release = (src.get("devnet") or {}).get("stats") or {}, src.get("release") or {}
     between = release.get("payments_between_unrelated_accounts") or {}
     repositories, payees = _dig(stats, "outsiders.repositories"), _dig(stats, "outsiders.payees")
@@ -253,9 +255,45 @@ def outside_use(src: dict, repo: dict) -> str:
         ("Shadow counts published: a neutral count printed beside a supplier's own invoice count, with every mismatch",
          (repo.get("shadow_counts_published") or [None])[0], by_hand + "; [PILOT.md](../PILOT.md), \"How it starts: shadow mode\""),
     ]
+    return rows
+
+
+def outside_use(src: dict, repo: dict) -> str:
+    """docs/submission/NUMBERS.md's table: nine numbers about use by anyone who is not Knos, each from where it is kept.
+    `repo` is repo_numbers(): what this repository answers itself. A number nothing has measured is said so, never 0."""
     lines = ["| # | number | value | where it is read |", "|---|---|---|---|"]
-    lines += [f"| {i} | {what} | {_said(value) if _number(value) else 'not measured'} | {where} |" for i, (what, value, where) in enumerate(rows, 1)]
+    lines += [f"| {i} | {what} | {_said(value) if _number(value) else 'not measured'} | {where} |"
+              for i, (what, value, where) in enumerate(outside_rows(src, repo), 1)]
     return "\n".join(lines)
+
+
+# README.md's one table, "What is real today": the rows no number decides (TODAY_FIRST, TODAY_LAST) around the nine
+# numbers of NUMBERS.md, so the front page prints every zero that page prints and can print no other value.
+NUMBERS_DOC = "[docs/submission/NUMBERS.md](docs/submission/NUMBERS.md)"
+TODAY_FIRST = [
+    ("Runs on the public devnet program ids", "token verification; a bounty funded by one comment, paid on merge, refunded at "
+     "its deadline; one counted evaluation; a payee's passkey wallet", "[docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows above \"tested locally\""),
+    ("Tested here only", "work orders, the ledger and its statements, the invoice check, the console, the exports, and every "
+     "other capability", "[docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows \"tested locally\""),
+]
+TODAY_NOTES = {3: ", on tasks Knos funded itself", 4: ", on tasks Knos funded itself"}     # by row of NUMBERS.md
+TODAY_LAST = [
+    ("Paying customers", "0", "[docs/DISCLOSURE.md](docs/DISCLOSURE.md)"),
+    ("Revenue", "0; test USDC is not money", "[docs/MARKET.md](docs/MARKET.md)"),
+    ("Outside security review", "none", "[docs/ASSURANCE.md](docs/ASSURANCE.md)"),
+    ("Key holders", "one person holds every key; an upgrade waits 48 hours in public", "[docs/GOVERNANCE.md](docs/GOVERNANCE.md)"),
+    ("Network and money", "Solana devnet, test USDC; mainnet is not touched", "[docs/SECURITY.md](docs/SECURITY.md)"),
+]
+
+
+def today(src: dict, repo: dict) -> str:
+    """README.md's table (the block `today`): what runs at the public program ids, what is tested only, and what nobody
+    outside has used, the last from the same sources as outside_use()."""
+    rows = [*TODAY_FIRST,
+            *((what.split(":")[0], (_said(value) if _number(value) else "not measured") + TODAY_NOTES.get(i, ""), NUMBERS_DOC + f", row {i}")
+              for i, (what, value, _where) in enumerate(outside_rows(src, repo), 1)),
+            *TODAY_LAST]
+    return "\n".join(["| What | Today | Read from |", "|---|---|---|", *(f"| {a} | {b} | {c} |" for a, b, c in rows)])
 
 
 def _share(k: int, n: int) -> str:
@@ -708,6 +746,7 @@ def main(check: bool = False, root: Path = ROOT) -> int:
     src = json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8"))
     gen = blocks(src, json.loads((root / "docs" / "backtest.json").read_text(encoding="utf-8")))
     gen["outside-use"] = outside_use(src, repo_numbers(root))
+    gen["today"] = today(src, repo_numbers(root))
     drift = []
     for d in DOCS:
         p = root / d

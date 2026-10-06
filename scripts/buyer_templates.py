@@ -9,6 +9,11 @@ to this file's sentence and comment), how it is judged (in-process, black-box or
 what a buyer still has to trust in that mode (knos.receipt.trust_of, the list a paid order's receipt ends with).
 `passkey` says whether the page can fund it from a passkey wallet: only a merge-mode order with no vendor and no
 policy, because its terms need no fact of the repository that a browser cannot read.
+
+`procurement` is what the console's Offers, Budgets, Approvals and Invoice screens start from: where the files live
+in a buyer's repository, the hash of each published terms template (what a rate card must cite), and one made-up
+organisation's files, approvals and one deliverable (knos.controls.sample, knos.approvals), shown until a repository
+is named.
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from knos import commands, receipt, terms_templates as tt  # noqa: E402
+from knos import approvals, commands, controls, receipt, terms_templates as tt  # noqa: E402
 from knos.terms import ASSURANCE  # noqa: E402
 
 OUT = ROOT / "web" / "buyer_templates.json"
@@ -50,7 +55,9 @@ def one(name: str) -> dict:
 
 def build() -> str:
     doc = {"note": "Written by scripts/buyer_templates.py from src/knos/terms_templates.py. Do not edit by hand.", "money": commands.MONEY,
-           "default_days": 14, "assurance": dict(ASSURANCE), "templates": [one(name) for name in tt.TEMPLATES]}
+           "default_days": 14, "assurance": dict(ASSURANCE), "templates": [one(name) for name in tt.TEMPLATES],
+           "procurement": {"directory": controls.PROCUREMENT, "files": dict(controls.FILES), "terms": controls.published_terms(),
+                           "sample": {**controls.sample(), "approvals": approvals.sample_events(), "deliverable": approvals.sample_deliverable()}}}
     return json.dumps(doc, indent=1, ensure_ascii=True) + "\n"
 
 

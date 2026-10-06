@@ -217,8 +217,8 @@ def write(out: Path, account: mc.Account, ids: dict, now: int, cluster: str) -> 
     old = out / "upgrades.json"
     previous = json.loads(old.read_text(encoding="utf-8")).get("entries") if old.exists() else None
     ms, got = entries(account, ids, previous)
-    old.write_text(as_json(ms, got, ids, now, cluster), encoding="utf-8")
-    (out / "upgrades.xml").write_text(as_atom(got, ids, now), encoding="utf-8")
+    old.write_text(as_json(ms, got, ids, now, cluster), encoding="utf-8", newline="")
+    (out / "upgrades.xml").write_text(as_atom(got, ids, now), encoding="utf-8", newline="")
     return got
 
 

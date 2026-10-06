@@ -1,7 +1,9 @@
 // node tests/web/buyer.mjs <site dir> <fixture dir> [screenshot dir]
 // The Buy page (web/buyer.js) in headless Chromium, on a build of the site (scripts/build_site.sh), against a mocked
 // GitHub API and a mocked Solana devnet RPC, with Chromium's own virtual authenticator for the passkey (CDP:
-// WebAuthn.enable, WebAuthn.addVirtualAuthenticator). The four steps render; each template shows its one sentence
+// WebAuthn.enable, WebAuthn.addVirtualAuthenticator). The console is four parts under four tabs (Offers, Budgets,
+// Approvals, Invoice), one shown at a time and moved between by the arrow keys; the four steps render, three under Offers
+// and what happened under Invoice; each template shows its one sentence
 // and what is still trusted; a passkey wallet is made, signs one order, and the line `/knos passkey-fund ...` appears,
 // with a signature that verifies under the wallet's key over the challenge the program computes; the order's state
 // is read back from the chain's log; the statement's two exports are the bytes `knos audit export` wrote (the fixture
@@ -171,9 +173,25 @@ const pick = async (page, sel, value) => { await page.selectOption(sel, value); 
 const ctx = await context(1280);
 const { page, errors } = await open(ctx);
 check("the Buy page is shown alone at #buy, and its menu link is offered", await page.isVisible("#buy") && (await page.evaluate(() => document.body.dataset.page)) === "buy");
+// the console in four parts, one shown at a time under its tab; the order's steps are under Offers, what happened under Invoice
+const tab = async (page, k) => { await page.click(`#proc-tab-${k}`); await page.waitForSelector(`#buy-part-${k}:not([hidden])`); };
+const parts = await page.$$eval("#buy [role=tablist] [role=tab]", (l) => l.map((t) => [t.textContent.trim(), t.getAttribute("aria-controls"), t.getAttribute("aria-selected")]));
+check("the console is four parts under four tabs: Offers, Budgets, Approvals, Invoice, Offers first", JSON.stringify(parts) === JSON.stringify([["Offers", "buy-part-offers", "true"], ["Budgets", "buy-part-budgets", "false"], ["Approvals", "buy-part-approvals", "false"], ["Invoice", "buy-part-invoice", "false"]]), parts);
+const shownParts = () => page.$$eval("#buy .buy-part", (l) => l.filter((p) => !p.hidden && p.getClientRects().length).map((p) => p.id));
+check("  one part is shown at a time", JSON.stringify(await shownParts()) === JSON.stringify(["buy-part-offers"]), await shownParts());
 const heads = await page.$$eval("#buy section[id^=buy-step-] > h3", (l) => l.map((h) => h.textContent.trim()));
-check("four plain steps on one screen", JSON.stringify(heads) === JSON.stringify(["What are you buying?", "When is it accepted?", "Pay", "What happened"]), heads);
-check("  each step is visible", (await Promise.all([1, 2, 3, 4].map((n) => page.isVisible(`#buy-step-${n}`)))).every(Boolean));
+check("four plain steps, three under Offers and what happened under Invoice", JSON.stringify(heads) === JSON.stringify(["What are you buying?", "When is it accepted?", "Pay", "What happened"]), heads);
+check("  under Offers, steps 1 to 3 are visible", (await Promise.all([1, 2, 3].map((n) => page.isVisible(`#buy-step-${n}`)))).every(Boolean) && await page.$eval("#buy-part-offers", (p) => [1, 2, 3].every((n) => p.querySelector(`#buy-step-${n}`))));
+await page.focus("#proc-tab-offers"); await page.keyboard.press("End");
+check("  the arrow keys, Home and End move between the tabs: End shows Invoice, with step 4 visible", JSON.stringify(await shownParts()) === JSON.stringify(["buy-part-invoice"]) && await page.isVisible("#buy-step-4")
+  && (await page.evaluate(() => document.activeElement.id)) === "proc-tab-invoice" && (await page.getAttribute("#proc-tab-invoice", "tabindex")) === "0" && (await page.getAttribute("#proc-tab-offers", "tabindex")) === "-1");
+await page.keyboard.press("ArrowRight");
+check("  and ArrowRight from the last goes round to Offers", JSON.stringify(await shownParts()) === JSON.stringify(["buy-part-offers"]) && (await page.evaluate(() => document.activeElement.id)) === "proc-tab-offers");
+for (const [k, inside] of [["budgets", ["proc-budgets"]], ["approvals", ["proc-approvals", "buy-exc-card"]], ["invoice", ["proc-invoice", "buy-step-4", "buy-statement"]]]) {
+  await tab(page, k);
+  check(`  ${k}: its part holds ${inside.join(", ")}, and they are visible`, await page.$eval(`#buy-part-${k}`, (p, ids) => ids.every((id) => p.querySelector(`#${id}`)), inside) && (await Promise.all(inside.map((id) => page.isVisible(`#${id}`)))).every(Boolean));
+}
+await tab(page, "offers");
 const offered = await page.$$eval("#buy-template option", (l) => l.map((o) => o.value));
 check("one issue: the four templates that fund one", JSON.stringify(offered) === JSON.stringify(["bugfix", "feature-blackbox", "milestone", "private-attested"]), offered);
 for (const name of offered) {
@@ -192,7 +210,7 @@ await page.fill("#buy-vendor", "octocat");
 check("  its sentence and its comment are the standing offer's", (await text(page, "#buy-sentence")) === `${byName["standing-rate"].sentence.replace(/`/g, "")}.`
   && (await text(page, "#buy-comment")) === byName["standing-rate"].comment, [await text(page, "#buy-sentence"), await text(page, "#buy-comment")]);
 check("card and bank: one honest line", (await text(page, "#buy-card")) === "Not available: it needs a licensed on-ramp partner, and Knos has none. Nothing here takes a card.");
-check("the exception paths say who can trigger each", (await page.$$eval("#buy-exceptions dt", (l) => l.length)) === 4 && /Anyone can send it once the deadline has passed/.test(await text(page, "#buy-exceptions"))
+check("the exception paths (under Invoice, what happened) say who can trigger each", (await page.$$eval("#buy-exceptions dt", (l) => l.length)) === 4 && /Anyone can send it once the deadline has passed/.test(await text(page, "#buy-exceptions"))
   && /\/knos cancel/.test(await text(page, "#buy-exceptions")) && /inside the warranty window/.test(await text(page, "#buy-exceptions")));
 
 // the buyer's own numbers go into the sentence and the comment
@@ -287,12 +305,16 @@ const cdp = await ctx.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
 const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
 await pick(page, "#buy-template", "bugfix");
-await page.fill("#buy-issue", "https://github.com/octo/widgets/issues/7");
+await page.fill("#buy-issue", "https://github.com/octo/widgets/issues/7"); await page.dispatchEvent("#buy-issue", "change");
+// the issue's budget and earlier orders are drawn above the button when they are read: wait for them, so the press does
+// not land while the button is still moving (filling the box alone reads them 700 ms later, after a press could land)
+await page.waitForFunction(() => document.querySelector("#buy-before .receipt") && !/^Reading/.test(document.getElementById("buy-before").textContent.trim()));
 await page.click("#buy-pk-create");
-await page.waitForSelector("#buy-pk-made");
+await page.waitForSelector("#buy-pk-made").catch(async (e) => { console.error("status:", await page.textContent("#buy-pk-status"), "| errors:", JSON.stringify(errors)); throw e; });
 chain.wallet = await text(page, "#buy-pk-address");
 const made = await cdp.send("WebAuthn.getCredentials", { authenticatorId });
 check("a passkey wallet is made: one credential on the authenticator, an address on the page", made.credentials.length === 1 && knos.isAddress(chain.wallet), chain.wallet);
+await page.waitForFunction(() => document.querySelector("#buy-pk-balance").textContent !== "not read yet");      // the balance is read after the wallet is shown
 check("  its test USDC is read from devnet, and the faucet path is a link, not a request", (await text(page, "#buy-pk-balance")) === "100.00 test USDC"
   && (await page.$eval("#buy-pk-faucet a", (a) => a.href)) === "https://faucet.circle.com/", await text(page, "#buy-pk-balance"));
 const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("knos-passkey")));
@@ -327,7 +349,7 @@ const message = Buffer.concat([auth, createHash("sha256").update(cdj).digest()])
 check("  the signature verifies under the wallet's key, with s in the lower half", sig.length === 64 && ecVerify("sha256", message, { key: spki, dsaEncoding: "ieee-p1363" }, sig)
   && BigInt(`0x${sig.subarray(32).toString("hex")}`) <= 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551n / 2n);
 check("  the button opens the issue on GitHub, and the page says to paste the line", (await page.$eval("#buy-open", (a) => a.href)) === "https://github.com/octo/widgets/issues/7"
-  && /paste it in the comment box/.test(await text(page, "#buy-pk-result")));
+  && /paste it in the comment box/.test(await text(page, "#buy-pk-result")) && /Then read the order under Invoice\./.test(await text(page, "#buy-pk-result")));
 check("  nothing was sent to Solana: the page only read", chain.calls.every((c) => ["getGenesisHash", "getSlot", "getMultipleAccounts", "getAccountInfo", "getProgramAccounts", "getSignaturesForAddress"].includes(c.method)), [...new Set(chain.calls.map((c) => c.method))]);
 writeFileSync(join(fixtures, "line.txt"), line);
 await page.fill("#buy-amount", "60");
@@ -335,7 +357,8 @@ check("changing the order after signing takes the signed line away", !(await pag
 await page.fill("#buy-amount", "50");
 
 // ---- what happened ----------------------------------------------------------------------------------------------------------------------------
-check("the order's address is carried to step 4", (await page.$eval("#buy-order", (e) => e.value)) === intent.order);
+check("the order's address is carried to step 4, under Invoice", (await page.$eval("#buy-order", (e) => e.value)) === intent.order && !!(await page.$("#buy-part-invoice #buy-order")));
+await tab(page, "invoice");
 await page.click("#buy-order-form button");
 await page.waitForSelector("#buy-state");
 check("an order the relay has not carried yet is said so", (await page.$eval("#buy-state", (e) => e.dataset.state)) === "none" && /the relay has not carried it yet/.test(await text(page, "#buy-state-words")));
@@ -353,7 +376,8 @@ check("  one line each, from what the chain's log holds: the token, the verdict,
 check("  who answers if this fails: the founder alone, no support contract, said exactly", (await text(page, "#buy-answers")).startsWith("Today the founder alone. There is no support contract, no on-call team and no service-level agreement, and nobody else to call."), await text(page, "#buy-answers"));
 if (shots) await (await page.$("#buy-step-4")).screenshot({ path: join(shots, "console-result-1280.png") });
 
-// ---- 5. what needs a person ---------------------------------------------------------------------------------------------------------------------
+// ---- 5. what needs a person (under Approvals) ---------------------------------------------------------------------------------------------------
+await tab(page, "approvals");
 await page.fill("#buy-exc-scope", "octo/widgets");
 await page.click("#buy-exc-form button");
 await page.waitForSelector("#buy-exc-rows");
@@ -377,7 +401,11 @@ const acme = await page.$$eval("#buy-exc-rows > div", (l) => l.map((e) => e.data
 check("  an organisation, from its statement alone: the revert and the arbiter's ruling are named", acme.includes("reverted") && acme.includes("challenged"), acme);
 check("  what the program logged, each line with its transaction", (await page.$$eval("#buy-events li a", (l) => l.map((a) => a.href))).every((h) => h.startsWith("https://explorer.solana.com/tx/")) && /paid 50\.00 to GitHub id 4242 for pull request #12/.test(await text(page, "#buy-events")), await text(page, "#buy-events"));
 
-// ---- the statement: the bytes of `knos audit export` -------------------------------------------------------------------------------------------
+// ---- the statement: the bytes of `knos audit export` (under Invoice; the button at the top goes to it) ------------------------------------------
+await tab(page, "offers");
+await page.click("#buy-go-records");
+check("See one order as four records shows Invoice, at the statement, with the cursor in its box", JSON.stringify(await shownParts()) === JSON.stringify(["buy-part-invoice"])
+  && (await page.evaluate(() => document.activeElement.id)) === "ost-owner" && (await page.getAttribute("#proc-tab-invoice", "aria-selected")) === "true");
 await page.fill("#ost-owner", "acme");
 await page.click("#ost-form button");
 await page.waitForSelector("#ost-statement");
@@ -455,21 +483,29 @@ check("  the numeric id opens the same statement, with nothing asked of GitHub",
 
 // ---- the width, and who was asked ----------------------------------------------------------------------------------------------------------------
 if (shots) { await page.screenshot({ path: join(shots, "buyer-1280.png"), fullPage: true }); await (await page.$("#buy-statement")).screenshot({ path: join(shots, "console-statement-meter-1280.png") }); }
-// every console view on the page at once: the small-order warning, the private panel, the budget, what was billed, the exceptions, the receipt, the meter
+// every console view, each in its part: the small-order warning, the private panel, the budget, what was billed (Offers); the
+// exceptions (Approvals); the receipt, who answers, the meter (Invoice). A part keeps what it shows while another is open.
+await tab(page, "offers");
 await pick(page, "#buy-template", "private-attested");
 await page.fill("#buy-amount", "12");
+await tab(page, "approvals");
 await page.fill("#buy-exc-scope", "octo/widgets");
 await page.click("#buy-exc-form button");
 await page.waitForFunction(() => /GitHub id 6001/.test(document.getElementById("buy-exc-source")?.textContent || ""));
-check("the six views are on the page together", (await Promise.all(["#buy-fee-warning", "#buy-allowed .receipt", "#buy-before .receipt", "#buy-private", "#buy-exc-rows", "#buy-receipt", "#buy-answers", "#ost-meter-numbers"].map((s) => page.isVisible(s)))).every(Boolean));
+const VIEWS = { offers: ["#buy-fee-warning", "#buy-allowed .receipt", "#buy-before .receipt", "#buy-private"], approvals: ["#buy-exc-rows"], invoice: ["#buy-receipt", "#buy-answers", "#ost-meter-numbers"] };
+const seen = {};
+for (const [k, sels] of Object.entries(VIEWS)) { await tab(page, k); seen[k] = await Promise.all(sels.map((s) => page.isVisible(s))); }
+check("the six views are each on the page, in their part", Object.values(seen).flat().every(Boolean), seen);
 for (const width of [390, 320]) {
   await page.setViewportSize({ width, height: 800 });
   await page.evaluate(() => document.querySelectorAll("details").forEach((d) => { d.open = true; }));
   await page.waitForTimeout(150);
-  const { over, culprits } = await measure(page);
-  check(`the page does not scroll sideways at ${width} px, with a signed line, an order and a statement on it`, over <= 1, { over, culprits });
+  const widths = {};
+  for (const k of ["offers", "budgets", "approvals", "invoice"]) { await tab(page, k); await page.evaluate(() => document.querySelectorAll("details").forEach((d) => { d.open = true; })); widths[k] = await measure(page); }
+  const { over, culprits } = Object.values(widths).sort((a, b) => b.over - a.over)[0];
+  check(`the page does not scroll sideways at ${width} px, in any of its four parts, with a signed line, an order and a statement on it`, over <= 1, { over, culprits });
   if (shots && width === 390) { await page.screenshot({ path: join(shots, "buyer-390.png"), fullPage: true }); await page.screenshot({ path: join(shots, "buyer-390-top.png") }); }
-  if (shots) for (const [name, sel] of [["before-funding", "#buy-step-1"], ["exceptions", "#buy-exc-card"], ["result", "#buy-step-4"]]) await (await page.$(sel)).screenshot({ path: join(shots, `console-${name}-${width}.png`) });
+  if (shots) for (const [name, sel, k] of [["before-funding", "#buy-step-1", "offers"], ["exceptions", "#buy-exc-card", "approvals"], ["result", "#buy-step-4", "invoice"]]) { await tab(page, k); await (await page.$(sel)).screenshot({ path: join(shots, `console-${name}-${width}.png`) }); }
 }
 const hosts = [...new Set(asked.map((u) => new URL(u).host))].sort();
 check("no third-party request: only this site, GitHub's API and devnet's RPC were asked", refused.length === 0 && JSON.stringify(hosts) === JSON.stringify(["api.devnet.solana.com", "api.github.com", new URL(base).host].sort()), { refused, hosts });

@@ -1,0 +1,1236 @@
+{
+ "schema": "knos.agent-pr-index/1",
+ "name": "Agent PR Index",
+ "latest_week": "2026-09-28",
+ "read": "2026-10-06",
+ "min_claims_to_rank": 30,
+ "rule": "An agent vendor never pays for a row and cannot pay to change one.",
+ "measure": {
+  "claimed_passing": "pull requests the search returned for the agent whose description, read line by line, says tests or CI pass, in every week read up to and including `week`",
+  "merged": "of those, the ones that were merged when read and whose checks had finished at the head commit: the sample size of the row",
+  "failed_at_merge": "of the merged, the ones with at least one failed check at the head commit",
+  "share, ci95": "failed_at_merge over merged, and the 95% Wilson score interval of that share (z = 1.96)",
+  "rank": "among the agents with at least `min_claims_to_rank` in `merged`: 1 is the smallest share, equal shares share a place. null: too few to rank. A place orders what was said against what GitHub recorded, not the agents' code",
+  "overlaps_above": "true when the row's interval reaches into the interval of the row placed before it: the two places are not told apart by this sample",
+  "disputed": "the open disputes of the row: each an issue anyone can read"
+ },
+ "method": [
+  "**The agent.** Told by the GitHub App that opened the pull request, or by a line its tool writes in the description (`agents_told_by` in the file). A person who pastes that line is counted as the agent.",
+  "**The search.** GitHub's issue search, for pull requests of that agent whose description holds one of six phrases: \"tests pass\", \"all tests pass\", \"tests passing\", \"CI passes\", \"CI is green\", \"CI passing\".",
+  "**Claimed passing tests.** The description is read line by line (`CLAIM_RE` in `scripts/agent_pr_ci.py`). A line that says tests or CI pass is a claim; an unticked box, a wish (\"should pass\") or a negation is not.",
+  "**The checks.** The check runs and commit statuses GitHub holds for the head commit, read once.",
+  "**A failed check** is a check run that concluded `failure`, `timed_out` or `startup_failure`, or a commit status of `failure` or `error`. The agent's own session run is not a check.",
+  "**A failed check is not always a failed test.** It may be a deploy preview, a label gate, a review bot or a scanner; it may be flaky; it may have been failing before the pull request.",
+  "**A failed check is not always a false claim.** The description may be true of the tests its author ran. The row says only that GitHub recorded a failed check on the commit that was merged.",
+  "**The row.** Of the merged pull requests that claimed passing tests and whose checks had finished: how many had a failed check, that count over the total, and the 95% Wilson interval of the share.",
+  "**The place.** Only agents with at least 30 such pull requests have one: place 1 is the smallest share, equal shares share a place. The others are \"too few to rank\", shown with their counts. \"overlaps\" means the interval reaches into the one above: this sample does not tell those two places apart.",
+  "**The week.** A board is named by a Monday and adds up every week read up to and including it. Each week's own counts, and how it was read, are in [`agent_weekly.json`](agent_weekly.json)."
+ ],
+ "limits": [
+  "The counts are Knos's own measurement. Nobody outside Knos has reviewed them: dispute a row below.",
+  "The samples are unequal, so the size sits beside every rate. Read the interval, not the share.",
+  "The weeks were not all read with the same design (`design` of each week in `agent_weekly.json`). Adding them up mixes those designs.",
+  "The agents are used on different repositories with different checks, so the rows are not samples of the same work.",
+  "Public repositories only, and only pull requests whose description holds a claim phrase.",
+  "One reading of the checks, a day or more after the week ended. A check run again later is not seen.",
+  "\"At merge\" is the head commit of a pull request that was merged when read, not the moment of the merge."
+ ],
+ "agents_told_by": {
+  "copilot": "author:app/copilot-swe-agent",
+  "devin": "author:app/devin-ai-integration",
+  "claude-bot": "author:app/claude",
+  "claude-code": "\"Generated with Claude Code\" in:body -author:app/claude",
+  "codex": "\"chatgpt.com/codex/tasks\" in:body"
+ },
+ "claim_search": "(\"tests pass\" OR \"all tests pass\" OR \"tests passing\" OR \"CI passes\" OR \"CI is green\" OR \"CI passing\") in:body",
+ "source": {
+  "file": "docs/agent_weekly.json",
+  "sha256_of_canonical_json": "41eaa9999a5f3703d1e6e97be66023fc09e1e865d607f39b6c819592d30840e9",
+  "reproduce": "python scripts/agent_pr_index.py board --check"
+ },
+ "links": {
+  "page": "https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md",
+  "json": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json",
+  "atom": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom",
+  "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml"
+ },
+ "weeks": [
+  {
+   "week": "2026-09-28",
+   "read": "2026-10-06",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "codex",
+     "weeks": 13,
+     "claimed_passing": 52,
+     "merged": 44,
+     "failed_at_merge": 3,
+     "share": 0.0682,
+     "ci95": [
+      0.0235,
+      0.1823
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-09-28&agent=codex&week=2026-09-28"
+    },
+    {
+     "agent": "claude-bot",
+     "weeks": 9,
+     "claimed_passing": 148,
+     "merged": 127,
+     "failed_at_merge": 9,
+     "share": 0.0709,
+     "ci95": [
+      0.0377,
+      0.1292
+     ],
+     "rank": 2,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-09-28&agent=claude-bot&week=2026-09-28"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 10,
+     "claimed_passing": 120,
+     "merged": 70,
+     "failed_at_merge": 19,
+     "share": 0.2714,
+     "ci95": [
+      0.1812,
+      0.3854
+     ],
+     "rank": 3,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-09-28&agent=copilot&week=2026-09-28"
+    },
+    {
+     "agent": "devin",
+     "weeks": 9,
+     "claimed_passing": 117,
+     "merged": 79,
+     "failed_at_merge": 35,
+     "share": 0.443,
+     "ci95": [
+      0.3387,
+      0.5527
+     ],
+     "rank": 4,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-09-28&agent=devin&week=2026-09-28"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 9,
+     "claimed_passing": 34,
+     "merged": 26,
+     "failed_at_merge": 3,
+     "share": 0.1154,
+     "ci95": [
+      0.04,
+      0.2898
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-09-28&agent=claude-code&week=2026-09-28"
+    }
+   ]
+  },
+  {
+   "week": "2026-09-21",
+   "read": "2026-10-05",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 8,
+     "claimed_passing": 92,
+     "merged": 82,
+     "failed_at_merge": 5,
+     "share": 0.061,
+     "ci95": [
+      0.0263,
+      0.1349
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-09-21&agent=claude-bot&week=2026-09-21"
+    },
+    {
+     "agent": "codex",
+     "weeks": 12,
+     "claimed_passing": 50,
+     "merged": 42,
+     "failed_at_merge": 3,
+     "share": 0.0714,
+     "ci95": [
+      0.0246,
+      0.1901
+     ],
+     "rank": 2,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-09-21&agent=codex&week=2026-09-21"
+    },
+    {
+     "agent": "devin",
+     "weeks": 8,
+     "claimed_passing": 73,
+     "merged": 39,
+     "failed_at_merge": 5,
+     "share": 0.1282,
+     "ci95": [
+      0.056,
+      0.2671
+     ],
+     "rank": 3,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-09-21&agent=devin&week=2026-09-21"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 9,
+     "claimed_passing": 109,
+     "merged": 63,
+     "failed_at_merge": 18,
+     "share": 0.2857,
+     "ci95": [
+      0.189,
+      0.407
+     ],
+     "rank": 4,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-09-21&agent=copilot&week=2026-09-21"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 8,
+     "claimed_passing": 27,
+     "merged": 21,
+     "failed_at_merge": 1,
+     "share": 0.0476,
+     "ci95": [
+      0.0085,
+      0.2267
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-09-21&agent=claude-code&week=2026-09-21"
+    }
+   ]
+  },
+  {
+   "week": "2026-09-14",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 8,
+     "claimed_passing": 92,
+     "merged": 82,
+     "failed_at_merge": 5,
+     "share": 0.061,
+     "ci95": [
+      0.0263,
+      0.1349
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-09-14&agent=claude-bot&week=2026-09-14"
+    },
+    {
+     "agent": "codex",
+     "weeks": 11,
+     "claimed_passing": 50,
+     "merged": 42,
+     "failed_at_merge": 3,
+     "share": 0.0714,
+     "ci95": [
+      0.0246,
+      0.1901
+     ],
+     "rank": 2,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-09-14&agent=codex&week=2026-09-14"
+    },
+    {
+     "agent": "devin",
+     "weeks": 8,
+     "claimed_passing": 73,
+     "merged": 39,
+     "failed_at_merge": 5,
+     "share": 0.1282,
+     "ci95": [
+      0.056,
+      0.2671
+     ],
+     "rank": 3,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-09-14&agent=devin&week=2026-09-14"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 8,
+     "claimed_passing": 70,
+     "merged": 41,
+     "failed_at_merge": 14,
+     "share": 0.3415,
+     "ci95": [
+      0.2156,
+      0.4945
+     ],
+     "rank": 4,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-09-14&agent=copilot&week=2026-09-14"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 8,
+     "claimed_passing": 27,
+     "merged": 21,
+     "failed_at_merge": 1,
+     "share": 0.0476,
+     "ci95": [
+      0.0085,
+      0.2267
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-09-14&agent=claude-code&week=2026-09-14"
+    }
+   ]
+  },
+  {
+   "week": "2026-09-07",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 7,
+     "claimed_passing": 78,
+     "merged": 69,
+     "failed_at_merge": 5,
+     "share": 0.0725,
+     "ci95": [
+      0.0313,
+      0.1587
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-09-07&agent=claude-bot&week=2026-09-07"
+    },
+    {
+     "agent": "codex",
+     "weeks": 10,
+     "claimed_passing": 43,
+     "merged": 35,
+     "failed_at_merge": 3,
+     "share": 0.0857,
+     "ci95": [
+      0.0296,
+      0.2238
+     ],
+     "rank": 2,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-09-07&agent=codex&week=2026-09-07"
+    },
+    {
+     "agent": "devin",
+     "weeks": 7,
+     "claimed_passing": 68,
+     "merged": 37,
+     "failed_at_merge": 5,
+     "share": 0.1351,
+     "ci95": [
+      0.0591,
+      0.2798
+     ],
+     "rank": 3,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-09-07&agent=devin&week=2026-09-07"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 7,
+     "claimed_passing": 63,
+     "merged": 34,
+     "failed_at_merge": 11,
+     "share": 0.3235,
+     "ci95": [
+      0.1913,
+      0.4916
+     ],
+     "rank": 4,
+     "status": "ranked",
+     "overlaps_above": true,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-09-07&agent=copilot&week=2026-09-07"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 7,
+     "claimed_passing": 21,
+     "merged": 16,
+     "failed_at_merge": 1,
+     "share": 0.0625,
+     "ci95": [
+      0.0111,
+      0.2833
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-09-07&agent=claude-code&week=2026-09-07"
+    }
+   ]
+  },
+  {
+   "week": "2026-08-31",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 6,
+     "claimed_passing": 73,
+     "merged": 64,
+     "failed_at_merge": 5,
+     "share": 0.0781,
+     "ci95": [
+      0.0338,
+      0.1702
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-08-31&agent=claude-bot&week=2026-08-31"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 6,
+     "claimed_passing": 51,
+     "merged": 27,
+     "failed_at_merge": 10,
+     "share": 0.3704,
+     "ci95": [
+      0.2153,
+      0.5577
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-08-31&agent=copilot&week=2026-08-31"
+    },
+    {
+     "agent": "devin",
+     "weeks": 6,
+     "claimed_passing": 57,
+     "merged": 29,
+     "failed_at_merge": 4,
+     "share": 0.1379,
+     "ci95": [
+      0.055,
+      0.3056
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-08-31&agent=devin&week=2026-08-31"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 6,
+     "claimed_passing": 19,
+     "merged": 15,
+     "failed_at_merge": 1,
+     "share": 0.0667,
+     "ci95": [
+      0.0119,
+      0.2982
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-08-31&agent=claude-code&week=2026-08-31"
+    },
+    {
+     "agent": "codex",
+     "weeks": 9,
+     "claimed_passing": 33,
+     "merged": 26,
+     "failed_at_merge": 3,
+     "share": 0.1154,
+     "ci95": [
+      0.04,
+      0.2898
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-08-31&agent=codex&week=2026-08-31"
+    }
+   ]
+  },
+  {
+   "week": "2026-08-17",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 5,
+     "claimed_passing": 62,
+     "merged": 53,
+     "failed_at_merge": 2,
+     "share": 0.0377,
+     "ci95": [
+      0.0104,
+      0.1275
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-08-17&agent=claude-bot&week=2026-08-17"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 5,
+     "claimed_passing": 46,
+     "merged": 25,
+     "failed_at_merge": 8,
+     "share": 0.32,
+     "ci95": [
+      0.172,
+      0.5159
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-08-17&agent=copilot&week=2026-08-17"
+    },
+    {
+     "agent": "devin",
+     "weeks": 5,
+     "claimed_passing": 46,
+     "merged": 19,
+     "failed_at_merge": 3,
+     "share": 0.1579,
+     "ci95": [
+      0.0552,
+      0.3757
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-08-17&agent=devin&week=2026-08-17"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 5,
+     "claimed_passing": 13,
+     "merged": 10,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.2775
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-08-17&agent=claude-code&week=2026-08-17"
+    },
+    {
+     "agent": "codex",
+     "weeks": 8,
+     "claimed_passing": 20,
+     "merged": 18,
+     "failed_at_merge": 1,
+     "share": 0.0556,
+     "ci95": [
+      0.0099,
+      0.2576
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-08-17&agent=codex&week=2026-08-17"
+    }
+   ]
+  },
+  {
+   "week": "2026-08-10",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 4,
+     "claimed_passing": 50,
+     "merged": 43,
+     "failed_at_merge": 2,
+     "share": 0.0465,
+     "ci95": [
+      0.0128,
+      0.1546
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-08-10&agent=claude-bot&week=2026-08-10"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 4,
+     "claimed_passing": 33,
+     "merged": 15,
+     "failed_at_merge": 5,
+     "share": 0.3333,
+     "ci95": [
+      0.1518,
+      0.5829
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-08-10&agent=copilot&week=2026-08-10"
+    },
+    {
+     "agent": "devin",
+     "weeks": 4,
+     "claimed_passing": 34,
+     "merged": 13,
+     "failed_at_merge": 3,
+     "share": 0.2308,
+     "ci95": [
+      0.0818,
+      0.5026
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-08-10&agent=devin&week=2026-08-10"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 4,
+     "claimed_passing": 10,
+     "merged": 7,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.3543
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-08-10&agent=claude-code&week=2026-08-10"
+    },
+    {
+     "agent": "codex",
+     "weeks": 7,
+     "claimed_passing": 18,
+     "merged": 16,
+     "failed_at_merge": 1,
+     "share": 0.0625,
+     "ci95": [
+      0.0111,
+      0.2833
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-08-10&agent=codex&week=2026-08-10"
+    }
+   ]
+  },
+  {
+   "week": "2026-08-03",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 3,
+     "claimed_passing": 43,
+     "merged": 37,
+     "failed_at_merge": 2,
+     "share": 0.0541,
+     "ci95": [
+      0.015,
+      0.177
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-08-03&agent=claude-bot&week=2026-08-03"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 3,
+     "claimed_passing": 21,
+     "merged": 10,
+     "failed_at_merge": 2,
+     "share": 0.2,
+     "ci95": [
+      0.0567,
+      0.5098
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-08-03&agent=copilot&week=2026-08-03"
+    },
+    {
+     "agent": "devin",
+     "weeks": 3,
+     "claimed_passing": 27,
+     "merged": 8,
+     "failed_at_merge": 2,
+     "share": 0.25,
+     "ci95": [
+      0.0715,
+      0.5907
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-08-03&agent=devin&week=2026-08-03"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 3,
+     "claimed_passing": 6,
+     "merged": 4,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.4899
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-08-03&agent=claude-code&week=2026-08-03"
+    },
+    {
+     "agent": "codex",
+     "weeks": 6,
+     "claimed_passing": 17,
+     "merged": 15,
+     "failed_at_merge": 1,
+     "share": 0.0667,
+     "ci95": [
+      0.0119,
+      0.2982
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-08-03&agent=codex&week=2026-08-03"
+    }
+   ]
+  },
+  {
+   "week": "2026-07-27",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 3,
+     "claimed_passing": 43,
+     "merged": 37,
+     "failed_at_merge": 2,
+     "share": 0.0541,
+     "ci95": [
+      0.015,
+      0.177
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-07-27&agent=claude-bot&week=2026-07-27"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 3,
+     "claimed_passing": 21,
+     "merged": 10,
+     "failed_at_merge": 2,
+     "share": 0.2,
+     "ci95": [
+      0.0567,
+      0.5098
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-07-27&agent=copilot&week=2026-07-27"
+    },
+    {
+     "agent": "devin",
+     "weeks": 3,
+     "claimed_passing": 27,
+     "merged": 8,
+     "failed_at_merge": 2,
+     "share": 0.25,
+     "ci95": [
+      0.0715,
+      0.5907
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-07-27&agent=devin&week=2026-07-27"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 3,
+     "claimed_passing": 6,
+     "merged": 4,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.4899
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-07-27&agent=claude-code&week=2026-07-27"
+    },
+    {
+     "agent": "codex",
+     "weeks": 5,
+     "claimed_passing": 16,
+     "merged": 14,
+     "failed_at_merge": 1,
+     "share": 0.0714,
+     "ci95": [
+      0.0127,
+      0.3147
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-07-27&agent=codex&week=2026-07-27"
+    }
+   ]
+  },
+  {
+   "week": "2026-07-20",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "claude-bot",
+     "weeks": 2,
+     "claimed_passing": 30,
+     "merged": 30,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.1135
+     ],
+     "rank": 1,
+     "status": "ranked",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-07-20&agent=claude-bot&week=2026-07-20"
+    },
+    {
+     "agent": "copilot",
+     "weeks": 2,
+     "claimed_passing": 17,
+     "merged": 7,
+     "failed_at_merge": 1,
+     "share": 0.1429,
+     "ci95": [
+      0.0257,
+      0.5131
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-07-20&agent=copilot&week=2026-07-20"
+    },
+    {
+     "agent": "devin",
+     "weeks": 2,
+     "claimed_passing": 18,
+     "merged": 6,
+     "failed_at_merge": 2,
+     "share": 0.3333,
+     "ci95": [
+      0.0968,
+      0.7
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-07-20&agent=devin&week=2026-07-20"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 2,
+     "claimed_passing": 5,
+     "merged": 3,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.5615
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-07-20&agent=claude-code&week=2026-07-20"
+    },
+    {
+     "agent": "codex",
+     "weeks": 4,
+     "claimed_passing": 13,
+     "merged": 12,
+     "failed_at_merge": 1,
+     "share": 0.0833,
+     "ci95": [
+      0.0149,
+      0.3539
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-07-20&agent=codex&week=2026-07-20"
+    }
+   ]
+  },
+  {
+   "week": "2026-07-13",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "copilot",
+     "weeks": 1,
+     "claimed_passing": 11,
+     "merged": 3,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.5615
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-07-13&agent=copilot&week=2026-07-13"
+    },
+    {
+     "agent": "devin",
+     "weeks": 1,
+     "claimed_passing": 4,
+     "merged": 2,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.6576
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-07-13&agent=devin&week=2026-07-13"
+    },
+    {
+     "agent": "claude-bot",
+     "weeks": 1,
+     "claimed_passing": 15,
+     "merged": 15,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.2039
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-07-13&agent=claude-bot&week=2026-07-13"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 1,
+     "claimed_passing": 1,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-07-13&agent=claude-code&week=2026-07-13"
+    },
+    {
+     "agent": "codex",
+     "weeks": 3,
+     "claimed_passing": 6,
+     "merged": 5,
+     "failed_at_merge": 1,
+     "share": 0.2,
+     "ci95": [
+      0.0362,
+      0.6245
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-07-13&agent=codex&week=2026-07-13"
+    }
+   ]
+  },
+  {
+   "week": "2026-07-06",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "copilot",
+     "weeks": 1,
+     "claimed_passing": 11,
+     "merged": 3,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.5615
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-07-06&agent=copilot&week=2026-07-06"
+    },
+    {
+     "agent": "devin",
+     "weeks": 1,
+     "claimed_passing": 4,
+     "merged": 2,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.6576
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-07-06&agent=devin&week=2026-07-06"
+    },
+    {
+     "agent": "claude-bot",
+     "weeks": 1,
+     "claimed_passing": 15,
+     "merged": 15,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.2039
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-07-06&agent=claude-bot&week=2026-07-06"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 1,
+     "claimed_passing": 1,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-07-06&agent=claude-code&week=2026-07-06"
+    },
+    {
+     "agent": "codex",
+     "weeks": 2,
+     "claimed_passing": 3,
+     "merged": 2,
+     "failed_at_merge": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.6576
+     ],
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-07-06&agent=codex&week=2026-07-06"
+    }
+   ]
+  },
+  {
+   "week": "2026-06-29",
+   "read": "2026-10-01",
+   "min_claims_to_rank": 30,
+   "rows": [
+    {
+     "agent": "copilot",
+     "weeks": 0,
+     "claimed_passing": 0,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-06-29&agent=copilot&week=2026-06-29"
+    },
+    {
+     "agent": "devin",
+     "weeks": 0,
+     "claimed_passing": 0,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-06-29&agent=devin&week=2026-06-29"
+    },
+    {
+     "agent": "claude-bot",
+     "weeks": 0,
+     "claimed_passing": 0,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-06-29&agent=claude-bot&week=2026-06-29"
+    },
+    {
+     "agent": "claude-code",
+     "weeks": 0,
+     "claimed_passing": 0,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-06-29&agent=claude-code&week=2026-06-29"
+    },
+    {
+     "agent": "codex",
+     "weeks": 1,
+     "claimed_passing": 1,
+     "merged": 0,
+     "failed_at_merge": 0,
+     "share": null,
+     "ci95": null,
+     "rank": null,
+     "status": "too few to rank",
+     "overlaps_above": false,
+     "disputed": [],
+     "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-06-29&agent=codex&week=2026-06-29"
+    }
+   ]
+  }
+ ],
+ "disputes": [],
+ "changelog": []
+}

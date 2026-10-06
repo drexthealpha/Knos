@@ -1,4 +1,4 @@
-# The Pilot: one buyer, its suppliers, 30 days
+# The Pilot: one buyer, two suppliers, 30 days, one reconciled invoice
 
 **Close a supplier's invoice with evidence both sides can check.**
 
@@ -17,15 +17,15 @@ free, with or without a Pilot after it, inside the Meter's free allowance.
 
 What shadow mode produces is two numbers side by side for each supplier, the supplier's invoice count and the
 neutral count, and every line where they differ. The first line the two sides have to settle between them is the
-reason to buy the Pilot: the Pilot is the same work done for every supplier in scope, for 30 days, with the four
-deliverables below and someone answerable for them. A shadow count that finds no difference is a result too, and
+reason to buy the Pilot: the Pilot is the same work done for two suppliers, for 30 days, ending in one reconciled
+invoice and the findings as numbers, with someone answerable for them. A shadow count that finds no difference is a result too, and
 the buyer should then not buy the Pilot.
 
 No shadow count has been run with anyone, and none is published.
 
 ## Who it is for
 
-A company that buys software work per outcome from two or more suppliers (agent vendors, agencies, contractors
+A company that buys agent work per outcome from two or more suppliers (agent vendors, agencies, contractors
 paid per merged change or per milestone) and has their invoices to reconcile. The person who signs is whoever
 must authorise those payments and defend them afterwards: an engineering director or a finance controller.
 
@@ -34,19 +34,22 @@ or for a maintainer with a bounty: the free check and `/knos fund` already serve
 
 ## What the buyer gets: four deliverables
 
+A Pilot is **one buyer, two suppliers, 30 days, one reconciled invoice, and quantified findings.** Two suppliers
+are the scope the price covers; a third is a second Pilot or a Supplier connection under a contract.
+
 | | deliverable | what it is |
 |---|---|---|
-| 1 | **A reconciliation** | The buyer's accepted work for the 30 days, from more than one supplier, as one list of deliverables. Each line has the order, the milestone, the artifact, the policy version that judged it and the verdict. A deliverable is counted once, whatever number of pull requests carried it. |
+| 1 | **One reconciled invoice** | The buyer's accepted work for the 30 days, from both suppliers, set against what each billed, as one list of deliverables. Each line has the order, the milestone, the artifact, the policy version that judged it and the verdict. A deliverable is counted once, whatever number of pull requests carried it. |
 | 2 | **A mismatch list** | Every difference between what was accepted and what was billed, named: billed and not accepted; accepted and not billed; billed twice; judged differently by the two sides. A mismatch is a dispute line, never an invoice line. |
 | 3 | **A statement both sides verify** | For each supplier, one statement that the buyer computes from its ledger and the supplier computes from its own, to the same totals (`knos meter reconcile`, [METER.md](METER.md)). The statement counts only what both sides have and describe alike. |
-| 4 | **A measurement** | The four numbers below, before and after, written down with their sample sizes, and given to the buyer whether or not they flatter Knos. |
+| 4 | **Quantified findings** | The four numbers below, before and after, written down with their sample sizes, and given to the buyer whether or not they flatter Knos. |
 
 Each statement can be checked from the two ledger files alone. Totals are also written to Solana devnet as test
 data, to show the mechanism; devnet keeps no promise about its history, so nothing in the Pilot depends on it.
 
 ## What the buyer does
 
-1. Names the suppliers in scope (two at least) and one repository per supplier relationship.
+1. Names the two suppliers in scope and one repository per supplier relationship.
 2. Installs Knos in each repository **by a pull request** it reviews and merges: one workflow file and one policy
    file, no secret ([INSTALL.md](INSTALL.md)).
 3. Writes the acceptance terms for each deliverable before the work starts: the checks that must pass and the
@@ -74,19 +77,31 @@ report: with one ledger there is nothing for the two sides to agree on.
 | Acceptance-to-approval time | days from a deliverable being accepted to its invoice line being approved | the same month | from the time of the accepting run and the buyer's own approval record |
 | Repeat use | whether the buyer and each supplier run a second period without being asked | not applicable | recorded 30 days after the end |
 
-The target is a measured benefit of five times the fee ([MARKET.md](MARKET.md), section 6). It is a target. Nobody
-has measured it, and a Pilot that finds less will say how much less.
+## The benefit to demand before buying: three to one
+
+A buyer should not go on from a Pilot to a contract unless the findings show a benefit of three times the price,
+on the buyer's own numbers. The rule as one worked line, at the example of [MARKET.md](MARKET.md), section 6:
+
+| a year's price | × 3 | the benefit the findings must show |
+|---|---|---|
+| 130,000 USD (Control Business 80,000 + Verify 50,000, the greater of Meter 24,000 and Verify 50,000) | × 3 | 390,000 USD a year |
+
+For the Pilot alone the same line is 2,500 × 3 = 7,500 USD of benefit found in the 30 days. The benefit is the sum of
+what the four measures above are worth to the buyer: hours no longer spent, lines no longer paid twice or paid for
+work that did not meet its terms, days no longer waited. `knos bill estimate` prints the price and the benefit to
+demand for any plan and volume. **Knos has not shown this benefit for anyone.** Nobody has measured it, and a Pilot
+that finds less will say how much less, and that the buyer should not buy.
 
 ## What it costs
 
-2,500 USD for one buyer and its suppliers, for 30 days, invoiced off chain in ordinary money. The suppliers pay
+2,500 USD for one buyer and two suppliers, for 30 days, invoiced off chain in ordinary money. The suppliers pay
 nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test
 money is not revenue.
 
-**The price is credited against the first year of Control.** A buyer who goes on to an annual Control contract
-([MARKET.md](MARKET.md), section 3) pays that year's price less the 2,500 USD already paid: 22,500 USD for the Team
-tier in its first year. The Pilot commits the buyer to no contract, and a buyer who stops after it owes nothing
-more. No Control contract exists to credit it against today.
+**The 2,500 USD is credited against year one.** A buyer who goes on to an annual contract
+([MARKET.md](MARKET.md), section 3) pays that year's invoices less the 2,500 USD already paid: on the Team plan,
+22,500 USD of Control in its first year. The Pilot commits the buyer to no contract, and a buyer who stops after it owes nothing
+more. No contract exists to credit it against today.
 
 ## What it does not include
 

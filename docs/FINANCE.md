@@ -92,11 +92,15 @@ paying transaction, from which `knos receipt` rebuilds the acceptance receipt).
 
 | format | what the product documents | what could not be confirmed there |
 |---|---|---|
-| `netsuite` | [Vendor Bill Import](https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/section_N427250.html): the fields External ID, Vendor, Date, Reference No. and, on the Expenses sublist, Account, Amount and Memo. External ID groups the lines of one bill. | The date format: the page names none, and M/D/YYYY is written (`--date-format` changes it). The body field Memo. **Best effort, unverified** for those two. |
-| `quickbooks` | [Import bills in QuickBooks Online](https://quickbooks.intuit.com/learn-support/en-ca/help-article/import-transactions/import-bills-quickbooks-online/L4Q6QWsRw_CA_en_CA): the mandatory columns Bill no., Supplier, Bill Date, Due Date, Account, Line Amount and Line Tax Code. The date format is chosen at import, and the page's example is D/M/YYYY, which is what is written. The page recommends at most 100 bills a file. | The optional columns Line Description and Memo. **Best effort, unverified** for those two. Line Tax Code is empty unless `--tax-code` is given. Due Date is the bill date: Knos knows no payment terms. |
+| `netsuite` | [Vendor Bill Import](https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/section_N427250.html), read 2026-10-06: External ID is the unique id of a record and is written on every line of it; it is mapped to Reference No.; the body fields Vendor and Date; on the Expenses sublist, Account, Amount and Memo; a new record needs at least one line. The currency is taken from the vendor record, so the file has no currency column. | The date format: the page names none, and M/D/YYYY is written (`--date-format` changes it). The body field Memo. Which fields an account's own form makes mandatory: [the page on required sublist fields](https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/section_N451547.html) names none. **Best effort, unverified** for those three. |
+| `quickbooks` | [Import bills in QuickBooks Online](https://quickbooks.intuit.com/learn-support/en-global/help-article/import-transactions/import-bills-quickbooks-online/L4Q6QWsRw_ROW_en) read 2026-10-06 (the [Canadian edition's page](https://quickbooks.intuit.com/learn-support/en-ca/help-article/import-transactions/import-bills-quickbooks-online/L4Q6QWsRw_CA_en_CA) was the earlier source and was not read again that day): the mandatory columns Bill no., Supplier, Bill Date, Due Date, Account, Line Amount and Line Tax Code; every line of a bill repeats Bill no., Supplier and Bill Date. The date format is chosen at import, and the page's example is D/M/YYYY, which is what is written. The page recommends at most 100 bills a file. | The optional columns Line Description and Memo. The United States edition: its own page could not be read, so its column names (it says vendor where others say supplier) are not confirmed. **Best effort, unverified** for those. Line Tax Code is empty unless `--tax-code` is given. Due Date is the bill date: Knos knows no payment terms. |
 | `coupa` | [Invoices Import](https://compass.coupa.com/en-us/products/product-documentation/integration-technical-documentation/coupa-core-flat-files-(csv)/flat-file-(csv)-import/invoices-import): the row types Invoice, Invoice Line and Invoice Charge; the first 24 columns of the Invoice row, in order; a date carries no time. | The columns of the Invoice Line row, the Invoice row's columns after the 24th, and the order of the date's parts. **The whole file is best effort, unverified.** |
 | `sap` | [SAP note 3782347](https://userapps.support.sap.com/sap/support/knowledge/en/3782347) on the app Import Supplier Invoices (F3041): a spreadsheet template with one row per item, the invoice ID in the first column, and the header fields repeated on every row of an invoice. | Every column name, the date format and the field lengths. SAP publishes the template inside the app, not on a public page. **The whole file is best effort, unverified.** Copy its columns into the template your system gives you. |
 | `generic` | Knos's own: one line per accepted deliverable with every field above in its own column, then the whole statement, row by row. | Nothing: it is specified here and in `exports.py`. |
+
+**Every file here is a file export, not an integration.** It becomes an integration only after somebody imports it into
+the product and reconciles the result, and nobody has: `exports.IMPORTED` is the list of formats that happened for,
+and it is empty.
 
 None of the four products' files has a place for a comment, so an unverified file does not say so inside itself.
 The command says it on standard error each time it writes one, and this table says it.
@@ -117,6 +121,74 @@ code, Coupa's chart of accounts), `--tax-code`, `--date-format`.
 **The generic file round-trips.** It carries the statement it was made from. `knos audit verify close.csv`
 takes the statement back out, checks every hash, and prints the head: the same head the supplier gets from its
 own export of the same period.
+
+## 4a. The statement of one invoice, for accounts payable
+
+`knos statement` ([`src/knos/statement.py`](../src/knos/statement.py)) is the statement an approver attaches to a
+supplier's invoice. It needs no chain and no wallet.
+
+    knos shadow invoice.csv --out sept/                        # the invoice against GitHub's record; keeps evidence.json
+    knos statement make sept/evidence.json --invoice INV-2026-09 --currency USD --prior aug/ap-statement.json
+    knos statement approve sept/ap-statement.json --agreed --by "Dana Reyes" --role "finance controller"
+    knos statement pay sept/ap-statement.json --line inv_... --method bank --ref "BACS 77120" --on 2026-10-02
+    knos statement show sept/ap-statement.json
+    knos statement export sept/ap-statement.json --format quickbooks
+    knos statement verify sept/ap-statement.json
+
+`make` also takes a closed month of the meter (the archive of `knos meter export --bundle`, section 5): one line per
+deliverable the supplier's ledger accepted that month.
+
+**Three forms, one content.** `ap-statement.json` is the statement. `ap-statement.csv` and `ap-statement.pdf` are
+written from the same cells, in the same words, and both carry the JSON's SHA-256. The PDF is written by
+[`src/knos/pdf.py`](../src/knos/pdf.py) with no dependency: built-in Helvetica, ruled tables, as many pages as needed,
+the statement's own day as its creation date, so the same statement gives the same bytes. A character outside
+Windows-1252 prints as `?` in the PDF; the JSON and the CSV carry it.
+
+**Each line** carries the four ids of [`src/knos/ids.py`](../src/knos/ids.py) (the deliverable, its evaluations,
+the invoice line, and a settlement once one is recorded), its amount, where its evidence is, and one state:
+
+| state | means | why, in the file |
+|---|---|---|
+| agreed | the evidence supports the line | |
+| disputed | the evidence contradicts it | "a check failed when this change was merged: test", "the pull request is not merged", "the two ledgers give this evaluation different verdicts" |
+| duplicate | the deliverable is billed already | "billed twice on this invoice: same pull request as line 1", "already billed: invoice INV-2026-09 line 1 agreed this deliverable on 2026-09-30" |
+| insufficient evidence | nothing says either way | "the checks give no verdict: no check ran", "GitHub could not be read for this line: rate limit" |
+
+**Already billed.** `--prior` takes earlier statements. A deliverable one of them agreed is a duplicate here, and the
+new statement keeps that statement's hash and the line that billed it. A line that was disputed earlier and is
+billed again is not a duplicate. In a shadow run the deliverable is the issue a pull request closes, or the pull
+request when it closes none, so a second pull request for the same issue is caught and a second invoice for
+unrelated work in the same repository is not.
+
+**Approval.** `approve --agreed` records who approved the agreed lines, in which role and on which day. The other
+lines stay open: no command here approves an exception. The role is written as stated; Knos has no accounts to check
+it against (`knos budget who` shows who may spend a Balance on chain, which is a different authority).
+
+**Payment status when paid outside Knos.** `pay` appends a settlement record with its own id, the method, the
+payer's reference and the day. States: payable, paid outside Knos, held, refunded, devnet demonstration. It records
+what the payer says. It moves no money and checks no bank. A line paid though not agreed is said so under Credited.
+
+Approvals and payments go to `ap-statement.status.json`. The statement itself never changes after it is made; the
+CSV and the PDF are written again and carry both hashes.
+
+**What `show` answers:** what was authorised, billed, delivered and passed; what was already billed; who approved;
+what is disputed, credited, paid and owed. A shadow run reads no order, so "authorised" says it is not known there.
+
+**Made again years later.** The statement holds its own SHA-256, the SHA-256 of every piece of evidence, and the
+evidence itself (or, with `--reference`, the hash of a file kept beside it). `verify` makes the statement again from
+that evidence and prints `same`, or the first line that differs, for example
+`differs: line 2: state is 'agreed' in the statement and 'disputed' from the evidence`. It asks no network and no
+chain. For a closed month it checks GitHub's signatures on the close record with the keys in the archive. For a
+shadow run there is no signature to check: GitHub does not sign its API's answers, so the evidence is what was read
+on the day, and the statement says "not signed".
+
+**Exports.** `export --format quickbooks|netsuite` writes one bill per agreed line, in the columns of the table
+above, with the line's state, its payment status and its ids in the memo. A disputed or duplicate line, or one
+without enough evidence, is never a bill. `--format generic` lists every line with its state.
+
+In a browser: `renderStatements` in [`web/statements.js`](../web/statements.js) opens a statement file, checks its
+hash, downloads the same CSV and the same export files (`tests/web/statement.mjs` holds the bytes equal to the
+Python's), and prints the statement alone to paper or PDF.
 
 ## 5. Month-end close in one command
 
@@ -164,6 +236,8 @@ payment. `knos receipt mirror` keeps a copy that verifies from the issuer's sign
 ## 7. What does not exist
 
 - **Single sign-on.** Knos has no accounts. Identity is GitHub's and a wallet's.
+- **An approver Knos can vouch for.** `knos statement approve` writes down a name and a role as stated. Nothing checks them.
+- **A payment Knos can vouch for when it is made by bank.** `knos statement pay` records the payer's reference; no bank is asked.
 - **An approval workflow inside Knos.** One comment funds an order. The only two-person approval is a multisig's
   vault as the funder, and that is the multisig's rule.
 - **A party that answers by contract.** No named legal entity, no terms of service, no support agreement.

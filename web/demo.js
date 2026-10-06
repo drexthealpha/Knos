@@ -1,11 +1,13 @@
-// One round, driven by the visitor: fund, a claim refused, the fix signed, paid, a replay refused, the two counts.
+// One round, driven by the visitor: fund, a claim rejected, the fix accepted and signed, paid, a second payment that
+// does not happen, and a month the two counts leave disputed. A verdict and a line's state are said in the words of
+// src/knos/ids.py and no others: accepted, rejected, insufficient evidence, disputed; agreed, disputed, duplicate.
 // renderDemo(el, env) fills `el` (the first screen's <div id="demo">). Every figure, address and signature shown is read
 // from demo_data.json, which scripts/demo_data.py cuts out of this repository's own records; nothing is typed in here.
 // Nothing plays by itself: each state change is one click or one key, and each step takes ONE key: the button that acts
 // on a step names the next step's action once it has acted, and "Next" stands only before the two steps that show
 // something to read first (the claim, the two counts). Enter and Space act, the arrows move between steps, Escape
 // starts over. A reader who asked for reduced motion gets the same states with no movement.
-// What is shown is what was recorded, and nothing else: the token sent again was refused because its order was already
+// What is shown is what was recorded, and nothing else: the token sent again paid nothing because its order was already
 // paid (the error the rehearsal recorded for it, not the single-use one), and the two counts are the two the chain
 // holds, 3 apart from the start; the last step compares them, it never makes them up.
 // The look is the site's design contract (the .k-* classes of app.css, web/motion.js). Both may be absent: the import
@@ -149,6 +151,7 @@ export async function renderDemo(el, env = {}) {
   const check = d.claim.check.split(".").slice(-1)[0], test = check.split("::").pop();
   const state = { step: 0, done: STEPS.map(() => false), run: 0 };
   const BAD = [false, true, false, false, true, true];
+  const ENDS = ["funded", "rejected", "accepted", "paid", "not paid again", "disputed"];          // how each step ends, in the words of src/knos/ids.py
   const READ = [false, true, false, false, false, true];          // a step that shows something to read before its action
   const day = String(d.date).replace(/^(\d+ \w{3})\w*/, "$1"), where = d.ids === "public" ? "public program ids" : "staging program ids";
 
@@ -157,7 +160,7 @@ export async function renderDemo(el, env = {}) {
   el.setAttribute("aria-label", "One round, step by step");
   el.innerHTML = `
     <div class="kd-top"><p class="k-kicker">One round. You drive.</p><p class="kd-keys" aria-hidden="true">Enter: act · arrows: steps · Esc: start over</p></div>
-    <p class="kd-mark" data-ids="${esc(d.ids || "staging")}">A replay of a real round on ${esc(d.cluster)} (${esc(where)}, ${esc(day)}).</p>
+    <p class="kd-mark" data-ids="${esc(d.ids || "staging")}">A real ${esc(d.cluster)} round, replayed (${esc(where)}, ${esc(day)}).</p>
     <ol class="kd-steps">${STEPS.map((s, i) => `<li><button type="button" class="k-step" data-step="${i}" data-state="idle"><i>${i + 1}</i><span>${esc(s)}</span></button></li>`).join("")}</ol>
     <ul class="kd-rail k-stage" aria-hidden="true">${["Buyer", "GitHub", "Solana", "Seller"].map((n) => `<li class="kd-node" data-node="${n.toLowerCase()}"><b></b><span>${n}</span><em class="k-num"></em></li>`).join("")}</ul>
     <div class="kd-scene"></div>
@@ -182,16 +185,16 @@ export async function renderDemo(el, env = {}) {
       html: `<div class="kd-box"><div class="kd-row"><span class="kd-tag">Pull request</span><span>${esc(d.claim.pull)}</span></div>
           <blockquote class="kd-quote">“${esc(d.claim.says)}”</blockquote></div>
         <ul class="kd-checks"><li data-s="${on ? "bad" : "wait"}"><span class="kd-mono">${esc(check)}</span><span class="kd-badge" data-s="${on ? "bad" : "wait"}">${on ? "failed" : "not read"}</span></li></ul>
-        ${on ? `<p class="kd-row kd-verdict"><span class="kd-badge" data-s="bad">Refused</span><span class="kd-fine k-num">${esc(d.claim.failed)} of ${esc(d.claim.of)} first agent pull requests: a failed check.</span></p>` : ""}`,
-      say: on ? `Refused: ${test} failed.` : "An agent's pull request says its tests pass.",
+        ${on ? `<p class="kd-row kd-verdict"><span class="kd-badge" data-s="bad">rejected</span><span class="kd-fine k-num">${esc(d.claim.failed)} of ${esc(d.claim.of)} first agent pull requests: a failed check.</span></p>` : ""}`,
+      say: on ? `Rejected: ${test} failed.` : "An agent's pull request says its tests pass.",
       act: "Check the claim",
     }),
     (on) => ({
       html: `<ul class="kd-checks">${[["CI", d.fixed.ci], ["Knos, tests", d.fixed.tests], ["Knos, black box", d.fixed.black_box]].map(([n, v]) =>
         `<li data-s="${on ? "ok" : "wait"}"><span>${esc(n)}</span><span class="kd-badge" data-s="${on ? "ok" : "wait"}">${on ? esc(v) : "waiting"}</span></li>`).join("")}</ul>
-        ${on ? `<div class="kd-box"><div class="kd-row"><span class="kd-tag">Signed by GitHub</span><span class="kd-badge" data-s="ok">signed</span></div>
+        ${on ? `<div class="kd-box"><div class="kd-row"><span class="kd-tag">Verdict</span><span class="kd-badge" data-s="ok">accepted</span><span class="kd-tag">Signed by GitHub</span><span class="kd-badge" data-s="ok">signed</span></div>
           <ul class="kd-pills">${d.fixed.claims.map((c) => `<li>${esc(c.is)} <span class="kd-mono">${esc(c.name)}</span></li>`).join("")}</ul></div>` : ""}`,
-      say: on ? "Checks pass. GitHub signs the repository, commit and workflow." : "The agent pushes a fix.",
+      say: on ? "Accepted: checks pass. GitHub signs repository, commit and workflow." : "The agent pushes a fix.",
       act: "Push the fix",
     }),
     (on) => ({
@@ -202,9 +205,9 @@ export async function renderDemo(el, env = {}) {
       act: "Pay",
     }),
     (on) => ({
-      html: `<div class="kd-box kd-shake"><div class="kd-row"><span class="kd-tag">Pay token</span><span class="kd-badge" data-s="${on ? "bad" : "wait"}">${on ? "Refused: already paid" : "used once"}</span></div>
+      html: `<div class="kd-box kd-shake"><div class="kd-row"><span class="kd-tag">Pay token</span><span class="kd-badge" data-s="${on ? "bad" : "wait"}">${on ? "Refused" : "used once"}</span></div>
           ${on ? `<p class="kd-fine k-num">Error ${esc(d.replay.error)}: ${esc(d.replay.means)}. ${tx(d.replay.tx, "transaction")}</p>` : ""}</div>`,
-      say: on ? `Refused: already paid. Error ${d.replay.error}.` : "Send the same token a second time.",
+      say: on ? `Refused: a token works once. Error ${d.replay.error}.` : "Send the same token a second time.",
       act: "Send the same token again",
     }),
     (on) => ({
@@ -233,13 +236,13 @@ export async function renderDemo(el, env = {}) {
     el.querySelectorAll(".k-step").forEach((b, k) => {
       b.dataset.state = state.done[k] ? (BAD[k] ? "bad" : "done") : k === i ? "live" : "idle";
       if (k === i) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
-      b.setAttribute("aria-label", `Step ${k + 1}: ${STEPS[k]}${state.done[k] ? (BAD[k] ? ", refused" : ", done") : ""}`);
+      b.setAttribute("aria-label", `Step ${k + 1}: ${STEPS[k]}${state.done[k] ? `, ${ENDS[k]}` : ""}`);
     });
     const [funded, , signed, paid, replayed] = state.done;
     const set = (n, s, text) => { node(n).dataset.s = s; node(n).querySelector("em").textContent = text; };
     set("buyer", funded ? "ok" : i === 0 ? "on" : "", "");
     set("github", state.done[1] && !signed ? "bad" : signed ? "ok" : i === 1 || i === 2 ? "on" : "", signed ? "signed" : state.done[1] ? "1 failed" : "");
-    set("solana", replayed && i === 4 ? "bad" : funded || paid ? "ok" : i === 3 ? "on" : "", replayed && i === 4 ? "refused" : paid ? "0.00 held" : funded ? `${d.fund.amount} held` : "");
+    set("solana", replayed && i === 4 ? "bad" : funded || paid ? "ok" : i === 3 ? "on" : "", replayed && i === 4 ? "not paid again" : paid ? "0.00 held" : funded ? `${d.fund.amount} held` : "");
     set("seller", paid ? "ok" : "", paid ? `+${d.paid.amount}` : "");
     if (inside) go.focus({ preventScroll: true });
   }

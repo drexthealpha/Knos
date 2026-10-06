@@ -32,8 +32,8 @@ twice-billed lines bill, with its share of the invoice.
 `statement.json` is canonical: the same invoice and the same answers from GitHub give the same bytes, from the
 command line and from the browser. Both sides compare one sha256 to confirm they hold the same statement.
 
-With `--out`, a resume file is kept beside the statement: a second run asks GitHub only about lines the first could
-not finish, and every request is conditional. The file holds GitHub's answers; keep it where the invoice is kept.
+With `--out`, a resume file is kept (a second run asks GitHub only about unfinished lines) and `evidence.json`, from
+which `knos statement make` writes the approver's statement as JSON, CSV and PDF ([FINANCE.md](FINANCE.md), section 4a).
 
 ## The sample, read from live GitHub
 

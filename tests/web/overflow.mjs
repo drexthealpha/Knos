@@ -4,8 +4,7 @@
 // side fails, and the elements that stick out are named. Everything outside the site's own files is refused, so this
 // is the page as it stands before any answer arrives; tests/web/site.mjs holds the same line for the answers (a
 // result, a wallet, a transaction's accounts) at the same widths. With a screenshot dir, the first screen is saved at
-// 1280 and 390 in both schemes. No `playwright` package or no browser: says so and exits 0 (tests/test_site_overflow.py
-// reports that as a skip).
+// 1280 and 390 in both schemes. No `playwright` package or no browser: a failure in CI, a skip elsewhere (see `owed`).
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
@@ -13,9 +12,14 @@ import { join, extname } from "node:path";
 
 export const WIDTHS = [320, 360, 390, 768, 1280];
 export const PAGES = ["", "#protect", "#fund", "#money", "#task", "#anyissue", "#claim", "#pricing", "#records", "#u=alice", "#r=octo/widgets", "#rank=earners",
-  "#network", "#build", "#buy", "#install", "#capabilities", "#status", "#index", "#pilot", "#reproduce", "#demo", "#shadow", "#verifier", "#playground", "#terms"];
+  "#network", "#build", "#buy", "#install", "#capabilities", "#status", "#index", "#pilot", "#reproduce", "#demo", "#shadow", "#verifier", "#playground", "#terms",
+  "#supplier", "#invoice-statement", "#story", "#keyholder", "#check-a-pull-request"];
 export const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
-const skip = (why) => { console.log(`SKIP ${why}`); process.exit(0); };
+// With no browser a run says SKIP and exits 0, except where a browser is owed: in CI (the web job installs Playwright and
+// Chromium before these scripts) or with KNOS_REQUIRE_BROWSER=1, where the same thing is a failure. Under pytest
+// (tests/test_site_overflow.py) it stays a skip, which pytest reports by name.
+const owed = process.env.KNOS_REQUIRE_BROWSER === "1" || (!!process.env.CI && !process.env.PYTEST_CURRENT_TEST);
+const skip = (why) => { if (owed) { console.error(`FAIL no browser to measure with: ${why}`); process.exit(1); } console.log(`SKIP ${why}`); process.exit(0); };
 
 export async function chromiumOrSkip() {
   let pw;
@@ -57,6 +61,8 @@ async function main() {
       await page.setViewportSize({ width, height: 800 });
       for (const hash of scheme === "light" ? PAGES : [""]) {      // the scheme changes colours, not sizes: dark is held on the first screen
         await page.goto("about:blank"); await page.goto(base + hash, { waitUntil: "load" });
+        // a page's code arrives when the page is first opened: measured once it has run (web/front.js marks the root then)
+        await page.waitForFunction(() => document.documentElement.dataset.ready !== undefined, null, { timeout: 15000 }).catch(() => {});
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(150);
         await page.evaluate(() => document.querySelectorAll("details").forEach((d) => { d.open = true; }));

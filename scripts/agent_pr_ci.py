@@ -44,6 +44,85 @@ def _search_slot():
             time.sleep(wait)
         _SEARCH_LAST[0] = time.time()
 
+
+# ---- inside GitHub's limits ---------------------------------------------------------------------------------------
+# GitHub's guidance, read 2026-10-06 (docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api
+# and .../rate-limits-for-the-rest-api, docs.github.com/en/rest/search/search):
+#   - make requests one after another, not at once;
+#   - a refusal with a `retry-after` header: do not ask again before that many seconds have passed;
+#   - a refusal with `x-ratelimit-remaining: 0`: not before the time in `x-ratelimit-reset`;
+#   - any other refusal for a secondary limit: wait at least one minute, longer each time, and give up after a
+#     fixed number of tries;
+#   - send `if-none-match` with the ETag of the answer already held: a 304 does not count against the primary limit;
+#   - search answers 30 requests a minute to a signed-in caller; an Actions token has 1,000 requests an hour.
+# So: one request in flight at a time (_SERIAL), PACE seconds apart at least (a weekly run spreads its requests over
+# its minutes instead of sending them in a burst), every wait is the one GitHub named, and a kept answer that has
+# grown old is asked for again with its ETag.
+PATIENT = False         # a bounded run: wait out a limit when the wait fits in its minutes (True), or stop at once
+PACE = 0.0              # the least seconds between two requests of any kind
+MAX_RETRIES = 4         # refusals for a limit one request may meet before the run gives up on it
+COME_BACK = [None]      # when a run stopped for a limit: the time (epoch seconds) GitHub said to come back at
+_SERIAL = __import__("threading").Lock()
+_LAST = [0.0]
+
+
+def _send(cmd):
+    """`_gh(cmd)`, one request at a time and PACE seconds after the one before."""
+    with _SERIAL:
+        wait = _LAST[0] + PACE - time.time()
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return _gh(cmd)
+        finally:
+            _LAST[0] = time.time()
+
+
+def _answer(out):
+    """(status, headers, body) of what `gh api -i` printed: the status line and the headers come first, then an empty
+    line, then the body. (None, {}, out) when there is no status line."""
+    if not out.startswith("HTTP/"):
+        return None, {}, out
+    head, _, body = out.replace("\r\n", "\n").partition("\n\n")
+    lines = head.split("\n")
+    try:
+        status = int(lines[0].split()[1])
+    except (IndexError, ValueError):
+        status = None
+    return status, {k.strip().lower(): v.strip() for k, sep, v in (x.partition(":") for x in lines[1:]) if sep}, body
+
+
+def limit_wait(headers, attempt, now=None):
+    """Seconds to wait after a refusal for a rate limit, as GitHub asks: `retry-after` when it is there; until
+    `x-ratelimit-reset` when nothing remains; otherwise one minute, doubled at each further try."""
+    now = time.time() if now is None else now
+    try:
+        if headers.get("retry-after"):
+            return max(1, int(headers["retry-after"])) + 1
+        if headers.get("x-ratelimit-remaining") == "0" and headers.get("x-ratelimit-reset"):
+            return max(1, int(headers["x-ratelimit-reset"]) - now) + 1
+    except ValueError:
+        pass
+    return 60 * 2 ** attempt
+
+
+def _limited(headers, attempt, kind, err):
+    """A request was refused for a rate limit. Returns after waiting when the run may wait; otherwise raises: a
+    bounded run stops and writes what it has (COME_BACK says when to continue), any run stops when its minutes
+    would end first or the request has been refused MAX_RETRIES times."""
+    wait = limit_wait(headers, attempt)
+    secondary = bool(re.search("secondary", err, re.I))
+    if kind == "core" and not secondary and not headers:
+        wait = _core_reset() or wait    # the hourly budget is spent: it comes back at a known time, wait for it
+    if (NO_WAIT and not PATIENT) or attempt >= MAX_RETRIES or time_left() < wait + 15:
+        COME_BACK[0] = time.time() + wait
+        if NO_WAIT:
+            _stop(f"GitHub refused a {kind} request for {'a secondary rate limit' if secondary else 'a rate limit'}", OutOfBudget)
+        raise OutOfTime()
+    print(f"  rate-limited, sleeping {wait:.0f}s", file=sys.stderr)
+    time.sleep(wait)
+
+
 # ---- agent definitions (search qualifiers) --------------------------------
 AGENTS = [
     ("copilot",     "author:app/copilot-swe-agent"),
@@ -178,6 +257,16 @@ def _now():
     return dt.datetime.now(dt.timezone.utc)
 
 
+def _kept(fn):
+    """Everything kept in `fn` ({"key", "fetched", "resp", "etag"}), however old; None when there is none."""
+    try:
+        with open(fn, encoding="utf-8") as f:
+            got = json.load(f)
+        return got if isinstance(got, dict) and "resp" in got else None
+    except (OSError, ValueError):
+        return None
+
+
 def _cached(fn, max_age):
     """The kept answer in `fn`, or None: no file, a file cut short by a killed run, or one older than `max_age`."""
     try:
@@ -214,14 +303,24 @@ def gh_get(path, params=None, kind="core", max_age=None):
     if time_left() < 15:
         _stop("its minutes were spent", OutOfTime)
     cmd = ["gh", "api", "-X", "GET", path, "-H", "Accept: application/vnd.github+json"]
+    old = _kept(fn)             # an answer grown older than `max_age`: asked for again only if it changed
+    etag = old.get("etag") if old and old["resp"].get("ok") else None
+    if etag:
+        cmd += ["-H", f"If-None-Match: {etag}"]
     for k, v in (params or {}).items():
         cmd += ["-f", f"{k}={v}"]
+    cmd.append("-i")            # the status line and the headers: retry-after, x-ratelimit-*, etag
     resp = None
     for attempt in range(6):
         _spend()
         if kind == "search":
             _search_slot()  # 30 req/min search limit; complex OR queries trip secondary limits faster
-        code, out, err = _gh(cmd)
+        code, out, err = _send(cmd)
+        status, headers, out = _answer(out)
+        if status == 304 and etag:
+            resp = old["resp"]  # not modified: the kept answer stands, and GitHub did not count the request
+            break
+        etag = headers.get("etag") or None
         if code == 0:
             try:
                 body = json.loads(out or "null")
@@ -234,17 +333,8 @@ def gh_get(path, params=None, kind="core", max_age=None):
             resp = {"ok": True, "json": body}
             break
         err = err + out[:500]
-        if re.search(r"rate limit|HTTP 429|secondary", err, re.I):
-            if NO_WAIT:                 # a bounded run never sleeps on a limit: it stops and writes what it has
-                limit = "a secondary rate limit" if re.search("secondary", err, re.I) else "a rate limit"
-                _stop(f"GitHub refused a {kind} request for {limit}", OutOfBudget)
-            wait = min(90, 20 * (attempt + 1))
-            if kind == "core" and not re.search("secondary", err, re.I):
-                wait = _core_reset() or wait   # the hourly budget is spent: it comes back at a known time, wait for it
-            if time_left() < wait + 15:
-                raise OutOfTime()
-            print(f"  rate-limited, sleeping {wait:.0f}s", file=sys.stderr)
-            time.sleep(wait)
+        if status == 429 or re.search(r"rate limit|HTTP 429|secondary", err, re.I):
+            _limited(headers, attempt, kind, err)
             continue
         if _NO_ANSWER.search(err) and attempt < 3:
             time.sleep(5)
@@ -259,7 +349,7 @@ def gh_get(path, params=None, kind="core", max_age=None):
         os.makedirs(os.path.dirname(fn), exist_ok=True)
         tmp = f"{fn}.{os.getpid()}.{__import__('threading').get_ident()}.tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"key": key, "fetched": _now().isoformat(), "resp": resp}, f)
+            json.dump({"key": key, "fetched": _now().isoformat(), "resp": resp, **({"etag": etag} if etag and resp.get("ok") else {})}, f)
         os.replace(tmp, fn)   # in one step: a run killed here leaves the old answer or none, never half of one
     return resp
 
@@ -430,18 +520,24 @@ def gh_graphql(query):
     """One GraphQL query through `gh api graphql` (never kept on disk: the caller's checkpoint keeps what it reads).
     {"ok": True, "data", "errors"} when GitHub answered, also when it answered null for some of it; otherwise
     {"ok": False, "error", "transient"}: transient when the failure says nothing about the query."""
-    _spend()
-    code, out, err = _gh(["gh", "api", "graphql", "-f", f"query={query}"])
-    try:
-        body = json.loads(out or "null")
-    except ValueError:
-        body = None
-    if isinstance(body, dict) and isinstance(body.get("data"), dict):
-        return {"ok": True, "data": body["data"], "errors": body.get("errors") or []}
-    text = (err + out[:500]).strip() or "no answer"
-    if re.search(r"rate limit|HTTP 429|secondary", text, re.I):
-        raise OutOfBudget()
-    return {"ok": False, "error": text[:300], "transient": code == 0 or bool(_NO_ANSWER.search(text))}
+    for attempt in range(MAX_RETRIES + 1):
+        _spend()
+        code, out, err = _send(["gh", "api", "graphql", "-f", f"query={query}", "-i"])
+        _status, headers, out = _answer(out)
+        try:
+            body = json.loads(out or "null")
+        except ValueError:
+            body = None
+        if isinstance(body, dict) and isinstance(body.get("data"), dict):
+            return {"ok": True, "data": body["data"], "errors": body.get("errors") or []}
+        text = (err + out[:500]).strip() or "no answer"
+        if not re.search(r"rate limit|HTTP 429|secondary", text, re.I):
+            return {"ok": False, "error": text[:300], "transient": code == 0 or bool(_NO_ANSWER.search(text))}
+        if not (PATIENT and attempt < MAX_RETRIES and time_left() >= limit_wait(headers, attempt) + 15):
+            COME_BACK[0] = time.time() + limit_wait(headers, attempt)
+            raise OutOfBudget()
+        time.sleep(limit_wait(headers, attempt))
+    raise OutOfBudget()
 
 
 def read_rollup(cands):

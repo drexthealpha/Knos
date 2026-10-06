@@ -52,6 +52,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -86,6 +87,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -109,6 +121,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -148,7 +167,7 @@
       "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
      ],
      "type": "knos.acceptance-receipt",
-     "version": 3
+     "version": 4
     },
     "terms": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"build\"},{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
@@ -177,7 +196,7 @@
     "it names one order, commit, terms hash, pull request and its payees",
     "the receipt names this token and says what the token says"
    ],
-   "evidence": "{\"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\\n\", \"receipt\": \"{\\\"amendments\\\": [{\\\"detail\\\": {\\\"add\\\": \\\"5000000\\\", \\\"amount\\\": \\\"20000000\\\", \\\"fee\\\": \\\"500000\\\"}, \\\"kind\\\": \\\"topup\\\", \\\"time\\\": 1789999400, \\\"transaction\\\": \\\"3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3\\\"}], \\\"amounts\\\": {\\\"decimals\\\": 6, \\\"fee\\\": \\\"200000\\\", \\\"mint\\\": \\\"ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu\\\", \\\"of\\\": \\\"20000000\\\", \\\"paid\\\": \\\"20000000\\\", \\\"tip\\\": \\\"300000\\\"}, \\\"cluster\\\": \\\"devnet\\\", \\\"commercial_authorisation\\\": {\\\"billed_before\\\": false, \\\"deliverable\\\": {\\\"milestone\\\": 0, \\\"order\\\": \\\"k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn\\\"}, \\\"funded\\\": \\\"2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2\\\", \\\"funder\\\": {\\\"github_id\\\": null, \\\"login\\\": null, \\\"wallet\\\": \\\"21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc\\\"}, \\\"limit\\\": \\\"no limit set\\\", \\\"role\\\": \\\"wallet\\\", \\\"source\\\": {\\\"address\\\": \\\"21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc\\\", \\\"kind\\\": \\\"wallet\\\", \\\"owner_id\\\": null}}, \\\"evaluator_observed\\\": {\\\"artifact\\\": {\\\"commit\\\": \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", \\\"pull_request\\\": 12}, \\\"checks\\\": [{\\\"conclusion\\\": \\\"passed\\\", \\\"name\\\": \\\"build\\\"}, {\\\"conclusion\\\": \\\"passed\\\", \\\"name\\\": \\\"test\\\"}], \\\"evaluators\\\": [{\\\"actor_id\\\": 1234567, \\\"independent_of_buyer\\\": false, \\\"independent_of_seller\\\": true, \\\"kind\\\": \\\"repository\\\", \\\"owner_id\\\": 424242, \\\"repository_id\\\": 987654321, \\\"runner\\\": \\\"github-hosted\\\"}], \\\"independence\\\": \\\"One judge spoke.\\\", \\\"judge\\\": {\\\"kind\\\": \\\"repository\\\", \\\"version\\\": \\\"cccccccccccccccccccccccccccccccccccccccc\\\"}, \\\"same_controller\\\": false, \\\"verdict\\\": \\\"accepted\\\"}, \\\"issuer_authenticated\\\": {\\\"claims\\\": {\\\"actor_id\\\": \\\"1234567\\\", \\\"event_name\\\": \\\"pull_request_target\\\", \\\"exp\\\": 1790000300, \\\"iat\\\": 1790000000, \\\"job_workflow_ref\\\": \\\"drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main\\\", \\\"job_workflow_sha\\\": \\\"cccccccccccccccccccccccccccccccccccccccc\\\", \\\"repository_id\\\": \\\"987654321\\\", \\\"repository_owner_id\\\": \\\"424242\\\", \\\"run_attempt\\\": \\\"1\\\", \\\"run_id\\\": \\\"36905461215\\\", \\\"runner_environment\\\": \\\"github-hosted\\\"}, \\\"issuer\\\": \\\"https://token.actions.githubusercontent.com\\\", \\\"provider\\\": \\\"github\\\", \\\"token_sha256\\\": \\\"815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0\\\", \\\"verified\\\": {\\\"key\\\": \\\"9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz\\\", \\\"program\\\": \\\"FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W\\\", \\\"transaction\\\": \\\"bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX\\\"}}, \\\"order\\\": \\\"k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn\\\", \\\"payees\\\": [{\\\"amount\\\": \\\"20000000\\\", \\\"bps\\\": 10000, \\\"github_id\\\": 5550123, \\\"to\\\": \\\"p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV\\\"}], \\\"policy\\\": {\\\"allowed_paths\\\": [\\\"src/**\\\"], \\\"denied_paths\\\": [\\\".github/**\\\", \\\".knos/**\\\"], \\\"mode\\\": \\\"merge\\\", \\\"terms_hash\\\": \\\"19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e\\\", \\\"version\\\": 1}, \\\"program\\\": \\\"5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k\\\", \\\"repository\\\": {\\\"id\\\": 987654321, \\\"issue\\\": 77}, \\\"scope\\\": \\\"3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc\\\", \\\"transaction\\\": {\\\"signature\\\": \\\"oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh\\\", \\\"slot\\\": 412, \\\"time\\\": 1790000020}, \\\"trust_remaining\\\": [\\\"GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.\\\", \\\"The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.\\\", \\\"The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.\\\", \\\"Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review.\\\"], \\\"type\\\": \\\"knos.acceptance-receipt\\\", \\\"version\\\": 3}\"}",
+   "evidence": "{\"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\\n\", \"receipt\": \"{\\\"amendments\\\": [{\\\"detail\\\": {\\\"add\\\": \\\"5000000\\\", \\\"amount\\\": \\\"20000000\\\", \\\"fee\\\": \\\"500000\\\"}, \\\"kind\\\": \\\"topup\\\", \\\"time\\\": 1789999400, \\\"transaction\\\": \\\"3L3RY5sT8K4kyEnqhizwaqxLEbcYvpGrGPNEYRwtbCSUtL6YL86jdrvCbohnP5q8VxQ3qzGmt3W3iQJW97rD7m3\\\"}], \\\"amounts\\\": {\\\"decimals\\\": 6, \\\"fee\\\": \\\"200000\\\", \\\"mint\\\": \\\"ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu\\\", \\\"of\\\": \\\"20000000\\\", \\\"paid\\\": \\\"20000000\\\", \\\"tip\\\": \\\"300000\\\"}, \\\"cluster\\\": \\\"devnet\\\", \\\"commercial_authorisation\\\": {\\\"billed_before\\\": false, \\\"deliverable\\\": {\\\"milestone\\\": 0, \\\"order\\\": \\\"k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn\\\"}, \\\"funded\\\": \\\"2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2\\\", \\\"funder\\\": {\\\"github_id\\\": null, \\\"login\\\": null, \\\"wallet\\\": \\\"21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc\\\"}, \\\"limit\\\": \\\"no limit set\\\", \\\"role\\\": \\\"wallet\\\", \\\"source\\\": {\\\"address\\\": \\\"21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc\\\", \\\"kind\\\": \\\"wallet\\\", \\\"owner_id\\\": null}}, \\\"disputed\\\": null, \\\"evaluator_observed\\\": {\\\"artifact\\\": {\\\"commit\\\": \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", \\\"pull_request\\\": 12}, \\\"checks\\\": [{\\\"conclusion\\\": \\\"passed\\\", \\\"name\\\": \\\"build\\\"}, {\\\"conclusion\\\": \\\"passed\\\", \\\"name\\\": \\\"test\\\"}], \\\"evaluators\\\": [{\\\"actor_id\\\": 1234567, \\\"independent_of_buyer\\\": false, \\\"independent_of_seller\\\": true, \\\"kind\\\": \\\"repository\\\", \\\"owner_id\\\": 424242, \\\"repository_id\\\": 987654321, \\\"runner\\\": \\\"github-hosted\\\"}], \\\"independence\\\": \\\"One judge spoke.\\\", \\\"judge\\\": {\\\"kind\\\": \\\"repository\\\", \\\"version\\\": \\\"cccccccccccccccccccccccccccccccccccccccc\\\"}, \\\"same_controller\\\": false, \\\"verdict\\\": \\\"accepted\\\"}, \\\"evidence_source\\\": {\\\"kind\\\": \\\"issuer_token\\\", \\\"reference\\\": \\\"815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0\\\", \\\"signed_by\\\": \\\"https://token.actions.githubusercontent.com\\\"}, \\\"ids\\\": {\\\"deliverable\\\": \\\"dlv_b3a4a4415288c9862f65d9a4\\\", \\\"evaluation\\\": \\\"evl_bcd8010dca8025a90a40697f\\\", \\\"invoice_line\\\": null, \\\"settlement\\\": \\\"stl_31cf4d2de4f8cabddee2d51a\\\"}, \\\"issuer_authenticated\\\": {\\\"claims\\\": {\\\"actor_id\\\": \\\"1234567\\\", \\\"event_name\\\": \\\"pull_request_target\\\", \\\"exp\\\": 1790000300, \\\"iat\\\": 1790000000, \\\"job_workflow_ref\\\": \\\"drexthealpha/Knos/.github/workflows/prove.yml@refs/heads/main\\\", \\\"job_workflow_sha\\\": \\\"cccccccccccccccccccccccccccccccccccccccc\\\", \\\"repository_id\\\": \\\"987654321\\\", \\\"repository_owner_id\\\": \\\"424242\\\", \\\"run_attempt\\\": \\\"1\\\", \\\"run_id\\\": \\\"36905461215\\\", \\\"runner_environment\\\": \\\"github-hosted\\\"}, \\\"issuer\\\": \\\"https://token.actions.githubusercontent.com\\\", \\\"provider\\\": \\\"github\\\", \\\"token_sha256\\\": \\\"815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0\\\", \\\"verified\\\": {\\\"key\\\": \\\"9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz\\\", \\\"program\\\": \\\"FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W\\\", \\\"transaction\\\": \\\"bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX\\\"}}, \\\"limitations\\\": [\\\"The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.\\\", \\\"The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.\\\", \\\"In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.\\\", \\\"Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.\\\", \\\"This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record.\\\"], \\\"order\\\": \\\"k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn\\\", \\\"payees\\\": [{\\\"amount\\\": \\\"20000000\\\", \\\"bps\\\": 10000, \\\"github_id\\\": 5550123, \\\"to\\\": \\\"p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV\\\"}], \\\"policy\\\": {\\\"allowed_paths\\\": [\\\"src/**\\\"], \\\"denied_paths\\\": [\\\".github/**\\\", \\\".knos/**\\\"], \\\"mode\\\": \\\"merge\\\", \\\"terms_hash\\\": \\\"19ef08ae1ebd0c5e4404c8593db4daa3241a317ec46ec6136ff5cf43347eff1e\\\", \\\"version\\\": 1}, \\\"program\\\": \\\"5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k\\\", \\\"repository\\\": {\\\"id\\\": 987654321, \\\"issue\\\": 77}, \\\"scope\\\": \\\"3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc\\\", \\\"transaction\\\": {\\\"signature\\\": \\\"oZqTigQ1XEJAPkoo3Uypft5dgwG1ZJTzJiKfqbvnnwnchauobSyhiDM1174ecfbaz6wytkSUbs1wH333oMyBLBh\\\", \\\"slot\\\": 412, \\\"time\\\": 1790000020}, \\\"trust_remaining\\\": [\\\"GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.\\\", \\\"The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.\\\", \\\"The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.\\\", \\\"Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review.\\\"], \\\"type\\\": \\\"knos.acceptance-receipt\\\", \\\"version\\\": 4}\"}",
    "name": "the evidence as one JSON text, the receipt as text inside it",
    "ok": true,
    "refused": "",
@@ -255,6 +274,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -289,6 +309,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -312,6 +343,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -351,7 +389,7 @@
       "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
      ],
      "type": "knos.acceptance-receipt",
-     "version": 3
+     "version": 4
     },
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
    },
@@ -492,6 +530,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -526,6 +565,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -549,6 +599,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -588,7 +645,7 @@
       "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
      ],
      "type": "knos.acceptance-receipt",
-     "version": 3
+     "version": 4
     },
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
    },
@@ -646,6 +703,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -680,6 +738,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -703,6 +772,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -742,7 +818,7 @@
       "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
      ],
      "type": "knos.acceptance-receipt",
-     "version": 3
+     "version": 4
     },
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
    },
@@ -800,6 +876,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -834,6 +911,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -857,6 +945,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -903,7 +998,7 @@
    "name": "a receipt of version 1",
    "ok": false,
    "refused": "receipt",
-   "why": "This is not an acceptance receipt of version 2 or 3 with an accepted verdict (docs/RECEIPT.md)."
+   "why": "This is not an acceptance receipt of version 2, 3 or 4 with an accepted verdict (docs/RECEIPT.md)."
   },
   {
    "checked": [
@@ -955,6 +1050,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -989,6 +1085,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -1012,6 +1119,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -1051,7 +1165,7 @@
       "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
      ],
      "type": "knos.acceptance-receipt",
-     "version": 3
+     "version": 4
     },
     "terms": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"build\"},{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"**\"],\"reserve\":0,\"v\":1}",
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
@@ -1111,6 +1225,7 @@
        "owner_id": null
       }
      },
+     "disputed": null,
      "evaluator_observed": {
       "artifact": {
        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -1145,6 +1260,17 @@
       "same_controller": false,
       "verdict": "accepted"
      },
+     "evidence_source": {
+      "kind": "issuer_token",
+      "reference": "815e6885751eae12f9fcc28b7793bc122e7c480a15e2cf303be95397c3d046d0",
+      "signed_by": "https://token.actions.githubusercontent.com"
+     },
+     "ids": {
+      "deliverable": "dlv_b3a4a4415288c9862f65d9a4",
+      "evaluation": "evl_bcd8010dca8025a90a40697f",
+      "invoice_line": null,
+      "settlement": "stl_31cf4d2de4f8cabddee2d51a"
+     },
      "issuer_authenticated": {
       "claims": {
        "actor_id": "1234567",
@@ -1168,6 +1294,13 @@
        "transaction": "bvdM3G3ktfyNYZrbXrz7kfJyWxCFvE6jynVW8TCLqxbDGwS6wqV2Xum115YjiFSwVKxjfp5cCeWhi2XY6mj8kPX"
       }
      },
+     "limitations": [
+      "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+      "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+      "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+      "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+      "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+     ],
      "order": "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
      "payees": [
       {
@@ -1207,7 +1340,7 @@
       "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
      ],
      "type": "knos.acceptance-receipt",
-     "version": 3
+     "version": 4
     },
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImFiYyIsImtpZCI6ImsifQ.eyJqdGkiOiI4YjJjMWYwZS02YTRkLTRjM2ItOWUyYS01ZDdmMWMwYjlhOGUiLCJzdWIiOiJyZXBvOm9jdG8vd2lkZ2V0czpwdWxsX3JlcXVlc3QiLCJhdWQiOiJrbm9zMzpwYXk6azdGYUs4N1dIR1ZYemthb0hiN0NkVlBna0tEUWhaMjlWTERlQlZiRGZZbjphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhOjE5ZWYwOGFlMWViZDBjNWU0NDA0Yzg1OTNkYjRkYWEzMjQxYTMxN2VjNDZlYzYxMzZmZjVjZjQzMzQ3ZWZmMWU6MDoxMjo1NTUwMTIzLjEwMDAwLi0iLCJyZWYiOiJyZWZzL2hlYWRzL21haW4iLCJzaGEiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVwb3NpdG9yeSI6Im9jdG8vd2lkZ2V0cyIsInJlcG9zaXRvcnlfb3duZXIiOiJvY3RvIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQyNDI0MiIsInJ1bl9pZCI6IjM2OTA1NDYxMjE1IiwicnVuX251bWJlciI6IjE3IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6Ijk4NzY1NDMyMSIsImFjdG9yX2lkIjoiMTIzNDU2NyIsImFjdG9yIjoibW9uYSIsIndvcmtmbG93Ijoia25vcyIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVsbF9yZXF1ZXN0X3RhcmdldCIsInJlZl9wcm90ZWN0ZWQiOiJ0cnVlIiwicmVmX3R5cGUiOiJicmFuY2giLCJ3b3JrZmxvd19yZWYiOiJvY3RvL3dpZGdldHMvLmdpdGh1Yi93b3JrZmxvd3Mva25vcy55bWxAcmVmcy9oZWFkcy9tYWluIiwid29ya2Zsb3dfc2hhIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImpvYl93b3JrZmxvd19yZWYiOiJkcmV4dGhlYWxwaGEvS25vcy8uZ2l0aHViL3dvcmtmbG93cy9wcm92ZS55bWxAcmVmcy9oZWFkcy9tYWluIiwiam9iX3dvcmtmbG93X3NoYSI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJydW5uZXJfZW52aXJvbm1lbnQiOiJnaXRodWItaG9zdGVkIiwiY2hlY2tfcnVuX2lkIjoiNTU1MDAwMSIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE3ODk5OTk0MDAsImV4cCI6MTc5MDAwMDMwMCwiaWF0IjoxNzkwMDAwMDAwfQ.UKJOmg6aHU6TpGBlNMK_zESgD-kt2lrDfboULg77Uo9QxxqpQh5aIQRe1gMA9ZpvLXq5Xk8m97CdIetMFt_FmAXZs9dvVWoDxaKjgay1H7_fkTxttBcSXJN2Wzdj0sapSx8bYYCSsRBIYwYUqIrwEuOKAvGCNVpAMii-Tg-yEeTDsbGSzgUi6oaSApC3bmbcDaB9WkklezNUdSlTL5QCEjnpHSsKgtX_0Lm1PFac15gNNwafVjThNPXjAlNv9VlhnH1XR8rcFPDircjsStxxLhVEn4hGuSn_rOBexCywgq3tcZNrv4XrgrDJeL528f4RuwIEh6XoTvesXbgtjDPR_Q\n"
    },

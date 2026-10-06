@@ -237,14 +237,33 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     first = readme.split("</h1>", 1)[1].split("\n## ", 1)[0]             # what GitHub shows before scrolling, under the header
     lines = [line for line in first.splitlines() if line.strip()]
-    assert lines[0] == f"**{cc.SENTENCE}**" and "17.8%" in lines[1] and "](docs/BENCH.md)" in lines[1] and len(lines) == 3
-    assert re.findall(r"\[([^\]]+)\]\(", lines[2]) == ["Try the demo", "Check an invoice", "Install"] and "(shadow mode)" in lines[2]
+    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
+    number = f"Of {merged['prs']} merged agent pull requests that claimed passing tests, {merged['any_check_failed']['prs']} had a failed check."
+    # the one sentence, the one number, one line to the site and one command: four lines, forty words at most
+    assert lines[0] == f"**{cc.SENTENCE}**" and lines[1] == number and len(lines) == 4
+    assert lines[2] == "Check your own invoice: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)"
+    assert re.fullmatch(r"`[^`]+`", lines[3]) and "knos shadow" in lines[3]
     said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 40, said
-    assert len(readme.splitlines()) < 260 and "first milestone" not in readme
+    # under it: the number's source, the one-comment round, the two ledgers, each in three lines at most
+    parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", readme.split("\n---\n", 1)[0])[1:])] * 2))
+    assert "17.8%" in parts["The number"] and "](docs/BENCH.md)" in parts["The number"] and "](docs/backtest.json)" in parts["The number"]
+    assert "`/knos fund " in parts["One comment"] and "knos meter reconcile" in parts["Two ledgers"]
+    for name in ("The number", "One comment", "Two ledgers"):
+        assert len([line for line in parts[name].splitlines() if line.strip()]) <= 3, name
+    # one table says what is real, with the numbers of NUMBERS.md in a block this script writes; then one link onward
+    bd = _script("bench_docs")
+    table = bd.today(json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8")), bd.repo_numbers())
+    assert table in parts["What is real today"] and parts["What is real today"].count("\n| ") == table.count("\n| ") + 1
+    for row in ("| Outside funders | 0 |", "| Buyer interviews held | 0 |", "| Letters of intent | 0 |", "| Shadow counts published | 0 |",
+                "| Paying customers | 0 |", "| Outside security review | none |"):
+        assert row in table, row
+    assert len(readme.splitlines()) < 120 and "first milestone" not in readme
+    assert "](docs/README.md)" in parts["Read more"] and "](docs/submission/NUMBERS.md)" in readme and "](docs/CAPABILITIES.md)" in readme
+    # what the front page no longer lists is on the map of the documents
+    docs_map = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
     for doc in ("SHADOW", "PLAYGROUND", "VERIFIER", "FINANCE", "TERMS", "PROVENANCE", "CONFORMANCE", "UNWRAPS", "CAPABILITIES"):
-        assert f"](docs/{doc}.md)" in readme, doc
-    assert "](docs/submission/NUMBERS.md)" in readme
+        assert f"]({doc}.md)" in docs_map, doc
 
 
 def _a_number_filled_only_outside_the_pitch_is_a_doc_fact_that_document_is_held_to(tmp_path):

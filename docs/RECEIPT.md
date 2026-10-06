@@ -6,7 +6,7 @@ holds nothing private and nothing that is not already public, so anyone can rebu
 digests. It is what a buyer files, what a seller shows, and what a third party attests to.
 
 A signature proves who signed, not that what was signed is true. So a receipt keeps five things apart, always in
-this order and under these headings, in the JSON and in what `knos receipt` prints (version 3; version 2 has the
+this order and under these headings, in the JSON and in what `knos receipt` prints (versions 3 and 4; version 2 has the
 four that are not the commercial authorisation, and `knos receipt` prints all five headings for it and says what it
 does not carry):
 
@@ -39,18 +39,134 @@ Then `amendments`: every change of the order's terms between its funding and thi
 of the payment, a reservation, a cancellation, a change of the funder's plan), oldest first, each with its
 transaction, so an order's terms history is explicit. Then the payment itself.
 
-- Schema: [`docs/receipt/acceptance-receipt.v3.schema.json`](receipt/acceptance-receipt.v3.schema.json) (JSON Schema
-  2020-12); version 2: [`acceptance-receipt.v2.schema.json`](receipt/acceptance-receipt.v2.schema.json); version 1:
-  [`acceptance-receipt.v1.schema.json`](receipt/acceptance-receipt.v1.schema.json). A reader accepts all three.
+- Schema: [`docs/receipt/acceptance-receipt.v4.schema.json`](receipt/acceptance-receipt.v4.schema.json) (JSON Schema
+  2020-12); version 3: [`acceptance-receipt.v3.schema.json`](receipt/acceptance-receipt.v3.schema.json); version 2: [`acceptance-receipt.v2.schema.json`](receipt/acceptance-receipt.v2.schema.json); version 1:
+  [`acceptance-receipt.v1.schema.json`](receipt/acceptance-receipt.v1.schema.json). A reader accepts all four.
 - Conformance vectors: [`docs/receipt/vectors.json`](receipt/vectors.json): of version 1, five receipts a reader
   must accept, with their digests, and nine a reader must refuse; of version 2, the same five and eight to refuse;
-  of version 3, five to accept and twelve to refuse
-- Reference code: [`src/knos/receipt.py`](../src/knos/receipt.py) (`build2`, `build3`, `authorisation`, `evaluator`,
-  `independence_of`, `upgrade`, `as2`, `check`, `render`, `canonical`, `digest`); the tests are
-  `tests/test_receipt.py`, `tests/test_bundle.py` and `tests/test_receipt_offline.py`
+  of version 3, five to accept and twelve to refuse. Version 4:
+  [`docs/receipt/vectors.v4.json`](receipt/vectors.v4.json), twelve to accept (each with its verdict and whether it
+  authorises payment) and twenty-four to refuse
+- Reference code: [`src/knos/receipt.py`](../src/knos/receipt.py) (`build2`, `build3`, `build4`, `unpaid4`, `dispute`,
+  `authorises_payment`, `exposed`, `limitations_of`, `ids_of`, `authorisation`, `evaluator`, `independence_of`,
+  `upgrade`, `as2`, `as3`, `check`, `render`, `canonical`, `digest`); the tests are `tests/test_receipt.py`,
+  `tests/test_verdicts_ids.py`, `tests/test_bundle.py` and `tests/test_receipt_offline.py`
 - Commands: `knos receipt FILE` (check and print), `knos receipt mirror --out DIR`, `knos receipt verify ORDER
   [--mirror DIR]`, `knos bundle make ORDER [--verdict FILE]`, `knos bundle verify FILE [--rpc URL] [--mirror DIR]`,
   and with the chain gone `knos bundle verify FILE --no-chain` and `knos receipt verify FILE --no-chain`
+
+## Version 4
+
+Versions 1 to 3 are receipts of one thing: an accepted deliverable that was paid. Version 4 is a receipt of an
+**evaluation**, whatever it concluded. It has everything version 3 has, and four more fields.
+
+**The verdict is one of four words** (`evaluator_observed.verdict`, [`src/knos/ids.py`](../src/knos/ids.py)):
+
+| verdict | what it means | payment |
+|---|---|---|
+| `accepted` | the policy's conditions were met at this commit | the receipt records the payment and stands behind it |
+| `rejected` | they were not met, as this evaluator saw it | none recorded, none authorised |
+| `insufficient_evidence` | the run could not tell: a check has no run, a record is missing | none recorded, none authorised; it is not an acceptance and it is not the supplier's failure |
+| `disputed` | somebody contested a verdict and nobody has resolved it | none authorised; a payment already made stays on record |
+
+A receipt that says rejected or insufficient evidence is a **valid receipt**: `check` accepts it, it has a digest,
+a mirror keeps it. What it never does is authorise payment: `knos.receipt.authorises_payment` is true for a valid
+receipt whose verdict is `accepted` and for no other. Such a receipt has `transaction` null, `amounts.paid`, `fee`
+and `tip` "0", every payee's amount "0" and `ids.settlement` null. A named check's `conclusion` is `passed`,
+`failed` or `missing`; an accepted receipt has every one `passed`.
+
+**Every receipt answers six questions**, and `knos.receipt.exposed` gives them for a receipt of any version:
+
+| question | field (version 4) |
+|---|---|
+| which artifact | `evaluator_observed.artifact`: the commit and the pull request |
+| which policy version | `policy`: the terms' hash and `version` |
+| what the evidence is | `evidence_source` |
+| who evaluated | `evaluator_observed.judge` (the kind and the workflow's commit) and `evaluators` (who controls each) |
+| the verdict | `evaluator_observed.verdict` |
+| what the evidence does not show | `limitations` |
+
+**`evidence_source`** is `{kind, reference, signed_by}`. `issuer_token`: a token the issuer signed and `knos_oidc`
+verified; `reference` is its sha256 and `signed_by` its issuer. `run_record`: the run's own record, signed by
+nobody; `reference` is the record's sha256 or null, `signed_by` is null, `issuer_authenticated` and
+`commercial_authorisation` are null and no controller of the evaluator is recorded. A run's own record can say
+rejected or insufficient evidence. It can never say accepted: an accepted receipt records the token and the payment.
+
+**`limitations`** is a list of plain sentences: what this evidence does not show. The first ones follow from the
+evidence source, the verdict, the mode, whether the evaluator's entry says how it reached its verdict, and whether
+money moved (`knos.receipt.limitations_of`), and a receipt that leaves one out is not valid. Up to eight of the
+writer's own may follow. For a signed, accepted receipt of a merge-mode order they begin:
+
+- The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.
+- The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.
+- In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.
+- Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.
+- This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record.
+
+**`ids`** names four things by ids of their own, so that a milestone carried by ten pull requests is never
+confused with one of them (docs/METER.md, [Four ids on every surface](METER.md#four-ids-on-every-surface)):
+`deliverable` (the order and the milestone), `evaluation` (that deliverable, the commit, the terms' hash, the
+evaluator as `<judge>@<workflow commit>` and the run the issuer signed for), `invoice_line` (the supplier's line,
+or null) and `settlement` (the paying transaction, or null when nothing was paid). `check` computes the first, the
+second and the fourth again from the receipt's own fields, and refuses an id of one kind in the place of another.
+
+**`disputed`** is null unless the verdict is `disputed`. Then it says who contested, when, why, and the receipt
+contested:
+
+    "disputed": {"by": {"role": "buyer", "id": "424242"}, "at": 1790090000, "reason": "...",
+                 "contests": {"sha256": "<the contested receipt's digest>", "verdict": "accepted"}}
+
+`role` is buyer, supplier, evaluator or other. A disputed receipt is the contested one with the verdict replaced, so
+`check` rebuilds the contested receipt from it and holds `contests.sha256` to its digest (`knos.receipt.contested`
+returns it). A dispute of a paid receipt is dated after the payment and keeps the payment on record. The receipt
+does not say how a dispute ends: the resolution is a new receipt, or a correction in the meter's ledger.
+
+The parts of a receipt nothing was paid for, here the vector "rejected: a check failed":
+
+```json
+{
+  "evaluator_observed": {
+    "verdict": "rejected",
+    "checks": [
+      {
+        "name": "build",
+        "conclusion": "passed"
+      },
+      {
+        "name": "test",
+        "conclusion": "failed"
+      }
+    ]
+  },
+  "ids": {
+    "deliverable": "dlv_ad4acb4e779aaf12f543a1c5",
+    "evaluation": "evl_77909506260b3e3ec98e28f0",
+    "invoice_line": null,
+    "settlement": null
+  },
+  "evidence_source": {
+    "kind": "run_record",
+    "reference": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "signed_by": null
+  },
+  "limitations": [
+    "No issuer signed this: the verdict is the run's own record, and whoever controls the run or its record could have written another.",
+    "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+    "The named checks are what was looked at, at this commit and in the run's own environment. Nothing outside them was looked at.",
+    "Rejected means the policy's conditions were not met at this commit, as this evaluator saw it. It does not show that the work is wrong. It authorises no payment.",
+    "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record.",
+    "No payment is recorded here: this receipt does not show that anything was paid, or that anything is owed."
+  ],
+  "disputed": null,
+  "transaction": null
+}
+```
+
+What version 4 does not change: the digest rule, the five parts and their order, and every rule of version 3,
+which a version 4 receipt of a signed run is held to as it stands (`as3` gives the version 3 receipt an accepted,
+paid one holds, byte for byte). What is not done yet, said plainly: `knos bundle make` and the relay still write
+version 3 (an accepted payment); `build4` writes that receipt as version 4, and nothing in a pinned workflow
+writes a rejected or an insufficient receipt yet. The Solana Attestation Service script takes versions 1 to 3.
 
 ## Version 3
 
@@ -521,6 +637,12 @@ A valid receipt also holds these (all are in `knos.receipt.check`, and each has 
 5. The payment is not earlier than the token's `iat`.
 6. No field is missing and none is unknown.
 
+Version 4 adds (each has a vector in `vectors.v4.json`): an accepted receipt records the issuer's token and the
+payment, with every named check passed; a rejected or insufficient receipt records no payment; `ids` are the ones
+the receipt's own fields give, each of its own kind; `evidence_source` names the token when there is one and
+nothing signed when there is none; `limitations` begins with the sentences the evidence leaves; and a disputed
+receipt contests exactly the receipt its `contests.sha256` names, after any payment it records.
+
 ## The digest
 
 `sha256` over the canonical form: the JSON with every object's keys sorted, no white space, UTF-8, non-ASCII
@@ -532,7 +654,7 @@ The digest of the version 1 receipt above is `00d1d55151775720cdbc70e6a44902ea65
 
 It is not a signature and proves nothing by itself: it is an index to things that do (GitHub's signature, verified
 on chain; the program's transfer). A reader who needs proof follows `transaction.signature` and `judge.key`. It says
-the terms were attested as met, not that the work is good.
+the terms were attested as met, not that the work is good. A version 4 receipt says this itself, in `limitations`.
 
 ## As a Solana Attestation Service attestation
 

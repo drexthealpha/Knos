@@ -10,6 +10,12 @@ controls each judge that spoke, and it lists every amendment of the order's term
 four of the parts (no commercial authorisation, no record of the judges' control) and version 1 none; both still
 check (`check` reads all three), `upgrade` writes a version 1 receipt as version 2 and `build3` a version 2 one as 3.
 
+Version 4 says the verdict in one of four words (accepted, rejected, insufficient evidence, disputed), names the
+deliverable, the evaluation, the invoice line and the settlement by ids of their own (knos.ids), names its evidence
+source, and lists its `limitations`: what this evidence does not show. A receipt of a run that was rejected or could
+not tell is a valid receipt and says so; only an accepted one authorises payment (`authorises_payment`). `build4`
+writes a version 3 receipt as version 4, `unpaid4` a receipt of a run nothing was paid for, `dispute` a contested one.
+
 `check` is the whole rule set (the schema's shape and the rules a schema cannot say: shares add up, amounts add up,
 the judge matches the order). It needs no package. `render` is the receipt for a person, under the five headings.
 `mirror_write` / `mirror_find` keep receipts off chain (devnet can be reset); `attest` writes one as a Solana
@@ -20,7 +26,9 @@ import hashlib
 import json
 import re
 
-TYPE, VERSION = "knos.acceptance-receipt", 3          # `check` still reads versions 1 and 2
+from . import ids as _ids
+
+TYPE, VERSION = "knos.acceptance-receipt", 4          # `check` still reads versions 1, 2 and 3
 JUDGES = ("repository", "neutral", "attestor", "arbiter")     # the program's judge a, b, c, d (its log says 0, 1, 2, 3)
 MODES = ("merge", "tests")
 CLAIMS = ("actor_id", "event_name", "exp", "iat", "job_workflow_ref", "job_workflow_sha", "repository_id", "repository_owner_id", "run_attempt",
@@ -59,9 +67,11 @@ def build(*, cluster: str, program: str, order: str, scope: str, repository: dic
 
 
 def check(r) -> str | None:
-    """None when `r` is a valid receipt of version 1, 2 or 3; otherwise the first reason it is not, in words."""
-    if isinstance(r, dict) and r.get("type") == TYPE and (type(r.get("version")) is not int or r["version"] not in (1, 2, 3)):
-        return f"not a {TYPE} of version 1, 2 or 3"
+    """None when `r` is a valid receipt of version 1, 2, 3 or 4; otherwise the first reason it is not, in words."""
+    if isinstance(r, dict) and r.get("type") == TYPE and (type(r.get("version")) is not int or r["version"] not in (1, 2, 3, 4)):
+        return f"not a {TYPE} of version 1, 2 or 3, or of version 4"
+    if isinstance(r, dict) and r.get("type") == TYPE and r["version"] == 4:
+        return _check4(r)
     if isinstance(r, dict) and r.get("type") == TYPE and r["version"] == 3:
         return _check3(r)
     return _check2(r) if isinstance(r, dict) and r.get("type") == TYPE and r["version"] == 2 else _check1(r)
@@ -451,7 +461,7 @@ def chain_only(r: dict) -> dict:
     (`reexecution`). A mirror is written with no host asked, so two copies of one payment's receipt are the same
     receipt when these are equal."""
     o = r.get("evaluator_observed") if isinstance(r, dict) else None
-    if r.get("version") != 3 or not isinstance(o, dict) or not isinstance(o.get("evaluators"), list):
+    if r.get("version") not in (3, 4) or not isinstance(o, dict) or not isinstance(o.get("evaluators"), list):
         return r
     return {**r, "evaluator_observed": {**o, "evaluators": [{k: v for k, v in e.items() if k != "reexecution"} if isinstance(e, dict) else e
                                                             for e in o["evaluators"]]}}
@@ -460,6 +470,9 @@ def chain_only(r: dict) -> dict:
 def as2(r: dict) -> dict:
     """The version 2 receipt a version 3 one holds (the same payment, without the fifth part and the judges' control);
     a receipt of version 1 or 2 as it is. What a reader that knows version 2 only is given."""
+    if r.get("version") == 4:
+        r3 = as3(r)
+        return as2(r3) if r3 else r
     if r.get("version") != 3:
         return r
     out = {k: r[k] for k in _KEYS2}
@@ -559,6 +572,369 @@ def _check3(r) -> str | None:
     return None
 
 
+# ---- version 4: four verdicts, four ids, the evidence source and what the evidence does not show ---------------------------
+NEW4 = ("ids", "evidence_source", "limitations", "disputed")
+_KEYS4 = (*_KEYS3, *NEW4)
+CONCLUSIONS = ("passed", "failed", "missing")       # of one named check: it passed, it failed, or no run of it was found
+EVIDENCE = ("issuer_token", "run_record")           # a token the issuer signed and knos_oidc verified; or the run's own record, signed by nobody
+CONTESTERS = ("buyer", "supplier", "evaluator", "other")
+NOT_SIGNED = "No issuer signed for this evaluator: who controls it is not recorded, and its independence of the buyer and the seller cannot be computed."
+_L_TOKEN = "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded."
+_L_RECORD = "No issuer signed this: the verdict is the run's own record, and whoever controls the run or its record could have written another."
+_L_POLICY = "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing."
+_L_MODE = {"merge": "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+           "tests": "The named checks are what was looked at, at this commit and in the run's own environment. Nothing outside them was looked at."}
+_L_VERDICT = {"accepted": "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+              "rejected": "Rejected means the policy's conditions were not met at this commit, as this evaluator saw it. It does not show that the work is wrong. "
+                          "It authorises no payment.",
+              "insufficient_evidence": "The evaluation could not tell. This is not an acceptance and not a failure of the supplier. It authorises no payment.",
+              "disputed": "This verdict is contested and not resolved. It does not show which side is right. It authorises no payment until it is resolved."}
+_L_RERUN = "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+_L_UNPAID = "No payment is recorded here: this receipt does not show that anything was paid, or that anything is owed."
+
+
+def limitations_of(source: str, verdict: str, mode: str, reran: bool, paid: bool) -> list[str]:
+    """What the evidence of a receipt does not show, in plain sentences. It follows from the evidence source, the
+    verdict, how the order is judged, whether the evaluator's entry says how it reached its verdict (`reran`), and
+    whether money moved, so a receipt cannot leave one out: `check` compares. A receipt may add its own after these."""
+    return [_L_TOKEN if source == "issuer_token" else _L_RECORD, _L_POLICY, _L_MODE[mode], _L_VERDICT[verdict], *([] if reran else [_L_RERUN]),
+            *([] if paid else [_L_UNPAID])]
+
+
+def trust_unsigned(mode: str) -> list[str]:
+    """What a reader of a receipt no issuer signed still has to trust."""
+    return ["The run's own record and wherever it is kept: nothing here is signed by an issuer.",
+            "The code of the workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+            *(["The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept."]
+              if mode == "merge" else [])]
+
+
+def ids_of(r: dict, milestone: int, invoice_line: str | None = None) -> dict:
+    """The four ids of a receipt (knos.ids), from its own fields: the deliverable is the order and the milestone; the
+    evaluation is that deliverable, the commit, the terms' hash, the evaluator as `<judge>@<version>` and the run (the
+    run the issuer signed for; for a run's own record, the record's sha256, or nothing); the settlement is the paying
+    transaction, null when nothing was paid. The invoice line is the supplier's and is passed in, or null."""
+    o, a, src = r["evaluator_observed"], r["issuer_authenticated"], r.get("evidence_source") or {}
+    dlv = _ids.deliverable(_ids.order_scope(r["order"]), milestone)
+    run = (a["claims"]["pipeline_id" if a["provider"] == "gitlab" else "run_id"] if a else src.get("reference") or "")
+    return {"deliverable": dlv,
+            "evaluation": _ids.evaluation(dlv, o["artifact"]["commit"], r["policy"]["terms_hash"], f"{o['judge']['kind']}@{o['judge']['version']}", run),
+            "invoice_line": invoice_line, "settlement": _ids.settlement(dlv, "chain", r["transaction"]["signature"]) if r["transaction"] else None}
+
+
+def _finish4(r: dict, milestone: int, invoice_line: str | None, more) -> dict:
+    o = r["evaluator_observed"]
+    r["ids"] = ids_of(r, milestone, invoice_line)
+    r["limitations"] = [*limitations_of(r["evidence_source"]["kind"], o["verdict"], r["policy"]["mode"],
+                                        bool(o["evaluators"]) and "reexecution" in o["evaluators"][-1], r["transaction"] is not None), *more]
+    r = {k: r[k] for k in _KEYS4}
+    why = check(r)
+    if why:
+        raise ValueError(why)
+    return r
+
+
+def build4(r3: dict, *, invoice_line: str | None = None, limitations=()) -> dict:
+    """A version 3 receipt (an accepted, paid deliverable) as version 4. `invoice_line`: the id of the supplier's
+    invoice line for this deliverable (knos.ids.invoice_line), when one is known. `limitations`: sentences of the
+    writer's own, after the ones that follow from the receipt."""
+    why = check(r3)
+    if why or r3["version"] != 3:
+        raise ValueError(why or "this receipt is not of version 3")
+    a = r3["issuer_authenticated"]
+    r = {**r3, "version": 4, "evidence_source": {"kind": "issuer_token", "reference": a["token_sha256"], "signed_by": a["issuer"]}, "disputed": None}
+    return _finish4(r, r3["commercial_authorisation"]["deliverable"]["milestone"], invoice_line, limitations)
+
+
+def unpaid4(*, cluster: str, program: str, order: str, scope: str, repository: dict | None, commit: str, pull_request: int, terms_hash: str, mode: str,
+            judge_kind: str, judge_version: str, verdict: str, checks: list[dict], allowed_paths: list[str] | None, denied_paths: list[str] | None,
+            policy_version: int | None, mint: str, decimals: int, of: int, milestone: int = 0, payees=(), amendments=(), record_sha256: str | None = None,
+            issuer_authenticated: dict | None = None, commercial_authorisation: dict | None = None, evaluators=(), invoice_line: str | None = None,
+            limitations=()) -> dict:
+    """A receipt of an evaluation nothing was paid for: `verdict` is rejected or insufficient_evidence. It is a valid
+    receipt, it says so, and it never authorises payment. `checks`: {name, conclusion: passed, failed or missing}.
+    `record_sha256`: the sha256 of the run's own verdict record, when one is kept. `issuer_authenticated`: the first
+    part of a version 2 receipt, when the issuer signed for the run and knos_oidc verified the token; None when
+    nothing was signed, and the evidence source is then the run's own record. `payees`: {github_id, bps, to}, who
+    would have been paid; their amounts are 0. `of`: the order's price."""
+    ia = issuer_authenticated
+    r: dict = {"type": TYPE, "version": 4, "cluster": cluster, "program": program, "order": order, "scope": scope, "repository": repository,
+         "issuer_authenticated": issuer_authenticated,
+         "evaluator_observed": {"judge": {"kind": judge_kind, "version": judge_version}, "verdict": verdict,
+                                "checks": sorted(({"name": c["name"], "conclusion": c["conclusion"]} for c in checks), key=lambda c: c["name"]),
+                                "artifact": {"commit": commit, "pull_request": pull_request}, "evaluators": list(evaluators), "same_controller": False,
+                                "independence": NOT_SIGNED},
+         "policy": {"terms_hash": terms_hash, "mode": mode, "allowed_paths": allowed_paths, "denied_paths": denied_paths, "version": policy_version},
+         "commercial_authorisation": commercial_authorisation, "trust_remaining": [],
+         "amendments": [{"kind": a["kind"], "transaction": a["transaction"], "time": a["time"], "detail": {k: str(v) for k, v in sorted(a["detail"].items())}}
+                        for a in amendments],
+         "payees": [{"github_id": p["github_id"], "bps": p["bps"], "amount": "0", "to": p["to"]} for p in payees],
+         "amounts": {"mint": mint, "decimals": decimals, "paid": "0", "of": str(of), "fee": "0", "tip": "0"}, "transaction": None,
+         "evidence_source": ({"kind": "issuer_token", "reference": ia["token_sha256"], "signed_by": ia["issuer"]} if ia is not None
+                             else {"kind": "run_record", "reference": record_sha256, "signed_by": None}), "disputed": None}
+    if ia is not None:
+        f, src = (commercial_authorisation or {}).get("funder") or {}, (commercial_authorisation or {}).get("source") or {}
+        twin = _twin3({**r, "ids": None, "limitations": []})
+        if not isinstance(twin, dict):
+            raise ValueError(twin)
+        paying = _paying(as2({**twin, "evaluator_observed": {**twin["evaluator_observed"], "evaluators": [], "same_controller": False, "independence": ""}}),
+                         (f.get("github_id"), src.get("owner_id")))
+        judges = [*evaluators, paying]
+        same, said = independence_of(judges)
+        r["evaluator_observed"].update(evaluators=judges, same_controller=same, independence=said)
+        r["trust_remaining"] = trust_of(ia["provider"], mode, judge_kind)
+    else:
+        r["trust_remaining"] = trust_unsigned(mode)
+    return _finish4(r, milestone, invoice_line, limitations)
+
+
+def dispute(r4: dict, *, role: str, by: str, at: int, reason: str) -> dict:
+    """A version 4 receipt, contested: the same receipt with the verdict `disputed`, who contested it (`role`: buyer,
+    supplier, evaluator or other; `by`: their account or name), when (`at`, seconds), why, and the receipt it contests
+    (its sha256 and the verdict it gave). A payment the contested receipt recorded stays recorded: the money moved.
+    The disputed receipt authorises none."""
+    why = check(r4)
+    if why or r4["version"] != 4 or r4["disputed"] is not None:
+        raise ValueError(why or "a receipt of version 4 that is not disputed already is contested (write an older one as version 4 first: build4)")
+    o = r4["evaluator_observed"]
+    r = {**r4, "evaluator_observed": {**o, "verdict": "disputed"},
+         "disputed": {"by": {"role": role, "id": by}, "at": at, "reason": reason, "contests": {"sha256": digest(r4), "verdict": o["verdict"]}}}
+    o = r["evaluator_observed"]
+    args = (r["evidence_source"]["kind"], r["policy"]["mode"], bool(o["evaluators"]) and "reexecution" in o["evaluators"][-1], r["transaction"] is not None)
+    own = r4["limitations"][len(limitations_of(args[0], r4["evaluator_observed"]["verdict"], *args[1:])):]
+    r["limitations"] = [*limitations_of(args[0], o["verdict"], *args[1:]), *own]
+    why = check(r)
+    if why:
+        raise ValueError(why)
+    return r
+
+
+def contested(r: dict) -> dict | None:
+    """The receipt a disputed receipt contests, rebuilt from it (its digest is `disputed.contests.sha256`); None for a
+    receipt that is not disputed."""
+    if not isinstance(r, dict) or r.get("version") != 4 or not isinstance(r.get("disputed"), dict):
+        return None
+    o, was = r["evaluator_observed"], r["disputed"]["contests"]["verdict"]
+    args = (r["evidence_source"]["kind"], r["policy"]["mode"], bool(o["evaluators"]) and "reexecution" in o["evaluators"][-1], r["transaction"] is not None)
+    own = r["limitations"][len(limitations_of(args[0], "disputed", *args[1:])):]
+    return {**r, "evaluator_observed": {**o, "verdict": was}, "disputed": None, "limitations": [*limitations_of(args[0], was, *args[1:]), *own]}
+
+
+def verdict_of(r: dict) -> str:
+    """The verdict of a valid receipt of any version, in one of the four words. Versions 1 to 3 are receipts of an
+    accepted payment only."""
+    return r["evaluator_observed"]["verdict"] if r["version"] == 4 else "accepted"
+
+
+def authorises_payment(r) -> bool:
+    """Whether this receipt may stand behind a payment: it is valid and its verdict is accepted. A receipt that says
+    rejected, insufficient evidence or disputed is a valid record and authorises nothing."""
+    return check(r) is None and verdict_of(r) in _ids.BILLABLE
+
+
+def exposed(r: dict) -> dict:
+    """The six things every receipt answers, whatever its version: the artifact, the policy version, the evidence
+    source, the evaluator, the verdict and the limitations. An older receipt did not write the last two in these
+    words; they are what the same rules give for it."""
+    two = as2(as3(r) or r) if r["version"] >= 3 else r
+    if r["version"] == 1:
+        j = r["judge"]
+        art, pol, kind, ver, mode = r["artifact"], {"terms_hash": r["terms"]["hash"], "version": None}, j["kind"], j["claims"]["job_workflow_sha"], r["terms"]["mode"]
+        src = {"kind": "issuer_token", "reference": j["token_sha256"], "signed_by": j["issuer"]}
+    else:
+        o, a = two["evaluator_observed"], two["issuer_authenticated"]
+        art, pol, kind, ver, mode = o["artifact"], {"terms_hash": two["policy"]["terms_hash"], "version": two["policy"]["version"]}, o["judge"]["kind"], o["judge"]["version"], two["policy"]["mode"]
+        src = r["evidence_source"] if r["version"] == 4 else {"kind": "issuer_token", "reference": a["token_sha256"], "signed_by": a["issuer"]}
+    judges = r["evaluator_observed"].get("evaluators", []) if r["version"] >= 3 else []
+    return {"artifact": art, "policy": pol, "evidence_source": src, "evaluator": {"kind": kind, "version": ver, "controllers": judges},
+            "verdict": verdict_of(r),
+            "limitations": r["limitations"] if r["version"] == 4 else limitations_of("issuer_token", "accepted", mode, bool(judges) and "reexecution" in judges[-1], True)}
+
+
+def as3(r: dict) -> dict | None:
+    """The version 3 receipt a version 4 one holds, when it holds one: an accepted, paid deliverable. None for a
+    receipt of version 4 that is rejected, insufficient, disputed or unpaid (version 3 cannot say those), and the
+    receipt itself for an older one."""
+    if r.get("version") != 4:
+        return r
+    if r["evaluator_observed"]["verdict"] != "accepted" or r["transaction"] is None:
+        return None
+    return {**{k: r[k] for k in _KEYS3}, "version": 3}
+
+
+def _twin3(r: dict):
+    """The version 3 receipt whose rules a version 4 receipt of a signed run is held to: the same facts with the verdict
+    and every check as version 3 can say them, and, when nothing was paid, a stand-in payment (never shown, never
+    stored). A string instead, the reason, when the receipt is not shaped for one."""
+    o, m, p, a = r["evaluator_observed"], r["amounts"], r["payees"], r["issuer_authenticated"]
+    ch = o.get("checks") if isinstance(o, dict) else None
+    if not isinstance(o, dict) or not isinstance(ch, list) or not all(isinstance(c, dict) for c in ch):
+        return "evaluator_observed is an object, and its checks a list of {name, conclusion}"
+    t = {**{k: r[k] for k in _KEYS3}, "version": 3, "evaluator_observed": {**o, "verdict": "accepted", "checks": [{**c, "conclusion": "passed"} for c in ch]}}
+    if r["transaction"] is not None:
+        return t
+    if not isinstance(m, dict) or not isinstance(p, list) or not all(isinstance(e, dict) and e.get("amount") == "0" and type(e.get("bps")) is int for e in p) \
+            or [m.get(k) for k in ("paid", "fee", "tip")] != ["0", "0", "0"] or not (isinstance(m.get("of"), str) and _UNITS.match(m["of"])):
+        return "a receipt with no payment has transaction null, amounts.paid, fee and tip \"0\", and every payee's amount \"0\""
+    exp = a["claims"].get("exp") if isinstance(a, dict) and isinstance(a.get("claims"), dict) else 0
+    t["payees"] = [{**e, "amount": str(e["bps"])} for e in p] or [{"github_id": 1, "bps": 10_000, "amount": "10000", "to": r["program"]}]
+    t["amounts"] = {**m, "paid": "10000", "of": str(max(int(m["of"]), 10_000))}
+    t["transaction"] = {"signature": "1" * 64, "slot": 0, "time": exp if type(exp) is int else 0}
+    if r["commercial_authorisation"] is None:
+        d = r["ids"].get("deliverable") if isinstance(r.get("ids"), dict) else None
+        pr = o["artifact"].get("pull_request") if isinstance(o.get("artifact"), dict) else 0
+        ms = pr if isinstance(r["order"], str) and _ADDR.match(r["order"]) and type(pr) is int and pr and d == _ids.deliverable(_ids.order_scope(r["order"]), pr) else 0
+        t["commercial_authorisation"] = authorisation(order=r["order"], milestone=ms, funded_tx=None, wallet=r["program"], address=r["program"])
+    return t
+
+
+def _check_unsigned(r: dict) -> str | None:
+    """The rules of a version 4 receipt no issuer signed (its evidence is the run's own record)."""
+    def keys(obj, want, where):
+        if not isinstance(obj, dict):
+            return f"{where} is not an object"
+        return None if set(obj) == set(want) else f"{where} has fields {sorted(set(obj) ^ set(want))} missing or unknown"
+    def whole(v):
+        return type(v) is int and v >= 0
+    def globs(v):
+        return v is None or (isinstance(v, list) and all(isinstance(g, str) for g in v) and v == sorted(set(v)))
+    if r["cluster"] not in ("devnet", "mainnet-beta", "localnet"):
+        return "cluster is devnet, mainnet-beta or localnet"
+    if not all(isinstance(r[k], str) and _ADDR.match(r[k]) for k in ("program", "order")) or not (isinstance(r["scope"], str) and _HEX32.match(r["scope"])):
+        return "program and order are base58 addresses and scope is 64 lowercase hex characters"
+    repo = r["repository"]
+    if repo is not None and (keys(repo, ("id", "issue"), "repository") or not (whole(repo["id"]) and repo["id"] > 0 and whole(repo["issue"]))):
+        return "repository is null (a private order) or {id, issue}, both whole numbers"
+    if repo is not None and hashlib.sha256(b"knos3:scope" + repo["id"].to_bytes(8, "little") + repo["issue"].to_bytes(8, "little")).hexdigest() != r["scope"]:
+        return "scope is not sha256(\"knos3:scope\" || repository id || issue) of the repository named"
+    o, p, m = r["evaluator_observed"], r["policy"], r["amounts"]
+    why = (keys(o, ("judge", "verdict", "checks", "artifact", "evaluators", "same_controller", "independence"), "evaluator_observed")
+           or keys(o["judge"], ("kind", "version"), "evaluator_observed.judge") or keys(o["artifact"], ("commit", "pull_request"), "artifact")
+           or keys(p, ("terms_hash", "mode", "allowed_paths", "denied_paths", "version"), "policy") or keys(m, ("mint", "decimals", "paid", "of", "fee", "tip"), "amounts"))
+    if why:
+        return why
+    if not isinstance(o["checks"], list):
+        return "evaluator_observed.checks are {name, conclusion: passed, failed or missing}, in order of name, each once"
+    if o["judge"]["kind"] not in JUDGES or not (isinstance(o["judge"]["version"], str) and _HEX40.match(o["judge"]["version"])):
+        return "evaluator_observed.judge is {kind: repository, neutral, attestor or arbiter, version: the workflow's commit, 40 lowercase hex characters}"
+    if not (isinstance(o["artifact"]["commit"], str) and _HEX40.match(o["artifact"]["commit"]) and whole(o["artifact"]["pull_request"])):
+        return "artifact.commit is 40 lowercase hex characters and artifact.pull_request a whole number"
+    if not (isinstance(p["terms_hash"], str) and _HEX32.match(p["terms_hash"])) or p["mode"] not in MODES:
+        return "terms.hash is 64 lowercase hex characters and terms.mode is merge or tests"
+    if not (globs(p["allowed_paths"]) and globs(p["denied_paths"])) or (p["version"] is not None and p["version"] != 1) or type(p["version"]) is bool \
+            or len({p["allowed_paths"] is None, p["denied_paths"] is None, p["version"] is None}) != 1:
+        return "policy.allowed_paths and policy.denied_paths are sorted lists of globs and policy.version is 1; all three are null when the terms are not public"
+    if o["evaluators"] != [] or o["same_controller"] is not False or o["independence"] != NOT_SIGNED or r["commercial_authorisation"] is not None:
+        return ("a receipt no issuer signed names no controller of its evaluator and no funder: evaluator_observed.evaluators is empty, same_controller false, "
+                "independence the sentence for it (knos.receipt.NOT_SIGNED), and commercial_authorisation null")
+    if r["trust_remaining"] != trust_unsigned(p["mode"]):
+        return "trust_remaining is the list this kind of receipt leaves (knos.receipt.trust_unsigned): none may be left out"
+    am, last = r["amendments"], 0
+    if not isinstance(am, list):
+        return "amendments is a list"
+    for e in am:
+        if (keys(e, ("kind", "transaction", "time", "detail"), "an amendment") or e["kind"] not in AMENDMENTS
+                or not (isinstance(e["transaction"], str) and _SIG.match(e["transaction"])) or type(e["time"]) is not int or e["time"] < last
+                or not isinstance(e["detail"], dict) or not all(isinstance(k, str) and isinstance(x, str) for k, x in e["detail"].items())):
+            return "an amendment is {kind: topup, assign, reserve, cancel or plan, transaction, time, detail of strings}, oldest first"
+        last = e["time"]
+    pay = r["payees"]
+    if not isinstance(pay, list) or len(pay) > 4 or any(
+            keys(e, ("github_id", "bps", "amount", "to"), "a payee") or not (whole(e["github_id"]) and e["github_id"] > 0 and whole(e["bps"]) and 1 <= e["bps"] <= 10_000
+                                                                            and e["amount"] == "0" and isinstance(e["to"], str) and _ADDR.match(e["to"])) for e in pay) \
+            or (pay and sum(e["bps"] for e in pay) != 10_000):
+        return "the payees of a receipt with no payment are none, or up to four {github_id, bps, amount \"0\", to} whose shares add up to 10000"
+    if not (isinstance(m["mint"], str) and _ADDR.match(m["mint"]) and whole(m["decimals"]) and m["decimals"] <= 18 and isinstance(m["of"], str) and _UNITS.match(m["of"])
+            and [m["paid"], m["fee"], m["tip"]] == ["0", "0", "0"]):
+        return "a receipt with no payment has transaction null, amounts.paid, fee and tip \"0\", and every payee's amount \"0\""
+    return None
+
+
+def _check4(r) -> str | None:
+    def keys(obj, want, where):
+        if not isinstance(obj, dict):
+            return f"{where} is not an object"
+        return None if set(obj) == set(want) else f"{where} has fields {sorted(set(obj) ^ set(want))} missing or unknown"
+    why = keys(r, _KEYS4, "the receipt")
+    if why:
+        return f"not a {TYPE} of version 1, 2 or 3, or of version 4: as version 4, {why}"
+    o, src, x, a = r["evaluator_observed"], r["evidence_source"], r["transaction"], r["issuer_authenticated"]
+    verdict = o.get("verdict") if isinstance(o, dict) else None
+    if not isinstance(verdict, str) or verdict not in _ids.VERDICTS:
+        return "evaluator_observed.verdict is accepted, rejected, insufficient_evidence or disputed"
+    paid = x is not None
+    if keys(src, ("kind", "reference", "signed_by"), "evidence_source") or src["kind"] not in EVIDENCE:
+        return "evidence_source is {kind: issuer_token or run_record, reference, signed_by}"
+    if (src["kind"] == "issuer_token") != (a is not None):
+        return "evidence_source.kind is issuer_token when issuer_authenticated is there, and run_record when it is null"
+    if verdict == "accepted" and not (paid and a is not None):
+        return "an accepted receipt records the token the issuer signed and the payment it authorised: a run's own record accepts nothing"
+    if verdict in ("rejected", "insufficient_evidence") and paid:
+        return "a receipt that says rejected or insufficient_evidence authorises no payment and records none: its transaction is null"
+    # everything versions 1 to 3 said, by the same rules; or the rules of a receipt nobody signed
+    if a is not None:
+        twin = _twin3(r)
+        why = twin if isinstance(twin, str) else _check3(twin)
+    else:
+        why = _check_unsigned(r)
+    if why:
+        return why
+    # the checks, in the receipt's own words
+    ch = o["checks"]
+    if any(keys(e, ("name", "conclusion"), "a check") or not isinstance(e["name"], str) or not e["name"] or e["conclusion"] not in CONCLUSIONS for e in ch) \
+            or [e["name"] for e in ch] != sorted({e["name"] for e in ch}):
+        return "evaluator_observed.checks are {name, conclusion: passed, failed or missing}, in order of name, each once"
+    if verdict == "accepted" and any(e["conclusion"] != "passed" for e in ch):
+        return "an accepted receipt has every named check passed"
+    # the evidence source
+    hex_or_none = src["reference"] is None or (isinstance(src["reference"], str) and bool(_HEX32.match(src["reference"])))
+    if (a is not None and (src["reference"], src["signed_by"]) != (a["token_sha256"], a["issuer"])) or (a is None and not (hex_or_none and src["signed_by"] is None)):
+        return ("evidence_source names the token (reference: its sha256, signed_by: its issuer) for issuer_token; for run_record, reference is the sha256 of "
+                "the run's record or null, and signed_by null")
+    # the four ids
+    got = r["ids"]
+    why = keys(got, ("deliverable", "evaluation", "invoice_line", "settlement"), "ids")
+    if why:
+        return why
+    for kind, value, may_be_null in (("deliverable", got["deliverable"], False), ("evaluation", got["evaluation"], False),
+                                     ("invoice_line", got["invoice_line"], True), ("settlement", got["settlement"], True)):
+        if not (value is None and may_be_null):
+            try:
+                _ids.expect(kind, value)
+            except ValueError as said:
+                return f"ids.{kind}: {said}"
+    c, pr = r["commercial_authorisation"], o["artifact"]["pull_request"]
+    try:
+        want = [ids_of(r, ms, got["invoice_line"]) for ms in ([c["deliverable"]["milestone"]] if c is not None else sorted({0, pr}))]
+    except ValueError:
+        return "order is the address of an order account: 32 bytes in base58"
+    if got not in want:
+        return ("ids are the ones the receipt's own fields give (knos.receipt.ids_of): the deliverable of this order and milestone, the evaluation of this "
+                "commit, terms, evaluator and run, and the settlement of this transaction, null when nothing was paid")
+    # what the evidence does not show
+    lim = r["limitations"]
+    base = limitations_of(src["kind"], verdict, r["policy"]["mode"], bool(o["evaluators"]) and "reexecution" in o["evaluators"][-1], paid)
+    if not isinstance(lim, list) or lim[:len(base)] != base or not all(isinstance(s, str) and 0 < len(s) <= 400 for s in lim) or len(lim) > len(base) + 8:
+        return ("limitations begins with the sentences this evidence leaves (knos.receipt.limitations_of), none left out, then at most eight of the "
+                "writer's own")
+    # a dispute
+    d = r["disputed"]
+    if (verdict == "disputed") != (d is not None):
+        return "disputed is null unless the verdict is disputed, and a disputed receipt says who contested it, when, why, and which receipt"
+    if d is not None:
+        if keys(d, ("by", "at", "reason", "contests"), "disputed") or keys(d["by"], ("role", "id"), "disputed.by") or keys(d["contests"], ("sha256", "verdict"), "disputed.contests") \
+                or d["by"]["role"] not in CONTESTERS or not (isinstance(d["by"]["id"], str) and 0 < len(d["by"]["id"]) <= 100) or type(d["at"]) is not int or d["at"] < 0 \
+                or not (isinstance(d["reason"], str) and 0 < len(d["reason"]) <= 500) or d["contests"]["verdict"] not in _ids.VERDICTS[:3]:
+            return ("disputed is {by: {role: buyer, supplier, evaluator or other, id}, at: seconds, reason, contests: {sha256, verdict: the verdict "
+                    "contested}}")
+        was = contested(r) or {}
+        if d["contests"]["sha256"] != digest(was) or _check4(was) is not None:
+            return "disputed.contests.sha256 is the digest of the receipt contested: this receipt with that verdict, and no dispute"
+        if paid and d["at"] < x["time"]:
+            return "a payment is contested after it was made: disputed.at is before the transaction"
+    return None
+
+
 # ---- the receipt for a person ---------------------------------------------------------------------------------------------
 def _utc(t: int) -> str:
     import datetime
@@ -618,7 +994,41 @@ def _judges(o: dict) -> list[str]:
     return ["   Judges that spoke, and who controls each:", *out, f"   {'SAME CONTROLLER. ' if o['same_controller'] else ''}{o['independence']}"]
 
 
+def _render4(r: dict) -> list[str]:
+    """A version 4 receipt in lines: the verdict and whether it authorises payment first, then the ids, the evidence
+    source, the parts versions 1 to 3 print (as far as this receipt has them), and what the evidence does not show."""
+    o, a, p, src, got, d, m = r["evaluator_observed"], r["issuer_authenticated"], r["policy"], r["evidence_source"], r["ids"], r["disputed"], r["amounts"]
+    word = _ids.VERDICT_WORDS[o["verdict"]]
+    out = [f"Acceptance receipt, version 4: order {r['order']} on {r['cluster']}", "",
+           f"Verdict: {word}. " + ("This receipt authorises the payment it records." if o["verdict"] == "accepted" else "This receipt authorises no payment."),
+           f"   Deliverable {got['deliverable']}, evaluation {got['evaluation']}.",
+           f"   Invoice line {got['invoice_line'] or 'not named'}; settlement {got['settlement'] or 'none: nothing was paid'}.",
+           ("   Evidence: a token the issuer signed" + f" ({src['signed_by']}), recognised by sha256 {src['reference']}." if a is not None
+            else "   Evidence: the run's own record, signed by nobody" + (f" (sha256 {src['reference']})." if src["reference"] else " (no copy of it is named).")),
+           f"   Artifact: commit {o['artifact']['commit']}, pull request {o['artifact']['pull_request']}.",
+           f"   Evaluator: {o['judge']['kind']}, workflow version {o['judge']['version']}.",
+           f"   Policy: terms {p['terms_hash']}, mode {p['mode']}, version {p['version'] if p['version'] is not None else 'not public'}.",
+           ("   Named checks: none were required." if not o["checks"] else "   Named checks: " + "; ".join(f"{e['name']}: {e['conclusion']}" for e in o["checks"]) + ".")]
+    if d is not None:
+        out += [f"   Contested by the {d['by']['role']} ({d['by']['id']}) at {_utc(d['at'])}: {d['reason']}",
+                f"   It contests the receipt sha256:{d['contests']['sha256']}, whose verdict was {_ids.VERDICT_WORDS[d['contests']['verdict']]}."]
+    out += ["", "What this evidence does not show", *(f"   - {s}" for s in r["limitations"])]
+    if a is not None and r["transaction"] is not None:      # everything a version 3 receipt prints, under its five headings
+        body = _render3({**{k: r[k] for k in _KEYS3}, "version": 3})
+        out += ["", *body[2:-2]]
+    else:
+        out += ["", f"5. {HEADINGS['trust_remaining']}", *(f"   - {t}" for t in r["trust_remaining"]),
+                "", "Payment", f"   None. The order's price is {_money(m['of'], m['decimals'])} (mint {m['mint']}); nothing was paid under this receipt."]
+    return [*out, "", f"Digest sha256:{digest(r)}"]
+
+
 def render(r: dict) -> list[str]:
+    """The receipt in lines a person reads. A version 4 receipt says its verdict, its ids and what its evidence does
+    not show first (`_render4`); versions 1 to 3 are printed as they always were."""
+    return _render4(r) if r["version"] == 4 else _render3(r)
+
+
+def _render3(r: dict) -> list[str]:
     """The receipt in lines a person reads: the five parts under their headings, in order, then the amendments and the
     payment. The parties still trusted are named in one line beside the verdict. A receipt of version 1 or 2 is
     shown the same way, and says what it does not carry."""
@@ -691,13 +1101,22 @@ def mirror_write(receipts: list[dict], out_dir) -> dict:
         held.setdefault(r["order"], {})[digest(r)] = r
     index: dict = {"type": MIRROR, "version": MIRROR_VERSION, "orders": {}}
     for order in sorted(held):
-        rows = sorted(held[order].items(), key=lambda kv: (kv[1]["transaction"]["time"], kv[1]["transaction"]["slot"], kv[0]))
+        rows = sorted(held[order].items(), key=lambda kv: (*_when(kv[1]), kv[0]))
         doc = {"type": MIRROR, "version": MIRROR_VERSION, "order": order, "receipts": [r for _, r in rows]}
         (out / f"{order}.json").write_bytes(canonical(doc) + b"\n")
-        index["orders"][order] = [{"sha256": d, "transaction": r["transaction"]["signature"], "time": r["transaction"]["time"], "cluster": r["cluster"]}
+        index["orders"][order] = [{"sha256": d, "transaction": (r["transaction"] or {}).get("signature"), "time": _when(r)[0], "cluster": r["cluster"]}
                                   for d, r in rows]
     (out / "index.json").write_bytes(canonical(index) + b"\n")
     return index
+
+
+def _when(r: dict) -> tuple[int, int]:
+    """(time, slot) a receipt is ordered by in a mirror: its payment's; for a receipt with no payment, the time it
+    was contested, else the time its token was issued, else 0."""
+    x, a = r["transaction"], r.get("issuer_authenticated") or r.get("judge") or {}
+    if x:
+        return x["time"], x["slot"]
+    return ((r.get("disputed") or {}).get("at") or (a.get("claims") or {}).get("iat") or 0), 0
 
 
 def mirror_find(where: str, target: str, get=None) -> list[dict]:
@@ -725,7 +1144,7 @@ def mirror_find(where: str, target: str, get=None) -> list[dict]:
             why = check(r)
             if why or digest(r) not in listed or r["order"] != order:
                 raise ValueError(f"the mirror's receipt for order {order} is not the one its index lists" if not why else f"the mirror's receipt for order {order} is not valid: {why}")
-            if target in (order, r["transaction"]["signature"]):
+            if target in (order, (r["transaction"] or {}).get("signature")):
                 out.append(r)
     return out
 

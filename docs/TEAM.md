@@ -2,16 +2,21 @@
 
 The neutral meter for AI agent work: neither side keeps the count.
 
-Everything below the first section is a plan. No part of it is a fact: nobody has been hired, approached or
-committed, there is no second key holder, and the organisation does not exist.
+Everything below the first section is a plan, and no part of it is a fact.
 
 ## Today: one person
 
-Knos is built by one founder, known publicly only as the GitHub account
-[drexthealpha](https://github.com/drexthealpha). That is a pseudonym; no legal name is published. There is no
-co-founder, no employee, no adviser, no contractor and no company. Every upgrade key, the account the pinned
-workflows live in, and the relay are his alone ([GOVERNANCE.md](GOVERNANCE.md),
-[submission/DEPENDENCY.md](submission/DEPENDENCY.md)).
+Each line is said once here, with what would change it.
+
+| today | what would change it |
+|---|---|
+| **One founder, pseudonymous:** the GitHub account [drexthealpha](https://github.com/drexthealpha). No legal name is published. | The founder publishes a name, or a second person is named here. |
+| **No co-founder,** employee, adviser or contractor. | A person joins and agrees to be named on this page. |
+| **No legal entity.** | A company is formed; its name and registration are printed here. |
+| **No legal advice taken.** | A lawyer is engaged; [REGULATION.md](REGULATION.md) says who and on what. |
+| **No outside review** of the code, the workflows or the documents. | A reviewer publishes findings; [ASSURANCE.md](ASSURANCE.md) links them. |
+| **Outside key holders today: 0.** All three member keys of both multisigs, the account the pinned workflows live in, and the relay are the founder's. | One person opens a "Key holder request" ([KEYHOLDER.md](KEYHOLDER.md)) and the founder runs one command ([GOVERNANCE.md](GOVERNANCE.md), section 5). |
+| **No second operator.** | Someone else runs the checklist in [OPERATOR.md](OPERATOR.md) and its drill is recorded. |
 
 The commits are written with coding agents; he reviews and commits each one and is responsible for it
 ([DISCLOSURE.md](DISCLOSURE.md), "How the code is written").
@@ -38,8 +43,8 @@ kept a service running for a customer. He has done none of those for Knos.
 
 ## The three roles the plan needs first
 
-**None of the three is hired, engaged, committed or in conversation.** Nobody has been approached. These are
-descriptions of gaps, in the order the plan needs them filled.
+**None of the three is hired, engaged, committed or in conversation.** These are descriptions of gaps, in the
+order the plan needs them filled.
 
 ### 1. Someone who has sold to engineering or finance leaders
 
@@ -56,8 +61,7 @@ First 90 days, this person would own:
 
 ### 2. A security lead, to run an outside review
 
-No one outside Knos has reviewed the programs, the workflows, the relay or the clients. The founder cannot review
-his own work independently.
+The founder cannot review his own work independently.
 
 First 90 days, this person would own:
 
@@ -88,14 +92,14 @@ that had not passed. He measured it on public data before building for it ([BENC
 public, and writes down what is not done.
 
 Against: the buyer is the person who approves a supplier's invoice, and he has never sold to that person, has
-not spoken to one about this, and has never worked in procurement or finance. He is pseudonymous, which a
-procurement process may refuse. So the fit is with the supplier's side and with the engineering. The buyer's side
+not spoken to one about this, and has never worked in procurement or finance. A procurement process may refuse
+a pseudonym. So the fit is with the supplier's side and with the engineering. The buyer's side
 is the first role above, and it is empty.
 
 ## What an outside key holder would do
 
-A plan. **Nobody holds this role and nobody has been asked.** [GOVERNANCE.md](GOVERNANCE.md), section 4, is the
-job in full; in short, an outside key holder:
+A plan. **Nobody holds this role and nobody has been asked.** [KEYHOLDER.md](KEYHOLDER.md) is the page for the
+person who would; [GOVERNANCE.md](GOVERNANCE.md), section 4, is the job in full. In short, an outside key holder:
 
 - holds one member key of each multisig, on a device only they control, and is not paid by a buyer or a supplier;
 - before voting for an upgrade, rebuilds the program from the proposed commit and compares the hash with the
@@ -105,7 +109,8 @@ job in full; in short, an outside key holder:
 - holds nobody's money: no member key can move an order.
 
 One outside key of three gives a second pair of eyes and does not bind the founder, who would still hold two.
-Two outside keys of three would. Which arrangement, and when, is decided with the first person who agrees.
+Two outside keys of three would. `node scripts/governance.mjs replace-member` prints which of the two a change
+leads to before anything is proposed.
 
 ## From a personal account to an organisation account
 
@@ -113,7 +118,8 @@ This is a plan. **None of it has been done**, and its first step waits on a seco
 
 Today the pinned workflows, the key-rotation and claim workflows, the relay, the site and the source all live in
 one personal GitHub account. If that account were suspended or lost, funded orders could only be refunded.
-[submission/DEPENDENCY.md](submission/DEPENDENCY.md) has the full plan and what each step needs; in short:
+[GOVERNANCE.md](GOVERNANCE.md), section 9, has the steps with what changes in the pins and what a paying
+repository must re-pin; [submission/DEPENDENCY.md](submission/DEPENDENCY.md) has what each step needs. In short:
 
 1. Create a GitHub organisation with two owners, the founder and one other person, each with their own
    second factor, and move the source, the site and the releases there. This changes nothing on chain. One owner
@@ -126,5 +132,4 @@ one personal GitHub account. If that account were suspended or lost, funded orde
 5. Remove the personal account from every pin once the last order funded under it is paid or refunded.
 6. Put the multisig's keys in more than one person's hands before any real money moves.
 
-No date is given, because step 1 needs a person who does not exist yet. Steps 2, 3 and 5 need program changes that
-are not in this release.
+Steps 3 and 5 need program changes that are not in this release.

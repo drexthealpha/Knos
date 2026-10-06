@@ -1,0 +1,746 @@
+{
+ "kind": "knos-refusals",
+ "v": 1,
+ "rows": [
+  {
+   "code": "judge.protected-path",
+   "happened": "The change touches a path the judge protects.",
+   "do": "Take that file out; add new tests as new files."
+  },
+  {
+   "code": "judge.existing-test-edited",
+   "happened": "The change edits or deletes a test that already existed.",
+   "do": "Restore that test; put your own tests in a new file."
+  },
+  {
+   "code": "judge.test-config",
+   "happened": "The change edits a file that decides how tests run.",
+   "do": "Restore that file; ask the buyer to change it."
+  },
+  {
+   "code": "judge.terms",
+   "happened": "The change touches the terms or the acceptance checks.",
+   "do": "Take that file out; both were fixed at funding."
+  },
+  {
+   "code": "judge.workflow",
+   "happened": "The change touches a workflow under `.github/`.",
+   "do": "Take that file out; ask the buyer to change it."
+  },
+  {
+   "code": "judge.not-from-base",
+   "happened": "The change touches a file the run reads from your copy.",
+   "do": "Take that file out; ask the buyer to change it."
+  },
+  {
+   "code": "judge.scripts",
+   "happened": "The change edits the scripts of `package.json`.",
+   "do": "Restore the scripts; ask the buyer to change them."
+  },
+  {
+   "code": "judge.protected-test-edited",
+   "happened": "The change edits a test that already existed.",
+   "do": "Restore that test; put your own tests in a new file."
+  },
+  {
+   "code": "judge.protected-test-deleted",
+   "happened": "The change deletes a test that already existed.",
+   "do": "Restore that test; put your own tests in a new file."
+  },
+  {
+   "code": "judge.bad-issue",
+   "happened": "The issue given to the judge is not an issue number.",
+   "do": "Run the judge again with the issue's number."
+  },
+  {
+   "code": "judge.no-bundle",
+   "happened": "The default branch holds no acceptance checks for this issue.",
+   "do": "Ask the buyer to restore `.knos/acceptance/<issue>/`."
+  },
+  {
+   "code": "judge.runner",
+   "happened": "The repository names a test runner Knos does not have.",
+   "do": "Ask the buyer to fix `runner` in `.knos/proof.toml`."
+  },
+  {
+   "code": "judge.image",
+   "happened": "The judge's container image could not be pulled or run.",
+   "do": "Run it again; nothing is held against you."
+  },
+  {
+   "code": "judge.no-sandbox",
+   "happened": "This machine has no sandbox to run your code in.",
+   "do": "Run on Linux with setpriv and unshare, or in the workflow."
+  },
+  {
+   "code": "judge.sandbox-python",
+   "happened": "The sandbox user cannot run this Python.",
+   "do": "Install knos where every user can reach it."
+  },
+  {
+   "code": "judge.no-report",
+   "happened": "The test run ended without writing a report.",
+   "do": "Look for a crash or a timeout, then submit again."
+  },
+  {
+   "code": "judge.sentinel",
+   "happened": "The judge's own passing test did not run and pass.",
+   "do": "Remove whatever changes which tests are collected."
+  },
+  {
+   "code": "judge.canary",
+   "happened": "The judge's own failing test did not fail.",
+   "do": "Remove whatever makes every test pass."
+  },
+  {
+   "code": "judge.no-acceptance-ran",
+   "happened": "No acceptance check ran on your change.",
+   "do": "Make sure your change does not break test collection."
+  },
+  {
+   "code": "judge.acceptance-missing",
+   "happened": "Acceptance checks that ran on the base did not run here.",
+   "do": "Restore what those checks need to be collected."
+  },
+  {
+   "code": "judge.acceptance-failed",
+   "happened": "Your change does not pass the acceptance checks.",
+   "do": "Read the named checks, fix the code, submit again."
+  },
+  {
+   "code": "judge.not-fail-to-pass",
+   "happened": "The acceptance checks already pass without your change.",
+   "do": "Ask the buyer: the order has nothing left to accept."
+  },
+  {
+   "code": "judge.fewer-tests",
+   "happened": "Your change collects fewer tests than the base.",
+   "do": "Restore the tests that no longer run."
+  },
+  {
+   "code": "judge.pass-to-pass",
+   "happened": "A test that passed before your change now fails.",
+   "do": "Fix the regression the reason names."
+  },
+  {
+   "code": "judge.repo-rule",
+   "happened": "The change breaks a rule of the repository's CONTRIBUTING file.",
+   "do": "Follow the rule and the line the reason names."
+  },
+  {
+   "code": "judge.false-claim",
+   "happened": "The description claims passing checks, and GitHub's record disagrees.",
+   "do": "Fix the failed check, or correct the description."
+  },
+  {
+   "code": "judge.merge-mode",
+   "happened": "This order pays on a merge, not on acceptance checks.",
+   "do": "Wait for a maintainer to merge."
+  },
+  {
+   "code": "judge.bundle-changed",
+   "happened": "The acceptance checks on the base are not the funded ones.",
+   "do": "Ask the buyer to restore them, or to fund again."
+  },
+  {
+   "code": "terms.check-failed",
+   "happened": "A check the order names failed at your last commit.",
+   "do": "Fix it and push; the newest commit is judged."
+  },
+  {
+   "code": "terms.check-pending",
+   "happened": "A check the order names has not finished.",
+   "do": "Wait for it to finish, then ask again."
+  },
+  {
+   "code": "terms.check-skipped",
+   "happened": "A check the order names was skipped; skipped is not passed.",
+   "do": "Make that check run on your pull request."
+  },
+  {
+   "code": "terms.check-absent",
+   "happened": "A check the order names did not run on your commit.",
+   "do": "Push a commit that starts it, or ask a maintainer."
+  },
+  {
+   "code": "terms.check-unreadable",
+   "happened": "GitHub did not give the result of a named check.",
+   "do": "Run it again; nothing is held against you."
+  },
+  {
+   "code": "terms.denied-path",
+   "happened": "The change touches a path the order forbids.",
+   "do": "Take that file out of the change."
+  },
+  {
+   "code": "terms.out-of-scope",
+   "happened": "The change touches a file outside the order's paths.",
+   "do": "Keep the change inside the listed paths."
+  },
+  {
+   "code": "terms.files-unread",
+   "happened": "GitHub did not list the changed files.",
+   "do": "Run it again; nothing is held against you."
+  },
+  {
+   "code": "who.payee",
+   "happened": "Nobody can be named as the account to pay.",
+   "do": "Comment `/knos mine` on the pull request."
+  },
+  {
+   "code": "who.assigned",
+   "happened": "The issue is reserved for, or assigned to, someone else.",
+   "do": "Wait until the reservation lapses, or ask a maintainer."
+  },
+  {
+   "code": "who.rejected",
+   "happened": "A maintainer rejected this pull request for the order.",
+   "do": "Ask the maintainer, or comment `/knos appeal <reason>`."
+  },
+  {
+   "code": "who.issue",
+   "happened": "The pull request does not close the funded issue.",
+   "do": "Write `Closes #<issue>` in the description before the merge."
+  },
+  {
+   "code": "who.unmerged",
+   "happened": "A tip is paid only after the merge.",
+   "do": "Wait for the merge, then ask again."
+  },
+  {
+   "code": "who.unread",
+   "happened": "GitHub did not give a fact the payment rests on.",
+   "do": "Run it again; nothing is held against you."
+  },
+  {
+   "code": "command.unknown",
+   "happened": "The word after `/knos` is not a command.",
+   "do": "Comment `/knos help` to list the commands."
+  },
+  {
+   "code": "command.malformed",
+   "happened": "The command was not written in its form.",
+   "do": "Type it the way the reply shows."
+  },
+  {
+   "code": "command.not_allowed",
+   "happened": "This command belongs to someone else.",
+   "do": "Use the command the reply offers instead."
+  },
+  {
+   "code": "command.misplaced",
+   "happened": "The command was written in the wrong place.",
+   "do": "Comment it on the issue or pull request named."
+  },
+  {
+   "code": "rerun.other",
+   "happened": "The neutral judge's run was about another order or commit.",
+   "do": "Start the neutral judge again for this pull request."
+  },
+  {
+   "code": "rerun.failed",
+   "happened": "The acceptance suite did not pass when the neutral judge ran it.",
+   "do": "Read its reasons; appeal if they are wrong."
+  },
+  {
+   "code": "rerun.no-trees",
+   "happened": "The neutral judge's verdict does not name the two trees judged.",
+   "do": "Start the neutral judge again."
+  },
+  {
+   "code": "rerun.image",
+   "happened": "The neutral judge did not run the suite in the funded image.",
+   "do": "Start the neutral judge again on a runner with containers."
+  },
+  {
+   "code": "rerun.not-black-box",
+   "happened": "The neutral judge did not run your code black-box.",
+   "do": "Start the neutral judge again."
+  },
+  {
+   "code": "rerun.bundle-changed",
+   "happened": "The acceptance checks at the base commit are not the funded ones.",
+   "do": "Ask the buyer which commit holds the funded checks."
+  },
+  {
+   "code": "rerun.cannot-run",
+   "happened": "The neutral judge could not run on its machine.",
+   "do": "Run it again; nothing is held against you."
+  },
+  {
+   "code": "rerun.insufficient-evidence",
+   "happened": "This run could not decide (insufficient evidence).",
+   "do": "Run the workflow again; nothing is paid or held against you."
+  },
+  {
+   "code": "appeal.nothing",
+   "happened": "An accepted verdict leaves nothing to appeal.",
+   "do": "Read `/knos status` for when the money moves."
+  },
+  {
+   "code": "appeal.not-supplier",
+   "happened": "Only the account that did the work can appeal.",
+   "do": "Ask the pull request's author to comment it."
+  },
+  {
+   "code": "appeal.no-reason",
+   "happened": "The appeal gives no reason.",
+   "do": "Comment `/knos appeal <reason>` with one sentence."
+  },
+  {
+   "code": "appeal.open",
+   "happened": "An appeal of this verdict is open already.",
+   "do": "Wait for the neutral judge's run to end."
+  },
+  {
+   "code": "appeal.closed",
+   "happened": "This appeal has ended, and its verdict stands.",
+   "do": "Open a new pull request to be judged again."
+  },
+  {
+   "code": "pay.76",
+   "happened": "The signing key is not active on chain yet.",
+   "do": "Try again after its delay and the guardian's approval."
+  },
+  {
+   "code": "pay.77",
+   "happened": "The signing key has expired on chain.",
+   "do": "Run the rotate workflow, then relay the token again."
+  },
+  {
+   "code": "pay.78",
+   "happened": "The signing key was revoked on chain.",
+   "do": "Run the workflow again for a token from another key."
+  },
+  {
+   "code": "pay.80",
+   "happened": "An account is wrong, or a signature is missing.",
+   "do": "Build the instruction again with this client."
+  },
+  {
+   "code": "pay.81",
+   "happened": "An amount, a time, the mode or the terms is outside limits.",
+   "do": "Change the value to one the limits allow."
+  },
+  {
+   "code": "pay.82",
+   "happened": "This funder already has a job on this issue.",
+   "do": "Raise or cancel the one that exists."
+  },
+  {
+   "code": "pay.83",
+   "happened": "The job is not in the state this step needs.",
+   "do": "Comment `/knos status`, then act on what it says."
+  },
+  {
+   "code": "pay.84",
+   "happened": "The signed token is not verified, expired, or not GitHub's.",
+   "do": "Start a new run for a new token."
+  },
+  {
+   "code": "pay.85",
+   "happened": "The token's claims do not allow this action.",
+   "do": "Comment again; a re-run of a job never counts."
+  },
+  {
+   "code": "pay.86",
+   "happened": "The token comes from another workflow than the order pinned.",
+   "do": "Run the workflow the order names."
+  },
+  {
+   "code": "pay.87",
+   "happened": "The token's audience does not match this action.",
+   "do": "Start a new run for this action."
+  },
+  {
+   "code": "pay.88",
+   "happened": "A destination account is wrong, or the payee has no wallet.",
+   "do": "Bind a wallet with `knos claim`, then settle again."
+  },
+  {
+   "code": "pay.89",
+   "happened": "This instruction works on a devnet build only.",
+   "do": "Use devnet."
+  },
+  {
+   "code": "pay.90",
+   "happened": "The faucet serves each repository once a minute.",
+   "do": "Wait a minute and comment again."
+  },
+  {
+   "code": "pay.91",
+   "happened": "The token is not newer than the last one used.",
+   "do": "Comment again for a new token."
+  },
+  {
+   "code": "pay.92",
+   "happened": "This comment cannot spend that balance.",
+   "do": "Ask the balance's wallet to list you as a spender."
+  },
+  {
+   "code": "pay.93",
+   "happened": "The amount is more than the balance allows for one job.",
+   "do": "Fund less, or ask its wallet to raise the limit."
+  },
+  {
+   "code": "pay.94",
+   "happened": "The balance does not hold that much.",
+   "do": "Add money to it, or fund less."
+  },
+  {
+   "code": "pay.95",
+   "happened": "This mint cannot be used here.",
+   "do": "Use a mint that cannot block or tax a transfer."
+  },
+  {
+   "code": "pay.96",
+   "happened": "New funding is paused.",
+   "do": "Wait; payments, refunds and withdrawals go on."
+  },
+  {
+   "code": "pay.97",
+   "happened": "Only the guardian can pause.",
+   "do": "Sign with the guardian's key."
+  },
+  {
+   "code": "pay.98",
+   "happened": "The balance exists already, or the signer did not open it.",
+   "do": "Sign with the wallet that opened it."
+  },
+  {
+   "code": "pay.99",
+   "happened": "A faucet balance cannot be withdrawn.",
+   "do": "Spend it on test orders."
+  },
+  {
+   "code": "pay.100",
+   "happened": "The balance's limit for a day or in total is reached.",
+   "do": "Fund less, or ask its wallet to raise the limit."
+  },
+  {
+   "code": "pay.101",
+   "happened": "This order exists already.",
+   "do": "Fund it under another seq."
+  },
+  {
+   "code": "pay.102",
+   "happened": "Only the fee owner sets a plan.",
+   "do": "Sign with the fee owner's key."
+  },
+  {
+   "code": "pay.103",
+   "happened": "The order is standing and also has a holdback.",
+   "do": "Fund a new order with one of the two."
+  },
+  {
+   "code": "pay1.80",
+   "happened": "An account in the instruction is wrong.",
+   "do": "Build the instruction again with this client."
+  },
+  {
+   "code": "pay1.81",
+   "happened": "The terms are not what the job was funded with.",
+   "do": "Send the terms the funding comment recorded."
+  },
+  {
+   "code": "pay1.82",
+   "happened": "The job exists already, or the account is another job.",
+   "do": "Raise or cancel the one that exists."
+  },
+  {
+   "code": "pay1.83",
+   "happened": "The job is not in the state or time this needs.",
+   "do": "Comment `/knos status`, then act on what it says."
+  },
+  {
+   "code": "pay1.84",
+   "happened": "The signed token is not verified, expired, or not GitHub's.",
+   "do": "Start a new run for a new token."
+  },
+  {
+   "code": "pay1.85",
+   "happened": "The token's claims do not allow this action.",
+   "do": "Comment again; a re-run of a job never counts."
+  },
+  {
+   "code": "pay1.86",
+   "happened": "The token comes from another workflow than the job pinned.",
+   "do": "Run the workflow the job names."
+  },
+  {
+   "code": "pay1.87",
+   "happened": "The token's audience does not match this action.",
+   "do": "Start a new run for this action."
+  },
+  {
+   "code": "pay1.88",
+   "happened": "The payee's account or the fee account is wrong.",
+   "do": "Bind a wallet with `knos claim`, then settle again."
+  },
+  {
+   "code": "pay1.89",
+   "happened": "This instruction works on devnet only.",
+   "do": "Use devnet."
+  },
+  {
+   "code": "pay1.90",
+   "happened": "A repository is funded once a minute.",
+   "do": "Wait a minute and comment again."
+  },
+  {
+   "code": "pay1.91",
+   "happened": "Nothing is due on this job.",
+   "do": "Comment `/knos status` to see what was paid."
+  },
+  {
+   "code": "oidc.64",
+   "happened": "The token is longer than the verifier takes.",
+   "do": "Start a new run; shorten the audience if you set it."
+  },
+  {
+   "code": "oidc.65",
+   "happened": "The signature is not as long as its key.",
+   "do": "Start a new run for a new token."
+  },
+  {
+   "code": "oidc.67",
+   "happened": "A verifier account is wrong, or another run moved it.",
+   "do": "Send the token again."
+  },
+  {
+   "code": "oidc.68",
+   "happened": "The signing key is not ready on chain.",
+   "do": "Wait for the key's rotation, then send again."
+  },
+  {
+   "code": "oidc.69",
+   "happened": "Another run moved this token's account.",
+   "do": "Send the token again."
+  },
+  {
+   "code": "oidc.70",
+   "happened": "The signature is not the issuer's.",
+   "do": "Start a new run for a new token."
+  },
+  {
+   "code": "oidc.71",
+   "happened": "The token is not signed with RS256.",
+   "do": "Use an issuer that signs with RS256."
+  },
+  {
+   "code": "oidc.72",
+   "happened": "The token's issuer is not the key's issuer.",
+   "do": "Send the token with its own issuer's key."
+  },
+  {
+   "code": "oidc.73",
+   "happened": "The chain does not trust this signing key.",
+   "do": "Run the rotate workflow, then send again."
+  },
+  {
+   "code": "oidc.74",
+   "happened": "The key's attestation is not the rotate workflow's.",
+   "do": "Run the rotate workflow in the attester's repository."
+  },
+  {
+   "code": "oidc.75",
+   "happened": "The key's attestation has expired.",
+   "do": "Run the rotate workflow again."
+  },
+  {
+   "code": "meter.61",
+   "happened": "The token's claims are not a JSON object.",
+   "do": "Start a new run for a new token."
+  },
+  {
+   "code": "meter.62",
+   "happened": "A claim the meter reads appears twice in the token.",
+   "do": "Use an issuer that writes each claim once."
+  },
+  {
+   "code": "meter.63",
+   "happened": "A claim the meter reads is missing from the token.",
+   "do": "Run the workflow the credits pin."
+  },
+  {
+   "code": "meter.76",
+   "happened": "The signing key is not active on chain yet.",
+   "do": "Try again after its delay and the guardian's approval."
+  },
+  {
+   "code": "meter.77",
+   "happened": "The signing key has expired on chain.",
+   "do": "Run the rotate workflow, then relay the token again."
+  },
+  {
+   "code": "meter.78",
+   "happened": "The signing key was revoked on chain.",
+   "do": "Run the workflow again for a token from another key."
+  },
+  {
+   "code": "meter.110",
+   "happened": "An account is wrong, or a signature is missing.",
+   "do": "Build the instruction again with this client."
+  },
+  {
+   "code": "meter.111",
+   "happened": "The owner, the commit, the rate or the tier is outside limits.",
+   "do": "Change the value to one the limits allow."
+  },
+  {
+   "code": "meter.112",
+   "happened": "This is not a credits account the signer opened.",
+   "do": "Sign with the wallet that opened the credits."
+  },
+  {
+   "code": "meter.113",
+   "happened": "The signed token is not verified, expired, or not GitHub's.",
+   "do": "Start a new run for a new token."
+  },
+  {
+   "code": "meter.114",
+   "happened": "The token is from a re-run, or another kind of runner.",
+   "do": "Start a new run on GitHub's own runner."
+  },
+  {
+   "code": "meter.115",
+   "happened": "The token is not from the workflow commit the credits pin.",
+   "do": "Open the credits again to pin this commit."
+  },
+  {
+   "code": "meter.116",
+   "happened": "The token's audience is not an evaluation's.",
+   "do": "Run the workflow with kind `eval`."
+  },
+  {
+   "code": "meter.117",
+   "happened": "The run was not in a repository of the named buyer.",
+   "do": "Run it in a repository the buyer owns."
+  },
+  {
+   "code": "meter.118",
+   "happened": "The credits do not hold that much.",
+   "do": "Add money to the credits, then send this again."
+  },
+  {
+   "code": "meter.119",
+   "happened": "This mint cannot be used for credits.",
+   "do": "Use Circle's USDC."
+  },
+  {
+   "code": "meter.120",
+   "happened": "The fee account or the destination account is wrong.",
+   "do": "Build the instruction again with this client."
+  },
+  {
+   "code": "meter.121",
+   "happened": "Only the fee owner sets a plan.",
+   "do": "Sign with the fee owner's key."
+  },
+  {
+   "code": "meter.122",
+   "happened": "The meter does not count tokens signed by this kind of key.",
+   "do": "Use a key of a public issuer."
+  },
+  {
+   "code": "meter.123",
+   "happened": "This mark cannot be closed by this signer.",
+   "do": "Sign with the wallet the mark names."
+  },
+  {
+   "code": "meter.124",
+   "happened": "This mark cannot be closed yet.",
+   "do": "Send this again after the time the mark names."
+  },
+  {
+   "code": "meter.125",
+   "happened": "This batch is not the ledger's next one.",
+   "do": "Read `next_seq` from the ledger and send that batch."
+  },
+  {
+   "code": "meter.126",
+   "happened": "The batch's counts are outside what a batch may hold.",
+   "do": "Send 1 to 100,000 evaluations for this month or the last."
+  },
+  {
+   "code": "passkey.110",
+   "happened": "An account in the instruction is wrong.",
+   "do": "Build the instruction again with this client."
+  },
+  {
+   "code": "passkey.111",
+   "happened": "That is not a compressed P-256 public key.",
+   "do": "Give the 33 bytes the passkey reported."
+  },
+  {
+   "code": "passkey.112",
+   "happened": "That account is not a passkey wallet.",
+   "do": "Open the wallet first."
+  },
+  {
+   "code": "passkey.113",
+   "happened": "The passkey's signature check is not right before the withdrawal.",
+   "do": "Build both instructions with this client."
+  },
+  {
+   "code": "passkey.114",
+   "happened": "The signature is another passkey's.",
+   "do": "Sign with the passkey that opened this wallet."
+  },
+  {
+   "code": "passkey.115",
+   "happened": "The signed message is not what the passkey signed.",
+   "do": "Sign again and send what the device returned."
+  },
+  {
+   "code": "passkey.116",
+   "happened": "The device did not report that a person was present.",
+   "do": "Sign again and confirm on the device."
+  },
+  {
+   "code": "passkey.117",
+   "happened": "The client data is not a passkey signature's.",
+   "do": "Sign again with the page's own request."
+  },
+  {
+   "code": "passkey.118",
+   "happened": "The passkey signed for another withdrawal or funding.",
+   "do": "Sign again for this one."
+  },
+  {
+   "code": "passkey.119",
+   "happened": "The nonce is not the wallet's next one.",
+   "do": "Read the wallet and sign again."
+  },
+  {
+   "code": "passkey.120",
+   "happened": "This mint cannot be withdrawn.",
+   "do": "Use a mint the program accepts."
+  },
+  {
+   "code": "passkey.121",
+   "happened": "The signature's s is in the upper half.",
+   "do": "Send n minus s, as this client's builders do."
+  },
+  {
+   "code": "passkey.122",
+   "happened": "The source is not this wallet's token account.",
+   "do": "Name the wallet's own account of this mint."
+  },
+  {
+   "code": "passkey.123",
+   "happened": "The slot is past the expiry the passkey signed for.",
+   "do": "Sign again."
+  },
+  {
+   "code": "passkey.124",
+   "happened": "The funding instruction is not this deployment's.",
+   "do": "Build the funding with this client."
+  },
+  {
+   "code": "unknown",
+   "happened": "Knos has no plain words for this refusal yet.",
+   "do": "Open an issue on Knos and quote the reason."
+  }
+ ]
+}

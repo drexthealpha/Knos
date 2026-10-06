@@ -45,8 +45,10 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import ids
+
 FREE_PER_MONTH = 10_000     # the price book: an owner's first evaluations of a month cost nothing
-RATE = 50_000               # then 0.05 USD each, in millionths (0.02 on a committed-volume plan: 20_000)
+RATE = 50_000               # then 0.05 USD each, in millionths (0.02 on an annual commitment: 20_000)
 MICRO = 1_000_000
 ZERO = bytes(32)            # a Ledger account's running hash before its first batch
 _HEX = set("0123456789abcdef")
@@ -109,6 +111,11 @@ class Evaluation:
     milestone: int
     accepted: bool
     rate: int           # what the seller bills when it is accepted, in the smallest units the two settle in
+    verdict: str = ""   # one of the four verdicts when the line says one; "" for a line that says accepted 1 or 0 only
+    evaluator: str = ""     # who judged, as `<judge>@<version>`, when the writer knows; it is a part of the evaluation's id
+    run: str = ""       # the run the issuer signed for, when the writer knows; a part of the evaluation's id
+    inv: str = ""       # the invoice line that names this deliverable, when one is known (an inv_ id)
+    stl: str = ""       # the settlement of this deliverable, when money moved for it (an stl_ id); only on an accepted line
 
     def __post_init__(self) -> None:
         _int(self.buyer, "buyer", least=1), _int(self.seller, "seller", least=1)
@@ -116,6 +123,45 @@ class Evaluation:
         _int(self.milestone, "milestone", 2 ** 32 - 1), _int(self.rate, "rate")
         if not isinstance(self.accepted, bool):
             raise Bad("accepted must be 1 or 0")
+        if self.verdict not in ("", *ids.VERDICTS) or (self.verdict and self.accepted != (self.verdict == "accepted")):
+            raise Bad("a line's verdict is accepted, rejected, insufficient_evidence or disputed, and accepted is 1 for the verdict accepted and 0 for the "
+                      "other three")
+        if not all(isinstance(x, str) and len(x) <= 200 for x in (self.evaluator, self.run)):
+            raise Bad("evaluator and run are texts of at most 200 characters")
+        for kind, got in (("invoice_line", self.inv), ("settlement", self.stl)):
+            if got:
+                try:
+                    ids.expect(kind, got)
+                except ValueError as why:
+                    raise Bad(str(why)) from None
+        if self.stl and not self.accepted:
+            raise Bad("a settlement is named on an accepted line only: a verdict that is not accepted authorises no payment")
+        if (self.evaluator or self.run or self.inv or self.stl) and not self.verdict:
+            raise Bad("a line that names its evaluator, run, invoice line or settlement also says its verdict in words")
+
+    @property
+    def stands(self) -> str:
+        """The verdict in one of the four words: the one the line says, else accepted or rejected from its 1 or 0."""
+        return self.verdict or ("accepted" if self.accepted else "rejected")
+
+    @property
+    def dlv(self) -> str:
+        """The deliverable's id as every interface writes it (knos.ids): the order and the milestone."""
+        return ids.deliverable(self.order, self.milestone)
+
+    @property
+    def evl(self) -> str:
+        """The evaluation's id as every interface writes it: this deliverable, artifact and policy, and the evaluator
+        and run when the line names them (empty when it does not: then it is one id per deliverable, artifact and policy)."""
+        return ids.evaluation(self.dlv, self.artifact, self.policy, self.evaluator, self.run)
+
+    def ids(self) -> dict:
+        """The four ids of this line; null for the invoice line and the settlement the ledger was not told."""
+        return {"deliverable": self.dlv, "evaluation": self.evl, "invoice_line": self.inv or None, "settlement": self.stl or None}
+
+    def entry(self) -> dict:
+        """The line as an interface shows it: its fields, the verdict in words and the four ids, whatever the line wrote."""
+        return {**json.loads(self.line()), "verdict": self.stands, "ids": self.ids()}
 
     @property
     def id(self) -> bytes:
@@ -135,8 +181,12 @@ class Evaluation:
         return f"knosm:eval:{self.buyer}:{self.seller}:{self.order}:{self.artifact}:{self.policy}:{self.milestone}:{int(self.accepted)}:{self.rate}"
 
     def line(self) -> str:
+        """The ledger line. A line that says its verdict in words also carries its ids (`dlv`, `evl`, and `inv`, `stl`,
+        `evaluator`, `run` when known); a line that does not is written as 0.3.16 wrote it, byte for byte."""
+        more = {} if not self.verdict else {"verdict": self.verdict, "dlv": self.dlv, "evl": self.evl,
+                                            **{k: v for k, v in (("evaluator", self.evaluator), ("run", self.run), ("inv", self.inv), ("stl", self.stl)) if v}}
         return canon({"accepted": int(self.accepted), "artifact": self.artifact, "buyer": self.buyer, "deliverable": self.deliverable, "id": self.id.hex(), "milestone": self.milestone,
-                          "order": self.order, "policy": self.policy, "rate": self.rate, "seller": self.seller})
+                      "order": self.order, "policy": self.policy, "rate": self.rate, "seller": self.seller, **more})
 
 
 def parse(line: str | dict) -> Evaluation:
@@ -155,7 +205,18 @@ def parse(line: str | dict) -> Evaluation:
         raise Bad("an evaluation needs accepted, artifact, buyer, milestone, order, policy, rate and seller")
     if o["accepted"] not in (0, 1) or isinstance(o["accepted"], bool):
         raise Bad("accepted must be 1 or 0")
-    e = Evaluation(o["buyer"], o["seller"], o["order"], o["artifact"], o["policy"], o["milestone"], o["accepted"] == 1, o["rate"])
+    if not all(isinstance(o.get(k, ""), str) for k in ("verdict", "evaluator", "run", "inv", "stl", "dlv", "evl")) or o.get("verdict", "x") == "":
+        raise Bad("verdict, evaluator, run, dlv, evl, inv and stl are texts, and a verdict is one of the four words")
+    e = Evaluation(o["buyer"], o["seller"], o["order"], o["artifact"], o["policy"], o["milestone"], o["accepted"] == 1, o["rate"],
+                   o.get("verdict", ""), o.get("evaluator", ""), o.get("run", ""), o.get("inv", ""), o.get("stl", ""))
+    for key, kind, want in (("dlv", "deliverable", e.dlv), ("evl", "evaluation", e.evl)):
+        if key in o:
+            try:
+                ids.expect(kind, o[key])
+            except ValueError as why:
+                raise Bad(f"{key}: {why}") from None
+            if o[key] != want:
+                raise Bad(f"{key} {o[key]} is not the {kind} id of this line's own fields ({want})")
     if "id" in o and o["id"] != e.id.hex():
         raise Bad(f"the id {str(o['id'])[:16]}... is not the id of this order, artifact, policy and milestone")
     if "deliverable" in o and o["deliverable"] != e.deliverable:
@@ -548,6 +609,8 @@ class Row:
     buyer_only: int
     seller_only: int
     disputed: int
+    verdicts: dict = field(default_factory=dict, compare=False)     # of `count`: how many of each of the four verdicts
+    accepted_outcomes: int = field(default=0, compare=False)    # deliverables among them first accepted this month: billed once each
 
 
 @dataclass(frozen=True)
@@ -574,10 +637,11 @@ class Reconciliation:
         return body + f"sha256,{hashlib.sha256(body.encode()).hexdigest()}\n"
 
     def json(self) -> dict:
-        ev = lambda pairs: [{"month": m, **json.loads(e.line())} for m, e in pairs]  # noqa: E731
+        ev = lambda pairs: [{"month": m, **e.entry()} for m, e in pairs]  # noqa: E731
+        one = lambda m, e: {"month": m, "accepted": int(e.accepted), "verdict": e.stands, "rate": e.rate}  # noqa: E731
         return {"agreed": self.agreed, "buyer_only": ev(self.buyer_only), "seller_only": ev(self.seller_only),
-                "disputed": [{"id": d.id.hex(), "what": list(d.what), "buyer": {"month": d.buyer_month, "accepted": int(d.buyer.accepted), "rate": d.buyer.rate},
-                              "seller": {"month": d.seller_month, "accepted": int(d.seller.accepted), "rate": d.seller.rate}} for d in self.disputed],
+                "disputed": [{"id": d.id.hex(), "ids": d.buyer.ids(), "what": list(d.what), "buyer": one(d.buyer_month, d.buyer),
+                              "seller": one(d.seller_month, d.seller)} for d in self.disputed],
                 "duplicates": {k: [i.hex() for i in v] for k, v in self.duplicates.items()},
                 "statement": [vars(r) for r in self.rows]}
 
@@ -611,7 +675,7 @@ def reconcile(buyer_ledger: list[Stored], seller_ledger: list[Stored], rate: int
     disputed = []
     for i in sorted(b.keys() & s.keys()):
         (bm, be), (sm, se) = b[i], s[i]
-        what = tuple(w for w, differs in (("verdict", be.accepted != se.accepted), ("rate", be.rate != se.rate), ("month", bm != sm)) if differs)
+        what = tuple(w for w, differs in (("verdict", be.stands != se.stands), ("rate", be.rate != se.rate), ("month", bm != sm)) if differs)
         if what:
             disputed.append(Dispute(i, be, se, bm, sm, what))
     out_ids = {d.id for d in disputed}
@@ -619,10 +683,16 @@ def reconcile(buyer_ledger: list[Stored], seller_ledger: list[Stored], rate: int
     seller_only = tuple(s[i] for i in sorted(s.keys() - b.keys()))
     months = sorted({m for m, _e in (*b.values(), *s.values())})
     rows = []
+    agreed = sorted(((bm, i, e) for i, (bm, e) in b.items() if i in s and i not in out_ids), key=lambda t: (t[0], t[1]))
+    won: dict[str, int] = {}        # deliverable -> the month both sides first hold it accepted: billed there, once
+    for bm, _i, e in agreed:
+        if e.stands in ids.BILLABLE:
+            won.setdefault(e.deliverable, bm)
     for m in months:
-        both = [e for i, (bm, e) in b.items() if bm == m and i in s and i not in out_ids]
+        both = [e for bm, _i, e in agreed if bm == m]
         rows.append(Row(m, len(both), sum(e.accepted for e in both), sum(e.value for e in both), fee(len(both), rate, free),
-                        sum(1 for bm, _e in buyer_only if bm == m), sum(1 for sm, _e in seller_only if sm == m), sum(1 for d in disputed if d.buyer_month == m)))
+                        sum(1 for bm, _e in buyer_only if bm == m), sum(1 for sm, _e in seller_only if sm == m), sum(1 for d in disputed if d.buyer_month == m),
+                        {v: sum(e.stands == v for e in both) for v in ids.VERDICTS}, sum(1 for at in won.values() if at == m)))
     return Reconciliation(buyer_only, seller_only, tuple(disputed), {"buyer": b_twice, "seller": s_twice}, tuple(rows), buyer, seller, rate, free)
 
 
@@ -630,10 +700,12 @@ def export_csv(ledger: list[Stored]) -> str:
     """One row per evaluation line, in the file's order, for a spreadsheet or an auditor."""
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\n")
-    w.writerow(["month", "seq", "id", "buyer", "seller", "order", "artifact", "policy", "milestone", "accepted", "rate"])
+    w.writerow(["month", "seq", "id", "buyer", "seller", "order", "artifact", "policy", "milestone", "accepted", "rate",
+                "verdict", "deliverable_id", "evaluation_id", "invoice_line_id", "settlement_id"])
     for s in ledger:
         for e in s.evals:
-            w.writerow([s.month, s.seq, e.id.hex(), e.buyer, e.seller, e.order, e.artifact, e.policy, e.milestone, int(e.accepted), e.rate])
+            w.writerow([s.month, s.seq, e.id.hex(), e.buyer, e.seller, e.order, e.artifact, e.policy, e.milestone, int(e.accepted), e.rate,
+                        e.stands, e.dlv, e.evl, e.inv, e.stl])
     return buf.getvalue()
 
 
@@ -653,7 +725,8 @@ class Correction:
     GitHub signs for that batch anchors it, and the statement nets it.
 
         duplicate   that entry is a repeat: the evaluation is counted elsewhere (another batch, or singly)
-        verdict     the verdict that stands is `accepted` (1 or 0), not the one the batch recorded
+        verdict     the verdict that stands is not the one the batch recorded: `accepted` (1 or 0), or `verdict`, one of
+                    the four words (a line carries one of the two, never both)
         withdrawn   the evaluation should not have been counted at all"""
     by: int             # the GitHub owner id that issues it: the ledger's buyer or its seller
     id: str             # the evaluation, 32 bytes as hex
@@ -661,15 +734,28 @@ class Correction:
     seq: int
     kind: str
     accepted: bool | None = None
+    verdict: str | None = None      # in words, instead of `accepted`: any of the four
 
     def __post_init__(self) -> None:
         _int(self.by, "by", least=1), _hex(self.id, 64, "id"), month_of(_int(self.month, "month")), _int(self.seq, "seq")
-        if self.kind not in KINDS or (self.kind == "verdict") != isinstance(self.accepted, bool):
-            raise Bad("a correction is of kind duplicate, verdict or withdrawn, and only a verdict correction carries accepted (1 or 0)")
+        if self.verdict is not None and self.verdict not in ids.VERDICTS:
+            raise Bad("a correction's verdict is accepted, rejected, insufficient_evidence or disputed")
+        if self.kind not in KINDS or (self.kind == "verdict") != (isinstance(self.accepted, bool) != (self.verdict is not None)) \
+                or (self.accepted is not None and self.verdict is not None):
+            raise Bad("a correction is of kind duplicate, verdict or withdrawn, and only a verdict correction carries accepted (1 or 0) or verdict "
+                      "(one of the four words), one of the two")
+
+    @property
+    def stands(self) -> str | None:
+        """The verdict a verdict correction sets, in one of the four words; None for the other kinds."""
+        return self.verdict if self.verdict is not None else None if self.accepted is None else "accepted" if self.accepted else "rejected"
+
+    def said(self) -> dict:
+        """What the line carries of the verdict: {"accepted": 1 or 0}, {"verdict": word} or nothing."""
+        return {"verdict": self.verdict} if self.verdict is not None else {"accepted": int(self.accepted)} if self.accepted is not None else {}
 
     def line(self) -> str:
-        return canon({"correction": {"batch": f"{self.month}.{self.seq}", "by": self.by, "id": self.id, "kind": self.kind,
-                                     **({"accepted": int(self.accepted)} if self.accepted is not None else {})}})
+        return canon({"correction": {"batch": f"{self.month}.{self.seq}", "by": self.by, "id": self.id, "kind": self.kind, **self.said()}})
 
     @property
     def key(self) -> bytes:
@@ -679,12 +765,14 @@ class Correction:
     @classmethod
     def of(cls, o: dict) -> "Correction":
         c = o.get("correction") if isinstance(o, dict) else None
-        if not isinstance(c, dict) or not {"batch", "by", "id", "kind"} <= set(c) <= {"accepted", "batch", "by", "id", "kind"}:
-            raise Bad("a correction has batch (<yyyymm>.<seq>), by, id and kind, and accepted when its kind is verdict")
+        if not isinstance(c, dict) or not {"batch", "by", "id", "kind"} <= set(c) <= {"accepted", "batch", "by", "id", "kind", "verdict"}:
+            raise Bad("a correction has batch (<yyyymm>.<seq>), by, id and kind, and accepted or verdict when its kind is verdict")
+        if "verdict" in c and not isinstance(c["verdict"], str):
+            raise Bad("a correction's verdict is accepted, rejected, insufficient_evidence or disputed")
         m = re.fullmatch(r"([0-9]{6})\.(0|[1-9][0-9]{0,18})", str(c["batch"]))
         if m is None or c.get("accepted", 0) not in (0, 1) or isinstance(c.get("accepted"), bool):
             raise Bad("a correction's batch is written <yyyymm>.<seq>, and accepted is 1 or 0")
-        return cls(c["by"], c["id"], int(m[1]), int(m[2]), c["kind"], c["accepted"] == 1 if "accepted" in c else None)
+        return cls(c["by"], c["id"], int(m[1]), int(m[2]), c["kind"], c["accepted"] == 1 if "accepted" in c else None, c.get("verdict"))
 
 
 @dataclass(frozen=True)
@@ -762,7 +850,10 @@ def canonical(ledger: list[Stored], individual=()) -> Canon:
             else:
                 seen[i] = at
                 where, c = by_kind["verdict"].get(k, (None, None))
-                kept.append(Entry(*at, replace(e, accepted=c.accepted) if c else e, where))
+                # a correction in words gives the entry its verdict in words; one that says 1 or 0 leaves an old line an old line
+                fixed = None if c is None else replace(e, accepted=c.stands == "accepted", stl=e.stl if c.stands == "accepted" else "",
+                                                       verdict=c.stands if c.verdict is not None or e.verdict else "")
+                kept.append(Entry(*at, fixed or e, where))
             here.add(i)
     return Canon(tuple(sorted(kept, key=lambda x: (x.month, x.seq, x.e.id))), tuple(sorted(dropped, key=lambda d: (d.month, d.seq, d.id))), tuple(fixes))
 
@@ -776,9 +867,20 @@ class Numbers:
     accepted: int               # evaluations whose verdict is accepted: ten pull requests for one deliverable are ten here
     value: int                  # the sum of the accepted evaluations' rates, as the chain's `value` adds them
     outcome_value: int          # the sum over the accepted outcomes of the rate of the evaluation that first accepted each
+    insufficient_evidence: int = 0      # evaluations that could not tell: not accepted, and not the supplier's failure
+    disputed: int = 0           # evaluations whose verdict somebody contested and nobody has resolved
 
     def three(self) -> dict:
         return {"accepted_outcomes": self.accepted_outcomes, "evaluations": self.evaluations, "rejected": self.rejected}
+
+    def four(self) -> dict:
+        """The month's evaluations by verdict. They add up to `evaluations`. On chain the last three are one number:
+        the batch's count less its accepted."""
+        return {"accepted": self.accepted, "rejected": self.rejected, "insufficient_evidence": self.insufficient_evidence, "disputed": self.disputed}
+
+    def extra(self) -> dict:
+        """The two verdicts 0.3.16 did not have, when the month holds any: what a close record and a statement add."""
+        return {k: v for k, v in (("disputed", self.disputed), ("insufficient_evidence", self.insufficient_evidence)) if v}
 
 
 def outcomes(c: Canon) -> dict[str, Entry]:
@@ -794,7 +896,90 @@ def outcomes(c: Canon) -> dict[str, Entry]:
 def numbers(c: Canon, month: int) -> Numbers:
     mine = [x.e for x in c.kept if x.month == month]
     won = [x.e for x in outcomes(c).values() if x.month == month]
-    return Numbers(len(mine), len(won), sum(not e.accepted for e in mine), sum(e.accepted for e in mine), sum(e.value for e in mine), sum(e.rate for e in won))
+    return Numbers(len(mine), len(won), sum(e.stands == "rejected" for e in mine), sum(e.accepted for e in mine), sum(e.value for e in mine), sum(e.rate for e in won),
+                   sum(e.stands == "insufficient_evidence" for e in mine), sum(e.stands == "disputed" for e in mine))
+
+
+# -- one deliverable is billed once ------------------------------------------------------------------------------------------
+# The rules, as docs/METER.md prints them (tests hold the two together). `case`: what happened. `is`: what the ledger
+# makes of it. `billed`: what it adds to the accepted outcomes, the number a per-outcome price multiplies.
+RULES = (
+    ("a retry", "the same deliverable and artifact, judged again", "a new evaluation", "nothing: the deliverable is billed once"),
+    ("an alternate branch", "the same deliverable, another artifact", "a new evaluation", "nothing: the first accepted one stands"),
+    ("a reopened ticket, inside the warranty", "the same deliverable, contested after it was accepted",
+     "a correction of the accepted evaluation's verdict", "nothing new: the correction takes the outcome back, or leaves it"),
+    ("a reopened ticket, after the warranty", "the same work, asked for again", "a new deliverable only when the terms say so",
+     "one outcome when the terms say so, else nothing"),
+    ("ten pull requests for one milestone", "one deliverable, ten artifacts", "ten evaluations", "one outcome, when the first is accepted"),
+)
+OUTCOME, RETRY, ALTERNATE, FIRST = "outcome", "retry", "alternate", "evaluation"
+CORRECTION, NEW_DELIVERABLE, CLOSED = "correction", "new deliverable", "closed"
+
+
+@dataclass(frozen=True)
+class Billed:
+    """One evaluation that counts, and what it is to the invoice. `role`: outcome (the first accepted evaluation of its
+    deliverable: the one line that is billed), retry (its deliverable and artifact were judged before), alternate (its
+    deliverable was judged before on another artifact), or evaluation (the first look at a deliverable, not accepted)."""
+    entry: Entry
+    role: str
+
+    @property
+    def billed(self) -> bool:
+        return self.role == OUTCOME
+
+
+def billing(c: Canon) -> tuple[Billed, ...]:
+    """THE ONE PLACE that says which evaluation is the billed outcome of its deliverable: the first, in order of month,
+    seq and id, whose verdict is accepted after every correction. One per deliverable under one order, whatever number
+    of artifacts, branches, pull requests, retries or months carried the work. An accepted evaluation after it is an
+    evaluation and no more. A verdict that is rejected, insufficient evidence or disputed is never billed as an outcome."""
+    first, seen, out = outcomes(c), dict[str, set[str]](), []
+    for x in c.kept:
+        e, before = x.e, seen.setdefault(x.e.deliverable, set())
+        role = OUTCOME if first.get(e.deliverable) is x else RETRY if e.artifact in before else ALTERNATE if before else FIRST
+        if e.stands in ids.BILLABLE and role == FIRST:        # accepted, the first of its deliverable, and not the outcome: cannot be
+            raise Bad(f"evaluation {e.id.hex()[:16]}... is accepted and is not its deliverable's outcome")
+        before.add(e.artifact)
+        out.append(Billed(x, role))
+    return tuple(out)
+
+
+def billed_once(evaluations) -> list[int]:
+    """Which of these evaluations are billed as outcomes, as their places in the list: the first accepted one of each
+    deliverable, and no other. `evaluations`: (deliverable id, verdict) in the order they count. The same rule as
+    `billing`, for a caller that has ids and verdicts and no ledger; an id that is not a deliverable's, or a word
+    that is not a verdict, is refused."""
+    seen, out = set[str](), []
+    for n, (dlv, verdict) in enumerate(evaluations):
+        try:
+            ids.expect("deliverable", dlv)
+        except ValueError as why:
+            raise Bad(str(why)) from None
+        if verdict not in ids.VERDICTS:
+            raise Bad(f"not a verdict: {verdict!r}")
+        if verdict in ids.BILLABLE and dlv not in seen:
+            seen.add(dlv)
+            out.append(n)
+    return out
+
+
+def reopened(accepted_at: int, reopened_at: int, warranty_s: int, new_after: bool = False) -> str:
+    """What a ticket reopened after its deliverable was accepted is. Inside the warranty window (`warranty_s` seconds
+    from the acceptance, the window the terms set): a correction of the accepted evaluation's verdict, never a new
+    line. After it: a new deliverable when the terms say so (`new_after`), else closed: nothing is billed and nothing
+    is taken back. Times are seconds; a reopening before the acceptance is refused."""
+    if min(accepted_at, reopened_at, warranty_s) < 0 or reopened_at < accepted_at:
+        raise Bad("a ticket is reopened after its deliverable was accepted, and a warranty is a number of seconds, 0 or more")
+    return CORRECTION if reopened_at - accepted_at <= warranty_s else NEW_DELIVERABLE if new_after else CLOSED
+
+
+def reopened_key(key: str | int, n: int) -> str:
+    """The key of the new deliverable a reopening after the warranty makes, when the terms allow one: the first
+    deliverable's key and which reopening this is, from 1. `ids.deliverable(scope, reopened_key(key, n))` is its id."""
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        raise Bad("reopenings are numbered from 1")
+    return f"{key}/reopened/{n}"
 
 
 def read_ids(text: str) -> list[bytes]:
@@ -827,7 +1012,8 @@ def side(ledger: list[Stored], month: int, individual=()) -> dict:
     """What one party's ledger says of a month: the final running hash of its batches (what its Ledger account on
     chain must hold), how many evaluations they anchored, and the three numbers after `canonical`."""
     t, c = totals(ledger, month), canonical(ledger, individual)
-    return {**numbers(c, month).three(), "anchored": t.count, "batches": t.next_seq, "chain": t.chain.hex(),
+    n = numbers(c, month)
+    return {**n.three(), **n.extra(), "anchored": t.count, "batches": t.next_seq, "chain": t.chain.hex(),
             "corrections": sum(1 for _m, _q, x in c.corrections if x.month == month)}
 
 
@@ -848,18 +1034,20 @@ def close(buyer_ledger: list[Stored], seller_ledger: list[Stored], month: int | 
     (buyer, seller), = pairs
     cb, cs = canonical(buyer_ledger, individual), canonical(seller_ledger, individual)
     b_all, s_all = {x.e.id: x for x in cb.kept}, {x.e.id: x for x in cs.kept}
-    show = lambda x: {"accepted": int(x.e.accepted), "batch": f"{x.month}.{x.seq}", "rate": x.e.rate} if x else None  # noqa: E731
+    # the two newer verdicts are written out; accepted and rejected stay 1 and 0, so a month without them closes to the bytes it always did
+    show = lambda x: {"accepted": int(x.e.accepted), "batch": f"{x.month}.{x.seq}", "rate": x.e.rate,  # noqa: E731
+                      **({"verdict": x.e.stands} if x.e.stands in ("insufficient_evidence", "disputed") else {})} if x else None
     lines = []
     for i in sorted(i for i in b_all.keys() | s_all.keys() if month in {x.month for x in (b_all.get(i), s_all.get(i)) if x}):
         b, s = b_all.get(i), s_all.get(i)
         why = "missing from the seller's ledger" if s is None else "missing from the buyer's ledger" if b is None else \
-            "month differs" if b.month != s.month else "verdict differs" if b.e.accepted != s.e.accepted else "rate differs" if b.e.rate != s.e.rate else ""
+            "month differs" if b.month != s.month else "verdict differs" if b.e.stands != s.e.stands else "rate differs" if b.e.rate != s.e.rate else ""
         if why:
             lines.append({"buyer": show(b), "id": i.hex(), "seller": show(s), "why": why})
     for name, c in zip(ROLES, (cb, cs)):
         lines += [{"buyer": None, "id": d.id.hex(), "seller": None, "why": f"duplicate in the {name}'s ledger: batch {d.seq} of {d.month}, {d.where()}"}
                   for d in c.dropped if d.month == month and d.corrected is None and d.reason in (BATCH, SINGLY)]
-    fixes = [{"batch": f"{m}.{q}", "by": x.by, "id": x.id, "in": name, "kind": x.kind, "of": f"{x.month}.{x.seq}", **({"accepted": int(x.accepted)} if x.accepted is not None else {})}
+    fixes = [{"batch": f"{m}.{q}", "by": x.by, "id": x.id, "in": name, "kind": x.kind, "of": f"{x.month}.{x.seq}", **x.said()}
              for name, c in zip(ROLES, (cb, cs)) for m, q, x in c.corrections if x.month == month]
     return {"buyer": buyer, "buyer_ledger": side(buyer_ledger, month, individual), "corrections": fixes, "disputed": sorted(lines, key=lambda d: (d["id"], d["why"])),
             "month": month, "seller": seller, "seller_ledger": side(seller_ledger, month, individual), "state": "disputed" if lines else "agreed",
@@ -963,11 +1151,13 @@ def statement(ledger: list[Stored], month: int | str, record: dict | None = None
             raise Disputed(f"{month} is in dispute ({len(record['disputed'])} line(s)), so there are no totals to invoice. Settle the lines `knos meter close` "
                            f"names, anchor the corrections and close again; or pass --disputed to see the numbers with every disputed line marked")
     d = ledger[0].declared
-    body = (f"knos meter statement,1\nbuyer,{d['buyer']}\nseller,{d['seller']}\nmonth,{month}\nstate,{state}\n"
+    more = n.extra()        # a month that holds either of the two newer verdicts is stated as version 2, with a line for each
+    body = (f"knos meter statement,{2 if more else 1}\nbuyer,{d['buyer']}\nseller,{d['seller']}\nmonth,{month}\nstate,{state}\n"
             + (f"close,{hashlib.sha256(close_bytes(record)).hexdigest()}\n" if record is not None else "")
             + ("note,DISPUTED: this is not an invoice; the lines marked disputed below are not settled\n" if state == "disputed" else "")
             + f"evaluations,{n.evaluations}\naccepted_outcomes,{n.accepted_outcomes}\nrejected_evaluations,{n.rejected}\n"
-            f"accepted_evaluations,{n.accepted}\nmeter_rate,{rate}\nmeter_free,{free}\nmeter_fee,{fee(n.evaluations, rate, free)}\n"
+            + (f"insufficient_evidence_evaluations,{n.insufficient_evidence}\ndisputed_evaluations,{n.disputed}\n" if more else "")
+            +            f"accepted_evaluations,{n.accepted}\nmeter_rate,{rate}\nmeter_free,{free}\nmeter_fee,{fee(n.evaluations, rate, free)}\n"
             f"value_of_accepted_evaluations,{n.value}\nvalue_of_accepted_outcomes,{n.outcome_value}\n")
     body += "".join(f"disputed,{x['id']},{x['why']}\n" for x in (record["disputed"] if record is not None else []))
     out = body + f"sha256,{hashlib.sha256(body.encode()).hexdigest()}\n"
@@ -975,8 +1165,39 @@ def statement(ledger: list[Stored], month: int | str, record: dict | None = None
     out += f"anchored_and_not_counted,{mine['anchored'] - n.evaluations}\n"
     out += "".join(f"repeat,{r.id.hex()},batch {r.seq} of {r.month},{r.said()}\n" for r in c.dropped if r.month == month)
     out += "".join(f"correction,{x.kind},{x.id},of batch {x.seq} of {x.month},in batch {q} of {m},by {x.by}"
-                   + (f",accepted {int(x.accepted)}" if x.accepted is not None else "") + "\n" for m, q, x in c.corrections if x.month == month)
+                   + (f",verdict {x.verdict}" if x.verdict is not None else f",accepted {int(x.accepted)}" if x.accepted is not None else "") + "\n"
+                   for m, q, x in c.corrections if x.month == month)
     return out
+
+
+STATEMENT_TYPE, STATEMENT_VERSION = "knos.meter-statement", 1
+
+
+def statement_json(ledger: list[Stored], month: int | str, record: dict | None = None, individual=(), rate: int = RATE, free: int = FREE_PER_MONTH,
+                   disputed: bool = False) -> dict:
+    """The same month as `statement`, as one JSON object: the four verdicts counted, and one line per evaluation that
+    counts with its four ids, its verdict, and whether it is the billed outcome of its deliverable (`billing`).
+    `text_sha256` is the hash the text statement prints, so the two are known to be of one month of one ledger.
+    Refused exactly where `statement` is refused."""
+    text = statement(ledger, month, record, individual, rate, free, disputed)
+    month = month_of(month)
+    c = canonical(ledger, individual)
+    n, d = numbers(c, month), ledger[0].declared
+    lines: list[dict] = [{"id": b.entry.e.id.hex(), "ids": b.entry.e.ids(), "verdict": b.entry.e.stands, "role": b.role, "billed": b.billed,
+              "batch": f"{b.entry.month}.{b.entry.seq}", "artifact": b.entry.e.artifact, "rate": b.entry.e.rate,
+              "corrected_in": f"{b.entry.fixed[0]}.{b.entry.fixed[1]}" if b.entry.fixed else None}
+             for b in billing(c) if b.entry.month == month]
+    head = dict(line.split(",", 1) for line in text.split("sha256,", 1)[0].splitlines())
+    return {"type": STATEMENT_TYPE, "version": STATEMENT_VERSION, "buyer": d["buyer"], "seller": d["seller"], "month": month, "state": head["state"],
+            "invoice": head["state"] != "disputed", "evaluations": n.evaluations, "verdicts": n.four(), "accepted_outcomes": n.accepted_outcomes,
+            "meter": {"rate": rate, "free": free, "fee": fee(n.evaluations, rate, free)},
+            "value_of_accepted_evaluations": n.value, "value_of_accepted_outcomes": n.outcome_value,
+            "billed_deliverables": sorted(x["ids"]["deliverable"] for x in lines if x["billed"]), "lines": lines,
+            "disputed": [x["id"] for x in (record["disputed"] if record is not None else [])],
+            "repeats": [{"id": r.id.hex(), "batch": f"{r.month}.{r.seq}", "said": r.said()} for r in c.dropped if r.month == month],
+            "corrections": [{"batch": f"{m}.{q}", "by": x.by, "id": x.id, "kind": x.kind, "of": f"{x.month}.{x.seq}", "verdict": x.stands}
+                            for m, q, x in c.corrections if x.month == month],
+            "text_sha256": text.split("\nsha256,", 1)[1].split("\n", 1)[0]}
 
 
 # -- a month in one archive ----------------------------------------------------------------------------------------------
@@ -1223,7 +1444,8 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                ledger: Path = typer.Option(..., "--ledger", help="the ledger file the batch is added to (made if it is not there)"),
                month: str = typer.Option(..., "--month", help="the month the batch is counted in, YYYY-MM"),
                claim: bool = typer.Option(False, "--claim", help="the seller's own count (ClaimBatch) instead of the buyer's (RecordBatch)"),
-               corrections: Path = typer.Option(None, "--corrections", help="correction lines to carry in this batch (default: <ledger>.corrections, where `knos meter correct` writes)")) -> None:
+               corrections: Path = typer.Option(None, "--corrections", help="correction lines to carry in this batch (default: <ledger>.corrections, where `knos meter correct` writes)"),
+               events_log: Path = typer.Option(None, "--events", help="also take the batch into this log of events (`knos events`); default: the file KNOS_EVENTS names, else none")) -> None:
         """Add one batch to a ledger and print what its token must say: the root, the totals and the audience. Corrections waiting beside the ledger ride in it."""
         try:
             had = read(ledger) if ledger.exists() else []
@@ -1250,6 +1472,8 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             raise Stop(f"{events}: {why}." if isinstance(why, Bad) else f"A line of {waiting} is not JSON.") from None
         with ledger.open("a", encoding="utf-8", newline="\n") as f:
             f.write(dump([b]))
+        from . import events as _events
+        _events.keep(_events.where(events_log), lambda: _events.from_ledger(dump([b])))     # best effort: the ledger is written whatever the log says
         if b.corrections:
             out.print(f"Carries {len(b.corrections)} correction(s): they are in the root, and change none of the batch's numbers.", markup=False)
         if len(new) != len(given):
@@ -1377,14 +1601,17 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             for name, pairs, said in (("buyer", r.buyer_only, "only the buyer has (the seller has no record of it)"),
                                       ("seller", r.seller_only, "only the seller has (missing from the buyer's count)")):
                 for m, e in pairs:
-                    out.print(f"{m} {e.id.hex()} {said}: {'accepted' if e.accepted else 'rejected'}, rate {e.rate}", markup=False)
+                    out.print(f"{m} {e.id.hex()} {said}: {ids.VERDICT_WORDS[e.stands]}, rate {e.rate}", markup=False)
             for d in r.disputed:
-                out.print(f"{d.buyer_month} {d.id.hex()} differs in {', '.join(d.what)}: buyer {'accepted' if d.buyer.accepted else 'rejected'} at {d.buyer.rate} in "
-                          f"{d.buyer_month}, seller {'accepted' if d.seller.accepted else 'rejected'} at {d.seller.rate} in {d.seller_month}", markup=False)
+                out.print(f"{d.buyer_month} {d.id.hex()} differs in {', '.join(d.what)}: buyer {ids.VERDICT_WORDS[d.buyer.stands]} at {d.buyer.rate} in "
+                          f"{d.buyer_month}, seller {ids.VERDICT_WORDS[d.seller.stands]} at {d.seller.rate} in {d.seller_month}", markup=False)
             for name in ("buyer", "seller"):
                 for i in r.duplicates[name]:
                     out.print(f"{i.hex()} is in the {name}'s ledger more than once", markup=False)
             sys.stdout.write(r.statement())
+            for row in r.rows:
+                out.print(f"{row.month} verdicts of what both hold: " + ", ".join(f"{row.verdicts[v]} {ids.VERDICT_WORDS[v]}" for v in ids.VERDICTS)
+                          + f"; {row.accepted_outcomes} deliverable(s) accepted for the first time (billed once each)", markup=False)
             out.print("The two ledgers agree." if r.agreed else
                       "The two ledgers differ. The statement counts only what both have and describe alike; settle the lines above between you.", markup=False)
         if not r.agreed:
@@ -1413,6 +1640,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                  of: str = typer.Option(..., "--batch", metavar="YYYYMM.SEQ", help="the batch that holds the entry to correct"),
                  kind: str = typer.Option(..., "--kind", help="duplicate (that entry is a repeat), verdict (the verdict was wrong) or withdrawn (it should not have been counted)"),
                  accepted: int = typer.Option(None, "--accepted", help="with --kind verdict: the verdict that stands, 1 or 0"),
+                 verdict: str = typer.Option(None, "--verdict", help="with --kind verdict, instead of --accepted: accepted, rejected, insufficient-evidence or disputed"),
                  by: str = typer.Option("buyer", "--by", help="who issues it: buyer or seller (the owner of this ledger)")) -> None:
         """Write a correction of one anchored entry. The chain's counters only go up, so nothing is sent: the line waits in <ledger>.corrections, the next
         `knos meter batch` carries it in its root, and `knos meter statement` nets it."""
@@ -1421,9 +1649,14 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             if by not in ROLES or not got:
                 raise Bad("--by is buyer or seller, and the ledger needs at least one batch")
             m = re.fullmatch(r"([0-9]{6})\.([0-9]{1,19})", of)
-            if m is None or (kind == "verdict") != (accepted in (0, 1)):
-                raise Bad("--batch is written <yyyymm>.<seq>, and --accepted 1 or 0 goes with --kind verdict and with no other")
-            c = Correction(got[0].declared[by], _hex(id_.lower(), 64, "the id"), int(m[1]), int(m[2]), kind, accepted == 1 if kind == "verdict" else None)
+            try:
+                word = ids.verdict(verdict) if verdict is not None else None
+            except ValueError as why:
+                raise Bad(f"--verdict: {why}") from None
+            if m is None or (kind == "verdict") != ((accepted in (0, 1)) != (word is not None)) or (accepted is not None and word is not None):
+                raise Bad("--batch is written <yyyymm>.<seq>, and --accepted 1 or 0, or --verdict with one of the four words, goes with --kind verdict "
+                          "and with no other: one of the two")
+            c = Correction(got[0].declared[by], _hex(id_.lower(), 64, "the id"), int(m[1]), int(m[2]), kind, accepted == 1 if accepted is not None else None, word)
             if not any((s.month, s.seq) == (c.month, c.seq) and any(e.id.hex() == c.id for e in s.evals) for s in got):
                 raise Bad(f"batch {c.seq} of {c.month} in {ledger} holds no evaluation {c.id}")
         except Bad as why:
@@ -1523,11 +1756,13 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                    individual: Path = typer.Option(None, "--individual", help="ids the individual mode recorded, one a line"),
                    rate: int = typer.Option(RATE, "--rate", help="the Meter fee per evaluation in millionths of a USD (50000 is 0.05; a plan may be 20000)"),
                    free: int = typer.Option(FREE_PER_MONTH, "--free", help="free evaluations the buyer has left for this seller in the month"),
-                   disputed: bool = typer.Option(False, "--disputed", help="print a disputed month anyway, with every disputed line marked")) -> None:
+                   disputed: bool = typer.Option(False, "--disputed", help="print a disputed month anyway, with every disputed line marked"),
+                   as_json: bool = typer.Option(False, "--json", help="the month as JSON: the four verdicts counted, and every line with its four ids")) -> None:
         """One month as three numbers that are never added together: evaluations (what the Meter bills), accepted outcomes (one per deliverable, what a
         per-outcome price multiplies) and rejected evaluations; with every repeat and correction. A disputed month is refused without --disputed."""
         try:
-            sys.stdout.write(statement(read(ledger), month, close_of(close_file) if close_file else None, singles(individual), rate, free, disputed))
+            args = (read(ledger), month, close_of(close_file) if close_file else None, singles(individual), rate, free, disputed)
+            sys.stdout.write(json.dumps(statement_json(*args), indent=1, sort_keys=True) + "\n" if as_json else statement(*args))
         except Disputed as why:
             out.print(f"{why}.", markup=False)
             raise typer.Exit(1) from None

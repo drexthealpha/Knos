@@ -15,6 +15,8 @@ does not prove. [`examples/issuers`](../examples/issuers) has one example per is
 | you want to | use | a whole example, with its test |
 |---|---|---|
 | require a fact an issuer signed in your own program (which repository, branch and workflow; which cloud service account) | [`crates/knos-oidc-interface`](../crates/knos-oidc-interface): no dependency, reads a verified token account; no CPI | [`examples/oidc_gate`](../examples/oidc_gate) (`tests/test_oidc_gate.py`): a release gate, and the template to copy; [`examples/issuers`](../examples/issuers) (`tests/test_issuers.py`): ten issuers |
+| start a program of your own that reads the verifier | the same crate, by tag, from outside this repository | [`examples/reader_template`](../examples/reader_template) (`tests/test_reader_template.py`): a whole program in a workspace of its own. Copy the folder, change two constants, build, deploy with your own key. Its README lists the five mistakes a reader can make and the line that prevents each |
+| decide something in an application from a Knos receipt, with no program | `knos.badge.verified(receipt)` in Python; `renderVerified` of [`web/badge.js`](../web/badge.js) | [`examples/receipt_consumer/show_badge.py`](../examples/receipt_consumer/show_badge.py) (`tests/test_badge.py`): 55 lines that show the "Knos-verified" badge only when the receipt checks and its verdict is accepted. The badge cannot be bought |
 | hold tokens that only a workflow can spend, with no private key | the same crate, with the key account so a revoked key stops at once | [`examples/workflow_vault`](../examples/workflow_vault) (`tests/test_workflow_vault.py`): a vault that pays on `vault:<vault>:<to>:<amount>:<nonce>` from one workflow file at one commit |
 | state on chain that GitHub's runner built an executable from a commit, and gate upgrades on it | the same crate | [`examples/upgrade_gate`](../examples/upgrade_gate) (`tests/test_upgrade_gate.py`); `scripts/governance.mjs upgrade propose` refuses a buffer without a record unless `--ungated` |
 | fund a work order from your own program (a DAO treasury, a grants program) | [`crates/knos-pay-interface`](../crates/knos-pay-interface): `solana-program` only; ids, addresses, FundOrderWallet, TopUp, RefundOrder, the Order reader | [`examples/cpi_fund`](../examples/cpi_fund) (`tests/test_cpi_fund.py`): a treasury PDA funds, tops up, and is refunded |
@@ -54,7 +56,24 @@ The verifier on devnet is `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`knos-
 
 What you then hold in your program is GitHub's signature over which repository, which commit, which workflow file at
 which commit and which audience, checked by a program on chain. It is the issuer's word that these claims were
-signed, not proof of what the workflow read or decided ([VERIFIER.md](VERIFIER.md)). The examples in this repository are Knos's own; no
-program outside it is known to read a token yet, and this page will say so when one does.
+signed, not proof of what the workflow read or decided ([VERIFIER.md](VERIFIER.md)).
+
+## Who reads the verifier
+
+**Programs outside this repository that read `knos-oidc`: 0.** Applications outside it that consume a receipt: 0.
+x402 facilitators other than Knos's own example that implement `knos-order`: 0 ([X402.md](X402.md)). Every example
+here is Knos's own; no program outside it is known to read a token yet. The numbers change when a row below
+exists, and not before.
+
+| program id | cluster | what it gates | a transaction in which it read a verified token | source |
+|---|---|---|---|---|
+| none yet | | | | |
+
+To be listed, open a pull request that adds one row: your program's address, the cluster, one line on what it gates,
+the signature of one transaction in which your program read a token `knos-oidc` verified, and a link to your source
+if it is public. The row is merged when the transaction is on the cluster, your program is in it, and a token
+account owned by `knos-oidc` is among its accounts. Nothing else is asked: no fee, no agreement, no contact first.
+The fastest way to a first row is [`examples/reader_template`](../examples/reader_template): its test shows the
+whole path in a simulator, and its README the four commands to devnet.
 
 To rebuild the example programs and re-pin their test binaries: `bash scripts/build_programs_v2.sh examples`.

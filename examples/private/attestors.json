@@ -1,0 +1,25 @@
+{
+  "type": "knos.attestors",
+  "version": 1,
+  "parties": ["buyer", "supplier"],
+  "attestors": [
+    {
+      "name": "acme-ghes",
+      "issuer": "https://github.acme.example/_services/token",
+      "issuer_run_by": "buyer",
+      "repository_id": 4711,
+      "workflow": "acme/knos-private/.github/workflows/knos-private.yml",
+      "administrator": "Acme platform team",
+      "approved_by": ["buyer", "supplier"]
+    },
+    {
+      "name": "supplier-gitlab",
+      "issuer": "https://gitlab.supplier.example",
+      "issuer_run_by": "supplier",
+      "repository_id": 88,
+      "workflow": "gitlab.supplier.example/delivery/knos-private//.gitlab-ci.yml",
+      "administrator": "Supplier delivery operations",
+      "approved_by": ["buyer", "supplier"]
+    }
+  ]
+}

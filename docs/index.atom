@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Agent PR Index</title>
+  <subtitle>Of merged agent pull requests that claimed passing tests, how many had a failed check. By agent, by week, with sample sizes and 95% intervals.</subtitle>
+  <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom</id>
+  <link rel="self" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom"/>
+  <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+  <updated>2026-10-06T00:00:00Z</updated>
+  <author><name>Knos</name></author>
+  <entry>
+    <title>Agent PR Index, week of 2026-09-28</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-09-28</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-06T00:00:00Z</updated>
+    <summary type="text">codex: 3 of 44 merged had a failed check (6.8%; 95% interval 2.4% to 18.2%); 52 claimed passing tests; place 1
+claude-bot: 9 of 127 merged had a failed check (7.1%; 95% interval 3.8% to 12.9%); 148 claimed passing tests; place 2, overlaps the place above
+copilot: 19 of 70 merged had a failed check (27.1%; 95% interval 18.1% to 38.5%); 120 claimed passing tests; place 3
+devin: 35 of 79 merged had a failed check (44.3%; 95% interval 33.9% to 55.3%); 117 claimed passing tests; place 4, overlaps the place above
+claude-code: 3 of 26 merged had a failed check (11.5%; 95% interval 4.0% to 29.0%); 34 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-09-21</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-09-21</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-05T00:00:00Z</updated>
+    <summary type="text">claude-bot: 5 of 82 merged had a failed check (6.1%; 95% interval 2.6% to 13.5%); 92 claimed passing tests; place 1
+codex: 3 of 42 merged had a failed check (7.1%; 95% interval 2.5% to 19.0%); 50 claimed passing tests; place 2, overlaps the place above
+devin: 5 of 39 merged had a failed check (12.8%; 95% interval 5.6% to 26.7%); 73 claimed passing tests; place 3, overlaps the place above
+copilot: 18 of 63 merged had a failed check (28.6%; 95% interval 18.9% to 40.7%); 109 claimed passing tests; place 4, overlaps the place above
+claude-code: 1 of 21 merged had a failed check (4.8%; 95% interval 0.9% to 22.7%); 27 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-09-14</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-09-14</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 5 of 82 merged had a failed check (6.1%; 95% interval 2.6% to 13.5%); 92 claimed passing tests; place 1
+codex: 3 of 42 merged had a failed check (7.1%; 95% interval 2.5% to 19.0%); 50 claimed passing tests; place 2, overlaps the place above
+devin: 5 of 39 merged had a failed check (12.8%; 95% interval 5.6% to 26.7%); 73 claimed passing tests; place 3, overlaps the place above
+copilot: 14 of 41 merged had a failed check (34.2%; 95% interval 21.6% to 49.5%); 70 claimed passing tests; place 4, overlaps the place above
+claude-code: 1 of 21 merged had a failed check (4.8%; 95% interval 0.9% to 22.7%); 27 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-09-07</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-09-07</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 5 of 69 merged had a failed check (7.2%; 95% interval 3.1% to 15.9%); 78 claimed passing tests; place 1
+codex: 3 of 35 merged had a failed check (8.6%; 95% interval 3.0% to 22.4%); 43 claimed passing tests; place 2, overlaps the place above
+devin: 5 of 37 merged had a failed check (13.5%; 95% interval 5.9% to 28.0%); 68 claimed passing tests; place 3, overlaps the place above
+copilot: 11 of 34 merged had a failed check (32.4%; 95% interval 19.1% to 49.2%); 63 claimed passing tests; place 4, overlaps the place above
+claude-code: 1 of 16 merged had a failed check (6.2%; 95% interval 1.1% to 28.3%); 21 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-08-31</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-08-31</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 5 of 64 merged had a failed check (7.8%; 95% interval 3.4% to 17.0%); 73 claimed passing tests; place 1
+copilot: 10 of 27 merged had a failed check (37.0%; 95% interval 21.5% to 55.8%); 51 claimed passing tests; too few to rank
+devin: 4 of 29 merged had a failed check (13.8%; 95% interval 5.5% to 30.6%); 57 claimed passing tests; too few to rank
+claude-code: 1 of 15 merged had a failed check (6.7%; 95% interval 1.2% to 29.8%); 19 claimed passing tests; too few to rank
+codex: 3 of 26 merged had a failed check (11.5%; 95% interval 4.0% to 29.0%); 33 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-08-17</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-08-17</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 2 of 53 merged had a failed check (3.8%; 95% interval 1.0% to 12.8%); 62 claimed passing tests; place 1
+copilot: 8 of 25 merged had a failed check (32.0%; 95% interval 17.2% to 51.6%); 46 claimed passing tests; too few to rank
+devin: 3 of 19 merged had a failed check (15.8%; 95% interval 5.5% to 37.6%); 46 claimed passing tests; too few to rank
+claude-code: 0 of 10 merged had a failed check (0.0%; 95% interval 0.0% to 27.8%); 13 claimed passing tests; too few to rank
+codex: 1 of 18 merged had a failed check (5.6%; 95% interval 1.0% to 25.8%); 20 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-08-10</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-08-10</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 2 of 43 merged had a failed check (4.7%; 95% interval 1.3% to 15.5%); 50 claimed passing tests; place 1
+copilot: 5 of 15 merged had a failed check (33.3%; 95% interval 15.2% to 58.3%); 33 claimed passing tests; too few to rank
+devin: 3 of 13 merged had a failed check (23.1%; 95% interval 8.2% to 50.3%); 34 claimed passing tests; too few to rank
+claude-code: 0 of 7 merged had a failed check (0.0%; 95% interval 0.0% to 35.4%); 10 claimed passing tests; too few to rank
+codex: 1 of 16 merged had a failed check (6.2%; 95% interval 1.1% to 28.3%); 18 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-08-03</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-08-03</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 2 of 37 merged had a failed check (5.4%; 95% interval 1.5% to 17.7%); 43 claimed passing tests; place 1
+copilot: 2 of 10 merged had a failed check (20.0%; 95% interval 5.7% to 51.0%); 21 claimed passing tests; too few to rank
+devin: 2 of 8 merged had a failed check (25.0%; 95% interval 7.1% to 59.1%); 27 claimed passing tests; too few to rank
+claude-code: 0 of 4 merged had a failed check (0.0%; 95% interval 0.0% to 49.0%); 6 claimed passing tests; too few to rank
+codex: 1 of 15 merged had a failed check (6.7%; 95% interval 1.2% to 29.8%); 17 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-07-27</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-07-27</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 2 of 37 merged had a failed check (5.4%; 95% interval 1.5% to 17.7%); 43 claimed passing tests; place 1
+copilot: 2 of 10 merged had a failed check (20.0%; 95% interval 5.7% to 51.0%); 21 claimed passing tests; too few to rank
+devin: 2 of 8 merged had a failed check (25.0%; 95% interval 7.1% to 59.1%); 27 claimed passing tests; too few to rank
+claude-code: 0 of 4 merged had a failed check (0.0%; 95% interval 0.0% to 49.0%); 6 claimed passing tests; too few to rank
+codex: 1 of 14 merged had a failed check (7.1%; 95% interval 1.3% to 31.5%); 16 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-07-20</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-07-20</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">claude-bot: 0 of 30 merged had a failed check (0.0%; 95% interval 0.0% to 11.3%); 30 claimed passing tests; place 1
+copilot: 1 of 7 merged had a failed check (14.3%; 95% interval 2.6% to 51.3%); 17 claimed passing tests; too few to rank
+devin: 2 of 6 merged had a failed check (33.3%; 95% interval 9.7% to 70.0%); 18 claimed passing tests; too few to rank
+claude-code: 0 of 3 merged had a failed check (0.0%; 95% interval 0.0% to 56.1%); 5 claimed passing tests; too few to rank
+codex: 1 of 12 merged had a failed check (8.3%; 95% interval 1.5% to 35.4%); 13 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-07-13</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-07-13</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">copilot: 0 of 3 merged had a failed check (0.0%; 95% interval 0.0% to 56.1%); 11 claimed passing tests; too few to rank
+devin: 0 of 2 merged had a failed check (0.0%; 95% interval 0.0% to 65.8%); 4 claimed passing tests; too few to rank
+claude-bot: 0 of 15 merged had a failed check (0.0%; 95% interval 0.0% to 20.4%); 15 claimed passing tests; too few to rank
+claude-code: 1 claimed passing tests; no merged one with finished checks (too few to rank)
+codex: 1 of 5 merged had a failed check (20.0%; 95% interval 3.6% to 62.5%); 6 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-07-06</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-07-06</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">copilot: 0 of 3 merged had a failed check (0.0%; 95% interval 0.0% to 56.1%); 11 claimed passing tests; too few to rank
+devin: 0 of 2 merged had a failed check (0.0%; 95% interval 0.0% to 65.8%); 4 claimed passing tests; too few to rank
+claude-bot: 0 of 15 merged had a failed check (0.0%; 95% interval 0.0% to 20.4%); 15 claimed passing tests; too few to rank
+claude-code: 1 claimed passing tests; no merged one with finished checks (too few to rank)
+codex: 0 of 2 merged had a failed check (0.0%; 95% interval 0.0% to 65.8%); 3 claimed passing tests; too few to rank
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+  <entry>
+    <title>Agent PR Index, week of 2026-06-29</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-06-29</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary type="text">copilot: 0 claimed passing tests; no merged one with finished checks (too few to rank)
+devin: 0 claimed passing tests; no merged one with finished checks (too few to rank)
+claude-bot: 0 claimed passing tests; no merged one with finished checks (too few to rank)
+claude-code: 0 claimed passing tests; no merged one with finished checks (too few to rank)
+codex: 1 claimed passing tests; no merged one with finished checks (too few to rank)
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md</summary>
+  </entry>
+</feed>

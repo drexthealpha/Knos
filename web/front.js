@@ -202,7 +202,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -223,7 +223,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -243,7 +243,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -292,7 +292,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -473,21 +473,11 @@ async function check(ev) {
   }
 }
 
-export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms"];
-// Which page a hash shows: a filled mount, or one of web/app.js's views (web/views.js: its VIEWS and ALIAS), or the
-// first screen.
+export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder"];
+// Which page a hash shows: a filled mount, or one of the views (web/views.js: its VIEWS and ALIAS), or the first screen.
 const viewOf = (name) => { const v = ALIAS[name] || name; return VIEWS.includes(v) && v !== "check" ? v : null; };
 export const pageOf = (hash, filled = () => true) => { const name = String(hash).replace(/^#/, "").split("=")[0]; return MOUNTS.includes(name) && filled(name) ? name : viewOf(name) || "check"; };
-if (typeof document !== "undefined" && $("pr-form")) {
-  $("pr-form").addEventListener("submit", check);
-  $("pr-url").addEventListener("paste", () => setTimeout(() => check(), 0));
-  $("protect-form")?.addEventListener("submit", protectRepo);
-  workflowFacts();
-  loadIndex();
-  initBar();
-  initCopy();
-  initMotion();
-}
+const EXPLORER = (kind, id) => `https://explorer.solana.com/${kind}/${id}?cluster=devnet`;
 
 // ---- addresses and hashes: shown whole, and each with a button that copies it ------------------------------------------
 // Whatever module drew it: an element in the code font (.mono, code) whose whole text is a Solana address, a
@@ -516,81 +506,316 @@ export function initCopy(root = document.querySelector("main") || document.body)
   });
 }
 
-// ---- the bar and the pages other modules fill -------------------------------------------------------------------------
-// MOUNTS: a module (buyer.js, install.js, capabilities.js, mounts.js) puts its page into <section id="buy|install|
-// capabilities|status|index|pilot|reproduce">. A page that holds something gets its link in the menu and is shown
-// alone at its hash; an empty one is not offered, and its hash shows the first screen (for #install, at the lines that
-// say how to install today).
+// ---- pages: the code of each is asked for when the page is first opened -------------------------------------------------
+// The first screen asks for what the front door needs and no more. Every other page has an entry here:
+//   files   what its link asks the browser to fetch ahead (on hover or focus), so the press finds them there
+//   draw    fills the page's section, once; until it has, the section shows grey bars (.k-skeleton) and is aria-busy
+//   each    runs on every arrival (the pages that read Solana: web/app.js and settle.js come with the first of them)
+// A press inside a page whose code is still on its way is kept and made again when the code is there.
+let coreP;
+export const core = () => (coreP ||= import("./app.js"));
+const idsFile = () => fetch("program_ids.json").then((r) => (r.ok ? r.json() : undefined)).catch(() => undefined);
+const page = (file, name, env = () => ({})) => ({ files: [file], draw: async (el) => (await import(file))[name]?.(el, await env()) });
+const chain = (...files) => ({ files: ["./app.js", "./settle.js", ...files], each: async (name) => (await core()).open(name) });
+export const PAGES = {
+  shadow: page("./shadow.js", "renderShadow"),
+  verifier: page("./verifier.js", "renderVerifier", async () => ({ esc, ids: await idsFile(), badge: async (el, v, receipt) => (await import("./badge.js")).renderVerified(el, v, receipt) })),
+  playground: page("./playground.js", "renderPlayground"),
+  terms: page("./terms.js", "renderTerms"),
+  supplier: page("./supplier.js", "renderSupplier"),
+  "invoice-statement": page("./statements.js", "renderStatements"),
+  story: page("./story.js", "renderStory"),
+  keyholder: page("./keyholder.js", "renderKeyholder"),
+  install: { files: ["./install.js"], draw: async () => (await import("./install.js")).renderInstall($("install-pr")) },
+  capabilities: { files: ["./capabilities.js"], draw: async (el) => {
+    const [m, data] = await Promise.all([import("./capabilities.js"), fetch("capabilities.json").then((r) => (r.ok ? r.json() : null)).catch(() => null)]);
+    if (!data) return;
+    el.innerHTML = `<h2>What Knos can do</h2>
+      <p class="lede">One row per capability, at its proven stage. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/CAPABILITIES.md">As a document</a></p><div class="card" id="capabilities-list"></div>`;
+    m.renderCapabilities($("capabilities-list"), data);
+  } },
+  buy: chain("./buyer.js"), status: chain("./mounts.js"), index: chain("./mounts.js"), pilot: chain("./mounts.js"), reproduce: chain("./mounts.js"),
+  fund: chain("./task.js", "./anyissue.js"), claim: chain("./claim.js"), pricing: chain("./pricing.js"), records: chain("./records.js", "./statements.js"), network: chain(),
+};
+const drawn = new Map(), empty = new Set(), fetched = new Set();
+const sectionOf = (name) => $(MOUNTS.includes(name) ? name : `view-${name}`);
+const bars = (el) => { el.innerHTML = `<div class="k-skeleton" data-pending><span class="k-sr">Loading</span><i></i><i></i><i></i><i></i></div>`; };
+// a mount that another module fills a moment after its code has run (it reads a file first): wait for the first thing in it
+const settledMount = (el, ms = 4000) => new Promise((done) => {
+  const full = () => [...el.children].some((c) => !c.matches("[data-pending]"));
+  if (full()) return done(true);
+  const seen = new MutationObserver(() => { if (full()) { seen.disconnect(); done(true); } });
+  seen.observe(el, { childList: true });
+  setTimeout(() => { seen.disconnect(); done(full()); }, ms);
+});
+
+export function preload(name) {
+  for (const f of PAGES[name]?.files || []) {
+    if (fetched.has(f)) continue;
+    fetched.add(f);
+    const l = document.createElement("link"); l.rel = "modulepreload"; l.href = f; document.head.append(l);
+  }
+}
+
+// What was pressed in a page whose code had not arrived: made again when it has. A field typed in says so again.
+const kept = [];
+function keep(ev) {
+  const busy = ev.target.closest?.("main [data-loading]");
+  if (!busy) return;
+  if (ev.type === "input" || ev.type === "change") { kept.push({ busy, type: "input", el: ev.target }); return; }
+  if (ev.type === "click" && !ev.target.closest("button, input[type=submit], input[type=button], [role=button]")) return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  kept.push({ busy, type: ev.type, el: ev.type === "click" ? ev.target.closest("button, input, [role=button]") : ev.target, by: ev.submitter });
+}
+function again(section) {
+  for (const k of kept.splice(0)) {
+    if (k.busy !== section) { kept.push(k); continue; }
+    if (!k.el.isConnected) continue;
+    if (k.type === "input") k.el.dispatchEvent(new Event("input", { bubbles: true }));
+    else if (k.type === "click") k.el.click();
+    else k.el.requestSubmit?.(k.by?.isConnected ? k.by : undefined);
+  }
+}
+
+// ---- nobody reads a long text: an explanation longer than a line of twelve words waits behind a fold --------------------
+// Every page says its title, one line, then shows the thing itself. What a module wrote at more length (a note under a
+// field, a list of limits) is kept whole and put in a <details class="k-more"> the reader opens: neighbours share one
+// fold. Never folded: an answer (a status, a verdict, a result, a tab's panel, anything in a live region), a table, a
+// control, a list a module addresses by id, what a module marked data-keep, and what is already in a fold.
+const WORDS = /[A-Za-z0-9][\w'’%.,/-]*/g;
+const wordy = (el) => el.textContent.split(/(?<=[.!?:])\s+|\n{2,}/).some((t) => (t.match(WORDS) || []).length > 12);
+const PROSE = "p.fine, p.lede, p:not([class]), ul:not([class]):not([id]), ol:not([class]):not([id]), ul.fine, blockquote";
+const ANSWERS = 'details, table, nav, button, label, output, noscript, [aria-live], [role=status], [role=tabpanel]:not(.buy-part), [data-keep], .status, .verdict, .k-toast, [id$="-result"], [id$="-preview"], [id$="-state"], [id$="-status"], [id$="-tx"]';
+export function foldProse(root) {
+  for (const el of root.querySelectorAll(PROSE)) {
+    if (!el.isConnected || el.closest(ANSWERS) || el.querySelector("input, select, textarea, button, [aria-live], [role=status]")) continue;
+    if (!wordy(el)) continue;
+    const before = el.previousElementSibling;
+    if (before?.matches("details.k-fold")) { before.append(el); continue; }
+    const d = document.createElement("details");
+    d.className = "k-more k-fold";
+    // a heading right above becomes the fold's own handle (it keeps its element and its id): no card of a title and a lone "more"
+    const head = before?.matches("h3, h4") ? before : null;
+    d.innerHTML = "<summary></summary>";
+    if (!head) d.firstElementChild.textContent = foldLabel(el);
+    el.before(d); if (head) d.firstElementChild.append(head); d.append(el);
+  }
+}
+// The handle of a fold says what is inside it: the words a module gave the text it wrote (data-fold="…"), else the
+// first words of what is folded, cut at six and ended with an ellipsis. A handle stays clear of the words a page keeps
+// for the reader who asks how the money is held (tests/web/words.mjs): it stops before the first of them.
+const RECORD = /\b(wallets?|hash(es|ed)?|pin(s|ned)?|token accounts?)\b/i;
+export function foldLabel(el) {
+  const own = (el.dataset?.fold || el.querySelector?.("[data-fold]")?.dataset.fold || "").trim();
+  if (own) return own;
+  const first = el.textContent.replace(/\s+/g, " ").trim().split(/(?<=[.!?:;])\s+/)[0].replace(/[.!?:;,]+$/, "");
+  const cut = RECORD.exec(first), words = (cut ? first.slice(0, cut.index) : first).split(" ").filter(Boolean);
+  const shown = words.slice(0, 6).join(" ").replace(/[,;:(–—-]+$/, "");
+  return shown && words.length >= 2 ? `${shown}${words.length > 6 || cut ? "…" : ""}` : "Read the rest";
+}
+const folding = new WeakSet();
+function keepFolded(section) {
+  foldProse(section);
+  if (folding.has(section)) return;
+  folding.add(section);
+  let due = 0;
+  new MutationObserver(() => { clearTimeout(due); due = setTimeout(() => foldProse(section), 0); }).observe(section, { childList: true, subtree: true });
+}
+
+function openPage(name) {
+  const p = PAGES[name], el = sectionOf(name), root = document.documentElement;
+  delete root.dataset.ready;
+  const ready = () => { if (pageNow() === name) root.dataset.ready = name; };
+  if (el) keepFolded(el);
+  if (!p || !el) { ready(); return Promise.resolve(); }
+  if (!drawn.has(name)) {
+    const mount = MOUNTS.includes(name);
+    if (mount && el.childElementCount === 0) bars(el);
+    el.dataset.loading = ""; el.setAttribute("aria-busy", "true");
+    drawn.set(name, (async () => {
+      try { await p.draw?.(el); await p.each?.(name); if (mount) await settledMount(el); } catch { /* said below: the page holds nothing */ }
+      el.querySelector(":scope > [data-pending]")?.remove();
+      delete el.dataset.loading; el.removeAttribute("aria-busy");
+      keepFolded(el);
+      if (mount && el.childElementCount === 0) { empty.add(name); route(false); }
+      again(el);
+    })());
+    return drawn.get(name).then(ready);
+  }
+  return drawn.get(name).then(() => p.each?.(name)).catch(() => {}).then(ready);
+}
+
+// ---- the bar, and which page is shown -------------------------------------------------------------------------------------
+// A page of MOUNTS is a <section id> a module fills; a view (web/views.js) is a <section id="view-…"> of index.html.
+// One is shown at a time, alone, at its hash; a mount that turned out to hold nothing (a build without its module) is
+// not offered, and its hash shows the first screen (for #install, at the lines that say how to install today).
 // MORE: the bar shows the pages a first visitor needs; the rest are one press away under "More" (index.html, #more).
 // On a phone, where the whole menu is behind one button, and in a page read without scripts, they are plain links in
 // the menu and there is no second button. "More" is marked when the page shown is one of its own.
+const filled = (id) => !!$(id) && ($(id).childElementCount > 0 || (id in PAGES && !empty.has(id)));
+const pageNow = () => pageOf(location.hash, filled);
+let shownAt = null, entering = false, bar, menu, more, moreButton;
+const fold = (open) => { if (!more) return; more.classList.toggle("open", open); moreButton.setAttribute("aria-expanded", String(open)); };
+
+function route(moved) {
+  const [raw, ...rest] = location.hash.replace(/^#/, "").split("="), arg = rest.length ? decodeURIComponent(rest.join("=")) : "";
+  const name = pageNow(), on = MOUNTS.includes(name), view = on ? "check" : name, was = shownAt;
+  shownAt = location.hash;
+  // a page that is shown from now on comes up into place (.k-enter: it starts 8px low and clear, once, each time it is shown)
+  if (moved && !entering && !prefersReduced()) { entering = true; for (const el of document.querySelectorAll("main > .view, main > .mount")) el.classList.add("k-enter"); }
+  for (const v of VIEWS) if ($(`view-${v}`)) $(`view-${v}`).hidden = v !== view;
+  // a change of page closes the menu; a page that fills while the menu is open leaves it under the reader's hand
+  if (moved) { bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); fold(false); }
+  for (const id of MOUNTS) { const a = document.querySelector(`nav a[data-mount="${id}"]`); if (a) a.hidden = !filled(id); if ($(id)) $(id).hidden = !filled(id); }
+  if (on) document.body.dataset.page = name; else delete document.body.dataset.page;
+  // a page the stylesheet has no rule for yet (a section added after it was written) is shown from here
+  for (const id of MOUNTS) if ($(id)) $(id).style.display = "";
+  if (on && getComputedStyle($(name)).display === "none") $(name).style.display = "block";
+  const here = raw === "check-a-pull-request" ? "#check-a-pull-request" : `#${name}`;
+  for (const a of document.querySelectorAll("nav a")) { if (a.getAttribute("href") === here) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
+  more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]'));
+  if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
+  if (moved && was !== null && name !== pageOf(was, filled) && !["money", "task", "anyissue", "demo", "check-a-pull-request"].includes(raw)) globalThis.scrollTo?.(0, 0);
+  const opened = openPage(name);
+  if (name === "protect" && arg) {
+    const at = arg.lastIndexOf("@");
+    $("protect-repo").value = at > 0 ? arg.slice(0, at) : arg;
+    if (at > 0) $("protect-branch").value = arg.slice(at + 1);
+    $("protect-form").requestSubmit();
+  }
+  return opened;
+}
+// A change of page made from the page itself: shown in this very task, without waiting for the browser's hashchange.
+export function go(to) { if (location.hash === to) return; location.hash = to; route(true); }
+
 function initBar() {
-  const bar = document.querySelector(".bar"), menu = $("menu");
+  bar = document.querySelector(".bar"); menu = $("menu"); more = $("more"); moreButton = $("more-button");
   document.documentElement.classList.add("js");
   menu?.addEventListener("click", () => menu.setAttribute("aria-expanded", String(bar.classList.toggle("open"))));
-  const filled = (id) => $(id) && $(id).childElementCount > 0;
-  const more = $("more"), moreButton = $("more-button");
-  const fold = (open) => { if (!more) return; more.classList.toggle("open", open); moreButton.setAttribute("aria-expanded", String(open)); };
   moreButton?.addEventListener("click", () => fold(!more.classList.contains("open")));
   document.addEventListener("click", (ev) => { if (more?.classList.contains("open") && (!more.contains(ev.target) || ev.target.closest?.("a"))) fold(false); });
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && more?.classList.contains("open")) { fold(false); moreButton.focus(); } });
-  const within = () => more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]:not([href="#check"])'));        // the first screen is nobody's page
-  const show = (moved) => {
-    const name = location.hash.replace(/^#/, "").split("=")[0], on = MOUNTS.includes(name) && filled(name);
-    // a change of page closes the menu; a page that fills while the menu is open leaves it under the reader's hand
-    if (moved) { bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); fold(false); }
-    for (const id of MOUNTS) { const a = document.querySelector(`nav a[data-mount="${id}"]`); if (a) a.hidden = !filled(id); if ($(id)) $(id).hidden = !filled(id); }
-    if (on) document.body.dataset.page = name; else delete document.body.dataset.page;
-    // a page the stylesheet has no rule for yet (a section added after it was written) is shown from here
-    for (const id of MOUNTS) if ($(id)) $(id).style.display = "";
-    if (on && getComputedStyle($(name)).display === "none") $(name).style.display = "block";
-    const mark = () => { if (on) for (const a of document.querySelectorAll("nav a")) { if (a.dataset.mount === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); } within(); };
-    mark(); setTimeout(mark, 0);                 // app.js marks the menu for its own views on the same event; this one goes last
-    if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
-  };
-  addEventListener("hashchange", () => show(true));
-  for (const id of MOUNTS) if ($(id)) new MutationObserver(() => show(false)).observe($(id), { childList: true });
-  show(false);
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape") return;
+    if (more?.classList.contains("open")) { fold(false); moreButton.focus(); }
+    else if (bar.classList.contains("open")) { bar.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); menu.focus(); }
+  });
+  for (const type of ["click", "submit", "input", "change"]) document.addEventListener(type, keep, true);
+  // a link's page is fetched while the pointer or the focus is on the link: the press finds it there
+  for (const type of ["pointerover", "focusin", "touchstart"]) document.addEventListener(type, (ev) => {
+    const to = ev.target.closest?.('a[href^="#"]')?.getAttribute("href");
+    if (to) preload(pageOf(to, filled));
+  }, { capture: true, passive: true });
+  addEventListener("hashchange", () => { if (shownAt !== location.hash) route(true); });
+  route(false);
   // THE DEMO'S MOUNT is in the first screen, not a page: web/demo.js fills <section id="demo"> and it is shown while it
-  // holds something. Until it does, "Try it" goes to the box that checks a pull request, ready to type in.
+  // holds something. Until it does, a link to it goes to the box that checks a pull request, ready to type in.
   const demo = $("demo");
-  const showDemo = () => { const empty = demo.childElementCount === 0; if (demo.hidden !== empty) demo.hidden = empty; };
+  const showDemo = () => { const none = demo.childElementCount === 0; if (demo.hidden !== none) demo.hidden = none; };
   if (demo) { new MutationObserver(showDemo).observe(demo, { childList: true, attributes: true, attributeFilter: ["hidden"] }); showDemo(); }
-  // Once it holds the round, "Try it" (and the cue at the foot of the hero, and "Demo" in the bar) brings it under the
+  // Once it holds the round, the cue at the foot of the hero (and "Demo" in the bar) brings it under the
   // bar and puts the focus on its first action, so one more press of Enter starts it.
   const toDemo = () => { demo.scrollIntoView?.({ block: "start" }); (demo.querySelector(".kd-go:not([hidden])") || demo.querySelector("button:not([hidden]), a[href], input"))?.focus({ preventScroll: true }); };
+  // the skip link: to the first screen if another page is shown, and the cursor into the invoice box
+  document.querySelector(".k-skip")?.addEventListener("click", (ev) => { ev.preventDefault(); if (pageNow() !== "check") go("#check"); $("fd-in")?.focus(); });
   for (const a of document.querySelectorAll('a[href="#demo"], #go-check')) a.addEventListener("click", (ev) => {
-    if (a.id !== "go-check" && demo && !demo.hidden) {
-      if (location.hash === "#demo") { ev.preventDefault(); return toDemo(); }
-      return addEventListener("hashchange", () => setTimeout(toDemo, 0), { once: true });      // the link itself changes the page
-    }
+    if (ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
     ev.preventDefault();
-    const go = () => { $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true }); };
-    if (pageOf(location.hash, filled) === "check") return go();
-    addEventListener("hashchange", () => setTimeout(go, 0), { once: true }); location.hash = "#check";
+    if (a.id !== "go-check" && demo && !demo.hidden) { go("#demo"); return toDemo(); }
+    go("#check-a-pull-request");
+    $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true });
   });
   // The recording (web/first.js sets its file): its figure is shown once the browser has the file, and not otherwise.
   const film = $("film"), video = $("demo-video");
   if (film && video) { video.addEventListener("loadedmetadata", () => { film.hidden = false; }); video.addEventListener("error", () => { film.hidden = true; }); }
 }
 
+// ---- an upgrade of the programs that is waiting, said on the first screen -------------------------------------------------
+// The first screen asks devnet nothing (tests/web/front_door.mjs), so it reads upgrades.json: a file of this site that
+// scripts/upgrade_feed.py writes from the upgrade multisig's accounts when the site is built. One line in the hero's top
+// margin (#hero-upgrades, a fold) says how many proposals were pending then; opened, it says each proposal in the file's
+// own sentence, written into the fold only then. A page that reads Solana (web/app.js) reads the multisig itself, and its
+// banner under the bar takes this line's place.
+// Every line is true whenever it is read: before the earliest time one of them can run they are pending; after it the
+// file cannot say whether they ran, so the line says they were approved and that their delay is over. The line is two
+// words and a figure (the count, drawn as a badge): the first screen keeps to its 40 words.
+export const feedPending = (feed) => (Array.isArray(feed?.entries) ? feed.entries : []).filter((e) => e && e.status === "pending" && typeof e.program === "string");
+export function feedLine(feed, now = Date.now() / 1000) {
+  const p = feedPending(feed), n = p.length;
+  if (!n) return null;
+  const what = `${n} program upgrade${n === 1 ? "" : "s"}`, due = Math.min(...p.map((e) => (Number.isFinite(e.earliest_execution) ? e.earliest_execution : Infinity)));
+  const over = p.every((e) => e.squads_status === "Approved") && now >= due;
+  return { n, words: over ? "Upgrades approved" : "Upgrades pending", said: over ? `${what} approved, delay over` : `${what} pending` };
+}
+const utc = (iso) => String(iso || "").replace("T", " ").replace(/:\d\d(\.\d+)?Z$/, " UTC");
+export function feedBanner(feed) {
+  const p = feedPending(feed);
+  if (!p.length) return "";
+  return `<p class="fine" id="upgrade-source">Pending when this site was built (${esc(utc(feed.generated))}), as <a href="upgrades.json">upgrades.json</a> records them.
+      The pages that read Solana read the upgrade multisig itself.</p>`
+    + p.map((e) => `<p class="upgrade" data-program="${esc(e.program)}" data-status="${esc(e.squads_status || e.status)}" data-index="${esc(e.index)}">${esc(e.words || `An upgrade of ${e.program} is pending.`)}</p>`).join("")
+    + `<p class="fine">Follow every proposal: <a id="upgrade-feed" href="upgrades.xml" type="application/atom+xml">the upgrade feed (Atom)</a>.
+      What the delay protects: <a id="upgrade-security" href="https://github.com/drexthealpha/Knos/blob/main/docs/SECURITY.md#7-the-upgrade-authority" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p>`;
+}
+function initUpgrades() {
+  const fold = $("hero-upgrades"), body = $("hero-upgrades-body"), root = document.documentElement;
+  if (!fold || !body || pageNow() !== "check") return;
+  fetch("upgrades.json").then((r) => (r.ok ? r.json() : null)).then((feed) => {
+    const line = feed && feedLine(feed), handle = $("hero-upgrades-line");
+    if (!line || root.dataset.upgrades) return;           // nothing pending, or the chain has been read already
+    handle.textContent = line.words; handle.dataset.count = String(line.n); handle.setAttribute("aria-label", line.said); handle.title = line.said;
+    fold.hidden = false;
+    const fill = () => { if (!body.childElementCount) body.innerHTML = feedBanner(feed); };
+    handle.addEventListener("click", fill);              // before the fold opens, so it opens with its words in it
+    fold.addEventListener("toggle", () => { if (fold.open) fill(); });
+  }).catch(() => { /* no file in this build: no line, and nothing guessed */ });
+}
+
+// ---- light and dark -------------------------------------------------------------------------------------------------------
+function initTheme() {
+  const set = (t) => { document.documentElement.dataset.theme = t; try { localStorage.setItem("knos-theme", t); } catch { /* private mode */ } };
+  try { const t = localStorage.getItem("knos-theme"); if (t) set(t); } catch { /* private mode */ }
+  const b = $("theme");
+  if (!b) return;
+  b.hidden = false;
+  b.onclick = () => set((document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark");
+}
+
 // ---- motion (web/motion.js) and the mark with depth (web/brand/mark3d.js) ----------------------------------------------
 // Cards and sections of every page enter once; [data-tilt] leans to the pointer; a link to another page of this site
-// morphs into it where the browser has view transitions. A reader who asked for no movement gets the plain page.
+// is shown in the same task as the press, and the heading and the mark cross to their new places where the browser has
+// view transitions and is quick with them. A reader who asked for no movement gets the plain page.
 function initMotion() {
-  const filled = (id) => $(id) && $(id).childElementCount > 0;
   import("./brand/mark3d.js").then((m) => m.mount3dMark($("mark3d"))).catch(() => {});
+  document.addEventListener("click", (ev) => {
+    if (ev.defaultPrevented || ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    const to = ev.target.closest?.('a[href^="#"]')?.getAttribute("href");
+    if (!to || to === location.hash || pageOf(to, filled) === pageNow()) return;
+    ev.preventDefault();
+    morph(() => go(to));
+  });
   if (prefersReduced()) return;
   const main = document.querySelector("main");
   const dress = (root) => { for (const el of root.querySelectorAll?.(".view > .card, .mount > .card, .view > form.card, .how > li, .stats > .stat, .k-card") || []) el.classList.add("k-reveal"); };
   dress(main);
   new MutationObserver((list) => { for (const m of list) for (const n of m.addedNodes) if (n.nodeType === 1) dress(n.parentNode || n); }).observe(main, { childList: true, subtree: true });
   initMotionRoot(main);
-  document.addEventListener("click", (ev) => {
-    if (ev.defaultPrevented || ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
-    const to = ev.target.closest?.('a[href^="#"]')?.getAttribute("href");
-    if (!to || to === location.hash || pageOf(to, filled) === pageOf(location.hash, filled)) return;
-    ev.preventDefault();
-    morph(() => new Promise((done) => { addEventListener("hashchange", () => setTimeout(done, 0), { once: true }); setTimeout(done, 400); location.hash = to; }));
-  });
+}
+
+if (typeof document !== "undefined" && $("pr-form")) {
+  $("pr-form").addEventListener("submit", check);
+  $("pr-url").addEventListener("paste", () => setTimeout(() => check(), 0));
+  $("protect-form")?.addEventListener("submit", protectRepo);
+  initTheme();
+  workflowFacts();
+  initBar();
+  initCopy();
+  initMotion();
+  initUpgrades();
+  // THE FRONT DOOR (web/front_door.js): the first screen's one control, your own invoice checked in place. Mounted
+  // here, before anything else of the page is read, so it answers even when GitHub and devnet do not.
+  if ($("front-door")) import("./front_door.js").then((m) => m.renderFrontDoor($("front-door"))).catch(() => {});
+  // Below it on the first screen: the example buttons and the recording (web/first.js) and the round (web/demo.js).
+  // A transaction pasted into the box is read from Solana, and only then are the files that read Solana asked for.
+  import("./first.js").then((m) => m.initFirst({ $, esc, EXPLORER, core })).catch(() => {});
+  if ($("demo")) import("./demo.js").then((m) => m.renderDemo($("demo"), { esc, EXPLORER })).catch(() => {});
 }

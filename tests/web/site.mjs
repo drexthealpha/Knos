@@ -333,7 +333,9 @@ async function world({ wallets = [], width = 1100, passkeys = false } = {}) {
   return ctx;
 }
 let visits = 0;
-const visit = async (page, hash = "") => { await page.goto(`${base}?n=${++visits}${hash}`); };
+// a page is ready when the code of the page its hash names has arrived and run (web/front.js marks the root then: each
+// page's code is asked for when the page is first opened, not with the first screen)
+const visit = async (page, hash = "") => { await page.goto(`${base}?n=${++visits}${hash}`); await page.waitForFunction(() => document.documentElement.dataset.ready !== undefined); };
 // The commit the two workflow files name is read from the files themselves. A test that wants a commit there stamps it into a
 // copy of front.js, so it holds for whatever the examples say, before a release and after.
 const refs = /(\/\.github\/workflows\/[\w.-]+@)(\$\{\w+\}|[^\s`]+)/g;
@@ -395,22 +397,23 @@ await reset();
       }
       await ctx.close();
     }
-    await page.waitForFunction(() => ["status", "index", "pilot", "reproduce"].every((id) => document.getElementById(id).childElementCount > 0));
-    check("  Status, Index, Pilot and Reproduce hold their pages and are offered, and none is shown on the first screen", (await page.$$eval("#status, #index, #pilot, #reproduce", (s) => s.map((x) => `${x.id}:${x.className}:${x.hidden}:${getComputedStyle(x).display}`))).join() === "status:mount:false:none,index:mount:false:none,pilot:mount:false:none,reproduce:mount:false:none"
+    check("  Status, Leaderboard, Pilot and Reproduce are offered, hold nothing until one is opened, and none is shown on the first screen", (await page.$$eval("#status, #index, #pilot, #reproduce", (s) => s.map((x) => `${x.id}:${x.className}:${x.childElementCount}:${getComputedStyle(x).display}`))).join() === "status:mount:0:none,index:mount:0:none,pilot:mount:0:none,reproduce:mount:0:none"
       && (await page.$$eval('nav a[data-mount="status"], nav a[data-mount="index"], nav a[data-mount="pilot"], nav a[data-mount="reproduce"]', (a) => a.length === 4 && a.every((x) => !x.hidden))));
+    const asked = await page.evaluate(() => performance.getEntriesByType("resource").map((e) => new URL(e.name).pathname.split("/").pop()).filter((f) => f.endsWith(".js")));
+    check("  the first screen asks for the front door's code and no other page's: not the files that read Solana, not the console's", ["front.js", "front_door.js", "motion.js"].every((f) => asked.includes(f))
+      && !["app.js", "settle.js", "buyer.js", "console.js", "mounts.js", "pricing.js", "records.js", "statements.js", "palette.js"].some((f) => asked.includes(f)), asked);
     check("  and the Status page has asked GitHub for nothing: it reads when it is opened", hub.asked.length === 0, hub.asked);
   }
   check("only the front view is shown", await page.isVisible("#view-check") && await page.isHidden("#view-protect") && await page.isHidden("#view-network"));
-  check("the views are in the menu", (await page.$$eval("nav a:not([data-mount])", (a) => a.map((x) => x.getAttribute("href")))).join() === `#demo,#pricing,${DOCS},#check,#claim,#fund,#protect,#records,#network,#build`);
+  check("the views are in the menu", (await page.$$eval("nav a:not([data-mount])", (a) => a.map((x) => x.getAttribute("href")))).join() === `#check,#demo,#pricing,${DOCS},#records,#check-a-pull-request,#fund,#claim,#protect,#network,#build`);
   // the bar: five links at most a first visitor needs, the rest one press away under "More"
   {
     const bar = () => page.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null && !a.closest("#more-list")).map((a) => a.textContent));
     const under = () => page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.textContent));
-    await page.waitForFunction(() => ["buy", "capabilities", "shadow", "verifier", "playground", "terms"].every((m) => !document.querySelector(`nav a[data-mount="${m}"]`).hidden));
-    check("the bar: five links at most and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === "Demo,Check an invoice,Console,Pricing,Docs" && (await page.$$eval("#nav > a", (l) => l.length)) === 5 && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
+    check("the bar: six links and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === "Check an invoice,Demo,Console,Leaderboard,Pricing,Docs" && (await page.$$eval("#nav > a", (l) => l.length)) === 6 && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
       && await page.$$eval("#nav > a, #more-button", (l) => new Set(l.filter((a) => a.offsetParent !== null).map((a) => Math.round(a.getBoundingClientRect().top / 8))).size === 1), await bar());
     await page.click("#more-button");
-    check("  More opens the others, inside the window", (await under()).join() === "Check a pull request,Verify,Playground,Terms,Get paid,Fund,Protect,Install,Records,Numbers,Status,Index,Pilot,Capabilities,Reproduce,Build" && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
+    check("  More opens the others, inside the window", (await under()).join() === "Story,For suppliers,Hold a key,Verifier,Playground,Terms,Records,Statement,Invoice from a file,Check a pull request,Fund,Get paid,Protect,Install,Numbers,Status,Pilot,Capabilities,Reproduce,Build" && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
       && await page.$eval("#more-list", (e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= document.documentElement.clientWidth; }) && (await overflow(page)) <= 1, await under());
     await page.keyboard.press("Escape");
     check("  Escape closes it and gives the button the focus back", (await under()).length === 0 && await page.evaluate(() => document.activeElement.id === "more-button"));
@@ -423,21 +426,21 @@ await reset();
     check("  and is not marked on a page of the bar's own", !(await page.$eval("#more", (e) => e.classList.contains("current"))));
     const phone = await (await world({ width: 390 })).newPage();
     await visit(phone, "");
-    await phone.waitForFunction(() => ["buy", "capabilities", "shadow", "verifier", "playground", "terms"].every((m) => !document.querySelector(`nav a[data-mount="${m}"]`).hidden));
     await phone.click("#menu");
     const shown = () => phone.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null).length);
-    check("  a phone: Menu opens the bar's links and More, and never fifteen at once", (await shown()) === 5 && await phone.isVisible("#more-button") && (await overflow(phone)) <= 1, await shown());
+    check("  a phone: Menu opens the bar's links and More, and never fifteen at once", (await shown()) === 6 && await phone.isVisible("#more-button") && (await overflow(phone)) <= 1, await shown());
     await phone.click("#more-button");
-    check("  and More, inside it, opens the rest", [20, 21].includes(await shown()) && (await overflow(phone)) <= 1, await shown());
+    check("  and More, inside it, opens the rest", (await shown()) === 26 && (await overflow(phone)) <= 1, await shown());
     await phone.close();
     const bare = await (await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1100, height: 900 } })).newPage();
     await bare.goto(base);
-    check("  without scripts: the links of the views are all in the bar, More's too, and its button is not shown", (await bare.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.getAttribute("href")))).join() === `#demo,#pricing,${DOCS},#check,#claim,#fund,#protect,#records,#network,#build` && await bare.isHidden("#more-button"));
+    check("  without scripts: the links of the views are all in the bar, More's too, and its button is not shown", (await bare.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.getAttribute("href")))).join() === `#check,#demo,#pricing,${DOCS},#records,#check-a-pull-request,#fund,#claim,#protect,#network,#build` && await bare.isHidden("#more-button"));
     await bare.context().close();
     await visit(page);
   }
   // the first screen: two buttons, the flow in three steps with a payment on devnet, the five things one line each
-  check("  two buttons: try it, and check your invoice", (await page.$$eval("#view-check .actions a", (a) => a.map((x) => `${x.textContent.trim()} ${x.getAttribute("href")}`))).join() === "Try it #demo,Check your invoice #shadow");
+  check("  one control: a box for an invoice or a repository, its button, and a sample", (await page.$$eval("#front-door textarea, #front-door [data-fd]", (l) => l.map((x) => `${x.dataset.fd || x.id} ${x.textContent.trim()}`))).join() === "fd-in ,run Check,sample Try a sample"
+    && await page.isVisible("#front-door [data-fd=run]") && await page.isVisible("#front-door [data-fd=sample]"));
   await page.$eval("#what-is-here", (d) => { d.open = true; });
   check("  the flow is three steps, and the last links the payment on devnet that the third example reads", (await page.$$eval("#view-check .how > li", (l) => l.length)) === 3
     && (await page.getAttribute("#view-check .how a[href*=explorer]", "href")) === `https://explorer.solana.com/tx/${(await import(pathToFileURL(join(root, "config.js")).href)).CONFIG.examples.find((e) => e.id === "paid").input}?cluster=devnet`);
@@ -445,21 +448,21 @@ await reset();
   await page.waitForSelector("#demo .kd-go");                  // the round is mounted (web/demo.js); a build without it leaves the mount empty, as here
   await page.evaluate(() => { document.getElementById("demo").innerHTML = ""; });
   await page.waitForSelector("#demo", { state: "hidden" });
-  await page.click("#go-demo");
-  check("  Try it, while the demo's mount is empty, puts the cursor in the box that checks a pull request", await page.evaluate(() => document.activeElement.id === "pr-url") && await page.isHidden("#demo"));
+  await page.click('#nav > a[href="#demo"]');
+  check("  Demo, while the demo's mount is empty, puts the cursor in the box that checks a pull request", await page.evaluate(() => document.activeElement.id === "pr-url") && await page.isHidden("#demo"));
   await page.evaluate(() => { document.activeElement.blur(); document.getElementById("demo").innerHTML = "<p>Filled</p>"; });
   await page.waitForSelector("#demo", { state: "visible" });
-  check("  the demo's mount, once filled, is shown in the first screen under the buttons, and Try it goes to it", await page.isVisible("#view-check") && await page.$eval("#demo", (d) => d.parentElement.id === "view-check" && d.previousElementSibling.classList.contains("hero")));
-  await page.click("#go-demo");
+  check("  the demo's mount, once filled, is shown in the first screen under the front door, and Demo goes to it", await page.isVisible("#view-check") && await page.$eval("#demo", (d) => d.parentElement.id === "view-check" && d.previousElementSibling.classList.contains("hero")));
+  await page.click('#nav > a[href="#demo"]');
   check("    and the cursor stays out of the box", await page.evaluate(() => document.activeElement.id !== "pr-url" && location.hash === "#demo"));
   await page.evaluate(() => { document.getElementById("demo").replaceChildren(); });
   await visit(page);
-  const settled = () => page.waitForFunction(() => ["buy", "capabilities", "status", "reproduce"].every((id) => !document.querySelector(`nav a[data-mount="${id}"]`).hidden));      // a page that fills closes More
+  const settled = async () => {};          // every page's link is in the menu from the start: a page fills when it is opened
   await settled(); await page.click("#more-button"); await page.click("#go-check");
   check("  Check a pull request, under More, puts the cursor in the box", await page.evaluate(() => document.activeElement.id === "pr-url"));
   // the pages other modules fill: not offered while empty, shown alone at their hash once they hold something
-  check("the pages other modules fill are there, and an empty one is not in the menu", (await page.$$eval("nav a[data-mount]", (a) => a.map((x) => x.getAttribute("href")))).join() === "#shadow,#buy,#verifier,#playground,#terms,#install,#status,#index,#pilot,#capabilities,#reproduce"
-    && await page.$$eval("nav a[data-mount]", (a) => a.every((x) => x.hidden || document.getElementById(x.dataset.mount).childElementCount > 0)));
+  check("the pages other modules fill are there, and an empty one is not in the menu", (await page.$$eval("nav a[data-mount]", (a) => a.map((x) => x.getAttribute("href")))).join() === "#buy,#index,#story,#supplier,#keyholder,#verifier,#playground,#terms,#invoice-statement,#shadow,#install,#status,#pilot,#capabilities,#reproduce"
+    && await page.$$eval("nav a[data-mount]", (a) => a.every((x) => !x.hidden)));
   for (const id of ["buy", "install", "capabilities"]) {
     await visit(page, `#${id}`);
     if (id === "capabilities") await page.waitForSelector("#capabilities table", { state: "attached" });      // filled from capabilities.json, once it has loaded
@@ -521,8 +524,9 @@ await reset();
   const ours = join(here, "..", "..", "web", "buyer.js");
   check("buy: the build carries web/buyer.js byte for byte", existsSync(ours) && buyer === readFileSync(ours, "utf8") && /export function renderBuyer\(/.test(buyer));
   await page.waitForSelector("#buy-sentence:not(:empty)", { state: "attached", timeout: 10000 }).catch(() => {});
-  check("  the page's own hook renders it: its four steps, its templates and its one sentence, shown alone with its link in the menu",
-    (await Promise.all([1, 2, 3, 4].map((n) => page.isVisible(`#buy-step-${n}`)))).every(Boolean) && (await page.$$eval("#buy-template option", (o) => o.map((x) => x.value))).join() === "bugfix,feature-blackbox,milestone,private-attested"
+  check("  the page's own hook renders it: its four parts, its steps (three under Offers), its templates and its one sentence, shown alone with its link in the menu",
+    (await page.$$eval("#buy [role=tab]", (t) => t.map((x) => x.textContent))).join() === "Offers,Budgets,Approvals,Invoice" && !!(await page.$("#buy-part-invoice #buy-step-4"))
+    && (await Promise.all([1, 2, 3].map((n) => page.isVisible(`#buy-step-${n}`)))).every(Boolean) && (await page.$$eval("#buy-template option", (o) => o.map((x) => x.value))).join() === "bugfix,feature-blackbox,milestone,private-attested"
     && (await text(page, "#buy-sentence")).length > 20 && await page.isVisible('nav a[href="#buy"]') && await page.isHidden("#view-check")
     && (await page.getAttribute("nav a[aria-current=page]", "href")) === "#buy" && !(await page.$("#buy > h2:only-child")),
     await page.evaluate(() => document.getElementById("buy").innerHTML.slice(0, 200)));
@@ -1192,7 +1196,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   chain.down = "Node is behind by 100 slots";
   await visit(page, "#network");
   await page.waitForFunction(() => document.querySelectorAll("#network-programs .status.bad, #network-keys .status.bad, #first-deployment .status.bad").length === 3);
-  check("numbers: when Solana cannot be read, each card says so and never says 'not on devnet yet'", (await text(page, "#network-programs")).includes("Could not read Solana devnet just now (Node is behind by 100 slots)")
+  check("numbers: when Solana cannot be read, each card says so and never says 'not on devnet yet'", (await text(page, "#network-programs")).includes("Devnet did not answer (Node is behind by 100 slots)")
     && !(await text(page, "#view-network")).includes("not on devnet yet") && (await text(page, "#network-stats")).includes("tasks paid"));
   chain.down = null;
 
@@ -1229,14 +1233,21 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
 {
   const page = await plain.newPage();
   await visit(page);
-  await page.waitForSelector("#verifier a", { state: "attached" }); await page.waitForSelector("#demo .kd-go"); await page.waitForSelector("#terms-list .k-card", { state: "attached" });
+  await page.waitForSelector("#demo .kd-go");
+  // every page is opened once, so that every page's links are in the document (a page's code arrives when it is first opened)
+  const PAGES_ALL = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "protect", "fund", "claim", "pricing", "records", "network", "build"];
+  for (const name of PAGES_ALL) { await page.evaluate((h) => { location.hash = h; }, `#${name}`); await page.waitForFunction((n) => document.documentElement.dataset.ready === n, name); }
+  await page.waitForSelector("#verifier a", { state: "attached" }); await page.waitForSelector("#terms-list .k-card", { state: "attached" }); await page.waitForSelector("#proc-approvals a", { state: "attached" });
   const hrefs = await page.$$eval("a[href]", (a) => a.map((x) => x.getAttribute("href")));
   const issuerDocs = (await import(pathToFileURL(join(root, "verifier.js")).href)).ISSUERS.map((i) => i.source);
-  const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms"].includes(h.slice(1).split("=")[0])
-    : h === TEMPLATE_LINK || /^https:\/\/explorer\.solana\.com\/tx\/[1-9A-HJ-NP-Za-km-z]{64,90}\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly)\.json$|^terms\/[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
-  check("links: every link goes to a view, to the project's own GitHub, to a transaction on devnet's explorer, to Circle's devnet faucet, to a file of the site or to an issuer's own documentation (the verifier's table)", bad.length === 0, bad);
+  // the Console's sample approvals name where each was made: a comment in this project's own playground repository, never an account that is somebody else's
+  check("links: the Console's sample is in the project's own playground repository", hrefs.some((h) => /^https:\/\/github\.com\/drexthealpha\/knos-playground\/issues\/\d+#issuecomment-\d+$/.test(h)) && !(await page.content()).includes("github.com/acme/"));
+  const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "fd-in", "check-a-pull-request", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "sample"].includes(h.slice(1).split("=")[0])
+    : h === TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records)\.json$|^terms\/[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
+  check("links: every link goes to a view, to the site's own address, to the project's own GitHub, to a transaction or an address on devnet's explorer, to Circle's devnet faucet, to a file of the site or to an issuer's own documentation (the verifier's table)", bad.length === 0, bad);
   check("  a link that opens a new tab does not hand over the page", await page.$$eval('a[target="_blank"]', (a) => a.every((x) => /noopener/.test(x.rel))));
   await page.close();
+  hub.playgroundAsked = 0; hub.asked.length = 0;          // this block opened every page, the playground's and Status among them
 }
 
 // ---- a phone: nothing runs off the side of the screen in any view, with the longest content each can show ----------------------------
@@ -1410,15 +1421,14 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
     && c.meterFee === meter.FEE && c.meterPlanMin === meter.PLAN_MIN && c.meterFree === meter.FREE_PER_MONTH, JSON.stringify([c, pay, meter]));
   check("  and says where each came from: exported by sdk/settle, or recorded in price.js", Object.values(c.source).every((x) => x === "exported" || x === "recorded") && Object.keys(c.source).length === 14, JSON.stringify(c.source));
   const book = await page.$$eval("#price-book tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.replace(/\s+/g, " ").trim())));
-  check("pricing: the price book is the eight lines of the book, in its words", JSON.stringify(book) === JSON.stringify([
-    ["Check", "pull request checked", "free, forever"],
-    ["Meter", "evaluation", "10,000 a month free per organisation, then 0.05 USD; 0.02 on a committed-volume plan"],
-    ["Verify", "dollar of outcome billing the count verifies", "0.5% to 1.0%, the greater of this and the Meter fee, capped per deliverable (proposed; nobody has bought it)"],
-    ["Control", "organisation, per year", "Team 25,000 USD; Business 80,000; Enterprise from 250,000 (Enterprise is not deliverable yet: it needs single sign-on, private deployment and support that do not exist)"],
-    ["Supplier connection", "supplier connected to a buyer, per year", "5,000 USD each beyond the first five; the buyer pays; a supplier never pays to be counted"],
-    ["Pilot", "one buyer and its suppliers, 30 days", "2,500 USD, credited against the first year of Control (nobody has bought it; no legal entity to invoice from yet)"],
-    ["Settle", "dollar settled, paid by the funder on top", "2.5% of the first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40. On devnet this is test money: zero revenue"],
-    ["Index data, Advance, Assurance", "", "not offered"]]), JSON.stringify(book));
+  check("pricing: the price book is the seven lines of the book (tests/data/billing_vectors.json), in its words", JSON.stringify(book) === JSON.stringify([
+    ["Check", "pull request or artifact checked", "free, forever"],
+    ["Pilot", "one buyer, two suppliers, 30 days, one reconciled invoice", "2,500 USD, credited against year one (nobody has bought it; no legal entity to invoice from yet)"],
+    ["Meter", "evaluation", "10,000 a month free per organisation, then 0.05 USD; 0.02 on an annual commitment"],
+    ["Verify", "dollar of reconciled accepted invoice value", "0.5%, capped at 250 USD per deliverable (proposed; nobody has bought it)"],
+    ["Control", "organisation, per year", "Team 25,000 USD; Business 80,000; Enterprise from 250,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)"],
+    ["Supplier connection", "supplier beyond the first five, per year", "5,000 USD; the buyer pays"],
+    ["Settle", "dollar settled, paid by the funder on top", "2.5% of the first 1,000, 1% to 50,000, 0.5% above; minimum 0.40. On devnet: test money, zero revenue"]]), JSON.stringify(book));
   check("  under it: the relayer's tip, and an order's bounds on devnet with a build for real money setting its own cap", (await text(page, "#price-tip")).replace(/\s+/g, " ").trim()
     === "Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from 5 to 100,000 test USDC on devnet; a build for real money sets its own cap." && c.minAmount === 5e6 && c.maxAmount === 100_000e6);
   check("  it says what is enforced and what is a contract", (await text(page, "#price-honest")).includes("Control is a contract price that nothing on chain enforces"));
@@ -1716,7 +1726,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("records: the view lists the accounts and repositories of records.json, each a link to its record", JSON.stringify(await page.$$eval("#rec-index li a", (a) => a.map((x) => x.getAttribute("href")))) === JSON.stringify([
     ...idx.accounts.map((x) => `#u=${x}`), ...idx.repositories.map((x) => `#r=${x}`)]) && (await text(page, "#rec-index")).includes(`Accounts with a record (${idx.accounts.length})`),
     JSON.stringify(await page.$$eval("#rec-index li a", (a) => a.map((x) => x.getAttribute("href")))));
-  check("  it says what has no file and where the list was read and made", (await text(page, "#rec-index")).includes("0 repositories that GitHub did not name have no file") && (await text(page, "#rec-index-source")).includes("Read from records.json")
+  check("  it says what has no file and where the list was read and made", (await text(page, "#rec-index")).includes("0 repositories") && (await text(page, "#rec-index-source")).includes("Read from records.json")
     && (await text(page, "#rec-index-source")).includes("made 2026-09-21 17:00 UTC"));
   check("  the three ranks are linked", JSON.stringify(await page.$$eval("#rec-ranks a", (a) => a.map((x) => x.getAttribute("href")))) === JSON.stringify(["#rank=earners", "#rank=funders", "#rank=agents"]));
 
@@ -2132,7 +2142,23 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   // the page
   const page = await plain.newPage();
   const banner = async (hash) => { await reset(); load(); await visit(page, hash); await page.waitForSelector("#upgrade-banner:not([hidden])"); };
-  await banner("");
+  // the first screen reads no chain: the banner is read with the first page that reads Solana, and stays from then on
+  await reset(); load(); await visit(page, ""); await page.waitForTimeout(300);
+  check("upgrade: the first screen asks devnet nothing and shows no banner under the bar", await page.isHidden("#upgrade-banner") && called("getMultipleAccounts").length === 0 && called("getAccountInfo").length === 0);
+  // what it shows instead: one line from upgrades.json, the file of the site scripts/upgrade_feed.py writes from the multisig
+  const feed = JSON.parse(readFileSync(join(root, "upgrades.json"), "utf8")), feedPending = feed.entries.filter((e) => e.status === "pending");
+  await page.waitForSelector("#hero-upgrades:not([hidden])", { timeout: 5000 }).catch(() => {});
+  check("  but the pending upgrades in one line, from the site's upgrades.json: the count and two words", feedPending.length === 4 && await page.isVisible("#hero-upgrades")
+    && /^Upgrades (pending|approved)$/.test(await text(page, "#hero-upgrades-line")) && (await page.getAttribute("#hero-upgrades-line", "data-count")) === "4"
+    && /^4 program upgrades (pending|approved, delay over)$/.test(await page.getAttribute("#hero-upgrades-line", "aria-label")), await text(page, "#hero-upgrades-line"));
+  const lib0 = await import(pathToFileURL(join(root, "front.js")).href), said = (l) => (l ? `${l.n}|${l.words}|${l.said}` : null);
+  check("  the line is true before and after the earliest time one can run: pending before it, approved with the delay over after it, nothing for a file with none pending",
+    said(lib0.feedLine(feed, Math.min(...feedPending.map((e) => e.earliest_execution)) - 1)) === "4|Upgrades pending|4 program upgrades pending"
+    && said(lib0.feedLine(feed, Math.max(...feedPending.map((e) => e.earliest_execution)))) === "4|Upgrades approved|4 program upgrades approved, delay over"
+    && lib0.feedLine({ ...feed, entries: feed.entries.map((e) => ({ ...e, status: "executed" })) }) === null && lib0.feedLine(null) === null
+    && said(lib0.feedLine({ entries: [{ ...feedPending[0], squads_status: "Active" }] }, 4e9)) === "1|Upgrades pending|1 program upgrade pending");
+  await banner("#fund");
+  check("  a page that reads Solana reads the multisig itself, and its banner takes the line's place", await page.isHidden("#hero-upgrades") && (await page.evaluate(() => document.documentElement.dataset.upgrades)) === "chain");
   const paras = await page.$$eval("#upgrade-banner p.upgrade", (p) => p.map((x) => [x.dataset.program, x.dataset.status, x.dataset.index, x.textContent.replace(/\s+/g, " ").trim()]));
   const day = (t) => `${new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`;
   const payUp = rec.pending.find((p) => p.index === 4), oidcUp = rec.pending.find((p) => p.index === 3);
@@ -2159,7 +2185,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const quiet = async (what, prepare) => {
     await reset(); load(); prepare();
     const before = errors.length;
-    await visit(page, "");
+    await visit(page, "#records");
     await page.waitForFunction(() => document.getElementById("pr-form"));
     await page.waitForTimeout(400);
     check(`upgrade: ${what}: no banner`, await page.isHidden("#upgrade-banner") && errors.length === before, errors.slice(before));
@@ -2175,7 +2201,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   // a phone
   await reset(); load();
   const small = await (await world({ width: 360 })).newPage();
-  for (const hash of ["", "#pricing"]) { await visit(small, hash); await small.waitForSelector("#upgrade-banner:not([hidden])"); check(`phone: the banner on ${hash || "the front door"}: nothing runs off the side`, (await overflow(small)) <= 1, await overflow(small)); }
+  for (const hash of ["#fund", "#pricing"]) { await visit(small, hash); await small.waitForSelector("#upgrade-banner:not([hidden])"); check(`phone: the banner on ${hash}: nothing runs off the side`, (await overflow(small)) <= 1, await overflow(small)); }
   await small.close(); await page.close();
   await reset();
 }
@@ -2345,12 +2371,12 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
     await reset(); chain.simulate = { err: "BlockhashNotFound", logs: [] };
     const unsure = await wal.newPage();
     await visit(unsure, "#fund");
-    check("  a Version call devnet does not answer plainly is not guessed at", (await available(unsure)).includes("could not ask devnet which version of knos_pay is live, so nothing can be sent from here"));
+    check("  a Version call devnet does not answer plainly is not guessed at", (await available(unsure)).includes("Devnet did not say which knos_pay is live. Nothing can be sent."));
     await unsure.close();
     await reset(); chain.down = "node is behind";
     const down = await wal.newPage();
     await visit(down, "#fund");
-    check("  a devnet that does not answer: the same", (await available(down)).includes("could not ask devnet which version"));
+    check("  a devnet that does not answer: the same", (await available(down)).includes("Devnet did not say which knos_pay is live"));
     chain.down = null; await down.close();
   }
 
@@ -2605,7 +2631,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await visit(page, "#status");
   await page.waitForSelector("#relay-facts dt");
   await page.waitForFunction(() => !document.getElementById("live-head").textContent.includes("Reading"));
-  check("status: opened, it is shown alone under its heading, with its link marked in the bar", (await text(page, "#status > h2")) === "Status" && await page.isVisible("#status") && await page.isHidden("#view-check") && (await page.getAttribute("nav a[aria-current=page]", "href")) === "#status");
+  check("status: opened, it is shown alone under its heading, with its link marked in the bar", (await text(page, "#status > h2")) === "Relay and canary status" && await page.isVisible("#status") && await page.isHidden("#view-check") && (await page.getAttribute("nav a[aria-current=page]", "href")) === "#status");
   check("  the relay: ran in the last 10 minutes, nothing waiting, the day's carried, refused and retried, from the log's own lines", /^The relay ran \d+ s ago\. Nothing is waiting\. In 24 hours: 1 carried, 1 refused, 1 retry\.$/.test((await text(page, "#relay-head")).trim())
     && await page.$eval("#relay-head", (e) => e.classList.contains("ok")) && (await page.$$eval("#relay-facts dt", (l) => l.map((x) => x.textContent))).join("|") === "Ran in the last 10 minutes|Last round|Tokens waiting|Carried in 24 hours|Refused in 24 hours|Retries in 24 hours|Merge to paid, measured"
     && (await text(page, "#relay-facts")).includes("it took 14 s and looked at 3 tokens") && (await text(page, "#relay-facts")).includes("None (as of ") && (await page.getAttribute("#relay-note a", "href")) === "https://github.com/drexthealpha/Knos/issues/41", await text(page, "#relay-status"));
@@ -2623,9 +2649,9 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await page.evaluate(() => sessionStorage.clear());
   hub.down = true;
   await visit(page, "#status");
-  await page.waitForFunction(() => document.getElementById("relay-head").textContent.includes("could not be read") && document.getElementById("live-head").textContent.includes("could not be read"));
-  check("status: GitHub does not answer: neither card claims anything, and the canary is not said to have stopped", (await text(page, "#relay-head")).trim() === "The relay's log could not be read just now (GitHub said 500), so nothing is said about the relay."
-    && (await text(page, "#live-head")).trim() === "The canary's round could not be read just now (GitHub said 500), so none is shown." && (await text(page, "#live-next")).includes("Whether the canary has been running could not be read.") && !(await text(page, "#live-next")).includes("has not been running")
+  await page.waitForFunction(() => document.getElementById("relay-head").textContent.includes("was not read") && document.getElementById("live-head").textContent.includes("was not read"));
+  check("status: GitHub does not answer: neither card claims anything, and the canary is not said to have stopped", (await text(page, "#relay-head")).trim() === "The relay's log was not read (GitHub said 500). Nothing is said about the relay."
+    && (await text(page, "#live-head")).trim() === "The canary's round was not read (GitHub said 500). None is shown." && (await text(page, "#live-next")).includes("Whether the canary has been running could not be read.") && !(await text(page, "#live-next")).includes("has not been running")
     && await page.isVisible("#relay-again"), [await text(page, "#relay-head"), await text(page, "#live-next")]);
   hub.down = false; hub.relayIssues = [{ number: 41, html_url: "https://github.com/drexthealpha/Knos/issues/41", updated_at: iso(now - 30 * 3600_000) }]; hub.relayComments = [];
   await page.click("#relay-again");
@@ -2653,16 +2679,16 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
 
   // Pilot: the price book's row, the four deliverables, and what is not true yet; no form
   await visit(page, "#pilot");
-  await page.waitForSelector("#pilot-deliverables li");
+  await page.waitForSelector("#pilot-deliverables li", { state: "attached" });
   const bookRow = (await import(pathToFileURL(join(root, "price.js")).href)).priceBook((await import(pathToFileURL(join(root, "price.js")).href)).priceConstants()).find((r) => r[0] === "Pilot");
-  check("pilot: who it is for, four deliverables, and the price in the price book's own words", (await text(page, "#pilot > h2")) === "The Pilot: one buyer, its suppliers, 30 days" && (await text(page, "#pilot-who")).includes("two or more suppliers")
-    && (await page.$$eval("#pilot-deliverables li strong", (l) => l.map((x) => x.textContent))).join("|") === "A reconciliation.|A mismatch list.|A statement both sides verify.|A measurement."
-    && (await text(page, "#pilot-price-words")) === bookRow[2] && bookRow[2].startsWith("2,500 USD, credited against the first year of Control") && (await text(page, "#pilot-price dd")) === "one buyer and its suppliers, 30 days");
-  check("  it says plainly that nobody has bought it and that there is no legal entity to invoice from", (await text(page, "#pilot-honest")) === "This is an offer, not a record: nobody has bought it, nobody has been asked, and there is no legal entity to invoice from yet."
+  check("pilot: who it is for, four deliverables, and the price in the price book's own words", (await text(page, "#pilot > h2")) === "The 30-day Pilot" && (await text(page, "#pilot-who")).includes("two or more suppliers")
+    && (await page.$$eval("#pilot-deliverables li strong", (l) => l.map((x) => x.textContent))).join("|") === "One reconciled invoice.|A mismatch list.|A statement both sides verify.|Quantified findings."
+    && (await text(page, "#pilot-price-words")) === bookRow[2] && bookRow[2].startsWith("2,500 USD, credited against year one") && (await text(page, "#pilot-price dd")) === "one buyer, two suppliers, 30 days, one reconciled invoice");
+  check("  it says plainly that nobody has bought it and that there is no legal entity to invoice from", (await text(page, "#pilot-honest")) === "An offer, not a record. Nobody has bought it. Nobody has been asked. No legal entity to invoice from yet."
     && (await text(page, "#pilot-blockers")).includes("Nobody has bought it.") && (await text(page, "#pilot-blockers")).includes("There is no legal entity to invoice from yet.") && (await text(page, "#pilot-blockers")).includes("It has never been run."));
   check("  no form and nothing to type into: the page collects nothing", (await page.$$eval("#pilot form, #pilot input, #pilot textarea, #pilot select, #pilot button:not(.copy)", (l) => l.length)) === 0 && !/customer|pilot is running|signed up/i.test(await text(page, "#pilot")));
   const pilotDoc = readFileSync(join(here, "..", "..", "docs", "PILOT.md"), "utf8").replace(/\s+/g, " ");
-  check("  its deliverables are the four of docs/PILOT.md, by name", lib.PILOT_DELIVERABLES.every(([name]) => pilotDoc.includes(`**${name}**`)) && pilotDoc.includes("2,500 USD for one buyer and its suppliers, for 30 days"));
+  check("  its deliverables are the four of docs/PILOT.md, by name", lib.PILOT_DELIVERABLES.every(([name]) => pilotDoc.includes(`**${name}**`)) && pilotDoc.includes("2,500 USD for one buyer and two suppliers, for 30 days"));
   check("  nothing runs off the side at any width", (await overflow(page)) <= 1, await overflow(page));
 
   // Reproduce: the three lines, and the count of what the build carries
@@ -2671,7 +2697,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await visit(page, "#reproduce");
   await page.waitForSelector("#repro-count");
   const reproDoc = readFileSync(join(here, "..", "..", "docs", "REPRODUCE.md"), "utf8");
-  check("reproduce: none yet is said as none yet", (await page.getAttribute("#repro-count", "data-count")) === "0" && (await text(page, "#repro-count")) === "Outside reproductions so far: none yet. Nobody outside Knos has sent one, so no capability is marked as reproduced." && await gone(page, "#repro-files"));
+  check("reproduce: none yet is said as none yet", (await page.getAttribute("#repro-count", "data-count")) === "0" && (await text(page, "#repro-count")) === "Outside reproductions so far: none yet. No capability is marked as reproduced." && await gone(page, "#repro-files"));
   check("  three lines: the one command of docs/REPRODUCE.md, the fork and run, how to send the result", (await page.$$eval("#repro-lines > li > strong:first-child", (l) => l.map((x) => x.textContent))).join("|") === "The one command.|Fork and run, signed by GitHub.|Send the result."
     && (await text(page, "#repro-command")).trim() === lib.REPRODUCE_COMMAND && reproDoc.includes(`\n${lib.REPRODUCE_COMMAND}\n`) && (await text(page, "#repro-lines")).includes("reproductions/<owner>-<repo>-<run id>.json")
     && (await page.getAttribute('#repro-lines a[href*="knos-reproduce.yml"]', "href")) === "https://github.com/drexthealpha/Knos/blob/main/examples/knos-reproduce.yml" && existsSync(join(here, "..", "..", "examples", "knos-reproduce.yml")));
@@ -2708,18 +2734,18 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await visit(page);
   await page.waitForSelector("#demo .kd-go");
   check("demo: the round is mounted in the first screen, under the hero, and says it is a replay of a staging round", await page.isVisible("#demo") && await page.isVisible("#view-check") && (await page.$$eval("#demo .k-step", (l) => l.length)) === 6
-    && (await text(page, "#demo .kd-mark")).trim() === `A replay of a real round on devnet (${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && demo.ids === "staging", await text(page, "#demo .kd-mark"));
+    && (await text(page, "#demo .kd-mark")).trim() === `A real devnet round, replayed (${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && demo.ids === "staging", await text(page, "#demo .kd-mark"));
   await page.click("#demo .kd-go");
   check("  one press funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Order funded: ${demo.fund.amount} test USDC held, fee ${demo.fund.fee}.` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
-  check("  Try it leads to the round once it is mounted", (await page.getAttribute("#go-demo", "href")) === "#demo" && (await overflow(page)) <= 1);
-  for (const from of ["#go-demo", "#hero-cue"]) {
+  check("  the front door is above the round once it is mounted", await page.isVisible("#front-door [data-fd=run]") && (await overflow(page)) <= 1);
+  for (const from of ['#nav > a[href="#demo"]', "#hero-cue"]) {
     await page.evaluate(() => { document.activeElement.blur(); scrollTo(0, 0); });
     await page.click(from);
     const there = await page.waitForFunction(() => { const top = document.getElementById("demo").getBoundingClientRect().top; return document.activeElement?.classList.contains("kd-go") && top >= 0 && top < innerHeight / 3; }, null, { timeout: 5000 }).then(() => true, () => false);
-    check(`  ${from === "#go-demo" ? "Try it" : "the cue at the foot of the hero"} brings the round under the bar and puts the focus on its first action`, there && await page.evaluate(() => location.hash === "#demo"),
+    check(`  ${from === "#hero-cue" ? "the cue at the foot of the hero" : "Demo in the bar"} brings the round under the bar and puts the focus on its first action`, there && await page.evaluate(() => location.hash === "#demo"),
       await page.evaluate(() => [document.activeElement?.className, document.getElementById("demo").getBoundingClientRect().top]));
   }
-  check("  the cue says one word and stays inside the hero", (await text(page, "#hero-cue")).trim() === "Scroll" && await page.evaluate(() => { scrollTo(0, 0); const c = document.getElementById("hero-cue").getBoundingClientRect(), h = document.querySelector(".hero").getBoundingClientRect(), b = document.querySelector(".hero .actions").getBoundingClientRect(); return c.bottom <= h.bottom + 1 && c.top >= b.bottom; }));
+  check("  the cue is an arrow with a name, no word of the forty, and stays inside the hero", (await text(page, "#hero-cue")).trim() === "" && (await page.getAttribute("#hero-cue", "aria-label")) === "The demo, below" && await page.evaluate(() => { scrollTo(0, 0); const c = document.getElementById("hero-cue").getBoundingClientRect(), h = document.querySelector(".hero").getBoundingClientRect(), b = document.querySelector(".hero .actions").getBoundingClientRect(); return c.bottom <= h.bottom + 1 && c.top >= b.bottom; }));
   check("  no page but the playground's has asked GitHub for the playground's tasks", hub.playgroundAsked === 0, hub.playgroundAsked);
 
   // Check an invoice: one line, read from the mocked GitHub; the statement, its one number and its hash

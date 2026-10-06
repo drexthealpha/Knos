@@ -61,7 +61,9 @@ account is closed with the order.
   above. The arithmetic
   alone is model-checked by the Kani harnesses in [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs), which also
   say what they assume and do not cover. The one recorded run ([`kani.json`](kani.json)) verified four of the five,
-  the ones about shares, payments and conservation; the fee-bounds harness timed out and is not proved.
+  the ones about shares, payments and conservation; the fee-bounds harness timed out and is not proved there
+  (invariant 8 says what is proved of the fee's bounds, per tier, by the harnesses of
+  [`fee_proofs`](../programs-v2/fee_proofs/src/lib.rs)).
 - **A 0.3.12 bounty** shares one vault per mint with the other bounties, so for it the guarantee is arithmetic, not
   a separate account: `Pay`, `Settle` and `Refund` move exactly the job's amount and close the job
   (`test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs` in `tests/test_pay2_chain.py`).
@@ -226,13 +228,29 @@ The fee of an order is one pure function of its amount, `order_fee`: 2.5% of the
 - **Checked by:** the unit tests of `order_fee` at the tier edges in
   [`lib.rs`](../programs-v2/knos_pay/src/lib.rs) and the Kani harnesses in
   [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs) (run by `cargo test` and `cargo kani`, not by pytest). The
-  harness for the fee's bounds, `an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount`, timed
-  out in the recorded run ([`kani.json`](kani.json)): the bound is tested at the tier edges and is not proved for every
-  amount;
+  harness for the fee's bounds over every amount at once,
+  `an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount`, timed out in the recorded run
+  ([`kani.json`](kani.json)): **not verified** in one harness;
   `test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top`,
   `test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate`,
   `test_the_orders_repository_pays_one_payee_in_full_and_the_fee_is_split` and
   `test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came` in `tests/test_order_chain.py`.
+- **The fee's bounds, per tier** (at least 0.40; 0.40 or at most 2.5% of the amount; amount plus fee fits a u64; for
+  a mint of 6 decimals and every rate a Plan can set, 50 to 250 basis points). The harnesses of
+  [`programs-v2/fee_proofs`](../programs-v2/fee_proofs/src/lib.rs) are about the program's own lines, copied as text
+  by its `build.rs`; each ran alone within 150 seconds and [`kani.json`](kani.json) (`fee_proofs`, written by
+  `scripts/kani_fee_record.py`) records them:
+  - above 1,000 and up to 50,000, every rate: **verified**;
+  - above 50,000 and up to 100,000 (the most an order holds), every rate: **verified**;
+  - 0 to 1,000 at the rates 50 to 249: **verified** (eight harnesses that take the rates one by one);
+  - 0 to 1,000 at the rate 250, the rate of an order with no Plan: the floor and the sum are **verified**; "at most
+    2.5% of the amount" is **not verified** (at that rate the bound is exact, and the solver did not answer). It is
+    tested instead at each of the 1,000,000,001 amounts of that tier, with 10,000,000 amounts and rates from a fixed
+    seed and every amount within 20,000 units of each edge of the schedule at every rate, against a reference in
+    128-bit integers (`cargo test --release` in `programs-v2/fee_proofs`, not run by pytest).
+
+  So the statement over every amount an order may hold is **verified per tier** except for that one bound at that
+  one rate in the first tier, and is **not verified** as a whole.
 - **The meter:** the fee of a month is the count beyond the free allowance times the rate, taken from prepaid
   Credits, and a batch that Credits cannot pay is refused whole
   (`test_the_first_ten_thousand_evaluations_of_a_month_are_free_and_credits_never_go_below_zero` in
@@ -346,3 +364,25 @@ Every row above names a test. What those tests leave out, said once more in one 
 - Invariant 6: `RefundOrder` on the deployed bytes, in a drill.
 - Invariant 7: two relayers racing against a running validator.
 - The machine: standing orders, kill fees, assigned payments, a second relayer and a second mint.
+
+## What an opponent would try, replayed against the built programs
+
+[`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) replays, in LiteSVM
+against the test builds in `tests/fixtures`, the transactions `scripts/adversarial_vectors.py` records
+(`cargo test --release --test adversarial` in `programs-v2/handlers`; not run by pytest): an order's address funded
+again after a payment and after a refund (invariants 2, 3); the second before, at and after a deadline, the end of a
+hold and the end of a warranty (5, 6); a payment and a refund, a settlement and a refund, a release and a challenge
+in one transaction in both orders and in two (5); one token twice in one transaction, in two, and a meter's token
+shown to `PayOrder` and a payment's to the meter (3, 4); one judge alone under a quorum of 2 and of 3.
+
+Two of its tests are ignored because the program, as built, does what they say it should not. Neither is fixed in
+this release:
+
+- **One account can be two judges of a wallet's order.** Under a quorum of 2, the account that starts the run in the
+  order's repository can also start the neutral run in another repository, and the order is paid. A neutral run by
+  the funder or the owner is refused only on a Balance's order; judges are told apart by where a run was, not by who
+  started it (`finding_one_account_that_starts_both_runs_is_one_judge_not_two`).
+- **A judge's marker outlives its order by a second.** An order with a quorum of 2 that is paid and funded again at
+  the same address within the same second of the chain's clock takes the first order's marker for its own, and one
+  new token for the same work then pays it
+  (`finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second`).

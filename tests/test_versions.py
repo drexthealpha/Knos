@@ -79,6 +79,15 @@ def test_a_release_that_changes_no_program_leaves_every_program_crate_where_its_
     assert ("programs-v2/handlers/Cargo.toml", b.project()) in {(rel, got) for rel, _l, got in b.places()}
 
 
+def test_the_example_that_builds_against_a_tag_keeps_a_tag_that_exists():
+    """examples/reader_template takes the interface crate from GitHub by tag, and its lock holds that tag's commit. A
+    release's own tag exists only after the push, so no bump moves this one: it is the tag the frozen crate was made at."""
+    here = ROOT / "examples" / "reader_template"
+    [tag] = re.findall(r'git = "https://github.com/drexthealpha/Knos", tag = "v(\d+\.\d+\.\d+)"', (here / "Cargo.toml").read_text(encoding="utf-8"))
+    assert tag == b.FROZEN_AT and f"Knos?tag=v{tag}#" in (here / "Cargo.lock").read_text(encoding="utf-8")
+    assert not [rel for rel in b.found()[0] if rel.startswith("examples/reader_template/")]
+
+
 def test_a_bump_holds_the_frozen_crates_puts_back_one_that_was_moved_and_check_names_it(tmp_path):
     if not b.PROGRAMS_FROZEN:
         pytest.skip("no program crate is frozen in this release")

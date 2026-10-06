@@ -64,7 +64,7 @@ def test_node(tmp_path):
     exits = judge.judge(v["base"], v["exits"], CFG, cache=cache)       # exiting 0 before any test is not a pass
     assert not exits["passed"] and any("did not run" in r or "no test ran" in r for r in exits["reasons"]), exits
     edits = judge.judge(v["base"], v["edits"], CFG, cache=cache)
-    assert edits["reasons"] == ["touches protected path test/add.test.js"]
+    assert edits["reasons"] == ["touches protected path test/add.test.js: an existing protected test was edited; a new test file beside it is allowed"] and edits["verdict"] == "rejected"
 
 
 GO = {
@@ -89,7 +89,9 @@ def test_go(tmp_path):
     wrong = judge.judge(v["base"], v["wrong"], CFG, cache=cache)
     assert not wrong["passed"] and "TestMul" in wrong["reasons"][0]
     touched = judge.judge(v["base"], v["good"], CFG, changed=["w.go", "w_test.go"], cache=cache)
-    assert touched["reasons"] == ["touches protected path w_test.go"]
+    assert touched["reasons"] == ["touches protected path w_test.go: an existing protected test was edited; a new test file beside it is allowed"]
+    kinds = judge.classify(v["base"], v["good"], ["w.go", "more_test.go"], CFG, "go", [])     # a new test file: no authority
+    assert kinds == {"refused": [], "contributor": ["more_test.go"], "config": []}
 
 
 RUST = {
@@ -141,8 +143,9 @@ def test_ruby(tmp_path):
     forges = judge.judge(v["base"], v["forges"], CFG, cache=cache)       # printing a passing report is not one
     assert not forges["passed"], forges["reasons"]
     edits = judge.judge(v["base"], v["edits"], CFG, cache=cache)
-    assert edits["reasons"] == ["touches protected path test/test_add.rb"]
-    assert judge.judge(v["base"], v["rake"], CFG, cache=cache)["reasons"] == ["touches protected path Rakefile"]
+    assert edits["reasons"] == ["touches protected path test/test_add.rb: an existing protected test was edited; a new test file beside it is allowed"]
+    rake = judge.judge(v["base"], v["rake"], CFG, cache=cache)      # the run takes the Rakefile from the base: not counted
+    assert rake["passed"] and rake["notes"] == ["test configuration: 1 file changed, not counted (the suite ran from the base's copy)"]
 
 
 def test_ruby_reads_a_report_written_with_windows_line_endings(tmp_path, monkeypatch):
@@ -218,7 +221,7 @@ def test_the_black_box_check_cannot_be_forged_from_inside(tmp_path):
     good = judge.judge(v["base"], v["good"], CFG)
     assert good["passed"] and good["evidence"]["runner"] == "blackbox", good["reasons"]
     assert not judge.judge(v["base"], v["forge"], CFG)["passed"]
-    assert judge.judge(v["base"], v["edits"], CFG)["reasons"] == ["touches protected path .knos/acceptance/7/blackbox.py"]
+    assert judge.judge(v["base"], v["edits"], CFG)["reasons"] == ["touches protected path .knos/acceptance/7/blackbox.py: the terms and the acceptance bundle are fixed at funding"]
 
 
 def test_a_suites_last_words_are_one_bounded_line_of_plain_text():

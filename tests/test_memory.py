@@ -47,6 +47,26 @@ def test_what_the_judge_learned_is_exported_as_json_lines_and_loaded_once(tmp_pa
     assert history.import_lessons(b, "") == 0 == history.import_lessons(b, None) == history.import_lessons(b, [])
 
 
+def test_a_load_of_lessons_releases_sibyls_connection_once_and_not_after_each_lesson(tmp_path, monkeypatch):
+    """Each release closes Sibyl's connection and the next call opens it again: seconds a call on a slow disk, so a
+    knos-memory issue of a few dozen lessons took `knos preflight --issue` minutes. A load is one batch."""
+    rows = history.lessons(learned(tmp_path))
+    store = history.SibylStore.local(tmp_path / "b")
+    storage, closed = store.client.storage, []
+    close = storage.close
+    monkeypatch.setattr(storage, "close", lambda: (closed.append(1), close())[1])
+    assert history.import_lessons(store, rows * 4) == len(rows) * 4 and len(closed) == 1
+    assert len(store.all("tamper")) == 1 and len(closed) == 2               # a call outside a batch releases at once
+    with store.held():
+        with store.held():
+            store.all("tamper")
+        store.put("proof_rule", "ef" * 12, {"when": "release", "require": "ci", "because": "x"})
+        assert len(closed) == 2                                             # nested: open until the outer batch ends
+    assert len(closed) == 3 and len(store.all("proof_rule")) == 3
+    with history.NullStore().held() as none:
+        assert history.import_lessons(none, rows) == len(rows) and none.all("tamper") == []
+
+
 def test_a_contributing_rule_is_never_a_lesson_and_a_rule_a_rejection_taught_is(tmp_path):
     base = tmp_path / "base"
     base.mkdir()

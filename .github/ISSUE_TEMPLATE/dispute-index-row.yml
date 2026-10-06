@@ -1,0 +1,64 @@
+name: Dispute a row
+description: Say that a row of the Agent PR Index counts pull requests wrongly, and show why.
+title: "Dispute a row: "
+labels: ["index-dispute"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Anyone can dispute a row: a vendor, a maintainer, a reader. It costs nothing, and no payment changes a row.
+        The dispute is public. It is listed in `docs/index_disputes.json`, and the row carries a mark while it is open.
+        The method and its limits are in [docs/INDEX.md](https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md).
+  - type: input
+    id: agent
+    attributes:
+      label: Which agent
+      description: The row's name as the table writes it (for example `copilot`).
+    validations:
+      required: true
+  - type: input
+    id: week
+    attributes:
+      label: Which week
+      description: The Monday in the table's title (for example `2026-09-28`). Leave empty when it is every week.
+    validations:
+      required: false
+  - type: textarea
+    id: prs
+    attributes:
+      label: Which pull requests are misclassified
+      description: One a line, as `owner/repository#number`. Say for each what the index counted and what it should have counted.
+      placeholder: |
+        acme/widgets#412: counted as "failed a check"; the failed check is a deploy preview that fails on every pull request
+        acme/widgets#431: counted for this agent; a person opened it and pasted the tool's line
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong
+      multiple: true
+      options:
+        - It is not this agent's pull request
+        - The description does not claim passing tests
+        - The check that failed tests nothing (a preview, a label gate, a scanner)
+        - The check was failing before the pull request
+        - The check was run again and passed
+        - The pull request was not merged, or was counted twice
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Links anyone can open (the check run, the commit, the pull request). A screenshot alone is not enough.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What the row should say
+      description: The counts you expect, when you have worked them out.
+    validations:
+      required: false

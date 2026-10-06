@@ -39,16 +39,60 @@ export function badgeTitle(d) {
   return `Paid on proof: ${n} payment${s(n)} in ${d.money} for pull requests to ${d.repo}, as of ${d.as_of} (UTC). Each was made after the checks its funder named passed at the merge. This is a count of payments, not a score of the work.`;
 }
 
-export function badgeSvg(d) {
-  const msg = badgeMessage(d), m = MARK.width + 7, a = width(LABEL) + m, b = width(msg);      // the mark, 5 from the edge and 2 before the words
-  const colour = d.money === TEST ? "#57606a" : "#1a7f37";       // test money is grey; green is kept for real money
+function draw(label, msg, tip, colour) {
+  const m = MARK.width + 7, a = width(label) + m, b = width(msg);      // the mark, 5 from the edge and 2 before the words
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${a + b}" height="20" viewBox="0 0 ${a + b} 20" role="img" `
-    + `aria-label="${esc(LABEL)}: ${esc(msg)}"><title>${esc(badgeTitle(d))}</title>`
+    + `aria-label="${esc(label)}: ${esc(msg)}"><title>${esc(tip)}</title>`
     + `<rect width="${a}" height="20" fill="#24292f"/><rect x="${a}" width="${b}" height="20" fill="${colour}"/>`
     + `<g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle">`
     + `<path fill-rule="evenodd" transform="${MARK.transform}" d="${MARK.d}"/>`
-    + `<text x="${(a + m) / 2}" y="14" textLength="${a - m - 12}">${esc(LABEL)}</text>`
+    + `<text x="${(a + m) / 2}" y="14" textLength="${a - m - 12}">${esc(label)}</text>`
     + `<text x="${a + b / 2}" y="14" textLength="${b - 12}">${esc(msg)}</text></g></svg>\n`;
+}
+
+export function badgeSvg(d) {
+  return draw(LABEL, badgeMessage(d), badgeTitle(d), d.money === TEST ? "#57606a" : "#1a7f37");      // test money is grey; green is kept for real money
+}
+
+// ---- the "Knos-verified" badge -----------------------------------------------------------------------------------------
+// v is what src/knos/badge.py `verified(receipt)` returned: { issued, verdict, words, why, digest, pull_request, commit,
+// evidence: [{ what, url }], note }. That function runs every rule of the receipt (knos.receipt.check); this file does
+// not repeat them. What it does itself: it draws nothing unless v says issued and accepted, and, given the receipt,
+// it hashes it again and draws nothing unless the digest is the one v names.
+export const VERIFIED_LABEL = "Knos-verified";
+export const NOT_FOR_SALE = "This badge is issued only from a receipt that checks. It cannot be bought, and the party it is about never pays for it.";
+
+// The bytes a receipt's digest is taken over: keys sorted, no white space (knos.receipt.canonical).
+export function canonical(x) {
+  if (Array.isArray(x)) return `[${x.map(canonical).join(",")}]`;
+  if (x && typeof x === "object") return `{${Object.keys(x).sort().map((k) => `${JSON.stringify(k)}:${canonical(x[k])}`).join(",")}}`;
+  return JSON.stringify(x);
+}
+export async function receiptDigest(receipt) {
+  const h = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(receipt)));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+export const verifiedIssued = (v) => Boolean(v) && v.issued === true && v.verdict === "accepted" && /^[0-9a-f]{64}$/.test(v.digest || "");
+export const verifiedMessage = (v) => `${v.pull_request ? `#${v.pull_request}` : String(v.commit || "").slice(0, 12)}: ${v.words}, receipt ${String(v.digest).slice(0, 12)}`;
+
+export function verifiedSvg(v) {
+  if (!verifiedIssued(v)) throw new Error(`no badge: ${(v && (v.why || v.words)) || "no receipt that checks"}`);
+  const tip = `Knos-verified: the acceptance receipt ${v.digest} checks and its verdict is accepted. It says the agreed checks passed, not that the work is good. ${NOT_FOR_SALE}`;
+  return draw(VERIFIED_LABEL, verifiedMessage(v), tip, "#1a7f37");
+}
+
+// The badge with its evidence under it, or one line saying why there is none. `receipt` (optional): hashed again here.
+export async function renderVerified(el, v, receipt = null) {
+  const same = !receipt || (verifiedIssued(v) && await receiptDigest(receipt) === v.digest);
+  if (!verifiedIssued(v) || !same) {
+    const why = !same ? "the receipt does not hash to the digest the badge names" : (v && (v.why || v.words)) || "no receipt that checks";
+    el.innerHTML = `<p class="fine" data-verified="no">No badge: ${esc(why)}.</p>`;
+    return el;
+  }
+  const links = (v.evidence || []).filter((e) => /^https:\/\//.test(e.url)).map((e) => `<a href="${esc(e.url)}">${esc(e.what)}</a>`).join(", ");
+  el.innerHTML = `<span class="paid-badge" data-verified="yes">${verifiedSvg(v).trim()}</span>
+    <p class="fine">Receipt <code>${esc(v.digest)}</code>. ${links ? `Evidence: ${links}. ` : ""}${esc(NOT_FOR_SALE)}</p>`;
+  return el;
 }
 
 // The repository's record on the site: every payment for it, each with its transaction.

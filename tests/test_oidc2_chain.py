@@ -860,8 +860,25 @@ def test_only_the_guardian_approves_and_revokes_and_it_can_do_nothing_else():
     url = "https://oidc.ci.example.dev"
     g = oidc.register_issuer_key_ix(GUARDIAN.pubkey(), url, other, tok, oidc.key_pda(GH, modulus(signing_key())))
     assert not c.send([g], payer=GUARDIAN) and code(c) == 73 and c.key(url, other) is None
-    # and there is no instruction after RegisterPrivateKey
-    for tag in range(10, 256):
+    # 10 to 15 are the same six rules for a P-256 key (programs-v2/knos_oidc/src/es256.rs; their own tests are
+    # programs-v2/handlers/tests/knos_oidc_es256.rs). They give the guardian nothing over an RSA key or a token account:
+    # the two that are its own (13 approves, 14 revokes) take a P-256 key account and refuse any other (81, and 79
+    # from the one a registrant may also send); the other four take other accounts than its two (67), and of those
+    # the two that add or renew a key GitHub named take GitHub's signature, as 3 and 5 do
+    refused = {10: 67, 11: 67, 12: 67, 13: 81, 14: 79, 15: 67}
+    for tag, why in refused.items():
+        for account in (kp, tok):
+            ix = Instruction(oidc.OIDC_ID, bytes([tag]), [AccountMeta(GUARDIAN.pubkey(), True, True), AccountMeta(account, False, True)])
+            assert not c.send([ix], signers=[GUARDIAN]) and code(c) == why, (tag, c.err)
+    # the guardian's two take no data there either, and a stranger sends neither
+    for tag in (13, 14):
+        ix = Instruction(oidc.OIDC_ID, bytes([tag, 1]), [AccountMeta(GUARDIAN.pubkey(), True, True), AccountMeta(kp, False, True)])
+        assert not c.send([ix], signers=[GUARDIAN]) and "InvalidInstructionData" in c.err
+        ix = Instruction(oidc.OIDC_ID, bytes([tag]), [AccountMeta(stranger.pubkey(), True, True), AccountMeta(kp, False, True)])
+        assert not c.send([ix], signers=[stranger]) and code(c) == 79
+    assert c.data(tok) == before and c.key(GH, n) == k
+    # and there is no instruction after VerifyEs256
+    for tag in range(16, 256):
         ix = Instruction(oidc.OIDC_ID, bytes([tag]), [AccountMeta(GUARDIAN.pubkey(), True, True), AccountMeta(kp, False, True)])
         assert not c.send([ix], signers=[GUARDIAN]) and "InvalidInstructionData" in c.err
     # approving changes the approval and nothing else; the day still has to pass

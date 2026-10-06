@@ -426,7 +426,7 @@ def test_the_page_about_the_relay_states_the_relays_own_constants():
     assert "none on devnet" in doc                                    # what is not done is said
     # the five states: one table, in order, each with where its timestamp is taken from; and the constants the page names
     from knos import flow
-    table = doc.split("## The five states of a payment")[1].split("## Where a token waits")[0]
+    table = doc.split("## The five states of a payment")[1].split("## Where a token waits")[0].split("\n## ")[0]     # the queue's section follows it
     rows = [ln for ln in table.splitlines() if ln.startswith("| `")]
     assert [ln.split("`")[1] for ln in rows] == list(flow.STATES) == ["received", "accepted", "submitted", "confirmed", "finalized"]
     assert all(len(ln.split(" | ")) == 4 for ln in rows) and "Its timestamp is taken from" in table and "GitHub's: starting a runner" in table

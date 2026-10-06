@@ -143,3 +143,44 @@ def test_the_five_states_cover_every_payment_whose_line_has_its_times_and_the_ot
     line = ghrelay.log_line("proof", "o/r", 9, "a.b.c", {"ok": True, "sigs": ["s"], "note": "paid sent_at=1 to W"}, 12, {"wait": 3, "chain": 9},
                             {"queued_at": 100.0, "seen_at": 103.0, "sent_at": 104.25, "confirmed_at": None})
     assert ls.times_of([{"body": line}]) == {ghrelay.token_id("a.b.c"): {"queued_at": 100.0, "seen_at": 103.0, "sent_at": 104.2, "confirmed_at": None}}
+
+
+def test_the_six_stages_are_one_table_and_a_stage_nobody_recorded_says_so_never_a_figure():
+    doc, get, when = sample()
+    r = ls.report(doc["comments"], doc["events"], get, when)
+    assert [row["stage"] for row in r["six"]] == ["workflow scheduling", "evaluation", "relay pickup", "submission", "confirmation", "finality"]
+    by = {row["stage"]: row for row in r["six"]}
+    assert (by["workflow scheduling"]["n"], by["workflow scheduling"]["p50"], by["workflow scheduling"]["p95"]) == (9, 4, 1182)
+    assert (by["relay pickup"]["n"], by["relay pickup"]["p50"], by["relay pickup"]["p95"]) == (9, 3, 41)
+    assert by["finality"] == {"stage": "finality", "n": 0, "p50": None, "p95": None, "what": "the last confirmation to the cluster finalizing it"}
+    table = ls.table(r["six"], r["whole"])
+    assert table[0] == "| stage | from, to | n | p50 | p95 |"
+    assert table[2] == "| merge to paid, the whole wait | GitHub's `merged_at` to the block that paid | 9 | 68 s | 1210 s |"
+    assert table[5] == "| relay pickup | the token's comment to a relay taking it up | 9 | 3 s | 41 s |"
+    assert table[-1] == "| finality | the last confirmation to the cluster finalizing it | not recorded | not recorded | not recorded |"
+    # without block times submission and confirmation were not recorded either, and say so: `chain` is not split to fill them
+    bare = ls.table(ls.report(doc["comments"], doc["events"], get)["six"])
+    assert [ln.count("not recorded") for ln in bare[2:]] == [0, 0, 0, 3, 3, 3]
+    # with nothing timed at all, every cell says so
+    assert all(ln.count("not recorded") == 3 for ln in ls.table(ls.report(doc["comments"], doc["events"])["six"])[2:])
+    # the page's table is this function's, on the figures docs/bench.json keeps, and its finality row is not a guess
+    page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
+    kept = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))["relay"]["stages"]
+    bench = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["release"]
+    assert all(line in page for line in ls.table(kept["six"], kept["whole"]))
+    assert "| finality | the last confirmation to the cluster finalizing it | not recorded | not recorded | not recorded |" in page
+    for row, key in zip(kept["six"], ("runner_queue", "workflow", "relay_wait", "first_send", "confirm")):
+        assert (row["n"], row["p50"], row["p95"]) == tuple(bench[f"stage_{key}_{stat}"]["value"] for stat in ("payments", "median", "ninety_fifth")), row
+    whole = (kept["whole"]["n"], kept["whole"]["p50"], kept["whole"]["p95"])
+    assert whole == tuple(bench[f"stage_whole_{stat}"]["value"] for stat in ("payments", "median", "ninety_fifth")) == (41, 25, 58)
+
+
+def test_the_command_prints_the_six_stages_alone_as_markdown(tmp_path):
+    doc, _get, _when = sample()
+    log, events = tmp_path / "log.json", tmp_path / "events.json"
+    log.write_text(json.dumps({"comments": doc["comments"]}), encoding="utf-8")
+    events.write_text(json.dumps(doc["events"]), encoding="utf-8")
+    said: list[str] = []
+    assert ls.main(["--log", str(log), "--events", str(events), "--offline", "--md"], said.append) == 0
+    assert len(said) == 9 and said[0].startswith("| stage |") and all(ln.startswith("| ") for ln in said)
+    assert said[2] == "| merge to paid, the whole wait | GitHub's `merged_at` to the block that paid | not recorded | not recorded | not recorded |"     # offline: no merge time, so nothing was timed

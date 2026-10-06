@@ -27,11 +27,34 @@ name: always-on worker
 # `uv pip install --require-hashes`): a package released after the list was written cannot reach this key. The one
 # cache step below keeps the relay's own notes (the repositories it found tokens in), which are read as data and
 # never run.
+#
+# BESIDE THE TIMER, THE EVENT (job `event`). The chain of runs above finds a token by reading comments, a pass every 3 s.
+# Two things it cannot bound: a token posted while no run relays (the chain stopped; the timer restarts it within 5
+# minutes, later when GitHub is busy), and a repository it has not seen yet (found by GitHub's comment search). So the
+# event that posts a token may also start a run of this workflow that carries exactly that token and ends:
+#   repository_dispatch, type knos-token   client_payload {"repo": "owner/name", "number": 12}: whoever holds a token
+#                                          that may write this repository's contents says where a token was posted.
+#   workflow_run, completed                a run of this repository's own `knos` workflow ended: its pull requests'
+#                                          comments are read (GitHub sends this event only for workflows of the
+#                                          repository the file is in, and only from the default branch's copy).
+# An event run reads the comments the event names, queues what it finds and carries it with 4 workers
+# (knos.settle.v2.relayq). It keeps no notes, saves no cache and starts no run: it is not part of the chain, and the
+# chain's first step does not count it. The chain is the sweep: it carries what no event announced, and what an event
+# run did not finish. Both may send the same token; the chain takes it once (docs/RELAY.md, "Events, a queue, workers").
+# What the event does NOT shorten: a run takes GitHub's time to start plus this job's install (10 to 21 s were seen),
+# so while the chain relays, its 3 s pass is there first. The event is for the two cases above.
+#
 # Each run's title names the run it takes over from, so that the first step of the next one can tell the chain's runs apart.
-run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || 'relay' }}
+# An event run is titled "relay for ...", which no step of the chain counts.
+run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || 'relay' }}
 on:
   schedule:
     - cron: "*/5 * * * *"
+  repository_dispatch:
+    types: [knos-token]
+  workflow_run:
+    workflows: [knos]
+    types: [completed]
   workflow_dispatch:
     inputs:
       after:
@@ -48,6 +71,7 @@ permissions:
 
 jobs:
   relay:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20     # 5 to relay; up to 10 more only in the first run after a release (the install step)
     env:
@@ -88,7 +112,7 @@ jobs:
             fi
             exit 0
           fi
-          others=$(printf '%s' "$runs" | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and .status != "completed")] | length') || others=""
+          others=$(printf '%s' "$runs" | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and .status != "completed" and ((.displayTitle // "") | startswith("relay for ") | not))] | length') || others=""
           if [ "$others" = "0" ]; then
             echo "go=true" >> "$GITHUB_OUTPUT"
           else
@@ -182,3 +206,46 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: '[ -f "$RUNNER_TEMP/knos-next" ] || gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID"'
+
+  # One event, one run: the tokens the event names, and nothing else. The same install as the chain's, by hash; no
+  # cache of any kind (this job sees the fee key); nothing of the event is ever run, and none of it reaches a shell:
+  # the relay reads the event's file as data, and takes a repository's name and a number from it.
+  event:
+    if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15     # a minute to carry; up to 10 more only in the first run after a release (the install step)
+    env:
+      KNOS_HOME: ${{ github.workspace }}/.knos-event-home
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      - name: install what the relay needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          release=$(sed -n '$s/^knos==\([0-9][0-9.]*\) --hash=sha256:[0-9a-f]*$/\1/p' requirements/sign.txt)
+          for nap in 15 30 60 120 180 195 end; do
+            uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
+            cat "$RUNNER_TEMP/install.err" >&2
+            [ "$nap" != end ] && [ -n "$release" ] && grep -Fq "no version of knos==$release " "$RUNNER_TEMP/install.err" || exit 1
+            echo "PyPI's index does not list knos $release yet: asking again in $nap s."
+            sleep "$nap"
+          done
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: the queue starts with what was installed
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m knos.settle.v2.relayq --help
+      - name: carry what this event names, 4 at a time
+        env:
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          KNOS_RELAY_LOG_REPO: ${{ github.repository }}
+          KNOS_RELAY_WORKERS: "4"
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
+          python -m knos.settle.v2.relayq --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"

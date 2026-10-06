@@ -273,7 +273,7 @@ _TIME = re.compile(r"\b(20\d\d-\d\d-\d\d)(?:[ T]| at )(\d\d:\d\d)|\b(\d{1,2}) (O
 _DAY = re.compile(r"(?:execut\w*|can run|could run|runs?|goes? live|is live|eligible|pending)\b[^.;|]{0,60}?\b(?:on|from|until|after|before|by) "
                   r"(?:(20\d\d-\d\d-\d\d)|(\d{1,2}) (Oct)(?:ober)?)\b(?![ T,]? ?(?:at )?\d\d:\d\d)")
 _UPGRADE = re.compile(r"upgrade|proposal|proposed|approved|time lock|multisig|timer|execut", re.I)
-_FEE_MAX = re.compile(r"(?:at most|max(?:imum)?(?: of)?|capped at|up to) 25(?:\.00)?\b(?! ?%)|\(capped\)|fee (?:is )?capped|fee cap\b", re.I)
+_FEE_MAX = re.compile(r"(?:at most|max(?:imum)?(?: of)?|capped at|up to) 25(?:\.00)?\b(?! ?%|,\d)|\(capped\)|fee (?:is )?capped|fee cap\b", re.I)
 _OLD_LIMIT = re.compile(r"\b500(?:\.00)? (?:test )?USDC\b|\b(?:and|to|most|than|of) 500\b(?!,| USD\b| an? (?:hour|minute|second|day)\b| requests?\b)|\bcap\w*\b[^.;|]{0,30}?\b500\b(?!,)", re.I)
 _SUPERSEDED = re.compile(r"no maximum|replaced|before 0\.3\.14|until 0\.3\.14|first deployment|built before|100,000|newest 500", re.I)
 _BLANKET = re.compile(r"tested locally[^.;|]{0,60}?not (?:yet )?(?:on devnet|deployed)|tested locally and waiting for an upgrade|"

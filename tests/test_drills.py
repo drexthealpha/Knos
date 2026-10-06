@@ -115,7 +115,7 @@ def test_every_drill_that_needs_no_token_passes_and_the_table_says_what_was_not_
     for name, how, _needs, _f in drills.DRILLS:
         assert f"| {name} | {how} |" in doc
     assert all(got[name].startswith("not run: bash scripts/drill_upgrade.sh runs it") for name in drills.UPGRADE)
-    assert "6 of 14 rows passed, 0 failed, 8 were not run." in doc and "python scripts/drills.py --rpc http://cluster\n" in doc
+    assert "6 of 15 rows passed, 0 failed, 9 were not run." in doc and "python scripts/drills.py --rpc http://cluster\n" in doc
     assert doc.count("authority simulated") >= 4 and "held state written" in doc
     # a row that was not run is a failure only when the caller says every row must run
     assert drills.main(["--rpc", "http://cluster", "--out", str(out), "--now", str(NOW), "--strict"], Rpc(), said.append) == 1
@@ -131,13 +131,14 @@ def test_with_a_token_file_and_the_upgrade_drills_log_every_row_runs(tmp_path, w
     said.clear()
     assert drills.main([*args, "--upgrade-log", str(log)], Rpc(), said.append) == 0, said
     got = results(said)
-    assert list(got.values()) == ["pass"] * 14, got
+    assert [r for name, r in got.items() if name != "second operator"] == ["pass"] * 14, got
+    assert got["second operator"].startswith("not run: not yet run by a second person")     # no script runs it, and --strict does not ask for it
     line = next(s for s in said if s.startswith("a payment "))
     assert ("4.875 to the wallet the proof names and 0.125 to the fee account" in line) if wallet else (f"held for GitHub user {PAYEE}" in line)
     replay = next(s for s in said if s.startswith("a replay is refused "))
     assert "the pay token again: error 8" in replay and "the fund token again: error 91" in replay and "no money moved" in replay
     doc = out.read_text(encoding="utf-8")
-    assert "14 of 14 rows passed, 0 failed, 0 were not run." in doc and f"This run read 3 tokens from `{tokens}`." in doc
+    assert "14 of 15 rows passed, 0 failed, 1 were not run." in doc and f"This run read 3 tokens from `{tokens}`." in doc
     assert f"| a cancelled upgrade never runs | {drills.VOTED} | proposal 3 of the upgrade multisig | pass |" in doc
     assert f"python scripts/drills.py --rpc http://cluster --tokens {tokens} --upgrade-log {log}\n" in doc and f"KNOS_DRILL_LOG={log} bash scripts/drill_upgrade.sh --from-devnet\n" in doc
 
@@ -153,7 +154,7 @@ def test_a_row_that_fails_carries_the_exact_error_and_the_run_exits_1(tmp_path):
     assert got["a payment"] == "FAIL: the pay token of octo/widgets was refused: the signature is not the issuer's"
     assert got["a replay is refused"].startswith("FAIL: ") and got["a key is refreshed"] == "pass" and got["a token under a revoked key is refused"] == "pass"
     assert "| a payment | real GitHub tokens |  | FAIL: the pay token of octo/widgets was refused: the signature is not the issuer's |" in out.read_text(encoding="utf-8")
-    assert said[-1].startswith("8 passed, 2 failed, 4 not run")
+    assert said[-1].startswith("8 passed, 2 failed, 5 not run")
 
 
 def test_the_upgrade_drills_log_is_read_line_by_line_and_a_step_it_lacks_was_not_run(tmp_path):
@@ -196,7 +197,10 @@ def test_the_committed_table_has_a_row_for_every_drill_and_none_of_them_failed()
     rows = {line.split(" | ")[0][2:]: line for line in doc.splitlines() if line.startswith("| ") and line.count(" | ") == 3}
     assert [name for name in [n for n, *_ in drills.DRILLS] + list(drills.UPGRADE) if name not in rows] == []
     assert not [line for line in rows.values() if "FAIL" in line]
-    assert all(rows[name].endswith("| pass |") for name, _how, needs, _f in drills.DRILLS if not needs)
+    assert all(rows[name].endswith("| pass |") for name, how, needs, _f in drills.DRILLS if not needs and how != drills.PERSON)
+    # the one row no script runs: a second person's, and it says nobody has run it
+    assert [name for name, how, *_ in drills.DRILLS if how == drills.PERSON] == ["second operator"]
+    assert "| not run: not yet run by a second person" in rows["second operator"] and "## The drill: `second operator`" in (docs / "OPERATOR.md").read_text(encoding="utf-8")
     for p in BUILDS:
         assert pay.IDS[p] in doc
     logged = drills.upgrade_rows(docs / "drill_upgrade.log", lambda _line: None)
@@ -207,11 +211,12 @@ def test_the_committed_table_has_a_row_for_every_drill_and_none_of_them_failed()
 def test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took():
     said: list[str] = []
     rows = drills.dependency_rows(said.append)
-    assert [r.name for r in rows] == [name for name, _f in drills.DEPENDENCIES] and len(rows) == 6
-    assert [r.result for r in rows] == ["pass"] * 6, [(r.name, r.result) for r in rows]
+    assert [r.name for r in rows] == [name for name, _f in drills.DEPENDENCIES] and len(rows) == 7
+    assert [r.result for r in rows] == ["pass"] * 7, [(r.name, r.result) for r in rows]
     assert all(r.broken and r.sees and r.recovers and " s" in r.seconds for r in rows)
     assert said == [f"when {r.name}: {r.seconds}: pass" for r in rows]
-    github, key, killed, rpc, evidence, reset = rows
+    github, key, killed, rpc, evidence, reset, restored = rows
+    assert "1 of 1 bundle restored byte for byte from the export alone" in restored.seconds and "knos vault restore" in restored.recovers
     assert "all 3 paid on the first pass after GitHub answered, 3 s later (603 s after their comments); none paid twice" in github.seconds and "502 for 600 s" in github.broken
     assert "(no transaction was sent)" in key.sees and "this signing key expired" in key.sees and key.seconds.startswith("paid 121 s after the key expired")
     assert killed.seconds == "answered 3 s after the kill (3 s of passes); the payee holds 4.875 once, after two sends of the same token"
@@ -227,9 +232,9 @@ def test_the_dependency_section_is_in_the_page_replaced_alone_and_a_row_that_fai
     doc = out.read_text(encoding="utf-8")
     section = drills.dependency_section(drills.dependency_rows(lambda _line: None))
     assert section in doc and doc.index("## The drills") < doc.index(drills.HEADING) < doc.index("## Reproduce") < doc.index("## Recovery a funder can run")
-    assert "6 of 6 rows passed, 0 failed, 0 were not run." in section and "6 of 14 rows passed, 0 failed, 8 were not run." in doc     # the two counts stay apart
+    assert "7 of 7 rows passed, 0 failed, 0 were not run." in section and "6 of 15 rows passed, 0 failed, 9 were not run." in doc     # the two counts stay apart
     assert "| Failure | What was broken | What the customer sees | How it recovers | Measured recovery, simulated seconds | Result |" in section
-    assert said[-2] == "when a dependency fails: 6 passed, 0 failed, 0 not run"
+    assert said[-2] == "when a dependency fails: 7 passed, 0 failed, 0 not run"
     # alone: no cluster is read, and the page is the same; a page that has no such section yet gets it before "Reproduce"
     assert drills.main(["--out", str(out), "--dependencies-only"], None, said.append) == 0 and out.read_text(encoding="utf-8") == doc
     start, end = doc.index(drills.HEADING), doc.index("## Reproduce")

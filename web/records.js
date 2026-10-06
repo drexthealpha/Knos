@@ -197,7 +197,7 @@ export function initRecords(ctx) {
       if (!r) { box.innerHTML = `<p class="fine">This site has no records.json yet, so there is no one to list.</p>`; return; }
       const list = (items, hash) => (items.length ? `<ul class="inline">${items.map((x) => `<li><a href="#${hash}=${x.split("/").map(encodeURIComponent).join("/")}">${esc(x)}</a></li>`).join("")}</ul>` : `<p class="fine">None yet.</p>`);
       box.innerHTML = `<h4>Accounts with a record (${r.accounts.length})</h4>${list(r.accounts, "u")}<h4>Repositories with a record (${r.repositories.length})</h4>${list(r.repositories, "r")}
-        <p class="fine">${r.unnamed_accounts ? `${esc(r.unnamed_accounts)} accounts and ` : "No accounts and "}${esc(r.unnamed_repositories)} repositories that GitHub did not name have no file: ${esc(r.note)}.</p>${sharedSource(esc, r, "records.json", "rec-index-source")}`;
+        <p class="fine">No file, unnamed by GitHub: ${esc(r.unnamed_accounts || 0)} accounts, ${esc(r.unnamed_repositories)} repositories.</p><details class="k-more"><summary>Why</summary><p class="fine">${esc(r.note)}.</p></details>${sharedSource(esc, r, "records.json", "rec-index-source")}`;
     } catch (e) { box.innerHTML = `<p class="status bad">${esc(e.message)}</p>`; }
   }
 

@@ -28,6 +28,11 @@ hold is printed as **MISSING** with the reason. Nothing is filled in.
 6. **Exercised scenario.** A transaction at the public id that used the build and succeeded, taken from
    [`docs/capabilities.json`](capabilities.json). A run on a staging deployment of the same build is not one.
 
+Each program's section opens with one table: the source commit, the verified build hash, the program id, the
+proposal's number, the slot in which the build went live at the public id, and the transactions that exercised it
+there. The last two are filled by `python scripts/exercise_public.py record`, and only for a program whose hash on
+chain is the proposal's build: until then they say so.
+
 What the chain does not show: that the build does what its source says (that is what the tests, the fuzzing and the
 proofs are for), or that anyone outside Knos has followed it. Everything here is devnet.
 
@@ -51,6 +56,10 @@ Public id `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W`. docs/capabilities.json
 
 What the public id ran when docs/provenance.json was read: `71f8fe068c94ce69262e7fa250f65fc149334d60f6742ad66ac6b91624c0d1df`; the commit and the run that built it are **MISSING**: upgrade_gate holds no build record for that hash, so nothing on chain ties that build to a commit.
 
+| source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
+|---|---|---|---|---|---|
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 3 | not live yet | none: the public id does not run this build yet |
+
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
@@ -68,6 +77,10 @@ Not complete: 2 of 7 links are MISSING (execution transaction, exercised scenari
 Public id `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k`. docs/capabilities.json records version 2.0 running there. The chain below is the build of proposal 4, knos_pay 2.1, which was approved and had not executed when web/upgrades.json was generated: the public id runs the older build until it does, and the live state is in web/upgrades.json. Release note: CHANGELOG.md, 0.3.14.
 
 What the public id ran when docs/provenance.json was read: `75d7eb959f75575f6816942ad18a97c93a01690782e2b82ce01d7823c94e0a69`; the commit and the run that built it are **MISSING**: upgrade_gate holds no build record for that hash, so nothing on chain ties that build to a commit.
+
+| source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
+|---|---|---|---|---|---|
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 4 | not live yet | none: the public id does not run this build yet |
 
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
@@ -87,6 +100,10 @@ Public id `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX`. docs/capabilities.json 
 
 What the public id ran when docs/provenance.json was read: `0253391fe7558df98e3f11d66f5902d2e4d7d0ae6606a3156ccadb61e93eacde`; upgrade_gate's record ties that build to commit `567fd12ca41af083f422b0e3f19e5c26cb8a3144` and run `37190964532`.
 
+| source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
+|---|---|---|---|---|---|
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 5 | not live yet | none: the public id does not run this build yet |
+
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
@@ -105,6 +122,10 @@ Public id `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85`. docs/capabilities.json
 
 What the public id ran when docs/provenance.json was read: `888d3b68d3f80d4e512f58cf566c0e0123f4e92eaccd59c507be8486b59c84d5`; upgrade_gate's record ties that build to commit `567fd12ca41af083f422b0e3f19e5c26cb8a3144` and run `37190964532`.
 
+| source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
+|---|---|---|---|---|---|
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 6 | not live yet | none: the public id does not run this build yet |
+
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
@@ -121,7 +142,9 @@ Not complete: 2 of 7 links are MISSING (execution transaction, exercised scenari
 
 ## Keeping it current
 
-The release runs `python scripts/provenance.py --rpc --record --write` after `scripts/upgrade_feed.py`: the first
+After the upgrade has executed, `python scripts/exercise_public.py run` exercises the builds at the public ids and
+`record` writes the slot each went live and the exercise transactions ([RELEASE.md](RELEASE.md), "After the upgrade
+executes"). The release runs `python scripts/provenance.py --rpc --record --write` after `scripts/upgrade_feed.py`: the first
 reads the cluster into `docs/provenance.json` with the time of the read, the second rewrites the block above. Between
 releases the block is as old as the reads it names. `python scripts/provenance.py --rpc` prints the live state
 without writing anything, and `--strict` exits 1 while any chain is incomplete.

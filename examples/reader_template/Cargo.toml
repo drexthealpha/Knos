@@ -1,0 +1,21 @@
+[package]
+name = "reader_template"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+description = "Template: a Solana program that does one thing only when knos-oidc verified that your CI workflow asked for it."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "=2.2.1"
+# The only thing taken from Knos: the published interface crate, by tag. It has no dependency of its own.
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }
+
+# A workspace of its own: copy this folder anywhere and it builds.
+[workspace]

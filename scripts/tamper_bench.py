@@ -5,6 +5,12 @@
     python scripts/tamper_bench.py --accept      # only the three non-code tasks (scripts/acceptance_examples.py), same
     python scripts/tamper_bench.py --escape      # only the five escapes from where the submission runs, same
     python scripts/tamper_bench.py --honest      # only the honest submissions (tests/bench_tamper/honest.py), same
+    python scripts/tamper_bench.py --honest --group slug|real|plain|rules [--task KEY]
+                                                 # one part of them (each under three minutes on a shared machine): its
+                                                 # rows are kept in docs/tamper_honest.json and the block is written from
+                                                 # that file, which a full --honest run replaces
+    python scripts/tamper_bench.py --slug        # only the 63 attacks on the three slugify repositories: rewrites their tables
+    python scripts/tamper_bench.py --allowed     # only the cheats aimed at what a pull request may add (attacks_allowed.py), same
 
 The samples (tests/bench_tamper/) are the same small project with the same bug, in Python (pytest), JavaScript
 (node:test) and Ruby (minitest), and each has its own 21 attacks: the same 21 ideas, each as that language's tools
@@ -25,6 +31,10 @@ apply (attacks_real.py), judged by CI green and by Knos's black box. And three t
 The honest set (tests/bench_tamper/honest.py) asks the opposite question of every task above: correct work written
 in other ways (another algorithm, another layout, slower, with checks of its own) goes through the same judges, and
 the report says how many each accepted and why each refused one was refused. A refused honest submission is a finding.
+
+Since 0.3.17 a pull request may add test files beside the protected tests: they are allowed and are not counted. The
+cheats of tests/bench_tamper/attacks_allowed.py attack exactly that (a test, a conftest.py, a plugin, a fixture, a
+start-up file that would decide if it were loaded), and the report says how many each judge accepted.
 
 Five escapes (ESCAPES) are not about the verdict: each is something a submission does to the machine that judges it,
 tried in each place a submission can run (the judge's machine with no sandbox, its sandbox, a container of a pinned
@@ -117,13 +127,16 @@ def one(sample: Sample, base: Path, tmp: Path, i: int, name: str, fn, cache: dic
     pr = tmp / f"pr{i}"
     shutil.copytree(base, pr)
     fn(pr)
-    green = ci_green(pr)
-    shutil.rmtree(pr / "__pycache__", ignore_errors=True)
+    ran = tmp / f"ci{i}"                 # CI runs the pull request's code, which may write to its own tree (one cheat
+    shutil.copytree(pr, ran)             # rewrites the acceptance tests while they run): the judges get the tree as sent
+    green = ci_green(ran)
+    shutil.rmtree(ran, ignore_errors=True)
     v = prove.judge(base, pr, {"issue": "1", "test_dirs": sample.test_dirs}, cache=cache)
-    out = {"name": name, "ci": green, "knos": v["passed"], "why": "; ".join(v["reasons"]) or "-", "box": None}
+    out = {"name": name, "ci": green, "knos": v["passed"], "why": "; ".join(v["reasons"]) or "-", "box": None,
+           "word": v["verdict"], "notes": v["notes"]}
     if BLACKBOX:
         b = prove.judge(base, pr, {"issue": "2", "test_dirs": sample.test_dirs}, cache=cache)
-        out.update({"box": b["passed"], "box_why": "; ".join(b["reasons"]) or "-"})
+        out.update({"box": b["passed"], "box_why": "; ".join(b["reasons"]) or "-", "box_word": b["verdict"], "notes": b["notes"]})
     return out
 
 
@@ -252,7 +265,8 @@ def one_real(task, base: Path, tmp: Path, i: int, name: str, fn, cache: dict) ->
     green = ci_green(pr)
     shutil.rmtree(pr / "__pycache__", ignore_errors=True)
     v = prove.judge(base, pr, {"issue": "1", "test_dirs": ["tests"]}, cache=cache)
-    return {"name": name, "ci": green, "box": v["passed"], "why": "; ".join(v["reasons"]) or "-"}
+    return {"name": name, "ci": green, "box": v["passed"], "why": "; ".join(v["reasons"]) or "-", "box_word": v["verdict"],
+            "notes": v["notes"]}
 
 
 def run_real(key: str, only: list[str] | None = None, delegate: bool = True) -> dict:
@@ -437,7 +451,7 @@ def run_honest(only: tuple = (), tasks: tuple = ()) -> list[dict]:
                 why = "; ".join(x for x in (None if got["knos"] else f"tests: {_stable(got['why'])}",
                                             None if got["box"] in (True, None) else f"black box: {got['box_why']}") if x)
                 rows.append({"group": "slug", "task": sample.title, "name": name, "ci": got["ci"], "knos": got["knos"],
-                             "box": got["box"], "why": why or "-"})
+                             "box": got["box"], "why": why or "-", "notes": got["notes"]})
     if not only or "real" in only:
         R, _ = _real_modules()
         for key, task in R.TASKS.items():
@@ -451,7 +465,8 @@ def run_honest(only: tuple = (), tasks: tuple = ()) -> list[dict]:
                 for i, (name, fn) in enumerate(H.REAL):
                     got = one_real(task, base, tmp, i, name, fn, cache)
                     rows.append({"group": "real", "task": key, "name": name, "ci": got["ci"], "knos": None,
-                                 "box": got["box"], "why": "-" if got["box"] else f"black box: {got['why']}"})
+                                 "box": got["box"], "why": "-" if got["box"] else f"black box: {got['why']}",
+                                 "notes": got["notes"]})
     if not only or "plain" in only:
         import acceptance_examples as ex
         for task, subs in H.PLAIN.items():
@@ -469,6 +484,88 @@ def run_honest(only: tuple = (), tasks: tuple = ()) -> list[dict]:
     return rows
 
 
+def run_rule_refused() -> list[dict]:
+    """Honest work that changes the authoritative suite itself (honest.RULE_REFUSED), on the Python sample: one row
+    each, as run_honest gives. They are refused by rule and are not in the honest count."""
+    H, sample = _honest(), SAMPLES["python"]
+    rows = []
+    with tempfile.TemporaryDirectory(prefix="knos-honest-") as t:
+        tmp = Path(t)
+        base = tmp / "base"
+        shutil.copytree(BENCH / sample.folder, base, ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+        cache: dict = {}
+        for i, (name, fn) in enumerate(H.RULE_REFUSED):
+            got = one(sample, base, tmp, i, name, fn, cache)
+            rows.append({"name": name, "ci": got["ci"], "knos": got["knos"], "box": got["box"],
+                         "why": got["box_why"] if got["box"] is False else _stable(got["why"])})
+    return rows
+
+
+ROWS = "tamper_honest.json"       # beside --out: the honest rows of the last runs, part by part
+HONEST_PARTS = ("slug", "real", "plain", "rules")
+
+
+def honest_rows(out: Path, group: str | None = None, tasks: tuple = ()) -> tuple[list[dict], list[dict], bool]:
+    """(rows, the rule-refused rows, whether every row is from this one run). With no `group` everything is run and
+    the rows file is replaced; with one, only that part (and `tasks` of it) is run and the rest is read from the file."""
+    import json
+    path = out.with_name(ROWS)
+    if group is None:
+        rows, ruled = run_honest(), run_rule_refused()
+    else:
+        kept = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {"rows": [], "ruled": []}
+        rows, ruled = kept["rows"], kept["ruled"]
+        if group == "rules":
+            ruled = run_rule_refused()
+        else:
+            new = run_honest((group,), tasks)
+            ran = {(r["group"], r["task"]) for r in new}
+            rows = [r for r in rows if (r["group"], r["task"]) not in ran] + new
+        order = {g: i for i, g in enumerate(HONEST_PARTS)}
+        rows.sort(key=lambda r: order[r["group"]])            # stable: the order inside a group is the run's own
+    was = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    path.write_text(json.dumps({**was, "rows": rows, "ruled": ruled}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return rows, ruled, group is None
+
+
+BLOCKS = (("slug", "the 63 attacks on slugify"), ("real", "the attacks on the six real tasks"),
+          ("accept", "the tasks that are not code"), ("allowed", "the cheats aimed at what a pull request may add"),
+          ("honest", "the honest submissions"), ("escape", "the escapes"))
+
+
+def judge_id() -> str:
+    """Which judge a block was measured with: the first 12 hex digits of the SHA-256 of src/knos/judge.py."""
+    import hashlib
+    return hashlib.sha256((ROOT / "src" / "knos" / "judge.py").read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:12]
+
+
+def measured(out: Path, ran: list[str]) -> list[str]:
+    """The block that says which parts of the page were measured with the judge as it is now: `ran` are recorded as
+    measured now (in the rows file), and every other part keeps the judge it was last measured with."""
+    import json
+    path = out.with_name(ROWS)
+    state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    now = judge_id()
+    state["measured"] = {**state.get("measured", {}), **{name: now for name in ran}}
+    path.write_text(json.dumps(state, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    fresh = [title for name, title in BLOCKS if state["measured"].get(name) == now]
+    stale = [title for name, title in BLOCKS if state["measured"].get(name) != now]
+    return ["<!-- measured:begin -->",
+            f"Measured with the judge as it is in this tree (src/knos/judge.py, SHA-256 {now}...): {_and(fresh) if fresh else 'nothing'}. "
+            + (f"Carried over from a run with an earlier judge, and to be measured again before a release: {_and(stale)}. "
+               if stale else "Nothing on this page is carried over from an earlier judge. ")
+            + "The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); "
+            "part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.",
+            "<!-- measured:end -->"]
+
+
+def place_measured(doc: str, lines: list[str]) -> str:
+    if "<!-- measured:begin -->" in doc:
+        return update_block(doc, "measured", lines)
+    head, sep, tail = doc.partition("<!-- honest:begin -->")
+    return head + "\n".join(lines) + "\n\n" + sep + tail
+
+
 def honest_counts(rows: list[dict]) -> dict:
     """{judge: (accepted, judged)} over the rows a judge saw."""
     return {j: (sum(bool(r[j]) for r in rows if r[j] is not None), sum(r[j] is not None for r in rows))
@@ -482,15 +579,86 @@ def cheat_totals(doc: str) -> list[tuple[int, int]]:
     real = re.search(r"^\| \*\*all\*\* \| \| \| \| \*\*(\d+)\*\* \| \*\*\d+\*\* \| \*\*(\d+)\*\* \|$", doc, re.M)
     plain = re.findall(r"^\| [\w-]+ \| \d+ of \d+ \| (\d+) \| (\d+) of \d+ \| \d+ \| \d+ of \d+ \|$", doc, re.M)
     out = [(int(m.group(2)), int(m.group(1))) if m else (0, 0) for m in (slug, real)]
-    return [*out, (sum(int(b) for _, b in plain), sum(int(a) for a, _ in plain))]
+    out.append((sum(int(b) for _, b in plain), sum(int(a) for a, _ in plain)))
+    added = re.search(r"^\*\*Of (\d+) such cheats, CI green accepted \d+, Knos, tests \d+ and Knos, black box (\d+)\.\*\*", doc, re.M)
+    return [*out, *([(int(added.group(2)), int(added.group(1)))] if added else [])]
+
+
+# ---- cheats aimed at what a pull request may add ---------------------------------------------------------------------
+
+def run_allowed() -> tuple[dict, list[dict]]:
+    """(the control's row, the cheats' rows) for tests/bench_tamper/attacks_allowed.py on the Python sample."""
+    sample = SAMPLES["python"]._replace(attacks="attacks_allowed.py")
+    mod = _attacks(sample)
+    with tempfile.TemporaryDirectory(prefix="knos-allowed-") as t:
+        tmp = Path(t)
+        base = tmp / "base"
+        shutil.copytree(BENCH / sample.folder, base, ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+        jobs = [mod.CONTROL, *mod.ATTACKS]
+        cache: dict = {}
+        first = one(sample, base, tmp, 0, *jobs[0], cache)
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            got = [first, *ex.map(lambda a: one(sample, base, tmp, a[0], *a[1], cache), list(enumerate(jobs))[1:])]
+    return got[0], got[1:]
+
+
+def allowed_section(control: dict, rows: list[dict]) -> list[str]:
+    """The block of docs/TAMPER.md for the cheats aimed at what a pull request may add."""
+    n = len(rows)
+    ci, kn, bx = _fooled(rows)
+    yes = lambda b: "n/a" if b is None else "PASS (fooled)" if b else "fail"  # noqa: E731
+    ok = lambda b: "n/a" if b is None else "accepted" if b else "REFUSED"  # noqa: E731
+    out = ["<!-- allowed:begin -->", "## Cheats aimed at what a pull request may add", "",
+           "The suite that decides is the one fixed at funding: the base's acceptance bundle, tests and test configuration. "
+           "A pull request may add files beside them, and the judge sorts what it did to a protected path into three "
+           "kinds, named in the verdict (`knos.judge.classify_path(path, terms, status)` says which, for one path, before "
+           "any run):", "",
+           "| what the pull request did | the judge |", "|---|---|",
+           "| a new file in a test directory | allowed, not counted: `contributor tests: N files, not counted` |",
+           "| an existing protected test edited or deleted | refused |",
+           "| test discovery or execution configuration changed (conftest.py, pytest.ini, tox.ini, the pytest section of "
+           "setup.cfg or pyproject.toml, .npmrc, Rakefile, .rspec) | allowed and not counted where the run takes the file "
+           "from the base; refused anywhere else |",
+           "| anything under `.knos/` (the terms and the bundle) or `.github/` (GitHub runs the pull request's copy of a "
+           "workflow, which the judge cannot replace) | refused |",
+           "| the `scripts` of package.json | not read where the judge starts the runner itself (`python -m pytest`, "
+           "`node --test`, `go test`): allowed. Refused where the funder's own command decides (`[judge] run`, a "
+           "black-box bundle), since that command may be `npm test` |", "",
+           "Allowed is safe only if an added file cannot decide. The run is built from the pull request's source with "
+           "every protected path taken from the base (`knos.judge.overlay`), so an added test, conftest.py or plugin is "
+           "not in the tree the suite runs in; tests/test_tamper_bench.py lists that tree file by file and checks that "
+           "a conftest.py which raises when it is imported changes nothing. The submissions below "
+           "(tests/bench_tamper/attacks_allowed.py; `python scripts/tamper_bench.py --allowed`) test it from the other "
+           "side: each leaves slugify broken in the Python sample and adds a file that would make the tests pass if it "
+           "were loaded.", "",
+           f"**Of {n} such cheats, CI green accepted {ci}, Knos, tests {kn} and Knos, black box {bx}.**", "",
+           f"Control (the honest fix, with a regression test in the test directory): CI green {ok(control['ci'])}, "
+           f"Knos, tests {ok(control['knos'])}, Knos, black box {ok(control['box'])}"
+           + (f" (`{'; '.join(control['notes'])}`)." if control["notes"] else "."), "",
+           "| # | cheat | CI green | Knos, tests | Knos, black box | what the judge said of the added files |",
+           "|---|---|---|---|---|---|"]
+    for i, r in enumerate(rows, 1):
+        said = "; ".join(r["notes"]) or next((x for x in r["why"].split("; ") if x.startswith("touches protected path")),
+                                             "nothing: the files are outside every protected path")
+        out.append(f"| {i} | {r['name']} | {yes(r['ci'])} | {yes(r['knos'])} | {yes(r['box'])} | {said.replace('|', chr(92) + '|')} |")
+    words = sorted({r[k] for r in rows for k in ("word", "box_word") if r.get(k)})
+    out += ["", f"The verdict words these runs gave: {', '.join(words)}. A run that cannot decide (the suite did not start, "
+                "ran out of time, or the machine could not run it) is `insufficient_evidence`: never accepted, never "
+                "rejected.",
+            "A file outside every protected path is the pull request's source and is in the tree: what keeps it from "
+            "deciding is the runner (plugin autoload is off, the acceptance checks are the base's, and Python reads "
+            "start-up and .pth files only from its own site directories), and for the black box that no test runner "
+            "shares a process with the submission at all.",
+            "<!-- allowed:end -->"]
+    return out
 
 
 HONEST_GROUPS = (("slug", "slugify, three repositories"), ("real", "real open-source behaviour, six tasks"),
                  ("plain", "tasks that are not code, three"))
 
 
-def honest_section(rows: list[dict], cheats: list[tuple[int, int]]) -> list[str]:
-    """The block of docs/TAMPER.md for the honest submissions, from run_honest() and cheat_totals()."""
+def honest_section(rows: list[dict], cheats: list[tuple[int, int]], ruled: list[dict] | None = None, whole: bool = True) -> list[str]:
+    """The block of docs/TAMPER.md for the honest submissions, from run_honest(), cheat_totals() and run_rule_refused()."""
     H = _honest()
     n = honest_counts(rows)
     of = lambda pair: f"{pair[0]} of {pair[1]}" if pair[1] else "n/a"  # noqa: E731
@@ -502,12 +670,13 @@ def honest_section(rows: list[dict], cheats: list[tuple[int, int]]) -> list[str]
            f"{len(rows)} honest submissions (tests/bench_tamper/honest.py; `python scripts/tamper_bench.py --honest`): for "
            "every task on this page, correct work written in other ways than the benchmark's own fix: another "
            "algorithm, another style, the code moved to new files, a slower way that is still right, checks of its "
-           "own. The submissions are fixed text. The black-box checks draw new inputs on every run, so a count below "
+           "own, and regression tests added where the repository keeps its tests. The submissions are fixed text. The black-box checks draw new inputs on every run, so a count below "
            "can differ between runs only if a submission is wrong on a rare input or a check asks for something the task "
            "does not define (one such fault was found, below).", "",
            f"**Honest submissions accepted: Knos, black box {of(n['box'])}; Knos, tests {of(n['knos'])}; CI green {of(n['ci'])}.** "
            f"**Cheating submissions accepted by Knos, black box: {', '.join(f'{a} of {b}' for a, b in cheats)}** "
-           "(the three groups below, in the same order; the tables of each follow on this page).", "",
+           "(the attacks on slugify, on the six real tasks, the cheats on the tasks that are not code, and the cheats "
+           "aimed at what a pull request may add; the tables of each follow on this page).", "",
            "| tasks | honest submissions | CI green accepted | Knos, tests accepted | Knos, black box accepted |",
            "|---|---|---|---|---|"]
     for group, title in HONEST_GROUPS:
@@ -526,17 +695,46 @@ def honest_section(rows: list[dict], cheats: list[tuple[int, int]]) -> list[str]
             out.append(f"| {r['task']} | {r['name']} | {by} | {why if len(why) <= 160 else why[:157] + '...'} |")
         out.append("")
     if expected:
-        out += [f"{'All ' + str(len(expected)) if len(expected) == len(refused) else str(len(expected)) + ' of them'} are one kind, and the refusal is the judge working as written, which is the finding: "
-                "a contributor who fixes the issue and adds a regression test where the repository keeps its tests "
-                "touches a protected path, and the judge refuses the pull request before it runs anything. It cannot "
-                "tell a test that was added from a test that was weakened, so it refuses both. The same fix with its "
-                "checks kept outside the test directory is accepted. Until the judge can tell the two apart, a "
-                "repository that pays on a Knos verdict has to say so to its contributors (new tests go in a second "
-                "pull request, or the funder lists what is protected in `.knos/proof.toml`), and this count stays "
-                "on this page.", ""]
-    out += [("No other honest submission was refused." if not other else
-             f"{len(other)} refused for another reason: each is a false refusal that is not explained above."), "",
-            "One fault was found in the suite itself while this set was written, and fixed there, not in a submission. "
+        out += [f"{len(expected)} of them are of a kind that is expected to be refused (honest.EXPECTED_REFUSED).", ""]
+    out += [("No other honest submission was refused." if refused and not other else
+             f"None of the {len(rows)} was refused by a Knos judge." if not refused else
+             f"{len(other)} refused for another reason: each is a false refusal that is not explained above."), ""]
+    before = [r for r in rows if r["name"] not in H.ADDED]
+    if len(before) < len(rows):
+        out += [f"{len(before)} of these submissions were the whole set until 0.3.17, when the black box accepted 39 of them; "
+                f"it now accepts {honest_counts(before)['box'][0]} of {len(before)}. The other {len(rows) - len(before)} are new: "
+                "more ways to write a regression test in a protected place.", ""]
+    with_tests = [r for r in rows if r["name"] in H.WITH_TESTS]
+    took = [r for r in with_tests if False not in (r["knos"], r["box"])]
+    noted = [r for r in took if any(n.startswith(("contributor tests:", "test configuration:")) for n in r.get("notes", ()))]
+    out += [f"{len(with_tests)} of the {len(rows)} fix the issue and add tests where the repository keeps them: a test "
+            "file, a parametrised test, a unittest class, a package of tests with a data file, a fixture in a new "
+            f"conftest.py, a seeded property test, describe/it, a spec. Knos accepted {len(took)} of {len(with_tests)}, "
+            f"and the verdict of {len(noted)} says what was added and that it was not counted (`contributor tests: N "
+            "files, not counted`). Until 0.3.17 the judge refused every pull request that touched a protected path, and "
+            "the nine of this kind in the set then were the whole of its refusals. The added tests "
+            "do not help a submission either: the suite that decides is the base's, and the next section measures what "
+            "a cheat gains from adding one.", ""]
+    if ruled is not None:
+        still = [r for r in ruled if False in (r["knos"], r["box"])]
+        out += [f"What is still refused, and honest: {len(still)} of {len(ruled)} further submissions that are correct and "
+                "change the authoritative suite itself or a path the judge cannot take from the base (honest.RULE_REFUSED, "
+                "on the Python repository). They are refused by rule, whatever the change says, and they are NOT in the "
+                "count above: a judge that let a pull request rewrite the test it is judged by could not tell this from "
+                "a weakened test. A contributor sends such a change in a pull request of its own, which a maintainer "
+                "merges.", "",
+                "| submission | CI green | Knos | reason |", "|---|---|---|---|"]
+        for r in ruled:
+            why = r["why"].replace("|", "\\|")
+            out.append(f"| {r['name']} | {'passes' if r['ci'] else 'fails'} | "
+                       f"{'refused' if False in (r['knos'], r['box']) else 'accepted'} | {why if len(why) <= 200 else why[:197] + '...'} |")
+        out.append("")
+    H_total = H.count()
+    out += [("Every row of this section is from one run of `python scripts/tamper_bench.py --honest`." if whole else
+             f"The rows of this section were measured part by part (`--honest --group slug`, `real`, `plain`, `rules`; "
+             f"{len(rows)} of the set's {H_total} submissions have a row), each part in a run of its own, and are kept in "
+             f"docs/{ROWS}; one run of `python scripts/tamper_bench.py --honest` measures them all at once."), ""]
+    out += ["One fault was found in the suite itself while this set was written, and fixed there, not in a submission. "
             "The csv.Sniffer task says \"the delimiter every line has the same, highest number of times\", and its "
             "generator sometimes drew a sample in which two delimiters are in every line equally often (`a,b|c` on every "
             "line). The task does not say which of the two wins; csv.Sniffer picks one by rules of its own, and the check "
@@ -553,6 +751,15 @@ def place_honest(doc: str, lines: list[str]) -> str:
     if "<!-- honest:begin -->" in doc:
         return update_block(doc, "honest", lines)
     head, sep, tail = doc.partition("\n## ")
+    return head.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n" + sep + tail
+
+
+def place_allowed(doc: str, lines: list[str]) -> str:
+    """`doc` with the block of the cheats aimed at what a pull request may add replaced, or put in before the first
+    repository's section (after the honest block) when there is none."""
+    if "<!-- allowed:begin -->" in doc:
+        return update_block(doc, "allowed", lines)
+    head, sep, tail = doc.partition("\n## Python, pytest")
     return head.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n" + sep + tail
 
 
@@ -820,18 +1027,39 @@ def main(argv=None) -> int:
     ap.add_argument("--repeat", type=int, default=5, help="with --accept: judgments of each submission (new inputs each time)")
     ap.add_argument("--escape", action="store_true", help="run the five escapes and rewrite their block of --out")
     ap.add_argument("--honest", action="store_true", help="run the honest submissions and rewrite their block of --out")
+    ap.add_argument("--group", choices=HONEST_PARTS, help="with --honest: run one part and keep the other parts' rows")
+    ap.add_argument("--task", action="append", default=[], help="with --honest --group: only this task of the part (repeatable)")
+    ap.add_argument("--allowed", action="store_true", help="run the cheats aimed at what a pull request may add and rewrite their block of --out")
+    ap.add_argument("--slug", action="store_true", help="run the attacks on the three slugify repositories and rewrite their tables of --out")
     a = ap.parse_args(argv)
-    if a.real or a.accept or a.escape or a.honest:
+    if a.real or a.accept or a.escape or a.honest or a.allowed or a.slug:
         path = Path(a.out)
         doc = path.read_text(encoding="utf-8")
+        if a.slug:
+            missing = [s.title for s in SAMPLES.values() if not available(s)]
+            if missing:
+                print(f"not installed here: {', '.join(missing)}", file=sys.stderr)
+                return 1
+            kept = {name: re.search(rf"<!-- {name}:begin -->.*?<!-- {name}:end -->", doc, re.S) for name in ("honest", "allowed")}
+            doc = render({key: run(key) for key in SAMPLES}).rstrip("\n") + "\n\n" + doc[doc.index("<!-- real:begin -->"):]
+            if kept["honest"]:
+                doc = place_honest(doc, kept["honest"].group(0).split("\n"))
+            if kept["allowed"]:
+                doc = place_allowed(doc, kept["allowed"].group(0).split("\n"))
         if a.real:
             doc = update_block(doc, "real", real_section({k: run_real(k) for k in _real_modules()[0].TASKS}))
         if a.accept:
             doc = update_block(doc, "accept", accept_section(run_accept(a.repeat), a.repeat))
         if a.escape:
             doc = update_block(doc, "escape", escape_section(run_escapes()))
+        if a.allowed:
+            doc = place_allowed(doc, allowed_section(*run_allowed()))
         if a.honest:
-            doc = place_honest(doc, honest_section(run_honest(), cheat_totals(doc)))
+            rows, ruled, whole = honest_rows(path, a.group, tuple(a.task))
+            doc = place_honest(doc, honest_section(rows, cheat_totals(doc), ruled, whole))
+        whole_part = not (a.honest and a.group)         # one part of the honest set is not the honest set
+        ran = [n for n, _ in BLOCKS if getattr(a, n) and (n != "honest" or whole_part)]
+        doc = place_measured(doc, measured(path, ran))
         path.write_text(doc, encoding="utf-8")
         return 0
     if a.only:
@@ -845,7 +1073,11 @@ def main(argv=None) -> int:
     extra = [*real_section({k: run_real(k) for k in _real_modules()[0].TASKS}), "",
              *accept_section(run_accept(a.repeat), a.repeat), "", *escape_section(run_escapes())]
     text = render({key: run(key) for key in SAMPLES}, extra) + "\n"
-    text = place_honest(text, honest_section(run_honest(), cheat_totals(text)))
+    added = allowed_section(*run_allowed())
+    rows, ruled, whole = honest_rows(Path(a.out))
+    text = place_honest(text, honest_section(rows, cheat_totals(text + "\n".join(added)), ruled, whole))
+    text = place_allowed(text, added)
+    text = place_measured(text, measured(Path(a.out), [n for n, _ in BLOCKS]))
     Path(a.out).write_text(text, encoding="utf-8")
     print(text)
     return 0

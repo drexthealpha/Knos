@@ -120,7 +120,7 @@ def test_the_real_judge_accepts_a_right_fix_and_rejects_a_wrong_one(tmp_path, re
     shutil.copytree(base, tmp_path / "edits")
     (tmp_path / "edits" / "slug.py").write_text(REFERENCE, encoding="utf-8")
     (tmp_path / "edits" / ".knos" / "acceptance" / "7" / "cases.json").write_text("{}", encoding="utf-8")
-    assert judge.judge(base, tmp_path / "edits", cfg)["reasons"] == ["touches protected path .knos/acceptance/7/cases.json"]
+    assert judge.judge(base, tmp_path / "edits", cfg)["reasons"] == ["touches protected path .knos/acceptance/7/cases.json: the terms and the acceptance bundle are fixed at funding"]
 
 
 def test_the_judge_says_which_case_failed_and_what_it_printed(tmp_path, ref):

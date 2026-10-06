@@ -118,6 +118,12 @@ class Reject:
 
 
 @dataclass(frozen=True)
+class Appeal:
+    reason: str             # why the pull request's author contests the rejection, in their words
+    name = "appeal"
+
+
+@dataclass(frozen=True)
 class Tip:
     units: int
     name = "tip"
@@ -166,6 +172,7 @@ FORMS = {   # the exact form to type, in the order `/knos help` lists them
     "pay": "/knos pay @login",
     "split": "/knos split @login <percent> [@login <percent> ...]",
     "reject": "/knos reject [reason]",
+    "appeal": "/knos appeal <reason>",                  # knos.appeal acts on it; its words are here because the relay reads this module and not that one
     "tip": "/knos tip <amount>",
     "settle": "/knos settle",
     "status": "/knos status",
@@ -185,13 +192,14 @@ _ABOUT = {
     "pay": "a maintainer, on an agent's pull request: who it pays",
     "split": "a maintainer, before merging: the people a work order pays, and the share of each",
     "reject": "a maintainer, before merging: this pull request does not take the bounty",
+    "appeal": "the pull request's author, on the pull request: contest a rejection; the neutral judge runs the checks again",
     "tip": "a maintainer, on a merged pull request: pay its author now",
     "settle": "on a merged pull request: try its payment again",
     "status": "what is in escrow here",
     "help": "this list",
 }
 _ON_PULL = {"fund": False, "offer": False, "raise": False, "cancel": False, "split": True, "take": False, "release": False, "address": True, "mine": True, "pay": True, "reject": True,
-            "tip": True, "settle": True}     # where a command belongs; status and help go anywhere
+            "appeal": True, "tip": True, "settle": True}     # where a command belongs; status and help go anywhere
 
 
 # ---- reading ---------------------------------------------------------------------------------------------------------
@@ -428,7 +436,8 @@ def _bare(kind):
 
 
 _READ = {"fund": _fund, "offer": _offer, "raise": _raise, "cancel": _bare(Cancel), "split": _split, "take": _bare(Take), "release": _bare(Release), "address": _address, "mine": _bare(Mine),
-         "pay": _pay, "reject": lambda rest: Reject(rest[:200].strip()), "tip": _tip, "settle": _bare(Settle),
+         "pay": _pay, "reject": lambda rest: Reject(rest[:200].strip()),
+         "appeal": lambda rest: Appeal(rest[:200].strip()) if rest.strip() else _bad("appeal", "say why after it"), "tip": _tip, "settle": _bare(Settle),
          "status": _bare(Status), "help": lambda rest: Help()}
 
 

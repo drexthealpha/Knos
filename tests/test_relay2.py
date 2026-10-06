@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+import threading
 
 import pytest
 
@@ -52,6 +53,23 @@ def user() -> int:
     return _COUNT[1]
 
 
+class _OneAtATime:
+    """A LiteSVM that several threads may call: each call waits for the one before it."""
+
+    def __init__(self, svm):
+        self._svm, self.lock = svm, threading.RLock()
+
+    def __getattr__(self, name):
+        got = getattr(self._svm, name)
+        if not callable(got):
+            return got
+
+        def call(*a, **kw):
+            with self.lock:
+                return got(*a, **kw)
+        return call
+
+
 class Net(chain.Ledger):
     """knos.chain.Ledger with LiteSVM for a cluster. A transaction is signed exactly as the real Ledger signs it
     (chain.sign), so it weighs what it would on devnet. Counts what a relay costs: transactions, waits (rounds of
@@ -63,6 +81,11 @@ class Net(chain.Ledger):
         # message as a cluster does: wherever this ledger is used, v1 transactions carry both (knos.chain.V1_BUDGET_IX)
         chain.V1_BUDGET_IX = True
         self.c = c
+        # a cluster takes transactions and reads from several of a relay's workers at once; one LiteSVM does not
+        # (it refuses a second borrow), so the chain lets one caller in at a time, whoever holds it
+        if not isinstance(c.svm, _OneAtATime):
+            c.svm = _OneAtATime(c.svm)
+        self.one_at_a_time = c.svm.lock
         self.txs = self.waits = self.reads = self.v1s = 0
         self.sizes: list[int] = []
         self.units: list[int] = []
@@ -72,25 +95,26 @@ class Net(chain.Ledger):
         self.named: dict[Pubkey, list[str]] = {}        # address -> the signatures that named it, oldest first
 
     def _one(self, ixs, payer, signers, v1=False) -> str:
-        tx = chain.sign(ixs, payer, signers, self.c.svm.latest_blockhash(), v1)
-        assert len(bytes(tx)) == chain.tx_size(ixs, payer.pubkey(), v1) and bytes(tx)[0] == (0x81 if v1 else len(tx.signatures))
-        self.v1s += int(v1)
-        r = self.c.svm.send_transaction(tx)
-        self.c.svm.expire_blockhash()
-        ok = "Failed" not in type(r).__name__
-        meta = r if ok else r.meta()
-        logs = list(meta.logs())
-        if not ok:
-            raise chain.RpcError(f"transaction failed: {r.err()}", {"logs": logs})
-        sig = str(tx.signatures[0])
-        used = meta.compute_units_consumed
-        self.txs += 1
-        self.sizes.append(len(bytes(tx)))
-        self.units.append(used() if callable(used) else used)
-        self.said[sig], self.when[sig] = logs, self.c.now()
-        for key in tx.message.account_keys:
-            self.named.setdefault(key, []).append(sig)
-        return sig
+        with self.one_at_a_time:
+            tx = chain.sign(ixs, payer, signers, self.c.svm.latest_blockhash(), v1)
+            assert len(bytes(tx)) == chain.tx_size(ixs, payer.pubkey(), v1) and bytes(tx)[0] == (0x81 if v1 else len(tx.signatures))
+            self.v1s += int(v1)
+            r = self.c.svm.send_transaction(tx)
+            self.c.svm.expire_blockhash()
+            ok = "Failed" not in type(r).__name__
+            meta = r if ok else r.meta()
+            logs = list(meta.logs())
+            if not ok:
+                raise chain.RpcError(f"transaction failed: {r.err()}", {"logs": logs})
+            sig = str(tx.signatures[0])
+            used = meta.compute_units_consumed
+            self.txs += 1
+            self.sizes.append(len(bytes(tx)))
+            self.units.append(used() if callable(used) else used)
+            self.said[sig], self.when[sig] = logs, self.c.now()
+            for key in tx.message.account_keys:
+                self.named.setdefault(key, []).append(sig)
+            return sig
 
     def send(self, ixs, payer, signers=None, v1=False) -> str:
         sig = self._one(list(ixs), payer, signers, v1)
@@ -112,31 +136,34 @@ class Net(chain.Ledger):
         return sent
 
     def simulate(self, ixs, payer, signers=None, v1=False) -> list[str]:
-        r = self.c.svm.simulate_transaction(chain.sign(ixs, payer, signers, self.c.svm.latest_blockhash(), v1))
-        if "Failed" in type(r).__name__:
-            raise chain.RpcError(f"transaction failed: {r.err()}", {"logs": list(r.meta().logs())})
-        return list(r.meta().logs())
+        with self.one_at_a_time:
+            r = self.c.svm.simulate_transaction(chain.sign(ixs, payer, signers, self.c.svm.latest_blockhash(), v1))
+            if "Failed" in type(r).__name__:
+                raise chain.RpcError(f"transaction failed: {r.err()}", {"logs": list(r.meta().logs())})
+            return list(r.meta().logs())
 
     def infos(self, addresses):
-        self.reads += 1
-        out = []
-        for a in addresses:
-            acc = self.c.svm.get_account(a)
-            out.append((acc.owner, bytes(acc.data)) if acc is not None and acc.lamports > 0 else None)
-        return out
+        with self.one_at_a_time:
+            self.reads += 1
+            out = []
+            for a in addresses:
+                acc = self.c.svm.get_account(a)
+                out.append((acc.owner, bytes(acc.data)) if acc is not None and acc.lamports > 0 else None)
+            return out
 
     def account(self, address):
         got = self.infos([address])[0]
         return got[1] if got else None
 
     def program_accounts(self, program, size=None, memcmp=None):
-        self.reads += 1
-        out = []
-        for addr, acc in self.c.svm.get_program_accounts(program):
-            d = bytes(acc.data)
-            if acc.lamports > 0 and (size is None or len(d) == size) and all(d[o:o + len(b)] == b for o, b in (memcmp or {}).items()):
-                out.append((addr, d))
-        return out
+        with self.one_at_a_time:
+            self.reads += 1
+            out = []
+            for addr, acc in self.c.svm.get_program_accounts(program):
+                d = bytes(acc.data)
+                if acc.lamports > 0 and (size is None or len(d) == size) and all(d[o:o + len(b)] == b for o, b in (memcmp or {}).items()):
+                    out.append((addr, d))
+            return out
 
     def recent(self, address, limit=20):
         self.reads += 1

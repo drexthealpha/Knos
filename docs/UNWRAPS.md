@@ -7,7 +7,7 @@ A panic in a Solana program aborts the instruction and with it the whole transac
 changes: no state is written and no token moves. What a panic costs is the transaction fee and an error that names no cause. So the question for
 each place below is whether it can be reached, and the answer wanted is no.
 
-The four programs' source holds 97 `unwrap()` calls. 39 are in program code, on the 34 lines listed below; the other 58 are in unit tests and proof harnesses
+The four programs' source holds 101 `unwrap()` calls. 39 are in program code, on the 34 lines listed below; the other 62 are in unit tests and proof harnesses
 (`#[cfg(test)]` at the end of each file, and `knos_pay/src/proofs.rs`, which is compiled only for tests and for the Kani model checker), which are in
 no build of a program. No program code holds an `expect(`, an `unreachable!`, a `panic!`, a `todo!` or an `assert!`; one `debug_assert_eq!` is listed.
 `knos_oidc` is the one program Knos 0.3.16 changes, and its places were read line by line: none can be reached, so none was replaced. For the three
@@ -71,6 +71,7 @@ own limb count. An index that is out of range all the same aborts the transactio
 | `knos_meter/src/state.rs` | 7 | 5 | 15 |
 | `knos_meter/src/token.rs` | 1 | 17 | 8 |
 | `knos_oidc/src/claims.rs` | 1 | 64 | 20 |
+| `knos_oidc/src/es256.rs` | 0 | 23 | 44 |
 | `knos_oidc/src/lib.rs` | 4 | 40 | 87 |
 | `knos_oidc/src/pins.rs` | 0 | 0 | 2 |
 | `knos_oidc/src/rsa.rs` | 0 | 0 | 51 |
@@ -90,4 +91,4 @@ own limb count. An index that is out of range all the same aborts the transactio
 | `knos_pay/src/proofs.rs` | 0 | 46 | 0 |
 | `knos_pay/src/state.rs` | 8 | 10 | 22 |
 | `knos_pay/src/token.rs` | 1 | 26 | 8 |
-| all | 40 | 482 | 385 |
+| all | 40 | 505 | 429 |

@@ -33,6 +33,7 @@ import json
 import sys
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -404,9 +405,10 @@ def keys() -> None:
     for issuer, name in names.items():
         try:
             published.update({oidc.key_pda(issuer, n): (name, kid, issuer) for kid, n in oidc.jwks_keys(first.fetch_jwks(issuer))})
-        except Exception as why:  # noqa: BLE001 - the issuer did not answer: its keys cannot be vouched for
-            wrong.append(f"{name}'s key set could not be read ({type(why).__name__}: {why}), so its keys were not checked.")
+        except Exception as err:  # noqa: BLE001 - the issuer did not answer: its keys cannot be vouched for
+            wrong.append(f"{name}'s key set could not be read ({type(err).__name__}: {err}), so its keys were not checked.")
     held = {addr: k for addr, k, _n in second.keys(ledger)}
+    k: oidc.Key | None
     for addr, k in held.items():
         today = f"published today as {published[addr][1]}" if addr in published else "not in the issuer's key set today"
         out.print(f"{names.get(k.issuer, k.issuer)}  {k.bits} bits  {_key_state(k, now)}  active from {_when(k.active_at)}  expires {_when(k.expires_at)}  "
@@ -416,12 +418,12 @@ def keys() -> None:
     for addr, (name, kid, issuer) in published.items():
         k = held.get(addr)
         usable, why = oidc.key_usable(k, now)
-        if not usable and issuer != oidc.GITHUB and _waiting(k, now):     # a new key of another issuer: its delay is the design, not a fault
+        if not usable and issuer != oidc.GITHUB and k is not None and _waiting(k, now):     # a new key of another issuer: its delay is the design, not a fault
             waiting.append(f"{name}'s key {kid} is waiting out its delay: it can be used from {_when(k.active_at)}"
                            + ("" if k.approved or k.genesis else ", once the guardian has approved it") + ".")
         elif not usable:
             wrong.append(f"{name}'s key {kid}: {why}")
-        elif k.expires_at - now < 7 * 86_400:
+        elif k is not None and k.expires_at - now < 7 * 86_400:
             wrong.append(f"{name}'s key {kid} expires {_when(k.expires_at)}, in less than 7 days. Run the rotate workflow, so that Refresh is sent for it.")
     for line in [*waiting, *wrong]:
         out.print(line, markup=False)
@@ -714,11 +716,11 @@ def bounty(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE")) -> None
         state = (f"open: paid when the pull request that closes it is merged and meets its terms; goes back to its funder {_when(j.deadline)}" if j.state == "open"
                  else f"held for GitHub user id {j.payee_id}, who has named no wallet yet: {_money(net, j.mint)} waits for `knos claim <address>` until {_when(j.hold_until)}")
         out.print(f"{_money(j.amount, j.mint)}  {state}  job {addr}", markup=False)
-    for addr, j in old:
-        how = "paid when a maintainer merges the pull request that closes it" if j.mode == 0 else \
+    for addr, j1 in old:
+        how = "paid when a maintainer merges the pull request that closes it" if j1.mode == 0 else \
               "paid when its acceptance checks pass, after the review window"
-        state = "open" if j.state == "open" else f"proven for GitHub user {j.author_id}; released in {max(0, j.pay_after - now)} s unless vetoed"
-        out.print(f"{_usdc(j.amount)} test USDC  {state}  ({how}; refundable in {max(0, j.deadline - now) // 3600} h)  job {addr}  (first deployment)", markup=False)
+        state = "open" if j1.state == "open" else f"proven for GitHub user {j1.author_id}; released in {max(0, j1.pay_after - now)} s unless vetoed"
+        out.print(f"{_usdc(j1.amount)} test USDC  {state}  ({how}; refundable in {max(0, j1.deadline - now) // 3600} h)  job {addr}  (first deployment)", markup=False)
 
 
 @_app.command()
@@ -877,7 +879,9 @@ def receipt_check(path: str = typer.Argument(..., help="an acceptance receipt (J
     if why:
         typer.echo(f"not a valid receipt: {why}")
         raise typer.Exit(1)
-    typer.echo(f"valid. digest sha256:{receipt.digest(doc)}")
+    verdict = receipt.verdict_of(doc)
+    pays = "it authorises payment" if receipt.authorises_payment(doc) else "it authorises no payment"
+    typer.echo(f"valid. verdict: {verdict.replace('_', ' ')}; {pays}. digest sha256:{receipt.digest(doc)}")
 
 
 @_app.command()
@@ -919,15 +923,19 @@ def _meter_statement(buyer: str, seller: str, month: str, fmt: str) -> None:
             out.print(line, markup=False)
 
 
-@_app.command()
-def statement(seller: str = typer.Option(..., "--seller", help="the GitHub login or id that was paid (with --meter: whose work was evaluated)"),
-              month: str = typer.Option(..., "--month", help="like 2026-09"),
+def statement(ctx: typer.Context,
+              seller: str = typer.Option(None, "--seller", help="the GitHub login or id that was paid (with --meter: whose work was evaluated)"),
+              month: str = typer.Option(None, "--month", help="like 2026-09"),
               fmt: str = typer.Option("text", "--format", help="text, csv or json"), limit: int = _LIMIT, no_names: bool = _NO_NAMES,
               meter: bool = typer.Option(False, "--meter", help="the meter's statement instead: the evaluations knos_meter billed --buyer for, of --seller's work, in "
                                                                 "--month (how many, accepted and rejected, their declared value, the fees), with the count the program keeps"),
               buyer: str = typer.Option(None, "--buyer", help="with --meter: the GitHub login or id of the owner whose credits paid")) -> None:
     """What one seller was paid in a month: each payment with its transaction, and the totals, recomputed from the escrows' log lines. With --meter and --buyer: what knos_meter counted for that buyer and that seller in the month."""
+    if ctx.invoked_subcommand:      # `knos statement make | approve | pay | show | export | verify` (src/knos/statement.py)
+        return
     from . import records
+    if not seller or not month:
+        raise Stop("Say whose month: knos statement --seller X --month YYYY-MM", "An invoice's statement for accounts payable: knos statement make --help")
     if fmt not in ("text", "csv", "json"):
         raise Stop(f"--format is text, csv or json; {fmt!r} is none of them.")
     _month(month)
@@ -1058,7 +1066,7 @@ _HELP = [    # (command or group, its panel (None: the first, "Commands"), the o
     ("record", MONEY, "A payee's record as the program keeps it: paid, distinct funders, test money and self-paid apart."),
     ("badge", MONEY, "Write a \"paid on proof\" badge (SVG) for a repository or a pull request, and its Markdown."),
     ("receipts", MONEY, "One row per payment for an owner, from the chain's log (csv or jsonl)."),
-    ("statement", MONEY, "What one seller was paid in a month; `statement --meter`: evaluations billed."),
+    ("statement", MONEY, "What one seller was paid in a month; `statement --meter`: evaluations billed. `statement make`: an invoice's statement."),
     ("export", MONEY, "Every escrow event as JSON Lines for a SIEM."),
     ("invoice", MONEY, "An owner's month as a plain HTML invoice and a CSV."),
     ("mainnet-check", MONEY, "Every gate that must hold before mainnet, with its evidence."),
@@ -1073,6 +1081,7 @@ def _arrange() -> None:
 
     def name_of(info) -> str:
         return info.name or (info.callback.__name__.replace("_", "-") if info.callback else "")
+    info: Any       # the record of a command or of a group: both have the panel, each its own field for the summary
     for info in (*_app.registered_commands, *_app.registered_groups):
         got = by.get(name_of(info))
         if got:
@@ -1096,6 +1105,14 @@ def _mod(name: str):
     return importlib.import_module(f"knos.{name}")
 
 
+def _statements() -> None:
+    """`knos statement make | approve | pay | show | export | verify` beside the month's statement that was always
+    here: the group is the module's, and with no subcommand it is the command it always was."""
+    _mod("statement").register(_app, None)
+    group = next(g.typer_instance for g in _app.registered_groups if g.name == "statement" and g.typer_instance is not None)
+    group.callback(invoke_without_command=True)(statement)
+
+
 _MODULES = (    # (the commands it adds, how); in the order they were always registered, which `load` keeps
     (("judge",), lambda: _mod("judge").register(_app, out, Stop)),                 # knos judge rerun
     (("terms",), lambda: _mod("terms_templates").register(_app)),                  # knos terms list | show | diff | cite | verify
@@ -1107,6 +1124,13 @@ _MODULES = (    # (the commands it adds, how); in the order they were always reg
     (("observe",), lambda: _mod("observe").register(_app, _HELP)),                 # knos observe: what an outsider can infer from public data
     (("reproduce",), lambda: _mod("reproduce").register(_app, _HELP)),             # knos reproduce: an outside reproduction in one command
     (("shadow",), lambda: _mod("shadow").register(_app, _HELP)),                   # knos shadow: an invoice against GitHub's record (src/knos/shadow.py)
+    (("events",), lambda: _mod("events").register(_app, _HELP)),                   # knos events: one log under every recording mode (src/knos/events.py)
+    (("statement",), _statements),                                                 # knos statement make | approve | pay | show | export | verify (src/knos/statement.py)
+    (("bill",), lambda: _mod("billing").register(_app, _HELP)),                    # knos bill estimate | explain (src/knos/billing.py)
+    (("preflight", "keep"), lambda: _mod("preflight").register(_app, _HELP)),      # knos preflight, knos keep (src/knos/preflight.py)
+    (("appeal",), lambda: _mod("appeal").register(_app, _HELP)),                   # knos appeal (src/knos/appeal.py)
+    (("approve",), lambda: _mod("approvals").register(_app, _HELP)),               # knos approve: approval chains of a procurement object (src/knos/approvals.py)
+    (("vault",), lambda: _mod("vault").register(_app, _HELP)),                     # knos vault: sealed evidence, export, retention, restore (src/knos/vault.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
 _loaded: set[int] = set()
@@ -1121,7 +1145,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "approve") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     _HELP[:] = [row for row in _HELP if row not in tail] + tail
     _arrange()
 

@@ -84,7 +84,8 @@ So pinning a workflow file and its commit fixes the code that was asked to run. 
 the repository belongs to such an organisation. A personal account cannot have larger runners
 ([GitHub's documentation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners): they are for
 organisations and enterprises on paid plans), so a `github-hosted` run in a repository a person owns is on GitHub's
-own image. Two rules of the programs rest on that: the neutral judge (section 2, b) and Refresh by anyone
+own image. [ATTESTOR.md](ATTESTOR.md) states this gap exactly and the five ways of narrowing it, of which two
+exist here. Two rules of the programs rest on that: the neutral judge (section 2, b) and Refresh by anyone
 ([section 5](#5-signing-keys-any-issuer-refresh-by-anyone-private-keys)). If GitHub changes this, both rules
 become unsafe and need an upgrade.
 
@@ -235,7 +236,7 @@ The funder cannot take it back in that time. When they bind a wallet, anyone can
 days it goes back to the funder.
 
 **The fee.** The funder pays it on top of the amount, in marginal tiers: 2.5% of the first 1,000 whole units of the
-mint, 1% from 1,000 to 50,000, and 0.5% above; at least 0.40; no maximum. It is one pure function, `order_fee` in
+mint, 1% to 50,000, and 0.5% above; at least 0.40; no maximum. It is one pure function, `order_fee` in
 [`lib.rs`](../programs-v2/knos_pay/src/lib.rs), tested at the tier edges. It waits in the order's account. At the payment,
 the payees receive their full shares; the relayer that paid for the transaction receives a tip out of the fee (0.05,
 or 0.30 when the transaction created a payee's token account); the rest goes to `FEE_OWNER`, an address of Knos's
@@ -856,8 +857,27 @@ by that commit. An `auto` payment made before the merge is not re-executed by a 
 pull requests only. This section narrows limit 15 below ("tests mode has no second look") for orders that ask for a
 quorum; it does not remove it.
 
+## Two findings from this release's adversarial tests
+
+1. **Quorum counts repositories, not people.** On an order funded from a wallet with quorum 2, one forge account that
+   can start the run in the order's repository and the run in the neutral repository satisfies both. The receipt
+   records whether evaluators share a controller (`same_controller`, [RECEIPT.md](RECEIPT.md)); the chain does not
+   enforce it. A buyer who needs two independent parties must name a neutral repository it does not control and
+   read that field.
+2. **Low: a judge's marker outlives its order by a second.** A quorum-2 order paid and funded again at the same
+   address within the same clock second inherits the earlier judge marker, so one new token then pays.
+
+Both are reproduced by ignored tests in
+[`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs):
+`finding_one_account_that_starts_both_runs_is_one_judge_not_two` and
+`finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second`. In
+`programs-v2/handlers`, `cargo test --release --test adversarial -- --ignored` shows both failing on the program as
+built. Both are fixed in the next `knos_pay` build, which is not in this release.
+[INVARIANTS.md](INVARIANTS.md) lists them with the other adversarial tests.
+
 ## Before mainnet
 
+- **Every gate is in [MAINNET.md](MAINNET.md).** Mainnet is not planned for this release.
 - **An outside review first.** `knos mainnet-check` prints every gate with its evidence. The last one, an outside
   review of the bytes on chain, fails today, on purpose.
 - **Different program ids, Circle's mint, no faucet.** The released programs are devnet builds.

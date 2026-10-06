@@ -365,7 +365,7 @@ def test_the_numbers_the_site_states_are_the_codes():
     assert f"{commands.DAYS} days unless you say, {commands.MAX_DAYS} at most" in fund
     assert f"{commands.RESERVE} unless you say" in fund
     # an order's fee: its funder pays it on top of the amount, in three tiers above a floor and with no maximum, and gets it back with a refund
-    for part in (f"{pay.FEE_BPS / 100:g}% of the first {whole(pay.FEE_TIER_1)}", f"{pay.FEE_BPS_2 / 100:g}% from {whole(pay.FEE_TIER_1)} to {whole(pay.FEE_TIER_2)}",
+    for part in (f"{pay.FEE_BPS / 100:g}% of the first {whole(pay.FEE_TIER_1)}", f"{pay.FEE_BPS_2 / 100:g}% to {whole(pay.FEE_TIER_2)}",
                  f"{pay.FEE_BPS_3 / 100:g}% above", f"at least {pay.ORDER_FEE_MIN / 10 ** 6:.2f} test USDC", "paid by the funder on top",
                  "only when someone is paid: a refund returns it with the amount"):
         assert part in fund, part
@@ -402,10 +402,12 @@ def test_the_sample_reply_says_what_the_terms_say():
 def test_the_first_view_has_no_numbers_outside_code_but_the_one_measurement_it_leads_with():
     """scripts/claims_check.py holds every number in this view to a fact; the easiest way to keep it true is to have
     almost none. A command shown in a <pre> is code, like one in <code>. The whole view is read, the demo's mount and
-    the folds under it too. The one measurement the view leads with (the share of repositories whose first agent pull
-    request that says its tests pass had a failed check) is docs/bench.json's, the Agent PR Index: any_check_failed of
-    first_pr_per_repo. The only other numbers are one line under a fold, held here to its source: how many cheating
-    pull requests passed the black-box check and how many passed plain CI, the totals row of docs/TAMPER.md."""
+    the folds under it too. The one measurement the view leads with since 0.3.17 is docs/backtest.json's: of the merged
+    agent pull requests that said their tests pass, how many had a failed check. The second, under the first heading,
+    is the one that led before (the share of repositories whose first such pull request had a failed check):
+    docs/bench.json's, the Agent PR Index, any_check_failed of first_pr_per_repo. The only other numbers are one line
+    under a fold, held here to its source: how many cheating pull requests passed the black-box check and how many
+    passed plain CI, the totals row of docs/TAMPER.md."""
     whole = _view("check")
     assert '<section id="demo"' in whole and 'id="what-is-here"' in whole and whole.count("<section") == whole.count("</section>")
     view = re.sub(r"<pre>(.*?)</pre>", lambda m: "<code>" + m.group(1) + "</code>", whole, flags=re.S)
@@ -413,12 +415,15 @@ def test_the_first_view_has_no_numbers_outside_code_but_the_one_measurement_it_l
     first = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["market"]["index"]["overall"]["first_pr_per_repo"]
     share = f"{first['any_check_failed']['share'] * 100:.1f}%"
     assert round(first["any_check_failed"]["repos"] / first["repos"], 3) == first["any_check_failed"]["share"]
-    assert f"{share} of" in said and "had a failed check" in said
+    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
+    lead = (str(merged["prs"]), str(merged["any_check_failed"]["prs"]))
+    assert f"{lead[0]} merged agent “tests pass” pull requests: {lead[1]} had a failed check." in said
+    assert f"{share} of" in said and said.count("had a failed check") == 2 and said.index(lead[0]) < said.index(share)
     row = re.search(r"^\| \*\*all\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \|$", (ROOT / "docs" / "TAMPER.md").read_text(encoding="utf-8"), re.M)
     cases, plain_ci, _in_process, black_box = row.groups()
     assert f"{black_box} of {cases} cheating pull requests passed it, {plain_ci} passed plain CI" in said
     assert said.index(share) < said.index(f"{black_box} of {cases}")
-    assert re.findall(r"\d+(?:\.\d+)?%?", said) == [share, black_box, cases, plain_ci], re.findall(r"\d+(?:\.\d+)?%?", said)
+    assert re.findall(r"\d+(?:\.\d+)?%?", said) == [*lead, share, black_box, cases, plain_ci], re.findall(r"\d+(?:\.\d+)?%?", said)
 
 
 def test_the_site_says_nothing_it_may_not():

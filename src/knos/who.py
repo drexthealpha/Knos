@@ -30,6 +30,7 @@ from __future__ import annotations
 import datetime
 import re
 from dataclasses import dataclass
+from typing import TypeGuard, TypeVar
 
 from . import commands
 
@@ -55,7 +56,7 @@ def unedited(comment: dict) -> bool:
     return bool(made) and made == comment.get("updated_at")
 
 
-def _person(user) -> bool:
+def _person(user) -> TypeGuard[dict]:
     return isinstance(user, dict) and bool(user.get("id")) and user.get("type", "User") == "User"
 
 
@@ -80,8 +81,8 @@ def _once(permission):
         if login not in seen:
             try:
                 seen[login] = (permission(login), None)
-            except Exception as why:  # noqa: BLE001 - kept, and raised to everyone who asks about this account
-                seen[login] = (None, why)
+            except Exception as err:  # noqa: BLE001 - kept, and raised to everyone who asks about this account
+                seen[login] = (None, err)
         got, why = seen[login]
         if why is not None:
             raise why
@@ -94,7 +95,10 @@ def _agent(user) -> bool:
     return isinstance(user, dict) and bool(user.get("id")) and user.get("type") == "Bot" and not _workflow(user)
 
 
-def _said(comments, kind) -> list[tuple[dict, object]]:
+_C = TypeVar("_C")
+
+
+def _said(comments, kind: type[_C]) -> list[tuple[dict, _C]]:
     """(comment, command) for every unedited comment by a person whose `/knos` line is a `kind`, newest first."""
     out = []
     for c in comments or []:
@@ -163,7 +167,7 @@ def excluded(issue: dict | None, pull: dict, paid: dict, events=None, terms=None
     ids = {h.id for h in held}
     if not ids or (pull.get("user") or {}).get("id") in ids or paid.get("id") in ids:
         return ""
-    return f"issue #{issue.get('number')} is assigned to {_holders(held)}; only an assignee's pull request is paid for it"
+    return f"issue #{(issue or {}).get('number')} is assigned to {_holders(held)}; only an assignee's pull request is paid for it"
 
 
 @dataclass(frozen=True)
@@ -195,7 +199,7 @@ def take(issue: dict, events: list | None, terms: dict | None, commenter: dict, 
         return Outcome(f"Knos: issue #{n} is assigned to {_holders(held)}, so only their pull request is paid"
                        + (" until then. After that it is open to everyone, and you can take it." if timed else
                           ". A maintainer can change the assignee."))
-    if mine:
+    if mine and mine.until is not None:     # (a reservation that lapsed has a date)
         return Outcome(f"Knos: your reservation of issue #{n} lapsed on {when(mine.until)}, and taking it again does "
                        "not renew it. The issue is open to everyone now, you included: any merged pull request that "
                        "closes it is paid.")
@@ -214,7 +218,7 @@ def take(issue: dict, events: list | None, terms: dict | None, commenter: dict, 
     return Outcome(f"Knos: issue #{n} is reserved for @{login} until {until}. Open a pull request whose description says "
                    f"`Fixes #{n}`; until then only yours is paid for it. After that it is open to everyone again. "
                    "`/knos release` gives it back sooner."
-                   + (f" ({', '.join('@' + g for g in gone)}'s reservation had lapsed.)" if gone else ""), (login,), gone)
+                   + (f" ({', '.join('@' + g for g in gone)}'s reservation had lapsed.)" if gone else ""), (str(login),), gone)
 
 
 def release(issue: dict, events: list | None, terms: dict | None, commenter: dict, now: float) -> Outcome:
@@ -231,7 +235,7 @@ def release(issue: dict, events: list | None, terms: dict | None, commenter: dic
     still = [h for h in holds if not h.lapsed and h.id != commenter.get("id")]
     after = (f"It is still assigned to {_holders(still)}." if still else
              "It is open to everyone." + (" `/knos take` reserves it." if terms.get("reserve") else ""))
-    return Outcome(f"Knos: @{commenter.get('login')} gave issue #{n} back. {after}", unassign=(commenter.get("login"),))
+    return Outcome(f"Knos: @{commenter.get('login')} gave issue #{n} back. {after}", unassign=(str(commenter.get("login")),))
 
 
 # ---- who is paid -----------------------------------------------------------------------------------------------------
@@ -250,6 +254,7 @@ _CO_AUTHOR = re.compile(r"co-authored-by:[^<]{0,120}<\d{1,12}\+([A-Za-z0-9-]{1,3
 def hinted(pull: dict, head_message: str = "") -> list[str]:
     """The logins a bot's description and head commit name as the person who ran it, lowercased. A hint to show:
     it never decides who is paid. Quoted lines and fenced code are not the description's own words and are skipped."""
+    out: set[str]
     out, fenced = set(), False
     for line in (pull.get("body") or "").splitlines()[-400:]:
         line = line.strip()
@@ -357,7 +362,7 @@ def payee(pull: dict, issue: dict | None = None, events: list | None = None, pul
         missing = ("give the issue" if not isinstance(issue, dict) else "give this pull request's comments" if pull_comments is None
                    else "say who assigned the issue, and when" if events is None and issue.get("assignees")
                    else f"say whether @{asked[0]}, who wrote `/knos reject`, can write to the repository" if asked else "")
-        if missing:
+        if missing or not isinstance(issue, dict):
             return unread(missing)
         why = _open(pull, issue.get("number"), closes)
         if why:
@@ -395,7 +400,7 @@ def _open(pull: dict, n, closes: list | None) -> str:
         return ""
     base = pull.get("base") or {}
     if n in closing_issues(pull.get("body") or "", str((base.get("repo") or {}).get("full_name") or "")):
-        return (f"this pull request is against `{commands._show(base.get('ref'))}`, and GitHub closes an issue only from a pull "
+        return (f"this pull request is against `{commands._show(str(base.get('ref')))}`, and GitHub closes an issue only from a pull "
                 "request against the default branch")
     return f"this pull request does not close issue #{n}"
 

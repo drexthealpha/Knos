@@ -1,0 +1,21 @@
+# The bounds of an order's fee, proved apart from the program: build.rs copies `order_fee`, `bps_of`, `units` and the
+# fee constants out of ../knos_pay/src (lib.rs and state.rs) as text, so what is proved here is the program's own
+# lines and this crate needs none of the program's dependencies. Nothing here is in any build of a program.
+#
+#   cd programs-v2/fee_proofs && cargo kani            # the harnesses of src/lib.rs
+#   cd programs-v2/fee_proofs && cargo test --release  # the same function against a 128-bit reference
+#
+# Its version is 0.0.0 and stays: it is never released, and scripts/bump_version.py neither moves nor checks it.
+# Not a member of the programs-v2 workspace (the empty [workspace] below): the programs' build and lockfile know
+# nothing of it.
+[package]
+name = "knos-fee-proofs"
+version = "0.0.0"
+edition = "2021"
+publish = false
+build = "build.rs"
+
+[workspace]
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

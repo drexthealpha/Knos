@@ -97,3 +97,28 @@ from knos import controls as controls_
 
 controls_.fee_table
 _.BOUNDS
+
+
+# 0.3.17. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.appeal_                       # knos.appeal.register: knos appeal
+_.record_, _.status_            # knos.approvals.register: knos approve record | status
+_.estimate_, _.explain_         # knos.billing.register: knos bill estimate | explain
+_.card_, _.envelope_, _.offer_  # knos.controls.register: knos budget card | envelope | offer
+_.ingest_, _.ack_, _.dupes_     # knos.events.register: knos events ingest | ack | dupes
+_.preflight_, _.keep_           # knos.preflight.register: knos preflight | keep
+_.make_, _.approve_             # knos.statement.register: knos statement make | approve
+_.keygen_cmd, _.seal_cmd, _.open_cmd, _.export_cmd, _.restore_cmd, _.retain_cmd, _.checkpoint_cmd      # knos.vault.register: knos vault ...
+# Public functions and constants with no caller inside src/knos or scripts: what a consumer of the package calls, each
+# held by the tests (and the conformance kit) that name it.
+from knos import badge as badge_, billing as billing_, ghwords as ghwords_, ledger as ledger_, pdf as pdf_, private as private_
+from knos.settle.v2 import relayq as relayq_
+
+badge_.verified_svg, badge_.verified_markdown       # examples/receipt_consumer/show_badge.py; tests/test_badge.py
+billing_.PILOT, billing_.BOOK                       # the price book, as tests/test_billing.py holds it to tests/data/billing_vectors.json
+ghwords_.program_code                               # tests/test_refusals.py
+ledger_.billed_once                                 # conformance/impl/knos_python.py (conformance/vectors/ids.v1.json, ids.billed_once)
+ledger_.reopened, ledger_.reopened_key              # docs/METER.md; tests/test_verdicts_ids.py
+pdf_.A4                                             # tests/test_statement.py
+private_.receipt_shows                              # docs/PRIVATE.md; tests/test_private_path.py
+receipt_.exposed                                    # docs/RECEIPT.md (the six questions); tests/test_verdicts_ids.py
+relayq_.EVENT_TYPE                                  # the repository_dispatch type worker.yml listens for; tests/test_relayq.py holds the two together

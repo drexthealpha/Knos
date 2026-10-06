@@ -1,0 +1,270 @@
+// The front door: check your own invoice before anything else. One box takes a supplier's invoice (CSV, or lines of
+// pull request links) or the name of a public repository; the answer is drawn in place: the supplier's count beside
+// the neutral count, then every line in one of four groups. No install, no login, nothing sent to Knos.
+//
+//   renderFrontDoor(el[, env])    the control in `el` (index.html: <form id="front-door">) and its result
+//   LINE_STATES, LINE_WORDS       src/knos/ids.py's, mirrored (tests/web/front_door.mjs holds the two together)
+//   stateOf(row)                  which of the four a statement line of web/shadow.js is
+//   answers(row, pull)            the seven things an approver asks of one line, each in a few words
+//   invoiceLineId(supplier, invoice, line)   ids.invoice_line, byte for byte
+//
+// What reads GitHub and what judges a line is web/shadow.js, unchanged: this file only groups and draws. The sample is
+// web/front_door_sample.js (a made-up invoice with its recorded answers), so it works with no network.
+import { parse, pullOf, gather, statement, recorded, githubReader, Unread, ANONYMOUS_AN_HOUR, LINE_COSTS } from "./shadow.js";
+import { parseRepo, installLink, pinnedFile, INSTALL_WORKFLOW } from "./install.js";
+import { SAMPLE_INVOICE, SAMPLE_BOOK } from "./front_door_sample.js";
+
+export const LINE_STATES = ["agreed", "disputed", "duplicate", "insufficient_evidence"];
+export const LINE_WORDS = { agreed: "agreed", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
+const STATE_OF = { clean: "agreed", failed: "disputed", not_merged: "disputed", duplicate: "duplicate", unverified: "insufficient_evidence", unreadable: "insufficient_evidence" };
+export const stateOf = (row) => STATE_OF[row.class] || "insufficient_evidence";
+
+// The seven columns, in the order an approver asks: what did we authorize, what was delivered, which requirements
+// passed, was it billed before, who approved it, what is owed, and what explains the decision later.
+export const COLUMNS = [["authorized", "Authorized"], ["delivered", "Delivered"], ["passed", "Passed"], ["billed_before", "Billed before"],
+  ["approved_by", "Approved by"], ["owed", "Owed"], ["evidence", "Evidence"]];
+export const REPO_LINES = 10;              // a named repository: its latest merged pull requests, this many at most
+const API = "https://api.github.com";
+export const FEEDBACK = "https://github.com/drexthealpha/Knos/issues/new?labels=shadow-feedback&title=" + encodeURIComponent("What the check missed")
+  + "&body=" + encodeURIComponent("1. What was wrong in the result?\n\n\n2. Would you use this on a real invoice?\n\n\n3. What would you pay for it?\n\n");
+
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+const sha256 = async (bytes) => hex(await globalThis.crypto.subtle.digest("SHA-256", bytes));
+/** ids.invoice_line(supplier, invoice, line): "inv_" and 24 hex characters of a SHA-256 over the tagged parts. */
+export async function invoiceLineId(supplier, invoice, line) {
+  const enc = new TextEncoder(), parts = [enc.encode("knos.id.v1\0invoice_line\0")];
+  for (const p of [supplier, invoice, line]) { const b = enc.encode(String(p)), n = new Uint8Array(4); new DataView(n.buffer).setUint32(0, b.length); parts.push(n, b); }
+  const all = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  parts.reduce((at, p) => { all.set(p, at); return at + p.length; }, 0);
+  return `inv_${(await sha256(all)).slice(0, 24)}`;
+}
+
+/** What the box holds: { repo: { owner, repo, branch } } for one repository's name, else { invoice } (throws as parse does). */
+export function reading(text) {
+  const t = String(text || "").trim();
+  if (!/[\n,;\t]/.test(t) && !pullOf(t)) { const at = parseRepo(t); if (at) return { repo: at }; }
+  return { invoice: parse(text) };
+}
+
+/** A named repository as an invoice: its latest merged pull requests, one line each, no amounts. `known`: each pull
+ *  request as the listing gave it, so that it is not asked for again. */
+export async function repoInvoice(at, get) {
+  const repo = `${at.owner}/${at.repo}`, got = await get(`repos/${repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50`);
+  const merged = (Array.isArray(got) ? got : []).filter((p) => p && p.merged_at && Number.isInteger(p.number)).slice(0, REPO_LINES);
+  return { invoice: { lines: merged.map((p, i) => ({ line: i + 1, pr: `${repo}#${p.number}`, repo, number: p.number, amount: null, supplier: "" })) },
+    known: new Map(merged.map((p) => [`repos/${repo}/pulls/${p.number}`, p])) };
+}
+
+/** The seven answers for one line: { key: { text, href } }. `pull`: GitHub's own record of it, when it was read. */
+export function answers(row, pull = null) {
+  const state = stateOf(row), home = row.pr.split("#")[0], by = pull && pull.merged_by && pull.merged_by.login, same = row.class === "duplicate" && row.merged === null;
+  const unread = row.class === "unreadable" ? "not read" : same ? `see line ${row.duplicate_of}` : "";
+  const passed = row.checks.filter((c) => c.state === "passed").length;
+  const issue = row.issues[0], num = issue ? issue.split("#")[1] : "";
+  return {
+    authorized: unread ? { text: unread } : issue ? { text: `issue #${num}${row.issues.length > 1 ? ` and ${row.issues.length - 1} more` : ""}`, href: `https://github.com/${issue.split("#")[0]}/issues/${num}` } : { text: "no issue named" },
+    delivered: unread ? { text: unread } : row.merged ? { text: `merged ${row.merged_at.slice(0, 10)}${by ? ` by ${by}` : ""}`, href: row.merge_commit ? `https://github.com/${home}/commit/${row.merge_commit}` : "" } : { text: "not merged" },
+    passed: unread ? { text: unread } : !row.merged ? { text: "nothing ran" } : row.failed.length ? { text: `failed: ${row.failed.map((f) => f.name).join(", ")}`, href: row.failed[0].url }
+      : row.checks.length ? { text: `${passed} of ${row.checks.length} checks` } : { text: "no check ran" },
+    billed_before: { text: row.duplicate_of ? `yes, line ${row.duplicate_of}` : "no" },
+    approved_by: { text: "nobody yet" },
+    owed: { text: state === "agreed" ? (row.amount ?? "1 change") : state === "disputed" ? "nothing: disputed" : state === "duplicate" ? "nothing: billed twice" : "undecided" },
+    evidence: row.url ? { text: "pull request", href: row.url } : { text: "none" },
+  };
+}
+const WHY = { failed: "A check failed at merge.", not_merged: "Never merged.", unverified: "Checks gave no verdict.", unreadable: "GitHub gave no answer." };
+const whyOf = (row) => (row.class === "duplicate" ? `${row.why[0].toUpperCase()}${row.why.slice(1)}.` : row.why === "not found or private" ? "Not found, or private."
+  : row.why === "rate limit" ? "GitHub's hourly limit reached." : row.why === "no pull request named" ? "No pull request named." : WHY[row.class] || "");
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const link = (href, text) => (/^https:\/\/github\.com\//.test(href || "") ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text));
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const STYLE = `.fd textarea{min-height:64px;font-size:15px;resize:vertical}.fd .actions{align-items:center;margin:12px 0 0}.fd-result{grid-column:1/-1;order:2;min-width:0;margin:24px 0 8px;scroll-margin-top:80px}
+.fd-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 16px}.fd-counts>div{border:1px solid var(--line);border-radius:var(--radius,12px);padding:12px 14px;background:var(--paper-2);min-width:0}
+.fd-counts .k-kicker{margin:0}.fd-big{display:block;font-size:clamp(40px,11vw,80px);line-height:1;font-weight:700}.fd-counts span{overflow-wrap:anywhere}
+.fd-counts [data-fd=ours]{color:var(--ok)}.fd-pending,.fd-group ol{list-style:none;padding:0;margin:0}.fd-pending li{padding:4px 0;color:var(--ink-2);overflow-wrap:anywhere}
+.fd-groups{display:grid;gap:12px}.fd-group{border-left:3px solid var(--line);padding:2px 0 2px 12px;min-width:0}.fd-group h3{margin:0 0 4px;display:flex;gap:8px;align-items:baseline}
+.fd-group[data-group=agreed]{border-color:var(--ok)}.fd-group[data-group=disputed],.fd-group[data-group=duplicate]{border-color:var(--bad)}
+.fd-group[data-empty]{opacity:.55}.fd-line{padding:10px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.fd-line p{margin:0 0 6px}.fd-line .fd-why{color:var(--ink-2)}
+.fd-line dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px 12px;margin:0}.fd-line dt{font-size:12px;color:var(--ink-2)}.fd-line dd{margin:0}
+.fd-line[data-approved]{background:color-mix(in srgb,var(--ok) 9%,transparent);transition:background var(--dur-2) var(--ease)}
+.fd-under{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;margin:16px 0 8px}.fd-result [hidden]{display:none}`;
+
+/** Draw the front door. `el`: the form (or an empty element, which is given one). env, all optional: { out } where the
+ *  result goes, { fetch } to read GitHub with, { get } a reader instead of GitHub, { now } a Date for the approval. */
+export function renderFrontDoor(el, env = {}) {
+  const doc = el.ownerDocument, fetchFn = env.fetch || ((...a) => globalThis.fetch(...a));
+  if (!doc.getElementById("fd-style")) { const s = doc.createElement("style"); s.id = "fd-style"; s.textContent = STYLE; doc.head.appendChild(s); }
+  if (!el.querySelector("textarea")) {
+    el.classList.add("fd");
+    el.innerHTML = `<textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
+      <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <a href="#sample" data-fd="sample">Try a sample</a></p>`;
+  }
+  let out = env.out || doc.getElementById("front-result");
+  if (!out) { out = doc.createElement("div"); out.id = "front-result"; el.after(out); }
+  out.classList.add("fd-result");
+  const box = el.querySelector("textarea"), $ = (name) => out.querySelector(`[data-fd="${name}"]`);
+  const budget = { remaining: null, limit: ANONYMOUS_AN_HOUR, reset: null, asked: 0, spent: false };
+  let busy = false, last = null, motion = null;
+  import("./motion.js").then((m) => { motion = m; }).catch(() => { /* the page is whole without it */ });
+
+  const frame = (said, theirs) => {
+    out.hidden = false; delete out.dataset.done;
+    out.innerHTML = `<p data-fd="mark" class="fine" hidden>Sample: a made-up invoice from a made-up supplier.</p>
+      <p data-fd="said" role="status" aria-live="polite">${esc(said)}</p>
+      <div class="fd-counts" data-fd="counts" hidden><div><p class="k-kicker" data-fd="theirs-name">${esc(theirs)}</p><span class="k-num fd-big" data-fd="theirs">0</span><span data-fd="theirs-sum"></span></div>
+        <div><p class="k-kicker">Neutral count</p><span class="k-num fd-big" data-fd="ours">0</span><span data-fd="ours-sum">agreed so far</span></div></div>
+      <ol class="fd-pending" data-fd="pending"></ol>
+      <div class="fd-groups" data-fd="groups" hidden>${LINE_STATES.map((s) => `<section class="fd-group" data-group="${s}" data-empty><h3><span>${esc(cap(LINE_WORDS[s]))}</span> <span class="k-num" data-count>0</span></h3><ol></ol></section>`).join("")}</div>
+      <div data-fd="after" hidden>
+        <p class="fd-under"><button type="button" class="k-btn" data-fd="approve">Approve agreed lines</button>
+          <button type="button" class="k-btn quiet" data-fd="csv">Download CSV</button>
+          <a data-fd="statement" href="#invoice-statement">Open the statement</a></p>
+        <p data-fd="approved" role="status" aria-live="polite"></p>
+        <p class="fd-under"><a data-fd="install" href="#install">Install the meter</a> <a data-fd="feedback" href="${esc(FEEDBACK)}" target="_blank" rel="noopener">Tell us what it missed</a></p>
+        <p class="fine">A failed check is not proof of bad work.</p>
+        <p class="fine">Nothing left this page but pull request names.</p>
+      </div>`;
+    const cue = doc.getElementById("hero-cue"); if (cue) cue.hidden = true;
+    // the answer is brought into the window, so the lines are seen as they sort (a reader who asked for no movement gets it at once)
+    out.scrollIntoView?.({ block: "nearest", behavior: motion && !motion.prefersReduced() ? "smooth" : "auto" });
+  };
+  const lineHtml = (row, pull) => {
+    const a = answers(row, pull), why = whyOf(row);
+    return `<p><span class="k-num">Line ${row.line}</span> · ${row.url ? link(row.url, row.pr) : esc(row.pr || "no pull request")}${row.amount ? ` · <span class="k-num">${esc(row.amount)}</span>` : ""}</p>
+      ${why ? `<p class="fd-why">${esc(why)}</p>` : ""}
+      <dl>${COLUMNS.map(([key, name]) => `<div><dt>${esc(name)}</dt><dd data-col="${key}">${link(a[key].href, a[key].text)}</dd></div>`).join("")}</dl>`;
+  };
+
+  async function run(sample = false) {
+    if (busy) return;
+    let what;
+    try { what = sample ? { invoice: parse(SAMPLE_INVOICE) } : reading(box.value); } catch (e) {
+      frame(/^line \d+/.test(e.message) ? `Not read: ${e.message}.` : "Not read: paste pull request links, or type owner/repo.", ""); return;
+    }
+    busy = true; last = null; budget.spent = false;
+    const repo = what.repo ? `${what.repo.owner}/${what.repo.repo}` : "";
+    frame(repo ? `Reading ${repo}.` : `Checking ${what.invoice.lines.length} ${what.invoice.lines.length === 1 ? "line" : "lines"}.`, repo ? "Merged there" : "Supplier's count");      // the pending state, before anything is asked
+    $("mark").hidden = !sample;
+    const finish = (said) => { busy = false; $("said").textContent = said; };
+    let get = env.get || (sample ? recorded(SAMPLE_BOOK) : null), invoice = what.invoice;
+    if (!get) {
+      try {
+        const rate = await fetchFn(`${API}/rate_limit`, { headers: { Accept: "application/vnd.github+json" } });      // asking for the budget does not spend it
+        const core = rate.ok ? ((await rate.json()).resources || {}).core : null;
+        if (core && Number.isInteger(core.remaining)) Object.assign(budget, { remaining: core.remaining, limit: core.limit ?? budget.limit, reset: core.reset ?? null });
+      } catch { /* unknown: GitHub's own headers say it with the first answer */ }
+      get = githubReader(fetchFn, budget);
+    }
+    if (what.repo) {
+      let listed;
+      try { listed = await repoInvoice(what.repo, get); } catch (e) {
+        const why = e instanceof Unread ? e.reason : "no answer";
+        return finish(why === "rate limit" ? "GitHub's hourly limit reached. Try again in an hour." : why === "not found or private" ? "Not read: that repository is private, or not there." : "GitHub gave no answer. Try again.");
+      }
+      if (!listed.invoice.lines.length) return finish("No merged pull request found there.");
+      invoice = listed.invoice;
+      const reader = get;
+      get = async (path) => {
+        if (!listed.known.has(path)) return reader(path);
+        if (budget.spent || (budget.remaining !== null && budget.remaining < LINE_COSTS - 1)) { budget.spent = true; throw new Unread("rate limit"); }
+        return listed.known.get(path);
+      };
+      $("said").textContent = `Checking ${invoice.lines.length} merged pull requests.`;
+    }
+    const priced = invoice.lines.every((ln) => ln.amount !== null), rows = [], pulls = new Map();
+    $("counts").hidden = false; $("groups").hidden = false;
+    $("theirs-sum").textContent = repo ? "merged pull requests" : "lines billed";
+    $("pending").innerHTML = invoice.lines.map((ln) => `<li class="fd-line" data-line="${ln.line}" data-state="pending"><span class="k-num">Line ${ln.line}</span> · ${esc(ln.pr || "no pull request")}</li>`).join("");
+    // a figure counts up to its new value (motion.js countTo); with no motion it is simply written
+    const count = (el, n) => { if (motion && motion.countTo) motion.countTo(el, n, { digits: 0 }); else el.textContent = String(n); };
+    count($("theirs"), invoice.lines.length);
+    const tally = () => {
+      const agreed = rows.filter((r) => stateOf(r) === "agreed");
+      count($("ours"), agreed.length);
+      for (const s of LINE_STATES) { const g = out.querySelector(`[data-group="${s}"]`), n = rows.filter((r) => stateOf(r) === s).length; count(g.querySelector("[data-count]"), n); g.toggleAttribute("data-empty", n === 0); }
+    };
+    // each line sorts into its group as its answer arrives: it slides from the list to its place there (motion.js sort)
+    let moving = Promise.resolve();
+    const place = (row, pull) => {
+      moving = moving.then(async () => {
+        const li = $("pending").querySelector(`[data-line="${row.line}"]`), group = out.querySelector(`[data-group="${stateOf(row)}"]`);
+        if (!li || !group) return;
+        li.dataset.class = row.class; rows.push(row); tally();
+        if (motion && motion.sort) { const landed = motion.sort(li, group.querySelector("ol"), { state: stateOf(row) }); li.innerHTML = lineHtml(row, pull); await landed; }
+        else { li.dataset.state = stateOf(row); li.innerHTML = lineHtml(row, pull); group.querySelector("ol").append(li); }
+      });
+    };
+    // what GitHub said is written down as it is read: the statement is made from the invoice and these answers, and from nothing else
+    const book = {}, asked = get;
+    get = async (path) => { try { return (book[path] = await asked(path)); } catch (e) { book[path] = { __unread: e instanceof Unread ? e.reason : "no answer" }; throw e; } };
+    const facts = await gather(invoice, get, (ln, got, all) => {
+      const row = statement({ lines: invoice.lines.slice(0, ln.line) }, all).lines[ln.line - 1];
+      pulls.set(ln.line, got && got.pull); place(row, got && got.pull);
+    });
+    await moving;
+    const st = statement(invoice, facts), agreed = st.lines.filter((r) => stateOf(r) === "agreed"), left = st.lines.length - agreed.length;
+    if (priced && st.amounts) {
+      $("theirs-sum").textContent = `lines, ${st.amounts.billed} billed`;
+      $("ours-sum").textContent = `lines, ${st.amounts.clean} agreed`;
+    } else $("ours-sum").textContent = agreed.length === 1 ? "line agreed" : "lines agreed";
+    const at = repo ? what.repo : sample ? null : (() => {      // an invoice: the repository most of its lines name, on the branch GitHub says is its default
+      const seen = {}; for (const ln of invoice.lines) if (ln.repo) seen[ln.repo.toLowerCase()] = [(seen[ln.repo.toLowerCase()] || [0])[0] + 1, ln];
+      const top = Object.values(seen).sort((a, b) => b[0] - a[0])[0];
+      if (!top) return null;
+      const branch = ((((facts.get(top[1].pr.toLowerCase()) || {}).pull || {}).base || {}).repo || {}).default_branch;
+      return { ...parseRepo(top[1].repo), ...(typeof branch === "string" && /^[\w./-]{1,200}$/.test(branch) ? { branch } : {}) };
+    })();
+    const href = at && at.owner && pinnedFile(INSTALL_WORKFLOW) ? installLink(at) : null;
+    if (href) Object.assign($("install"), { href, target: "_blank", rel: "noopener" });
+    $("approve").disabled = agreed.length === 0;
+    $("after").hidden = false;
+    const text = repo ? `${invoice.lines.map((ln) => ln.pr).join("\n")}\n` : sample ? SAMPLE_INVOICE : box.value;
+    last = { st, pulls, approved: "", status: null, made: null, bundle: { invoice: text, answers: book } };
+    made().catch(() => {});                 // the statement itself, made beside the page's own count and handed to the Statement page
+    out.dataset.done = "1";
+    finish(budget.spent ? "GitHub's hourly limit reached. Unread lines stay insufficient evidence." : `Checked ${st.lines.length} ${st.lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"}.`);
+  }
+
+  // THE STATEMENT: what `knos statement make` writes from the same invoice and the same answers (web/statement_make.js,
+  // held to tests/data/statement byte for byte): the four ids of every line, one of the four states, its evidence and
+  // its hash. Approve and Download work on it, and the Statement page opens the same object.
+  const made = () => { const mine = last; return (mine.made ||= import("./statement_make.js").then(async (m) => { const st = await m.fromShadow(mine.bundle, {}); if (last === mine) m.hand(st, mine.status); return st; })); };
+  const say = (text, kind) => { if (motion && motion.toast) motion.toast(text, kind); };
+
+  async function approve() {
+    if (!last || last.approved) return;
+    const mine = last, day = (env.now || new Date()).toISOString().slice(0, 10), lines = [...out.querySelectorAll('.fd-line[data-state="agreed"]')];
+    mine.approved = `you, ${day}`;
+    for (const li of lines) { li.dataset.approved = day; li.querySelector('[data-col="approved_by"]').textContent = mine.approved; }
+    const left = mine.st.lines.length - lines.length;
+    $("approved").textContent = `Approved ${lines.length} ${lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"} left.`;
+    if (doc.activeElement === $("approve")) $("csv").focus();          // the focus is not left on a button that no longer works
+    $("approve").disabled = true;
+    say(`Approved ${lines.length} ${lines.length === 1 ? "line" : "lines"}`);
+    // the approval is an event beside the statement, as `knos statement approve` records it: who says they approved, and the day
+    const m = await import("./statement_make.js"), st = await made();
+    mine.status = m.approve(st, mine.status, "you", "approver", day);
+    if (last === mine) m.hand(st, mine.status);
+  }
+
+  async function download() {
+    if (!last) return;
+    const mine = last, [{ statementCsv }, st] = await Promise.all([import("./finance_data.js"), made()]);
+    const name = `statement-${String(st.invoice).replace(/[^\w.-]+/g, "-")}.csv`;
+    const url = URL.createObjectURL(new Blob([await statementCsv(st, mine.status)], { type: "text/csv;charset=utf-8" })), a = doc.createElement("a");
+    a.href = url; a.download = name; doc.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    say(`Downloaded ${name}`);
+  }
+
+  el.addEventListener("submit", (ev) => { ev.preventDefault(); run(); });
+  el.querySelector('[data-fd="sample"]').addEventListener("click", (ev) => { ev.preventDefault(); box.value = SAMPLE_INVOICE; run(true); });
+  box.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey && (ev.ctrlKey || ev.metaKey || !box.value.includes("\n")) && box.value.trim()) { ev.preventDefault(); run(); } });
+  box.addEventListener("paste", () => setTimeout(() => { if (box.value.includes("\n")) run(); }, 0));      // a pasted invoice is checked as it lands
+  out.addEventListener("click", (ev) => {
+    const what = ev.target.closest("[data-fd]")?.dataset.fd;
+    if (what === "approve") approve().catch(() => { $("approved").textContent = "Not recorded. Try again."; });
+    if (what === "csv") download().catch(() => { $("approved").textContent = "Download failed. Try again."; say("Download failed", "bad"); });
+  });
+  return { run, statement: () => (last ? made().then((st) => ({ st, status: last.status })) : Promise.resolve(null)) };
+}

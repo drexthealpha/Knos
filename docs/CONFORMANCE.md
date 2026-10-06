@@ -12,7 +12,7 @@ or `{"id": ..., "refused": true}` for an input the format does not allow, or `{"
 operation the implementation does not do. The runner needs Python 3.10 and nothing of Knos's. `--require-all` makes an
 unsupported case a failure; `--format terms` runs one format.
 
-Kit version 1 has 171 cases:
+Kit version 2 has 288 cases. Version 2 added the last two rows and changed no vector of version 1:
 
 | format | versions | cases | what it fixes |
 |---|---|---|---|
@@ -21,13 +21,16 @@ Kit version 1 has 171 cases:
 | ledger | 1 | 31 | the meter's evaluation id, deliverable id, batch root and running hash |
 | audiences | 1 | 36 | the text a signed token must carry for each instruction that takes one |
 | statement | 1 | 8 | the meter's monthly statement and the hash both parties compare |
+| receipt4 | 4 | 60 | the acceptance receipt of version 4: four verdicts, the four ids, what the evidence does not show, and which receipts authorise payment ([RECEIPT.md](RECEIPT.md), [`receipt/vectors.v4.json`](receipt/vectors.v4.json)) |
+| ids | 1 | 57 | the ids of a deliverable, an evaluation, an invoice line and a settlement, the four verdicts, and the rule that bills a deliverable once ([METER.md](METER.md)) |
 
 The receipt's vectors are the ones [`docs/receipt/vectors.json`](receipt/vectors.json) already held; the kit reads that
 file and keeps no copy. Nobody outside Knos has run the kit: the two implementations that pass it are Knos's own.
 
 ## The formats
 
-**Receipt** (`receipt.digest`, `receipt.check`). [RECEIPT.md](RECEIPT.md) and the three JSON Schemas beside the vectors
+**Receipt** (`receipt.digest`, `receipt.check`, and for version 4 `receipt.verdict`: the verdict of a valid receipt and whether it
+authorises payment). [RECEIPT.md](RECEIPT.md) and the four JSON Schemas beside the vectors
 say what a receipt is. The digest is sha256 of the receipt as JSON with its keys sorted, no white space, in UTF-8 with
 nothing outside ASCII escaped. `receipt.check` answers `true` for a valid receipt and refuses an invalid one; some rules
 are beyond what a schema can say (shares that add up, hashes that must agree), and the invalid vectors cover those.
@@ -83,7 +86,7 @@ It is narrow on purpose.
   misread gets the next number, and an audience whose meaning changes gets a new first part, as `knos3` followed
   `knos2`. The change is announced in [CHANGELOG.md](../CHANGELOG.md) under the release that makes it and in the table
   above, with its vectors.
-- **The old verifier keeps reading old receipts.** `knos` reads receipt versions 1, 2 and 3 today, and a release that
+- **The old verifier keeps reading old receipts.** `knos` reads receipt versions 1, 2, 3 and 4 today, and a release that
   adds a version keeps reading the earlier ones. A receipt someone already holds does not stop verifying because Knos
   moved on.
 
@@ -104,14 +107,17 @@ It is narrow on purpose.
 
 | implementation | passed | not implemented | failed |
 |---|---|---|---|
-| Python (`conformance/impl/knos_python.py`, the functions the rest of Knos uses) | 171 | 0 | 0 |
-| JavaScript (`conformance/impl/knos_js.mjs`, the client in `sdk/settle`) | 126 | 45 | 0 |
+| Python (`conformance/impl/knos_python.py`, the functions the rest of Knos uses) | 288 | 0 | 0 |
+| JavaScript (`conformance/impl/knos_js.mjs`, the client in `sdk/settle`) | 195 | 93 | 0 |
 
-Of the JavaScript client's 126, 101 are answered by functions `sdk/settle` exports and 25 by a few lines in the adapter
-written from this page, for three operations the client has no function for: `receipt.digest`,
-`ledger.deliverable_id` and `statement.hash`. They show that the descriptions above are enough to write from; they are
-not a claim about the client. The 45 it does not do are two operations, and each is a difference between Knos's own
-two implementations that a user of the client should know:
+Of the JavaScript client's 195, 101 are answered by functions `sdk/settle` exports and 94 by a few lines in the adapter
+written from this page and from the description in each vector file, for operations the client has no function for:
+`receipt.digest`, `ledger.deliverable_id`, `statement.hash`, and the nine of the ids format (`ids.deliverable`,
+`ids.evaluation`, `ids.invoice_line`, `ids.settlement`, `ids.kind_of`, `ids.expect`, `ids.order_scope`, `ids.verdict`,
+`ids.billed_once`). They show that the descriptions are enough to write from; they are not a claim about the client.
+The 93 it does not do are three operations, and each is a difference between Knos's own two implementations that a
+user of the client should know:
 
-- `receipt.check` (44 cases): the client does not check a receipt's rules.
+- `receipt.check` (80 cases): the client does not check a receipt's rules.
+- `receipt.verdict` (12 cases): so it does not say a receipt's verdict, or whether it authorises payment.
 - `statement.text` (1 case): the client has no function that writes a statement's text.

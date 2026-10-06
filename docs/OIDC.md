@@ -69,7 +69,7 @@ The interface crate, [`crates/knos-oidc-interface`](../crates/knos-oidc-interfac
 allocate, so it builds with solana-program, pinocchio or anchor of any version:
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.16" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.17" }
 ```
 
 ```rust
@@ -242,7 +242,10 @@ job does not yet check the order's terms on Solana; it says so where it would.
 
 ## Limits
 
-- Tokens up to 8,192 bytes. RS256 only, 2048- or 4096-bit keys. ES256 tokens are not verified.
+- Tokens up to 8,192 bytes. RS256 with 2048- or 4096-bit keys is what the public program ids verify. ES256 is
+  built and tested, not deployed: one transaction, Solana's secp256r1 instruction checks the signature and
+  `VerifyEs256` checks what it verified, for a token whose signing input is at most 780 bytes
+  ([ES256.md](ES256.md)). ES384, ES512, PS256 and EdDSA tokens are not verified.
 - Since 2.2 a token's header and payload are each one JSON object of RFC 8259, at most 64 levels deep, with at most
   128 members at the top level and no name there twice (the GitHub-shaped token of the tests has 31 members and
   one level). A name twice inside a nested object is not looked for. Before 2.2 a value the verifier does not read is not checked.

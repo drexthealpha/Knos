@@ -4,7 +4,7 @@ Written by `scripts/drills.py` on 2026-10-04 05:17 UTC. Do not edit: run the com
 
 Each row is a safety path of the second deployment, run on the bytes the cluster runs. The script reads both programs from devnet with `getAccountInfo`, loads exactly those bytes into LiteSVM (a simulator inside the script's process) at their real ids, and moves the simulator's clock. No transaction is sent to a cluster, so a row is a log of the deployed code, not a transaction a block explorer can show. The last four rows are the upgrade drill, which this script does not run: `scripts/drill_upgrade.sh` runs it against a validator on the machine it is run on, with the real Squads program.
 
-14 of 14 rows passed, 0 failed, 0 were not run.
+14 of 15 rows passed, 0 failed, 1 were not run.
 
 ## The programs
 
@@ -29,6 +29,7 @@ The hash is the one `solana-verify get-program-hash` prints, and the one [ASSURA
 | a payment | real GitHub tokens | the fund token of drexthealpha/knos-e2e issue 36 (issued 2026-10-03 16:19 UTC) opened a job of 5 test USDC from the faucet; the pay token issued 2026-10-03 16:20 UTC was verified in 2 steps and paid it: held for GitHub user 142920951 until 2027-04-01 16:20 UTC (the proof names no wallet and none is bound here) | pass |
 | a replay is refused | real GitHub tokens | after the payment both tokens are verified again (the verifier keeps no memory) and sent to the escrow once more: the pay token again: error 83; the fund token again: error 91; no money moved | pass |
 | a token under a revoked key is refused | real GitHub tokens; authority simulated | the fund token of drexthealpha/knos-e2e is verified; the guardian revokes the key that signed it; the escrow then refuses that verified token (error 78: no test USDC is minted, no job is funded) and the verifier refuses to verify it again (78) | pass |
+| second operator | a second person, their own machine |  | not run: not yet run by a second person (docs/OPERATOR.md, "The drill", says who runs it and when it passes) |
 | an upgrade is proposed | the multisig's vote, local validator | on a local validator that holds, copied from https://api.devnet.solana.com, the bytes of both programs as deployed, the Squads program and both multisig accounts, each member's key replaced by a key made for the drill: the bytes knos_pay already runs, in buffer FRBNMB5RCMVXCNLsSW4Qa73cdkb9dEeyR3hFCAwg2isX owned by the vault; proposal 1 of the upgrade multisig is approved and can be executed from 2026-10-06 04:57:25 UTC, 48 hours after the vote; governance.mjs refused it first because the upgrade gate holds no record of these bytes (deployed before the gate existed), so it was proposed with --ungated | pass |
 | no upgrade before 48 hours | the multisig's vote, local validator | at 2026-10-04 04:57:59 UTC governance.mjs refuses to execute proposal 1; sent anyway, the Squads program refuses it (TimeLockNotReleased); knos_pay is unchanged (slot 0) | pass |
 | an upgrade after 48 hours | the multisig's vote, local validator | at 2026-10-06 21:23:24 UTC proposal 1 is executed by the Squads program: knos_pay was deployed again in slot 579048 (before: 0) with the same executable hash 75d7eb959f75575f6816942ad18a97c93a01690782e2b82ce01d7823c94e0a69, and its upgrade authority is still the vault | pass |
@@ -43,13 +44,15 @@ The hash is the one `solana-verify get-program-hash` prints, and the one [ASSURA
 
 - **the multisig's vote, local validator**: `scripts/drill_upgrade.sh`, on a validator on the machine it is run on, which holds the real Squads program and both multisigs. The upgrade is proposed, approved, executed and cancelled by member keys through the Squads program, with `scripts/governance.mjs`; the validator's clock is moved 48 hours. The first of these rows says what that validator held: with `--from-devnet`, devnet's bytes of both programs and both multisig accounts, each member's key replaced by a key made for the drill (the members' real keys are not used). This run read those rows from `docs/drill_upgrade.log`.
 
+- **a second person, their own machine**: no script runs this row. Someone who is not the founder follows [OPERATOR.md](OPERATOR.md) from a clean clone, and the row passes when a transaction their own relay key sent has paid or refunded one devnet order. Nobody has done it yet.
+
 Money in the rows without tokens is a 6-decimal SPL Token mint made in the simulator, standing in for test USDC. The rows with tokens use the program's own faucet mint.
 
 ## When a dependency fails
 
-These rows are of another kind than the ones above. Each breaks one thing Knos depends on and follows a payment through it. They need a token signed for every step, and nothing but GitHub can sign one the deployed programs take, so they run the programs' test builds (`knos_oidc` `f7f8dd12295010153deaf913bbc50f88a5bb76bf073305ee4fceb66fbc82895b`; `knos_pay` `325e699ccab376493d2b3f04a66f5140747407afc54c312e48a542a84f1b31db`: the same source built with a key this repository holds) in LiteSVM, with the relay's own code and the fakes of GitHub and of the RPC endpoint that the tests use. Seconds are the simulator's: the drill moves the clock, and the relay makes a pass every 3 s as the public worker does. No cluster and no GitHub is touched, and none of these failures has been rehearsed on devnet.
+These rows are of another kind than the ones above. Each breaks one thing Knos depends on and follows a payment through it. They need a token signed for every step, and nothing but GitHub can sign one the deployed programs take, so they run the programs' test builds (`knos_oidc` `1c7c7af6ca85f2c5e49aa69516069e5bd47a63328968d644703fb6d196ebc1ee`; `knos_pay` `325e699ccab376493d2b3f04a66f5140747407afc54c312e48a542a84f1b31db`: the same source built with a key this repository holds) in LiteSVM, with the relay's own code and the fakes of GitHub and of the RPC endpoint that the tests use. Seconds are the simulator's: the drill moves the clock, and the relay makes a pass every 3 s as the public worker does. No cluster and no GitHub is touched, and none of these failures has been rehearsed on devnet.
 
-6 of 6 rows passed, 0 failed, 0 were not run.
+7 of 7 rows passed, 0 failed, 0 were not run.
 
 | Failure | What was broken | What the customer sees | How it recovers | Measured recovery, simulated seconds | Result |
 |---|---|---|---|---|---|
@@ -59,6 +62,7 @@ These rows are of another kind than the ones above. Each breaks one thing Knos d
 | the RPC endpoint errors and returns stale blockhashes | for 60 s every transaction the relay sent failed: a closed connection, or "Blockhash not found"; reads still answered | the payment comment is late; nothing says "failed", because the failure says nothing about the token | nothing to do. The relay tries the token again on its next pass, then after 10, 20, ... 60 s, and every 60 s from then while the chain would still take it; a failure of the endpoint never ends a token | paid 12 s after the endpoint answered again, on try 6 (tries at 3, 6, 9, 21, 42, 72 s); paid once | pass |
 | the evidence is missing (a required check run was deleted) | the bounty's terms require the checks `build` and `test` at the merged commit; GitHub no longer lists `test` there | one comment on the pull request: "Knos: not paid.", each required check with what GitHub shows (`test`: did not run on this commit), and what to do. No token is signed, so no relay and no program is asked to pay | run the check again on that commit and comment `/knos settle` (anyone may); or a maintainer pays with `/knos tip`. Otherwise the money goes back to the funder at the deadline | refused by the job the merge started, after 0 s of waiting (a check that is absent is not waited for); paid 30 s after `/knos settle`, once the check was back | pass |
 | devnet is reset | the cluster lost every account: the programs, every order and Balance, every binding and signing key, and the test USDC itself | `knos status` says the programs are not deployed; open orders are gone and cannot be refunded (it was test USDC from a faucet); explorer links to old transactions stop working | what was accepted and paid stays provable: `knos bundle verify FILE --mirror DIR` and `knos receipt verify ORDER --mirror DIR` check the saved bundle and the mirrored receipt with no cluster. A funder waits until `knos status` passes again, then funds anew (drills_recovery.md, case A) | 0 s for the record: 9 checks of the bundle and the mirror's receipt passed with the chain gone. The orders are not recovered: redeploying is by hand and was not timed | pass |
+| devnet is reset and the operator's copies are deleted | the cluster lost every account, and the working copy (the vault folder with every sealed bundle) was deleted. One file is left: the plain archive `knos vault export` wrote, kept by the customer | nothing from Knos answers: no cluster holds the payment and no operator holds the evidence | `knos vault restore knos-evidence.tar --to DIR` writes every bundle back, each checked against the archive's checkpoint; `knos bundle verify --no-chain --no-network FILE` then passes on every receipt, from the issuer's signature and the archived copy of the chain record inside the bundle ([VAULT.md](VAULT.md)) | 0 s for the record: 1 of 1 bundle restored byte for byte from the export alone, 14 statements sorted with no chain and no network, the checkpoint's root recomputed. The test chain holds one order, so one bundle; the open orders and the money are not recovered | pass |
 
 These rows alone, with no cluster: `python scripts/drills.py --dependencies-only` (it rewrites this section, and appends the hand-written half of the page anew). What each means for someone who is waiting for a payment is at the end of this page.
 
@@ -71,7 +75,7 @@ KNOS_DRILL_LOG=docs/drill_upgrade.log bash scripts/drill_upgrade.sh --from-devne
 python scripts/drills.py --rpc https://api.devnet.solana.com --tokens tokens.jsonl --upgrade-log docs/drill_upgrade.log
 ```
 
-The script exits 1 when a row fails. With `--strict` it also exits 1 when a row was not run.
+The script exits 1 when a row fails. With `--strict` it also exits 1 when a row it can run was not run.
 
 ## Recovery a funder can run
 
@@ -81,7 +85,7 @@ a **funder** does, step by step, in three failures, using only a Solana key of t
 
 What has and has not been rehearsed: every instruction named below is run by the tests named beside it, in a
 simulator. The refund of a bounty has also run on the deployed bytes (rows 1 and 2 above). The table "When a
-dependency fails" above walks a payment through six failures, also in a simulator, on the programs' test builds.
+dependency fails" above walks a payment through seven failures, also in a simulator, on the programs' test builds.
 **No funder outside Knos has run any of these steps, and none of these failures has been rehearsed on devnet.** The rows above ran on the bytes deployed
 on the day the table was written (0.3.12's); work orders, `RefundOrder` and `Cancel` are live only once the 2.1
 upgrade of 0.3.14 has executed ([`web/upgrades.json`](../web/upgrades.json)).
@@ -184,6 +188,24 @@ its key is expired and accepted again after a refresh,
 `test_a_token_is_refused_while_its_key_is_expired_and_works_again_once_the_key_is_refreshed`. *Not rehearsed:* a
 refresh on devnet by an account other than Knos's; and the state with every key expired, on a cluster.
 
+### D. Knos's operator is gone, and devnet with it
+
+What you need beforehand: an export archive (`knos vault export`, [VAULT.md](VAULT.md)) kept somewhere of your own,
+and the `knos` package. Nothing else.
+
+```
+knos vault restore knos-evidence.tar --to restored
+knos vault verify restored/CHECKPOINT.json --against restored
+knos bundle verify --no-chain --no-network restored/<file>
+```
+
+The first writes every bundle back and checks each against the archive's checkpoint. The second recomputes the
+checkpoint's root; compare it with the line you wrote down when the archive was made. The third, for each bundle,
+sorts every statement of the receipt into verified from the issuer's signature, resting on the archived copy of
+the chain record, or not checkable without a cluster. What is not recovered: open orders and the test USDC in them.
+The drill is the row "devnet is reset and the operator's copies are deleted" above; no customer has done it with
+an archive of their own.
+
 ## What you see when something Knos depends on fails
 
 For a funder or a payee who is waiting, not for an operator. Each case is a row of "When a dependency fails" above:
@@ -203,6 +225,7 @@ wait and for how long, and how many it refused or retried in 24 hours. Then:
 | The RPC endpoint errors, or its blockhashes are stale | The payment comment is late. Nothing says "failed": the failure says nothing about your token. | Nothing. The relay tries again after 3 s, twice, then 10, 20, up to 60 s apart, for as long as the token is good. | Paid 12 s after the endpoint answered again, on the sixth try; once. |
 | The evidence is missing: a check the terms require is no longer on the merged commit | One comment: `Knos: not paid.`, each required check with what GitHub shows for it, and what to do. No token is signed, so nothing can be paid by mistake. | Run the check again on that commit and comment `/knos settle` (anyone may). A maintainer can pay the work anyway with `/knos tip <amount>`. Otherwise the money goes back to the funder at the deadline. | Refused by the job the merge started; paid 30 s after `/knos settle` once the check was back. |
 | Devnet was reset | `knos status` says the programs are not deployed. Open orders are gone; it was test USDC. Explorer links to old transactions stop working. | Keep proving what was paid: `knos bundle verify FILE --mirror DIR` and `knos receipt verify ORDER --mirror DIR` check a saved bundle and the mirrored receipt with no cluster. Then case A above: wait until `knos status` passes again, and fund anew. | The bundle and the mirror's receipt verified with the chain gone, at once. The orders are not recovered; redeploying is by hand and was not timed. |
+| Devnet was reset and Knos's own copies are gone | Nothing from Knos answers: no cluster holds the payment, and no operator holds the evidence. | Restore from the archive you kept: `knos vault restore knos-evidence.tar --to DIR`, then `knos bundle verify --no-chain --no-network FILE` for each bundle (case D above). | The one bundle of the drill was restored byte for byte and its receipt verified with no chain and no network, at once. Open orders and their test USDC are not recovered. |
 
 What these rows do not cover: GitHub's Actions being down (no workflow runs, so no token is signed: wait, or use
 case B), a relay that never starts again (relay it yourself: `KNOS_RELAY_KEY=<your key file> knos relay`), and

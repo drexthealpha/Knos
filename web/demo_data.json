@@ -45,16 +45,16 @@
   "tx": "63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq",
   "amount": "10.00",
   "seconds": 25,
-  "payments": 40,
+  "payments": 41,
   "window": {
    "from": "2026-10-02",
    "to": "2026-10-05"
   }
  },
  "replay": {
-  "tx": "3hHdViZzWAtjpmYLU95XuX9byLovPBo9N1FPoLTSW3yg1x3btF7zrVtwMhDAnyUKsc195yMXs1ctmm6aveaxu259",
-  "error": 83,
-  "means": "not in the state this needs",
+  "tx": "5fN4sHZtD8Mrud2CRoFgDMwLWtUfNsZHC5b2UzKp9bpNEBCPMdVrxdS6KH28dmdo1Q8MohBF3mL5Du2qrrN9dLno",
+  "error": 91,
+  "means": "a token works once",
   "single_use_error": 91,
   "single_use": "a token works once"
  },
@@ -77,6 +77,7 @@
   "docs/TAMPER.md",
   "docs/bench.json",
   "docs/facts.json",
-  "docs/OIDC.md"
+  "docs/OIDC.md",
+  "programs-v2/knos_pay/src/lib.rs"
  ]
 }

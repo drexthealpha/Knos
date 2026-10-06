@@ -1,30 +1,31 @@
 # Weekly update (one minute)
 
-Narration in the founder's own voice, about 150 words, over one screen recording. The number in the second part is
-a slot, `[[stat: name]]`, filled from the release run.
+Spoken, about 150 words, over one screen recording. Every number is in `docs/facts.json`.
 
 ## What shipped (0:00)
 
-*On screen: the price book with the Pilot line, then two statements side by side.*
+*On screen: the site's first screen with an invoice pasted, then [STORY.md](../STORY.md).*
 
-This release deployed and proposed no program. I worked on the person Knos is for: whoever has to approve a supplier's invoice
-and defend it afterwards. There is now one thing I can sell while everything stays on devnet: a 30-day pilot that
-reconciles one buyer's accepted work from its suppliers and names every mismatch with what was billed. I also
-took out of the repository every sum about what the business might one day earn. It has earned nothing.
+This release changed no program. The site now opens on your own invoice: paste it, or name a public repository,
+and you get a neutral count and every mismatch, with no install and no wallet. A correct fix that brings its own
+regression test is accepted, and a cheat still fails. One page tells the whole round in eight steps, and the
+other documents sit behind one map.
 
 ## One number (0:25)
 
-*On screen: the site's Numbers page.*
+*On screen: the number, then the site's Numbers page.*
 
-From merge to paid took 25 seconds at the median, on devnet. Funders other than Knos: 0.
+Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. From merge to paid took 25
+seconds at the median, on devnet. Funders other than Knos: 0.
 
-## The hardest problem, and the decision (0:32)
+## The hardest problem, and the decision (0:35)
 
-*On screen: docs/PILOT.md, the section on what blocks it.*
+*On screen: docs/GOVERNANCE.md, the outside key holder.*
 
-The pilot cannot be invoiced: there is no company. And nobody has been asked whether they want it. I wrote both
-down beside the offer, and the offer stays.
+The meter is called neutral, and one person holds every key. Adding an outside key holder is now one page and
+one command. Nobody holds that key, and nobody has been asked.
 
 ## Next week (0:50)
 
-Conversations with the people who approve these invoices. None has happened yet.
+Ask for three things the project does not have: an outside key holder, first buyers to run a shadow count, and
+an outside review.

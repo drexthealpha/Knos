@@ -189,7 +189,8 @@ def test_the_page_carries_the_examples_and_builds_the_same_link():
     assert yaml.safe_load(got["attestor"]) == yaml.safe_load((ROOT / "examples" / "knos-attestor.yml").read_text(encoding="utf-8"))
     assert got["second"] == init.install_link("acme/widgets", got["attestor"], ".github/workflows/knos-attestor.yml") and len(got["second"]) < init.URL_LIMIT
     assert got["terms"] == [terms_templates.export(n) for n in sorted(terms_templates.TEMPLATES)]
-    assert 'renderInstall($("install-pr"))' in (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+    # the first screen loads web/install.js only when its section is opened: the mount is in web/front.js
+    assert '(await import("./install.js")).renderInstall($("install-pr"))' in (ROOT / "web" / "front.js").read_text(encoding="utf-8")
     assert 'id="install-pr"' in (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 
 

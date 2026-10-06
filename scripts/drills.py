@@ -34,7 +34,7 @@ in the simulator, standing in for test USDC, except in the token drills, which u
 
 A second table, "When a dependency fails", is of another kind (`DEPENDENCIES`): GitHub's API down for ten minutes, a
 signing key expired on chain, the relay killed between a send and its confirmation, an RPC endpoint that errors, the
-evidence of a payment missing, and devnet reset. Each needs tokens signed on demand, so these rows run the programs'
+evidence of a payment missing, devnet reset, and devnet reset with the operator's own copies deleted (the restore test). Each needs tokens signed on demand, so these rows run the programs'
 TEST builds (tests/fixtures/*.so, which trust a key this repository holds) in LiteSVM, with the fakes of GitHub and
 of the RPC that the tests use (tests/), under a clock the drill moves. They say so. Each row: what was broken, what
 the customer sees, how it recovers, and the recovery measured in simulated seconds. `--dependencies-only` runs these
@@ -94,6 +94,7 @@ TERMS = pay.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}]
                         "paths": [], "reserve": 7, "v": 1})
 KEYS, SIMULATED, WRITTEN, REAL = "keys made here", "authority simulated", "held state written", "real GitHub tokens"
 VOTED = "the multisig's vote, local validator"
+PERSON = "a second person, their own machine"
 UPGRADE = ("an upgrade is proposed", "no upgrade before 48 hours", "an upgrade after 48 hours", "a cancelled upgrade never runs")   # scripts/drill_upgrade.sh's rows
 
 
@@ -711,6 +712,13 @@ def a_key_is_refreshed(new, tokens: list[Captured]) -> str:
             f"({t.c.get('repository')}) is verified and Refresh moves the expiry to {day(after)}; the same token an hour past its own expiry is refused (75)")
 
 
+def second_operator(_svm, _tokens) -> str:
+    """Not a drill this script can run: someone who is not the founder follows docs/OPERATOR.md from a clean clone until
+    their own relay key has paid or refunded one devnet order. Its definition and what is recorded are in that page
+    ("The drill"); until a result is recorded there, the row says so."""
+    raise Skipped("not yet run by a second person (docs/OPERATOR.md, \"The drill\", says who runs it and when it passes)")
+
+
 DRILLS: list[tuple[str, str, bool, Callable]] = [       # (name, how its signatures come about, needs tokens, the drill)
     ("refund only after the deadline", KEYS, False, refund_after_deadline),
     ("a held payment returns after 180 days", WRITTEN, False, held_returns_after_180_days),
@@ -722,6 +730,7 @@ DRILLS: list[tuple[str, str, bool, Callable]] = [       # (name, how its signatu
     ("a payment", REAL, True, a_payment),
     ("a replay is refused", REAL, True, a_replay_is_refused),
     ("a token under a revoked key is refused", REAL + "; " + SIMULATED, True, a_revoked_key_signs_nothing),
+    ("second operator", PERSON, False, second_operator),
 ]
 
 
@@ -1122,6 +1131,59 @@ def devnet_reset() -> Outage:
                   "recovered: redeploying is by hand and was not timed")
 
 
+def restore_from_export() -> Outage:
+    """Devnet is reset AND the operator's copies are gone: the vault folder with every sealed bundle. What is
+    left is one export archive a customer kept. Every receipt in it must still verify with no chain and no network."""
+    _harness()
+    try:
+        import test_bundle as tb
+    except ImportError as why:
+        raise Skipped(f"the tests' harness could not be imported ({why}): pip install -e '.[dev]'") from None
+    import shutil
+
+    from knos import bundle, receipt, vault
+    seed = lambda tag: hashlib.sha256(b"knos drill " + tag).digest()  # noqa: E731 - fixed keys: a drill, not a secret
+    keys = {who: seed(who.encode()) for who in ("auditor", "buyer", "supplier")}
+    to = [(who, vault.vc.public_of(k)) for who, k in keys.items()]
+    net = tb.Chain()
+    r, files = bundle.gather(net.call, net.events(), tb.ORDER, tb.host())
+    blobs = [bundle.make(files, r["order"])]
+    with tempfile.TemporaryDirectory() as tmp:
+        work, kept = Path(tmp) / "work", Path(tmp) / "customer"
+        for i, blob in enumerate(blobs):
+            vault.put(work / "vault", vault.seal(blob, to, f"order-{i}.bundle.tar", tb.NOW))
+        archive, mark = vault.export(work / "vault", keys["buyer"], tb.NOW)     # the buyer's own key: the operator is not asked
+        kept.mkdir()
+        (kept / "knos-evidence.tar").write_bytes(archive)
+        shutil.rmtree(work)                                     # the working copy: the vault, the bundles, everything the operator held
+        net.reset = True                                        # and the chain reference
+        try:
+            bundle.gather(net.call, net.events(), tb.ORDER, tb.host())
+            raise Failed("the reset chain still gave the order")
+        except bundle.Unavailable:
+            pass
+        back = vault.restore((kept / "knos-evidence.tar").read_bytes(), Path(tmp) / "restored")
+        _held, missing = vault.verify(mark, vault.held_in(kept / "knos-evidence.tar"))
+        checks = 0
+        for path in back:
+            got, out, _said = bundle.verify_offline(path.read_bytes(), None)      # --no-chain --no-network
+            if receipt.check(got) is not None or not out[bundle.SIGNED]:
+                raise Failed(f"{path.name} did not verify from the export alone")
+            checks += sum(len(v) for v in out.values())
+        if missing or len(back) != len(blobs) or [p.read_bytes() for p in back] != blobs:
+            raise Failed("the export did not give back every bundle, byte for byte")
+    return Outage("devnet is reset and the operator's copies are deleted",
+                  "the cluster lost every account, and the working copy (the vault folder with every sealed bundle) was deleted. One file is left: "
+                  "the plain archive `knos vault export` wrote, kept by the customer",
+                  "nothing from Knos answers: no cluster holds the payment and no operator holds the evidence",
+                  "`knos vault restore knos-evidence.tar --to DIR` writes every bundle back, each checked against the archive's checkpoint; "
+                  "`knos bundle verify --no-chain --no-network FILE` then passes on every receipt, from the issuer's signature and the archived copy "
+                  "of the chain record inside the bundle ([VAULT.md](VAULT.md))",
+                  f"0 s for the record: {len(back)} of {len(blobs)} bundle{'s' if len(blobs) != 1 else ''} restored byte for byte from the export alone, "
+                  f"{checks} statements sorted with no chain and no network, the checkpoint's root recomputed. The test chain holds one order, so one "
+                  "bundle; the open orders and the money are not recovered")
+
+
 DEPENDENCIES: list[tuple[str, Callable[[], Outage]]] = [
     ("GitHub's API is down for ten minutes", github_down_ten_minutes),
     ("GitHub's signing key has expired on chain", signing_key_expired_on_chain),
@@ -1129,6 +1191,7 @@ DEPENDENCIES: list[tuple[str, Callable[[], Outage]]] = [
     ("the RPC endpoint errors and returns stale blockhashes", rpc_errors_and_stale_blockhashes),
     ("the evidence is missing (a required check run was deleted)", evidence_missing),
     ("devnet is reset", devnet_reset),
+    ("devnet is reset and the operator's copies are deleted", restore_from_export),
 ]
 
 
@@ -1226,12 +1289,15 @@ def document(programs: list[Program], rows: list[Row], rpc: str, cluster: str, n
               "with `--from-devnet`, devnet's bytes of both programs and both multisig accounts, each member's key replaced by a key made "
               "for the drill (the members' real keys are not used). "
               + (f"This run read those rows from `{upgrade_log}`." if upgrade_log else "This run was given no log of it, so these rows were not run."), "",
+              f"- **{PERSON}**: no script runs this row. Someone who is not the founder follows [OPERATOR.md](OPERATOR.md) from a clean "
+              "clone, and the row passes when a transaction their own relay key sent has paid or refunded one devnet order. "
+              "Nobody has done it yet.", "",
               "Money in the rows without tokens is a 6-decimal SPL Token mint made in the simulator, standing in for test USDC. The rows "
               "with tokens use the program's own faucet mint.", "",
               "## Reproduce", "", "```", "pip install -e '.[dev]'",
               *(["npm ci --prefix scripts", f"KNOS_DRILL_LOG={upgrade_log} bash scripts/drill_upgrade.sh --from-devnet"] if upgrade_log else []),
               f"python scripts/drills.py --rpc {rpc}" + (f" --tokens {tokens}" if tokens else "") + (f" --upgrade-log {upgrade_log}" if upgrade_log else ""), "```", "",
-              "The script exits 1 when a row fails. With `--strict` it also exits 1 when a row was not run.", ""]
+              "The script exits 1 when a row fails. With `--strict` it also exits 1 when a row it can run was not run.", ""]
     return "\n".join(lines)
 
 
@@ -1273,7 +1339,8 @@ def main(argv: list[str] | None = None, call: Callable = chain.call, say: Callab
     broke, left = [r for r in outages if r.result.startswith("FAIL")], [r for r in outages if r.result.startswith("not run")]
     say(f"when a dependency fails: {len(outages) - len(broke) - len(left)} passed, {len(broke)} failed, {len(left)} not run")
     say(f"{len(rows) - len(failed) - len(skipped)} passed, {len(failed)} failed, {len(skipped)} not run; the table is in {a.out}")
-    return 1 if failed or broke or (a.strict and (skipped or left)) else 0
+    # --strict is about the rows a script can run: the row a second person runs (PERSON) is not one of them
+    return 1 if failed or broke or (a.strict and ([r for r in skipped if r.how != PERSON] or left)) else 0
 
 
 if __name__ == "__main__":

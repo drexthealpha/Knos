@@ -220,3 +220,83 @@ def test_a_profile_is_shown_only_to_an_account_that_opted_in_and_every_line_has_
         assert "500.00" not in head and "500.00" not in section and "5 payments" not in section and "750" not in html and "9 payments" not in html
         assert html.index("<strong>Devnet demonstration.</strong>") < html.index("<h3>") and "is not a record of money earned" in html
     assert "Devnet demonstration" not in out["mainnet"]
+
+
+# ---- the "Knos-verified" badge: from a receipt that checks, and from nothing else ------------------------------------
+
+VECTORS = json.loads((ROOT / "docs" / "receipt" / "vectors.json").read_text(encoding="utf-8"))
+GOOD = VECTORS["valid_v3"][0]
+
+
+def test_the_verified_badge_is_issued_only_from_a_receipt_that_checks_and_says_accepted():
+    from knos import ids
+    v = badge.verified(GOOD["receipt"], digest=GOOD["sha256"])
+    assert v["issued"] and v["verdict"] == "accepted" and v["digest"] == GOOD["sha256"] and v["why"] == ""
+    art = ET.fromstring(badge.verified_svg(v))
+    assert art.attrib["aria-label"] == f"Knos-verified: #12: accepted, receipt {GOOD['sha256'][:12]}"
+    assert "cannot be bought" in v["note"] and "cannot be bought" in art[0].text and "not that the work is good" in art[0].text
+    # every valid vector of versions 2 and 3 gets one; a version 1 receipt names no verdict and gets none
+    assert all(badge.verified(x["receipt"])["issued"] for k in ("valid_v2", "valid_v3") for x in VECTORS[k])
+    assert all(not badge.verified(x["receipt"])["issued"] for x in VECTORS["valid"])
+    # nothing else does: a changed receipt, another digest, a verdict that is not accepted, a dispute, no receipt at all
+    changed = json.loads(json.dumps(GOOD["receipt"])); changed["evaluator_observed"]["artifact"]["pull_request"] = 13
+    rejected = json.loads(json.dumps(GOOD["receipt"])); rejected["evaluator_observed"]["verdict"] = "rejected"
+    for bad in (badge.verified(changed, digest=GOOD["sha256"]), badge.verified(GOOD["receipt"], digest="0" * 64), badge.verified(rejected),
+                badge.verified(None), badge.verified({}), badge.verified("paid, honest"), badge.verified(GOOD["receipt"], disputed=True)):
+        assert not bad["issued"] and bad["why"] and bad["verdict"] in ids.VERDICTS and bad["words"] == ids.VERDICT_WORDS[bad["verdict"]]
+        with pytest.raises(ValueError):
+            badge.verified_svg(bad)
+    assert badge.verified(rejected)["verdict"] == "insufficient_evidence"        # a receipt that does not check is not a rejection
+    assert badge.verified(GOOD["receipt"], disputed=True)["verdict"] == "disputed"
+    with pytest.raises(ValueError):                                              # and a result nobody issued draws nothing
+        badge.verified_svg({**v, "issued": "yes"})
+    # the badge links to the evidence: on a public cluster, the transaction the signature was verified in
+    on_devnet = badge.verified({**GOOD["receipt"], "cluster": "devnet"})
+    tx = GOOD["receipt"]["issuer_authenticated"]["verified"]["transaction"]
+    assert on_devnet["issued"] and on_devnet["evidence"][0]["url"] == f"https://explorer.solana.com/tx/{tx}?cluster=devnet"
+    assert badge.verified_markdown(on_devnet, "b.svg").endswith(f"(b.svg)](https://explorer.solana.com/tx/{tx}?cluster=devnet)")
+    assert v["evidence"] == []                                                   # a local cluster has no public page
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_the_site_draws_the_same_verified_badge_and_none_for_anything_else():
+    v = badge.verified({**GOOD["receipt"], "cluster": "devnet"})
+    receipt = {**GOOD["receipt"], "cluster": "devnet"}
+    no = badge.verified({})
+    out = _node(f"""
+      import {{ verifiedSvg, receiptDigest, renderVerified, verifiedIssued }} from {json.dumps((ROOT / "web" / "badge.js").as_uri())};
+      const v = {json.dumps(v)}, receipt = {json.dumps(receipt)}, no = {json.dumps(no)}, vectors = {json.dumps([x["receipt"] for x in VECTORS["valid_v3"]])};
+      const a = {{}}, b = {{}}, c = {{}}, d = {{}};
+      await renderVerified(a, v, receipt); await renderVerified(b, no); await renderVerified(c, v, {{ ...receipt, order: "x" }});
+      await renderVerified(d, {{ ...v, verdict: "rejected" }});
+      let threw = false; try {{ verifiedSvg(no); }} catch (e) {{ threw = true; }}
+      console.log(JSON.stringify({{ svg: verifiedSvg(v), digests: await Promise.all(vectors.map(receiptDigest)), a: a.innerHTML, b: b.innerHTML,
+        c: c.innerHTML, d: d.innerHTML, threw, issued: [v, no, null, {{ ...v, issued: 1 }}].map(verifiedIssued) }}));
+    """)
+    assert out["svg"] == badge.verified_svg(v)                                   # byte for byte
+    assert out["digests"] == [x["sha256"] for x in VECTORS["valid_v3"]]          # the same digest as knos.receipt.digest
+    assert 'data-verified="yes"' in out["a"] and v["evidence"][0]["url"].replace("&", "&amp;") in out["a"] and "cannot be bought" in out["a"]
+    assert out["b"] == '<p class="fine" data-verified="no">No badge: ' + no["why"].replace("'", "&#x27;").replace('"', "&quot;") + ".</p>"
+    assert "does not hash to the digest" in out["c"] and "<svg" not in out["c"] and "<svg" not in out["d"] and "<svg" not in out["b"]
+    assert out["threw"] and out["issued"] == [True, False, False, False]
+
+
+def test_an_outside_script_shows_the_badge_for_a_receipt_that_checks_and_not_otherwise(tmp_path):
+    import sys
+    script = ROOT / "examples" / "receipt_consumer" / "show_badge.py"
+    assert len(script.read_text(encoding="utf-8").splitlines()) <= 60
+    good, bad = tmp_path / "good.json", tmp_path / "bad.json"
+    good.write_text(json.dumps(GOOD["receipt"]), encoding="utf-8")
+    bad.write_text(json.dumps({**GOOD["receipt"], "order": "not an address"}), encoding="utf-8")
+    env = {**__import__("os").environ, "PYTHONPATH": str(ROOT / "src")}
+
+    def run(*args):
+        got = subprocess.run([sys.executable, str(script), *map(str, args)], capture_output=True, text=True, encoding="utf-8", env=env)
+        return got.returncode, json.loads(got.stdout)
+    code, said = run(good, "--digest", GOOD["sha256"], "--out", tmp_path / "b.svg")
+    assert code == 0 and said["show"] and said["verdict"] == "accepted" and said["receipt"] == GOOD["sha256"]
+    assert (tmp_path / "b.svg").read_text(encoding="utf-8") == badge.verified_svg(badge.verified(GOOD["receipt"]))
+    for args in ((bad, "--out", tmp_path / "c.svg"), (good, "--digest", "1" * 64, "--out", tmp_path / "c.svg"), (tmp_path / "missing.json",)):
+        code, said = run(*args)
+        assert code == 1 and not said["show"] and said["verdict"] == "insufficient evidence" and said["why"]
+    assert not (tmp_path / "c.svg").exists()

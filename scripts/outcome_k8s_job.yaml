@@ -1,0 +1,66 @@
+# The data-transformation outcome as a Kubernetes Job, under a named service account that may ask the cluster for
+# one thing: a token of its own. .github/workflows/outcome-k8s.yml applies this file to a kind cluster it starts;
+# scripts/outcome_k8s.py is what the pod runs. docs/OUTCOMES.md, "A Kubernetes cluster signs an outcome".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knos-outcome
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: knos-judge
+  namespace: knos-outcome
+---
+# The TokenRequest API, for this service account's own token and no other.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: knos-judge-own-token
+  namespace: knos-outcome
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    resourceNames: ["knos-judge"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: knos-judge-own-token
+  namespace: knos-outcome
+subjects:
+  - kind: ServiceAccount
+    name: knos-judge
+    namespace: knos-outcome
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: knos-judge-own-token
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: judge
+  namespace: knos-outcome
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      serviceAccountName: knos-judge
+      restartPolicy: Never
+      containers:
+        - name: judge
+          image: knos-outcome:run          # built from this commit by the workflow and loaded into the cluster
+          imagePullPolicy: Never
+          workingDir: /knos
+          command: ["python", "scripts/outcome_k8s.py", "job"]
+          env:
+            - name: POD_NAME
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            - name: POD_UID
+              valueFrom: {fieldRef: {fieldPath: metadata.uid}}
+          securityContext:
+            # the judge's sandbox takes the network away from the submission with `unshare -n`, which a container may
+            # do only when privileged. On a cluster that is not thrown away after the run, give it a node of its own.
+            privileged: true

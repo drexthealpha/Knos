@@ -5,7 +5,9 @@ Copy [`template.rs`](template.rs), change the marked lines, build. Your instruct
 There is no CPI, no oracle and no key of anyone's to trust. [docs/VERIFIER.md](../../docs/VERIFIER.md) is the one
 page on the verifier and lists the other issuers; [`examples/issuers`](../issuers) has the lines for each.
 
-This example is Knos's own, and no program outside this repository is known to read a token yet.
+This example is Knos's own, and no program outside this repository is known to read a token yet. For a whole program
+to copy, in a workspace of its own with its test and the five mistakes to avoid, take
+[`examples/reader_template`](../reader_template) instead; this folder is the shortest form of the same check.
 
 ## The steps
 
@@ -24,7 +26,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "=2.2.1"
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.16" }   # no dependency of its own
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.17" }   # no dependency of its own
 
 [lints.rust]
 unexpected_cfgs = { level = "allow" }

@@ -15,13 +15,13 @@ It speaks to the second deployment (`knos.v2`), whose programs are upgradeable o
 No registry account is needed. From the release:
 
 ```bash
-npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.16/knos-settle-0.3.16.tgz
+npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.17/knos-settle-0.3.17.tgz
 ```
 
 Or import it in a browser:
 
 ```js
-import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.16/sdk/settle/index.js";
+import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.17/sdk/settle/index.js";
 ```
 
 ## Fund an order from a wallet in the browser
@@ -38,7 +38,7 @@ if (!wallet) throw new Error("This page found no Solana wallet. Install one and 
 const funder = await wallet.connect("solana:devnet");    // the wallet asks the person, then gives an address
 const { id: repoId } = await (await fetch("https://api.github.com/repos/drexthealpha/Knos")).json();
 const ix = await k.fundOrderWalletIx({ funder, funderToken: await knos.ata(funder, mint), mint, repoId, issue: 7, amount, terms,
-  wfRepo: "drexthealpha/knos-workflows", wfSha: "ff5f3df04abedd865f79a19cebc6848b6e048556" });   // the workflows that may pay it
+  wfRepo: "drexthealpha/knos-workflows", wfSha: "160edd4e19fcfbc86f712f01225e0717a7dde2d7" });   // the workflows that may pay it
 const { value } = await knos.rpc(RPC, "getLatestBlockhash", [{ commitment: "finalized" }]);
 const signature = await wallet.signAndSend(knos.serializeTx([ix], funder, value.blockhash), "solana:devnet");   // the wallet shows it first
 console.log(await knos.confirmed(RPC, signature), "- paid", amount / 1e6, "test USDC and a fee of", knos.v2.orderFee(amount) / 1e6, "on top");

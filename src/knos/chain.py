@@ -78,7 +78,7 @@ def call(url: str, method: str, params: list, timeout: float = 10.0) -> Any:
         except urllib.error.HTTPError as e:
             if e.code != 429 or wait_s is None:
                 raise
-            asked = str((e.headers or {}).get("Retry-After", ""))      # the endpoint's own figure, when it gives one
+            asked = str(e.headers.get("Retry-After", "") if e.headers else "")    # the endpoint's own figure, when it gives one
             time.sleep(min(float(asked), 30.0) if asked.isdigit() else wait_s)
     if "error" in got:
         err = got["error"]
@@ -98,7 +98,8 @@ def said(logs, program: Pubkey | None = None) -> list[str]:
     """The lines programs logged in one transaction, without the "Program log: " the runtime puts before them; with
     `program`, only what that program itself logged. A program can log any text, so who is speaking is read from the
     runtime's own lines ("Program <id> invoke [depth]", "... success", "... failed: ..."), which no program can write."""
-    out, stack = [], []
+    out: list[str] = []
+    stack: list[str] = []
     for line in logs:
         called = _INVOKE.match(line)
         if called:

@@ -26,6 +26,11 @@ const book = JSON.parse(readFileSync(join(here, "..", "..", "examples", "issuers
   check("  the same claims to gate on, the same claims not read, and the same answer to 'is it verified'",
     lib.ISSUERS.every((i, n) => JSON.stringify([i.gate, i.unread, i.verified === "yes"]) === JSON.stringify([book.issuers[n].gate, book.issuers[n].unreadable, book.issuers[n].supported === "yes"])));
   check("  an issuer verified in part says in a few words what to do", lib.ISSUERS.filter((i) => i.verified !== "yes").every((i) => i.part && words(i.part) <= 12));
+  check("  every issuer's RS256 is accepted today; an algorithm the verifier does not take is 'not yet', and only an issuer verified in part has one",
+    lib.ISSUERS.every((i) => lib.today(i)[0].alg === "RS256" && lib.today(i)[0].today && lib.today(i).slice(1).every((a) => !a.today && ["ES256", "ES384", "ES512", "PS256", "EdDSA"].includes(a.alg))
+      && (lib.today(i).length > 1) === (i.verified !== "yes" && /ES|ECDSA/.test(i.signs))));
+  check("  the discovery documents that were read list RS256, as the table says", book.issuers.filter((i) => i.discovery.read).every((i) => i.discovery.algs.join() === "RS256" && i.supported === "yes")
+    && book.issuers.filter((i) => !i.discovery.read).every((i) => i.discovery.why));
   check("  what the program takes is what the table of examples says it takes",
     lib.MAX_JWT === book.accepts.max_token_bytes && JSON.stringify(lib.KEY_BITS) === JSON.stringify(book.accepts.key_bits));
   for (const i of book.issuers) {
@@ -89,7 +94,7 @@ try { ({ chromium } = (await import("playwright")).default); } catch { console.l
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".woff2": "font/woff2" };
 const HARNESS = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>verifier</title>
 <link rel="stylesheet" href="app.css"></head><body><main><section id="verifier"></section></main>
-<script type="module">import { renderVerifier } from "./verifier.js"; renderVerifier(document.getElementById("verifier"), { now: () => ${NOW} }); window.ready = true;</script></body></html>`;
+<script type="module">import { renderVerifier } from "./verifier.js"; import { renderVerified } from "./badge.js"; renderVerifier(document.getElementById("verifier"), { now: () => ${NOW}, badge: renderVerified }); window.ready = true;</script></body></html>`;
 const server = createServer((req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname);
   if (path === "/verifier-harness.html") { res.writeHead(200, { "content-type": "text/html" }); return res.end(HARNESS); }
@@ -129,6 +134,15 @@ check("  the issuers are a table that scrolls inside itself: one row each, with 
   await page.locator(".k-table").first().locator("tbody tr").count() === book.issuers.length
   && (await page.locator(".k-table").first().locator("tbody tr").nth(2).textContent()).includes("email_verified")
   && await page.locator(".k-table").first().evaluate((e) => getComputedStyle(e).overflowX === "auto"));
+check("  the table is the page: it comes before the calls and the tool, and counts what is accepted today",
+  await page.evaluate(() => { const t = document.querySelector("#verifier .k-table"), c = document.querySelector("#vf-calls"), tool = document.querySelector("#vf-tool");
+    return !!(t.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(t.compareDocumentPosition(tool) & Node.DOCUMENT_POSITION_FOLLOWING); })
+  && await text("#vf-count") === `${book.issuers.length} issuers: ${book.issuers.filter((i) => i.supported === "yes").length} accepted today, ${book.issuers.filter((i) => i.supported !== "yes").length} in part.`);
+check("  each row says per algorithm: accepted today, or not yet",
+  (await cells('tr[data-issuer="google"]')).includes("RS256: accepted today.") && !(await cells('tr[data-issuer="google"]')).includes("not yet")
+  && (await cells('tr[data-issuer="aws"]')).includes("RS256: accepted today. ES384: not yet. Ask for RS256.")
+  && (await cells('tr[data-issuer="kubernetes"]')).includes("RS256: accepted today. ES256, ES384, ES512: not yet. Gate on sub only.")
+  && (await cells('tr[data-issuer="vercel"]')).includes("RS256: accepted today.") && await text("#vf-notyet") === "Not yet: ES256, ES384, ES512, PS256, EdDSA.");
 check("  each issuer's name links to the page its claims were read from", JSON.stringify(await page.locator(".k-table").first().locator("tbody th a").evaluateAll((a) => a.map((x) => x.href))) === JSON.stringify(book.issuers.map((i) => i.source)));
 check("  nothing is said of a token before one is pasted", await text("#vf-out") === "");
 
@@ -165,6 +179,18 @@ for (const filled of [false, true]) {
 }
 await page.click("#vf-clear");
 check("  Clear leaves nothing of the token on the page", await text("#vf-out") === "" && await page.inputValue("#vf-jwt") === "");
+// the badge of a receipt that checks (web/badge.js renderVerified, mounted here): drawn only when the receipt hashes to the digest named
+{
+  const receipt = { version: 2, order: "x", cluster: "devnet" }, digest = await page.evaluate(async (r) => (await import("./badge.js")).receiptDigest(r), receipt);
+  const v = { issued: true, verdict: "accepted", words: "accepted", why: "", digest, pull_request: 12, commit: "c".repeat(40), evidence: [], note: "" };
+  const paste = async (doc) => { await page.fill("#vf-receipt", JSON.stringify(doc)); await page.waitForSelector("#vf-badge-out [data-verified]"); return page.getAttribute("#vf-badge-out [data-verified]", "data-verified"); };
+  check("the badge: a receipt that hashes to its digest, verdict accepted, is drawn as Knos-verified", (await paste({ verified: v, receipt })) === "yes" && (await page.textContent("#vf-badge-out svg")).includes("Knos-verified") && (await text("#vf-badge-out")).includes(digest));
+  check("  an edited receipt gets no badge, and the reason", (await paste({ verified: v, receipt: { ...receipt, order: "y" } })) === "no" && (await text("#vf-badge-out")).includes("does not hash to the digest"));
+  check("  a verdict that is not accepted gets none", (await paste({ ...v, verdict: "rejected", issued: false, why: "the checks failed" })) === "no" && (await text("#vf-badge-out")).includes("the checks failed"));
+  await page.fill("#vf-receipt", "not json"); await page.waitForSelector('#vf-badge-out [data-verified="unread"]');
+  check("  what is not JSON is said to be that, and nothing is asked of anyone", (await text("#vf-badge-out")) === "Not JSON. Paste the whole file." && asked.every((u) => u.startsWith(base)));
+  await page.fill("#vf-receipt", "");
+}
 check("no error in the page", errors.length === 0, errors);
 await browser.close();
 server.close();

@@ -233,9 +233,10 @@ def submit(ledger, payer: Keypair, jwt: str, jwks: dict | None = None, now: floa
             return refused
         if kind == "key":       # nothing to do when the chain already has the key: no transaction at all
             issuer, want = int(p[2]), p[3]
-            n = next((n for _kid, n in oidc.jwks_keys((jwks or {}).get(issuer) or fetch_jwks(issuer)) if oidc.key_hash(n).hex() == want), None)
-            if n is None:
+            found = next((n for _kid, n in oidc.jwks_keys((jwks or {}).get(issuer) or fetch_jwks(issuer)) if oidc.key_hash(n).hex() == want), None)
+            if found is None:
                 return {"ok": False, "kind": kind, "why": "the issuer's key set has no key with that hash"}
+            n: int = found
             have = ledger.account(oidc.key_pda(issuer, n))
             if have is not None and have[0] == 1:
                 return {"ok": True, "kind": kind, "sigs": [], "key": str(oidc.key_pda(issuer, n)), "added": False}

@@ -83,7 +83,7 @@ def test_the_table_says_what_the_program_takes():
     assert 'text(alg)? != b"RS256"' in lib and "pub const MAX_JWT: usize = 8192;" in lib and "pub const MAX_ISS: usize = 200;" in lib
     assert BOOK["accepts"] == {"alg": "RS256", "key_bits": [2048, 4096], "max_token_bytes": 8192, "max_issuer_url_bytes": 200,
                                "exp": BOOK["accepts"]["exp"]}
-    assert len(ISSUERS) == len(BOOK["issuers"]) == 10
+    assert len(ISSUERS) == len(BOOK["issuers"]) == 11
     for i in BOOK["issuers"]:
         assert i["supported"] in ("yes", "partly") and i["source"].startswith("https://") and i["get"] and i["why"], i["id"]
         assert i["iss"].startswith("https://") and len(i["iss"]) <= 200 and i["claims"]["iss"] == i["iss"], i["id"]

@@ -97,6 +97,7 @@ if [ "$what" = examples ] || [ "$what" = all ]; then
   example cpi_fund cpi_fund_v2_real.so
   example workflow_vault workflow_vault_v2_real.so
   example upgrade_gate upgrade_gate_v2_real.so
+  example reader_template reader_template_v2_real.so
 fi
 
 for f in "${built[@]}"; do pin "$f"; done

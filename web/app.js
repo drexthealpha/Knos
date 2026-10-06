@@ -1,20 +1,13 @@
-// The Knos web app beyond the front door (front.js): add money to a Balance from your wallet, read an escrow, look up a
-// GitHub account, the public numbers and who can change the programs. Everything is read in the browser from GitHub's
-// public API and Solana devnet. The only writes are links to GitHub (where GitHub asks you to confirm) and the
-// transactions your own wallet signs, each built by sdk/settle (settle.js here). No link carries an address: binding a
-// wallet is done by hand on GitHub (see "Get paid" in index.html). Devnet only.
+// The pages of Knos that read Solana: add money to a Balance from your wallet, read an escrow, look up a GitHub account,
+// the public numbers and who can change the programs. Everything is read in the browser from GitHub's public API and
+// Solana devnet. The only writes are links to GitHub (where GitHub asks you to confirm) and the transactions your own
+// wallet signs, each built by sdk/settle (settle.js here). No link carries an address: binding a wallet is done by hand
+// on GitHub (see "Get paid" in index.html). Devnet only.
+// This file is not part of the first screen: web/front.js asks for it when one of these pages is first opened (its
+// PAGES), shows which page is on and calls open(name) on every arrival. Each page's own module is asked for here, the
+// first time that page is opened (PARTS below).
 import * as knos from "./settle.js";
 import { esc } from "./front.js";
-import { initFirst } from "./first.js";
-import { initPricing } from "./pricing.js";
-import { initClaim } from "./claim.js";
-import { initRecords } from "./records.js";
-import { initStatements } from "./statements.js";
-import { initTask } from "./task.js";
-import { initAnyIssue } from "./anyissue.js";
-import { renderInstall } from "./install.js";
-import { renderCapabilities } from "./capabilities.js";
-import { fillMounts } from "./mounts.js";
 import { VIEWS, ALIAS } from "./views.js";
 import { pendingUpgrades, upgradeWords, runDay, feedLine, inWords } from "./upgrade.js";
 
@@ -35,25 +28,14 @@ const short = (a) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const le = (...nums) => { const out = new Uint8Array(8 * nums.length), dv = new DataView(out.buffer); nums.forEach((n, i) => dv.setBigUint64(8 * i, BigInt(n), true)); return out; };
 const b64 = (u8) => btoa(String.fromCharCode(...u8));
 
-// ---- theme and routing ---------------------------------------------------------------------------------------------
-function setTheme(t) {
-  document.documentElement.dataset.theme = t;
-  try { localStorage.setItem("knos-theme", t); } catch { /* private mode */ }
-}
-try { const t = localStorage.getItem("knos-theme"); if (t) setTheme(t); } catch { /* private mode */ }
-$("theme").hidden = false;
-$("theme").onclick = () => setTheme((document.documentElement.dataset.theme
-  || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark");
-
+// ---- what each arrival at a page does ---------------------------------------------------------------------------------------
 export { VIEWS, ALIAS };          // web/views.js holds the two lists; web/front.js reads the same ones
-function route() {
-  const [raw, ...rest] = location.hash.replace(/^#/, "").split("=");
+async function route() {
+  const at = location.hash, [raw, ...rest] = at.replace(/^#/, "").split("=");
   const arg = rest.length ? decodeURIComponent(rest.join("=")) : "";
   const name = ALIAS[raw] || raw, view = VIEWS.includes(name) ? name : "check";
-  for (const v of VIEWS) $(`view-${v}`).hidden = v !== view;
-  for (const a of document.querySelectorAll("nav a")) {
-    if (a.getAttribute("href") === `#${view}`) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
-  }
+  await (PARTS[PART_OF[raw] || view] || PARTS[raw])?.();
+  if (location.hash !== at) return;          // the reader has gone on: the newer arrival does its own
   if (view === "network") loadNetwork();
   if (view === "fund") { fillLatency(); anyShow(); }
   if (view === "pricing") upgradesP.then((u) => showVersion(u.upgrades.length ? (runDay(u.upgrades, "knos_pay") ? `an upgrade of knos_pay is approved and can be run from ${runDay(u.upgrades, "knos_pay")}` : "an upgrade of knos_pay is pending, not yet approved") : ""));
@@ -63,17 +45,11 @@ function route() {
   }
   if (view === "fund" && arg && raw !== "anyissue") { $("st-issue").value = arg; readEscrow(); }
   if (view === "claim" && arg) { $("due-login").value = arg; readAccount(); }
-  if (view === "protect" && arg) {
-    const at = arg.lastIndexOf("@");
-    $("protect-repo").value = at > 0 ? arg.slice(0, at) : arg;
-    if (at > 0) $("protect-branch").value = arg.slice(at + 1);
-    $("protect-form").requestSubmit();
-  }
   if (raw === "money") $("money").scrollIntoView?.();
   if (raw === "task") $("task").scrollIntoView?.();
   if (raw === "anyissue") { if (arg) $("any-issue").value = arg; $("anyissue").scrollIntoView?.(); }
 }
-addEventListener("hashchange", route);
+export const open = () => route();
 
 // ---- the deployed programs, GitHub, Solana --------------------------------------------------------------------------
 let idsP;
@@ -514,7 +490,7 @@ async function loadNetwork() {
   networkLoaded = true;
   // what Solana says is shown as it is read; when it cannot be read, that is said, never a guess ("not deployed")
   const fill = (id, make) => make().then((h) => $(id).insertAdjacentHTML("beforeend", h)).catch((e) => {
-    $(id).insertAdjacentHTML("beforeend", `<p class="status bad">Could not read Solana devnet just now (${esc(e.message)}). Reload the page to try again.</p>`);
+    $(id).insertAdjacentHTML("beforeend", `<p class="status bad">Devnet did not answer (${esc(e.message)}). Reload to try again.</p>`);
   });
   fill("network-programs", programsHtml);
   fill("network-keys", keysHtml);
@@ -538,7 +514,12 @@ const upgradesP = (async () => {
     return { upgrades, ms, now: await knos.chainTime(RPC).catch(() => null) };
   } catch { return { upgrades: [], ms: null, now: null, failed: true }; }          // not readable just now: no banner, and nothing guessed
 })();
-upgradesP.then(({ upgrades, ms, now }) => {
+upgradesP.then(({ upgrades, ms, now, failed }) => {
+  // what the chain says takes the place of the first screen's line from upgrades.json (web/front.js); a chain that did not
+  // answer leaves that line as it is: opened, it says when the file was written
+  if (failed) return;
+  document.documentElement.dataset.upgrades = "chain";
+  if ($("hero-upgrades")) $("hero-upgrades").hidden = true;
   if (!upgrades.length) return;
   const each = upgrades.map((p) => { const w = upgradeWords(p, ms.timeLock, now);
     return `<p class="upgrade" data-program="${esc(p.name)}" data-status="${esc(p.status)}" data-index="${p.index}"><strong>${esc(w.what)}</strong>
@@ -554,35 +535,27 @@ upgradesP.then(({ upgrades, ms, now }) => {
   $("upgrade-banner").hidden = false;
 });
 
-// ---- the first screen: the recording, the example buttons, a payment by its transaction ---------------------------------
-initFirst({ $, esc, knos, RPC, EXPLORER, money, ids, gh, devnet });
-const showVersion = initPricing({ $, esc, knos, RPC, ids });
-initClaim({ $, esc, knos, RPC, EXPLORER, units, say, money, devnet, client });
-const showRecords = initRecords({ $, esc, rep: async (id) => knos.v2.readRep(await knos.account(RPC, await (await client()).rep(id))) });
-const showStatement = initStatements({ $, esc, EXPLORER });
-if ($("install-pr")) renderInstall($("install-pr"));
-// The pages other modules fill (index.html: section.mount). Capabilities: the manifest the build copied from docs/.
-// Buy: web/buyer.js, which a build may not have yet; then the page stays empty and is not offered.
-fetch("capabilities.json").then((r) => (r.ok ? r.json() : null)).then((data) => {
-  if (!data || !$("capabilities")) return;
-  $("capabilities").innerHTML = `<h2>What Knos can do, and how far each thing has got</h2>
-    <p class="lede">One row per capability, at the highest stage its evidence supports. The same list is in the repository as
-      <a href="https://github.com/drexthealpha/Knos/blob/main/docs/CAPABILITIES.md">docs/CAPABILITIES.md</a>.</p><div class="card" id="capabilities-list"></div>`;
-  renderCapabilities($("capabilities-list"), data);
-}).catch(() => {});
-import("./buyer.js").then((m) => m.renderBuyer?.($("buy"), { $, esc, knos, RPC, EXPLORER, ids, client, gh, devnet })).catch(() => {});
-// The round on the first screen, and the pages of 0.3.16. Each is its own module and its own section; a build without
-// the module, or a page without the section, loses that page and nothing else.
-const mount = (file, name, id, env) => { if ($(id)) import(file).then((m) => m[name]?.($(id), env)).catch(() => {}); };
-mount("./demo.js", "renderDemo", "demo", { esc, EXPLORER });
-mount("./shadow.js", "renderShadow", "shadow");
-ids().catch(() => null).then((i) => mount("./verifier.js", "renderVerifier", "verifier", { esc, ids: i || undefined }));          // the verifier shows this build's knos-oidc address
-// the playground reads GitHub, so it reads when its page is first shown, as Status does
-const shownOnce = (name) => new Promise((done) => { const look = () => { if (location.hash.replace(/^#/, "").split("=")[0] === name) { removeEventListener("hashchange", look); done(); } }; addEventListener("hashchange", look); look(); });
-mount("./playground.js", "renderPlayground", "playground", { wait: shownOnce("playground") });
-mount("./terms.js", "renderTerms", "terms");
-fillMounts({ $, esc, knos, RPC, EXPLORER, gh });       // Status, Index, Pilot, Reproduce (web/mounts.js)
-initTask({ $, esc, knos, gh });
-const anyShow = initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });
-
-route();
+// ---- each page's own module, asked for when the page is first opened -----------------------------------------------------
+const once = (make) => { let p; return () => (p ||= make()); };
+let showVersion = () => {}, showRecords = () => {}, showStatement = () => {}, anyShow = () => {};
+const PARTS = {
+  pricing: once(async () => { showVersion = (await import("./pricing.js")).initPricing({ $, esc, knos, RPC, ids }); }),
+  claim: once(async () => { (await import("./claim.js")).initClaim({ $, esc, knos, RPC, EXPLORER, units, say, money, devnet, client }); }),
+  records: once(async () => {
+    const [r, s] = await Promise.all([import("./records.js"), import("./statements.js")]);
+    showRecords = r.initRecords({ $, esc, rep: async (id) => knos.v2.readRep(await knos.account(RPC, await (await client()).rep(id))) });
+    showStatement = s.initStatements({ $, esc, EXPLORER });
+  }),
+  fund: once(async () => {
+    const [t, a] = await Promise.all([import("./task.js"), import("./anyissue.js")]);
+    t.initTask({ $, esc, knos, gh });
+    anyShow = a.initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });
+  }),
+  // Buy: web/buyer.js, which a build may not have; then the page stays empty and web/front.js does not offer it.
+  buy: once(async () => { await (await import("./buyer.js")).renderBuyer?.($("buy"), { $, esc, knos, RPC, EXPLORER, ids, client, gh, devnet }); }),
+  // Status, Index, Pilot, Reproduce (web/mounts.js)
+  mounts: once(async () => { (await import("./mounts.js")).fillMounts({ $, esc, knos, RPC, EXPLORER, gh }); }),
+};
+const PART_OF = { status: "mounts", index: "mounts", pilot: "mounts", reproduce: "mounts" };
+// what the first screen needs of this file when a transaction is pasted there (web/first.js)
+export const ctx = { knos, RPC, ids, gh, devnet };

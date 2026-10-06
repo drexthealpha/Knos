@@ -129,14 +129,121 @@ def test_acceptance_already_passing_on_base_is_not_fail_to_pass(repos):
     assert not v["passed"] and any("already pass on the base" in r for r in v["reasons"])
 
 
-@pytest.mark.parametrize("path", [".knos/proof.toml", ".github/workflows/ci.yml", "tests/test_new.py",
-                                  "conftest.py", "src/conftest.py", "pytest.ini", "tox.ini"])
-def test_protected_paths_are_refused(repos, path):
+@pytest.mark.parametrize("path, code", [(".knos/proof.toml", "terms"), (".github/workflows/ci.yml", "workflow"),
+                                        ("tests/test_calc.py", "protected_test_edited")])
+def test_protected_paths_are_refused(repos, path, code):
     base, pr = repos
     (pr / path).parent.mkdir(parents=True, exist_ok=True)
     (pr / path).write_text("x = 1\n", encoding="utf-8")
     v = prove.judge(base, pr, CFG)
-    assert not v["passed"] and v["reasons"] == [f"touches protected path {path}"]
+    assert not v["passed"] and v["verdict"] == "rejected" and v["reasons"] == [f"touches protected path {path}: {prove.REFUSALS[code]}"]
+    assert prove.classify_path(path, CFG) == f"refused:{code}"
+
+
+def test_a_deleted_protected_test_is_refused_and_named(repos):
+    base, pr = repos
+    (pr / "tests" / "test_calc.py").unlink()
+    v = prove.judge(base, pr, CFG)
+    assert v["reasons"] == [f"touches protected path tests/test_calc.py: {prove.REFUSALS['protected_test_deleted']}"]
+    assert prove.classify_path("tests/test_calc.py", CFG, "removed") == "refused:protected_test_deleted"
+
+
+RAISES = "raise SystemExit('a file the pull request added was loaded')\n"
+
+
+@pytest.mark.parametrize("paths, note", [
+    (["tests/test_new.py"], "contributor tests: 1 file, not counted"),
+    (["tests/deep/test_a.py", "tests/deep/data.json"], "contributor tests: 2 files, not counted"),
+    (["conftest.py"], "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"),
+    (["tests/conftest.py", "src/conftest.py", "pytest.ini", "tox.ini"],
+     "test configuration: 4 files changed, not counted (the suite ran from the base's copy)")])
+def test_an_added_test_or_test_configuration_is_allowed_and_cannot_decide(repos, paths, note):
+    """Each added file ends the process when it is loaded, and pytest.ini and tox.ini are not even valid: were any of
+    them in the tree the suite runs in, the fix could not be accepted."""
+    base, pr = repos
+    (pr / "calc.py").write_text(FIX, encoding="utf-8")
+    for path in paths:
+        (pr / path).parent.mkdir(parents=True, exist_ok=True)
+        (pr / path).write_text(RAISES, encoding="utf-8")
+        assert prove.classify_path(path, CFG, "added") == "allowed_not_counted"
+    v = prove.judge(base, pr, CFG)
+    assert v["passed"] and v["verdict"] == "accepted" and v["notes"] == [note] and note in v["reason"], v
+    assert v["evidence"]["pr"]["collected"] == v["evidence"]["base"]["collected"] == 6      # the base's tests, no more
+    counted = v["evidence"]["contributor_tests"]["files"] + v["evidence"]["test_configuration"]["files"]
+    assert sorted(counted) == sorted(paths) and v["evidence"]["contributor_tests"]["counted"] is False
+    # and without the fix the same files buy nothing
+    (pr / "calc.py").write_text((base / "calc.py").read_text(encoding="utf-8"), encoding="utf-8")
+    assert prove.judge(base, pr, CFG)["verdict"] == "rejected"
+
+
+def test_the_tree_the_suite_runs_in_has_the_base_copy_of_every_protected_path(repos, tmp_path):
+    """File by file: after overlay, no protected path of the work tree differs from the base's, whatever was added."""
+    base, pr = repos
+    added = ["tests/test_new.py", "tests/conftest.py", "tests/plugin.py", "tests/sitecustomize.py", "tests/x.pth",
+             "tests/__init__.py", "tests/calc.py", "conftest.py", "pkg/conftest.py", "pytest.ini", "tox.ini", "setup.cfg",
+             ".knos/acceptance/1/conftest.py", ".github/workflows/new.yml"]
+    for path in added:
+        (pr / path).parent.mkdir(parents=True, exist_ok=True)
+        (pr / path).write_text(RAISES, encoding="utf-8")
+    (pr / "tests" / "test_calc.py").write_text("def test_easy():\n    assert True\n", encoding="utf-8")
+    (pr / "calc.py").write_text(FIX, encoding="utf-8")
+    work = tmp_path / "work"
+    prove.overlay(base, pr, work, CFG["test_dirs"])
+    files = lambda root: {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}  # noqa: E731
+    was, now = files(base), files(work)
+    assert not [a for a in added if a in now and a not in was]             # none of the added files is there
+    assert "pytest.ini" in was and now["pytest.ini"] == was["pytest.ini"]      # and one the base has is the base's again
+    assert set(now) == set(was) and {k for k in now if now[k] != was[k]} == {"calc.py"}     # only the source is the PR's
+    pats = prove.protected_patterns(CFG)
+    assert all(now[k] == was[k] for k in now if prove.is_protected(k, pats))
+    for path in added:                                                      # and the rule says the same of each, alone
+        word = prove.classify_path(path, CFG, "added")
+        assert word == ("refused:terms" if path.startswith(".knos/") else "refused:workflow" if path.startswith(".github/")
+                        else "allowed" if path == "setup.cfg" else "allowed_not_counted"), path
+
+
+def test_classify_path_is_the_rule_for_one_path_in_every_language():
+    c = prove.classify_path
+    assert c("src/calc.py") == c("README.md", {}) == c("package.json", {"runner": "node"}) == "allowed"
+    assert c("tests/test_x.py") == "refused:protected_test_edited"         # not known to be new: the strict answer
+    assert c("./tests/test_x.py", None, "added") == c("tests\\test_x.py", None, "added") == "allowed_not_counted"
+    assert c("lib/a.test.js", {"runner": "node"}, "added") == c("w_test.go", {"runner": "go"}, "added") == "allowed_not_counted"
+    assert c("Rakefile", {"runner": "ruby"}) == c("test/test_helper.rb", {"runner": "ruby"}, "added") == "allowed_not_counted"
+    assert c("test/test_helper.rb", {"runner": "ruby"}) == "refused:protected_test_edited"
+    assert c(".cargo/config.toml", {"runner": "rust"}) == "allowed_not_counted"
+    assert c("docs/x.md", {"protected": ["docs/**"]}, "added") == "refused:not_from_base"   # a funder's own list: not overlaid
+    assert c(".github/workflows/ci.yml", None, "added") == "refused:workflow" and c(".knos/proof.toml") == "refused:terms"
+    assert set(prove.REFUSALS) == {"terms", "workflow", "not_from_base", "scripts", "protected_test_edited", "protected_test_deleted"}
+    with pytest.raises(ValueError):
+        c("a.py", {"runner": "cobol"})
+    with pytest.raises(ValueError):
+        c("a.py", None, "renamed")
+
+
+def test_package_json_scripts_are_refused_only_where_the_funders_own_command_decides(tmp_path):
+    base, pr = tmp_path / "base", tmp_path / "pr"
+    for root, script in ((base, "node --test"), (pr, "true")):
+        root.mkdir()
+        (root / "package.json").write_text('{"name": "x", "scripts": {"test": "%s"}}' % script, encoding="utf-8")
+    kinds = lambda runner: prove.classify(base, pr, ["package.json"], {}, runner, ["test"])  # noqa: E731
+    assert kinds("command")["refused"] == kinds("blackbox")["refused"] == [("package.json (scripts)", prove.REFUSALS["scripts"])]
+    assert kinds("node") == {"refused": [], "contributor": [], "config": []}        # node --test never reads them
+    (pr / "package.json").write_text('{"name": "y", "scripts": {"test": "node --test"}}', encoding="utf-8")
+    assert not kinds("command")["refused"]                                          # another field: the source's own
+
+
+def test_a_run_that_could_not_decide_is_insufficient_evidence_never_rejected_or_accepted(repos, monkeypatch):
+    from knos import ids
+    base, pr = repos
+    (pr / "calc.py").write_text(FIX, encoding="utf-8")
+    v = prove.judge(base, pr, {**CFG, "issue": "no such issue"})            # nothing to run: no verdict on the work
+    assert v["verdict"] == "insufficient_evidence" and not v["passed"]
+    v = prove.judge(base, pr, CFG, sandbox="require") if not prove.sandbox_available() else None
+    assert v is None or (v["verdict"] == "insufficient_evidence" and not v["passed"])
+    monkeypatch.setitem(prove._RUN, "python", lambda *a, **k: prove.Run(None, log="timed out"))   # the suite never reported
+    v = prove.judge(base, pr, CFG, sandbox="off")
+    assert v["verdict"] == "insufficient_evidence" and not v["passed"] and v["evidence"]["undecided"] is True
+    assert v["verdict"] in ids.VERDICTS and "wrote no report" in v["reason"]
 
 
 def test_pyproject_pytest_section_is_protected_but_other_edits_are_not(repos):
@@ -145,7 +252,8 @@ def test_pyproject_pytest_section_is_protected_but_other_edits_are_not(repos):
     assert not any("protected" in r for r in prove.judge(base, pr, CFG, ["pyproject.toml"])["reasons"])
     (pr / "pyproject.toml").write_text('[tool.pytest.ini_options]\naddopts = "--co"\n', encoding="utf-8")
     v = prove.judge(base, pr, CFG, ["pyproject.toml"])
-    assert v["reasons"] == ["touches protected path pyproject.toml (pytest section)"]
+    assert v["notes"] == ["test configuration: 1 file changed, not counted (the suite ran from the base's copy)"]
+    assert v["evidence"]["test_configuration"]["files"] == ["pyproject.toml (pytest section)"]
 
 
 def test_protected_list_comes_from_proof_toml():
@@ -352,23 +460,48 @@ def test_a_sample_whose_delimiter_the_task_does_not_define_is_not_asked():
 
 
 @pytest.mark.skipif(os.name == "nt", reason="the black-box check reaches the tree through a shell wrapper")
-def test_honest_submissions_are_accepted_except_the_one_kind_that_touches_the_test_directory():
+def test_honest_submissions_are_accepted_and_one_with_tests_of_its_own_says_they_were_not_counted():
     """A sample of the set through the judges (python scripts/tamper_bench.py --honest runs all of it)."""
     bench, H, _ = _honest()
     rows = bench.run_honest(tasks=("python", "glob", "summarise"))
     assert len(rows) == len(H.SLUG["python"]) + len(H.REAL) + len(H.PLAIN["summarise"])
+    assert not H.EXPECTED_REFUSED and len(H.ADDED) >= 6 and H.ADDED < H.WITH_TESTS
     for r in rows:
         judged = [r[j] for j in ("knos", "box") if r[j] is not None]
-        if r["name"] in H.EXPECTED_REFUSED:
-            assert judged and not any(judged) and "touches protected path" in r["why"], r
-        else:
-            assert judged and all(judged), r
+        assert judged and all(judged), r
         assert r["ci"] in (True, None), r                                   # plain CI accepts every one of them
+        if r["name"] in H.WITH_TESTS:
+            assert any(n.startswith("contributor tests: ") and n.endswith(", not counted") for n in r["notes"]), r
     n = bench.honest_counts(rows)
-    assert n["box"] == (len(rows) - 2, len(rows)) and n["knos"] == (len(H.SLUG["python"]) - 1, len(H.SLUG["python"]))
+    assert n["box"] == (len(rows), len(rows)) and n["knos"] == (len(H.SLUG["python"]),) * 2
 
 
-def test_the_report_states_both_rates_with_their_sample_sizes_and_lists_every_refused_honest_submission():
+@pytest.mark.skipif(os.name == "nt", reason="the black-box check reaches the tree through a shell wrapper")
+def test_honest_work_that_changes_the_suite_itself_is_still_refused_by_rule():
+    bench, H, _ = _honest()
+    rows = bench.run_rule_refused()
+    assert len(rows) == len(H.RULE_REFUSED) == 3
+    assert all(r["ci"] and r["knos"] is False and r["box"] is False and "touches protected path" in r["why"] for r in rows), rows
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the black-box check reaches the tree through a shell wrapper")
+def test_no_cheat_aimed_at_what_a_pull_request_may_add_is_accepted_and_the_report_says_so():
+    bench = _bench()
+    control, rows = bench.run_allowed()
+    assert control["ci"] and control["knos"] and control["box"] and control["notes"] == ["contributor tests: 1 file, not counted"]
+    assert len(rows) >= 12 and not any(r["knos"] or r["box"] for r in rows), rows
+    assert {r["word"] for r in rows} == {r["box_word"] for r in rows} == {"rejected"}
+    assert sum(bool(r["ci"]) for r in rows) >= 6                            # plain CI is what these fool
+    doc = DOC.read_text(encoding="utf-8")
+    block = doc.split("<!-- allowed:begin -->")[1].split("<!-- allowed:end -->")[0]
+    ci = sum(bool(r["ci"]) for r in rows)
+    assert f"**Of {len(rows)} such cheats, CI green accepted {ci}, Knos, tests 0 and Knos, black box 0.**" in block
+    assert all(f"| {r['name']} |" in block for r in rows) and "`insufficient_evidence`" in block
+    assert bench.place_allowed(doc, block.join(["<!-- allowed:begin -->", "<!-- allowed:end -->"]).split("\n")) == doc
+
+
+def test_the_report_states_both_rates_with_their_sample_sizes_and_what_is_still_refused():
+    import json
     import re
     bench, H, _ = _honest()
     doc = DOC.read_text(encoding="utf-8")
@@ -377,15 +510,18 @@ def test_the_report_states_both_rates_with_their_sample_sizes_and_lists_every_re
     m = re.search(r"\*\*Honest submissions accepted: Knos, black box (\d+) of (\d+); Knos, tests (\d+) of (\d+); "
                   r"CI green (\d+) of (\d+)\.\*\*", block)
     box, total, tests, tested, ci, ran = (int(x) for x in m.groups())
-    assert total == H.count() >= 30 and tested == sum(len(v) for v in H.SLUG.values()) and ci == ran
+    assert total == H.count() >= 54 and tested == sum(len(v) for v in H.SLUG.values()) and ci == ran
+    assert box == total and tests == tested                                 # every honest submission is accepted
     cheats = bench.cheat_totals(doc)
-    assert [b for _, b in cheats] == [63, 102, 25]
+    assert [b for _, b in cheats][:3] == [63, 102, 25] and cheats[3][1] >= 12 and not any(a for a, _ in cheats)
     assert f"accepted by Knos, black box: {', '.join(f'{a} of {b}' for a, b in cheats)}**" in block
     assert f"{sum(b for _, b in cheats)} cheating submissions and {total} honest ones" in block
     assert f"| **all** | **{total}** | **{ci} of {ran}** | **{tests} of {tested}** | **{box} of {total}** |" in block
     assert "on Knos's own tasks" in block and "nobody outside has run either set" in block
+    old = total - sum(1 for r in json.loads((DOC.with_name(bench.ROWS)).read_text(encoding="utf-8"))["rows"] if r["name"] in H.ADDED)
+    assert old == 48 and f"it now accepts {old} of {old}" in block          # the set of 0.3.16, of which 39 were accepted
     refused = [ln for ln in block.splitlines() if ln.startswith("| ") and "touches protected path" in ln]
-    assert len(refused) == total - box and all(f"| {H.IN_TEST_DIR} |" in ln for ln in refused)
-    assert "No other honest submission was refused." in block
+    assert len(refused) == len(H.RULE_REFUSED) and all(f"| {n} |" in ln for (n, _), ln in zip(H.RULE_REFUSED, refused))
+    assert "NOT in the count above" in block and f"None of the {total} was refused by a Knos judge." in block
     again = bench.place_honest(doc, block.join(["<!-- honest:begin -->", "<!-- honest:end -->"]).split("\n"))
     assert again == doc                                                     # the block is replaced in place, never doubled

@@ -1,0 +1,177 @@
+# .github/workflows/knos-private.yml: the agreed acceptance, run inside the customer's network.
+#
+# For a buyer whose repositories are private and stay private: GitHub Enterprise Server, or github.com with runners
+# the customer hosts. This file goes in ONE repository on that instance, the attestor (for example
+# acme/knos-private), with three files beside it that buyer and supplier agreed on:
+#
+#     terms.json        the order's terms (knos terms show; the bytes whose hash both sides hold)
+#     attestors.json    the attestors BOTH parties approved (examples/private/attestors.json; docs/PRIVATE.md)
+#     .knos/acceptance/<issue>/   in the target repository's default branch: the acceptance checks
+#
+# What leaves the network, and nothing else:
+#
+#     record.json       a verdict word and hashes (python -m knos.private record refuses any other field)
+#     token.jwt         this instance's own signed statement of which workflow ran, in which repository, for the
+#                       hash of that record (the audience is knos-private:<sha256 of record.json>)
+#
+# What does NOT leave: source, a diff, a file name, a check's name, a log. The run pages of this workflow are on
+# your instance and are read by whoever your instance lets read them.
+#
+# What is sealed: the verdict file, the terms, the attestors file and the pull request's diff, in one .tar, encrypted
+# to the buyer's and the supplier's vault keys (`knos vault keygen`; the public halves are the repository variables
+# KNOS_VAULT_BUYER and KNOS_VAULT_SUPPLIER, written as buyer=<64 hex> and supplier=<64 hex>). Either party opens it
+# alone with `knos vault open`; nobody else can. The sealed file is an artifact of this run on your instance; send
+# the supplier its copy by any channel, since it is useless to anyone without one of the two keys.
+#
+# The two jobs, and why they are two. `judge` runs the pull request's code, so it has no id-token and no secret
+# beyond a read-only token for the one target repository, which the step that runs the code is not given. `sign`
+# asks the instance for the token: it checks nothing out, runs no code of the pull request, and reads only the
+# record, which it checks again for shape before it signs.
+#
+# Limits, said plainly. The instance's administrators can sign any claim under its key, so a verdict from this
+# workflow is the word of whoever runs the instance; that is why the supplier approves the attestor beforehand and
+# holds the sealed evidence. This record is not a payment: the escrow on devnet takes its own audiences
+# (docs/OIDC.md), and paying from this record is not built. Nobody with a private repository has run this file.
+# The pinned actions must exist on your instance (GitHub Connect, or actions-sync).
+name: knos private
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "The private repository, as owner/name"
+        required: true
+        type: string
+      pull:
+        description: "The pull request's number"
+        required: true
+        type: string
+      issue:
+        description: "The issue whose acceptance checks are run (.knos/acceptance/<issue>/)"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  # ---- the acceptance, on a runner inside the network: the only job that runs pull request code -----------------------
+  judge:
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      audience: ${{ steps.record.outputs.audience }}
+      sha256: ${{ steps.record.outputs.sha256 }}
+    steps:
+      - name: the agreed files (this repository)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: agreed
+          persist-credentials: false
+      - name: the target's default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ${{ inputs.repository }}
+          token: ${{ secrets.KNOS_READ_TOKEN }}
+          path: base
+          persist-credentials: false
+      - name: the pull request's head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ${{ inputs.repository }}
+          token: ${{ secrets.KNOS_READ_TOKEN }}
+          ref: refs/pull/${{ inputs.pull }}/head
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+          ignore-empty-workdir: true
+      - name: install knos, the released wheel
+        run: uv tool install --no-config "knos==0.3.17"
+      - name: knos proof judge, in the sandbox
+        env:
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          set -euo pipefail
+          case "$ISSUE" in ''|*[!0-9]*) echo "The issue is a number."; exit 1 ;; esac
+          base_sha="$(git -C base rev-parse HEAD)"
+          git -C pr diff --name-only "$base_sha"...HEAD > changed.txt
+          git -C pr diff "$base_sha"...HEAD > pr.diff
+          git -C pr rev-parse HEAD > commit.txt
+          # a rejection is an answer, not a failure of this job: the record says which
+          knos proof judge --base base --pr pr --issue "$ISSUE" --changed changed.txt --sandbox require --evidence verdict.json || true
+          test -s verdict.json || echo '{"error": "the judge wrote no verdict"}' > verdict.json
+      - name: seal the evidence to both parties, and write the record
+        id: record
+        env:
+          BUYER: ${{ vars.KNOS_VAULT_BUYER }}
+          SUPPLIER: ${{ vars.KNOS_VAULT_SUPPLIER }}
+        run: |
+          set -euo pipefail
+          mkdir evidence out
+          cp verdict.json pr.diff agreed/terms.json agreed/attestors.json evidence/
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf evidence.tar -C evidence .
+          knos vault seal evidence.tar --to "$BUYER" --to "$SUPPLIER" --vault sealed
+          knos_python="$(uv tool dir)/knos/bin/python"
+          audience="$("$knos_python" -m knos.private record --verdict verdict.json --terms agreed/terms.json --attestors agreed/attestors.json \
+            --evidence evidence.tar --commit "$(cat commit.txt)" --out out/record.json)"
+          echo "audience=$audience" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum out/record.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: the record (a verdict word and hashes)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-record
+          path: out/record.json
+          if-no-files-found: error
+      - name: the sealed evidence (stays on this instance; each party keeps a copy)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-sealed-evidence
+          path: sealed/*.vault
+          if-no-files-found: error
+
+  # ---- the token: a job that checks nothing out and runs none of the pull request's code ------------------------------
+  sign:
+    needs: judge
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+    steps:
+      - name: the record, as bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: knos-record
+      - name: ask this instance to sign for the record's hash
+        env:
+          AUDIENCE: ${{ needs.judge.outputs.audience }}
+          SHA: ${{ needs.judge.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          case "$SHA" in ''|*[!0-9a-f]*) echo "The first job named no sha256 for the record, so nothing is signed."; exit 1 ;; esac
+          if [ "${#SHA}" != 64 ] || [ "$(sha256sum record.json | cut -d' ' -f1)" != "$SHA" ] || [ "$AUDIENCE" != "knos-private:$SHA" ]; then
+            echo "record.json is not the file the first job hashed, so nothing is signed."; exit 1
+          fi
+          python3 - <<'SHAPE'
+          import json, re, sys
+          doc = json.load(open("record.json", encoding="utf-8"))
+          ok = lambda v: v is None or v == 1 or (isinstance(v, str) and re.fullmatch(r"[a-z_.-]{1,40}|(sha256:)?[0-9a-f]{40}([0-9a-f]{24})?", v))
+          if not isinstance(doc, dict) or len(doc) != 12 or not all(ok(v) for v in doc.values()):
+              sys.exit("record.json holds something other than a verdict word and hashes, so nothing is signed.")
+          SHAPE
+          mkdir out
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" \
+            | python3 -c 'import json, sys; sys.stdout.write(json.load(sys.stdin)["value"])' > out/token.jwt
+          cp record.json out/record.json
+      - name: what may leave the network (the record and the token)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-private-verdict
+          path: out/
+          if-no-files-found: error

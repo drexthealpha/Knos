@@ -130,13 +130,13 @@
  ],
  "local": {
   "cluster": "local simulator (LiteSVM)",
-  "date": "2026-10-05",
+  "date": "2026-10-06",
   "seed": 314,
   "fixtures": {
-   "knos_oidc_v2_test.so": "a88034e9f1d342c57b2d2822db309aa36412d9762d74d55c4dde022c075454a1",
+   "knos_oidc_v2_test.so": "cd9d7d681aea80839d618c057a8fb0e249cc3d3665beaf8e5588b335ec8eabf5",
    "knos_pay_v2_test.so": "575f1d38bab53a9e47582bade43d01c073d1b273766936febd6a6b996035a714"
   },
-  "simulator_seconds": 16.3,
+  "simulator_seconds": 17.6,
   "invariants": {
    "orders": 1000,
    "open_at_once": 1000,
@@ -168,12 +168,12 @@
      "max": 10
     },
     "cu_per_order": {
-     "p50": 3225977,
-     "p95": 3253707,
-     "max": 3311230,
-     "mean": 3229024
+     "p50": 3226624,
+     "p95": 3261078,
+     "max": 3305386,
+     "mean": 3230177
     },
-    "cu_per_tx_max": 847640,
+    "cu_per_tx_max": 847123,
     "bytes_per_order": {
      "p50": 7091,
      "max": 7167
@@ -192,12 +192,12 @@
      "max": 1
     },
     "cu_per_order": {
-     "p50": 145904,
-     "p95": 152177,
-     "max": 160853,
-     "mean": 146014
+     "p50": 131297,
+     "p95": 140055,
+     "max": 150419,
+     "mean": 132553
     },
-    "cu_per_tx_max": 160853,
+    "cu_per_tx_max": 150419,
     "bytes_per_order": {
      "p50": 748,
      "max": 748
@@ -218,12 +218,12 @@
      "max": 1
     },
     "cu_per_order": {
-     "p50": 171820,
-     "p95": 243919,
-     "max": 258909,
-     "mean": 184331
+     "p50": 171052,
+     "p95": 245406,
+     "max": 262932,
+     "mean": 184645
     },
-    "cu_per_tx_max": 258909,
+    "cu_per_tx_max": 262932,
     "bytes_per_order": {
      "p50": 808,
      "max": 1006
@@ -239,23 +239,23 @@
   "derived": {
    "orders": 1000,
    "block_cu": 100000000,
-   "cu_per_order": 3559369,
-   "one_relayer_orders_per_second": 8.43,
-   "fee_account_orders_per_second": 162.8,
-   "one_balance_orders_per_second": 205.5,
+   "cu_per_order": 3547375,
+   "one_relayer_orders_per_second": 8.46,
+   "fee_account_orders_per_second": 162.5,
+   "one_balance_orders_per_second": 226.3,
    "relayers": {
     "1": {
-     "blocks": 297,
-     "seconds": 118.8,
+     "blocks": 296,
+     "seconds": 118.4,
      "bound_by": "the relayers' own accounts",
      "orders_per_second": 8.4,
      "under_a_minute": false
     },
     "4": {
-     "blocks": 75,
-     "seconds": 30.0,
+     "blocks": 74,
+     "seconds": 29.6,
      "bound_by": "the relayers' own accounts",
-     "orders_per_second": 33.3,
+     "orders_per_second": 33.8,
      "under_a_minute": true
     },
     "16": {
@@ -270,23 +270,23 @@
   "derived_before_simd_0286": {
    "orders": 1000,
    "block_cu": 60000000,
-   "cu_per_order": 3559369,
-   "one_relayer_orders_per_second": 8.43,
-   "fee_account_orders_per_second": 162.8,
-   "one_balance_orders_per_second": 205.5,
+   "cu_per_order": 3547375,
+   "one_relayer_orders_per_second": 8.46,
+   "fee_account_orders_per_second": 162.5,
+   "one_balance_orders_per_second": 226.3,
    "relayers": {
     "1": {
-     "blocks": 297,
-     "seconds": 118.8,
+     "blocks": 296,
+     "seconds": 118.4,
      "bound_by": "the relayers' own accounts",
      "orders_per_second": 8.4,
      "under_a_minute": false
     },
     "4": {
-     "blocks": 75,
-     "seconds": 30.0,
+     "blocks": 74,
+     "seconds": 29.6,
      "bound_by": "the relayers' own accounts",
-     "orders_per_second": 33.3,
+     "orders_per_second": 33.8,
      "under_a_minute": true
     },
     "16": {
@@ -403,7 +403,7 @@
    "pass_every_s": 3.0,
    "counted_reads_per_token": 1,
    "log_comments_per_token": 1,
-   "tokens_at_a_time": 1
+   "tokens_at_a_time": 4
   },
   "meter": {
    "statement_reads_at_most": 100000,
@@ -412,20 +412,20 @@
   },
   "chain": {
    "fixtures": {
-    "knos_oidc_v2_test.so": "a88034e9f1d342c57b2d2822db309aa36412d9762d74d55c4dde022c075454a1",
+    "knos_oidc_v2_test.so": "cd9d7d681aea80839d618c057a8fb0e249cc3d3665beaf8e5588b335ec8eabf5",
     "knos_pay_v2_test.so": "575f1d38bab53a9e47582bade43d01c073d1b273766936febd6a6b996035a714"
    },
    "transactions_per_order": 12,
    "tokens_per_order": 2,
    "bytes_per_order": 8647,
-   "cu_per_order": 3559369,
-   "one_relayer_orders_per_second": 8.43,
-   "one_balance_orders_per_second": 205.5,
-   "fee_account_orders_per_second": 162.8
+   "cu_per_order": 3547375,
+   "one_relayer_orders_per_second": 8.46,
+   "one_balance_orders_per_second": 226.3,
+   "fee_account_orders_per_second": 162.5
   },
   "latency": {
    "merge_to_paid_s": {
-    "count": 40,
+    "count": 41,
     "median": 25,
     "p95": 58
    },
@@ -433,7 +433,7 @@
     "from": "2026-10-02",
     "to": "2026-10-05"
    },
-   "comment_to_funded_median_s": 48,
+   "comment_to_funded_median_s": 46,
    "stage_split": "not apart in these samples; scripts/latency_stages.py splits the payments whose relay log line carries the stage fields: docs/RELAY.md, \"Where a token waits\""
   },
   "budget": {
@@ -457,7 +457,7 @@
     "relay_log_comments": 0,
     "transactions": 12,
     "bytes": 8647,
-    "cu": 3559369
+    "cu": 3547375
    },
    "public": {
     "reads": 23,
@@ -479,7 +479,7 @@
     "relay_log_comments": 2,
     "transactions": 12,
     "bytes": 8647,
-    "cu": 3559369
+    "cu": 3547375
    }
   },
   "statement_requests": {
@@ -538,7 +538,7 @@
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
       "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 41 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
       "load": 0.0007,
       "binds": false
@@ -546,8 +546,8 @@
      {
       "limit": "the fee key's own account",
       "scope": "each fee key",
-      "at": 728352,
-      "from": "8.43 orders a second for one key that pays the fees (derived by scripts/load.py)",
+      "at": 730944,
+      "from": "8.46 orders a second for one key that pays the fees (derived by scripts/load.py)",
       "lift": "a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret)",
       "load": 0.0,
       "binds": false
@@ -555,8 +555,8 @@
      {
       "limit": "the fee account of the mint",
       "scope": "every customer, every relayer",
-      "at": 14065920,
-      "from": "162.8 payments a second in one mint (derived by scripts/load.py)",
+      "at": 14040000,
+      "from": "162.5 payments a second in one mint (derived by scripts/load.py)",
       "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
       "load": 0.0,
       "binds": false
@@ -564,8 +564,8 @@
      {
       "limit": "the Balance, one writable account",
       "scope": "each Balance",
-      "at": 17755200,
-      "from": "205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "at": 19552320,
+      "from": "226.3 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
       "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
       "load": 0.0,
       "binds": false
@@ -591,10 +591,10 @@
       "binds": false
      },
      {
-      "limit": "the public relay's pass, one token at a time",
+      "limit": "the public relay's pass, at the serial rate recorded",
       "scope": "every customer of the public worker",
       "at": 1728,
-      "from": "2 tokens a deliverable, carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many)",
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
       "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
       "load": 0.0058,
       "binds": false
@@ -631,7 +631,7 @@
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
       "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 41 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
       "load": 0.0007,
       "binds": false
@@ -639,8 +639,8 @@
      {
       "limit": "the fee account of the mint",
       "scope": "every customer, every relayer",
-      "at": 14065920,
-      "from": "162.8 payments a second in one mint (derived by scripts/load.py)",
+      "at": 14040000,
+      "from": "162.5 payments a second in one mint (derived by scripts/load.py)",
       "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
       "load": 0.0,
       "binds": false
@@ -648,8 +648,8 @@
      {
       "limit": "the Balance, one writable account",
       "scope": "each Balance",
-      "at": 17755200,
-      "from": "205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "at": 19552320,
+      "from": "226.3 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
       "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
       "load": 0.0,
       "binds": false
@@ -688,7 +688,7 @@
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
       "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 41 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
       "load": 0.0671,
       "binds": false
@@ -705,8 +705,8 @@
      {
       "limit": "the fee key's own account",
       "scope": "each fee key",
-      "at": 728352,
-      "from": "8.43 orders a second for one key that pays the fees (derived by scripts/load.py)",
+      "at": 730944,
+      "from": "8.46 orders a second for one key that pays the fees (derived by scripts/load.py)",
       "lift": "a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret)",
       "load": 0.0014,
       "binds": false
@@ -714,8 +714,8 @@
      {
       "limit": "the fee account of the mint",
       "scope": "every customer, every relayer",
-      "at": 14065920,
-      "from": "162.8 payments a second in one mint (derived by scripts/load.py)",
+      "at": 14040000,
+      "from": "162.5 payments a second in one mint (derived by scripts/load.py)",
       "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
       "load": 0.0001,
       "binds": false
@@ -723,8 +723,8 @@
      {
       "limit": "the Balance, one writable account",
       "scope": "each Balance",
-      "at": 17755200,
-      "from": "205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "at": 19552320,
+      "from": "226.3 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
       "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
       "load": 0.0001,
       "binds": false
@@ -735,16 +735,16 @@
     "repositories": 10,
     "per_day": 1000,
     "way": "public",
-    "first": "the public relay's pass, one token at a time",
+    "first": "the public relay's pass, at the serial rate recorded",
     "at": 1728,
     "fits": true,
     "binding": [],
     "bounds": [
      {
-      "limit": "the public relay's pass, one token at a time",
+      "limit": "the public relay's pass, at the serial rate recorded",
       "scope": "every customer of the public worker",
       "at": 1728,
-      "from": "2 tokens a deliverable, carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many)",
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
       "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
       "load": 0.5787,
       "binds": false
@@ -781,7 +781,7 @@
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
       "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 41 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
       "load": 0.0671,
       "binds": false
@@ -798,8 +798,8 @@
      {
       "limit": "the fee account of the mint",
       "scope": "every customer, every relayer",
-      "at": 14065920,
-      "from": "162.8 payments a second in one mint (derived by scripts/load.py)",
+      "at": 14040000,
+      "from": "162.5 payments a second in one mint (derived by scripts/load.py)",
       "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
       "load": 0.0001,
       "binds": false
@@ -807,8 +807,8 @@
      {
       "limit": "the Balance, one writable account",
       "scope": "each Balance",
-      "at": 17755200,
-      "from": "205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "at": 19552320,
+      "from": "226.3 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
       "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
       "load": 0.0001,
       "binds": false
@@ -842,7 +842,7 @@
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
       "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 41 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
       "load": 6.7132,
       "binds": true
@@ -868,17 +868,17 @@
      {
       "limit": "the fee key's own account",
       "scope": "each fee key",
-      "at": 728352,
-      "from": "8.43 orders a second for one key that pays the fees (derived by scripts/load.py)",
+      "at": 730944,
+      "from": "8.46 orders a second for one key that pays the fees (derived by scripts/load.py)",
       "lift": "a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret)",
-      "load": 0.1373,
+      "load": 0.1368,
       "binds": false
      },
      {
       "limit": "the fee account of the mint",
       "scope": "every customer, every relayer",
-      "at": 14065920,
-      "from": "162.8 payments a second in one mint (derived by scripts/load.py)",
+      "at": 14040000,
+      "from": "162.5 payments a second in one mint (derived by scripts/load.py)",
       "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
       "load": 0.0071,
       "binds": false
@@ -886,10 +886,10 @@
      {
       "limit": "the Balance, one writable account",
       "scope": "each Balance",
-      "at": 17755200,
-      "from": "205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "at": 19552320,
+      "from": "226.3 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
       "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
-      "load": 0.0056,
+      "load": 0.0051,
       "binds": false
      }
     ]
@@ -898,11 +898,11 @@
     "repositories": 100,
     "per_day": 100000,
     "way": "public",
-    "first": "the public relay's pass, one token at a time",
+    "first": "the public relay's pass, at the serial rate recorded",
     "at": 1728,
     "fits": false,
     "binding": [
-     "the public relay's pass, one token at a time",
+     "the public relay's pass, at the serial rate recorded",
      "the meter's statement, recomputed from the logs",
      "the public relay's log comments",
      "concurrent jobs (Free plan)",
@@ -910,10 +910,10 @@
     ],
     "bounds": [
      {
-      "limit": "the public relay's pass, one token at a time",
+      "limit": "the public relay's pass, at the serial rate recorded",
       "scope": "every customer of the public worker",
       "at": 1728,
-      "from": "2 tokens a deliverable, carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many)",
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
       "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
       "load": 57.8704,
       "binds": true
@@ -941,7 +941,7 @@
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
       "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 40 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 41 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
       "load": 6.7132,
       "binds": true
@@ -967,8 +967,8 @@
      {
       "limit": "the fee account of the mint",
       "scope": "every customer, every relayer",
-      "at": 14065920,
-      "from": "162.8 payments a second in one mint (derived by scripts/load.py)",
+      "at": 14040000,
+      "from": "162.5 payments a second in one mint (derived by scripts/load.py)",
       "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
       "load": 0.0071,
       "binds": false
@@ -976,14 +976,117 @@
      {
       "limit": "the Balance, one writable account",
       "scope": "each Balance",
-      "at": 17755200,
-      "from": "205.5 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "at": 19552320,
+      "from": "226.3 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
       "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
-      "load": 0.0056,
+      "load": 0.0051,
       "binds": false
      }
     ]
    }
   ]
+ },
+ "relay": {
+  "stages": {
+   "source": "`python scripts/latency_stages.py --rpc https://api.devnet.solana.com --json`, run on 6 October 2026 from 14:58 to 15:06 UTC against the public relay log (drexthealpha/Knos) and devnet: 41 payments of 2 to 5 October 2026",
+   "whole": {
+    "n": 41,
+    "p50": 25,
+    "p95": 58
+   },
+   "six": [
+    {
+     "stage": "workflow scheduling",
+     "n": 5,
+     "p50": 2,
+     "p95": 1184,
+     "what": "the merge to the start of the workflow run"
+    },
+    {
+     "stage": "evaluation",
+     "n": 5,
+     "p50": 16,
+     "p95": 24,
+     "what": "the start of the run to the token's comment"
+    },
+    {
+     "stage": "relay pickup",
+     "n": 5,
+     "p50": 2,
+     "p95": 5,
+     "what": "the token's comment to a relay taking it up"
+    },
+    {
+     "stage": "submission",
+     "n": 5,
+     "p50": 2,
+     "p95": 5,
+     "what": "pickup to the block of the first transaction"
+    },
+    {
+     "stage": "confirmation",
+     "n": 5,
+     "p50": 3,
+     "p95": 8,
+     "what": "that block to the block of the paying transaction"
+    },
+    {
+     "stage": "finality",
+     "n": 0,
+     "p50": null,
+     "p95": null,
+     "what": "the last confirmation to the cluster finalizing it"
+    }
+   ]
+  },
+  "queue": {
+   "items": 200,
+   "workers": 4,
+   "lanes": 20,
+   "seed": 314,
+   "lease_s": 180,
+   "done": 200,
+   "dead": 0,
+   "left_open": 0,
+   "sends": 200,
+   "sent_twice": 0,
+   "taken_by_chain": 200,
+   "out_of_order": 0,
+   "workers_killed": 1,
+   "taken_again": 1,
+   "taken_again_was_the_killed_one": true,
+   "others_went_on_while_the_slow_one_was_in_flight": true,
+   "slow_s": 60.0,
+   "ok": true
+  },
+  "sweep": {
+   "tokens": 12,
+   "owners": 6,
+   "workers": 4,
+   "slow_s": 60.0,
+   "done_in_the_first_pass": 12,
+   "sends_in_the_first_pass": 12,
+   "done_before_the_slow_one_confirmed": 11,
+   "slow_one_took_s": 64,
+   "slowest_other_took_s": 15,
+   "most_in_flight": 4,
+   "two_of_one_owner_in_flight": 0,
+   "out_of_order": 0,
+   "pass_killed": true,
+   "killed_token_in_the_notes_after_the_kill": [
+    "sending"
+   ],
+   "killed_token_sends": 2,
+   "killed_token_taken_by_chain": 1,
+   "killed_token_answered_already_and_logged_once": true,
+   "taken_by_chain": 14,
+   "sent_twice": 0,
+   "log_lines": 14,
+   "lines_after_everything_was_done": 0,
+   "states": [
+    "confirmed"
+   ],
+   "ok": true
+  }
  }
 }

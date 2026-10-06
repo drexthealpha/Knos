@@ -151,7 +151,7 @@ def test_a_line_says_what_was_bought_who_supplied_who_evaluated_and_what_became_
 def test_the_file_ends_with_the_totals_and_the_head():
     text = audit.export(month(), ACME, **SEPT)
     scope, rows, sums, head, count = audit.parse(text)
-    assert scope == {"type": "knos.audit-export", "version": 2, "program": str(pay2.PAY_ID), "owner_id": ACME, "from": "2026-09-01", "to": "2026-09-30",
+    assert scope == {"type": "knos.audit-export", "version": 3, "program": str(pay2.PAY_ID), "owner_id": ACME, "from": "2026-09-01", "to": "2026-09-30",
                      "wallets": "", "partial": 0}
     assert count == len(rows) == 9 and head == audit._hash(rows[-1]) and rows[0]["prev"] == audit._hash(scope)
     assert sums == {"test USDC": {"lines": 9, "paid_units": 330 * U, "fee_units": FEES, "refunded_units": 50 * U, "reverted_units": 40 * U}}
@@ -185,7 +185,8 @@ def test_verify_finds_a_removed_an_edited_a_moved_and_an_added_row():
     last = audit.verify(csv_edit(text, lambda g: g.pop(9)))                          # the last row is gone
     assert any("head does not match the last row" in s for s in last) and any("says it has 9 rows and has 8" in s for s in last)
     last_edited = audit.verify(csv_edit(text, lambda g: g[9].__setitem__(audit.COLUMNS.index("verdict"), "expired")))
-    assert last_edited == ["The head does not match the last row: the last row was edited or removed, or rows were added after it."]
+    assert last_edited == ["Row 9: its outcome is not one of the four verdicts, or says accepted where the line does not.",
+                           "The head does not match the last row: the last row was edited or removed, or rows were added after it."]
     moved = audit.verify(csv_edit(text, lambda g: g.insert(1, g.pop(2))))
     assert any("Row 1 is numbered 2" in s for s in moved)
     added = audit.verify(csv_edit(text, lambda g: g.insert(10, list(g[9]))))
@@ -242,7 +243,7 @@ def test_knos_audit_export_and_verify(capsys, world, tmp_path):
     rc, out, _ = run(capsys, "audit", "export", "--owner", str(ACME), "--to", "2026-09-30", "--from", "2026-09-01", "--format", "json", "--out", str(path))
     assert rc == 0 and out == "" and path.read_text(encoding="utf-8") == audit.export(month(), ACME, "json", **SEPT)
     rc, out, _ = run(capsys, "audit", "verify", str(path))
-    assert rc == 0 and out.strip() == "valid. version 2. head sha256:" + audit.parse(path.read_text(encoding="utf-8"))[3]
+    assert rc == 0 and out.strip() == "valid. version 3. head sha256:" + audit.parse(path.read_text(encoding="utf-8"))[3]
     path.write_text(path.read_text(encoding="utf-8").replace('"paid_units":100000000', '"paid_units":100000001'), encoding="utf-8")
     rc, out, _ = run(capsys, "audit", "verify", str(path))
     assert rc == 1 and "Row 2 does not follow the row before it" in out and "totals" in out
@@ -265,7 +266,7 @@ def test_a_history_the_cluster_did_not_give_whole_is_refused_unless_partial(caps
 def test_an_organisation_that_only_posted_bounties_gets_its_bounties_not_an_empty_file():
     text = audit.export(fin.bounties(), ACME, **SEPT)
     rows = rows_of(text)
-    assert audit.verify(text) == [] and text.splitlines()[0] == "knos.audit-export,version,2"
+    assert audit.verify(text) == [] and text.splitlines()[0] == "knos.audit-export,version,3"
     assert [(r["record"], r["kind"], r["issue"]) for r in rows] == [("bounty", "paid", "21"), ("bounty", "paid", "22"), ("bounty", "held", "23"),
                                                                     ("bounty", "open", "25"), ("bounty", "refunded", "24")]
     faucet, own, held, still, back = rows
@@ -305,7 +306,7 @@ def test_a_mix_of_orders_and_bounties_is_one_chain_and_the_same_bytes_for_both_p
     assert next(r for r in rows if r["transaction"] == "PC")["held_until"] == "2026-10-08T00:00:00Z"        # the end of the review window
     assert next(r for r in rows if r["order"] == "OrdF")["held_until"] == "2026-10-14T00:00:00Z"             # an open order's deadline
     doc = json.loads(audit.export(fin.mix(), ACME, "json", **SEPT))
-    assert doc["version"] == 2 == doc["scope"]["version"] and doc["columns"] == list(audit.COLUMNS)
+    assert doc["version"] == 3 == doc["scope"]["version"] and doc["columns"] == list(audit.COLUMNS)
 
 
 def test_a_file_of_version_1_still_verifies_and_is_told_from_version_2():
@@ -327,8 +328,9 @@ def test_a_file_of_version_1_still_verifies_and_is_told_from_version_2():
     # a version 2 head never equals a version 1 head for the same orders: the scope's version is hashed first
     assert audit.parse(audit.export(month(), ACME, **SEPT))[3] != audit.parse(text)[3]
     v2 = audit.export(month(), ACME, **SEPT)
-    for wrong in (v2.replace("knos.audit-export,version,2", "knos.audit-export,version,3", 1),     # a version this release does not know
-                  v2.split("\n", 1)[1],                                                             # version 2's columns with no version line
+    for wrong in (v2.replace("knos.audit-export,version,3", "knos.audit-export,version,4", 1),     # a version this release does not know
+                  v2.replace("knos.audit-export,version,3", "knos.audit-export,version,2", 1),     # version 3's columns under a version 2 line
+                  v2.split("\n", 1)[1],                                                             # version 3's columns with no version line
                   "knos.audit-export,version,2\n" + text,                                           # version 1's columns under a version 2 line
                   json.dumps({**json.loads(audit.export(month(), ACME, "json", **SEPT)), "version": 1})):
         with pytest.raises(audit.Refused):
@@ -499,6 +501,62 @@ def test_knos_audit_show_owed_and_a_finance_format(capsys, world, tmp_path):
     path = tmp_path / "generic.csv"
     rc, _, _ = run(capsys, "audit", "export", "--owner", str(ACME), "--to", "2026-09-30", "--from", "2026-09-01", "--format", "generic", "--out", str(path))
     rc2, out, _ = run(capsys, "audit", "verify", str(path))
-    assert (rc, rc2) == (0, 0) and out.strip() == "valid. version 2. head sha256:" + audit.parse(audit.export(review(), ACME, **SEPT))[3]
+    assert (rc, rc2) == (0, 0) and out.strip() == "valid. version 3. head sha256:" + audit.parse(audit.export(review(), ACME, **SEPT))[3]
     rc, out, _ = run(capsys, "audit", "export", "--owner", str(ACME), "--format", "netsuite", "--refs", str(tmp_path / "none.csv"))
     assert rc == 1 and out.startswith("Could not read")
+
+
+# ---- version 3: the verdict in one of four words, and the four ids ---------------------------------------------------------
+def test_version_3_adds_the_outcome_and_the_four_ids_and_a_version_2_file_still_verifies():
+    from knos import ids
+    text = audit.export(month(), ACME, **SEPT)
+    scope, rows, _sums, head, _count = audit.parse(text)
+    assert scope["version"] == 3 == audit.VERSION and audit.verify(text) == []
+    assert audit.COLUMNS.index("outcome") == audit.COLUMNS.index("verdict") + 1
+    assert audit.COLUMNS[audit.COLUMNS.index("billing_key") + 1:][:4] == ("deliverable_id", "evaluation_id", "invoice_line_id", "settlement_id")
+    assert {r["outcome"] for r in rows} <= {"", *ids.VERDICTS} and any(r["outcome"] == "accepted" for r in rows)
+    for r in rows:
+        assert r["evaluation_id"] == "" == r["invoice_line_id"]              # the log has no commit, no run and no invoice
+        assert (r["outcome"] == "accepted") == (r["verdict"] == "accepted")
+        assert bool(r["settlement_id"]) == (bool(r["deliverable_id"]) and bool(r["transaction"]) and r["kind"] in audit.MOVES)
+        if r["deliverable_id"]:
+            assert ids.kind_of(r["deliverable_id"]) == "deliverable"
+            # the fixtures name their orders OrdA, OrdB: a text that is no address is its own scope
+            assert r["deliverable_id"] == ids.deliverable(r["order"], int(r["pull_request"] or 0) if r["standing"] == "1" else 0)
+        if r["settlement_id"]:
+            assert r["settlement_id"] == ids.settlement(r["deliverable_id"], "chain", r["transaction"])
+    paid = [r for r in rows if r["billing_key"]]
+    assert paid and len({r["deliverable_id"] for r in paid}) == len(paid)   # one paid line per deliverable: billed once
+    # an id of one kind where another is expected is found, and so is a deliverable id that is not the line's own
+    at, n = audit.COLUMNS.index("deliverable_id"), 1 + rows.index(paid[0])
+    swapped = audit.verify(csv_edit(text, lambda g: g[n].__setitem__(at, paid[0]["settlement_id"])))
+    assert any(f"Row {n}: deliverable_id holds" in s and "not the id of a deliverable" in s for s in swapped)
+    other = audit.verify(csv_edit(text, lambda g: g[n].__setitem__(at, ids.deliverable("0" * 64, 0))))
+    assert any(f"Row {n}: its deliverable or settlement id is not the one" in s for s in other)
+    # the same lines as a version 2 file: written, parsed and verified as 0.3.16 did, with no column of version 3
+    scope2 = {**scope, "version": 2}
+    rows2, head2 = audit.chained([{c: r[c] for c in audit.COLUMNS_V2} for r in rows], scope2)
+    old = audit.write(scope2, rows2, head2, "csv")
+    assert old.splitlines()[0] == "knos.audit-export,version,2" and audit.verify(old) == [] and head2 != head
+    assert set(audit.parse(old)[1][0]) == set(audit.COLUMNS_V2) and "outcome" not in audit.parse(old)[1][0]
+    assert audit.write(*(audit.parse(old)[i] for i in (0, 1, 3)), "csv") == old
+
+
+def test_a_version_4_receipt_gives_a_line_its_evaluation_and_invoice_line_and_one_of_another_deliverable_is_refused():
+    from knos import ids
+    row = {"order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp", "standing": 0, "pull_request": 12, "kind": "paid", "verdict": "accepted",
+           "transaction": "35uS8fqUd1ARccqYuFaEbZy2kbFHr9uGcWLSg8FP1358V5Y8EEThyu4USBfHEhMjxd3QMKoNUMtHuhtMYKBXWcye"}
+    plain = audit.four_of(row)
+    dlv = ids.deliverable(ids.order_scope(row["order"]), 0)
+    assert plain == {"outcome": "accepted", "deliverable_id": dlv, "evaluation_id": "", "invoice_line_id": "",
+                     "settlement_id": ids.settlement(dlv, "chain", row["transaction"])}
+    evl, inv = ids.evaluation(dlv, "a" * 40, "b" * 64, "repository@" + "c" * 40, "7"), ids.invoice_line("555000", "INV-7", 3)
+    receipt = {"version": 4, "ids": {"deliverable": dlv, "evaluation": evl, "invoice_line": inv, "settlement": plain["settlement_id"]},
+               "evaluator_observed": {"verdict": "disputed"}}
+    assert audit.four_of(row, receipt) == {**plain, "evaluation_id": evl, "invoice_line_id": inv, "outcome": "disputed"}
+    with pytest.raises(audit.Refused):
+        audit.four_of(row, {**receipt, "ids": {**receipt["ids"], "deliverable": ids.deliverable("0" * 64, 0)}})
+    assert audit.four_of({**row, "standing": 1, "pull_request": "", "kind": "refunded", "verdict": "expired"}) == {
+        "outcome": "insufficient_evidence", "deliverable_id": "", "evaluation_id": "", "invoice_line_id": "", "settlement_id": ""}
+    assert [audit.OUTCOMES[v] for v in ("accepted", "pending", "expired", "reverted", "none")] == [
+        "accepted", "insufficient_evidence", "insufficient_evidence", "rejected", ""]

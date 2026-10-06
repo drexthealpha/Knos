@@ -132,7 +132,10 @@ def test_two_builds_of_one_order_are_the_same_bytes_and_the_verdict_follows_from
         members = tar.getmembers()
     assert [m.name for m in members] == sorted(["MANIFEST.json", "chain.json", *bundle.FILES]) and {(m.mtime, m.mode, m.uid, m.gid) for m in members} == {(0, 0o644, 0, 0)}
     got, done = bundle.verify(blob)                                # no network: `call` is not given
-    assert got == r and receipt.check(r) is None and r["version"] == 3
+    assert got == r and receipt.check(r) is None and r["version"] == 4       # a receipt is written as version 4 wherever one is made
+    assert receipt.authorises_payment(r) and r["ids"] == receipt.ids_of(r, r["commercial_authorisation"]["deliverable"]["milestone"])
+    three = receipt.as3(r)
+    assert three["version"] == 3 and receipt.check(three) is None and receipt.build4(three) == r   # and holds the version 3 one it was built from
     assert files["token.jwt"].decode().strip() == net.token and files["terms.json"] == TERMS
     assert json.loads(files["judge.json"])["inputs_sha256"] == bundle._sha(files["checks.json"])
     assert any("verdict follows again" in line for line in done) and "the chain was not asked" in done[-3]
@@ -164,6 +167,7 @@ def test_changing_any_file_fails_verify(built):
     other["payees"][0]["to"] = FUNDER
     richer = json.loads(files["receipt.json"])
     richer["evaluator_observed"]["artifact"]["commit"] = "b" * 40
+    richer["ids"] = receipt.ids_of(richer, richer["commercial_authorisation"]["deliverable"]["milestone"])     # with the ids its new fields give
     head, body, sig = files["token.jwt"].decode().strip().split(".")
     forged = sign_jwt(signing_key(4096), json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))))
     for name, data, why in (("checks.json", bundle._json(failed), "judge.json does not name"),
@@ -232,6 +236,7 @@ def test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_
     other = json.loads(json.dumps(r))
     other["order"], other["scope"], other["repository"] = _addr(31), pay2.scope_of(REPO, 78).hex(), {"id": REPO, "issue": 78}
     other["transaction"]["signature"], other["commercial_authorisation"]["deliverable"]["order"] = _sig(41), _addr(31)
+    other["ids"] = receipt.ids_of(other, other["commercial_authorisation"]["deliverable"]["milestone"])
     a, b = tmp_path / "a", tmp_path / "b"
     receipt.mirror_write([r, other], a)
     receipt.mirror_write([other], b)
@@ -317,6 +322,18 @@ def test_a_receipt_that_names_another_wallet_passes_offline_with_the_limit_said_
     gone.txs.pop(_sig(40))                                           # the cluster was reset: the comparison is refused, never skipped
     with pytest.raises(ValueError, match="no longer has the paying transaction"):
         bundle.verify(built[2], gone.call)
+
+
+def test_a_bundle_made_on_another_deployment_is_refused_as_that_and_not_as_a_changed_receipt(net, built, monkeypatch):
+    # 0.3.17, track F: a real bundle made on the staging ids, verified without KNOS_PROGRAM_IDS, was refused with "the receipt was
+    # changed" although no byte of it was. The escrow it names is not the one this knos reads: that is what is said now.
+    from knos import records
+    r, _files, blob = built
+    assert bundle.verify(blob, net.call)[0]["program"] == PAY
+    monkeypatch.setattr(records, "PROGRAMS", {_addr(98): 2})        # this knos reads another deployment's escrow
+    with pytest.raises(ValueError, match="the receipt names the escrow program .* made on another deployment") as why:
+        bundle.verify(blob, net.call)
+    assert "was changed" not in str(why.value) and r["program"] in str(why.value) and "KNOS_PROGRAM_IDS" in str(why.value)
 
 
 # ---- the judge's verdict in the bundle: one layout for `knos bundle verify` and `knos judge rerun` -----------------------------

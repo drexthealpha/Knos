@@ -1,0 +1,690 @@
+{
+ "measured": {
+  "accept": "c217674c3d7a",
+  "allowed": "c217674c3d7a",
+  "escape": "c217674c3d7a",
+  "honest": "c217674c3d7a",
+  "real": "c217674c3d7a",
+  "slug": "c217674c3d7a"
+ },
+ "rows": [
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "a loop over the characters, no regular expression",
+   "notes": [],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "non-letters turned to spaces, then split and joined",
+   "notes": [],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "slower and still right: hyphens squeezed one pair at a time",
+   "notes": [],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a parametrised regression test in the test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a unittest.TestCase class in the test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a package of regression tests with a data file under the test directory",
+   "notes": [
+    "contributor tests: 3 files, not counted"
+   ],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a seeded property test in the test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "Python, pytest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "a loop over the characters, no regular expression",
+   "notes": [],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the runs of letters and digits matched, then joined",
+   "notes": [],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "slower and still right: hyphens squeezed one pair at a time",
+   "notes": [],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a describe/it regression test in the test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "JavaScript, node:test",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "a loop over the characters, no regular expression",
+   "notes": [],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the runs of letters and digits scanned, then joined",
+   "notes": [],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "slower and still right: hyphens squeezed one pair at a time",
+   "notes": [],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "slug",
+   "knos": true,
+   "name": "the fix, and a spec-style regression test in the test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "Ruby, minitest",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "another algorithm",
+   "notes": [],
+   "task": "urljoin",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "urljoin",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "urljoin",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "urljoin",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "urljoin",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "another algorithm",
+   "notes": [],
+   "task": "version",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "version",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "version",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "version",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "version",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "another algorithm",
+   "notes": [],
+   "task": "sniff",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "sniff",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "sniff",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "sniff",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "sniff",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "another algorithm",
+   "notes": [],
+   "task": "ini",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "ini",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "ini",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "ini",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "ini",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "another algorithm",
+   "notes": [],
+   "task": "date",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "date",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "date",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "date",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "date",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "another algorithm",
+   "notes": [],
+   "task": "glob",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "notes": [],
+   "task": "glob",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and checks of its own kept outside the test directory",
+   "notes": [],
+   "task": "glob",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test added in the repository's test directory",
+   "notes": [
+    "contributor tests: 1 file, not counted"
+   ],
+   "task": "glob",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": true,
+   "group": "real",
+   "knos": null,
+   "name": "the fix, and a regression test that uses a fixture from a new conftest.py beside the tests",
+   "notes": [
+    "contributor tests: 1 file, not counted",
+    "test configuration: 1 file changed, not counted (the suite ran from the base's copy)"
+   ],
+   "task": "glob",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": null,
+   "group": "plain",
+   "knos": null,
+   "name": "the learned rules written out as plain conditions (a tree of five levels)",
+   "task": "classify",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": null,
+   "group": "plain",
+   "knos": null,
+   "name": "a deeper tree, its rules in a folder of their own",
+   "task": "classify",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": null,
+   "group": "plain",
+   "knos": null,
+   "name": "one function per column, date and decimal types, no regular expression",
+   "task": "clean-csv",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": null,
+   "group": "plain",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "task": "clean-csv",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": null,
+   "group": "plain",
+   "knos": null,
+   "name": "sentences cut by hand and matched by what surrounds each fact, no regular expression",
+   "task": "summarise",
+   "why": "-"
+  },
+  {
+   "box": true,
+   "ci": null,
+   "group": "plain",
+   "knos": null,
+   "name": "the fix moved to new files (another layout)",
+   "task": "summarise",
+   "why": "-"
+  }
+ ],
+ "ruled": [
+  {
+   "box": false,
+   "ci": true,
+   "knos": false,
+   "name": "the fix, and a case added to an existing test file",
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "box": false,
+   "ci": true,
+   "knos": false,
+   "name": "the fix, and an existing test file renamed",
+   "why": "touches protected path tests/test_calc.py: an existing protected test was deleted; a new test file beside it is allowed"
+  },
+  {
+   "box": false,
+   "ci": true,
+   "knos": false,
+   "name": "the fix, and a step added to the CI workflow",
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  }
+ ]
+}

@@ -292,6 +292,30 @@ def recorded(book: dict):
     return get
 
 
+EVIDENCE = "evidence.json"
+
+
+def keeping(get) -> tuple:
+    """(a reader that asks `get` and writes down what it said, the book it writes in). The book is {path: answer}, with
+    {"__unread": reason} for a path GitHub did not give: `recorded(book)` answers the same again with no network, which
+    is what lets a statement be made again years later (knos.statement)."""
+    book: dict = {}
+
+    def kept(path: str):
+        try:
+            book[path] = get(path)
+        except Unread as e:
+            book[path] = {"__unread": e.reason}
+            raise
+        return book[path]
+    return kept, book
+
+
+def evidence(text: str, book: dict) -> bytes:
+    """The evidence file of one run: the invoice as it was given and every answer that was read, in canonical JSON."""
+    return (json.dumps({"answers": book, "invoice": text}, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode("utf-8", "surrogatepass")
+
+
 def read(repo: str, number: int, get) -> dict:
     """What GitHub says about one pull request: {"pull", "runs", "statuses", "commits", "unread", "paths"}. `runs` and
     `statuses` are those of its last commit and are read only when it is merged; `commits` only when its description
@@ -516,9 +540,12 @@ def write(st: dict, out: Path) -> list[Path]:
     return [path for path, _ in files]
 
 
-def run(text: str, get, out: Path | None = None, reader: Reader | None = None) -> dict:
-    """Parse, read and state. With `out` and a live `reader`, the resume file is written after every line: the kept
-    answers with their ETags, and the paths of the lines that were read in full."""
+def run(text: str, get, out: Path | None = None, reader: Reader | None = None, events: Path | None = None, named: str = "", month: int | str | None = None) -> dict:
+    """Parse, read and state. With `out`, evidence.json is written beside the statement (the invoice and
+    every answer read); with a live `reader` too, the resume file is written after every line: the kept answers with
+    their ETags, and the paths of the lines that were read in full. With `events` (a log of `knos events`) the
+    statement's invoice lines and evaluations are also taken into that log, best effort, as invoice `named` of
+    `month` (YYYY-MM; this month when it is not given)."""
     invoice = parse(text)
 
     def each(_ln, facts) -> None:
@@ -530,15 +557,23 @@ def run(text: str, get, out: Path | None = None, reader: Reader | None = None) -
         kept = {path: [etag, answer] for path, (etag, answer) in sorted(reader.kept.items())}
         (out / RESUME).write_text(json.dumps({"kept": kept, "settled": sorted(reader.settled & set(kept))}, sort_keys=True), encoding="utf-8")
 
+    get, book = keeping(get)
     st = statement(invoice, gather(invoice, get, each))
     if out is not None:
         write(st, out)
+        (out / EVIDENCE).write_bytes(evidence(text, book))       # what `knos statement make` and `verify` read: no network needed again
+    if events is not None:
+        import time
+
+        from . import events as log
+        log.keep(events, lambda: log.from_shadow(st, named or "invoice", month or time.strftime("%Y-%m", time.gmtime())))
     return st
 
 
 def register(app, help_lines: list | None = None) -> None:
     """`knos shadow`, on the main app. `help_lines`: cli._HELP, which gets the command's line."""
-    import typer
+    import importlib
+    typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
     if help_lines is not None:
         help_lines.append(("shadow", "For money", "Which lines of a per-change invoice had a failed check at merge? Reads GitHub; changes nothing."))
@@ -549,7 +584,10 @@ def register(app, help_lines: list | None = None) -> None:
                 out: Path = typer.Option(None, "--out", help="write statement.json, statement.csv and statement.sha256 here, and keep a resume file so a second run asks GitHub only for what is missing"),
                 recorded_file: Path = typer.Option(None, "--recorded", help="read GitHub's answers from this file ({path: answer}) and not from the network"),
                 refresh: bool = typer.Option(False, "--refresh", help="with --out: ask GitHub again about lines an earlier run finished"),
-                as_json: bool = typer.Option(False, "--json", help="print the statement's JSON")) -> None:
+                as_json: bool = typer.Option(False, "--json", help="print the statement's JSON"),
+                events_log: Path = typer.Option(None, "--events", help="also take the invoice's lines and their evaluations into this log of events (`knos events`); default: the file KNOS_EVENTS names, else none"),
+                invoice_name: str = typer.Option("", "--invoice", help="with a log of events: the invoice's own number or name (default: the file's name)"),
+                month: str = typer.Option(None, "--month", help="with a log of events: the month the invoice belongs to, YYYY-MM (default: this month)")) -> None:
         """Shadow mode: take an invoice that bills per merged change and say which billed changes had a failed check when they were merged, which were not merged, which are billed twice, and which could not be read (those are counted apart, never guessed). Prints the amount in dispute, its share of the invoice and the statement's sha256, so both sides can confirm they hold the same one. It only reads GitHub: nothing is written there, nothing is paid and nothing is held. A failed check at merge is not proof the work is bad, and a green check is not proof it is good."""
         from . import cli
         try:
@@ -566,7 +604,8 @@ def register(app, help_lines: list | None = None) -> None:
                     kept = json.loads((out / RESUME).read_text(encoding="utf-8"))
                 reader = Reader(os.environ.get(token_env, ""), kept.get("kept"), () if refresh else kept.get("settled") or ())
                 get = reader.get
-            st = run(text, get, out, reader)
+            from . import events
+            st = run(text, get, out, reader, events.where(events_log), invoice_name or invoice.stem, month)
         except ValueError as why:
             raise cli.Stop(f"{invoice}: {why}", "Each line names a pull request; an amount is digits with a point or a comma.") from None
         except OSError as why:
@@ -578,7 +617,8 @@ def register(app, help_lines: list | None = None) -> None:
             typer.echo(line)
         typer.echo(f"sha256 {digest(st)}")
         if out:
-            typer.echo(f"wrote {out / 'statement.json'}, statement.csv and statement.sha256")
+            typer.echo(f"wrote {out / 'statement.json'}, statement.csv, statement.sha256 and {EVIDENCE}")
+            typer.echo(f"For accounts payable (a CSV and a PDF with every line's state): knos statement make {out / EVIDENCE}")
         if reader is not None:
             typer.echo(f"GitHub was asked {reader.asked} times ({reader.same} answered unchanged)."
                        + ("" if reader.token else f" No token in ${token_env}: GitHub answers 60 requests an hour without one."))

@@ -62,7 +62,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, NamedTuple
+from typing import Callable, Mapping, NamedTuple
 
 from solders.pubkey import Pubkey
 
@@ -108,7 +108,7 @@ class Fetch:
 
     account: Account
     verified: Callable[[str], dict | None]
-    program_checks: Callable[[], tuple[bool, str]]
+    program_checks: Callable[[], tuple[bool | None, str]]
     get: Callable[[str], dict | list | None]
     review: Callable[[], tuple[dict | None, str]]
     now: Callable[[], int]
@@ -312,7 +312,7 @@ def pending_proposals(account: Account, multisig: str, ms: Multisig, squads: str
 def _pending_words(p: Pending, now: int) -> str:
     what = (f"an upgrade of program {p.program} from buffer {p.buffer}" if p.kind == "upgrade" else
             "a change to the upgrade multisig itself (its members, threshold or delay)" if p.kind == "config" else "a transaction of the upgrade vault")
-    if p.status == "Approved":
+    if p.status == "Approved" and p.executes_at is not None:     # always set once approved (pending_proposals)
         left = max(0, p.executes_at - now)
         when = (f"it can be executed from {_at(p.executes_at)} (in {left // 3600} h {left % 3600 // 60} min)" if left else
                 f"its delay is over ({_at(p.executes_at)}): anyone in the multisig can execute it now")
@@ -363,7 +363,7 @@ def _guardian(account: Account, ids: dict, elfs: dict[str, bytes]) -> tuple[bool
     gs, found = multisig_at(account, ids["guardian_multisig"], ids["squads_program"])
     its_vault = gs is not None and vault_address(Pubkey.from_string(ids["guardian_multisig"]), squads) == guardian
     named = [name for name in PROGRAMS if names_key(elfs[name], guardian)]
-    return (its_vault and gs.config_authority is None and len(named) == len(PROGRAMS),
+    return (its_vault and gs is not None and gs.config_authority is None and len(named) == len(PROGRAMS),
             found + ("" if gs is None else f"; vault 0 is {'' if its_vault else 'not '}{guardian}")
             + f"; named in the on-chain binary of: {', '.join(named) or 'neither program'}")
 
@@ -382,11 +382,11 @@ def _github_keys(fetch: Fetch, ids: dict) -> list[tuple[str, int, oidc.Key | Non
     return out
 
 
-def run(fetch: Fetch, ids: dict | None = None, env: dict | None = None) -> list[tuple[str, bool, str]]:
+def run(fetch: Fetch, ids: dict | None = None, env: Mapping[str, str] | None = None) -> list[tuple[str, bool | None, str]]:
     env = os.environ if env is None else env
     ids = ids or oidc.IDS
     squads, vault = ids["squads_program"], ids["upgrade_authority"]
-    res: list[tuple[str, bool, str]] = []
+    res: list[tuple[str, bool | None, str]] = []
     elfs, hashes = {}, {}
     for name in PROGRAMS:
         deployed, authority, elf = program_data(fetch.account, ids[name])
@@ -518,7 +518,7 @@ def _key_todo(key: oidc.Key | None, digest: str, now: int) -> str:
     if key is not None and key.state == 1 and not key.revoked and not (key.genesis or key.approved):
         return f"the guardian approves it: node scripts/governance.mjs guardian approve github {digest}"
     ok, why = oidc.key_usable(key, now)
-    if not ok:
+    if not ok or key is None:
         return why
     return f"it ends {_day(key.expires_at)}: run the rotate workflow and send Refresh with its token"
 
@@ -564,7 +564,7 @@ def status(fetch: Fetch, ids: dict | None = None, first: dict | None = None) -> 
     moot = " (not needed now: both programs are immutable)" if immutable else ""
     fixed = ("a multisig's delay and its authority are fixed when it is made. Make a new upgrade multisig with node scripts/governance.mjs create, "
              "pin its addresses in programs-v2/program_ids.json and hand the programs to it; until then upgrades are not held to a public wait")
-    res.append(Check(f"upgrade delay: an upgrade waits {TIME_LOCK // 3600} hours in public", immutable or (its_vault and ms.time_lock == TIME_LOCK),
+    res.append(Check(f"upgrade delay: an upgrade waits {TIME_LOCK // 3600} hours in public", immutable or (its_vault and ms is not None and ms.time_lock == TIME_LOCK),
                      said + ("" if ms is None else f"; vault 0 is {'' if its_vault else 'not '}{vault}") + moot, fixed))
     res.append(Check("upgrade multisig: no single key can change it", immutable or (ms is not None and ms.config_authority is None),
                      said + moot, fixed))
@@ -593,24 +593,25 @@ def status(fetch: Fetch, ids: dict | None = None, first: dict | None = None) -> 
                      "(node scripts/governance.mjs upgrade propose <program> <buffer>), or, if its multisig is wrong, make it again with "
                      "node scripts/governance.mjs create and pin it"))
 
-    keys, bad, todo, said = _github_keys(fetch, ids), [], [], []
+    words: list[str]
+    keys, bad, todo, words = _github_keys(fetch, ids), [], [], []
     for kid, n, key in keys:
         digest = oidc.key_hash(n).hex()
-        if oidc.key_usable(key, now)[0] and key.expires_at - now > KEY_MARGIN:
-            said.append(f"{kid[:8]}: {_key_evidence(key, now)}")
+        if key is not None and oidc.key_usable(key, now)[0] and key.expires_at - now > KEY_MARGIN:
+            words.append(f"{kid[:8]}: {_key_evidence(key, now)}")
         else:
             bad.append(kid)
-            said.append(f"{kid[:8]} (key hash {digest}): {_key_evidence(key, now)}")
+            words.append(f"{kid[:8]} (key hash {digest}): {_key_evidence(key, now)}")
             todo.append(f"{kid[:8]}: {_key_todo(key, digest, now)}.")
     res.append(Check(f"GitHub's keys: every one registered, usable, and more than {KEY_MARGIN // 86_400} days from expiry", bool(keys) and not bad,
-                     f"{len(keys)} keys published; " + "; ".join(said) if keys else f"{oidc.JWKS[oidc.GITHUB]} could not be read",
+                     f"{len(keys)} keys published; " + "; ".join(words) if keys else f"{oidc.JWKS[oidc.GITHUB]} could not be read",
                      " ".join(todo) if keys else "run it again in a few minutes: GitHub's list of keys could not be read"))
 
     # A Refresh moves a key's expiry to now + the key's life if that is later, so the newest Refresh is the newest expiry less the life.
     refreshed = max((key.expires_at - oidc.KEY_TTL for _kid, _n, key in keys if key is not None and key.state == 1 and not key.revoked), default=None)
     age = None if refreshed is None else now - refreshed
     res.append(Check(f"key refresh: the last one is under {REFRESH_MARGIN // 86_400} days old", age is not None and age < REFRESH_MARGIN,
-                     "no key of GitHub's is on chain to read a refresh from" if age is None else
+                     "no key of GitHub's is on chain to read a refresh from" if age is None or refreshed is None else
                      f"the last key refresh was {_at(refreshed)}, {max(0, age) // 86_400} day{'' if max(0, age) // 86_400 == 1 else 's'} {max(0, age) % 86_400 // 3600} h ago",
                      "run the rotate workflow and send Refresh with its token; anyone can (the workflow run by hand in a repository you own counts), "
                      "so do not wait for the scheduled run"))
@@ -641,7 +642,7 @@ def status(fetch: Fetch, ids: dict | None = None, first: dict | None = None) -> 
 # ---- the real fetchers ----------------------------------------------------------------------------------------------
 
 def _rpc(url: str) -> Account:
-    def account(addr: str) -> tuple[str, bytes] | None:
+    def account(addr: str) -> tuple[str, bytes, bool] | None:
         v = chain.call(url, "getAccountInfo", [addr, {"encoding": "base64", "commitment": "confirmed"}], timeout=30)["value"]
         return (v["owner"], base64.b64decode(v["data"][0]), bool(v.get("executable"))) if v else None
     return account
@@ -698,7 +699,7 @@ def _last_run(*more: str) -> tuple[int, list[dict]]:
     return rid, json.loads(_gh("run", "view", str(rid), "--json", "jobs"))["jobs"]
 
 
-def _verified(env: dict) -> Callable[[str], dict | None]:
+def _verified(env: Mapping[str, str]) -> Callable[[str], dict | None]:
     """The verified build of a program: `<name>.so` in KNOS_VERIFIED_DIR when that is set (a `solana-verify build` made
     on this machine); else the `<name>-v2-verified.so` artifact (the same build, in docker) of the last successful
     program.yml run on main, read with `gh` (without it: {"unchecked": ...}, not a failure). Hashed the way solana-verify
@@ -789,7 +790,7 @@ def _cluster(url: str) -> str:
         return "unknown"
 
 
-def live(env: dict | None = None) -> Fetch:
+def live(env: Mapping[str, str] | None = None) -> Fetch:
     env = os.environ if env is None else env
     url = env.get("KNOS_RPC") or env.get("KNOS_SOLANA_RPC") or PUBLIC["devnet"]
     return Fetch(account=_rpc(url), verified=_verified(env), program_checks=_program_checks, get=_get, review=_review,

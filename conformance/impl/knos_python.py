@@ -2,7 +2,7 @@
 
     python conformance/run.py --impl "python conformance/impl/knos_python.py"
 
-Every operation is answered by the function the rest of Knos uses (src/knos/receipt.py, terms.py, ledger.py and
+Every operation is answered by the function the rest of Knos uses (src/knos/receipt.py, ids.py, terms.py, ledger.py and
 settle/v2), except statement.hash: Knos writes a statement's hash and has no function that reads one back, so the few
 lines below do what docs/CONFORMANCE.md says. Another implementation needs none of this file: only the protocol in
 conformance/run.py.
@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from knos import ledger as L, receipt, terms as T  # noqa: E402
+from knos import ids as I, ledger as L, receipt, terms as T  # noqa: E402
 from knos.settle.v2 import gate, meter, oidc, order_auto, pay  # noqa: E402
 
 
@@ -41,6 +41,20 @@ def _receipt_check(i: dict):
     if receipt.check(i["receipt"]) is not None:
         raise Refuse
     return True
+
+
+def _receipt_verdict(i: dict):
+    _receipt_check(i)
+    return {"verdict": receipt.verdict_of(i["receipt"]), "authorises_payment": receipt.authorises_payment(i["receipt"])}
+
+
+def _or_refuse(fn):
+    def run(i: dict):
+        try:
+            return fn(i)
+        except (ValueError, L.Bad):
+            raise Refuse from None
+    return run
 
 
 def _parse_batch(i: dict):
@@ -69,6 +83,16 @@ def _payees(rows):
 OPS = {
     "receipt.digest": lambda i: receipt.digest(i["receipt"]),
     "receipt.check": _receipt_check,
+    "receipt.verdict": _receipt_verdict,
+    "ids.deliverable": lambda i: I.deliverable(i["scope"], i["key"]),
+    "ids.evaluation": lambda i: I.evaluation(i["deliverable"], i["artifact"], i["policy"], i["evaluator"], i["run"]),
+    "ids.invoice_line": lambda i: I.invoice_line(i["supplier"], i["invoice"], i["line"]),
+    "ids.settlement": lambda i: I.settlement(i["deliverable"], i["method"], i["reference"]),
+    "ids.kind_of": lambda i: I.kind_of(i["id"]),
+    "ids.expect": _or_refuse(lambda i: I.expect(i["kind"], i["id"])),
+    "ids.order_scope": _or_refuse(lambda i: I.order_scope(i["order"])),
+    "ids.verdict": _or_refuse(lambda i: I.verdict(i["word"])),
+    "ids.billed_once": _or_refuse(lambda i: L.billed_once([(e["deliverable"], e["verdict"]) for e in i["evaluations"]])),
     "terms.hash": _terms,
     "terms.canonical": _terms,
     "ledger.eval_id": lambda i: L.eval_id(_b(i["order"]), i["artifact"], _b(i["policy"]), i["milestone"]).hex(),

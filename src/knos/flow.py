@@ -57,10 +57,11 @@ import urllib.parse
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 from solders.pubkey import Pubkey
 
-from . import badge, closing, commands, playground, policy, terms, who
+from . import badge, closing, commands, ghwords, playground, policy, terms, who
 from .settle.v2 import order_auto, pay
 
 MARK = "<!-- knos-review -->"       # the first line of the one comment `knos review` keeps up to date
@@ -139,7 +140,7 @@ class Run:
         self._reader, self._salt = reader, salt
         self.attestor, self.only = False, ""     # `--attestor`, `--target owner/name`: this run is an attestor's (for that one repository)
         self.judged_at = ""                      # `knos attest` after a re-execution: the commit whose acceptance checks were run
-        self.att = None                          # on the Run an attestor reads a target with (`reads`): the attestor
+        self.att: Any = None                     # on the Run an attestor reads a target with (`reads`): the attestor
         self.private = False                     # that Run's words are about a private repository: none goes to this job's log
         self._hidden: dict[str, tuple[bytes, bytes]] = {}    # a private order's address -> (its salt, its terms JSON), from its issue
 
@@ -382,6 +383,14 @@ def _repo(run: Run) -> dict | None:
         return {"id": int(r["id"]), "owner": int(r["owner"]["id"]), "branch": str(r["default_branch"])}
     except (KeyError, TypeError, ValueError):
         return None
+
+
+def _repo_known(run: Run) -> dict:
+    """`_repo`, for a caller that cannot go on without it and is inside a `try`: raises, in words, when GitHub did not say."""
+    rp = _repo(run)
+    if rp is None:
+        raise OSError("GitHub did not answer for this repository")
+    return rp
 
 
 def _pull(run: Run, number) -> dict | None:
@@ -879,6 +888,7 @@ def _judge(run: Run, pull: dict, cases: list[Case], listed: list | None, strict:
     files = _changes(run, number)
     changed = None if files is None else sorted({str(n) for f in files if isinstance(f, dict)
                                                  for n in (f.get("filename"), f.get("previous_filename")) if n})
+    facts: dict
     permission, user, message, facts = who.permission_of(run.repo, run.github), who.user_of(run.github), "", {}
     if payee and author.get("type", "User") != "User" and head:      # what a bot's head commit says is a hint to show
         message = str(((_read(run, f"repos/{run.repo}/commits/{head}") or {}).get("commit") or {}).get("message") or "")
@@ -927,7 +937,7 @@ def _timing(run: Run, c: Case, pull: dict, tests: bool) -> None:
         return
     if c.terms:
         try:    # the commit the judge job checked out as the base: this run's own (GITHUB_SHA), on the default branch
-            ref = str(run.judged_at or run.env.get("GITHUB_SHA") or _repo(run)["branch"])
+            ref = str(run.judged_at or run.env.get("GITHUB_SHA") or _repo_known(run)["branch"])
             have, files = _bundle(run, ref, c.issue)
             fooled = _not_black_box(run, ref, files) if c.terms["mode"] == "tests" and have == c.terms["accept"] else ""
         except terms.Refused as why:
@@ -1089,7 +1099,7 @@ def _relayed(run: Run, c: Case, r: dict, after: str, how: str) -> str:
             to = rows[0]["to"]
             src = {"bound": f", the wallet bound to {payee}'s GitHub account", "comment": f", the address in {payee}'s `/knos address` comment"}
             out.append(f"paid. {payee} received {_amount(gross - fee)} {money} {for_}: the {kind} of {_amount(gross)} less Knos's fee "
-                       f"of {_amount(fee)}. It went to `{to}`{src.get(c.where.get('from'), '') if to == c.where.get('address') else ''} "
+                       f"of {_amount(fee)}. It went to `{to}`{src.get(c.where.get('from', ''), '') if to == c.where.get('address') else ''} "
                        f"({tx}, {took}).")
         else:
             until = who.when(max(x.get("held_until") or 0 for x in rows))
@@ -1152,7 +1162,7 @@ def _paid_order(run: Run, c: Case, r: dict, tx: str, took: str) -> str:
     elif len(people) == 1:
         login, share, _bps, to, _until = people[0]
         src = {"bound": f", the wallet bound to @{login}'s GitHub account", "comment": f", the address in @{login}'s `/knos address` comment"}
-        why = (src.get(c.where.get("from"), "") if to == c.where.get("address") else
+        why = (src.get(c.where.get("from", ""), "") if to == c.where.get("address") else
                f", the wallet @{login} assigned this order's payment to (knos_pay Assign: whoever advanced them the money is paid in their place)"
                if _assigned(run, c, to) else "")
         out = [f"paid. @{login} received {_amount(share)} {money} for issue #{c.issue}, in full: {fee}. It went to `{to}`{why} ({tx}, {took})."]
@@ -1162,11 +1172,30 @@ def _paid_order(run: Run, c: Case, r: dict, tx: str, took: str) -> str:
     if back:
         out.append(f"{_amount(back)} more ({o.holdback_bps / 100:g}%) is held back as the warranty for {_days(o.warranty_s // 86_400)}: after that "
                    "anyone can release it to the same people; if the work is reverted before then, it goes back to the funder.")
+    if order_auto.quorum_of(o.flags) and r.get("sigs"):       # a quorum whose judges share a controller is said, from the payment's receipt
+        from . import statement
+        shared = statement.not_independent(r.get("receipt") or _quorum_receipt(run, str(r["sigs"][-1])))
+        if shared:
+            out.append(f"Its quorum: {shared}.")
     if standing:
         left = max(0, o.amount - o.paid - gross)
         out.append(f"The offer stays open: {_amount(left)} of {_amount(o.amount)} is left for further accepted changes until {who.when(o.deadline)}."
                    if left >= o.rate else "That was the last of the offer's budget.")
     return " ".join([*out, *c.said])
+
+
+def _quorum_receipt(run: Run, signature: str) -> dict | None:
+    """The receipt of the payment a quorum order just made, rebuilt from the cluster the run reads (knos.receipt: chain
+    facts only, with who controls each judge that spoke). None when there is no cluster address to ask or it cannot be
+    built: the comment then says nothing of the quorum's independence, and the payment is what it was."""
+    url = getattr(run.ledger, "url", None)
+    if not isinstance(url, str) or not url:
+        return None
+    try:
+        from . import receipt as rc
+        return rc._receipt_of(url, signature, 200)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _join(parts: list[str], lead: str = "Knos: ") -> str:
@@ -1184,8 +1213,8 @@ def command(run: Run) -> int:
     if _attestor(run):
         return _attestor_command(run)
     ev = run.event
-    on = ev.get("issue") if isinstance(ev.get("issue"), dict) else {}
-    said = ev.get("comment") if "comment" in ev else on
+    on: dict = ev["issue"] if isinstance(ev.get("issue"), dict) else {}
+    said = ev["comment"] if "comment" in ev else on
     fresh = ev.get("action") == ("created" if "comment" in ev else "opened")      # an edit does not say it again
     on_pull = "pull_request" in on
     cmd = commands.parse(said.get("body") or "", on_pull) if fresh and on.get("number") and isinstance(said, dict) else None
@@ -1210,6 +1239,8 @@ def _act(run: Run, cmd, said: dict, on: dict, on_pull: bool) -> str:
         return _order_word(run, cmd, said, on)
     if name == "offer":
         return _fund(run, cmd, said, on, None)
+    if name == "appeal":
+        return _appeal(run, cmd, said, on)
     if name in ("take", "release"):        # the issue is in the event; its bounty, and who assigned whom, are not
         try:
             bought = _bounty(run, _repo(run), number)
@@ -1219,7 +1250,7 @@ def _act(run: Run, cmd, said: dict, on: dict, on_pull: bool) -> str:
         facts.update(issue=on, events=terms.pages(f"repos/{run.repo}/issues/{number}/events", run.github))
         if name == "take" and commenter.get("type") == "Bot":      # an agent's own account takes work only on an order funded `auto`
             try:
-                agent = any(o.state == "open" and o.flags & order_auto.F_AUTO for _a, o in _orders(run, _repo(run)["id"], number))
+                agent = any(o.state == "open" and o.flags & order_auto.F_AUTO for _a, o in _orders(run, _repo_known(run)["id"], number))
             except Exception as why:  # noqa: BLE001
                 run.failed = True
                 return f"Knos: Solana could not be read just now ({_short(why)}), so nothing was reserved. Post the comment again."
@@ -1233,6 +1264,8 @@ def _act(run: Run, cmd, said: dict, on: dict, on_pull: bool) -> str:
             facts, bought = _context(run, pull)
     o = who.answer(cmd, commenter, pull, facts["issue"], facts["events"], facts["pull_comments"], facts["issue_comments"],
                    permission, bought, run.clock(), user, auto=agent)
+    if o is None:       # (knos.who.answer says None only of a comment with no command, and this one has one)
+        raise ValueError("no command was read in this comment")
     if o.then in ("fund", "tip"):
         return _fund(run, cmd, said, on, pull)
     if o.then == "status":
@@ -1247,7 +1280,40 @@ def _act(run: Run, cmd, said: dict, on: dict, on_pull: bool) -> str:
     return o.reply
 
 
-def _bounty(run: Run, rp: dict, n: int) -> dict | None:
+def _appeal(run: Run, cmd, said: dict, on: dict) -> str:
+    """`/knos appeal <reason>` on a pull request (knos.appeal): its author contests a rejection. The verdict the pull
+    request has is what the judge's memory holds of its settlement (the knos-memory issue): paid is accepted, a work
+    order it did not take is rejected, and with neither there is nothing to appeal. The appeal is remembered there
+    too, so it is opened once. Nothing is moved: the reply says where the money is and who decides next."""
+    from . import appeal
+    from .proof import history, memory
+    number, commenter = int(on["number"]), said.get("user") or {}
+    pull = _pull(run, number)
+    if pull is None:
+        run.failed = True
+        return "Knos: GitHub did not answer for this pull request, so no appeal was opened. Post the comment again."
+    store = _memory(run)
+    if store is None:
+        run.failed = True
+        return "Knos: the judge's memory (the knos-memory issue) could not be read, so no appeal was opened. Post the comment again."
+    mine = [b for _name, b in store.rows("settlement") if isinstance(b, dict) and b.get("repo") == history.repo_key(run.repo) and b.get("pull") == number]
+    verdict = "accepted" if any(b.get("paid") for b in mine) else "rejected" if any(b.get("refused") for b in mine) else ""
+    if not verdict:
+        return appeal.refused_reply(appeal.Refused("appeal.nothing"))
+    facts, bought = _context(run, pull)
+    issue = (facts.get("issue") or {}).get("number") if isinstance(facts.get("issue"), dict) else None
+    thash = hashlib.sha256(terms.canonical(bought)).hexdigest() if bought else ""
+    head = str((pull.get("head") or {}).get("sha") or "")
+    record, reply = appeal.from_comment(cmd.reason, repo=run.repo, pull=pull, commenter=str(commenter.get("login") or ""), now=run.clock(), verdict=verdict,
+                                        store=store, scope=thash, key=issue or number, artifact=head, evaluator="knos", run=head or number, terms_hash=thash,
+                                        mode=str((bought or {}).get("mode") or "tests"), arbiter=str((bought or {}).get("arbiter") or ""),
+                                        order_state="paid" if verdict == "accepted" else "open" if bought else "none")
+    if record is not None and memory.push(run.repo, store, run.github, run.github, str(run.env.get("GITHUB_RUN_ID") or "")) is None:
+        run.note("Knos: the appeal was opened, and could not be written to the knos-memory issue; a second comment would open it again.")
+    return reply
+
+
+def _bounty(run: Run, rp: dict | None, n: int) -> dict | None:
     """The terms of an issue's bounty (its largest open job); None when it has none. Raises when the repository, the
     chain or the terms on it cannot be read: "no bounty" is never said on a guess."""
     if rp is None:
@@ -1363,11 +1429,12 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
     if not tip and on.get("state") == "closed":
         return f"Knos: issue #{number} is closed, so nothing was funded. Reopen it and {again}."
     asked = cmd         # as the funder wrote it: what they left unsaid is what memory may propose
-    plan = None         # a work order's options (knos_pay 2.1); None: a job, as before
+    plan: dict | None = None    # a work order's options (knos_pay 2.1); None: a job, as before
     if not tip and (offer or run.version() or att is not None):
-        plan = _order_plan(run, rp, cmd, commenter, again, att, on)
-        if isinstance(plan, str):
-            return plan
+        planned = _order_plan(run, rp, cmd, commenter, again, att, on)
+        if isinstance(planned, str):
+            return planned
+        plan = planned
         cmd = plan["cmd"]
     elif getattr(cmd, "auto", False) or getattr(cmd, "quorum", None) or getattr(cmd, "judge", None):
         return ("Knos: nothing was funded. `auto`, `quorum` and `judge` are options of a work order, and the escrow on this cluster does not hold "
@@ -1451,15 +1518,15 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
             return (f"Knos: not confirmed yet. GitHub signed the request (it is posted {'in ' + att.run.repo if att is not None else 'above'}) and no relayer carried it to Solana "
                     f"within {RELAY_WAIT // 60} minutes. Solana takes the signed token until an hour after it expires: if one carries it, {what} is funded"
                     + (f", and {att.run.repo} pays it like any other. " if att is not None else ", and `/knos status` shows it. ") + f"Otherwise {again}.")
-        why = r["why"].rstrip(". ")
-        if any(why.startswith(x) for x in _BALANCE_LIMITS):     # the Balance's own limits: the same comment is refused the same way
-            before = any(x in why for x in _BALANCE_LIMITS[1:]) or "spent today" in why     # the relay's check (relay._limits), before any transaction
-            fix = "its wallet raises the limit" if why.startswith(pay.ERRORS[100]) else "its wallet changes what it allows"
+        cause = r["why"].rstrip(". ")
+        if any(cause.startswith(x) for x in _BALANCE_LIMITS):     # the Balance's own limits: the same comment is refused the same way
+            before = any(x in cause for x in _BALANCE_LIMITS[1:]) or "spent today" in cause     # the relay's check (relay._limits), before any transaction
+            fix = "its wallet raises the limit" if cause.startswith(pay.ERRORS[100]) else "its wallet changes what it allows"
             return ("Knos: nothing was funded. GitHub signed the request, and "
-                    + ("the relay refused it before anything was sent to Solana" if before else "Solana did not take it") + f": {why}. Posting the "
+                    + ("the relay refused it before anything was sent to Solana" if before else "Solana did not take it") + f": {cause}. Posting the "
                     f"comment again changes nothing until {fix} (it signs knos_pay's SetBalanceX: `knos.settle.v2.pay.set_balance_x_ix` builds "
-                    "the instruction)" + (", or a smaller `/knos fund` fits under it." if why.startswith(pay.ERRORS[100]) else "."))
-        return (f"Knos: nothing was funded. GitHub signed the request and Solana did not take it: {why}. To try "
+                    "the instruction)" + (", or a smaller `/knos fund` fits under it." if cause.startswith(pay.ERRORS[100]) else "."))
+        return (f"Knos: nothing was funded. GitHub signed the request and Solana did not take it: {cause}. To try "
                 f"again, {again}.")
     money = f"{_amount(r.get('amount') or cmd.units)} {_money(run, mint_)}"
     took = f"{r['seconds']} s after {after}"
@@ -1480,6 +1547,43 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
         f"To earn it: open a pull request whose description says `Fixes #{number}`. {told[-1]} For the money to reach you when it "
         "is paid, comment `/knos address <your Solana address>` on your pull request; without an address it waits for you "
         f"until you bind a wallet ({HOLD_DAYS} days at most).")) + _proposed(run, asked, built)
+
+
+PROCUREMENT = ".knos/procurement"         # knos.controls.PROCUREMENT: the buyer's rate cards, standing offers, envelopes, approval policy and approvals
+
+
+def _procurement(run: Run, rp: dict) -> dict[str, str]:
+    """{path: text} of every file under .knos/procurement/ on the default branch, one folder deep (the policy and the
+    approvals log, and the rate cards, offers and envelopes in their folders); {} for a repository that has none.
+    Raises OSError when GitHub says the folder is there and does not give a file of it: a gate nobody could read is
+    not a gate that passed."""
+    ref = urllib.parse.quote(str(rp.get("branch") or "main"), safe="")
+
+    def listed(path: str) -> list | None:
+        try:
+            got = run.github(f"repos/{run.repo}/contents/{path}?ref={ref}")
+        except OSError as why:
+            if getattr(why, "code", None) != 404:
+                raise
+            return None
+        return got if isinstance(got, list) else None
+    top = listed(PROCUREMENT)
+    if not top:
+        return {}
+    rows = [e for e in top if isinstance(e, dict)]
+    for folder in [e for e in rows if e.get("type") == "dir"]:
+        rows += [e for e in listed(str(folder.get("path"))) or [] if isinstance(e, dict)]
+    files: dict[str, str] = {}
+    for e in rows[:400]:
+        path = str(e.get("path") or "")
+        if e.get("type") != "file" or not path.startswith(PROCUREMENT + "/"):
+            continue
+        got = run.github(f"repos/{run.repo}/contents/{urllib.parse.quote(path)}?ref={ref}")
+        try:
+            files[path] = base64.b64decode(got["content"]).decode("utf-8")
+        except (AttributeError, KeyError, TypeError, ValueError):
+            raise OSError(f"GitHub's copy of {path} was not understood") from None
+    return files
 
 
 def _judge_repo(run: Run, rp: dict, name: str, commenter: dict, on: dict | None, again: str) -> tuple[str, int] | str:
@@ -1539,12 +1643,25 @@ def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None, 
             run.failed = True
             return (stop + f"`{policy.PATH}` sets a monthly budget, and what was funded this month could not be read from Solana "
                     f"({_short(why)}). {again.capitalize()}.")
-        ok, why = policy.allows(rules, commenter.get("id"), Decimal(cmd.units) / 10 ** 6, spent, str(commenter.get("login") or ""))
+        ok, refusal = policy.allows(rules, commenter.get("id"), Decimal(cmd.units) / 10 ** 6, spent, str(commenter.get("login") or ""))
         if not ok:
-            return stop + f"{why} Someone who can write to this repository changes that file on its default branch."
+            return stop + f"{refusal} Someone who can write to this repository changes that file on its default branch."
         if offer and rules.vendors is not None and cmd.vendor.lower() not in rules.vendors:
             return (stop + f"`{policy.PATH}` lists the vendors a standing offer may pay ({', '.join(rules.vendors)}), and @{cmd.vendor} is "
                     "not one of them. Add them to `vendors` there first.")
+    if offer:       # the buyer's own procurement files, when the repository has them: an offer funds only when they approve it (knos.approvals.gate)
+        try:
+            files = _procurement(run, att.rp if att is not None else rp)
+        except OSError as why:
+            run.failed = True
+            return stop + f"This repository has procurement files, and they could not be read from GitHub ({_short(why)}). {again.capitalize()}."
+        if files:
+            from . import approvals
+            repo_ = run.repo
+            ok, said = approvals.gate(files, vendor=cmd.vendor, rate=cmd.rate, budget=cmd.units, on=time.strftime("%Y-%m-%d", time.gmtime(run.clock())),
+                                      fetch=lambda cid: _read(run, f"repos/{repo_}/issues/comments/{int(cid)}") if cid else None)
+            if not ok:
+                return stop + f"{said} The files under `{PROCUREMENT}/` on the default branch decide this; once they allow it, {again}."
     if d.get("private") and att is None:
         how = (f"its attestor, {rules.attestor}, funds it: comment `/knos fund` in a repository that file lists under `targets`, and that "
                "repository's workflow answers there" if rules.attestor else
@@ -1735,7 +1852,7 @@ def _reserve(run: Run, number: int, commenter: dict) -> str:
     reservations (token `knos3:take:<order>:<taker's id>:<days>`). What to add to the reply; nothing when the issue
     has no such order. The assignment on GitHub stands either way: it is what settle reads."""
     try:
-        rp = _repo(run)
+        rp = _repo_known(run)
         free = [(a, o) for a, o in _orders(run, rp["id"], number)
                 if o.state == "open" and o.reserve_days and (not o.reserved_by or o.reserved_until < run.now())]
     except Exception:  # noqa: BLE001
@@ -2098,6 +2215,7 @@ def settle(run: Run, tests: bool = False, pull: int | None = None, head: str = "
     if tests:
         return _attest(run, rp, pull, head, issue)
     asked, tips_only, after, since = True, False, "this run began", run.began
+    merged: dict | None
     if "comment" in ev:
         on, said = ev.get("issue") or {}, ev.get("comment") or {}
         cmd = commands.parse(said.get("body") or "", True) if "pull_request" in on and ev.get("action") == "created" else None
@@ -2159,7 +2277,7 @@ def _attest(run: Run, rp: dict, number: int | None, head: str, issue: int | None
 
 def _named(ev: dict) -> int | None:
     """The pull request a workflow_dispatch names: its input `pull` (also read: pull_request, number, pr)."""
-    inputs = ev.get("inputs") if isinstance(ev.get("inputs"), dict) else {}
+    inputs: dict = ev["inputs"] if isinstance(ev.get("inputs"), dict) else {}
     for key in ("pull", "pull_request", "number", "pr"):
         if str(inputs.get(key) or "").strip().lstrip("#").isdigit():
             return int(str(inputs[key]).strip().lstrip("#"))
@@ -2176,6 +2294,7 @@ def _merged_by(run: Run, rp: dict) -> tuple[list[dict], bool]:
             if isinstance(s, str) and re.fullmatch(r"[0-9a-f]{40}", s) and s.strip("0")]
     if ev.get("ref") != f"refs/heads/{rp['branch']}" or ev.get("deleted") or not shas:
         return [], True
+    numbers: set[int]
     numbers, whole = set(), True
     if len(shas) > MAX_COMMITS:
         run.note(f"Knos settle: this push has {len(shas)} commits; the newest {MAX_COMMITS} were looked at. `/knos settle` on a "
@@ -2246,7 +2365,7 @@ def _settle_one(run: Run, rp: dict, pull: dict, since: float, after: str, asked:
     this job's to sign; None: the pull request is merged, and what the merge pays is."""
     number, by_tests = int(pull["number"]), tests is not None
     cases, closes, listed, blind, held = _find(run, rp, pull, tips_only)
-    if by_tests:
+    if tests is not None:
         cases = _judged(cases, tests)
         blind = [n for n in blind if n != number and tests in (0, n)]
     st = None
@@ -2569,7 +2688,7 @@ def _number(value) -> int | None:
 def _att_open(run: Run) -> tuple:
     """(the attestor, the targets this run is for, "") when this repository may attest, by its own policy, for what
     the run names; (None, [], why not) otherwise. The reason never names a target: it goes to this job's log."""
-    inputs = run.event.get("inputs") if isinstance(run.event.get("inputs"), dict) else {}
+    inputs: dict = run.event["inputs"] if isinstance(run.event.get("inputs"), dict) else {}
     only = (run.only or str(inputs.get("repository") or "")).strip()
     rp = _repo(run)
     if rp is None:
@@ -2671,7 +2790,7 @@ def _attestor_settle(run: Run) -> int:
     for repo in targets:
         try:
             view = run.reads(repo, att)
-            rp = _repo(view)
+            rp = _repo_known(view)
             if att.pull:
                 pulls = [view.github(f"repos/{repo}/pulls/{att.pull}")]
             else:
@@ -2720,7 +2839,7 @@ def _memory(run: Run):
     `knos check` and `knos review` judge from. None when GitHub could not be read."""
     from .proof import history, memory
     try:
-        store = history.SibylStore.local(run.scratch() / "memory")
+        store: Any = history.SibylStore.local(run.scratch() / "memory")
     except Exception:  # noqa: BLE001 - the engine is not installed in this job
         store = _Kept()
     return None if memory.pull(run.repo, store, run.github) is None else store
@@ -2771,9 +2890,33 @@ def _learn(run: Run, pull: dict, cases: list[Case], runs, statuses) -> None:
         # as a lesson read from the issue is loaded: a "not paid" never takes back a "paid" for the same pull request at
         # the same commit (a merge's settlement and the attestor's run can settle it at the same moment)
         history.import_lessons(store, [{"category": "settlement", "name": history._id("settlement", body["repo"], number, head), "body": body}])
+        _learn_supplier(run, store, pull, orders)
         memory.push(run.repo, store, run.github, run.github, str(run.env.get("GITHUB_RUN_ID") or ""))
     except Exception as why:  # noqa: BLE001
         run.note(f"Knos: what this settlement showed could not be written to the knos-memory issue ({_short(why)}).")
+
+
+def _learn_supplier(run: Run, store, pull: dict, orders: list[Case]) -> None:
+    """What the supplier's own tools recall later (`knos preflight`, an appeal): each reason a work order refused this
+    pull request, under the terms' hash and by its code in the refusal table, and an acceptance on the supplier's
+    record when it was paid. Its failure is a note, and loses nothing else."""
+    try:
+        from .proof import history
+        number, supplier = int(pull["number"]), str((pull.get("user") or {}).get("login") or "")
+        for c in orders:
+            thash = hashlib.sha256(c.raw).hexdigest() if c.raw else ""
+            if c.result is not None and c.result.get("ok"):
+                if supplier:
+                    history.supplier_event(store, run.repo, supplier, number, "accepted", thash, run.clock())
+            elif thash and c.verdict() == "no":
+                for said in [str(p) for p in c.scope][:12]:
+                    history.refused(store, run.repo, thash, number, ghwords.code_of_reason(said) or "terms.out-of-scope", "", supplier, run.clock())
+                for state in sorted({s for s in c.checks.values() if s in ("failed", "skipped", "absent")}):
+                    history.refused(store, run.repo, thash, number, f"terms.check-{state}", "", supplier, run.clock())
+                for r in c.why[:12]:
+                    history.refused(store, run.repo, thash, number, ghwords.code_of_reason(str(r)) or "unknown", "", supplier, run.clock())
+    except Exception as why:  # noqa: BLE001
+        run.note(f"Knos: what this settlement showed of the supplier could not be kept ({_short(why)}).")
 
 
 def _published(raw: bytes | None = None):
@@ -2899,7 +3042,20 @@ def _attest_eval(run: Run, order: str, pull: int | None, no) -> int:
     aud = meter.eval_audience(int(buyer), int(author["id"]), work, head, EVAL_POLICY, milestone, verdict, rate)
     said = (f"pull request #{number} of {run.repo} by @{author.get('login')} (commit `{head[:7]}`) was "
             + ("merged: accepted" if verdict else "closed unmerged: rejected") + f", for work order `{work.hex()[:12]}` milestone {milestone} at rate {rate}")
+    try:        # the same evaluation as a ledger line with its verdict in words and its ids (knos.ledger, knos.ids): the output `evaluation`
+        from . import ledger
+        run.output("evaluation", ledger.Evaluation(int(buyer), int(author["id"]), work.hex(), head, EVAL_POLICY.hex(), milestone, bool(verdict), rate,
+                                                   verdict="accepted" if verdict else "rejected", evaluator=_evaluator(run.env, "eval"),
+                                                   run=str(run.env.get("GITHUB_RUN_ID") or "")).line())
+    except ValueError as why:
+        run.note(f"Knos attest: the evaluation's ledger line could not be written ({_short(why)}). The token says the same.")
     return _attest_sign(run, "eval", aud, said, "", number, None, no)
+
+
+def _evaluator(env, kind: str) -> str:
+    """Who judged, as a ledger line and an evaluation's id name it: `<judge>@<version>`, the version the workflow's commit."""
+    from . import version
+    return f"{kind}@{_plain(env.get('GITHUB_WORKFLOW_SHA') or version())}"
 
 
 # ---- knos attest, re-executed: the acceptance suite run again in the attester's own repository ---------------------------
@@ -2916,6 +3072,11 @@ NOT_RERUN = "this judge read the buyer repository's check results; it did not ru
 RERUN_MEANS = ("this judge fetched the two commits and ran the acceptance suite itself, in the repository the run was in; every other "
                "check the terms name was read from GitHub's record")
 _HEX40, _HEX64 = r"[0-9a-f]{40}", r"[0-9a-f]{64}"
+RERUN_VERDICTS = ("accepted", "rejected", "insufficient_evidence")       # what one run can say (knos.ids.VERDICTS; disputed is somebody's appeal, not a run's)
+# the outcome in the words of the refusal table (its row `rerun.insufficient-evidence`), as the middle of a sentence
+UNDECIDED = (lambda said: said[0].lower() + said[1:].rstrip("."))(ghwords.refusal("rerun.insufficient-evidence")[0])
+UNDECIDED_MEANS = ("It will be run again: nothing is paid, nothing is recorded against the supplier and no evaluation is charged")
+RECEIPT = "knos-receipt: "              # the line a receipt of a run that paid nothing travels in, under the verdict's
 _RERUN_KEYS = {"v": int, "reexecuted": bool, "passed": bool, "sentence": str, "order": str, "repository": str, "pull": int, "issue": int,
                "head": str, "base": str, "accept": str, "assurance": str, "image": dict, "artifact": dict, "environment": dict,
                "reasons": list}
@@ -2956,7 +3117,14 @@ def _rerun_verdict(plan: dict | None, env, judged: dict | None = None, why: str 
     ev = (judged or {}).get("evidence") or {}
     image = ev.get("image") if isinstance(ev.get("image"), dict) else {}
     reasons = [why] if why else [_short(r)[:200] for r in (judged or {}).get("reasons") or []][:6]
-    return {"v": 1, "reexecuted": True, "passed": bool(judged and judged.get("passed") and not reasons), "sentence": RERUN_MEANS,
+    passed = bool(judged and judged.get("passed") and not reasons)
+    # the judge's verdict in one of the words, and its reason: a run that could not tell (it could not run, or the judge says so) is
+    # insufficient evidence, never the supplier's failure. A judge that says no word (0.3.16's) adds neither field.
+    word = "insufficient_evidence" if why else str((judged or {}).get("verdict") or "")
+    said = {} if word not in RERUN_VERDICTS else {
+        "verdict": word if passed == (word == "accepted") else "accepted" if passed else "rejected",
+        "reason": re.sub(r"\s+", " ", str(why or (judged or {}).get("reason") or "; ".join(reasons))).strip()[:300]}
+    return {"v": 1, "reexecuted": True, "passed": passed, "sentence": RERUN_MEANS, **said,
             **{k: plan[k] for k in ("order", "repository", "pull", "issue", "head", "base", "accept")},
             "assurance": str((judged or {}).get("assurance") or ""),
             "image": {"ref": str(image.get("ref") or ""), "digest": str(image.get("digest") or "")} if image else {},
@@ -2980,7 +3148,11 @@ def _rerun_read(text: str) -> dict | str:
     shapes = {"head": _HEX40, "base": _HEX40, "accept": _HEX64, "assurance": r"black-box|hermetic|in-process|", "repository": r"[\w.-]+/[\w.-]+",
               "order": r"[1-9A-HJ-NP-Za-km-z]{32,44}"}
     flat = lambda d, most: len(d) <= most and all(isinstance(k, str) and isinstance(x, str) and len(x) <= 200 for k, x in d.items())  # noqa: E731
-    if set(v) != set(want) or any(type(v[k]) is not t for k, t in want.items()) \
+    more = {k: v[k] for k in ("verdict", "reason") if k in v} if v["reexecuted"] else {}      # the judge's word and reason, when it gave them
+    if more and (set(more) != {"verdict", "reason"} or more["verdict"] not in RERUN_VERDICTS or not isinstance(more["reason"], str) or len(more["reason"]) > 300
+                 or v.get("passed") is not (more["verdict"] == "accepted")):
+        return "the re-execution's verdict does not have the fields a verdict has"
+    if set(v) - set(more) != set(want) or any(type(v[k]) is not t for k, t in want.items()) \
             or any(k in v and not re.fullmatch(shape, v[k]) for k, shape in shapes.items()) \
             or not flat(v["environment"], 16) or (v["reexecuted"] and not (
                 flat(v["image"], 2) and flat(v["artifact"], 2) and len(v["reasons"]) <= 6 and all(isinstance(r, str) and len(r) <= 200 for r in v["reasons"]))):
@@ -2994,6 +3166,8 @@ def _rerun_holds(v: dict, plan: dict) -> str:
     for k in ("order", "repository", "pull", "issue", "head", "base", "accept"):
         if v[k] != plan[k]:
             return f"the re-execution was of another {k} (`{_plain(v[k])}`) than this payment's (`{plan[k]}`)"
+    if not v["passed"] and v.get("verdict") == "insufficient_evidence":
+        return f"{UNDECIDED}: {_plain(v.get('reason') or '; '.join(v['reasons']))}. {UNDECIDED_MEANS}"
     if not v["passed"]:
         return ("the acceptance suite did not pass when it was run again here" + (": " + "; ".join(_plain(r) for r in v["reasons"]) if v["reasons"] else "")
                 + ". Whatever the check results in the order's repository say, this judge signs only what it ran itself")
@@ -3049,8 +3223,10 @@ def _rerun_job(run: Run, plan: dict | None, folder: str, judging: bool, judge_fn
         if not isinstance(plan, dict):
             run.note("Knos attest: there is no plan to re-execute here: the step before this one writes it.")
             return 1
-    v = _rerun_judge(plan, where, run.env, judge_fn) if judging else _rerun_verdict(plan, run.env) if plan is None else None
+    v = _rerun_judge(plan, where, run.env, judge_fn) if judging and plan is not None else _rerun_verdict(plan, run.env) if plan is None else None
     if v is None:
+        if plan is None:        # (with no plan there is a verdict, the one that says nothing was run)
+            raise ValueError("there is no plan and no verdict")
         (where / "plan.json").write_text(json.dumps(plan, sort_keys=True), encoding="utf-8")
         for k in ("base", "head"):
             run.output(k, plan[k])
@@ -3065,30 +3241,126 @@ def _rerun_job(run: Run, plan: dict | None, folder: str, judging: bool, judge_fn
         run.output("rerun", "")
         run.note(f"Knos attest: nothing is re-executed for this order: {NOT_RERUN}.")
         return 0
-    run.note(f"Knos attest: the acceptance suite was run again here and {'passed' if v['passed'] else 'did not pass'} ({v['assurance'] or 'not run'}"
-             + (f", image digest `{v['image'].get('digest')}`" if v["image"] else "") + ")."
-             + "".join(f"\n- {_plain(r)}" for r in v["reasons"]) + ("" if v["passed"] else "\n\nNothing is signed: the job that asks GitHub for the token does not start."))
+    undecided = v.get("verdict") == "insufficient_evidence"
+    run.note(f"Knos attest: the acceptance suite was run again here and {'passed' if v['passed'] else 'the run could not decide' if undecided else 'did not pass'} "
+             f"({v['assurance'] or 'not run'}" + (f", image digest `{v['image'].get('digest')}`" if v["image"] else "") + ")."
+             + "".join(f"\n- {_plain(r)}" for r in v["reasons"]) + _reason_said(v)
+             + ("" if v["passed"] else "\n\nNothing is signed: the job that asks GitHub for the token does not start." + (f" {UNDECIDED_MEANS}." if undecided else "")))
     return 0 if v["passed"] else 1
 
 
-def _rerun_said(run: Run, v: dict | None, refused: str = "") -> None:
+def _reason_said(v: dict) -> str:
+    """The judge's reason for a verdict, as a comment says it: the reason itself, then the refusal table's two sentences
+    for it when the table has a row (knos.ghwords). Empty for a verdict whose judge gave no reason."""
+    reason = str(v.get("reason") or "") if isinstance(v, dict) else ""
+    if not reason:
+        return ""
+    code = ghwords.code_of_reason(reason) if v.get("verdict") != "accepted" else None
+    return f"\n\nThe judge's reason: {_plain(reason)[:300]}." + (f" {ghwords.said(reason)}" if code else "")
+
+
+def _unpaid(run: Run, word: str, about: dict, record: str) -> tuple[dict | None, str]:
+    """What a run that paid nothing leaves: (a version 4 receipt with the verdict `word`, rejected or insufficient_evidence,
+    which never authorises payment (knos.receipt.unpaid4), the same evaluation as a ledger line that says that verdict).
+    `about`: {"address", "order", "case", "pull"}. `record`: the run's own verdict line, whose sha256 the receipt names.
+    Either is None or "" when the run does not know enough to write it: it is a record, never a condition."""
+    from . import ids, ledger
+    from . import receipt as rc
+    address, o, c, pull = about["address"], about["order"], about["case"], about["pull"]
+    head, number = str((pull.get("head") or {}).get("sha") or ""), int(pull["number"])
+    kind = "repository" if str(run.env.get("GITHUB_REPOSITORY_ID") or "") == str(o.repo_id) else "neutral"
+    milestone = number if o.flags & pay.F_STANDING else 0
+    made, line = None, ""
+    try:
+        t = c.terms or {}
+        states = {"passed": "passed", "failed": "failed"}
+        payees = [{"github_id": int(pid), "bps": int(bps), "to": str(named or dest)} for pid, bps, named, _login, dest in c.payees]
+        made = rc.unpaid4(cluster={"mainnet": "mainnet-beta"}.get(str(run.env.get("KNOS_CLUSTER") or "devnet"), str(run.env.get("KNOS_CLUSTER") or "devnet")),
+                          program=str(pay.PAY_ID), order=str(address), scope=pay.scope_of(o.repo_id, o.issue).hex(), repository={"id": int(o.repo_id), "issue": int(o.issue)},
+                          commit=head, pull_request=number, terms_hash=bytes(o.terms).hex(), mode="tests" if o.mode == pay.TESTS else "merge", judge_kind=kind,
+                          judge_version=str(run.env.get("GITHUB_WORKFLOW_SHA") or ""), verdict=word,
+                          checks=[{"name": str(name), "conclusion": states.get(state, "missing")} for name, state in c.checks.items()],
+                          allowed_paths=sorted(set(t["paths"])) if c.terms else None, denied_paths=sorted(set(t["deny"])) if c.terms else None,
+                          policy_version=t.get("v") if c.terms else None, mint=str(o.mint), decimals=int(o.decimals), of=int(o.rate if milestone else o.amount),
+                          milestone=milestone, payees=payees if all(p["to"] not in ("", "None") for p in payees) else (),
+                          record_sha256=hashlib.sha256(record.encode()).hexdigest())
+    except Exception as why:  # noqa: BLE001
+        run.note(f"Knos attest: no receipt was written for this run ({_short(why)}). Its verdict above stands as it is.")
+    try:
+        seller = int((pull.get("user") or {}).get("id") or 0)
+        line = ledger.Evaluation(int(about["buyer"]), seller, ids.order_scope(str(address)), head, bytes(o.terms).hex(), milestone, False,
+                                 int(o.rate if milestone else o.amount), verdict=word, evaluator=_evaluator(run.env, kind), run=str(run.env.get("GITHUB_RUN_ID") or "")).line()
+    except Exception:  # noqa: BLE001, S110 - the ledger line is one more record of what the verdict already says
+        pass
+    return made, line
+
+
+def _rerun_said(run: Run, v: dict | None, refused: str = "", about: dict | None = None, appealed: str = "") -> None:
     """Post a verdict where the token is posted: one comment on the "knos tokens" issue of the repository the run is in.
     `refused`: why nothing was signed on it, said after the verdict (attest.yml's job `refused` posts a suite that did
     not pass here this way). It is a record, not a condition: when it cannot be posted the run's page still has it,
-    and says so."""
+    and says so.
+
+    `about` (the order, the case and the pull request, with `word`: rejected or insufficient_evidence) on a run that
+    signed nothing: a receipt of that verdict is written beside it (`_unpaid`: the outputs `receipt` and `evaluation`,
+    and the `knos-receipt:` line of the comment), so a rejected or undecided run leaves a receipt, one that never
+    authorises payment. `appealed`: how an appeal of this verdict ended (knos.appeal.reply), said last."""
+    line = json.dumps(v, sort_keys=True, separators=(",", ":")) if v is not None else ""
+    made, counted = _unpaid(run, about["word"], about, line) if about is not None and (refused or v is None) else (None, "")
+    if made is not None:
+        from . import receipt as rc
+        run.output("receipt", rc.canonical(made).decode("utf-8").strip())
+    if counted:
+        run.output("evaluation", counted)
     if v is None:
         return
-    line = json.dumps(v, sort_keys=True, separators=(",", ":"))
     run.output("verdict", line)
     here = str(run.env.get("GITHUB_REPOSITORY") or "")
     if here.count("/") != 1:
         return
     why = f"\n\nNothing was signed: {' '.join(refused.split()).rstrip('.')}." if refused else ""     # its untrusted parts are _plain already
+    beside = f"\n{RECEIPT}{run.outputs['receipt']}" if made is not None else ""
     try:
         run.github(f"repos/{here}/issues/{_tokens_issue(run.github, here)}/comments",
-                   {"body": f"{VERDICT}{line}\n\nHow this run reached its verdict: {v['sentence']}.{why}"})
+                   {"body": f"{VERDICT}{line}{beside}\n\nHow this run reached its verdict: {v['sentence']}.{_reason_said(v)}{why}"
+                            + (f"\n\n{appealed}" if appealed else "")})
     except Exception as why:  # noqa: BLE001
         run.note(f"Knos attest: the verdict could not be posted on the \"{TOKENS}\" issue of {here} ({_short(why)}). It is this job's output `verdict`.")
+
+
+def _appeal_ended(run: Run, v: dict, c: Case, pull: dict) -> str:
+    """An appeal of this pull request's verdict, ended on the neutral judge's verdict `v` (knos.appeal): what memory
+    holds of it is resumed, resolved and remembered, and the reply that says how it ended is posted on the pull
+    request and returned. "" when memory holds no open appeal of it, or cannot be read: an appeal is never in a
+    payment's way."""
+    try:
+        from . import appeal, ids
+        from .proof import history, memory
+        store = _memory(run)
+        if store is None or not history.appeals(store, run.repo):
+            return ""
+        number, head = int(pull["number"]), str((pull.get("head") or {}).get("sha") or "")
+        thash = hashlib.sha256(terms.canonical(c.terms)).hexdigest() if c.terms else ""
+        deliverable = ids.deliverable(thash or run.repo, c.issue or number)         # as `/knos appeal` named them (`_appeal`)
+        row = appeal.recalled(store, run.repo, ids.evaluation(deliverable, head, thash, "knos", head or number))
+        if row is None or row.get("state") not in ("open", "rerun"):
+            return ""
+        ended = appeal.resolve(appeal.resume(row, run.repo, deliverable, mode=str((c.terms or {}).get("mode") or "tests"),
+                                             arbiter=str((c.terms or {}).get("arbiter") or "")), run.clock(), rerun=v)
+        appeal.remember(store, ended)
+        said = appeal.reply(ended)
+        try:
+            kept = memory.push(run.repo, store, run.github, run.github, str(run.env.get("GITHUB_RUN_ID") or ""))
+            run.github(f"repos/{run.repo}/issues/{number}/comments", {"body": said})
+        except Exception:  # noqa: BLE001 - a neutral run's token writes nothing in the order's repository
+            kept = None
+        if kept is None:
+            run.note(f"Knos attest: the appeal of pull request #{number} ended {ended['state']}, and that could not be written in {run.repo} from this run: "
+                     "it is said with the verdict, and `/knos status` there reads it again.")
+        return said
+    except Exception as why:  # noqa: BLE001
+        run.note(f"Knos attest: an appeal of this verdict could not be read or ended ({_short(why)}). The verdict stands as it is.")
+        return ""
 
 
 def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str = "", plan: str = "", judge: str = "",
@@ -3202,23 +3474,34 @@ def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str
                 return no(f"{_short(why)}. Run the workflow again.")
             if plan:
                 return _rerun_job(run, todo, plan, False)
-            verdict, refused = _rerun_verdict(None, run.env), ""
+            verdict: dict | str | None
+            verdict, refused, undecided, appealed = _rerun_verdict(None, run.env), "", False, ""
             if todo is not None:       # paid by its acceptance checks: only on a verdict this run's own first job reached by running them
                 verdict = _rerun_read(str(run.env.get(RERUN_ENV) or "")) if run.env.get(RERUN_ENV) else (
                     "this order is paid by its acceptance checks, and they were not run again here: attest.yml's first job does that")
                 if isinstance(verdict, dict) and not verdict["reexecuted"]:
                     verdict = "this order is paid by its acceptance checks, and the verdict handed to this job says they were not run"
                 refused = verdict if isinstance(verdict, str) else _rerun_holds(verdict, todo)
-                if refused:
-                    c.why.append(refused)
-                    verdict = verdict if isinstance(verdict, dict) else None
+                undecided = isinstance(verdict, dict) and verdict.get("verdict") == "insufficient_evidence"
+                if refused:     # a run that could not decide is nobody's refusal: it is something that could not be read
+                    (c.unread if undecided else c.why).append(refused)
+                if not isinstance(verdict, dict):       # a refusal in words (said above): there is no verdict to post
+                    verdict = None
                 run.judged_at = todo["base"]
+                appealed = _appeal_ended(run, verdict, c, pull_) if verdict is not None and verdict["reexecuted"] else ""
             _decide(run, rp, pull_, [c], listed, tests=todo is not None)
             found = (f"\n- pull request #{number} by @{(pull_.get('user') or {}).get('login')}, merged on {who.when(who._ts(pull_.get('merged_at')) or 0)} "
                      f"at commit `{head[:7]}`" + _rows(c) + _pays(c, "pays").replace("\nIt pays", "\n- it pays"))
             found += f"\n- how this verdict was reached: {(verdict or {}).get('sentence') or 'the acceptance suite was not run again here'}"
             if c.verdict() != "yes":
-                _rerun_said(run, verdict, refused)
+                # rejected only on something certain: the suite failed when it was run here, or the record refuses it. A run that
+                # could not tell (no verdict, another run's verdict, something unread) is insufficient evidence
+                certain = (c.scope or c.listed or set(c.checks.values()) & {"failed", "skipped", "absent"} or [w for w in c.why if w != refused]
+                           or refused.startswith("the acceptance suite did not pass"))
+                word = "rejected" if certain and not undecided else "insufficient_evidence"
+                _rerun_said(run, verdict, refused, {"word": word, "address": address, "order": o, "case": c, "pull": pull_, "buyer": rp["owner"]}, appealed)
+                if undecided:
+                    return no(f"{UNDECIDED[0].upper()}{UNDECIDED[1:]} whether pull request #{number} takes {what}. {UNDECIDED_MEANS}: run the workflow again.", found)
                 return no(f"Pull request #{number} does not take {what} as GitHub's record stands"
                           + (", or something could not be read: run the workflow again." if c.verdict() in ("unread", "wait") else "."), found)
             aud = _order_audience(pull_, c, c.where.get("address") if c.where.get("from") == "comment" else None)
@@ -3226,7 +3509,7 @@ def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str
                 return no(f"`--payees {_plain(payees.strip())}` is not who GitHub's record says is paid ({aud.split(':')[-1]}). Leave it empty.", found)
             said = f"pull request #{number} takes {what}: it pays {', '.join('@' + str(x[3]) for x in c.payees)}"
             code = _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no)
-            _rerun_said(run, verdict)       # after the token, so that a relayer's first comment on the issue is the token's
+            _rerun_said(run, verdict, appealed=appealed)       # after the token, so that a relayer's first comment on the issue is the token's
             return code
     return _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no)
 
@@ -3403,6 +3686,7 @@ def canary(run: Run, api=None, amount: str = "5") -> int:
         pay     the merge -> Knos's comment that it was paid (or is held for the payee)
 
     Exit 1 when a leg fails, or when the payment does not land within 5 minutes of the merge; the line says which."""
+    took: dict
     api, repo, took = api or _rest(run.env), run.repo, {}
     stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(run.clock()))
 
@@ -3484,7 +3768,7 @@ def review(run: Run) -> int:
     `head` (the commit reviewed) and `terms` (the bounty's terms as funded, one line of JSON)."""
     wr, rp = run.event.get("workflow_run") or {}, _repo(run)
     pull = _pull_of(run, wr) if rp and wr.get("event") == "pull_request" else None
-    if pull is None:
+    if pull is None or rp is None:
         run.note("Knos review: no open pull request has this run's head commit (it has moved on, or the run was not for a pull "
                  "request), so there is nothing to review.")
         return 0
@@ -3590,7 +3874,7 @@ def _gate(run: Run, pull: dict, runs, statuses, funded: list[int], learn: bool) 
     from .proof import history, memory
     root = run.scratch()
     try:
-        store = history.SibylStore.local(root / "memory")
+        store: Any = history.SibylStore.local(root / "memory")
         if memory.pull(run.repo, store, run.github) is None:
             run.note("Knos: the judge's memory (the knos-memory issue) could not be read; this run remembers nothing.")
     except Exception:  # noqa: BLE001 - no store: the same check, without memory

@@ -1,0 +1,36 @@
+knos-statement,1,67ff00ed272d6f14b350767f98fc6c7a09782bf930681e6d1722f5a4990da516
+invoice,sha256:fb61f3411e72ffea
+date,2026-09-07
+supplier,Example Agents Ltd (made up)
+buyer,
+currency,
+made from,a shadow run: the invoice against GitHub's record
+evidence sha256,dc714ff5d90a1b6298c8ad10f7eddcff6f21cf613aef376d77c624a1af57b602
+evidence,inside the statement; not signed
+status sha256,f2143cc1f9d0e6b48d7eca8de107efaf6c5a85c0e5c5c988486de12945b1c5d5
+line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of
+1,example-co/storefront#101,Example Agents Ltd (made up),agreed,400.00,,dlv_7e5dc9aea94d074480b68cf1,evl_5162d51a498cf2e04f333cee,inv_4e67f75840c40bc403368fbf,,payable,https://github.com/example-co/storefront/pull/101,d11d3e41815d5e2b7e75268d24d75db4c3b89c822e32d01ca5af908d12524413,
+2,example-co/storefront#102,Example Agents Ltd (made up),disputed,650.00,a check failed when this change was merged: test,dlv_f19b2a642b0a9f2d15e945c8,evl_ee336ea7db8175034c05ef0c,inv_9fca3952d0bced28e391ae3f,,held,https://github.com/example-co/storefront/actions/runs/21/job/21,5b6eed1312634dad3dd5264385a5ee36636929d72046fda76e3731b6d23fcf0e,
+3,example-co/storefront#103,Example Agents Ltd (made up),disputed,300.00,the pull request is not merged,dlv_6922fcd716cc8aebbf389161,,inv_5c3e6c634c2cdc117690eef9,,held,https://github.com/example-co/storefront/pull/103,237bc0905b69e206991d649c0134b02deec14b52049924acd5912612352e676a,
+4,example-co/storefront#104,Example Agents Ltd (made up),duplicate,400.00,"billed twice on this invoice: closes example-co/storefront#90, as line 1 does",dlv_7e5dc9aea94d074480b68cf1,evl_6df67135ddda1cfe0b579102,inv_c22f89e745b6179a36b198c7,,held,https://github.com/example-co/storefront/pull/104,ffa4325001948d8ef6cc6fea9ab688ae2afe69ddb60b53c3a306cc0b320f464a,line 1
+5,example-co/storefront#105,Example Agents Ltd (made up),agreed,250.00,,dlv_d1dbd52ecc489249a0f246ab,evl_307ca293e3ee7044855b19bd,inv_8e93433d67800e2acce8fc10,,payable,https://github.com/example-co/storefront/pull/105,38083cf4c9848993a3b71a6d233e50c08dfe3d4f03f809a9d6fcbecbef8a3c92,
+6,example-co/storefront#101,Example Agents Ltd (made up),duplicate,400.00,billed twice on this invoice: same pull request as line 1,dlv_7e5dc9aea94d074480b68cf1,,inv_96d92e5572bf70e87956380f,,held,https://github.com/example-co/storefront/pull/101,d11d3e41815d5e2b7e75268d24d75db4c3b89c822e32d01ca5af908d12524413,line 1
+7,example-co/billing-internal#7,Example Agents Ltd (made up),insufficient evidence,500.00,GitHub could not be read for this line: not found or private,dlv_115fcc141a5d73acd03d636e,,inv_95675f5d34bd5828c9c96a32,,held,https://github.com/example-co/billing-internal/pull/7,99de79155dc0a61af8ee1322d4271b1d8a579e322a37d29078a1cc798ead57ad,
+total,billed,7,2900.00
+total,agreed,2,650.00
+total,disputed,2,950.00
+total,duplicate,2,800.00
+total,insufficient evidence,1,500.00
+answer,Authorised,"not known here: a shadow run reads the invoice and GitHub, not the order"
+answer,Billed,"7 lines, 2900.00 on invoice sha256:fb61f3411e72ffea from Example Agents Ltd (made up)"
+answer,Delivered,4 of 7 lines name work that was evaluated
+answer,Passed,"2 lines, 650.00 agreed"
+answer,Already billed,"2 lines, 800.00: line 4 (line 1); line 6 (line 1)"
+answer,Approved,"2 agreed lines, 650.00 by you (approver) on 2026-10-06, role as stated"
+answer,Disputed,"2 lines, 950.00, open"
+answer,Insufficient evidence,"1 line, 500.00, open"
+answer,Credited,"0 lines, 0.00 refunded"
+answer,Paid,"0 lines, 0.00"
+answer,Owed,"2 lines, 650.00 payable"
+approval,2026-10-06,you (approver),2 agreed lines,650.00
+note,"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them."

@@ -18,13 +18,13 @@ jobs:
     name: knos command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/knos') || contains(github.event.comment.body, fromJSON('"\\n/knos"')))) || (github.event_name == 'issues' && (contains(github.event.issue.body, '/knos fund') || contains(github.event.issue.body, '/knos bounty')))
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
   settle:
     name: knos settle
     needs: command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: github.event_name != 'issues' && !cancelled() && (github.event_name != 'issue_comment' || needs.command.outputs.settle != '') && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
 `;
 export const ATTESTOR_WORKFLOW = `# .github/workflows/knos-attestor.yml, without its comments: read them in examples/knos-attestor.yml of drexthealpha/Knos
 name: knos attestor
@@ -60,7 +60,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
     secrets:
       KNOS_READ_TOKEN: \${{ secrets.KNOS_READ_TOKEN }}
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
@@ -77,7 +77,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@ff5f3df04abedd865f79a19cebc6848b6e048556
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
     secrets:
       KNOS_READ_TOKEN: \${{ secrets.KNOS_READ_TOKEN }}
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
@@ -146,7 +146,7 @@ export function renderInstall(el) {
     node(doc, "pre", { id: "install-file", textContent: INSTALL_WORKFLOW }), copyButton(doc, INSTALL_WORKFLOW, "Copy the file")]);
   const terms = node(doc, "div", { id: "install-terms" }, [node(doc, "h3", { textContent: "Then fund an issue: terms from a template" })]);
   for (const t of TERMS) terms.append(node(doc, "div", { className: "card" }, [
-    node(doc, "p", {}, [node(doc, "strong", { textContent: t.name }), `: ${t.sentence}.`]),
+    (() => { const p = node(doc, "p", {}, [node(doc, "strong", { textContent: t.name }), `: ${t.sentence}.`]); p.setAttribute("data-keep", ""); p.setAttribute("data-not-prose", ""); return p; })(),
     node(doc, "pre", { textContent: t.comment }), copyButton(doc, t.comment, "Copy the comment"),
     node(doc, "details", {}, [node(doc, "summary", { className: "fine", textContent: "The terms it funds" }), node(doc, "pre", { textContent: `${t.terms_json}\nsha256 ${t.terms_hash}` }),
       node(doc, "p", { className: "fine", textContent: `Post it on ${t.where}. These bytes were made with sample facts (${Object.values(t.assumes).join("; ")}); the reply to your comment shows your repository's own terms.` })])]));

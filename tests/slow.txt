@@ -1,0 +1,19 @@
+# Tests that take over 5 seconds, one id a line: a whole id, a test without its parameters, or a file.
+# tests/conftest.py marks them `slow`. `pytest -m "not slow" -n auto` leaves them out (the local loop); CI runs them
+# in a job of their own on each platform (.github/workflows/tests.yml). To write this list again from a run:
+#     pytest --junitxml=junit.xml && python scripts/suite_time.py --slow junit.xml
+# and tests.yml's summary names every test over 5 seconds that is not here yet.
+
+# measured (a cold Go build cache and a cold cargo target, by design: the judge gives each run an empty home)
+tests/test_judge_langs.py::test_go
+tests/test_judge_langs.py::test_rust
+tests/test_pay2_chain.py::test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs
+
+# a build of the site and a page driven in headless Chromium (skipped at once where there is no browser)
+tests/test_site_buyer.py::test_the_buy_page_in_a_browser_and_its_signed_line_on_chain
+tests/test_site_demo.py::test_the_round_in_a_browser_by_keyboard_alone
+tests/test_site_overflow.py::test_no_page_scrolls_sideways
+tests/test_site_overflow.py::test_the_budget_of_words_weight_and_motion_holds
+
+# the check that the committed primes of the two test keys are what their seeds give: it runs the search the rest of the suite is spared
+tests/test_suite_speed.py::test_the_committed_primes_are_the_ones_the_seeds_of_the_two_test_keys_give

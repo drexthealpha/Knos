@@ -1,12 +1,24 @@
 name: tests
 
-# PRs and main stay under 5 minutes of wall time: uv with a cache and pytest -n auto. The suite is offline (conftest
-# refuses every non-loopback connection) and includes the two Solana programs in LiteSVM, the judge on Python, Node,
-# Go and Rust repositories, its sandbox, and the tamper benchmark.
+# No job of a pull request or of main takes more than 5 minutes; the target is 4. How:
+#   - the Python suite runs in shards, side by side: `pytest --shard i/n` keeps the tests whose id hashes to shard i
+#     (tests/conftest.py), each shard with pytest-xdist on every core (`-n auto --dist worksteal`: an idle worker takes
+#     tests from a busy one, which evens out a suite whose tests take from 10 ms to a minute);
+#   - the tests over 5 seconds (tests/slow.txt, the marker `slow`) run in a job of their own on each platform, so
+#     `pytest -m "not slow"` is the quick loop on a laptop and nothing is left out here;
+#   - every shard writes a JUnit file, scripts/suite_time.py prints its time and the slowest tests in the job's summary
+#     and FAILS the job if the shard's tests took over 5 minutes. The rule is checked on every run, not hoped for.
+# Cores of GitHub's standard runners, which is what `-n auto` starts (read 6 Oct 2026,
+# https://docs.github.com/en/actions/reference/runners/github-hosted-runners): public repositories ubuntu-latest 4,
+# windows-latest 4, macos-latest 3 (arm64, 7 GB); private ones 2, 2 and 3. So macOS and Windows, the slowest two, get
+# three shards and Ubuntu two. pytest-xdist counts the cores itself (https://pytest-xdist.readthedocs.io/en/stable/distribution.html).
+#
+# The suite is offline (conftest refuses every non-loopback connection) and includes the two Solana programs in
+# LiteSVM, the judge on Python, Node, Go and Rust repositories, its sandbox, and the tamper benchmark.
 #
 # This is also the gate of every release: release.yml calls this whole workflow on the tagged commit (workflow_call)
 # and publishes nothing unless every job here passed. A job added here is part of that gate; do not give one a
-# condition that would skip it there.
+# condition that would skip it there (all-green's own condition only makes it run when a job before it failed).
 on:
   push:
     branches: [main]
@@ -27,16 +39,30 @@ permissions:
 
 jobs:
   pytest:
+    name: pytest (${{ matrix.os }}, ${{ matrix.python }}, ${{ matrix.part }})
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {os: ubuntu-latest, python: "3.10"}
-          - {os: ubuntu-latest, python: "3.12"}
-          - {os: macos-latest, python: "3.12"}
-          - {os: windows-latest, python: "3.12"}
+        include:      # shard: i/n of the tests that are not slow, or `slow`; part: the same, as a file name
+          - {os: ubuntu-latest, python: "3.10", shard: 1/2, part: 1of2}
+          - {os: ubuntu-latest, python: "3.10", shard: 2/2, part: 2of2}
+          - {os: ubuntu-latest, python: "3.10", shard: slow, part: slow}
+          - {os: ubuntu-latest, python: "3.12", shard: 1/2, part: 1of2}
+          - {os: ubuntu-latest, python: "3.12", shard: 2/2, part: 2of2}
+          - {os: ubuntu-latest, python: "3.12", shard: slow, part: slow}
+          - {os: macos-latest, python: "3.12", shard: 1/3, part: 1of3}
+          - {os: macos-latest, python: "3.12", shard: 2/3, part: 2of3}
+          - {os: macos-latest, python: "3.12", shard: 3/3, part: 3of3}
+          - {os: macos-latest, python: "3.12", shard: slow, part: slow}
+          - {os: windows-latest, python: "3.12", shard: 1/3, part: 1of3}
+          - {os: windows-latest, python: "3.12", shard: 2/3, part: 2of3}
+          - {os: windows-latest, python: "3.12", shard: 3/3, part: 3of3}
+          - {os: windows-latest, python: "3.12", shard: slow, part: slow}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 10
+    env:
+      SHARD: ${{ matrix.shard }}
+      JUNIT: junit/${{ matrix.os }}-py${{ matrix.python }}-${{ matrix.part }}.xml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -46,11 +72,51 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: pyproject.toml
-      - run: uv pip install --system -e ".[dev]"
+      # pytest-xdist at one version: `--dist worksteal` came with 3.2, and how tests are dealt out must not change
+      # under a release.
+      - run: uv pip install --system -e ".[dev]" pytest-xdist==3.8.0
       - run: git config --global user.email ci@example.invalid && git config --global user.name ci
-      - run: pytest -q -n auto
-      # The 30-second story, on every OS: the wheel installs into a clean venv, `knos init` installs the Stop hook
-      # into a fresh home, the hook answers, and `knos init --undo` leaves the settings as they were.
+      - name: pytest, this shard
+        shell: bash
+        run: |
+          if [ "$SHARD" = slow ]; then pick=(-m slow); else pick=(-m "not slow" --shard "$SHARD"); fi
+          pytest -q -n auto --dist worksteal "${pick[@]}" --junitxml="$JUNIT"
+      - name: the shard's time and its slowest tests; over 5 minutes fails
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: python scripts/suite_time.py --markdown --limit 300 "$JUNIT" >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: junit-${{ matrix.os }}-py${{ matrix.python }}-${{ matrix.part }}
+          path: junit/
+          if-no-files-found: error
+          retention-days: 14
+
+  # The 30-second story, on every OS: the wheel installs into a clean venv, `knos init` installs the Stop hook into a
+  # fresh home, the hook answers, and `knos init --undo` leaves the settings as they were. A job of its own (it was
+  # the last step of the pytest job): it needs no test dependency, and a shard's minutes are then its tests'.
+  wheel:
+    name: wheel (${{ matrix.os }}, ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, python: "3.10"}
+          - {os: ubuntu-latest, python: "3.12"}
+          - {os: macos-latest, python: "3.12"}
+          - {os: windows-latest, python: "3.12"}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - name: wheel installs and knos init works in a clean home
         shell: bash
         run: |
@@ -69,41 +135,149 @@ jobs:
           ! grep -q "knos" "$HOME/.claude/settings.json"
 
   # The JavaScript client against the byte-exact fixtures the Python client wrote (sdk/settle/fixtures.json), and the
-  # web app that uses it.
+  # web app that uses it: every file of tests/web/, in headless Chromium where it has a page. Each of those files
+  # prints SKIP and exits 0 when it finds no browser, which is right on a laptop and wrong here: the last step fails
+  # the job if any of them said SKIP.
   sdk:
+    name: web (node tests/web/*.mjs in headless Chromium)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash       # -eo pipefail: a failing test fails its step though its output is piped into the log
+    env:
+      WEB_LOG: ${{ github.workspace }}/web-tests.log
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
       - run: node sdk/settle/test.mjs
-      - name: what the site computes with no browser (the status view's numbers; a Balance's limits, word for word as `knos budget check` answers)
+      # Chromium for Playwright, kept between runs. Playwright's own advice is that restoring a cache takes about as long
+      # as the download and that, if one is kept, its key is the Playwright version (https://playwright.dev/docs/ci#caching-browsers,
+      # read 6 Oct 2026): so the key is the version installed below, and a run that finds the browser still installs the
+      # system packages it needs, which no cache holds (https://playwright.dev/docs/browsers#install-system-dependencies).
+      # The folder is named, not the default under the home: the Python tests give every test a home of its own.
+      - run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers" >> "$GITHUB_ENV"
+      - run: npm install --no-save --no-audit --no-fund playwright@1.56.0
+      - id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-1.56.0-chromium
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Chromium starts (with no browser the job stops here; it does not go on and skip)
+        run: node -e "import('playwright').then(async (pw) => { const b = await pw.chromium.launch(); console.log('chromium', b.version()); await b.close(); })"
+      - name: what the site computes with no browser (the status view's numbers; a Balance's limits, word for word as `knos budget check` answers; the price book's arithmetic)
         run: |
+          {
           node tests/web/status_data.mjs
           node tests/web/controls.mjs
-      - name: shadow mode and the finance view's files, byte for byte what the Python writes (no browser)
+          node tests/web/price.mjs
+          } 2>&1 | tee -a "$WEB_LOG"
+      - name: shadow mode and the finance view's files, byte for byte what the Python writes, and shadow mode's page in headless Chromium
         run: |
+          {
           node tests/web/shadow.mjs
+          node tests/web/shadow.mjs page
           node tests/web/finance.mjs
+          } 2>&1 | tee -a "$WEB_LOG"
       - name: the built site in headless Chromium (mocked GitHub and Solana)
         run: |
-          npm install --no-save --no-audit --no-fund playwright@1.56.0
-          npx playwright install --with-deps chromium
+          {
           bash scripts/build_site.sh "$RUNNER_TEMP/site" "$(printf 'c%.0s' $(seq 40))"   # the commit the mocked chain pins
           node tests/web/site.mjs "$RUNNER_TEMP/site"
-      - name: the first screen's round, the verifier, the playground, the Terms page and the budget of what moves, each in headless Chromium on that build
+          } 2>&1 | tee -a "$WEB_LOG"
+      - name: the first screen's round, the verifier, the playground, the Terms page, the budget of what moves and every page at five widths, each in headless Chromium on that build
         run: |
+          {
           node tests/web/demo.mjs "$RUNNER_TEMP/site"
           node tests/web/verifier.mjs "$RUNNER_TEMP/site"
           node tests/web/playground.mjs
           node tests/web/terms.mjs "$RUNNER_TEMP/site"
           node tests/web/motion.mjs "$RUNNER_TEMP/site"
+          node tests/web/overflow.mjs "$RUNNER_TEMP/site"
+          } 2>&1 | tee -a "$WEB_LOG"
       - name: a round anyone can watch, and the Agent PR Index board, in headless Chromium (the page's clock is the test's; nothing is asked of the network)
         run: |
+          {
           node tests/web/live.mjs
           node tests/web/index_board.mjs
+          } 2>&1 | tee -a "$WEB_LOG"
+      # A file added to tests/web/ runs here with no line of its own: `node tests/web/<name>.mjs <the built site>`, the
+      # arguments site.mjs takes. One that needs other arguments gets a line above. buyer.mjs needs a fixture that
+      # tests/test_site_buyer.py makes: the `site` job runs it.
+      - name: every other file of tests/web/, on that build
+        run: |
+          for f in tests/web/*.mjs; do
+            if [ "$f" = tests/web/buyer.mjs ] || grep -Eq "^ +node $f( |\$)" .github/workflows/tests.yml; then continue; fi
+            echo "::group::node $f"
+            node "$f" "$RUNNER_TEMP/site" 2>&1 | tee -a "$WEB_LOG"
+            echo "::endgroup::"
+          done
+      - name: none of them skipped anything
+        run: |
+          if grep -n "^SKIP" "$WEB_LOG"; then
+            echo "::error::a test of tests/web/ skipped a part (lines above): in this job a browser is installed and nothing may skip"
+            exit 1
+          fi
+          echo "$(grep -c '^ok' "$WEB_LOG") lines of ok, none of SKIP"
+
+  # The Python tests that build the site and drive a page of it (tests/test_site_*.py; the Buy page's passkey among
+  # them, whose signed line is then sent to the programs in LiteSVM). In the pytest jobs above they skip the browser
+  # parts, with no Playwright there. Here a browser is installed and `--no-skips` makes any skip a failure.
+  site:
+    name: web (pytest tests/test_site_*.py in headless Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e ".[dev]" pytest-xdist==3.8.0
+      # Chromium for Playwright, kept between runs. Playwright's own advice is that restoring a cache takes about as long
+      # as the download and that, if one is kept, its key is the Playwright version (https://playwright.dev/docs/ci#caching-browsers,
+      # read 6 Oct 2026): so the key is the version installed below, and a run that finds the browser still installs the
+      # system packages it needs, which no cache holds (https://playwright.dev/docs/browsers#install-system-dependencies).
+      # The folder is named, not the default under the home: the Python tests give every test a home of its own.
+      - run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers" >> "$GITHUB_ENV"
+      - run: npm install --no-save --no-audit --no-fund playwright@1.56.0
+      - id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-1.56.0-chromium
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Chromium starts (with no browser the job stops here; it does not go on and skip)
+        run: node -e "import('playwright').then(async (pw) => { const b = await pw.chromium.launch(); console.log('chromium', b.version()); await b.close(); })"
+      - run: pytest -q -n auto --dist worksteal --no-skips --junitxml=junit/site.xml tests/test_site_*.py
+      - name: the time of these tests and the slowest; over 5 minutes fails
+        if: ${{ !cancelled() }}
+        run: python scripts/suite_time.py --markdown --limit 300 junit/site.xml >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: junit-site
+          path: junit/
+          if-no-files-found: error
+          retention-days: 14
 
   # The conformance kit (conformance/: vectors for the formats, with expected results) against Knos's own Python, which
   # must do every case, and against the JavaScript client, which may say a case is not its to do and may fail none.
@@ -145,8 +319,8 @@ jobs:
       - run: python scripts/doc_claims.py
 
   # ruff (imports, statements, syntax, pyflakes) and mypy over src/knos, each at one version, with the settings in
-  # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule and 16
-  # modules of mypy's) so each can come out one line at a time. The package is installed so that mypy reads the types
+  # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule and 1
+  # module of mypy's) so each can come out one line at a time. The package is installed so that mypy reads the types
   # of what it imports, as a developer's editor does. About a minute with the cache.
   lint:
     runs-on: ubuntu-latest
@@ -182,3 +356,25 @@ jobs:
       - run: python scripts/deadcode.py
       - run: vulture src/knos scripts --min-confidence 60
       - run: python scripts/settle_fixtures.py --check
+
+  # One check for branch protection to require: it passes only when every job above passed. It runs when one of them
+  # failed too (a job that is skipped because what it needs failed counts as passed for a required check, which is the
+  # hole this condition closes), and not when the run was cancelled.
+  all-green:
+    name: all-green
+    if: ${{ !cancelled() }}
+    needs: [pytest, wheel, sdk, site, conformance, claims, lint, deadcode]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: every job of this workflow passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = {name: job["result"] for name, job in json.loads(os.environ["NEEDS"]).items()}
+          for name, result in sorted(results.items()):
+              print(f"{result:10} {name}")
+          sys.exit(0 if results and all(r == "success" for r in results.values()) else 1)
+          PY

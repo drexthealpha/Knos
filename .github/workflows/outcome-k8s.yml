@@ -1,0 +1,129 @@
+name: outcome on kubernetes
+
+# One outcome that is not code, signed by a workload identity that is not a forge (docs/OUTCOMES.md, "A Kubernetes
+# cluster signs an outcome"). The job starts a kind cluster on the runner, runs the data-transformation example's
+# black-box suite as a Kubernetes Job under the service account knos-judge, and the pod asks its own cluster (the
+# TokenRequest API) for a token of that service account whose audience is the evaluation: knosm:eval:..., the meter's
+# audience grammar. The job then reads the cluster's key set and issuer from its API server, checks the token against
+# that key set with the on-chain verifier's rule (scripts/outcome_k8s.py verify) and uploads the token, the key set,
+# the verdict, the receipt and their hashes.
+#
+# What it is not. The cluster is one this job started, on a runner GitHub hosts: one party ran the cluster, the Job
+# and the judge, and the issuer's URL resolves nowhere. The receipt's `limitations` say so. Nothing here goes to
+# Solana: the job asks GitHub for no token, holds no key and cannot send a transaction. Carrying the token to devnet
+# is `scripts/outcome_k8s.py chain`, which the release run executes with the artifact of this job.
+#
+# kind and kubectl are the runner image's own (ubuntu-24.04 lists Kind and Kubectl:
+# https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md), so no third-party action is
+# added. The node image is kind v0.33.0's Kubernetes v1.37.0, pinned by digest (https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0);
+# from Kubernetes v1.36 kind writes kubeadm's v1beta4 config, whose extraArgs are a list of name and value.
+# kubeadm makes the service-account signing key RSA-2048 unless told otherwise, and the API server signs RS256
+# with an RSA key; the step that reads the key set fails in plain words if this cluster's key is anything else.
+on:
+  workflow_dispatch:
+    inputs:
+      submission:
+        description: The folder of examples/outcomes/data-transformation that is judged (solution is accepted; cheats/special_cases_visible is rejected).
+        default: solution
+        type: string
+
+concurrency:
+  group: outcome-k8s-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  outcome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      SUBMISSION: ${{ inputs.submission || 'solution' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: start a cluster whose service-account issuer is named for this outcome
+        shell: bash
+        run: |
+          set -euo pipefail
+          kind version
+          kubectl version --client
+          cat > "$RUNNER_TEMP/kind.yaml" <<'EOF'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+              kubeadmConfigPatches:
+                - |
+                  kind: ClusterConfiguration
+                  apiServer:
+                    extraArgs:
+                      - name: service-account-issuer
+                        value: https://kind.knos-outcome.invalid
+          EOF
+          kind create cluster --name knos-outcome --config "$RUNNER_TEMP/kind.yaml" --wait 180s
+          kubectl cluster-info --context kind-knos-outcome
+      - name: build the Job's image from this commit and load it into the cluster
+        shell: bash
+        run: |
+          set -euo pipefail
+          # the base is pulled by tag and built FROM the digest that pull got: BuildKit keeps no local copy of a base it
+          # pulled itself, so the digest is read here, before the build, and the Job's image is built from exactly it
+          docker pull -q python:3.12-slim
+          base="$(docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}')"
+          case "$base" in python@sha256:*) ;; *) echo "::error::no digest for python:3.12-slim: $base"; exit 1 ;; esac
+          echo "$base" > "$RUNNER_TEMP/base"
+          printf 'FROM %s\nCOPY . /knos\nRUN pip install --no-cache-dir /knos\nWORKDIR /knos\n' "$base" > "$RUNNER_TEMP/Dockerfile"
+          docker build -q -t knos-outcome:run -f "$RUNNER_TEMP/Dockerfile" .
+          kind load docker-image knos-outcome:run --name knos-outcome
+      - name: judge the transformation in a Job; the pod asks the cluster to sign the evaluation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          case "$SUBMISSION" in solution|cheats/special_cases_visible|near_misses/float_cents) ;; *) echo "::error::not a submission of the example: $SUBMISSION"; exit 1 ;; esac
+          sed "s#\"scripts/outcome_k8s.py\", \"job\"#\"scripts/outcome_k8s.py\", \"job\", \"--submission\", \"$SUBMISSION\"#" \
+            scripts/outcome_k8s_job.yaml | kubectl apply -f -
+          # the Job ends as Complete (a verdict, accepted or rejected) or Failed (the run could not tell: no token)
+          kubectl -n knos-outcome wait --for=jsonpath='{.status.conditions[0].status}'=True job/judge --timeout=420s \
+            || { kubectl -n knos-outcome describe job/judge; kubectl -n knos-outcome describe pods; kubectl -n knos-outcome logs job/judge || true; exit 1; }
+          kubectl -n knos-outcome logs job/judge > "$RUNNER_TEMP/job.log"
+          kubectl -n knos-outcome get job/judge -o jsonpath='{.status.conditions[0].type}{"\n"}'
+      - name: read the cluster's issuer and key set from its API server
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl get --raw /.well-known/openid-configuration > out/openid-configuration.json
+          kubectl get --raw /openid/v1/jwks > out/jwks.json
+          python -c 'import json; print(json.load(open("out/openid-configuration.json"))["issuer"])' > out/issuer
+          # the patch took: the API server names the issuer the cluster was started with, or the run stops here
+          [ "$(cat out/issuer)" = https://kind.knos-outcome.invalid ] || { echo "::error::the API server's issuer is $(cat out/issuer), not the patch's"; exit 1; }
+          { kind version; kubectl version -o json | python -c 'import json,sys; print("kubernetes", json.load(sys.stdin)["serverVersion"]["gitVersion"])';
+            docker image inspect knos-outcome:run --format 'image {{.Id}}'; echo "base $(cat "$RUNNER_TEMP/base")"; } > out/cluster.txt
+          cat out/issuer out/cluster.txt
+      - name: verify the token offline with the on-chain verifier's rule, and write the receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q .
+          python scripts/outcome_k8s.py collect --log "$RUNNER_TEMP/job.log" --out out
+          python scripts/outcome_k8s.py verify --token out/token --jwks out/jwks.json --issuer "$(cat out/issuer)" --verdict out/verdict.json --out out/receipt.json | tee out/verify.txt
+          (cd out && sha256sum token jwks.json openid-configuration.json issuer verdict.json receipt.json cluster.txt > SHA256SUMS && cat SHA256SUMS)
+          { echo "### An outcome a Kubernetes cluster signed"; echo; echo '```'; cat out/verify.txt; echo '```'; echo "Verified offline against the cluster's own key set. This job sends nothing to Solana."; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: outcome-k8s
+          path: out/
+          if-no-files-found: error
+          retention-days: 30
+      - name: delete the cluster
+        if: always()
+        run: kind delete cluster --name knos-outcome

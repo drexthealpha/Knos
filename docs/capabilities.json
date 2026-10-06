@@ -198,7 +198,7 @@
      "names": "test_any_rs256_issuer_is_admitted_on_githubs_signature"
     }
    },
-   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json). More evidence: tests/test_issuers.py verifies a token of each of ten documented issuers' shapes (the capability `verifier_issuer_matrix`)."
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json). More evidence: tests/test_issuers.py verifies a token of each of eleven documented issuers' shapes (the capability `verifier_issuer_matrix`)."
   },
   {
    "id": "key_guardian",
@@ -965,7 +965,7 @@
      "names": "test_the_conservation_harness_is_among_the_proved_ones"
     }
    },
-   "note": "One recorded run (docs/kani.json; Kani 0.68.0, each harness alone, 180-second limit) verified 4 of 5 harnesses, fee conservation among them; the fee-bounds harness timed out and is NOT proved. The test holds the record to the harness names and to the file's hash: no test of this repository runs Kani itself."
+   "note": "One recorded run (docs/kani.json; Kani 0.68.0, each harness alone, 180-second limit) verified 4 of 5 harnesses, fee conservation among them; the fee-bounds harness over every amount timed out and is NOT proved (the bounds are proved tier by tier apart: fee_bounds_proofs). The test holds the record to the harness names and to the file's hash: no test of this repository runs Kani itself."
   },
   {
    "id": "receipt",
@@ -1777,19 +1777,19 @@
   },
   {
    "id": "verifier_issuer_matrix",
-   "what": "Ten issuers of RS256 workload tokens are documented with what the verifier takes from each, and a token of each one's shape verifies under a key registered for its address.",
+   "what": "Eleven issuers of RS256 workload tokens are documented with what the verifier takes from each, and a token of each one's shape verifies under a key registered for its address.",
    "stage": "tested",
    "evidence": {
     "implemented": {
      "path": "examples/issuers/README.md",
-     "names": "ten sources of identity"
+     "names": "eleven sources of identity"
     },
     "tested": {
      "test": "tests/test_issuers.py",
      "names": "test_a_token_of_this_issuers_shape_verifies_under_a_key_registered_for_its_url"
     }
    },
-   "note": "Tested in the Solana runtime with keys made in the test: no issuer but GitHub and GitLab has signed a token Knos verified. ES256, ES384 and PS256 tokens are refused."
+   "note": "Tested in the Solana runtime with keys made in the test: no issuer but GitHub and GitLab has signed a token Knos verified. The deployed verifier refuses ES256, ES384 and PS256 tokens; ES256 is a capability of its own (es256_tokens)."
   },
   {
    "id": "finance_exports",
@@ -1961,10 +1961,10 @@
     },
     "tested": {
      "test": "tests/test_tamper_bench.py",
-     "names": "test_honest_submissions_are_accepted_except_the_one_kind_that_touches_the_test_directory"
+     "names": "test_honest_submissions_are_accepted_and_one_with_tests_of_its_own_says_they_were_not_counted"
     }
    },
-   "note": "The black-box judge accepted 39 of 48: all 9 refusals are a correct fix that also adds a test in the protected test directory (docs/TAMPER.md, docs/ASSURANCE.md). Knos's own tasks and submissions; nobody outside has run the set."
+   "note": "The black-box judge accepted 61 of 61 honest submissions, of which the 48 of the set before, 48 of 48; cheats accepted: 0 of 63, 0 of 102, 0 of 25 on tasks that are not code and 0 of 14 new ones, every figure from one run of the whole benchmark in this release (docs/TAMPER.md, docs/ASSURANCE.md). Knos's own tasks and submissions; nobody outside has run the set."
   },
   {
    "id": "provenance_chain",
@@ -2045,6 +2045,336 @@
     }
    },
    "note": "The list is docs/UNWRAPS.md. Indexing is counted by file, not explained line by line."
+  },
+  {
+   "id": "outcome_not_code",
+   "what": "One outcome that is not code is signed by a Kubernetes cluster's service-account issuer, checked offline by the verifier's rule and verified under a private key.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/outcome_k8s.py",
+     "names": "def verify_token"
+    },
+    "tested": {
+     "test": "tests/test_outcome_k8s.py",
+     "names": "test_the_verifier_takes_the_token_under_a_private_key_through_the_instructions_chain_would_send"
+    }
+   },
+   "note": "Tested with a test key; a kind cluster's token was verified offline in staging run 37483745385 of drexthealpha/knos-rc (https://github.com/drexthealpha/knos-rc/actions/runs/37483745385); nothing of it is on devnet, and the meter does not count it on chain."
+  },
+  {
+   "id": "events_ledger",
+   "what": "One append-only log of events sits under every recording mode, with durable ids, signed acknowledgements, corrections and duplicate detection.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/events.py",
+     "names": "def ingest"
+    },
+    "tested": {
+     "test": "tests/test_events.py",
+     "names": "test_one_evaluation_recorded_singly_and_inside_a_batch_is_counted_once_with_both_sources"
+    }
+   },
+   "note": "A file beside the ledgers, written when a recording command is given --events or KNOS_EVENTS; nothing on chain reads it."
+  },
+  {
+   "id": "ap_statement",
+   "what": "One invoice becomes a statement as JSON, CSV and PDF that say the same; each line is agreed, disputed, duplicate or has insufficient evidence, and anyone rebuilds it from its evidence.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/statement.py",
+     "names": "def as_pdf"
+    },
+    "tested": {
+     "test": "tests/test_statement.py",
+     "names": "test_verify_makes_the_statement_again_from_its_evidence_and_names_the_first_line_that_differs"
+    }
+   },
+   "note": "Made from example evidence; no buyer's invoice has been run through it."
+  },
+  {
+   "id": "four_verdicts_four_ids",
+   "what": "A receipt of version 4 says one of four verdicts, only an accepted one authorises payment, and a deliverable, an evaluation, an invoice line and a settlement each have an id of their own.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def build4"
+    },
+    "tested": {
+     "test": "tests/test_verdicts_ids.py",
+     "names": "test_every_version_4_vector_checks_and_only_an_accepted_receipt_authorises_payment"
+    }
+   },
+   "note": "The programs on chain know accepted and rejected only; the other two verdicts are recorded off chain."
+  },
+  {
+   "id": "relay_queue",
+   "what": "The relay takes tokens through a queue with leases: several workers, each payer's tokens in order, a killed worker's entry taken again, nothing sent twice.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "class Queue"
+    },
+    "tested": {
+     "test": "tests/test_relayq.py",
+     "names": "test_200_entries_4_workers_one_kill_one_slow_confirmation_each_handled_once_in_its_payers_order"
+    }
+   },
+   "note": "Tested against a simulated relay and clock; the public relay's sweep has not run on it on devnet."
+  },
+  {
+   "id": "evidence_vault",
+   "what": "An evidence bundle is sealed to the buyer, the supplier and an auditor, exported, kept under a retention policy and restored from the export alone after the working copy and the chain are gone.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/vault.py",
+     "names": "def restore"
+    },
+    "tested": {
+     "test": "tests/test_vault.py",
+     "names": "test_restore_from_the_export_alone_after_the_working_copy_and_the_chain_are_gone"
+    }
+   },
+   "note": "The restore drill runs on files made in the test; no outside party holds a key."
+  },
+  {
+   "id": "private_path",
+   "what": "A private repository's verdict leaves as a record of a verdict word and hashes, signed for by an attestor both parties approved; the code stays where it is.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/private.py",
+     "names": "def record"
+    },
+    "tested": {
+     "test": "tests/test_private_path.py",
+     "names": "test_the_record_that_leaves_holds_a_verdict_word_and_hashes_and_nothing_else"
+    }
+   },
+   "note": "Nobody has run it in a private repository."
+  },
+  {
+   "id": "supplier_preflight",
+   "what": "A supplier checks a change against an order's terms before submitting it, and is told which line of the terms a refusal would cite and what was refused before under the same terms.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/preflight.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_preflight.py",
+     "names": "test_a_change_inside_the_terms_is_ready_and_one_outside_names_the_line_that_says_so"
+    }
+   }
+  },
+  {
+   "id": "supplier_appeal",
+   "what": "A supplier contests a rejection: the verdict moves to disputed with who, when and why, and the neutral judge's re-run overturns or upholds it in plain words.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/appeal.py",
+     "names": "def open_"
+    },
+    "tested": {
+     "test": "tests/test_appeal.py",
+     "names": "test_the_neutral_judges_pass_overturns_and_its_fail_upholds_with_the_reason_in_plain_words"
+    }
+   },
+   "note": "The `/knos appeal` comment is read by the workflow's job; no appeal has been opened outside the tests."
+  },
+  {
+   "id": "refusal_table",
+   "what": "Every refusal the programs, the terms, the judge and the comment parser can give has a row of two plain sentences: what happened and what to do.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ghwords.py",
+     "names": "def refusal_table"
+    },
+    "tested": {
+     "test": "tests/test_refusals.py",
+     "names": "test_every_program_error_has_a_row_and_no_row_names_an_error_that_is_gone"
+    }
+   }
+  },
+  {
+   "id": "billing_rule",
+   "what": "A month's invoice is the subscription plus the greater of the Meter and Verify charges, never both for one activity; Verify is capped at 250 USD a deliverable, and every line names the rule that produced it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/billing.py",
+     "names": "def invoice"
+    },
+    "tested": {
+     "test": "tests/test_billing.py",
+     "names": "test_the_worked_example_month_by_month_adds_up_to_130_000"
+    }
+   },
+   "note": "Arithmetic on example months. Nobody has been invoiced: nothing has been sold and there is no legal entity to invoice from."
+  },
+  {
+   "id": "agent_leaderboard",
+   "what": "The Agent PR Index is a weekly leaderboard with a 95% interval and the sample size on every row, a minimum sample to be placed, and a dispute path whose open and resolved cases are published.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_board.py",
+     "names": "def board"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_a_disputed_row_is_marked_with_its_link_and_a_resolved_one_that_changed_a_number_is_in_the_changelog"
+    }
+   },
+   "note": "No dispute has been filed."
+  },
+  {
+   "id": "front_door",
+   "what": "The site's first control checks a pasted supplier invoice or a named public repository in place: a neutral count and every mismatch, with no install, wallet or sign-up.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/front_door.js",
+     "names": "export function renderFrontDoor"
+    },
+    "tested": {
+     "test": "tests/test_site_front_door.py",
+     "names": "test_the_first_screen_checks_your_own_invoice"
+    }
+   },
+   "note": "The browser part needs node, the playwright package and Chromium (tests/web/front_door.mjs); without them it is skipped."
+  },
+  {
+   "id": "es256_tokens",
+   "what": "An ES256 token is verified in one transaction: Solana's secp256r1 precompile checks the signature, and `VerifyEs256` checks that what it verified is the issuer's key, the token and its signature.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/es256.rs",
+     "names": "pub fn precompile"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/knos_oidc_es256.rs",
+     "names": "a_good_token_is_verified_in_one_transaction"
+    }
+   },
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest. In the default build of knos_oidc in this tree (202,032 bytes; the verifier's data account on devnet has room for 279,360, so no extension is needed) and NOT deployed: no public program id runs it, and the build is not proposed yet. Two fixed test keys; no token of a real ES256 issuer has been verified. A signing input of at most 780 bytes (docs/ES256.md)."
+  },
+  {
+   "id": "contributor_tests_not_counted",
+   "what": "A correct fix that adds its own regression test is accepted: an added test file runs and is not counted, an existing protected test edited or deleted is refused, and the funder's suite alone decides.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/judge.py",
+     "names": "def classify_path"
+    },
+    "tested": {
+     "test": "tests/test_tamper_bench.py",
+     "names": "test_an_added_test_or_test_configuration_is_allowed_and_cannot_decide"
+    }
+   },
+   "note": "Measured on Knos's own tasks (docs/TAMPER.md): 61 of 61 honest submissions accepted, 0 of 14 cheats aimed at what a pull request may now add. `knos preflight` and the supplier page give the same answer from the same rule."
+  },
+  {
+   "id": "procurement_objects",
+   "what": "Standing offers, rate cards and budget envelopes are read from files and held to each other; an envelope shows before and after and refuses by the amount over.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/controls.py",
+     "names": "def envelope_state"
+    },
+    "tested": {
+     "test": "tests/test_procurement.py",
+     "names": "test_an_envelope_shows_before_and_after_and_refuses_by_the_amount_over"
+    }
+   },
+   "note": "Files in a repository, checked by the command line. The funding workflow does not ask the gate yet, and nothing on chain reads them."
+  },
+  {
+   "id": "approval_chains",
+   "what": "An approval counts only from an account that holds the role on that day and within its limit; a self-approval above the limit is refused, and the chain says what waits for whom.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/approvals.py",
+     "names": "def chain"
+    },
+    "tested": {
+     "test": "tests/test_procurement.py",
+     "names": "test_the_chain_says_what_waits_for_whom_and_counts_only_authority"
+    }
+   },
+   "note": "`knos approve record | check | status`. An approval's author and time are the forge's; the funding workflow does not ask the gate yet."
+  },
+  {
+   "id": "fee_bounds_proofs",
+   "what": "Kani proves on the program's own lines, tier by tier and with one part left out, that an order's fee is at least 0.40, is 0.40 or at most 2.5% of the amount, and adds to the amount in a u64.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/fee_proofs/src/lib.rs",
+     "names": "#[kani::proof]"
+    },
+    "tested": {
+     "test": "tests/test_fee_proofs.py",
+     "names": "test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say"
+    }
+   },
+   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 50 to 250 basis points. docs/kani.json `fee_proofs`, status `not verified` for the whole statement: verified per part for 0 to 1,000.00 at rates 50..=249, above 1,000.00 to 50,000.00 and above 50,000.00 to 100,000.00 at rates 50..=250; at 0 to 1,000.00 and rate 250, `at least 0.40; adds to the amount in a u64` is verified and `0.40 or at most 2.5% of the amount` is not verified (no harness states it; it is tested at each of the 1,000,000,001 amounts instead). Kani 0.68.0, each harness alone within 150 seconds. The test holds the record to the source's hash: no test of this repository runs Kani itself."
+  },
+  {
+   "id": "adversarial_replays",
+   "what": "What an opponent would try is replayed against the built programs: an address funded again, the second before and after every time limit, a payment and a refund together, one token twice, one judge under a quorum.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/adversarial_vectors.py",
+     "names": "adv_"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/adversarial.rs",
+     "names": "one_pay_token_twice_in_one_transaction_or_in_two_pays_once"
+    }
+   },
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test --release --test adversarial`), not run by pytest. Two of its tests are ignored because the program as built fails them: one account can be two judges of a wallet's order, and a judge's marker outlives its order by a second (docs/SECURITY.md). Neither is fixed in this release."
+  },
+  {
+   "id": "reader_template",
+   "what": "A program of its own, built against the published interface crate only, releases once for its own workflow's token and refuses five mistakes a reader can make.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/reader_template/src/lib.rs",
+     "names": "pub fn process"
+    },
+    "tested": {
+     "test": "tests/test_reader_template.py",
+     "names": "test_it_releases_once_for_its_own_workflow_and_refuses_the_five_mistakes"
+    }
+   },
+   "note": "An example in a workspace of its own, not deployed. No program outside this repository is known to read the verifier."
+  },
+  {
+   "id": "keyholder_path",
+   "what": "A page makes a member key in the browser, keeps the private half with the person and asks with the public half only; one command adds the holder.",
+   "stage": "implemented",
+   "evidence": {
+    "implemented": {
+     "path": "web/keyholder.js",
+     "names": "export function renderKeyholder"
+    }
+   },
+   "note": "Outside key holders: 0. One person, the founder, holds every member key of both multisigs (docs/KEYHOLDER.md, docs/GOVERNANCE.md); nobody has asked."
   }
  ]
 }

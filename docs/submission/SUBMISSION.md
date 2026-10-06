@@ -2,8 +2,11 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Of first agent pull requests that claimed passing tests, 17.8% had a failed check.
+Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.
 
+Of first agent pull requests that claimed passing tests, 17.8% had a failed check (147 of 826 repositories).
+
+- Story: [../STORY.md](../STORY.md), the number, one round in eight steps, and what the project needs next
 - Site: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)
 - Code: [github.com/drexthealpha/Knos](https://github.com/drexthealpha/Knos) (MIT)
 - Network: Solana devnet. The money is test USDC. Track: Solana.
@@ -13,16 +16,17 @@ What is in this folder:
 | file | what it is |
 |---|---|
 | this file | the text for each field of the form, each under its limit of a thousand characters, and the checklist for the day of submission |
-| [NUMBERS.md](NUMBERS.md) | the nine numbers about outside use, each with today's true value and the slot the release fills |
-| [pitch_script.md](pitch_script.md) | the pitch video, two minutes in five beats: the buyer and the problem first |
-| [demo_script.md](demo_script.md) | the demo video, two minutes: one buyer's story in seven moments, each captioned with the program ids it ran on |
+| [../STORY.md](../STORY.md) | the one page: the number, the round in eight steps with the evidence under each, and the ask |
+| [NUMBERS.md](NUMBERS.md) | the nine numbers about outside use, each with today's value, zeros included |
+| [pitch_script.md](pitch_script.md) | the pitch video, two minutes in five beats, opening with the number |
+| [demo_script.md](demo_script.md) | the demo video, two minutes: the same round in eight steps, each captioned with the program ids it ran on |
 | [CRITERIA.md](CRITERIA.md) | one paragraph for each factor Colosseum lists, founder and market fit included, and for each criterion in the rules |
 | [../PILOT.md](../PILOT.md) | the one offer for money: a 30-day pilot for one buyer and its suppliers, and what blocks it |
 | [../TEAM.md](../TEAM.md) | who builds Knos today, and the three roles the plan needs first, none hired |
 | [../GOVERNANCE.md](../GOVERNANCE.md) | who can change what today, and three plans: an outside key holder, a two-owner organisation, the verifier frozen after an outside review |
 | [../DISCLOSURE.md](../DISCLOSURE.md) | what existed before the competition and what was built during it, by date; and what does not exist |
 | [DEPENDENCY.md](DEPENDENCY.md) | the plan for the dependency on one personal GitHub account |
-| [INTERVIEWS.md](INTERVIEWS.md) | the kit for buyer conversations: whom to ask, what to ask, and a letter of intent to offer |
+| [INTERVIEWS.md](INTERVIEWS.md) | the kit for buyer conversations: whom to ask, what to ask, the tally with every no counted, and a letter of intent to offer |
 | [weekly_update.md](weekly_update.md) | the one-minute weekly update |
 | [../CAPABILITIES.md](../CAPABILITIES.md) | the index of evidence: every capability, the stage it has reached (implemented, tested locally, deployed, exercised on devnet, reproduced by someone else) and the file that shows it |
 
@@ -36,18 +40,18 @@ each says so, and the founder confirms it before pasting.
       in that track.
 - [ ] Both videos open for someone who is not signed in, and neither is longer than two minutes.
 - [ ] Every shot that is a replay, or is played faster than it happened, carries its caption for its whole length.
-- [ ] Every moment of the demo is captioned with the program ids it ran on: staging program ids until
-      `web/upgrades.json` shows the pending upgrade executed and a moment has run on the public ones.
+- [ ] Every step of the demo is captioned with the program ids it ran on: staging program ids until
+      `web/upgrades.json` shows the pending upgrade executed and a step has run on the public ones.
 - [ ] Every slot of [NUMBERS.md](NUMBERS.md) holds the number its source gives on the day, zeros included.
 - [ ] The repository link opens for someone who is not signed in.
 - [ ] `python scripts/bench_docs.py --slots` prints no open slot, and `python scripts/claims_check.py` passes.
 - [ ] `python scripts/capabilities.py check --rpc` passes, and every field and every shot says of a capability
       only the stage `docs/capabilities.json` gives it on the day, on the program ids `web/upgrades.json` says are
       live. No field states a count of capabilities: [../CAPABILITIES.md](../CAPABILITIES.md) is the count.
-- [ ] `web/upgrades.json` has been read on the day. A moment of the demo shows only what ran, on the program ids
-      its caption names; a moment whose capability has run nowhere is cut, not staged.
+- [ ] `web/upgrades.json` has been read on the day. A step of the demo shows only what ran, on the program ids
+      its caption names; a step whose capability has run nowhere is cut, not staged.
 - [ ] The three fields marked "the founder confirms this" have been read and are true on the day.
-- [ ] The last beat of the pitch and the last moment of the demo have been read against the chain on the day: if an outside account has
+- [ ] The last beat of the pitch and the last step of the demo have been read against the chain on the day: if an outside account has
       funded an order since this was written, the count is updated from `docs/facts.json`; if a conversation has
       happened, it is added only with the other party's agreement to be named.
 - [ ] Every team member is registered on colosseum.com. Today the team is one person.
@@ -60,16 +64,14 @@ budget and what decides that it is done: the checks that must pass and the paths
 funding. A workflow at a pinned commit reads the forge's record, the forge signs that run, and a Solana program
 verifies the signature. The outcome is then counted, with no money on chain, or paid in test USDC. Each side
 keeps its own ledger and computes the same statement; a difference is a named dispute, not an invoice line. A
-buyer starts in shadow mode: the count runs beside the invoices it already receives and changes nothing. Devnet
-is the test mode: the record verifies from GitHub's signatures with no chain. docs/CAPABILITIES.md has the stage
+buyer starts with an invoice it already has: pasted on the site, it is set against the neutral count, every
+mismatch named. Devnet is the test mode: the record verifies from GitHub's signatures with no chain. docs/CAPABILITIES.md has the stage
 of every capability, and web/upgrades.json has which builds are live on the public program ids.
 
 ## whyNow
 
-Of first agent pull requests that claimed passing tests, 17.8% had a failed check: 147 of 826 repositories, and
-in 80 of them (9.7%) the failed check was a test or a build. Of 241 merged ones that said so, 30 had a failed
-check at the head commit (12.4%): a buyer paying per merge on that sample would have paid for 30 changes with a
-failed check. Billing by outcome has begun, and the seller keeps the count: on 14 Sep 2026 one vendor started
+Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check at the head commit (12.4%). Of first such pull
+requests, 17.8% had one: 147 of 826 repositories, and in 80 of them (9.7%) it was a test or a build. Billing by outcome has begun, and the seller keeps the count: on 14 Sep 2026 one vendor started
 billing per merged changeset, another advertises that customers pay only for merged pull requests, and support
 agents are sold per resolution that the vendor itself counts. The person who approves that invoice has no count
 of their own. The forge already records each result and signs statements about a CI run, so its signature is a
@@ -103,10 +105,10 @@ came to 64,291 USD on 2 Oct 2026. The offer starts free, in shadow mode, and bec
 
 No traction is claimed beyond what the chain counts. Knos's own account funded every task paid so far, in test
 USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one outside contributor, for bounties
-Knos funded itself, and the rest to Knos's own accounts. When the release ran, 44 tasks had been
+Knos funded itself, and the rest to Knos's own accounts. When the release ran, 45 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
-their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 40
-payments. 1,905 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 41
+payments. 2,620 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 
@@ -124,14 +126,15 @@ it. docs/COMPARE.md has every source.
 
 ## monetization
 
-The price book (docs/MARKET.md). Check: free, forever. Meter: 10,000 evaluations a month free per organisation,
-then 0.05 USD, or 0.02 on a committed-volume plan. Verify, proposed: 0.5% to 1.0% of the outcome billing the
-count verifies. Control, per year: Team 25,000 USD, Business 80,000; Enterprise from 250,000 is not deliverable
-yet. Supplier connection: 5,000 USD a year each beyond the first five, paid by the buyer. Pilot: 2,500 USD for 30
-days, credited against Control. Settle: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, minimum 0.40; on
-devnet it is test money, zero revenue. Knos never charges the party being rated. Nobody has bought anything, and
-there is no legal entity to invoice from. The first steps: 40 organisations at 25,000 are 1 million USD a year
-of platform revenue; 125 at 80,000 are 10 million. No token.
+The price book (docs/MARKET.md). Check: free, forever. Pilot: one buyer, two suppliers, 30 days, one reconciled
+invoice, 2,500 USD, credited against year one. Meter: 10,000 evaluations a month free per organisation, then
+0.05 USD, or 0.02 on an annual commitment. Verify, proposed: 0.5% of reconciled accepted invoice value, capped
+at 250 USD per deliverable. Control, per year: Team 25,000 USD, Business 80,000; Enterprise from 250,000 is not deliverable
+yet. Supplier connection: 5,000 USD a year each beyond the first five, paid by the buyer. Settle: 2.5% of the
+first 1,000, 1% to 50,000, 0.5% above, minimum 0.40; on devnet it is test money, zero revenue. A month's invoice
+is the subscription plus the greater of the Meter and Verify charges, never both for one activity. Knos never
+charges the party being rated. Nobody has bought anything, and there is no legal entity to invoice from. No
+token.
 
 ## teamCommitment
 
@@ -142,8 +145,8 @@ invoice, run a security review, or kept a service running for a customer. docs/T
 plan needs first: someone who has sold to engineering or finance leaders, a security lead to run an outside
 review, and agent-vendor partnerships. None is hired, approached or committed. docs/GOVERNANCE.md has three
 plans, none done: an outside key holder, a two-owner organisation for the pinned workflows, and the verifier
-frozen after an outside review. What I am asking for: a place in the accelerator, introductions to buyers of
-outcome-priced work, and an outside security review.
+frozen after an outside review. What the project needs next: an outside key holder, first buyers to run a
+shadow count, and an outside review.
 
 ## externalContributors
 
@@ -175,9 +178,10 @@ devnet a faucet inside the program mints test USDC, which has no value.
 
 ## liveProductLink
 
-https://drexthealpha.github.io/Knos/ is the product. Three buttons under the first form show a true claim, a false
-claim and a paid task in one click, with no wallet. From there: put the workflow file in a repository, fund an
-issue with one comment, and see every payment the programs have made. The code is at
+https://drexthealpha.github.io/Knos/ is the product. Paste a supplier's invoice or name a public repository: the
+page shows a neutral count and every mismatch, with no install, no wallet and no sign-up. A simulated round is
+below it. From there: put the workflow file in a repository, fund an issue with one comment, and see every
+payment the programs have made. The code is at
 https://github.com/drexthealpha/Knos and the package at https://pypi.org/project/knos/. Everything is on Solana
 devnet, and the money is test USDC.
 

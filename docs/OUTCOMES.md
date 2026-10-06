@@ -5,7 +5,8 @@ Each domain needs its own acceptance model; Knos supplies the fixed terms, the s
 An order pays, or the meter counts, when a pinned suite passes on an artifact. Nothing in that sentence says "pull
 request". What the artifact is, and what a suite must do to deserve the word "accepted", differs for every kind of
 work, and somebody who knows the work has to write it. This page shows three such models that run in this repository
-and one that is not built, with the reason.
+and one that is not built, with the reason. One of the three is also signed by an issuer that is not a forge:
+[a Kubernetes cluster](#a-kubernetes-cluster-signs-an-outcome).
 
 | Outcome | Artifact | What the suite checks | What it cannot check | Status |
 |---|---|---|---|---|
@@ -49,6 +50,108 @@ real `knos_pay` build in a simulator (LiteSVM), funded there with the same terms
 same fields. The pull requests are stand-ins too: the judge ran on the example's folders, not on commits. All of it ran in tests:
 never on devnet, and never by a customer. The transformation and research examples have a template and a verdict
 test (`tests/test_outcomes.py`) and no flow test of their own. No evaluation of these was sent to the meter.
+
+## A Kubernetes cluster signs an outcome
+
+Every outcome above is judged in a workflow, and the forge signs for the run. The verifier takes any RS256 issuer
+([VERIFIER.md](VERIFIER.md)), so the signer does not have to be a forge. This section takes the data-transformation
+example and has a Kubernetes cluster sign its evaluation: a workload identity, and no code under review.
+
+| Step | What happens | Where it is | State |
+|---|---|---|---|
+| 1. The cluster | A kind cluster starts on a GitHub-hosted runner with the service-account issuer `https://kind.knos-outcome.invalid` | [`outcome-k8s.yml`](../.github/workflows/outcome-k8s.yml) | run in staging: [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) of drexthealpha/knos-rc, commit 92f6197, started the kind cluster on a GitHub-hosted runner; nothing of it is on devnet |
+| 2. The Job | The example's black-box suite judges `transform.sql` in a Kubernetes Job under the service account `knos-judge` | [`outcome_k8s_job.yaml`](../scripts/outcome_k8s_job.yaml), `scripts/outcome_k8s.py job` | the judging step is tested here outside a cluster; the Job ran in the kind cluster of staging [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) |
+| 3. The token | The pod asks its own cluster (the TokenRequest API) for a token of `knos-judge` whose audience is the evaluation, `knosm:eval:...`, the meter's audience | `scripts/outcome_k8s.py job` | the kind cluster of staging [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) issued it |
+| 4. Offline check | The token is checked against the cluster's key set (`kubectl get --raw /openid/v1/jwks`) by the on-chain verifier's rule, and a receipt is written | `scripts/outcome_k8s.py verify` | tested here on a token of the same shape signed by a test key; the kind cluster's token of staging [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) verified offline against that cluster's key set |
+| 5. Devnet | A wallet registers the cluster's key as a private key, the token is written and stepped, and its account is VERIFIED | `scripts/outcome_k8s.py chain` | implemented; tested here in the test build of the verifier (LiteSVM); sent to devnet only by the release run, after the pending upgrade |
+| 6. The count | The evaluation is one line of the seller's ledger | `knos meter batch --claim` | the line is written by step 5; see "What the meter does with it" |
+
+The run uploads one artifact, `outcome-k8s`: `token`, `jwks.json`, `openid-configuration.json`, `issuer`,
+`verdict.json` (the verdict, the suite's hash, the hash of each file judged), `receipt.json`, `cluster.txt` (the
+versions of kind and Kubernetes and the image's id) and `SHA256SUMS`.
+
+**What the receipt says.** `issuer_authenticated` names the cluster as the issuer (`provider: kubernetes`,
+`forge: false`), the key's size and hash, and the claims: which service account, which pod, which audience.
+`evaluator_observed` is the verdict and what was judged. `ids` are the deliverable's and the evaluation's
+(`knos.ids`). And `limitations`, always:
+
+- The cluster ran on a runner that Knos started: one party ran the cluster, the Job and the judge.
+- The issuer is self-hosted. Its URL does not resolve and its key set was read from the cluster's own API server, so
+  nobody outside that run can fetch the key and compare it.
+- This shows that the path works for a workload identity that is not a forge. It does not show that an independent
+  party ran it.
+- The cluster signed which service account asked for this audience. It did not sign what the Job read or decided.
+- The buyer, the seller and the work order are the example's sample values. Nobody bought this.
+
+**What the meter does with it.** Not what it does with a forge's token, and the difference is the program's.
+`knos_meter` Record takes a token of GitHub's from a pinned workflow and refuses a token verified under a private
+key (error 122). A cluster nobody outside can reach can only be a private key: the wallet that registers it says
+whose it is. And a service-account token's `aud` is a list, which the reader on chain does not read, so no program
+there can require the audience; the offline check does. So on chain there is a VERIFIED token account that names the
+cluster's URL by its hash and the registering wallet, and the evaluation is counted as a line of the seller's
+ledger, the seller's own claim ([METER.md](METER.md), `ClaimBatch`). A count of cluster-signed evaluations that the
+buyer's credits pay for needs a change to the meter: an attested key for the issuer, and an audience read from a
+one-element list. That is not in this release. And with the example's sample buyer and seller the batch stays a
+ledger file: a ClaimBatch on chain needs a seller id that owns the repository the claim's workflow runs in, and
+nothing here does that for this outcome.
+
+### Run it
+
+In the repository, on GitHub (no key, no secret):
+
+    gh workflow run outcome-k8s.yml
+    gh run watch "$(gh run list --workflow outcome-k8s.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+    gh run download --name outcome-k8s --dir out
+
+Check the artifact again on your own machine; nothing is sent:
+
+    (cd out && sha256sum -c SHA256SUMS)
+    python scripts/outcome_k8s.py verify --token out/token --jwks out/jwks.json --issuer "$(cat out/issuer)" \
+        --verdict out/verdict.json --out out/receipt.json
+
+Then devnet, with a devnet wallet, after the verifier's pending upgrade has executed (private keys are part of
+2.1). The token is asked for six hours and the verifier reads one until an hour after it expires, so this follows
+the run the same day. The first command lists the transactions and sends none; `--send` sends them:
+
+    python scripts/outcome_k8s.py chain --token out/token --jwks out/jwks.json --issuer "$(cat out/issuer)" \
+        --receipt out/receipt.json --keypair ~/.config/solana/id.json
+    python scripts/outcome_k8s.py chain --token out/token --jwks out/jwks.json --issuer "$(cat out/issuer)" \
+        --receipt out/receipt.json --keypair ~/.config/solana/id.json --send
+    knos meter batch out/evaluation.jsonl --ledger outcomes.ledger --month "$(date -u +%Y-%m)" --claim
+
+`chain` checks the token again before any fee, registers the key (RegisterPrivateKey, KeyParams), writes the token
+and runs the two steps, reads the token account back, and adds the program, the key account, the token account, the
+wallet and the transactions to the receipt under `issuer_authenticated.verified.onchain`. It refuses any cluster of
+Solana but devnet or a localnet.
+
+**What was run here.** `tests/test_outcome_k8s.py`: a token with the claims of a projected service-account token
+(`aud` a list, a nested `kubernetes.io`), signed by a fixed test key, passes the offline rule and gets the receipt
+above; sixteen wrong ones are refused (ES256, another key, a broken signature, a 1024-bit key, an elliptic-curve
+key set, a key id the set lacks, another issuer, an `exp` too far ahead or not a number, an expired token, another audience, two audiences,
+another service account, a claim written twice, a payload that is not strict JSON); and the test build of the
+verifier verifies the same token under a private key through the instructions `chain` builds, and refuses another
+key's signature with the program's own error. **What ran in staging:** [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) of drexthealpha/knos-rc (commit 92f6197) started a kind cluster, ran the
+Job in it and had the cluster issue the token by the TokenRequest API; `scripts/outcome_k8s.py verify` verified that
+token offline against the cluster's own key set (`https://kind.knos-outcome.invalid`, RS256). **What was not run:**
+anything on devnet. No transaction carries a cluster's token, and the meter does not count it on chain.
+
+**What was looked up, and where** (read 2026-10-06):
+
+| Fact | Source |
+|---|---|
+| A service-account token is a JWT with `aud` as a list and a nested `kubernetes.io`; the API server signs RS256, ES256, ES384 or ES512 by the type of its key; a requested token lives at least 600 seconds | [Kubernetes, Managing Service Accounts](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/) |
+| The issuer must be an `https` URL; the API server serves `/.well-known/openid-configuration` and `/openid/v1/jwks`, readable by every service account | [Kubernetes, Configure Service Accounts for Pods](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) |
+| `--service-account-issuer` is the `iss` of issued tokens; `--service-account-max-token-expiration` caps a requested lifetime | [kube-apiserver reference](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/) |
+| kubeadm makes keys RSA-2048 unless `encryptionAlgorithm` says otherwise | [kubeadm configuration (v1beta4)](https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta4/) |
+| A kind cluster takes API server flags through `kubeadmConfigPatches` (`ClusterConfiguration`, `apiServer.extraArgs`) | [kind, Configuration](https://kind.sigs.k8s.io/docs/user/configuration/) |
+| kind v0.33.0 writes kubeadm's v1beta4 config from Kubernetes v1.36, where `extraArgs` is a list of `name` and `value`; its node image for v1.37.0 is `kindest/node:v1.37.0@sha256:a1ed56cf…`, which the workflow pins | [kind v0.33.0](https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0) |
+| The `ubuntu-24.04` runner image has Kind 0.33.0, Kubectl 1.37.0 and Docker 28.0.4 (image 20260907.300.1), so the workflow adds no action | [actions/runner-images](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md) |
+
+What the sources do not settle and the run will: that this version of kind accepts the patch as written, and that
+this cluster's key is RSA. The workflow fails in plain words on either (the key set is printed with each key's type
+and size). The Job's base image is `python:3.12-slim`: the run pulls the tag, builds the Job's image from the digest
+that pull got, and records that digest in `cluster.txt`. The pod is privileged, because the judge's sandbox takes
+the network from the submission with `unshare -n`; the cluster is deleted when the job ends.
 
 ## What is the same in every domain
 

@@ -2,7 +2,10 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
+Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check ([backtest.json](backtest.json)).
 Of first agent pull requests that claimed passing tests, 17.8% had a failed check. That is 147 of 826 repositories in the Agent PR Index ([BENCH.md](BENCH.md)).
+Both count failed checks, not money: a failed check is not always a failed test or a false claim, and neither
+figure is a share of anyone's spend.
 
 How: terms fixed before the work, a CI run the forge signs attests they were met, and a Solana program counts the
 outcome or pays for it. Devnet is Knos's test mode: integrate here, and keep the evidence, which verifies from
@@ -11,7 +14,7 @@ GitHub's signatures with no chain.
 Who this argument is for: the person accountable for approving a supplier's invoice for software work, and the
 supplier who needs acceptance terms that cannot be changed after the work. The evidence below comes mostly from the
 smallest case, paid work for strangers on public issues, because that is where the failure is public and can be
-measured. The same failure sits inside every invoice priced per merged change: the seller's word, and the seller's
+measured. An invoice priced per merged change has the same shape: the seller's word, and the seller's
 count. [MARKET.md](MARKET.md) has the buyers, the prices and one customer worked through, and [PILOT.md](PILOT.md)
 has the one offer for money. Nobody has bought anything, and no buyer has been asked.
 
@@ -232,10 +235,10 @@ multisig (section 4, Bountysource).
 
 Solana, for two reasons. Verifying GitHub's RSA-2048 signature on chain takes 2 transactions of under 1 million
 compute units each, and on the first deployment carrying a whole token took 7 transactions and 35,000 lamports of
-fees ([BENCH.md](BENCH.md), measured). And agent payments already run there: by Artemis data that Solana posted on
-22 Sep 2026, Solana carried 23.2 million x402 transactions in four weeks, 76% of the count
-([Solana Compass, 22 Sep 2026](https://solanacompass.com/news/solana-processes-76-of-all-x402-ai-agent-transactions-232-million-in-four-weeks)).
-That figure counts transactions, not money, and it says nothing about whether any work was done. A payment rail
+fees ([BENCH.md](BENCH.md), measured). And agent payments are a rail that exists: the x402 site
+showed 75.41 million transactions and 24.24 million USD of volume for its last 30 days
+([x402.org](https://www.x402.org), read 6 Oct 2026), across every chain it runs on; this page gives no chain's share of it.
+That figure says nothing about whether any work was done. A payment rail
 moves money when someone says so. Knos is about who may say so.
 
 ## 6. What Knos does not cover

@@ -79,7 +79,7 @@ def test_the_json_schema_agrees_with_the_checker():
 
 def test_version_2_says_four_things_in_order_and_lists_amendments_and_version_1_still_checks():
     from knos.settle.v2 import oidc
-    assert receipt.VERSION == 3 and len(VECTORS["valid_v2"]) == 5 and len(VECTORS["invalid_v2"]) == 8
+    assert receipt.VERSION == 4 and len(VECTORS["valid_v2"]) == 5 and len(VECTORS["invalid_v2"]) == 8
     for v in VECTORS["valid_v2"]:
         r, old = v["receipt"], VECTORS["valid"][v["of"]]["receipt"]
         assert receipt.check(r) is None and receipt.digest(r) == v["sha256"] and receipt.check(old) is None, v["name"]
@@ -265,7 +265,7 @@ def test_version_3_keeps_five_things_apart_in_order_and_versions_1_and_2_still_c
     for v in VECTORS["invalid_v3"]:
         why = receipt.check(_changed(v, "valid_v3"))
         assert why is not None and v["why"] in why, (v["name"], why)
-    assert "version 1, 2 or 3" in receipt.check({"type": receipt.TYPE, "version": 4})
+    assert "version 1, 2 or 3" in receipt.check({"type": receipt.TYPE, "version": 5})
 
 
 def test_the_version_3_schema_agrees_with_the_checker():
@@ -415,7 +415,7 @@ def test_the_attestation_is_on_by_default_and_fails_soft(monkeypatch, tmp_path):
     monkeypatch.setenv("KNOS_NO_SAS", "1")      # the opt-out
     assert receipt.attest(r, run=run)["why"] == "attestations are turned off (KNOS_NO_SAS=1)" and len(sent) == 1
     script = (ROOT / "scripts" / "sas_receipt.mjs").read_text(encoding="utf-8")
-    assert "--init" in script and "[1, 2, 3].includes(r.version)" in script and "r.version >= 2" in script and '"already": true' in script.replace("already: true", '"already": true')
+    assert "--init" in script and "[1, 2, 3, 4].includes(r.version)" in script and "r.version >= 2" in script and '"already": true' in script.replace("already: true", '"already": true')
 
 
 # ---- how a judge outside the order's repository reached its verdict: its run's own words, held to the signed run ------------
@@ -711,13 +711,13 @@ def test_the_attestation_script_reads_a_version_3_receipt_and_attests_its_own_di
             f"import {{ fields }} from {json.dumps((ROOT / 'scripts' / 'sas_receipt.mjs').as_uri())};\n"
             f"const v = JSON.parse(fs.readFileSync({json.dumps(str(ROOT / 'docs' / 'receipt' / 'vectors.json'))}, 'utf8'));\n"
             "const text = (f) => Object.fromEntries(Object.entries(f).map(([k, x]) => [k, k === 'receipt_sha256' ? Buffer.from(x).toString('hex') : String(x)]));\n"
-            "let refused = ''; try { fields({ type: 'knos.acceptance-receipt', version: 4 }); } catch (e) { refused = e.message; }\n"
+            "let refused = ''; try { fields({ type: 'knos.acceptance-receipt', version: 5 }); } catch (e) { refused = e.message; }\n"
             "console.log(JSON.stringify({ three: v.valid_v3.map((x) => text(fields(x.receipt))), two: v.valid_v3.map((x) => text(fields(v.valid_v2[x.of].receipt))), refused }));\n")
     (tmp_path / "fields.mjs").write_text(code, encoding="utf-8")
     done = subprocess.run([node, str(tmp_path / "fields.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert done.returncode == 0, done.stderr
     got = json.loads(done.stdout)
-    assert got["refused"] == "this is not a Knos acceptance receipt of version 1, 2 or 3 (docs/RECEIPT.md)."
+    assert got["refused"] == "this is not a Knos acceptance receipt of version 1, 2, 3 or 4 (docs/RECEIPT.md)."
     for v, three, two in zip(VECTORS["valid_v3"], got["three"], got["two"]):
         assert three["receipt_sha256"] == v["sha256"] != two["receipt_sha256"], v["name"]
         assert {k: x for k, x in three.items() if k != "receipt_sha256"} == {k: x for k, x in two.items() if k != "receipt_sha256"}, v["name"]

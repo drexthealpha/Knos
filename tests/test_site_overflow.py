@@ -6,6 +6,7 @@ file builds the site as the Pages build does and runs it. No node, no package or
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -61,24 +62,28 @@ def test_the_budget_of_words_weight_and_motion_holds(tmp_path: Path) -> None:
 
 def test_the_first_screen_says_forty_words_at_most() -> None:
     """Read from the file, with no browser: the bar as a first visitor sees it (its own links, More, Menu), the sentence,
-    the figure's line and the two buttons. The demo's mount is empty in the file; its words are its module's."""
+    the figure's line and the one control (the front door: a box, its button, a sample). The demo's mount is empty in
+    the file; its words are its module's."""
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     bar = page[page.index('<header class="bar">'):page.index("</header>")]
     bar = re.sub(r'<div class="more-list".*?</div>', "", bar, flags=re.S)                 # what More holds is one press away
     hero = page[page.index('<div class="hero'):page.index('<section id="demo"')]
     assert f'<h1 id="check">{ONE}</h1>' in hero
-    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 5      # five links in the bar, at most
+    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 6      # six links in the bar: Check an invoice, Demo, Console, Leaderboard, Pricing, Docs
     fact = re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', hero, re.S)
-    assert fact and len(_words(fact[1])) <= 12 and "17.8%" in fact[1]
-    assert [re.sub(r"<[^>]+>", "", a).strip() for a in re.findall(r'<a class="k-btn[^>]*>.*?</a>', hero)] == ["Try it", "Check your invoice"]
-    assert 'href="#demo">Try it' in hero and 'href="#shadow">Check your invoice' in hero and 'id="mark3d"' in hero
+    assert fact and len(_words(fact[1])) <= 12 and re.sub(r"<[^>]+>", "", fact[1]) == "241 merged agent “tests pass” pull requests: 30 had a failed check."
+    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
+    assert (merged["prs"], merged["any_check_failed"]["prs"]) == (241, 30)
+    door = hero[hero.index('<form id="front-door"'):hero.index("</form>")]
+    assert re.findall(r'data-fd="(\w+)"', door) == ["run", "sample"] and '<textarea id="fd-in"' in door and 'id="mark3d"' in hero
+    assert [re.sub(r"<[^>]+>", "", b).strip() for b in re.findall(r"<button\b[^>]*>.*?</button>", hero)] == ["Check"]
     assert '<section id="demo" class="mount" aria-label="Demo" hidden></section>' in page.split('id="view-check"')[1].split("</section>")[0] + "</section>"
     words = _words(bar) + _words(hero)
     assert 20 <= len(words) <= 40, (len(words), words)
 
 
 def test_the_figure_on_the_first_screen_is_the_measured_one() -> None:
-    """17.8% is the Agent PR Index's count of repositories (docs/BENCH.md): the first pull request by an agent whose
+    """The second number, under the first screen (#second-fact). 17.8% is the Agent PR Index's count of repositories (docs/BENCH.md): the first pull request by an agent whose
     description said tests or CI pass had a failed check in 147 of 826. The line says no more than that."""
     bench = (ROOT / "docs" / "BENCH.md").read_text(encoding="utf-8")
     found = re.search(r"in (\d[\d,]*) repositories, the first pull request by an AI coding agent whose description said tests or CI pass had \*\*a failed check of any kind in (\d+) \((\d+\.\d)%\)", bench)
@@ -86,7 +91,7 @@ def test_the_figure_on_the_first_screen_is_the_measured_one() -> None:
     total, failed, share = int(found[1].replace(",", "")), int(found[2]), found[3]
     assert f"{100 * failed / total:.1f}" == share
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-    line = re.sub(r"<[^>]+>", "", re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', page, re.S)[1])
+    line = re.sub(r"<[^>]+>", "", re.search(r'<p class="fine" id="second-fact"[^>]*>(.*?)</p>', page, re.S)[1])
     assert line == f"{share}% of agents' first “tests pass” pull requests had a failed check."
     assert 'href="https://github.com/drexthealpha/Knos/blob/main/docs/BENCH.md">' + share + "%</a>" in page
 

@@ -15,7 +15,8 @@ The lock is not a pin: requirements/sign.txt ends with `knos==X --hash=sha256:<t
 and a wheel of another version has another hash, so a bump removes an earlier release's line instead of renaming it.
 
 What it does not write: CHANGELOG.md (its top entry is written by hand; --check says when it is not this version),
-programs/ (the first deployment, which never changes), a sentence that mentions an earlier release as history, and
+programs/ (the first deployment, which never changes), examples/reader_template (it builds against a tag that
+exists: see NOT_PINNED), a sentence that mentions an earlier release as history, and
 the fixtures: after a version change the programs' bytes change, so run `bash scripts/build_programs_v2.sh all`
 once before the release tree is frozen (the deployed bytes are the verified build's, never a fixture's).
 
@@ -81,8 +82,11 @@ LOCKED_FROZEN = _locked(PROGRAMS_FROZEN)
 PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"drexthealpha/Knos/\.github/actions/knos-verify@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
         r"git tag v" + V + r" && git push origin v" + V)
 PIN = re.compile("|".join(PINS))
-# history, the first deployment, the patterns themselves, and the lock (its line names a wheel by hash: see unlock)
-NOT_PINNED = ("CHANGELOG.md", "programs/", "scripts/bump_version.py", "requirements/sign.txt")
+# history, the first deployment, the patterns themselves, and the lock (its line names a wheel by hash: see unlock).
+# examples/reader_template is the one example that really builds against a tag (the others name theirs in a comment and
+# build by path): its Cargo.lock holds that tag's commit, and a tag exists only after its release is pushed, so a bump
+# that moved it would name a tag nobody can fetch. It stays at the tag that holds the frozen interface crate.
+NOT_PINNED = ("CHANGELOG.md", "programs/", "scripts/bump_version.py", "requirements/sign.txt", "examples/reader_template/")
 LOCK = re.compile(r"\r?\nknos==" + V + r" --hash=sha256:[0-9a-f]{64}\r?\n\Z")
 CHANGELOG = re.compile(r"^## " + V + r"\b", re.M)
 

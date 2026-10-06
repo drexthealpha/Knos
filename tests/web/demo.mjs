@@ -1,7 +1,7 @@
 // node tests/web/demo.mjs <site dir> [folder for screenshots]
 // The first screen's round (web/demo.js) in headless Chromium, on a page that holds nothing but the site's stylesheet and
 // <div id="demo">. The six steps are reached with the keyboard alone, one key a step; each statement is 12 words or fewer; the
-// refused claim, the replay refused as already paid and the disputed month carry their labels; only recorded counts are shown; the figures are those of demo_data.json; a reader
+// rejected claim, the accepted fix, the token that pays nothing the second time and the disputed month carry their labels (the words of src/knos/ids.py); only recorded counts are shown; the figures are those of demo_data.json; a reader
 // who asked for reduced motion gets no animation at all; nothing is asked of any other host; nothing scrolls sideways at
 // 320 and 390 px; and the module mounts when web/motion.js is not there. Needs the `playwright` package.
 import { createServer } from "node:http";
@@ -93,16 +93,16 @@ async function round(label, width, opts = {}) {
     if (i < STEPS.length - 1 && READ[i + 1]) { check(`${tag}: step ${i + 1} offers the next, which is read first`, after.go === `Next: ${STEPS[i + 1]}`, after.go); await page.keyboard.press("Enter"); }
   }
   check(`${tag}: the whole round took one key a step, and one more before each of the two steps that are read`, true);
-  check(`${tag}: the demo says what it is: a replay of a staging round`, first.mark === `A replay of a real round on ${data.cluster} (${data.ids} program ids, ${data.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && data.ids === "staging", first.mark);
+  check(`${tag}: the demo says what it is: a replay of a staging round`, first.mark === `A real ${data.cluster} round, replayed (${data.ids} program ids, ${data.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && data.ids === "staging", first.mark);
   const [fund, claim, fixed, paid, replay, both] = seen.map((s) => s.after);
   check(`${tag}: the order is the recorded one`, fund.scene.includes(`${data.fund.order.slice(0, 4)}…${data.fund.order.slice(-4)}`) && fund.say.includes(data.fund.amount) && fund.say.includes(data.fund.fee), fund.scene);
-  check(`${tag}: the claim is refused and the failed check is named`, claim.badges.includes("Refused") && claim.badges.includes("failed") && claim.say === "Refused: test_mixed failed."
+  check(`${tag}: the claim is rejected and the failed check is named`, claim.badges.includes("rejected") && claim.badges.includes("failed") && claim.say === "Rejected: test_mixed failed."
     && claim.scene.includes(data.claim.check.split(".").pop()) && seen[1].before.scene.includes(data.claim.says), claim);
-  check(`${tag}: the fix is signed with the three claims`, fixed.badges.filter((b) => b === "passes").length === 3 && data.fixed.claims.every((c) => fixed.scene.includes(c.name) && fixed.scene.includes(c.is)), fixed.scene);
+  check(`${tag}: the fix is accepted and signed with the three claims`, fixed.badges.includes("accepted") && fixed.say.startsWith("Accepted: ") && fixed.badges.filter((b) => b === "passes").length === 3 && data.fixed.claims.every((c) => fixed.scene.includes(c.name) && fixed.scene.includes(c.is)), fixed.scene);
   check(`${tag}: paid, and the wait is the measured one`, paid.badges.includes("Paid") && paid.say.includes(`${data.paid.seconds} seconds`) && paid.scene.includes(`${data.paid.payments} payments`), paid);
   check(`${tag}: the explorer is ${opts.offline ? "not offered with no network" : "offered"}`, opts.offline ? paid.links.length === 0 : paid.links.length === 1 && paid.links[0] === `https://explorer.solana.com/tx/${data.paid.tx}?cluster=devnet`, paid.links);
-  check(`${tag}: the replay is refused as already paid, with the error that was recorded, and is not called single-use`, replay.badges.includes("Refused: already paid") && replay.say === `Refused: already paid. Error ${data.replay.error}.`
-    && data.replay.error === 83 && replay.scene.includes(data.replay.means) && !/single.use/i.test(replay.scene + replay.say) && seen[4].before.go === "Send the same token again", replay);
+  check(`${tag}: the token sent again is refused: a token works once, with the error that was recorded, and is not called single-use`, replay.badges.includes("Refused") && replay.say === `Refused: a token works once. Error ${data.replay.error}.`
+    && data.replay.error === data.replay.single_use_error && replay.scene.includes(data.replay.means) && !/single.use/i.test(replay.scene + replay.say) && seen[4].before.go === "Send the same token again", replay);
   const n = (v) => String(v).replace(/\B(?=(\d{3})+$)/g, ",");
   check(`${tag}: the two counts are the recorded ones from the start, never equal; the action compares them`, seen[5].before.badges.includes("not compared") && !seen[5].before.badges.includes("equal")
     && seen[5].before.scene.split(n(data.count.seller)).length === 2 && seen[5].before.scene.split(n(data.count.buyer)).length === 2
@@ -121,8 +121,11 @@ async function round(label, width, opts = {}) {
   const paidCount = await page.evaluate(async () => { for (let i = 0; i < 3; i += 1) document.querySelector("#demo [data-step='3']").click(); document.querySelector("#demo .kd-go").click(); return document.querySelector("#demo .kd-secs").dataset.to; });
   check(`${tag}: the counter ends at the measured seconds`, paidCount === String(data.paid.seconds), paidCount);
   await page.waitForFunction((to) => document.querySelector("#demo .kd-secs")?.textContent === to, String(data.paid.seconds));
-  await page.waitForFunction(() => document.getAnimations().length === 0 && !document.querySelector(".kd-token, body > .kd-raven"));
+  // what is tied to the scroll (a section not yet scrolled to) is not something running: only the clock's animations count
+  await page.waitForFunction(() => document.getAnimations().filter((a) => a.timeline === document.timeline).length === 0 && !document.querySelector(".kd-token, body > .kd-raven"));
   check(`${tag}: nothing loops: every movement ends`, true);
+  const said = await page.evaluate(() => { for (const b of document.querySelectorAll("#demo .k-step")) b.click(); return document.getElementById("demo").textContent + [...document.querySelectorAll("#demo [aria-label]")].map((e) => e.getAttribute("aria-label")).join(" "); });
+  check(`${tag}: no caption says refused, passed, failed verdict or pending: a verdict is one of the four words`, !/refus|unverified|pending/i.test(said), said.match(/.{0,20}(refus|unverified|pending).{0,20}/i));
   check(`${tag}: no page error`, errors.length === 0, errors);
   const foreign = asked.filter((u) => !u.startsWith(origin));
   check(`${tag}: no request leaves the site`, foreign.length === 0, foreign);

@@ -173,5 +173,205 @@
    "passkey": false,
    "passkey_why_not": "a private order is funded by the organisation's attestor repository, by comment"
   }
- ]
+ ],
+ "procurement": {
+  "directory": ".knos/procurement",
+  "files": {
+   "rate-card": "rate-cards",
+   "standing-offer": "offers",
+   "budget-envelope": "envelopes"
+  },
+  "terms": {
+   "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+   "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+   "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+   "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+   "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+  },
+  "sample": {
+   "owner": "drexthealpha",
+   "repository": "drexthealpha/knos-playground",
+   "branch": "main",
+   "today": "2026-10-06",
+   "rate_card": {
+    "version": 1,
+    "kind": "rate-card",
+    "name": "maintenance-2026q4",
+    "currency": "test USDC",
+    "valid_from": "2026-10-01",
+    "valid_to": "2026-12-31",
+    "outcomes": [
+     {
+      "name": "bug-fix",
+      "price": 50,
+      "unit": "accepted pull request",
+      "terms": "bugfix",
+      "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+     },
+     {
+      "name": "feature",
+      "price": 80,
+      "unit": "accepted pull request",
+      "terms": "feature-blackbox",
+      "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+     }
+    ]
+   },
+   "envelope": {
+    "version": 1,
+    "kind": "budget-envelope",
+    "name": "eng-2026q4",
+    "owner": "dana-acme",
+    "cost_centre": "ENG-410",
+    "currency": "test USDC",
+    "period_from": "2026-10-01",
+    "period_to": "2026-12-31",
+    "limit": 5000,
+    "committed": 1200,
+    "spent": 850,
+    "held": 150,
+    "as_of": "2026-10-05"
+   },
+   "offers": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "policy": {
+    "version": 1,
+    "kind": "approval-policy",
+    "currency": "test USDC",
+    "self_approval_limit": 0,
+    "roles": {
+     "requester": [
+      {
+       "account": "ravi-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      },
+      {
+       "account": "mei-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      }
+     ],
+     "approver": [
+      {
+       "account": "mei-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31",
+       "limit": 25000
+      },
+      {
+       "account": "sam-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      },
+      {
+       "account": "lee-acme",
+       "from": "2026-01-01",
+       "until": "2026-06-30"
+      }
+     ],
+     "finance": [
+      {
+       "account": "dana-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      }
+     ],
+     "auditor": [
+      {
+       "account": "noor-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      }
+     ]
+    },
+    "thresholds": [
+     {
+      "up_to": 1000,
+      "approvers": 1
+     },
+     {
+      "up_to": 25000,
+      "approvers": 2
+     },
+     {
+      "approvers": 2,
+      "finance": 1
+     }
+    ]
+   },
+   "approvals": [
+    {
+     "type": "knos.approval",
+     "version": 1,
+     "id": "apr_d33c1092c494b13bba414374",
+     "subject": "offer:bug-fix-octocat",
+     "amount": "1200",
+     "requested_by": "ravi-acme",
+     "approver": "mei-acme",
+     "approver_id": 7001,
+     "role": "approver",
+     "at": "2026-10-02T09:14:00Z",
+     "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+     "source": {
+      "kind": "forge comment",
+      "forge": "github",
+      "url": "https://github.com/drexthealpha/knos-playground/issues/12#issuecomment-2291",
+      "comment_id": 2291,
+      "body_sha256": "4d5b226379b5d35e99cbe0599f404e317fbb6e786ed9dfd4641eab59e9a2b5d9"
+     },
+     "policy_sha256": ""
+    }
+   ],
+   "deliverable": {
+    "id": "dlv_7f55a55c53b415d2f03c2788",
+    "offer": "bug-fix-octocat",
+    "outcome": "bug-fix",
+    "supplier": "octocat",
+    "artifact": "pull request #31",
+    "requirements": [
+     {
+      "name": "unit",
+      "passed": true
+     },
+     {
+      "name": "lint",
+      "passed": true
+     },
+     {
+      "name": "only src/ and tests/ changed",
+      "passed": true
+     }
+    ],
+    "verdict": "accepted",
+    "evaluations": 2,
+    "invoice_lines": 1,
+    "amount": "50",
+    "paid": "50",
+    "held": "0",
+    "credited": "0",
+    "owed": "0",
+    "disputed": false,
+    "evidence": "audit/drexthealpha.json"
+   }
+  }
+ }
 }

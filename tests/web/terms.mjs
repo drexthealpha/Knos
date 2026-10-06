@@ -92,7 +92,7 @@ const names = [...new Set(index.templates.map((t) => t.name))], newest = page0.n
   await page.waitForFunction(() => document.querySelector('button[data-copy="fund"]').textContent === "Comment copied");
   check("Fund with this copies the comment to post", await first.locator(".terms-copied").textContent() === newest[0].comment && newest[0].comment.startsWith("/knos "), newest[0].comment);
   await first.locator('button[data-copy="hash"]').click();
-  await page.waitForFunction(() => document.querySelector('button[data-copy="hash"]').textContent === "Hash copied");
+  await page.waitForFunction(() => document.querySelector('button[data-copy="hash"]').textContent === "Fingerprint copied");
   check("Copy hash copies the hash", await first.locator(".terms-copied").textContent() === newest[0].hash);
 
   const ask = async (text) => {

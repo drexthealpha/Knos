@@ -23,7 +23,7 @@ const refs = fd.readRefs(read("refs.csv"));
 const made = await fd.chained(lines, scope);
 same("the head is the Python's", made.head, head);
 same("every row and its hash", made.rows, doc.rows);
-same("the columns of version 2", fd.columnsOf(scope), doc.columns);
+same("the columns of version 3", fd.columnsOf(scope), doc.columns);
 same("the statement as CSV", fd.auditWrite(scope, made.rows, made.head, "csv"), read("statement_mix.csv"));
 same("the statement as JSON", fd.auditWrite(scope, made.rows, made.head, "json"), read("statement_mix.json"));
 same("auditExport is both steps", (await fd.auditExport(scope, lines, "csv")).text, read("statement_mix.csv"));
@@ -37,8 +37,8 @@ const old = json("audit_v1.json"), oldLines = old.rows.map(({ seq, prev, ...r })
 same("version 1: the head", (await fd.chained(oldLines, old.scope)).head, old.head);
 same("version 1: the CSV", (await fd.auditExport(old.scope, oldLines, "csv")).text, read("audit_v1.csv"));
 same("version 1: the JSON", (await fd.auditExport(old.scope, oldLines, "json")).text, read("audit_v1.json"));
-let refused = ""; try { fd.columnsOf({ version: 3 }); } catch (e) { refused = e.message; }
-same("a version this page does not know is refused", refused.includes("version 3"), true);
+let refused = ""; try { fd.columnsOf({ version: 4 }); } catch (e) { refused = e.message; }
+same("a version this page does not know is refused", refused.includes("version 4"), true);
 
 // the four linked objects
 same("the refs file", refs["OrdB:FB:12"], { order: "OrdB:FB:12", ref: "PO-4412 line 1", paid_outside: "2026-09-28 bank ref 77120", dispute: "" });

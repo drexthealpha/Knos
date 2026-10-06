@@ -27,16 +27,25 @@ that history makes required.
                   last time and `recall` finds it by its words (Sibyl's FTS5 search across tiers). The proof rules
                   above stay entities (the WARM tier).
 
+    refused(), refused_before(), preflight_seen(), appeal_outcome(), supplier_event(), supplier_record()
+                  what the supplier's side of an order remembers: each refusal under given terms (so `knos preflight`
+                  can say "3 earlier submissions were refused for touching tests/conftest.py" before a fourth is
+                  sent), each preflight result, each appeal and how it ended, and one supplier's record across them
+                  (accepted, rejected, appealed, overturned). Entities, found by Sibyl's own search anchored to one
+                  category (`search_entities(..., category=...)`, sibyl-memory-client 0.8) and never by a side file.
+
 `NullStore` keeps nothing: the same engine with no memory, which is what a plain hook amounts to.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import re
 import time
 from dataclasses import dataclass
+from typing import Any
 
 
 class NullStore:
@@ -66,12 +75,33 @@ class NullStore:
     def search(self, query: str, limit: int = 5) -> list[dict]:
         return []
 
+    def find(self, category: str, query: str, limit: int = 200) -> list[tuple[str, dict]]:
+        return []
+
+    def held(self):
+        return contextlib.nullcontext(self)
+
 
 class SibylStore:
     """The repo's Sibyl store (the same one Knos's memory uses), through the public MemoryClient API."""
 
+    _storage: object                                # for_repo's storage handle, kept so that it lives as long as the client
+
     def __init__(self, client):
         self.client = client
+        self._held = 0                              # how many batches (held) keep Sibyl's connection open now
+
+    @contextlib.contextmanager
+    def held(self):
+        """Many calls on one connection, released once when the batch ends. Each release closes Sibyl's connection and
+        the next call opens it again; on a slow disk the two cost seconds per call, so loading a knos-memory issue of a
+        few dozen lessons (knos.proof.memory.pull, `knos preflight --issue`) took minutes one lesson at a time."""
+        self._held += 1
+        try:
+            yield self
+        finally:
+            self._held -= 1
+            self._release()
 
     @classmethod
     def local(cls, root, tenant_id: str = "knos-judge") -> "SibylStore":
@@ -92,7 +122,9 @@ class SibylStore:
     def _release(self) -> None:
         """Close Sibyl's connections after each call: an open SQLite handle locks memory.db (and its -wal/-shm) on
         Windows, so the store could not be moved, deleted or restored from a cache while a SibylStore is alive.
-        Sibyl's Storage reopens on the next call."""
+        Sibyl's Storage reopens on the next call. Inside `held` it waits for the batch to end."""
+        if self._held:
+            return
         storage = getattr(self.client, "storage", None)
         if storage is not None:
             storage.close()
@@ -165,6 +197,25 @@ class SibylStore:
         finally:
             self._release()
 
+    def find(self, category: str, query: str, limit: int = 200) -> list[tuple[str, dict]]:
+        """(name, body) of the entities of ONE category whose name or body holds `query` as a phrase: Sibyl's FTS5
+        search anchored to that category, so a word in another category's rows never answers for this one."""
+        try:
+            rows = list(self.client.search_entities(query, limit=limit, category=category))
+        finally:
+            self._release()
+        out = []
+        for row in rows:
+            body = row.get("body")
+            if isinstance(body, str):
+                try:
+                    body = json.loads(body)
+                except ValueError:
+                    continue
+            if isinstance(body, dict) and row.get("category") == category and row.get("status", "active") == "active":
+                out.append((str(row.get("name") or ""), body))
+        return out
+
 
 @dataclass
 class Contradiction:
@@ -191,7 +242,7 @@ def observe(store, sha: str, check: str, ok: bool, detail: str = "", at: float |
 
 def lint(store) -> list[Contradiction]:
     """Claims the evidence later contradicted: a "done" whose commit failed a check."""
-    fails = {}
+    fails: dict[str, list[str]] = {}
     for o in store.all("proof_outcome"):
         if not o.get("ok"):
             fails.setdefault(o["sha"], []).append(o["check"])
@@ -412,6 +463,7 @@ def order_outcome(store, repo, order, outcome: str, template: str = "", version:
 def orders(store, repo, policy: str | None = None) -> list[dict]:
     """The orders remembered for `repo`, oldest first, one row an order: its last ending, and every check any of
     its pull requests was refused on. `policy`: only the orders judged under that policy version."""
+    got: dict[str, dict]
     repo_k, got = repo_key(repo), {}
     for name, b in sorted(getattr(store, "rows", lambda _c: [])("order")):
         if not _order_row(b) or b["repo"] != repo_k or name != _id("order", repo_k, b["order"], b["outcome"]):
@@ -464,9 +516,157 @@ def terms_supported(store, repo, policy: str | None = None, last: int = 3, versi
     return f"{head}; {_tick(template)} v{int(version)}{tail}"
 
 
+# ---- the supplier's side: refusals under given terms, preflights, appeals, one supplier's record (Sibyl) ------------
+
+SUPPLIER_EVENTS = ("accepted", "rejected", "appealed", "overturned")
+APPEAL_STATES = ("open", "rerun", "accepted", "rejected")
+_HASH = re.compile(r"[0-9a-f]{64}")
+_CODE_WORD = re.compile(r"[a-z0-9]+(?:[._-][a-z0-9]+){0,5}")
+
+
+def _short(value, most: int = 200) -> str:
+    return " ".join(str(value or "").split())[:most]
+
+
+def _refusal_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("repo"), str) and isinstance(body.get("terms"), str)
+            and bool(_HASH.fullmatch(body["terms"])) and type(body.get("pull")) is int and 0 <= body["pull"] <= 2**53
+            and isinstance(body.get("code"), str) and bool(_CODE_WORD.fullmatch(body["code"]))
+            and isinstance(body.get("path"), str) and len(body["path"]) <= 200
+            and isinstance(body.get("supplier"), str) and len(body["supplier"]) <= 64
+            and isinstance(body.get("at"), (int, float)) and not isinstance(body.get("at"), bool))
+
+
+def _appeal_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("repo"), str) and isinstance(body.get("id"), str) and 1 <= len(body["id"]) <= 64
+            and body.get("state") in APPEAL_STATES and isinstance(body.get("supplier"), str) and len(body["supplier"]) <= 64
+            and type(body.get("pull")) is int and 0 <= body["pull"] <= 2**53
+            and isinstance(body.get("terms"), str) and bool(_HASH.fullmatch(body["terms"]) or not body["terms"])
+            and all(isinstance(body.get(k), str) and len(body[k]) <= 400 for k in ("reason", "why"))
+            and isinstance(body.get("at"), (int, float)) and not isinstance(body.get("at"), bool))
+
+
+def _supplier_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("repo"), str) and isinstance(body.get("supplier"), str)
+            and 1 <= len(body["supplier"]) <= 64 and type(body.get("pull")) is int and 0 <= body["pull"] <= 2**53
+            and body.get("event") in SUPPLIER_EVENTS and isinstance(body.get("terms"), str)
+            and bool(_HASH.fullmatch(body["terms"]) or not body["terms"])
+            and isinstance(body.get("at"), (int, float)) and not isinstance(body.get("at"), bool))
+
+
+def supplier_event(store, repo, supplier, pull: int, event: str, terms: str = "", at: float | None = None) -> dict:
+    """One line of a supplier's record in `repo`: this pull request of theirs was accepted, rejected, appealed, or
+    had a rejection overturned on appeal. Once per pull request and event. Raises ValueError for another event."""
+    body = {"repo": repo_key(repo), "supplier": _agent_key(supplier)[:64], "pull": int(pull), "event": event,
+            "terms": str(terms), "at": float(at if at is not None else time.time())}
+    if not _supplier_row(body):
+        raise ValueError(f"a supplier's record holds {', '.join(SUPPLIER_EVENTS)}, for a named supplier and a pull request")
+    store.put("supplier", _id("supplier", body["repo"], body["supplier"], body["pull"], event), body)
+    return body
+
+
+def supplier_record(store, repo, supplier) -> dict:
+    """One supplier's record in `repo`, from memory: how many of their pull requests were accepted, rejected,
+    appealed and overturned, and the pull requests behind each number. All zero with no memory."""
+    repo_k, who = repo_key(repo), _agent_key(supplier)
+    rows = [b for _n, b in _rows(store, "supplier", who) if _supplier_row(b) and b["repo"] == repo_k and b["supplier"] == who]
+    out: dict = {"supplier": who, "repo": repo_k}
+    for event in SUPPLIER_EVENTS:
+        pulls = sorted({b["pull"] for b in rows if b["event"] == event})
+        out[event] = len(pulls)
+        out.setdefault("pulls", {})[event] = pulls
+    return out
+
+
+def _rows(store, category: str, query: str) -> list[tuple[str, dict]]:
+    """A category's rows that hold `query`, through the engine's own search where the store has it; every row of the
+    category otherwise (an older store). The caller still checks each row: a search narrows, it never decides."""
+    find = getattr(store, "find", None)
+    if find is not None and query:
+        try:
+            got = list(find(category, query))
+        except Exception:  # noqa: BLE001 - a search that fails must not lose a memory: read the category whole
+            got = []
+        if got:
+            return got
+    return list(getattr(store, "rows", lambda _c: [])(category))
+
+
+def refused(store, repo, terms: str, pull: int, code: str, path: str = "", supplier: str = "", at: float | None = None) -> dict:
+    """Remember one refusal: pull request `pull` of `repo` was refused under the terms with hash `terms`, for `code`
+    (knos.ghwords.REFUSALS), about `path` when it is about a file. With a `supplier` it also goes on their record.
+    The same refusal of the same pull request is one memory however often it is judged."""
+    body: dict[str, Any] = {"repo": repo_key(repo), "terms": str(terms), "pull": int(pull), "code": str(code), "path": _short(path),
+            "supplier": _agent_key(supplier)[:64], "at": float(at if at is not None else time.time())}
+    if not _refusal_row(body):
+        raise ValueError("a refusal is remembered under a terms hash (64 hex characters), a pull request and a refusal code")
+    store.put("refusal", _id("refusal", body["repo"], body["terms"], body["pull"], body["code"], body["path"]), body)
+    if body["supplier"]:
+        supplier_event(store, repo, body["supplier"], pull, "rejected", terms, body["at"])
+    return body
+
+
+def refused_before(store, repo, terms: str) -> list[dict]:
+    """What was refused before in `repo` under the SAME terms hash, most often first: [{"code", "path", "count",
+    "pulls"}], `count` being distinct pull requests. Another repository's or another terms' refusals are not here."""
+    got: dict[tuple[str, str], set[int]]
+    repo_k, got = repo_key(repo), {}
+    for name, b in _rows(store, "refusal", str(terms)):
+        if not _refusal_row(b) or b["repo"] != repo_k or b["terms"] != terms \
+                or name != _id("refusal", repo_k, b["terms"], b["pull"], b["code"], b["path"]):
+            continue                # a row that does not say what its name says is not a memory of a refusal
+        got.setdefault((b["code"], b["path"]), set()).add(b["pull"])
+    return [{"code": code, "path": path, "count": len(pulls), "pulls": sorted(pulls)}
+            for (code, path), pulls in sorted(got.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
+
+
+def preflight_seen(store, repo, terms: str, ready: bool, found=(), supplier: str = "", tree: str = "", at: float | None = None) -> dict:
+    """Remember one `knos preflight`: under which terms, whether it said ready, and what it found ([(code, path)]).
+    One memory per tree state (`tree`: a hash of the change), so running it twice on the same change is one."""
+    at = float(at if at is not None else time.time())
+    body = {"repo": repo_key(repo), "terms": str(terms), "ready": bool(ready), "supplier": _agent_key(supplier)[:64],
+            "found": [{"code": str(c), "path": _short(p)} for c, p in list(found)[:50]], "tree": str(tree)[:64], "at": at}
+    store.put("preflight", _id("preflight", body["repo"], body["terms"], body["supplier"], body["tree"] or at), body)
+    return body
+
+
+def preflights(store, repo, terms: str | None = None) -> list[dict]:
+    """The preflights remembered for `repo`, oldest first; `terms`: only those under that terms hash."""
+    repo_k = repo_key(repo)
+    rows = [b for _n, b in _rows(store, "preflight", terms or "") if isinstance(b, dict) and b.get("repo") == repo_k
+            and (terms is None or b.get("terms") == terms) and isinstance(b.get("at"), (int, float))]
+    return sorted(rows, key=lambda b: b["at"])
+
+
+def appeal_outcome(store, repo, appeal_id: str, state: str, supplier: str, pull: int, reason: str = "", why: str = "",
+                   terms: str = "", at: float | None = None) -> dict:
+    """Remember where one appeal stands: `state` is open, rerun (the neutral judge was asked to run it again),
+    accepted (the rejection was overturned) or rejected (it was upheld; `why` says on what). It goes on the
+    supplier's record too: appealed when it opens, overturned when it ends accepted. An appeal is one memory, rewritten
+    as it moves. Raises ValueError for another state."""
+    body: dict[str, Any] = {"repo": repo_key(repo), "id": str(appeal_id), "state": state, "supplier": _agent_key(supplier)[:64], "pull": int(pull),
+            "reason": _short(reason, 400), "why": _short(why, 400), "terms": str(terms), "at": float(at if at is not None else time.time())}
+    if not _appeal_row(body):
+        raise ValueError(f"an appeal is {', '.join(APPEAL_STATES)}, with an id and a pull request")
+    store.put("appeal", _id("appeal", body["repo"], body["id"]), body)
+    if body["supplier"]:
+        supplier_event(store, repo, body["supplier"], pull, "appealed", terms, body["at"])
+        if state == "accepted":
+            supplier_event(store, repo, body["supplier"], pull, "overturned", terms, body["at"])
+    return body
+
+
+def appeals(store, repo, supplier: str | None = None) -> list[dict]:
+    """The appeals remembered for `repo`, oldest first; `supplier`: only theirs."""
+    repo_k, who = repo_key(repo), _agent_key(supplier)
+    rows = [b for n, b in _rows(store, "appeal", who) if _appeal_row(b) and b["repo"] == repo_k
+            and n == _id("appeal", repo_k, b["id"]) and (supplier is None or b["supplier"] == who)]
+    return sorted(rows, key=lambda b: (b["at"], b["id"]))
+
+
 # ---- what the judge learned, to carry between runs (knos.proof.memory) -------------------------------------------
 
-LESSONS = ("tamper", "proof_rule", "repo_rule", "settlement", "order")
+LESSONS = ("tamper", "proof_rule", "repo_rule", "settlement", "order", "refusal", "appeal", "supplier")
 
 
 def lesson(row) -> dict | None:
@@ -487,6 +687,12 @@ def lesson(row) -> dict | None:
               and all(isinstance(body.get(k), list) and all(isinstance(x, str) for x in body[k]) for k in ("met", "false", "paths")))
     elif row["category"] == "order":        # how one past order ended (order_outcome): its name is made of what it says
         ok = _order_row(body) and name == _id("order", body["repo"], body["order"], body["outcome"])
+    elif row["category"] == "refusal":      # one refusal under given terms (refused): named by what it says
+        ok = _refusal_row(body) and name == _id("refusal", body["repo"], body["terms"], body["pull"], body["code"], body["path"])
+    elif row["category"] == "appeal":       # one appeal and how it stands (appeal_outcome)
+        ok = _appeal_row(body) and name == _id("appeal", body["repo"], body["id"])
+    elif row["category"] == "supplier":     # one event of one supplier's record (supplier_event)
+        ok = _supplier_row(body) and name == _id("supplier", body["repo"], body["supplier"], body["pull"], body["event"])
     else:
         ok = isinstance(body.get("when"), str) and isinstance(body.get("require"), str)
         if ok and body["when"] == "tamper":     # the rule's name is made of what it says: one cannot pose as another
@@ -526,24 +732,28 @@ def import_lessons(store, lines) -> int:
 
     A pull request that was paid stays paid: a settlement lesson that says "not paid" never replaces one under the
     same name that says "paid", whichever was written or read last. A merge's settlement and the attestor's run can
-    both settle the same pull request at the same commit at the same time; the one that paid is the fact."""
+    both settle the same pull request at the same commit at the same time; the one that paid is the fact.
+
+    The whole load is one batch on the store's connection (SibylStore.held), released once at its end."""
     n, paid = 0, None
-    for line in (lines.splitlines() if isinstance(lines, str) else lines or []):
-        if isinstance(line, str):
-            try:
-                line = json.loads(line) if line.strip() else None
-            except ValueError:
-                continue
-        row = lesson(line)
-        if row:
-            n += 1
-            if row["category"] == "settlement":
-                paid = paid_settlements(store) if paid is None else paid
-                if row["body"]["paid"]:
-                    paid.add(row["name"])
-                elif row["name"] in paid:
+    held = getattr(store, "held", None)
+    with held() if held is not None else contextlib.nullcontext(store):
+        for line in (lines.splitlines() if isinstance(lines, str) else lines or []):
+            if isinstance(line, str):
+                try:
+                    line = json.loads(line) if line.strip() else None
+                except ValueError:
                     continue
-            store.put(row["category"], row["name"], row["body"])
+            row = lesson(line)
+            if row:
+                n += 1
+                if row["category"] == "settlement":
+                    paid = paid_settlements(store) if paid is None else paid
+                    if row["body"]["paid"]:
+                        paid.add(row["name"])
+                    elif row["name"] in paid:
+                        continue
+                store.put(row["category"], row["name"], row["body"])
     return n
 
 
@@ -688,7 +898,7 @@ def _is_dep_line(path: str, text: str) -> bool:
         return not t.startswith("-")
     if name == "package.json":
         m = re.match(r'"([^"]+)"\s*:\s*"([^"]*)"', t)
-        return bool(m) and m.group(1) not in ("version", "name", "main", "description", "license") and \
+        return m is not None and m.group(1) not in ("version", "name", "main", "description", "license") and \
             bool(re.match(r"[~^<>=*]|\d|latest|workspace:|file:|git", m.group(2)))
     if name == "go.mod":
         return bool(re.match(r"(require\s+)?[\w.-]+\.\w+/\S+\s+v\d", t))

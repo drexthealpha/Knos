@@ -315,26 +315,26 @@ refused token only when it takes the signature check on chain to tell. The token
 <!-- bench:devnet -->
 | the second deployment on devnet | measured |
 |---|---|
-| tasks funded | 53 |
-| tasks paid | 44 |
+| tasks funded | 54 |
+| tasks paid | 45 |
 | tasks funded with their own tokens by someone other than Knos, both deployments | 0 |
 | of those, paid to someone other than the funder | 0 |
 | funders among them | 0 |
 | funders who funded again after one of their tasks was paid | 0 |
-| repositories that are not Knos's in which an outside funder funded a task (scripts/outsiders.py) | measured at release |
-| accounts and wallets that are not Knos's, paid by a task somebody else funded (scripts/outsiders.py) | measured at release |
-| payments timed from the merge, over the public relay's log (n) | 40 |
+| repositories that are not Knos's in which an outside funder funded a task (scripts/outsiders.py) | 0 |
+| accounts and wallets that are not Knos's, paid by a task somebody else funded (scripts/outsiders.py) | 1 |
+| payments timed from the merge, over the public relay's log (n) | 41 |
 | seconds from the merge to the payment, median (p50) | 25 |
 | seconds from the merge to the payment, 95th percentile (p95) | 58 |
 | the day of the oldest of those payments (UTC) | 2026-10-02 |
 | the day of the newest | 2026-10-05 |
 | of those payments, made by the first deployment's escrow | 2 |
-| of those payments, made by the second deployment's escrow | 38 |
-| seconds from the funding comment to the funded task, median | 48 |
+| of those payments, made by the second deployment's escrow | 39 |
+| seconds from the funding comment to the funded task, median | 46 |
 
 Merge to paid is defined as: seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank. One function measures it (`measure` in `scripts/network_stats.py`); this table, `docs/facts.json`, the site's Numbers page (`stats.json`) and `latency.json` all state that function's output.
 
-Read from the site's `stats.json` of 2026-10-05 20:29 UTC (`python scripts/bench_docs.py --stats stats.json`).
+Read from the site's `stats.json` of 2026-10-06 09:17 UTC (`python scripts/bench_docs.py --stats stats.json`).
 <!-- /bench:devnet -->
 
 The site's [Numbers section](https://drexthealpha.github.io/Knos/#network) shows today's count, read from the

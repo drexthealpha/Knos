@@ -80,8 +80,9 @@ def test_each_product_gets_its_own_column_names_and_formats():
     files = {fmt: table(exports.write(fmt, scope, rows, head, refs, fin.OPTIONS)) for fmt in exports.FORMATS}
     ns = files["netsuite"]
     assert tuple(ns[0]) == exports.NETSUITE and ns[0][:4] == ["External ID", "Vendor", "Date", "Reference No."] and len(ns) == 10
-    assert ns[1][:5] == [ns[1][0], "gh:8001", "9/3/2026", ns[1][0], "USD"] and ns[1][6:8] == ["6100 Contract engineering", "100.00"]
-    assert f"Knos statement sha256:{head}" in ns[1][5] and "receipt https://explorer.solana.com/tx/PA?cluster=devnet" in ns[1][5]
+    assert ns[1][:4] == [ns[1][0], "gh:8001", "9/3/2026", ns[1][0]] and ns[1][5:7] == ["6100 Contract engineering", "100.00"]
+    assert "Currency" not in ns[0]                                                   # NetSuite takes a bill's currency from the vendor record, not from the file
+    assert f"Knos statement sha256:{head}" in ns[1][4] and "receipt https://explorer.solana.com/tx/PA?cluster=devnet" in ns[1][4]
     qb = files["quickbooks"]
     assert qb[0][:5] == ["Bill no.", "Supplier", "Bill Date", "Due Date", "Account"] and qb[1][2] == qb[1][3] == "3/9/2026" and qb[1][6] == "100.00"
     assert head in qb[1][8] and len(qb) == 10
@@ -94,7 +95,7 @@ def test_each_product_gets_its_own_column_names_and_formats():
     assert all(len(r[4]) <= 16 and len(r[8]) <= 25 and len(r[12]) <= 50 and len(r[16]) <= 18 for r in sap[1:]) and sap[1][12] == f"Knos {head[:16]} tx PA"
     # another date format, and the defaults when no option is given
     assert table(exports.write("netsuite", scope, rows, head, None, {"date_format": "DD/MM/YYYY"}))[1][2] == "03/09/2026"
-    assert table(exports.write("netsuite", scope, rows, head))[1][6] == exports.DEFAULTS["account"]
+    assert table(exports.write("netsuite", scope, rows, head))[1][5] == exports.DEFAULTS["account"]
     assert (exports.decimal(19_500_000), exports.decimal(404_999), exports.decimal(7), exports.decimal(100 * fin.U)) == ("19.50", "0.404999", "0.000007", "100.00")
     assert (exports.day("2026-09-03", "M/D/YYYY"), exports.day("2026-12-25", "DD.MM.YYYY"), exports.day("2026-09-03", "YYYYMMDD")) == ("9/3/2026", "25.12.2026", "20260903")
     with pytest.raises(audit.Refused):

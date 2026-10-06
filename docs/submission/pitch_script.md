@@ -2,64 +2,55 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Narration in the founder's own voice. The spoken words are the lines that start with `>`: about 300 words at most,
-which is two minutes read aloud at an even pace, and `tests/test_business_docs.py` counts them. The times in the
-headings are where each beat starts. The order is deliberate: the buyer and the problem first, what Knos is, why
-that is different, the business, and what is true today.
+The spoken words are the lines that start with `>`: about 280 words, two minutes read aloud at an even pace
+(`tests/test_business_docs.py` counts them). The time in each heading is where the beat starts. It is the story of
+[STORY.md](../STORY.md): the number, one round, what cannot happen, the two ledgers, and what the project needs.
 
-A number spoken here is in `docs/facts.json` with its source, and `python scripts/claims_check.py` checks it. A
-number that only the release run can measure is a slot, `[[stat: name]]`: `python scripts/bench_docs.py --slots`
-lists the ones still open, and nothing is recorded until they are filled.
+A spoken number is in `docs/facts.json` with its source, and `python scripts/claims_check.py` checks it. The last
+beat is read against the chain and [NUMBERS.md](NUMBERS.md) on the day of recording and says what is true then. A
+buyer, a pilot or an interview is said only if it exists and the other party agrees to be named. A clip cut from
+the demo keeps the demo's captions ([demo_script.md](demo_script.md)).
 
-The last beat is written to be true on the day it was written. Read it against the chain and against
-[NUMBERS.md](NUMBERS.md) on the day of recording, and change it only to what is true then. A buyer, a pilot or an
-interview is said only if it exists and the other party agrees to be named.
+## 1. The number (0:00)
 
-Any clip cut from the demo keeps the demo's captions: a replay says it is a replay, and a recording played faster
-says at what speed ([demo_script.md](demo_script.md)).
+*On screen: the number, then one public pull request from the sample: its description says the tests pass, it is
+merged, and a check is red. Beside it, an invoice line billed per merge.*
 
-## 1. The buyer, and the problem (0:00)
+> Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. Billed per merge, each of
+> those 30 is a line on an invoice. The seller keeps that count. Knos is the neutral meter for AI agent work:
+> neither side keeps the count.
 
-*On screen: a supplier's invoice with a line "merged pull requests", then one public pull request from the sample:
-its description says the tests pass, it is merged, and a check is red.*
+## 2. One round (0:20)
 
-> Somebody has to approve this invoice, and defend it later. Agent work is starting to be sold per outcome: per
-> merged change, per resolution. The seller keeps the count. I measured what that count can hide. Of 241 merged
-> agent pull requests that said the tests pass, 30 had a failed check. A buyer paying per merge on that sample
-> would have paid for all 30.
+*On screen, from the demo: the funding comment, the pull request with its regression test, the acceptance.*
 
-## 2. What Knos is (0:25)
+> One round. A buyer authorises work with one comment: the budget and the terms, fixed before the work starts. A
+> supplier submits a correct fix with its own regression test. A run that GitHub signs says the terms were met, a
+> Solana program checks that signature, and the work is accepted under the original terms. The supplier is paid
+> the posted amount, in test money.
 
-*On screen, one clip from the demo: terms fixed, a submission refused with the reason, a valid one accepted, two
-statements side by side.*
+## 3. What cannot happen (0:45)
 
-> Knos is the neutral meter for AI agent work. Neither side keeps the count. The buyer fixes the terms before the
-> work. A run that GitHub signs says whether they were met, and a Solana program checks that signature itself.
-> Each side computes the same statement. A disagreement is a named dispute, not an invoice line.
+*On screen: the refused submission with the reason; the second settlement refused, the balance unchanged.*
 
-## 3. Why that is different (0:50)
+> Now the cheats. A tampered submission fails: in our benchmark, 56 of 63 cheating pull requests passed plain CI,
+> and the black-box check refused all 63. A duplicate settlement changes nothing: the second try moves no money.
 
-*On screen: the comparison table of docs/COMPARE.md, "Platforms and billing companies".*
+## 4. Two ledgers (1:05)
 
-> Cloud platforms already meter agents, and billing companies already bill usage. Each counts for one side. What
-> Knos adds is acceptance that is independent of every vendor, disagreements included.
+*On screen: two terminals, one statement; then the finance view with one exception.*
 
-## 4. The business (1:05)
+> Then the invoice. Each side keeps its own copy, so neither has to take the other's count. Buyer and supplier
+> each rebuild the statement from their own ledger, and they get the same record. Finance approves the agreed lines and sees the exception: a disputed line is named, and it is not
+> billed.
 
-*On screen: the price book.*
+## 5. What is real, and the ask (1:25)
 
-> Checking is free, forever. A buyer starts in shadow mode: the count runs beside the invoices they already get,
-> and changes nothing. The first disputed line is the reason to buy a 30-day pilot for 2,500 dollars, credited
-> against a yearly contract from 25,000. Suppliers never pay to be counted. Devnet is the test mode. Everything
-> on chain is test money, and I count none of it as revenue.
+*On screen: the site's Numbers page, the rows for accounts that are not Knos's; then the front door.*
 
-## 5. What is true today, and the ask (1:35)
-
-*On screen: the site's Numbers page, the rows for accounts that are not Knos's; then docs/TEAM.md.*
-
-> What is true today. Funders other than Knos, with their own tokens: 0. Buyers interviewed: none. Revenue: none.
-> There is no company yet, and one person holds every key. I'm drexthealpha. That is a pseudonym, and the work is
-> public. I have not sold to the person who approves that invoice. That is the first hire, and those
-> conversations are what I am asking for.
+> What is real today. All of this is on Solana devnet, in test money. Funders other than Knos: 0. Buyers
+> interviewed: 0. Revenue: none. One person holds every key. So step eight is not a customer. It is your invoice:
+> paste it on the site, free, with no install. Knos needs three things it does not have: an outside key holder,
+> first buyers to run a shadow count, and an outside review.
 
 *Closing card:* The neutral meter for AI agent work: neither side keeps the count.

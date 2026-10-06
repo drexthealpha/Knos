@@ -408,3 +408,26 @@ def test_the_hidden_pull_number_is_one_knos_pay_parses_and_a_receipt_holds_whate
     assert len(str(old)) > digits and program_u64(str(old)) is None and program_u64(str(flow.hidden_pull(SALT, PULL))) is not None
     # it says nothing of the pull request's number: the salt decides it
     assert flow.hidden_pull(SALT, PULL) != flow.hidden_pull(bytes(32), PULL) and str(PULL) not in str(flow.hidden_pull(SALT, PULL))
+
+
+def test_a_named_pull_request_whose_repository_github_does_not_answer_for_is_counted_not_commented_on(tmp_path):
+    """The run names one pull request, GitHub answers for it and not for the repository itself: nothing can be settled
+    without the repository's id and default branch, so the target is counted as not read, and the pull request gets
+    no comment about an error inside Knos."""
+    w, pub, _address = funded(tmp_path)
+    w.chain.bind(MONA)
+    merged(w)
+    r = run(w, pub, by_hand(pull=PULL))
+    asked = len(w.signer.asked)
+
+    def reader(repo: str):
+        def get(path, data=None, method=None):
+            if path == f"repos/{TARGET}":
+                raise OSError("no answer")
+            return w.hub(path, data, method)
+        return get
+    r._reader = reader
+    assert flow.settle(r) == 1
+    assert w.hub.knos(PULL) == [] and len(w.signer.asked) == asked and len(w.chain.orders()) == 1
+    assert "looked at 0 merged pull requests" in (w.tmp / "summary.md").read_text(encoding="utf-8")
+    assert " 1 could not be read" in (w.tmp / "summary.md").read_text(encoding="utf-8")

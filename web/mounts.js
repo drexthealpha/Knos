@@ -79,8 +79,8 @@ const code = (text, esc) => esc(text).replace(/`([^`]+)`/g, "<code>$1</code>");
  *  env: { gh, rpc, EXPLORER, esc, now (ms), file(path) } as web/app.js has them. Returns { start, stop }. */
 export function renderStatus(el, env = {}) {
   const esc = env.esc || escHtml, now = env.now || (() => Date.now()), file = env.file || jsonFile, doc = el.ownerDocument, $ = (id) => doc.getElementById(id);
-  el.innerHTML = `<h2>Status</h2>
-    <p class="lede">Check the relay and a whole round. Your browser reads both.</p>
+  el.innerHTML = `<h2>Relay and canary status</h2>
+    <p class="lede">Check the relay and a whole round.</p>
     <div class="card" id="relay-status">
       <h3>The public relay</h3>
       <details class="k-more"><summary>More</summary><p>A signed token is a comment on GitHub until someone carries it to Solana. The public relay does that about once a minute and pays the transaction fee;
@@ -139,9 +139,9 @@ export function renderStatus(el, env = {}) {
       if (Number.isFinite(e?.kept) && $("relay-asof")) $("relay-asof").textContent = `Shown ${asOf(e.kept, now())}. It could not be read again just now: ${e.message}`;
       else {
         $("relay-head").className = "status bad";
-        $("relay-head").textContent = `The relay's log could not be read just now (${e.message}), so nothing is said about the relay.`;
+        $("relay-head").textContent = `The relay's log was not read (${e.message}). Nothing is said about the relay.`;
         $("relay-facts").innerHTML = "";
-        $("relay-note").innerHTML = `The log is the open issue labelled ${esc(RELAY_LABEL)} in <a href="https://github.com/${esc(RELAY_REPO)}/issues?q=label%3A${esc(RELAY_LABEL)}" target="_blank" rel="noopener">${esc(RELAY_REPO)}</a>: it can be read there.`;
+        $("relay-note").innerHTML = `The log is the open issue labelled ${esc(RELAY_LABEL)} in <a href="https://github.com/${esc(RELAY_REPO)}/issues?q=label%3A${esc(RELAY_LABEL)}" target="_blank" rel="noopener">${esc(RELAY_REPO)}</a>.`;
       }
     }
     if (!stopped) $("relay-again").hidden = false;
@@ -161,10 +161,10 @@ export function renderStatus(el, env = {}) {
 
 // ---- Index ------------------------------------------------------------------------------------------------------------
 /** Fill the Index page from agent_weekly.json (`weekly`: the parsed file, or null when the build has none). */
-export function renderIndex(el, weekly, esc = escHtml) {
+export function renderIndex(el, weekly, esc = escHtml, feed = null) {
   const has = weekly && weekly.agents && Object.keys(weekly.agents).length > 0;
   el.innerHTML = `<h2>Agent PR Index</h2>
-    <p class="lede">A pull request opened by a coding agent often says "tests pass". This says how often GitHub's own record of the checks agrees, for each agent it can tell apart, one week at a time.</p>
+    <p class="lede">How often GitHub's checks agree with “tests pass”, per agent, per week.</p>
     <div class="card" id="index-card">${has ? "" : `<p class="status" id="index-none">This build has no agent_weekly.json, or the file holds no agent, so no table is shown. The table of the repository is in <a href="${DOCS}/INDEX.md" target="_blank" rel="noopener">docs/INDEX.md</a>.</p>`}</div>
     ${has ? `<div class="card" id="index-limits"><h3>What this is, and what it is not</h3>
       <p class="fine" id="index-source">Read ${esc(weekly.read || "on a day the file does not name")}. ${esc(String(weekly.source || "").replace(/([^.])$/, "$1."))}</p>
@@ -172,17 +172,17 @@ export function renderIndex(el, weekly, esc = escHtml) {
       <p class="fine">The numbers are the file <a href="agent_weekly.json">agent_weekly.json</a>, written by
         <a href="https://github.com/drexthealpha/Knos/blob/main/scripts/agent_pr_index.py" target="_blank" rel="noopener">scripts/agent_pr_index.py</a>; how a pull request is told to be an agent's, what counts as a claim and what the script cannot see are in
         <a href="${DOCS}/INDEX.md" target="_blank" rel="noopener">docs/INDEX.md</a>. To check one pull request yourself: <a href="#check">Check</a>.</p></div>` : ""}`;
-  if (has) renderIndexBoard(el.querySelector("#index-card"), weekly);
+  if (has) renderIndexBoard(el.querySelector("#index-card"), weekly, { feed });
   return el;
 }
 
 // ---- Pilot ------------------------------------------------------------------------------------------------------------
 // docs/PILOT.md, shortened. The price is the price book's Pilot row (price.js), so the page and the book cannot differ.
 export const PILOT_DELIVERABLES = [
-  ["A reconciliation", "The buyer's accepted work for the 30 days, from more than one supplier, as one list of deliverables: the order, the milestone, the artifact, the policy version that judged it and the verdict. A deliverable is counted once, whatever number of pull requests carried it."],
+  ["One reconciled invoice", "The buyer's accepted work for the 30 days, from both suppliers, set against what each billed, as one list of deliverables: the order, the milestone, the artifact, the policy version that judged it and the verdict. A deliverable is counted once, whatever number of pull requests carried it."],
   ["A mismatch list", "Every difference between what was accepted and what was billed, named: billed and not accepted; accepted and not billed; billed twice; judged differently by the two sides. A mismatch is a dispute line, never an invoice line."],
   ["A statement both sides verify", "For each supplier, one statement that the buyer computes from its ledger and the supplier computes from its own, to the same totals. It counts only what both sides have and describe alike."],
-  ["A measurement", "Invoice preparation time, disputed lines, acceptance-to-approval time and repeat use, before and after, written down with their sample sizes and given to the buyer whether or not they flatter Knos."],
+  ["Quantified findings", "Invoice preparation time, disputed lines, acceptance-to-approval time and repeat use, before and after, written down with their sample sizes and given to the buyer whether or not they flatter Knos."],
 ];
 export const PILOT_BLOCKERS = [
   ["Nobody has bought it.", "No buyer has been asked. Whether any buyer has this problem badly enough to pay is not known."],
@@ -193,9 +193,14 @@ export const PILOT_BLOCKERS = [
 
 export function renderPilot(el, esc = escHtml) {
   const row = priceBook(priceConstants()).find((r) => r[0] === "Pilot") || ["Pilot", "", ""];
-  el.innerHTML = `<h2>The Pilot: one buyer, its suppliers, 30 days</h2>
+  el.innerHTML = `<h2>The 30-day Pilot</h2>
     <p class="lede">Close a supplier's invoice with evidence both sides can check.</p>
-    <p class="status" id="pilot-honest">This is an offer, not a record: nobody has bought it, nobody has been asked, and there is no legal entity to invoice from yet.</p>
+    <div class="card" id="pilot-price">
+      <p class="status" id="pilot-honest">An offer, not a record. Nobody has bought it. Nobody has been asked. No legal entity to invoice from yet.</p>
+      <h3>What it costs</h3>
+      <dl class="facts"><dt>${esc(row[0])}</dt><dd>${esc(row[1])}</dd><dt>Price</dt><dd id="pilot-price-words">${esc(row[2])}</dd></dl>
+      <p class="fine">The suppliers pay nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test money is not revenue. Its price, 2,500 USD, is credited against year one, and it commits the buyer to none. <a href="#pricing">The whole price book</a>.</p>
+    </div>
     <div class="card" id="pilot-who">
       <h3>Who it is for</h3>
       <p>A company that buys software work per outcome from two or more suppliers (agent vendors, agencies, contractors paid per merged change or per milestone) and has their invoices to reconcile.
@@ -203,18 +208,13 @@ export function renderPilot(el, esc = escHtml) {
       <p class="fine">It is not for a company with one supplier (there is nothing to compare), for work billed by the hour or the seat, or for a maintainer with a bounty: the free check and <a href="#fund">funding by a comment</a> already serve that.</p>
     </div>
     <div class="card" id="pilot-gets">
-      <h3>What the buyer gets: four deliverables</h3>
-      <ol id="pilot-deliverables">${PILOT_DELIVERABLES.map(([name, what]) => `<li><strong>${esc(name)}.</strong> ${esc(what)}</li>`).join("")}</ol>
+      <details class="k-more"><summary>What the buyer gets: four deliverables</summary>
+      <ol id="pilot-deliverables">${PILOT_DELIVERABLES.map(([name, what]) => `<li><strong>${esc(name)}.</strong> ${esc(what)}</li>`).join("")}</ol></details>
       <p class="fine">Each statement can be checked from the two ledger files alone. Totals are also written to Solana devnet as test data, to show the mechanism; nothing in the Pilot depends on devnet keeping its history.</p>
     </div>
-    <div class="card" id="pilot-price">
-      <h3>What it costs</h3>
-      <dl class="facts"><dt>${esc(row[0])}</dt><dd>${esc(row[1])}</dd><dt>Price</dt><dd id="pilot-price-words">${esc(row[2])}</dd></dl>
-      <p class="fine">The suppliers pay nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test money is not revenue. Its price is credited against a first year of Control, and it commits the buyer to none. <a href="#pricing">The whole price book</a>.</p>
-    </div>
     <div class="card" id="pilot-blockers">
-      <h3>What stands in the way, plainly</h3>
-      <ul>${PILOT_BLOCKERS.map(([head, what]) => `<li><strong>${esc(head)}</strong> ${esc(what)}</li>`).join("")}</ul>
+      <details class="k-more"><summary>What stands in the way, plainly</summary>
+      <ul>${PILOT_BLOCKERS.map(([head, what]) => `<li><strong>${esc(head)}</strong> ${esc(what)}</li>`).join("")}</ul></details>
       <p class="fine">Not included: private repositories under a contract, single sign-on, a service-level agreement, payment of suppliers in real money (mainnet is not touched), a second person to call, or a security review of Knos by anyone outside it. There has been none.</p>
       <p class="fine">This page has no form and collects nothing. What the buyer and each supplier do, what is measured and how: <a href="${DOCS}/PILOT.md" target="_blank" rel="noopener">docs/PILOT.md</a>.</p>
     </div>`;
@@ -228,17 +228,18 @@ export const reproductionsOf = (listed) => (listed && Array.isArray(listed.files
 
 export function renderReproduce(el, listed, esc = escHtml) {
   const files = reproductionsOf(listed);
-  const count = files === null ? `<p class="status" id="repro-count" data-count="">This build does not say how many reproductions have been sent (it has no reproductions.json). The folder itself: <a href="https://github.com/drexthealpha/Knos/tree/main/reproductions" target="_blank" rel="noopener">reproductions/</a>.</p>`
+  const count = files === null ? `<p class="status" id="repro-count" data-count="">This build does not list the reproductions sent. The folder itself: <a href="https://github.com/drexthealpha/Knos/tree/main/reproductions" target="_blank" rel="noopener">reproductions/</a>.</p>`
     : files.length ? `<p class="status ok" id="repro-count" data-count="${files.length}">${esc(plural(files.length, "reproduction"))} from outside Knos ${files.length === 1 ? "is" : "are"} in this build.</p>
         <ul class="plain" id="repro-files">${files.map((f) => `<li><a class="mono" href="reproductions/${esc(encodeURIComponent(f))}">${esc(f)}</a></li>`).join("")}</ul>`
-      : `<p class="status" id="repro-count" data-count="0">Outside reproductions so far: none yet. Nobody outside Knos has sent one, so no capability is marked as reproduced.</p>`;
+      : `<p class="status" id="repro-count" data-count="0">Outside reproductions so far: none yet. No capability is marked as reproduced.</p>`;
   el.innerHTML = `<h2>Reproduce it yourself</h2>
-    <p class="lede">Do not take the maintainer's word. One command checks a payment, the programs and a claim against public things only: Solana devnet, GitHub's published keys and the public upgrade feed.</p>
+    <p class="lede">Do not take the maintainer's word. Run one command.</p>
+    <pre>${esc(REPRODUCE_COMMAND)}</pre>
     <div class="card" id="repro-count-card"><h3>Reproductions from outside</h3>${count}
       <p class="fine">A file counts only when GitHub signed the run in a repository that is not Knos's own; a run in one of Knos's accounts is refused by the same check that accepts everyone else's.
         Each capability's stage: <a href="#capabilities">Capabilities</a>.</p></div>
     <div class="card" id="repro-how">
-      <h3>Three lines</h3>
+      <details class="k-more"><summary>Three lines: run, fork, send the result</summary>
       <ol class="steps" id="repro-lines">
         <li><strong>The one command.</strong> On any machine with Python 3.10 or later; a report on your screen and in <code>report.json</code>, not signed:
           <pre id="repro-command">${esc(REPRODUCE_COMMAND)}</pre></li>
@@ -247,8 +248,8 @@ export function renderReproduce(el, listed, esc = escHtml) {
           It needs no secret, no wallet and no money, and it writes nothing to your repository. This is the one that counts.</li>
         <li><strong>Send the result.</strong> Download the run's artifact <code>knos-reproduction</code> and open a pull request to drexthealpha/Knos that adds the file in it as
           <code>reproductions/&lt;owner&gt;-&lt;repo&gt;-&lt;run id&gt;.json</code> and nothing else. A check that failed is a bug, not a reproduction: open an issue and attach <code>report.json</code>.</li>
-      </ol>
-      <p class="fine">What each check proves, why a report can be merged without trust, and what this does not prove: <a href="${DOCS}/REPRODUCE.md" target="_blank" rel="noopener">docs/REPRODUCE.md</a>.</p>
+      </ol></details>
+      <p class="fine"><a href="${DOCS}/REPRODUCE.md" target="_blank" rel="noopener">What each check proves, and what it does not</a></p>
     </div>`;
   return el;
 }
@@ -259,7 +260,7 @@ export function renderReproduce(el, listed, esc = escHtml) {
 export function fillMounts(ctx) {
   const { $, esc, knos, RPC, EXPLORER, gh } = ctx, file = ctx.file || jsonFile;
   if ($("pilot")) renderPilot($("pilot"), esc);
-  if ($("index")) file("agent_weekly.json").catch(() => null).then((weekly) => renderIndex($("index"), weekly, esc));
+  if ($("index")) Promise.all([file("agent_weekly.json").catch(() => null), file("agent_index.json").catch(() => null)]).then(([weekly, feed]) => renderIndex($("index"), weekly, esc, feed));
   if ($("reproduce")) file("reproductions.json").catch(() => null).then((listed) => renderReproduce($("reproduce"), listed, esc));
   if (!$("status")) return null;
   const status = renderStatus($("status"), { gh, rpc: (m, p) => knos.rpc(RPC, m, p), EXPLORER, esc, file });

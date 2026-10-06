@@ -422,7 +422,10 @@ def test_knos_statement_text_csv_and_json(capsys, world):
     assert rc == 0 and doc["seller_id"] == 8001 and doc["totals"]["test USDC"]["amount_units"] == 34_125_000 and list(doc["payments"][0]) == list(records.RECEIPT_COLUMNS)
     assert run(capsys, "statement", "--seller", "8001", "--month", "09-2026")[:2] == (1, "A month is written YYYY-MM, like 2026-09; '09-2026' is not one.\n")
     assert run(capsys, "statement", "--seller", "8001", "--month", "2026-09", "--format", "pdf")[0] == 1
-    assert run(capsys, "statement", "--month", "2026-09")[0] == 2
+    # `knos statement` is a group since 0.3.17 (make, approve, pay, ...), so --seller is no longer an option the
+    # parser requires: the month's statement without it stops with a sentence that says what to write
+    rc, text, said = run(capsys, "statement", "--month", "2026-09")
+    assert rc == 1 and "Say whose month: knos statement --seller X --month YYYY-MM" in text + said
 
 
 def test_knos_export_needs_siem_and_prints_json_lines(capsys, world, tmp_path):

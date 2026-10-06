@@ -78,8 +78,9 @@ or with other terms) is logged with `-` for the id, so it answers nobody who wai
 
 What a token can wait for, and the bound of each, is in docs/RELAY.md ("Where a token waits"). Three rules hold here:
 
-    journaled before sent   a token the relay has seen is written to its notes (`journal`, in KNOS_HOME/ghrelay.json)
-                            before its first transaction. A relay killed between the send and the confirmation finds
+    journaled before sent   a token the relay has seen is written to its notes (`journal`, in KNOS_HOME/ghrelay.json:
+                            the queue of knos.settle.v2.relayq, which carries up to 4 tokens of different owners at
+                            once) before its first transaction. A relay killed between the send and the confirmation finds
                             the token again on its next pass and sends it again: the chain takes a token once, so the
                             second send moves nothing (tests/test_relay_failures.py runs it on LiteSVM).
     retried until an answer a failure that says nothing about the token (the cluster or GitHub did not answer) is
@@ -102,7 +103,8 @@ Under it, in the same comment, the last ROUNDS (ten) tokens the relay took up, n
 
     knos-relay round <owner/repo>#<n> <first 8 of the token id> ok order=<address or -> state=<state> seconds=<s> kind=<kind>
 
-`state` is the journal's (sending, waiting, confirmed, refused, expired) and `seconds` the time from the token's
+`state` is the journal's, as the notes spell it (sending, waiting, confirmed, refused, expired: the queue's leased,
+queued, done and dead, knos.settle.v2.relayq) and `seconds` the time from the token's
 comment to its answer (to now, for one still waiting). The line holds eight characters of the id, so it never answers
 a job that waits for the token (`wait_for` asks for all sixteen), and the comment stays under 2,600 characters.
 
@@ -117,16 +119,20 @@ from __future__ import annotations
 
 import base64
 import calendar
+import copy
 import hashlib
 import json
+import math
 import os
 import re
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 TOKEN = re.compile(r"knos-(proof|fund|bind|veto|claim|key|verify|eval|take|cancel|revert|rule|gate):\s*(eyJ[\w-]+\.[\w-]+\.[\w-]+)")
 WITHDRAW = re.compile(r"knos-withdraw:\s*([A-Za-z0-9+/_-]{200,4000}={0,2})")    # a passkey wallet's withdrawal request: no token, see knos.settle.v2.passkey.request
@@ -151,7 +157,6 @@ MAX_TRIES = 12          # failed passes a token gets when the failure may clear 
 LATE = 3600             # the chain takes a token until this long after its `exp` (knos.settle.v2.oidc.LATE); until then a failure that may clear is tried again
 BACKOFF_MOST = 60       # the longest a token is left alone between two tries, in seconds
 REST_MOST = 3600        # the longest the relay stays away from GitHub because GitHub asked it to (its hourly limit resets within the hour)
-JOURNAL = 500           # tokens the journal keeps: the newest
 HORIZON = 70 * 60       # how far back a pass looks: a token is accepted for an hour
 SEARCH_EVERY = 30       # seconds between two searches for repositories the worker does not know yet
 ALREADY_WAIT = 15       # seconds a line about a token someone else carried waits for that someone's own line in the log
@@ -219,7 +224,7 @@ class Hub:
         names no limit is one path's own refusal and rests nothing."""
         if e.code not in (403, 429):
             return
-        head = e.headers or {}
+        head: Any = e.headers or {}
         after, reset = str(head.get("Retry-After") or ""), str(head.get("X-RateLimit-Reset") or "")
         wait = (int(after) if after.isdigit() else int(reset) - self._clock() if str(head.get("X-RateLimit-Remaining")) == "0" and reset.isdigit()
                 else 60 if e.code == 429 else 0)
@@ -353,7 +358,7 @@ def tokens(comments: list, since: str = "") -> list[Found]:
         for kind, jwt in [*TOKEN.findall(body), *(("withdraw", asked) for asked in WITHDRAW.findall(body)),
                           *(("passkey-fund", line) for line in PASSKEY_FUND.findall(body))]:
             out.append(Found(kind, int(c["issue_url"].rsplit("/", 1)[1]), jwt, (c.get("user") or {}).get("login", ""),
-                             beside[kind].group(1).encode() if beside.get(kind) else None, _unix(c.get("created_at"))))
+                             hit.group(1).encode() if (hit := beside.get(kind)) else None, _unix(c.get("created_at"))))
     return out
 
 
@@ -600,7 +605,7 @@ def stages(jwt: str, created: float | None, picked: float, done: float, get=None
     out: dict[str, int] = {}
     try:
         c = claims(jwt)
-        run = (get or _api)(f"repos/{c['repository']}/actions/runs/{int(c['run_id'])}")
+        run: Any = (get or _api)(f"repos/{c['repository']}/actions/runs/{int(c['run_id'])}")
         asked, began = _unix(run.get("created_at")), _unix(run.get("run_started_at"))
         if str(run.get("run_attempt", c.get("run_attempt", "1"))) == "1" and asked is not None and began is not None and began >= asked:
             out["queue"] = round(began - asked)        # (a re-run keeps the first attempt's creation time: its queue is not this)
@@ -795,7 +800,7 @@ def backoff(tries: int) -> int:
     return max(0, min(BACKOFF_MOST, 10 * (tries - 2)))
 
 
-WAITING = ("sending", "waiting")        # a journal entry that has no answer yet: in flight when the notes were written, or to be tried again
+WAITING = ("sending", "waiting", "queued", "leased")        # a journal entry that has no answer yet: in flight when the notes were written, or to be tried again
 
 
 def status_line(state: dict, now: float) -> str:
@@ -883,7 +888,8 @@ def _repo_id(repo: str, state: dict, get=None) -> int | None:
     ids = state.setdefault("ids", {})
     if repo not in ids:
         try:
-            ids[repo] = int((get or _api)(f"repos/{repo}")["id"])
+            got: Any = (get or _api)(f"repos/{repo}")
+            ids[repo] = int(got["id"])
         except Exception:  # noqa: BLE001 - GitHub did not answer, or the repository is gone: asked again on a later pass
             return None
     return ids[repo]
@@ -954,19 +960,33 @@ def _cranks(ledger, payer) -> list[str]:
     return lines
 
 
-def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) -> list[str]:
-    """One pass: read what the repositories posted, carry each new token, send what needs no token (`crank`), and log
-    the verdicts. Returns this pass's log lines."""
+def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, workers: int | None = None) -> list[str]:
+    """One pass: read what the repositories posted, queue each new token and carry what the queue holds, up to
+    `workers` at once (knos.settle.v2.relayq; default its WORKERS, or KNOS_RELAY_WORKERS); send what needs no token
+    (`crank`), and log the verdicts. Returns this pass's log lines.
+
+    The journal is the queue. A token is queued (written down) when its comment is read, leased to a worker before
+    its first transaction, and answered done, to be tried again, or dead with the reason. Tokens of one owner leave
+    one at a time in the order GitHub issued them (`_lane`); tokens of different owners do not wait for each other, so
+    one confirmation that takes a minute holds its own owner's tokens and nobody else's. Each token is tried at most
+    once in a pass: one to be tried again waits for a later pass. When the queue is full, no comment is read until
+    the time the pass says; what is posted meanwhile stays in its comment.
+
+    verify, withdraw and passkey-fund lines are on the queue too, each in a lane of its own repository, so the day's
+    limit of each is counted one at a time as before."""
+    from ..settle.v2 import relayq
     sp = _state_path()
-    try:
-        state = json.loads(sp.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        state = {}
     skew = now - time.time() if now else 0.0            # a caller that gives the time (a drill, a test) gets its stages on that clock
     now = now or time.time()
+    at: float = now
+    hands = max(1, workers or int(os.environ.get("KNOS_RELAY_WORKERS") or relayq.WORKERS))
+    me = f"sweep-{os.environ.get('GITHUB_RUN_ID') or os.getpid()}"
+    # the pass's own time is the queue's: a wait of 10 s ends for the pass that starts 10 s later, on every run the same
+    queue = relayq.Queue(sp, lambda: at, limit=relayq.LIMIT, workers=hands, max_tries=None, strict=False)
+    queue.release(me)               # leases of this run's own workers: a pass has ended, so a lease it left was a worker killed
+    state = queue.notes()
     began = time.monotonic()
     since = _stamp(now - HORIZON)
-    journal = dict(state.get("journal", {}))            # token (as posted) -> what the relay knows of it: see `status_line`
     order = list(state.get("seen", []))                 # what was done already (each token as it was posted), oldest first
     seen = set(order)
     tries = dict(state.get("tries", {}))
@@ -977,51 +997,67 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
     if ledger is None:
         from .. import chain
         ledger, payer = chain.ledger(), chain.key()
+    plock = threading.RLock()       # the pass's notes (state, seen, tries, hold, verified, lines), which several workers change
+
+    def keep() -> None:
+        """The notes as they stand, beside the journal (which the queue writes). A token whose answer is not in yet
+        is not in `seen`: whoever reads these notes next finds it in the journal, or in its comment."""
+        queue.note(_stamp_notes)
+
+    def _stamp_notes(disk: dict) -> None:
+        with plock:
+            state.update(seen=[t for t in dict.fromkeys(order) if t in seen][-2000:], tries=dict(list(tries.items())[-500:]), repos=dict(known),
+                         hold=dict(list(hold.items())[-500:]), verify={"day": day, "n": dict(verified)}, run=run_id)
+            mine = copy.deepcopy(state)
+        for k in [k for k in disk if k not in mine]:
+            del disk[k]
+        disk.update(mine)
+
+    run_id = os.environ.get("GITHUB_RUN_ID") or ""
     if state.get("unposted"):
         _post(state.pop("unposted"), state)
+    raw = ledger._ledger if isinstance(ledger, Timed) else ledger
     ledger = ledger if isinstance(ledger, Timed) else Timed(ledger, lambda: time.time() + skew)
     lines, later = _held(state, now, since), []
     if lines:
-        _save(sp, state)            # what was posted is out of the notes before anything else can stop this pass
-    run_id = os.environ.get("GITHUB_RUN_ID") or ""
+        keep()                      # what was posted is out of the notes before anything else can stop this pass
     answered: set[str] = set()
     if state.get("run", run_id) != run_id:      # another run's notes: it may still be relaying (worker.yml overlaps two runs)
         try:
             answered = logged(since)
         except Exception:  # noqa: BLE001 - GitHub did not answer: a token the chain shows done is looked up one by one
             answered = set()
-    newest = sorted(known, key=lambda r: (-known[r], r))
-    rest = sorted(newest[EVERY_PASS:])
-    turn = int(state.get("turn", 0)) % max(len(rest), 1)
-    state["turn"] = turn + IN_TURN
-    repos = {ROTATE_REPO, HOME_REPO} | {r.strip() for r in os.environ.get("KNOS_RELAY_REPOS", "").split(",") if "/" in r}
-    repos |= set(newest[:EVERY_PASS]) | set((rest + rest)[turn:turn + IN_TURN])
-    repos |= watched(ledger, state, now)                # found on chain, with no search: where a proof is awaited
-    if now - state.get("searched", 0) >= SEARCH_EVERY:
-        repos |= set(discover(since, state))
-        state["searched"] = now
+    listed: list = []
+    if float(state.get("resting", 0)) > now:
+        print(f"relay: the queue was full; comments are read again at {_stamp(float(state['resting']))} "
+              f"(in {math.ceil(float(state['resting']) - now)} seconds). What is queued is carried meanwhile.", file=sys.stderr)
+    else:
+        state.pop("resting", None)
+        newest = sorted(known, key=lambda r: (-known[r], r))
+        rest = sorted(newest[EVERY_PASS:])
+        turn = int(state.get("turn", 0)) % max(len(rest), 1)
+        state["turn"] = turn + IN_TURN
+        repos = {ROTATE_REPO, HOME_REPO} | {r.strip() for r in os.environ.get("KNOS_RELAY_REPOS", "").split(",") if "/" in r}
+        repos |= set(newest[:EVERY_PASS]) | set((rest + rest)[turn:turn + IN_TURN])
+        repos |= watched(ledger, state, now)                # found on chain, with no search: where a proof is awaited
+        if now - state.get("searched", 0) >= SEARCH_EVERY:
+            repos |= set(discover(since, state))
+            state["searched"] = now
 
-    def read(repo: str):
-        try:
-            return repo, found(repo, since)
-        except Exception:  # noqa: BLE001 - GitHub did not answer for this one: the next pass asks again
-            return repo, []
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        listed = list(pool.map(read, sorted(repos)))
+        def read(repo: str):
+            try:
+                return repo, found(repo, since)
+            except Exception:  # noqa: BLE001 - GitHub did not answer for this one: the next pass asks again
+                return repo, []
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            listed = list(pool.map(read, sorted(repos)))
 
     def issued(item) -> int:
         try:
             return int(claims(item[2]).get("iat", 0))
         except Exception:  # noqa: BLE001 - not a token: relay_one reports it
             return 0
-    def keep() -> None:
-        """The notes as they stand. A token whose answer is not in yet is left out of `seen`: whoever reads these
-        notes next (this run's next pass, or the run after a kill) finds it in its comment and carries it."""
-        open_ = {t for t, e in journal.items() if e.get("state") in WAITING}
-        state.update(seen=[t for t in dict.fromkeys(order) if t in seen and t not in open_][-2000:], tries=dict(list(tries.items())[-500:]), repos=known,
-                     hold=dict(list(hold.items())[-500:]), verify={"day": day, "n": verified}, run=run_id,
-                     journal=dict(list(journal.items())[-JOURNAL:]))
-        _save(sp, state)
+    had = queue.entries()
     # oldest first, whatever repository it is in: a balance takes its fund tokens in the order GitHub issued them
     for repo, item in sorted(((repo, item) for repo, items in listed for item in items), key=lambda found: issued(found[1])):
         kind, n, jwt, _who = item
@@ -1033,43 +1069,80 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         place = repo.encode() if astray else f"{repo}#{n}".encode() if kind == "passkey-fund" else b""
         tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"") + place).hexdigest()[:16]
         known[repo] = now
-        if tid in seen or tid in hold:
+        if tid in seen:
             continue
-        seen.add(tid)
-        order.append(tid)
+        if tid in had and "item" in had[tid]:           # in the journal: queued here on an earlier pass, or by an event run
+            if had[tid].get("state") not in relayq.OPEN:
+                seen.add(tid)                           # and answered there: its line is whoever carried it's to write
+                order.append(tid)
+            continue
         if answer(kind, jwt) in answered:   # the log has its verdict, under this marker: the run before this one carried it
+            seen.add(tid)
+            order.append(tid)
             continue
         wrong = ("a withdrawal request is read only on an issue of a repository named knos-claim" if astray else None) if kind == "withdraw" \
             else None if kind == "passkey-fund" else misposted(kind, jwt, terms)
         if wrong:                   # logged without the token's id: whoever waits for that token is not answered by this
+            seen.add(tid)
+            order.append(tid)
             lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its token ({token_id(jwt)[:8]}...): {wrong}")
             later.append(lines[-1])
             continue
-        entry = journal.setdefault(tid, {"id": token_id(jwt), "kind": kind, "where": f"{repo}#{n}", "seen": now, "tries": 0})
-        entry.update(state="sending", tries=int(entry.get("tries", 0)) + 1, last=now)
-        keep()                      # journaled before the first transaction: a relay killed from here on finds the token again
+        what = {"kind": kind, "repo": repo, "n": n, "jwt": jwt, "terms": terms.decode() if terms else None, "created": created}
+        try:                        # journaled before the first transaction: a relay killed from here on finds the token again
+            queue.put(tid, _lane(kind, jwt, repo), what, id=token_id(jwt), kind=kind, where=f"{repo}#{n}")
+        except relayq.Full as full:
+            # backpressure: nothing more is read until the queue has had time to empty. The tokens stay in their comments.
+            state["resting"] = now + full.retry_after
+            print(f"relay: the queue is full ({queue.pending()} tokens wait and it holds {queue.limit}), because Solana or GitHub is answering slowly. "
+                  f"No comment is read for {full.retry_after} seconds; reading starts again at {_stamp(state['resting'])}. "
+                  "Nothing is lost: a token that was not taken is still in its comment.", file=sys.stderr)
+            break
+    keep()
+    killed: list[BaseException] = []
+
+    def carry_one(entry: dict) -> dict:
+        """One entry to the chain, and what its answer means for the notes and the log: `relayq.work`'s handler."""
+        item = entry["item"]
+        kind, repo, n, jwt, tid = str(item["kind"]), str(item["repo"]), int(item["n"]), str(item["jwt"]), str(entry["key"])
+        terms = str(item["terms"]).encode() if item.get("terms") else None
+        created = item.get("created")
+        timed = Timed(raw, lambda: time.time() + skew)      # this token's own first send and last confirmation
         picked = time.time() + skew
         origin = f"{kind}:{repo}" if kind in ("withdraw", "passkey-fund") else _origin(jwt, repo)
-        rid = _repo_id(repo, state) if kind == "passkey-fund" else None
-        if kind == "withdraw" and verified.get(origin, 0) >= WITHDRAW_PER_DAY:
-            r = {"ok": False, "kind": "withdraw", "why": f"{WITHDRAW_PER_DAY} withdrawals a day are sent for one repository, and this one has had "
-                                                         "them; post it again after midnight UTC, or send it yourself (anyone can pay its fee)"}
-        elif kind == "passkey-fund" and verified.get(origin, 0) >= PASSKEY_FUND_PER_DAY:
-            r = {"ok": False, "kind": kind, "why": f"{PASSKEY_FUND_PER_DAY} passkey fundings a day are sent for one repository, and this one has had "
-                                                   "them; post the line again after midnight UTC while its slot lasts, or sign again then"}
-        elif kind == "passkey-fund" and rid is None:
-            r = {"ok": False, "kind": kind, "retry": True, "transient": True, "why": f"GitHub did not say which repository {repo} is"}
-        elif kind == "passkey-fund":
-            r = relay_one(ledger.start(), payer, kind, jwt, where=(rid, n))
-        elif kind == "verify" and verified.get(origin, 0) >= VERIFY_PER_DAY:
-            r = {"ok": False, "kind": "verify", "why": f"{VERIFY_PER_DAY} tokens a day are verified for one repository, and this one has had "
-                                                       "them; post it again after midnight UTC, or relay it yourself (anyone can)"}
-        else:
-            r = relay_one(ledger.start(), payer, kind, jwt, **({"terms": terms} if terms else {}))
+        with plock:
+            rid = _repo_id(repo, state) if kind == "passkey-fund" else None
+            had_today = verified.get(origin, 0)
+        try:
+            if kind == "withdraw" and had_today >= WITHDRAW_PER_DAY:
+                r: dict[str, Any] = {"ok": False, "kind": "withdraw", "why": f"{WITHDRAW_PER_DAY} withdrawals a day are sent for one repository, and this one has had "
+                                                             "them; post it again after midnight UTC, or send it yourself (anyone can pay its fee)"}
+            elif kind == "passkey-fund" and had_today >= PASSKEY_FUND_PER_DAY:
+                r = {"ok": False, "kind": kind, "why": f"{PASSKEY_FUND_PER_DAY} passkey fundings a day are sent for one repository, and this one has had "
+                                                       "them; post the line again after midnight UTC while its slot lasts, or sign again then"}
+            elif kind == "passkey-fund" and rid is None:
+                r = {"ok": False, "kind": kind, "retry": True, "transient": True, "why": f"GitHub did not say which repository {repo} is"}
+            elif kind == "passkey-fund" and rid is not None:
+                r = dict(relay_one(timed, payer, kind, jwt, where=(rid, n)))
+            elif kind == "verify" and had_today >= VERIFY_PER_DAY:
+                r = {"ok": False, "kind": "verify", "why": f"{VERIFY_PER_DAY} tokens a day are verified for one repository, and this one has had "
+                                                           "them; post it again after midnight UTC, or relay it yourself (anyone can)"}
+            else:
+                more: dict[str, Any] = {"terms": terms} if terms else {}
+                r = dict(relay_one(timed, payer, kind, jwt, **more))
+        except Exception as why:  # noqa: BLE001 - what a relay raises says nothing about the token: tried again as any failure that may clear
+            r = {"ok": False, "kind": kind, "retry": True, "transient": True, "why": f"{type(why).__name__}: {why}"}
+        except BaseException as gone:  # noqa: BLE001 - the process is being stopped: nothing is noted, the lease stays, the next pass sends again
+            killed.append(gone)
+            raise
         finished = time.time() + skew
-        entry.update(state="confirmed" if r.get("ok") else "waiting" if r.get("retry") else "refused",
-                     why=None if r.get("ok") else " ".join(str(r.get("why")).split())[:200],
-                     took=max(0, round(finished - (picked if created is None else created))), order=str(r.get("order") or r.get("job") or "") or None)
+        with plock:
+            return settle(entry, r, kind, repo, n, jwt, tid, created, origin, picked, finished, timed)
+
+    def settle(entry: dict, r: dict, kind: str, repo: str, n: int, jwt: str, tid: str, created, origin: str, picked: float, finished: float, timed) -> dict:
+        """What the queue is told (`relayq.Queue.finish`), after the notes and the log have what this answer means."""
+        q: dict[str, Any] = {"ok": bool(r.get("ok")) and not r.get("retry"), "order": r.get("order"), "job": r.get("job"), "why": r.get("why"),
+                             "took": max(0, round(finished - (picked if created is None else created))), "took_s": max(0.0, finished - picked)}
         if r.get("retry"):          # the faucet's minute, or the cluster dropped it: a later pass tries again
             if r.get("transient"):  # only a failure counts toward giving up; waiting out the limit does not
                 tries[tid] = tries.get(tid, 0) + 1
@@ -1078,17 +1151,20 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
             # expiry cannot be read gets MAX_TRIES passes. So does one the program itself answered (a twin run's
             # interference clears in a pass or two; what does not clear is the program's refusal, and is not sent for an hour)
             if tries.get(tid, 0) < MAX_TRIES or (dead is not None and now < dead and not r.get("answered")):
-                seen.discard(tid)
                 # the relay says how long to wait, when it knows; a failure that keeps coming is given more room each
                 # time, so that passes a few seconds apart do not give a token up within the same minute of trouble
                 wait = r.get("wait") or (backoff(tries[tid]) if r.get("transient") else 0)
                 if wait > 0:
                     hold[tid] = now + wait
-                continue
-            entry["state"] = "expired"
+                return {**q, "retry": True, "wait": wait}
+            q["gave_up"] = True
             r["why"] = (f"{r.get('why')} (gave up after {tries[tid]} passes; run the workflow again for a fresh token)" if dead is None or r.get("answered") else
                         f"{r.get('why')} (tried {tries[tid]} times until the token expired; run the workflow again for a fresh token)")
+            q["why"] = r["why"]
         tries.pop(tid, None)
+        hold.pop(tid, None)
+        seen.add(tid)               # answered: never taken up again from its comment
+        order.append(tid)
         # carried already, or refused: when two runs overlap, the loser of the race sees one or the other (a passkey
         # withdrawal has no `already`: once the winner sent it, the wallet's nonce has moved on and the loser is refused)
         if not r.get("ok") or r.get("already"):
@@ -1097,9 +1173,9 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
             except Exception:  # noqa: BLE001 - GitHub did not answer: the line says what the chain shows
                 told = False
             if told:
-                continue            # another run of this relay carried it, and its line is in the log
+                return q            # another run of this relay carried it, and its line is in the log
         if r.get("ok") and not r.get("sigs") and not r.get("already"):
-            continue                # nothing had to be done (a key the chain already has): no log line
+            return q                # nothing had to be done (a key the chain already has): no log line
         if kind in ("verify", "withdraw", "passkey-fund") and r.get("ok") and r.get("sigs"):
             verified[origin] = verified.get(origin, 0) + 1
         if kind == "passkey-fund":
@@ -1108,19 +1184,19 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
             if r.get("astray"):     # a line the passkey signed for another issue: this comment is not that funding, and its line answers nobody who waits for it
                 lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its line ({token_id(jwt)[:8]}...): {' '.join(str(r['why']).split())}")
                 later.append(lines[-1])
-                continue
+                return q
         took = max(0, round(finished - created)) if r.get("ok") and created is not None else None
         parts = stages(jwt, created, picked, finished) if r.get("ok") else None
-        if parts is not None and entry["tries"] > 1:
-            parts["tries"] = entry["tries"]         # carried on a later try: the log says how many it took
-        line = log_line(kind, repo, n, jwt, r, took, parts, times(r, created, picked, finished, ledger) if r.get("ok") else None)
-        if r.get("ok") and r.get("already") and entry["tries"] <= 1:
+        if parts is not None and int(entry["tries"]) > 1:
+            parts["tries"] = int(entry["tries"])    # carried on a later try: the log says how many it took
+        line = log_line(kind, repo, n, jwt, r, took, parts, times(r, created, picked, finished, timed) if r.get("ok") else None)
+        if r.get("ok") and r.get("already") and int(entry["tries"]) <= 1:
             # someone carried it before this relay sent anything. When that someone is another run of this relay (two
             # overlap at a handover) its own line is on its way: this one waits for it, and is posted only if none comes.
             # (A token this relay had already tried is its own doing, cut short: a relay killed after its send. Nobody
             # else will log that one, so its line is written at once.)
             state["held"] = [*state.get("held", []), {"line": line, "answer": answer(kind, jwt), "until": now + ALREADY_WAIT}][-200:]
-            continue
+            return q
         lines.append(line)
         if r["ok"]:
             _post([line], state)    # at once: someone is waiting for it
@@ -1129,6 +1205,11 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
         state.setdefault("owners", [])
         if r["ok"] and repo.split("/")[0] not in state["owners"]:
             state["owners"].append(repo.split("/")[0])
+        return q
+
+    relayq.work(queue, carry_one, hands, drain=False, owner=me, stop=lambda: bool(killed), note=_stamp_notes)
+    if killed:
+        raise killed[0]             # the pass ends as the process would have: what it held is leased in the notes, and sent again next time
     if crank:
         try:
             more = _cranks(ledger, payer)
@@ -1144,6 +1225,19 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True) 
     for ln in lines:
         print(ln)
     return lines
+
+
+def _lane(kind: str, jwt: str, repo: str) -> str:
+    """The lane a token leaves in when the sweep carries several at once: its owner's (`knos.settle.v2.relay.lane`),
+    so two transactions that may write one account never run together and leave in the order GitHub issued them.
+    A token that names no owner cannot be shown to share nothing with another: all of those leave one at a time, as
+    every token did before. A verify-only token, a withdrawal request and a passkey's funding line leave in a lane of
+    their repository, so the day's limit for it is counted one at a time."""
+    if kind in ("verify", "withdraw", "passkey-fund"):
+        return f"{kind}:{repo if kind != 'verify' else _origin(jwt, repo)}"
+    from ..settle.v2 import relay as second
+    lane = str(second.lane(jwt))
+    return "unowned" if lane.startswith("alone:") else lane
 
 
 def serve(seconds: float, every: float = 3.0, ledger=None, payer=None, clock=time.monotonic, sleep=time.sleep) -> int:

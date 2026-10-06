@@ -177,6 +177,21 @@ def kind_of(aud: str) -> str | None:
     return found.name if found else None
 
 
+def lane(jwt: str) -> str:
+    """The lane a token travels in when several are carried at once (knos.settle.v2.relayq): two tokens of one lane
+    may write the same account (a funder's Balance, an order, a job), so they are sent one after the other, in the
+    order they came. It is the account that owns the repository the token was signed for (`repository_owner_id`),
+    which is wider than any one of those accounts: tokens of different owners share none of them. A token that names
+    no owner travels alone. Read from the token as it says it, unverified: a wrong lane costs speed, never money."""
+    try:
+        body = jwt.split(".")[1]
+        claims = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+        owner = claims.get("repository_owner_id") or claims.get("namespace_id") or claims.get("sub")
+    except (IndexError, ValueError, AttributeError):
+        owner = None
+    return f"owner:{owner}" if owner else "alone:" + hashlib.sha256(jwt.encode()).hexdigest()[:16]
+
+
 _VERSION: dict[tuple, int] = {}         # (cluster, program) -> what Version answered, for as long as this process lives
 _VERSION_LINE = b"knos2:version"         # Version's log line (fund.rs: msg!("knos2:version {}", VERSION)): only a build that answers 12 holds it
 _UPGRADEABLE = Pubkey.from_string("BPFLoaderUpgradeab1e11111111111111111111111")      # its program account names the ProgramData that holds the code
@@ -1513,6 +1528,12 @@ def _plan_eval(a: _Ask) -> _Plan:
         made = meter.read_mark(ledger.account(mark))
         if made is None:
             return {"ok": False, "kind": kind, "why": "the evaluation did not reach the chain"}
+        try:        # the one log of events, when this relay keeps one (KNOS_EVENTS): best effort, after the confirmation
+            from ... import events
+            if sigs and events.where():
+                events.keep(events.where(), lambda: events.from_records([t.aud + " " + sigs[-1]], made.month))
+        except Exception:  # noqa: BLE001, S110 - the evaluation is on chain whatever a log file says
+            pass
         return {"ok": True, **result, "sigs": sigs, "accepted": made.accepted, "rate": made.rate, "fee": made.fee, "month": made.month}
     return _Plan(t, [([*first, meter.record_ix(me, t.account, t.key, credits, cr, t.aud, now)], _CU["ata"] * len(first) + _CU["record"])], done)
 

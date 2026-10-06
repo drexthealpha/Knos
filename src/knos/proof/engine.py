@@ -159,7 +159,7 @@ def run_check(name: str, repo: Path, claim: claims.Claim, cfg: dict, runners: di
     if name == "author":
         return checks.author(repo, cfg.get("author"))
     if name.startswith("custom:"):
-        spec = next((c for c in cfg.get("check", []) if f"custom:{c.get('name')}" == name), {})
+        spec: dict = next((c for c in cfg.get("check", []) if f"custom:{c.get('name')}" == name), {})
         return checks.custom(repo, spec.get("name", name), spec.get("run", "false"))
     if name.startswith("tamper:"):   # fail closed: only the prove judge (passed in as a runner) can clear it
         return checks.Result(name, False, f"required since {name[7:]} was caught here; run by the judge (knos.judge)")

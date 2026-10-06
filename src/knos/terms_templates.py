@@ -243,7 +243,8 @@ def diff_text(a: str, b: str) -> str:
 
 def register(app) -> None:
     """`knos terms list`, `show <name>`, `diff <a> <b>`, and from the registry of published terms `cite` and `verify`."""
-    import typer
+    import importlib
+    typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
     sub = typer.Typer(no_args_is_help=True, help="Terms from a template: the comment to post and exactly what it funds.")
 

@@ -13,7 +13,7 @@ Read this first:
 - **No contract.** There is no named legal entity, no terms of service, no data-processing agreement and no
   service-level agreement.
 
-Where a file is marked (0.3.13), (0.3.14), (0.3.15) or (0.3.16) it is new in that release. Everything else has been in the repository
+Where a file is marked (0.3.13), (0.3.14), (0.3.15), (0.3.16) or (0.3.17) it is new in that release. Everything else has been in the repository
 since 0.3.12. [SECURITY.md](SECURITY.md) is the full security model. [FINANCE.md](FINANCE.md) is the page for a controller: one
 deliverable as four linked records, the statement, and the files a finance system imports. [ASSURANCE.md](ASSURANCE.md) lists the invariants
 and the tests that hold them. [REGULATION.md](REGULATION.md) covers law.
@@ -68,8 +68,8 @@ a file. Nothing sends it anywhere, and nothing keeps it.
 |---|---|
 | An organisation tier with a price ("Control") | the price book; nobody has bought it, and it adds no code beyond the rows above |
 | A screen that sets a Balance's limits | not built: the limits are set from the command line (`knos budget set`). [`web/controls_data.js`](../web/controls_data.js) (0.3.15) is the same decision as `knos budget check` for a page to show; it sets nothing. |
-| An approval workflow with two people: one asks, another approves, before money is set aside | not built, and not in the program: a comment by the owner or one spender funds an order at once, within the limits, and the order's record says one account approved. What exists is outside Knos, in two forms. An order funded from a multisig's vault ([`scripts/squads_fund.mjs`](../scripts/squads_fund.mjs)) needs that multisig's threshold to fund, and `knos audit show` prints the threshold and who approved (0.3.16): this is the two-person approval Knos has today. A Balance opened by a multisig's vault needs the threshold to change a limit or withdraw, not to fund by comment. |
-| Roles beyond owner and spender (an approver, a read-only auditor) | not designed in the program. The audit export is public data: anyone can make it for any owner, and a supplier makes its own side with `knos audit owed`. |
+| An approval workflow with two people: one asks, another approves, before money is set aside | built as files and a command (0.3.17), and **not enforced by the program**. A policy file names who holds the requester, approver, finance and auditor roles and how many approvers an amount needs; `knos approve record` takes an approval from a comment by the named account, read through GitHub's API, and refuses one without authority; `knos approve status` says what a request waits for ([section 9](#9-procurement-files-rate-cards-standing-offers-envelopes-approvals)). What it does not do: nothing on chain checks it, and the funding workflow does not ask it yet, so a comment by the owner or one spender still funds an order at once, within the Balance's limits. An approval is as strong as the approver's GitHub account: Knos adds no key of its own. Outside Knos there is also the multisig: an order funded from a multisig's vault ([`scripts/squads_fund.mjs`](../scripts/squads_fund.mjs)) needs that multisig's threshold to fund, and `knos audit show` prints the threshold and who approved (0.3.16). A Balance opened by a multisig's vault needs the threshold to change a limit or withdraw, not to fund by comment. |
+| Roles beyond owner and spender (an approver, a read-only auditor) | not in the program. In the buyer's repository since 0.3.17: `.knos/procurement/policy.yaml` names four roles and who holds each between which dates, and [`src/knos/approvals.py`](../src/knos/approvals.py) judges an approver's authority for the day of the approval. The auditor role grants nothing in Knos: the audit export is public data, anyone can make it for any owner, and a supplier makes its own side with `knos audit owed`. |
 | A connection to a finance system | not built: `knos audit export --format ...` writes files. Nothing sends them, and no import has been tried in NetSuite, SAP, Coupa or QuickBooks. |
 | Alerts when a limit is near or a refusal happens | not built: a refusal is a comment on the issue and a failed transaction |
 | A judge repository for a public order that attests on any event | the program has the rule; no command reaches it ([ADAPTERS.md](ADAPTERS.md)) |
@@ -78,7 +78,9 @@ a file. Nothing sends it anywhere, and nothing keeps it.
 
 | control | what it would take |
 |---|---|
-| Single sign-on | Knos has no accounts, so there is nothing to sign on to: identity is GitHub's and a wallet's. A company that enforces SAML single sign-on on its GitHub organisation gets that for the comments that fund and the runs that sign. A console with its own sign-on would be a hosted service, with an operator and a contract. |
+| Single sign-on | does not exist. Knos has no accounts, so there is nothing to sign on to: identity is GitHub's and a wallet's. The console is a static page with no server and no sign-in: it cannot know who is reading it, and anyone can open it. A company that enforces SAML single sign-on on its GitHub organisation gets that for the comments that fund, the comments that approve and the runs that sign, and for nothing on the console. A console with its own sign-on would take a hosted service that keeps sessions (a server, a SAML or OpenID Connect integration with the company's identity provider, a place to keep which account holds which role), an operator to run it, and a contract. None of that is built. |
+| Private deployment | does not exist. There is no package to run the console, the relay and the statement files inside a company's own network, no documented way to do it, and nobody has tried. It would take that package, a relay the company runs with its own key, the site's files built from the company's own data, and somebody to support it. The command line and the files in the buyer's repository do run on the buyer's own machines; the programs are on a public chain either way. |
+| A support contract | does not exist. There is no entity to sign one, no response time, no on-call team. Today the founder alone answers. It would take a company, people, and an agreement that names the hours and the time to respond. |
 | Support, with a response time | people, and an agreement that names the time |
 | An entity to contract with, terms of service, a data-processing agreement | a company; there is none named |
 | Independent review: a security audit, a SOC 2 report, a penetration test | an outside firm; none has looked |
@@ -96,8 +98,9 @@ a file. Nothing sends it anywhere, and nothing keeps it.
 | A relayer | carry a signed token to the chain and pay the fee | decide anything: the program checks the signature and the terms | [`src/knos/settle/v2/relay.py`](../src/knos/settle/v2/relay.py) |
 | Knos, outside the two multisigs | nothing on a funded order | | |
 
-What does not exist: single sign-on; an approval workflow with two people inside Knos (a multisig's vault as the funder is the only
-two-person approval, and it is the multisig's rule); an admin console; roles inside Knos. Knos has no accounts of its own.
+What does not exist: single sign-on; private deployment; a support contract; an approval the program enforces (the approval chain of
+0.3.17 is files in the buyer's repository and a command, and a multisig's vault as the funder is the only two-person approval that
+money cannot get past, by the multisig's own rule); an admin console; roles inside the program. Knos has no accounts of its own.
 Identity is GitHub's and a wallet's, so a company's access rules for GitHub are its access rules here. **Every
 member key of the upgrade multisig is the founder's** ([SECURITY.md](SECURITY.md), section 7). No document names
 anyone but the founder as a holder of a guardian key. No outside signer sits on either.
@@ -216,3 +219,165 @@ differential test against OpenSSL, a list of forgeries, and random walks that ch
 vault holds exactly what its open orders add up to.
 
 Testing is not a review by someone who did not write the code. There has been none.
+
+## 9. Procurement files: rate cards, standing offers, envelopes, approvals
+
+(0.3.17) Four kinds of file and one log, all in the buyer's own repository under `.knos/procurement/`. There is no
+server: the files are the record, git is their history, and the command line and the console read them with the same
+code ([`src/knos/controls.py`](../src/knos/controls.py), [`src/knos/approvals.py`](../src/knos/approvals.py),
+[`web/procure.js`](../web/procure.js); `tests/data/procure_cases.json` holds the two languages to one answer, sentence
+for sentence). Money is test USDC on devnet.
+
+The files are a small, fixed part of YAML: `key: value`, nested keys, `- item` lists, `[a, b]` lists, "quoted text",
+whole numbers, `true`, `false`, `null` and `#` comments. Dates are written `2026-10-01`. Amounts are whole units as a
+person writes them (`50`, `"12.5"`). Anything else is refused with its line. A field nobody reads is refused too.
+
+| file | what it says |
+|---|---|
+| `rate-cards/<name>.yaml` | named outcomes, each with a price, a unit, and the acceptance terms it cites: a template of [`terms/`](../terms/) by name and by hash; valid from and to |
+| `offers/<name>.yaml` | a standing offer: one outcome of one rate card, the suppliers (or `anyone`), a cap per supplier per period, start and end, the envelope it draws on, who asked, and what happens on retries and reopened work |
+| `envelopes/<name>.yaml` | a budget envelope: owner, cost centre, period, limit, and what is committed, spent and held. What is left is never typed: it is the limit less the three |
+| `policy.yaml` | the approval policy: who holds each role and between which dates, and how many approvers an amount needs |
+| `approvals.jsonl` | the approvals, one event a line, written by `knos approve record` |
+
+A rate card:
+
+```yaml
+version: 1
+kind: rate-card
+name: maintenance-2026q4
+currency: test USDC
+valid_from: 2026-10-01
+valid_to: 2026-12-31
+outcomes:
+  - name: bug-fix
+    price: 50
+    unit: accepted pull request
+    terms: bugfix
+    terms_hash: "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+```
+
+`knos budget card FILE` refuses a card whose `terms_hash` is not the published hash of the template it names
+(`knos terms cite bugfix` prints it).
+
+A standing offer:
+
+```yaml
+version: 1
+kind: standing-offer
+name: bug-fix-octocat
+rate_card: maintenance-2026q4
+outcome: bug-fix
+suppliers: [octocat]
+cap: 400
+period: month
+starts: 2026-10-01
+ends: 2026-12-31
+envelope: eng-2026q4
+requested_by: ravi-acme
+retries: 3
+reopened: same
+```
+
+`period` is `week`, `month` or `quarter` (7, 30 and 90 days: one order waits at most 90). `retries` is how many
+evaluations one deliverable may take; an accepted deliverable is billed once however many it took. `reopened` is
+`same` (reopened work is the same deliverable and is not billed again) or `new` (it is a new deliverable and needs a
+new approval). The offer commits its cap for every supplier and every period it spans, counted to the nearest whole
+period: 400 a month for one supplier over a quarter is 1,200, and 1,230 with the settle fee of each month's funding.
+
+A budget envelope:
+
+```yaml
+version: 1
+kind: budget-envelope
+name: eng-2026q4
+owner: dana-acme
+cost_centre: ENG-410
+currency: test USDC
+period_from: 2026-10-01
+period_to: 2026-12-31
+limit: 5000
+committed: 1200
+spent: 850
+held: 150
+as_of: 2026-10-05
+```
+
+Committed is what open offers and funded orders promise and nobody has accepted yet. Spent is what was paid for
+accepted work. Held is accepted and waiting: a holdback, or a supplier with no payout address. An envelope counts what
+leaves the Balance, which is the amount and the fee on top, as the Balance's own limits do.
+
+**Limits are shown before work starts.** `knos budget offer FILE` reads the rate card and the envelope the offer
+names, prints the envelope before and after, and refuses an offer over the limit with the amount it is over by:
+
+```
+Refused: this is 275.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left.
+```
+
+Within the limit it prints the comment that funds each supplier for one period, which is the `/knos offer` line the
+workflow already reads, and with `--write` it adds the commitment to the envelope's file. The console shows the same
+before and after while the three fields of an offer are typed, and beside the amount when one task is funded.
+
+For one task, `knos budget envelope FILE --fund 500` prints the same before and after with the fee on top, and
+refuses over the limit the same way. It sends and writes nothing.
+
+The approval policy:
+
+```yaml
+version: 1
+kind: approval-policy
+currency: test USDC
+self_approval_limit: 0
+roles:
+  requester:
+    - account: ravi-acme
+  approver:
+    - account: mei-acme
+      from: 2026-01-01
+      until: 2026-12-31
+      limit: 25000
+    - account: sam-acme
+  finance:
+    - account: dana-acme
+  auditor:
+    - account: noor-acme
+thresholds:
+  - up_to: 1000
+    approvers: 1
+  - up_to: 25000
+    approvers: 2
+  - approvers: 2
+    finance: 1
+```
+
+Up to 1,000 one approver signs; up to 25,000 two; above that, two and finance. An approval is a comment by the named
+account, `/knos approve offer:bug-fix-octocat` (or `... as finance`), and `knos approve record --repo OWNER/NAME
+--comment NUMBER --offer FILE` reads it back through GitHub's API: who wrote it and when are GitHub's answer, never
+the caller's. Authority is judged for the day the comment was written, and a refusal is one sentence:
+
+| case | what is said |
+|---|---|
+| the account is not in the role | `Refused: @octocat does not hold the approver role in this policy.` |
+| the role has ended | `Refused: @lee-acme's approver role ended 2026-06-30, before this approval of 2026-10-03.` |
+| the request is the approver's own | `Refused: @mei-acme asked for this, and nobody approves their own request.` |
+| the amount is over the approver's own limit | `Refused: 30,000.00 is over @mei-acme's own limit of 25,000.00.` |
+| the comment was edited | `Refused: that comment was edited after it was written. Ask for a new one.` |
+
+`knos approve status --offer FILE` judges every event of the log again and says what the request waits for and who
+could still sign. `tests/test_procurement.py` holds each of these.
+
+What this is not:
+
+- **Not enforced on chain, and not asked by the funding workflow yet.** The files say whether an offer is approved
+  and fits its envelope. A comment by the Balance's owner or a spender still funds, within the Balance's limits
+  (section 1). `knos.approvals.gate` is the question a workflow would ask before funding; nothing calls it today.
+- **No signature of Knos's.** An approval is a comment on GitHub. Whoever controls the approver's GitHub account
+  controls the approval, and an organisation owner who can rewrite the policy file can name a new approver. The
+  event records the comment's address and the sha256 of its text, so anyone can read the same comment again.
+- **An envelope's figures are typed or written by `--write`.** Nothing moves an amount from committed to spent when
+  an order is paid: whoever owns the envelope updates it from the month's statement.
+- **A cap by period is one funding a period.** The program holds a standing offer's budget until its deadline, at
+  most 90 days. A monthly cap is a comment each month.
+- **`anyone` has no funding comment.** The program's standing offer names one supplier.
+- **No sign-in.** The console shows these files to whoever opens it, for a public repository. It reads a private
+  repository's files only through the command line, on a machine that has them.

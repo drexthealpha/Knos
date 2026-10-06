@@ -31,12 +31,13 @@ KIT_1 = {
     "statement": "d0fbcb03167af48c8a3d0249bb5fa582af5d84fb744716a6cf996ffbce5b5b50",
 }
 # What the JavaScript client does not do (conformance/impl/knos_js.mjs says why); every other operation it passes.
-JS_NOT_IMPLEMENTED = {"receipt.check", "statement.text"}
+JS_NOT_IMPLEMENTED = {"receipt.check", "receipt.verdict", "statement.text"}
 
 
 def test_the_vectors_are_the_ones_kit_version_1_names_and_every_case_is_well_formed():
     m = kit.manifest()
-    assert m["kit"] == 1 and {e["format"]: e["sha256"] for e in m["formats"]} == KIT_1
+    named = {e["format"]: e["sha256"] for e in m["formats"]}
+    assert m["kit"] == 2 and {k: named[k] for k in KIT_1} == KIT_1 and set(named) - set(KIT_1) == {"receipt4", "ids"}     # version 2 added two, changed none
     todo = kit.cases()
     assert len({c["id"] for c in todo}) == len(todo) == sum(e["cases"] for e in m["formats"])
     for e in m["formats"]:
@@ -49,6 +50,12 @@ def test_the_vectors_are_the_ones_kit_version_1_names_and_every_case_is_well_for
     receipts = json.loads((ROOT / "docs" / "receipt" / "vectors.json").read_text(encoding="utf-8"))
     assert sum(len(receipts[g]) for g in m["formats"][0]["groups"]) == 44    # reused, not copied: the kit holds no receipt of its own
     assert not list(KIT.glob("vectors/receipt*"))
+    four = json.loads((ROOT / "docs" / "receipt" / "vectors.v4.json").read_text(encoding="utf-8"))
+    assert {v["verdict"] for v in four["valid_v4"]} == {"accepted", "rejected", "insufficient_evidence", "disputed"}
+    assert all(v["authorises_payment"] == (v["verdict"] == "accepted") for v in four["valid_v4"]) and len(four["invalid_v4"]) >= 20
+    billed = [c for c in todo if c["op"] == "ids.billed_once" and "output" in c["expect"]]
+    assert any(len(c["input"]["evaluations"]) == 10 and len(c["expect"]["output"]) == 1 for c in billed)         # ten pull requests, one outcome
+    assert any([e["verdict"] for e in c["input"]["evaluations"]] == ["accepted", "accepted"] and c["expect"]["output"] == [0] for c in billed)
 
 
 def test_a_changed_vector_stops_the_run(monkeypatch):
@@ -92,7 +99,7 @@ def test_the_javascript_client_passes_every_case_it_implements():
     assert re.search(rf"^\| JavaScript [^|]*\| {done} \| {left} \| 0 \|$", DOC, re.M)
     source = (KIT / "impl" / "knos_js.mjs").read_text(encoding="utf-8")
     adapter = set(re.findall(r'^  "([a-z_.0-9]+)":', source.split("const ADAPTER")[1], re.M))
-    assert adapter == {"receipt.digest", "ledger.deliverable_id", "statement.hash"}      # the three the SDK has no function for
+    assert adapter == {"receipt.digest", "ledger.deliverable_id", "statement.hash"} | {c["op"] for c in kit.cases() if c["format"] == "ids"}     # what the SDK has no function for
     by_adapter = sum(1 for c in kit.cases() if c["op"] in adapter)
     assert f"{done - by_adapter} are answered by functions `sdk/settle` exports and {by_adapter} by a few lines in the adapter" in DOC
     for op in adapter | JS_NOT_IMPLEMENTED:

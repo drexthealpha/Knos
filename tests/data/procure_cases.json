@@ -1,0 +1,4529 @@
+{
+ "note": "Written by tests/test_procurement.py from src/knos/controls.py and src/knos/approvals.py. Do not edit by hand.",
+ "cases": [
+  {
+   "name": "readYaml 1",
+   "fn": "readYaml",
+   "args": [
+    "version: 1\nkind: rate-card\nname: maintenance-2026q4\ncurrency: test USDC\nvalid_from: 2026-10-01\nvalid_to: 2026-12-31\noutcomes:\n  - name: bug-fix\n    price: 50\n    unit: accepted pull request\n    terms: bugfix\n    terms_hash: \"91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3\"\n  - name: feature\n    price: 80\n    unit: accepted pull request\n    terms: feature-blackbox\n    terms_hash: \"59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6\"\n"
+   ],
+   "out": {
+    "version": 1,
+    "kind": "rate-card",
+    "name": "maintenance-2026q4",
+    "currency": "test USDC",
+    "valid_from": "2026-10-01",
+    "valid_to": "2026-12-31",
+    "outcomes": [
+     {
+      "name": "bug-fix",
+      "price": 50,
+      "unit": "accepted pull request",
+      "terms": "bugfix",
+      "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+     },
+     {
+      "name": "feature",
+      "price": 80,
+      "unit": "accepted pull request",
+      "terms": "feature-blackbox",
+      "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+     }
+    ]
+   }
+  },
+  {
+   "name": "readYaml 2",
+   "fn": "readYaml",
+   "args": [
+    "version: 1\nkind: budget-envelope\nname: eng-2026q4\nowner: dana-acme\ncost_centre: ENG-410\ncurrency: test USDC\nperiod_from: 2026-10-01\nperiod_to: 2026-12-31\nlimit: 5000\ncommitted: 1200\nspent: 850\nheld: 150\nas_of: 2026-10-05\n"
+   ],
+   "out": {
+    "version": 1,
+    "kind": "budget-envelope",
+    "name": "eng-2026q4",
+    "owner": "dana-acme",
+    "cost_centre": "ENG-410",
+    "currency": "test USDC",
+    "period_from": "2026-10-01",
+    "period_to": "2026-12-31",
+    "limit": 5000,
+    "committed": 1200,
+    "spent": 850,
+    "held": 150,
+    "as_of": "2026-10-05"
+   }
+  },
+  {
+   "name": "readYaml 3",
+   "fn": "readYaml",
+   "args": [
+    "version: 1\nkind: standing-offer\nname: bug-fix-octocat\nrate_card: maintenance-2026q4\noutcome: bug-fix\nsuppliers: [octocat]\ncap: 400\nperiod: month\nstarts: 2026-10-01\nends: 2026-12-31\nenvelope: eng-2026q4\nrequested_by: ravi-acme\nretries: 3\nreopened: same\n"
+   ],
+   "out": {
+    "version": 1,
+    "kind": "standing-offer",
+    "name": "bug-fix-octocat",
+    "rate_card": "maintenance-2026q4",
+    "outcome": "bug-fix",
+    "suppliers": [
+     "octocat"
+    ],
+    "cap": 400,
+    "period": "month",
+    "starts": "2026-10-01",
+    "ends": "2026-12-31",
+    "envelope": "eng-2026q4",
+    "requested_by": "ravi-acme",
+    "retries": 3,
+    "reopened": "same"
+   }
+  },
+  {
+   "name": "readYaml 4",
+   "fn": "readYaml",
+   "args": [
+    "version: 1\nkind: approval-policy\ncurrency: test USDC\nself_approval_limit: 0\nroles:\n  requester:\n    - account: ravi-acme\n      from: 2026-01-01\n      until: 2026-12-31\n    - account: mei-acme\n      from: 2026-01-01\n      until: 2026-12-31\n  approver:\n    - account: mei-acme\n      from: 2026-01-01\n      until: 2026-12-31\n      limit: 25000\n    - account: sam-acme\n      from: 2026-01-01\n      until: 2026-12-31\n    - account: lee-acme\n      from: 2026-01-01\n      until: 2026-06-30\n  finance:\n    - account: dana-acme\n      from: 2026-01-01\n      until: 2026-12-31\n  auditor:\n    - account: noor-acme\n      from: 2026-01-01\n      until: 2026-12-31\nthresholds:\n  - up_to: 1000\n    approvers: 1\n  - up_to: 25000\n    approvers: 2\n  - approvers: 2\n    finance: 1\n"
+   ],
+   "out": {
+    "version": 1,
+    "kind": "approval-policy",
+    "currency": "test USDC",
+    "self_approval_limit": 0,
+    "roles": {
+     "requester": [
+      {
+       "account": "ravi-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      },
+      {
+       "account": "mei-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      }
+     ],
+     "approver": [
+      {
+       "account": "mei-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31",
+       "limit": 25000
+      },
+      {
+       "account": "sam-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      },
+      {
+       "account": "lee-acme",
+       "from": "2026-01-01",
+       "until": "2026-06-30"
+      }
+     ],
+     "finance": [
+      {
+       "account": "dana-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      }
+     ],
+     "auditor": [
+      {
+       "account": "noor-acme",
+       "from": "2026-01-01",
+       "until": "2026-12-31"
+      }
+     ]
+    },
+    "thresholds": [
+     {
+      "up_to": 1000,
+      "approvers": 1
+     },
+     {
+      "up_to": 25000,
+      "approvers": 2
+     },
+     {
+      "approvers": 2,
+      "finance": 1
+     }
+    ]
+   }
+  },
+  {
+   "name": "readYaml 5",
+   "fn": "readYaml",
+   "args": [
+    "# c\nname: x  # note\nlist: [a, \"b, c\", 3]\nrows:\n- k: 1\n  v: \"#1\"\n- 12.5\nnone:\nyes: true\n"
+   ],
+   "out": {
+    "name": "x",
+    "list": [
+     "a",
+     "b, c",
+     3
+    ],
+    "rows": [
+     {
+      "k": 1,
+      "v": "#1"
+     },
+     "12.5"
+    ],
+    "none": null,
+    "yes": true
+   }
+  },
+  {
+   "name": "readYaml 6",
+   "fn": "readYaml",
+   "args": [
+    "a: {b: 1}"
+   ],
+   "out": {
+    "unread": "Line 1: these files use plain keys, lists and values only; `{` starts something else."
+   }
+  },
+  {
+   "name": "readYaml 7",
+   "fn": "readYaml",
+   "args": [
+    "a: 1\n\tb: 2"
+   ],
+   "out": {
+    "unread": "Line 2: indent with spaces, not tabs."
+   }
+  },
+  {
+   "name": "readYaml 8",
+   "fn": "readYaml",
+   "args": [
+    "a: 1\na: 2"
+   ],
+   "out": {
+    "unread": "Line 2: `a` is written twice."
+   }
+  },
+  {
+   "name": "readYaml 9",
+   "fn": "readYaml",
+   "args": [
+    "a:\n  b: 1\n c: 2"
+   ],
+   "out": {
+    "unread": "Line 3: the indentation matches nothing above it."
+   }
+  },
+  {
+   "name": "readYaml 10",
+   "fn": "readYaml",
+   "args": [
+    ""
+   ],
+   "out": {
+    "unread": "The file is empty."
+   }
+  },
+  {
+   "name": "readYaml 11",
+   "fn": "readYaml",
+   "args": [
+    "a: \"open"
+   ],
+   "out": {
+    "unread": "Line 1: the quoted text does not end where the line does."
+   }
+  },
+  {
+   "name": "readYaml 12",
+   "fn": "readYaml",
+   "args": [
+    "a: [1, 2"
+   ],
+   "out": {
+    "unread": "Line 1: a list in brackets ends on its own line."
+   }
+  },
+  {
+   "name": "readYaml 13",
+   "fn": "readYaml",
+   "args": [
+    "- a\n- b: 1\n  c: [x]\n"
+   ],
+   "out": [
+    "a",
+    {
+     "b": 1,
+     "c": [
+      "x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "dumpYaml 14",
+   "fn": "dumpYaml",
+   "args": [
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": "version: 1\nkind: rate-card\nname: maintenance-2026q4\ncurrency: test USDC\nvalid_from: 2026-10-01\nvalid_to: 2026-12-31\noutcomes:\n  - name: bug-fix\n    price: 50\n    unit: accepted pull request\n    terms: bugfix\n    terms_hash: \"91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3\"\n  - name: feature\n    price: 80\n    unit: accepted pull request\n    terms: feature-blackbox\n    terms_hash: \"59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6\"\n"
+  },
+  {
+   "name": "dumpYaml 15",
+   "fn": "dumpYaml",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    }
+   ],
+   "out": "version: 1\nkind: budget-envelope\nname: eng-2026q4\nowner: dana-acme\ncost_centre: ENG-410\ncurrency: test USDC\nperiod_from: 2026-10-01\nperiod_to: 2026-12-31\nlimit: 5000\ncommitted: 1200\nspent: 850\nheld: 150\nas_of: 2026-10-05\n"
+  },
+  {
+   "name": "dumpYaml 16",
+   "fn": "dumpYaml",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "out": "version: 1\nkind: standing-offer\nname: bug-fix-octocat\nrate_card: maintenance-2026q4\noutcome: bug-fix\nsuppliers: [octocat]\ncap: 400\nperiod: month\nstarts: 2026-10-01\nends: 2026-12-31\nenvelope: eng-2026q4\nrequested_by: ravi-acme\nretries: 3\nreopened: same\n"
+  },
+  {
+   "name": "dumpYaml 17",
+   "fn": "dumpYaml",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    }
+   ],
+   "out": "version: 1\nkind: approval-policy\ncurrency: test USDC\nself_approval_limit: 0\nroles:\n  requester:\n    - account: ravi-acme\n      from: 2026-01-01\n      until: 2026-12-31\n    - account: mei-acme\n      from: 2026-01-01\n      until: 2026-12-31\n  approver:\n    - account: mei-acme\n      from: 2026-01-01\n      until: 2026-12-31\n      limit: 25000\n    - account: sam-acme\n      from: 2026-01-01\n      until: 2026-12-31\n    - account: lee-acme\n      from: 2026-01-01\n      until: 2026-06-30\n  finance:\n    - account: dana-acme\n      from: 2026-01-01\n      until: 2026-12-31\n  auditor:\n    - account: noor-acme\n      from: 2026-01-01\n      until: 2026-12-31\nthresholds:\n  - up_to: 1000\n    approvers: 1\n  - up_to: 25000\n    approvers: 2\n  - approvers: 2\n    finance: 1\n"
+  },
+  {
+   "name": "dumpYaml 18",
+   "fn": "dumpYaml",
+   "args": [
+    {
+     "a": "true",
+     "b": "1 2",
+     "c": "x: y",
+     "d": [],
+     "e": null,
+     "f": false
+    }
+   ],
+   "out": "a: \"true\"\nb: \"1 2\"\nc: \"x: y\"\nd: []\ne: null\nf: false\n"
+  },
+  {
+   "name": "unitsOf 19",
+   "fn": "unitsOf",
+   "args": [
+    50
+   ],
+   "out": 50000000
+  },
+  {
+   "name": "unitsOf 20",
+   "fn": "unitsOf",
+   "args": [
+    "12.5"
+   ],
+   "out": 12500000
+  },
+  {
+   "name": "unitsOf 21",
+   "fn": "unitsOf",
+   "args": [
+    "0.000001"
+   ],
+   "out": 1
+  },
+  {
+   "name": "unitsOf 22",
+   "fn": "unitsOf",
+   "args": [
+    "1.0000001"
+   ],
+   "out": null
+  },
+  {
+   "name": "unitsOf 23",
+   "fn": "unitsOf",
+   "args": [
+    -1
+   ],
+   "out": null
+  },
+  {
+   "name": "unitsOf 24",
+   "fn": "unitsOf",
+   "args": [
+    true
+   ],
+   "out": null
+  },
+  {
+   "name": "unitsOf 25",
+   "fn": "unitsOf",
+   "args": [
+    "x"
+   ],
+   "out": null
+  },
+  {
+   "name": "unitsOf 26",
+   "fn": "unitsOf",
+   "args": [
+    null
+   ],
+   "out": null
+  },
+  {
+   "name": "unitsOf 27",
+   "fn": "unitsOf",
+   "args": [
+    "5,000"
+   ],
+   "out": null
+  },
+  {
+   "name": "dayOf 28",
+   "fn": "dayOf",
+   "args": [
+    "2026-10-01"
+   ],
+   "out": 20727
+  },
+  {
+   "name": "dayOf 29",
+   "fn": "dayOf",
+   "args": [
+    "1970-01-01"
+   ],
+   "out": 0
+  },
+  {
+   "name": "dayOf 30",
+   "fn": "dayOf",
+   "args": [
+    "2026-02-30"
+   ],
+   "out": null
+  },
+  {
+   "name": "dayOf 31",
+   "fn": "dayOf",
+   "args": [
+    "2026-1-1"
+   ],
+   "out": null
+  },
+  {
+   "name": "dayOf 32",
+   "fn": "dayOf",
+   "args": [
+    20261001
+   ],
+   "out": null
+  },
+  {
+   "name": "dayOf 33",
+   "fn": "dayOf",
+   "args": [
+    null
+   ],
+   "out": null
+  },
+  {
+   "name": "cardProblems 34",
+   "fn": "cardProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    },
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": []
+  },
+  {
+   "name": "cardProblems 35",
+   "fn": "cardProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "Outcome `bug-fix`: `terms_hash` is not the published hash of `bugfix`."
+   ]
+  },
+  {
+   "name": "cardProblems 36",
+   "fn": "cardProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "nothing",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+       "extra": 1
+      }
+     ]
+    },
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "Outcome `bug-fix`: `extra` is not a field of an outcome.",
+    "Outcome `bug-fix`: terms/ has no template `nothing`."
+   ]
+  },
+  {
+   "name": "cardProblems 37",
+   "fn": "cardProblems",
+   "args": [
+    {
+     "version": 2,
+     "kind": "rate-card",
+     "name": "Q4",
+     "currency": "USD",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-09-30",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ],
+     "surprise": 1
+    },
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "`surprise` is not a field of a rate card.",
+    "`version` must be 1.",
+    "`name` is lower-case letters, digits and hyphens, like eng-2026q4.",
+    "`currency` must be test USDC: this is devnet.",
+    "`valid_from` is after `valid_to`."
+   ]
+  },
+  {
+   "name": "cardProblems 38",
+   "fn": "cardProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 2,
+       "unit": "",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "X"
+      }
+     ]
+    },
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "Outcome `bug-fix`: devnet pays between 5.00 and 100,000.00 for one outcome.",
+    "Outcome `bug-fix`: `unit` says what is counted, like accepted pull request.",
+    "Outcome `bug-fix` is listed twice.",
+    "Outcome 3: `name` is lower-case letters, digits and hyphens.",
+    "Outcome 3: `price` is an amount above zero, like 50 or 12.5.",
+    "Outcome 3: `unit` says what is counted, like accepted pull request.",
+    "Outcome 3: `terms` names a template of terms/, and `terms_hash` is its 64 hex characters."
+   ]
+  },
+  {
+   "name": "cardProblems 39",
+   "fn": "cardProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": []
+    },
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "`outcomes` lists at least one outcome, each with a name, a price, a unit and its terms."
+   ]
+  },
+  {
+   "name": "cardProblems 40",
+   "fn": "cardProblems",
+   "args": [
+    [],
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "A rate card is a list of `key: value` lines, and this is not."
+   ]
+  },
+  {
+   "name": "cardProblems 41",
+   "fn": "cardProblems",
+   "args": [
+    "card",
+    {
+     "bugfix": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3",
+     "feature-blackbox": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+     "milestone": "d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0",
+     "standing-rate": "357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e",
+     "private-attested": "6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5"
+    }
+   ],
+   "out": [
+    "A rate card is a list of `key: value` lines, and this is not."
+   ]
+  },
+  {
+   "name": "offerProblems 42",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": []
+  },
+  {
+   "name": "offerProblems 43",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "rewrite",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": [
+    "Rate card `maintenance-2026q4` has no outcome `rewrite`."
+   ]
+  },
+  {
+   "name": "offerProblems 44",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 40,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": [
+    "The cap of 40.00 is less than one `bug-fix` at 50.00."
+   ]
+  },
+  {
+   "name": "offerProblems 45",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2027-01-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": [
+    "The offer runs outside the rate card, which is valid 2026-10-01 to 2026-12-31."
+   ]
+  },
+  {
+   "name": "offerProblems 46",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": "anyone",
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": []
+  },
+  {
+   "name": "offerProblems 47",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "other",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": [
+    "The offer names rate card `other`, and this card is `maintenance-2026q4`."
+   ]
+  },
+  {
+   "name": "offerProblems 48",
+   "fn": "offerProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "a",
+      "A"
+     ],
+     "cap": "200000",
+     "period": "year",
+     "starts": "soon",
+     "ends": "2026-12-31",
+     "requested_by": "-x",
+     "retries": true
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": [
+    "`starts` is a date like 2026-10-01.",
+    "`suppliers` is anyone, or a list of forge accounts, each once.",
+    "`cap` is over 100,000.00, the most devnet holds in one order.",
+    "`period` is week, month or quarter.",
+    "`envelope` is the name of a file beside this one.",
+    "`requested_by` is the forge account of whoever asks for this.",
+    "`retries` is how many evaluations one deliverable may take: 1 to 20.",
+    "`reopened` is same (not billed again) or new (a new deliverable)."
+   ]
+  },
+  {
+   "name": "offerProblems 49",
+   "fn": "offerProblems",
+   "args": [
+    null,
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    }
+   ],
+   "out": [
+    "A standing offer is a list of `key: value` lines, and this is not."
+   ]
+  },
+  {
+   "name": "envelopeProblems 50",
+   "fn": "envelopeProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    }
+   ],
+   "out": []
+  },
+  {
+   "name": "envelopeProblems 51",
+   "fn": "envelopeProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 4000,
+     "held": 150,
+     "as_of": "2026-10-05"
+    }
+   ],
+   "out": [
+    "The envelope is over its limit by 350.00."
+   ]
+  },
+  {
+   "name": "envelopeProblems 52",
+   "fn": "envelopeProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05",
+     "left": 1
+    }
+   ],
+   "out": [
+    "`left` says 1, and the limit less committed, spent and held is 2,800.00."
+   ]
+  },
+  {
+   "name": "envelopeProblems 53",
+   "fn": "envelopeProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05",
+     "left": "2800"
+    }
+   ],
+   "out": []
+  },
+  {
+   "name": "envelopeProblems 54",
+   "fn": "envelopeProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "",
+     "currency": "test USDC",
+     "period_from": "2027-01-01",
+     "period_to": "2026-12-31",
+     "limit": 0,
+     "committed": 1200,
+     "spent": 850,
+     "held": "x",
+     "as_of": "then"
+    }
+   ],
+   "out": [
+    "`period_from` is after `period_to`.",
+    "`owner` is the forge account of whoever answers for this budget.",
+    "`cost_centre` is your own code for it, like ENG-410.",
+    "`limit` is an amount above zero.",
+    "`held` is an amount, like 0 or 250.5.",
+    "`as_of` is a date like 2026-10-01."
+   ]
+  },
+  {
+   "name": "envelopeState 55",
+   "fn": "envelopeState",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    }
+   ],
+   "out": {
+    "limit": 5000000000,
+    "committed": 1200000000,
+    "spent": 850000000,
+    "held": 150000000,
+    "left": 2800000000
+   }
+  },
+  {
+   "name": "commitment 56",
+   "fn": "commitment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "out": {
+    "suppliers": 1,
+    "periods": 3,
+    "cap": 400000000,
+    "fee": 10000000,
+    "value": 1200000000,
+    "leaves": 1230000000
+   }
+  },
+  {
+   "name": "commitment 57",
+   "fn": "commitment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": "anyone",
+     "cap": 400,
+     "period": "week",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "out": {
+    "suppliers": 1,
+    "periods": 13,
+    "cap": 400000000,
+    "fee": 10000000,
+    "value": 5200000000,
+    "leaves": 5330000000
+   }
+  },
+  {
+   "name": "commitment 58",
+   "fn": "commitment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "a",
+      "b"
+     ],
+     "cap": 30000,
+     "period": "quarter",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "out": {
+    "suppliers": 2,
+    "periods": 1,
+    "cap": 30000000000,
+    "fee": 315000000,
+    "value": 60000000000,
+    "leaves": 60630000000
+   }
+  },
+  {
+   "name": "commitment 59",
+   "fn": "commitment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 1000,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "out": {
+    "suppliers": 1,
+    "periods": 3,
+    "cap": 1000000000,
+    "fee": 25000000,
+    "value": 3000000000,
+    "leaves": 3075000000
+   }
+  },
+  {
+   "name": "commitment 60",
+   "fn": "commitment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-10-01",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    }
+   ],
+   "out": {
+    "suppliers": 1,
+    "periods": 1,
+    "cap": 400000000,
+    "fee": 10000000,
+    "value": 400000000,
+    "leaves": 410000000
+   }
+  },
+  {
+   "name": "fit 61",
+   "fn": "fit",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    },
+    1230000000
+   ],
+   "out": {
+    "ok": true,
+    "over": 0,
+    "before": {
+     "limit": 5000000000,
+     "committed": 1200000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 2800000000
+    },
+    "after": {
+     "limit": 5000000000,
+     "committed": 2430000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 1570000000
+    },
+    "sentence": "Fits: 1,230.00 is committed, and 1,570.00 stays in envelope `eng-2026q4`."
+   }
+  },
+  {
+   "name": "fit 62",
+   "fn": "fit",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    },
+    2800000000
+   ],
+   "out": {
+    "ok": true,
+    "over": 0,
+    "before": {
+     "limit": 5000000000,
+     "committed": 1200000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 2800000000
+    },
+    "after": {
+     "limit": 5000000000,
+     "committed": 4000000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 0
+    },
+    "sentence": "Fits: 2,800.00 is committed, and 0.00 stays in envelope `eng-2026q4`."
+   }
+  },
+  {
+   "name": "fit 63",
+   "fn": "fit",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    },
+    2800000001
+   ],
+   "out": {
+    "ok": false,
+    "over": 1,
+    "before": {
+     "limit": 5000000000,
+     "committed": 1200000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 2800000000
+    },
+    "after": {
+     "limit": 5000000000,
+     "committed": 1200000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 2800000000
+    },
+    "sentence": "Refused: this is 0.000001 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left."
+   }
+  },
+  {
+   "name": "fit 64",
+   "fn": "fit",
+   "args": [
+    {
+     "version": 1,
+     "kind": "budget-envelope",
+     "name": "eng-2026q4",
+     "owner": "dana-acme",
+     "cost_centre": "ENG-410",
+     "currency": "test USDC",
+     "period_from": "2026-10-01",
+     "period_to": "2026-12-31",
+     "limit": 5000,
+     "committed": 1200,
+     "spent": 850,
+     "held": 150,
+     "as_of": "2026-10-05"
+    },
+    3075000000
+   ],
+   "out": {
+    "ok": false,
+    "over": 275000000,
+    "before": {
+     "limit": 5000000000,
+     "committed": 1200000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 2800000000
+    },
+    "after": {
+     "limit": 5000000000,
+     "committed": 1200000000,
+     "spent": 850000000,
+     "held": 150000000,
+     "left": 2800000000
+    },
+    "sentence": "Refused: this is 275.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left."
+   }
+  },
+  {
+   "name": "offerComment 65",
+   "fn": "offerComment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": 400,
+     "period": "month",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    },
+    "octocat",
+    {
+     "mode": "merge",
+     "checks": [
+      "unit",
+      "lint"
+     ],
+     "paths": [
+      "src/**",
+      "tests/**"
+     ]
+    }
+   ],
+   "out": "/knos offer @octocat rate 50 budget 400 checks: unit, lint paths: src/**, tests/** days 30"
+  },
+  {
+   "name": "offerComment 66",
+   "fn": "offerComment",
+   "args": [
+    {
+     "version": 1,
+     "kind": "standing-offer",
+     "name": "bug-fix-octocat",
+     "rate_card": "maintenance-2026q4",
+     "outcome": "bug-fix",
+     "suppliers": [
+      "octocat"
+     ],
+     "cap": "12.5",
+     "period": "week",
+     "starts": "2026-10-01",
+     "ends": "2026-12-31",
+     "envelope": "eng-2026q4",
+     "requested_by": "ravi-acme",
+     "retries": 3,
+     "reopened": "same"
+    },
+    {
+     "version": 1,
+     "kind": "rate-card",
+     "name": "maintenance-2026q4",
+     "currency": "test USDC",
+     "valid_from": "2026-10-01",
+     "valid_to": "2026-12-31",
+     "outcomes": [
+      {
+       "name": "bug-fix",
+       "price": 50,
+       "unit": "accepted pull request",
+       "terms": "bugfix",
+       "terms_hash": "91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3"
+      },
+      {
+       "name": "feature",
+       "price": 80,
+       "unit": "accepted pull request",
+       "terms": "feature-blackbox",
+       "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6"
+      }
+     ]
+    },
+    "hubot",
+    {
+     "mode": "merge",
+     "checks": [
+      "unit",
+      "lint"
+     ],
+     "paths": []
+    }
+   ],
+   "out": "/knos offer @hubot rate 50 budget 12.5 checks: unit, lint days 7"
+  },
+  {
+   "name": "policyProblems 67",
+   "fn": "policyProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    }
+   ],
+   "out": []
+  },
+  {
+   "name": "policyProblems 68",
+   "fn": "policyProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "approvers": 2,
+       "finance": 2
+      }
+     ]
+    }
+   ],
+   "out": [
+    "Threshold 2 asks for 2 of `finance`, and the policy names fewer."
+   ]
+  },
+  {
+   "name": "policyProblems 69",
+   "fn": "policyProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 500,
+       "approvers": 1,
+       "who": 1
+      },
+      {
+       "up_to": 9,
+       "approvers": 0
+      }
+     ]
+    }
+   ],
+   "out": [
+    "Threshold 2: `who` is not a field of a threshold.",
+    "Threshold 2: `up_to` is an amount above the step before it.",
+    "The last threshold has no `up_to`: it covers every amount above.",
+    "Threshold 3: `approvers` is a whole number from 1 to 5."
+   ]
+  },
+  {
+   "name": "policyProblems 70",
+   "fn": "policyProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "boss": [],
+      "auditor": [
+       {
+        "account": "x",
+        "limit": 5,
+        "until": "soon"
+       }
+      ],
+      "finance": "dana",
+      "approver": [
+       {
+        "account": "a",
+        "from": "2026-02-01",
+        "until": "2026-01-01",
+        "x": 1
+       },
+       {}
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    }
+   ],
+   "out": [
+    "`boss` is not a role: the roles are requester, approver, finance and auditor.",
+    "Role `auditor`, @x: `until` is a date like 2026-10-01.",
+    "Role `auditor`, @x: `limit` is an amount above zero, for an approver or finance only.",
+    "Role `finance` is a list of holders, each with an `account`.",
+    "Role `approver`, @a: `x` is not a field of a holder.",
+    "Role `approver`, @a: `from` is after `until`.",
+    "Role `approver`, holder 2: `account` is a forge account, like octocat.",
+    "Threshold 3 asks for 1 of `finance`, and the policy names fewer."
+   ]
+  },
+  {
+   "name": "policyProblems 71",
+   "fn": "policyProblems",
+   "args": [
+    {
+     "version": 1,
+     "kind": "policy",
+     "currency": "test USDC",
+     "self_approval_limit": "lots",
+     "thresholds": []
+    }
+   ],
+   "out": [
+    "`kind` must be approval-policy.",
+    "`self_approval_limit` is an amount; 0 means nobody approves their own request.",
+    "`roles` names who holds each role: requester, approver, finance, auditor."
+   ]
+  },
+  {
+   "name": "check 72",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "mei-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": true,
+    "role": "approver",
+    "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+    "sentence": "Fine: @mei-acme is approver from 2026-01-01 to 2026-12-31, up to 25,000.00."
+   }
+  },
+  {
+   "name": "check 73",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "Sam-Acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": true,
+    "role": "approver",
+    "authority": "approver from 2026-01-01 to 2026-12-31",
+    "sentence": "Fine: @Sam-Acme is approver from 2026-01-01 to 2026-12-31."
+   }
+  },
+  {
+   "name": "check 74",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "octocat",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: @octocat does not hold the approver role in this policy."
+   }
+  },
+  {
+   "name": "check 75",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "dana-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: @dana-acme does not hold the approver role in this policy."
+   }
+  },
+  {
+   "name": "check 76",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "dana-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "finance"
+    }
+   ],
+   "out": {
+    "ok": true,
+    "role": "finance",
+    "authority": "finance from 2026-01-01 to 2026-12-31",
+    "sentence": "Fine: @dana-acme is finance from 2026-01-01 to 2026-12-31."
+   }
+  },
+  {
+   "name": "check 77",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "noor-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "auditor"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "auditor",
+    "authority": "",
+    "sentence": "Refused: the auditor role approves nothing; an approver or finance does."
+   }
+  },
+  {
+   "name": "check 78",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "mei-acme",
+     "requester": "mei-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: @mei-acme asked for this, and nobody approves their own request."
+   }
+  },
+  {
+   "name": "check 79",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 100,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "mei-acme",
+     "requester": "mei-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: @mei-acme asked for this, and nobody approves their own request above 100.00."
+   }
+  },
+  {
+   "name": "check 80",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 100,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "mei-acme",
+     "requester": "mei-acme",
+     "amount": 100000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": true,
+    "role": "approver",
+    "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+    "sentence": "Fine: @mei-acme is approver from 2026-01-01 to 2026-12-31, up to 25,000.00."
+   }
+  },
+  {
+   "name": "check 81",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "lee-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: @lee-acme's approver role ended 2026-06-30, before this approval of 2026-10-03."
+   }
+  },
+  {
+   "name": "check 82",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "lee-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2026-06-30",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": true,
+    "role": "approver",
+    "authority": "approver from 2026-01-01 to 2026-06-30",
+    "sentence": "Fine: @lee-acme is approver from 2026-01-01 to 2026-06-30."
+   }
+  },
+  {
+   "name": "check 83",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "sam-acme",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "on": "2025-12-31",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: @sam-acme's approver role starts 2026-01-01, after this approval of 2025-12-31."
+   }
+  },
+  {
+   "name": "check 84",
+   "fn": "check",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "approver": "mei-acme",
+     "requester": "ravi-acme",
+     "amount": 30000000000,
+     "on": "2026-10-03",
+     "role": "approver"
+    }
+   ],
+   "out": {
+    "ok": false,
+    "role": "approver",
+    "authority": "",
+    "sentence": "Refused: 30,000.00 is over @mei-acme's own limit of 25,000.00."
+   }
+  },
+  {
+   "name": "chain 85",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_d33c1092c494b13bba414374",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "mei-acme",
+       "approver_id": 7001,
+       "role": "approver",
+       "at": "2026-10-02T09:14:00Z",
+       "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/drexthealpha/knos-playground/issues/12#issuecomment-2291",
+        "comment_id": 2291,
+        "body_sha256": "4d5b226379b5d35e99cbe0599f404e317fbb6e786ed9dfd4641eab59e9a2b5d9"
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 1200000000,
+    "need": {
+     "approver": 2,
+     "finance": 0
+    },
+    "counted": [
+     {
+      "approver": "mei-acme",
+      "role": "approver",
+      "at": "2026-10-02T09:14:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+      "source": "https://github.com/drexthealpha/knos-playground/issues/12#issuecomment-2291"
+     }
+    ],
+    "refused": [],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 1,
+      "who": [
+       "sam-acme"
+      ]
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 1 approver: 1,200.00 needs 2 approvers."
+   }
+  },
+  {
+   "name": "chain 86",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_d33c1092c494b13bba414374",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "mei-acme",
+       "approver_id": 7001,
+       "role": "approver",
+       "at": "2026-10-02T09:14:00Z",
+       "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/drexthealpha/knos-playground/issues/12#issuecomment-2291",
+        "comment_id": 2291,
+        "body_sha256": "4d5b226379b5d35e99cbe0599f404e317fbb6e786ed9dfd4641eab59e9a2b5d9"
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_180a918a4be2186fa2ca48b2",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "sam-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 1200000000,
+    "need": {
+     "approver": 2,
+     "finance": 0
+    },
+    "counted": [
+     {
+      "approver": "mei-acme",
+      "role": "approver",
+      "at": "2026-10-02T09:14:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+      "source": "https://github.com/drexthealpha/knos-playground/issues/12#issuecomment-2291"
+     },
+     {
+      "approver": "sam-acme",
+      "role": "approver",
+      "at": "2026-10-03T10:00:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31",
+      "source": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z"
+     }
+    ],
+    "refused": [],
+    "waiting": [],
+    "met": true,
+    "sentence": "Approved: 2 approvers signed, as 1,200.00 needs."
+   }
+  },
+  {
+   "name": "chain 87",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "events": [],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 1200000000,
+    "need": {
+     "approver": 2,
+     "finance": 0
+    },
+    "counted": [],
+    "refused": [],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 2,
+      "who": [
+       "mei-acme",
+       "sam-acme"
+      ]
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 2 approvers: 1,200.00 needs 2 approvers."
+   }
+  },
+  {
+   "name": "chain 88",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_84b1a8b8fa94fc1275b99c5b",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "mei-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#mei-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_adadf4a5ad2adf02aef39ef7",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "mei-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-04T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#mei-acme-2026-10-04T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_4503cca376f1599a6e4e57af",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "lee-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#lee-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_e5bcd3eaef97192c8adaebd2",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "octocat",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#octocat-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_a7d3f841d53c9530e7023acf",
+       "subject": "offer:other",
+       "amount": "1200",
+       "requested_by": "ravi-acme",
+       "approver": "sam-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 1200000000,
+    "need": {
+     "approver": 2,
+     "finance": 0
+    },
+    "counted": [
+     {
+      "approver": "mei-acme",
+      "role": "approver",
+      "at": "2026-10-03T10:00:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31, up to 25,000.00",
+      "source": "https://github.com/acme/widgets/issues/12#mei-acme-2026-10-03T10:00:00Z"
+     }
+    ],
+    "refused": [
+     {
+      "approver": "mei-acme",
+      "role": "approver",
+      "sentence": "Refused: @mei-acme already approved this, and one person counts once."
+     },
+     {
+      "approver": "lee-acme",
+      "role": "approver",
+      "sentence": "Refused: @lee-acme's approver role ended 2026-06-30, before this approval of 2026-10-03."
+     },
+     {
+      "approver": "octocat",
+      "role": "approver",
+      "sentence": "Refused: @octocat does not hold the approver role in this policy."
+     }
+    ],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 1,
+      "who": [
+       "sam-acme"
+      ]
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 1 approver: 1,200.00 needs 2 approvers."
+   }
+  },
+  {
+   "name": "chain 89",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 30000000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_180a918a4be2186fa2ca48b2",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "30000",
+       "requested_by": "ravi-acme",
+       "approver": "sam-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 30000000000,
+    "need": {
+     "approver": 2,
+     "finance": 1
+    },
+    "counted": [
+     {
+      "approver": "sam-acme",
+      "role": "approver",
+      "at": "2026-10-03T10:00:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31",
+      "source": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z"
+     }
+    ],
+    "refused": [],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 1,
+      "who": []
+     },
+     {
+      "role": "finance",
+      "count": 1,
+      "who": [
+       "dana-acme"
+      ]
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 1 approver and finance: 30,000.00 needs 2 approvers and finance."
+   }
+  },
+  {
+   "name": "chain 90",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 30000000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_180a918a4be2186fa2ca48b2",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "30000",
+       "requested_by": "ravi-acme",
+       "approver": "sam-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_5bfc18aa9b673f85cb655ce7",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "30000",
+       "requested_by": "ravi-acme",
+       "approver": "dana-acme",
+       "approver_id": 1,
+       "role": "finance",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#dana-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      },
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_c55b685fe3d1651a05d42745",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "30000",
+       "requested_by": "ravi-acme",
+       "approver": "dana-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#dana-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 30000000000,
+    "need": {
+     "approver": 2,
+     "finance": 1
+    },
+    "counted": [
+     {
+      "approver": "sam-acme",
+      "role": "approver",
+      "at": "2026-10-03T10:00:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31",
+      "source": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z"
+     },
+     {
+      "approver": "dana-acme",
+      "role": "finance",
+      "at": "2026-10-03T10:00:00Z",
+      "authority": "finance from 2026-01-01 to 2026-12-31",
+      "source": "https://github.com/acme/widgets/issues/12#dana-acme-2026-10-03T10:00:00Z"
+     }
+    ],
+    "refused": [
+     {
+      "approver": "dana-acme",
+      "role": "approver",
+      "sentence": "Refused: @dana-acme does not hold the approver role in this policy."
+     }
+    ],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 1,
+      "who": []
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 1 approver: 30,000.00 needs 2 approvers and finance."
+   }
+  },
+  {
+   "name": "chain 91",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 1200000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_180a918a4be2186fa2ca48b2",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "500",
+       "requested_by": "ravi-acme",
+       "approver": "sam-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 1200000000,
+    "need": {
+     "approver": 2,
+     "finance": 0
+    },
+    "counted": [],
+    "refused": [
+     {
+      "approver": "sam-acme",
+      "role": "approver",
+      "sentence": "Refused: @sam-acme approved 500.00, and the request is now 1,200.00."
+     }
+    ],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 2,
+      "who": [
+       "mei-acme",
+       "sam-acme"
+      ]
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 2 approvers: 1,200.00 needs 2 approvers."
+   }
+  },
+  {
+   "name": "chain 92",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "octocat",
+     "amount": 1200000000,
+     "events": [],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 1200000000,
+    "need": {
+     "approver": 2,
+     "finance": 0
+    },
+    "counted": [],
+    "refused": [
+     {
+      "approver": "octocat",
+      "role": "requester",
+      "sentence": "Refused: @octocat does not hold the requester role on 2026-10-06."
+     }
+    ],
+    "waiting": [
+     {
+      "role": "approver",
+      "count": 2,
+      "who": [
+       "mei-acme",
+       "sam-acme"
+      ]
+     }
+    ],
+    "met": false,
+    "sentence": "Waits for 2 approvers: 1,200.00 needs 2 approvers."
+   }
+  },
+  {
+   "name": "chain 93",
+   "fn": "chain",
+   "args": [
+    {
+     "version": 1,
+     "kind": "approval-policy",
+     "currency": "test USDC",
+     "self_approval_limit": 0,
+     "roles": {
+      "requester": [
+       {
+        "account": "ravi-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "approver": [
+       {
+        "account": "mei-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31",
+        "limit": 25000
+       },
+       {
+        "account": "sam-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       },
+       {
+        "account": "lee-acme",
+        "from": "2026-01-01",
+        "until": "2026-06-30"
+       }
+      ],
+      "finance": [
+       {
+        "account": "dana-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ],
+      "auditor": [
+       {
+        "account": "noor-acme",
+        "from": "2026-01-01",
+        "until": "2026-12-31"
+       }
+      ]
+     },
+     "thresholds": [
+      {
+       "up_to": 1000,
+       "approvers": 1
+      },
+      {
+       "up_to": 25000,
+       "approvers": 2
+      },
+      {
+       "approvers": 2,
+       "finance": 1
+      }
+     ]
+    },
+    {
+     "subject": "offer:bug-fix-octocat",
+     "requester": "ravi-acme",
+     "amount": 900000000,
+     "events": [
+      {
+       "type": "knos.approval",
+       "version": 1,
+       "id": "apr_180a918a4be2186fa2ca48b2",
+       "subject": "offer:bug-fix-octocat",
+       "amount": "900",
+       "requested_by": "ravi-acme",
+       "approver": "sam-acme",
+       "approver_id": 1,
+       "role": "approver",
+       "at": "2026-10-03T10:00:00Z",
+       "authority": "",
+       "source": {
+        "kind": "forge comment",
+        "forge": "github",
+        "url": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z",
+        "comment_id": 1,
+        "body_sha256": ""
+       },
+       "policy_sha256": ""
+      }
+     ],
+     "on": "2026-10-06"
+    }
+   ],
+   "out": {
+    "subject": "offer:bug-fix-octocat",
+    "amount": 900000000,
+    "need": {
+     "approver": 1,
+     "finance": 0
+    },
+    "counted": [
+     {
+      "approver": "sam-acme",
+      "role": "approver",
+      "at": "2026-10-03T10:00:00Z",
+      "authority": "approver from 2026-01-01 to 2026-12-31",
+      "source": "https://github.com/acme/widgets/issues/12#sam-acme-2026-10-03T10:00:00Z"
+     }
+    ],
+    "refused": [],
+    "waiting": [],
+    "met": true,
+    "sentence": "Approved: 1 approver signed, as 900.00 needs."
+   }
+  },
+  {
+   "name": "readComment 94",
+   "fn": "readComment",
+   "args": [
+    "/knos approve offer:bug-fix-octocat"
+   ],
+   "out": [
+    "offer:bug-fix-octocat",
+    null
+   ]
+  },
+  {
+   "name": "readComment 95",
+   "fn": "readComment",
+   "args": [
+    "ok\r\n/knos approve dlv_0123 as finance\r\n"
+   ],
+   "out": [
+    "dlv_0123",
+    "finance"
+   ]
+  },
+  {
+   "name": "readComment 96",
+   "fn": "readComment",
+   "args": [
+    "/knos approve"
+   ],
+   "out": null
+  },
+  {
+   "name": "readComment 97",
+   "fn": "readComment",
+   "args": [
+    "please /knos approve x"
+   ],
+   "out": null
+  },
+  {
+   "name": "readComment 98",
+   "fn": "readComment",
+   "args": [
+    "/knos approve a b"
+   ],
+   "out": null
+  }
+ ]
+}

@@ -82,17 +82,24 @@ import json
 import sys
 from pathlib import Path
 
-from . import controls, records
+from . import controls, ids, records
 from .settle.v2 import pay as pay2
 
-TYPE, VERSION = "knos.audit-export", 2
+TYPE, VERSION = "knos.audit-export", 3         # files of versions 1 and 2 are still read, verified and written back as they were
 COLUMNS_V1 = ("seq", "date", "time", "kind", "order", "funded_transaction", "owner_id", "funder", "commenter_id", "authorised_by", "repository_id",
               "issue", "private", "standing", "mode", "price_units", "price", "funder_fee_units", "currency", "terms_hash", "pull_request", "artifact",
               "supplier_ids", "wallets", "judge", "evaluator", "verdict", "paid_units", "paid", "held_units", "refunded_units", "reverted_units",
               "fee_units", "fee", "transaction", "billing_key", "billed_before", "exception", "resolved_by", "prev")
 _ADDED = {"kind": ("record",), "funder": ("source",), "terms_hash": ("terms_version",), "wallets": ("paid_each",), "held_units": ("held_until",)}
-COLUMNS = tuple(x for c in COLUMNS_V1 for x in (c, *_ADDED.get(c, ())))        # version 2: each new column after the one it explains
-COLUMNS_OF = {1: COLUMNS_V1, 2: COLUMNS}
+COLUMNS_V2 = tuple(x for c in COLUMNS_V1 for x in (c, *_ADDED.get(c, ())))        # version 2: each new column after the one it explains
+# version 3: the verdict in one of the four words (knos.ids.VERDICTS), and the four ids, each after the column it explains
+_ADDED3 = {"verdict": ("outcome",), "billing_key": ("deliverable_id", "evaluation_id", "invoice_line_id", "settlement_id")}
+COLUMNS = tuple(x for c in COLUMNS_V2 for x in (c, *_ADDED3.get(c, ())))
+COLUMNS_OF = {1: COLUMNS_V1, 2: COLUMNS_V2, 3: COLUMNS}
+# The log's word for a line -> the verdict that stands, in one of the four. `expired`: nothing was accepted by the deadline,
+# so nothing shows acceptance. `reverted`: the acceptance was taken back inside the warranty. `none` (a kill fee) has no verdict.
+OUTCOMES = {"accepted": "accepted", "pending": "insufficient_evidence", "expired": "insufficient_evidence", "reverted": "rejected", "none": ""}
+MOVES = ("paid", "released", "kill", "refunded", "reverted")       # the kinds of line in which money moved
 BOUNTY_JUDGE = ("repository", "prove.yml of the pinned workflows, run in the bounty's own repository")
 SUMS = ("paid_units", "fee_units", "refunded_units", "reverted_units")
 # knos3:settled judge=N (programs-v2/knos_pay/src/order_pay.rs, `Judge`), and what order_judge.rs requires of each
@@ -138,8 +145,11 @@ def _mine(o: dict, owner_id: int, wallets: frozenset) -> bool:
     return (o["owner"] or o["by"]) == owner_id if o["from_balance"] else o["source"] in wallets
 
 
-def lines(events: list[dict], owner_id: int, wallets=(), first: str = "", last: str = "") -> list[dict]:
-    """Every line of `owner_id`'s work orders, in the file's order, without `seq` and `prev`. An order is the owner's
+def lines(events: list[dict], owner_id: int, wallets=(), first: str = "", last: str = "", receipts: dict | None = None) -> list[dict]:
+    """`receipts`: {transaction: its version 4 acceptance receipt}, when held; a line then carries that receipt's
+    evaluation and invoice line ids (`four_of`).
+
+    Every line of `owner_id`'s work orders, in the file's order, without `seq` and `prev`. An order is the owner's
     when its Balance is (or, for a comment that funded with no Balance on record, when the commenter is), or when a
     wallet in `wallets` funded it. `first`, `last`: UTC days, inclusive; events after `last` are not read."""
     if last:
@@ -160,6 +170,35 @@ def lines(events: list[dict], owner_id: int, wallets=(), first: str = "", last: 
     for r in out:       # a second line can never bill the same order and milestone: said per line, and checked by `verify`
         r["billed_before"] = int(bool(r["billing_key"]) and r["billing_key"] in seen)
         seen.add(r["billing_key"])
+        r.update(four_of(r, (receipts or {}).get(r["transaction"])))
+    return out
+
+
+def four_of(row: dict, receipt: dict | None = None) -> dict:
+    """What version 3 adds to a line: `outcome`, the verdict in one of the four words, and the four ids (knos.ids).
+
+        deliverable_id     the order and the milestone (a standing order's is the pull request). Empty for a standing
+                           order's line that names no pull request: money that is no deliverable's.
+        settlement_id      this deliverable and this transaction, on the lines in which money moved; else empty.
+        evaluation_id      the log does not carry the commit or the run, so a line has it only from `receipt`: the
+                           version 4 acceptance receipt of the line's transaction (it is that receipt's own id).
+        invoice_line_id    the supplier's line. The chain never sees an invoice: from `receipt`, else empty.
+
+    A receipt that is of another deliverable or settlement than the line is refused."""
+    said = {k: _text(row.get(k, "")) for k in ("order", "standing", "pull_request", "kind", "transaction", "verdict")}
+    known = said["standing"] != "1" or bool(said["pull_request"])
+    try:
+        scope = ids.order_scope(said["order"])
+    except ValueError:          # a bounty with no address on record is named `bounty:<repository>#<issue>`
+        scope = said["order"]
+    dlv = ids.deliverable(scope, int(said["pull_request"]) if said["standing"] == "1" else 0) if known else ""
+    out = {"outcome": OUTCOMES.get(said["verdict"], ""), "deliverable_id": dlv, "evaluation_id": "", "invoice_line_id": "",
+           "settlement_id": ids.settlement(dlv, "chain", said["transaction"]) if dlv and said["transaction"] and said["kind"] in MOVES else ""}
+    if receipt is not None and receipt.get("version") == 4:
+        got = receipt["ids"]
+        if got["deliverable"] != dlv or (got["settlement"] or "") not in ("", out["settlement_id"]):
+            raise Refused(f"The receipt given for transaction {said['transaction']} is of another deliverable or settlement than the line it is given for.")
+        out.update(evaluation_id=got["evaluation"], invoice_line_id=got["invoice_line"] or "", outcome=receipt["evaluator_observed"]["verdict"])
     return out
 
 
@@ -396,6 +435,15 @@ def verify(text: str) -> list[str]:
         if r["prev"] != prev:
             said.append(f"Row {n} does not follow the row before it (its `prev` is not that row's hash): row {n - 1 or 'scope'} was edited or "
                         f"removed, or this row was moved.")
+        if "deliverable_id" in r:       # version 3: an id of one kind is never taken where another is expected, and two follow from the line
+            for col, kind in (("deliverable_id", "deliverable"), ("evaluation_id", "evaluation"), ("invoice_line_id", "invoice_line"), ("settlement_id", "settlement")):
+                if r[col] and ids.kind_of(r[col]) != kind:
+                    said.append(f"Row {n}: {col} holds {r[col][:40]!r}, which is not the id of {'an' if kind[0] in 'aei' else 'a'} {kind.replace('_', ' ')}.")
+            want = four_of(r)
+            if (r["deliverable_id"], r["settlement_id"]) != (want["deliverable_id"], want["settlement_id"]):
+                said.append(f"Row {n}: its deliverable or settlement id is not the one its order, milestone and transaction give.")
+            if r["outcome"] not in ("", *ids.VERDICTS) or (r["outcome"] in ids.BILLABLE) != (r["verdict"] == "accepted" and r["outcome"] != ""):
+                said.append(f"Row {n}: its outcome is not one of the four verdicts, or says accepted where the line does not.")
         if r["billing_key"] and (r["billing_key"] in seen or r["billed_before"] != "0"):
             said.append(f"Row {n} bills {r['billing_key']} a second time. The program pays an order's milestone once: this file is wrong, or the "
                         "program is. Compare the transactions on chain.")
@@ -536,7 +584,7 @@ def record(rows: list[dict], ref: dict | None = None, receipt: dict | None = Non
         said = (MULTISIG.format(threshold=k, members=n, approved="" if who is None else f", and {len(who)} did") if k >= 2 else ONE_OF.format(members=n))
     else:
         said = {"wallet": ONE_WALLET, "faucet": FAUCET}.get(role, NO_SECOND)
-    c3 = (receipt or {}).get("commercial_authorisation") if (receipt or {}).get("version") == 3 else None
+    c3 = (receipt or {}).get("commercial_authorisation") if (receipt or {}).get("version") in (3, 4) else None
     seen = (receipt or {}).get("evaluator_observed") if c3 else None
     judged = [r for r in rows if r["judge"]]
     evaluators = ([{k: e.get(k) for k in ("kind", "repository_id", "owner_id", "actor_id", "runner", "independent_of_buyer", "independent_of_seller")}
@@ -786,7 +834,8 @@ def owed_lines(rows: list[dict], payee: str) -> list[str]:
 
 def register(app, help_lines: list | None = None) -> None:
     """`knos audit export | verify | show | owed`, on the main app. `help_lines`: cli._HELP, which gets the group's line."""
-    import typer
+    import importlib
+    typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
     audit_app = typer.Typer(add_completion=False, no_args_is_help=True,
                             help="Everything an organisation's money paid for as a hash-chained file, its check, one deliverable as four records, and what a supplier is owed.")
@@ -818,7 +867,8 @@ def register(app, help_lines: list | None = None) -> None:
                 entity: str = typer.Option("", "--entity", help="finance formats: SAP's company code, Coupa's chart of accounts"),
                 tax_code: str = typer.Option("", "--tax-code", help="finance formats: the tax code of every line (QuickBooks, SAP)"),
                 date_format: str = typer.Option("", "--date-format", help="finance formats: another date format, like DD/MM/YYYY or M/D/YYYY"),
-                to_file: Path = typer.Option(None, "--out", help="write the file here instead of printing it")) -> None:
+                to_file: Path = typer.Option(None, "--out", help="write the file here instead of printing it"),
+                events_log: Path = typer.Option(None, "--events", help="also take the paid lines into this log of events (`knos events`); default: the file KNOS_EVENTS names, else none")) -> None:
         """Everything an organisation's money paid for, work orders and bounties on issues, one line per payment, refund, revert or open order: what was commissioned, the price, the terms' hash, the artifact, who supplied, which rule evaluated, the verdict, what was paid, held, refunded and reverted, the fee and the transaction. Each row carries the hash of the row before and the file ends with the totals and the head, so two exports of the same period are the same bytes. With --format netsuite, sap, coupa, quickbooks or generic: one line per accepted deliverable in that system's import format, with the statement's hash in the memo. Devnet: test USDC."""
         from . import cli, exports
         if fmt not in ("csv", "json", *exports.FORMATS):
@@ -843,6 +893,8 @@ def register(app, help_lines: list | None = None) -> None:
         else:
             sys.stdout.write(text)
         cli.err.print(f"{len(rows)} line(s) for GitHub id {scope['owner_id']}. Head: {head}" + (" (partial: not a head to compare)" if short else ""), markup=False)
+        from . import events
+        events.keep(events.where(events_log), lambda: events.from_audit(rows))      # best effort: the export is written whatever the log says
 
     @audit_app.command("verify")
     def verify_(path: str = typer.Argument(..., help="an audit export (CSV or JSON) or a generic finance export; - reads standard input")) -> None:

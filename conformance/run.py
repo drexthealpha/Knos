@@ -70,17 +70,23 @@ def _set(receipt: dict, changes: dict) -> dict:
     return r
 
 
-def receipt_cases(vectors: dict) -> list[dict]:
-    """The cases of docs/receipt/vectors.json: every valid receipt is accepted and has the digest named; every invalid
-    one is refused."""
+def receipt_cases(vectors: dict, groups: list[str] | None = None) -> list[dict]:
+    """The cases of a receipt vector file (docs/receipt/vectors.json, vectors.v4.json): every valid receipt is accepted
+    and has the digest named; every invalid one is refused. `groups`: the file's groups the manifest names; a group
+    `invalid<x>` is made from the receipts of `valid<x>`."""
+    groups = groups or ["valid", "invalid", "valid_v2", "invalid_v2", "valid_v3", "invalid_v3"]
     out = []
-    for group in ("valid", "valid_v2", "valid_v3"):
+    for group in (g for g in groups if g.startswith("valid")):
         for i, v in enumerate(vectors[group]):
             out.append({"id": f"receipt/{group}/{i}/digest", "op": "receipt.digest", "name": v["name"], "input": {"receipt": v["receipt"]},
                         "expect": {"output": v["sha256"]}})
             out.append({"id": f"receipt/{group}/{i}/check", "op": "receipt.check", "name": v["name"], "input": {"receipt": v["receipt"]},
                         "expect": {"output": True}})
-    for group, of in (("invalid", "valid"), ("invalid_v2", "valid_v2"), ("invalid_v3", "valid_v3")):
+            if "authorises_payment" in v:       # version 4: a valid receipt is not always one that authorises payment
+                out.append({"id": f"receipt/{group}/{i}/verdict", "op": "receipt.verdict", "name": v["name"], "input": {"receipt": v["receipt"]},
+                            "expect": {"output": {"verdict": v["verdict"], "authorises_payment": v["authorises_payment"]}}})
+    for group in (g for g in groups if g.startswith("invalid")):
+        of = "valid" + group[len("invalid"):]
         for i, v in enumerate(vectors[group]):
             out.append({"id": f"receipt/{group}/{i}/check", "op": "receipt.check", "name": v["name"],
                         "input": {"receipt": _set(vectors[of][v["of"]]["receipt"], v["set"])}, "expect": {"refused": True, "why": v["why"]}})
@@ -94,7 +100,7 @@ def cases(only: list[str] | None = None) -> list[dict]:
         if only and entry["format"] not in only:
             continue
         data = _file(entry)
-        for c in receipt_cases(data) if entry["format"] == "receipt" else data["cases"]:
+        for c in receipt_cases(data, entry.get("groups")) if entry["format"].startswith("receipt") else data["cases"]:
             out.append({**c, "format": entry["format"]})
     return out
 

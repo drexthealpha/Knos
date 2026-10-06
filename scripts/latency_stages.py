@@ -39,6 +39,18 @@ the ones that took more than one try, the ones completed only after a failed lin
 across all attempts, including interrupted ones". The log holds what a relay answered: a token no relay picked up
 has no line.
 
+THE SIX STAGES, ONE TABLE (`--md` prints it alone, as Markdown; the JSON report carries it as `six`). The same
+measurements under the names a reader asks for, each with its own n, p50 and p95:
+
+    workflow scheduling   the merge                      -> the workflow run's start        (runner_queue)
+    evaluation            the run's start                -> the token's comment             (workflow)
+    relay pickup          the token's comment            -> a relay taking it up            (relay_wait)
+    submission            pickup                         -> the first transaction's block   (first_send; needs --rpc)
+    confirmation          that block                     -> the paying transaction's block  (confirm; needs --rpc)
+    finality              the last confirmation          -> the cluster finalized it        (the settle comment's line)
+
+A stage no line recorded prints "not recorded" in every cell. Nothing is filled in from another stage or guessed.
+
 At release time it runs against the live log and chain (GH_TOKEN for GitHub's rate limit; --events is what
 `scripts/network_stats.py --events-out` wrote, else the chain is read). tests/test_latency_stages.py runs it on a
 recorded sample.
@@ -68,6 +80,38 @@ _PART = {"queue": "queued", "workflow": "workflow", "wait": "relay_wait", "chain
 STATES = ("received", "accepted", "submitted", "confirmed", "finalized")       # each: seconds from the state before it (received: from the merge)
 TIMES = ("queued_at", "seen_at", "sent_at", "confirmed_at")                     # on every ok line since 0.3.16 (src/knos/proof/ghrelay.py)
 _STATES_LINE = re.compile(r"<!-- knos-states ([^\n]*)")                          # the settle comment's own line: since= received= ... tx=<signature>
+
+
+# the six stages a reader asks for: (name, where report() holds it, its key there, what it runs from and to)
+SIX = (("workflow scheduling", "stages", "runner_queue", "the merge to the start of the workflow run"),
+       ("evaluation", "stages", "workflow", "the start of the run to the token's comment"),
+       ("relay pickup", "stages", "relay_wait", "the token's comment to a relay taking it up"),
+       ("submission", "stages", "first_send", "pickup to the block of the first transaction"),
+       ("confirmation", "stages", "confirm", "that block to the block of the paying transaction"),
+       ("finality", "states", "finalized", "the last confirmation to the cluster finalizing it"))
+NOT_RECORDED = "not recorded"
+
+
+def six(r: dict) -> list[dict]:
+    """The six stages of `report()`'s answer, in order: [{stage, n, p50, p95, what}]. A stage with no sample has n 0
+    and no figures."""
+    out = []
+    for name, part, key, what in SIX:
+        got = (r.get(part) or {}).get(key) or {}
+        n = int(got.get("n") or 0)
+        out.append({"stage": name, "n": n, "p50": got.get("p50") if n else None, "p95": got.get("p95") if n else None, "what": what})
+    return out
+
+
+def table(rows: list[dict], whole: dict | None = None) -> list[str]:
+    """`six()`'s rows as a Markdown table, the whole wait first when `whole` is given. A stage nobody recorded says
+    so in every cell: no figure is ever put where none was measured."""
+    cell = lambda row, k: NOT_RECORDED if not row.get("n") or row.get(k) is None else f"{row[k]} s"  # noqa: E731
+    out = ["| stage | from, to | n | p50 | p95 |", "| --- | --- | --- | --- | --- |"]
+    if whole is not None:
+        out.append(f"| merge to paid, the whole wait | GitHub's `merged_at` to the block that paid | {whole.get('n') or NOT_RECORDED} | {cell(whole, 'p50')} | {cell(whole, 'p95')} |")
+    out += [f"| {row['stage']} | {row['what']} | {row['n'] or NOT_RECORDED} | {cell(row, 'p50')} | {cell(row, 'p95')} |" for row in rows]
+    return out
 
 
 def _head(rest: str) -> list[list[str]]:
@@ -164,12 +208,13 @@ def report(comments: list[dict], events: list[dict], get=None, when: Callable[[s
     apart = [{"token": s["token"], "at": s["at"], "seconds": s["seconds"],
               "why": "its line has no stage times (written before 0.3.16)" if s["token"] not in at else "its relay sent nothing itself: another relayer carried it first"}
              for s in m["samples"] if five[s["token"]] is None]
-    return {"whole": {**spread([r["seconds"] for r in rows]), "lines": m["lines"], "not_timed": m["not_timed"], "window": m["window"]},
-            "stages": {name: spread([r[name] for r in rows if name in r]) for name in (*STAGES, *ALSO)},
-            "states": {name: spread([f[name] for f in five.values() if f and name in f]) for name in STATES},
-            "without_times": apart,
-            "slowest": sorted(rows, key=lambda r: -r["seconds"])[:5],
-            "attempts": ns.attempts(comments, ns.ATTEMPTS["pay"])}
+    out = {"whole": {**spread([r["seconds"] for r in rows]), "lines": m["lines"], "not_timed": m["not_timed"], "window": m["window"]},
+           "stages": {name: spread([r[name] for r in rows if name in r]) for name in (*STAGES, *ALSO)},
+           "states": {name: spread([f[name] for f in five.values() if f and name in f]) for name in STATES},
+           "without_times": apart,
+           "slowest": sorted(rows, key=lambda r: -r["seconds"])[:5],
+           "attempts": ns.attempts(comments, ns.ATTEMPTS["pay"])}
+    return {**out, "six": six(out)}
 
 
 def render(r: dict) -> list[str]:
@@ -195,6 +240,7 @@ def render(r: dict) -> list[str]:
         out.append(f"{name:<14}{s['n']:>5}{cell(s['p50']):>7}{cell(s['p95']):>7}{cell(s['max']):>7}   ({notes[name]})")
     out += [f"not in that table, {len(r['without_times'])} payment{'' if len(r['without_times']) == 1 else 's'}:"]
     out += [f"  token {x['token']}  {x['seconds']:>6} s  {x['why']}" for x in r["without_times"]] or ["  none"]
+    out += ["", "the six stages, one table (a stage no line recorded says so):", *table(r.get("six") or six(r))]
     out += ["", "the slowest, each with its own stages:"]
     out += [f"  {x['seconds']:>6} s  token {x['token']}  " + " ".join(f"{k}={x[k]}" for k in (*STAGES, *ALSO) if k in x) for x in r["slowest"]] or ["  none"]
     share = "-" if a["completion"] is None else f"{a['completion'] * 100:.1f}%"
@@ -228,6 +274,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("--rpc", default=os.environ.get("KNOS_RPC", ""), help="a cluster to read block times (and, without --events, the history) from")
     ap.add_argument("--offline", action="store_true", help="ask GitHub nothing: only lines that carry their own start are timed")
     ap.add_argument("--json", action="store_true", help="print the report as JSON")
+    ap.add_argument("--md", action="store_true", help="print only the table of the six stages (n, p50, p95 each), as Markdown")
     a = ap.parse_args(argv)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     get = None if a.offline else (lambda path: ns.github(path, token))
@@ -249,7 +296,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         say("stopped: give --events FILE (python scripts/network_stats.py --events-out FILE) or --rpc URL: the paying blocks' times are the chain's.")
         return 1
     r = report(comments, events, get, block_times(a.rpc) if a.rpc else None)
-    for line in ([json.dumps(r, indent=1)] if a.json else render(r)):
+    for line in ([json.dumps(r, indent=1)] if a.json else table(r["six"], r["whole"]) if a.md else render(r)):
         say(line)
     return 0
 

@@ -167,7 +167,7 @@ reviewed and committed the change.
 
 ## What only people can supply, and does not exist
 
-Code cannot produce any of these, and none of them exists today. Each line is the whole truth of it.
+Code cannot produce any of these, and none of them exists today. Each is said once, with what would change it.
 
 - **No buyer has been interviewed.** Not one. Every statement in this repository about what a buyer wants is the
   founder's reasoning from public sources ([MARKET.md](MARKET.md)).
@@ -178,17 +178,18 @@ Code cannot produce any of these, and none of them exists today. Each line is th
   0.3.11 every payment was Knos's own account paying itself. Since then 3 payments have gone to another GitHub
   account, for the three pull requests named above. The site's Numbers page counts outside use apart from Knos's
   own.
-- **No outside signer.** Both multisigs are 2-of-3 and one person holds all three keys. Nobody has agreed to hold
-  one ([GOVERNANCE.md](GOVERNANCE.md)).
-- **One founder, pseudonymous.** Knos is one person, known publicly only as the GitHub account drexthealpha. No
-  legal name is published. There is no team, no co-founder, no employee, no adviser. [TEAM.md](TEAM.md) describes
-  three roles the plan needs; nobody has been hired, approached or committed for any of them.
-- **No legal entity.** No company exists. Nothing can sign a contract, hold a licence, send an invoice, be
-  invoiced or be sued as Knos. There are no terms of service, no service-level agreement and no data-processing agreement.
-- **No legal review.** [REGULATION.md](REGULATION.md) says what the founder read. No lawyer has been asked anything.
-- **No outside security review, of anything.** Not the programs, the workflows, the relay, the clients, the site
-  or the documents. No security firm has been engaged or asked for a quote. The defect fixed in 0.3.14 was found
-  by the founder.
+- **Outside key holders today: 0.** Both multisigs are 2-of-3 and one person holds all three keys. *Changes when*
+  one person opens a "Key holder request" and the proposal that adds their key has executed
+  ([KEYHOLDER.md](KEYHOLDER.md)).
+- **One founder, pseudonymous:** the GitHub account drexthealpha. No legal name is published. *Changes when* the
+  founder publishes one.
+- **No co-founder,** employee or adviser. *Changes when* a person joins and is named in [TEAM.md](TEAM.md).
+- **No legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos, and there are no terms of
+  service. *Changes when* a company is formed and named here.
+- **No legal advice taken.** [REGULATION.md](REGULATION.md) is what the founder read. *Changes when* a lawyer is
+  engaged and that page says on what.
+- **No outside review,** of the programs, the workflows, the relay, the clients, the site or the documents.
+  *Changes when* a reviewer's findings are published and linked from [ASSURANCE.md](ASSURANCE.md).
 - **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples, and no
   comparison of two counts is published.
 - **No outside program is known to read the verifier.** The interface and the examples are in the repository
@@ -203,12 +204,13 @@ Code cannot produce any of these, and none of them exists today. Each line is th
 ## What else has not been done
 
 - **No mainnet deployment.** No real money has moved.
-- **No second person on call.** If the founder is unavailable, nobody answers a report, approves a key or
-  cancels a proposal.
+- **No second operator.** If the founder is unavailable, nobody answers a report, approves a key or cancels a
+  proposal. *Changes when* someone else runs the checklist in [OPERATOR.md](OPERATOR.md) and its drill is recorded.
 - **No organisation account.** The pinned workflows and the relay live in one personal GitHub account; if it is
-  suspended, funded orders can only be refunded ([GOVERNANCE.md](GOVERNANCE.md), section 9).
+  suspended, funded orders can only be refunded. *Changes when* the steps of [GOVERNANCE.md](GOVERNANCE.md),
+  section 9, are taken.
 - The first deployment cannot be changed, so its known limits stay ([SECURITY.md](SECURITY.md)). The second
-  deployment can be changed, by Knos, only through a multisig with a public 48-hour delay, until an outside review.
+  deployment can be changed only through a multisig with a public 48-hour delay.
 
 ## Reproduce the counts
 
@@ -218,7 +220,7 @@ C=f3dfd3dca73b91d7b3b503e61edc0575e351b99d
 T=$(date -u -d '2026-09-14T13:00:00Z' +%s)                      # 06:00 Pacific time on 14 Sep 2026
 git rev-list --count $C                                         # 209 commits
 git log $C --format=%at | awk -v t=$T '$1 < t' | wc -l          # 83 of them before the hackathon
-git log $C --reverse --format=%aI | head -1                     # the first: 2026-09-01T06:14:57+01:00
+TZ=UTC git log $C --reverse --date=format-local:%Y-%m-%d --format=%ad | head -1     # the first: 2026-09-01
 git ls-tree -r --name-only $C | while read -r f; do             # every text file at that commit
   git diff --numstat 4b825dc642cb6eb9a060e54bf8d69288fbee4904 $C -- "$f" | grep -q '^-' && continue
   git blame --line-porcelain $C -- "$f" | awk -v t=$T '/^author-time /{n++; if ($2 < t) o++} END {print n+0, o+0}'

@@ -400,7 +400,7 @@ def test_answers_about_pull_requests_that_left_the_window_are_forgotten(github, 
 def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way():
     yaml = pytest.importorskip("yaml")
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
-    assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}, {"cron": "43 5 * * 1"}]   # `on`: every 6 hours, as the docs say; Mondays for the week
+    assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}, {"cron": "43 7,9 * * 1"}]   # `on`: every 6 hours, as the docs say; Mondays, twice, for the week
     assert doc["jobs"]["index"]["timeout-minutes"] < 30 and "github.event.schedule == '17 */6 * * *'" in doc["jobs"]["index"]["if"]
     steps = doc["jobs"]["index"]["steps"]
     runs = [str(s.get("run", "")) for s in steps]
@@ -656,15 +656,19 @@ def test_the_weekly_job_opens_a_pull_request_and_merges_nothing_and_the_job_that
     yaml = pytest.importorskip("yaml")
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
     week, job = doc["jobs"]["week"], doc["jobs"]["weekly"]
-    assert "github.event.schedule == '43 5 * * 1'" in week["if"] and "needs" not in week      # weekly, and behind no other job
+    assert "github.event.schedule == '43 7,9 * * 1'" in week["if"] and "needs" not in week      # weekly, and behind no other job
     assert doc["permissions"] == {"contents": "read"} and week["permissions"] == {"contents": "read"}   # the token that reads public GitHub cannot write
     read = "\n".join(str(s.get("run", "")) for s in week["steps"])
-    assert read.strip() == "python scripts/agent_pr_index.py sample --week last --rows week.json --max-requests 500 --max-minutes 20"   # the only command: API reads
+    assert read.strip() == "python scripts/agent_pr_index.py sample --week last --rows week.json --max-requests 500 --max-minutes 50"   # the only command: API reads
     assert not any(w in read for w in ("git clone", "pip install", "npm ", "curl ", "gh pr checkout"))
-    # inside the limits: the budget is the script's default, the searches are under 30 a minute, and the whole run under 30 minutes
-    assert (agent_pr_index.MAX_REQUESTS, agent_pr_index.MAX_MINUTES) == (500, 20)
+    # inside the limits: the budget is the script's default, the searches are under 30 a minute, and the whole run inside the hour
+    assert (agent_pr_index.MAX_REQUESTS, agent_pr_index.MAX_MINUTES) == (500, 50)
     assert 60 / agent_pr_index.SEARCH_PAUSE < 28 and 35 * 10 * agent_pr_index.SEARCH_PAUSE < agent_pr_index.MAX_MINUTES * 60   # under 30 searches a minute, and the whole design fits
-    assert agent_pr_index.MAX_MINUTES < week["timeout-minutes"] and week["timeout-minutes"] + job["timeout-minutes"] < 30
+    pace = 0.8 * agent_pr_index.MAX_MINUTES * 60 / agent_pr_index.MAX_REQUESTS      # what `sample` spreads its requests by when --pace is not given
+    assert 60 / pace < 15 and agent_pr_index.MAX_REQUESTS * pace <= agent_pr_index.MAX_MINUTES * 60 and "--no-wait" not in read and "--pace" not in read
+    assert agent_pr_index.MAX_MINUTES < week["timeout-minutes"] < 60 and job["timeout-minutes"] <= 5
+    # it starts after the six-hourly index job has ended, so the two do not spend the same hour of the token's budget
+    assert doc["jobs"]["index"]["timeout-minutes"] + 17 < 43 + 60 and doc["concurrency"] == {"group": "agent-pr-index", "cancel-in-progress": False}
     restore = next(s for s in week["steps"] if str(s.get("uses", "")).startswith("actions/cache/restore@"))
     save = next(s for s in week["steps"] if str(s.get("uses", "")).startswith("actions/cache/save@"))
     upload = next(s for s in week["steps"] if str(s.get("uses", "")).startswith("actions/upload-artifact@"))
@@ -673,6 +677,8 @@ def test_the_weekly_job_opens_a_pull_request_and_merges_nothing_and_the_job_that
     assert job["needs"] == "week" and "always()" in job["if"] and "success" not in job["if"]           # a capped or cut week is published all the same
     runs = "\n".join(str(s.get("run", "")) for s in job["steps"])
     assert "agent_pr_index.py weekly --rows week.json --into docs/agent_weekly.json --doc docs/INDEX.md" in runs
+    assert runs.index("agent_pr_index.py weekly") < runs.index("agent_pr_index.py board\n") < runs.index("git commit")      # the leaderboard and its feeds, from the new week
+    assert "git commit -m \"Agent PR Index, week of $week\" -- docs/agent_weekly.json docs/INDEX.md docs/index.json docs/index.atom" in runs
     assert runs.count("gh pr create") == 1 and "gh pr merge" not in runs and "Agent PR Index, week of $week" in runs
     assert "origin main" not in runs and "git push --force origin index-weekly" in runs and runs.count("git push") == 1       # one branch, never the default one
     assert job["permissions"] == {"contents": "write", "pull-requests": "write"}
@@ -763,7 +769,7 @@ def test_one_whole_week_is_read_day_by_day_past_the_cap_and_added_to_the_publish
     assert [week[a]["rank"] for a in ("devin", "claude-bot", "claude-code", "codex")] == [None] * 4            # too few: never placed
     page = doc.read_text(encoding="utf-8")
     assert "**Agent PR Index, week of 2026-09-28.** Read 2026-10-05. Design: whole-week-v0. Capped: false." in page
-    assert "| 1 | copilot | 42 of 56 (75.0%;" in page and "| 84 | 56 | 14 of 56 (25.0%;" in page and page.count("| too few to rank |") == 4 and "not kept | 5 | 3" not in page
+    assert "| 1 | copilot | 42 of 56 (75.0%;" in page and "| 84 | 56 | 14 of 56 (25.0%;" in page and page.split(agent_pr_index.BEGIN)[1].count("| too few to rank |") == 4 and "not kept | 5 | 3" not in page
     assert page.count("| not capped: whole-week-v0 |") == 5
     assert page.index("| 1 | copilot") < page.index("| too few to rank | devin")
     # the same week again changes nothing; a week that was not read whole is refused and says what to do
@@ -1016,5 +1022,295 @@ def test_the_site_draws_the_index_board_from_the_committed_file_and_asks_nobody(
         env["PLAYWRIGHT_BROWSERS_PATH"] = "/opt/pw-browsers"
     run = subprocess.run([node, str(ROOT / "tests" / "web" / "index_board.mjs")], capture_output=True, text=True, encoding="utf-8", env=env, timeout=300)
     assert run.returncode == 0 and "all passed" in run.stdout, "\n".join(x for x in (run.stdout + run.stderr).splitlines() if not x.startswith("ok"))
-    assert "ok   every row of the committed file says whether it is capped, and none is called complete without the file saying so" in run.stdout
+    assert "ok   for every week the page works out the rows docs/index.json holds: counts, shares, intervals, places, dispute links" in run.stdout
     assert "ok   every statement keeps to 12 words" in run.stdout
+
+
+# ---- the leaderboard, its feeds and its disputes (scripts/agent_pr_board.py; no network) --------------------------------
+import agent_pr_board  # noqa: E402
+
+
+def _wk(week, claimed, k, n, read="2026-10-05"):
+    return {"week": week, "read": read, "claimed_passing": claimed, "ci_finished": 9 if n is None else n,
+            "merged_despite_failed_check": None if n is None else {"k": k, "n": n, "share": None, "ci95": None}}
+
+
+def _made():
+    """A series nobody measured: two weeks, a tie, one agent short of the bar, one whose merges were not read."""
+    return {"name": "Agent PR Index", "read": "2026-10-05", "latest_week": "2026-09-28", "min_claims_to_rank": 30, "agents": {
+        "alpha": {"weeks": [_wk("2026-09-21", 50, 9, 30), _wk("2026-09-28", 40, 9, 30)]},
+        "beta": {"weeks": [_wk("2026-09-21", 70, 2, 40), _wk("2026-09-28", 10, 0, 5)]},
+        "gamma": {"weeks": [_wk("2026-09-21", 44, 12, 40)]},
+        "delta": {"weeks": [_wk("2026-09-21", 29, 0, 29)]},
+        "epsilon": {"weeks": [_wk("2026-09-28", 12, None, None)]}}}
+
+
+def test_the_leaderboard_ranks_only_agents_over_the_minimum_and_shows_every_sample_size():
+    got = agent_pr_board.board(_made())
+    rows = {r["agent"]: r for r in got["rows"]}
+    assert [(r["agent"], r["rank"]) for r in got["rows"]] == [("beta", 1), ("alpha", 2), ("gamma", 2), ("delta", None), ("epsilon", None)]   # equal shares share a place
+    assert (rows["alpha"]["claimed_passing"], rows["alpha"]["failed_at_merge"], rows["alpha"]["merged"], rows["alpha"]["share"]) == (90, 18, 60, 0.3)
+    assert rows["alpha"]["ci95"] == agent_pr_index.wilson(18, 60) and rows["beta"]["ci95"] == agent_pr_index.wilson(2, 45)
+    assert rows["delta"]["status"] == "too few to rank" and (rows["delta"]["failed_at_merge"], rows["delta"]["merged"]) == (0, 29)    # one short: shown, never placed
+    assert rows["delta"]["ci95"] == agent_pr_index.wilson(0, 29)
+    assert rows["epsilon"]["status"] == "not read" and rows["epsilon"]["share"] is None                    # a merge state nobody read is not a zero
+    assert rows["gamma"]["overlaps_above"] is True and rows["beta"]["overlaps_above"] is False
+    assert all(r["merged"] is None or r["merged"] >= 30 for r in got["rows"] if r["rank"])
+    old = {r["agent"]: r for r in agent_pr_board.board(_made(), "2026-09-21")["rows"]}                       # a board adds up the weeks through its own
+    assert (old["alpha"]["failed_at_merge"], old["alpha"]["merged"], old["epsilon"]["claimed_passing"], old["epsilon"]["status"]) == (9, 30, 0, "too few to rank")
+    text = agent_pr_board.table(agent_pr_board.feed(_made()))
+    for r in got["rows"]:
+        if r["merged"]:
+            assert f"| {r['agent']} | {r['claimed_passing']} | {r['failed_at_merge']} of {r['merged']} | " in text       # the count and its total beside every rate
+    assert "| too few to rank | delta | 29 | 0 of 29 | 0.0% | 0.0% to 11.7% |" in text and "| 2 (overlaps) | gamma |" in text
+
+
+def test_the_committed_page_and_feeds_are_what_the_script_writes_and_check_fails_when_one_differs(tmp_path):
+    script = [sys.executable, str(ROOT / "scripts" / "agent_pr_index.py"), "board"]
+    ok = subprocess.run([*script, "--check"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+    assert ok.returncode == 0 and "nothing to write" in ok.stderr, ok.stderr
+    files = {}
+    for name in ("INDEX.md", "index.json", "index.atom", "agent_weekly.json", "index_disputes.json"):
+        files[name] = tmp_path / name
+        shutil.copy(ROOT / "docs" / name, files[name])
+    there = ["--series", str(files["agent_weekly.json"]), "--disputes", str(files["index_disputes.json"]), "--doc", str(files["INDEX.md"]),
+             "--feed", str(files["index.json"]), "--atom", str(files["index.atom"])]
+    page = files["INDEX.md"].read_text(encoding="utf-8")
+    row = next(x for x in page.splitlines() if x.startswith("| 1 | "))
+    files["INDEX.md"].write_text(page.replace(row, row.replace(" of ", " of 1"), 1), encoding="utf-8")             # a number typed by hand
+    bad = subprocess.run([*script, "--check", *there], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+    assert bad.returncode == 1 and "differs: " in bad.stderr and "INDEX.md" in bad.stderr and "index.json" not in bad.stderr.split("differs: ")[1].split("\n")[0]
+    assert files["INDEX.md"].read_text(encoding="utf-8") != page                                                    # --check writes nothing
+    assert subprocess.run([*script, *there], cwd=ROOT, capture_output=True, text=True, encoding="utf-8").returncode == 0
+    assert files["INDEX.md"].read_text(encoding="utf-8") == page
+    # the page: the table, the method in ten lines, what a failed check is not, the limits, the week, one command, one line on payment
+    block = page.split(agent_pr_board.BEGIN)[1].split(agent_pr_board.END)[0]
+    series = json.loads((ROOT / "docs" / "agent_weekly.json").read_text(encoding="utf-8"))
+    assert f"**Agent PR Index, week of {series['latest_week']}.**" in block and len(re.findall(r"^\d+\. \*\*", block, re.M)) == 10
+    assert "not always a failed test" in block and "not always a false claim" in block and "python scripts/agent_pr_index.py board --check" in block
+    assert block.count(agent_pr_board.NO_PAY) == 1 and len(agent_pr_board.NO_PAY.split()) <= 16 and "Nobody outside Knos has reviewed them" in block
+    assert "No row has been disputed yet." in block and "No number has changed after a dispute yet." in block
+    assert not re.search(r"\b(best|worst|winner|beats|leads)\b", block, re.I)                                       # the table speaks
+    # every number of the table is counted from the committed series
+    top = agent_pr_board.board(series)
+    for r in top["rows"]:
+        mine = [w for w in series["agents"][r["agent"]]["weeks"] if w["ci_finished"]]
+        assert r["merged"] == sum(w["merged_despite_failed_check"]["n"] for w in mine) and r["failed_at_merge"] == sum(w["merged_despite_failed_check"]["k"] for w in mine)
+        assert r["claimed_passing"] == series["agents"][r["agent"]]["all_weeks"]["claimed_passing"] and (r["rank"] is None) == (r["merged"] < series["min_claims_to_rank"])
+        assert f"| {r['agent']} | {r['claimed_passing']} | {r['failed_at_merge']} of {r['merged']} | {r['share']:.1%} | {r['ci95'][0]:.1%} to {r['ci95'][1]:.1%} |" in block
+
+
+def test_the_feed_is_versioned_and_the_atom_file_has_one_entry_a_week():
+    from xml.etree import ElementTree
+    doc = json.loads((ROOT / "docs" / "index.json").read_text(encoding="utf-8"))
+    series = json.loads((ROOT / "docs" / "agent_weekly.json").read_text(encoding="utf-8"))
+    assert doc == agent_pr_board.feed(series, [])
+    assert doc["schema"] == "knos.agent-pr-index/1" and doc["latest_week"] == series["latest_week"] and doc["rule"] == agent_pr_board.NO_PAY
+    assert [w["week"] for w in doc["weeks"]] == sorted({w["week"] for a in series["agents"].values() for w in a["weeks"]}, reverse=True)
+    assert len(doc["method"]) == 10 and doc["source"]["reproduce"] == "python scripts/agent_pr_index.py board --check" and len(doc["source"]["sha256_of_canonical_json"]) == 64
+    assert all(set(r) == {"agent", "weeks", "claimed_passing", "merged", "failed_at_merge", "share", "ci95", "rank", "status", "overlaps_above", "disputed", "dispute"}
+               for w in doc["weeks"] for r in w["rows"])
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    root = ElementTree.fromstring((ROOT / "docs" / "index.atom").read_text(encoding="utf-8"))
+    entries = root.findall("a:entry", ns)
+    assert root.tag == "{http://www.w3.org/2005/Atom}feed" and [e.find("a:title", ns).text for e in entries] == [f"Agent PR Index, week of {w['week']}" for w in doc["weeks"]]
+    assert len({e.find("a:id", ns).text for e in entries}) == len(entries) and root.find("a:updated", ns).text == f"{doc['read']}T00:00:00Z"
+    assert all(root.find(f"a:{t}", ns) is not None for t in ("id", "title", "updated", "author")) and all(e.find("a:updated", ns).text.endswith("T00:00:00Z") for e in entries)
+    first = entries[0].find("a:summary", ns).text
+    assert all(f"{r['agent']}: " in first for r in doc["weeks"][0]["rows"]) and "not always a failed test, and not always a false claim" in first
+
+
+def test_a_disputed_row_is_marked_with_its_link_and_a_resolved_one_that_changed_a_number_is_in_the_changelog(tmp_path):
+    issue = "https://github.com/drexthealpha/Knos/issues/"
+    file = tmp_path / "disputes.json"
+    file.write_text(json.dumps({"schema": "knos.agent-pr-index.disputes/1", "disputes": [
+        {"agent": "alpha", "week": "2026-09-28", "issue": issue + "7", "opened": "2026-10-06", "status": "open"},
+        {"agent": "beta", "week": None, "issue": issue + "5", "opened": "2026-09-29", "status": "resolved", "resolved": "2026-10-02",
+         "outcome": "One pull request was a person's, not the agent's.", "changed": [{"field": "failed_at_merge", "from": 3, "to": 2}]},
+        {"agent": "gamma", "week": None, "issue": issue + "6", "opened": "2026-09-30", "status": "rejected", "resolved": "2026-10-03", "outcome": "The check named is a test job.", "changed": []}]}), encoding="utf-8")
+    disputes = agent_pr_board.load_disputes(str(file), ["alpha", "beta", "gamma", "delta", "epsilon"])
+    doc = agent_pr_board.feed(_made(), disputes)
+    now, before = ({r["agent"]: r for r in w["rows"]} for w in doc["weeks"])
+    assert now["alpha"]["disputed"] == [{"issue": issue + "7", "opened": "2026-10-06"}] and before["alpha"]["disputed"] == []      # from its week on
+    assert now["beta"]["disputed"] == [] and now["gamma"]["disputed"] == []                                                   # a closed dispute marks nothing
+    assert now["alpha"]["rank"] == 2                                                                                          # a dispute moves no number by itself
+    text = agent_pr_board.table(doc)
+    assert f"| 2 | alpha [† disputed]({issue}7) | 90 | 18 of 60 |" in text and f"- open: alpha, week of 2026-09-28, opened 2026-10-06: {issue}7" in text
+    assert doc["changelog"] == [{"resolved": "2026-10-02", "agent": "beta", "week": None, "issue": issue + "5", "outcome": "One pull request was a person's, not the agent's.",
+                                 "changed": [{"field": "failed_at_merge", "from": 3, "to": 2}]}]
+    assert f"- 2026-10-02: beta: `failed_at_merge` 3 to 2. One pull request was a person's, not the agent's. ({issue}5)" in text
+    assert f"- rejected 2026-10-03: gamma: The check named is a test job. ({issue}6)" in text and "No number has changed" not in text
+    assert "; disputed" in agent_pr_board.atom(doc) and agent_pr_board.dispute_url("alpha", "2026-09-28") in text
+    assert agent_pr_board.dispute_url("a b", "2026-09-28").endswith("?template=dispute-index-row.yml&title=Dispute+a+row%3A+a+b%2C+week+of+2026-09-28&agent=a+b&week=2026-09-28")
+    for wrong, why in (({"agent": "nobody"}, "is not a row"), ({"issue": "mailto:x"}, "public issue"), ({"status": "paid"}, "`status` is 'paid'"),
+                       ({"status": "resolved"}, "says what was found"), ({"changed": [{"field": "merged", "from": 1, "to": 2}]}, "only a resolved dispute")):
+        file.write_text(json.dumps({"schema": "knos.agent-pr-index.disputes/1", "disputes": [{"agent": "alpha", "issue": issue + "1", "status": "open", **wrong}]}), encoding="utf-8")
+        with pytest.raises(SystemExit, match=re.escape(why)):
+            agent_pr_board.load_disputes(str(file), ["alpha"])
+    assert agent_pr_board.load_disputes(str(tmp_path / "none.json")) == []
+    committed = json.loads((ROOT / "docs" / "index_disputes.json").read_text(encoding="utf-8"))
+    assert committed == {"schema": "knos.agent-pr-index.disputes/1", "disputes": []}                                           # nobody has disputed a row: none is made up
+
+
+def test_the_dispute_form_asks_for_the_agent_the_pull_requests_and_the_evidence():
+    yaml = pytest.importorskip("yaml")
+    form = yaml.safe_load((ROOT / ".github" / "ISSUE_TEMPLATE" / agent_pr_board.TEMPLATE).read_text(encoding="utf-8"))
+    fields = {b["id"]: b for b in form["body"] if "id" in b}
+    assert form["name"] == "Dispute a row" and {"agent", "week", "prs", "evidence"} <= set(fields)                             # the link on each row fills `agent` and `week`
+    assert all(fields[k]["validations"]["required"] for k in ("agent", "prs", "evidence"))
+    assert "no payment changes a row" in form["body"][0]["attributes"]["value"]
+
+
+# ---- inside GitHub's limits: one at a time, as long as GitHub says, only what changed ------------------------------------
+def _headers(status, body, **headers):
+    return f"HTTP/2.0 {status}\r\n" + "".join(f"{k}: {v}\r\n" for k, v in headers.items()) + "\r\n" + body
+
+
+def test_a_wait_is_the_one_github_names():
+    assert agent_pr_ci.limit_wait({"retry-after": "7"}, 0) == 8                                              # retry-after, and not a second less
+    assert agent_pr_ci.limit_wait({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1600"}, 0, now=1000) == 601   # until the budget is back
+    assert [agent_pr_ci.limit_wait({}, n) for n in range(4)] == [60, 120, 240, 480]                             # else a minute, longer each time
+    assert agent_pr_ci.limit_wait({"x-ratelimit-remaining": "12", "x-ratelimit-reset": "1600"}, 1, now=1000) == 120
+    assert agent_pr_ci._answer(_headers(200, '{"a": 1}', ETag='W/"x"')) == (200, {"etag": 'W/"x"'}, '{"a": 1}') and agent_pr_ci._answer('{"a": 1}') == (None, {}, '{"a": 1}')
+
+
+def test_a_refusal_with_retry_after_is_waited_out_and_the_request_asked_again(github):
+    path, table = "repos/o/r/pulls/1", github.__call__
+
+    def gh(cmd):                    # as `gh api -i` prints a refusal: the status line and the headers on stdout, its own words on stderr
+        if cmd[4] == path and path not in github.calls:
+            github.calls.append(path)
+            return 1, _headers(403, '{"message": "You have exceeded a secondary rate limit."}', **{"Retry-After": "7"}), "gh: You have exceeded a secondary rate limit. (HTTP 403)"
+        return table(cmd)
+    monkeypatch_gh = pytest.MonkeyPatch()
+    monkeypatch_gh.setattr(agent_pr_ci, "_gh", gh)
+    github.script[path] = {"merged": True}
+    try:
+        got = agent_pr_ci.gh_get(path)
+    finally:
+        monkeypatch_gh.undo()
+    assert got == {"ok": True, "json": {"merged": True}} and github.calls.count(path) == 2 and github.slept == [8]
+    # without the header: a minute, then two; and after MAX_RETRIES refusals the request is given up, loudly
+    github.slept.clear()
+    github.script["repos/o/r/pulls/2"] = ["gh: You have exceeded a secondary rate limit (HTTP 403)"]
+    with pytest.raises(agent_pr_ci.OutOfTime):
+        agent_pr_ci.gh_get("repos/o/r/pulls/2")
+    assert github.slept == [60, 120, 240, 480] and github.calls.count("repos/o/r/pulls/2") == agent_pr_ci.MAX_RETRIES + 1
+
+
+def test_an_answer_grown_old_is_asked_for_with_its_etag_and_a_304_keeps_it(tmp_path, monkeypatch):
+    sent = []
+
+    def gh(cmd):
+        sent.append(cmd)
+        if any(h.startswith("If-None-Match: ") for h in cmd):
+            return 0, _headers(304, ""), ""
+        return 0, _headers(200, '{"state": "pending"}', Etag='W/"abc"'), ""
+    monkeypatch.setattr(agent_pr_ci, "CACHE", str(tmp_path / "cache"))
+    monkeypatch.setattr(agent_pr_ci, "_gh", gh)
+    monkeypatch.setattr(agent_pr_ci, "ARGS", SimpleNamespace(max_seconds=10_000))
+    monkeypatch.setattr(agent_pr_ci, "START", time.time())
+    first = agent_pr_ci.gh_get("repos/o/r/commits/abc/status")
+    assert first == {"ok": True, "json": {"state": "pending"}} and sent[0][-1] == "-i" and not any("If-None-Match" in h for h in sent[0])
+    assert agent_pr_ci.gh_get("repos/o/r/commits/abc/status") == first and len(sent) == 1               # still fresh: nothing is asked
+    again = agent_pr_ci.gh_get("repos/o/r/commits/abc/status", max_age=-1)                                  # grown old: asked for only if it changed
+    assert again == first and len(sent) == 2 and 'If-None-Match: W/"abc"' in sent[1]
+    assert agent_pr_ci.gh_get("repos/o/r/commits/abc/status", max_age=3600) == first and len(sent) == 2     # the 304 made the kept answer fresh again
+
+
+# What `gh api -i` (gh 2.102.0) printed for GET repos/drexthealpha/knos-rc on 2026-10-06, byte for byte in its shape:
+# the status line ends in "\n" alone and every header line, and the empty line after them, in "\r\n". Asked again with
+# its ETag, GitHub answered 304 with no body, gh exited 1 and said "gh: HTTP 304", and X-Ratelimit-Remaining did not move.
+_REAL_200 = ('HTTP/2.0 200 OK\nAccess-Control-Allow-Origin: *\r\nCache-Control: private, max-age=60, s-maxage=60\r\n'
+             'Etag: W/"7029a6b6b1be23d4"\r\nX-Ratelimit-Limit: 5000\r\nX-Ratelimit-Remaining: 4982\r\n'
+             'X-Ratelimit-Reset: 1791301956\r\nX-Ratelimit-Resource: core\r\nX-Ratelimit-Used: 18\r\n\r\n{"full_name": "o/r"}')
+_REAL_304 = ('HTTP/2.0 304 Not Modified\nAccess-Control-Allow-Origin: *\r\nEtag: "7029a6b6b1be23d4"\r\n'
+             'X-Ratelimit-Limit: 5000\r\nX-Ratelimit-Remaining: 4982\r\nX-Ratelimit-Resource: core\r\n\r\n')
+
+
+def test_what_gh_api_i_really_prints_is_read_and_its_304_keeps_the_answer(tmp_path, monkeypatch):
+    assert agent_pr_ci._answer(_REAL_200) == (200, {"access-control-allow-origin": "*", "cache-control": "private, max-age=60, s-maxage=60",
+                                                    "etag": 'W/"7029a6b6b1be23d4"', "x-ratelimit-limit": "5000", "x-ratelimit-remaining": "4982",
+                                                    "x-ratelimit-reset": "1791301956", "x-ratelimit-resource": "core", "x-ratelimit-used": "18"},
+                                              '{"full_name": "o/r"}')
+    assert agent_pr_ci._answer(_REAL_304)[0] == 304 and agent_pr_ci._answer(_REAL_304)[2] == ""
+    sent = []
+
+    def gh(cmd):
+        sent.append(cmd)
+        if any(h.startswith("If-None-Match: ") for h in cmd):
+            return 1, _REAL_304, "gh: HTTP 304\n"          # gh's exit status for a 304 is 1: the status line decides, not the exit
+        return 0, _REAL_200, ""
+    monkeypatch.setattr(agent_pr_ci, "CACHE", str(tmp_path / "cache"))
+    monkeypatch.setattr(agent_pr_ci, "_gh", gh)
+    monkeypatch.setattr(agent_pr_ci, "ARGS", SimpleNamespace(max_seconds=10_000))
+    monkeypatch.setattr(agent_pr_ci, "START", time.time())
+    first = agent_pr_ci.gh_get("repos/o/r")
+    again = agent_pr_ci.gh_get("repos/o/r", max_age=-1)
+    assert first == again == {"ok": True, "json": {"full_name": "o/r"}} and 'If-None-Match: W/"7029a6b6b1be23d4"' in sent[1]
+    assert agent_pr_ci.gh_get("repos/o/r", max_age=3600) == first and len(sent) == 2                       # the 304 made it fresh: nothing more asked
+
+
+def test_requests_go_one_at_a_time_and_a_pace_apart(monkeypatch):
+    import threading
+    inside, most, slept, clock = [0], [0], [], [1000.0]
+
+    def gh(cmd):
+        inside[0] += 1
+        most[0] = max(most[0], inside[0])
+        inside[0] -= 1
+        return 0, "{}", ""
+    monkeypatch.setattr(agent_pr_ci, "_gh", gh)
+    monkeypatch.setattr(agent_pr_ci, "PACE", 4.8)
+    monkeypatch.setattr(agent_pr_ci, "_LAST", [0.0])
+    monkeypatch.setattr(agent_pr_ci.time, "time", lambda: clock[0])
+    monkeypatch.setattr(agent_pr_ci.time, "sleep", lambda s: (slept.append(round(s, 3)), clock.__setitem__(0, clock[0] + s)))
+    threads = [threading.Thread(target=agent_pr_ci._send, args=(["gh"],)) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert most[0] == 1 and slept == [4.8] * 4                                                             # never two in flight; each 4.8 s after the one before
+
+
+def test_a_patient_run_waits_out_a_secondary_limit_and_finishes_the_week_and_a_wait_too_long_is_left_for_the_next_run(tmp_path, monkeypatch):
+    """What stopped the week of 2026-09-28 at 95 of 930 draws: the third search was refused and the run ended. A
+    patient run waits as long as GitHub says and goes on; when the wait does not fit, the checkpoint keeps the time."""
+    slept = []
+    monkeypatch.setattr(agent_pr_ci.time, "sleep", slept.append)
+    monkeypatch.setattr(agent_pr_ci, "SEARCH_PAUSE", 0)
+    monkeypatch.setattr(agent_pr_ci, "CACHE", str(tmp_path / "cache"))
+
+    class Limited(SampleApi):
+        def __init__(self, retry_after, times):
+            super().__init__()
+            self.retry_after, self.times = retry_after, times
+
+        def __call__(self, cmd):
+            assert cmd[-1] == "-i"
+            if "search/issues" in cmd and self.times and sum(a[0] == "search" for a in self.asked) >= 2:
+                self.times -= 1
+                return 1, _headers(403, '{"message": "You have exceeded a secondary rate limit."}', **{"retry-after": str(self.retry_after)}), "gh: secondary rate limit (HTTP 403)"
+            return super().__call__(cmd)
+    api = Limited(retry_after=30, times=3)
+    monkeypatch.setattr(agent_pr_ci, "_gh", api)
+    state = agent_pr_index.sample_week(SAMPLE_WEEK, str(tmp_path / "week.json"), read="2026-10-05", max_requests=5000, max_minutes=50, patient=True)
+    assert slept == [31, 31, 31] and state["runs"][-1]["complete"] is True and state["runs"][-1]["stopped"] is None
+    assert state["cursor"]["come_back"] is None and state["cursor"]["strata_counted"] == state["cursor"]["of_strata"] == 35 and state["cursor"]["draw_turn"] == 30
+    week = _week(state)
+    assert not any(w["capped"] for w in week.values()) and sum(w["checks"]["not_read"] for w in week.values()) == 0
+    assert (agent_pr_ci.PATIENT, agent_pr_ci.PACE, agent_pr_ci.NO_WAIT) == (False, 0.0, False)               # the run's settings end with the run
+    # a wait longer than the run has left: it stops, says why, and the checkpoint holds when to come back
+    del slept[:]
+    api = Limited(retry_after=7200, times=10**6)
+    monkeypatch.setattr(agent_pr_ci, "_gh", api)
+    monkeypatch.setattr(agent_pr_ci, "CACHE", str(tmp_path / "cache2"))
+    state = agent_pr_index.sample_week(SAMPLE_WEEK, str(tmp_path / "long.json"), read="2026-10-05", max_requests=5000, max_minutes=50, patient=True)
+    assert slept == [] and state["runs"][-1]["stopped"] == "GitHub refused a search request for a secondary rate limit" and not state["runs"][-1]["complete"]
+    back = __import__("datetime").datetime.fromisoformat(state["cursor"]["come_back"]).timestamp() - time.time()
+    assert 7100 < back <= 7201 and state["cursor"]["strata_counted"] == 2
+    # the next run, an hour too early, asks GitHub nothing at all
+    asked = len(api.asked)
+    state = agent_pr_index.sample_week(SAMPLE_WEEK, str(tmp_path / "long.json"), read="2026-10-05", max_requests=5000, max_minutes=50, patient=True)
+    assert len(api.asked) == asked and slept == [] and state["runs"][-1]["stopped"].startswith("GitHub said to come back at ") and state["runs"][-1]["requests"] == 0
+    assert state["cursor"]["come_back"] is not None

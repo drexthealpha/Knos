@@ -13,7 +13,7 @@ Steps, so the Pages build never scans:
                                                                # the same scan by agent and by week (weekly() below)
     python scripts/agent_pr_index.py weekly --sample docs/agent_pr_ci.json --out docs/agent_weekly.json --doc docs/INDEX.md
                                                                # offline: the committed sample, by week
-    python scripts/agent_pr_index.py sample --week last --rows week.json [--max-requests 500 --max-minutes 20]
+    python scripts/agent_pr_index.py sample --week last --rows week.json [--max-requests 500 --max-minutes 50]
                                                                # the weekly run: a bounded, stratified, seeded sample
                                                                # of last week; week.json is its checkpoint (run again
                                                                # to continue); `weekly --into` then adds it, capped or not
@@ -21,6 +21,8 @@ Steps, so the Pages build never scans:
                                                                # by hand only (it is what could not finish in 0.3.15)
     python scripts/agent_pr_index.py weekly --rows week.json --into docs/agent_weekly.json --doc docs/INDEX.md
                                                                # offline: add that week to the published series
+    python scripts/agent_pr_index.py board [--check]           # offline: the leaderboard into docs/INDEX.md, docs/index.json and
+                                                               # docs/index.atom, with the disputes (agent_pr_board.py)
     python scripts/agent_pr_index.py scan --end <Sunday> --days 14 --per-agent N --rows rows.json
     python scripts/agent_pr_index.py weekly --rows rows.json --add-sample docs/agent_weekly.json --doc docs/INDEX.md
                                                                # a capped sample of recent weeks, cut by week and
@@ -294,7 +296,7 @@ WEEKLY_LIMITS = [
 
 HEADLINE = "verified_acceptance_rate"
 DESIGN = "stratified-seeded-v1"
-PER_STRATUM, MAX_REQUESTS, MAX_MINUTES = 30, 500, 20
+PER_STRATUM, MAX_REQUESTS, MAX_MINUTES = 30, 500, 50
 SEARCH_PAUSE = 2.2      # seconds between two searches: 27 a minute at most, of the 30 GitHub allows
 CHECK_RESERVE = (6, 45)  # requests and seconds the search leaves for the checks of what it drew last
 REACH, PAGE = 1000, 100  # GitHub answers a search with at most 1,000 results, 100 a page
@@ -349,8 +351,10 @@ def restate_series(series, reshaped):
 # an hour the Actions token has: 250 to 330 pull requests an hour; (3) when the hour's budget was spent, each of its eight workers slept until the hour came back, and
 # a refused search slept up to 90 seconds, six times; (4) the job that read the week waited for the six-hourly index
 # job, which spent the same hourly budget first; (5) a week that was not read whole was refused, so the hours it did
-# spend published nothing. Here: a fixed number of draws, one GraphQL request for 20 pull requests, no sleep on a
-# limit, no other job in front, and whatever was read is published with its counts.
+# spend published nothing. Here: a fixed number of draws, one GraphQL request for 20 pull requests, no other job
+# in front, and whatever was read is published with its counts. The first bounded run (2026-10-05) stopped at the
+# first refusal and drew 95 of 930; since then a refusal is waited out as GitHub asks, when the wait fits in the run's
+# minutes, and the requests are spread over them (`patient`, `pace`; agent_pr_ci, "inside GitHub's limits").
 
 def iso_week(monday):
     year, week, _ = dt.date.fromisoformat(monday).isocalendar()
@@ -538,15 +542,31 @@ def _checks(state, path):
     return not missed
 
 
-def sample_week(monday, path, per_stratum=PER_STRATUM, max_requests=MAX_REQUESTS, max_minutes=MAX_MINUTES, read=None):
+def cursor(state, come_back=None):
+    """Where the week's reading stands, in the checkpoint itself (`cursor`): how far the search and the checks got,
+    and, when GitHub refused a request for a limit, the time it said to come back at. The next run starts there."""
+    turns = [st.get("turns", 0) for st in state["strata"].values()]
+    return {"strata_counted": sum(st.get("reported") is not None for st in state["strata"].values()), "of_strata": 7 * len(agent_pr_ci.AGENTS),
+            "draw_turn": max(turns, default=0), "of_turns": state["per_stratum"],
+            "search_pages": sum(len(st["pages"]) for st in state["strata"].values()), "checks_read": len(state["checks"]),
+            "come_back": None if come_back is None else dt.datetime.fromtimestamp(come_back, dt.timezone.utc).isoformat(timespec="seconds")}
+
+
+def sample_week(monday, path, per_stratum=PER_STRATUM, max_requests=MAX_REQUESTS, max_minutes=MAX_MINUTES, read=None, patient=False, pace=0.0):
     """One bounded run of the week's sample, from the checkpoint at `path` when it holds this week. It stops when the
-    design is complete or the budget ends, and the checkpoint then holds everything read so far."""
+    design is complete or the budget ends, and the checkpoint then holds everything read so far. `patient`: a
+    refusal for a rate limit is waited out for as long as GitHub says, when that fits in the run's minutes, and a
+    run that an earlier one left with a time to come back at waits for it first; `pace`: the least seconds between
+    two requests, so the run's requests are spread over its minutes (agent_pr_ci, "inside GitHub's limits")."""
     if dt.date.fromisoformat(monday).weekday():
         raise SystemExit(f"--week {monday} is not a Monday. Name the Monday the week starts on, or `last`.")
     state, before = load_checkpoint(path, monday, per_stratum), agent_pr_ci.ASKED[0]
     agent_pr_ci.START = time.time()
     agent_pr_ci.SEARCH_PAUSE = min(agent_pr_ci.SEARCH_PAUSE, SEARCH_PAUSE)
     agent_pr_ci.NO_WAIT, agent_pr_ci.STOPPED[0], broken, done = True, None, set(), False
+    agent_pr_ci.PATIENT, agent_pr_ci.PACE, agent_pr_ci.COME_BACK[0] = patient, pace, None
+    due = (state.get("cursor") or {}).get("come_back")
+    wait, held = (dt.datetime.fromisoformat(due).timestamp() - time.time() if patient and due else 0), False
 
     def budget(reserve):
         agent_pr_ci.MAX_REQUESTS = before + max_requests - (CHECK_RESERVE[0] if reserve else 0)
@@ -554,6 +574,12 @@ def sample_week(monday, path, per_stratum=PER_STRATUM, max_requests=MAX_REQUESTS
     try:
         budget(True)
         try:
+            if wait > 0:                        # the last run was told when to come back: not before
+                held = agent_pr_ci.time_left() < wait + 15
+                if held:
+                    agent_pr_ci.COME_BACK[0] = time.time() + wait
+                    agent_pr_ci._stop(f"GitHub said to come back at {due}", agent_pr_ci.OutOfBudget)
+                time.sleep(wait)
             for turn in [None, *range(per_stratum)]:
                 _search(state, path, broken, turn)
                 if len(_unread(state)) >= 2 * agent_pr_ci.ROLLUP_BATCH:     # the checks are read as the draw goes
@@ -562,9 +588,10 @@ def sample_week(monday, path, per_stratum=PER_STRATUM, max_requests=MAX_REQUESTS
         except agent_pr_ci.OutOfTime:
             searched = False
         budget(False)                           # what the search left: the checks of the last draws
-        done = _checks(state, path) and searched
+        done = not held and _checks(state, path) and searched
     finally:
-        agent_pr_ci.NO_WAIT, agent_pr_ci.MAX_REQUESTS = False, None
+        agent_pr_ci.NO_WAIT, agent_pr_ci.MAX_REQUESTS, agent_pr_ci.PATIENT, agent_pr_ci.PACE = False, None, False, 0.0
+        state["cursor"] = cursor(state, None if done else agent_pr_ci.COME_BACK[0])
         state["runs"].append({"read": read or dt.datetime.now(dt.timezone.utc).date().isoformat(), "requests": agent_pr_ci.ASKED[0] - before,
                               "max_requests": max_requests, "max_minutes": max_minutes, "complete": done,
                               "stopped": None if done else agent_pr_ci.STOPPED[0] or ("a search was refused" if broken else "checks were left unread")})
@@ -955,9 +982,16 @@ def gate(scanned, index, previous=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["scan", "sample", "build", "gate", "check", "restate", "weekly"])
+    ap.add_argument("step", choices=["scan", "sample", "build", "gate", "check", "restate", "weekly", "board"])
     ap.add_argument("--max-requests", type=int, default=MAX_REQUESTS, help="sample: the most requests one run sends to GitHub")
     ap.add_argument("--max-minutes", type=float, default=MAX_MINUTES, help="sample: the longest one run reads for")
+    ap.add_argument("--no-wait", action="store_true", help="sample: stop at the first refusal for a rate limit; by default the run waits as long as GitHub says, inside its minutes")
+    ap.add_argument("--pace", type=float, help="sample: the least seconds between two requests; by default the requests are spread over four fifths of the run's minutes")
+    ap.add_argument("--series", default="docs/agent_weekly.json", help="board: the published series")
+    ap.add_argument("--disputes", default="docs/index_disputes.json", help="board: the disputes file")
+    ap.add_argument("--feed", default="docs/index.json", help="board: the machine-readable feed to write")
+    ap.add_argument("--atom", default="docs/index.atom", help="board: the Atom feed to write")
+    ap.add_argument("--check", action="store_true", help="board: write nothing; exit 1 when the document or a feed differs from what would be written")
     ap.add_argument("--per-stratum", type=int, default=PER_STRATUM, help="sample: pull requests drawn for each agent on each day")
     ap.add_argument("--restate", help="weekly --sample: write this published series (docs/agent_weekly.json) again in today's format; reads nothing")
     ap.add_argument("--sample", help="weekly: reshape this committed sample (docs/agent_pr_ci.json) and read nothing")
@@ -977,9 +1011,13 @@ def main():
     a = ap.parse_args()
     if a.step == "weekly":
         return weekly_main(a)
+    if a.step == "board":
+        import agent_pr_board
+        return agent_pr_board.main(a.series, a.disputes, a.doc or "docs/INDEX.md", a.feed, a.atom, a.check)
     if a.step == "sample":
         monday = last_week() if (a.week or "last") == "last" else a.week
-        state = sample_week(monday, a.rows, a.per_stratum, a.max_requests, a.max_minutes)
+        pace = a.pace if a.pace is not None else 0.8 * a.max_minutes * 60 / max(1, a.max_requests)
+        state = sample_week(monday, a.rows, a.per_stratum, a.max_requests, a.max_minutes, patient=not a.no_wait, pace=pace)
         one, run = week_from_sample(state), state["runs"][-1]
         days = [d for x in one["agents"].values() for d in x["weeks"][0]["strata"].values()]
         print(f"{NAME}, week of {monday}: this run sent {run['requests']} of {a.max_requests} requests in {time.time() - agent_pr_ci.START:.0f} s; "

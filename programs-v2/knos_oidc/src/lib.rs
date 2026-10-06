@@ -105,7 +105,7 @@
 pub mod claims;
 pub mod strict;
 pub mod pins;
-pub mod rsa;
+pub mod rsa; pub mod es256;
 
 use claims::{err, number, text};
 use strict::fields;
@@ -668,7 +668,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Pr
             d[K_HDR + 8 * l + 32..].copy_from_slice(registrant.key.as_ref());
             Ok(())
         }
-        _ => Err(ProgramError::InvalidInstructionData),
+        10..=15 => es256::process(program_id, tag, accounts, rest), _ => Err(ProgramError::InvalidInstructionData), // 10-15, ES256: es256.rs. One line: no line below moves (knos_pay links what is below)
     }
 }
 

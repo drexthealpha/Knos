@@ -373,3 +373,141 @@ test("upgrade execute --expect-hash executes only the build the run was arranged
   assert.ok(body.indexOf("say(expected(") > 0 && body.indexOf("say(expected(") < body.indexOf("await executeProposal("), "the build is compared before anything is sent");
   assert.match(src, /"expect-hash": \{ type: "string" \}/);
 });
+
+// ---- members and threshold: the proposal that adds an outside key holder ---------------------------------------------
+const multisigOf = (name) => squads.accounts.Multisig.fromAccountInfo({ data: Buffer.from(FIXTURE.squads_accounts[name].data, "hex"), owner: squads.PROGRAM_ID, lamports: 0, executable: false })[0];
+const OUTSIDER = Keypair.fromSeed(new Uint8Array(32).fill(7)).publicKey;      // a fixed key nobody here uses for anything else
+const STATE = path.join(ROOT, "tests", "fixtures", "governance_v2.json");
+
+test("nobody outside holds a key today, and the script counts every member as the founder's", () => {
+  assert.deepEqual(gov.outsideHolders(), []);
+  assert.deepEqual(JSON.parse(fs.readFileSync(gov.KEYHOLDERS, "utf8")).outside, []);
+  for (const name of ["upgrade", "guardian"]) {
+    const { before } = gov.configPlan(multisigOf(name), { add: OUTSIDER }, gov.outsideHolders());
+    assert.deepEqual(before, { threshold: 2, voters: 3, founder: 3, outside: 0, holders: 0 }, name);
+  }
+});
+
+test("replace-member: one founder key out, an outside key in, and the plan says the founder can still approve alone", () => {
+  const ms = multisigOf("upgrade"), old = ms.members[2].key;
+  const plan = gov.configPlan(ms, { remove: old, add: OUTSIDER });
+  assert.deepEqual(plan.actions.map((a) => a.__kind), ["AddMember", "RemoveMember"], "added before the old one is removed");
+  assert.equal(plan.actions[0].newMember.permissions.mask, 2, "an outside holder may vote, and nothing else, unless asked");
+  assert.deepEqual([plan.after.threshold, plan.after.voters, plan.after.founder, plan.after.outside, plan.after.holders], [2, 3, 2, 1, 1]);
+  assert.equal(plan.after.founderAlone, true);
+  assert.equal(plan.after.outsideCanRefuse, false);
+  const lines = gov.planLines("upgrade", plan).join("\n");
+  assert.match(lines, /after it executes {2}2 of 3 voting keys; held by the founder: 2; outside key holders: 1/);
+  assert.match(lines, /the founder alone can STILL approve an upgrade/);
+  assert.match(lines, new RegExp(`${OUTSIDER.toBase58()}  vote  \\(outside\\)`));
+  assert.match(lines, /172800 s \(48 hours\) after the vote that approves it/);
+});
+
+test("the founder stops being able to approve alone only when the threshold is above the founder's keys", () => {
+  const ms = multisigOf("upgrade");
+  // two outside keys in place of two of the founder's: 2 of 3 with one founder key
+  const one = gov.configPlan(ms, { remove: ms.members[2].key, add: OUTSIDER });
+  const second = Keypair.fromSeed(new Uint8Array(32).fill(8)).publicKey;
+  const asAfter = { ...ms, members: one.after.members.map((m) => ({ key: pk(m.key), permissions: { mask: m.mask } })) };
+  const two = gov.configPlan(asAfter, { remove: ms.members[1].key, add: second }, [OUTSIDER.toBase58()]);
+  assert.deepEqual([two.after.founder, two.after.outside, two.after.founderAlone, two.after.outsideCanRefuse], [1, 2, false, true]);
+  assert.match(gov.planLines("upgrade", two).join("\n"), /the founder alone can NOT approve an upgrade: the founder holds 1 voting key\(s\) and 2 are needed/);
+  // a threshold of 3 of 3 with one outside key: the same, and one lost key ends it
+  const three = gov.configPlan(asAfter, { threshold: 3 }, [OUTSIDER.toBase58()]);
+  assert.deepEqual(three.actions, [{ __kind: "ChangeThreshold", newThreshold: 3 }]);
+  assert.deepEqual([three.after.founderAlone, three.after.everyKeyNeeded], [false, true]);
+  assert.match(gov.planLines("upgrade", three).join("\n"), /every voting key is needed: if one of the 3 is lost/);
+  // a key the founder adds for himself changes nothing about who decides
+  const own = gov.configPlan(ms, { add: OUTSIDER, founder: true });
+  assert.deepEqual([own.after.founder, own.after.outside, own.after.holders], [4, 0, 0]);
+});
+
+test("a change the Squads program would refuse is refused before anything is built", () => {
+  const ms = multisigOf("guardian"), member = ms.members[0].key;
+  const refused = (change, words) => assert.throws(() => gov.configPlan(ms, change), (e) => e instanceof gov.Refused && words.test(e.message) && /Nothing was sent/.test(e.message));
+  refused({ add: member }, /is a member already/);
+  refused({ remove: OUTSIDER, add: Keypair.fromSeed(new Uint8Array(32).fill(9)).publicKey }, /is not a member, so it cannot be replaced/);
+  refused({ add: pk(IDS.upgrade_authority) }, /not the address of a key somebody can sign with/);
+  refused({ threshold: 4 }, /a threshold of 4 cannot be met by the 3 member\(s\)/);
+  refused({ threshold: 0 }, /a whole number, 1 or more/);
+  refused({ threshold: 2 }, /the threshold is 2 already/);
+  // three members who may only vote: nobody could propose or execute
+  const voters = { ...ms, members: ms.members.map((m) => ({ key: m.key, permissions: { mask: 2 } })) };
+  assert.throws(() => gov.configPlan(voters, { add: OUTSIDER }), /nobody could initiate afterwards/);
+  assert.throws(() => gov.permissionMask("sign"), /--permissions takes one or more of initiate, vote, execute/);
+  assert.equal(gov.permissionMask("initiate, vote,execute"), 7);
+  assert.equal(gov.permissionMask(), 2);
+});
+
+test("the plan's actions are what the Squads SDK writes into a config transaction of the pinned multisig", () => {
+  const ms = multisigOf("upgrade"), { actions } = gov.configPlan(ms, { remove: ms.members[2].key, add: OUTSIDER, threshold: 3 });
+  const creator = ms.members[0].key, multisigPda = pk(IDS.upgrade_multisig);
+  const ix = squads.instructions.configTransactionCreate({ multisigPda, transactionIndex: 7n, creator, rentPayer: pk(PAYER), actions });
+  assert.equal(ix.programId.toBase58(), IDS.squads_program);
+  assert.equal(ix.keys[0].pubkey.toBase58(), IDS.upgrade_multisig);
+  assert.deepEqual(ix.keys.filter((k) => k.isSigner).map((k) => k.pubkey.toBase58()).sort(), [creator.toBase58(), PAYER].sort());
+  assert.equal(ix.keys.some((k) => k.pubkey.equals(squads.getTransactionPda({ multisigPda, index: 7n })[0])), true);
+  const [{ args }] = squads.generated.configTransactionCreateStruct.deserialize(ix.data);
+  assert.deepEqual(JSON.parse(JSON.stringify(args.actions, (_, v) => (v instanceof PublicKey ? v.toBase58() : v))), [
+    { __kind: "AddMember", newMember: { key: OUTSIDER.toBase58(), permissions: { mask: 2 } } },
+    { __kind: "RemoveMember", oldMember: ms.members[2].key.toBase58() },
+    { __kind: "ChangeThreshold", newThreshold: 3 },
+  ]);
+  // executing it is the Squads program's own instruction, signed by a member and by whoever pays for the new member's room
+  const run = squads.instructions.configTransactionExecute({ multisigPda, transactionIndex: 7n, member: creator, rentPayer: pk(PAYER) });
+  assert.deepEqual(run.keys.filter((k) => k.isSigner).map((k) => k.pubkey.toBase58()).sort(), [creator.toBase58(), PAYER].sort());
+});
+
+test("add-member, replace-member and set-threshold print the plan from a file and send nothing", () => {
+  const add = run("add-member", OUTSIDER.toBase58(), "--state", STATE);
+  assert.equal(add.code, 0, add.err);
+  assert.match(add.out, /^upgrade multisig 9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK\n/);
+  assert.match(add.out, /\nguardian multisig EwqWNR3XwE9RMsJQdH7pZJSx4WERXCKLQdBpMnr8jFx5\n/);
+  assert.equal(add.out.match(/after it executes {2}2 of 4 voting keys; held by the founder: 3; outside key holders: 1/g).length, 2);
+  assert.match(add.out, /Nothing was sent\. Outside key holders today: 0\. To create the proposals: the same command with --send and the member keys\.\n$/);
+  assert.doesNotMatch(add.out, /cluster:/, "it never connected");
+  const members = FIXTURE.squads_accounts.upgrade.members;
+  const swap = run("replace-member", members[2], OUTSIDER.toBase58(), "--state", STATE, "--on", "upgrade");
+  assert.equal(swap.code, 0, swap.err);
+  assert.match(swap.out, new RegExp(`the proposal       add ${OUTSIDER.toBase58()} \\(vote\\); remove ${members[2]}\n`));
+  assert.doesNotMatch(swap.out, /guardian multisig/);
+  const three = run("set-threshold", "3", "--state", STATE, "--on", "guardian");
+  assert.match(three.out, /the proposal       threshold 3\n  when               as soon as it is approved \(this multisig has no time lock\)/);
+  // what cannot be understood is refused at once, with no cluster asked
+  for (const [args, words] of [[["add-member"], /takes the new key holder's public key/], [["add-member", "not-an-address"], /Never send or paste a private key/],
+                               [["replace-member", members[0]], /the member to replace, then the new public key/], [["set-threshold", "two"], /a whole number/],
+                               [["add-member", OUTSIDER.toBase58(), "--on", "treasury"], /--on takes upgrade or guardian/],
+                               [["add-member", OUTSIDER.toBase58(), "--state", STATE, "--send"], /cannot be combined with --send/],
+                               [["add-member", members[0], "--state", STATE], /is a member already/]]) {
+    const r = run(...args);
+    assert.equal(r.code, 1, args.join(" "));
+    assert.match(r.err, words);
+    assert.doesNotMatch(r.out, /cluster:/);
+  }
+  for (const words of ["add-member <address>", "replace-member <old> <new>", "set-threshold <N>", "--send", "--state FILE"]) assert.ok(run("--help").out.includes(words), words);
+});
+
+// ---- who can do what with which key --------------------------------------------------------------------------------
+test("the key that writes a build buffer cannot authorise the upgrade, and one member key cannot either", () => {
+  const ms = multisigOf("upgrade"), vault = pk(IDS.upgrade_authority), members = ms.members.map((m) => m.key.toBase58());
+  // the loader's Upgrade has one signer, the program's upgrade authority, and that is the vault
+  const ix = gov.upgradeIx(pk(IDS.knos_pay), pk(BUFFER), vault, pk(SPILL));
+  assert.deepEqual(ix.keys.filter((k) => k.isSigner).map((k) => k.pubkey.toBase58()), [IDS.upgrade_authority]);
+  assert.equal(gov.readProgramData(Buffer.from(FIXTURE.loader_accounts.programdata.data, "hex")).authority.toBase58(), IDS.upgrade_authority);
+  // the vault is an address of the Squads program with no private key: nothing signs for it but the multisig's executed proposal
+  assert.equal(PublicKey.isOnCurve(vault.toBytes()), false);
+  assert.equal(squads.getVaultPda({ multisigPda: pk(IDS.upgrade_multisig), index: 0 })[0].toBase58(), IDS.upgrade_authority);
+  assert.equal(members.includes(IDS.upgrade_authority), false);
+  // the key that pays for and writes the buffer is no member: it can propose nothing, vote on nothing and execute nothing
+  assert.equal(members.includes(PAYER), false);
+  assert.deepEqual(gov.powers(ms, [PAYER]), { member: false, votes: 0, propose: false, approve: false, cancel: false, reject: false, execute: false });
+  // one member key: it can create a proposal, cast one of the two approvals, and run a proposal the others approved; alone it
+  // can neither approve, nor reject, nor cancel
+  for (const m of members) assert.deepEqual(gov.powers(ms, [m]), { member: true, votes: 1, propose: true, approve: false, cancel: false, reject: false, execute: true }, m);
+  // two member keys are the whole power, and today one person holds all three
+  assert.deepEqual(gov.powers(ms, members.slice(0, 2)), { member: true, votes: 2, propose: true, approve: true, cancel: true, reject: true, execute: true });
+  assert.equal(gov.outsideHolders().length, 0);
+  // the script sends an Upgrade only inside a proposal: no path signs the loader's instruction with a key file
+  const src = fs.readFileSync(path.join(HERE, "governance.mjs"), "utf8");
+  assert.equal(src.match(/upgradeIx\(/g).length, 3, "its definition, the proposal, and `inner` which only prints");
+});

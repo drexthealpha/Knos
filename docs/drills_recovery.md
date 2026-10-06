@@ -6,7 +6,7 @@ a **funder** does, step by step, in three failures, using only a Solana key of t
 
 What has and has not been rehearsed: every instruction named below is run by the tests named beside it, in a
 simulator. The refund of a bounty has also run on the deployed bytes (rows 1 and 2 above). The table "When a
-dependency fails" above walks a payment through six failures, also in a simulator, on the programs' test builds.
+dependency fails" above walks a payment through seven failures, also in a simulator, on the programs' test builds.
 **No funder outside Knos has run any of these steps, and none of these failures has been rehearsed on devnet.** The rows above ran on the bytes deployed
 on the day the table was written (0.3.12's); work orders, `RefundOrder` and `Cancel` are live only once the 2.1
 upgrade of 0.3.14 has executed ([`web/upgrades.json`](../web/upgrades.json)).
@@ -109,6 +109,24 @@ its key is expired and accepted again after a refresh,
 `test_a_token_is_refused_while_its_key_is_expired_and_works_again_once_the_key_is_refreshed`. *Not rehearsed:* a
 refresh on devnet by an account other than Knos's; and the state with every key expired, on a cluster.
 
+### D. Knos's operator is gone, and devnet with it
+
+What you need beforehand: an export archive (`knos vault export`, [VAULT.md](VAULT.md)) kept somewhere of your own,
+and the `knos` package. Nothing else.
+
+```
+knos vault restore knos-evidence.tar --to restored
+knos vault verify restored/CHECKPOINT.json --against restored
+knos bundle verify --no-chain --no-network restored/<file>
+```
+
+The first writes every bundle back and checks each against the archive's checkpoint. The second recomputes the
+checkpoint's root; compare it with the line you wrote down when the archive was made. The third, for each bundle,
+sorts every statement of the receipt into verified from the issuer's signature, resting on the archived copy of
+the chain record, or not checkable without a cluster. What is not recovered: open orders and the test USDC in them.
+The drill is the row "devnet is reset and the operator's copies are deleted" above; no customer has done it with
+an archive of their own.
+
 ## What you see when something Knos depends on fails
 
 For a funder or a payee who is waiting, not for an operator. Each case is a row of "When a dependency fails" above:
@@ -128,6 +146,7 @@ wait and for how long, and how many it refused or retried in 24 hours. Then:
 | The RPC endpoint errors, or its blockhashes are stale | The payment comment is late. Nothing says "failed": the failure says nothing about your token. | Nothing. The relay tries again after 3 s, twice, then 10, 20, up to 60 s apart, for as long as the token is good. | Paid 12 s after the endpoint answered again, on the sixth try; once. |
 | The evidence is missing: a check the terms require is no longer on the merged commit | One comment: `Knos: not paid.`, each required check with what GitHub shows for it, and what to do. No token is signed, so nothing can be paid by mistake. | Run the check again on that commit and comment `/knos settle` (anyone may). A maintainer can pay the work anyway with `/knos tip <amount>`. Otherwise the money goes back to the funder at the deadline. | Refused by the job the merge started; paid 30 s after `/knos settle` once the check was back. |
 | Devnet was reset | `knos status` says the programs are not deployed. Open orders are gone; it was test USDC. Explorer links to old transactions stop working. | Keep proving what was paid: `knos bundle verify FILE --mirror DIR` and `knos receipt verify ORDER --mirror DIR` check a saved bundle and the mirrored receipt with no cluster. Then case A above: wait until `knos status` passes again, and fund anew. | The bundle and the mirror's receipt verified with the chain gone, at once. The orders are not recovered; redeploying is by hand and was not timed. |
+| Devnet was reset and Knos's own copies are gone | Nothing from Knos answers: no cluster holds the payment, and no operator holds the evidence. | Restore from the archive you kept: `knos vault restore knos-evidence.tar --to DIR`, then `knos bundle verify --no-chain --no-network FILE` for each bundle (case D above). | The one bundle of the drill was restored byte for byte and its receipt verified with no chain and no network, at once. Open orders and their test USDC are not recovered. |
 
 What these rows do not cover: GitHub's Actions being down (no workflow runs, so no token is signed: wait, or use
 case B), a relay that never starts again (relay it yourself: `KNOS_RELAY_KEY=<your key file> knos relay`), and

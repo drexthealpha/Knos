@@ -5,7 +5,8 @@
 // SDK: operations answered by a function sdk/settle exports. ADAPTER: operations sdk/settle has no function for, done
 // here from the description in docs/CONFORMANCE.md with nothing of the SDK's but its sha256; they show that the
 // description is enough to write a second implementation from, and they are not a claim about the SDK. Everything
-// else is answered `unsupported`: the SDK does not check receipts and does not write a statement's text.
+// else is answered `unsupported`: the SDK does not check receipts (so it says no verdict of one) and does not write a
+// statement's text.
 //
 // Whole numbers above 2^53 are read from the input's own text as BigInt (Node 22's JSON.parse hands the reviver the
 // source text), so no digit is lost on the way in.
@@ -20,6 +21,27 @@ const sortKeys = (value) => {
 };
 const hashHex = async (text) => hex(await sha256(enc.encode(text)));
 class Refuse extends Error {}
+
+
+const PREFIX = { deliverable: "dlv", evaluation: "evl", invoice_line: "inv", settlement: "stl" };
+const VERDICTS = ["accepted", "rejected", "insufficient_evidence", "disputed"];
+const OLD_VERDICTS = { passed: "accepted", clean: "accepted", failed: "rejected", refused: "rejected", unverified: "insufficient_evidence", pending: "insufficient_evidence",
+  none: "insufficient_evidence" };
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+// prefix, "_" and 24 hex characters of sha256("knos.id.v1" 0x00 kind 0x00, then each part: its length as u32 big-endian and its UTF-8 bytes)
+const idOf = async (kind, ...parts) => {
+  const chunks = [enc.encode(`knos.id.v1\0${kind}\0`)];
+  for (const part of parts) {
+    const bytes = enc.encode(String(part)), size = new Uint8Array(4);
+    new DataView(size.buffer).setUint32(0, bytes.length);
+    chunks.push(size, bytes);
+  }
+  const all = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const c of chunks) { all.set(c, at); at += c.length; }
+  return `${PREFIX[kind]}_${hex(await sha256(all)).slice(0, 24)}`;
+};
+const kindOf = (id) => { const m = /^([a-z]{3})_[0-9a-f]{24}$/.exec(String(id)); return (m && Object.keys(PREFIX).find((k) => PREFIX[k] === m[1])) || null; };
 
 const SDK = {
   "terms.hash": async (i) => ({ json: new TextDecoder().decode(v2.termsJson(i.terms)), sha256: hex(await v2.termsHash(v2.termsJson(i.terms))) }),
@@ -59,6 +81,35 @@ const ADAPTER = {
     out.set(order);
     new DataView(out.buffer).setUint32(32, i.milestone, true);
     return hex(await sha256(out));
+  },
+  // The four ids, the verdicts and the rule that bills a deliverable once, from the description in conformance/vectors/ids.v1.json.
+  "ids.deliverable": (i) => idOf("deliverable", i.scope, i.key),
+  "ids.evaluation": (i) => idOf("evaluation", i.deliverable, i.artifact, i.policy, i.evaluator, i.run),
+  "ids.invoice_line": (i) => idOf("invoice_line", i.supplier, i.invoice, i.line),
+  "ids.settlement": (i) => idOf("settlement", i.deliverable, i.method, i.reference),
+  "ids.kind_of": (i) => kindOf(i.id),
+  "ids.expect": (i) => { if (kindOf(i.id) !== i.kind) throw new Refuse(); return i.id; },
+  "ids.order_scope": (i) => {
+    if (/^[0-9a-f]{64}$/.test(i.order)) return i.order;
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(i.order)) throw new Refuse();
+    let n = 0n;
+    for (const c of i.order) n = n * 58n + BigInt(B58.indexOf(c));
+    if (n >= 1n << 256n) throw new Refuse();
+    return n.toString(16).padStart(64, "0");
+  },
+  "ids.verdict": (i) => {
+    const word = i.word.trim().toLowerCase().replace(/[ -]/g, "_"), is = OLD_VERDICTS[word] || word;
+    if (!VERDICTS.includes(is)) throw new Refuse();
+    return is;
+  },
+  // the first accepted evaluation of each deliverable, by its place in the list
+  "ids.billed_once": (i) => {
+    const seen = new Set(), out = [];
+    for (const [n, e] of i.evaluations.entries()) {
+      if (kindOf(e.deliverable) !== "deliverable" || !VERDICTS.includes(e.verdict)) throw new Refuse();
+      if (e.verdict === "accepted" && !seen.has(e.deliverable)) { seen.add(e.deliverable); out.push(n); }
+    }
+    return out;
   },
   // sha256 of the bytes above the first line that starts "sha256,"
   "statement.hash": async (i) => {

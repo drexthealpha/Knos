@@ -5,7 +5,7 @@
     if got["ok"]: ...            # got["facts"]: order, commit, pull_request, repository_id, terms_hash, mode, payees, workflow
 
 `evidence` is the raw token GitHub signed (a string), or a mapping with `token` and, when you have them, `receipt`
-(the acceptance receipt, version 2 or 3: a mapping or its JSON) and `terms` (the order's terms, the exact bytes that were
+(the acceptance receipt, version 2, 3 or 4: a mapping or its JSON) and `terms` (the order's terms, the exact bytes that were
 hashed at funding). Those are token.jwt, receipt.json and terms.json of a Knos evidence bundle. `jwks` is the
 issuer's public keys as you trust them: GitHub's published set
 (https://token.actions.githubusercontent.com/.well-known/jwks, fetched and kept by you), or the bundle's key.json.
@@ -120,14 +120,14 @@ def _audience(claims: dict) -> dict:
 def _receipt(r, token: str, claims: dict, facts: dict) -> None:
     try:
         a, o, p = r["issuer_authenticated"], r["evaluator_observed"], r["policy"]
-        shaped = r["type"] == "knos.acceptance-receipt" and r["version"] in (2, 3) and type(r["version"]) is int and o["verdict"] == "accepted"
+        shaped = r["type"] == "knos.acceptance-receipt" and r["version"] in (2, 3, 4) and type(r["version"]) is int and o["verdict"] == "accepted"
         named = {"order": r["order"], "commit": o["artifact"]["commit"], "terms_hash": p["terms_hash"], "mode": p["mode"],
                  "pull_request": o["artifact"]["pull_request"], "payees": [{"github_id": e["github_id"], "bps": e["bps"]} for e in r["payees"]]}
         repo, digest, told, issuer = r["repository"]["id"], a["token_sha256"], a["claims"], a["issuer"]
     except Exception:  # noqa: BLE001 - a missing field, or not a mapping at all
         shaped = False
     if not shaped:
-        raise _No("receipt", "This is not an acceptance receipt of version 2 or 3 with an accepted verdict (docs/RECEIPT.md).")
+        raise _No("receipt", "This is not an acceptance receipt of version 2, 3 or 4 with an accepted verdict (docs/RECEIPT.md).")
     if hashlib.sha256(_unb64(token.rsplit(".", 1)[1])).hexdigest() != digest:
         raise _No("receipt", "The receipt names another token than the one given (token_sha256 differs).")
     if told != _told(claims) or issuer != claims.get("iss") or str(repo) != str(claims.get("repository_id")):

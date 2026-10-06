@@ -1,11 +1,11 @@
 {
  "name": "Agent PR Index",
- "read": "2026-10-05",
+ "read": "2026-10-06",
  "window": [
   "2026-07-03",
   "2026-10-04"
  ],
- "source": "each week says how it was read (`design`, `capped`, `strata`). The newest: week of 2026-09-28, read 2026-10-05, stratified-seeded-v1; read on 2026-10-05 and not whole weeks: the weeks of 2026-09-21, 2026-09-28 (`full_week` false)",
+ "source": "each week says how it was read (`design`, `capped`, `strata`). The newest: week of 2026-09-28, read 2026-10-06, stratified-seeded-v1; read on 2026-10-06 and not whole weeks: the weeks of 2026-09-28 (`full_week` false)",
  "agents_told_by": {
   "copilot": "author:app/copilot-swe-agent",
   "devin": "author:app/devin-ai-integration",
@@ -531,7 +531,7 @@
     },
     {
      "week": "2026-09-28",
-     "read": "2026-10-05",
+     "read": "2026-10-06",
      "full_week": false,
      "design": "stratified-seeded-v1",
      "capped": true,
@@ -541,103 +541,103 @@
        "reported": 87,
        "reachable": 87,
        "planned": 30,
-       "drawn": 3,
+       "drawn": 17,
        "claimed": 0,
        "checks_read": 0
       },
       "Tue": {
        "date": "2026-09-29",
-       "reported": 68,
-       "reachable": 68,
+       "reported": 69,
+       "reachable": 69,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 1,
-       "checks_read": 1
+       "drawn": 17,
+       "claimed": 3,
+       "checks_read": 3
       },
       "Wed": {
        "date": "2026-09-30",
        "reported": 78,
        "reachable": 78,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 1,
-       "checks_read": 1
+       "drawn": 17,
+       "claimed": 4,
+       "checks_read": 4
       },
       "Thu": {
        "date": "2026-10-01",
-       "reported": 114,
-       "reachable": 114,
+       "reported": 113,
+       "reachable": 113,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 1,
-       "checks_read": 1
+       "drawn": 17,
+       "claimed": 0,
+       "checks_read": 0
       },
       "Fri": {
        "date": "2026-10-02",
-       "reported": 104,
-       "reachable": 104,
-       "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
-      },
-      "Sat": {
-       "date": "2026-10-03",
-       "reported": 123,
-       "reachable": 123,
-       "planned": 30,
-       "drawn": 3,
-       "claimed": 1,
-       "checks_read": 1
-      },
-      "Sun": {
-       "date": "2026-10-04",
        "reported": 103,
        "reachable": 103,
        "planned": 30,
-       "drawn": 2,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 1,
+       "checks_read": 1
+      },
+      "Sat": {
+       "date": "2026-10-03",
+       "reported": 124,
+       "reachable": 124,
+       "planned": 30,
+       "drawn": 17,
+       "claimed": 2,
+       "checks_read": 2
+      },
+      "Sun": {
+       "date": "2026-10-04",
+       "reported": 102,
+       "reachable": 102,
+       "planned": 30,
+       "drawn": 17,
+       "claimed": 1,
+       "checks_read": 1
       }
      },
      "not_derived": {},
-     "sampled": 6,
-     "claimed_passing": 4,
-     "ci_finished": 4,
+     "sampled": 25,
+     "claimed_passing": 11,
+     "ci_finished": 8,
      "checks": {
-      "passed": 4,
-      "failed": 0,
+      "passed": 7,
+      "failed": 1,
       "other": 0,
       "pending": 0,
-      "no_checks": 0,
+      "no_checks": 3,
       "not_read": 0
      },
      "verified_acceptance_rate": {
-      "k": 4,
-      "n": 4,
-      "share": 1.0,
+      "k": 7,
+      "n": 11,
+      "share": 0.6364,
       "ci95": [
-       0.5101,
-       1.0
+       0.3538,
+       0.8483
       ]
      },
      "failed_a_check": {
-      "k": 0,
-      "n": 4,
-      "share": 0.0,
+      "k": 1,
+      "n": 8,
+      "share": 0.125,
       "ci95": [
-       0.0,
-       0.4899
+       0.0224,
+       0.4709
       ],
       "test_or_build": 0
      },
      "merged_despite_failed_check": {
-      "k": 0,
-      "n": 2,
-      "share": 0.0,
+      "k": 1,
+      "n": 7,
+      "share": 0.1429,
       "ci95": [
-       0.0,
-       0.6576
+       0.0257,
+       0.5131
       ]
      },
      "verified": 0,
@@ -649,27 +649,27 @@
    ],
    "all_weeks": {
     "sampled": null,
-    "claimed_passing": 113,
-    "ci_finished": 96,
+    "claimed_passing": 120,
+    "ci_finished": 100,
     "checks": null,
     "verified_acceptance_rate": null,
     "failed_a_check": {
-     "k": 27,
-     "n": 96,
-     "share": 0.2812,
+     "k": 28,
+     "n": 100,
+     "share": 0.28,
      "ci95": [
-      0.2011,
-      0.3783
+      0.2014,
+      0.3749
      ],
      "test_or_build": 13
     },
     "merged_despite_failed_check": {
-     "k": 18,
-     "n": 65,
-     "share": 0.2769,
+     "k": 19,
+     "n": 70,
+     "share": 0.2714,
      "ci95": [
-      0.1829,
-      0.3958
+      0.1812,
+      0.3854
      ]
     },
     "verified": 0
@@ -1103,117 +1103,117 @@
     },
     {
      "week": "2026-09-28",
-     "read": "2026-10-05",
+     "read": "2026-10-06",
      "full_week": false,
      "design": "stratified-seeded-v1",
      "capped": true,
      "strata": {
       "Mon": {
        "date": "2026-09-28",
-       "reported": 598,
-       "reachable": 598,
-       "planned": 30,
-       "drawn": 3,
-       "claimed": 1,
-       "checks_read": 1
-      },
-      "Tue": {
-       "date": "2026-09-29",
-       "reported": 631,
-       "reachable": 631,
-       "planned": 30,
-       "drawn": 3,
-       "claimed": 2,
-       "checks_read": 2
-      },
-      "Wed": {
-       "date": "2026-09-30",
-       "reported": 545,
-       "reachable": 545,
-       "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
-      },
-      "Thu": {
-       "date": "2026-10-01",
        "reported": 608,
        "reachable": 608,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 2,
-       "checks_read": 2
+       "drawn": 17,
+       "claimed": 6,
+       "checks_read": 6
+      },
+      "Tue": {
+       "date": "2026-09-29",
+       "reported": 636,
+       "reachable": 636,
+       "planned": 30,
+       "drawn": 17,
+       "claimed": 3,
+       "checks_read": 3
+      },
+      "Wed": {
+       "date": "2026-09-30",
+       "reported": 554,
+       "reachable": 554,
+       "planned": 30,
+       "drawn": 17,
+       "claimed": 3,
+       "checks_read": 3
+      },
+      "Thu": {
+       "date": "2026-10-01",
+       "reported": 615,
+       "reachable": 615,
+       "planned": 30,
+       "drawn": 17,
+       "claimed": 5,
+       "checks_read": 5
       },
       "Fri": {
        "date": "2026-10-02",
-       "reported": 711,
-       "reachable": 711,
+       "reported": 710,
+       "reachable": 710,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 1,
-       "checks_read": 1
+       "drawn": 17,
+       "claimed": 9,
+       "checks_read": 9
       },
       "Sat": {
        "date": "2026-10-03",
-       "reported": 1247,
-       "reachable": 1247,
+       "reported": 1245,
+       "reachable": 1245,
        "planned": 30,
-       "drawn": 2,
-       "claimed": 1,
-       "checks_read": 1
+       "drawn": 17,
+       "claimed": 5,
+       "checks_read": 5
       },
       "Sun": {
        "date": "2026-10-04",
-       "reported": 1503,
-       "reachable": 1503,
+       "reported": 1515,
+       "reachable": 1515,
        "planned": 30,
-       "drawn": 2,
-       "claimed": 1,
-       "checks_read": 1
+       "drawn": 17,
+       "claimed": 13,
+       "checks_read": 13
       }
      },
      "not_derived": {},
-     "sampled": 11,
-     "claimed_passing": 8,
-     "ci_finished": 8,
+     "sampled": 72,
+     "claimed_passing": 44,
+     "ci_finished": 42,
      "checks": {
-      "passed": 3,
-      "failed": 5,
-      "other": 0,
+      "passed": 8,
+      "failed": 31,
+      "other": 3,
       "pending": 0,
-      "no_checks": 0,
+      "no_checks": 2,
       "not_read": 0
      },
      "verified_acceptance_rate": {
-      "k": 3,
-      "n": 8,
-      "share": 0.375,
+      "k": 8,
+      "n": 44,
+      "share": 0.1818,
       "ci95": [
-       0.1368,
-       0.6943
+       0.0951,
+       0.3196
       ]
      },
      "failed_a_check": {
-      "k": 5,
-      "n": 8,
-      "share": 0.625,
+      "k": 31,
+      "n": 42,
+      "share": 0.7381,
       "ci95": [
-       0.3057,
-       0.8632
+       0.5893,
+       0.847
       ],
-      "test_or_build": 4
+      "test_or_build": 30
      },
      "merged_despite_failed_check": {
-      "k": 5,
-      "n": 7,
-      "share": 0.7143,
+      "k": 30,
+      "n": 40,
+      "share": 0.75,
       "ci95": [
-       0.3589,
-       0.9178
+       0.5981,
+       0.8581
       ]
      },
      "verified": 0,
-     "rank": null,
+     "rank": 2,
      "ranked_by": "verified_acceptance_rate",
      "seed": "2026-W40",
      "per_stratum": 30
@@ -1221,42 +1221,42 @@
    ],
    "all_weeks": {
     "sampled": null,
-    "claimed_passing": 81,
-    "ci_finished": 70,
+    "claimed_passing": 117,
+    "ci_finished": 104,
     "checks": {
-     "passed": 49,
-     "failed": 19,
-     "other": 2,
+     "passed": 54,
+     "failed": 45,
+     "other": 5,
      "pending": 0,
-     "no_checks": 11,
+     "no_checks": 13,
      "not_read": 0
     },
     "verified_acceptance_rate": {
-     "k": 49,
-     "n": 81,
-     "share": 0.6049,
+     "k": 54,
+     "n": 117,
+     "share": 0.4615,
      "ci95": [
-      0.4961,
-      0.7043
+      0.3739,
+      0.5517
      ]
     },
     "failed_a_check": {
-     "k": 19,
-     "n": 70,
-     "share": 0.2714,
+     "k": 45,
+     "n": 104,
+     "share": 0.4327,
      "ci95": [
-      0.1812,
-      0.3854
+      0.3415,
+      0.5286
      ],
-     "test_or_build": 15
+     "test_or_build": 41
     },
     "merged_despite_failed_check": {
-     "k": 10,
-     "n": 46,
-     "share": 0.2174,
+     "k": 35,
+     "n": 79,
+     "share": 0.443,
      "ci95": [
-      0.1226,
-      0.3557
+      0.3387,
+      0.5527
      ]
     },
     "verified": 0
@@ -1690,7 +1690,7 @@
     },
     {
      "week": "2026-09-28",
-     "read": "2026-10-05",
+     "read": "2026-10-06",
      "full_week": false,
      "design": "stratified-seeded-v1",
      "capped": true,
@@ -1700,107 +1700,107 @@
        "reported": 75,
        "reachable": 75,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 2,
-       "checks_read": 2
+       "drawn": 17,
+       "claimed": 8,
+       "checks_read": 8
       },
       "Tue": {
        "date": "2026-09-29",
        "reported": 54,
        "reachable": 54,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 2,
-       "checks_read": 2
+       "drawn": 17,
+       "claimed": 8,
+       "checks_read": 8
       },
       "Wed": {
        "date": "2026-09-30",
        "reported": 78,
        "reachable": 78,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 6,
+       "checks_read": 6
       },
       "Thu": {
        "date": "2026-10-01",
        "reported": 58,
        "reachable": 58,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 7,
+       "checks_read": 7
       },
       "Fri": {
        "date": "2026-10-02",
        "reported": 54,
        "reachable": 54,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 3,
-       "checks_read": 3
+       "drawn": 17,
+       "claimed": 12,
+       "checks_read": 12
       },
       "Sat": {
        "date": "2026-10-03",
        "reported": 57,
        "reachable": 57,
        "planned": 30,
-       "drawn": 2,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 8,
+       "checks_read": 8
       },
       "Sun": {
        "date": "2026-10-04",
        "reported": 48,
        "reachable": 48,
        "planned": 30,
-       "drawn": 2,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 7,
+       "checks_read": 7
       }
      },
      "not_derived": {},
-     "sampled": 19,
-     "claimed_passing": 7,
-     "ci_finished": 6,
+     "sampled": 118,
+     "claimed_passing": 56,
+     "ci_finished": 54,
      "checks": {
-      "passed": 5,
-      "failed": 1,
-      "other": 0,
+      "passed": 47,
+      "failed": 5,
+      "other": 2,
       "pending": 0,
-      "no_checks": 1,
+      "no_checks": 2,
       "not_read": 0
      },
      "verified_acceptance_rate": {
-      "k": 5,
-      "n": 7,
-      "share": 0.7143,
+      "k": 47,
+      "n": 56,
+      "share": 0.8393,
       "ci95": [
-       0.3589,
-       0.9178
+       0.7219,
+       0.9131
       ]
      },
      "failed_a_check": {
-      "k": 1,
-      "n": 6,
-      "share": 0.1667,
+      "k": 5,
+      "n": 54,
+      "share": 0.0926,
       "ci95": [
-       0.0301,
-       0.5635
+       0.0402,
+       0.1991
       ],
       "test_or_build": 0
      },
      "merged_despite_failed_check": {
-      "k": 1,
-      "n": 5,
-      "share": 0.2,
+      "k": 4,
+      "n": 45,
+      "share": 0.0889,
       "ci95": [
-       0.0362,
-       0.6245
+       0.0351,
+       0.2073
       ]
      },
      "verified": 0,
-     "rank": null,
+     "rank": 1,
      "ranked_by": "verified_acceptance_rate",
      "seed": "2026-W40",
      "per_stratum": 30
@@ -1808,42 +1808,42 @@
    ],
    "all_weeks": {
     "sampled": null,
-    "claimed_passing": 99,
-    "ci_finished": 96,
+    "claimed_passing": 148,
+    "ci_finished": 144,
     "checks": {
-     "passed": 86,
-     "failed": 9,
-     "other": 1,
+     "passed": 128,
+     "failed": 13,
+     "other": 3,
      "pending": 0,
-     "no_checks": 3,
+     "no_checks": 4,
      "not_read": 0
     },
     "verified_acceptance_rate": {
-     "k": 86,
-     "n": 99,
-     "share": 0.8687,
+     "k": 128,
+     "n": 148,
+     "share": 0.8649,
      "ci95": [
-      0.7882,
-      0.9216
+      0.8005,
+      0.9108
      ]
     },
     "failed_a_check": {
-     "k": 9,
-     "n": 96,
-     "share": 0.0938,
+     "k": 13,
+     "n": 144,
+     "share": 0.0903,
      "ci95": [
-      0.0501,
-      0.1687
+      0.0535,
+      0.1483
      ],
      "test_or_build": 5
     },
     "merged_despite_failed_check": {
-     "k": 6,
-     "n": 87,
-     "share": 0.069,
+     "k": 9,
+     "n": 127,
+     "share": 0.0709,
      "ci95": [
-      0.032,
-      0.1424
+      0.0377,
+      0.1292
      ]
     },
     "verified": 0
@@ -2266,113 +2266,113 @@
     },
     {
      "week": "2026-09-28",
-     "read": "2026-10-05",
+     "read": "2026-10-06",
      "full_week": false,
      "design": "stratified-seeded-v1",
      "capped": true,
      "strata": {
       "Mon": {
        "date": "2026-09-28",
-       "reported": 222621,
+       "reported": 222269,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 2,
+       "checks_read": 2
       },
       "Tue": {
        "date": "2026-09-29",
-       "reported": 235389,
+       "reported": 235025,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 1,
+       "checks_read": 1
       },
       "Wed": {
        "date": "2026-09-30",
-       "reported": 238024,
+       "reported": 237720,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 3,
+       "drawn": 17,
        "claimed": 1,
        "checks_read": 1
       },
       "Thu": {
        "date": "2026-10-01",
-       "reported": 239087,
+       "reported": 238886,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 3,
+       "drawn": 17,
        "claimed": 0,
        "checks_read": 0
       },
       "Fri": {
        "date": "2026-10-02",
-       "reported": 233646,
+       "reported": 233441,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 1,
+       "checks_read": 1
       },
       "Sat": {
        "date": "2026-10-03",
-       "reported": 215483,
+       "reported": 215520,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 2,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 17,
+       "claimed": 2,
+       "checks_read": 2
       },
       "Sun": {
        "date": "2026-10-04",
-       "reported": 225648,
+       "reported": 225301,
        "reachable": 2000,
        "planned": 30,
-       "drawn": 2,
+       "drawn": 16,
        "claimed": 0,
        "checks_read": 0
       }
      },
      "not_derived": {},
-     "sampled": 7,
-     "claimed_passing": 1,
-     "ci_finished": 1,
+     "sampled": 33,
+     "claimed_passing": 7,
+     "ci_finished": 6,
      "checks": {
-      "passed": 1,
-      "failed": 0,
+      "passed": 3,
+      "failed": 3,
       "other": 0,
       "pending": 0,
-      "no_checks": 0,
+      "no_checks": 1,
       "not_read": 0
      },
      "verified_acceptance_rate": {
-      "k": 1,
-      "n": 1,
-      "share": 1.0,
+      "k": 3,
+      "n": 7,
+      "share": 0.4286,
       "ci95": [
-       0.2065,
-       1.0
+       0.1582,
+       0.7495
       ]
      },
      "failed_a_check": {
-      "k": 0,
-      "n": 1,
-      "share": 0.0,
+      "k": 3,
+      "n": 6,
+      "share": 0.5,
       "ci95": [
-       0.0,
-       0.7935
+       0.1876,
+       0.8124
       ],
-      "test_or_build": 0
+      "test_or_build": 1
      },
      "merged_despite_failed_check": {
-      "k": 0,
-      "n": 1,
-      "share": 0.0,
+      "k": 2,
+      "n": 5,
+      "share": 0.4,
       "ci95": [
-       0.0,
-       0.7935
+       0.1176,
+       0.7693
       ]
      },
      "verified": 0,
@@ -2384,42 +2384,42 @@
    ],
    "all_weeks": {
     "sampled": null,
-    "claimed_passing": 28,
-    "ci_finished": 22,
+    "claimed_passing": 34,
+    "ci_finished": 27,
     "checks": {
-     "passed": 21,
-     "failed": 1,
+     "passed": 23,
+     "failed": 4,
      "other": 0,
      "pending": 0,
-     "no_checks": 6,
+     "no_checks": 7,
      "not_read": 0
     },
     "verified_acceptance_rate": {
-     "k": 21,
-     "n": 28,
-     "share": 0.75,
+     "k": 23,
+     "n": 34,
+     "share": 0.6765,
      "ci95": [
-      0.5664,
-      0.8732
+      0.5084,
+      0.8087
      ]
     },
     "failed_a_check": {
-     "k": 1,
-     "n": 22,
-     "share": 0.0455,
+     "k": 4,
+     "n": 27,
+     "share": 0.1481,
      "ci95": [
-      0.0081,
-      0.218
+      0.0592,
+      0.3248
      ],
-     "test_or_build": 0
+     "test_or_build": 1
     },
     "merged_despite_failed_check": {
-     "k": 1,
-     "n": 22,
-     "share": 0.0455,
+     "k": 3,
+     "n": 26,
+     "share": 0.1154,
      "ci95": [
-      0.0081,
-      0.218
+      0.04,
+      0.2898
      ]
     },
     "verified": 0
@@ -3038,28 +3038,28 @@
     },
     {
      "week": "2026-09-28",
-     "read": "2026-10-05",
+     "read": "2026-10-06",
      "full_week": false,
      "design": "stratified-seeded-v1",
      "capped": true,
      "strata": {
       "Mon": {
        "date": "2026-09-28",
-       "reported": 14,
-       "reachable": 14,
-       "planned": 14,
-       "drawn": 3,
+       "reported": 64,
+       "reachable": 64,
+       "planned": 30,
+       "drawn": 17,
        "claimed": 0,
        "checks_read": 0
       },
       "Tue": {
        "date": "2026-09-29",
-       "reported": 15,
-       "reachable": 15,
-       "planned": 15,
-       "drawn": 3,
-       "claimed": 0,
-       "checks_read": 0
+       "reported": 44,
+       "reachable": 44,
+       "planned": 30,
+       "drawn": 17,
+       "claimed": 1,
+       "checks_read": 1
       },
       "Wed": {
        "date": "2026-09-30",
@@ -3072,19 +3072,19 @@
       },
       "Thu": {
        "date": "2026-10-01",
-       "reported": 77,
-       "reachable": 77,
+       "reported": 87,
+       "reachable": 87,
        "planned": 30,
-       "drawn": 3,
+       "drawn": 17,
        "claimed": 0,
        "checks_read": 0
       },
       "Fri": {
        "date": "2026-10-02",
-       "reported": 15,
-       "reachable": 15,
-       "planned": 15,
-       "drawn": 3,
+       "reported": 35,
+       "reachable": 35,
+       "planned": 30,
+       "drawn": 17,
        "claimed": 0,
        "checks_read": 0
       },
@@ -3093,9 +3093,9 @@
        "reported": 12,
        "reachable": 12,
        "planned": 12,
-       "drawn": 2,
-       "claimed": 0,
-       "checks_read": 0
+       "drawn": 12,
+       "claimed": 1,
+       "checks_read": 1
       },
       "Sun": {
        "date": "2026-10-04",
@@ -3108,11 +3108,11 @@
       }
      },
      "not_derived": {},
-     "sampled": 5,
-     "claimed_passing": 0,
-     "ci_finished": 0,
+     "sampled": 64,
+     "claimed_passing": 2,
+     "ci_finished": 2,
      "checks": {
-      "passed": 0,
+      "passed": 2,
       "failed": 0,
       "other": 0,
       "pending": 0,
@@ -3120,19 +3120,33 @@
       "not_read": 0
      },
      "verified_acceptance_rate": {
-      "k": 0,
-      "n": 0,
-      "share": null,
-      "ci95": null
+      "k": 2,
+      "n": 2,
+      "share": 1.0,
+      "ci95": [
+       0.3424,
+       1.0
+      ]
      },
      "failed_a_check": {
       "k": 0,
-      "n": 0,
-      "share": null,
-      "ci95": null,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ],
       "test_or_build": 0
      },
-     "merged_despite_failed_check": null,
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
      "verified": 0,
      "rank": null,
      "ranked_by": "verified_acceptance_rate",
@@ -3142,27 +3156,27 @@
    ],
    "all_weeks": {
     "sampled": null,
-    "claimed_passing": 50,
-    "ci_finished": 50,
+    "claimed_passing": 52,
+    "ci_finished": 52,
     "checks": null,
     "verified_acceptance_rate": null,
     "failed_a_check": {
      "k": 9,
-     "n": 50,
-     "share": 0.18,
+     "n": 52,
+     "share": 0.1731,
      "ci95": [
-      0.0977,
-      0.308
+      0.0938,
+      0.2973
      ],
      "test_or_build": 8
     },
     "merged_despite_failed_check": {
      "k": 3,
-     "n": 42,
-     "share": 0.0714,
+     "n": 44,
+     "share": 0.0682,
      "ci95": [
-      0.0246,
-      0.1901
+      0.0235,
+      0.1823
      ]
     },
     "verified": 0

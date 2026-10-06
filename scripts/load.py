@@ -628,7 +628,77 @@ def render(doc: dict) -> str:
         out += ["", f"Wallet `{r['wallet']}`, key account `{r['key_account']}`, mint `{r.get('mint')}`." + (f" Stopped: {r['stopped']}." if r.get("stopped") else ""), ""]
     if doc.get("workflow"):
         out += render_workflow(doc["workflow"], runs)
+    if doc.get("relay"):
+        out += render_relay(doc["relay"])
     return "\n".join(out).rstrip() + "\n"
+
+
+def render_relay(rel: dict) -> list[str]:
+    """Section 6, from docs/load.json's `relay` section: the stages of a payment as the public relay's log recorded
+    them (`stages`: scripts/latency_stages.py's `six`, stored by `--stages`), and the local drill of the relay's queue
+    (`queue`: scripts/queue_drill.py --write)."""
+    out = ["## 6. The relay: where a payment's seconds go, and its queue", ""]
+    st, q, sw = rel.get("stages"), rel.get("queue"), rel.get("sweep")
+    if st:
+        import latency_stages
+        n = [row["n"] for row in st["six"]]
+        out += ["### The stages of a payment (recorded on devnet)", "",
+                f"From {st['source']}. Each stage is timed only for the payments whose log line recorded it, so each row has its own n; "
+                f"a stage no line recorded says \"{latency_stages.NOT_RECORDED}\", and no figure here is derived from another row.", "",
+                *latency_stages.table(st["six"], st["whole"]), "",
+                f"Read it with its n. The whole wait is {st['whole']['n']} payments; the stage rows are {max(n)} of them, because the log lines of the other "
+                f"{st['whole']['n'] - max(n)} carry no stage fields: for those payments every stage is "
+                f"{latency_stages.NOT_RECORDED}, and their time is in the first row only. With {max(n)} samples the 95th percentile by nearest "
+                "rank is the slowest of them, so a p95 in a stage row is one payment, not a band. `python scripts/latency_stages.py --md` prints "
+                "this table from the live log.", ""]
+    if q:
+        out += ["### The relay's queue (a local test of the queue, not a benchmark of the service)", "",
+                f"`python scripts/queue_drill.py --write` (seed {q['seed']}). **This is a local test of the queue, not an end-to-end service "
+                "benchmark**: nothing is signed, no transaction is built, no cluster and no GitHub is asked, and the clock is the test's own. "
+                "The chain is a stand-in that keeps one rule, the programs' single-use rule (a token is taken once; a second send is answered "
+                "\"already\" and moves nothing). It says how the queue (`src/knos/settle/v2/relayq.py`) behaves, and nothing about seconds on a cluster.", "",
+                f"{q['items']:,} entries of {q['lanes']} payers were queued and carried by {q['workers']} workers. One worker was killed after it "
+                f"took an entry and before it sent; one entry's confirmation was held for {q['slow_s']:.0f} s of the test's clock while others went on.", "",
+                "| Check | Result |", "| --- | --- |",
+                f"| Entries done | {q['done']:,} of {q['items']:,} |",
+                f"| Entries dead, or left open | {q['dead']}, {q['left_open']} |",
+                f"| Sends to the chain | {q['sends']:,} (one an entry) |",
+                f"| Entries sent twice | {q['sent_twice']} |",
+                f"| Entries the chain took, each once | {q['taken_by_chain']:,} |",
+                f"| Entries that left out of order within their payer's lane | {q['out_of_order']} |",
+                f"| Workers killed | {q['workers_killed']} |",
+                f"| Entries taken again after a lease of {q['lease_s']} s expired | {q['taken_again']} (the killed worker's) |",
+                f"| At least {HELD_FOR_SLOW} entries carried while the slow one was in flight | {'yes' if q['others_went_on_while_the_slow_one_was_in_flight'] else 'no'} |", "",
+                "What it does not show: a kill between a send and its answer. Then the entry is sent a second time, and it is the program "
+                "that refuses the repeat; `tests/test_relayq.py` runs that case against the stand-in, and `tests/test_relay_failures.py` runs "
+                "a relay killed between its send and the confirmation on the programs as built (LiteSVM).", ""]
+    if sw:
+        whole = (st or {}).get("whole") or {}
+        made = (f"The {whole['n']} payments recorded on devnet above (p50 {whole['p50']} s, p95 {whole['p95']} s) were made by the serial sweep, "
+                "before it was on the queue: no figure on this page times the queue on a cluster.") if whole else \
+            "No payment recorded on devnet was carried by the sweep on the queue: no figure on this page times the queue on a cluster."
+        out += ["### The always-on sweep on the queue (the same local test, through the relay's own pass)", "",
+                "The same command runs a second part: `knos.proof.ghrelay.once`, the pass the public worker repeats every 3 s, which now "
+                f"queues what it reads and carries it with the queue's {sw['workers']} workers. **This too is a local test of the queue, not an "
+                f"end-to-end benchmark**: GitHub and the chain are stand-ins and the clock is the test's own. {made}", "",
+                f"{sw['tokens']} tokens of {sw['owners']} owners were posted; the confirmation of one took {sw['slow_s']:.0f} s of the test's "
+                "clock. Then two more were posted, and the pass that carried them was killed after it had sent one and before it noted anything.", "",
+                "| Check | Result |", "| --- | --- |",
+                f"| Tokens carried in the first pass | {sw['done_in_the_first_pass']} of {sw['tokens']}, with {sw['sends_in_the_first_pass']} sends |",
+                f"| Tokens done before the slow one confirmed | {sw['done_before_the_slow_one_confirmed']} of the other {sw['tokens'] - 1} |",
+                f"| Seconds from comment to answer on the test's clock: the slow one, the slowest other | {sw['slow_one_took_s']}, {sw['slowest_other_took_s']} |",
+                f"| Most tokens in flight at once | {sw['most_in_flight']} |",
+                f"| Times two tokens of one owner were in flight together | {sw['two_of_one_owner_in_flight']} |",
+                f"| Tokens the chain took out of their owner's order | {sw['out_of_order']} |",
+                f"| The killed pass's token: sends, times the chain took it | {sw['killed_token_sends']}, {sw['killed_token_taken_by_chain']} "
+                "(the second send was answered \"already\") |",
+                f"| Tokens the chain took, and log lines | {sw['taken_by_chain']}, {sw['log_lines']} |", "",
+                "What one pass still does: it ends when its slowest token is answered, so a comment posted while a confirmation is awaited is "
+                "read when that pass is over (up to the 60 s a relay waits for one confirmation), not 3 s later.", ""]
+    return out
+
+
+HELD_FOR_SLOW = 20      # scripts/queue_drill.py HELD_FOR: entries carried while the slow one is held
 
 
 def render_workflow(w: dict, runs: list) -> list[str]:
@@ -683,7 +753,8 @@ def render_workflow(w: dict, runs: list) -> list[str]:
             f"pass that finds nothing new costs nothing against the worker's {L['github_token_requests_per_hour']:,} an hour; a repository "
             f"with a new token costs {rel['counted_reads_per_token']} counted read, and the token {rel['log_comments_per_token']} log comment. "
             f"The search for repositories it does not know runs every {rel['search_every_s']} s, under the search limit of "
-            f"{L['search_per_minute']} a minute. A pass carries its tokens one at a time.", "",
+            f"{L['search_per_minute']} a minute. A pass queues the tokens it reads and carries up to {rel['tokens_at_a_time']} at once, the "
+            "tokens of one owner in the order GitHub issued them (section 6).", "",
             "### The meter's statement (derived from the code)", "",
             "`knos statement --meter` recomputes a month from the program's log lines: the month account's history "
             f"{w['meter']['rows_per_history_request']} rows a request, one `getTransaction` for every transaction in it, and the account "
@@ -769,8 +840,17 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--write", action="store_true", help="write docs/load.json and docs/LOAD.md")
     ap.add_argument("--render", action="store_true", help="only render docs/LOAD.md again from docs/load.json")
+    ap.add_argument("--stages", metavar="FILE", help="what `scripts/latency_stages.py --json` printed: store its six stages (docs/load.json `relay.stages`) and render")
+    ap.add_argument("--stages-source", metavar="TEXT", help="with --stages: where and when the report was made, in words")
     a = ap.parse_args(argv)
     doc = load()
+    if a.stages:
+        if not a.stages_source:
+            ap.error("--stages needs --stages-source: where and when the report was made (the page prints it)")
+        r = json.loads(Path(a.stages).read_text(encoding="utf-8"))
+        doc.setdefault("relay", {})["stages"] = {"source": a.stages_source, "whole": {k: r["whole"][k] for k in ("n", "p50", "p95")}, "six": r["six"]}
+        write(doc)
+        return 0
     if a.render:
         write(doc)
         return 0

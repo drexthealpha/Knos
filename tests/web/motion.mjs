@@ -1,15 +1,21 @@
 // node tests/web/motion.mjs <site dir>
 // The budget of the first screen and of what moves, held on a build of web/ in headless Chromium:
 //   words     the first screen says 40 words at most, at a laptop's width and a phone's, with every page of the bar offered
-//   weight    app.css under 60 KB; motion.js and brand/mark3d.js under 12 KB together; no request leaves the site
-//   stillness with `prefers-reduced-motion: reduce` nothing runs (document.getAnimations() is empty) after load, after a
-//             change of page and after the pointer has crossed the mark and a card; the mark is drawn all the same
-//   movement  without it: a section enters once, a card leans and comes back, a token travels and lands, the mark
-//             flies, a change of page is a view transition; and afterwards nothing is left running (nothing loops)
+//   weight    app.css under 60 KB; motion.js and brand/mark3d.js under 18 KB together; palette.js under 12 KB and not
+//             asked for until it is opened; no request leaves the site
+//   stillness with `prefers-reduced-motion: reduce`, measured and not assumed: no element (or its ::before, ::after) on
+//             any page has an animation or a transition longer than 0, document.getAnimations() is empty after every
+//             change, and every state still changes: a page, a fold, a toast, a number, a line's group, the pending
+//             state, the palette, a step of the demo, the theme
+//   movement  without it: a section enters once (tied to the scroll where CSS can), a card leans and comes back, a token
+//             travels and lands, the mark flies, a change of page is a view transition in which the heading and the mark
+//             cross by name, a number counts to its value, a line slides to its group, a toast comes and goes; and
+//             afterwards nothing is left running (nothing loops)
 //   place     mounting the mark moves nothing
 //   access    the focus is drawn on every link, button and field; the text is 4.5:1 or more against what it is on, light and dark
 //   width     no sideways scroll from 320 to 1280
-// No `playwright` package or no browser: says so and exits 0 (tests/test_site_overflow.py reports that as a skip).
+// No `playwright` package or no browser: a FAILURE in CI (or with KNOS_REQUIRE_BROWSER=1); elsewhere it says SKIP and
+// exits 0, which tests/test_site_overflow.py reports as a skip (tests/web/overflow.mjs, `owed`).
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
@@ -23,8 +29,10 @@ const check = (name, cond, detail) => { if (cond) console.log("ok  ", name); els
 // ---- weight -------------------------------------------------------------------------------------------------------------
 const size = (f) => statSync(join(root, f)).size;
 check("weight: app.css is under 60 KB", size("app.css") < 60_000, size("app.css"));
-check("weight: motion.js and brand/mark3d.js are under 12 KB together", size("motion.js") + size("brand/mark3d.js") < 12_000, size("motion.js") + size("brand/mark3d.js"));
-check("weight: neither draws on a canvas or asks for a file", !/canvas|WebGL|fetch\(|import\(|https?:/i.test(readFileSync(join(root, "motion.js"), "utf8").replace(/^\/\/.*$/gm, "") + readFileSync(join(root, "brand/mark3d.js"), "utf8").replace(/^\/\/.*$/gm, "")));
+check("weight: motion.js and brand/mark3d.js are under 18 KB together", size("motion.js") + size("brand/mark3d.js") < 18_000, size("motion.js") + size("brand/mark3d.js"));
+check("weight: palette.js is 12 KB or less", size("palette.js") <= 12_000, size("palette.js"));
+// the one file motion.js may ask for is the palette, and only when it is opened
+check("weight: neither draws on a canvas or asks for a file", !/canvas|WebGL|fetch\(|import\(|https?:/i.test(readFileSync(join(root, "motion.js"), "utf8").replace(/^\s*\/\/.*$/gm, "").replace('import("./palette.js")', "") + readFileSync(join(root, "brand/mark3d.js"), "utf8").replace(/^\/\/.*$/gm, "")));
 
 const browser = await chromiumOrSkip();
 const server = createServer((req, res) => {
@@ -43,7 +51,20 @@ const world = async (o = {}) => {
 };
 const open = async (ctx, hash = "") => { const page = await ctx.newPage(); await page.goto(base + hash, { waitUntil: "load" }); await page.evaluate(() => document.fonts.ready); await page.waitForSelector("#mark3d .face", { state: "attached" }); return page; };
 const settle = (page, ms = 700) => page.waitForTimeout(ms);                      // longer than --dur-3, the longest thing that moves
-const running = (page) => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running" || a.playState === "pending").map((a) => a.animationName || a.transitionProperty || "script"));
+// what the clock drives. An entry tied to the scroll (a section not yet scrolled to) is held, not running: it is counted apart
+const running = (page) => page.evaluate(() => document.getAnimations().filter((a) => a.timeline === document.timeline && (a.playState === "running" || a.playState === "pending")).map((a) => a.animationName || a.transitionProperty || "script"));
+// every element of the page, and what it draws before and after itself: which of them could move at all
+const movers = (page) => page.evaluate(() => {
+  const bad = [];
+  for (const el of document.querySelectorAll("*")) for (const part of [null, "::before", "::after", "::backdrop"]) {
+    const s = getComputedStyle(el, part);
+    if ((part === "::before" || part === "::after") && s.content === "none") continue;
+    if (part === "::backdrop" && el.tagName !== "DIALOG") continue;
+    const t = Math.max(...s.transitionDuration.split(",").map(parseFloat)), a = s.animationName;
+    if (t > 0 || a !== "none") bad.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${typeof el.className === "string" && el.className ? `.${el.className.split(" ")[0]}` : ""}${part || ""} ${t > 0 ? `transition ${t}s` : `animation ${a}`}`);
+  }
+  return { looked: document.querySelectorAll("*").length, bad: bad.slice(0, 8) };
+});
 
 // ---- words ---------------------------------------------------------------------------------------------------------------
 // What a reader sees before scrolling: every word drawn inside the window, the bar's included. The demo's own words
@@ -71,12 +92,12 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   check(`words: the first screen says 40 words at most at ${width} by ${height}`, words.length <= 40 && words.length >= 20, [words.length, words.join(" ")]);
   if (width === 1280) {
     const bar = await page.$$eval("#nav > a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.textContent));
-    check("words: the bar shows five links and More", bar.join() === "Demo,Check an invoice,Console,Pricing,Docs" && await page.isVisible("#more-button") && (await page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).length)) === 0, bar);
+    check("words: the bar shows six links and More", bar.join() === "Check an invoice,Demo,Console,Leaderboard,Pricing,Docs" && await page.isVisible("#more-button") && (await page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).length)) === 0, bar);
     const hero = await page.evaluate(() => ({ h1: document.querySelector("h1").textContent.trim(), fact: document.getElementById("hero-fact").textContent.trim().split(/\s+/).length,
       order: [...document.querySelectorAll(".hero h1, .hero #hero-fact, .hero .actions, .hero #mark3d, #demo")].map((e) => e.id || e.className || e.tagName),
-      demoTop: document.getElementById("demo").getBoundingClientRect().top, fold: innerHeight }));
+      demoTop: document.getElementById("demo").getBoundingClientRect().top, fold: innerHeight, door: !!document.getElementById("front-door") }));   // with the front door (0.3.17) the round sits below it
     check("words: the sentence, the figure in 12 words or fewer, two buttons, the mark, then the demo at the fold", hero.h1 === "The neutral meter for AI agent work: neither side keeps the count." && hero.fact <= 12
-      && hero.order.join() === "check,hero-fact,actions,mark3d,demo" && Math.abs(hero.demoTop - hero.fold) <= 1, hero);
+      && (hero.door ? hero.order[0] === "check" && hero.order.at(-1) === "demo" && hero.demoTop >= hero.fold - 1 : hero.order.join() === "check,hero-fact,actions,mark3d,demo" && Math.abs(hero.demoTop - hero.fold) <= 1), hero);
     const folded = await page.$$eval("details.k-more", (l) => [l.length, l.filter((d) => d.open).length]);
     check("words: the longer explanations are folded, one press away", folded[0] > 10 && folded[1] === 0, folded);
   }
@@ -105,6 +126,66 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
     return { reduced: m.prefersReduced(), added: document.body.childElementCount - before, running: document.getAnimations().length };
   });
   check("  a token and the mark do not travel: the caller's promise is kept at once", still.reduced && still.added === 0 && still.running === 0, still);
+  // measured, page by page: nothing on it could move, and nothing does
+  for (const hash of ["", "#pricing", "#fund", "#records", "#shadow", "#playground", "#verifier", "#terms"]) {
+    await page.goto(base + hash); await page.waitForSelector("#mark3d .face", { state: "attached" }); await settle(page, 200);
+    await page.evaluate(() => { for (const d of document.querySelectorAll("details")) d.open = true; });
+    const m = await movers(page);
+    check(`  ${hash || "(first screen)"}: none of ${m.looked} elements has an animation or a transition longer than 0`, m.looked > 200 && m.bad.length === 0 && (await page.evaluate(() => document.getAnimations().length)) === 0, m.bad);
+  }
+  // the console, each of its four parts shown in turn, every fold open: nothing could move, and nothing does
+  await page.goto(base + "#buy"); await page.waitForSelector("#proc-tab-invoice"); await page.waitForSelector("#proc-outcome option", { state: "attached" }); await settle(page, 200);
+  for (const k of ["offers", "budgets", "approvals", "invoice"]) {
+    await page.click(`#proc-tab-${k}`);
+    await page.evaluate(() => { for (const d of document.querySelectorAll("details")) d.open = true; });
+    const m = await movers(page), shown = await page.isVisible(`#buy-part-${k}`);
+    check(`  #buy, ${k}: shown at once, and none of ${m.looked} elements has an animation or a transition longer than 0`, shown && m.looked > 200 && m.bad.length === 0 && (await page.evaluate(() => document.getAnimations().length)) === 0, m.bad);
+  }
+  await page.goto(base); await page.waitForSelector("#mark3d .face", { state: "attached" });
+  // the first screen's upgrade line opens at once, and the sample's lines are sorted into their groups at once
+  if (await page.waitForSelector("#hero-upgrades:not([hidden])", { timeout: 3000 }).then(() => true, () => false)) {
+    await page.click("#hero-upgrades > summary");
+    const up = await page.evaluate(() => [document.getElementById("hero-upgrades").open, document.querySelectorAll("#hero-upgrades-body p.upgrade").length, document.getAnimations().length]);
+    check("  the upgrade line opens at once", up[0] && up[1] > 0 && up[2] === 0, up);
+    await page.click("#hero-upgrades > summary");
+  }
+  await page.click('[data-fd="sample"]'); await page.waitForSelector("#front-result[data-done]");
+  const sorted = await page.evaluate(() => [document.querySelectorAll("#front-result .fd-line").length, document.getAnimations().length]);
+  check("  the sample's seven lines are in their groups at once, and nothing runs", sorted[0] === 7 && sorted[1] === 0, sorted);
+  const after = await movers(page);
+  check("  with the sample's answer drawn, none of its elements has an animation or a transition longer than 0", after.bad.length === 0, after.bad);
+  await page.goto(base); await page.waitForSelector("#mark3d .face", { state: "attached" });
+  // and every state still changes, at once
+  const fold = await page.evaluate(() => { const d = document.querySelector("#view-check details.k-more"); d.open = false; const shut = d.getBoundingClientRect().height; d.open = true; return [shut, d.getBoundingClientRect().height, document.getAnimations().length]; });
+  check("  a fold opens to its full height at once", fold[1] > fold[0] + 10 && fold[2] === 0, fold);
+  const states = await page.evaluate(async () => {
+    const m = await import("./motion.js"), host = document.createElement("div");
+    host.innerHTML = '<p id="n">0</p><ul id="g1"><li id="l1">one</li><li id="l2">two</li></ul><ul id="g2"><li id="l3">three</li></ul><div id="pend"></div>';
+    document.querySelector("main").prepend(host);
+    const q = (s) => host.querySelector(s), out = {};
+    const counted = m.countTo(q("#n"), 5003); out.count = q("#n").textContent; await counted;
+    const sorted = m.sort(q("#l1"), q("#g2"), { state: "agreed" }); out.sort = [q("#l1").parentNode.id, q("#l1").dataset.state, [...q("#g2").children].map((c) => c.id).join()]; await sorted;
+    const done = m.skeleton(q("#pend")); out.pending = [q("#pend").getAttribute("aria-busy"), q("#pend").querySelectorAll(".k-skeleton > i").length]; done("ready"); out.ready = [q("#pend").textContent, q("#pend").hasAttribute("aria-busy")];
+    const t = m.toast("Copied"); out.toast = [t.isConnected, t.textContent, t.parentNode.getAttribute("role"), getComputedStyle(t).opacity];
+    await m.leave(t); out.gone = !t.isConnected;
+    out.running = document.getAnimations().length; host.remove();
+    return out;
+  });
+  check("  a number is its value, a line is in its group, the pending state shows and clears, a toast says it and goes: all at once",
+    states.count === "5,003" && states.sort.join("|") === "g2|agreed|l3,l1" && states.pending.join() === "true,3" && states.ready.join() === "ready,false" && states.toast.join() === "true,Copied,status,1" && states.gone && states.running === 0, states);
+  await page.focus("#theme");
+  await page.keyboard.press("Control+k");
+  await page.waitForSelector("dialog.k-pal[open]");
+  const pal = await movers(page);
+  check("  the palette opens at once, and nothing in it could move", pal.bad.length === 0 && await page.evaluate(() => document.activeElement.getAttribute("role") === "combobox" && document.getAnimations().length === 0), pal.bad);
+  await page.keyboard.press("Escape");
+  check("  and closes at once, the focus back where it was", await page.evaluate(() => !document.querySelector("dialog.k-pal").open && document.activeElement.id === "theme" && document.getAnimations().length === 0));
+  const themed = await page.evaluate(() => { const before = getComputedStyle(document.body).backgroundColor; document.getElementById("theme").click(); return [before, getComputedStyle(document.body).backgroundColor, document.getAnimations().length]; });
+  check("  the theme switches at once", themed[0] !== themed[1] && themed[2] === 0, themed);
+  if (await page.evaluate(() => document.getElementById("demo").childElementCount > 0)) {
+    const step = await page.evaluate(() => { const d = document.getElementById("demo"), say = d.querySelector(".kd-say").textContent; d.querySelector(".kd-go").click(); return [say, d.querySelector(".kd-say").textContent, d.querySelector(".k-step").dataset.state, document.getAnimations().length]; });
+    check("  a step of the demo changes at once", step[0] !== step[1] && step[2] === "done" && step[3] === 0, step);
+  }
   await ctx.close();
 }
 
@@ -155,6 +236,54 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   await page.click('#nav a[href="#pricing"]');
   await page.waitForSelector("#view-pricing", { state: "visible" });
   check("  a link to another page is a view transition, and the page asked for is shown", (await page.evaluate(() => window.transitions)) === 1 && await page.isHidden("#view-check") && (await page.evaluate(() => location.hash)) === "#pricing");
+  await settle(page);
+  // the heading and the mark cross by name, and the names are gone when it is over
+  const crossing = await page.evaluate(async () => {
+    const m = await import("./motion.js"), names = () => [...document.querySelectorAll("*")].filter((e) => e.style.viewTransitionName).map((e) => `${e.style.viewTransitionName}:${e.id || e.className || e.tagName.toLowerCase()}`).sort().join();
+    const cross = async (to) => {
+      const seen = new Set(), groups = new Set(); let on = true;
+      const look = () => { if (!on) return; seen.add(names()); for (const a of document.getAnimations()) { const g = /group\((title|mark)\)/.exec(a.effect?.pseudoElement || ""); if (g) groups.add(g[1]); } requestAnimationFrame(look); };
+      const done = m.morph(() => new Promise((r) => { addEventListener("hashchange", () => setTimeout(r, 0), { once: true }); location.hash = to; }));
+      seen.add(names()); look(); await done; on = false;
+      return { seen: [...seen].filter(Boolean), groups: [...groups].sort().join(), after: names(), hash: location.hash };
+    };
+    return [await cross("#check"), await cross("#pricing")];
+  });
+  check("  to the first screen: the heading crosses to the sentence and the mark comes in by name; the names are taken off afterwards", crossing[0].seen.some((n) => /^title:/.test(n) && !/mark:/.test(n)) && crossing[0].seen.some((n) => n.includes("mark:mark3d") && n.includes("title:check"))
+    && crossing[0].groups === "title" && crossing[0].after === "" && crossing[0].hash === "#check", crossing[0]);
+  check("  and away from it: the mark crosses to the one in the bar", crossing[1].seen.some((n) => n.includes("mark:mark3d")) && crossing[1].seen.some((n) => n.includes("mark:wordmark")) && crossing[1].groups === "mark,title" && crossing[1].after === ""
+    && crossing[1].hash === "#pricing" && await page.isVisible("#view-pricing"), crossing[1]);
+  const tied = await page.evaluate(() => ({ can: CSS.supports("animation-timeline: view()"), says: document.documentElement.classList.contains("k-scroll"),
+    held: document.getAnimations().filter((a) => a.timeline !== document.timeline).every((a) => a.animationName === "k-enter" && !a.effect.target.classList.contains("in")) }));
+  check("  a section's entry is tied to the scroll where CSS can tie it, and only sections not yet in are held", tied.can === tied.says && tied.held, tied);
+  const moved = await page.evaluate(async () => {
+    const m = await import("./motion.js"), host = document.createElement("div");
+    host.innerHTML = '<p id="n">0</p><ul id="g1"><li id="l1">one</li><li id="l2">two</li></ul><ul id="g2"><li id="l3">three</li></ul>';
+    document.querySelector("main").prepend(host);
+    const q = (s) => host.querySelector(s), out = {}, seen = new Set();
+    let counting = true; const look = () => { seen.add(q("#n").textContent); if (counting) requestAnimationFrame(look); };
+    const counted = m.countTo(q("#n"), 5003, { ms: 960 }); look(); await counted; counting = false;          // twice --dur-3, so a slow machine still draws a few frames of it
+    out.count = [q("#n").textContent, seen.size > 3 && [...seen].every((v) => Number(v.replace(",", "")) <= 5003), q("#n").classList.contains("k-num"), getComputedStyle(q("#n")).fontVariantNumeric];
+    const sorting = m.sort(q("#l1"), q("#g2"), { state: "agreed" });
+    out.sort = [q("#l1").parentNode.id, q("#l1").dataset.state, q("#l1").getAnimations().length, q("#l2").getAnimations().length, q("#l1").classList.contains("k-moved")];
+    await sorting; out.landed = [q("#l1").getAnimations().length, q("#l1").classList.contains("k-moved")];
+    const t = m.toast("Approved"); out.toast = [t.textContent, getComputedStyle(t).transitionDuration !== "0s"];
+    await m.leave(t); out.gone = !t.isConnected; host.remove();
+    return out;
+  });
+  check("  countTo() counts to the value once and ends on it, in tabular figures", moved.count[0] === "5,003" && moved.count[1] && moved.count[2] && /tabular-nums/.test(moved.count[3]), moved.count);
+  check("  sort() puts a line in its group at once, slides it and the line it displaced, and leaves nothing behind", moved.sort.join() === "g2,agreed,1,1,true" && moved.landed.join() === "0,false", moved);
+  check("  toast() says it and leaves", moved.toast.join() === "Approved,true" && moved.gone, moved);
+  const opening = await page.evaluate(async () => {
+    const d = [...document.querySelectorAll("details.k-more")].find((e) => e.checkVisibility()); d.scrollIntoView({ block: "center", behavior: "instant" });
+    const shut = d.getBoundingClientRect().height, between = new Set(); d.open = true;
+    for (let i = 0; i < 40; i += 1) { await new Promise((r) => requestAnimationFrame(r)); between.add(Math.round(d.getBoundingClientRect().height)); }
+    await new Promise((r) => setTimeout(r, 300));
+    const full = d.getBoundingClientRect().height; await new Promise((r) => requestAnimationFrame(r));
+    return { can: CSS.supports("interpolate-size: allow-keywords"), shut, full, between: between.size, still: d.getBoundingClientRect().height === full };
+  });
+  check("  a fold opens to its own height (through heights between where the browser can go to auto, at once elsewhere) and rests", opening.full > opening.shut + 10 && opening.still && (!opening.can || opening.between > 3), opening);
+  await page.evaluate(() => scrollTo(0, 0));
   // a second change of page, by a link inside a fold: the fold is opened first, so the press lands at once
   await page.$eval('#view-pricing a[href="#pilot"]', (a) => { a.closest("details").open = true; });
   await page.click('#view-pricing a[href="#pilot"]');
@@ -171,9 +300,11 @@ for (const scheme of ["dark", "light"]) {
   const page = await open(ctx);
   const seen = await page.evaluate(() => {
     const probe = (cls, parent) => { const p = document.createElement("p"); p.className = cls; p.textContent = "text"; parent.append(p); const s = getComputedStyle(p).color; p.remove(); return s; };
+    // the first screen's main button: the front door's (0.3.17) or, on a build before it, "Try it"
+    const main = () => document.querySelector('#front-door [data-fd="run"], #go-demo, #view-check .k-btn:not(.quiet)');
     const card = document.querySelector("#pr-form"), a = document.createElement("a"); a.href = "#x"; card.append(a);
     const out = { paper: getComputedStyle(document.body).backgroundColor, card: getComputedStyle(card).backgroundColor, ink: getComputedStyle(document.body).color, quiet: probe("fine", card), lede: probe("lede", document.querySelector("main")),
-      link: getComputedStyle(a).color, fact: getComputedStyle(document.getElementById("hero-fact")).color, button: getComputedStyle(document.getElementById("go-demo")).color, buttonOn: getComputedStyle(document.getElementById("go-demo")).backgroundColor,
+      link: getComputedStyle(a).color, fact: getComputedStyle(document.getElementById("hero-fact")).color, button: getComputedStyle(main()).color, buttonOn: getComputedStyle(main()).backgroundColor,
       nav: getComputedStyle(document.querySelector("#nav a")).color };
     a.remove(); return out;
   });

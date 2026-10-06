@@ -40,6 +40,7 @@ DAY = 86_400
 READ = "2026-10-05"                 # the day the published limits below were read
 SIZES = ((1, 10), (10, 1_000), (100, 100_000))     # (repositories, accepted deliverables a day): the three customers of the page
 OWN, PUBLIC = "own", "public"       # who carries the token: the job itself, with the repository's fee key; Knos's public worker
+SERIAL_PASS = "the public relay's pass, at the serial rate recorded"       # the row of `bounds` for what one relayer carries in a day
 
 # Published limits, as read on READ. A limit GitHub or Solana changes is changed here, with its link, and nowhere else.
 LIMITS = {
@@ -159,7 +160,7 @@ def constants(counted: dict | None = None, load: dict | None = None, bench: dict
     (constants of the code), `chain` (docs/load.json's local run), `latency` (docs/bench.json's recorded samples)."""
     from knos import flow
     from knos.proof import ghrelay
-    from knos.settle.v2 import meter
+    from knos.settle.v2 import meter, relayq
     load = json.loads(JSON.read_text(encoding="utf-8")) if load is None else load
     bench = json.loads(BENCH.read_text(encoding="utf-8")) if bench is None else bench
     loc, lat = load["local"], bench["devnet"]["stats"]["latency"]
@@ -178,7 +179,7 @@ def constants(counted: dict | None = None, load: dict | None = None, bench: dict
             "search_every_s": ghrelay.SEARCH_EVERY, "pass_every_s": 3.0,
             "counted_reads_per_token": 1,       # the repository's comment page changed, so its conditional read is answered in full
             "log_comments_per_token": 1,        # `once` posts a carried token's line at once: someone is waiting for it
-            "tokens_at_a_time": 1,              # `once` carries a pass's tokens one after another
+            "tokens_at_a_time": relayq.WORKERS,     # `once` queues a pass's tokens and carries this many at once, an owner's in order
         },
         "meter": {"statement_reads_at_most": 100_000, "rows_per_history_request": 100, "evaluations_per_batch_at_most": meter.MAX_BATCH},
         "chain": {
@@ -266,10 +267,16 @@ def bounds(c: dict, repos: int, per_day: int, way: str = OWN, plan: str = "Free"
                      f"{L['content_per_hour']} content-generating requests an hour (GitHub)",
              "lift": "the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or "
                      "several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO)"},
-            {"limit": "the public relay's pass, one token at a time", "scope": "every customer of the public worker",
+            # The sweep carries up to `tokens_at_a_time` tokens at once since 0.3.17. The only time recorded on devnet
+            # is of the sweep before that, so this row stays the serial arithmetic and says so: it is not multiplied
+            # by a number of workers nobody has timed on a cluster.
+            {"limit": SERIAL_PASS, "scope": "every customer of the public worker",
              "at": relayers * DAY / peak / (tokens * lat["median"]),
-             "from": f"{tokens} tokens a deliverable, carried one after another; a token taken as the median of merge-to-paid, "
-                     f"{lat['median']} s (recorded; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many)",
+             "from": f"{tokens} tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, "
+                     f"{lat['median']} s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so "
+                     "the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to "
+                     f"{c['relay']['tokens_at_a_time']} tokens at once, the tokens of one owner in order (section 6): what that adds is "
+                     "not measured on devnet yet, so it is not counted here",
              "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)"},
         ]
     else:

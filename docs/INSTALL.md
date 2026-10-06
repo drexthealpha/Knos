@@ -14,8 +14,9 @@ Two parts of the package go into a coding agent:
   last 30 days, can a GitHub-signed run the chain verifies pay it), `knos_check_pr` (is a pull request's "tests pass"
   true) and `knos_due` (what waits for a GitHub account). Four more return the exact comment to post and send nothing
   themselves: `knos_take`, `knos_address`, `knos_fund` and `knos_settle`. `knos_find_work` lists the open work
-  orders an agent could take, with their terms. The command is `knos mcp`. With these it reads public data from
-  GitHub and Solana and holds no key and no wallet.
+  orders an agent could take, with their terms. `knos_preflight` reads your checkout and an order's terms before you
+  open a pull request and says which changed files would be refused, or `ready`. The command is `knos mcp`. With
+  these it reads public data from GitHub and Solana and your own checkout, and holds no key and no wallet.
 
   Three tools post, and only for an agent that was given a GitHub token of its own and told it may act
   (`knos agent init --allow-actions`, [docs/AGENTS.md](AGENTS.md)): `knos_take_work` (comments `/knos take`),
@@ -237,7 +238,7 @@ servers**, and saves it.
       "type": "local",
       "command": "uvx",
       "args": ["knos", "mcp"],
-      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle", "knos_find_work"]
+      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle", "knos_find_work", "knos_preflight"]
     }
   }
 }
@@ -384,7 +385,7 @@ today; this is the list of what it would take, so that no step is hidden. The de
    comment.
 
 So: three steps on devnet, seven with real money. The fee is paid by the funder on top of the amount (2.5% of the
-first 1,000, 1% from 1,000 to 50,000, 0.5% above; minimum 0.40).
+first 1,000, 1% to 50,000, 0.5% above; minimum 0.40).
 
 ## The GitHub Action
 
@@ -410,7 +411,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.16
+      - uses: drexthealpha/Knos@v0.3.17
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -443,7 +444,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.16
+    - python -m pip install knos==0.3.17
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -475,7 +476,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.16/knos-settle-0.3.16.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.17/knos-settle-0.3.17.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -490,7 +491,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.16" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.17" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

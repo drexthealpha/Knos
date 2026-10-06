@@ -56,7 +56,7 @@ jobs:
       - name: install knos and what it needs, each by its hash, and nothing else
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r https://raw.githubusercontent.com/drexthealpha/knos-workflows/ff5f3df04abedd865f79a19cebc6848b6e048556/requirements/sign.txt
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r https://raw.githubusercontent.com/drexthealpha/knos-workflows/160edd4e19fcfbc86f712f01225e0717a7dde2d7/requirements/sign.txt
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: knos canary
         env:

@@ -170,7 +170,7 @@ const stages = (page) => page.$$eval("#live-line li", (l) => l.map((x) => `${x.d
     ["payment comment", `https://github.com/${REPO}/pull/41#issuecomment-2`], ["the verifier transaction", `https://explorer.solana.com/tx/${VERIFY_TX}?cluster=devnet`], ["the payment", `https://explorer.solana.com/tx/${PAY_TX}?cluster=devnet`]];
   check("  the links: the funding comment, the pull request, the signed run (the workflow that pays, not the check), the verifier transaction and the payment", JSON.stringify(links.map((l) => l.slice(0, 2))) === JSON.stringify(want) && links.every((l) => l[2] === "_blank" && l[3] === "noopener"), JSON.stringify(links));
   check("  a comment's markup is never the page's", (await page.$$("#status img")).length === 0);
-  check("  the countdown is to the next half hour, and says GitHub may be late", (await text(page, "#live-next")) === "The next round is due at 12:30 UTC, in 20 min 00 s. GitHub starts a timer when it has a runner free, often some minutes late.", await text(page, "#live-next"));
+  check("  the countdown is to the next half hour, and says GitHub may be late", (await text(page, "#live-next")) === "Next round: 12:30 UTC, in 20 min 00 s. GitHub often starts a timer some minutes late.", await text(page, "#live-next"));
   await page.clock.runFor(61_000);
   check("  and it counts down by the clock", (await text(page, "#live-next")).includes("in 18 min 59 s"), await text(page, "#live-next"));
   await page.waitForFunction(() => document.getElementById("live-measured").textContent.length > 0);
@@ -208,7 +208,7 @@ const stages = (page) => page.$$eval("#live-line li", (l) => l.map((x) => `${x.d
   const head = await text(page, "#live-head");
   check("live, stale: a round three hours old is the last round, and the page says the canary has not run since", head === "The canary has not run since 2026-10-05 09:10:00 UTC (3 h ago). This is its last round, not a live one." && !(await page.isVisible("#live-head.ok")), head);
   check("  nothing is drawn as happening now, and the countdown promises nothing", (await page.$$('#live-line li[data-state="now"]')).length === 0 && (await page.$$("[data-since]")).length === 0
-    && (await text(page, "#live-next")) === "The timer is set for every half hour (next: 12:30 UTC, in 20 min 00 s), but the canary has not been running, so a round may not start then.", await text(page, "#live-next"));
+    && (await text(page, "#live-next")) === "Next timer: 12:30 UTC, in 20 min 00 s. The canary has not been running. A round may not start then.", await text(page, "#live-next"));
   await page.click("#live-watch");
   await page.waitForFunction(() => document.getElementById("live-watching").textContent.startsWith("Waiting"));
   check("  watching an old round replays nothing: it waits for a new one", (await text(page, "#live-watching")).startsWith("Waiting for the next round to start.") && (await text(page, "#live-head")).startsWith("The canary has not run since") && (await page.$$('#live-line li[data-state="now"]')).length === 0);
@@ -224,7 +224,7 @@ const stages = (page) => page.$$eval("#live-line li", (l) => l.map((x) => `${x.d
   down.net.down = true;
   await down.page.goto(`${base}live.html`);
   await down.page.waitForSelector("#live-head.bad");
-  check("  GitHub not answering and nothing kept: said, and no round is shown", (await text(down.page, "#live-head")) === "The canary's round could not be read just now (GitHub said 502), so none is shown." && (await down.page.$("#live-line")) === null);
+  check("  GitHub not answering and nothing kept: said, and no round is shown", (await text(down.page, "#live-head")) === "The canary's round was not read (GitHub said 502). None is shown." && (await down.page.$("#live-line")) === null);
   await down.ctx.close();
 
   const old = world(NOW - 40 * 60_000, "open"), unfinished = await open(old.w);

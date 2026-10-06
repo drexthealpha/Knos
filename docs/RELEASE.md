@@ -4,18 +4,28 @@ ONE commit and ONE push to `drexthealpha/Knos`. Everything that can fail is done
 the operator's machine, and every command below can be run again after a failure: each reads what is already there
 and does only what is missing.
 
-This page is the plan for 0.3.16. The tools enforce the order: a step run too early stops and says which step comes
+This page is the plan for 0.3.17. The tools enforce the order: a step run too early stops and says which step comes
 first.
 
-0.3.16 is released before proposals 3 to 6 of the upgrade multisig execute; the live state is in
-`web/upgrades.json`. So step 0 and the exercises on the public program ids are not run for 0.3.16: they are the first
-steps of the next release, and a script that refuses because those proposals have not executed is one of them. Nothing
-is marked `exercised` or `deployed` in 0.3.16's commit, and knos_oidc 2.2 will be proposed after the pending upgrade
-executes.
+What the release run does for 0.3.17, in order, each thing once:
 
-The order of 0.3.16, in one line: staging; the wheel; the lock; the workflows; the stamp; the private gate; ONE commit;
-PyPI; ONE push; the tag. Once the pending upgrade has executed: step 0 (a check of the chain), the exercises on the
-public program ids, and the ONE upgrade this tree's knos_oidc needs.
+1. **Asks the chain what the public program ids run** (step 0). Proposals 3 to 6 of the upgrade multisig (knos_oidc
+   2.1, knos_pay 2.1, knos_meter 1.1, knos_passkey 1.1) are approved and execute when their delay is over; the live
+   state is in `web/upgrades.json`. If all four have executed, the exercises on the public ids are run and recorded
+   before the commit. If not, they are skipped and the release ships without them.
+2. **Publishes the package to PyPI as 0.3.17**, by the order below: staging; the wheel; the lock; the workflows; the
+   stamp; the test count; the private gate; ONE commit; PyPI; ONE push; the tag.
+3. **Publishes no crate.** The four programs and the two interface crates are held at 0.3.14
+   (`scripts/bump_version.py`, `PROGRAMS_FROZEN`), and neither interface crate is on crates.io
+   ("Publishing the crates and the npm package").
+4. **Proposes ONE upgrade, of knos_oidc,** after the push and only once proposals 3 to 6 have executed:
+   `scripts/exercise_public.py propose-oidc` ("After the pending upgrade: the ONE upgrade"). The build is new in this
+   release: the strict JSON reader of 0.3.16 and the ES256 instruction, in one build. The other three programs are
+   byte for byte the builds of proposals 4, 5 and 6.
+
+**Nothing in the release waits for the upgrade's clock.** Where a step needs proposals 3 to 6 to have executed and
+they have not, that step is skipped, the commit claims nothing about it, and it is run later by the same command.
+The new proposal's own 48 hours are waited for by nothing either: the site and `knos status` say when it executes.
 
 ## Why there is an order
 
@@ -38,10 +48,11 @@ needs are installed by hash from `requirements/build.txt`.
 
 ## Step 0: the four earlier proposals have executed
 
-A CHECK, and neither the exercises below nor the proposal of knos_oidc 2.2 starts until it passes. 0.3.14 proposed
-four upgrades (proposals 3 to 6 of the upgrade multisig: knos_oidc, knos_pay, knos_meter and knos_passkey). The 2.2
-proposal is made only after all four have executed, on top of them, and the exercises need the instructions they
-add. 0.3.16 itself is released before they execute, so for 0.3.16 this check is skipped.
+A CHECK, and neither the exercises below nor the proposal of the new knos_oidc build starts until it passes. 0.3.14
+proposed four upgrades (proposals 3 to 6 of the upgrade multisig: knos_oidc, knos_pay, knos_meter and knos_passkey).
+The new proposal is made only after all four have executed, on top of them, and the exercises need the instructions
+they add. The release itself does not need them: when the check does not pass, go on to "The commit" without the
+exercises.
 
 ```
 node scripts/governance.mjs show                  # both multisigs as the design fixes them, and how many proposals so far
@@ -53,23 +64,126 @@ python scripts/capabilities.py check --rpc        # which `on_chain` versions an
 - `upgrade_feed.py --check` exits 0, and `web/upgrades.json` gives proposals 3, 4, 5 and 6 the status `executed`:
   go on.
 - Anything else (a proposal still `pending`, a program that answers with its older version, a cluster that does not
-  answer): **the exercises and the proposal wait.** Neither is run. `bash scripts/schedule_upgrade.sh --show` says what
+  answer): **the exercises and the proposal wait; the release does not.** Neither is run. `bash scripts/schedule_upgrade.sh --show` says what
   is arranged and what the run's log holds; if the machine was off at the time, `bash scripts/schedule_upgrade.sh
   --run` runs it by hand (an execution before its time is refused by the Squads program itself, and one that
-  already happened is left alone). Then run step 0 again.
+  already happened is left alone). Then run step 0 again, before the commit if there is time and after the tag if
+  there is not.
 
 The manifest moves in the commit of the release that passes step 0, on that evidence: `capabilities.py check --rpc`
 names every `on_chain` version to write, and the stages that waited for the upgrade move with the exercises of the
-next section. 0.3.16's commit does not move it: its `on_chain` versions are the ones devnet runs until proposals 3 to 6
-execute.
+next section. A commit made before step 0 passes does not move it: its `on_chain` versions are the ones devnet runs
+until proposals 3 to 6 execute.
+
+## After the upgrade executes: from staging to public, in one tool
+
+Proposals 3 to 6 can execute from 6 October 2026, about 22:13 UTC (`earliest_execution_utc` of each entry in
+`web/upgrades.json`). From then on `scripts/exercise_public.py` does the whole move: it checks what the public ids
+run, runs each round there in test USDC with the least the programs take (5.00 for an order, 1.00 for a job), keeps
+what it sent and what it checked, and writes it into the manifest, the documents and the site's demo. Every step can
+be run again: a step that is done is not sent a second time. `<keys>` is the key folder: `relayer.json` pays the
+fees, `funder.json` is a wallet holding 10 test USDC (Circle's devnet mint), and `exercise.json`, if there, names the
+repository the rounds' comments are posted in (`{"repository": "owner/name", "repository_id": 123}`; default
+`drexthealpha/knos-e2e`).
+
+**1. What do the public ids run?**
+
+```
+python scripts/exercise_public.py status --rpc https://api.devnet.solana.com; echo "exit $?"
+```
+
+Fine, exit 0: four lines such as `knos_pay 5y7i...: runs knos_pay 2.1, the build of proposal 4; hash 2ed301a2...;
+last deployed in slot <n>`, then `all four run the upgraded builds: run the exercises`.
+
+- **Exit 3** (`knos_meter 1.0: proposal 5 has not executed`, then `skip the exercises and ship the rest`): the upgrade
+  has not executed for every program. Do not wait for it. Ship the release without steps 2 to 4: the manifest keeps
+  its stages, the demo keeps replaying the staging rehearsal and says so, and nothing in the commit claims a run at a
+  public id. Run steps 1 to 4 later, when `status` exits 0, and commit what `record` writes then. (When some of the
+  four have executed, `run` still runs the rounds of those and skips the others with the reason.)
+- **Exit 1** (`a build no file of this repository records`, or the cluster did not answer): stop. No round is run
+  and no file is written until the hash is explained: `python scripts/provenance.py --rpc` prints what the gate holds
+  for it.
+
+**2. Run the rounds.**
+
+```
+python scripts/exercise_public.py run --rpc https://api.devnet.solana.com --keys <keys>
+```
+
+It prints one block per round. Fine looks like:
+
+```
+[expiry] A wallet funds a job and an order for one minute of work, tops the order up, and both go back whole.
+  ok       a wallet funds a job with its own money: <signature>
+  ...
+[order] One order funded by a comment, paid on its proof; every second use refused; ...
+  NEEDS A RUN of fund.yml: in drexthealpha/knos-e2e: open an issue, comment `/knos fund 5` on it TWICE, merge a pull request that closes it, and run this again within five minutes of the merge (`--resume`)
+exercised: fund_from_wallet, refund, top_up
+  order_pay: needs run: fund.yml
+```
+
+The `expiry` round needs no workflow and takes about two minutes (it waits out a one-minute deadline). Every other
+round takes tokens GitHub signs, so the first run prints, for each, exactly what to start; do that, then:
+
+```
+python scripts/exercise_public.py run --rpc https://api.devnet.solana.com --keys <keys> --resume
+```
+
+| Round | What to start | What it checks | Capabilities |
+|---|---|---|---|
+| `expiry` | nothing | a wallet's job and order, funded for one minute, topped up, go back whole at the deadline | `fund_from_wallet`, `top_up`, `refund` |
+| `order` | `/knos fund 5` twice on one issue; merge a pull request that closes it | the order holds its amount and its fee on top; the proof pays; the proof relayed again is answered with the first payment and sends nothing; the fund token sent again is refused with error 91 (a token works once) and funds nothing; the first proof does not pay a second funding of the same address; that second order goes back at its deadline | `work_orders`, `order_pay`, `single_use_tokens`, `verify_github` |
+| `quorum` | `/knos fund 5 quorum 2 holdback 20 warranty 1`; merge; the pinned `attest.yml` by hand in a repository of another owner with `kind=pay`; revert the merge; `attest.yml` again with `kind=revert` | one judge of two pays nothing and moves nothing; the second pays four fifths; the neutral judge's revert returns the holdback and its fee | `order_quorum`, `neutral_attest`, `order_challenge`, `warranty_revert` |
+| `auto` | `/knos fund 5 auto` on an issue with a black-box suite; a pull request that passes it, not merged | the author is paid on the check's token, with no merge | `order_auto_accept`, `tests_mode` |
+| `meter` | `knos meter batch` and the pinned `attest.yml` with `kind=batch` (buyer) and `kind=claim` (seller) | both counts are on chain; how far apart they are | `meter_batch`, `meter_seller_claim` |
+| `strict` | nothing yet | a signed token holding NaN is refused; skipped, with the reason, until the strict knos_oidc is live | none (a refusal alone moves no stage) |
+
+A refusal is sent without preflight so that it lands and fails on chain: its signature is evidence, and it costs the
+relayer one fee. If a round stops with `FAILED`, the line says what was not as expected; the capabilities of that
+round keep the stage they had. The usual cause is a token older than five minutes: post the comments again and run
+`... run --again order --since <the time now, as 2026-10-06T22:30:00Z> --resume`. The second order of the `order`
+round goes back 14 days after its comment: `run` says `waiting until <day>`; run it again after that day. Nothing
+else waits for it.
+
+`python scripts/exercise_public.py list` prints every capability about a program with its round, or why it has none
+(a passkey signs in a browser; Knos has no project on gitlab.com; a fee above the first tier is not a tiny amount).
+
+**3. Write it down.**
+
+```
+python scripts/exercise_public.py record --keys <keys> --rpc https://api.devnet.solana.com
+python scripts/provenance.py --rpc --record --write        # the execution transactions, read from the multisig
+python scripts/capabilities.py check --rpc                 # every signature exists and succeeded; every refusal failed with its error
+python scripts/demo_data.py --check && python scripts/provenance.py --check
+```
+
+`record` prints `moved to exercised: ...; versions on chain: knos_oidc 2.1, knos_pay 2.1, knos_meter 1.1,
+knos_passkey 1.1`. It writes `docs/capabilities.json` (stage `exercised` only with a transaction that succeeded at a
+public id; `on_chain` only for a program whose hash on chain is its proposal's build), `docs/CAPABILITIES.md` (the
+table, and the section "The round on the public program ids" with every transaction), `web/demo_data.json` (the
+demo then replays the public round: each step its own transaction, the refusal the real error 91; it says
+`program ids of the round shown: public`), `web/upgrades.json` (read again from the multisig) and
+`docs/provenance.json` with `docs/PROVENANCE.md` (the slot each build went live, the exercise transactions). A program
+that did not run its proposal's build when the rounds ran keeps its version, its proposal's state and its
+capabilities, and `record` says so and exits 1. The demo moves to the public round only when the `order` and the
+`meter` rounds are both done; until then it says `staging`.
+
+Then, in the same commit: the tests that describe the state before the upgrade
+(`tests/test_capabilities.py::test_the_manifest_claims_no_more_than_is_true_today` skips itself once `on_chain`
+moved), and `README.md`'s summary, which `record` renders with the table.
+
+The proposal of the new knos_oidc build is not one of these steps. It names a build made from the pushed commit, so
+it comes after the push: "After the pending upgrade: the ONE upgrade".
 
 ## The exercises on the public program ids
 
 The last two releases could run what their builds add only on staging ids, and a staging id is never evidence
 ([`capabilities.json`](capabilities.json): a capability is `exercised` only by a transaction at a public program id).
 Once step 0 has passed the public programs carry those instructions, and each exercise below is run once, in test
-USDC, against the pinned ids (`KNOS_PROGRAM_IDS` unset), BEFORE the commit of the release that runs it. None of them
-is run for 0.3.16, which is released before step 0 can pass.
+USDC, against the pinned ids (`KNOS_PROGRAM_IDS` unset), BEFORE the commit of the release that runs it. The rounds
+of `scripts/exercise_public.py` (the section above) are the first six rows, run and recorded by one tool; the rows
+after them are still run by hand. 0.3.17 runs them only when step 0 passes before its commit; when it does not, they
+are the first steps of the next release.
 
 **Each one's transaction signature goes into `docs/capabilities.json` before that one commit** (the capability's
 `exercised` evidence; then `python scripts/capabilities.py check --rpc`, which asks devnet that each signature
@@ -99,21 +213,26 @@ Knos's own, with the public worker relaying.
 
 ## The chain: ONE upgrade, proposed after the pending upgrade executes
 
-0.3.16 changes ONE program: knos_oidc, to version 2.2. Nothing else under `programs-v2/*/src`, `programs/`, `idl/` or
-`tests/fixtures/*.so` changes. knos_pay, knos_meter and knos_passkey stay the builds of proposals 4, 5 and 6, which
-the chain runs once those have executed, and their crates stay at the version `scripts/bump_version.py` holds them at (`PROGRAMS_FROZEN`, `FROZEN_AT`): a
-crate's version is in its build's bytes.
+0.3.17 changes ONE program: knos_oidc. It gains the `VerifyEs256` instruction (`programs-v2/knos_oidc/src/es256.rs`,
+[ES256.md](ES256.md)) beside the strict JSON reader that 0.3.16 added (`strict.rs`). Its number stays 2.2: no 2.2
+build was ever proposed, so this one build replaces the one 0.3.16 held. One build, one hash, one proposal. Nothing
+else under `programs-v2/*/src`, `programs/` or `idl/` changes. knos_pay, knos_meter and knos_passkey stay the builds of
+proposals 4, 5 and 6, which the chain runs once those have executed, and every program crate stays at the version
+`scripts/bump_version.py` holds it at (`PROGRAMS_FROZEN`, `FROZEN_AT`): a crate's version is in its build's bytes.
 
 - **Before the commit, a staging rehearsal of 2.2:** `KNOS_SO_DIR=<the staging run's verified builds> bash
   scripts/deploy_v2.sh --rc` puts the build under staging ids of its own (`<key folder>/rc`), and
   `export KNOS_PROGRAM_IDS=<key folder>/rc/program_ids.json` points a client at it. It needs devnet SOL, and the
   script checks the fee payer's balance before it writes anything and stops, naming the amount, when it is short.
-  For a build of the size of `tests/fixtures/knos_oidc_v2_real.so` (162,104 bytes): about 2.3 SOL stays in the staging
-  program until `bash scripts/deploy_v2.sh --rc-close` returns it, and the check asks for about 4.6 SOL at the start
+  For a build of the size of `tests/fixtures/knos_oidc_v2_real.so` (202,032 bytes): about 2.8 SOL stays in the staging
+  program until `bash scripts/deploy_v2.sh --rc-close` returns it, and the check asks for about 5.7 SOL at the start
   (the buffer's part comes back when the deploy ends). The figures are the rent of twice the file,
   (bytes + 128) x 6,960 lamports ([Solana's rent](https://solana.com/docs/core/fees#rent)), as the script's `afford`
   computes it. `--rc` stages knos_pay beside it; when the staging ids of the last rehearsal are still open and hold
-  this build of knos_pay, that program is skipped and costs nothing.
+  this build of knos_pay, that program is skipped and costs nothing. What the rehearsal sends for ES256 (a key, the
+  precompile and `VerifyEs256` in one transaction, a signing input of 780 bytes and one of 781, an upper `s`, a second
+  use), and the long differential run that rewrites `docs/fuzz.json` for the new test build, are steps 3 and 4 of
+  [ES256.md](ES256.md), "What the release run does". Both are done before the commit and neither needs the public ids.
 - **Before the commit, a check that ONE program changed, in bytes.** The staging run of `program.yml` prints the
   executable hash of each verified build. knos_pay's, knos_meter's and knos_passkey's must be the `build_hash` that
   `web/upgrades.json` gives for proposals 4, 5 and 6 (pending or executed, the feed names each build). knos_pay is the one to look at: it
@@ -126,7 +245,7 @@ crate's version is in its build's bytes.
   GitHub's runner made from a commit of this repository, and that commit is the one this release pushes ("After the
   pending upgrade: the ONE upgrade", below).
 - **Until a 2.2 proposal has executed,** devnet runs an earlier knos_oidc: 2.0 until proposal 3 executes, and 2.1
-  after it. The 0.3.16 clients ask each program which build it runs
+  after it. The 0.3.17 clients ask each program which build it runs
   and work with both: what only the newer build has is refused before anything is sent, with a sentence that names
   the program and the version it needs.
 
@@ -134,8 +253,8 @@ How a program is proposed, replaced and scheduled is in [GOVERNANCE.md](GOVERNAN
 
 ## Nothing after the push goes into a commit
 
-knos_oidc 2.2 will be proposed after the pending upgrade executes, and that proposal can execute 48 hours after its
-approval. What it shows does not exist when the commit is made. No committed file states it, and no step of this page writes one into
+The new knos_oidc build will be proposed after the push and after the pending upgrade executes, and that proposal
+can execute 48 hours after its approval. What it shows does not exist when the commit is made. No committed file states it, and no step of this page writes one into
 a file afterwards:
 
 - The documents name no time for a pending upgrade. They point at `knos status`, which reads the chain, and at the
@@ -148,22 +267,37 @@ a file afterwards:
   proposal executes: the site and `knos status` say so at once. The manifest's `on_chain` version of knos_oidc and
   the stages that wait for 2.2 move in the next release's commit, with `python scripts/capabilities.py check --rpc`.
 - What step 0 and the exercises show is the opposite case: it exists BEFORE the commit of the release that runs
-  them, so it is in that commit. 0.3.16 runs neither.
+  them, so it is in that commit. When 0.3.17's commit is made before step 0 passes, it holds neither.
 
 ## The commit
 
 In the staging tree that is going to be the release, in this order:
 
 ```
-python scripts/bump_version.py --check 0.3.16    # every manifest, lock file, IDL and install line names it
-python scripts/release.py wheel                  # dist/knos-0.3.16-py3-none-any.whl and the sdist, built ONCE
-python scripts/pinned_workflows.py lock dist/knos-0.3.16-py3-none-any.whl --write    # its hash, into requirements/sign.txt
+python scripts/bump_version.py --check 0.3.17    # every manifest, lock file and install line names it; the program crates name 0.3.14
+python scripts/bench_docs.py --set tests_passing=<passed> --source "<the run>"    # the test count: see below
+python scripts/release.py wheel                  # dist/knos-0.3.17-py3-none-any.whl and the sdist, built ONCE
+python scripts/pinned_workflows.py lock dist/knos-0.3.17-py3-none-any.whl --write    # its hash, into requirements/sign.txt
 python scripts/release.py workflows <checkout of knos-workflows>     # the published set with that lock, committed there
 git -C <checkout of knos-workflows> push         # the commit must exist on GitHub before anything names it
 python scripts/pinned_workflows.py stamp <that commit>               # the examples, knos.yml, docs/ and the site name it
 python scripts/small_repos.py build knos-task <checkout>             # and knos-playground, knos-attest, knos-claim-org: commit and push each
 python scripts/release.py verify <checkout of knos-workflows>        # versions, the lock, the wheel built again, the pin
 ```
+
+**The test count.** The documents give one count of tests, and it is defined as the tests that passed in CI on the
+staging tree of the release, not a count made on anyone's machine. The tree handed over still carries the count of
+the release before. Take `<passed>` and the skipped count from the `pytest` job (ubuntu-latest, Python 3.12) of the
+last green `tests.yml` run on staging, and write it with its source:
+
+```
+python scripts/bench_docs.py --set tests_passing=<passed> --source "pytest (ubuntu-latest, 3.12) of tests.yml run <run id> on drexthealpha/knos-rc <commit>, the staging tree of this release: <passed> passed, <skipped> skipped, https://github.com/drexthealpha/knos-rc/actions/runs/<run id>"
+python scripts/bench_docs.py --check && python scripts/doc_claims.py
+```
+
+It rewrites `docs/bench.json`, `docs/facts.json` and the sentence in `docs/submission/SUBMISSION.md`. (The tree
+collects 2,639 tests with `pytest --collect-only -q tests`; a collected test is not a passed one, and that figure is
+written nowhere else.)
 
 `verify` builds the wheel once more from the stamped tree and compares it with the lock. If it differs, something
 that is part of the wheel changed after the lock: nothing has been published yet, so find it and lock again.
@@ -172,7 +306,7 @@ Then the private gate (`ship_check.py`, kept outside the repository) on the tree
 more on the commit:
 
 ```
-python ship_check.py --tree <the handed-over tree> --version 0.3.16 --workflows <checkout of knos-workflows>
+python ship_check.py --tree <the handed-over tree> --version 0.3.17 --workflows <checkout of knos-workflows>
 git commit                                        # one commit, by the owner, with no trailer and no other flag
 python ship_check.py ... --committed
 ```
@@ -194,14 +328,14 @@ Two rules, each learned from a release that broke it:
 export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
 python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
 git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.16 && git push origin v0.3.16        # starts release.yml
+git tag v0.3.17 && git push origin v0.3.17        # starts release.yml
 ```
 
 `publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
 on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.16` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.17` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
 
 **Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that
@@ -244,7 +378,8 @@ Before anything is uploaded, on the release commit (each prints what would be up
 (cd sdk/settle && node test.mjs && npm pack --dry-run && npm publish --dry-run)
 ```
 
-The first publish, after the tag's tests passed:
+0.3.17 does not make this first publish: the two crates are held at 0.3.14 and their jobs are green with a notice.
+The first publish, whenever the owner makes it, after a tag's tests passed:
 
 ```
 cargo login                                    # opens crates.io: sign in with GitHub, create a token, paste it
@@ -286,17 +421,25 @@ Until the first publish, the crates install as git dependencies and the client f
 
 The pushed commit changes `programs-v2/knos_oidc`, so `program.yml` runs on main: it makes the verified build of each
 program and its `gate` job has GitHub sign the hash of each, which a relayer records at the upgrade gate. Then, once
-step 0 has passed (proposals 3 to 6 executed, and not before):
+step 0 has passed (proposals 3 to 6 executed, and not before), ONE command proposes knos_oidc and nothing else:
 
 ```
 gh run download <that program.yml run> --repo drexthealpha/Knos --dir builds     # one folder per artifact
 mkdir so && cp builds/knos_*-v2-verified.so/knos_*.so so/                        # knos_oidc.so, knos_pay.so, knos_meter.so, knos_passkey.so
-export KNOS_SO_DIR=$PWD/so
-bash scripts/deploy_v2.sh --propose              # the plan first; then the buffer, the gate's record, the proposal, the approvals
+python scripts/exercise_public.py propose-oidc --rpc https://api.devnet.solana.com --keys <keys> --so-dir $PWD/so
 bash scripts/schedule_upgrade.sh                 # the execution, at the printed time plus ten minutes, unattended
 ```
 
-What `--propose` must print, and what each line means:
+Fine: `the plan: propose knos_oidc (<hash>, built from <commit> in run <n>); the other three run the builds of
+<so> already`, then the output of `scripts/deploy_v2.sh --propose`, which it runs, then `proposal <n> for knos_oidc
+(build <hash>, buffer <address>): can be executed from <day>`. It refuses, with nothing sent, when proposals 3 to 6
+have not all executed (exit 3: run it again when they have; nothing else of the release waits for it), when another
+program's file in `--so-dir` is not byte for byte what is live, or when the upgrade gate holds no record of the
+knos_oidc build (it is then not a verified build of `program.yml`). The build it proposed is named in
+`docs/provenance.json` (`next`) on the operator's machine, so `status` knows it once it is live; that file is
+committed with the next release.
+
+What `deploy_v2.sh --propose` prints inside it, and what each line means:
 
 1. `the plan: propose knos_oidc (this release changes: knos_oidc)`. The plan is made before anything is withdrawn,
    written or proposed: for each of the four programs, the build in `KNOS_SO_DIR` against the build the chain runs.
@@ -304,6 +447,10 @@ What `--propose` must print, and what each line means:
    builds from this commit are the builds the chain runs, byte for byte.
 3. For knos_oidc: its buffer, the gate's record of the build, the proposal and the members' approvals, and the time
    from which it can be executed, written to `<key folder>/upgrade-schedule.json`.
+
+The verified build is the runner's, and its size and hash are the run's. The local build of this tree
+(`tests/fixtures/knos_oidc_v2_real.so`) is 202,032 bytes, and the verifier's program data account has room for
+279,360 ([ES256.md](ES256.md)), so nothing is extended first.
 
 If the plan stops instead (`stopped: knos_pay is not a program this release changes ...`), NOTHING was sent, and one
 of three things is true; the message says them. The earlier proposals have not all executed (step 0 was skipped:
@@ -357,7 +504,7 @@ None of these runs is written into this release's commit ("Nothing after the pus
 
 | What | What it means | What to do |
 |---|---|---|
-| step 0: a proposal is still pending, or a program answers with its older version | the four earlier upgrades have not all executed | the exercises and the 2.2 proposal wait: `bash scripts/schedule_upgrade.sh --show`, then step 0 again |
+| step 0: a proposal is still pending, or a program answers with its older version | the four earlier upgrades have not all executed | the exercises and the knos_oidc proposal wait, the release does not: `bash scripts/schedule_upgrade.sh --show`, then step 0 again |
 | `release.py verify`: the wheel differs from the lock | a file inside the wheel changed after the lock | nothing is published yet: `release.py wheel`, lock again, build the workflows again, stamp again |
 | `release.py publish`: PyPI has this version with another hash | a different wheel was uploaded earlier | a new version: bump, and the whole order again |
 | `release.py publish` ends with "Do NOT push yet" | PyPI's index does not list the wheel yet | do not push; `python scripts/release.py pypi-check --wait 600` until it does |

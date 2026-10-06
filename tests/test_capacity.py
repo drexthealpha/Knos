@@ -23,7 +23,7 @@ FIXED = {
     "counted": {"own": {"command": {**WORD, "word": "command"}, "settle": {**WORD, "word": "settle"}, "attest_eval": {**WORD, "word": "eval"}},
                 "public": {"command": {**WORD, "word": "command", "writes": 2, "comments": 2, "waits": 1},
                            "settle": {**WORD, "word": "settle", "writes": 2, "comments": 2, "waits": 1}}},
-    "relay": {"polls_at_median": 12, "polls_at_p95": 52, "polls_at_timeout": 202, "log_comments_per_token": 1},
+    "relay": {"polls_at_median": 12, "polls_at_p95": 52, "polls_at_timeout": 202, "log_comments_per_token": 1, "tokens_at_a_time": 4},
     "meter": {"statement_reads_at_most": 90_000, "evaluations_per_batch_at_most": 100_000},
     "chain": {"transactions_per_order": 12, "tokens_per_order": 2, "bytes_per_order": 8_000, "cu_per_order": 3_600_000,
               "one_relayer_orders_per_second": 8.0, "one_balance_orders_per_second": 200.0, "fee_account_orders_per_second": 150.0},
@@ -54,8 +54,8 @@ def test_each_limit_binds_where_its_arithmetic_says():
                    "the fee key's own account": 8 * 86_400, "the fee account of the mint": 150 * 86_400, "the Balance, one writable account": 200 * 86_400}
     pub = at(cap.bounds(FIXED, 1, 10, way=cap.PUBLIC))
     assert pub["GITHUB_TOKEN requests an hour"] == 1_000 * 24 // 128 and pub["comments made in one repository"] == 3_000
-    assert pub["the public relay's log comments"] == 500 * 24 // 2 and pub["the public relay's pass, one token at a time"] == 86_400 // (2 * 30)
-    assert "the fee key's own account" not in pub and "the public relay's pass, one token at a time" not in own
+    assert pub["the public relay's log comments"] == 500 * 24 // 2 and pub[cap.SERIAL_PASS] == 86_400 // (2 * 30)
+    assert "the fee key's own account" not in pub and cap.SERIAL_PASS not in own
 
 
 def test_repositories_plan_peak_and_relayers_move_only_the_limits_they_own():
@@ -68,7 +68,7 @@ def test_repositories_plan_peak_and_relayers_move_only_the_limits_they_own():
     assert busy["GITHUB_TOKEN requests an hour"] == 1_000 * 6 // 22 and busy["the fee account of the mint"] == 150 * 86_400 // 4
     assert busy["the meter's statement, recomputed from the logs"] == 3_000      # a month's count does not care when in the day
     more = at(cap.bounds(FIXED, 1, 10, way=cap.PUBLIC, relayers=4))
-    assert more["the public relay's pass, one token at a time"] == 4 * one["the public relay's pass, one token at a time"]
+    assert more[cap.SERIAL_PASS] == 4 * one[cap.SERIAL_PASS]
     assert more["the fee account of the mint"] == one["the fee account of the mint"]
 
 
@@ -77,7 +77,7 @@ def test_the_answer_names_the_first_limit_on_the_work_and_lists_what_the_volume_
     assert (a["first"], a["at"], a["fits"], a["binding"]) == ("GITHUB_TOKEN requests an hour", 1_090, True, [])
     a = cap.answer(FIXED, 1, 1_440, way=cap.PUBLIC)
     assert (a["first"], a["at"], a["fits"]) == ("GITHUB_TOKEN requests an hour", 187, False)
-    assert a["binding"] == ["GITHUB_TOKEN requests an hour", "the public relay's pass, one token at a time"]
+    assert a["binding"] == ["GITHUB_TOKEN requests an hour", cap.SERIAL_PASS]
     assert [r["at"] for r in a["bounds"]] == sorted(r["at"] for r in a["bounds"]) and a["bounds"][1]["load"] == 1.0
     # many repositories: the requests are no longer first. Reading the count back is past its limit, and is never named as what stops the work
     a = cap.answer(FIXED, 100, 4_000)
@@ -95,7 +95,7 @@ def test_only_the_fee_account_needs_a_program_change_and_every_other_limit_says_
     assert all(r["lift"] and r["from"] and r["scope"] for r in rows)
     lift = {r["limit"]: r["lift"] for r in rows}
     assert "one Balance per team" in lift["the Balance, one writable account"] and "batching the meter" in lift["the meter's statement, recomputed from the logs"]
-    assert "several relayers" in lift["the public relay's pass, one token at a time"] and "KNOS_RELAY_KEY" in lift["the public relay's log comments"]
+    assert "several relayers" in lift[cap.SERIAL_PASS] and "KNOS_RELAY_KEY" in lift["the public relay's log comments"]
 
 
 def test_a_statement_costs_a_request_a_transaction_and_a_page_a_hundred():

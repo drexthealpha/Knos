@@ -2,12 +2,12 @@
  "differential": {
   "what": "the built verifier in LiteSVM against a reference (OpenSSL and RFC 8017 section 8.2.2 on Python integers for the signature, Python's json for the header and the claims) on tokens made from a fixed seed: tests/test_oidc_differential.py",
   "command": "python tests/test_oidc_differential.py --cases 8855 --record",
-  "date": "2026-10-05",
+  "date": "2026-10-06",
   "seed": 20261005,
   "kinds": 102,
   "corpus_sha256": "95bceb45540b619bd79a74dc82036419ba8bee3dabdbd86b7fb3bb307372b37b",
   "program": "tests/fixtures/knos_oidc_v2_test.so",
-  "program_sha256": "a88034e9f1d342c57b2d2822db309aa36412d9762d74d55c4dde022c075454a1",
+  "program_sha256": "cd9d7d681aea80839d618c057a8fb0e249cc3d3665beaf8e5588b335ec8eabf5",
   "cases": 8855,
   "accepted_by_both": 1301,
   "refused_by_both": 7554,
@@ -36,7 +36,7 @@
    "2048": 8003,
    "4096": 852
   },
-  "seconds": 150.0,
+  "seconds": 153.3,
   "not_json_in_an_unread_value": {
    "what": "payloads the test key signed that are not JSON, or are JSON two readers take differently, in a value the verifier does not read (the thirteen shapes knos-oidc 2.1 accepted, and more): counted in `cases`; each kind's cases and how many of them the program accepted",
    "by_kind": {

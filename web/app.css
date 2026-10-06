@@ -11,6 +11,7 @@
 /* THE DESIGN CONTRACT (0.3.16). Every module uses these names and nothing else:
    --ink --ink-2 --paper --paper-2 --line --accent --ok --bad --radius --depth-1 --depth-2 --depth-3 --ease --dur-1 --dur-2 --dur-3
    .k-card (data-tilt) .k-btn (.quiet) .k-kicker .k-num .k-step[data-state] .k-stage .k-reveal .k-table
+   and, from 0.3.17 (the block further down says what each is): .k-skeleton .k-toast .k-enter .k-out .k-sr .k-pal .k-cq
    Dark is the first palette: the paper is the black of a raven's back, the one accent is the blue of its sheen. The
    light one follows the reader's system (or the button in the bar). The names of 0.3.15 (--bg --fg --muted --card
    --soft) stay as other names for the same colours, so a module written before the contract has the new look. */
@@ -29,6 +30,8 @@
   /* the scale: 13 14 16 20 28 40, and a first-screen heading that grows with the window */
   --s-1: 13px; --s0: 14px; --s1: 16px; --s2: 20px; --s3: 28px; --s4: 40px;
   --gap: 24px;
+  /* the spacing scale: 4 8 12 16 24 40. A new rule takes its gaps and paddings from it */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
@@ -335,7 +338,7 @@ main { padding: 0 16px 96px; }
 .view > h2 + .lede { margin-bottom: 32px; }
 
 /* the bar: stays at the top, the page passes under it */
-.bar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 82%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); view-transition-name: bar; }
+.bar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 92%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); view-transition-name: bar; }
 .brand .wordmark { height: 32px; margin: -2px 0 -2px -3px; }
 nav { gap: 4px; }
 nav a, .js .more-button { transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease); }
@@ -448,7 +451,7 @@ h1 { font-size: clamp(36px, 5.6vw, 72px); line-height: 1.02; font-weight: 600; l
   .hero-mark { width: 100%; max-width: 440px; margin: 0 0 0 auto; order: 0; }
   .hero::before { background: radial-gradient(closest-side at 79% 50%, color-mix(in srgb, var(--accent) 22%, transparent), transparent); }
 }
-#demo.mount { display: block; max-width: none; padding-top: 0; margin: 0 0 72px; scroll-margin-top: 80px; }
+#demo.mount { display: block; max-width: none; padding-top: 22px; margin: 0 0 72px; scroll-margin-top: 80px; }
 #demo.mount[hidden] { display: none; }
 .film { margin: 16px 0; max-width: 800px; } .film video { width: 100%; max-height: 60vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); box-shadow: var(--depth-2); }
 #check-a-pull-request { margin-top: 24px; scroll-margin-top: 80px; }
@@ -490,17 +493,188 @@ body[data-page="terms"] #terms { display: block; }
 .k-states { margin: 12px 0; padding: 0; list-style: none; }
 
 /* a change of page morphs (web/front.js, where the browser has view transitions): the bar stays, the page crosses */
-main { view-transition-name: page; }
-::view-transition-old(page) { animation: k-out var(--dur-1) var(--ease) both; }
-::view-transition-new(page) { animation: k-in var(--dur-2) var(--ease) both; }
+/* A change of page pictures only the bar, the heading and the mark (motion.js morph()): the page itself is drawn live, so
+   the new one is there as soon as it is shown and never waits for a picture of the old one. */
+:root { view-transition-name: none; }
 ::view-transition-group(bar) { animation: none; } ::view-transition-old(bar) { display: none; } ::view-transition-new(bar) { animation: none; }
 @keyframes k-out { to { opacity: 0; translate: 0 -8px; } }
 @keyframes k-in { from { opacity: 0; translate: 0 12px; } }
 
+/* ==== 0.3.17: motion that says what changed, and depth from one light ==================================================
+   Added names (the 0.3.16 ones stand): .k-skeleton .k-toast .k-enter .k-out .k-sr .k-pal .k-cq, and from web/motion.js
+   countTo sort toast skeleton leave palette. Every effect below sits behind @supports or a media query and has a
+   still fallback: the state is drawn first, the movement only shows how it got there.
+   The light is above and a little to the left, everywhere: highlights on top edges, shadows fall down. */
+@property --sweep { syntax: "<percentage>"; inherits: false; initial-value: -40%; }
+.k-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.k-num, .k-table td, .k-table th { font-variant-numeric: tabular-nums; }
+
+/* a card lifts under the pointer or the keyboard: translate and a second shadow's opacity, so nothing is laid out again */
+.k-card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--depth-2); opacity: 0; pointer-events: none; transition: opacity var(--dur-2) var(--ease); }
+.k-card { transition: translate var(--dur-2) var(--ease); }
+[data-tilt].k-card { transition: translate var(--dur-2) var(--ease), transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+@media (hover: hover) { .k-card:hover { translate: 0 -2px; } .k-card:hover::before { opacity: 1; } }
+.k-card:has(:is(a, button, summary):focus-visible) { translate: 0 -2px; } .k-card:has(:is(a, button, summary):focus-visible)::before { opacity: 1; }
+.k-stage > .k-card { transform-origin: 50% 100%; }
+
+/* entry and exit: a thing that appears comes up into place once; .k-out is how it leaves (motion.js leave()) */
+.k-enter, .k-toast { transition: opacity var(--dur-2) var(--ease), translate var(--dur-2) var(--ease); }
+@starting-style { .k-enter, .k-toast { opacity: 0; translate: 0 8px; } }
+.k-enter.k-out, .k-toast.k-out { opacity: 0; translate: 0 -4px; transition-duration: var(--dur-1); }
+
+/* .k-skeleton: the pending state a view shows at once (motion.js skeleton(el)). One sweep of light, then still */
+.k-skeleton { display: grid; gap: 10px; padding: 4px 0; max-width: 520px; }
+.k-skeleton > i { display: block; height: 14px; border-radius: 7px; background: linear-gradient(100deg, var(--soft) calc(var(--sweep) - 20%), var(--line) var(--sweep), var(--soft) calc(var(--sweep) + 20%)); }
+.k-skeleton > i:nth-of-type(1) { width: 62%; height: 20px; } .k-skeleton > i:nth-of-type(3n) { width: 78%; } .k-skeleton > i:last-of-type { width: 44%; }
+@media (prefers-reduced-motion: no-preference) { .k-skeleton > i { animation: k-sweep calc(var(--dur-3) * 2) var(--ease) 1 both; } }
+@keyframes k-sweep { to { --sweep: 140%; } }
+
+/* .k-toast: one line that says what just happened (copied, downloaded, approved), then leaves */
+.k-toasts { position: fixed; z-index: 70; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
+.k-toast { margin: 0; max-width: min(100%, 420px); padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); font: 500 var(--s0)/1.4 var(--text); box-shadow: var(--depth-3); }
+.k-toast::before { content: "✓"; margin-right: 8px; font-weight: 700; } .k-toast[data-kind="bad"]::before { content: "!"; }
+
+/* a line that changed group (motion.js sort()) is marked for a moment by its edge, not by a colour alone */
+.k-moved { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* a section enters with the scroll where the browser can tie an animation to it; elsewhere motion.js lets it in (.in) */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .k-motion.k-scroll .k-reveal:not(.in) { opacity: 1; translate: none; transition: none; animation: k-enter linear both; animation-timeline: view(); animation-range: cover 0 cover 120px; }
+  }
+}
+@keyframes k-enter { from { opacity: 0; translate: 0 14px; } }
+.k-motion.k-scroll .k-reveal.in { transition: none; }
+
+/* a fold opens to its own height where the browser can go to `auto`; its words come in with it */
+@supports (interpolate-size: allow-keywords) {
+  details.k-more::details-content { opacity: 0; transition: block-size var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease), content-visibility var(--dur-2) allow-discrete; }
+  details.k-more[open]::details-content { opacity: 1; }
+}
+
+/* a change of page: the heading and the mark each cross by themselves (motion.js morph() names them for the crossing) */
+@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }
+/* the press is answered in the same frame: the page that is leaving dims while the browser takes its picture of it */
+:root[data-morph] main { opacity: .62; }
+.view.k-enter, .mount.k-enter { transition-duration: var(--dur-2); }
+::view-transition-group(title), ::view-transition-group(mark) { animation-duration: var(--dur-2); animation-timing-function: var(--ease); }
+::view-transition-old(title), ::view-transition-new(title) { height: 100%; width: auto; }
+::view-transition-old(mark), ::view-transition-new(mark) { height: 100%; object-fit: contain; }
+
+/* .k-pal: the command palette (web/palette.js): a dialog in the top layer, a field, a list */
+dialog.k-pal { width: min(560px, calc(100vw - 24px)); max-height: min(520px, calc(100dvh - 96px)); margin: 72px auto auto; padding: 0; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--paper-2); color: var(--ink); box-shadow: var(--depth-3); overflow: hidden; }
+dialog.k-pal[open] { display: flex; flex-direction: column; }
+dialog.k-pal::backdrop { background: rgb(0 0 0 / .5); }
+.k-pal input { flex: none; width: 100%; margin: 0; padding: 16px 18px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: 400 var(--s2)/1.3 var(--text); box-shadow: none; }
+.k-pal input:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius) var(--radius) 0 0; }
+.k-pal ul { flex: 1; min-height: 0; margin: 0; padding: 6px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.k-pal li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding: 10px 12px; min-height: 44px; border-radius: 10px; cursor: pointer; }
+.k-pal li > span { min-width: 0; overflow-wrap: anywhere; } .k-pal li > small { flex: none; color: var(--ink-2); font-size: var(--s-1); }
+.k-pal li[aria-selected="true"] { background: var(--soft); box-shadow: inset 3px 0 0 var(--accent); }
+.k-pal p { flex: none; margin: 0; padding: 8px 18px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: var(--s-1); }
+/* it comes down into place once; it closes at once, so the page behind takes the focus back without a wait */
+dialog.k-pal[open] { transition: opacity var(--dur-1) var(--ease), translate var(--dur-1) var(--ease); }
+@starting-style { dialog.k-pal[open] { opacity: 0; translate: 0 -8px; } }
+@media (max-width: 600px) { dialog.k-pal { margin-top: 12px; max-height: calc(100dvh - 24px); } }
+
+/* .k-cq: a box whose children arrange by its own width, not the window's */
+.k-cq { container-type: inline-size; }
+@container (max-width: 420px) { .k-cq > .k-row { grid-template-columns: minmax(0, 1fr); } }
+.k-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+/* Before web/front.js has run, a browser with scripts on draws the bar and the mark's place as they will be, so nothing
+   moves when it does (layout shift: tests/web/perf.mjs). With scripts off the menu stays open and wraps, as before. */
+@media (scripting: enabled) {
+  :root:not(.js) .more { display: block; } :root:not(.js) .more-list { display: none; }
+  :root:not(.js) .more-button { display: block; font: 500 var(--s0)/1.6 var(--text); min-height: 0; padding: 6px 10px; border: 0; background: none; color: var(--muted); }
+  @media (max-width: 860px) { :root:not(.js) nav { display: none; } :root:not(.js) #menu { display: inline-block; } }
+}
+.hero-mark:empty { aspect-ratio: 1856 / 1756; }
+
+/* a reader who asked for more contrast: full ink for the quiet text, firmer lines, a solid bar */
+@media (prefers-contrast: more) {
+  :root { --ink-2: var(--ink); --line: color-mix(in srgb, var(--ink) 55%, var(--paper)); }
+  .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :focus-visible { outline-width: 3px; }
+}
+@media (forced-colors: active) { .k-pal li[aria-selected="true"] { outline: 2px solid Highlight; } .k-toast { border: 1px solid CanvasText; } }
+
 /* a reader who asked for no movement gets none: states still change, at once */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  *, *::before, *::after, ::backdrop, ::details-content { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .k-card, .k-card:hover { translate: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   [data-tilt] { transform: none; }
 }
 @media print { .bar { position: static; } .hero-mark, .hero-cue, .hero::before { display: none; } }
+
+/* ---- one invoice's statement (web/statements.js) and the 0.3.17 pages ---- */
+body[data-page="supplier"] #supplier, body[data-page="invoice-statement"] #invoice-statement, body[data-page="story"] #story { display: block; }
+body[data-page="invoice-statement"] .mount { max-width: 1080px; }
+.k-statement-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.k-statement-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;margin:16px 0}
+.k-statement .mono{overflow-wrap:anywhere}
+.k-state{font-weight:600;white-space:nowrap}
+.k-state[data-state="agreed"]{color:var(--ok)}
+.k-state[data-state="disputed"],.k-state[data-state="duplicate"]{color:var(--bad)}
+.k-state[data-state="insufficient_evidence"]{color:var(--ink-2)}
+@media print{
+html.k-printing body *{visibility:hidden}
+html.k-printing .k-statement,html.k-printing .k-statement *{visibility:visible}
+html.k-printing .k-statement{position:absolute;inset:0 auto auto 0;width:100%;background:#fff;color:#000}
+html.k-printing .k-statement .no-print{display:none}
+html.k-printing .k-statement .k-table{overflow:visible}
+html.k-printing .k-statement table{font-size:8pt;width:100%}
+html.k-printing .k-statement tr,html.k-printing .k-statement .k-card{break-inside:avoid}
+html.k-printing .k-statement td{overflow-wrap:anywhere}
+}
+
+/* The first screen with the front door on it: the result sits under the control, and on a narrow screen the mark goes
+   below both (moved here from the page's head). */
+.fd-result { order: 2; }
+@media (max-width: 899px) { .hero { align-content: start; } .hero .hero-mark { order: 3; } }
+/* The glow belongs to the sentence and the mark. Once an answer is drawn under them (#front-result, the hero's second
+   row), the glow is held to the first row: an absolutely placed box with a grid row takes that row as its area (the row
+   is made explicit, as an implicit one would not count), so a long list of lines never has the glow running through it. */
+.hero:has(> #front-result:not([hidden])) { grid-template-rows: auto; }
+.hero:has(> #front-result:not([hidden]))::before { grid-row: 1 / 2; grid-column: 1 / -1; }
+/* The first screen's line about a pending upgrade (web/front.js, from upgrades.json): it sits in the hero's own top
+   margin, out of the flow, so it moves nothing when it appears. The margin is wide enough for it at every width. */
+.hero-upgrades { position: absolute; top: 10px; left: 0; z-index: 3; max-width: min(100%, 640px); margin: 0; }
+.hero-upgrades[hidden] { display: none; }
+.hero-upgrades > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 3px 12px; border: 1px solid var(--warn);
+  border-radius: 999px; background: color-mix(in srgb, var(--warn) 10%, var(--paper)); color: var(--ink); font: 500 var(--s-1)/1.4 var(--text); white-space: nowrap; }
+.hero-upgrades > summary::-webkit-details-marker { display: none; }
+.hero-upgrades > summary::before { content: attr(data-count); flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--warn); color: var(--paper);
+  font: 700 11px/18px var(--text); text-align: center; font-variant-numeric: tabular-nums; }
+.hero-upgrades > summary::after { content: ""; flex: none; width: 6px; height: 6px; margin: 0 0 3px 2px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: 45deg; }
+.hero-upgrades[open] > summary::after { rotate: -135deg; margin: 3px 0 0 2px; }
+.hero-upgrades > summary:hover { background: color-mix(in srgb, var(--warn) 18%, var(--paper)); }
+.hero-upgrades-body { margin-top: 8px; padding: 10px 14px; border: 1px solid var(--warn); border-radius: 10px; background: color-mix(in srgb, var(--warn) 8%, var(--paper-2));
+  box-shadow: var(--depth-3); font-size: var(--s0); max-height: min(60vh, 520px); overflow-y: auto; overscroll-behavior: contain; }
+.hero-upgrades-body p { margin: 6px 0; overflow-wrap: anywhere; }
+@media (max-width: 899px) { .hero { padding-top: 48px; } }
+/* The bar's search button (#search, [data-palette]) opens the command palette (web/motion.js); its keys, Ctrl K, are in
+   its title: the first screen has 40 words and no more. */
+
+/* ---- the first stop of the Tab key: past the bar, to the page's one control. Shown only while it has the focus ---- */
+.k-skip { position: fixed; left: 12px; top: -64px; z-index: 80; padding: 10px 14px; border-radius: var(--radius); background: var(--ink); color: var(--paper); font: 600 var(--s0)/1.2 var(--text); text-decoration: none; transition: top var(--dur-1) var(--ease); }
+.k-skip:focus-visible { top: 12px; }
+
+/* ---- one product: what the pages share (0.3.17, the last pass) ---- */
+/* a fold whose handle is a heading: the heading reads as the handle, at the handle's size */
+details.k-fold > summary > :is(h3, h4) { display: inline; margin: 0; font: inherit; color: inherit; letter-spacing: 0; }
+details.k-fold > summary:has(> :is(h3, h4)) { font-size: var(--s1); font-weight: 600; color: var(--ink); }
+/* a card that holds only folds is a list of handles, not an empty box */
+.card > details.k-more:first-child { border-top: 0; margin-top: 0; } .card > details.k-more:last-child { margin-bottom: 0; }
+/* the Console's first row: where the money is, and the one shortcut */
+.buy-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin: 0 0 var(--sp-5); } .buy-top .devnet { margin: 0; }
+/* a wide table on a phone scrolls in its own box at a width it can be read at */
+@media (max-width: 720px) { #verifier .k-table table { min-width: 640px; } #ib-table { min-width: 560px; } }
+/* the statement's tools sit on one line, whatever element each is */
+.k-statement-tools > * { margin: 0; }
+/* a page's section while its code is on its way */
+.mount > .k-skeleton, .view > .k-skeleton { margin: var(--sp-6) 0; }
+/* the cue is an arrow alone: a target a thumb can hit */
+.hero-cue { padding: 10px 16px; } .hero-cue::after { width: 9px; height: 9px; }

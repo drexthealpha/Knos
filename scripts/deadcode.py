@@ -13,7 +13,9 @@ ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).reso
 SRC = ROOT / "src"
 # knos.settle.v2.passkey_fund: the Python builders of what web/passkey_fund.js sends (a public client with no caller in
 # the package; tests/test_passkey_fund.py and tests/test_passkey_chain.py hold it to the program).
-ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund"]
+# knos.private: `python -m knos.private record|check`, what the workflow in examples/private runs inside a customer's
+# network (tests/test_private_path.py runs it the same way).
+ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund", "knos.private"]
 SCRIPTS = [p for p in list((ROOT / "scripts").glob("*.py")) + list((ROOT / "examples").glob("*.py"))
            if p.name not in ("deadcode.py", "vulture_whitelist.py")]
 

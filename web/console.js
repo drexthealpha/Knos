@@ -12,6 +12,7 @@
 // is not handed (what the Balance holds now), and its answer stands when the two disagree toward refusing.
 import { quote, show, percent } from "./price.js";
 import * as rules from "./controls_data.js";
+import * as proc from "./procure.js";
 
 export const SMALL = 20_000_000;          // under this the page warns: the minimum fee is a large share of a small order
 
@@ -136,7 +137,7 @@ export function earlierHtml(found, live, name, explorer) {
   ...extra.map((o) => `<li data-kind="live">On devnet now: <strong>${esc(o.state === "open" ? "funded, not paid yet" : o.state)}</strong>, ${esc(show(o.amount))} test USDC, ${esc(show(o.paid))} paid so far. Deliverable: order ${order(o.address)}, milestone 0. ${tx(o.fundedTx, "Funded in")}</li>`)];
   return `<div class="receipt" data-billed="${found.paid ? 1 : 0}" data-orders="${n}"><strong class="status ${found.paid || n ? "bad" : "ok"}">${verdict}</strong></div>
     ${rows.length ? `<ul class="plain" id="buy-before-rows">${rows.join("")}</ul>` : ""}
-    <p class="fine">The program pays one order's milestone once, whatever is sent to it. What it cannot know is that two orders buy the same thing: that is what this list is for.${found.privates ? ` ${found.privates} private order${found.privates > 1 ? "s" : ""} of the organisation name no repository in public and cannot be matched here.` : ""}</p>`;
+    <p class="fine" data-fold="Why two orders can buy one thing">The program pays one order's milestone once, whatever is sent to it. What it cannot know is that two orders buy the same thing: that is what this list is for.${found.privates ? ` ${found.privates} private order${found.privates > 1 ? "s" : ""} of the organisation name no repository in public and cannot be matched here.` : ""}</p>`;
 }
 
 // ---- 4. private and limited cases -----------------------------------------------------------------------------------------------------------
@@ -301,4 +302,122 @@ export function objectsHtml(rec, explorer) {
     ${card("acceptance", `<p class="k-kicker">What remains trusted</p><ul class="plain" data-object-trust>${trustedOf(rec).map((t) => `<li class="fine">${code(t)}</li>`).join("")}</ul>`)}
     ${card("commercial")}
     ${card("settlement", `<p class="fine" data-object-said>${esc(rec.settlement.said)}</p>`)}</div>`;
+}
+
+// ---- 8. procurement: offers, budgets, approvals, and one deliverable's seven answers ---------------------------------------------------------
+// The data and every sentence come from web/procure.js (src/knos/controls.py and src/knos/approvals.py in the
+// browser); these functions only lay them out. Nothing on these screens names a key, an address or a digest: the
+// reader sees outcomes, prices, limits, people and dates. A statement is twelve words at most.
+export const procure = proc;
+export const PROC_STYLE = `.k-bar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--paper-2);border:1px solid var(--line);margin:8px 0}
+.k-bar span{display:block;width:0;transition:width var(--dur-2) var(--ease)}
+.k-env [data-part=spent]{background:var(--ink)}.k-env [data-part=held]{background:var(--ink-2)}.k-env [data-part=committed]{background:var(--accent)}
+.k-env [data-part=draft]{background:var(--accent);opacity:.5}.k-bar[data-over="1"]{border-color:var(--bad)}
+.k-key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.k-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.k-tabs [aria-selected=true]{background:var(--accent);color:var(--accent-fg)}
+.k-env{margin:12px 0}.k-seven dt{font-weight:600}.k-file{white-space:pre-wrap;overflow-wrap:anywhere}
+@media (prefers-reduced-motion: reduce){.k-bar span{transition:none}}`;
+const usd = proc.money;
+const pctOf = (part, whole) => (whole > 0 ? Math.min(100, Math.max(0, (part * 100) / whole)) : 0).toFixed(2);
+
+/** One envelope as a bar that fills: spent, held, committed, and `draft` (what an offer or a funding not yet made would add). */
+export function envelopeHtml(env, state = proc.envelopeState(env), draft = 0, over = 0) {
+  const part = (name, units) => `<span data-part="${name}" data-units="${units}" style="width:${pctOf(units, state.limit)}%"></span>`;
+  const left = state.left - draft, key = (name, label, units) => `<dt><span class="k-key" data-part="${name}"></span>${label}</dt><dd data-fact="${name}">${esc(usd(units))}</dd>`;
+  return `<div class="k-env" data-envelope="${esc(env.name)}" data-left="${left}" data-committed="${state.committed + draft}">
+    <p class="k-kicker">${esc(env.name)} · ${esc(env.cost_centre)} · @${esc(env.owner)}</p>
+    <p><span class="k-num" data-fact="left">${esc(usd(left))}</span> left of ${esc(usd(state.limit))} test USDC</p>
+    <div class="k-bar" data-over="${over ? 1 : 0}" role="img" aria-label="Spent ${esc(usd(state.spent))}, held ${esc(usd(state.held))}, committed ${esc(usd(state.committed + draft))}, left ${esc(usd(left))}">
+      ${part("spent", state.spent)}${part("held", state.held)}${part("committed", state.committed)}${part("draft", draft)}</div>
+    <dl class="facts k-bar-key">${key("spent", "Spent", state.spent)}${key("held", "Held", state.held)}${key("committed", "Committed", state.committed + draft)}</dl>
+    <p class="fine">${esc(env.period_from)} to ${esc(env.period_to)}${env.as_of ? `. Figures as of ${esc(env.as_of)}.` : "."}</p></div>`;
+}
+
+/** Before and after for one envelope: `fitted` is procure.fit's answer. Over the limit it says by how much, and shakes once. */
+export function fitHtml(env, fitted, leaves) {
+  return `<div data-fit="${fitted.ok ? 1 : 0}" data-over="${fitted.over}">
+    <p class="k-kicker">Before</p>${envelopeHtml(env, fitted.before)}
+    <p class="k-kicker">After</p><div data-after>${envelopeHtml(env, fitted.before, fitted.ok ? leaves : 0, fitted.over)}</div>
+    <p class="status ${fitted.ok ? "ok" : "bad k-shake"}" data-fit-said>${esc(fitted.sentence)}</p></div>`;
+}
+
+/** Where a new file is opened on the forge, already filled in: the reader reviews it there and commits. */
+export const newFileLink = (repo, branch, path, text) => `https://github.com/${repo}/new/${encodeURIComponent(branch)}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(text)}`;
+
+/** What creating an offer gives: the file to commit, the comment that funds each supplier on devnet, and what approval it needs. */
+export function offerHtml({ offer, text, path, link, comments, need }) {
+  return `<h4>The file to commit</h4>
+    <p class="fine" data-offer-path>${esc(path)}</p>
+    <pre class="k-file" id="proc-file">${esc(text)}</pre>
+    <p><a class="k-btn" id="proc-file-open" href="${esc(link)}" target="_blank" rel="noopener">Open it as a new file</a>
+      <button type="button" class="k-btn quiet" id="proc-file-copy">Copy the file</button></p>
+    <h4>The comment that funds it</h4>
+    ${comments.length ? `<p class="fine">Post one per supplier, each ${esc(offer.period)}. Devnet: test USDC.</p>${comments.map((c) => `<pre class="k-file" data-offer-comment>${esc(c)}</pre>`).join("")}
+      <p><button type="button" class="k-btn quiet" id="proc-comment-copy">Copy the comment</button></p>`
+    : `<p class="fine" data-offer-comment-none>Devnet funds one named supplier per comment. Name a supplier to fund.</p>`}
+    <h4>Approval</h4><p class="status" data-offer-need>${esc(need)}</p>`;
+}
+
+/** The open offers, one row each. `rows`: [{ offer, row (the card's outcome), sized (procure.commitment), status }]. */
+export function offersTableHtml(rows) {
+  if (!rows.length) return `<p class="fine">No offer yet.</p>`;
+  return `<div class="k-table"><table><thead><tr><th>Offer</th><th>Outcome</th><th>Supplier</th><th>Cap</th><th>Until</th><th>Approval</th></tr></thead><tbody>${rows.map((r) => `<tr data-offer="${esc(r.offer.name)}">
+    <td>${esc(r.offer.name)}</td><td>${esc(r.offer.outcome)}, ${esc(usd(proc.unitsOf(r.row?.price) || 0))}</td><td>${esc(r.offer.suppliers === "anyone" ? "anyone" : r.offer.suppliers.map((s) => `@${s}`).join(", "))}</td>
+    <td>${esc(usd(r.sized.cap))} a ${esc(r.offer.period)}</td><td>${esc(r.offer.ends)}</td><td>${esc(r.status)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+/** What waits for whom, and who approved what with which authority. `requests`: [{ title, requester, chain (procure.chain), line }]. */
+export function approvalsHtml(requests) {
+  if (!requests.length) return `<p class="fine">Nothing asks for approval.</p>`;
+  const who = (w) => (w.who.length ? w.who.map((a) => `@${esc(a)}`).join(" or ") : "nobody the policy names");
+  return requests.map((r) => `<section class="k-card" data-request="${esc(r.chain.subject)}" data-met="${r.chain.met ? 1 : 0}">
+    <p class="k-kicker">${esc(r.title)} · ${esc(usd(r.chain.amount))} test USDC · asked by @${esc(r.requester)}</p>
+    <p class="status ${r.chain.met ? "ok" : ""}" data-request-said>${esc(r.chain.sentence)}</p>
+    <ol class="plain">${r.chain.counted.map((c) => `<li class="k-step" data-state="done" data-approved="${esc(c.approver)}"><strong>@${esc(c.approver)}</strong> approved on ${esc(c.at.slice(0, 10))}.
+        <span class="fine" data-authority>Authority: ${esc(c.authority)}.</span>${/^https:\/\/github\.com\//.test(c.source) ? ` <a href="${esc(c.source)}" target="_blank" rel="noopener">The comment</a>` : ""}</li>`).join("")}
+      ${r.chain.refused.map((x) => `<li class="k-step" data-state="bad" data-refused="${esc(x.approver)}">${esc(x.sentence)}</li>`).join("")}
+      ${r.chain.waiting.map((w) => `<li class="k-step" data-state="live" data-waiting="${esc(w.role)}">Waits for ${esc(w.count)} of ${esc(w.role)}: ${who(w)}.</li>`).join("")}</ol>
+    ${r.chain.met ? "" : `<details class="k-more"><summary>How to approve</summary><p class="fine">Post this line on the forge, from your own account.</p><pre class="k-file" data-approve-line>${esc(r.line)}</pre>
+      <p class="fine">Then record it: <code>knos approve record --repo OWNER/NAME --comment NUMBER</code></p></details>`}</section>`).join("");
+}
+
+export const QUESTIONS = ["What did we authorize?", "What did the supplier deliver?", "Which requirements passed?", "Has this deliverable already been billed?",
+  "Who approved it, and did they have authority?", "What is disputed, credited, or still owed?", "Can I explain this decision next quarter?"];
+/** The seven answers for one deliverable: [{ q, a, ok, more: [sentence] }]. `d`: the deliverable (buyer_templates.json's
+ *  sample shows the shape); `ctx`: { offer, card, chain (procure.chain of the offer), directory }. `ok` false marks an exception. */
+export function sevenOf(d, { offer, card, chain, directory = proc.PROCUREMENT }) {
+  const row = proc.outcomeOf(card, d.outcome) || {}, u = (v) => usd(proc.unitsOf(v) || 0), reqs = d.requirements || [], passed = reqs.filter((r) => r.passed).length, n = Number(d.invoice_lines || 0);
+  const owed = proc.unitsOf(d.owed) || 0, by = chain.counted.map((c) => `@${c.approver}`);
+  return [
+    { q: QUESTIONS[0], ok: true, a: `One ${d.outcome} at ${u(row.price)}, up to ${u(offer.cap)} a ${offer.period}.`,
+      more: [`Offer ${offer.name}, ${offer.starts} to ${offer.ends}.`, `Unit: ${row.unit}. Acceptance terms: ${row.terms}.`, `One deliverable may take ${offer.retries} evaluations.`, proc.REOPENED[offer.reopened]] },
+    { q: QUESTIONS[1], ok: d.verdict === "accepted", a: `@${d.supplier} delivered ${d.artifact}. Verdict: ${String(d.verdict).replace(/_/g, " ")}.`, more: [`It took ${d.evaluations} evaluations.`, `Deliverable ${d.id}.`] },
+    { q: QUESTIONS[2], ok: reqs.length > 0 && passed === reqs.length, a: reqs.length ? `${passed} of ${reqs.length} passed.` : "The record names no requirement.", more: reqs.map((r) => `${r.name}: ${r.passed ? "passed" : "failed"}.`) },
+    { q: QUESTIONS[3], ok: n <= 1, a: n > 1 ? `Yes. ${n} invoice lines name it; pay one.` : n === 1 ? "No. One invoice line names it." : "No. No invoice line names it yet.",
+      more: ["A deliverable is billed once, however many evaluations it took."] },
+    { q: QUESTIONS[4], ok: chain.met, a: chain.met ? `${by.join(" and ")} approved, each with authority.` : chain.sentence,
+      more: [...chain.counted.map((c) => `@${c.approver}: ${c.authority}, on ${c.at.slice(0, 10)}.`), ...chain.refused.map((r) => r.sentence),
+        ...chain.waiting.map((w) => `Waits for ${w.count} of ${w.role}: ${w.who.map((a) => `@${a}`).join(" or ") || "nobody the policy names"}.`)] },
+    { q: QUESTIONS[5], ok: !d.disputed && owed === 0, a: `${d.disputed ? "Disputed." : "Nothing is disputed."} ${u(d.credited)} credited, ${u(d.owed)} owed.`, more: [`Paid: ${u(d.paid)} test USDC.`, `Held: ${u(d.held)} test USDC.`] },
+    { q: QUESTIONS[6], ok: true, a: "Yes. Five files in your repository rebuild it.",
+      more: [`${directory}/rate-cards/${card.name}.yaml`, `${directory}/offers/${offer.name}.yaml`, `${directory}/envelopes/${offer.envelope}.yaml`, `${directory}/policy.yaml`, `${directory}/approvals.jsonl`,
+        `The statement: ${d.evidence}.`, "Evaluation logs stay on the forge. Export the statement to keep them."] },
+  ];
+}
+/** The seven answers on one screen: exceptions first in the count, each answer with its evidence one click away. */
+export function sevenHtml(rows, title) {
+  const open = rows.filter((r) => !r.ok).length;
+  return `<p class="k-kicker">${esc(title)}</p>
+    <p class="status ${open ? "bad" : "ok"}" data-seven-open="${open}">${open ? `${open} of 7 answers need${open === 1 ? "s" : ""} a person.` : "All 7 answers are clean."}</p>
+    <dl class="parts k-seven">${rows.map((r, n) => `<dt data-q="${n + 1}">${esc(r.q)}</dt><dd data-a="${n + 1}" data-ok="${r.ok ? 1 : 0}"><strong class="${r.ok ? "" : "status bad"}">${esc(r.a)}</strong>
+      <details class="k-more"><summary>Evidence</summary><ul class="plain">${r.more.map((m) => `<li class="fine">${esc(m)}</li>`).join("")}</ul></details></dd>`).join("")}</dl>`;
+}
+/** A deliverable for `sevenOf` out of one record of web/finance_data.js recordsOf, where the statement has one. The
+ *  record names the policy that judged, not each requirement, so `requirements` holds the verdict alone. */
+export function deliverableOfRecord(rec, offerName = "") {
+  const m = rec.commercial, s = rec.settlement, whole = (u) => proc.typed(Number(u) || 0), accepted = Boolean(rec.acceptance.accepted);
+  return { id: rec.id, offer: offerName, outcome: "", supplier: rec.authorisation.supplier.map((x) => x.github_id).join(", "), artifact: rec.acceptance.artifact || "nothing yet",
+    requirements: rec.acceptance.verdict ? [{ name: "the agreed acceptance", passed: accepted }] : [], verdict: rec.acceptance.verdict || "insufficient_evidence", evaluations: rec.acceptance.evaluators.length,
+    invoice_lines: m.billed_before ? 2 : m.invoice_ref ? 1 : 0, amount: whole(m.amount_units), paid: whole(s.paid_units), held: whole(s.held_units), credited: whole(s.refunded_units + s.reverted_units),
+    owed: whole(s.status === "payable" ? s.held_units : 0), disputed: Boolean(m.dispute), evidence: `line ${m.lines.join(", ")} of the month's statement` };
 }

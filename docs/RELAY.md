@@ -102,6 +102,167 @@ What is not done, and why:
   `scripts/latency_stages.py` reports them (n, p50, p95, max for each state) for every payment whose log line
   carries the four times, and lists the payments it cannot place by token.
 
+## Events, a queue, workers
+
+How the public worker finds work. It reads comments on a timer: a pass every 3 seconds over the repositories it
+knows, a search every 30 seconds for the ones it does not (`ghrelay.once`). Inside a pass it reads up to 8
+repositories at a time. Until 0.3.16 it then carried the tokens it found **one after another**: each token is
+several transactions sent in rounds (12 for the two tokens of an order, [LOAD.md](LOAD.md), section 2), and one
+transaction that was not confirmed was waited for 60 seconds while every other token of the pass waited behind it.
+
+0.3.17 adds a queue, in `src/knos/settle/v2/relayq.py`, and puts both halves on it: the timer's pass (the sweep)
+and a run started by an event. The sweep queues every token it reads and carries up to 4 at once; one slow
+confirmation holds the tokens of its own owner and nobody else's.
+
+**The event.** `worker.yml` also starts on the event that posted a token, in a job of its own (`event`) that carries
+what the event names and ends. It keeps no notes, saves no cache and starts no run.
+
+| Trigger | Who can fire it | What the run reads | GitHub's limits |
+| --- | --- | --- | --- |
+| `repository_dispatch`, type `knos-token`, `client_payload` `{"repo": "owner/name", "number": 12}` | whoever holds a token with write access to the **contents of the worker's repository** (the exact permission is below) | the comments of that one issue or pull request, once | the workflow file must be on the default branch; `event_type` at most 100 characters; `client_payload` at most 10 top-level properties and 65,535 characters ([events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#repository_dispatch)) |
+| `workflow_run`, `completed`, of the workflow named `knos` | GitHub, when a run of that workflow ends in the repository the worker file is in | the comments of the run's pull requests; when the run names none, the repository's newest comments, once | the workflow file must be on the default branch; such runs cannot be chained more than three levels deep ([same page](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)). The worker is one level |
+
+**What a token needs to create a `repository_dispatch` event**, from GitHub's pages (read 6 October 2026):
+
+- a fine-grained personal access token, or a GitHub App's token: the repository permission **"Contents", write**, on
+  the repository the event is created in. `POST /repos/{owner}/{repo}/dispatches` is listed under "Repository
+  permissions for Contents" with write access
+  ([permissions required for fine-grained personal access tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens));
+- a personal access token (classic) or an OAuth app's token: the **`repo`** scope ("OAuth app tokens and personal
+  access tokens (classic) need the `repo` scope to use this endpoint":
+  [create a repository dispatch event](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event));
+- the answer to a request that worked is `204`, with no body (same page).
+
+**Does `workflow_run` fire for runs in other repositories? No.** GitHub's page describes the event as one that
+"allows you to execute a workflow based on execution or completion of another workflow", names that other workflow
+under `workflows:` by its name alone, and offers nothing that names a repository; it says nothing about other
+repositories at all
+([workflow_run](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)).
+The worker listens for the workflow named `knos` and is started by runs of that workflow in its own repository
+only. (An earlier text of this page gave "only for workflows of the same repository" as a sentence of GitHub's page.
+The page has no such sentence; the reading above is what it does say.)
+
+**What this means: only the worker's own repository can fire either trigger.** A `repository_dispatch` needs write
+access to the worker repository's contents, which a job in a stranger's repository does not have (its
+`GITHUB_TOKEN` is for its own repository); and `workflow_run` comes only from runs in the worker's repository. So
+for every other repository the public worker serves, no event starts a run: their tokens are found by the sweep,
+on its 3-second pass and its 30-second search, exactly as before. The event helps the worker's own repository, an
+operator who holds such a token, and anyone who runs the worker in a repository of their own.
+
+Two facts decide how these may be used. A run started by an event made with a workflow's own `GITHUB_TOKEN` does not
+start another run, with two exceptions: `workflow_dispatch` and `repository_dispatch` always do
+([GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token)). So a job of the worker's own
+repository can announce a token with its own token. And GitHub's pages state no bound on the time from an event to
+the start of its run; for the timer they say the shortest interval is 5 minutes and that a scheduled run may be
+delayed when load is high (first link).
+
+What the event does not do. An event run is a new run: GitHub starts a runner and the job installs, which took 10
+to 21 seconds for the chain's runs. While the chain relays, its 3-second pass reaches a token first (2 s at the
+median for the five payments whose lines say, [LOAD.md](LOAD.md), section 6). The event bounds the two waits the
+pass cannot: a token posted while no run relays, and a repository the worker has not seen. One event run has
+happened, in the staging repository and carrying no token (below, "What is not done"): its times are of one run
+that started and read, not of a token carried.
+
+**The queue.** The journal (`journal`, in `KNOS_HOME/ghrelay.json`) is the queue, for the sweep and for an event
+run alike. An entry is `queued`, `leased`, `done` or `dead`:
+
+| State | Meaning | Leaves it when |
+| --- | --- | --- |
+| `queued` | waiting for a worker, or to be tried again not before a time (`not_before`) | a worker takes it |
+| `leased` | one worker holds it until `lease_until` (180 s, `LEASE`: a relay waits 60 s for one confirmation) | the worker answers; or the lease expires, and whoever asks next takes it |
+| `done` | the chain has it: sent here, or found there already | never |
+| `dead` | it will not be sent again; `why` holds the reason in plain words (the relay's refusal; in the sweep "... (tried N times until the token expired; run the workflow again for a fresh token)"; in an event run "given up after 12 tries; the last one said: ...") | never. A fresh token from a new run of the workflow is a new entry |
+
+**The file's format is the one 0.3.16 wrote.** In the file the four states are spelled as the journal always spelled
+them: `waiting` (queued), `sending` (leased), `confirmed` (done), `refused` or `expired` (dead: refused by the
+program or the relay, or given up). So notes written by this release are read by the one before it, the status
+comment's `state=` says what it said, and notes written by an older relay are read as the four states. An entry
+now also holds its lane, its token and where it was posted. An open entry of older notes has no token: it is taken
+up again when its comment is read, as before.
+
+**The sweep on the queue.** One pass of `ghrelay.once`: read the comments; queue each new token (it is in the notes
+before anything is sent); carry what the queue holds with 4 workers, each entry at most once in a pass; write the
+verdicts. An entry to be tried again waits for a later pass, on the times it always had (the next pass twice, then
+10, 20, ... 60 s apart, for as long as the chain would take the token). In the sweep an entry that waits does not
+hold its lane: only an entry in flight does, so a token retried for an hour does not keep its owner's later tokens
+waiting. A pass that is killed leaves its leases in the notes; the same run's next pass ends them and sends again,
+and another run takes them when the lease is over (180 s).
+
+`verify`, `withdraw` and a passkey's funding line are on the queue too, in the sweep only. They fit the same
+handler; each leaves in a lane of its own repository, so the day's limit for a repository (20) is counted one at a
+time. An event run does not queue or carry them.
+
+A token that names no owner (`repository_owner_id`) cannot be shown to share no account with another, so in the
+sweep all such tokens leave one at a time. GitHub's tokens always name one.
+
+**An event run and the sweep.** Both write the same journal format under the same keys, so when they share a notes
+file neither carries what the other has: a token is queued once whoever reads its comment, a leased entry is left
+alone until its lease is over, and an answered one is never sent again (`tests/test_relayq.py`). An event run also
+notes its repository for the sweep. In `worker.yml` today the two do NOT share a file: the event job runs on a
+runner of its own with a home of its own (`.knos-event-home`) and saves no cache, and the sweep's notes travel from
+run to run in an Actions cache that is restored when a run starts and saved once before it ends. Two runners that
+are alive at the same time cannot see each other's file through a cache. There the guard is the one two
+overlapping sweep runs already rely on: the chain takes a token once, and a run logs nothing the log already has.
+
+**A repeat is harmless, and the queue relies on it.** A worker that is killed leaves a lease behind. When it
+expires the entry is sent again, whether or not the first worker had sent: the program takes a token once, and the
+second send is answered "already" and moves nothing. The queue never tries to find out. Tested three ways: on the
+queue with a stand-in chain that keeps that one rule (`tests/test_relayq.py`: a worker killed after its send, the
+token sent twice and taken once), on the programs as built in LiteSVM (`tests/test_relay_failures.py`: a relay
+killed between its send and the confirmation pays once), and for 1,000 orders with every tenth token sent twice
+([LOAD.md](LOAD.md), section 1).
+
+**Workers and lanes.** `relayq.work` keeps 4 entries in flight (`--workers`, `KNOS_RELAY_WORKERS`). Two tokens of
+one lane are never in flight together and leave in the order they came. The lane is the account that owns the
+repository the token was signed for (`relay.lane`: `repository_owner_id`), which is wider than any account two
+tokens can both write (a funder's Balance, an order, a job). So a slow confirmation holds its own owner's tokens
+and nobody else's. All workers pay fees from one key; [LOAD.md](LOAD.md), section 3, says what that key's account
+allows in a block.
+
+**A full queue says so.** The queue holds 500 open entries (`LIMIT`). The next one is refused with the count and a
+time: "the relay's queue is full: 500 tokens are waiting and it holds 500, because Solana or GitHub is answering
+slowly. This token was not taken and nothing is lost: it is still in its comment. Try again in N seconds." N is the
+entries waiting, times what one took lately, over the workers (at least 5). The refusal loses nothing, because the
+token stays in its comment and the sweep reads it.
+
+When it is the sweep that is refused, it stops reading comments: "relay: the queue is full (500 tokens wait and it
+holds 500), because Solana or GitHub is answering slowly. No comment is read for N seconds; reading starts again at
+<time>. Nothing is lost: a token that was not taken is still in its comment." Until that time (`resting`, in the
+notes) every pass carries what is queued and reads nothing, and says "comments are read again at <time>".
+
+**GitHub's quota.** Every answer carries `x-ratelimit-remaining` and `x-ratelimit-reset`, and a refusal of the
+secondary limit carries `retry-after`
+([rate limits for the REST API](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api):
+1,000 requests an hour for a workflow's token in one repository). `relayq.Quota` reads them from every answer of an
+event run. It asks nothing until the time GitHub names (a minute after a 429 that names none), and stops reading
+when 50 requests are left of the hour, so that the verdicts of tokens already carried can still be written.
+
+What is not done:
+
+- **A pass still ends with its slowest token.** The other tokens of a pass are carried and logged while one
+  confirmation is awaited, but the pass itself returns when its last worker has answered. A comment posted
+  meanwhile is read by the next pass: up to the 60 seconds a relay waits for one confirmation, not 3 seconds
+  later. Reading while workers carry is not built.
+- **No payment on devnet has been carried by the queue.** The 41 payments recorded on devnet ([LOAD.md](LOAD.md),
+  section 6: p50 25 s, p95 58 s) were made by the serial sweep. What is known of the queue is a local test
+  with a stand-in chain (`python scripts/queue_drill.py`, same section): it says how the queue behaves, and
+  nothing about seconds on a cluster.
+- **One event run, and it carried no token.** On 6 October 2026 one `repository_dispatch` of type `knos-token`,
+  `client_payload` `{"repo": "drexthealpha/knos-rc", "number": 1}`, started the `event` job of this file in the
+  staging repository ([run 37483292967](https://github.com/drexthealpha/knos-rc/actions/runs/37483292967)): GitHub
+  created the run at 14:57:22 UTC, the job started 3 s later, and 7 s after that it had read the issue's comments
+  and answered "relay: 0 tokens carried for this event". No token had been posted there in the 70 minutes it reads,
+  so it times a run that starts, installs and reads, and no token carried by an event. On the public worker no event
+  run has happened: it runs from the first event after the file reaches `main`. Nobody dispatches `knos-token` there
+  yet: the public worker gets `workflow_run` for its own repository's `knos` workflow, and nothing for the other
+  repositories it serves (above: it cannot).
+- **In `worker.yml` an event run's notes end with its runner.** The queue saves them in the sweep's format, and a
+  sweep that reads the same file carries nothing twice; the workflow does not hand that file from the event job to
+  the sweep. What an event run leaves open is the sweep's to carry from the comment.
+- **One file, one writer at a time.** The file is replaced whole on every change. Two processes that write it in
+  the same instant can lose one change, and then a token may be sent twice; the single-use rule covers it, as it
+  covers two overlapping runs today.
+
 ## Where a token waits
 
 What was measured. The site's files of 5 October 2026, 00:37 UTC
@@ -130,27 +291,27 @@ Three things follow, and one does not.
   seconds and cannot be split from those files. `scripts/latency_stages.py` splits a payment only where its log line
   carries the stage fields (`workflow=`, `wait=`, `chain=`), and the 164 s payment's line does not.
 
-`scripts/latency_stages.py` on the live log (5 October 2026, 20:54 to 21:17 UTC; the escrows' history and the
+`scripts/latency_stages.py` on the live log (6 October 2026, 14:58 to 15:06 UTC; the escrows' history and the
 block times read from devnet's public endpoint by the script itself, `--rpc`). Each row is measured only where
 the line carries it, so each has its own n:
 
 | stage | n | median | 95th percentile | slowest |
 | --- | --- | --- | --- | --- |
-| the whole wait, as this script timed it | 40 | 25 s | 58 s | 1,220 s |
-| runner queue: the merge to the start of the run | 4 | 3 s | 1,184 s | 1,184 s |
-| of it, the run waiting for a runner (GitHub's record) | 4 | 0 s | 0 s | 0 s |
-| workflow: the start of the run to the token's comment | 4 | 15 s | 24 s | 24 s |
-| relay wait: the comment to the relay picking it up | 4 | 2 s | 5 s | 5 s |
-| first send: the pickup to the first transaction's block | 4 | 2 s | 5 s | 5 s |
-| confirm: that block to the paying transaction's block | 4 | 4 s | 8 s | 8 s |
-| the relay's side (first send and confirm together) | 4 | 7 s | 11 s | 11 s |
+| the whole wait, as this script timed it | 41 | 25 s | 58 s | 1,220 s |
+| runner queue: the merge to the start of the run | 5 | 2 s | 1,184 s | 1,184 s |
+| of it, the run waiting for a runner (GitHub's record) | 5 | 0 s | 0 s | 0 s |
+| workflow: the start of the run to the token's comment | 5 | 16 s | 24 s | 24 s |
+| relay wait: the comment to the relay picking it up | 5 | 2 s | 5 s | 5 s |
+| first send: the pickup to the first transaction's block | 5 | 2 s | 5 s | 5 s |
+| confirm: that block to the paying transaction's block | 5 | 3 s | 8 s | 8 s |
+| the relay's side (first send and confirm together) | 5 | 5 s | 11 s | 11 s |
 
 Few lines carry the stage fields yet, so the stage rows are a handful of payments, not a distribution: read them as
 those payments. The slowest of them spent its time in the runner queue (before the run began, with no wait for a
 runner recorded by GitHub), not in the relay.
 
-The attempts, over every payment line of the log: 43 of 52
-pull requests asked for were paid; the log has 56 lines with a token, of which
+The attempts, over every payment line of the log: 44 of 53
+pull requests asked for were paid; the log has 57 lines with a token, of which
 13 say fail and 0 took more than one try;
 1 were paid only after a failed line, and 9 were never
 paid. A failure here is a relay's answer (a token too long, no bounty on the issue, a token for the other
@@ -164,7 +325,7 @@ Every path that can add minutes, with a test that reproduces it under a fake Git
 | A repository the relay does not know: no open job or order on chain, no token in two days, not in `KNOS_RELAY_REPOS`. This is a first funding comment, never a proof (a proof's repository has money on chain, and the chain is read once a minute for those) | the delay of GitHub's comment search, then up to 30 s (`SEARCH_EVERY`) | GitHub publishes no bound for its search index; the relay adds at most 30 s | not fixable in the relay: the caller has no secret to call it with, and a search on every pass would be 1,200 requests an hour against the 1,000 a workflow's token gets ([GitHub's limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)). The way around is a relay in the run itself (`KNOS_RELAY_KEY`, above) |
 | A relay that starts with empty notes and many open repositories | it learned 20 repository names a minute, so a proof in the 45th waited two minutes | now 20 a pass: 45 repositories are known on the third pass, 6 s in | fixed |
 | A token posted while no run relays. Two runs overlap by 30 s and the next takes 10 to 21 s to start (`worker.yml`); a next run that waits longer for a runner leaves a gap, and a chain of runs that stopped waits for the 5-minute timer | the gap | the runner's wait less 30 s; after a stop, 5 minutes plus GitHub's own delay ("During periods of high load, your scheduled workflows may be delayed", [GitHub's documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)) | not fixed: it is the workflow's, and one worker is one point of failure. The relay adds nothing: the first pass of the next run carries what was posted, once |
-| A first send that fails for the cluster's reasons (no answer, a dropped transaction, "Blockhash not found", a node that is behind or unhealthy) | the next pass (3 s), twice; then 10, 20, ... 60 s; then every 60 s | 60 s between two tries (`BACKOFF_MOST`), with no random part. A transaction that is never confirmed is waited for 60 s (`knos.chain`), and tokens are carried one at a time, so a pass with one such token holds the others that long | the retry is fixed: 0.3.14 gave such a token up after 12 passes, about 6.5 minutes, and logged a failure. Now it is tried while the chain would still take it (an hour past its expiry). A refusal by the program that another run with the same key can cause (errors 67, 69, 84) is still given 12 passes and then logged as a failure: when it does not clear, it is the program's answer. The 60 s held by one unconfirmed transaction is not fixed |
+| A first send that fails for the cluster's reasons (no answer, a dropped transaction, "Blockhash not found", a node that is behind or unhealthy) | the next pass (3 s), twice; then 10, 20, ... 60 s; then every 60 s | 60 s between two tries (`BACKOFF_MOST`), with no random part. A transaction that is never confirmed is waited for 60 s (`knos.chain`). Up to 4 tokens of different owners are carried at once, so such a token holds its own owner's tokens that long, and the comments posted meanwhile (the pass ends with it); the other tokens of the pass are carried and logged without it | the retry is fixed: 0.3.14 gave such a token up after 12 passes, about 6.5 minutes, and logged a failure. Now it is tried while the chain would still take it (an hour past its expiry). A refusal by the program that another run with the same key can cause (errors 67, 69, 84) is still given 12 passes and then logged as a failure: when it does not clear, it is the program's answer. The 60 s held by one unconfirmed transaction is not fixed |
 | GitHub's secondary rate limit (a 403 or 429 with `Retry-After`) | until the time GitHub names | what GitHub names, at most an hour | fixed: the relay used to ask again every 3 s, which GitHub's page says to stop doing. Now nothing is asked until that time, and a verdict GitHub would not take meanwhile is kept and posted after |
 | GitHub's hourly limit for a workflow's token: 1,000 requests | until the hour's reset, when it is spent | under an hour | not reached today. Each run starts with no saved answers, so every known repository costs one counted read per run, 12 runs an hour, beside 120 searches: by that arithmetic (not measured) the budget is spent at about 70 repositories read per run |
 | The workflow that signs the token waited for a runner, or behind another run | all of it is before the token exists | GitHub's; none is published | not the relay's. The log line carries it (`queue=`, `workflow=`), and `scripts/latency_stages.py` prints it per payment |

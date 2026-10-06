@@ -8,7 +8,7 @@ same three calls serve GitLab CI, a cloud's workload identity, another CI system
 |---|---|
 | program (devnet) | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`knos-oidc`, second deployment; upgradeable only through a multisig with a public 48-hour delay) |
 | it takes | RS256, a 2048- or 4096-bit key (no other size: 1024 and 3072 are refused), a token of at most 8,192 bytes, an `exp` at most a day ahead |
-| it does not take | ES256, ES384, ES512, PS256, HS256, EdDSA |
+| it does not take | ES384, ES512, PS256, HS256, EdDSA. ES256 is implemented and tested in this tree and not deployed: no public program id takes it yet ([ES256.md](ES256.md)) |
 | who reads it today | Knos's own programs and examples. No program outside this repository is known to read it yet |
 
 ## The three calls
@@ -58,7 +58,7 @@ The program to copy is [`examples/oidc_gate/template.rs`](../examples/oidc_gate/
 
 ## Issuers
 
-Each row was read on the web on 2026-10-05: the claims from the linked page, the key sizes from the issuer's
+Each row was read on the web on 2026-10-05 (Vercel's on 2026-10-06): the claims from the linked page, the key sizes from the issuer's
 published key set. "Gate on" lists claims the reader can read: top-level strings and whole numbers. A list, an
 object or a boolean is not read. Each issuer has an example in [`examples/issuers`](../examples/issuers), and
 `tests/test_issuers.py` verifies a token of each shape in the test build of the verifier. Those tokens are signed
@@ -77,10 +77,42 @@ no key on devnet for any issuer below GitLab's row; `knos keys` prints the keys 
 | [CircleCI](../examples/issuers/circleci/README.md) | `https://oidc.circleci.com/org/<organization id>` | RS256; one 2048-bit | yes | `oidc.circleci.com/project-id`, `oidc.circleci.com/vcs-origin`, `oidc.circleci.com/vcs-ref`, `aud` | `oidc.circleci.com/context-ids`, `oidc.circleci.com/ssh-rerun` | [2026-10-05](https://circleci.com/docs/guides/permissions-authentication/openid-connect-tokens/) |
 | [Okta](../examples/issuers/okta/README.md) | `https://<Okta domain>/oauth2/<authorization server id>` | RS256; two 2048-bit | yes | `cid`, `sub`, `aud` | `scp` | [2026-10-05](https://developer.okta.com/docs/api/openapi/okta-oauth/guides/overview/) |
 | [Auth0](../examples/issuers/auth0/README.md) | `https://<tenant domain>/` | RS256; two 2048-bit | yes | `sub`, `azp`, `aud` |  | [2026-10-05](https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles) |
+| [Vercel (deployment OIDC tokens)](../examples/issuers/vercel/README.md) | `https://oidc.vercel.com/<team slug>` or `https://oidc.vercel.com` | RS256; one 2048-bit | yes | `owner_id`, `project_id`, `environment`, `sub`, `aud` |  | [2026-10-06](https://vercel.com/docs/oidc/reference) |
 
 Not verified at all: any issuer that signs only with an elliptic-curve key or with PS256. AWS's default for
 outbound federation (ES384) and a Kubernetes cluster with an ECDSA key are the two in this table. For Entra, CircleCI,
 Okta and Auth0 the key sizes were read at one tenant or at the shared endpoint each example names, not at yours.
+
+## What each issuer's discovery document publishes
+
+The column "signs with" above came from documentation and key sets. This table is the issuer's own
+`/.well-known/openid-configuration`, fetched on 2026-10-06, and its `id_token_signing_alg_values_supported`.
+"Accepted today" is about the format the verifier takes (RS256 under a 2048- or 4096-bit key). **No live token of
+any issuer in this table was verified**: a row says what a token of that issuer would need, not that one was tried.
+
+| issuer | discovery document | algorithms it lists | key sizes | accepted today |
+|---|---|---|---|---|
+| GitHub Actions | [token.actions.githubusercontent.com](https://token.actions.githubusercontent.com/.well-known/openid-configuration) | RS256 | 2048 (key set, 2026-10-05) | yes; live tokens of this issuer are what Knos verifies on devnet |
+| GitLab.com | [gitlab.com](https://gitlab.com/.well-known/openid-configuration) | RS256 | 4096 and 2048 (key set, 2026-10-05) | yes |
+| Google | [accounts.google.com](https://accounts.google.com/.well-known/openid-configuration) | RS256 | 2048 (key set, 2026-10-05) | yes |
+| Microsoft Entra ID | [login.microsoftonline.com/common/v2.0](https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration) (the shared endpoint; its `issuer` is `https://login.microsoftonline.com/{tenantid}/v2.0`) | RS256 | 2048 (shared key set, 2026-10-05) | yes |
+| Vercel | [oidc.vercel.com](https://oidc.vercel.com/.well-known/openid-configuration) | RS256 | 2048: the one key of [its key set](https://oidc.vercel.com/.well-known/jwks), measured 2026-10-06 | yes |
+| Buildkite | `https://agent.buildkite.com/.well-known/openid-configuration` | not read: the host's robots.txt refused our reader | 2048 (key set, 2026-10-05) | yes, by its [documentation](https://buildkite.com/docs/agent/cli/reference/oidc) (RS256) |
+| CircleCI | one per organisation: `https://oidc.circleci.com/org/<organization id>/.well-known/openid-configuration` | not read (needs an organisation's id) | 2048 at one organisation (2026-10-05) | yes, by its [documentation](https://circleci.com/docs/guides/permissions-authentication/openid-connect-tokens/) (RS256) |
+| AWS, IAM outbound identity federation | one per account: `https://<account's id>.tokens.sts.global.api.aws/.well-known/openid-configuration` | not read (needs an account). [Documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html): ES384 recommended, RS256 on request | not measured | in part: an RS256 token if its key is 2048 or 4096 bits; **ES384: not yet** |
+| Kubernetes (EKS, GKE, self-managed, kind) | one per cluster: `<iss>/.well-known/openid-configuration`, key set at `/openid/v1/jwks` | per cluster. The API server signs RS256, ES256, ES384 or ES512 by the type of its key ([Kubernetes](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/)) | per cluster; kubeadm's default is RSA-2048 ([kubeadm](https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta4/), `encryptionAlgorithm`) | in part: an RS256 cluster yes; **ES256, ES384, ES512: not yet**. `aud` is a list, which no program on chain reads |
+| Fly.io | one per organisation: `https://oidc.fly.io/<org name>/.well-known/openid-configuration` ([Fly.io](https://docs.fly.io/security/openid-connect)) | not read (needs an organisation); the page does not name the algorithm | not measured | not known: no entry in `examples/issuers` until it is measured |
+
+Not yet, for any issuer: ES384, ES512, PS256, EdDSA. The deployed verifier checks RSA PKCS#1 v1.5 with SHA-256 and
+nothing else. ES256 is in the next build of `knos_oidc`, tested here and not deployed ([ES256.md](ES256.md)).
+
+**One issuer that is not a forge was taken end to end in tests, and verified offline once in staging.** `.github/workflows/outcome-k8s.yml` starts a
+Kubernetes cluster and has its service-account issuer sign an evaluation; `scripts/outcome_k8s.py` checks that token
+offline by this verifier's rule and carries it to devnet under a private key. Here that is tested with a token of a
+projected service-account token's shape, signed by a test key (`tests/test_outcome_k8s.py`, in the test build of the
+verifier). A kind cluster's token was verified offline in staging run 37483745385 of drexthealpha/knos-rc; the
+devnet part runs when the release run executes it, and the meter does not count such a token on chain:
+[OUTCOMES.md](OUTCOMES.md#a-kubernetes-cluster-signs-an-outcome).
 
 ## What it proves, and what it does not
 

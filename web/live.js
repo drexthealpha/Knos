@@ -229,13 +229,13 @@ export function renderLive(el, env = {}) {
   const io = { gh, rpc, repo };
   if (!doc.getElementById("live-style")) { const st = doc.createElement("style"); st.id = "live-style"; st.textContent = STYLE; doc.head.appendChild(st); }
   el.innerHTML = `<div class="card" id="live">
-    <p class="devnet">Solana devnet. The money here is test USDC: it is worth nothing.</p>
+    <p class="devnet">Devnet: test USDC, worth nothing.</p>
     <h3>A round you can watch</h3>
     <p>The canary is a workflow in <a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>, set to run every 30 minutes. A round funds an issue with 5 test USDC, opens a pull request
       that closes it, merges it and waits to be paid. You need no account, wallet or repository to follow one: this page reads GitHub and Solana devnet, as you could.</p>
     <p id="live-head" class="status" role="status" aria-live="polite">Reading the canary's latest round…</p>
     <div id="live-round"></div>
-    <p id="live-next" class="fine"></p>
+    <p id="live-next" data-not-prose class="fine"></p>
     <p><button type="button" id="live-watch">Watch it happen</button> <span id="live-watching" class="fine" role="status" aria-live="polite"></span></p>
     <p id="live-measured" class="fine"></p>
   </div>`;
@@ -267,10 +267,10 @@ export function renderLive(el, env = {}) {
     const t = now(), due = nextDue(t), left = Math.max(0, Math.round((due - t) / 1000));
     const running = shown?.state === "running";
     const due_ = `${clock(due).slice(11, 16)} UTC, in ${took(left)}`;
-    $("live-next").textContent = running ? "This round is in progress: each stage gets its time when GitHub or devnet reports it."
-      : unread ? `The timer is set for every half hour (next: ${due_}). Whether the canary has been running could not be read.`
-      : !shown || shown.stale ? `The timer is set for every half hour (next: ${due_}), but the canary has not been running, so a round may not start then.`
-      : `The next round is due at ${due_}. GitHub starts a timer when it has a runner free, often some minutes late.`;
+    $("live-next").textContent = running ? "This round is in progress. Each stage gets its time when reported."
+      : unread ? `Next timer: ${due_}. Whether the canary has been running could not be read.`
+      : !shown || shown.stale ? `Next timer: ${due_}. The canary has not been running. A round may not start then.`
+      : `Next round: ${due_}. GitHub often starts a timer some minutes late.`;
     for (const span of el.querySelectorAll("[data-since]")) span.textContent = took(Math.max(0, (t - Number(span.dataset.since)) / 1000));
     if (watchUntil && t > watchUntil) endWatch(`Stopped watching after ${WATCH_FOR / 60} minutes. Press to watch again.`);
   }
@@ -296,7 +296,7 @@ export function renderLive(el, env = {}) {
       if (stopped) return;
       if (Number.isFinite(e?.kept) && $("live-asof")) { $("live-asof").textContent = `Shown ${asOf(e.kept, now())}. It could not be read again just now: ${e.message}`; return; }
       $("live-head").className = "status bad";
-      $("live-head").textContent = `The canary's round could not be read just now (${e.message}), so none is shown.`;
+      $("live-head").textContent = `The canary's round was not read (${e.message}). None is shown.`;
       $("live-round").innerHTML = "";
       unread = true; tick();
     }

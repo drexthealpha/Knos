@@ -238,7 +238,7 @@ def test_reconcile_names_a_rate_a_month_and_a_duplicate():
 def test_the_fee_is_the_price_books_after_the_free_ten_thousand():
     assert (L.FREE_PER_MONTH, L.RATE) == (10_000, 50_000)
     assert [L.fee(n) for n in (0, 9_999, 10_000, 10_001, 15_000)] == [0, 0, 0, 50_000, 250_000_000]
-    assert L.fee(15_000, rate=20_000) == 100_000_000 and L.fee(5, free=2) == 150_000         # a committed-volume plan; allowance partly used elsewhere
+    assert L.fee(15_000, rate=20_000) == 100_000_000 and L.fee(5, free=2) == 150_000         # an annual commitment; allowance partly used elsewhere
     evals = [_ev(i) for i in range(12)]
     r = L.reconcile(_ledger(evals, [12]), _ledger(evals, [5, 7]), free=10)
     assert r.agreed and r.rows[0].fee == 100_000 and "\n202610,12,12,24000000,100000,0,0,0\n" in r.statement()
@@ -248,7 +248,7 @@ def test_the_fee_is_the_price_books_after_the_free_ten_thousand():
 def test_export_is_one_row_per_evaluation():
     evals = [_ev(1), _ev(2, accepted=False)]
     rows = L.export_csv(_ledger(evals, [2])).splitlines()
-    assert rows[0] == "month,seq,id,buyer,seller,order,artifact,policy,milestone,accepted,rate" and len(rows) == 3
+    assert rows[0] == "month,seq,id,buyer,seller,order,artifact,policy,milestone,accepted,rate,verdict,deliverable_id,evaluation_id,invoice_line_id,settlement_id" and len(rows) == 3
     assert {r.split(",")[2] for r in rows[1:]} == {e.id.hex() for e in evals} and {r.split(",")[9] for r in rows[1:]} == {"0", "1"}
 
 

@@ -11,14 +11,17 @@
 //
 // `lines` are the lines of audit/<owner id>.json (scripts/audit_statements.py); `rows` are lines with seq and prev.
 
-export const TYPE = "knos.audit-export", VERSION = 2;
+export const TYPE = "knos.audit-export", VERSION = 3;
 export const COLUMNS_V1 = ["seq", "date", "time", "kind", "order", "funded_transaction", "owner_id", "funder", "commenter_id", "authorised_by", "repository_id",
   "issue", "private", "standing", "mode", "price_units", "price", "funder_fee_units", "currency", "terms_hash", "pull_request", "artifact",
   "supplier_ids", "wallets", "judge", "evaluator", "verdict", "paid_units", "paid", "held_units", "refunded_units", "reverted_units",
   "fee_units", "fee", "transaction", "billing_key", "billed_before", "exception", "resolved_by", "prev"];
 const ADDED = { kind: ["record"], funder: ["source"], terms_hash: ["terms_version"], wallets: ["paid_each"], held_units: ["held_until"] };
-export const COLUMNS = COLUMNS_V1.flatMap((c) => [c, ...(ADDED[c] || [])]);
-export const COLUMNS_OF = { 1: COLUMNS_V1, 2: COLUMNS };
+export const COLUMNS_V2 = COLUMNS_V1.flatMap((c) => [c, ...(ADDED[c] || [])]);
+// version 3 (src/knos/audit.py): the verdict in one of the four words, and the four ids, each after the column it explains
+const ADDED3 = { verdict: ["outcome"], billing_key: ["deliverable_id", "evaluation_id", "invoice_line_id", "settlement_id"] };
+export const COLUMNS = COLUMNS_V2.flatMap((c) => [c, ...(ADDED3[c] || [])]);
+export const COLUMNS_OF = { 1: COLUMNS_V1, 2: COLUMNS_V2, 3: COLUMNS };
 export const SUMS = ["paid_units", "fee_units", "refunded_units", "reverted_units"];
 export const OBJECTS = ["authorisation", "acceptance", "commercial", "settlement"];
 export const SETTLEMENTS = ["paid on devnet (test money)", "held", "refunded", "reverted", "payable", "paid outside Knos"];
@@ -267,7 +270,7 @@ export const FORMATS = {
   generic: { name: "Knos: generic finance export", extension: "csv", date: "YYYY-MM-DD", source: "docs/FINANCE.md", unverified: false },
 };
 export const DEFAULTS = { account: "Accepted agent work", entity: "", tax_code: "", date_format: "" };
-const NETSUITE = ["External ID", "Vendor", "Date", "Reference No.", "Currency", "Memo", "Expenses : Account", "Expenses : Amount", "Expenses : Memo"];
+const NETSUITE = ["External ID", "Vendor", "Date", "Reference No.", "Memo", "Expenses : Account", "Expenses : Amount", "Expenses : Memo"];
 const QUICKBOOKS = ["Bill no.", "Supplier", "Bill Date", "Due Date", "Account", "Line Description", "Line Amount", "Line Tax Code", "Memo"];
 const COUPA_INVOICE = ["Invoice", "Invoice Number", "Supplier Name", "Supplier Number", "Status", "Invoice Date", "Submit For Approval?", "Handling Amount",
   "Misc Amount", "Shipping Amount", "Line Level Taxation", "Tax Amount", "Tax Rate", "Tax Code", "Tax Rate Type", "Supplier Note", "Payment Terms", "Shipping Terms",
@@ -329,7 +332,7 @@ export async function exportAs(fmt, scope, given, head, refs = null, options = n
   if (!FORMATS[fmt]) throw new Error(`--format is csv, json, ${Object.keys(FORMATS).join(", ")}; "${fmt}" is none of them.`);
   const o = { ...DEFAULTS, ...Object.fromEntries(Object.entries(options || {}).filter(([, v]) => v)) };
   const rows = given.map(textRow), found = await bills(scope, rows, head, refs), when = (b) => day(b.date, o.date_format || FORMATS[fmt].date);
-  if (fmt === "netsuite") return csvOf([NETSUITE, ...found.map((b) => [b.bill_no, b.supplier, when(b), b.bill_no, b.iso, b.memo, o.account, b.amount, b.description])]);
+  if (fmt === "netsuite") return csvOf([NETSUITE, ...found.map((b) => [b.bill_no, b.supplier, when(b), b.bill_no, b.memo, o.account, b.amount, b.description])]);
   if (fmt === "quickbooks") return csvOf([QUICKBOOKS, ...found.map((b) => [b.bill_no, b.supplier, when(b), when(b), o.account, b.description, b.amount, o.tax_code, b.memo])]);
   if (fmt === "coupa") {
     return csvOf([COUPA_INVOICE, COUPA_LINE, ...found.flatMap((b) => [
@@ -354,4 +357,124 @@ export function statementOf(s) {
   if (!tail) throw new Error("This generic finance export has no statement at its end: it was cut short or edited.");
   const scope = JSON.parse(tail[3]), rows = got.filter((c) => c[0] === "statement" && c.length === 3).map((c) => JSON.parse(c[2].startsWith("'") ? c[2].slice(1) : c[2]));
   return { scope, rows, head: tail[1], text: auditWrite(scope, rows, tail[1], "csv") };
+}
+
+// ---- the statement of one invoice: knos.statement and knos.exports.write_statement ----------------------------------------------------------
+// A statement (kind knos-statement) is made by `knos statement make`; this page reads one, checks its own sha256, and
+// writes the same CSV and the same export files as the Python, byte for byte (tests/web/statement.mjs, against
+// tests/data/statement). It does not make the PDF: the browser prints the same cells (web/statements.js).
+export const STATEMENT_KIND = "knos-statement", STATUS_KIND = "knos-statement-status", LABEL = "file export, not an integration";
+export const LINE_STATES = ["agreed", "disputed", "duplicate", "insufficient_evidence"];
+export const LINE_WORDS = { agreed: "agreed", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
+export const PAY_WORDS = { payable: "payable", paid_outside: "paid outside Knos", held: "held", refunded: "refunded", devnet_demonstration: "devnet demonstration" };
+export const STATEMENT_HEAD = ["line", "reference", "supplier", "state", "amount", "why", "deliverable", "evaluations", "invoice_line", "settlement", "payment", "evidence",
+  "evidence_sha256", "duplicate_of"];
+export const STATEMENT_FORMATS = ["quickbooks", "netsuite", "generic"];
+const STATEMENT_GENERIC = ["bill_no", "line", "state", "payment", "date", "supplier", "reference", "amount", "currency", "why", "deliverable", "evaluations", "invoice_line",
+  "settlement", "evidence", "evidence_sha256", "duplicate_of", "statement_sha256"];
+
+/** The statement the front door made last (web/front_door.js, through web/statement_make.js), for the Statement page
+ *  (web/statements.js) to open: hand(st, status) keeps it and says so; the page opens it now, or when it is first drawn. */
+export const HANDED = { st: null, status: null };
+export function hand(st, status = null) {
+  Object.assign(HANDED, { st, status });
+  if (typeof document !== "undefined") document.dispatchEvent(new CustomEvent("knos:statement"));
+}
+/** statement.canonical: JSON with sorted keys, no spaces, characters as they are (ensure_ascii=False), one final newline. */
+export function canonicalText(doc) {
+  const walk = (d) => (d === null || d === undefined ? "null" : typeof d !== "object" ? JSON.stringify(d)
+    : Array.isArray(d) ? `[${d.map(walk).join(",")}]` : `{${Object.keys(d).sort().map((k) => `${JSON.stringify(k)}:${walk(d[k])}`).join(",")}}`);
+  return `${walk(doc)}\n`;
+}
+/** statement.digest: the statement's own sha256, of its canonical bytes with the sha256 field empty. */
+export const statementDigest = (st) => sha256Hex(canonicalText({ ...st, sha256: "" }));
+const stUnits = (amount, scale) => {
+  if (!amount) return 0n;
+  const [whole, part = ""] = amount.replace(/^-/, "").split(".");
+  return (amount.startsWith("-") ? -1n : 1n) * BigInt(whole + part.padEnd(scale, "0").slice(0, scale));
+};
+const stAmount = (value, scale) => {
+  const neg = value < 0n, v = neg ? -value : value, base = 10n ** BigInt(scale);
+  return `${neg ? "-" : ""}${v / base}.${(v % base).toString().padStart(scale, "0").replace(/0+$/, "").padEnd(2, "0")}`;
+};
+const eventsOf = (st, status) => {
+  if (!status) return [];
+  if (status.kind !== STATUS_KIND || status.statement !== st.sha256) throw new Error("The status file is another statement's: it names another sha256.");
+  return status.events;
+};
+/** statement.lines_now: the lines with the last settlement recorded for each, and who approved it. */
+export function statementLines(st, status = null) {
+  const events = eventsOf(st, status);
+  return st.lines.map((ln) => {
+    const paid = events.filter((e) => e.type === "settlement" && e.line === ln.invoice_line), last = paid[paid.length - 1];
+    const ok = events.find((e) => e.type === "approval" && e.lines.includes(ln.invoice_line));
+    return { ...ln, settlement: last ? last.settlement : null, payment: last ? last.state : ln.payment, approved_by: ok ? `${ok.by} (${ok.role}) on ${ok.on}` : "" };
+  });
+}
+/** statement.answers: what whoever approves the invoice asks, answered in order: [[question, answer]]. */
+export function statementAnswers(st, status = null) {
+  const now = statementLines(st, status), scale = st.scale, priced = Boolean(st.totals.billed.amount), unit = st.currency ? ` ${st.currency}` : "";
+  const said = (rows) => `${rows.length} ${rows.length === 1 ? "line" : "lines"}${priced ? `, ${stAmount(rows.reduce((a, r) => a + stUnits(r.amount, scale), 0n), scale)}${unit}` : ""}`;
+  const of = (state) => now.filter((r) => r.state === state);
+  const approvals = eventsOf(st, status).filter((e) => e.type === "approval"), agreed = of("agreed"), waiting = agreed.filter((r) => !r.approved_by);
+  const paid = now.filter((r) => r.payment === "paid_outside" || r.payment === "devnet_demonstration"), wrongly = paid.filter((r) => r.state !== "agreed");
+  let approved = approvals.map((e) => `${e.lines.length} agreed ${e.lines.length === 1 ? "line" : "lines"}${priced ? `, ${e.amount}${unit}` : ""} by ${e.by} (${e.role}) on ${e.on}, role as stated`).join("; ") || "nobody yet";
+  if (approvals.length && waiting.length) approved += `; ${waiting.length} agreed not yet approved`;
+  const twice = of("duplicate");
+  return [
+    ["Authorised", st.source === "shadow" ? "not known here: a shadow run reads the invoice and GitHub, not the order"
+      : `${new Set(now.map((r) => r.deliverable)).size} deliverables, each a milestone of an order both ledgers name`],
+    ["Billed", `${said(now)} on invoice ${st.invoice}${st.supplier ? ` from ${st.supplier}` : ""}`],
+    ["Delivered", `${now.filter((r) => r.evaluations.length).length} of ${now.length} lines name work that was evaluated`],
+    ["Passed", `${said(agreed)} agreed`],
+    ["Already billed", said(twice) + (twice.length ? `: ${twice.map((r) => `line ${r.line} (${r.duplicate_of})`).join("; ")}` : "")],
+    ["Approved", approved],
+    ["Disputed", `${said(of("disputed"))}, open`],
+    ["Insufficient evidence", `${said(of("insufficient_evidence"))}, open`],
+    ["Credited", `${said(now.filter((r) => r.payment === "refunded"))} refunded${wrongly.length ? `; ${said(wrongly)} paid though not agreed, to be credited or settled` : ""}`],
+    ["Paid", said(paid) + (paid.length ? ` (${[...new Set(paid.map((r) => PAY_WORDS[r.payment]))].sort().join(", ")})` : "")],
+    ["Owed", `${said(agreed.filter((r) => r.payment === "payable"))} payable`],
+  ];
+}
+/** statement.cells: everything the CSV and the printed page say, as text. `statusHash`: sha256 of the status file's canonical text. */
+export async function statementCells(st, status = null) {
+  const ev = st.evidence, events = eventsOf(st, status);
+  const top = [["invoice", st.invoice], ["date", st.date], ["supplier", st.supplier], ["buyer", st.buyer], ["currency", st.currency],
+    ["made from", { shadow: "a shadow run: the invoice against GitHub's record", month: "a closed month of the meter" }[st.source]],
+    ["evidence sha256", ev.sha256],
+    ["evidence", `${ev.embedded !== null && ev.embedded !== undefined ? "inside the statement" : "in a file beside the statement"}; ${ev.signed.length ? `signed through GitHub by the ${ev.signed.join(" and the ")}` : "not signed"}`],
+    ["status sha256", events.length ? await sha256Hex(canonicalText(status)) : "none recorded"]];
+  const rows = statementLines(st, status).map((r) => [String(r.line), r.reference, r.supplier, LINE_WORDS[r.state], r.amount, r.why, r.deliverable, r.evaluations.join(" "),
+    r.invoice_line, r.settlement || "", PAY_WORDS[r.payment], r.evidence, r.evidence_sha256, r.duplicate_of]);
+  const totals = ["billed", ...LINE_STATES].map((name) => [name === "billed" ? name : LINE_WORDS[name], String(st.totals[name].lines), st.totals[name].amount]);
+  const recorded = events.map((e) => (e.type === "approval" ? ["approval", e.on, `${e.by} (${e.role})`, `${e.lines.length} agreed lines`, e.amount]
+    : ["settlement", e.on, e.line, `${PAY_WORDS[e.state]} by ${e.method}, reference ${e.reference}`, e.settlement]));
+  return { top, head: [...STATEMENT_HEAD], rows, totals, answers: statementAnswers(st, status), events: recorded };
+}
+// statement._cell: a quote before text a spreadsheet would run as a formula (never before a plain number), then RFC 4180 quoting
+const stCell = (v) => { let t = v === null || v === undefined ? "" : String(v); if (!/^-?\d+(\.\d+)?$/.test(t) && /^[=+\-@]/.test(t)) t = `'${t}`; return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+/** statement.as_csv: the statement's CSV, the bytes `knos statement make` writes. */
+export async function statementCsv(st, status = null) {
+  const c = await statementCells(st, status);
+  const out = [[STATEMENT_KIND, String(st.version), st.sha256], ...c.top, c.head, ...c.rows, ...c.totals.map((t) => ["total", ...t]), ...c.answers.map((a) => ["answer", ...a]),
+    ...c.events, ["note", st.note]];
+  return out.map((row) => `${row.map(stCell).join(",")}\n`).join("");
+}
+/** exports.write_statement: the file an accounting system imports. Agreed lines only are bills; the generic file lists every line. */
+export async function statementExport(fmt, st, status = null, options = null) {
+  if (!STATEMENT_FORMATS.includes(fmt)) throw new Error(`--format is ${STATEMENT_FORMATS.join(", ")}; "${fmt}" is none of them.`);
+  const o = { ...DEFAULTS, ...Object.fromEntries(Object.entries(options || {}).filter(([, v]) => v)) }, found = [];
+  for (const ln of statementLines(st, status)) {
+    const words = LINE_WORDS[ln.state], paid = PAY_WORDS[ln.payment];
+    found.push({ bill: ln.state === "agreed", bill_no: await billNumber(ln.deliverable, ln.supplier), line: ln.line, state: words, payment: paid, date: st.date, supplier: ln.supplier,
+      reference: ln.reference, amount: ln.amount, currency: st.currency, why: ln.why, deliverable: ln.deliverable, evaluations: ln.evaluations.join(" "), invoice_line: ln.invoice_line,
+      settlement: ln.settlement || "", evidence: ln.evidence, evidence_sha256: ln.evidence_sha256, duplicate_of: ln.duplicate_of, statement_sha256: st.sha256,
+      description: `Invoice ${st.invoice} line ${ln.line}: ${ln.reference}`.replace(/[: ]+$/, ""),
+      memo: [`${words}, ${paid}`, `Knos statement sha256:${st.sha256}`, `deliverable ${ln.deliverable}`, `invoice line ${ln.invoice_line}`, ...ln.evaluations.map((e) => `evaluation ${e}`),
+        ln.settlement ? `settlement ${ln.settlement}` : ""].filter(Boolean).join(" | ") });
+  }
+  const billed = found.filter((b) => b.bill && b.amount), when = (b) => day(b.date, o.date_format || FORMATS[fmt].date);
+  if (fmt === "netsuite") return csvOf([NETSUITE, ...billed.map((b) => [b.bill_no, b.supplier, when(b), b.bill_no, b.memo, o.account, b.amount, b.description])]);
+  if (fmt === "quickbooks") return csvOf([QUICKBOOKS, ...billed.map((b) => [b.bill_no, b.supplier, when(b), when(b), o.account, b.description, b.amount, o.tax_code, b.memo])]);
+  return csvOf([[EXPORT_TYPE, "version", EXPORT_VERSION, "statement", LABEL], STATEMENT_GENERIC, ...found.map((b) => STATEMENT_GENERIC.map((c) => b[c]))]);
 }

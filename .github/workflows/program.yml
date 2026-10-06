@@ -8,7 +8,7 @@ name: program
 #                   verifier's own arithmetic, and the programs' unit tests), then cargo build-sbf (pinned, cached
 #                   agave) for knos-oidc, knos-pay and, with the first deployment, the example consumer; with the
 #                   second, knos-meter and knos-passkey too, and the three example programs that build against it
-#                   (examples/cpi_fund, workflow_vault, upgrade_gate). The deployment's committed test binaries are
+#                   (examples/cpi_fund, workflow_vault, upgrade_gate, reader_template). The deployment's committed test binaries are
 #                   removed before the build, so the LiteSVM tests can only load what THIS commit's source built: the
 #                   differential test against OpenSSL, the attack tests, the work orders' tests (the order itself,
 #                   its judges, its terms), the meter's and the passkey wallet's tests, the examples' tests,
@@ -38,8 +38,9 @@ name: program
 #                   The corpus is the `fuzz-claims-corpus` artifact. An input that fails a target fails the job and
 #                   is kept in the `fuzz-claims-crash` artifact. Nothing is committed by this job.
 #   kani            the fee and conservation arithmetic of knos-pay under the Kani model checker (cargo kani in
-#                   programs-v2/knos_pay: the harnesses of src/proofs.rs). Only on the nightly run and when started by
-#                   hand. A harness that fails fails the job.
+#                   programs-v2/knos_pay: the harnesses of src/proofs.rs; then in programs-v2/fee_proofs: the bounds
+#                   of an order's fee, tier by tier). Only on the nightly run and when started by hand. A harness
+#                   that fails fails the job.
 #   verified-build  `solana-verify build` (pinned docker image) for each program, knos-meter and knos-passkey of
 #                   the second deployment among them, and the upgrade gate example: the reproducible binary. These
 #                   artifacts are what gets deployed; `knos mainnet-check` compares the on-chain bytes with them.
@@ -104,10 +105,10 @@ jobs:
             suffix: ""
           - deployment: second
             workspace: programs-v2
-            also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target"
+            also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target\nexamples/reader_template -> ../target"
             cargo-test: programs-v2
             build: scripts/build_programs_v2.sh
-            tests: tests/test_oidc2_*.py tests/test_oidc_differential.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py
+            tests: tests/test_oidc2_*.py tests/test_oidc_differential.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py tests/test_reader_template.py
             suffix: "-v2"
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -194,7 +195,7 @@ jobs:
         walk: [1, 2, 3, 4]
         include:
           - {deployment: first, workspace: programs, also: examples/oidc_gate, build: scripts/build_programs.sh, tests: tests/test_pay_chain.py}
-          - {deployment: second, workspace: programs-v2, also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target", build: scripts/build_programs_v2.sh, tests: "tests/test_pay2_*.py"}
+          - {deployment: second, workspace: programs-v2, also: "examples/cpi_fund -> ../target\nexamples/workflow_vault -> ../target\nexamples/upgrade_gate -> ../target\nexamples/reader_template -> ../target", build: scripts/build_programs_v2.sh, tests: "tests/test_pay2_*.py"}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -390,6 +391,13 @@ jobs:
         with:
           kani-version: "0.68.0"
           working-directory: programs-v2/knos_pay
+          args: --output-format terse
+      # the bounds of an order's fee, on the program's own lines (programs-v2/fee_proofs copies them out as text):
+      # every harness of its src/lib.rs, `cargo kani` there. docs/kani.json `fee_proofs` records what each proves
+      - uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
+        with:
+          kani-version: "0.68.0"
+          working-directory: programs-v2/fee_proofs
           args: --output-format terse
 
   verified-build:

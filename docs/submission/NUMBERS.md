@@ -13,8 +13,8 @@ counted.
 | # | number | value | where it is read |
 |---|---|---|---|
 | 1 | Outside funders: accounts other than Knos's that funded a task with their own tokens | 0 | `docs/bench.json`, `devnet.stats.outside.funders` |
-| 2 | Outside repositories: repositories not owned by Knos in which a task was funded | 0 | `docs/bench.json`, `devnet.stats.outside.funded` is 0: no outside task, so no outside repository |
-| 3 | Outside payees: GitHub accounts other than the funder's that were paid | 1 | `docs/bench.json`, `release.payments_between_unrelated_accounts.source`: the accounts it names, on tasks Knos funded itself |
+| 2 | Outside repositories: repositories not owned by Knos in which a task was funded | 0 | `docs/bench.json`, `devnet.stats.outsiders` (scripts/outsiders.py, in the site's build) |
+| 3 | Outside payees: GitHub accounts other than the funder's that were paid | 1 | `docs/bench.json`, `devnet.stats.outsiders` (scripts/outsiders.py, in the site's build) |
 | 4 | Payments between unrelated accounts: payments whose payee is another GitHub account than the funder | 3 | `docs/bench.json`, `release.payments_between_unrelated_accounts`, read from the escrows' logs |
 | 5 | Buyer interviews held | 0 | `docs/facts.json`, `by_hand`: a person changes it; [DISCLOSURE.md](../DISCLOSURE.md) says the same; [INTERVIEWS.md](INTERVIEWS.md) is the kit, unused |
 | 6 | Letters of intent | 0 | `docs/facts.json`, `by_hand`: a person changes it; [DISCLOSURE.md](../DISCLOSURE.md) says the same |

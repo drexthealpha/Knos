@@ -86,20 +86,84 @@ def _width(text: str) -> int:
     return round(len(text) * 6.4) + 12
 
 
-def svg(data: dict) -> str:
-    """The badge, self-contained: no script, no link, no font file. web/badge.js `badgeSvg` writes the same bytes."""
-    msg, tip = message(data), title(data)
+def _draw(label: str, msg: str, tip: str, colour: str) -> str:
     m = MARK["width"] + 7                                                # the mark, 5 from the edge and 2 before the words
-    a, b = _width(LABEL) + m, _width(msg)
-    colour = "#57606a" if data.get("money") == TEST else "#1a7f37"       # test money is grey; green is kept for real money
+    a, b = _width(label) + m, _width(msg)
     e = html.escape
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{a + b}" height="20" viewBox="0 0 {a + b} 20" role="img" '
-            f'aria-label="{e(LABEL)}: {e(msg)}"><title>{e(tip)}</title>'
+            f'aria-label="{e(label)}: {e(msg)}"><title>{e(tip)}</title>'
             f'<rect width="{a}" height="20" fill="#24292f"/><rect x="{a}" width="{b}" height="20" fill="{colour}"/>'
             f'<g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle">'
             f'<path fill-rule="evenodd" transform="{MARK["transform"]}" d="{MARK["d"]}"/>'
-            f'<text x="{(a + m) / 2:g}" y="14" textLength="{a - m - 12}">{e(LABEL)}</text>'
+            f'<text x="{(a + m) / 2:g}" y="14" textLength="{a - m - 12}">{e(label)}</text>'
             f'<text x="{a + b / 2:g}" y="14" textLength="{b - 12}">{e(msg)}</text></g></svg>\n')
+
+
+def svg(data: dict) -> str:
+    """The badge, self-contained: no script, no link, no font file. web/badge.js `badgeSvg` writes the same bytes."""
+    colour = "#57606a" if data.get("money") == TEST else "#1a7f37"       # test money is grey; green is kept for real money
+    return _draw(LABEL, message(data), title(data), colour)
+
+
+# ---- the "Knos-verified" badge ---------------------------------------------------------------------------------------
+# Issued from one acceptance receipt that checks, and from nothing else. There is no other way to get one.
+
+VERIFIED_LABEL = "Knos-verified"
+NOT_FOR_SALE = "This badge is issued only from a receipt that checks. It cannot be bought, and the party it is about never pays for it."
+
+
+def verified(receipt, digest: str | None = None, disputed: bool = False) -> dict:
+    """Whether one deliverable gets the badge, and the evidence it links to. `receipt`: an acceptance receipt
+    (docs/RECEIPT.md). `digest`: the digest the receipt was published under, when the caller has one; a receipt that
+    does not hash to it gets no badge. `disputed`: somebody contested the verdict and nobody resolved it yet.
+
+    Returns {issued, verdict, words, why, digest, repository_id, pull_request, commit, evidence, note}. `issued` is
+    True only for a receipt that passes every rule of `knos.receipt.check` and whose verdict is accepted. `verdict`
+    is one of knos.ids.VERDICTS: a receipt that does not check is insufficient evidence, never a rejection."""
+    from . import ids
+    from . import receipt as rc
+    out: dict = {"issued": False, "verdict": "insufficient_evidence", "why": "", "digest": None, "repository_id": None, "pull_request": None,
+                 "commit": None, "evidence": [], "note": NOT_FOR_SALE}
+    why = rc.check(receipt)
+    if why is None and receipt.get("version", 1) < 2:
+        why = "a version 1 receipt names no verdict: upgrade it (knos.receipt.upgrade) and check again"
+    if why is None and digest is not None and rc.digest(receipt) != digest.lower():
+        why = "the receipt does not hash to the digest it was published under"
+    if why is None:
+        seen = receipt["evaluator_observed"]
+        out["verdict"] = "disputed" if disputed else ids.verdict(seen["verdict"])
+        out.update(digest=rc.digest(receipt), repository_id=(receipt.get("repository") or {}).get("id"),
+                   pull_request=seen["artifact"].get("pull_request"), commit=seen["artifact"].get("commit"))
+        on = {"devnet": "?cluster=devnet", "testnet": "?cluster=testnet", "mainnet": "", "mainnet-beta": ""}.get(str(receipt.get("cluster")))
+        tx = ((receipt.get("issuer_authenticated") or {}).get("verified") or {}).get("transaction")
+        if on is not None and tx:           # a local or unknown cluster has no public page: the digest is the evidence
+            out["evidence"].append({"what": "the transaction in which the signature was verified", "url": f"https://explorer.solana.com/tx/{tx}{on}"})
+            out["evidence"].append({"what": "the order's account", "url": f"https://explorer.solana.com/address/{receipt['order']}{on}"})
+        why = "somebody contested this verdict and nobody has resolved it" if disputed else ""
+    out["issued"] = out["verdict"] in ids.BILLABLE and not why
+    out["words"], out["why"] = ids.VERDICT_WORDS[out["verdict"]], why or ""
+    return out
+
+
+def verified_message(v: dict) -> str:
+    what = f"#{v['pull_request']}" if v.get("pull_request") else str(v.get("commit") or "")[:12]
+    return f"{what}: {v['words']}, receipt {str(v['digest'])[:12]}"
+
+
+def verified_svg(v: dict) -> str:
+    """The badge for a result `verified` issued. ValueError for anything else: there is no badge for a verdict that
+    is not accepted. web/badge.js `verifiedSvg` writes the same bytes."""
+    if v.get("issued") is not True or v.get("verdict") != "accepted" or not v.get("digest"):
+        raise ValueError(f"no badge: {v.get('why') or v.get('words') or 'no receipt that checks'}")
+    tip = (f"Knos-verified: the acceptance receipt {v['digest']} checks and its verdict is accepted. It says the agreed checks passed, "
+           f"not that the work is good. {NOT_FOR_SALE}")
+    return _draw(VERIFIED_LABEL, verified_message(v), tip, "#1a7f37")
+
+
+def verified_markdown(v: dict, image: str) -> str:
+    """The line to paste: the badge, linked to the first piece of evidence (or to the receipt's specification)."""
+    to = v["evidence"][0]["url"] if v.get("evidence") else "https://github.com/drexthealpha/Knos/blob/main/docs/RECEIPT.md"
+    return f"[![{VERIFIED_LABEL}: {verified_message(v)}]({image})]({to})"
 
 
 def receipt_url(repo: str) -> str:

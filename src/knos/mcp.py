@@ -45,8 +45,9 @@ import sys
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from typing import Any, cast
 
-from . import version
+from . import preflight, version
 
 PROTOCOL = "2026-07-28"
 SESSION_PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")   # what an `initialize` may ask for
@@ -188,6 +189,7 @@ TOOLS = [
            "base": {"type": "string", "description": "a checkout of the repository's default branch on this machine (needed for tests and auto orders)"},
            "branch": {"type": "string", "description": "the branch you pushed to your fork"},
            "title": {"type": "string", "description": "the pull request's title, one line"}}, ["issue", "path", "branch", "title"], acts=True),
+    _tool(*cast("tuple[str, str, str, dict, list[str]]", tuple(preflight.MCP_TOOL[k] for k in ("name", "title", "description", "properties", "required")))),
     _tool("knos_collect", "What is held or paid for you",
           "What the chain holds and has paid for your GitHub account (the token's, or `login` to only read another's), and "
           "where it is paid. When money is held and no wallet is bound, binds your agent key's address through your "
@@ -309,6 +311,7 @@ class Server:
                        "knos_can_pay": self._can_pay, "knos_take": self._take, "knos_address": self._address,
                        "knos_fund": self._fund, "knos_settle": self._settle, "knos_find_work": self._find_work,
                        "knos_take_work": self._take_work, "knos_submit_work": self._submit_work, "knos_collect": self._collect}
+        self._tools["knos_preflight"] = lambda a: preflight.mcp(a, self._get)      # src/knos/preflight.py: the same report `knos preflight` prints
 
     # -- the protocol -------------------------------------------------------------------------------------------
     def line(self, text: str):
@@ -519,7 +522,7 @@ class Server:
         second = self._chain(lambda ledger: ledger.program_accounts(pay.PAY_ID, pay.JOB_LEN, {0: bytes([1])}))
         first = self._chain(lambda ledger: ledger.program_accounts(pay1.PAY_ID, 256, {0: bytes([1])}))
         now = self._chain(lambda ledger: ledger.now())
-        jobs = [(2, addr, j) for addr, j in ((addr, pay.read_job(data)) for addr, data in second) if j and j.state == "open"]
+        jobs: list[tuple[int, Any, pay.Job | pay1.Job]] = [(2, addr, j) for addr, j in ((addr, pay.read_job(data)) for addr, data in second) if j and j.state == "open"]
         jobs += [(1, addr, j) for addr, j in ((addr, pay1.read_job(data)) for addr, data in first) if j]
         jobs = [x for x in jobs if x[2].deadline > now and (only is None or x[2].repo_id in only)]   # past its deadline: being refunded
         # test USDC first, largest first: anyone can fund a job in a token of their own making, and its number says nothing
@@ -585,7 +588,7 @@ class Server:
         head, body = str(pr["head"]["sha"]), pr.get("body") or ""
         if not re.fullmatch(r"[0-9a-f]{40}", head):
             raise Failed(f"GitHub's answer for {repo}#{n} is not a pull request.")
-        out = {"pr": f"{repo}#{n}", "head": head, "failed": 0, "untrusted": {"failed_checks": []}}
+        out: dict[str, Any] = {"pr": f"{repo}#{n}", "head": head, "failed": 0, "untrusted": {"failed_checks": []}}
         kinds = sorted(claims.read(body).kinds & set(SAID))
         out["claims"] = [SAID[k] for k in kinds]
         if not kinds:
@@ -803,7 +806,7 @@ class Server:
         else:
             orders = self._chain(lambda ledger: ledger.program_accounts(pay.PAY_ID, pay.ORDER_LEN, {0: bytes([2, 1])}))
             jobs = self._chain(lambda ledger: ledger.program_accounts(pay.PAY_ID, pay.JOB_LEN, {0: bytes([1])}))
-        found = [(a, o, True) for a, o in ((a, pay.read_order(d)) for a, d in orders)
+        found: list[tuple[Any, pay.Order | pay.Job, bool]] = [(a, o, True) for a, o in ((a, pay.read_order(d)) for a, d in orders)
                  if o and o.state == "open" and o.repo_id and not o.flags & (pay.F_PRIVATE | pay.F_STANDING)]
         found += [(a, j, False) for a, j in ((a, pay.read_job(d)) for a, d in jobs) if j and j.state == "open"]
         return sorted((x for x in found if x[1].deadline > now and (only is None or x[1].repo_id in only)),
@@ -843,6 +846,7 @@ class Server:
                 only.add(rid)
                 self._names[rid] = name
         now = self._chain(lambda ledger: ledger.now())
+        rows: list[dict]
         rows, asking, skipped = [], [True], {"reserved": 0, "assigned": 0}
         for addr, w, is_order in self._open_work(now, only)[:200]:      # at most 200 looked at: one GitHub request each
             if len(rows) >= args["limit"]:
@@ -1058,6 +1062,7 @@ class Server:
             about = self._about_of(page)
         except (KeyError, TypeError):
             pass
+        balances: dict[int, list]
         rows, missing, unread, balances, total, net = [], [], [], {}, 0, 0
         for addr, j in sorted(jobs, key=lambda x: (not _is_usdc(x[1].mint), -x[1].amount, str(x[0]))):
             row = {**self._row2(addr, j, repo), "state": j.state, "mode": "merge" if j.mode == 0 else "tests"}
@@ -1157,10 +1162,10 @@ class Server:
                         best[name] = state if best[name] in ("absent", "unreadable") or state == "passed" else best[name]
                 states = best
             passed = None if states is None else sum(v == "passed" for v in states.values())
-            ok = None if None in (pinned, passed) else bool(pinned and key_ok and passed == len(states))
+            ok = None if pinned is None or passed is None or states is None else bool(pinned and key_ok and passed == len(states))
             if pinned is False:
                 missing.append(f"the workflow job {addr} pins is not called by a workflow file on the default branch at its pinned commit {j.wf_sha[:12]}")
-            if states is not None and passed < len(states):
+            if states is not None and passed is not None and passed < len(states):
                 missing.append(f"{len(states) - passed} of the {len(states)} checks named for job {addr} did not run and pass on the default branch in the last 30 days")
             rows.append({"job": str(addr), "pinned_workflow_on_default_branch": pinned, "pinned_commit": j.wf_sha, "checks_named": None if states is None else len(states),
                          "checks_passed": passed, "can_pay": ok, "untrusted": _cap({"checks": None if states is None else [{"name": k, "state": v} for k, v in sorted(states.items())]})})

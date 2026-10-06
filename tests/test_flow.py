@@ -549,7 +549,7 @@ def test_every_other_knos_comment_gets_its_answer(tmp_path):
     def reply(n: int, who_: dict, body: str, code: int = 0) -> str:
         run = w.run(w.hub.commented(n, who_, body))
         assert flow.command(run) == code and run.outputs == {}
-        return plain(w.hub.knos(n)[-1], 1500 if "- `/knos help`: this list" in w.hub.knos(n)[-1] else 1100)     # the list of commands is the one long answer
+        return plain(w.hub.knos(n)[-1], 1700 if "- `/knos help`: this list" in w.hub.knos(n)[-1] else 1100)     # the list of commands is the one long answer
     # an agent's pull request: nobody is paid until GitHub authenticates a person
     assert reply(12, MONA, f"/knos address {ADDRESS}").startswith("Knos: `/knos address` is for the person this pull request pays. An address counts once")
     assert reply(12, EVE, "/knos mine") == ("Knos: `/knos mine` is for a person named in this pull request's assignees, when a bot account "
@@ -1875,3 +1875,15 @@ def test_the_four_commands_run_from_the_command_line(tmp_path, monkeypatch, caps
     assert main(["settle", "--event", str(tmp_path / "event.json"), "--repo", "just-a-name"]) == 1
     assert capsys.readouterr().out.strip() == "Name the repository as owner/name."
     assert main(["review", "--repo", REPO]) == 2                                           # no event at all: typer's own usage line
+
+
+def test_an_appeal_with_no_rejection_on_record_opens_nothing_and_says_so(tmp_path):
+    """`/knos appeal <reason>` (knos.appeal): the verdict a pull request has is what the judge's memory holds of its
+    settlement. With none there is nothing to appeal; without a reason the command is not read."""
+    w = bounty(tmp_path, author=DEVIN, body="Fixes #7")
+    run = w.run(w.hub.commented(12, DEVIN, "/knos appeal the regression test I added passes"))
+    assert flow.command(run) == 0 and run.outputs == {}
+    said = w.hub.knos(12)[-1]
+    assert said.startswith("Knos: no appeal was opened.") and said.endswith("(`appeal.nothing`)")
+    run = w.run(w.hub.commented(12, DEVIN, "/knos appeal"))
+    assert flow.command(run) == 0 and "say why after it" in w.hub.knos(12)[-1]

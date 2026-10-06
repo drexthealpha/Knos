@@ -1,0 +1,816 @@
+{
+ "format": "ids",
+ "version": 1,
+ "about": "The four ids (deliverable, evaluation, invoice line, settlement), the four verdicts and the rule that bills a deliverable once (src/knos/ids.py, src/knos/ledger.py `billed_once`; docs/METER.md, One deliverable is billed once). An id is its prefix (dlv, evl, inv, stl), an underscore and the first 24 hex characters of sha256(\"knos.id.v1\" || 0x00 || kind || 0x00 || for each part: its length in bytes as u32 big-endian, then its UTF-8 bytes); the kinds are deliverable, evaluation, invoice_line, settlement; a number is a part as its decimal text. ids.deliverable(scope, key); ids.evaluation(deliverable, artifact, policy, evaluator, run); ids.invoice_line(supplier, invoice, line); ids.settlement(deliverable, method, reference). ids.kind_of: the kind of an id, or null. ids.expect: the id when it is of the kind named, refused otherwise. ids.order_scope: an order as 64 lowercase hex characters, from that or from its base58 address of 32 to 44 characters. ids.verdict: the verdict a loose word means (case, spaces and hyphens do not matter; passed and clean mean accepted, failed and refused rejected, unverified, pending and none insufficient_evidence). ids.billed_once: the places, from 0, of the evaluations billed as outcomes: the first accepted of each deliverable.",
+ "cases": [
+  {
+   "id": "ids/1",
+   "op": "ids.deliverable",
+   "name": "an order's milestone 0",
+   "input": {
+    "scope": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "key": 0
+   },
+   "expect": {
+    "output": "dlv_d87a6e77c742a016c225809a"
+   }
+  },
+  {
+   "id": "ids/2",
+   "op": "ids.deliverable",
+   "name": "milestone 1 of the same order: another deliverable",
+   "input": {
+    "scope": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "key": 1
+   },
+   "expect": {
+    "output": "dlv_94567c8b0362678e2c8e04d9"
+   }
+  },
+  {
+   "id": "ids/3",
+   "op": "ids.deliverable",
+   "name": "the key as text is the same key",
+   "input": {
+    "scope": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "key": "1"
+   },
+   "expect": {
+    "output": "dlv_94567c8b0362678e2c8e04d9"
+   }
+  },
+  {
+   "id": "ids/4",
+   "op": "ids.deliverable",
+   "name": "a standing offer's task, by its key",
+   "input": {
+    "scope": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "key": "task/ünï-7"
+   },
+   "expect": {
+    "output": "dlv_4ac1bb64288b9827a7d51c83"
+   }
+  },
+  {
+   "id": "ids/5",
+   "op": "ids.deliverable",
+   "name": "parts are length-prefixed: (ab, c) is not (a, bc)",
+   "input": {
+    "scope": "ab",
+    "key": "c"
+   },
+   "expect": {
+    "output": "dlv_49da1eec0e66f492d6ba6cf5"
+   }
+  },
+  {
+   "id": "ids/6",
+   "op": "ids.deliverable",
+   "name": "the other split",
+   "input": {
+    "scope": "a",
+    "key": "bc"
+   },
+   "expect": {
+    "output": "dlv_631594e321ba72deb58e18a2"
+   }
+  },
+  {
+   "id": "ids/7",
+   "op": "ids.deliverable",
+   "name": "a reopening after the warranty, when the terms allow one",
+   "input": {
+    "scope": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "key": "0/reopened/1"
+   },
+   "expect": {
+    "output": "dlv_0732c1c9c829a15605dd66cc"
+   }
+  },
+  {
+   "id": "ids/8",
+   "op": "ids.evaluation",
+   "name": "one run on one artifact",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "evaluator": "repository@cccccccccccccccccccccccccccccccccccccccc",
+    "run": "36905461215"
+   },
+   "expect": {
+    "output": "evl_2e777f0a6f44d1b8865d450a"
+   }
+  },
+  {
+   "id": "ids/9",
+   "op": "ids.evaluation",
+   "name": "a retry: the same artifact, another run",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "evaluator": "repository@cccccccccccccccccccccccccccccccccccccccc",
+    "run": "36905461216"
+   },
+   "expect": {
+    "output": "evl_9a25052a3e0d8ddd585fe69e"
+   }
+  },
+  {
+   "id": "ids/10",
+   "op": "ids.evaluation",
+   "name": "an alternate branch: another artifact",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "artifact": "78b3ba12002f9cab5cbb57fac87d8c703702a196",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "evaluator": "repository@cccccccccccccccccccccccccccccccccccccccc",
+    "run": "36905461215"
+   },
+   "expect": {
+    "output": "evl_e5f40ab8a7247a24b28d7c88"
+   }
+  },
+  {
+   "id": "ids/11",
+   "op": "ids.evaluation",
+   "name": "another evaluator",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "evaluator": "neutral@cccccccccccccccccccccccccccccccccccccccc",
+    "run": "36905461215"
+   },
+   "expect": {
+    "output": "evl_0ad37a63ee0ca1413b065b2a"
+   }
+  },
+  {
+   "id": "ids/12",
+   "op": "ids.evaluation",
+   "name": "a ledger line that names no evaluator and no run",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "evaluator": "",
+    "run": ""
+   },
+   "expect": {
+    "output": "evl_fb5696bb3566346dab925742"
+   }
+  },
+  {
+   "id": "ids/13",
+   "op": "ids.evaluation",
+   "name": "the run as a number is the same run",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "evaluator": "repository@cccccccccccccccccccccccccccccccccccccccc",
+    "run": 36905461215
+   },
+   "expect": {
+    "output": "evl_2e777f0a6f44d1b8865d450a"
+   }
+  },
+  {
+   "id": "ids/14",
+   "op": "ids.invoice_line",
+   "name": "a supplier's invoice line",
+   "input": {
+    "supplier": "555000",
+    "invoice": "INV-2026-10-007",
+    "line": 3
+   },
+   "expect": {
+    "output": "inv_2c706d7d70c4b39894f720e8"
+   }
+  },
+  {
+   "id": "ids/15",
+   "op": "ids.invoice_line",
+   "name": "the next line of that invoice",
+   "input": {
+    "supplier": "555000",
+    "invoice": "INV-2026-10-007",
+    "line": 4
+   },
+   "expect": {
+    "output": "inv_bc6417ddb58a0b7835a5bbd7"
+   }
+  },
+  {
+   "id": "ids/16",
+   "op": "ids.invoice_line",
+   "name": "another supplier, the same invoice number",
+   "input": {
+    "supplier": "555001",
+    "invoice": "INV-2026-10-007",
+    "line": 3
+   },
+   "expect": {
+    "output": "inv_4edcb51dfc0529f083cd4c33"
+   }
+  },
+  {
+   "id": "ids/17",
+   "op": "ids.settlement",
+   "name": "paid on chain",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "method": "chain",
+    "reference": "35uS8fqUd1ARccqYuFaEbZy2kbFHr9uGcWLSg8FP1358V5Y8EEThyu4USBfHEhMjxd3QMKoNUMtHuhtMYKBXWcye"
+   },
+   "expect": {
+    "output": "stl_623019b86adde45c09533145"
+   }
+  },
+  {
+   "id": "ids/18",
+   "op": "ids.settlement",
+   "name": "paid by bank",
+   "input": {
+    "deliverable": "dlv_d87a6e77c742a016c225809a",
+    "method": "bank",
+    "reference": "REF 2026/10/31-0042"
+   },
+   "expect": {
+    "output": "stl_0d01f7616fe0ff80c6ab6c19"
+   }
+  },
+  {
+   "id": "ids/19",
+   "op": "ids.order_scope",
+   "name": "an order as hex is its own scope",
+   "input": {
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386"
+   },
+   "expect": {
+    "output": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386"
+   }
+  },
+  {
+   "id": "ids/20",
+   "op": "ids.order_scope",
+   "name": "an order's base58 address is its 32 bytes",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp"
+   },
+   "expect": {
+    "output": "fcd96b2b2f3274f2f536aefd2358ac0cc803af50b4c2827615329980508dfa8d"
+   }
+  },
+  {
+   "id": "ids/21",
+   "op": "ids.order_scope",
+   "name": "the all-zero address",
+   "input": {
+    "order": "11111111111111111111111111111111"
+   },
+   "expect": {
+    "output": "0000000000000000000000000000000000000000000000000000000000000000"
+   }
+  },
+  {
+   "id": "ids/22",
+   "op": "ids.order_scope",
+   "name": "upper-case hex is not an order",
+   "input": {
+    "order": "955A3624EE51A2FF55343CA8F0FA1CAE4D5FBA7CD383F53F2C342BE6B00FA386"
+   },
+   "expect": {
+    "refused": true,
+    "why": "64 lowercase hex characters, or a base58 address"
+   }
+  },
+  {
+   "id": "ids/23",
+   "op": "ids.order_scope",
+   "name": "a base58 text of more than 32 bytes",
+   "input": {
+    "order": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   "expect": {
+    "refused": true,
+    "why": "more than 32 bytes"
+   }
+  },
+  {
+   "id": "ids/24",
+   "op": "ids.order_scope",
+   "name": "a character base58 does not have",
+   "input": {
+    "order": "0222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp"
+   },
+   "expect": {
+    "refused": true,
+    "why": "not base58"
+   }
+  },
+  {
+   "id": "ids/25",
+   "op": "ids.kind_of",
+   "name": "the kind of a deliverable id",
+   "input": {
+    "id": "dlv_d87a6e77c742a016c225809a"
+   },
+   "expect": {
+    "output": "deliverable"
+   }
+  },
+  {
+   "id": "ids/26",
+   "op": "ids.kind_of",
+   "name": "the kind of a evaluation id",
+   "input": {
+    "id": "evl_fb5696bb3566346dab925742"
+   },
+   "expect": {
+    "output": "evaluation"
+   }
+  },
+  {
+   "id": "ids/27",
+   "op": "ids.kind_of",
+   "name": "the kind of a invoice line id",
+   "input": {
+    "id": "inv_808da02e677eb86bd250107d"
+   },
+   "expect": {
+    "output": "invoice_line"
+   }
+  },
+  {
+   "id": "ids/28",
+   "op": "ids.kind_of",
+   "name": "the kind of a settlement id",
+   "input": {
+    "id": "stl_623019b86adde45c09533145"
+   },
+   "expect": {
+    "output": "settlement"
+   }
+  },
+  {
+   "id": "ids/29",
+   "op": "ids.kind_of",
+   "name": "a prefix nobody has",
+   "input": {
+    "id": "xyz_d87a6e77c742a016c225809a"
+   },
+   "expect": {
+    "output": null
+   }
+  },
+  {
+   "id": "ids/30",
+   "op": "ids.kind_of",
+   "name": "23 characters after the prefix",
+   "input": {
+    "id": "dlv_d87a6e77c742a016c225809"
+   },
+   "expect": {
+    "output": null
+   }
+  },
+  {
+   "id": "ids/31",
+   "op": "ids.kind_of",
+   "name": "upper-case hex",
+   "input": {
+    "id": "dlv_D87A6E77C742A016C225809A"
+   },
+   "expect": {
+    "output": null
+   }
+  },
+  {
+   "id": "ids/32",
+   "op": "ids.kind_of",
+   "name": "a 64-character evaluation id of the ledger is none of the four",
+   "input": {
+    "id": "53b14b764c976ac738fe96c362fb6b36f61950900ac4efa853d5bb3911ca03b0"
+   },
+   "expect": {
+    "output": null
+   }
+  },
+  {
+   "id": "ids/33",
+   "op": "ids.expect",
+   "name": "a deliverable id where a deliverable is expected",
+   "input": {
+    "kind": "deliverable",
+    "id": "dlv_d87a6e77c742a016c225809a"
+   },
+   "expect": {
+    "output": "dlv_d87a6e77c742a016c225809a"
+   }
+  },
+  {
+   "id": "ids/34",
+   "op": "ids.expect",
+   "name": "an evaluation id where a deliverable is expected",
+   "input": {
+    "kind": "deliverable",
+    "id": "evl_fb5696bb3566346dab925742"
+   },
+   "expect": {
+    "refused": true,
+    "why": "an id of one kind is refused where another is expected"
+   }
+  },
+  {
+   "id": "ids/35",
+   "op": "ids.expect",
+   "name": "a deliverable id where a settlement is expected",
+   "input": {
+    "kind": "settlement",
+    "id": "dlv_d87a6e77c742a016c225809a"
+   },
+   "expect": {
+    "refused": true,
+    "why": "an id of one kind is refused where another is expected"
+   }
+  },
+  {
+   "id": "ids/36",
+   "op": "ids.expect",
+   "name": "a settlement id where an invoice line is expected",
+   "input": {
+    "kind": "invoice_line",
+    "id": "stl_623019b86adde45c09533145"
+   },
+   "expect": {
+    "refused": true,
+    "why": "an id of one kind is refused where another is expected"
+   }
+  },
+  {
+   "id": "ids/37",
+   "op": "ids.expect",
+   "name": "an invoice line id where an evaluation is expected",
+   "input": {
+    "kind": "evaluation",
+    "id": "inv_808da02e677eb86bd250107d"
+   },
+   "expect": {
+    "refused": true,
+    "why": "an id of one kind is refused where another is expected"
+   }
+  },
+  {
+   "id": "ids/38",
+   "op": "ids.expect",
+   "name": "no id at all",
+   "input": {
+    "kind": "deliverable",
+    "id": "milestone 0"
+   },
+   "expect": {
+    "refused": true,
+    "why": "not an id"
+   }
+  },
+  {
+   "id": "ids/39",
+   "op": "ids.verdict",
+   "name": "the verdict 'accepted' means",
+   "input": {
+    "word": "accepted"
+   },
+   "expect": {
+    "output": "accepted"
+   }
+  },
+  {
+   "id": "ids/40",
+   "op": "ids.verdict",
+   "name": "the verdict 'Insufficient evidence' means",
+   "input": {
+    "word": "Insufficient evidence"
+   },
+   "expect": {
+    "output": "insufficient_evidence"
+   }
+  },
+  {
+   "id": "ids/41",
+   "op": "ids.verdict",
+   "name": "the verdict 'insufficient-evidence' means",
+   "input": {
+    "word": "insufficient-evidence"
+   },
+   "expect": {
+    "output": "insufficient_evidence"
+   }
+  },
+  {
+   "id": "ids/42",
+   "op": "ids.verdict",
+   "name": "the verdict 'disputed' means",
+   "input": {
+    "word": "disputed"
+   },
+   "expect": {
+    "output": "disputed"
+   }
+  },
+  {
+   "id": "ids/43",
+   "op": "ids.verdict",
+   "name": "the verdict 'passed' means",
+   "input": {
+    "word": "passed"
+   },
+   "expect": {
+    "output": "accepted"
+   }
+  },
+  {
+   "id": "ids/44",
+   "op": "ids.verdict",
+   "name": "the verdict 'failed' means",
+   "input": {
+    "word": "failed"
+   },
+   "expect": {
+    "output": "rejected"
+   }
+  },
+  {
+   "id": "ids/45",
+   "op": "ids.verdict",
+   "name": "the verdict 'unverified' means",
+   "input": {
+    "word": "unverified"
+   },
+   "expect": {
+    "output": "insufficient_evidence"
+   }
+  },
+  {
+   "id": "ids/46",
+   "op": "ids.verdict",
+   "name": "the verdict 'pending' means",
+   "input": {
+    "word": "pending"
+   },
+   "expect": {
+    "output": "insufficient_evidence"
+   }
+  },
+  {
+   "id": "ids/47",
+   "op": "ids.verdict",
+   "name": "a word that is no verdict",
+   "input": {
+    "word": "approved"
+   },
+   "expect": {
+    "refused": true,
+    "why": "one of the four"
+   }
+  },
+  {
+   "id": "ids/48",
+   "op": "ids.verdict",
+   "name": "an empty word",
+   "input": {
+    "word": ""
+   },
+   "expect": {
+    "refused": true,
+    "why": "one of the four"
+   }
+  },
+  {
+   "id": "ids/49",
+   "op": "ids.billed_once",
+   "name": "two accepted evaluations of one deliverable bill once",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     }
+    ]
+   },
+   "expect": {
+    "output": [
+     0
+    ]
+   }
+  },
+  {
+   "id": "ids/50",
+   "op": "ids.billed_once",
+   "name": "a retry after a rejection: the accepted one is the outcome",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "rejected"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     }
+    ]
+   },
+   "expect": {
+    "output": [
+     1
+    ]
+   }
+  },
+  {
+   "id": "ids/51",
+   "op": "ids.billed_once",
+   "name": "an alternate branch accepted later is an evaluation",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "rejected"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     }
+    ]
+   },
+   "expect": {
+    "output": [
+     0
+    ]
+   }
+  },
+  {
+   "id": "ids/52",
+   "op": "ids.billed_once",
+   "name": "ten pull requests for one milestone: one outcome",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "rejected"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "rejected"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "rejected"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "rejected"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     }
+    ]
+   },
+   "expect": {
+    "output": [
+     4
+    ]
+   }
+  },
+  {
+   "id": "ids/53",
+   "op": "ids.billed_once",
+   "name": "two deliverables, one outcome each",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_94567c8b0362678e2c8e04d9",
+      "verdict": "insufficient_evidence"
+     },
+     {
+      "deliverable": "dlv_94567c8b0362678e2c8e04d9",
+      "verdict": "accepted"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "accepted"
+     }
+    ]
+   },
+   "expect": {
+    "output": [
+     0,
+     2
+    ]
+   }
+  },
+  {
+   "id": "ids/54",
+   "op": "ids.billed_once",
+   "name": "insufficient evidence and disputed are never billed",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "insufficient_evidence"
+     },
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "disputed"
+     },
+     {
+      "deliverable": "dlv_94567c8b0362678e2c8e04d9",
+      "verdict": "disputed"
+     }
+    ]
+   },
+   "expect": {
+    "output": []
+   }
+  },
+  {
+   "id": "ids/55",
+   "op": "ids.billed_once",
+   "name": "no evaluation, no outcome",
+   "input": {
+    "evaluations": []
+   },
+   "expect": {
+    "output": []
+   }
+  },
+  {
+   "id": "ids/56",
+   "op": "ids.billed_once",
+   "name": "an evaluation id where the deliverable goes",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "evl_fb5696bb3566346dab925742",
+      "verdict": "accepted"
+     }
+    ]
+   },
+   "expect": {
+    "refused": true,
+    "why": "an id of one kind is refused where another is expected"
+   }
+  },
+  {
+   "id": "ids/57",
+   "op": "ids.billed_once",
+   "name": "a word that is no verdict",
+   "input": {
+    "evaluations": [
+     {
+      "deliverable": "dlv_d87a6e77c742a016c225809a",
+      "verdict": "passed"
+     }
+    ]
+   },
+   "expect": {
+    "refused": true,
+    "why": "one of the four, as written"
+   }
+  }
+ ]
+}

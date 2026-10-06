@@ -68,6 +68,8 @@ def test_the_manifest_claims_no_more_than_is_true_today():
     more. What the release's rehearsal ran on devnet ran on staging programs of its own, never on a public one: those
     capabilities are `tested`, and each one's note gives its transaction and says it was a staging rehearsal. Nothing is
     exercised, and no document links an outside run, so nothing is reproduced."""
+    if DATA["programs"]["knos_pay"]["on_chain"] != "2.0":
+        pytest.skip("the upgrade has executed and scripts/exercise_public.py record moved the manifest; tests/test_exercise_public.py holds what record may write")
     assert DATA["programs"]["knos_pay"]["on_chain"] == DATA["programs"]["knos_oidc"]["on_chain"] == "2.0"
     assert DATA["programs"]["knos_meter"]["on_chain"] == DATA["programs"]["knos_passkey"]["on_chain"] == "1.0"
     for cid in ("seller_settle", "neutral_attest", "arbiter_rule", "top_up", "assign", "plans", "org_balance_limits", "verify_any_issuer", "holdback_release"):

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -161,12 +162,12 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         pull = _pull(event, repo_name, number)
         if pull is None:
             return None, {}, None
-        facts = {"issue": None, "events": None, "pull_comments": None, "issue_comments": None}
+        facts: dict[str, Any] = {"issue": None, "events": None, "pull_comments": None, "issue_comments": None}
         permission = user = None
         message = ""
         issue, issue_file = ("", None) if tip else (issue, issue_file)
         if repo_name:
-            facts = who.read(repo_name, pull.get("number"), issue, judge.github)
+            facts = who.read(repo_name, pull.get("number"), issue, judge.github)  # type: ignore[arg-type]  # a pull request from a file may have no number: its comments are then not found
             permission, user = who.permission_of(repo_name, judge.github), who.user_of(judge.github)
             if (pull.get("user") or {}).get("type") == "Bot" and (pull.get("head") or {}).get("sha"):
                 try:    # what its head commit says is a hint to show, nothing more
@@ -175,6 +176,8 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
                     message = ""
         if issue_file:
             facts["issue"] = json.loads(issue_file.read_text(encoding="utf-8"))
+        closes: list[int] | None
+        edited: float | bool | None
         strict, closes, edited = strict and bool(str(issue)), None, False      # no issue named: no bounty to be strict about
         if strict and repo_name and pull.get("number"):
             # GitHub's own list (without it, the description is read), and whether the description was edited after the merge
@@ -287,6 +290,7 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         on_pull = "pull_request" in on
         command = commands.parse(said.get("body") or "", on_pull)
         name = getattr(command, "name", "")
+        facts: dict[str, Any]
         pull, facts = None, {"issue": None, "events": None, "pull_comments": None, "issue_comments": None}
         permission = user = None
         if repo_name and on.get("number") and name not in ("", "fund", "status", "help"):
@@ -295,6 +299,8 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
                 facts.update(issue=on, events=terms.pages(f"repos/{repo_name}/issues/{on['number']}/events", judge.github))
             else:
                 pull = _pull(None, repo_name, on["number"])
+                if not isinstance(pull, dict):      # GitHub may answer with nothing at all (judge.github: an empty answer is None)
+                    raise Stop(f"GitHub's answer for {repo_name}#{on['number']} was not a pull request.")
                 if name not in ("tip", "settle"):
                     closes = closing.closing_issues(pull.get("body") or "", repo_name)
                     facts = who.read(repo_name, on["number"], issue or (closes[0] if len(closes) == 1 else ""), judge.github)
@@ -331,7 +337,7 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         if not tip and accept_dir and accept_dir.is_dir() and any(p.is_file() for p in accept_dir.rglob("*")):
             accept = judge.checks_hash(accept_dir)
         required = runs = statuses = None
-        if not tip and fund.checks != ():       # `checks: none` asks nothing of the repository
+        if isinstance(fund, commands.Fund) and fund.checks != ():       # `checks: none` asks nothing of the repository
             if not repo_name:
                 raise Stop("Name the repository whose checks the bounty buys: --repo owner/name.")
             try:
@@ -349,7 +355,7 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         if to:
             to.write_bytes(data)
         if as_json:
-            days = terms.TIP_DAYS if tip else fund.days
+            days = fund.days if isinstance(fund, commands.Fund) else terms.TIP_DAYS
             said = commands.reply("understood", fund, issue=issue, terms=built.terms, source=built.source, notes=built.notes)
             print(json.dumps({"command": fund.name, "terms": data.decode(), "hash": terms.terms_hash(data), "source": built.source,
                               "notes": built.notes, "units": fund.units, "days": days, "work": days * 86_400,
@@ -372,6 +378,8 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         checks needs those to pass as well: `knos proof judge --terms`.)"""
         from .. import judge, terms
         bought = _terms(terms_file)
+        if bought is None:
+            raise Stop("Name the bounty's terms: --terms <file>.")
         if checks_file:
             runs = json.loads(checks_file.read_text(encoding="utf-8"))
             statuses = json.loads(statuses_file.read_text(encoding="utf-8")) if statuses_file else []

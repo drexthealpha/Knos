@@ -802,7 +802,7 @@ def _plan_world(tmp_path, chain: dict[str, str], built: dict[str, str]):
 
 
 def test_the_plan_of_this_release_is_knos_oidc_alone_and_a_rebuild_of_an_unchanged_program_is_never_proposed(tmp_path):
-    """0.3.16 proposes ONE upgrade. After proposals 3 to 6 the chain runs the verified builds of the v0.3.14 tag; the
+    """One upgrade is proposed after the four. After proposals 3 to 6 the chain runs the verified builds of the v0.3.14 tag; the
     release's build of knos_oidc differs from it and nothing else may. The plan is made before anything is withdrawn,
     written or proposed, so a file whose bytes moved without the release meaning it stops the run instead of becoming
     a proposal."""

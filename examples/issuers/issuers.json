@@ -1,5 +1,5 @@
 {
- "about": "Which RS256 issuers knos-oidc can verify, the claims each signs (the SHAPE recorded from the issuer's documentation, with example values) and which of them a program can gate on. Key sizes were read from each issuer's published key set on the `checked` day. tests/test_issuers.py verifies a token of each shape, signed by a test key, in the test build of the verifier; it also holds docs/VERIFIER.md and web/verifier.js to this file.",
+ "about": "Which RS256 issuers knos-oidc can verify, the claims each signs (the SHAPE recorded from the issuer's documentation, with example values) and which of them a program can gate on. Key sizes were read from each issuer's published key set on the `checked` day. tests/test_issuers.py verifies a token of each shape, signed by a test key, in the test build of the verifier; it also holds docs/VERIFIER.md and web/verifier.js to this file. `discovery` is what the issuer's own discovery document listed as its signing algorithms on the day `read` (null: not read, and `why`). An issuer with a `checked` of its own was read on that day.",
  "checked": "2026-10-05",
  "accepts": {
   "alg": "RS256",
@@ -71,7 +71,14 @@
     "aud"
    ],
    "unreadable": [],
-   "note": "Compare `repository_id`, not `repository`: a name can pass to someone else."
+   "note": "Compare `repository_id`, not `repository`: a name can pass to someone else.",
+   "discovery": {
+    "url": "https://token.actions.githubusercontent.com/.well-known/openid-configuration",
+    "read": "2026-10-06",
+    "algs": [
+     "RS256"
+    ]
+   }
   },
   {
    "id": "gitlab",
@@ -133,7 +140,14 @@
    "unreadable": [
     "groups_direct"
    ],
-   "note": "A self-managed GitLab signs with its own URL as `iss`: register that URL as any other issuer."
+   "note": "A self-managed GitLab signs with its own URL as `iss`: register that URL as any other issuer.",
+   "discovery": {
+    "url": "https://gitlab.com/.well-known/openid-configuration",
+    "read": "2026-10-06",
+    "algs": [
+     "RS256"
+    ]
+   }
   },
   {
    "id": "google",
@@ -167,7 +181,14 @@
    "unreadable": [
     "email_verified"
    ],
-   "note": "Google signs people's sign-ins under the same issuer: gate on one service account's `sub`, never on the issuer alone. With `format=full` the VM's details are nested under `google` and are not read."
+   "note": "Google signs people's sign-ins under the same issuer: gate on one service account's `sub`, never on the issuer alone. With `format=full` the VM's details are nested under `google` and are not read.",
+   "discovery": {
+    "url": "https://accounts.google.com/.well-known/openid-configuration",
+    "read": "2026-10-06",
+    "algs": [
+     "RS256"
+    ]
+   }
   },
   {
    "id": "entra",
@@ -212,7 +233,14 @@
    "unreadable": [
     "roles"
    ],
-   "note": "One issuer URL per tenant. A resource that takes version 1.0 tokens gets `iss` `https://sts.windows.net/<tenant id>/`: register that URL instead. `aud` is the resource asked for, so it names your program and not one action."
+   "note": "One issuer URL per tenant. A resource that takes version 1.0 tokens gets `iss` `https://sts.windows.net/<tenant id>/`: register that URL instead. `aud` is the resource asked for, so it names your program and not one action.",
+   "discovery": {
+    "url": "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+    "read": "2026-10-06",
+    "algs": [
+     "RS256"
+    ]
+   }
   },
   {
    "id": "aws",
@@ -249,7 +277,13 @@
    "unreadable": [
     "https://sts.amazonaws.com/"
    ],
-   "note": "The account, organisation, tags and the Lambda or EC2 source are nested under `https://sts.amazonaws.com/` and are not read. `sub` (the role's ARN) carries the account."
+   "note": "The account, organisation, tags and the Lambda or EC2 source are nested under `https://sts.amazonaws.com/` and are not read. `sub` (the role's ARN) carries the account.",
+   "discovery": {
+    "url": "https://<account's id>.tokens.sts.global.api.aws/.well-known/openid-configuration",
+    "read": null,
+    "algs": [],
+    "why": "one document per account; none was read. AWS's documentation gives ES384 (recommended) and RS256"
+   }
   },
   {
    "id": "kubernetes",
@@ -294,7 +328,13 @@
     "aud",
     "kubernetes.io"
    ],
-   "note": "The `iss` shown is EKS's; elsewhere it is the cluster's `--service-account-issuer`. With no readable audience a token cannot be bound to your program or to one action: any token of that service account passes. EKS changes its signing key every seven days (https://docs.aws.amazon.com/eks/latest/userguide/irsa-fetch-keys.html), and each new key waits a day here. A cluster whose issuer is not a public https URL can only be a private key."
+   "note": "The `iss` shown is EKS's; elsewhere it is the cluster's `--service-account-issuer`. With no readable audience a token cannot be bound to your program or to one action: any token of that service account passes. EKS changes its signing key every seven days (https://docs.aws.amazon.com/eks/latest/userguide/irsa-fetch-keys.html), and each new key waits a day here. A cluster whose issuer is not a public https URL can only be a private key.",
+   "discovery": {
+    "url": "<iss>/.well-known/openid-configuration",
+    "read": null,
+    "algs": [],
+    "why": "one document per cluster. The cluster of .github/workflows/outcome-k8s.yml publishes its own, and the run uploads it"
+   }
   },
   {
    "id": "buildkite",
@@ -339,7 +379,13 @@
     "aud"
    ],
    "unreadable": [],
-   "note": "One issuer for every organisation: always gate on `organization_id` and `pipeline_id`."
+   "note": "One issuer for every organisation: always gate on `organization_id` and `pipeline_id`.",
+   "discovery": {
+    "url": "https://agent.buildkite.com/.well-known/openid-configuration",
+    "read": null,
+    "algs": [],
+    "why": "the host's robots.txt refused our reader on 2026-10-06; RS256 is what its documentation and the key set read on 2026-10-05 say"
+   }
   },
   {
    "id": "circleci",
@@ -384,7 +430,13 @@
     "oidc.circleci.com/context-ids",
     "oidc.circleci.com/ssh-rerun"
    ],
-   "note": "One issuer URL per organisation. A job re-run with SSH carries `ssh-rerun` true, a boolean this reader does not read: a person could have typed the command."
+   "note": "One issuer URL per organisation. A job re-run with SSH carries `ssh-rerun` true, a boolean this reader does not read: a person could have typed the command.",
+   "discovery": {
+    "url": "https://oidc.circleci.com/org/<organization id>/.well-known/openid-configuration",
+    "read": null,
+    "algs": [],
+    "why": "one document per organisation; none was read on 2026-10-06"
+   }
   },
   {
    "id": "okta",
@@ -422,7 +474,13 @@
    "unreadable": [
     "scp"
    ],
-   "note": "The org server's `iss` is the domain alone. What `sub` names (an app or a person) is the administrator's choice. `aud` is set per authorization server, so it names your program and not one action."
+   "note": "The org server's `iss` is the domain alone. What `sub` names (an app or a person) is the administrator's choice. `aud` is set per authorization server, so it names your program and not one action.",
+   "discovery": {
+    "url": "https://<Okta domain>/oauth2/<authorization server id>/.well-known/openid-configuration",
+    "read": null,
+    "algs": [],
+    "why": "one document per tenant; none was read on 2026-10-06"
+   }
   },
   {
    "id": "auth0",
@@ -455,7 +513,57 @@
     "aud"
    ],
    "unreadable": [],
-   "note": "The final slash of `iss` is part of it. `aud` can be a list: then it is not read. Access tokens last 86,400 seconds by default (https://auth0.com/docs/secure/tokens/access-tokens/update-access-token-lifetime), the longest the verifier takes: set a shorter lifetime."
+   "note": "The final slash of `iss` is part of it. `aud` can be a list: then it is not read. Access tokens last 86,400 seconds by default (https://auth0.com/docs/secure/tokens/access-tokens/update-access-token-lifetime), the longest the verifier takes: set a shorter lifetime.",
+   "discovery": {
+    "url": "https://<tenant domain>/.well-known/openid-configuration",
+    "read": null,
+    "algs": [],
+    "why": "one document per tenant; none was read on 2026-10-06"
+   }
+  },
+  {
+   "id": "vercel",
+   "name": "Vercel (deployment OIDC tokens)",
+   "supported": "yes",
+   "why": "RS256; one 2048-bit key.",
+   "path": "url",
+   "iss": "https://oidc.vercel.com/acme",
+   "iss_pattern": "https://oidc.vercel.com/<team slug> (team issuer mode) or https://oidc.vercel.com (global)",
+   "jwks": "https://oidc.vercel.com/.well-known/jwks",
+   "key_bits": [
+    2048
+   ],
+   "checked": "2026-10-06",
+   "source": "https://vercel.com/docs/oidc/reference",
+   "get": "const jwt = await getVercelOidcToken({ audience: \"my-app:release\" });   // import { getVercelOidcToken } from \"@vercel/oidc\"",
+   "where": "a Vercel build (the variable VERCEL_OIDC_TOKEN) or a Vercel function (the header x-vercel-oidc-token)",
+   "claims": {
+    "iss": "https://oidc.vercel.com/acme",
+    "aud": "my-app:release",
+    "sub": "owner:acme:project:acme_website:environment:production",
+    "nbf": 1790000000,
+    "owner": "acme",
+    "owner_id": "team_7Gw5ZMzpQA8h90F832KGp7nwbuh3",
+    "project": "acme_website",
+    "project_id": "prj_7Gw5ZMBpQA8h9GF832KGp7nwbuh3",
+    "environment": "production"
+   },
+   "gate": [
+    "owner_id",
+    "project_id",
+    "environment",
+    "sub",
+    "aud"
+   ],
+   "unreadable": [],
+   "note": "`owner` and `project` are names and change when a team or a project is renamed: gate on `owner_id` and `project_id`. In the global issuer mode one `iss` serves every team, so the two ids are the only thing that names yours. The key size was read at the global key set, not at a team's. A build's token lives one hour, a function's two, a development token twelve (the same page).",
+   "discovery": {
+    "url": "https://oidc.vercel.com/.well-known/openid-configuration",
+    "read": "2026-10-06",
+    "algs": [
+     "RS256"
+    ]
+   }
   }
  ]
 }

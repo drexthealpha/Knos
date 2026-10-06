@@ -1,6 +1,6 @@
 {
- "_about": "The Knos conformance kit. `kit` is the kit's version; each format has its own versions. `sha256` is of the vectors as canonical JSON (keys sorted, no white space, UTF-8; `groups`: only those keys of the file), so it does not depend on line ends. Vectors named here never change: a change to a format is a new version of that format, with vectors of its own beside the old ones (docs/CONFORMANCE.md).",
- "kit": 1,
+ "_about": "The Knos conformance kit. `kit` is the kit's version (2 added the formats `receipt4` and `ids` and changed no vector of version 1); each format has its own versions. `sha256` is of the vectors as canonical JSON (keys sorted, no white space, UTF-8; `groups`: only those keys of the file), so it does not depend on line ends. Vectors named here never change: a change to a format is a new version of that format, with vectors of its own beside the old ones (docs/CONFORMANCE.md).",
+ "kit": 2,
  "formats": [
   {
    "format": "receipt",
@@ -94,6 +94,44 @@
     "statement.hash"
    ],
    "cases": 8
+  },
+  {
+   "format": "receipt4",
+   "versions": [
+    4
+   ],
+   "file": "../docs/receipt/vectors.v4.json",
+   "sha256": "8a7541ea1e249d438ae6e07572082e754087c62c275de57451fe6152975d8dc2",
+   "ops": [
+    "receipt.digest",
+    "receipt.check",
+    "receipt.verdict"
+   ],
+   "groups": [
+    "valid_v4",
+    "invalid_v4"
+   ],
+   "cases": 60
+  },
+  {
+   "format": "ids",
+   "versions": [
+    1
+   ],
+   "file": "vectors/ids.v1.json",
+   "sha256": "987ea4102621838c283c64ca28c668aa8dc718c6835b6bf32f5c98243ffd6b07",
+   "ops": [
+    "ids.deliverable",
+    "ids.evaluation",
+    "ids.invoice_line",
+    "ids.settlement",
+    "ids.order_scope",
+    "ids.kind_of",
+    "ids.expect",
+    "ids.verdict",
+    "ids.billed_once"
+   ],
+   "cases": 57
   }
  ]
 }

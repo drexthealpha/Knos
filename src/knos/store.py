@@ -83,7 +83,6 @@ def for_repo(repo: Path):
     from sibyl_memory_client._capcheck import aggregate_db_size
 
     db = shared_store()
-    storage = None
     for attempt in range(8):    # the first connection switches the store to WAL and needs it briefly to itself
         try:
             storage = Storage(str(db))

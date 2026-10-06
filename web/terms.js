@@ -89,17 +89,17 @@ export async function renderTerms(el, env = {}) {
   const rows = newest(index);
   el.innerHTML = `
     <p class="k-kicker">${esc(index.standard || STANDARD)}</p>
-    <h2>Terms a contract cites by hash</h2>
+    <h2>Terms a contract can cite</h2>
     <p class="devnet">Test USDC on Solana devnet.</p>
     <div id="terms-list">${rows.map((t, i) => `
       <section class="k-card" data-tilt data-template="${esc(t.name)}">
         <p class="k-kicker">Version ${t.version}</p>
         <h3>${esc(t.name)}</h3>
-        <p class="terms-sentence">${esc(t.sentence).replace(/`([^`]*)`/g, "<code>$1</code>")}.</p>
+        <p class="terms-sentence" data-not-prose data-keep>${esc(t.sentence).replace(/`([^`]*)`/g, "<code>$1</code>")}.</p>
         <p class="terms-trust">${esc(trustOf(t))}</p>
         <p class="terms-hash"><code class="k-num" data-copy>${esc(t.hash)}</code></p>
         <p class="terms-act">
-          <button type="button" class="k-btn quiet" data-copy="hash" data-i="${i}">Copy hash</button>
+          <button type="button" class="k-btn quiet" data-copy="hash" data-i="${i}">Copy fingerprint</button>
           <button type="button" class="k-btn" data-copy="cite" data-i="${i}">Cite in a contract</button>
           <button type="button" class="k-btn quiet" data-copy="fund" data-i="${i}">Fund with this</button>
           <a href="${esc(fileOf(t))}">Open the file</a>
@@ -108,7 +108,7 @@ export async function renderTerms(el, env = {}) {
       </section>`).join("")}
     </div>
     <section class="k-card" id="terms-check">
-      <h3><label for="terms-paste">Paste a terms JSON or hash</label></h3>
+      <h3><label for="terms-paste">Paste terms, or a fingerprint</label></h3>
       <textarea id="terms-paste" rows="4" spellcheck="false" autocomplete="off"></textarea>
       <p><button type="button" class="k-btn" id="terms-which">Find the template</button></p>
       <output id="terms-answer" aria-live="polite"></output>
@@ -122,7 +122,7 @@ export async function renderTerms(el, env = {}) {
       <p><a href="https://github.com/drexthealpha/Knos/blob/main/docs/TERMS.md">Read the standard</a></p>
     </section>`;
   const text = { hash: (t) => t.hash, cite: citeSentence, fund: (t) => t.comment };
-  const done = { hash: "Hash copied", cite: "Sentence copied", fund: "Comment copied" };
+  const done = { hash: "Fingerprint copied", cite: "Sentence copied", fund: "Comment copied" };
   for (const button of el.querySelectorAll("button[data-copy]")) {
     button.addEventListener("click", async () => {
       const t = rows[Number(button.dataset.i)], what = text[button.dataset.copy](t);

@@ -23,7 +23,9 @@ A capability's `stage` is the highest of five that has evidence, and each stage 
                   programs-v2/program_ids.json, and upgrade_gate's own `declare_id!`), and the on-chain version there
                   that carries the capability. A capability with no program stops at `tested`
     exercised     {"signature"}: a transaction on devnet, at that public program id, that used it and succeeded. An
-                  `ids` field, if given, must say `public`
+                  `ids` field, if given, must say `public`. scripts/exercise_public.py record adds what the run
+                  checked (`asserted`) and the refusals it saw (`refusals`: transactions that landed and failed with
+                  the error named, which `check --rpc` asks devnet about as well)
     reproduced    {"file"}: a file of reproductions/ (the report of `knos reproduce` and the token GitHub signed for it in
                   someone else's repository, docs/REPRODUCE.md) in which a check that supports this capability passed.
                   The signature is checked here with the archived key (scripts/github_oidc_keys.json); `check --rpc`
@@ -302,6 +304,19 @@ def chain_problems(data: dict, url: str = DEVNET, rpc=_rpc, root: Path = ROOT) -
         for sig, status in zip(batch, got):
             if status is None or status.get("err") is not None:
                 out.append(f"{sigs[sig]}: the transaction {sig[:12]}... " + ("is not on devnet" if status is None else "failed"))
+    # a refusal kept beside an exercised transaction: on devnet, and failed with the program's error it names
+    refused = {r["signature"]: (c["id"], r.get("error")) for c in data["capabilities"] for r in (c.get("evidence", {}).get("exercised") or {}).get("refusals", [])}
+    for at in range(0, len(refused), 100):
+        batch = list(refused)[at:at + 100]
+        try:
+            got = rpc(url, "getSignatureStatuses", [batch, {"searchTransactionHistory": True}])["value"]
+        except OSError as e:
+            out.append(f"exercised: devnet did not answer ({e})")
+            continue
+        for sig, status in zip(batch, got):
+            cid, error = refused[sig]
+            if status is None or f"'Custom': {error}" not in str(status.get("err")):
+                out.append(f"{cid}: the refusal {sig[:12]}... " + ("is not on devnet" if status is None else f"did not fail with error {error}"))
     return out
 
 
@@ -365,7 +380,7 @@ def render(root: Path = ROOT, check: bool = False) -> list[str]:
         if new != old:
             changed.append(doc.relative_to(root).as_posix())
             if not check:
-                doc.write_text(new, encoding="utf-8")
+                doc.write_text(new, encoding="utf-8", newline="")
     return changed
 
 
@@ -394,7 +409,7 @@ def main(argv=None) -> int:
         have = {k["kid"] for k in doc["keys"]}
         new = [k for k in rp._fetch_json(rp.JWKS)["keys"] if k.get("kid") not in have]        # added, never removed: an old signature stays checkable
         doc["keys"] += new
-        path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8", newline="")
         print(f"capabilities: {KEYS} holds {len(doc['keys'])} keys ({len(new)} added)")
         return 0
     print(__doc__)

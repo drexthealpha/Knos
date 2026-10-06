@@ -111,7 +111,7 @@ def _clean(terms) -> dict:
     """The terms with every field checked and every list in its canonical order. Raises Refused."""
     if not isinstance(terms, dict) or set(terms) - _ORDER_KEYS != _KEYS:
         raise Refused("a bounty's terms have exactly these fields: " + ", ".join(sorted(_KEYS)))
-    more = {}
+    more: dict = {}
     if "policy" in terms:       # sha256 of the repository's .knos/policy.yml as it was at funding (knos.policy.digest)
         if not isinstance(terms["policy"], str) or not re.fullmatch(r"[0-9a-f]{64}", terms["policy"]):
             raise Refused("policy is the hash of the repository's policy file (64 hex characters)")
@@ -500,9 +500,9 @@ def _one(check: dict, runs: list | None, statuses: list | None) -> str:
     name, app = check["name"], check["app"]
     if (runs is None and app != STATUS) or (statuses is None and app in (STATUS, ANY)):
         return "unreadable"
-    found = [] if app == STATUS else [state_of(r) for r in runs if r.get("name") == name and app in (ANY, _app(r))]
+    found = [] if app == STATUS else [state_of(r) for r in runs or [] if r.get("name") == name and app in (ANY, _app(r))]
     if app in (STATUS, ANY):
-        mine = [s for s in statuses if s.get("context") == name]
+        mine = [s for s in statuses or [] if s.get("context") == name]
         if mine:    # a context's newest status is the one that counts
             found.append(status_state(max(mine, key=lambda s: (str(s.get("updated_at") or s.get("created_at") or ""),
                                                                  s.get("id") or 0))))
@@ -545,7 +545,7 @@ def scope(terms: dict, changed_files) -> list[str]:
     objects (a rename counts under both its names); None means it could not be read, which is a violation too."""
     if changed_files is None:
         return ["the pull request's changed files could not be read from GitHub; try again"]
-    names = set()
+    names: set[str] = set()
     for f in changed_files:
         names.update(str(n) for n in ((f.get("filename"), f.get("previous_filename")) if isinstance(f, dict) else (f,)) if n)
     out = []

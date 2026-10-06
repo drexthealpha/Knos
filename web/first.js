@@ -42,7 +42,8 @@ export function showVideo(doc, video = CONFIG.video) {
 }
 
 export function initFirst(ctx) {
-  const { $, esc, knos, RPC, EXPLORER, money } = ctx;
+  const { $, esc, EXPLORER } = ctx;
+  const money = (u, decimals = 6, digits = 2) => (u / 10 ** decimals).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: Math.max(2, digits) });
   showVideo(document);
 
   // the three buttons: put a real input in the form and press it for the reader
@@ -62,9 +63,10 @@ export function initFirst(ctx) {
     const out = $("pr-result");
     out.innerHTML = `<p class="status">Reading Solana devnet…</p>`;
     try {
-      await ctx.devnet();
+      const { knos, RPC, ...chain } = (await ctx.core()).ctx;          // web/app.js and settle.js: asked for here, when a transaction is first read
+      await chain.devnet();
       const first = [...document.querySelectorAll("#first-deployment .mono")][1]?.textContent.trim();
-      const programs = { [(await ctx.ids()).knos_pay]: 2, ...(first ? { [first]: 1 } : {}) };
+      const programs = { [(await chain.ids()).knos_pay]: 2, ...(first ? { [first]: 1 } : {}) };
       // version 1: what a relay sends to a 2.1 cluster. Asked for with 0, devnet refuses every payment a relay carried
       const tx = await knos.rpc(RPC, "getTransaction", [sig, { encoding: "json", maxSupportedTransactionVersion: 1, commitment: "confirmed" }]);
       if (!tx) throw new Error("Devnet has no transaction with that signature. It may be older than devnet keeps, or from another network.");
@@ -72,7 +74,7 @@ export function initFirst(ctx) {
       if (tx.meta?.err) { out.innerHTML = `<p class="status bad">That transaction failed on devnet, so it paid nothing (${where}).</p>`; return; }
       const paid = paidLines(tx, programs);
       if (!paid.length) { out.innerHTML = `<p id="verdict" class="verdict" data-verdict="not a payment">Not a payment by Knos</p><p class="fine">This transaction (${where}) has no payment line from either escrow program.</p>`; return; }
-      const named = async (path, key, fallback) => ctx.gh(path).then((r) => r[key]).catch(() => fallback);
+      const named = async (path, key, fallback) => chain.gh(path).then((r) => r[key]).catch(() => fallback);
       const rows = await Promise.all(paid.map(async (p) => `<dl class="facts paid-facts">
         <dt>Task</dt><dd>issue #${esc(p.issue)} of ${esc(await named(`/repositories/${p.repo}`, "full_name", `repository ${p.repo}`))}${p.pr ? `, pull request #${esc(p.pr)}` : ""}</dd>
         <dt>Paid to</dt><dd>${esc(await named(`/user/${p.payee}`, "login", `GitHub user ${p.payee}`))} (GitHub id ${esc(p.payee)})</dd>

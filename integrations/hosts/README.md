@@ -93,7 +93,8 @@ many claims were refused here. `tests/test_sibyl_is_load_bearing.py` and `tests/
 host's event through the hook and show the answer disappear when the store is deleted, when no Sibyl is there, and
 when its journal or a rule is edited by hand.
 
-Sibyl's releases were read from PyPI on 5 October 2026:
+Sibyl's releases were read from PyPI on 5 October 2026 and again on 6 October 2026 (`https://pypi.org/pypi/<package>/json`),
+with the same result:
 
 | Package | Latest | Used by Knos |
 |---|---|---|
@@ -104,6 +105,36 @@ Sibyl's releases were read from PyPI on 5 October 2026:
 Hermes Agent with that provider and Knos keep their memories in the same Sibyl store file by default
 (`~/.sibyl-memory/memory.db`). Knos keeps each repository under a tenant of its own, so its record is not among what
 Hermes recalls by itself: the `pre_llm_call` hook is what tells Hermes's agent about it.
+
+Three facts about the engine that bound what Knos can promise, each from the packages' own pages on PyPI and
+[docs.sibyllabs.org/memory](https://docs.sibyllabs.org/memory/), read 6 October 2026:
+
+- The engine's pages say it runs on Linux, macOS and Windows through WSL2, and that "Native Windows is not supported".
+  Knos's test workflow has Windows jobs that use the store (`.github/workflows/tests.yml`); that is Knos's own
+  testing, not the engine's promise.
+- An account on the free plan has a 5 MB local cap; a write past it is refused. `MemoryClient.free_tier_status()`
+  reports how full the store is. The paid plan, Pro, removes the cap and adds self-learning and the memory linter
+  ([plans](https://docs.sibyllabs.org/memory/tiers)). Knos needs neither: `learn()` is tried and never required.
+- Search is lexical (SQLite FTS5), with no embedding model. The engine stores entities by category and name, state,
+  a journal and reference documents. It has no typed relations between entities: Knos expresses "this supplier,
+  under these terms" through the category and the name it chooses, and that stays true of the list below.
+
+### Next uses
+
+What `sibyl-memory-client` 0.8.1 offers that Knos does not call yet, each with the use it would have here. None is
+built. Every one would go through [`knos.proof.history`](../../src/knos/proof/history.py), as everything Knos
+remembers does.
+
+| The engine offers | Knos uses today | The use |
+|---|---|---|
+| `read_events(since=, until=)`: the journal between two times | `read_events(limit=)` only | "What was refused under these terms last quarter": a supplier's record over a statement's period, and a buyer's refusals between two closings |
+| `search(..., tiers=)` and `prefix=`: search held to chosen tiers, and by word prefix | `search(query, limit)` across all tiers | A reviewer's memory of disputes: search the journal alone for an appeal's words without an entity's body answering for it; find `tests/conftest` by its prefix |
+| The verdict on every result (`SearchResults.verdict`: `ok`, `no_match`, `empty_store`, `gated` and others) | the hits only | Preflight could tell "nothing like this was refused here" from "this store is empty" in the engine's own words |
+| The REFERENCE tier (`set_reference`, `get_reference`): a named document | not used | The terms of a standing offer and a rate card, kept whole under their hash, so "what was refused under these terms" recalls the terms and not only their hash |
+| `archive_entity`: out of the active set, still on disk | `set_entity`, `list_entities`, `search_entities(category=)` | A rule a successful appeal overturned is archived with the reason, so it stops deciding and its history stays |
+| Tenants (`set_tenant`, one store, isolated identities) | one tenant per repository; `knos-judge` for a judge's run | A supplier's delivery record across buyers: one tenant the supplier owns, written from each buyer's statement the supplier acknowledged, read by preflight under `--by` |
+| `free_tier_status()` | not used | `knos preflight` and the Stop hook say when the store is near its cap, before a write is refused |
+| `sibyl-memory-mcp` 0.2.1: the store as eight MCP tools | not used | An agent host that already runs Sibyl's server could be pointed at a repository's tenant (the server's Docker instructions pass `SIBYL_TENANT_ID` through) and read Knos's record with no second server. Its tools can also write, so who may write a repository's record has to be decided first |
 
 ## What is not done
 

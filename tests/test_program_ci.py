@@ -71,11 +71,11 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
     # example programs that are built against it
     assert all((ROOT / t).is_file() for t in legs["first"]["tests"].split())
     assert legs["second"]["tests"] == ("tests/test_oidc2_*.py tests/test_oidc_differential.py tests/test_pay2_*.py tests/test_order_*.py tests/test_meter_chain.py "
-                                       "tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py")
+                                       "tests/test_passkey_chain.py tests/test_cpi_fund.py tests/test_workflow_vault.py tests/test_upgrade_gate.py tests/test_reader_template.py")
     # the verifier against a reference that shares no code with it, on this commit's build (it loads the same test binary)
     assert 'PROGRAM = "knos_oidc_v2_test.so"' in (ROOT / "tests" / "test_oidc_differential.py").read_text(encoding="utf-8")
     for pattern, harness in zip(legs["second"]["tests"].split(), ("_oidc2.py", "test_oidc_differential.py", "_pay2.py", "_order.py", "_meter.py", "test_passkey_chain.py",
-                                                                  "test_cpi_fund.py", "test_workflow_vault.py", "test_upgrade_gate.py")):
+                                                                  "test_cpi_fund.py", "test_workflow_vault.py", "test_upgrade_gate.py", "test_reader_template.py")):
         assert (ROOT / "tests" / harness).is_file(), harness                 # a program's tests arrive with its harness
         assert list(ROOT.glob(pattern)), f"{pattern} matches no file: pytest would fail the second deployment's job"
     assert sorted(p.name for p in ROOT.glob("tests/test_order_*.py")) == ["test_order_auto.py", "test_order_chain.py", "test_order_judges.py",
@@ -84,7 +84,7 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
     # the cache holds their shared target directory beside the workspace's (rust-cache: `workspace -> target`)
     script = (ROOT / legs["second"]["build"]).read_text(encoding="utf-8")
     examples = re.findall(r"^  example (\w+) (\w+\.so)$", script, re.M)
-    assert [name for name, _ in examples] == ["cpi_fund", "workflow_vault", "upgrade_gate"] and 'to="${CARGO_TARGET_DIR:-$PWD/examples/target}"' in script
+    assert [name for name, _ in examples] == ["cpi_fund", "workflow_vault", "upgrade_gate", "reader_template"] and 'to="${CARGO_TARGET_DIR:-$PWD/examples/target}"' in script
     for name, binary in examples:
         assert (ROOT / "examples" / name / "Cargo.lock").is_file() and f"tests/test_{name}.py" in legs["second"]["tests"].split()
         assert binary in (ROOT / "tests" / f"test_{name}.py").read_text(encoding="utf-8"), name
@@ -385,7 +385,10 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
     assert "needs" not in job and job["timeout-minutes"] <= 30
     for event, runs_it in (("schedule", True), ("workflow_dispatch", True), ("push", False), ("pull_request", False)):
         assert runs(job["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
-    checkout, kani = job["steps"]
+    checkout, kani, fees = job["steps"]
+    # the fee's bounds, on the program's own lines copied out as text: the same verifier, every harness of that crate
+    assert fees["uses"] == kani["uses"] and fees["with"] == {**kani["with"], "working-directory": "programs-v2/fee_proofs"}
+    assert "#[kani::proof]" in (ROOT / "programs-v2" / "fee_proofs" / "src" / "lib.rs").read_text(encoding="utf-8")
     assert checkout["uses"] == _pin("actions/checkout@v7") and kani["uses"] == _pin("model-checking/kani-github-action@v1.1")
     # a named version of the verifier, in the crate whose arithmetic it proves; a harness that fails fails the step
     assert re.fullmatch(r"\d+\.\d+\.\d+", kani["with"]["kani-version"]) and kani["with"]["working-directory"] == "programs-v2/knos_pay"
@@ -603,7 +606,7 @@ def tree(tmp_path):
             (root / ws / crate / "Cargo.toml").write_text(f'[package]\nname = "{crate}"\n', encoding="utf-8")
     (root / "programs-v2" / "knos_meter").mkdir()
     (root / "programs-v2" / "knos_meter" / "Cargo.toml").write_text('[package]\nname = "knos_meter"\n', encoding="utf-8")
-    for example in ("oidc_gate", "cpi_fund", "workflow_vault", "upgrade_gate"):
+    for example in ("oidc_gate", "cpi_fund", "workflow_vault", "upgrade_gate", "reader_template"):
         (root / "examples" / example).mkdir(parents=True)
         (root / "examples" / example / "Cargo.toml").write_text(f'[package]\nname = "{example}"\n', encoding="utf-8")
     fake = tmp_path / "bin"
@@ -665,8 +668,8 @@ def test_the_second_deployments_script_builds_test_binaries_with_test_keys_and_l
         assert {"knos_oidc_v2_test.so", "knos_pay_v2_test.so", "knos_pay_v2_nodevnet.so", "knos_meter_test.so", "knos_passkey_v2_real.so"} <= set(got)
         assert "--no-default-features" in got["knos_pay_v2_nodevnet.so"] and "--no-default-features" not in got["knos_pay_v2_test.so"]
         # the example programs built on this deployment are built here too, each as it would be deployed, into a target of their own
-        assert {"cpi_fund_v2_real.so", "workflow_vault_v2_real.so", "upgrade_gate_v2_real.so"} <= set(got)
-        assert set(_built(root / "examples" / "target" / "deploy")) == {"cpi_fund.so", "workflow_vault.so", "upgrade_gate.so"}
+        assert {"cpi_fund_v2_real.so", "workflow_vault_v2_real.so", "upgrade_gate_v2_real.so", "reader_template_v2_real.so"} <= set(got)
+        assert set(_built(root / "examples" / "target" / "deploy")) == {"cpi_fund.so", "workflow_vault.so", "upgrade_gate.so", "reader_template.so"}
         # what is left to try on a cluster trusts no test key, and the devnet escrow has its faucet
         assert _built(root / "programs-v2" / "target" / "deploy") == {"knos_oidc.so": "knos_oidc", "knos_pay.so": "knos_pay", "knos_meter.so": "knos_meter", "knos_passkey.so": "knos_passkey"}
         # each binary it built is pinned by its hash, once, and the other pins are as they were

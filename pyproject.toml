@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.3.16"
+version = "0.3.17"
 description = "Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana. An escrow and a signature verifier on Solana devnet; a free check for pull requests and a Stop hook for coding agents."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -66,6 +66,10 @@ include = ["/src/knos", "/terms", "/tests", "/README.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `pytest -m "not slow" -n auto` is the local loop. A test is slow when tests/slow.txt lists it (tests/conftest.py puts
+# the marker on; scripts/suite_time.py --slow prints the list from a run's JUnit file). CI runs them all, in a job of
+# their own on each platform.
+markers = ["slow: takes over 5 seconds (listed in tests/slow.txt); left out by -m \"not slow\""]
 
 # ---- lint and types: tests.yml runs `ruff check .` and `mypy` (both pinned there). Permissive to start: what is not
 # ---- checked is listed here, in words, so it can be taken out one line at a time.
@@ -85,15 +89,11 @@ files = ["src/knos"]
 python_version = "3.10"
 ignore_missing_imports = true                   # the memory engine ships no types, and PyYAML's are a package of their own
 follow_imports = "silent"
-# What is not checked: the 16 modules below, which had 122 errors when the check was added, with the package installed
-# as tests.yml does (Optional values used without a test, two classes named Job in knos.settle.pay and
-# knos.settle.v2.pay passed for each other, untyped dictionaries). Everything else under src/knos, and every new
-# module, is checked in full. Untyped function bodies are not checked (mypy's default); tests/ and scripts/ are not
-# type-checked.
+# What is not checked: one module, knos.settle.v2.relay (16 when the check was added, with 122 errors between them:
+# Optional values used without a test, untyped dictionaries). It is 2,300 lines and is being changed in this release, so
+# it comes out by itself in 0.3.18. Everything else under src/knos, the payment path (knos.flow, knos.who, knos.terms,
+# knos.chain, knos.settle.relay, knos.proof.ghrelay) included, and every new module, is checked in full. Untyped function
+# bodies are not checked (mypy's default); tests/ and scripts/ are not type-checked.
 [[tool.mypy.overrides]]
-module = [
-  "knos.flow", "knos.settle.v2.relay", "knos.proof.cli", "knos.who", "knos.mainnet_check", "knos.judge", "knos.cli",
-  "knos.mcp", "knos.proof.history", "knos.terms", "knos.settle.relay", "knos.proof.ghrelay", "knos.init", "knos.chain",
-  "knos.store", "knos.proof.engine",
-]
+module = ["knos.settle.v2.relay"]              # 2,300 lines, changed in this release: out in 0.3.18
 ignore_errors = true

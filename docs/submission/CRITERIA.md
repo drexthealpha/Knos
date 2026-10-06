@@ -6,8 +6,8 @@ Colosseum's hackathon page lists seven factors its judges weigh
 ([colosseum.com/hackathon](https://colosseum.com/hackathon), read 5 Oct 2026; the question under each heading
 below is quoted from it). The same page says teams "must disclose all relevant past development work in the
 submission form"; that is [DISCLOSURE.md](../DISCLOSURE.md). The official rules list six criteria as well. Each
-gets one paragraph here: what the submission can show, and what it cannot. Where the honest answer is "not yet",
-that is the answer.
+gets one paragraph here: what the submission can show, and what it cannot. The round those paragraphs refer to
+is told once, in eight steps with the evidence under each, in [STORY.md](../STORY.md).
 
 No count of capabilities is given on this page. How far each capability has got (implemented, tested, deployed,
 exercised on devnet, reproduced by someone else) is in [CAPABILITIES.md](../CAPABILITIES.md), written from
@@ -56,8 +56,8 @@ On Solana devnet, in test USDC: a task is funded, a submission whose required ch
 check named, a valid one is paid on the forge's signature, a replayed token is refused, and an unfulfilled task
 refunds without anyone's permission. Which of these runs on the public program ids on a given day is not stated
 here: [CAPABILITIES.md](../CAPABILITIES.md) gives each capability's stage and `web/upgrades.json` the live builds,
-and the demo captions each moment with the program ids it ran on. From merge to paid took 25 seconds at the
-median, over 40 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
+and the demo captions each step with the program ids it ran on. From merge to paid took 25 seconds at the
+median, over 41 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
 ([COMPARE.md](../COMPARE.md)): cloud platforms and billing companies already meter agents and move payments, with
 customers and real money, so that is not a difference; the difference is acceptance independent of every vendor,
 and nobody has yet paid for that. MergePay is on a mainnet with real USDC and no platform fee, and is ahead
@@ -68,7 +68,7 @@ Nobody outside Knos is known to have reproduced any of it.
 
 > "How big is the total addressable market for this project? Is it already large, or small but growing rapidly?"
 
-Not known, and we do not multiply a large number by a share. [MARKET.md](../MARKET.md) builds the addressable
+Not known. [MARKET.md](../MARKET.md) builds the addressable
 market as qualified organisations times contract value, plus billable evaluations times the realised price, and
 says what makes an organisation qualified: measurable spend on work bought per outcome, acceptance criteria that
 can be written down, a buyer with authority, and a problem worth another system. No source counts those
@@ -76,19 +76,19 @@ organisations, so no total is printed. What is sourced: vendors that already bil
 their own; the revenue of coding-agent sellers, almost all of it billed by the seat or the token today; and one
 precedent from another industry, independent measurement of advertising, where two companies each report several
 hundred million USD a year. So the market is small today and depends on outcome pricing spreading, beyond code as
-well. That is a bet, and the document says so.
+well. That is a bet.
 
 ### Founder Communication
 
 > "Are the founders communicating the product vision clearly and capable of growing the product's user base?"
 
-One sentence on every surface, and one thing the buyer hears first: close a supplier's invoice with evidence both
-sides can check. The pitch is two minutes with the buyer and the problem first
-([pitch_script.md](pitch_script.md)); the demo is two minutes, one buyer's story in seven moments, with a caption
-on any shot that is a replay or is played faster than it happened ([demo_script.md](demo_script.md)); and every
-number in either has a source that a script checks (`scripts/claims_check.py`). The documents say what is not
-done in the same place as what is. Growing a user base is unproven: no buyer has heard any of this, and nobody
-outside Knos is known to run the free check.
+One sentence and one number on every surface: of 241 merged agent pull requests that claimed passing tests, 30
+had a failed check. One page tells the round in eight steps with the evidence under each
+([STORY.md](../STORY.md)); the pitch and the demo tell the same eight in two minutes each
+([pitch_script.md](pitch_script.md), [demo_script.md](demo_script.md)), with a caption on any shot that is a
+replay or is played faster than it happened; and every number in them has a source that a script checks
+(`scripts/claims_check.py`). The other documents sit behind one map ([../README.md](../README.md)). Growing a
+user base is unproven: no buyer has heard any of this, and nobody outside Knos is known to run the free check.
 
 ### Viability
 
@@ -97,8 +97,7 @@ outside Knos is known to run the free check.
 Not shown. Devnet is the test mode, and what can be real while the programs stay there is software invoiced off
 chain: Control, the Meter, a Supplier connection and a 30-day [Pilot](../PILOT.md) that starts free in shadow
 mode. Escrow and every settle fee on devnet are a demonstration in test money. None of the software has been
-sold, and there is no legal entity to invoice from. The first steps are written as arithmetic, not as a forecast:
-40 organisations at 25,000 USD are 1 million USD a year of platform revenue, and 125 at 80,000 are 10 million.
+sold, and there is no legal entity to invoice from. One customer is worked at these prices in [MARKET.md](../MARKET.md): an example, not a forecast.
 The code is MIT, so a fork can charge nothing; what it would lack has to be earned, in the order it could form:
 supplier reuse, a terms standard cited by hash, a delivery record, neutrality. Each has a measure in
 [MARKET.md](../MARKET.md), and each measure reads zero. One rule is published with the prices: Knos never charges
@@ -148,8 +147,9 @@ line. The verifier on Solana takes any RS256 workload identity and other program
 
 ### UX
 
-A maintainer funds with one comment and no wallet on devnet, and a supplier is paid without doing anything after
-the merge. For the buyer there is a console page where an order is written from a template and funded with a
+A buyer pastes an invoice on the first screen and gets the count and every mismatch, with no install and no
+sign-up. A maintainer funds with one comment and no wallet on devnet, and a supplier is paid without doing
+anything after the merge. For the buyer there is a console page where an order is written from a template and funded with a
 passkey, needing no SOL because a relayer pays the transaction fee; its stage is in
 [CAPABILITIES.md](../CAPABILITIES.md). What is not good yet: nobody outside Knos has been watched using any of
 it, so there is no measure of whether a budget owner completes an order unaided; with real money a funder would

@@ -120,7 +120,7 @@ async function receiptHolds(r: any, token: string, claims: Json, facts: Facts): 
   let named: Json = {}, repo: unknown, digest: unknown, said: unknown, issuer: unknown, shaped = false;
   try {
     const a = r.issuer_authenticated, o = r.evaluator_observed, p = r.policy;
-    shaped = r.type === "knos.acceptance-receipt" && (r.version === 2 || r.version === 3) && o.verdict === "accepted";
+    shaped = r.type === "knos.acceptance-receipt" && (r.version === 2 || r.version === 3 || r.version === 4) && o.verdict === "accepted";
     named = { order: r.order, commit: o.artifact.commit, terms_hash: p.terms_hash, mode: p.mode, pull_request: o.artifact.pull_request,
       payees: r.payees.map((e: any) => ({ github_id: e.github_id, bps: e.bps })) };
     [repo, digest, said, issuer] = [r.repository.id, a.token_sha256, a.claims, a.issuer];
@@ -128,7 +128,7 @@ async function receiptHolds(r: any, token: string, claims: Json, facts: Facts): 
   } catch {
     shaped = false;
   }
-  if (!shaped) throw new No("receipt", "This is not an acceptance receipt of version 2 or 3 with an accepted verdict (docs/RECEIPT.md).");
+  if (!shaped) throw new No("receipt", "This is not an acceptance receipt of version 2, 3 or 4 with an accepted verdict (docs/RECEIPT.md).");
   if ((await sha256(unb64(token.slice(token.lastIndexOf(".") + 1)))) !== digest) {
     throw new No("receipt", "The receipt names another token than the one given (token_sha256 differs).");
   }

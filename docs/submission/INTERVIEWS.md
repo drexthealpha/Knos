@@ -1,12 +1,34 @@
 # Buyer-interview kit
 
-A kit for the founder: whom to talk to, what to ask, and a one-page letter of intent to offer at the end of a
-conversation that went well. **No conversation has happened yet.** Nothing in this file reports one. When one has,
-it is recorded only with the other party's agreement, and counted in the submission only then.
+A kit for the founder: whom to talk to, what to ask, the tally, and a one-page letter of intent to offer at the
+end of a conversation that went well. **No conversation has happened yet.**
 
 The aim is to learn whether the person who approves a supplier's invoice for software work wants a count that
-neither side keeps, and whether a supplier wants acceptance terms that cannot be changed after the work. A "no" with
-a reason is a result. A polite "interesting" is not.
+neither side keeps, and whether a supplier wants acceptance terms that cannot be changed after the work.
+
+## The tally
+
+| what | count |
+|---|---|
+| People asked for a conversation | 0 |
+| Conversations held with a buyer | 0 |
+| Conversations held with a supplier | 0 |
+| Said no to the trial, with a reason | 0 |
+| Said no to the trial, with no reason | 0 |
+| Said yes to a shadow count | 0 |
+| Shadow counts run on a real invoice | 0 |
+| Letters of intent signed | 0 |
+
+The rules of the tally:
+
+- **A no is counted.** Every conversation adds to a row on the day it happens, and a no adds to its row exactly
+  as a yes does. The reasons given for a no are published with the count, in the person's words, without a name.
+- A person who did not answer is counted in the first row and in no other.
+- A polite "interesting" is neither a yes nor a no: it adds to "held" and to nothing else.
+- A row changes only with the other party's agreement to be counted. Three rows are also constants in
+  `docs/facts.json` (`by_hand`: buyer interviews, shadow counts, letters of intent), and
+  [NUMBERS.md](NUMBERS.md) is written from them; `tests/test_business_docs.py` fails when this table and those
+  constants differ.
 
 ## The ten kinds of organisation to talk to
 

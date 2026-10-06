@@ -21,6 +21,8 @@ case "$sha" in *[!0-9a-f]*|"") echo "the commit must be a full sha"; exit 1;; es
 [ "${#sha}" = 40 ] || { echo "the commit must be a full sha"; exit 1; }
 mkdir -p "$out"
 cp -r web/. "$out/"
+# the documents the command palette can open (web/palette.js reads it; without it the palette has no documents)
+"${PYTHON:-python3}" scripts/docs_index.py "$out/docs_index.json"
 # The name in the bar, the favicon and the card of a shared link are files of web/ (web/brand/, written by
 # scripts/brand.py and committed). The traced originals they were made from stay in the repository.
 rm -rf "$out/brand/src"
@@ -33,6 +35,11 @@ cp sdk/settle/passkey.js "$out/passkey.js"
 cp examples/knos-claim.yml "$out/knos-claim.yml"
 cp docs/capabilities.json "$out/capabilities.json"
 cp docs/agent_weekly.json "$out/agent_weekly.json"
+# The Index page's leaderboard also reads the feed (which rows are disputed, and where), and the page links its Atom
+# feed; both are held to the weekly table first.
+"${PYTHON:-python3}" scripts/agent_pr_index.py board --check
+cp docs/index.json "$out/agent_index.json"
+cp docs/index.atom "$out/index.atom"
 # The registry of published terms (terms/, which scripts/terms_registry.py builds): the Terms page reads terms/index.json,
 # and the address `knos terms cite` prints is a file here.
 rm -rf "$out/terms" && cp -r terms "$out/terms"
