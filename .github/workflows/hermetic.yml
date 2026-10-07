@@ -22,7 +22,7 @@ permissions: {}
 jobs:
   container:
     if: github.repository == 'drexthealpha/knos-rc'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04      # a named image, as the published workflows name it; never a label that moves
     timeout-minutes: 20
     permissions:
       contents: read
@@ -33,8 +33,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          enable-cache: true
-          cache-dependency-glob: pyproject.toml
+          enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
       - run: uv pip install --system -e ".[dev]"
       - run: git config --global user.email ci@example.invalid && git config --global user.name ci
       - name: the judge in a real container (a skip fails the job; every container docker starts is counted)

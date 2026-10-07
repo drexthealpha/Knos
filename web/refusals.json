@@ -278,6 +278,11 @@
    "do": "Read `/knos status` for when the money moves."
   },
   {
+   "code": "appeal.unjudged",
+   "happened": "No verdict on this pull request is on record yet.",
+   "do": "Comment it again once the pull request is settled."
+  },
+  {
    "code": "appeal.not-supplier",
    "happened": "Only the account that did the work can appeal.",
    "do": "Ask the pull request's author to comment it."

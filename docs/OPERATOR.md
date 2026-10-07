@@ -60,6 +60,7 @@ All are in [`.github/workflows`](../.github/workflows) of the repository.
 | `program.yml` | builds the programs; its gate job has GitHub sign the build's hash | none |
 | `release.yml` | the release | the founder's package and site credentials: not transferable by this page |
 | `tests.yml`, `hermetic.yml`, `index.yml`, `network.yml`, `reproductions.yml`, `knos.yml`, `knos-check.yml`, `knos-reproduce.yml` | tests, the judge's image, the index, the Numbers page, outside reproductions, and Knos used on its own repository | none beyond GitHub's own token |
+| `knos-reproduction-send.yml` | in a fork only: puts a finished reproduction on a branch of that fork and prints the link that opens the pull request | none beyond GitHub's own token (`contents: write`, in forks) |
 
 - [ ] In a repository of your own: install the workflow ([INSTALL.md](INSTALL.md), three steps), merge it, and
       comment `/knos fund 20` on an issue. On devnet the program's faucet gives the test USDC.

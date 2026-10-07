@@ -26,6 +26,13 @@ sha256(work order || milestone), the same for every artifact that carried it. Th
 leaf = sha256(0x00 || id), node = sha256(0x01 || left || right), over the ids sorted ascending, none twice, then one
 leaf sha256(0x02 || sha256(line)) per correction line of the batch.
 
+That tree is commitment format 1, and it binds the set of evaluation ids, the count, the accepted count and the value;
+not which evaluation was accepted. A new batch is format 2 (`FORMAT`, `BINDS`): each leaf is the hash of the whole
+event in canonical bytes (`FIELDS`, `encode_event`, `event_hash`), the header says `"format":2` beside the root, and
+the format is inside what is hashed, so a root or a proof of one format never checks as the other. `migrate`
+re-commits a format 1 batch as a new batch that names it and rewrites nothing. No root proves that every evaluation
+was supplied: that is `reconcile`'s, from two ledgers kept independently.
+
 What the program cannot see is decided here, off chain. `canonical` is the one function that says what counts once
 (within a batch, across batches, against the individual mode) and applies the corrections; `numbers` gives a month's
 three numbers (evaluations, accepted outcomes, rejected evaluations); `close` sets the buyer's ledger against the
@@ -47,11 +54,20 @@ from pathlib import Path
 
 from . import ids
 
-FREE_PER_MONTH = 10_000     # the price book: an owner's first evaluations of a month cost nothing
-RATE = 50_000               # then 0.05 USD each, in millionths (0.02 on an annual commitment: 20_000)
+FREE_PER_MONTH = 100_000    # the price book's Meter line: an organisation's first evaluations of a month cost nothing
+RATE = 2_000                # then 0.002 USD each, in millionths, from prepaid credits (knos_meter on devnet keeps its own constants: knos.settle.v2.meter)
 MICRO = 1_000_000
 ZERO = bytes(32)            # a Ledger account's running hash before its first batch
 _HEX = set("0123456789abcdef")
+_CURRENCY = re.compile(r"[A-Za-z0-9._:-]{0,64}")
+
+# The commitment format of a batch: what its 32-byte root is a hash of. The program reads the root as 32 opaque bytes,
+# so the format is the ledger's to state and a reader's to check: it is inside what is hashed, and written beside the root.
+FORMAT = 2                  # what a new batch is written in
+FORMATS = (1, 2)
+BINDS = {1: "the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted",
+         2: "every field of every evaluation: its four ids, verdict, amount and currency, buyer and seller, policy, artifact, evidence digest, evaluator, "
+            "run, month and sequence; not that every evaluation was supplied"}
 
 
 class Bad(ValueError):
@@ -116,6 +132,8 @@ class Evaluation:
     run: str = ""       # the run the issuer signed for, when the writer knows; a part of the evaluation's id
     inv: str = ""       # the invoice line that names this deliverable, when one is known (an inv_ id)
     stl: str = ""       # the settlement of this deliverable, when money moved for it (an stl_ id); only on an accepted line
+    currency: str = ""  # what `rate` counts, when the writer says: a currency code or a mint's address
+    evidence: str = ""  # sha256 of the issuer-signed token or receipt this verdict rests on, 32 bytes as hex, when the writer has it
 
     def __post_init__(self) -> None:
         _int(self.buyer, "buyer", least=1), _int(self.seller, "seller", least=1)
@@ -134,6 +152,10 @@ class Evaluation:
                     ids.expect(kind, got)
                 except ValueError as why:
                     raise Bad(str(why)) from None
+        if not isinstance(self.currency, str) or not _CURRENCY.fullmatch(self.currency):
+            raise Bad("currency is a code or an address: at most 64 letters, digits, dots, colons, dashes and underscores")
+        if self.evidence != "":
+            _hex(self.evidence, 64, "evidence")
         if self.stl and not self.accepted:
             raise Bad("a settlement is named on an accepted line only: a verdict that is not accepted authorises no payment")
         if (self.evaluator or self.run or self.inv or self.stl) and not self.verdict:
@@ -183,8 +205,9 @@ class Evaluation:
     def line(self) -> str:
         """The ledger line. A line that says its verdict in words also carries its ids (`dlv`, `evl`, and `inv`, `stl`,
         `evaluator`, `run` when known); a line that does not is written as 0.3.16 wrote it, byte for byte."""
-        more = {} if not self.verdict else {"verdict": self.verdict, "dlv": self.dlv, "evl": self.evl,
+        more: dict = {} if not self.verdict else {"verdict": self.verdict, "dlv": self.dlv, "evl": self.evl,
                                             **{k: v for k, v in (("evaluator", self.evaluator), ("run", self.run), ("inv", self.inv), ("stl", self.stl)) if v}}
+        more.update({k: v for k, v in (("currency", self.currency), ("evidence", self.evidence)) if v})
         return canon({"accepted": int(self.accepted), "artifact": self.artifact, "buyer": self.buyer, "deliverable": self.deliverable, "id": self.id.hex(), "milestone": self.milestone,
                       "order": self.order, "policy": self.policy, "rate": self.rate, "seller": self.seller, **more})
 
@@ -205,10 +228,10 @@ def parse(line: str | dict) -> Evaluation:
         raise Bad("an evaluation needs accepted, artifact, buyer, milestone, order, policy, rate and seller")
     if o["accepted"] not in (0, 1) or isinstance(o["accepted"], bool):
         raise Bad("accepted must be 1 or 0")
-    if not all(isinstance(o.get(k, ""), str) for k in ("verdict", "evaluator", "run", "inv", "stl", "dlv", "evl")) or o.get("verdict", "x") == "":
+    if not all(isinstance(o.get(k, ""), str) for k in ("verdict", "evaluator", "run", "inv", "stl", "dlv", "evl", "currency", "evidence")) or o.get("verdict", "x") == "":
         raise Bad("verdict, evaluator, run, dlv, evl, inv and stl are texts, and a verdict is one of the four words")
     e = Evaluation(o["buyer"], o["seller"], o["order"], o["artifact"], o["policy"], o["milestone"], o["accepted"] == 1, o["rate"],
-                   o.get("verdict", ""), o.get("evaluator", ""), o.get("run", ""), o.get("inv", ""), o.get("stl", ""))
+                   o.get("verdict", ""), o.get("evaluator", ""), o.get("run", ""), o.get("inv", ""), o.get("stl", ""), o.get("currency", ""), o.get("evidence", ""))
     for key, kind, want in (("dlv", "deliverable", e.dlv), ("evl", "evaluation", e.evl)):
         if key in o:
             try:
@@ -299,6 +322,159 @@ def check_proof(id_: bytes, index: int, size: int, path: list[bytes], root: byte
     return sn == 0 and r == root
 
 
+# -- commitment format 2: the leaf is the complete event ----------------------------------------------------------------
+# One evaluation as the eighteen texts format 2 hashes, in this order. Every one is UTF-8; a whole number is written in
+# decimal with no leading zero; a field the line does not state is the empty text, and its emptiness is hashed too.
+FIELDS = ("deliverable_id", "evaluation_id", "invoice_line_id", "settlement_id", "verdict", "amount", "currency", "buyer", "seller", "order", "milestone",
+          "policy", "artifact", "evidence", "evaluator", "run", "month", "seq")
+EVENT_TAG = b"knos.event\x00"
+LEAF2, NODE2, FIX2, ROOT2 = b"knos.leaf.2\x00", b"knos.node.2\x00", b"knos.fix.2\x00", b"knos.root.2\x00"
+_DEC = re.compile(r"0|[1-9][0-9]{0,19}")
+
+
+def event_fields(e: "Evaluation", month: int, seq: int) -> tuple[str, ...]:
+    """The texts of FIELDS for one evaluation counted in batch `seq` of `month`."""
+    return (e.dlv, e.evl, e.inv, e.stl, e.stands, str(e.rate), e.currency, str(e.buyer), str(e.seller), e.order, str(e.milestone), e.policy, e.artifact,
+            e.evidence, e.evaluator, e.run, f"{int(month):06d}", str(int(seq)))
+
+
+def event_problem(fields) -> str | None:
+    """Why these are not the eighteen texts of one evaluation, or None. The two ids that can be recomputed are: a proof
+    cannot say one deliverable and carry another's order."""
+    if not isinstance(fields, (tuple, list)) or len(fields) != len(FIELDS) or not all(isinstance(x, str) for x in fields):
+        return f"an event is {len(FIELDS)} texts: " + ", ".join(FIELDS)
+    f = dict(zip(FIELDS, fields))
+    if f["verdict"] not in ids.VERDICTS:
+        return "the verdict is accepted, rejected, insufficient_evidence or disputed"
+    if not all(_DEC.fullmatch(f[k]) and int(f[k]) < 2 ** 64 for k in ("amount", "buyer", "seller", "milestone", "seq")) or not re.fullmatch(r"[0-9]{6}", f["month"]):
+        return "amount, buyer, seller, milestone and seq are whole numbers in decimal with no leading zero, and the month is six digits"
+    if not all(len(f[k]) == n and set(f[k]) <= _HEX for k, n in (("order", 64), ("policy", 64), ("artifact", 40))) \
+            or not (f["evidence"] == "" or (len(f["evidence"]) == 64 and set(f["evidence"]) <= _HEX)) or int(f["milestone"]) >= 2 ** 32:
+        return "order, policy and evidence are 64 lowercase hex characters (evidence may be empty) and the artifact is 40"
+    dlv = ids.deliverable(f["order"], int(f["milestone"]))
+    if f["deliverable_id"] != dlv or f["evaluation_id"] != ids.evaluation(dlv, f["artifact"], f["policy"], f["evaluator"], f["run"]):
+        return "the deliverable id or the evaluation id is not the id of the event's own order, milestone, artifact, policy, evaluator and run"
+    for key, kind in (("invoice_line_id", "invoice_line"), ("settlement_id", "settlement")):
+        if f[key] and ids.kind_of(f[key]) != kind:
+            return f"{key} is not {'an' if kind[0] == 'i' else 'a'} {kind.replace('_', ' ')} id"
+    return None
+
+
+def encode_event(fields) -> bytes:
+    """THE canonical bytes of one event, the same in every language: the tag `knos.event` and a zero byte, the format
+    as one byte (2), the number of fields as one byte (18), then each field of FIELDS in order as its length in bytes
+    (u32 big-endian) and its UTF-8 bytes. No JSON, no separators, no optional field: nothing to write two ways."""
+    why = event_problem(fields)
+    if why:
+        raise Bad(why)
+    out = [EVENT_TAG, bytes([2, len(FIELDS)])]
+    for x in fields:
+        raw = x.encode("utf-8")
+        out += [len(raw).to_bytes(4, "big"), raw]
+    return b"".join(out)
+
+
+def event_key(fields) -> bytes:
+    """The 32-byte evaluation id of an event's fields: what the leaves of a batch are sorted by, and what the program bills once."""
+    f = dict(zip(FIELDS, fields))
+    return eval_id(bytes.fromhex(f["order"]), f["artifact"], bytes.fromhex(f["policy"]), int(f["milestone"]))
+
+
+def leaf2(fields) -> bytes:
+    """A format 2 leaf: sha256(`knos.leaf.2` 0x00 || the event's canonical bytes)."""
+    return _sha(LEAF2, encode_event(fields))
+
+
+def event_hash(e: "Evaluation", month: int, seq: int) -> bytes:
+    """The hash of one evaluation as an event: its format 2 leaf. The one definition: the batch's tree and the log of
+    events (knos.events) both use this function, so they cannot disagree about what an event is."""
+    return leaf2(event_fields(e, month, seq))
+
+
+def correction_leaf2(key: bytes) -> bytes:
+    return _sha(FIX2, key)
+
+
+def _node2(left: bytes, right: bytes) -> bytes:
+    return _sha(NODE2, left, right)
+
+
+def _top(hashes: list[bytes], node) -> bytes:
+    """The tree over these leaf hashes, split at the largest power of two below their number (RFC 6962's shape). A
+    last leaf with no sibling is carried up as it is and never hashed with a copy of itself, so a tree of three leaves
+    and a tree of four whose last two are the same are different trees."""
+    if len(hashes) == 1:
+        return hashes[0]
+    k = _split(len(hashes))
+    return node(_top(hashes[:k], node), _top(hashes[k:], node))
+
+
+def _path2(m: int, hashes: list[bytes]) -> list[bytes]:
+    if len(hashes) <= 1:
+        return []
+    k = _split(len(hashes))
+    return _path2(m, hashes[:k]) + [_top(hashes[k:], _node2)] if m < k else _path2(m - k, hashes[k:]) + [_top(hashes[:k], _node2)]
+
+
+def seal2(size: int, top: bytes) -> bytes:
+    """A format 2 root: sha256(`knos.root.2` 0x00 || the number of leaves, u32 big-endian || the top of the tree; no
+    leaves: nothing after the number). The format and the size are inside the hash, so a format 1 root is never a
+    format 2 root, and a subtree is never a batch."""
+    return _sha(ROOT2, int(size).to_bytes(4, "big"), top)
+
+
+def _leaves2(events, corrections=()) -> tuple[list[bytes], list[bytes], list[bytes]]:
+    """(the events' keys in ascending order, the corrections' keys in ascending order, every leaf hash in that order).
+    Two events with one key are refused: a batch says one thing about each evaluation."""
+    by: dict[bytes, bytes] = {}
+    for fields in events:
+        k = event_key(fields) if event_problem(fields) is None else b""
+        if k in by:
+            raise Bad(f"evaluation {k.hex()[:16]}... is in this batch twice: a format 2 batch holds each evaluation once")
+        by[k] = leaf2(fields)
+    keys = sorted(set(corrections))
+    order = sorted(by)
+    return order, keys, [by[k] for k in order] + [correction_leaf2(k) for k in keys]
+
+
+def merkle_root2(events, corrections=()) -> bytes:
+    """The format 2 root over these events (each the texts of FIELDS), sorted by evaluation id ascending, each once,
+    followed by the keys of the batch's corrections, sorted ascending, as leaves sha256(`knos.fix.2` 0x00 || key);
+    a node is sha256(`knos.node.2` 0x00 || left || right)."""
+    _order, _keys, hashes = _leaves2(events, corrections)
+    return seal2(len(hashes), _top(hashes, _node2) if hashes else b"")
+
+
+def _climb(r: bytes, index: int, size: int, path: list[bytes], node) -> bytes | None:
+    """The top of a tree of `size` leaves, from leaf hash `r` at `index` and its siblings (RFC 9162, 2.1.3.2)."""
+    if not 0 <= index < size:
+        return None
+    fn, sn = index, size - 1
+    for p in path:
+        if sn == 0:
+            return None
+        if fn & 1 or fn == sn:
+            r = node(p, r)
+            while not fn & 1 and fn:
+                fn, sn = fn >> 1, sn >> 1
+        else:
+            r = node(r, p)
+        fn, sn = fn >> 1, sn >> 1
+    return r if sn == 0 else None
+
+
+def check_proof2(fields, index: int, size: int, path: list[bytes], root: bytes, correction: bytes | None = None) -> bool:
+    """Whether the event with these fields (or, with `correction`, the correction with that key) is leaf `index` of a
+    format 2 batch of `size` leaves with this root. It needs the proof and the root only. What holds then: that batch
+    committed to exactly this verdict and this amount for this deliverable, and to every other field given."""
+    try:
+        leaf_ = correction_leaf2(correction) if correction is not None else leaf2(fields)
+    except Bad:
+        return False
+    top = _climb(leaf_, index, size, list(path), _node2)
+    return top is not None and seal2(size, top) == root
+
+
 # -- a batch ----------------------------------------------------------------------------------------------------------
 @dataclass(frozen=True)
 class Batch:
@@ -313,10 +489,17 @@ class Batch:
     root: bytes
     evals: tuple[Evaluation, ...] = field(default=(), compare=False)
     corrections: tuple["Correction", ...] = field(default=(), compare=False)
+    format: int = field(default=1, compare=False)   # the commitment format of `root`; an audience alone does not say it
+
+    @property
+    def binds(self) -> str:
+        """What this batch's root commits to, in words."""
+        return BINDS[self.format]
 
     def header(self) -> str:
+        """A format 1 header is written as it always was, byte for byte; a later format names itself."""
         return canon({"batch": {"accepted": self.accepted, "buyer": self.buyer, "count": self.count, "month": self.month, "root": self.root.hex(),
-                                    "seller": self.seller, "seq": self.seq, "value": self.value}})
+                                    "seller": self.seller, "seq": self.seq, "value": self.value, **({"format": self.format} if self.format != 1 else {})}})
 
     def lines(self) -> list[str]:
         return [self.header(), *(e.line() for e in self.evals), *(c.line() for c in self.corrections)]
@@ -350,11 +533,21 @@ def parse_batch_audience(aud: str) -> tuple[bool, Batch]:
     return p[1] == "claim", Batch(int(p[2]), int(p[3]), int(p[4]), int(p[5]), int(p[6]), int(p[7]), int(p[8]), bytes.fromhex(p[9]))
 
 
-def batch(lines, seq: int, month: int | str, corrections=()) -> Batch:
+def root_of(evals, month: int, seq: int, keys=(), format: int = FORMAT) -> bytes:
+    """The root of these evaluations and correction keys as a batch `seq` of `month`, in one commitment format."""
+    if format == 1:
+        return merkle_root([e.id for e in evals], keys)
+    if format != 2:
+        raise Bad(f"commitment format {format} is not one this version reads (it reads {', '.join(map(str, FORMATS))})")
+    return merkle_root2([event_fields(e, month, seq) for e in evals], keys)
+
+
+def batch(lines, seq: int, month: int | str, corrections=(), format: int = FORMAT) -> Batch:
     """A batch from evaluations (ledger lines, audiences or Evaluation objects). The same evaluation given twice (a
     retry) is counted once; two that share an id and differ in verdict or rate are refused, because a batch says one
     thing about each evaluation. All must be of one buyer and one seller. `corrections` ride in the batch's tree and
-    change none of its three numbers: the chain's counters only go up, and the statement nets them."""
+    change none of its three numbers: the chain's counters only go up, and the statement nets them. `format`: the
+    commitment format of the root, 2 unless an old batch is being recomputed (BINDS says what each one binds)."""
     by: dict[bytes, Evaluation] = {}
     for item in lines:
         e = item if isinstance(item, Evaluation) else parse(item)
@@ -368,8 +561,9 @@ def batch(lines, seq: int, month: int | str, corrections=()) -> Batch:
         raise Bad("a batch is for one buyer and one seller; these evaluations name more than one pair")
     (buyer, seller), = pairs
     fixes = tuple(sorted({c.key: c for c in corrections}.values(), key=lambda c: c.key))
-    return Batch(buyer, seller, month_of(month), _int(seq, "seq"), len(evals), sum(e.accepted for e in evals), sum(e.value for e in evals),
-                 merkle_root(by, [c.key for c in fixes]), evals, fixes)
+    m = month_of(month)
+    return Batch(buyer, seller, m, _int(seq, "seq"), len(evals), sum(e.accepted for e in evals), sum(e.value for e in evals),
+                 root_of(evals, m, seq, [c.key for c in fixes], format), evals, fixes, format)
 
 
 def chain_hash(prev: bytes, root: bytes, seq: int, count: int, accepted: int, value: int) -> bytes:
@@ -386,6 +580,12 @@ class Stored:
     evals: list[Evaluation]
     at: int             # the header's line number, for messages
     corrections: list = field(default_factory=list)     # the correction lines under it
+    superseded: dict | None = None      # the header of the format 2 batch that re-commits this one (`knos meter migrate`), when the file has one
+
+    @property
+    def format(self) -> int:
+        """The commitment format the header states: 1 when it states none (every batch before format 2 existed)."""
+        return self.declared.get("format", 1)
 
     @property
     def month(self) -> int:
@@ -397,7 +597,11 @@ class Stored:
 
     def batch(self) -> Batch:
         """The batch recomputed from the lines (never from the header's root or totals)."""
-        return batch(self.evals, self.seq, self.month, self.corrections)
+        return batch(self.evals, self.seq, self.month, self.corrections, self.format)
+
+    def recommitted(self) -> Batch:
+        """The same lines as a format 2 batch: what a batch that supersedes this one must say."""
+        return batch(self.evals, self.seq, self.month, self.corrections, 2)
 
 
 def load(text: str | Path) -> list[Stored]:
@@ -405,6 +609,7 @@ def load(text: str | Path) -> list[Stored]:
     if isinstance(text, Path):
         text = text.read_text(encoding="utf-8")
     out: list[Stored] = []
+    closed = False
     for n, raw in enumerate(text.splitlines(), 1):
         if not raw.strip():
             continue
@@ -414,18 +619,33 @@ def load(text: str | Path) -> list[Stored]:
             raise Bad(f"line {n} is not JSON") from None
         if isinstance(o, dict) and "batch" in o:
             h = o["batch"]
-            if not isinstance(h, dict) or set(h) != {"accepted", "buyer", "count", "month", "root", "seller", "seq", "value"}:
-                raise Bad(f"line {n}: a batch header has accepted, buyer, count, month, root, seller, seq and value")
+            if not isinstance(h, dict) or set(h) - {"format", "supersedes"} != {"accepted", "buyer", "count", "month", "root", "seller", "seq", "value"} \
+                    or ("supersedes" in h and "format" not in h):
+                raise Bad(f"line {n}: a batch header has accepted, buyer, count, month, root, seller, seq and value, and its format when that is not 1")
+            if "format" in h and (h["format"] != 2 or isinstance(h["format"], bool)):
+                raise Bad(f"line {n}: a header names its commitment format only when it is 2 (a format 1 header names none); this version reads no other")
             try:
                 for k in ("accepted", "buyer", "count", "seller", "seq", "value"):
                     _int(h[k], k)
                 month_of(_int(h["month"], "month")), _hex(h["root"], 64, "root")
             except Bad as why:
                 raise Bad(f"line {n}: {why}") from None
+            if "supersedes" in h:
+                # A batch that re-commits an earlier one in format 2. It has no lines of its own: its events are the
+                # lines of the batch it names, which stay where and as they were.
+                old = [s for s in out if f"{s.month}.{s.seq}:{s.declared['root']}" == h["supersedes"] and s.format == 1 and s.superseded is None]
+                if len(old) != 1 or (old[0].month, old[0].seq) != (h["month"], h["seq"]):
+                    raise Bad(f"line {n}: a batch that supersedes another names one earlier format 1 batch of this file as <yyyymm>.<seq>:<its root>, once, "
+                              "and keeps its month and seq")
+                old[0].superseded, closed = {**h, "at": n}, True
+                continue
             out.append(Stored(h, [], n))
+            closed = False
             continue
         if not out:
             raise Bad(f"line {n}: an evaluation before any batch header")
+        if closed:
+            raise Bad(f"line {n}: a batch that supersedes another has no lines of its own")
         try:
             if isinstance(o, dict) and "correction" in o:
                 out[-1].corrections.append(Correction.of(o))
@@ -498,7 +718,15 @@ def _structure(ledger: list[Stored]) -> list[str]:
         if len(s.evals) != b.count:
             bad.append(f"{where}: {len(s.evals) - b.count} evaluation(s) are written twice")
         if b.root.hex() != d["root"]:
-            bad.append(f"{where}: the lines give root {b.root.hex()}, the header says {d['root']}: a line was changed, added or removed")
+            other = next((f for f in FORMATS if f != s.format and root_of(b.evals, b.month, b.seq, [c.key for c in b.corrections], f).hex() == d["root"]), None)
+            bad.append(f"{where}: the lines give root {b.root.hex()} in format {s.format}, the header says {d['root']}: "
+                       + (f"that is the root of these lines in format {other}, and a root of one format is never taken as a root of another" if other else
+                          "a line was changed, added or removed"))
+        if s.superseded is not None:
+            n2, h = s.recommitted(), s.superseded
+            if (n2.root.hex(), n2.count, n2.accepted, n2.value, n2.buyer, n2.seller) != (h["root"], h["count"], h["accepted"], h["value"], h["buyer"], h["seller"]):
+                bad.append(f"{where}: the batch at line {h['at']} that supersedes it does not commit to these lines in format 2 (they give root {n2.root.hex()}, "
+                           f"count {n2.count}, accepted {n2.accepted}, value {n2.value})")
         if (b.count, b.accepted, b.value) != (d["count"], d["accepted"], d["value"]):
             bad.append(f"{where}: the lines give count {b.count}, accepted {b.accepted}, value {b.value}; the header says {d['count']}, {d['accepted']}, {d['value']}")
         for c in s.corrections:
@@ -555,33 +783,105 @@ class Proof:
     path: tuple[bytes, ...]
     root: bytes
     correction: bool = False    # `id` is a correction's key: its leaf has the corrections' prefix
+    format: int = 1             # the commitment format of `root`
+    event: tuple[str, ...] | None = None    # format 2, an evaluation: the texts of FIELDS the leaf is the hash of
+
+    @property
+    def binds(self) -> str:
+        return BINDS[self.format]
 
     def ok(self) -> bool:
-        return check_proof(self.id, self.index, self.size, list(self.path), self.root, self.correction)
+        """Format 1: the id is in the batch. Format 2: the event is, with the verdict, the amount and every other field
+        the proof states, and it is the event of this id, month and seq. A proof of one format never holds as the other."""
+        if self.format == 1:
+            return self.event is None and check_proof(self.id, self.index, self.size, list(self.path), self.root, self.correction)
+        if self.correction:
+            return self.event is None and check_proof2(None, self.index, self.size, list(self.path), self.root, self.id)
+        if self.format != 2 or self.event is None or event_problem(self.event) is not None:
+            return False
+        f = dict(zip(FIELDS, self.event))
+        return (event_key(self.event), int(f["month"]), int(f["seq"])) == (self.id, self.month, self.seq) \
+            and check_proof2(self.event, self.index, self.size, list(self.path), self.root)
 
     def json(self) -> dict:
+        """A format 1 proof is written as it always was; a format 2 proof names its format and carries the event."""
         return {"id": self.id.hex(), "index": self.index, "month": self.month, "path": [p.hex() for p in self.path], "root": self.root.hex(), "seq": self.seq,
-                "size": self.size, **({"correction": 1} if self.correction else {})}
+                "size": self.size, **({"correction": 1} if self.correction else {}),
+                **({"format": self.format} if self.format != 1 else {}), **({"event": dict(zip(FIELDS, self.event))} if self.event is not None else {})}
 
     @classmethod
     def of(cls, o: dict) -> "Proof":
         try:
             return cls(bytes.fromhex(_hex(o["id"], 64, "id")), _int(o["month"], "month"), _int(o["seq"], "seq"), _int(o["index"], "index"), _int(o["size"], "size"),
-                       tuple(bytes.fromhex(_hex(p, 64, "a path entry")) for p in o["path"]), bytes.fromhex(_hex(o["root"], 64, "root")), o.get("correction") == 1)
+                       tuple(bytes.fromhex(_hex(p, 64, "a path entry")) for p in o["path"]), bytes.fromhex(_hex(o["root"], 64, "root")), o.get("correction") == 1,
+                       cls._format(o), cls._event(o))
         except (KeyError, TypeError):
-            raise Bad("a proof has id, month, seq, index, size, path and root") from None
+            raise Bad("a proof has id, month, seq, index, size, path and root, and from format 2 on its format and the event") from None
+
+    @staticmethod
+    def _format(o: dict) -> int:
+        f = o.get("format", 1)
+        if f not in FORMATS or isinstance(f, bool) or ("format" in o and f == 1):
+            raise Bad("a proof names its commitment format only when it is 2; this version reads no other")
+        return f
+
+    @staticmethod
+    def _event(o: dict) -> tuple[str, ...] | None:
+        ev = o.get("event")
+        if ev is None:
+            return None
+        if not isinstance(ev, dict) or tuple(sorted(ev)) != tuple(sorted(FIELDS)) or event_problem(tuple(ev[k] for k in FIELDS)):
+            raise Bad("a proof's event is these texts: " + ", ".join(FIELDS))
+        return tuple(ev[k] for k in FIELDS)
 
 
-def prove(ledger: list[Stored], id_: bytes) -> Proof:
+def prove(ledger: list[Stored], id_: bytes, format: int | None = None) -> Proof:
     """The inclusion proof of one evaluation (by its id) or of one correction (by its key), from the first batch that
-    holds it. `size` is the batch's leaves: its evaluations and then its corrections."""
+    holds it. `size` is the batch's leaves: its evaluations and then its corrections. The proof is in the batch's own
+    format, or in format 2 when a batch that supersedes it is in the file; `format` asks for one of the two."""
     for s in ledger:
-        b = s.batch()
-        ids, keys = [e.id for e in b.evals], [c.key for c in b.corrections]
-        if id_ in ids or id_ in keys:
-            index, path = inclusion_path(ids, id_, keys)
-            return Proof(id_, b.month, b.seq, index, len(ids) + len(keys), tuple(path), b.root, id_ not in ids)
+        if id_ not in [e.id for e in s.evals] and id_ not in [c.key for c in s.corrections]:
+            continue
+        f = format or (2 if s.superseded is not None else s.format)
+        if f != s.format and not (f == 2 and s.superseded is not None):
+            raise Bad(f"batch {s.seq} of {s.month} is committed in format {s.format} only: a proof in format {f} needs a batch that says so "
+                      "(`knos meter migrate` re-commits a format 1 batch)")
+        b = s.batch() if f == s.format else s.recommitted()
+        ids_, keys = [e.id for e in b.evals], [c.key for c in b.corrections]
+        if f == 1:
+            index, path = inclusion_path(ids_, id_, keys)
+            return Proof(id_, b.month, b.seq, index, len(ids_) + len(keys), tuple(path), b.root, id_ not in ids_)
+        events = [event_fields(e, b.month, b.seq) for e in b.evals]
+        order, fixes, hashes = _leaves2(events, keys)
+        index = order.index(id_) if id_ in order else len(order) + fixes.index(id_)
+        return Proof(id_, b.month, b.seq, index, len(hashes), tuple(_path2(index, hashes)), b.root, id_ not in order, 2,
+                     next((x for x in events if event_key(x) == id_), None))
     raise Bad(f"{id_.hex()} is in no batch of this ledger, as an evaluation or as a correction")
+
+
+def migrate(ledger: list[Stored], month: int | str | None = None) -> list[str]:
+    """The header lines that re-commit this ledger's format 1 batches (of one month, or of all) in format 2, one new
+    batch for each, to be appended to the file. Nothing already written is changed: the old batch, its root and its
+    lines stay, and the new batch names it as `<yyyymm>.<seq>:<its root>`. The new batch has no lines of its own and
+    the old one's month, seq and three numbers, so the count is the same count: it is the same evaluations, hashed in
+    full. The program takes each evaluation into its totals once, so the new root is not sent as a RecordBatch."""
+    m = month_of(month) if month is not None else None
+    out = []
+    for s in ledger:
+        if s.format == 1 and s.superseded is None and m in (None, s.month):
+            b = s.recommitted()
+            if b.count != len(s.evals) or s.batch().root.hex() != s.declared["root"]:
+                raise Bad(f"batch {s.seq} of {s.month} does not hold as it is: run `knos meter verify` first")
+            out.append(canon({"batch": {"accepted": b.accepted, "buyer": b.buyer, "count": b.count, "format": 2, "month": b.month, "root": b.root.hex(),
+                                        "seller": b.seller, "seq": b.seq, "supersedes": f"{s.month}.{s.seq}:{s.declared['root']}", "value": b.value}}))
+    return out
+
+
+def commitments(ledger: list[Stored]) -> list[dict]:
+    """Every batch of a ledger with the format of its root and what that root binds, in words: what every surface that
+    shows a batch says of it."""
+    return [{"month": s.month, "seq": s.seq, "format": s.format, "root": s.declared["root"], "binds": BINDS[s.format],
+             **({"superseded_by": {"format": 2, "root": s.superseded["root"], "binds": BINDS[2]}} if s.superseded else {})} for s in ledger]
 
 
 # -- two ledgers ------------------------------------------------------------------------------------------------------
@@ -594,6 +894,7 @@ class Dispute:
     buyer_month: int
     seller_month: int
     what: tuple[str, ...]
+    fields: tuple[str, ...] = ()        # every field of FIELDS the two differ in, by name (apart from seq, which is each side's own)
 
 
 @dataclass(frozen=True)
@@ -624,6 +925,13 @@ class Reconciliation:
     seller: int
     rate: int
     free: int
+    formats: dict = field(default_factory=dict)         # {"buyer": (1, 2), "seller": (2,)}: the commitment formats of each ledger's batches
+    corrections: dict = field(default_factory=dict)     # {"buyer": (...), "seller": (...)}: each side's corrections, and whether the other carries the same
+
+    @property
+    def complete(self) -> bool:
+        """Whether both ledgers are format 2 throughout, so that every field of every evaluation was compared."""
+        return all(tuple(self.formats.get(k, ())) in ((), (2,)) for k in ROLES)
 
     @property
     def agreed(self) -> bool:
@@ -643,7 +951,25 @@ class Reconciliation:
                 "disputed": [{"id": d.id.hex(), "ids": d.buyer.ids(), "what": list(d.what), "buyer": one(d.buyer_month, d.buyer),
                               "seller": one(d.seller_month, d.seller)} for d in self.disputed],
                 "duplicates": {k: [i.hex() for i in v] for k, v in self.duplicates.items()},
-                "statement": [vars(r) for r in self.rows]}
+                "statement": [vars(r) for r in self.rows], **self.findings()}
+
+    def findings(self) -> dict:
+        """The four things two independent ledgers can show that neither root can: what one side left out, what one
+        side entered twice, what both hold and describe differently (each differing field by name), and the
+        corrections each side carries. A root commits to what was supplied; only this comparison finds what was not."""
+        return {"formats": {k: list(v) for k, v in self.formats.items()},
+                "compared": "every field of every evaluation" if self.complete else
+                            "verdict, rate and month only: a format 1 batch binds " + BINDS[1],
+                "omissions": {"buyer": [e.id.hex() for _m, e in self.seller_only], "seller": [e.id.hex() for _m, e in self.buyer_only]},
+                "conflicts": [{"id": d.id.hex(), "fields": list(d.fields or d.what)} for d in self.disputed],
+                "corrections": {k: list(v) for k, v in self.corrections.items()}}
+
+
+def _differs(be: Evaluation, bm: int, se: Evaluation, sm: int) -> tuple[str, ...]:
+    """The fields of FIELDS two entries of one evaluation differ in, by name. `seq` is left out: each side numbers its
+    own batches."""
+    b, s = event_fields(be, bm, 0), event_fields(se, sm, 0)
+    return tuple(name for name, x, y in zip(FIELDS, b, s) if x != y and name != "seq")
 
 
 def _events(ledger: list[Stored]) -> tuple[dict[bytes, tuple[int, Evaluation]], tuple[bytes, ...]]:
@@ -668,6 +994,11 @@ def reconcile(buyer_ledger: list[Stored], seller_ledger: list[Stored], rate: int
     month: the allowance is the buyer's across all its sellers, so a buyer with several passes what is left."""
     b, b_twice = _events(buyer_ledger)
     s, s_twice = _events(seller_ledger)
+    formats = {"buyer": tuple(sorted({x.format for x in buyer_ledger})), "seller": tuple(sorted({x.format for x in seller_ledger}))}
+    full = all(f in ((), (2,)) for f in formats.values())
+    fixes = {name: {c.key: {"kind": c.kind, "id": c.id, "of": f"{c.month}.{c.seq}", "batch": f"{x.month}.{x.seq}", "by": c.by} for x in book for c in x.corrections}
+             for name, book in (("buyer", buyer_ledger), ("seller", seller_ledger))}
+    corrections = {name: tuple({**v, "both": int(k in fixes[ROLES[1 - ROLES.index(name)]])} for k, v in sorted(fixes[name].items())) for name in ROLES}
     pairs = {(e.buyer, e.seller) for _m, e in (*b.values(), *s.values())}
     if len(pairs) > 1:
         raise Bad("the two ledgers are not of the same buyer and seller")
@@ -676,8 +1007,9 @@ def reconcile(buyer_ledger: list[Stored], seller_ledger: list[Stored], rate: int
     for i in sorted(b.keys() & s.keys()):
         (bm, be), (sm, se) = b[i], s[i]
         what = tuple(w for w, differs in (("verdict", be.stands != se.stands), ("rate", be.rate != se.rate), ("month", bm != sm)) if differs)
-        if what:
-            disputed.append(Dispute(i, be, se, bm, sm, what))
+        fields = _differs(be, bm, se, sm)
+        if what or (full and fields):       # two format 2 ledgers: a difference in any field is a conflict, and it is named
+            disputed.append(Dispute(i, be, se, bm, sm, what or ("content",), fields))
     out_ids = {d.id for d in disputed}
     buyer_only = tuple(b[i] for i in sorted(b.keys() - s.keys()))
     seller_only = tuple(s[i] for i in sorted(s.keys() - b.keys()))
@@ -693,7 +1025,7 @@ def reconcile(buyer_ledger: list[Stored], seller_ledger: list[Stored], rate: int
         rows.append(Row(m, len(both), sum(e.accepted for e in both), sum(e.value for e in both), fee(len(both), rate, free),
                         sum(1 for bm, _e in buyer_only if bm == m), sum(1 for sm, _e in seller_only if sm == m), sum(1 for d in disputed if d.buyer_month == m),
                         {v: sum(e.stands == v for e in both) for v in ids.VERDICTS}, sum(1 for at in won.values() if at == m)))
-    return Reconciliation(buyer_only, seller_only, tuple(disputed), {"buyer": b_twice, "seller": s_twice}, tuple(rows), buyer, seller, rate, free)
+    return Reconciliation(buyer_only, seller_only, tuple(disputed), {"buyer": b_twice, "seller": s_twice}, tuple(rows), buyer, seller, rate, free, formats, corrections)
 
 
 def export_csv(ledger: list[Stored]) -> str:
@@ -1394,7 +1726,7 @@ def attest_batch(run, order: str, kind: str, no, sign) -> int:
                      "Add a batch with `knos meter batch` and commit the file.")
             return 0
     b = found[0].batch()
-    said = (f"batch {b.seq} of {b.month} in {path} of {run.repo} is {b.count} evaluation(s), {b.accepted} accepted, value {b.value}, root `{b.root.hex()[:12]}`: "
+    said = (f"batch {b.seq} of {b.month} in {path} of {run.repo} is {b.count} evaluation(s), {b.accepted} accepted, value {b.value}, root `{b.root.hex()[:12]}` in commitment format {b.format} (it binds {b.binds}): "
             + (f"the seller's own count (GitHub id {seller}) of its work for buyer {buyer}" if claim else f"the buyer's count (GitHub id {buyer}) for seller {seller}"))
     return sign(run, "eval", batch_audience(b, claim), said, "", 0, None, no)
 
@@ -1445,7 +1777,8 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                month: str = typer.Option(..., "--month", help="the month the batch is counted in, YYYY-MM"),
                claim: bool = typer.Option(False, "--claim", help="the seller's own count (ClaimBatch) instead of the buyer's (RecordBatch)"),
                corrections: Path = typer.Option(None, "--corrections", help="correction lines to carry in this batch (default: <ledger>.corrections, where `knos meter correct` writes)"),
-               events_log: Path = typer.Option(None, "--events", help="also take the batch into this log of events (`knos events`); default: the file KNOS_EVENTS names, else none")) -> None:
+               events_log: Path = typer.Option(None, "--events", help="also take the batch into this log of events (`knos events`); default: the file KNOS_EVENTS names, else none"),
+               format_: int = typer.Option(FORMAT, "--format", help="the commitment format of the root: 2 hashes every field of every evaluation; 1 hashes the ids only")) -> None:
         """Add one batch to a ledger and print what its token must say: the root, the totals and the audience. Corrections waiting beside the ledger ride in it."""
         try:
             had = read(ledger) if ledger.exists() else []
@@ -1459,7 +1792,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                 raise Stop(f"All {len(given)} evaluation(s) in {events} are already in {ledger}: there is nothing to add."
                            + (f" {len(fixes)} correction(s) are waiting: a batch needs at least one new evaluation to carry them, because the program takes no batch of none." if fixes else ""))
             m = month_of(month)
-            b = batch(new, next_seq(had, m), m, fixes)
+            b = batch(new, next_seq(had, m), m, fixes, format_)
             wrong = _structure(load(dump([x.batch() for x in had] + [b]))) if fixes else []
             if wrong:
                 raise Stop(f"A correction does not fit {ledger}: {wrong[0]}.", f"Fix or remove its line in {waiting}.")
@@ -1480,6 +1813,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             out.print(f"Left out {len(given) - len(new)} evaluation(s) that {ledger} already has.", markup=False)
         out.print(f"Batch {b.seq} of {b.month}: {b.count} evaluation(s), {b.accepted} accepted, value {b.value}.", markup=False)
         out.print(f"root      {b.root.hex()}", markup=False)
+        out.print(f"format    {b.format}: the root binds {b.binds}.", markup=False)
         out.print(f"audience  {batch_audience(b, claim)}", markup=False)
         out.print(f"Next: have the pinned workflow ask GitHub for a token with that audience and relay it ({'ClaimBatch' if claim else 'RecordBatch'}).", markup=False)
 
@@ -1496,6 +1830,43 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
         gap = "the two counts are the same" if (b.count, b.accepted, b.value) == (s_.count, s_.accepted, s_.value) else \
             f"they differ by {abs(b.count - s_.count)} evaluation(s), {abs(b.accepted - s_.accepted)} accepted, value {abs(b.value - s_.value)}"
         return f"{m} on chain: the buyer's count {side(b)} | the seller's claim {side(s_)}: {gap}"
+
+    def said(book: list[Stored]) -> None:
+        """What every format 1 batch of a ledger binds, in one line; nothing for a ledger that is format 2 throughout."""
+        old = [c for c in commitments(book) if c["format"] == 1]
+        if old:
+            again = sum(1 for c in old if "superseded_by" in c)
+            out.print(f"{len(old)} batch(es) are in commitment format 1 ({', '.join(str(c['month']) + '.' + str(c['seq']) for c in old[:8])}{', ...' if len(old) > 8 else ''}): "
+                      f"such a root binds {BINDS[1]}." + (f" {again} of them are re-committed in format 2 by a later batch of this file." if again else "")
+                      + (f" `knos meter migrate` re-commits {'the others' if again else 'them'} in format 2." if again < len(old) else ""), markup=False)
+
+    @meter.command("migrate")
+    def migrate_(ledger: Path = typer.Argument(..., help="your ledger file"),
+                 month: str = typer.Option(None, "--month", help="only this month, YYYY-MM (default: every format 1 batch of the file)"),
+                 dry: bool = typer.Option(False, "--dry-run", help="print the new batches and write nothing")) -> None:
+        """Re-commit a ledger's format 1 batches in format 2. Each becomes a NEW batch at the end of the file that names the batch it supersedes; no line
+        already in the file is changed."""
+        got = read(ledger)
+        bad = _structure(got)
+        if bad:
+            raise Stop(f"{ledger} does not hold as it is: {bad[0]}.", "Run `knos meter verify` on it first.")
+        try:
+            lines = migrate(got, month)
+        except Bad as why:
+            raise Stop(f"{why}.") from None
+        if not lines:
+            out.print(f"{ledger} has no format 1 batch left to re-commit{' in ' + month if month else ''}.", markup=False)
+            return
+        if not dry:
+            with ledger.open("a", encoding="utf-8", newline="\n") as f:
+                f.write("".join(x + "\n" for x in lines))
+        for x in lines:
+            h = json.loads(x)["batch"]
+            out.print(f"batch {h['seq']} of {h['month']}: format 2 root {h['root']} supersedes {h['supersedes']}", markup=False)
+        out.print(f"{'Would add' if dry else 'Added'} {len(lines)} batch(es) to {ledger}. The old batches and their roots are as they were: a format 1 root still binds "
+                  f"{BINDS[1]}.", markup=False)
+        out.print("The new roots are on your disk only: the program counts an evaluation once, so they are not sent as a RecordBatch. Send the file to the other "
+                  "party; `knos meter reconcile` then compares every field.", markup=False)
 
     @meter.command("verify")
     def verify_(ledger: Path = typer.Argument(..., help="a ledger file"),
@@ -1548,6 +1919,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             out.print(f"{m}: {t.next_seq} batch(es), {t.count} evaluation(s), {t.accepted} accepted, value {t.value}, running hash {t.chain.hex()}", markup=False)
             if m in seen:
                 out.print(two(m, seen[m]), markup=False)
+        said(got)
         out.print(f"The ledger holds, and its totals and running hash are those of the {'seller' if claim else 'buyer'}'s account on chain." if rpc else
                   "The ledger holds, and its totals and running hash are the chain's." if chain else
                   "The ledger holds. Compare each month's line with the chain's Ledger account (pass --rpc <url>).", markup=False)
@@ -1561,14 +1933,22 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             if check:
                 p = Proof.of(json.loads(check.read_text(encoding="utf-8")))
                 if not p.ok():
-                    out.print(f"The proof does not hold: evaluation {p.id.hex()} is not in a batch with root {p.root.hex()}.", markup=False)
+                    out.print(f"The proof does not hold: evaluation {p.id.hex()} is not in a format {p.format} batch with root {p.root.hex()}.", markup=False)
                     raise typer.Exit(1)
                 out.print(f"The proof holds: evaluation {p.id.hex()} is number {p.index} of {p.size} in the batch with root {p.root.hex()}.", markup=False)
+                if p.event is not None:
+                    f = dict(zip(FIELDS, p.event))
+                    out.print(f"That batch committed to this: deliverable {f['deliverable_id']} is {ids.VERDICT_WORDS[f['verdict']]}, amount {f['amount']}"
+                              f"{' ' + f['currency'] if f['currency'] else ''}, buyer {f['buyer']}, seller {f['seller']}.", markup=False)
+                out.print(f"Commitment format {p.format}: the root binds {p.binds}.", markup=False)
                 out.print(f"Next: see that batch {p.seq} of {p.month} was anchored with that root (the RecordBatch or ClaimBatch transaction's log).", markup=False)
                 return
             if not ledger or not id_:
                 raise Stop("Name a ledger and an evaluation: knos meter prove <ledger> <id>, or check a proof: knos meter prove --check <file>")
-            sys.stdout.write(json.dumps(prove(read(ledger), bytes.fromhex(_hex(id_.lower(), 64, "the id"))).json(), indent=1) + "\n")
+            made = prove(read(ledger), bytes.fromhex(_hex(id_.lower(), 64, "the id")))
+            sys.stdout.write(json.dumps(made.json(), indent=1) + "\n")
+            if made.format == 1:
+                sys.stderr.write(f"Commitment format 1: this proof shows {BINDS[1]}.\n")
         except Bad as why:
             raise Stop(f"{why}.") from None
         except (OSError, ValueError):
@@ -1576,7 +1956,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
 
     @meter.command("reconcile")
     def reconcile_(buyer: Path = typer.Argument(..., help="the buyer's ledger"), seller: Path = typer.Argument(..., help="the seller's ledger"),
-                   rate: int = typer.Option(RATE, "--rate", help="the fee per evaluation in millionths of a USD (50000 is 0.05; a plan may be 20000)"),
+                   rate: int = typer.Option(RATE, "--rate", help="the fee per evaluation in millionths of a USD (2000 is 0.002, the price book's)"),
                    free: int = typer.Option(FREE_PER_MONTH, "--free", help="free evaluations the buyer has left for this seller in a month"),
                    as_json: bool = typer.Option(False, "--json", help="print everything as JSON"),
                    rpc: str = typer.Option(None, "--rpc", metavar="URL", help="also read the two on-chain counts of each month from this Solana RPC node and print them side by side")) -> None:
@@ -1603,11 +1983,17 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                 for m, e in pairs:
                     out.print(f"{m} {e.id.hex()} {said}: {ids.VERDICT_WORDS[e.stands]}, rate {e.rate}", markup=False)
             for d in r.disputed:
-                out.print(f"{d.buyer_month} {d.id.hex()} differs in {', '.join(d.what)}: buyer {ids.VERDICT_WORDS[d.buyer.stands]} at {d.buyer.rate} in "
+                out.print(f"{d.buyer_month} {d.id.hex()} differs in {', '.join(d.fields or d.what)}: buyer {ids.VERDICT_WORDS[d.buyer.stands]} at {d.buyer.rate} in "
                           f"{d.buyer_month}, seller {ids.VERDICT_WORDS[d.seller.stands]} at {d.seller.rate} in {d.seller_month}", markup=False)
             for name in ("buyer", "seller"):
                 for i in r.duplicates[name]:
                     out.print(f"{i.hex()} is in the {name}'s ledger more than once", markup=False)
+            for name in ROLES:
+                for c in r.corrections.get(name, ()):
+                    out.print(f"correction ({c['kind']}) of {c['id']} in batch {c['of']} is in the {name}'s ledger (batch {c['batch']})"
+                              + ("" if c["both"] else "; the other ledger does not carry it"), markup=False)
+            if not r.complete:
+                out.print(f"Compared verdict, rate and month only: a format 1 batch binds {BINDS[1]}.", markup=False)
             sys.stdout.write(r.statement())
             for row in r.rows:
                 out.print(f"{row.month} verdicts of what both hold: " + ", ".join(f"{row.verdicts[v]} {ids.VERDICT_WORDS[v]}" for v in ids.VERDICTS)
@@ -1754,7 +2140,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                    month: str = typer.Option(..., "--month", help="the month, YYYY-MM"),
                    close_file: Path = typer.Option(None, "--close", help="the month's close record; without it the statement's state is `open`"),
                    individual: Path = typer.Option(None, "--individual", help="ids the individual mode recorded, one a line"),
-                   rate: int = typer.Option(RATE, "--rate", help="the Meter fee per evaluation in millionths of a USD (50000 is 0.05; a plan may be 20000)"),
+                   rate: int = typer.Option(RATE, "--rate", help="the Meter fee per evaluation in millionths of a USD (2000 is 0.002, the price book's)"),
                    free: int = typer.Option(FREE_PER_MONTH, "--free", help="free evaluations the buyer has left for this seller in the month"),
                    disputed: bool = typer.Option(False, "--disputed", help="print a disputed month anyway, with every disputed line marked"),
                    as_json: bool = typer.Option(False, "--json", help="the month as JSON: the four verdicts counted, and every line with its four ids")) -> None:

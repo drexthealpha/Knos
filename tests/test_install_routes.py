@@ -285,7 +285,7 @@ def test_the_action_is_the_free_check_with_a_read_only_token_and_pinned_parts():
     pins = _json("scripts", "action_pins.json")["pins"]
     used = re.findall(r"uses:\s*([\w./-]+)@(\S+)(?:\s+#\s*(\S+))?",
                       _text("action.yml").split("\nruns:")[1] + _text("docs", "INSTALL.md"))
-    theirs = [(name, ref, tag) for name, ref, tag in used if name != REPO]
+    theirs = [(name, ref, tag) for name, ref, tag in used if name not in (REPO, f"{REPO}/.github/workflows/supplier.yml")]     # (the supplier's one line is Knos's own workflow, at the release's tag)
     assert {name for name, _ref, _tag in theirs} == {"astral-sh/setup-uv"}
     for name, ref, tag in theirs:
         assert re.fullmatch(r"[0-9a-f]{40}", ref) and pins[f"{name}@{tag}"] == ref, (name, ref, tag)

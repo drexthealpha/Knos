@@ -34,6 +34,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -274,20 +275,28 @@ def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None 
     if store is not None and memory.get("on"):
         name = repo or (tree.resolve().name if tree is not None else "")
         held = getattr(store, "held", None)
-        try:
+
+        def recall_and_remember() -> tuple[list, dict | None]:
+            found, mine = [], None
             with held() if held is not None else contextlib.nullcontext(store):      # the recall and the remembering on one connection
                 touched = {r["path"] for r in rows}
                 for b in history.refused_before(store, name, thash):
                     n = b["count"]
                     what = f"touching {b['path']}" if b["path"] else ghwords.refusal(b["code"])[0].rstrip(".").lower()
-                    warnings.append({"code": b["code"], "path": b["path"], "count": n, "yours": b["path"] in touched,
-                                     "said": f"{n} earlier submission{'s were' if n != 1 else ' was'} refused for {what}"
-                                             + (": your change touches it too." if b["path"] in touched else ".")})
+                    found.append({"code": b["code"], "path": b["path"], "count": n, "yours": b["path"] in touched,
+                                  "said": f"{n} earlier submission{'s were' if n != 1 else ' was'} refused for {what}"
+                                          + (": your change touches it too." if b["path"] in touched else ".")})
                 tree_id = hashlib.sha256(json.dumps([thash, sorted(changes or [])]).encode()).hexdigest()[:24]
                 history.preflight_seen(store, name, thash, ready, [(r["code"], r["path"]) for r in refused_rows], supplier, tree_id, now)
-                memory["remembered"] = True
                 if supplier:
-                    record = history.supplier_record(store, name, supplier)
+                    mine = history.supplier_record(store, name, supplier)
+            return found, mine
+
+        try:
+            warnings, record = bounded(recall_and_remember, store)
+            memory["remembered"] = True
+        except Slow as why:
+            memory = {"on": False, "said": str(why)}
         except Exception as why:  # noqa: BLE001 - a memory that fails never stops a preflight; it is said, as memory being off
             memory = {"on": False, "said": f"Memory is off: the memory engine did not answer ({ghwords.first_line(why, 80)})."}
     protected = [{"pattern": g, "says": _cite(read, "deny", g)} for g in terms["deny"]] + \
@@ -335,14 +344,63 @@ def words(report: dict) -> str:
 
 # ---- memory ----------------------------------------------------------------------------------------------------------
 
+MEMORY_WAIT = 10.0      # seconds the memory engine has, in all, for one command; KNOS_MEMORY_WAIT changes it
+
+
+class Slow(Exception):
+    """The memory engine did not answer in its time. Its words are the line the report says."""
+
+
+def _wait() -> float:
+    try:
+        return max(0.01, float(os.environ.get("KNOS_MEMORY_WAIT") or MEMORY_WAIT))
+    except ValueError:
+        return MEMORY_WAIT
+
+
+def bounded(work, store=None):
+    """What `work()` returns, when the memory engine gives it in time; else Slow. A preflight once hung on the store
+    (a locked file, a disk that did not answer) and said nothing: the answer about the change never depended on
+    memory, so memory gets a bounded wait and the report says in one line that it is off. The call runs on a thread of
+    its own (the engine keeps a connection per thread); one that is still waiting when the time is up is left behind
+    and ends with the command. A store opened by `memory` carries the moment its time is up, so opening it, loading
+    into it and reading it share one wait."""
+    import threading
+    wait = _wait()
+    until = getattr(store, "_knos_until", None)
+    left = wait if until is None else max(0.0, until - time.monotonic())
+    box: dict = {}
+
+    def call() -> None:
+        try:
+            box["got"] = work()
+        except BaseException as why:  # noqa: BLE001 - handed to the caller, which decides
+            box["why"] = why
+
+    thread = threading.Thread(target=call, name="knos-memory", daemon=True)
+    thread.start()
+    thread.join(left)
+    if thread.is_alive() or not box:
+        raise Slow(f"Memory is off: the memory engine did not answer within {wait:g} seconds. Nothing is recalled or remembered.")
+    if "why" in box:
+        raise box["why"]
+    return box["got"]
+
+
 def memory(tree: Path) -> tuple[object, dict]:
     """(the store, {"on", "said"}) for the checkout at `tree`: its tenant in the memory engine, or a store that keeps
-    nothing when the engine is not installed or does not open. The second says which, in one sentence."""
+    nothing when the engine is not installed, does not open, or does not open in time. The second says which, in one
+    sentence."""
     from .proof import history
+    until = time.monotonic() + _wait()
     try:        # the engine is imported where the store is opened (knos.store): without it there is no memory, and that is said
-        return history.SibylStore.for_repo(Path(tree)), {"on": True, "said": "Memory is on: this result is remembered in the memory engine."}
+        store = bounded(lambda: history.SibylStore.for_repo(Path(tree)))
+        store._knos_until = until
+        return store, {"on": True, "said": "Memory is on: this result is remembered in the memory engine."}
     except ImportError:
         return history.NullStore(), {"on": False, "said": "Memory is off: the memory engine (sibyl-memory-client) is not installed. Nothing is recalled or remembered."}
+    except Slow as why:
+        return history.NullStore(), {"on": False, "said": str(why)}
     except Exception as why:  # noqa: BLE001 - a store that does not open is no memory, never a failed preflight
         return history.NullStore(), {"on": False, "said": f"Memory is off: the memory engine did not open ({ghwords.first_line(why, 80)})."}
 
@@ -388,7 +446,9 @@ def check(tree: Path, terms_file: Path | None = None, issue: str = "", base: str
     if m and mem["on"] and get is not None:         # the network is in use already: bring what the judge learned on GitHub into memory
         try:
             from .proof import memory as carried
-            carried.pull(m.group(1), store, get)
+            bounded(lambda: carried.pull(m.group(1), store, get), store)
+        except Slow as why:
+            store, mem = None, {"on": False, "said": str(why)}
         except Exception:  # noqa: BLE001 - what GitHub holds of the judge's lessons is a help, never a condition
             pass
     return run(read, changes, tree=tree, base=at, issue=number, store=store, repo=(m.group(1) if m else repo_name(tree)),
@@ -436,10 +496,14 @@ def keep(target: str, out: Path, tree: Path, supplier: str = "", rpc: str = "", 
     code = bundle(["bundle", "make", target, "--out", str(tar), *(["--rpc", rpc] if rpc else [])])
     store, mem = memory(tree)
     name = repo_name(tree)
+    try:
+        held = bounded(lambda: (history.preflights(store, name), history.appeals(store, name, supplier or None),
+                                history.supplier_record(store, name, supplier) if supplier else None), store)
+    except Slow as why:
+        held, mem = ([], [], None), {"on": False, "said": str(why)}
     mine = {"kind": "knos-supplier-copy", "v": 1, "target": target, "repo": name, "memory": mem,
             "bundle": tar.name if code == 0 and tar.is_file() else None,
-            "preflights": history.preflights(store, name), "appeals": history.appeals(store, name, supplier or None),
-            "record": history.supplier_record(store, name, supplier) if supplier else None}
+            "preflights": held[0], "appeals": held[1], "record": held[2]}
     (out / "supplier.json").write_text(json.dumps(mine, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     (out / "REFUSALS.md").write_text("# What each refusal means, and what to do\n\n" + ghwords.refusal_table(), encoding="utf-8")
     return {"files": sorted(p.name for p in out.iterdir() if p.is_file()), "bundle": mine["bundle"], "memory": mem}

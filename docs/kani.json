@@ -1,5 +1,5 @@
 {
- "_about": "One recorded run of the Kani harnesses of programs-v2/knos_pay/src/proofs.rs, each run alone with a limit of 180 seconds. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed before Kani answered, so nothing is proved by this record. `failed`: Kani found a failing check. tests/test_provenance.py holds the harness names here to the names in proofs.rs and the file's hash to the file. A harness is proved only for what its own text assumes (proofs.rs says what each assumes); a proof about the model is a proof about the program only as far as the test `the_model_is_the_arithmetic_of_the_source` ties the two.",
+ "_about": "One recorded run of the Kani harnesses of programs-v2/knos_pay/src/proofs.rs, each run alone with a limit of 180 seconds (scripts/kani_fee_record.py --program). `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed before Kani answered, so nothing is proved by this record. `failed`: Kani found a failing check. tests/test_provenance.py holds the harness names here to the names in proofs.rs and the file's hash to the file. A harness is proved only for what its own text assumes (proofs.rs says what each assumes); a proof about the model is a proof about the program only as far as the test `the_model_is_the_arithmetic_of_the_source` ties the two.",
  "tool": "Kani Rust Verifier",
  "version": "0.68.0",
  "cbmc": "6.11.0",
@@ -8,13 +8,13 @@
  "command": "timeout 180 cargo kani --harness <name>",
  "directory": "programs-v2/knos_pay",
  "limit_seconds": 180,
- "date": "2026-10-05",
- "machine": "x86_64 Linux, 2 CPUs shared with other work (load average between 3 and 7 during the run)",
+ "date": "2026-10-06",
+ "machine": "x86_64 Linux, 2 CPUs shared with other work",
  "source": {
-  "commit": "72511b393bafd939141698c2013477f4634e836b",
+  "commit": "f03ec515d8666c46e3fdc6bb0123bc0786d5dd75",
   "path": "programs-v2/knos_pay/src/proofs.rs",
-  "sha256": "4f201c63e3d8d79ebf5dc024e097a946824ef1eca35c014854ad2060cb30b30c",
-  "last_changed_in": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5"
+  "sha256": "a48791333c70a85b5bf83f34c6225ac7f268ad756406cfb49c0bc694d32f3b0e",
+  "note": "The run was made on the working tree of knos_pay 2.2, on top of this commit; `sha256` is of proofs.rs as it was run."
  },
  "harnesses": [
   {
@@ -24,13 +24,12 @@
    "checks": 11,
    "failed_checks": 0,
    "unreachable_checks": 0,
-   "verification_seconds": 4.9,
-   "seconds": 120.0,
-   "attempts": 1,
-   "note": "The 120 seconds include the first compilation of the crate and its dependencies; Kani's own verification time was 4.9 seconds."
+   "verification_seconds": 4.1757274,
+   "seconds": 5.5,
+   "attempts": 1
   },
   {
-   "name": "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount",
+   "name": "an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount",
    "result": "timed out",
    "proved": false,
    "checks": null,
@@ -38,8 +37,8 @@
    "unreachable_checks": null,
    "verification_seconds": null,
    "seconds": 180.0,
-   "attempts": 2,
-   "note": "Not proved by this record. Run twice with everything already compiled; both times the solver had not answered when the 180 seconds were over. The machine was shared and busy, so this says the proof was not obtained here within the limit, not that the property is false: no failing check was reported."
+   "attempts": 1,
+   "note": "Not proved by this record: the solver had not answered when the 180 seconds were over. No failing check was reported."
   },
   {
    "name": "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
@@ -48,19 +47,19 @@
    "checks": 156,
    "failed_checks": 0,
    "unreachable_checks": 4,
-   "verification_seconds": 36.4,
-   "seconds": 41.7,
+   "verification_seconds": 21.449133,
+   "seconds": 23.0,
    "attempts": 1
   },
   {
    "name": "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
    "result": "verified",
    "proved": true,
-   "checks": 158,
+   "checks": 153,
    "failed_checks": 0,
    "unreachable_checks": 6,
-   "verification_seconds": 4.6,
-   "seconds": 7.3,
+   "verification_seconds": 2.461379,
+   "seconds": 4.1,
    "attempts": 1
   },
   {
@@ -70,13 +69,13 @@
    "checks": 5,
    "failed_checks": 0,
    "unreachable_checks": 0,
-   "verification_seconds": 0.04,
+   "verification_seconds": 0.03158993,
    "seconds": 1.4,
    "attempts": 1
   }
  ],
  "fee_proofs": {
-  "_about": "Recorded runs of the Kani harnesses of programs-v2/fee_proofs/src/lib.rs, each run alone with a limit of 150 seconds. They are about `order_fee`, `bps_of` and `units` as build.rs copies them, line for line, out of programs-v2/knos_pay/src (lib.rs and state.rs), for a mint of 6 decimals and every rate from 50 to 250 basis points. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed first, so nothing is proved by that entry. `range` is the set of amounts the harness assumes, in units of a millionth, and the rates it goes through; a harness proves its statement for that range and for nothing outside it. `summary` is computed from the entries: its `status` is `verified` when one harness over every amount is, `verified per tier` when every part is, and `not verified` otherwise; `parts` says which statement is verified over which amounts and rates, and which is not.",
+  "_about": "Recorded runs of the Kani harnesses of programs-v2/fee_proofs/src/lib.rs, each run alone with a limit of 150 seconds. They are about `order_fee`, `fee_of`, `bps_of` and `units` as build.rs copies them, line for line, out of programs-v2/knos_pay/src (lib.rs and state.rs), for a mint of 6 decimals and every rate from 10 to 30 basis points: one rate, no tiers. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed first, so nothing is proved by that entry. `range` is the set of amounts the harness assumes, in units of a millionth, and the rates it goes through; a harness proves its statement for that range and for nothing outside it. `summary` is computed from the entries: its `status` is `verified` when one harness over every amount is, or when every part is; `verified but for one bound at one rate` when the only part without a proof is the exact 0.30% at the rate 30; and `not verified` otherwise; `parts` says which statement is verified over which amounts and rates, and which is not.",
   "version": "0.68.0",
   "command": "timeout 150 cargo kani --harness <name>",
   "directory": "programs-v2/fee_proofs",
@@ -85,235 +84,108 @@
   "machine": "x86_64 Linux, 2 CPUs shared with other work",
   "source": {
    "path": "programs-v2/fee_proofs/src/lib.rs",
-   "sha256": "8d47d0542793bbd1a80cce671a1ee4b5a109ba2dda1798bc2e4a42136abb0876",
-   "program_lines_sha256": "80a0b9cf4122d4047b7139b4ffef8a9f59026bc0032bc99892f594c03a23b213"
+   "sha256": "f0e12ed51be1303e7061a392c44037646980d3502d054b7e5816f5705d6a305a",
+   "program_lines_sha256": "abab17805feb90b33e2f50927efa26d4608c8ebb2b40f4713b38de7ac1588d14"
   },
   "summary": {
-   "statement": "For every rate from 50 to 250 basis points and every amount from 0 to 100,000.00 at 6 decimals, the fee `order_fee` computes is at least 0.40, is 0.40 or at most 2.5% of the amount, and adds to the amount in a u64.",
-   "status": "not verified",
+   "statement": "For every rate from 10 to 30 basis points and every amount from 0 to 100,000.00 at 6 decimals, the fee `order_fee` computes is at least 0.05, is 0.05 or at most 0.30% of the amount, and adds to the amount in a u64; a job's fee is never more than its amount.",
+   "status": "verified but for one bound at one rate",
    "whole_range_in_one_harness": "not verified",
    "parts": [
     {
-     "amount": "0 to 1,000.00",
-     "rate_bps": "50..=249",
-     "stated": "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64",
+     "amount": "0 to 100,000.00",
+     "rate_bps": "10..=29",
+     "stated": "at least 0.05; 0.05 or at most 0.30% of the amount; adds to the amount in a u64",
      "result": "verified",
      "harnesses": [
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_50_to_100",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_101_to_150",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_151_to_200",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_201_to_225",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_226_to_231",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_232_to_237",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_238_to_243",
-      "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_244_to_249"
+      "the_fee_of_an_order_is_within_its_bounds_at_the_rates_10_to_19",
+      "the_fee_of_an_order_is_within_its_bounds_at_the_rates_20_to_29"
      ]
     },
     {
-     "amount": "0 to 1,000.00",
-     "rate_bps": "250",
-     "stated": "at least 0.40; adds to the amount in a u64",
+     "amount": "0 to 100,000.00",
+     "rate_bps": "30",
+     "stated": "at least 0.05; 0.05 or at most 0.31% of the amount; adds to the amount in a u64",
      "result": "verified",
      "harnesses": [
-      "the_fee_of_an_amount_in_the_first_tier_at_the_rate_250_is_at_least_the_floor_and_adds_up"
+      "the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points"
      ]
     },
     {
-     "amount": "0 to 1,000.00",
-     "rate_bps": "250",
-     "stated": "0.40 or at most 2.5% of the amount",
+     "amount": "0 to 100,000.00",
+     "rate_bps": "30",
+     "stated": "0.05 or at most 0.30% of the amount",
      "result": "not verified",
      "harnesses": [],
-     "note": "No harness states it: asked of Kani 0.68 on 2026-10-06 for this range, CaDiCaL had not answered after 150 seconds and Kissat after 130 (at this rate the bound is exact, with nothing to spare). Tested instead at each of the 1,000,000,001 amounts: programs-v2/fee_proofs/tests/reference.rs, every_amount_of_the_first_tier_at_the_top_rate_is_the_reference."
+     "note": "No harness states it: at this rate the fee is exactly 0.30% rounded down, with nothing to spare. Asked of Kani 0.68 on 2026-10-06 for this range in three forms (the bound itself; the amount drawn as its ten-thousands and a remainder; the bound taken apart into the fee's thirties and their algebra), CaDiCaL had not answered any after 150 seconds; with one basis point to spare it answers in under a second. Tested instead at all 10,000 remainders on 2,001 values of the ten-thousands and at 10,000,000 amounts from a fixed seed: programs-v2/fee_proofs/tests/reference.rs, every_remainder_at_the_top_rate_is_the_reference_and_within_thirty_basis_points."
     },
     {
-     "amount": "above 1,000.00, to 50,000.00",
-     "rate_bps": "50..=250",
-     "stated": "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64",
+     "amount": "every u64",
+     "rate_bps": "30 (a job)",
+     "stated": "never more than the amount; at least 0.05 or the whole amount",
      "result": "verified",
      "harnesses": [
-      "the_fee_of_an_amount_in_the_second_tier_is_within_its_bounds"
-     ]
-    },
-    {
-     "amount": "above 50,000.00, to 100,000.00",
-     "rate_bps": "50..=250",
-     "stated": "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64",
-     "result": "verified",
-     "harnesses": [
-      "the_fee_of_an_amount_in_the_third_tier_is_within_its_bounds"
+      "the_fee_of_a_job_is_never_more_than_its_amount"
      ]
     }
    ]
   },
   "harnesses": [
    {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_50_to_100",
+    "name": "the_fee_of_an_order_is_within_its_bounds_at_the_rates_10_to_19",
     "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "50..=100"
+     "amount": "amount <= MAX_AMOUNT",
+     "rate_bps": "10..=19"
     },
     "result": "verified",
     "proved": true,
-    "checks": 73,
+    "checks": 68,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 46.12287,
-    "seconds": 46.6
+    "verification_seconds": 7.8606424,
+    "seconds": 8.4
    },
    {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_101_to_150",
+    "name": "the_fee_of_an_order_is_within_its_bounds_at_the_rates_20_to_29",
     "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "101..=150"
+     "amount": "amount <= MAX_AMOUNT",
+     "rate_bps": "20..=29"
     },
     "result": "verified",
     "proved": true,
-    "checks": 73,
+    "checks": 68,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 72.60338,
-    "seconds": 73.1
+    "verification_seconds": 16.117285,
+    "seconds": 16.5
    },
    {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_151_to_200",
+    "name": "the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points",
     "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "151..=200"
+     "amount": "amount <= MAX_AMOUNT",
+     "rate_bps": "30"
     },
     "result": "verified",
     "proved": true,
-    "checks": 73,
+    "checks": 68,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 102.24149,
-    "seconds": 102.7
+    "verification_seconds": 0.64779115,
+    "seconds": 1.1
    },
    {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_201_to_225",
+    "name": "the_fee_of_a_job_is_never_more_than_its_amount",
     "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "201..=225"
+     "amount": "every u64",
+     "rate_bps": "30"
     },
     "result": "verified",
     "proved": true,
-    "checks": 73,
+    "checks": 54,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 57.671402,
-    "seconds": 58.1
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_226_to_231",
-    "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "226..=231"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 73,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 7.0838704,
-    "seconds": 7.5
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_232_to_237",
-    "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "232..=237"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 73,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 11.6409025,
-    "seconds": 12.0
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_238_to_243",
-    "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "238..=243"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 73,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 14.756009,
-    "seconds": 15.2
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_244_to_249",
-    "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "244..=249"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 73,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 41.759853,
-    "seconds": 42.2
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_first_tier_at_the_rate_250_is_at_least_the_floor_and_adds_up",
-    "range": {
-     "amount": "amount <= FEE_TIER_1",
-     "rate_bps": "250"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 69,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 0.55746067,
-    "seconds": 1.3
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_second_tier_is_within_its_bounds",
-    "range": {
-     "amount": "amount > FEE_TIER_1 && amount <= FEE_TIER_2",
-     "rate_bps": "50..=250"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 72,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 0.93222696,
-    "seconds": 1.5
-   },
-   {
-    "name": "the_fee_of_an_amount_in_the_third_tier_is_within_its_bounds",
-    "range": {
-     "amount": "amount > FEE_TIER_2 && amount <= MAX_AMOUNT",
-     "rate_bps": "50..=250"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 72,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 0.7464826,
-    "seconds": 1.3
-   },
-   {
-    "name": "the_fee_of_an_amount_above_the_most_an_order_holds_is_within_its_bounds",
-    "range": {
-     "amount": "amount > MAX_AMOUNT",
-     "rate_bps": "50..=250"
-    },
-    "result": "verified",
-    "proved": true,
-    "checks": 61,
-    "failed_checks": 0,
-    "unreachable_checks": 4,
-    "verification_seconds": 0.8149002,
-    "seconds": 1.2
+    "verification_seconds": 0.27814862,
+    "seconds": 0.7
    }
   ]
  }

@@ -6,6 +6,13 @@ end of a conversation that went well. **No conversation has happened yet.**
 The aim is to learn whether the person who approves a supplier's invoice for software work wants a count that
 neither side keeps, and whether a supplier wants acceptance terms that cannot be changed after the work.
 
+What can be offered in a conversation, as of Knos 0.3.18, and at what price ([MARKET.md](../MARKET.md) has the
+price book): the invoice check and a shadow count are free; a supplier never pays, and gets a kit (a signed public
+record, a badge, a one-line install, a verified receipt to attach to an invoice); the buyer's one fee is on value
+released or reconciled against a signed acceptance. Nothing has been sold, so every price is a question to ask,
+not a quote. The conversations are one of six evidence targets ([CRITERIA.md](CRITERIA.md)); a target is not a
+result.
+
 ## The tally
 
 | what | count |

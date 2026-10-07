@@ -130,7 +130,12 @@ def test_bad_tokens_are_reported_not_raised(env):
     go = lambda jwt: relay.submit(ledger, c.payer, jwt, jwks, now=c.now())  # noqa: E731
     assert go(token(c, "sts.amazonaws.com"))["why"].startswith("not a Knos audience")
     assert go(token(c, pay.fund_audience(1, USDC), exp=c.now() - oidc.LATE - 1))["why"] == "token expired"
+    # a stranger's key whose modulus is under the issuer's, so its signature is always in the issuer's range and the program
+    # reaches the signature itself (70): with any 2048-bit key, a signature at or over the issuer's modulus is refused
+    # earlier, as out of range (65)
     stranger = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    while modulus(stranger) >= modulus(signing_key()):
+        stranger = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     forged = sign_jwt(stranger, json.loads(json.dumps(github_claims(aud=pay.pay_audience(REPO, 7, AUTHOR, "a" * 40), exp=c.now() + 300))),
                       header={"typ": "JWT", "alg": "RS256", "kid": "k0"})
     r = go(forged)

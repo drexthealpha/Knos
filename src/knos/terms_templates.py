@@ -241,8 +241,33 @@ def diff_text(a: str, b: str) -> str:
             "and a payment under any other version is refused. The later version applies only to orders funded on it.\n")
 
 
+def _three(what: str) -> dict | None:
+    """The Knos Terms 3 document `what` names: a file that holds one, or a published one as `name` or `name@version`.
+    None when it is neither (it is then read as the older format)."""
+    from pathlib import Path
+
+    from . import terms3, terms_registry as registry
+    path = Path(what)
+    if path.is_file():
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return terms3.validate(doc) if terms3.is_terms3(doc) else None
+    name, _, version = what.partition("@")
+    if name in terms3.TEMPLATES and (not version or version.isdigit()):
+        try:
+            return registry.read3(name, int(version) if version else None)
+        except registry.Absent:
+            return terms3.template(name)
+        except KeyError as why:
+            raise ValueError(str(why.args[0])) from None
+    return None
+
+
 def register(app) -> None:
-    """`knos terms list`, `show <name>`, `diff <a> <b>`, and from the registry of published terms `cite` and `verify`."""
+    """`knos terms list`, `show <name>`, `diff <a> <b>`, `propose <owner/repo>`, and from the registry of published
+    terms `cite` and `verify`. A Knos Terms 3 file (knos.terms3) is verified field by field and diffed by meaning."""
     import importlib
     typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
@@ -279,6 +304,14 @@ def register(app) -> None:
               b: str = typer.Argument(..., help="the later version, named the same way")) -> None:
         """What changed between two versions of an acceptance policy, one plain sentence for each difference."""
         try:
+            three = [_three(x) for x in (a, b)]
+            first, second = three
+            if first is not None and second is not None:
+                from . import terms3
+                typer.echo(terms3.diff_text(first, second, a, b), nl=False)
+                return
+            if any(three):
+                raise ValueError("One of the two is Knos Terms 3 and the other is not: two versions of one format are compared, not two formats.")
             typer.echo(diff_text(a, b), nl=False)
         except ValueError as why:
             typer.echo(str(why))
@@ -305,8 +338,21 @@ def register(app) -> None:
         from pathlib import Path
 
         from . import terms_registry as registry
+        from . import terms3
+        path = Path(what)
         try:
-            path = Path(what)
+            doc = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+        except (OSError, ValueError):
+            doc = None
+        if doc is not None and terms3.is_terms3(doc):
+            try:
+                digest, found = registry.verify3(doc)
+            except (terms3.Refused, registry.Changed) as why:        # a missing field is said by name
+                typer.echo(str(why))
+                raise typer.Exit(1) from None
+            typer.echo(registry.said3(doc, digest, found))
+            return
+        try:
             found = registry.verify(what if registry.is_hash(what) or not path.is_file() else path.read_text(encoding="utf-8"))
         except (registry.Absent, registry.Changed) as why:
             typer.echo(str(why))
@@ -317,5 +363,29 @@ def register(app) -> None:
         typer.echo(registry.said(found))
         if not found:
             raise typer.Exit(1)
+
+    @sub.command("propose")
+    def _propose(repo: str = typer.Argument(..., help="a public repository, as owner/name"),
+                 out: str = typer.Option("", "--out", help="write the proposed terms 3 file here (the buyer edits and commits it)"),
+                 template: str = typer.Option("bug-fix", "--template", help="where the defaults come from: bug-fix, migration"),
+                 as_json: bool = typer.Option(False, "--json", help="the whole proposal as JSON: the terms, and where each line came from")) -> None:
+        """Propose terms for a repository from its own record: the checks that passed on every recent merge decide,
+        its test directories are protected, and every line says where it came from. Nothing is funded or posted."""
+        import time
+        from pathlib import Path
+
+        from . import propose_terms, terms3
+        try:
+            got = propose_terms.propose(repo, propose_terms.reader(), time.time(), template)
+        except (propose_terms.Refused, terms3.Refused, KeyError) as why:
+            typer.echo(str(why.args[0]))
+            raise typer.Exit(1) from None
+        except OSError as why:
+            typer.echo(f"GitHub did not answer for {repo}: {why}")
+            raise typer.Exit(1) from None
+        if out:
+            Path(out).parent.mkdir(parents=True, exist_ok=True)
+            Path(out).write_text(terms3.dumps(got["terms"]), encoding="utf-8", newline="")
+        typer.echo(json.dumps(got, indent=2) if as_json else propose_terms.text(got), nl=as_json)
 
     app.add_typer(sub, name="terms")

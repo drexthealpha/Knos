@@ -38,6 +38,10 @@ ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / "docs" / "PROVENANCE.md"
 RECORD = ROOT / "docs" / "provenance.json"
 PROGRAMS = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
+# The programs this release proposes a new build of, as ONE proposal set, in the order the upgrades execute. Each gets
+# a second row in its table: the verified build the release run made (docs/provenance.json `next`, which
+# scripts/exercise_public.py propose writes from upgrade_gate's record), or MISSING until that run has made it.
+RELEASE_CHANGES = ("knos_oidc", "knos_pay")
 DEVNET = "https://api.devnet.solana.com"
 BEGIN, END = "<!-- provenance:begin -->", "<!-- provenance:end -->"
 MISSING = "MISSING"
@@ -120,6 +124,23 @@ def exercises(data: dict, program: str, address: str) -> list[tuple[str, str]]:
     return out
 
 
+def next_build(data: dict, program: str) -> dict | None:
+    """The build this release proposes for `program`: {"build_hash", "source_commit", "gate_run", "version", "proposal",
+    "state"}, each None while it is not recorded; None for a program the release does not change."""
+    held = (data["record"].get("next") or {}).get(program)
+    if program not in RELEASE_CHANGES and not held:
+        return None
+    held = held or {}
+    h = held.get("build_hash")
+    mine = [e for e in data["upgrades"].get("entries", []) if e.get("program") == program and h and e.get("build_hash") == h]
+    entry = mine[0] if mine else None
+    seen = (data["record"].get("programs") or {}).get(program) or {}
+    state = ("live" if h and seen.get("on_chain_hash") == h else f"{entry['status']} in web/upgrades.json" if entry else
+             "not proposed yet" if h else "not built yet")
+    return {"build_hash": h, "source_commit": held.get("source_commit"), "gate_run": held.get("gate_run"), "version": held.get("version"),
+            "proposal": entry.get("index") if entry else held.get("proposal"), "state": state}
+
+
 def summary(c: dict) -> list[str]:
     """One table for a program: the build its chain is about, where it runs, since when, and what was run on it. The
     slot and the exercise transactions are filled by `scripts/exercise_public.py record`, only once the public id
@@ -131,7 +152,22 @@ def summary(c: dict) -> list[str]:
     return ["| source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |", "|---|---|---|---|---|---|",
             f"| {f'`{commit}`' if commit else MISSING} | {f'`{build}`' if build else MISSING} | `{c['address']}` | {e.get('index', MISSING)} | "
             + (str(c["slot"]) if c["slot"] is not None else "not recorded" if live else "not live yet") + " | "
-            + (ran or ("none recorded" if live else "none: the public id does not run this build yet")) + " |", ""]
+            + (ran or ("none recorded" if live else "none: the public id does not run this build yet")) + " |",
+            *_next_row(c), ""]
+
+
+def _next_row(c: dict) -> list[str]:
+    """The row of the build this release proposes for the program, under the row of the build its chain is about."""
+    n = c.get("next")
+    if not n:
+        return []
+    why = f"{MISSING} (the release run's verified build is not recorded yet)"
+    commit, build = n["source_commit"], n["build_hash"]
+    return [f"| {f'`{commit}`' if commit else why} | {f'`{build}`' if build else why} | `{c['address']}` | "
+            + (str(n["proposal"]) if n["proposal"] is not None else "not proposed yet") + " | "
+            + ("live" if n["state"] == "live" else "not live yet") + " | "
+            + ("none recorded" if n["state"] == "live" else f"none: the public id does not run this build yet ({n['state']}"
+               + (f"; {c['program']} {n['version']}" if n["version"] else "") + ")") + " |"]
 
 
 def link(value: str | None, where: str, why: str = "") -> dict:
@@ -186,7 +222,7 @@ def chain_of(data: dict, program: str) -> dict:
         out["exercised scenario"] = link(None, "docs/capabilities.json", f"no capability has a transaction at this id for {program} {version or '?'}")
     return {"program": program, "address": address, "runs": runs, "version": version, "entry": entry,
             "slot": seen.get("live_slot") if same else None, "exercises": exercises(data, program, str(address)) if same else [],
-            "release": release_note(data, program, version), "links": {name: out[name] for name in LINKS},
+            "release": release_note(data, program, version), "links": {name: out[name] for name in LINKS}, "next": next_build(data, program),
             "now": {"hash": h, "commit": seen.get("on_chain_commit"), "run": seen.get("on_chain_run")} if h else None}
 
 
@@ -354,7 +390,7 @@ def live(data: dict, url: str) -> tuple[dict, list[str]]:
             elif p and p.status != entry.get("squads_status"):
                 lines.append("  the feed is older than the cluster: run scripts/upgrade_feed.py, then this again")
         seen["programs"][program] = row
-    if data["record"].get("next"):          # the build scripts/exercise_public.py propose-oidc named: not something a read replaces
+    if data["record"].get("next"):          # the build scripts/exercise_public.py propose named: not something a read replaces
         seen["next"] = data["record"]["next"]
     return seen, lines
 

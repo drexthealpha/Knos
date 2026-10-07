@@ -51,6 +51,21 @@ measurements under the names a reader asks for, each with its own n, p50 and p95
 
 A stage no line recorded prints "not recorded" in every cell. Nothing is filled in from another stage or guessed.
 
+THE FIVE CLOCKS (`--clocks` prints the table; the JSON report carries it as `clocks`; docs/LOAD.md has it). The six
+stages are one wait cut in six. A reader who asks "how fast is it" asks about five different clocks, and only one of
+them is Knos's own to shorten:
+
+    work execution               the forge starts a runner and runs the job    workflow scheduling, evaluation
+    evidence availability        the signed token reaches whoever acts on it   relay pickup
+    Knos decision processing     the token in hand -> accepted or not          `knos decide` (scripts/decide_bench.py:
+                                                                               measured on one machine, no network)
+    chain inclusion              the first send -> the paying transaction at   submission, confirmation; and finality,
+                                 the commitment level `confirmed`              which is the level `finalized`
+    bank availability            not applicable: no bank route                 nothing: Knos pays test USDC on devnet
+
+Every row carries its own n and says where it was measured. A clock nothing measured says so. No row is a sum of
+two others: percentiles of different samples do not add.
+
 At release time it runs against the live log and chain (GH_TOKEN for GitHub's rate limit; --events is what
 `scripts/network_stats.py --events-out` wrote, else the chain is read). tests/test_latency_stages.py runs it on a
 recorded sample.
@@ -100,6 +115,66 @@ def six(r: dict) -> list[dict]:
         got = (r.get(part) or {}).get(key) or {}
         n = int(got.get("n") or 0)
         out.append({"stage": name, "n": n, "p50": got.get("p50") if n else None, "p95": got.get("p95") if n else None, "what": what})
+    return out
+
+
+COMMITMENT = "confirmed"        # the level the relay waits for and `block_times` asks at; `finalized` is the finality row
+NO_BANK = "not applicable: no bank route"
+# the five clocks: (clock, the six-stage rows that measure it, whose wait it is, the target)
+CLOCKS = (("work execution", ("workflow scheduling", "evaluation"),
+           "GitHub's: starting a runner, and the job. Knos's share is the job's install and its reads",
+           "none set: the forge must run a job and sign, so this clock cannot reach zero"),
+          ("evidence availability", ("relay pickup",),
+           "Knos's own, all of it: a relay finding the token (a pass over the comments every 3 s)",
+           "0 s for a run that relays its own token; otherwise one pass"),
+          ("Knos decision processing", (),
+           "Knos's own, all of it",
+           "under 2 s at p95 from the token in hand; under 200 ms at p95 for a cached decision"),
+          (f"chain inclusion, at `{COMMITMENT}`", ("submission", "confirmation"),
+           "the cluster's, and the relay's sends: two verification transactions for a 2048-bit RSA key, then the payment",
+           "none set: measured apart, at this commitment level"),
+          ("chain inclusion, at `finalized`", ("finality",),
+           "the cluster's; no relay waits for it",
+           "none set"),
+          ("bank availability", (), NO_BANK, NO_BANK))
+
+
+def clocks(six_rows: list[dict], decision: dict | None = None, whole: dict | None = None) -> list[dict]:
+    """The five clocks as rows, each with its own sample: [{clock, part, where, n, p50, p95, unit, whose, target}].
+    `six_rows`: `six()`'s. `decision`: what scripts/decide_bench.py measured ({rows: {name: {n, p50, p95}}, machine}),
+    in milliseconds, or None (then that clock says it was not measured). `whole`: the payments timed at all, so a
+    row can say "5 of 41"."""
+    by = {row["stage"]: row for row in six_rows}
+    of = f" of {whole['n']} payments" if whole and whole.get("n") else ""
+    out: list[dict] = []
+    for name, parts, whose, target in CLOCKS:
+        if name == "Knos decision processing":
+            got = (decision or {}).get("rows") or {}
+            for part in ("fresh, accepted", "cached, accepted"):
+                d = got.get(part) or {}
+                n = int(d.get("n") or 0)
+                out.append({"clock": name, "part": f"`knos decide`, {part.split(',')[0]}: the token in hand to the provisional receipt", "n": n,
+                            "p50": round(d["p50"], 1) if n else None, "p95": round(d["p95"], 1) if n else None, "unit": "ms",
+                            "where": f"locally, {n} decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet"
+                                     if n else "not measured", "whose": whose, "target": target})
+            continue
+        if not parts:
+            out.append({"clock": name, "part": NO_BANK, "n": 0, "p50": None, "p95": None, "unit": "s", "where": NO_BANK, "whose": whose, "target": target})
+            continue
+        for part in parts:
+            row = by.get(part) or {}
+            n = int(row.get("n") or 0)
+            out.append({"clock": name, "part": f"{part}: {row.get('what') or ''}".rstrip(": "), "n": n, "p50": row.get("p50") if n else None,
+                        "p95": row.get("p95") if n else None, "unit": "s", "where": f"devnet, {n}{of}" if n else NOT_RECORDED, "whose": whose, "target": target})
+    return out
+
+
+def clock_table(rows: list[dict]) -> list[str]:
+    """`clocks()`'s rows as a Markdown table. A row with no sample has no figure."""
+    cell = lambda row, k: "-" if row["where"] == NO_BANK else NOT_RECORDED if not row["n"] or row.get(k) is None else f"{row[k]} {row['unit']}"  # noqa: E731
+    out = ["| clock | what is timed | measured | n | p50 | p95 | whose wait | target |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    out += [f"| {r['clock']} | {r['part']} | {r['where']} | {r['n'] if r['n'] else '-' if r['where'] == NO_BANK else NOT_RECORDED} | {cell(r, 'p50')} | {cell(r, 'p95')} | "
+            f"{r['whose']} | {r['target']} |" for r in rows]
     return out
 
 
@@ -214,7 +289,8 @@ def report(comments: list[dict], events: list[dict], get=None, when: Callable[[s
            "without_times": apart,
            "slowest": sorted(rows, key=lambda r: -r["seconds"])[:5],
            "attempts": ns.attempts(comments, ns.ATTEMPTS["pay"])}
-    return {**out, "six": six(out)}
+    out = {**out, "six": six(out)}
+    return {**out, "clocks": clocks(out["six"], whole=out["whole"])}
 
 
 def render(r: dict) -> list[str]:
@@ -275,6 +351,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("--offline", action="store_true", help="ask GitHub nothing: only lines that carry their own start are timed")
     ap.add_argument("--json", action="store_true", help="print the report as JSON")
     ap.add_argument("--md", action="store_true", help="print only the table of the six stages (n, p50, p95 each), as Markdown")
+    ap.add_argument("--clocks", action="store_true", help="print only the five clocks, each row with its own sample, as Markdown (the decision clock is measured by scripts/decide_bench.py, not here)")
     a = ap.parse_args(argv)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     get = None if a.offline else (lambda path: ns.github(path, token))
@@ -296,7 +373,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         say("stopped: give --events FILE (python scripts/network_stats.py --events-out FILE) or --rpc URL: the paying blocks' times are the chain's.")
         return 1
     r = report(comments, events, get, block_times(a.rpc) if a.rpc else None)
-    for line in ([json.dumps(r, indent=1)] if a.json else table(r["six"], r["whole"]) if a.md else render(r)):
+    for line in ([json.dumps(r, indent=1)] if a.json else clock_table(r["clocks"]) if a.clocks else table(r["six"], r["whole"]) if a.md else render(r)):
         say(line)
     return 0
 

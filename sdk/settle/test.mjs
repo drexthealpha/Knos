@@ -214,7 +214,7 @@ const readers = {
   job: (raw) => { const got = v2.readJob(raw); if (got) delete got.funder; return snake(got); },
   balance: (raw) => snake(v2.readBalance(raw)), bind: (raw) => snake(v2.readBind(raw)), rep: (raw) => snake(v2.readRep(raw)),
   pause: v2.readPause, rate: v2.readRate,
-  order: (raw) => { const got = v2.readOrder(raw); if (got) { delete got.funder; delete got.tokenProgram; delete got.faucet; } return snake(got); },
+  order: (raw) => { const got = v2.readOrder(raw); if (got) { delete got.funder; delete got.tokenProgram; delete got.faucet; delete got.stamp; delete got.payUntil; } return snake(got); },
   balx: (raw) => snake(v2.readBalx(raw)), plan: (raw) => snake(v2.readPlan(raw)), iss: v2.readIss,
   holdback: v2.readHoldback, assign: (raw) => v2.readAssign(raw), marker: v2.readMarker,
   token: (raw) => { const t = knos.readToken(raw); return t && { stage: t.stage, issuer: t.issuer, done: t.done, exp: t.exp, key: t.key, payer: t.payer, payload: knos.hex(t.payload) }; },
@@ -382,9 +382,26 @@ for (const [amount, fee] of Object.entries(s["fees (decimals)"])) { const [a, d]
 for (const [name, fee] of Object.entries(s["order fees"])) { const [a, bps, d] = name.split("/").map(Number); same(`order fee ${name}`, v2.orderFee(a, bps, d), fee); }
 for (const [name, want] of Object.entries(s.units)) { const [m, d] = name.split("/").map(Number); same(`units ${name}`, v2.units(m, d), want); }
 same("units saturate at the largest amount a token account holds", v2.units(10n ** 13n, 18), 2n ** 64n - 1n);
-same("the fee of an order has no maximum: 25 on the first 1,000, 490 on the next 49,000, 0.5% of what lies above", [v2.orderFee(1_000_000_000), v2.orderFee(50_000_000_000),
-  v2.orderFee(v2.MAX_AMOUNT), v2.orderFee(10n ** 12n)], [25_000_000, 515_000_000, 765_000_000, 5_265_000_000]);
-same("a plan lowers the first tier's rate only", v2.orderFee(2_000_000_000, 100) - v2.orderFee(2_000_000_000), 10_000_000 - 25_000_000);
+// the fee follows the build that is live: the 0.3.18 rule (0.30%, at least 0.05) from knos_pay 2.2 on, the 0.3.14 rule before
+const OLD = v2.FEE_RULES.old, NEW = v2.FEE_RULES.new;
+for (const [name, fee] of Object.entries(s["order fees 0.3.14"])) { const [a, bps, d] = name.split("/").map(Number); same(`order fee ${name} under the 0.3.14 rule`, v2.orderFee(a, bps, d, OLD), fee); }
+for (const [name, fee] of Object.entries(s["fees 0.3.14 (decimals)"])) { const [a, d] = name.split("/").map(Number); same(`second: fee of ${name} under the 0.3.14 rule`, v2.feeOf(a, d, OLD), fee); }
+same("the two fee rules are the Python's", { new: snake(NEW), old: snake(OLD) }, s["fee rules"]);
+same("the price book's examples: 5 -> 0.05, 100 -> 0.30, 1,000 -> 3, 5,000 -> 15, 100,000 -> 300; no maximum", [5, 100, 1_000, 5_000, 100_000, 1_000_000].map((a) => v2.orderFee(a * 1e6)),
+  [50_000, 300_000, 3_000_000, 15_000_000, 300_000_000, 3_000_000_000]);
+same("the 0.3.14 fee had three tiers: 25 on the first 1,000, 490 on the next 49,000, 0.5% of what lies above", [1_000_000_000, 50_000_000_000, v2.MAX_AMOUNT, 10n ** 12n].map((a) => v2.orderFee(a, null, 6, OLD)),
+  [25_000_000, 515_000_000, 765_000_000, 5_265_000_000]);
+same("a plan lowers the one rate (0.3.18), where it lowered the first tier's only (0.3.14)", [v2.orderFee(2_000_000_000, 10), v2.orderFee(2_000_000_000, 100, 6, OLD) - v2.orderFee(2_000_000_000, null, 6, OLD)],
+  [2_000_000, 10_000_000 - 25_000_000]);
+same("which rule: the version the program answered, 2 from knos_pay 2.2 on; nobody asked is this tree's own", [0, 1, 2, 3, null, undefined].map((v) => v2.feeRule(v).release),
+  ["0.3.14", "0.3.14", "0.3.18", "0.3.18", "0.3.18", "0.3.18"]);
+{
+  const feeds = { "2.1 pending": [[4, "knos_pay", "pending"]], "2.1 executed": [[4, "knos_pay", "executed"], [5, "knos_meter", "executed"]],
+    "2.2 pending": [[8, "knos_pay", "pending"], [4, "knos_pay", "executed"]], "2.2 executed": [[8, "knos_pay", "executed"], [4, "knos_pay", "executed"]],
+    "another program after": [[7, "knos_oidc", "executed"], [4, "knos_pay", "executed"]] };
+  const got = Object.fromEntries(Object.entries(feeds).map(([name, rows]) => [name, v2.feedFeeVersion({ entries: rows.map(([index, program, status]) => ({ index, program, status })) })]));
+  same("which rule, from the upgrade feed: the 0.3.18 fee once a proposal of knos_pay after the 2.1 one has executed", { ...got, "not a feed": v2.feedFeeVersion({}) }, s["fee version of a feed"]);
+}
 for (const [name, c] of Object.entries(s.spent)) same(`a token is used up: ${name}`, v2.spent(c.data === null ? null : knos.unhex(c.data)), c.want);
 for (const name of ["bindIx", "bindOrgIx", "reserveIx", "faucetOpenIx"]) {
   await throws(`${name} without the token's marker is refused here, as the program would refuse it`, () => k2[name]({ relayer: j.relayer, key: j.key, order: j.address, userId: 1, orgId: 1, ownerId: 1, repoId: 1 }));
@@ -394,8 +411,12 @@ const plansIn = { "no plan": null, "a plan in force": v2.readPlan(knos.unhex(s["
 {
   const p = (over) => ({ ...plansIn["a plan in force"], ...over });
   const got = { "no plan": v2.planBps(null, j.now), "a plan in force": v2.planBps(plansIn["a plan in force"], j.now), "an expired plan": v2.planBps(p({ expires: j.now - 1 }), j.now),
-    "a rate below the floor": v2.planBps(p({ feeBps: 10 }), j.now), "a rate above the cap": v2.planBps(p({ feeBps: 900 }), j.now), "expires this second": v2.planBps(p({ expires: j.now }), j.now) };
-  same("the fee rate of an owner's orders: a plan while it lasts, within 50 to 250", got, s["plan bps"]);
+    "a rate below the floor": v2.planBps(p({ feeBps: 5 }), j.now), "a rate above the cap": v2.planBps(p({ feeBps: 900 }), j.now), "expires this second": v2.planBps(p({ expires: j.now }), j.now) };
+  same("the fee rate of an owner's orders: a plan while it lasts, within 10 to 30", got, s["plan bps"]);
+  const was = { "no plan": v2.planBps(null, j.now, v2.FEE_RULES.old), "a plan in force": v2.planBps(plansIn["a plan in force"], j.now, v2.FEE_RULES.old),
+    "an expired plan": v2.planBps(p({ expires: j.now - 1 }), j.now, v2.FEE_RULES.old), "a rate below the floor": v2.planBps(p({ feeBps: 5 }), j.now, v2.FEE_RULES.old),
+    "a rate above the cap": v2.planBps(p({ feeBps: 900 }), j.now, v2.FEE_RULES.old), "expires this second": v2.planBps(p({ expires: j.now }), j.now, v2.FEE_RULES.old) };
+  same("the same under the 0.3.14 rule: within 50 to 250", was, s["plan bps 0.3.14"]);
 }
 for (const [name, want] of Object.entries(s.opts)) same(`opts ${name}`, knos.hex(opts(name)), want);
 same("opts are 48 bytes", opts("everything").length, v2.OPTS_LEN);
@@ -860,7 +881,7 @@ same("no window, no wallets", knos.wallets(undefined), []);
     amount: 25_000_000, terms: v2.termsJson(j.terms), wfRepo: j.wf_repo, wfSha: pinned });
   same("the wallet was asked once, on devnet, for the transaction the client builds", [sent.length, sent[0].chain, b64(sent[0].transaction)],
     [1, "solana:devnet", b64(knos.serializeTx([want], j.authority, j.blockhash))]);
-  same("the first example says what happened", lines[0], "{ ok: true, err: null } - paid 25 test USDC and a fee of 0.625 on top");
+  same("the first example says what happened", lines[0], "{ ok: true, err: null } - paid 25 test USDC and a fee of 0.075 on top from knos_pay 2.2");
   same("the second example prints the record", lines[1], "3 payments from 2 funders, 58.5 test USDC");
 }
 

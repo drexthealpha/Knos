@@ -15,7 +15,7 @@
     "2.0",
     "2.1"
    ],
-   "on_chain": "2.0"
+   "on_chain": "2.1"
   },
   "knos_pay": {
    "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
@@ -23,7 +23,7 @@
     "2.0",
     "2.1"
    ],
-   "on_chain": "2.0"
+   "on_chain": "2.1"
   },
   "knos_meter": {
    "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
@@ -31,7 +31,7 @@
     "1.0",
     "1.1"
    ],
-   "on_chain": "1.0"
+   "on_chain": "1.1"
   },
   "knos_passkey": {
    "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
@@ -39,7 +39,7 @@
     "1.0",
     "1.1"
    ],
-   "on_chain": "1.0"
+   "on_chain": "1.1"
   },
   "upgrade_gate": {
    "id": "2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW",
@@ -147,7 +147,7 @@
   {
    "id": "verify_github",
    "what": "A program on Solana verifies a GitHub Actions OpenID Connect token and other programs read the result.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_oidc/src/lib.rs",
@@ -161,6 +161,15 @@
      "program": "knos_oidc",
      "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
      "version": "2.0"
+    },
+    "exercised": {
+     "signature": "4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV",
+     "ids": "public",
+     "round": "order",
+     "asserted": [
+      "knos_oidc verified GitHub's signature on the fund token into its account 9HxMY56k7pXwkEwhR1gSbpVhwDHJJ6TKCYcD9GBcbWFW",
+      "the same token was then refused by knos_pay as a second use"
+     ]
     }
    }
   },
@@ -243,7 +252,7 @@
   {
    "id": "fund_from_wallet",
    "what": "A wallet funds a task with its own money.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/fund.rs",
@@ -257,6 +266,14 @@
      "program": "knos_pay",
      "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
      "version": "2.0"
+    },
+    "exercised": {
+     "signature": "4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK",
+     "ids": "public",
+     "round": "expiry",
+     "asserted": [
+      "job 6xn55yRjBja9yvDqW2HhYUDz3acovsGxTZvmnTL4r82c holds 1.00 of the wallet's own test USDC"
+     ]
     }
    }
   },
@@ -303,7 +320,7 @@
   {
    "id": "refund",
    "what": "With no proof by the deadline the money goes back where it came from.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/pay.rs",
@@ -317,6 +334,16 @@
      "program": "knos_pay",
      "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
      "version": "2.0"
+    },
+    "exercised": {
+     "signature": "57E3wRPGfY34MFq89Uxi75AS9PMoCT7eFwnXgnfsFpVg9mbtoHB4FVJ5bYNMGLPANuvrYygwc32Su2W8jE5XtVeY",
+     "ids": "public",
+     "round": "expiry",
+     "asserted": [
+      "a job past its deadline went back whole to the wallet that funded it",
+      "so did the order, with the fee paid on top",
+      "the wallet holds what it held before the round"
+     ]
     }
    }
   },
@@ -343,7 +370,7 @@
   {
    "id": "work_orders",
    "what": "A work order fixes its checks, paths, payees and deadline as a hash at funding, and the funder pays the fee on top.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order.rs",
@@ -352,14 +379,28 @@
     "tested": {
      "test": "tests/test_order_chain.py",
      "names": "test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",
+     "ids": "public",
+     "round": "order",
+     "asserted": [
+      "order 6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY holds 5.00 and its fee of 0.40 on top",
+      "the money left the Balance the comment named"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. A `/knos fund 10` comment funded the order, its fee of 0.40 on top."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "order_pay",
    "what": "An order pays up to four payees when a signed run says its terms were met.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order_pay.rs",
@@ -368,14 +409,28 @@
     "tested": {
      "test": "tests/test_order_chain.py",
      "names": "test_up_to_four_payees_share_an_order_and_every_unit_is_paid"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV",
+     "ids": "public",
+     "round": "order",
+     "asserted": [
+      "5.00 paid to the payee the token names",
+      "the order's account is closed"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The merged pull request's token paid the order's 10.00 to its payee."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "tests_mode",
    "what": "An order in tests mode is paid only when a black-box test run the author cannot see passes.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "src/knos/judge.py",
@@ -384,14 +439,27 @@
     "tested": {
      "test": "tests/test_judge_langs.py",
      "names": "def test_node"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm",
+     "ids": "public",
+     "round": "auto",
+     "asserted": [
+      "the order was funded in tests mode, on the hash of its black-box suite"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The auto order above was in tests mode: its black-box suite, which the author could not see, passed on the pull request."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "order_auto_accept",
    "what": "An order funded as auto pays the first pull request its black-box suite passes, with no merge and no person's step.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order_judge.rs",
@@ -400,9 +468,23 @@
     "tested": {
      "test": "tests/test_order_auto.py",
      "names": "test_the_first_pull_request_the_suite_passes_is_paid_with_no_merge_and_the_second_finds_the_order_closed"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm",
+     "ids": "public",
+     "round": "auto",
+     "asserted": [
+      "5.00 paid on a token of the event `workflow_run`: a check finishing, not a merge",
+      "the order was funded in tests mode, on the hash of its black-box suite"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. An agent found, took and submitted the work through the MCP tools, and its pull request was accepted with no merge; the payment was held for the account until its wallet was bound, then paid. The funder chooses it at funding, and only for an order paid by the black-box suite."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "order_challenge",
@@ -434,7 +516,7 @@
      "names": "test_two_distinct_judges_pay_and_two_tokens_of_one_kind_count_once"
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2R5DKU5gCiuppGkXpNnegZfeCVfPbHpWTWTcj9QYzE3nAc4P5jCMaNPjGJUA1fwwzwn37Wm97bD62CKBG6DgCxuT; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. A `quorum 2` order recorded its first judge, then paid on the second."
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2R5DKU5gCiuppGkXpNnegZfeCVfPbHpWTWTcj9QYzE3nAc4P5jCMaNPjGJUA1fwwzwn37Wm97bD62CKBG6DgCxuT; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. A `quorum 2` order recorded its first judge, then paid on the second. The knos_pay 2.2 build of this tree counts judges by repository owner and binds their markers to the order's funding (`quorum_by_owner`): tested, not deployed."
   },
   {
    "id": "hermetic_judge",
@@ -551,7 +633,7 @@
   {
    "id": "top_up",
    "what": "A funder adds to an order's amount and pays the fee on the addition.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order.rs",
@@ -560,9 +642,21 @@
     "tested": {
      "test": "tests/test_order_chain.py",
      "names": "test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "432L2F987ADLGHRPLuHMoULKQr8pYRMNyb9k2PAMZ5H7CJsix4JgqKbMHLx7yyY5kDmJnAt1Lb6fz5nMwEFhCCQJ",
+     "ids": "public",
+     "round": "expiry",
+     "asserted": [
+      "the order's amount went from 5.00 to 6.00, and it holds the fee on the whole"
+     ]
     }
-   },
-   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+   }
   },
   {
    "id": "assign",
@@ -662,24 +756,24 @@
   },
   {
    "id": "fee_tiers",
-   "what": "An order's fee is marginal in three tiers, paid by the funder on top, with a floor and no maximum.",
+   "what": "Under knos_pay 2.1 an order's fee is marginal in three tiers, paid by the funder on top, with a floor and no maximum.",
    "stage": "tested",
    "evidence": {
     "implemented": {
-     "path": "programs-v2/knos_pay/src/lib.rs",
-     "names": "pub fn order_fee"
+     "path": "src/knos/fees.py",
+     "names": "def rule"
     },
     "tested": {
-     "test": "tests/test_order_chain.py",
-     "names": "test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top"
+     "test": "tests/test_fees.py",
+     "names": "test_the_014_fee_is_kept_exactly_as_the_public_program_charges_it"
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2CuqkJsNDMgE4eGXkEEemq11tS6JNVu5QTyAjRQcASJANVHKYGqZ2pbDAgzkso4qSmM5ZwtXGHKnLCTppkVi4eXy; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. An order of 5,000 test USDC was funded with a fee of 65 on top, and one of 100 with 2.50."
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2CuqkJsNDMgE4eGXkEEemq11tS6JNVu5QTyAjRQcASJANVHKYGqZ2pbDAgzkso4qSmM5ZwtXGHKnLCTppkVi4eXy; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. An order of 5,000 test USDC was funded with a fee of 65 on top, and one of 100 with 2.50. This is the fee the public program charges until knos_pay 2.2 is live; the 2.2 build of this tree replaces it with one rate (`fee_one_rate`)."
   },
   {
    "id": "single_use_tokens",
    "what": "Every signed token is taken once by every instruction, and its marker's rent returns when no instruction can accept it.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/state.rs",
@@ -688,9 +782,37 @@
     "tested": {
      "test": "tests/test_double_pay.py",
      "names": "test_no_instruction_takes_a_token_twice_and_a_second_try_never_moves_money"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",
+     "ids": "public",
+     "round": "order",
+     "asserted": [
+      "the fund token's second use is refused with error 91 (a token works once) and funds nothing",
+      "the proof relayed a second time is answered with the first payment and sends nothing"
+     ],
+     "refusals": [
+      {
+       "signature": "4hCf7a3FpKiTexPUxX4jvPbYUUQMvgHmyjHSVjbUJ2yqe3srzxLJrsZ8QY4dpT2pt4VFSRJ4j4kQMwEcapvk3Rrp",
+       "error": 91,
+       "means": "a token works once",
+       "what": "the fund token, sent again"
+      },
+      {
+       "signature": "5pCAy8JahhTnAcqjjVYDNLaWUMoAaBxHoQ2GYSwmjwt29atfPew6nPi8rKRt8hp58wYQP3g3EaoHS22tSZSUtV2Q",
+       "error": 83,
+       "means": "too early or too late: the job is not in the state this needs",
+       "what": "the first proof against a second funding of the same address: nothing is paid twice"
+      }
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The signature is a fund token's one use. The double payment of the 0.3.13 build was attempted and refused (error 83), and the accepted token of each token-taking instruction, sent again, was refused; the refused transactions are in docs/CAPABILITIES.md."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "private_attestor",
@@ -731,7 +853,7 @@
   {
    "id": "meter_batch",
    "what": "One signed token counts a batch of evaluations under a Merkle root.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_meter/src/meter.rs",
@@ -740,14 +862,27 @@
     "tested": {
      "test": "tests/test_meter_batch.py",
      "names": "test_a_batch_of_five_thousand_is_counted_and_billed_once_and_its_token_is_taken_once"
+    },
+    "deployed": {
+     "program": "knos_meter",
+     "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+     "version": "1.1"
+    },
+    "exercised": {
+     "signature": "4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR",
+     "ids": "public",
+     "round": "meter",
+     "asserted": [
+      "the buyer's ledger on chain counts 4 evaluations for 202610"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_meter 1.1 build (signature 5NVNK5nHiegrQDffQBuziqqrrDEWyN66zWPKfetb3q8tavoBpsD1LwCh4BirwWPTBewuFFYarNPKQrU7RU1t37XX; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_meter carries it only once its upgrade to 1.1 has executed, and no transaction there is recorded yet. 5,000 evaluations in two batches of 2,500; the signature is the second."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 5NVNK5nHiegrQDffQBuziqqrrDEWyN66zWPKfetb3q8tavoBpsD1LwCh4BirwWPTBewuFFYarNPKQrU7RU1t37XX; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "meter_seller_claim",
    "what": "The seller writes its own count of the same month, so a buyer's omission shows on chain.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_meter/src/meter.rs",
@@ -756,9 +891,22 @@
     "tested": {
      "test": "tests/test_meter_batch.py",
      "names": "test_the_sellers_claim_is_written_only_from_the_sellers_repositories"
+    },
+    "deployed": {
+     "program": "knos_meter",
+     "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+     "version": "1.1"
+    },
+    "exercised": {
+     "signature": "3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc",
+     "ids": "public",
+     "round": "meter",
+     "asserted": [
+      "the seller's ledger on chain counts 4 evaluations for 202610"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_meter 1.1 build (signature 4KThmRd6XFohHrkX3cqXdUCoLnfMiwuTkt8WigFpB7any9pJpYeBHP3eVg7jsqhaqJNmQ6dYuLK3zhqZMCKRGQup; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_meter carries it only once its upgrade to 1.1 has executed, and no transaction there is recorded yet. The seller claimed 5,003 evaluations against the buyer's 5,000, and `knos meter reconcile --rpc` named the 3 the buyer left out."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 4KThmRd6XFohHrkX3cqXdUCoLnfMiwuTkt8WigFpB7any9pJpYeBHP3eVg7jsqhaqJNmQ6dYuLK3zhqZMCKRGQup; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "passkey_payee_wallet",
@@ -783,7 +931,7 @@
   {
    "id": "passkey_funder",
    "what": "A funder with only a passkey funds an order and a relayer pays the transaction fee.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_passkey/src/lib.rs",
@@ -792,14 +940,28 @@
     "tested": {
      "test": "tests/test_passkey_fund.py",
      "names": "test_a_passkey_funds_an_order_and_the_same_assertion_cannot_fund_again"
+    },
+    "deployed": {
+     "program": "knos_passkey",
+     "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+     "version": "1.1"
+    },
+    "exercised": {
+     "signature": "3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC",
+     "ids": "public",
+     "round": "passkey",
+     "asserted": [
+      "the transaction the Buy page showed succeeded and names knos_passkey and knos_pay at their public ids",
+      "the passkey was a Chromium virtual authenticator (CDP WebAuthn) in headless Chromium, not a person's device; the page was the deployed Pages build of drexthealpha/Knos f03ec515 served on localhost because github.io did not answer from the release machine; the funding transaction was read from devnet at the order address the page signed"
+     ]
     }
    },
-   "note": "Rehearsed on staging deployments of the knos_passkey 1.1 and knos_pay 2.1 builds (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_passkey and knos_pay carry it only once their upgrades to 1.1 and 2.1 have executed, and no transaction there is recorded yet. A passkey wallet funded an order of 10.00 and the relayer paid the transaction fee."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "passkey_fund_relay",
    "what": "A relay carries a passkey funder's signed comment to the chain, and the same comment again is refused.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "src/knos/settle/v2/relay.py",
@@ -808,14 +970,28 @@
     "tested": {
      "test": "tests/test_passkey_relay.py",
      "names": "test_a_comment_funds_the_order_and_the_same_comment_again_is_refused"
+    },
+    "deployed": {
+     "program": "knos_passkey",
+     "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+     "version": "1.1"
+    },
+    "exercised": {
+     "signature": "3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC",
+     "ids": "public",
+     "round": "passkey",
+     "asserted": [
+      "the transaction the Buy page showed succeeded and names knos_passkey and knos_pay at their public ids",
+      "the passkey was a Chromium virtual authenticator (CDP WebAuthn) in headless Chromium, not a person's device; the page was the deployed Pages build of drexthealpha/Knos f03ec515 served on localhost because github.io did not answer from the release machine; the funding transaction was read from devnet at the order address the page signed"
+     ]
     }
    },
-   "note": "Rehearsed on staging deployments of the knos_passkey 1.1 and knos_pay 2.1 builds (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_passkey and knos_pay carry it only once their upgrades to 1.1 and 2.1 have executed, and no transaction there is recorded yet. The relay carried the `/knos passkey-fund` line to the chain."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "buyer_page",
    "what": "The site's Buy page writes an order from a template and a passkey signs the line that funds it.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "web/buyer.js",
@@ -824,9 +1000,23 @@
     "tested": {
      "test": "tests/test_site_buyer.py",
      "names": "test_the_buy_page_in_a_browser_and_its_signed_line_on_chain"
+    },
+    "deployed": {
+     "program": "knos_passkey",
+     "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+     "version": "1.1"
+    },
+    "exercised": {
+     "signature": "3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC",
+     "ids": "public",
+     "round": "passkey",
+     "asserted": [
+      "the transaction the Buy page showed succeeded and names knos_passkey and knos_pay at their public ids",
+      "the passkey was a Chromium virtual authenticator (CDP WebAuthn) in headless Chromium, not a person's device; the page was the deployed Pages build of drexthealpha/Knos f03ec515 served on localhost because github.io did not answer from the release machine; the funding transaction was read from devnet at the order address the page signed"
+     ]
     }
    },
-   "note": "Rehearsed on staging deployments of the knos_passkey 1.1 and knos_pay 2.1 builds (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_passkey and knos_pay carry it only once their upgrades to 1.1 and 2.1 have executed, and no transaction there is recorded yet. The Buy page, in a browser, wrote the order from a template and a passkey signed the line that funded it."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "gitlab_pay",
@@ -1048,7 +1238,7 @@
   {
    "id": "x402_knos_order",
    "what": "The proposed `knos-order` scheme funds a real order over RPC, serves the resource, and pays or refunds.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "examples/x402_attested/live.mjs",
@@ -1057,9 +1247,24 @@
     "tested": {
      "test": "tests/test_x402_attested.py",
      "names": "test_live_the_client_funds_a_real_order_over_rpc_is_served_and_the_seller_is_paid_on_acceptance"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "2noSVLKXsSDc9iL72m6H4geVenuoDvrH7YiQ4FUEwLUYgEbWpqxk9TZxf6GQegSXCsZUR33GT2gn6HEUbkKTpwsX",
+     "ids": "public",
+     "round": "x402",
+     "asserted": [
+      "the order the 402 answer offered was funded by the buyer's wallet at the public knos_pay",
+      "a later transaction of the same order closed it",
+      "the seller's account holds the 5.00 the order paid"
+     ]
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 3nkWX5SusF5TTg5pWHVeeZQTZGP57vzWkburiRZntPQ5o6Q5M5jvY1ubEBhB5dhybhB3h2RVMQmcSSDN7yhD1Yq6; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. `node live.mjs run` funded an order over RPC, was served, and the seller was paid on acceptance; the signature is the payment, the funding is in docs/CAPABILITIES.md."
+   "note": "Before the upgrade it was rehearsed on a staging deployment (signature 3nkWX5SusF5TTg5pWHVeeZQTZGP57vzWkburiRZntPQ5o6Q5M5jvY1ubEBhB5dhybhB3h2RVMQmcSSDN7yhD1Yq6; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"); the transaction here is at the public program id."
   },
   {
    "id": "cpi_fund",
@@ -2049,7 +2254,7 @@
   {
    "id": "outcome_not_code",
    "what": "One outcome that is not code is signed by a Kubernetes cluster's service-account issuer, checked offline by the verifier's rule and verified under a private key.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "scripts/outcome_k8s.py",
@@ -2058,6 +2263,21 @@
     "tested": {
      "test": "tests/test_outcome_k8s.py",
      "names": "test_the_verifier_takes_the_token_under_a_private_key_through_the_instructions_chain_would_send"
+    },
+    "deployed": {
+     "program": "knos_oidc",
+     "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+     "version": "2.1"
+    },
+    "exercised": {
+     "signature": "31HzWxXFoya7ZKphG9Tb9czvhKT9dZiCGP4F3sSvgkek9x7FLGATqsA1Mba45gpQpNFa8ELLcEUJyXCXZ2f92okk",
+     "ids": "public",
+     "round": "issuer",
+     "asserted": [
+      "knos_oidc verified a token of the issuer https://kind.knos-outcome.invalid, a Kubernetes cluster's own, under a private key this wallet registered",
+      "the token's account 9CYHPf7tbPmPyFN1CCCZDVaNCLDi7CcXZTcDx99aX8qV names that issuer's hash and the registrant 9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG",
+      "the same token passed the verifier's rule offline first; the meter does not count it on chain"
+     ]
     }
    },
    "note": "Tested with a test key; a kind cluster's token was verified offline in staging run 37483745385 of drexthealpha/knos-rc (https://github.com/drexthealpha/knos-rc/actions/runs/37483745385); nothing of it is on devnet, and the meter does not count it on chain."
@@ -2206,7 +2426,7 @@
   },
   {
    "id": "billing_rule",
-   "what": "A month's invoice is the subscription plus the greater of the Meter and Verify charges, never both for one activity; Verify is capped at 250 USD a deliverable, and every line names the rule that produced it.",
+   "what": "A month's invoice is Control, Meter, Acceptance on value reconciled off chain and record lookups; value released on chain is never charged again, and every line names the rule that produced it.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2215,7 +2435,7 @@
     },
     "tested": {
      "test": "tests/test_billing.py",
-     "names": "test_the_worked_example_month_by_month_adds_up_to_130_000"
+     "names": "test_the_worked_customer_month_by_month_adds_up_to_130_240"
     }
    },
    "note": "Arithmetic on example months. Nobody has been invoiced: nothing has been sold and there is no legal entity to invoice from."
@@ -2318,7 +2538,7 @@
   },
   {
    "id": "fee_bounds_proofs",
-   "what": "Kani proves on the program's own lines, tier by tier and with one part left out, that an order's fee is at least 0.40, is 0.40 or at most 2.5% of the amount, and adds to the amount in a u64.",
+   "what": "Kani proves on the program's own lines that an order's fee is at least 0.05, is 0.05 or at most 0.30% of the amount, and adds to the amount in a u64.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2330,7 +2550,7 @@
      "names": "test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say"
     }
    },
-   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 50 to 250 basis points. docs/kani.json `fee_proofs`, status `not verified` for the whole statement: verified per part for 0 to 1,000.00 at rates 50..=249, above 1,000.00 to 50,000.00 and above 50,000.00 to 100,000.00 at rates 50..=250; at 0 to 1,000.00 and rate 250, `at least 0.40; adds to the amount in a u64` is verified and `0.40 or at most 2.5% of the amount` is not verified (no harness states it; it is tested at each of the 1,000,000,001 amounts instead). Kani 0.68.0, each harness alone within 150 seconds. The test holds the record to the source's hash: no test of this repository runs Kani itself."
+   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 10 to 30 basis points, one rate and no tiers (the knos_pay 2.2 build of this tree, not deployed). docs/kani.json `fee_proofs`, status `verified but for one bound at one rate`; its `parts` say which statement is verified over which amounts and rates. The test holds the record to the source's hash: no test of this repository runs Kani itself."
   },
   {
    "id": "adversarial_replays",
@@ -2375,6 +2595,288 @@
     }
    },
    "note": "Outside key holders: 0. One person, the founder, holds every member key of both multisigs (docs/KEYHOLDER.md, docs/GOVERNANCE.md); nobody has asked."
+  },
+  {
+   "id": "fee_one_rate",
+   "what": "An order's and a job's fee is one rate: 0.30% of the amount, floor 0.05, no maximum and no tiers; a Plan lowers it to no less than 0.10%.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/lib.rs",
+     "names": "pub fn order_fee"
+    },
+    "tested": {
+     "test": "tests/test_fees.py",
+     "names": "test_the_018_fee_is_one_rate_with_a_floor_and_is_pay_pys_own_numbers"
+    }
+   },
+   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json). Until then the public program charges the 0.3.14 fee (`fee_tiers`); orders funded before the upgrade keep the rate fixed at their funding."
+  },
+  {
+   "id": "quorum_by_owner",
+   "what": "A quorum counts judges by repository owner, the neutral judge differs from both sides in owner and actor, and a judge's marker counts only for the funding of the order it was made under.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn quorum"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/adversarial.rs",
+     "names": "the_same_owner_behind_two_repositories_is_refused_as_a_second_judge_and_different_owners_are_accepted"
+    }
+   },
+   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json). What the program cannot know: that two accounts are two people."
+  },
+  {
+   "id": "presentation_grace",
+   "what": "An order may give a token issued by its deadline a grace in which it can still be presented; the refund follows when no such token can live.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "grace"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/adversarial.rs",
+     "names": "the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_follows_at_once"
+    }
+   },
+   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json)."
+  },
+  {
+   "id": "commitment_format2",
+   "what": "A batch's commitment (format 2) hashes each complete canonical event, so swapping which of two equal-priced evaluations was accepted changes the root.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ledger.py",
+     "names": "def merkle_root2"
+    },
+    "tested": {
+     "test": "tests/test_ledger_format2.py",
+     "names": "test_the_swap_keeps_the_root_in_format_1_and_changes_it_in_format_2"
+    }
+   },
+   "note": "Tested on ledger files; no format 2 batch is anchored on the public ids. knos_meter is unchanged: the root is opaque to the program."
+  },
+  {
+   "id": "supplier_record",
+   "what": "A supplier's public record is one file: each deliverable counted once, with the evidence behind every count.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_page.py",
+     "names": "def build"
+    },
+    "tested": {
+     "test": "tests/test_record_page.py",
+     "names": "test_a_record_counts_the_log_once_a_deliverable_and_lists_the_evidence_behind_every_count"
+    }
+   },
+   "note": "The committed records are cut from the public index of agent pull requests; no supplier outside Knos has a record of paid work."
+  },
+  {
+   "id": "record_badge",
+   "what": "A badge is drawn from a supplier's record, states its sample and is green only for accepted work.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_page.py",
+     "names": "def badge_svg"
+    },
+    "tested": {
+     "test": "tests/test_record_page.py",
+     "names": "test_the_badge_is_drawn_from_the_record_states_its_sample_and_is_green_only_for_accepted_work"
+    }
+   },
+   "note": "Nobody outside Knos shows one."
+  },
+  {
+   "id": "invoice_receipt",
+   "what": "A verified receipt becomes one page to attach to an invoice, with the file that proves it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_page.py",
+     "names": "def invoice_receipt"
+    },
+    "tested": {
+     "test": "tests/test_record_page.py",
+     "names": "test_the_receipt_for_an_invoice_is_one_page"
+    }
+   },
+   "note": "No invoice has been sent with one."
+  },
+  {
+   "id": "supplier_install",
+   "what": "One line in a supplier's repository runs the free check on every pull request, posts once and attaches the receipt.",
+   "stage": "implemented",
+   "evidence": {
+    "implemented": {
+     "path": ".github/workflows/supplier.yml",
+     "names": "knos supplier check"
+    }
+   },
+   "note": "A reusable workflow called at a release's tag; it has not run in a repository outside Knos."
+  },
+  {
+   "id": "terms3_format",
+   "what": "Knos Terms 3 is a versioned document that answers ten questions; a file missing one is refused by name, and two versions diff by meaning.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms3.py",
+     "names": "def validate"
+    },
+    "tested": {
+     "test": "tests/test_terms3.py",
+     "names": "test_a_file_missing_a_field_is_refused_and_the_refusal_names_it"
+    }
+   },
+   "note": "`knos terms verify` and `knos terms diff` read it. Funding does not enforce a terms 3 document yet."
+  },
+  {
+   "id": "terms3_proposed",
+   "what": "Terms 3 are proposed from a repository's own record: the checks that passed on every recent merge, its test directories and its code owners.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/propose_terms.py",
+     "names": "def propose"
+    },
+    "tested": {
+     "test": "tests/test_propose_terms.py",
+     "names": "test_the_checks_that_passed_on_every_recent_merge_decide_and_the_others_are_said"
+    }
+   },
+   "note": "Tested on recorded answers of GitHub's API. A repository with no merge in 30 days gets no proposal."
+  },
+  {
+   "id": "provisional_decision",
+   "what": "A decision is given the moment the evidence arrives, as a provisional receipt that never authorises payment; the final receipt names the one it supersedes.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/decide.py",
+     "names": "def provisional"
+    },
+    "tested": {
+     "test": "tests/test_decide.py",
+     "names": "test_a_provisional_receipt_never_authorises_payment_and_never_says_paid"
+    }
+   },
+   "note": "`knos decide`. The workflows and the relay do not post it yet."
+  },
+  {
+   "id": "relay_notes_merge",
+   "what": "Relay runs keep notes that merge by key, so two runners carry one token once; each lane pays from its own fee payer.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "def payers"
+    },
+    "tested": {
+     "test": "tests/test_relay_speed.py",
+     "names": "test_in_every_interleaving_of_two_runners_one_token_is_sent_once_and_both_end_with_its_answer"
+    }
+   },
+   "note": "Tested with stand-in runners and a stand-in chain; the public relay runs with one fee payer."
+  },
+  {
+   "id": "verdict_gate",
+   "what": "A verdict crosses from the job that runs a pull request's code to the job that signs as one line of fixed fields, read as data and checked again from GitHub's record.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/verdict_gate.py",
+     "names": "def recheck"
+    },
+    "tested": {
+     "test": "tests/test_verdict_gate.py",
+     "names": "test_an_honest_verdict_is_read_held_and_checked_again_from_githubs_record"
+    }
+   },
+   "note": "The signing job runs none of the pull request's code. Tested on recorded answers; the published workflows carry it from the next republish."
+  },
+  {
+   "id": "agent_pays_agent",
+   "what": "An agent pays another agent only when an evaluator signs the acceptance; wrong work releases nothing and the buyer is refunded at expiry.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/agent_pays_agent/buyer.mjs",
+     "names": "knos-order"
+    },
+    "tested": {
+     "test": "tests/test_agent_pays_agent.py",
+     "names": "test_the_seller_is_paid_only_when_the_evaluator_signs_the_acceptance"
+    }
+   },
+   "note": "Separate processes against the test builds of knos_pay and knos_oidc in the simulator, in test USDC; no outside agent has used it."
+  },
+  {
+   "id": "upstream_gate",
+   "what": "Nothing is sent to, opened on or recommended for an outside repository unless it merged a pull request in the last 30 days; what cannot be read is a refusal.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/upstream_check.py",
+     "names": "def last_merged"
+    },
+    "tested": {
+     "test": "tests/test_upstream_check.py",
+     "names": "test_a_repository_whose_last_merge_is_older_than_30_days_is_refused"
+    }
+   },
+   "note": "Tested on recorded answers of GitHub's API; the date of the last merge is printed."
+  },
+  {
+   "id": "claim_guard",
+   "what": "A claim on an issue or log that holds no funded order gets one automatic answer and a label, once.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/claim_guard.py",
+     "names": "def answer"
+    },
+    "tested": {
+     "test": "tests/test_claim_guard.py",
+     "names": "test_a_second_event_posts_nothing_and_a_marker_in_a_strangers_comment_does_not_count"
+    }
+   },
+   "note": "Runs from .github/workflows/claims.yml on this repository; tested on recorded events."
   }
- ]
+ ],
+ "public_round": {
+  "date": "7 October 2026",
+  "fund": {
+   "comment": "/knos fund 5",
+   "tx": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",
+   "order": "6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY",
+   "amount": "5.00",
+   "fee": "0.40"
+  },
+  "paid": {
+   "tx": "59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV",
+   "amount": "5.00"
+  },
+  "replay": {
+   "tx": "4hCf7a3FpKiTexPUxX4jvPbYUUQMvgHmyjHSVjbUJ2yqe3srzxLJrsZ8QY4dpT2pt4VFSRJ4j4kQMwEcapvk3Rrp",
+   "error": 91,
+   "means": "a token works once"
+  },
+  "count": {
+   "buyer": 4,
+   "seller": 4,
+   "apart": 0,
+   "buyer_tx": [
+    "4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR"
+   ],
+   "seller_tx": [
+    "3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc"
+   ]
+  }
+ }
 }

@@ -78,5 +78,50 @@
       },
       "file_sha256": "de1cc9af481cdf1a5eb84bd1b5cce482d0fabcc87d5b0287fe211a836a264181"
     }
-  ]
+  ],
+  "terms3": {
+    "standard": "Knos Terms 3",
+    "documents": [
+      {
+        "name": "bug-fix",
+        "version": 1,
+        "hash": "84af6a1e91bf39b97bd132817e307a87822bc9d8522ca97006c0c94d2bae8225",
+        "built": true,
+        "cite": "Acceptance is governed by Knos Terms 3, bug-fix version 1, sha256 84af6a1e91bf39b97bd132817e307a87822bc9d8522ca97006c0c94d2bae8225",
+        "comment": "/knos fund 50 checks: lint, unit paths: src/**, tests/** days 14",
+        "needs": "",
+        "file_sha256": "cc25d5aebe1489d0072cea274455ba91016672a013b06b2a7dabbf25b057500b"
+      },
+      {
+        "name": "dataset-batch",
+        "version": 1,
+        "hash": "1dbc5d37b696ba3fd5a70ee27efce922331c3ee9083774d5ab90467af40d418f",
+        "built": true,
+        "cite": "Acceptance is governed by Knos Terms 3, dataset-batch version 1, sha256 1dbc5d37b696ba3fd5a70ee27efce922331c3ee9083774d5ab90467af40d418f",
+        "comment": "/knos fund 40 checks: none paths: batches/** days 14",
+        "needs": "",
+        "file_sha256": "305c1e1457bc7b413f0d03126620dbf32fdd87a8b809d8d47fa0971169eb088c"
+      },
+      {
+        "name": "migration",
+        "version": 1,
+        "hash": "fae42f89b28cfd91a1f7ce22ffe8eac4d217bff0871beac6005b6d6fe9fcdbb2",
+        "built": true,
+        "cite": "Acceptance is governed by Knos Terms 3, migration version 1, sha256 fae42f89b28cfd91a1f7ce22ffe8eac4d217bff0871beac6005b6d6fe9fcdbb2",
+        "comment": "/knos fund 100 checks: unit holdback 20 warranty 30 days 30",
+        "needs": "",
+        "file_sha256": "159ec5440fd44afbed527145ad794cdc39887321daefc9b4969fa74e88e2c707"
+      },
+      {
+        "name": "support-resolution",
+        "version": 1,
+        "hash": "422c8058bbbd41fee6147886e12267581bdf682a25e4b034fbfe40bd1335f344",
+        "built": false,
+        "cite": "Acceptance is governed by Knos Terms 3, support-resolution version 1, sha256 422c8058bbbd41fee6147886e12267581bdf682a25e4b034fbfe40bd1335f344",
+        "comment": "",
+        "needs": "a signing system of record",
+        "file_sha256": "e4b12d4c536942f4610aa4b11cf8e8af05cccc7a65d2b82c3ac125b9167b339b"
+      }
+    ]
+  }
 }

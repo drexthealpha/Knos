@@ -1,6 +1,8 @@
-"""An order with a quorum pays only when 2 or 3 DISTINCT judges have passed the same artifact (knos_pay 2.1,
+"""An order with a quorum pays only when 2 or 3 DISTINCT judges have passed the same artifact (knos_pay 2.2,
 order_terms.rs section 5), in LiteSVM: a the order's own repository, b a neutral run, c the judge repository. Each
-judge before the last leaves a marker ["q", order, kind]; the last one pays. The harness is tests/_order.py."""
+judge before the last leaves a marker ["q", order, kind]; the last one pays. Distinct: different owners of the
+repositories the runs were in, and a neutral runner who is neither the order repository's owner nor the account
+that started its run (`order_terms::distinct`). The harness is tests/_order.py."""
 from __future__ import annotations
 
 import pytest
@@ -10,12 +12,13 @@ pytest.importorskip("solders.litesvm")
 from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 
-from _order import HEAD, MAINT, OWNER, REPO, USDC, OrderChain, code, issue, swap, user  # noqa: E402
+from _order import AUTHOR, HEAD, MAINT, OWNER, REPO, USDC, OrderChain, code, issue, swap, user  # noqa: E402
 
 from knos.settle.v2 import order_auto, pay  # noqa: E402
 
 ACCOUNTS, TERMS_REFUSED, STATE, CLAIMS, REPLAY = 80, 81, 83, 85, 91      # lib.rs E_*
 JUDGE_REPO = 31_313_131
+FIRM = 9_000             # owns the judge repository: not the buyer, not the seller
 FEE = pay.order_fee(20 * USDC)
 Q2 = pay.opts(pay.F_NEUTRAL | order_auto.quorum_flags(2))
 
@@ -42,8 +45,11 @@ def test_two_distinct_judges_pay_and_two_tokens_of_one_kind_count_once(chain):
     # a: the buyer's own run passes it. Nothing is paid; its word is recorded
     assert present(c, order, payees, tag="quorum_first"), c.err
     assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=0 have=1 of=2"]
-    since = c.order(order).not_before
-    assert c.quorum(order) == {0: (0, c.payer.pubkey(), order, since, art), 1: None, 2: None}
+    # the marker carries the order's stamp (the slot of its funding, not a time) and whose run it was: the owner of the
+    # order's repository, and the account that started the run
+    o = c.order(order)
+    assert 0 < o.inc <= c.slot() and o.stamp == -o.inc
+    assert c.quorum(order) == {0: (0, c.payer.pubkey(), order, o.stamp, art, OWNER, AUTHOR), 1: None, 2: None}
     assert c.held(order) == 20 * USDC + FEE and paid_to(c, w) == 0
     # the same judge again, with a new token: one judge is one judge
     assert present(c, order, payees), c.err
@@ -69,8 +75,10 @@ def test_the_judges_may_come_in_any_order_and_must_pass_the_same_artifact(chain)
     order = c.fund_wallet(options=Q2)
     author, other, w = user(), user(), Keypair().pubkey()
     payees = [(author, 10_000, w)]
-    assert present(c, order, payees, **c.neutral(author)), c.err          # the seller first
-    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=1 of=2"]
+    # the seller first. A wallet named a repository and no owner, so until the order's own repository has spoken
+    # nothing shows that this run is a third party's: it is recorded and counts for nothing yet
+    assert present(c, order, payees, **c.neutral(author)), c.err
+    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=0 of=2"]
     # the buyer's run passes something else: another commit, another pull request, another payee. None of them is the seller's artifact
     for over, who in ((dict(head_sha="b" * 40), payees), (dict(pr=8), payees), ({}, [(other, 10_000, w)])):
         assert present(c, order, who, **over), c.err
@@ -87,11 +95,14 @@ def test_a_quorum_of_three_needs_the_judge_repository_too(chain):
     payees = [(author, 10_000, w)]
     assert present(c, order, payees) and present(c, order, payees, **c.neutral(author)), c.err
     assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=2 of=3"] and paid_to(c, w) == 0
+    # the judge repository belongs to the buyer: a third judge, and no third owner
     assert present(c, order, payees, repository_id=JUDGE_REPO, file="attest.yml", event_name="push"), c.err
+    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=2 have=2 of=3"] and paid_to(c, w) == 0
+    assert present(c, order, payees, repository_id=JUDGE_REPO, repository_owner_id=FIRM, file="attest.yml", event_name="push"), c.err
     assert paid_to(c, w) == 20 * USDC and c.said("knos3:settled")[0].endswith("judge=2")
     # two of three, when two are asked: the judge repository and the buyer's own run, with no neutral run at all
     two = c.fund_wallet(options=pay.opts(order_auto.quorum_flags(2), judge_repo_id=JUDGE_REPO))
-    assert present(c, two, payees, repository_id=JUDGE_REPO) and paid_to(c, w) == 20 * USDC, c.err
+    assert present(c, two, payees, repository_id=JUDGE_REPO, repository_owner_id=FIRM) and paid_to(c, w) == 20 * USDC, c.err
     assert not present(c, two, payees, **c.neutral(author)) and code(c) == CLAIMS          # this order allows no neutral run
     assert present(c, two, payees) and paid_to(c, w) == 40 * USDC, c.err
 
@@ -104,6 +115,37 @@ def test_an_auto_orders_unmerged_run_is_the_buyers_judge_of_a_quorum(chain):
     assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=0 have=1 of=2"] and paid_to(c, w) == 0
     assert present(c, order, [(author, 10_000, w)], **c.neutral(author)), c.err      # and in a neutral run: the same head, pull request, payee
     assert paid_to(c, w) == 20 * USDC and c.order(order) is None
+
+
+def test_one_account_or_one_owner_behind_two_judges_is_one_judge(chain):
+    """Finding 1 of 2.1, on every way an order is funded here: a wallet's and a Balance's (a comment on the forge)."""
+    c = chain
+    w = Keypair().pubkey()
+    for fund in (c.fund_wallet, c.fund_balance):
+        # the account that started the run in the order's repository starts the neutral run too
+        order, who, third = fund(options=Q2), user(), user()
+        payees = [(who, 10_000, w)]
+        before = paid_to(c, w)
+        assert present(c, order, payees, actor_id=who) and present(c, order, payees, **c.neutral(who)), c.err
+        assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=1 of=2"] and paid_to(c, w) == before, fund.__name__
+        assert order_auto.passed({k: c.data(order_auto.q_pda(order, k)) for k in range(3)}, c.order(order), pay.order_pay_audience(
+            order, HEAD, c.order(order).terms, 0, 7, payees), 1, run=(who, who)) == 1          # the client counts as the program does
+        assert present(c, order, payees, **c.neutral(third)) and paid_to(c, w) == before + 20 * USDC, c.err
+        # the owner of the order's repository is no third party to it, whoever started the run there
+        order = fund(options=pay.opts(pay.F_NEUTRAL | order_auto.quorum_flags(2), judge_repo_id=JUDGE_REPO))
+        assert present(c, order, payees, actor_id=who), c.err
+        if fund == c.fund_wallet:       # (on a Balance's order the owner's neutral run is refused outright: test_what_a_quorum_refuses)
+            assert present(c, order, payees, **c.neutral(OWNER)) and paid_to(c, w) == before + 20 * USDC, c.err
+        # one owner, two repositories: the order's and the judge repository
+        assert present(c, order, payees, repository_id=JUDGE_REPO, repository_owner_id=OWNER) and paid_to(c, w) == before + 20 * USDC, c.err
+        assert c.order(order).state == "open" and c.held(order) == 20 * USDC + FEE
+        assert present(c, order, payees, repository_id=JUDGE_REPO, repository_owner_id=FIRM) and paid_to(c, w) == before + 40 * USDC, c.err
+    # an AUTO order's unmerged run is started by the pull request's author: his own neutral run is no second judge
+    order, who = c.fund_auto(flags=pay.F_NEUTRAL, quorum=2), user()
+    before = paid_to(c, w)
+    assert c.auto(order, who, w, tag=None, actor_id=who) and present(c, order, [(who, 10_000, w)], **c.neutral(who)), c.err
+    assert paid_to(c, w) == before and c.order(order).state == "open"
+    assert present(c, order, [(who, 10_000, w)], **c.neutral(user())) and paid_to(c, w) == before + 20 * USDC, c.err
 
 
 def test_what_a_quorum_refuses(chain):
@@ -153,7 +195,7 @@ def test_a_marker_of_an_earlier_order_at_the_same_address_counts_for_nothing():
     assert c.fund_wallet(n, options=Q2) == order                         # funded again: the same address, a later order
     assert c.quorum(order)[0] is not None
     assert present(c, order, payees, **c.neutral(author)), c.err
-    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=1 of=2"] and paid_to(c, w) == 0
+    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=0 of=2"] and paid_to(c, w) == 0
     # the stale marker can be closed (its order is not the one it was made for), or is rewritten by the buyer's next run
     assert c.send([pay.close_marker_ix(order_auto.q_pda(order, 0), c.payer.pubkey(), order)]), c.err
     assert present(c, order, payees) and paid_to(c, w) == 20 * USDC, c.err
@@ -192,3 +234,27 @@ def test_the_relay_carries_an_unmerged_payment_and_a_quorum_and_takes_its_marker
     r = go(aud, **c.neutral(author))
     assert r["ok"] and [p["amount"] for p in r["paid"]] == [20 * USDC] and "quorum" not in r and paid_to(c, w) == 40 * USDC, r
     assert len(relay.close_markers(net, c.payer, c.now())) == 1 and c.quorum(q)[0] is None
+
+
+def test_a_marker_does_not_outlive_its_order_even_within_one_second():
+    """Finding 2 of 2.1. A quorum-2 order is paid and its address funded again in the same second: the first judge's
+    marker carries the first order's stamp (the slot of its funding), so the second judge alone moves nothing. A
+    judge shown in the transaction that funds (one slot) is refused: nothing is written or counted in that slot."""
+    c = OrderChain()
+    n, author, w = issue(), user(), Keypair().pubkey()
+    payees = [(author, 10_000, w)]
+    order = c.fund_wallet(n, options=Q2)
+    o1 = c.order(order)
+    assert present(c, order, payees) and present(c, order, payees, **c.neutral(author)), c.err
+    assert paid_to(c, w) == 20 * USDC and c.order(order) is None and c.quorum(order)[0][3] == o1.stamp
+    alone = c.pay_token(order, payees, o1, **c.neutral(author))
+    assert not c.send([c.fund_wallet_ix(n, options=Q2), c.pay_ix(order, alone, payees, o1)], c.funder, signers=[c.payer]) and code(c) == STATE
+    assert c.fund_wallet(n, options=Q2) == order
+    o2 = c.order(order)
+    assert (o2.not_before, o2.deadline) == (o1.not_before, o1.deadline) and o2.inc > o1.inc and o2.stamp != o1.stamp
+    assert c.send([c.pay_ix(order, alone, payees)]), c.err
+    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=0 of=2"]
+    assert paid_to(c, w) == 20 * USDC and c.held(order) == 20 * USDC + FEE and c.order(order).state == "open"
+    # the marker of the order before can be closed at once: it is not this order's
+    assert c.send([pay.close_marker_ix(order_auto.q_pda(order, 0), c.payer.pubkey(), order)]), c.err
+    assert present(c, order, payees) and paid_to(c, w) == 40 * USDC, c.err

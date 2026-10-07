@@ -4,13 +4,14 @@
 //! seeds.
 //!
 //! WHAT IS PROVED by `cargo kani` (a mint of 6 decimals, USDC's):
-//!   - order_fee is at least ORDER_FEE_MIN and at most the larger of that floor and 2.5% of the amount, for every u64
-//!     amount and every rate a Plan can set (50 to 250 basis points), without overflow; the amount and the fee of an order the program takes add up
-//!     in a u64; a job's fee (2.0) is never more than its amount;
+//!   - order_fee is at least FEE_MIN and at most the larger of that floor and 0.30% of the amount, for every u64
+//!     amount and every rate a Plan can set (10 to 30 basis points), without overflow; the amount and the fee of an order the program takes add up
+//!     in a u64; a job's fee (2.0) is never more than its amount (one harness over every u64 amount and every rate:
+//!     docs/kani.json records whether the solver answered it, and what is proved of the same bounds rate by rate);
 //!   - the part of a payee's share that comes from the last four digits of an amount is never more than those digits;
 //!   - an order paid in one payment, for every amount the program takes (5.00 to 100,000.00) and every rate: the
 //!     amount and order_fee of it, which the funder put in, are exactly what the payees, the relayer's tip and
-//!     FEE_OWNER take out, the tip is a whole TIP or TIP_FIRST, and nothing is left;
+//!     FEE_OWNER take out, the tip is a whole TIP or TIP_FIRST or, when the fee is smaller, the whole fee, and nothing is left;
 //!   - an order that has paid nothing has given out none of its fee (amounts and fees below 2^32);
 //!   - the bookkeeping of a payment, for EVERY u64 amount, fee, paid and payment: the tip and what FEE_OWNER takes
 //!     are together exactly the fee of that payment; no subtraction wraps; an account that held what is left of the
@@ -118,7 +119,7 @@ pub fn conserved(amount: u64, fee: u64, paid_before: u64, due: u64, n: usize, p:
 #[cfg(kani)]
 mod harness {
     use super::*;
-    use crate::{fee_of, FEE_BPS, MAX_AMOUNT, ORDER_FEE_MIN, ORDER_MIN_AMOUNT, PLAN_BPS_MIN};
+    use crate::{fee_of, FEE_BPS, FEE_MIN, MAX_AMOUNT, ORDER_MIN_AMOUNT, PLAN_BPS_MIN};
 
     const DECIMALS: u8 = 6;
 
@@ -133,12 +134,12 @@ mod harness {
 
     #[kani::proof]
     #[kani::unwind(8)]
-    fn an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount() {
+    fn an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount() {
         let (amount, bps): (u64, u8) = (kani::any(), kani::any());
         kani::assume(bps as u64 >= PLAN_BPS_MIN && bps as u64 <= FEE_BPS);
         let fee = order_fee(amount, bps as u64, DECIMALS);
-        // no tier's rate is above the first's, so the fee is never above 2.5% of the amount (or the floor)
-        assert!(fee >= units(ORDER_FEE_MIN, DECIMALS) && fee <= bps_of(amount, FEE_BPS).max(units(ORDER_FEE_MIN, DECIMALS)));
+        // one rate, and no Plan's is above it: the fee is never above 0.30% of the amount (or the floor)
+        assert!(fee >= units(FEE_MIN, DECIMALS) && fee <= bps_of(amount, FEE_BPS).max(units(FEE_MIN, DECIMALS)));
         // what the funder puts in is the amount and the fee, and for an amount the program takes that sum exists
         if amount <= units(MAX_AMOUNT, DECIMALS) { assert!(amount.checked_add(fee).is_some()); }
         // a job's fee (2.0) is taken out of the amount, so it is never more than it
@@ -176,7 +177,7 @@ mod harness {
     /// One order from its funding to its end in one payment, for every amount the program takes at 6 decimals
     /// (ORDER_MIN_AMOUNT to MAX_AMOUNT) and every rate a Plan can set: what the funder put in, the amount and
     /// order_fee of it, is exactly what the payees, the relayer and FEE_OWNER take out; the tip is the whole TIP or
-    /// TIP_FIRST and comes out of the fee; nothing is left. The payees are one, or two of whom the second takes what
+    /// TIP_FIRST, or the whole fee when that is smaller, and comes out of the fee; nothing is left. The payees are one, or two of whom the second takes what
     /// the first left (`split`'s last share). Nothing of the fee was given out before (0 here; the next harness
     /// proves fee_at(fee, 0, amount) == 0).
     #[kani::proof]
@@ -190,7 +191,7 @@ mod harness {
         let payees = first as u128 + (amount - first) as u128;
         for created in [false, true] {
             let (tip, rest) = settle(fee, 0, fee, true, amount, held, created, DECIMALS);
-            assert!(tip == units(if created { TIP_FIRST } else { TIP }, DECIMALS) && tip as u128 + rest as u128 == fee as u128);
+            assert!(tip == units(if created { TIP_FIRST } else { TIP }, DECIMALS).min(fee) && tip >= units(TIP, DECIMALS) && tip as u128 + rest as u128 == fee as u128);
             assert!(amount as u128 + fee as u128 == payees + tip as u128 + rest as u128);
             assert!(held - amount - tip - rest == 0);
         }
@@ -210,8 +211,7 @@ mod harness {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{order::Order, order_terms::due_now, state::{F_STANDING, OPEN}, FEE_BPS, FEE_BPS_2, FEE_BPS_3, FEE_TIER_1, FEE_TIER_2, MAX_AMOUNT, MAX_HOLDBACK_BPS,
-                ORDER_FEE_MIN, ORDER_MIN_AMOUNT, PLAN_BPS_MIN};
+    use crate::{order::Order, order_terms::due_now, state::{F_STANDING, OPEN}, FEE_BPS, FEE_MIN, MAX_AMOUNT, MAX_HOLDBACK_BPS, ORDER_MIN_AMOUNT, PLAN_BPS_MIN};
     use solana_program::pubkey::Pubkey;
 
     /// xorshift64*: the same inputs on every run and every machine.
@@ -241,9 +241,9 @@ mod tests {
     fn order(flags: u8, amount: u64, fee: u64, holdback_bps: u16, rate: u64, paid: u64) -> Order {
         let z = Pubkey::default();
         Order { state: OPEN, mode: 0, kind: 0, flags, decimals: 6, reserve_days: 0, repo: 1, issue: 1, scope: [0; 32], seq: 0, holdback_bps, kill_bps: 0,
-                fee_bps: 250, amount, fee, rate, paid, deadline: 0, not_before: 0, hold_until: 0, warranty_s: 0, reserved_by: 0, reserved_until: 0,
+                fee_bps: 30, amount, fee, rate, paid, deadline: 0, not_before: 0, hold_until: 0, warranty_s: 0, reserved_by: 0, reserved_until: 0,
                 cancel_at: 0, payee: 0, funder_id: 0, owner_id: 0, arbiter_id: 0, judge_repo_id: 0, source: z, refund_to: z, rent_to: z, mint: z,
-                terms: [0; 32], wf_repo: [0; 32], wf_sha: [0; 40] }
+                terms: [0; 32], wf_repo: [0; 32], wf_sha: [0; 40], inc: 1, grace: false }
     }
 
     #[test]
@@ -274,28 +274,25 @@ mod tests {
     }
 
     #[test]
-    fn an_orders_fee_is_its_three_tiers_above_its_floor_and_a_share_is_never_more_than_the_whole() {
+    fn an_orders_fee_is_its_one_rate_above_its_floor_and_a_share_is_never_more_than_the_whole() {
         let mut r = Rng(0x6b6e_6f73_2d66_6565);
         for i in 0..400_000u32 {
             let decimals = (r.next() % 19) as u8;
             let amount = if i % 3 == 0 { r.next() } else { r.within(0, units(MAX_AMOUNT, decimals)) };
             let bps = r.within(PLAN_BPS_MIN, FEE_BPS);
             let fee = order_fee(amount, bps, decimals);
-            let floor = units(ORDER_FEE_MIN, decimals);
+            let floor = units(FEE_MIN, decimals);
             assert!(fee >= floor && fee <= bps_of(amount, FEE_BPS).max(floor), "{amount} {bps} {decimals}");
-            // above the floor it is the three tiers, each part of the amount at its own rate, rounded down
-            let (t1, t2) = (units(FEE_TIER_1, decimals) as u128, units(FEE_TIER_2, decimals) as u128);
-            let a = amount as u128;
-            let (first, second, third) = (a.min(t1), a.min(t2) - a.min(t1), a - a.min(t2));
-            let tiers = first * bps as u128 / 10_000 + second * FEE_BPS_2 as u128 / 10_000 + third * FEE_BPS_3 as u128 / 10_000;
-            assert_eq!(fee as u128, tiers.max(floor as u128), "{amount} {bps} {decimals}");
-            // a larger order never pays a smaller fee, and never a larger share of itself above the floor
-            let more = amount.saturating_add(r.within(0, t1 as u64));
+            // above the floor it is the rate of the whole amount, rounded down: no tiers
+            assert_eq!(fee as u128, (amount as u128 * bps as u128 / 10_000).max(floor as u128), "{amount} {bps} {decimals}");
+            // a larger order never pays a smaller fee
+            let more = amount.saturating_add(r.within(0, units(1_000_000_000, decimals)));
             assert!(order_fee(more, bps, decimals) >= fee);
             let (x, b) = (r.next(), r.within(0, 10_000));
             assert!(bps_of(x, b) <= x && bps_of(x, 10_000) == x && bps_of(x, 0) == 0);
             assert_eq!(bps_of(x, b) as u128, x as u128 * b as u128 / 10_000, "{x} {b}");
-            assert!(crate::fee_of(x, decimals) <= x);
+            // a job's fee: the same rate and floor, never more than the amount
+            assert_eq!(crate::fee_of(x, decimals), order_fee(x, FEE_BPS, decimals).min(x));
         }
     }
 

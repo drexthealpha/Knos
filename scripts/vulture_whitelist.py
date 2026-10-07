@@ -78,6 +78,17 @@ passkey_fund.fund_challenge, passkey_fund.rent_ixs, passkey_fund.intent_comment,
 settle_pay2.TOKEN_AT
 # scripts/upgrade_feed.py writes `hash_from` into the feed's JSON for its reader.
 _.hash_from
+
+# 0.3.18. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.decide_                       # knos.decide.register: knos decide
+_.margin_                       # knos.billing.register: knos bill margin
+_.migrate_                      # knos.ledger.register: knos meter migrate
+_._propose                      # knos.terms_templates.register: knos terms propose
+# The line by which a final receipt replaces a provisional one: the library's call for whoever holds both (docs/RELAY.md),
+# with no caller inside src/knos; tests/test_decide.py holds it.
+from knos import decide
+
+decide.supersede
 # Typer registers these inside knos.agentkey's `register` and calls them when a person types the command.
 _._init, _._rotate              # knos agent init | rotate
 

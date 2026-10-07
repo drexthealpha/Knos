@@ -18,7 +18,8 @@ import * as settle from "./settle.js";
 import * as passkey from "./passkey.js";
 import { passkeyFundIntent, intentComment } from "./passkey_fund.js";
 import { termsOf, parseIssueUrl, workflowPin, orderAddress, listOf, F_NEUTRAL, SEQ_TRIES, MAX_DAYS, Refused } from "./anyissue.js";
-import { priceConstants, quote, unitsOf, show } from "./price.js";
+import { priceConstants, quote, unitsOf, show, feeWords, feeNext } from "./price.js";
+import { liveFee } from "./fee_live.js";
 import { renderOrderStatement } from "./statements.js";
 import { jsonFile } from "./records.js";
 import * as con from "./console.js";
@@ -31,6 +32,18 @@ const ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 export const SLOTS = 9000;            // how long a signed intent is good for: about an hour, at devnet's 0.4 s a slot
 const JUDGES = { 0: "the order's own repository", 1: "a neutral run, started by hand by the owner of the repository it ran in", 2: "the judge repository the order named",
   3: "the arbiter the order named", 9: "no token: a payment the program had already accepted" };                                             // audit.py JUDGES
+/** When an unpaid order can be sent back: its deadline, or the end of its presentation grace when it has one (sdk/settle readOrder: payUntil). */
+export const refundAt = (o) => (o.grace && Number.isFinite(o.payUntil) ? o.payUntil : o.deadline);
+export const GRACE_WORDS = "2 hours' grace";
+const STEP_STYLE = `.buy-step { position: relative; scroll-margin-top: 80px; transition: box-shadow var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease); }
+.buy-step[data-state="live"] { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: var(--depth-1); }
+.buy-step[data-state="done"] > .pill { border-color: var(--ok); color: var(--ok); }
+.buy-step[data-state="done"] > .pill::before { content: "✓ "; }
+.buy-next { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; margin: 20px 0 0; }
+.buy-next .k-btn { margin: 0; }
+.buy-fee { margin: 14px 0 2px; font-size: var(--s1); color: var(--ink); }
+.buy-fee .k-num { font-weight: 600; font-size: var(--s2); }
+#buy-fee-next { margin: 0 0 4px; }`;
 export const STATES = ["funded", "reserved", "accepted", "paid", "held", "refunded"];
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -93,7 +106,8 @@ export function orderState(o, events, now) {
   if (o?.state === "held") { state = "held"; words = `Accepted, and held: the person it pays has bound no wallet yet. Until ${when(o.holdUntil)} they can bind one and be paid; after that it can be sent back.`; reached.add("accepted"); reached.add("held"); }
   else if (o?.state === "warranty") { state = "paid"; words = `Paid, with a holdback in warranty until ${when(o.holdUntil)}: ${show(o.amount - o.paid)} waits, and goes back to the funder if the change is reverted before then.`; reached.add("accepted"); reached.add("paid"); }
   else if (o && o.reservedBy && o.reservedUntil > now) { state = "reserved"; words = `Funded, and reserved until ${when(o.reservedUntil)} by the GitHub account with id ${o.reservedBy}.`; reached.add("reserved"); }
-  else if (o) { state = "funded"; words = `Funded: ${show(o.amount - o.paid)} is in the order's own escrow account. Unpaid by ${when(o.deadline)}, anyone can send it back.`; }
+  // an order funded with a presentation grace can still be paid for two hours past its deadline: its refund opens after them
+  else if (o) { state = "funded"; words = `Funded: ${show(o.amount - o.paid)} is in the order's own escrow account. Unpaid by ${when(refundAt(o))}, anyone can send it back${o.grace ? `: its deadline, ${when(o.deadline)}, and ${GRACE_WORDS}` : ""}.`; }
   else if (has("reverted")) { state = "refunded"; words = `Paid, then reverted inside the warranty: the holdback of ${show(Number(last("reverted").amount))} went back to the funder.`; reached.add("refunded"); }
   else if (has("refunded") && has("paid")) { state = "refunded"; words = `Paid in part; the rest, ${show(Number(last("refunded").amount))}, went back to the funder.`; }
   else if (has("refunded")) { state = "refunded"; words = `Refunded: ${show(Number(last("refunded").amount))} went back to where it came from. Nothing was paid.`; }
@@ -118,7 +132,9 @@ export function renderBuyer(el, env = {}) {
   });
   let idsP;
   const ids = env.ids || (() => (idsP ||= fetch("program_ids.json").then((r) => { if (!r.ok) throw new Error("program_ids.json is missing from this build"); return r.json(); })));
-  const c = priceConstants(), file = env.file || jsonFile;
+  // the fee shown follows the build that is live (web/fee_live.js): this tree's own rule until devnet or upgrades.json has answered
+  let c = env.priceConstants || priceConstants();
+  const file = env.file || jsonFile;
   const clock = env.now || (() => Math.floor(Date.now() / 1000));
   const say = (node, html, kind = "") => { node.innerHTML = `<p class="status ${kind}">${html}</p>`; };
   const copyTo = (button, text, area) => { button.onclick = async () => { try { await navigator.clipboard.writeText(text); button.textContent = "Copied"; } catch { area?.select?.(); button.textContent = "Select it and copy by hand"; } }; };
@@ -127,6 +143,9 @@ export function renderBuyer(el, env = {}) {
   // standing offers a repository's files hold), Budgets (the envelopes), Approvals (who approves, and what needs a person),
   // Invoice (what happened to an order, one deliverable's seven answers, the month's statement). Every part is drawn at
   // once; a tab only shows it.
+  // the three steps: one card and one action each. The step in hand has the accent on its edge, a step left behind the
+  // green of done; the fee is one line of figures, and what the next upgrade changes is one more
+  if (!doc.getElementById("buy-step-style")) { const st = doc.createElement("style"); st.id = "buy-step-style"; st.textContent = STEP_STYLE; doc.head.appendChild(st); }
   el.innerHTML = `
     <h2>Buy work per outcome</h2>
     <p class="lede">Fix price and terms first. Pay when a signed run accepts.</p>
@@ -135,7 +154,7 @@ export function renderBuyer(el, env = {}) {
     <div class="k-tabs buy-tabs" role="tablist" aria-label="The console">${TABS.map(([k, label], n) => `<button type="button" class="k-btn quiet" role="tab" id="proc-tab-${k}" aria-controls="buy-part-${k}" aria-selected="${n === 0}" tabindex="${n === 0 ? 0 : -1}">${label}</button>`).join("")}</div>
 
     <div class="buy-part" id="buy-part-offers" role="tabpanel" aria-labelledby="proc-tab-offers">
-    <section class="card" id="buy-step-1"><span class="pill">Step 1 of 3</span>
+    <section class="card buy-step" id="buy-step-1" data-state="live"><span class="pill">Step 1 of 3</span>
       <h3>What are you buying?</h3>
       <label for="buy-kind">The work</label>
       <select id="buy-kind"><option value="issue">One issue, done once</option><option value="rate">A rate per accepted pull request, from one vendor</option></select>
@@ -147,21 +166,28 @@ export function renderBuyer(el, env = {}) {
       <div class="row">
         <div><label for="buy-amount" id="buy-amount-label">Amount (test USDC)</label><input id="buy-amount" inputmode="decimal" value="50"></div>
         <div><label for="buy-days">Deadline: days until unpaid money goes back</label><input id="buy-days" inputmode="numeric" value="14"></div></div>
+      <p id="buy-fee-now" class="buy-fee" data-keep hidden>Fee <span class="k-num" id="buy-fee-is"></span>. You pay <span class="k-num" id="buy-pays-is"></span>.</p>
+      <p id="buy-fee-next" class="fine" data-keep hidden></p>
       <p id="buy-cost" data-fold="The fee, as an amount and as a share"></p>
+      <p id="buy-fee-note" class="fine"></p>
       <div id="buy-fee-warning" role="note" hidden></div>
-      <details id="buy-fee-table" open><summary class="fine">The fee as a share of the order, at five sizes</summary><div id="buy-fee-rows"></div></details>
+      <details class="k-more" id="buy-fee-table"><summary>Fee at five sizes</summary><div id="buy-fee-rows"></div></details>
       <div id="buy-private" hidden></div>
+      <label for="buy-by">Who posts the funding comment (a GitHub account, or empty)</label>
+      <input id="buy-by" autocomplete="off" spellcheck="false" placeholder="octocat">
+      <div id="buy-fit" data-keep role="status" aria-live="polite" hidden></div>
+      <details class="k-more" id="buy-controls"><summary>Budget, envelope, earlier bills</summary>
       <h4>Is this allowed? <span class="pill">the organisation's budget, read from devnet</span></h4>
       <div id="buy-allowed" role="status" aria-live="polite"><p class="fine">Write the issue above. The budget's answer shows here.</p></div>
       <h4>Does it fit the budget envelope?</h4>
       <div id="buy-envelope" role="status" aria-live="polite"><p class="fine">Write an amount. The envelope shows before and after.</p></div>
-      <label for="buy-by">Who posts the funding comment (a GitHub account, or empty)</label>
-      <input id="buy-by" autocomplete="off" spellcheck="false" placeholder="octocat">
       <h4>Was this billed before?</h4>
       <div id="buy-before" role="status" aria-live="polite"><p class="fine">Write the issue above. Earlier orders and payments show here.</p></div>
+      </details>
+      <p class="buy-next"><button type="button" class="k-btn" data-next="buy-step-2">Next: acceptance</button></p>
     </section>
 
-    <section class="card" id="buy-step-2"><span class="pill">Step 2 of 3</span>
+    <section class="card buy-step" id="buy-step-2"><span class="pill">Step 2 of 3</span>
       <h3>When is it accepted?</h3>
       <label for="buy-template">Terms, from a template</label>
       <select id="buy-template"></select>
@@ -172,10 +198,13 @@ export function renderBuyer(el, env = {}) {
       <div class="receipt"><strong id="buy-sentence"></strong></div>
       <details class="k-more" id="buy-trust"><summary>What you still trust <span class="pill" id="buy-mode"></span></summary>
       <ul id="buy-trusted"></ul></details>
-      <details><summary class="fine">The three ways an order can be judged</summary><dl class="parts" id="buy-modes"></dl></details>
+      <details class="k-more"><summary>Three ways to judge</summary><dl class="parts" id="buy-modes"></dl></details>
+      <p class="buy-next"><button type="button" class="k-btn" data-next="buy-step-3">Next: pay</button>
+        <button type="button" class="k-btn quiet" id="buy-propose">Propose from the repository</button></p>
+      <div id="buy-proposed" hidden></div>
     </section>
 
-    <section class="card" id="buy-step-3" data-record><span class="pill">Step 3 of 3</span>
+    <section class="card buy-step" id="buy-step-3" data-record><span class="pill">Step 3 of 3</span>
       <h3>Pay</h3>
       <h4>With a passkey: no app, no SOL</h4>
       <p>A passkey is the key your device keeps behind its fingerprint, face or screen lock. Its wallet is an address on Solana that holds test USDC. You sign one order with it; a relay sends the transaction and pays its fee.</p>
@@ -242,6 +271,39 @@ export function renderBuyer(el, env = {}) {
     </section>
     </div>`;
 
+  // whether the order fits its budget envelope is one line in the step itself; the envelope before and after is in the fold
+  new MutationObserver(() => {
+    const said = $("buy-envelope").querySelector("[data-fit-said]"), fit = $("buy-fit");
+    fit.hidden = !said;
+    if (said && fit.textContent !== said.textContent) fit.innerHTML = `<p class="${esc(said.className.replace("k-shake", "").trim())}" data-fit="${esc(said.closest("[data-fit]").dataset.fit)}">${esc(said.textContent)}</p>`;
+  }).observe($("buy-envelope"), { childList: true, subtree: true, characterData: true });
+  // ONE STEP, ONE ACTION: each step's button moves to the next step (it scrolls there and puts the focus in its first
+  // field), and the step left behind is marked done. Nothing is hidden: a reader may still fill the steps in any order.
+  for (const b of el.querySelectorAll("[data-next]")) b.addEventListener("click", () => {
+    const to = $(b.dataset.next), from = b.closest("section");
+    from.dataset.state = "done"; to.dataset.state = "live";
+    to.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    to.querySelector("select, input, button:not([data-next])")?.focus({ preventScroll: true });
+  });
+  // OFFERS: the terms of step 2 proposed from the repository's own checks (web/propose_view.js reads GitHub when asked).
+  // The list says where each line came from; "Use in this order" puts its checks and paths in the boxes above.
+  $("buy-propose").addEventListener("click", async () => {
+    const ref = parseIssueUrl($("buy-issue").value), box = $("buy-proposed");
+    if (!ref) { box.hidden = false; box.innerHTML = `<p class="status" role="status">Write the issue in step 1 first.</p>`; return; }
+    const { renderProposal } = await import("./propose_view.js");
+    const proposal = await renderProposal(box, `${ref.owner}/${ref.repo}`, { propose: env.propose, proposeEnv: env.proposeEnv });
+    if (!proposal) return;
+    const use = doc.createElement("button");
+    Object.assign(use, { type: "button", className: "k-btn quiet", textContent: "Use in this order" }); use.dataset.pt = "use";
+    box.querySelector(".pt-act").append(use);
+    use.addEventListener("click", () => {
+      $("buy-checks").value = proposal.terms.checks.deciding.map((ch) => ch.name).join(", ");
+      $("buy-paths").value = proposal.terms.changes.paths.join(", ");
+      redraw(); use.textContent = "In the order"; use.disabled = true;
+      for (const id of ["buy-checks", "buy-paths"]) $(id).animate?.([{ boxShadow: "0 0 0 3px var(--accent)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 480 });
+    });
+  });
+
   // the four tabs: a press shows its part; the arrow keys, Home and End move between them (the ARIA tabs pattern)
   const tabs = TABS.map(([k]) => $(`proc-tab-${k}`));
   const showPart = (k, focus = false) => {
@@ -297,6 +359,15 @@ export function renderBuyer(el, env = {}) {
     const q = v && v.units !== null && v.units >= c.minAmount && v.units <= c.maxAmount ? quote(v.units, c) : null;
     const fee = q ? con.feeView(v.units, c) : null;
     $("buy-cost").textContent = fee ? fee.words : bad;
+    // the fee of the build that is live, in one line; and one line more when the next upgrade changes it
+    const next = fee ? feeNext(c, v.units) : null;
+    $("buy-fee-now").hidden = !fee; $("buy-fee-now").dataset.fee = c.fee.release;
+    if (fee) { $("buy-fee-is").textContent = show(fee.fee); $("buy-pays-is").textContent = show(fee.pays); }
+    $("buy-fee-next").hidden = !next;
+    $("buy-fee-next").innerHTML = next ? `${esc(next.label)}: <span class="k-num">${esc(show(next.fee))}</span> on this order.` : "";
+    $("buy-fee-note").textContent = fee ? fee.note : "";
+    $("buy-fee-note").dataset.fee = c.fee.release;           // which rule the number is: "0.3.14" or "0.3.18"
+    $("buy-fee-note").dataset.live = c.fee.live ? "1" : "0";
     desk?.fund(q ? q.funderPays : null);            // the envelope before and after, shown before anything is funded
     $("buy-cost").dataset.pct = fee ? fee.pct : "";
     $("buy-fee-warning").hidden = !fee?.warning;
@@ -345,7 +416,13 @@ export function renderBuyer(el, env = {}) {
     const money = (n) => show(n), pct = (r) => `${String(r.effectivePct).replace(/%$/, "")}%`;
     $("buy-fee-rows").innerHTML = `<div class="table-wrap"><table><thead><tr><th>Order (test USDC)</th><th>Fee</th><th>Fee as a share</th></tr></thead><tbody>${
       rows.map((r) => `<tr><td>${esc(money(r.amount))}</td><td>${esc(money(r.fee))}</td><td>${esc(pct(r))}</td></tr>`).join("")}</tbody></table></div>
-      <p class="fine">The fee is paid by the funder, on top of the amount. On devnet it is test money.</p>`;
+      <p class="fine">On devnet the fee is test money.</p>
+      <details class="k-more" id="buy-fee-rule" data-fee="${esc(c.fee.release)}"><summary>Which fee this is</summary><p class="fine">${esc(feeWords(c.fee.live ? c.fee.version : null))}</p></details>`;
+  }
+  // ask which build is live, then draw every fee again by its rule: the program first, upgrades.json when devnet does not answer
+  if (!env.priceConstants) {
+    Promise.resolve().then(async () => liveFee({ knos, rpc, program: (await ids().catch(() => null))?.knos_pay ?? null, feed: env.upgradesFeed ?? "upgrades.json" }))
+      .then((live) => { c = live.c; el.dataset.fee = c.fee.release; el.dataset.feeSource = live.source || "none"; drawFees(); redraw(); }).catch(() => {});
   }
   const link = (kind, id) => EXPLORER(kind, id);
   function drawChecks() {
@@ -356,6 +433,7 @@ export function renderBuyer(el, env = {}) {
     const allowed = $("buy-allowed"), before = $("buy-before");
     if (!f) return;
     const name = `${f.repo?.full_name || `${f.ref.owner}/${f.ref.repo}`}#${f.ref.number}`;
+    $("buy-controls").open = true;          // an issue was named: its budget, its envelope and its earlier bills are the answer, so they show
     if (f.loading) { say(allowed, "Reading GitHub and devnet…"); say(before, "Reading…"); return; }
     if (!f.repo) { say(allowed, `${esc(f.error)} The budget is read by the repository's owner, so it cannot be read for this one.`); say(before, "Nothing can be matched without the repository's id, which GitHub did not give."); return; }
     const org = f.repo.owner?.type === "Organization", who = `${esc(f.repo.owner?.login || f.ref.owner)} (${org ? "an organisation" : "a personal account"}, GitHub id ${esc(f.owner)})`;
@@ -368,7 +446,7 @@ export function renderBuyer(el, env = {}) {
         const ask = { balance: b.balance, balx: b.balx, repoId: f.repo.id, amount: amount ?? c.minAmount, byId: f.by?.id || 0, holds: b.holds, now };
         let said = null;
         // controls_data.js (the decision of `knos budget check`) refuses a comment by nobody, so the budget alone is asked as its owner
-        try { said = rules.explainFunding({ ...ask, byId: ask.byId || b.balance.ownerId, repoOwnerId: f.owner }) || null; } catch { said = null; }
+        try { said = rules.explainFunding({ ...ask, byId: ask.byId || b.balance.ownerId, repoOwnerId: f.owner }, c) || null; } catch { said = null; }
         const local = con.explainLocal(ask, c), use = said && typeof said.sentence === "string" && !(said.ok && !local.ok) ? { ...local, ...said } : local;   // what the Balance holds is read here
         return con.budgetHtml(b, amount === null ? { ...use, ok: false, rule: "amount", sentence: "Write an amount an order can take, and this says whether the budget lets it through." } : use, now, link);
       }).join("");
@@ -581,7 +659,7 @@ export function renderBuyer(el, env = {}) {
   // ---- the statement, the templates, and a wallet this browser kept ----------------------------------------------------------------------
   renderOrderStatement($("buy-statement-box"), { EXPLORER, gh, file: env.file });
   const ready = (env.templates ? Promise.resolve(env.templates) : fetch("buyer_templates.json").then((r) => { if (!r.ok) throw new Error(`buyer_templates.json did not load (${r.status})`); return r.json(); }))
-    .then((got) => { book = got; kinds(); desk = renderProcurement($("proc"), { book, gh, now: clock, onChange: () => redraw(), fundBox: $("buy-envelope") }); redraw(); })
+    .then((got) => { book = got; kinds(); desk = renderProcurement($("proc"), { book, gh, now: clock, onChange: () => redraw(), fundBox: $("buy-envelope"), fee: () => c }); redraw(); })
     .catch((e) => { $("buy-sentence").textContent = `The templates did not load: ${e.message}. Reload the page.`; });
   const saved = recall();
   if (saved?.key) {
@@ -631,7 +709,8 @@ export function ownSample(sample) {
   return { ...walk(sample), repository: PLAYGROUND };
 }
 
-export function renderProcurement(el, { book, gh, now = () => Math.floor(Date.now() / 1000), onChange = () => {}, fundBox = null } = {}) {
+export function renderProcurement(el, { book, gh, now = () => Math.floor(Date.now() / 1000), onChange = () => {}, fundBox = null, fee = () => undefined } = {}) {
+  // `fee()`: priceConstants of the build that is live (web/fee_live.js), so an offer's fees are the ones the program would take
   const p = con.procure, doc = el.ownerDocument, cfg = book.procurement, sample = ownSample(cfg.sample), $ = (id) => doc.getElementById(id);
   const parts = (terms) => book.templates.find((t) => t.name === terms)?.parts || { checks: [], paths: [] };
   const today = () => new Date(now() * 1000).toISOString().slice(0, 10);
@@ -651,7 +730,7 @@ export function renderProcurement(el, { book, gh, now = () => Math.floor(Date.no
         <div class="row"><div><label for="proc-outcome">Outcome</label><select id="proc-outcome"></select></div>
           <div><label for="proc-supplier">Supplier</label><input id="proc-supplier" autocomplete="off" spellcheck="false" placeholder="octocat, or anyone"></div></div>
         <label for="proc-cap" id="proc-cap-label">Cap per month (test USDC)</label><input id="proc-cap" inputmode="decimal" placeholder="400">
-        <details class="k-more"><summary>More terms</summary>
+        <details class="k-more"><summary>Holdback, kill fee, dates</summary>
           <div class="row"><div><label for="proc-period">Period</label><select id="proc-period"><option value="week">week</option><option value="month" selected>month</option><option value="quarter">quarter</option></select></div>
             <div><label for="proc-envelope">Envelope</label><select id="proc-envelope"></select></div></div>
           <div class="row"><div><label for="proc-requester">Requested by</label><select id="proc-requester"></select></div>
@@ -672,7 +751,7 @@ export function renderProcurement(el, { book, gh, now = () => Math.floor(Date.no
   // an envelope as this page counts it: the file's figures, and what the drafts made here would commit
   const envNow = (env) => ({ ...env, committed: p.typed(p.envelopeState(env).committed + drafted(env.name)) });
   const request = (offer) => ({ title: `Offer ${offer.name}`, requester: offer.requested_by, line: p.commentLine(`offer:${offer.name}`),
-    chain: st.policy ? p.chain(st.policy, { subject: `offer:${offer.name}`, requester: offer.requested_by, amount: p.commitment(offer).value, events: st.events, on: day() }) : null });
+    chain: st.policy ? p.chain(st.policy, { subject: `offer:${offer.name}`, requester: offer.requested_by, amount: p.commitment(offer, fee()).value, events: st.events, on: day() }) : null });
   const all = () => [...st.offers, ...st.drafts.map((d) => d.offer)];
 
   // the part an offer or a funding would add grows from nothing, once: the bar's own transition (none for a reader who asked for less motion)
@@ -701,7 +780,7 @@ export function renderProcurement(el, { book, gh, now = () => Math.floor(Date.no
     if (!t.offer) { box.innerHTML = `<p class="${t.bad ? "status bad" : "fine"}">${esc(t.bad || "Fill three fields. The envelope shows before and after.")}</p>`; return null; }
     if (t.bad) { box.innerHTML = `<p class="status bad" data-offer-bad>${esc(t.bad.replace(/`/g, ""))}</p>`; return null; }
     if (!env) { box.innerHTML = `<p class="status bad">This repository has no budget envelope yet.</p>`; return null; }
-    const sized = p.commitment(t.offer), fitted = p.fit(envNow(env), sized.leaves);
+    const sized = p.commitment(t.offer, fee()), fitted = p.fit(envNow(env), sized.leaves);
     box.innerHTML = con.fitHtml(envNow(env), { ...fitted, sentence: fitted.sentence.replace(/`/g, "") }, sized.leaves)
       + `<p class="fine" data-offer-sum>${sized.periods} ${esc(t.offer.period)}${sized.periods === 1 ? "" : "s"}, ${sized.suppliers} supplier${sized.suppliers === 1 ? "" : "s"}; fees ${esc(show(sized.leaves - sized.value))} on top.</p>`;
     $("proc-create").disabled = !fitted.ok;
@@ -710,7 +789,7 @@ export function renderProcurement(el, { book, gh, now = () => Math.floor(Date.no
   }
 
   function drawLists() {
-    $("proc-offer-list").innerHTML = con.offersTableHtml(all().map((offer) => { const r = request(offer); return { offer, row: p.outcomeOf(cardOf(offer) || {}, offer.outcome), sized: p.commitment(offer), status: r.chain ? r.chain.sentence.split(":")[0] : "no policy file" }; }));
+    $("proc-offer-list").innerHTML = con.offersTableHtml(all().map((offer) => { const r = request(offer); return { offer, row: p.outcomeOf(cardOf(offer) || {}, offer.outcome), sized: p.commitment(offer, fee()), status: r.chain ? r.chain.sentence.split(":")[0] : "no policy file" }; }));
     $("proc-budgets").innerHTML = st.envelopes.length ? st.envelopes.map((env) => con.envelopeHtml(env, p.envelopeState(env), drafted(env.name))).join("")
       + `<p class="fine">Committed: promised, not yet accepted. Held: accepted, not yet paid out.</p>${st.drafts.length ? `<p class="fine" data-drafts="${st.drafts.length}">The lighter part is drafted here, not committed yet.</p>` : ""}` : `<p class="fine">No budget envelope yet.</p>`;
     $("proc-approvals").innerHTML = st.policy ? con.approvalsHtml(all().map(request)) : `<p class="fine">No policy file yet: nobody is named to approve.</p>`;

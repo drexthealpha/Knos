@@ -11,6 +11,7 @@ import pytest
 pytest.importorskip("solders.litesvm")
 
 from _pay2 import Chain  # noqa: E402
+from _pay21 import each_build, pay21_build  # noqa: E402, F401 - the fixtures `build` and `pay21`: every command here runs against knos_pay 2.2 and the live 2.1
 from _settle import FIX, b64, modulus, signing_key  # noqa: E402
 from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
@@ -30,10 +31,11 @@ GITLAB_KEY = {"keys": [{"kty": "RSA", "alg": "RS256", "e": "AQAB", "kid": "gl", 
 
 
 @pytest.fixture
-def world(monkeypatch, tmp_path, capsys):
+def world(monkeypatch, tmp_path, capsys, build):
     """A chain behind `chain.ledger()`, GitHub's key set as the relays fetch it, a wallet's keypair file, and
-    `knos(...)`: run the command line, return (exit code, what it printed)."""
-    c = Chain()
+    `knos(...)`: run the command line, return (exit code, what it printed). The chain runs the knos_pay build under
+    test (`build`): the commands state and fund the fee of the build that answers, 2.2's or the live 2.1's."""
+    c = Chain(pay_build=build.build)
     net = Net(c)
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
     monkeypatch.setattr(chain, "ledger", lambda: net)
@@ -218,7 +220,7 @@ def _installed(wf_repo: str = WF_REPO, sha: str = WF_SHA) -> dict:
     return {"content": base64.encodebytes(text.encode()).decode()}
 
 
-def test_fund_wallet_fixes_the_terms_from_the_repositorys_checks_and_funds_from_the_wallet(world, monkeypatch):
+def test_fund_wallet_fixes_the_terms_from_the_repositorys_checks_and_funds_from_the_wallet(world, monkeypatch, build):
     c, net, knos = world
     head = "f" * 40
     github(monkeypatch, {
@@ -242,7 +244,7 @@ def test_fund_wallet_fixes_the_terms_from_the_repositorys_checks_and_funds_from_
     # the proof of the repository's own workflow pays this job like any other on the issue
     payee, to = user(), Keypair().pubkey()
     r = relay2.submit(net, c.payer, pay_jwt(c, REPO, 7, payee, to), None, JWKS, now=c.now())
-    assert r["ok"] and c.balance(pay.ata(to, c.usdc)) == 19_500_000, r
+    assert r["ok"] and c.balance(pay.ata(to, c.usdc)) == build.pick(19_500_000, 19_940_000), r      # the job of 20.00 less the live build's fee
     # no checks at all, said out loud; other days; the workflows named by hand
     rc, said = knos("fund-wallet", "octo/widgets#8", "1.5", "--checks", "none", "--days", "30", "--reserve", "0", "--paths", "src/**, docs/*.md",
                     "--workflow", "evil/flows@" + "d" * 40, "--mint", mint, "--keypair", c.keyfile)
@@ -276,7 +278,7 @@ def test_fund_wallet_fixes_the_terms_from_the_repositorys_checks_and_funds_from_
     assert rc == 1 and "GitHub did not answer for octo/widgets's checks" in said and net.txs == n0
 
 
-def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pinned_to_the_releases_attest(world, monkeypatch):
+def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pinned_to_the_releases_attest(world, monkeypatch, build):
     """C2 scenario 8: `knos fund-wallet` on a repository that runs no Knos workflow was refused, and with --workflow it
     made a 2.0 job that only that repository's own prove.yml could pay, so it could only go back. On 2.1 it makes what
     the site's "Fund any issue" makes: a NEUTRAL work order, pinned to the attest.yml commit this release's
@@ -295,7 +297,7 @@ def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pin
     assert rc == 0, said
     assert f"repos/drexthealpha/Knos/contents/examples/knos-attest.yml?ref=v{version()}" in asked      # the release's own file, at its tag
     lines = said.splitlines()
-    assert lines[0] == f"20.00 of mint {mint} is in escrow for octo/bare#1, and Knos's fee of 0.50 of mint {mint} was paid on top. Work order {order}."
+    assert lines[0] == f"20.00 of mint {mint} is in escrow for octo/bare#1, and Knos's fee of {build.pick('0.50', '0.06')} of mint {mint} was paid on top. Work order {order}."
     assert "  Nobody can reserve it: the first accepted pull request is paid." in lines             # nothing there answers `/knos take`
     assert not any("/knos take` reserves" in x for x in lines)
     assert lines[-2] == ("  Unpaid after 1 day, it goes back to this wallet. octo/bare needs no Knos file: after the merge, whoever did the work runs "
@@ -303,7 +305,7 @@ def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pin
                          f"Only a signed run of attest.yml of drexthealpha/knos-workflows at {'a' * 12} can pay it.")
     o = pay.read_order(c.data(order))
     assert (o.state, o.from_balance, o.flags & pay.F_NEUTRAL, o.amount, o.fee, o.source, o.repo_id, o.issue, o.reserve_days, o.wf_sha, o.wf_repo_hash) == \
-        ("open", False, pay.F_NEUTRAL, 20 * USDC, 500_000, wallet, 5, 1, 0, "a" * 40, pay.wf_repo_hash("drexthealpha/knos-workflows"))
+        ("open", False, pay.F_NEUTRAL, 20 * USDC, build.pick(500_000, 60_000), wallet, 5, 1, 0, "a" * 40, pay.wf_repo_hash("drexthealpha/knos-workflows"))
     assert c.data(pay.job_pda(5, 1, wallet)) is None                                                 # no 2.0 job that nobody could pay
     # again from the same wallet: the next order on the issue; --workflow names the workflows by hand; too little for an order
     rc, said = knos("fund-wallet", "octo/bare#1", "6", "--checks", "none", "--workflow", "evil/flows@" + "d" * 40, "--mint", mint, "--keypair", c.keyfile)
@@ -318,8 +320,9 @@ def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pin
 
 
 # -- knos bounty, knos due -----------------------------------------------------------------------------------------------------
-def test_bounty_and_due_say_what_both_deployments_hold(world, monkeypatch):
+def test_bounty_and_due_say_what_both_deployments_hold(world, monkeypatch, build):
     c, net, knos = world
+    net_of = build.pick('4.88', '4.95')        # a job of 5.00 less the fee the second deployment's live build takes when it pays
     for program, build in ((oidc1.OIDC_ID, "knos_oidc_test.so"), (pay1.PAY_ID, "knos_pay_test.so")):      # the first deployment, beside the second
         c.svm.add_program_from_file(program, str(FIX / build))
     assert c.send([pay1.init_faucet_ix(c.payer.pubkey())]), c.err
@@ -337,9 +340,9 @@ def test_bounty_and_due_say_what_both_deployments_hold(world, monkeypatch):
                                         f"{cli._when(c.now() + 14 * 86_400)}  job {job}")
     assert go(pay_jwt(c, repo, 7, mona))["paid"][0]["to"] is None      # proven, and mona has named no wallet
     until = cli._when(c.now() + pay.HOLD)
-    assert knos("bounty", "octo/widgets#7")[1].strip() == (f"5.00 test USDC  held for GitHub user id {mona}, who has named no wallet yet: 4.88 test USDC waits for "
+    assert knos("bounty", "octo/widgets#7")[1].strip() == (f"5.00 test USDC  held for GitHub user id {mona}, who has named no wallet yet: {net_of} test USDC waits for "
                                                            f"`knos claim <address>` until {until}  job {job}")
-    assert knos("due", "mona")[1].splitlines()[1] == f"4.88 test USDC is held for issue #7 of repository id {repo} until {until}  job {job}"
+    assert knos("due", "mona")[1].splitlines()[1] == f"{net_of} test USDC is held for issue #7 of repository id {repo} until {until}  job {job}"
     # the first deployment still owes mona something, too
     go1 = lambda jwt: relay1.submit(net, c.payer, jwt, {oidc1.GITHUB: JWKS[oidc.GITHUB]}, now=c.now())  # noqa: E731
     from _settle import github_claims as claims1
@@ -360,7 +363,7 @@ def test_bounty_and_due_say_what_both_deployments_hold(world, monkeypatch):
     assert go(bind_jwt(c, mona, wallet))["settled"]
     said = knos("due", "mona")[1].splitlines()
     assert said[:2] == [f"mona (GitHub user id {mona}) is paid at {wallet}.",
-                        "1 payment in the faucet's test USDC, 4.88 in all: test money, kept apart from the record."] and len(said) == 5, said
+                        f"1 payment in the faucet's test USDC, {net_of} in all: test money, kept apart from the record."] and len(said) == 5, said
     assert knos("bounty", "octo/widgets#7")[1].startswith("No bounty is in escrow")
 
 
@@ -416,7 +419,7 @@ class Gh:
         raise AssertionError(args)
 
 
-def test_claim_binds_a_wallet_through_the_accounts_own_knos_claim_repository(world, monkeypatch, tmp_path):
+def test_claim_binds_a_wallet_through_the_accounts_own_knos_claim_repository(world, monkeypatch, tmp_path, build):
     c, net, knos = world
     monkeypatch.setattr(relay2, "CLAIM_SHAS", relay2.CLAIM_SHAS | {"2" * 40})       # the test build's claim pin
     pinned = tmp_path / "knos-claim.yml"                         # what a release ships: the caller of the pinned claim workflow
@@ -435,13 +438,13 @@ def test_claim_binds_a_wallet_through_the_accounts_own_knos_claim_repository(wor
         r = ghrelay.relay_one(net, c.payer, "bind", jwt, submit=lambda ledger, payer, token: relay2.submit(ledger, payer, token, None, JWKS, now=c.now()))
         return ghrelay.log_line("bind", "mona/knos-claim", 1, jwt, r, 9)
     got = claiming.bind(str(wallet), gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=worker)
-    words = f"GitHub user id {mona} is now paid at {wallet}. 1 held payment, 4.88 in all, went there."
+    words = f"GitHub user id {mona} is now paid at {wallet}. 1 held payment, {build.pick('4.88', '4.95')} in all, went there."
     assert got == {"login": "mona", "repo": "mona/knos-claim", "created": True, "bound": True, "said": words}
-    assert said == [f"1 payment, 4.88 in all, is held for mona and will be sent to {wallet}.", "Created mona/knos-claim (public; it holds only the claim workflow).",
+    assert said == [f"1 payment, {build.pick('4.88', '4.95')} in all, is held for mona and will be sent to {wallet}.", "Created mona/knos-claim (public; it holds only the claim workflow).",
                     "GitHub is signing the claim in mona/knos-claim; waiting for a relayer to carry it to Solana (up to 10 min).", words]
     assert ("repo", "create", "mona/knos-claim", "--public", "--template", "drexthealpha/knos-claim", "--description", claiming.ABOUT) in gh.calls
     assert ("workflow", "run", "knos-claim.yml", "-R", "mona/knos-claim", "-f", f"address={wallet}") in gh.calls and not [a for a in gh.calls if "PUT" in a]
-    assert pay.read_bind(c.data(pay.bind_pda(mona))).wallet == wallet and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert pay.read_bind(c.data(pay.bind_pda(mona))).wallet == wallet and c.balance(pay.ata(wallet, pay.faucet_mint())) == build.pick(4_875_000, 4_950_000)
     # the same address again: the chain already says so, and GitHub is asked for nothing but who is logged in
     gh.calls.clear()
     assert claiming.bind(str(wallet), gh=gh, ledger=net, say=said.append, sleep=lambda s: None, wait_for=worker)["bound"] and gh.calls == [("api", "user")]

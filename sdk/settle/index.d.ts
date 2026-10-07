@@ -71,6 +71,9 @@ export function payAudience(repoId: Num, issue: Num, authorId: Num, headSha: str
 export function vetoAudience(repoId: Num, issue: Num): string;
 export function claimAudience(address: Address): string;
 /** The fee on a payment: 2.5%, at least 0.05, never more than the amount. The same in both deployments. */
+/** One fee rule of knos_pay (v2.FEE_RULES). Amounts in millionths of a whole unit; rates in basis points. */
+export interface FeeRule { readonly release: string; readonly build: string; readonly bps: number; readonly floor: number; readonly planMin: number;
+  readonly jobBps: number; readonly jobFloor: number; readonly tiers: ReadonlyArray<readonly [number, number]>; }
 export function feeOf(amount: Num): number;
 export function wfRepoHash(repository: string): Promise<Bytes>;
 export interface Job1 {
@@ -182,6 +185,8 @@ export interface Order {
   fee: Num; rate: Num; paid: Num; deadline: Num; notBefore: Num; holdUntil: Num; warrantyS: Num; reservedBy: Num; reservedUntil: Num; cancelAt: Num;
   payeeId: Num; funderId: Num; ownerId: Num; arbiterId: Num; judgeRepoId: Num; source: Address; refundTo: Address; rentTo: Address; mint: Address;
   terms: string; wfRepoHash: string; wfSha: string; feeBps: number;
+  /** The slot of its funding plus one (0: funded under 2.1); funded with the presentation grace; what its markers carry; the last second a pay token is taken. */
+  inc: Num; grace: boolean; stamp: Num; payUntil: Num;
   tokenProgram: Address; faucet: boolean;
   /** Who the record counts as the funder: the Balance's GitHub owner id, or the funding wallet. */
   funder: Num | Address;
@@ -208,7 +213,7 @@ export interface ExplainedInstruction {
   program: string; address: Address; name: string; args: Record<string, unknown>; accounts: (AccountMeta & { name: string })[];
 }
 export interface OrderOptions {
-  flags?: number; holdbackBps?: number; warrantyDays?: number; killBps?: number; reserveDays?: number; rate?: Num; arbiterId?: Num; judgeRepoId?: Num; salted?: boolean;
+  flags?: number; holdbackBps?: number; warrantyDays?: number; killBps?: number; reserveDays?: number; rate?: Num; arbiterId?: Num; judgeRepoId?: Num; salted?: boolean; grace?: boolean;
 }
 
 export interface V2Client {
@@ -265,7 +270,7 @@ export interface V2Client {
   versionIx(): Instruction;
   /** The wallet that opened a Balance sets its side account. Limits are in the mint's smallest units (0: none). */
   setBalanceXIx(a: { authority: Address; balance: Address; dayLimit?: Num; totalLimit?: Num; repos?: Num[]; wfSha?: string }): Promise<Instruction>;
-  /** FEE_OWNER sets the fee rate (50..=250 basis points) of the orders of one repository owner until `expires`. */
+  /** FEE_OWNER sets the fee rate of the orders of one repository owner until `expires`: 10 to 30 basis points under the 0.3.18 fee (knos_pay 2.2), 50 to 250 before. */
   setPlanIx(a: { feeOwner: Address; payer: Address; ownerId: Num; feeBps: number; expires: Num }): Promise<Instruction>;
   /** A wallet funds an order for an issue of any public repository: `amount` for the payees plus orderFee(amount) on top. */
   fundOrderWalletIx(a: { funder: Address; funderToken: Address; mint: Address; repoId: Num; issue: Num; amount: Num; wfRepo: string; wfSha: string;
@@ -318,16 +323,24 @@ export interface V2 {
   readonly PAY_IXS: readonly (readonly [string, readonly string[], number])[];
   readonly BALX_LEN: number; readonly PLAN_LEN: number; readonly ORDER_LEN: number; readonly OPTS_LEN: number;
   /** Prices, in millionths of one whole unit of the mint (`units` gives the smallest units). */
-  readonly ORDER_FEE_MIN: number; readonly ORDER_MIN_AMOUNT: number; readonly TIP: number; readonly TIP_FIRST: number; readonly PLAN_BPS_MIN: number;
+  readonly ORDER_MIN_AMOUNT: number; readonly TIP: number; readonly TIP_FIRST: number; readonly PLAN_BPS_MIN: number;
   readonly MAX_HOLDBACK_BPS: number; readonly MAX_WARRANTY_DAYS: number; readonly MAX_KILL_BPS: number; readonly MAX_PAYEES: number;
   readonly F_FAUCET: 1; readonly F_PRIVATE: 2; readonly F_NEUTRAL: 4; readonly F_STANDING: 8; readonly F_TOKEN2022: 16;
   /** The mints the record counts real money in. */
   readonly COUNTED: readonly Address[];
-  readonly HB_LEN: number; readonly DONE_LEN: number; readonly AS_LEN: number; readonly USED_LEN: number;
+  readonly HB_LEN: number; readonly DONE_LEN: number; readonly DONE_LEN_21: number; readonly GRACE: number; readonly AS_LEN: number; readonly USED_LEN: number;
   /** Seconds: how long a cancelled order still takes a pay token, and how long after it was made a used marker can be closed. */
   readonly NOTICE: number; readonly USED_KEEP: number;
-  /** An order's fee is marginal: FEE_BPS (or a Plan's rate) of the first FEE_TIER_1, FEE_BPS_2 up to FEE_TIER_2, FEE_BPS_3 above; no maximum. */
-  readonly FEE_TIER_1: number; readonly FEE_TIER_2: number; readonly FEE_BPS_2: number; readonly FEE_BPS_3: number;
+  /** The two fee rules of knos_pay. `new` (0.3.18, knos_pay 2.2): 0.30% of the amount, at least 0.05, one rate, a Plan no lower than 0.10%.
+   *  `old` (0.3.14, knos_pay 2.1): 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40. The LIVE program decides which is charged:
+   *  the public programs charge `old` until the upgrade to 2.2 executes. Orders funded before the upgrade keep the rate fixed at their funding. */
+  readonly FEE_RULES: { readonly new: FeeRule; readonly old: FeeRule };
+  /** What Version logs from the build with the 0.3.18 fee on: 2. */
+  readonly FEE_VERSION: number;
+  /** The rule of the knos_pay that answered `version` (Version's number): `new` from 2 up or when nobody was asked, `old` below. */
+  feeRule(version?: number | null): FeeRule;
+  /** The same answer from the upgrade feed (upgrades.json): 2 once a proposal of knos_pay after index 4 has executed, 1 while none has, null when unreadable. */
+  feedFeeVersion(feed: unknown): number | null;
   /** The instructions that take a token (tag: the index of the token account); each takes the token's marker. */
   readonly TOKEN_AT: Readonly<Record<number, number>>;
   /** A marker's first byte after the devnet faucet took the token: the funding that follows still takes it. */
@@ -336,7 +349,7 @@ export interface V2 {
   /** `micro` millionths of one whole unit of a mint with `decimals` decimals, in the mint's smallest units. */
   units(micro: Num, decimals?: number): Num;
   /** The fee of a job (2.0), taken out of its amount. */
-  feeOf(amount: Num, decimals?: number): Num;
+  feeOf(amount: Num, decimals?: number, rule?: FeeRule): Num;
   termsJson(terms: unknown): Bytes;
   /** The canonical bytes of terms as knos-pay hashes them: every field checked, lists in order with nothing twice.
    *  Throws Refused for terms the format does not allow. A `vendor` above 2^53 is given as a bigint. */
@@ -350,9 +363,9 @@ export interface V2 {
   bindAudience(address: Address): string;
   destination(bind: Bind | null, audience: string): Address | null;
 
-  /** The fee of an order (2.1), which its funder pays on top of the amount: `bps` (FEE_BPS, or the owner's Plan) of the first 1,000 whole
-   *  units, 1% from there to 50,000, 0.5% above; at least 0.40; no maximum. */
-  orderFee(amount: Num, bps?: number, decimals?: number): Num;
+  /** The fee of an order, which its funder pays on top of the amount, as the program of `rule` computes it: `bps` (the rule's rate, or the
+   *  owner's Plan) of the amount, at least the rule's floor, no maximum. Default: the 0.3.18 rule. */
+  orderFee(amount: Num, bps?: number | null, decimals?: number, rule?: FeeRule): Num;
   /** An order's scope. Public: sha256("knos3:scope" || repo id || issue). Private: sha256(salt || repo id || issue). */
   scopeOf(repoId: Num, issue: Num, salt?: Bytes | string | null): Promise<Bytes>;
   /** sha256 of a token's signature bytes: what names its single-use marker. */
@@ -365,8 +378,8 @@ export interface V2 {
   orderPayAudience(order: Address, headSha: string, termsHex: string, mode: number, pr: Num, payees: Payee[]): string;
   payeesOf(audience: string): Payee[];
   orderDestination(bind: Bind | null, address: Address | null): Address | null;
-  /** The fee rate of an owner's orders now: its Plan's while it lasts, FEE_BPS otherwise. */
-  planBps(plan: Plan | null, now: Num): number;
+  /** The fee rate of an owner's orders now: its Plan's while it lasts (within what `rule` allows), the rule's otherwise. */
+  planBps(plan: Plan | null, now: Num, rule?: FeeRule): number;
 
   readJob(raw: Bytes | null): Job | null;
   readBalance(raw: Bytes | null): Balance | null;

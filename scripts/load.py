@@ -5,7 +5,7 @@
 
 Two tiers, written to docs/load.json and rendered into docs/LOAD.md (`--write`; without it the result is printed).
 
-  --local N   The test builds of knos_oidc 2.2 and knos_pay 2.1 (tests/fixtures) in LiteSVM, through the tests' own
+  --local N   The test builds of knos_oidc 2.2 and knos_pay 2.2 (tests/fixtures) in LiteSVM, through the tests' own
               harness. N orders on N repositories are funded from one Balance and are all open at once; then they are
               paid in a shuffled order, every 10th token is sent twice and every 50th again after its order closed.
               At the end: every order paid exactly once, paid + fees + refunds == funded, nothing left in any order's
@@ -56,7 +56,7 @@ from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 from solders.system_program import CreateAccountParams, create_account  # noqa: E402
 
-from knos import chain, terms  # noqa: E402
+from knos import chain, fees, terms  # noqa: E402
 from knos.settle.v2 import oidc, pay  # noqa: E402
 
 JSON, DOC = ROOT / "docs" / "load.json", ROOT / "docs" / "LOAD.md"
@@ -450,7 +450,7 @@ def run_devnet(rpc, wallet: Keypair, issuer_key, n: int, senders: int = 8, url: 
 
     # -- setup: the issuer's key as the wallet's PRIVATE key, and a mint of the wallet's own ---------------------------
     mint = Keypair()
-    each = amount + 2 * pay.order_fee(amount) + 1_000_000        # room for the fee whatever tier this build charges
+    each = amount + 2 * max(fees.NEW.order(amount), fees.OLD.order(amount)) + 1_000_000        # room for the fee whichever rule the live build charges (knos.fees)
     rent = int(rpc.call("getMinimumBalanceForRentExemption", [82]))
     setup = [s.send([oidc.register_private_key_ix(me, url, modulus)]), s.send([oidc.key_params_ix(me, url, modulus, registrant=me)]),
              s.send(mint_ixs(me, mint.pubkey(), rent, n * each), [mint])]
@@ -640,6 +640,8 @@ def render_relay(rel: dict) -> list[str]:
     out = ["## 6. The relay: where a payment's seconds go, and its queue", ""]
     st, q, sw = rel.get("stages"), rel.get("queue"), rel.get("sweep")
     if st:
+        if str(ROOT / "scripts") not in sys.path:
+            sys.path.append(str(ROOT / "scripts"))       # (a test loads this file by its path: its folder is then not on the path)
         import latency_stages
         n = [row["n"] for row in st["six"]]
         out += ["### The stages of a payment (recorded on devnet)", "",
@@ -651,6 +653,22 @@ def render_relay(rel: dict) -> list[str]:
                 f"{latency_stages.NOT_RECORDED}, and their time is in the first row only. With {max(n)} samples the 95th percentile by nearest "
                 "rank is the slowest of them, so a p95 in a stage row is one payment, not a band. `python scripts/latency_stages.py --md` prints "
                 "this table from the live log.", ""]
+        dec = rel.get("decision")
+        most = max(n)
+        out += ["### The five clocks", "",
+                "\"How fast\" is five clocks, and they are not added up here. Each row has its own sample and says where it was measured; "
+                "percentiles of different samples do not add. A target is a target, not a measurement.", "",
+                *latency_stages.clock_table(latency_stages.clocks(st["six"], dec, st["whole"])), "",
+                f"What was measured on devnet: {st['whole']['n']} payments have a whole wait (first table). Only {most} of those {st['whole']['n']} carry stage "
+                f"times in their log line, so every devnet row above is {most} payments, and its p95 is the slowest one of them. "
+                f"Chain inclusion is timed to the block of the paying transaction, read at the commitment level `{latency_stages.COMMITMENT}`, which is the "
+                "level the relay waits for; no payment's finality was recorded.", ""]
+        if dec:
+            out += [f"What was measured locally: {dec['source']}. Machine: {dec['machine']}. That is the time Knos's own code takes to decide; on a "
+                    "cluster every read of the chain adds a round trip, and that has not been measured ([BENCH.md](BENCH.md), \"Decision time\").", ""]
+        out += ["What is a target and not a measurement: the last column. No decision has been timed on devnet by a benchmark (four `knos decide` runs on real fund tokens of this release's public rounds took 4.3 to 32.6 s each over the shared public RPC: a first reading, not a sample), no payment has been carried there by the "
+                "0.3.18 relay, and the floor stays above zero: a forge must run a job and sign before there is anything to decide "
+                "([RELAY.md](RELAY.md), \"The floor\").", ""]
     if q:
         out += ["### The relay's queue (a local test of the queue, not a benchmark of the service)", "",
                 f"`python scripts/queue_drill.py --write` (seed {q['seed']}). **This is a local test of the queue, not an end-to-end service "
@@ -693,8 +711,9 @@ def render_relay(rel: dict) -> list[str]:
                 f"| The killed pass's token: sends, times the chain took it | {sw['killed_token_sends']}, {sw['killed_token_taken_by_chain']} "
                 "(the second send was answered \"already\") |",
                 f"| Tokens the chain took, and log lines | {sw['taken_by_chain']}, {sw['log_lines']} |", "",
-                "What one pass still does: it ends when its slowest token is answered, so a comment posted while a confirmation is awaited is "
-                "read when that pass is over (up to the 60 s a relay waits for one confirmation), not 3 s later.", ""]
+                "What changed after this drill was recorded (0.3.18): a pass reads the comments again every 3 s while a worker still waits for a "
+                "confirmation, and a free worker carries what is new, so a comment posted meanwhile no longer waits for the slowest token of the pass "
+                "(`tests/test_relay_speed.py`, on a stand-in chain; not measured on a cluster). The pass itself still returns when its last worker has answered.", ""]
     return out
 
 

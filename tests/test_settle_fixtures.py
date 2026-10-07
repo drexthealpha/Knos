@@ -245,7 +245,7 @@ def test_the_recorded_rpc_of_the_agent_calls_reads_the_same_in_python():
     by the Python client to the numbers sdk/settle/agent.test.mjs expects of agent.js, and the file is a recording of today's scenario."""
     import base64
 
-    from knos import terms
+    from knos import fees, terms
     from knos.chain import said
     from knos.settle.v2 import meter, pay
     rec = json.loads((ROOT / "sdk" / "settle" / "agent.recorded.json").read_text(encoding="utf-8"))
@@ -262,7 +262,8 @@ def test_the_recorded_rpc_of_the_agent_calls_reads_the_same_in_python():
         assert (got.state, got.mode, got.amount, got.fee, got.paid, got.deadline, str(got.mint), got.decimals, got.terms.hex()) == (
             o["state"], o["mode"], o["amount"], o["fee"], o["paid"], o["deadline"], o["mint"], o["decimals"], o["terms"])
     job = pay.read_job(data(want["job"]["address"]))
-    assert (job.state, job.mode, job.amount, job.deadline, str(job.source), job.terms.hex(), job.amount - pay.fee_of(job.amount)) == (
+    assert (job.state, job.mode, job.amount, job.deadline, str(job.source), job.terms.hex(),
+            job.amount - fees.rule(want["fee_version"]).job(job.amount)) == (        # the fee of the build the recording was made on
         want["job"]["state"], want["job"]["mode"], want["job"]["amount"], want["job"]["deadline"], want["job"]["source"], want["job"]["terms"], want["job"]["net"])
     # the terms the funding logged are the ones whose hash the accounts hold, and their words are the Python client's
     for name, text in want["terms_json"].items():
@@ -364,14 +365,20 @@ def test_the_numbers_the_site_states_are_the_codes():
     assert f"at most {usdc(pay.FAUCET_CAP)} per comment, once per repository per minute" in fund and pay.FUND_PERIOD == 60
     assert f"{commands.DAYS} days unless you say, {commands.MAX_DAYS} at most" in fund
     assert f"{commands.RESERVE} unless you say" in fund
-    # an order's fee: its funder pays it on top of the amount, in three tiers above a floor and with no maximum, and gets it back with a refund
-    for part in (f"{pay.FEE_BPS / 100:g}% of the first {whole(pay.FEE_TIER_1)}", f"{pay.FEE_BPS_2 / 100:g}% to {whole(pay.FEE_TIER_2)}",
-                 f"{pay.FEE_BPS_3 / 100:g}% above", f"at least {pay.ORDER_FEE_MIN / 10 ** 6:.2f} test USDC", "paid by the funder on top",
-                 "only when someone is paid: a refund returns it with the amount"):
+    # an order's fee: its funder pays it on top of the amount and gets it back with a refund. The page is static, so it states
+    # both rules and what decides between them (knos.fees): 0.30% with a floor of 0.05 once knos_pay 2.2 is live, the 0.3.14
+    # tiers with a floor of 0.40 until that upgrade executes, and that an order keeps the rate of its funding.
+    from knos import fees
+    new, old = fees.NEW, fees.OLD
+    for part in (f"{fees.pct(new.bps)} of the amount", f"at least {new.floor / 10 ** 6:.2f} test USDC", f"once knos_pay {new.build} is live",
+                 f"{fees.pct(old.bps)} of the first {whole(old.tiers[0][0])}", f"{fees.pct(old.tiers[0][1])} to {whole(old.tiers[1][0])}",
+                 f"{fees.pct(old.tiers[1][1])} above", f"at least {old.floor / 10 ** 6:.2f} test USDC", "paid by the funder on top",
+                 "only when someone is paid: a refund returns it with the amount", fees.KEEPS):
         assert part in fund, part
-    assert "at most 25)" not in fund and not hasattr(pay, "ORDER_FEE_MAX"), "the fee has no maximum any more"
-    assert (pay.order_fee(pay.ORDER_MIN_AMOUNT), pay.order_fee(pay.FEE_TIER_1), pay.order_fee(pay.FEE_TIER_2), pay.order_fee(pay.MAX_AMOUNT),
-            pay.order_fee(10 ** 12)) == (pay.ORDER_FEE_MIN, 25_000_000, 515_000_000, 765_000_000, 5_265_000_000)
+    assert "at most 25)" not in fund and not hasattr(pay, "ORDER_FEE_MAX"), "the fee has no maximum"
+    assert (pay.FEE_BPS, pay.FEE_MIN) == (30, 50_000) and [pay.fee_of(a * 10 ** 6) for a in (5, 100, 1_000, 5_000, 100_000)] == [50_000, 300_000, 3_000_000, 15_000_000, 300_000_000]
+    assert (old.order(pay.ORDER_MIN_AMOUNT), old.order(10 ** 9), old.order(5 * 10 ** 10), old.order(pay.MAX_AMOUNT), old.order(10 ** 12)) == (
+        400_000, 25_000_000, 515_000_000, 765_000_000, 5_265_000_000)
     # which of the two fees applies is the program's version, and the page sends the reader to where it is read
     assert "Pricing says which fee the program on devnet applies today" in fund and 'id="price-version-now"' in _view("pricing")
     assert f"held for you for {pay.HOLD // 86_400} days" in claim and f"After {pay.HOLD // 86_400} days it goes back to the funder" in claim

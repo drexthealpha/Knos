@@ -214,6 +214,31 @@ def test_the_pdf_parses_has_every_page_and_is_the_same_bytes_every_time():
         pdf.Doc("x", created="today")
 
 
+def test_the_statement_pdf_does_not_open_with_an_empty_ruled_row():
+    """The table under the title has no head: it used to draw one all the same, an empty ruled row before "invoice".
+    Now the first thing under the subtitle is one rule and then the first row. A table with a head is drawn as before,
+    and the PDF says the same words."""
+    ops = statement.as_pdf(sept(), status()).decode("ascii").split("stream\n")[1].splitlines()
+    first = next(i for i, op in enumerate(ops) if op.endswith(f"({statement.cells(sept(), status())['top'][0][0]}) Tj ET"))
+    between = ops[2:first]
+    assert "Nothing here moves money" in ops[1] and len(between) == 1 and between[0].endswith(" l S"), between
+    part = between[0].split()
+    x1, y1, x2, y2 = (float(part[i]) for i in (2, 3, 5, 6))
+    assert y1 == y2 and (x1, x2) == (36.0, 842.0 - 36.0)                # the rule above the first row, as wide as the page's room
+    bare, headed, blank = (pdf.Doc("t", created="2026-01-02") for _ in range(3))
+    bare.table(["", " "], [["a", "b"], ["c", "d"]], [1, 5])
+    headed.table(["k", "v"], [["a", "b"], ["c", "d"]], [1, 5])
+    blank.table(["k", "v"], [["a", "b"]], [1, 5])
+    assert pdf.texts(bare.render())[:-1] == ["a", "b", "c", "d"] and pdf.texts(headed.render())[:-1] == ["k", "v", "a", "b", "c", "d"]
+    assert bare.y > headed.y and sum(op.endswith(" l S") for op in bare.pages[0]) == sum(op.endswith(" l S") for op in blank.pages[0])
+    long = pdf.Doc("t", created="2026-01-02", size=pdf.A4)
+    long.table(["", ""], [[str(i), "x"] for i in range(120)], [1, 3])
+    assert len(long.pages) > 1 and all(page[0].endswith(" l S") and page[0].split()[3] == page[0].split()[6] for page in long.pages)   # each page opens with the rule
+    assert pdf.texts(long.render()).count("x") == 120
+    before = ["Statement for invoice INV-2026-09", "Each line of the invoice set against the evidence. Nothing here moves money.", "invoice"]
+    assert pdf.texts(statement.as_pdf(sept(), status()))[:3] == before
+
+
 @pytest.mark.parametrize("tool", ["qpdf", "pdftotext"])
 def test_another_program_reads_the_pdf_when_one_is_installed(tool):
     program = shutil.which(tool)

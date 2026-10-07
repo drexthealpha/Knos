@@ -1,0 +1,26 @@
+{
+ "_about": "The test builds made from the source that runs at the public program ids (proposals 3 to 6: the tree of v0.3.14, commit 6eb81dd), by sha256 of the file. A fixture of tests/fixtures whose sha256 is another one is a build of source that is not live yet: the programs for which that is so are what the next proposal set changes (tests/test_deploy_v2.py holds the release's list to it). `kept` is a copy of the live test build, under tests/fixtures: scripts/exercise_public.py rehearse --rc --simulate funds an order on it before it upgrades in place.",
+ "source": {
+  "tag": "v0.3.14",
+  "commit": "6eb81dd"
+ },
+ "programs": {
+  "knos_oidc": {
+   "fixture": "knos_oidc_v2_test.so",
+   "sha256": "05a33fdb946d68ddfd247df6ede80f20396cc026855a1d6737b213a740f021bb"
+  },
+  "knos_pay": {
+   "fixture": "knos_pay_v2_test.so",
+   "sha256": "575f1d38bab53a9e47582bade43d01c073d1b273766936febd6a6b996035a714",
+   "kept": "live/knos_pay_v2_test.so"
+  },
+  "knos_meter": {
+   "fixture": "knos_meter_test.so",
+   "sha256": "bff47b0780e1aeb6b2747628dc69b0fc5f500910048b58211bbbff0802b710d6"
+  },
+  "knos_passkey": {
+   "fixture": "knos_passkey_v2_real.so",
+   "sha256": "d2047d8a1345767eea605d52ab3fec7494f7d2e72e90b3422dd1f599d878c9f7"
+  }
+ }
+}

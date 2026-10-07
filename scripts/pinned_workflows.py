@@ -12,6 +12,11 @@ The source of truth is this repository: .github/workflows/fund.yml, prove.yml, c
 tested. A repository names them by a commit of drexthealpha/knos-workflows, and a bounty records that commit on chain.
 That repository holds copies and nothing else: the four files, requirements/sign.txt, a short README and the LICENSE.
 
+What crosses between jobs. In prove.yml and attest.yml the job that runs a pull request's code cannot sign, and the job
+that signs runs none of it. One line of data crosses, and a step of the signing job reads it with a module of the very
+release that job installed (`python -m knos.verdict_gate`). `check` holds every such step to a module and a command the
+wheel has (`modules_run`).
+
 What the jobs install, and why a release has an order. A job that signs, or holds a secret, installs from a list in
 which every file is named by its sha256 (`uv pip install --require-hashes --no-deps --no-build`): every third-party
 package (compiled with `uv pip compile --generate-hashes` from requirements/sign.in), and the knos wheel of the
@@ -63,6 +68,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "drexthealpha/knos-workflows"
+PACKAGE = ROOT / "src"                              # what the wheel is built from: where a module a published job runs must be
 WORKFLOWS = ("fund.yml", "prove.yml", "check.yml", "attest.yml")
 PLACEHOLDER = "KNOS_WORKFLOWS_SHA"                  # stands for the published commit until `stamp` names it
 OWN = {"knos-workflow.yml": "knos.yml", "knos-check.yml": "knos-check.yml"}     # an example, and Knos's own copy of it
@@ -77,6 +83,7 @@ WHEEL = re.compile(r"knos-(?P<release>\d+\.\d+\.\d+)-py3-none-any\.whl")
 REQ = re.compile(r"[A-Za-z0-9][A-Za-z0-9 @+:/._=<>~!,\[\]-]*")      # one requirement; nothing a shell or YAML would read
 KNOS_LINE = re.compile(r"knos==(?P<release>\d+\.\d+\.\d+) --hash=sha256:(?P<hash>[0-9a-f]{64})")   # the lock's last line: the wheel
 RAW = re.compile(re.escape(REPO) + r"/(\w+)/" + re.escape(SIGN))      # the published lock, as a file at a commit
+RUNS = re.compile(r"-m (knos(?:\.\w+)+)(?: (\w+))?")    # a module of the installed release that a published job runs: `python -m knos.x cmd`
 NAMED = re.compile(re.escape(REPO) + r"/\.github/workflows/([\w.-]+)@(\w+)")
 
 
@@ -311,6 +318,29 @@ def stamp(sha: str) -> list[str]:
     return changed
 
 
+def modules_run() -> list[str]:
+    """Why a module a published job runs with `python -m` would not run from the release it installs; [] when each is
+    a file of src/knos (so of the wheel) and takes the command the job gives it. The verdict that crosses from the job
+    that runs a pull request's code to the job that signs is read by such a module (knos.verdict_gate): a published
+    workflow that named a module or a command the wheel does not have would sign nothing, for everyone, at once."""
+    said = []
+    sys.path.insert(0, str(PACKAGE))
+    try:
+        gate = importlib.import_module("knos.verdict_gate")
+    finally:
+        sys.path.pop(0)
+    commands = {"knos.verdict_gate": {"emit", "check", "shape"}}
+    for name, text in sorted(sources().items()):
+        for module, command in sorted(set(RUNS.findall(text))):
+            if not (PACKAGE / Path(*module.split("."))).with_suffix(".py").is_file():
+                said.append(f".github/workflows/{name} runs `python -m {module}`, which is not a module of src/knos")
+            elif command not in commands.get(module, {command}):
+                said.append(f".github/workflows/{name} runs `python -m {module} {command}`, a command that module does not have")
+    if not callable(getattr(gate, "main", None)) or not isinstance(getattr(gate, "SCHEMA", None), dict):
+        said.append("knos.verdict_gate has no `main` to run or no SCHEMA to hold a verdict to")
+    return said
+
+
 def inconsistencies() -> list[str]:
     """Every place that disagrees, one line each: a copy that is not its example, a file that names another commit or
     a workflow that is not published, a placeholder left behind, site templates that are not the examples."""
@@ -327,6 +357,7 @@ def inconsistencies() -> list[str]:
     except SystemExit as why:
         return [*said, str(why)]
     said += in_the_wheel()
+    said += modules_run()
     if locked() and locked().group("release") != want:
         said.append(f"{SIGN} locks the wheel of knos {locked().group('release')}, and the workflows install knos {want}: build the wheel and lock it again "
                     "(python scripts/release.py wheel, then lock)")

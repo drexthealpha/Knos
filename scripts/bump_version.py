@@ -8,7 +8,7 @@
 A place is a manifest (PLACES: the package, its lock, the registries' manifests, the plugin manifests, the JavaScript
 client, the Rust crates and their lock files, the IDLs) or a PIN: a line somewhere in the tree that installs or names
 one release (`knos==X`, `tag = "vX"`, `drexthealpha/Knos@vX`, `drexthealpha/Knos/.github/actions/knos-verify@vX`, `releases/download/vX/knos-settle-X.tgz`,
-`git tag vX && git push origin vX`). Pins are found by pattern in every file git tracks, so a new document that
+`drexthealpha/Knos/.github/workflows/supplier.yml@vX`, `git tag vX && git push origin vX`). Pins are found by pattern in every file git tracks, so a new document that
 installs a release is covered the day it is written.
 
 The lock is not a pin: requirements/sign.txt ends with `knos==X --hash=sha256:<the wheel>` once a release is locked,
@@ -79,14 +79,22 @@ def _locked(names) -> str | None:
 
 LOCKED = _locked([n for n in OURS[1:] if n not in PROGRAMS_FROZEN])
 LOCKED_FROZEN = _locked(PROGRAMS_FROZEN)
-PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"drexthealpha/Knos/\.github/actions/knos-verify@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
+PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"drexthealpha/Knos/\.github/actions/knos-verify@v" + V,
+        r"drexthealpha/Knos/\.github/workflows/supplier\.yml@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
         r"git tag v" + V + r" && git push origin v" + V)
 PIN = re.compile("|".join(PINS))
 # history, the first deployment, the patterns themselves, and the lock (its line names a wheel by hash: see unlock).
 # examples/reader_template is the one example that really builds against a tag (the others name theirs in a comment and
 # build by path): its Cargo.lock holds that tag's commit, and a tag exists only after its release is pushed, so a bump
 # that moved it would name a tag nobody can fetch. It stays at the tag that holds the frozen interface crate.
-NOT_PINNED = ("CHANGELOG.md", "programs/", "scripts/bump_version.py", "requirements/sign.txt", "examples/reader_template/")
+NOT_PINNED = ("CHANGELOG.md", "programs/", "scripts/bump_version.py", "requirements/sign.txt", "examples/reader_template/", "scripts/action_pins.json")
+# scripts/action_pins.json lists the commit of each Knos tag a workflow or a document names. A commit cannot name
+# itself, so the tag of the release being made has no commit yet: a bump adds its key with SELF_PIN as the value and
+# leaves every earlier key alone (an earlier tag's commit never changes, and .github/workflows/supplier.yml runs the
+# action at one). The first commit after the tag writes the tag's commit there (docs/RELEASE.md, "After the tag").
+SELF_PINS = "scripts/action_pins.json"
+SELF_PIN = "KNOS_RELEASE_SHA"
+SELF_KEY = re.compile(r'^(\s*)"drexthealpha/Knos@v' + V + r'": "([^"]*)",?\r?\n', re.M)
 LOCK = re.compile(r"\r?\nknos==" + V + r" --hash=sha256:[0-9a-f]{64}\r?\n\Z")
 CHANGELOG = re.compile(r"^## " + V + r"\b", re.M)
 
@@ -181,6 +189,8 @@ def disagreements(version: str | None = None, root: Path = ROOT, changelog: bool
     said += [f"{rel}:{line}: {got}, not {FROZEN_AT} (a program crate, frozen: its builds must stay byte-identical until the proposed upgrades execute)"
              for rel, line, got in frozen_places(root) if got != FROZEN_AT]
     said += found(root)[1]
+    if self_pin(want, root, write=False):
+        said.append(f"{SELF_PINS}: no key drexthealpha/Knos@v{want} (a bump adds it with {SELF_PIN}; the commit is written after the tag)")
     if changelog:
         top = CHANGELOG.search(_text(root / "CHANGELOG.md") or "")
         if not top or top.group(1) != want:
@@ -202,11 +212,29 @@ def unlock(version: str, root: Path = ROOT) -> bool:
     return True
 
 
+def self_pin(version: str, root: Path = ROOT, write: bool = True) -> bool:
+    """scripts/action_pins.json names this version's tag: its key is added, after the earlier tags' keys, with SELF_PIN
+    for the commit nobody can know yet. True when the key was missing (and, with `write`, was added)."""
+    path = root / SELF_PINS
+    text = _text(path) or ""
+    keys = list(SELF_KEY.finditer(text))
+    if not keys or any(m.group(2) == version for m in keys):
+        return False
+    if write:
+        last = keys[-1]
+        end = "\r\n" if last.group(0).endswith("\r\n") else "\n"
+        line = f'{last.group(1)}"drexthealpha/Knos@v{version}": "{SELF_PIN}",{end}'
+        path.write_bytes((text[:last.end()] + line + text[last.end():]).encode("utf-8"))
+    return True
+
+
 def bump(version: str, root: Path = ROOT) -> list[str]:
     """Write `version` in every place. Returns the files that changed."""
     if not re.fullmatch(V, version):
         raise SystemExit(f"{version} is not a version: three numbers, as in 0.3.13")
     changed = ["requirements/sign.txt"] if unlock(version, root) else []
+    if self_pin(version, root):
+        changed.append(SELF_PINS)
     _moving, frozen, _missing = _manifests(root)
     spans = {rel: [(a, b, version) for a, b in at] for rel, at in found(root)[0].items()}
     for rel, at in frozen.items():                        # held where they are: a crate an earlier run moved is put back

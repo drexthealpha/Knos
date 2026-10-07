@@ -10,6 +10,7 @@ import time
 import urllib.error
 
 import pytest
+from _pay21 import each_build, pay21_build  # noqa: F401 - the fixtures `build` and `pay21`: a test that takes `build` runs on knos_pay 2.2 and on the live 2.1
 from solders.keypair import Keypair
 
 from knos.proof import ghrelay
@@ -693,13 +694,13 @@ def test_serve_loops_passes_and_sends_what_needs_no_token_once_a_minute(monkeypa
 
 
 # -- one pass, end to end, on LiteSVM --------------------------------------------------------------------------------------------
-def test_a_pass_carries_a_fund_token_and_its_proof_to_the_second_deployment(monkeypatch, tmp_path):
+def test_a_pass_carries_a_fund_token_and_its_proof_to_the_second_deployment(monkeypatch, tmp_path, build):
     pytest.importorskip("solders.litesvm")
     from _pay2 import Chain
     from test_relay2 import JWKS, TERMS as terms, Net, faucet_jwt, pay_jwt, user
 
     from knos.settle.v2 import pay
-    c = Chain()
+    c = Chain(pay_build=build.build)
     net = Net(c)
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
     gh = GitHub()
@@ -734,7 +735,9 @@ def test_a_pass_carries_a_fund_token_and_its_proof_to_the_second_deployment(monk
     gh.comment("octo/widgets", 12, ghrelay.token_comment("proof", proof))
     c.warp(60)
     [line] = ghrelay.once(net, c.payer)
-    assert f"note=4.88 test USDC was paid to {wallet} for issue #7 (GitHub user id {payee}). t=" in line and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    # the job of 5.00 less the fee the live build takes out of it: 0.125 under 2.1, 0.05 under 2.2
+    assert f"note={build.pick('4.88', '4.95')} test USDC was paid to {wallet} for issue #7 (GitHub user id {payee}). t=" in line
+    assert c.balance(pay.ata(wallet, pay.faucet_mint())) == build.pick(4_875_000, 4_950_000)
     assert ghrelay.wait_for(ghrelay.token_id(proof), HOME, 1, every=0) == line
     assert ghrelay.once(net, c.payer) == []                     # each token once
     # what needs no token: a bounty nobody proved goes back when its time is up, and the log says so
@@ -877,7 +880,7 @@ def test_the_relays_exit_status_says_whether_it_relayed(capsys, monkeypatch):
     assert "knos relay cannot start" in flow.relay(serve=30, ghrelay=good) and len(good.ran) == ran
 
 
-def test_a_job_relays_its_own_token_from_a_file_with_knos_relay(monkeypatch, tmp_path, capsys):
+def test_a_job_relays_its_own_token_from_a_file_with_knos_relay(build, monkeypatch, tmp_path, capsys):
     """A run that holds a token and a fee key relays it itself: `knos relay --token-file F`, the same command path as
     the worker's, with no comment to post and no worker to wait for. The file is the token, or the comment that would
     have carried it (its `knos-terms:` line travels with a fund token). On LiteSVM, through the real relays."""
@@ -887,7 +890,7 @@ def test_a_job_relays_its_own_token_from_a_file_with_knos_relay(monkeypatch, tmp
 
     from knos import flow
     from knos.settle.v2 import pay
-    c = Chain()
+    c = Chain(pay_build=build.build)
     net = Net(c)
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
     monkeypatch.setattr(relay1, "fetch_jwks", lambda issuer: JWKS[issuer])
@@ -916,12 +919,12 @@ def test_a_job_relays_its_own_token_from_a_file_with_knos_relay(monkeypatch, tmp
     c.warp(60)
     assert flow.relay(str(tmp_path / "pay"), **kw) == 0
     r = result()
-    assert r["ok"] and f"4.88 test USDC was paid to {wallet} for issue #7" in r["note"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert r["ok"] and f"{build.pick('4.88', '4.95')} test USDC was paid to {wallet} for issue #7" in r["note"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == build.pick(4_875_000, 4_950_000)
     # the same token a second time (the public worker finding a copy, or the step run again) pays nobody twice
     flow.relay(str(tmp_path / "pay"), **kw)
     again = result()
     print(again)
-    assert (again.get("already") or not again["ok"]) and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert (again.get("already") or not again["ok"]) and c.balance(pay.ata(wallet, pay.faucet_mint())) == build.pick(4_875_000, 4_950_000)
     assert asked == []                                                                          # GitHub was never asked: no poll, no comment fetch
     # the fee key under the name a repository's own workflow may give it: it is the relay's key, when there is no other
     env = {"KNOS_FEE_KEY": json.dumps(list(bytes(c.payer)))}

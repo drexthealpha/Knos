@@ -348,6 +348,15 @@ approval on the pull request's page. GitHub runs it as the pull request has it, 
 its own run: that is why it is advice, and nothing about money depends on it. With the first file alone everything
 about money works; `/knos status` on a pull request then tells its author what the check would have said.
 
+### A supplier's one line, `knos-supplier.yml`
+
+A supplier who wants the free check on every pull request of their own repository, its result posted once and its
+receipt attached to the run, adds one workflow file ([examples/knos-supplier.yml](../examples/knos-supplier.yml))
+whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.18`.
+
+It needs no secret, moves no money and reads no chain. The record, the badge and the receipt to send with an invoice
+are in [RECORD.md](RECORD.md), section 3.
+
 ### Terms from a template
 
 ```bash
@@ -384,8 +393,10 @@ today; this is the list of what it would take, so that no step is hidden. The de
    it, and up to four other GitHub accounts that may spend it by comment. Optional, and worth doing before the first
    comment.
 
-So: three steps on devnet, seven with real money. The fee is paid by the funder on top of the amount (2.5% of the
-first 1,000, 1% to 50,000, 0.5% above; minimum 0.40).
+So: three steps on devnet, seven with real money. The fee is paid by the funder on top of the amount: 0.30% of
+the amount, minimum 0.05, once knos_pay 2.2 is live. Until that upgrade executes the public program charges the
+0.3.14 fee (2.5% of the first 1,000, 1% to 50,000, 0.5% above; minimum 0.40); `knos status` says which build runs.
+Orders funded before the upgrade keep the rate fixed at their funding.
 
 ## The GitHub Action
 
@@ -411,7 +422,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.17
+      - uses: drexthealpha/Knos@v0.3.18
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -444,7 +455,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.17
+    - python -m pip install knos==0.3.18
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -476,7 +487,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.17/knos-settle-0.3.17.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.18/knos-settle-0.3.18.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -491,7 +502,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.17" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.18" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

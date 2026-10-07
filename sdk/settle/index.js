@@ -138,7 +138,7 @@ export const payAudience = (repoId, issue, authorId, headSha, checksHex = ZERO, 
 export const vetoAudience = (repoId, issue) => `knos:veto:${repoId}:${issue}`;
 export const claimAudience = (address) => `knos:claim:${address}`;
 
-/** The fee on a payment: 2.5%, at least 0.05, never more than the amount. The same in both deployments. */
+/** The fee on a payment of the FIRST deployment: 2.5%, at least 0.05, never more than the amount. The second deployment's is v2.feeOf. */
 export function feeOf(amount) {
   const a = BigInt(amount);
   const pct = (a * BigInt(FEE_BPS)) / 10000n;
@@ -439,13 +439,37 @@ const COUNTED = Object.freeze([USDC_DEVNET, USDC_MAINNET]);     // the record co
 // work orders (2.1). Amounts are millionths of one whole unit of the mint: `units` gives the mint's smallest units.
 const BALX_LEN = 152, PLAN_LEN = 24, ORDER_LEN = 512, OPTS_LEN = 48;
 const MAX_AMOUNT2 = 100_000_000_000;         // 100,000.00 per job and per order on devnet; a build for real money decides its own cap
-const ORDER_FEE_MIN = 400_000, ORDER_MIN_AMOUNT = 5_000_000, TIP = 50_000, TIP_FIRST = 300_000, PLAN_BPS_MIN = 50;
-// an order's fee is marginal: FEE_BPS (or a Plan's rate) of the first FEE_TIER_1, FEE_BPS_2 up to FEE_TIER_2, FEE_BPS_3 above; no cap
-const FEE_TIER_1 = 1_000_000_000, FEE_TIER_2 = 50_000_000_000, FEE_BPS_2 = 100, FEE_BPS_3 = 50;
+const ORDER_MIN_AMOUNT = 5_000_000, TIP = 50_000, TIP_FIRST = 300_000;
+// THE FEE OF knos_pay, in one place. Two rules exist, and the program that is LIVE decides which is charged:
+//   0.3.18 (knos_pay 2.2, Version logs `knos2:version 2`): jobs and orders alike, FEE_BPS2 (0.30%) of the amount, at
+//          least FEE_MIN (0.05); one rate, no tiers; a Plan lowers the rate to no less than PLAN_BPS_MIN (0.10%).
+//   0.3.14 (knos_pay 2.1 and 2.0): an order 2.5% of the first 1,000, 1% from there to 50,000, 0.5% above, at least
+//          0.40, a Plan lowering the first rate to no less than 0.5%; a job 2.5%, at least 0.05.
+// The public programs charge the 0.3.14 fee until the upgrade to 2.2 executes. v2.feeRule(version) gives the rule of
+// the version the program answered (web/version.js asks it); orderFee, feeOf and planBps take a rule and default to
+// the 0.3.18 one, which is what the programs in this tree compute. An order's fee is taken at its funding and held
+// with it: orders funded before the upgrade keep the rate fixed at their funding.
+const FEE_BPS2 = 30, PLAN_BPS_MIN = 10, FEE_VERSION = 2;
+const FEE_RULES = Object.freeze({
+  new: Object.freeze({ release: "0.3.18", build: "2.2", bps: FEE_BPS2, floor: FEE_MIN, planMin: PLAN_BPS_MIN, jobBps: FEE_BPS2, jobFloor: FEE_MIN, tiers: Object.freeze([]) }),
+  old: Object.freeze({ release: "0.3.14", build: "2.1", bps: 250, floor: 400_000, planMin: 50, jobBps: 250, jobFloor: 50_000,
+    tiers: Object.freeze([Object.freeze([1_000_000_000, 100]), Object.freeze([50_000_000_000, 50])]) }),   // [up to, the rate above it]
+});
+/** The fee rule of the knos_pay that answered `version` (Version's number): the 0.3.18 one from 2 up, the 0.3.14 one
+ *  below. null or undefined (nobody was asked) is this tree's own, the 0.3.18 one. */
+const feeRule = (version = FEE_VERSION) => (version === null || version === undefined || version >= FEE_VERSION ? FEE_RULES.new : FEE_RULES.old);
+/** The same answer from the upgrade feed (upgrades.json): 2 once a proposal of knos_pay after the 2.1 one (index 4) has
+ *  executed, 1 while none has, null when the feed could not be read. The feed is as old as its `generated`. */
+function feedFeeVersion(feed) {
+  if (!feed || !Array.isArray(feed.entries)) return null;
+  return feed.entries.some((e) => e && e.program === "knos_pay" && e.status === "executed" && Number.isInteger(e.index) && e.index > 4) ? FEE_VERSION : 1;
+}
 const MAX_HOLDBACK_BPS = 5000, MAX_WARRANTY_DAYS = 90, MAX_KILL_BPS = 2000, MAX_PAYEES = 4;
 const F_FAUCET = 1, F_PRIVATE = 2, F_NEUTRAL = 4, F_STANDING = 8, F_TOKEN2022 = 16;
 // what an order can promise (order_terms.rs): the record of a holdback, the two markers, an assignment
-const HB_LEN = 240, DONE_LEN = 65, AS_LEN = 88, USED_LEN = 41;
+const HB_LEN = 240, DONE_LEN = 73, AS_LEN = 88, USED_LEN = 41;
+const DONE_LEN_21 = 65;                 // a done marker as 2.1 wrote it: no stamp
+const GRACE = 3600 + 3600;              // the presentation grace of an order funded with it (lib.rs GRACE)
 const NOTICE = 7 * 86_400;                  // a cancelled order still takes a pay token for this long
 const USED_KEEP = 300 + 3600 + 3600 + 3600; // a used marker can be closed this long after it was made
 // The instructions that take a token (tag: the index of the token account). Each takes the token's marker (usedPda).
@@ -479,7 +503,7 @@ const ERRORS = {
   99: "a faucet balance holds test USDC and cannot be withdrawn",
   100: "more than this balance may spend in one day or in total; its wallet can raise the limit, or fund less",
   101: "this order exists already (use another seq), or the account is not an order",
-  102: "only the fee owner sets a plan, with a rate of 50 to 250 basis points and an expiry in the future",
+  102: "only the fee owner sets a plan, with a rate of 10 to 30 basis points and an expiry in the future",
   103: "this order is both standing and has a holdback, and such an order is never paid: its money goes back to its funder at the deadline; fund a new one that is standing or has a holdback, not both",
 };
 
@@ -665,21 +689,25 @@ function units(micro, decimals = 6) {
   return num(v < 2n ** 64n - 1n ? v : 2n ** 64n - 1n);
 }
 
-/** The fee of a job (2.0), taken out of its amount: 2.5%, at least 0.05 of a whole unit, never more than the amount. */
-function feeOf2(amount, decimals = 6) {
-  const a = BigInt(amount), pct = (a * BigInt(FEE_BPS)) / 10000n, floor = BigInt(units(FEE_MIN, decimals));
+/** The fee of a job, taken out of its amount, under `rule` (v2.feeRule): the rate, at least the floor, never more than the amount. */
+function feeOf2(amount, decimals = 6, rule = FEE_RULES.new) {
+  const a = BigInt(amount), pct = (a * BigInt(rule.jobBps)) / 10000n, floor = BigInt(units(rule.jobFloor, decimals));
   const fee = pct > floor ? pct : floor;
   return num(fee < a ? fee : a);
 }
 
-/** The fee of an order (2.1), which its funder pays on top of the amount, exactly as the program computes it (lib.rs
- *  order_fee): `bps` (FEE_BPS, or the owner's Plan) of the first 1,000 whole units, 1% of what lies between 1,000 and
- *  50,000, 0.5% of what lies above, each part rounded down; at least 0.40; no maximum. */
-function orderFee(amount, bps = FEE_BPS, decimals = 6) {
-  const a = BigInt(amount), t1 = BigInt(units(FEE_TIER_1, decimals)), t2 = BigInt(units(FEE_TIER_2, decimals));
-  const first = a < t1 ? a : t1, second = (a < t2 ? a : t2) - first, third = a - first - second;
-  const fee = (first * BigInt(bps)) / 10000n + (second * BigInt(FEE_BPS_2)) / 10000n + (third * BigInt(FEE_BPS_3)) / 10000n;
-  const floor = BigInt(units(ORDER_FEE_MIN, decimals));
+/** The fee of an order, which its funder pays on top of the amount, exactly as the program of `rule` computes it
+ *  (v2.feeRule): `bps` (the rule's rate, or the owner's Plan) of the amount; under the 0.3.14 rule `bps` is the rate
+ *  of the first 1,000 whole units only, with 1% to 50,000 and 0.5% above, each part rounded down. At least the
+ *  rule's floor; no maximum. */
+function orderFee(amount, bps, decimals = 6, rule = FEE_RULES.new) {
+  let left = BigInt(amount), at = 0n, fee = 0n, rate = BigInt(bps ?? rule.bps);
+  for (const [edge, after] of rule.tiers) {
+    const room = BigInt(units(edge, decimals)) - at, part = left < room ? left : room;
+    fee += (part * rate) / 10000n; left -= part; at += part; rate = BigInt(after);
+  }
+  fee += (left * rate) / 10000n;
+  const floor = BigInt(units(rule.floor, decimals));
   return num(fee > floor ? fee : floor);
 }
 
@@ -702,9 +730,9 @@ function sigHash(token) {
 }
 
 /** The 48 bytes a funder fixes beside the amount and the terms. `flags`: F_PRIVATE, F_NEUTRAL, F_STANDING. */
-function opts({ flags = 0, holdbackBps = 0, warrantyDays = 0, killBps = 0, reserveDays = 0, rate = 0, arbiterId = 0, judgeRepoId = 0, salted = false } = {}) {
+function opts({ flags = 0, holdbackBps = 0, warrantyDays = 0, killBps = 0, reserveDays = 0, rate = 0, arbiterId = 0, judgeRepoId = 0, salted = false, grace = false } = {}) {
   return cat(Uint8Array.of(flags), u16(holdbackBps), u16(warrantyDays), u16(killBps), Uint8Array.of(reserveDays), u64(rate), u64(arbiterId),
-    u64(judgeRepoId), Uint8Array.of(salted ? 1 : 0), new Uint8Array(15));
+    u64(judgeRepoId), Uint8Array.of(salted ? 1 : 0, grace ? 1 : 0), new Uint8Array(14));
 }
 
 /** What fund.yml asks GitHub to sign to fund an order from a Balance. `termsHex` is hex(termsHash(...)); `options` is opts(...). */
@@ -766,7 +794,7 @@ function readHoldback(raw) {
 /** The assignee in the account at k.assignPda(order, payee id). With `o` (the order as it is now): null too when the
  *  assignment was made for an earlier order at the same address, which the program ignores. */
 function readAssign(raw, o = null) {
-  if (!raw || raw.length !== AS_LEN || raw[0] !== 1 || (o && num(view(raw).getBigInt64(80, true)) !== o.notBefore)) return null;
+  if (!raw || raw.length !== AS_LEN || raw[0] !== 1 || (o && num(view(raw).getBigInt64(80, true)) !== (o.stamp ?? o.notBefore))) return null;
   return b58(raw.slice(48, 80));
 }
 
@@ -778,7 +806,7 @@ const payeeWallet = (assign, o, bind, address) => readAssign(assign, o) ?? order
  *  a standing order paid, [who paid its rent, its order]. null for anything else. */
 function readMarker(raw) {
   if (raw && raw.length === USED_LEN) return [b58(raw.slice(1, 33)), num(view(raw).getBigInt64(33, true))];
-  if (raw && raw.length === DONE_LEN) return [b58(raw.slice(1, 33)), b58(raw.slice(33, 65))];
+  if (raw && (raw.length === DONE_LEN || raw.length === DONE_LEN_21)) return [b58(raw.slice(1, 33)), b58(raw.slice(33, 65))];
   return null;
 }
 
@@ -805,7 +833,9 @@ function readOrder(raw) {
     amount: u(64), fee: u(72), rate: u(80), paid: u(88), deadline: i(96), notBefore: i(104), holdUntil: i(112), warrantyS: i(120), reservedBy: u(128),
     reservedUntil: i(136), cancelAt: i(144), payeeId: u(152), funderId: u(160), ownerId: u(168), arbiterId: u(176), judgeRepoId: u(184),
     source: a(192), refundTo: a(224), rentTo: a(256), mint: a(288), terms: hex(raw.slice(320, 352)), wfRepoHash: hex(raw.slice(352, 384)),
-    wfSha: ascii(raw.slice(384, 424)), feeBps: dv.getUint16(424, true) };
+    wfSha: ascii(raw.slice(384, 424)), feeBps: dv.getUint16(424, true), inc: u(432), grace: raw[440] === 1 };
+  o.stamp = o.inc ? -o.inc : o.notBefore;         // what every marker made for this funding carries (state.rs `stamp`); an order of 2.1: its notBefore
+  o.payUntil = o.grace ? o.deadline + GRACE : o.deadline;
   o.tokenProgram = o.flags & F_TOKEN2022 ? TOKEN_2022 : TOKEN;
   o.faucet = !!(o.flags & F_FAUCET);
   o.funder = o.fromBalance ? o.ownerId : o.source;
@@ -829,8 +859,8 @@ function readPlan(raw) {
   return { feeBps: dv.getUint16(2, true), ownerId: num(dv.getBigUint64(8, true)), expires: num(dv.getBigInt64(16, true)) };
 }
 
-/** The fee rate of an owner's orders now: its Plan's while it lasts, FEE_BPS otherwise. */
-const planBps = (plan, now) => (plan && now < plan.expires ? Math.min(Math.max(plan.feeBps, PLAN_BPS_MIN), FEE_BPS) : FEE_BPS);
+/** The fee rate of an owner's orders now: its Plan's while it lasts (within what `rule` allows), the rule's otherwise. */
+const planBps = (plan, now, rule = FEE_RULES.new) => (plan && now < plan.expires ? Math.min(Math.max(plan.feeBps, rule.planMin), rule.bps) : rule.bps);
 
 /** The time until which new funding is refused (0: not paused, or never was). */
 const readPause = (raw) => (raw && raw.length === 8 ? num(view(raw).getBigInt64(0, true)) : 0);
@@ -1118,7 +1148,7 @@ function client2(ids) {
       return { program: PAY, data: cat(Uint8Array.of(13), u64(dayLimit), u64(totalLimit), ...ids.map(u64), wfSha ? enc.encode(wfSha) : new Uint8Array(40)),
         accounts: [meta(authority, true, true), meta(balance, false, true), meta(await k.balxPda(balance), false, true), meta(SYSTEM, false, false)] };
     },
-    /** FEE_OWNER sets the fee rate (50..=250 basis points) of the orders of one repository owner until `expires`. */
+    /** FEE_OWNER sets the fee rate of the orders of one repository owner until `expires`: 10 to 30 basis points under the 0.3.18 fee (knos_pay 2.2), 50 to 250 before. */
     async setPlanIx({ feeOwner, payer, ownerId, feeBps, expires }) {
       return { program: PAY, data: cat(Uint8Array.of(14), u64(ownerId), u16(feeBps), i64(expires)),
         accounts: [meta(feeOwner, true, false), meta(payer, true, true), meta(await k.planPda(ownerId), false, true), meta(SYSTEM, false, false)] };
@@ -1319,11 +1349,11 @@ function errorWords(err) {
 }
 
 export const v2 = Object.freeze({
-  MERGE, TESTS, FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT: MAX_AMOUNT2, FAUCET_CAP: 100_000_000, MIN_WORK: 60, MAX_WORK: 90 * 86_400, HOLD, PAUSE_MAX: 7 * 86_400,
+  MERGE, TESTS, FEE_BPS: FEE_BPS2, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT: MAX_AMOUNT2, FAUCET_CAP: 100_000_000, MIN_WORK: 60, MAX_WORK: 90 * 86_400, HOLD, PAUSE_MAX: 7 * 86_400,
   FUND_PERIOD: 60, CLOCK_SLACK: 30, MAX_TERMS, TOKEN_AHEAD: 300, TOKEN_LIFE: 3600, JOB_LEN: 320, BALANCE_LEN: 160, BIND_LEN: 56, REP_LEN: 64,
   KEY_DELAY, KEY_TTL, K_HDR, KEY_TAIL, OTHER, PRIVATE, PRIVATE_FLAG, MAX_ISS, T_IHASH, ERRORS, PAY_IXS,
-  BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN, ORDER_FEE_MIN, FEE_TIER_1, FEE_TIER_2, FEE_BPS_2, FEE_BPS_3, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN, MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS,
-  MAX_KILL_BPS, MAX_PAYEES, F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022, COUNTED, HB_LEN, DONE_LEN, AS_LEN, USED_LEN, NOTICE, USED_KEEP, TOKEN_AT, MINTED,
+  BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN, FEE_RULES, FEE_VERSION, feeRule, feedFeeVersion, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN, MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS,
+  MAX_KILL_BPS, MAX_PAYEES, F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022, COUNTED, HB_LEN, DONE_LEN, DONE_LEN_21, GRACE, AS_LEN, USED_LEN, NOTICE, USED_KEEP, TOKEN_AT, MINTED,
   units, feeOf: feeOf2, termsJson, canonicalTerms, termsHash, wfRepoHash, funderKey, fundAudience: fundAudience2, namedBalance, payAudience: payAudience2, bindAudience, destination,
   orderFee, scopeOf, sigHash, opts, orderFundAudience, payeesText, orderPayAudience, autoAudience, payeesOf, orderDestination, planBps,
   privateFundTerms, ruleAudience, orgBindAudience, takeAudience, cancelAudience, revertAudience, payeeWallet, killFee, accountNames,

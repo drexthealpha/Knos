@@ -157,6 +157,7 @@ fn pay_out<'a>(program_id: &Pubkey, a: &Payout<'a, '_>, o: &Order, per: &[Accoun
 /// Each payee is paid at the address the token carries for it; with `-`, at the wallet in its Bind; with neither, the
 /// order becomes HELD for it (one payee only: a split with a payee who cannot be paid is refused, and nothing moves).
 /// An order with a QUORUM takes three more accounts, last: ["q", order, 0](w) ["q", order, 1](w) ["q", order, 2](w).
+/// The deadline: `Order::in_time`.
 pub fn pay_order(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
     let [relayer, tok, key, order, ov, tip_tok, fee_tok, auth, rent_to, mint, token, sys, ata_program, used] = take(accounts)?;
     let per = &accounts[14..];
@@ -164,7 +165,9 @@ pub fn pay_order(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now
     if !relayer.is_signer || !relayer.is_writable { return Err(err(E_ACCOUNTS)); }
     let o = load_order(program_id, order)?;
     let g = crate::order_judge::token(program_id, &o, tok, key, now)?;
-    if o.state != OPEN || now > o.deadline { return Err(err(E_STATE)); }
+    // in time: shown by the deadline; or, for an order funded with the presentation grace, issued by the forge by the
+    // deadline and shown within GRACE after it (RefundOrder waits exactly as long, so the two never overlap)
+    if o.state != OPEN || !o.in_time(g.iat, now) { return Err(err(E_STATE)); }
     let judge = judge_ok(&o, &g)?;
     // issued after the funding (`not_before` is the chain's time then): a proof made before this order existed cannot pay it
     if g.iat < o.not_before { return Err(err(E_STATE)); }
@@ -215,7 +218,7 @@ pub fn settle_order(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], 
 }
 
 /// 22 RefundOrder: the order's money back to where it came from, once nobody else can have it: OPEN past its
-/// deadline, or HELD past its hold. No token is needed, so a refund never depends on GitHub or on anyone's keys.
+/// deadline (past `pay_until`: GRACE later for an order funded with the presentation grace), or HELD past its hold. No token is needed, so a refund never depends on GitHub or on anyone's keys.
 /// Everything the order's account holds goes back: what is left of the amount, and the fee on it.
 /// accounts: relayer(s) order(w) ov(w) refund_token(w) auth rent_to(w) mint token_program
 pub fn refund_order(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
@@ -223,7 +226,7 @@ pub fn refund_order(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], 
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     if !relayer.is_signer { return Err(err(E_ACCOUNTS)); }
     let o = load_order(program_id, order)?;
-    let due = match o.state { OPEN => now > o.deadline, HELD => now > o.hold_until, _ => false };
+    let due = match o.state { OPEN => now > o.pay_until(), HELD => now > o.hold_until, _ => false };
     if !due { return Err(err(E_STATE)); }
     if *rent_to.key != o.rent_to { return Err(err(E_ACCOUNTS)); }
     let (m, bump) = order_accounts(program_id, &o, order.key, ov, auth, mint, token)?;

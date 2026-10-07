@@ -1,17 +1,17 @@
 //! knos_pay's instruction handlers, run from Rust: the test builds (tests/fixtures/knos_pay_v2_test.so beside
-//! knos_oidc_v2_test.so) in LiteSVM, sent the transactions of programs-v2/testdata/{pay_order,double_pay,order_fees}.json
+//! knos_oidc_v2_test.so) in LiteSVM, sent the transactions of programs-v2/testdata/{pay_order,double_pay,order_fees,order_plan,job_fee}.json
 //! (see ../../testdata/harness.rs). Amounts are in millionths of test USDC.
 #[path = "../../testdata/harness.rs"]
 mod harness;
 use harness::{i64_at, u64_at, Answer, Replay};
 use knos_pay::order_terms::NOTICE;
-use knos_pay::state::{O_AMOUNT, O_CANCEL_AT, O_DEADLINE, O_FEE, O_PAID, O_STATE, OPEN, U_AFTER};
-use knos_pay::{order_fee, E_ACCOUNTS, E_ORDER, E_REPLAY, E_STATE, FEE_BPS, TIP};
+use knos_pay::state::{O_AMOUNT, O_CANCEL_AT, O_DEADLINE, O_FEE, O_FEE_BPS, O_PAID, O_STATE, OPEN, P_BPS, U_AFTER};
+use knos_pay::{fee_of, order_fee, E_ACCOUNTS, E_ORDER, E_PLAN, E_REPLAY, E_STATE, FEE_BPS, TIP};
 
 const USDC: u64 = 1_000_000;
 const FUNDER: u64 = 1_000_000 * USDC; // what the funding wallet starts with
 const BALANCE: u64 = 100_000 * USDC; // what the repository owner's Balance starts with
-const FEE_100: u64 = 2_500_000; // 2.5% of 100.00
+const FEE_100: u64 = 300_000; // 0.30% of 100.00
 
 /// FundOrderWallet: the wallet pays the amount and the fee on top into the order's own token account, and the order
 /// account says so.
@@ -93,20 +93,56 @@ fn cancel() {
     r.finish();
 }
 
-/// What FundOrderWallet escrows on top of the amount is `order_fee`, at each edge of the tiers: 2.5% of the first
-/// 1,000, 1% from there to 50,000, 0.5% above. Three ways: the literal, the function, and what the program moved.
+/// What FundOrderWallet escrows on top of the amount is `order_fee`: 0.30% with a floor of 0.05, one rate, no tiers.
+/// The price book's examples (5.00 -> 0.05, 100.00 -> 0.30, 1,000.00 -> 3.00, 5,000.00 -> 15.00, 100,000.00 ->
+/// 300.00) and the two amounts either side of the floor. Three ways: the literal, the function, and what the program moved.
 #[test]
-fn the_fee_is_order_fee_at_the_edges_of_the_tiers() {
+fn the_fee_is_thirty_basis_points_with_a_floor_of_five_cents_at_every_size() {
     let mut r = Replay::load("order_fees");
     let mut left = FUNDER;
-    for (units, fee) in [(100u64, 2_500_000u64), (1_000, 25_000_000), (1_001, 25_010_000), (50_000, 515_000_000), (50_001, 515_005_000)] {
+    for (units, fee) in [(5u64, 50_000u64), (16, 50_000), (17, 51_000), (100, 300_000), (1_000, 3_000_000), (5_000, 15_000_000), (100_000, 300_000_000)] {
         let amount = units * USDC;
         assert_eq!(order_fee(amount, FEE_BPS, 6), fee, "order_fee({units})");
         assert_eq!(r.to(&format!("fund_{units}")), Answer::Accepted);
         let o = r.data(&format!("order_{units}")).unwrap();
-        assert_eq!((u64_at(&o, O_AMOUNT), u64_at(&o, O_FEE)), (amount, fee), "the order of {units}");
+        assert_eq!((u64_at(&o, O_AMOUNT), u64_at(&o, O_FEE), u16::from_le_bytes([o[O_FEE_BPS], o[O_FEE_BPS + 1]])), (amount, fee, 30), "the order of {units}");
         assert_eq!(r.tokens(&format!("order_tok_{units}")), amount + fee, "escrowed for {units}");
         left -= amount + fee;
         assert_eq!(r.tokens("funder_tok"), left, "the funder after {units}");
     }
+}
+
+/// A Plan lowers the rate to no less than 10 basis points and no more than the standard 30: 9 and 31 are refused
+/// (E_PLAN), 10 is set, and 1,000.00 funded from the owner's Balance then escrows 1.00 on top.
+#[test]
+fn a_plan_lowers_the_rate_to_no_less_than_ten_basis_points() {
+    let mut r = Replay::load("order_plan");
+    assert_eq!(r.to("plan_of_9"), Answer::Refused { ix: 1, code: E_PLAN });
+    assert_eq!(r.to("plan_of_31"), Answer::Refused { ix: 1, code: E_PLAN });
+    assert_eq!(r.data("plan"), None);
+    assert_eq!(r.to("plan_of_10"), Answer::Accepted);
+    let p = r.data("plan").unwrap();
+    assert_eq!(u16::from_le_bytes([p[P_BPS], p[P_BPS + 1]]), 10);
+    assert_eq!(r.to("fund_under_the_plan"), Answer::Accepted);
+    let o = r.data("order").unwrap();
+    assert_eq!((u64_at(&o, O_AMOUNT), u64_at(&o, O_FEE), u16::from_le_bytes([o[O_FEE_BPS], o[O_FEE_BPS + 1]])), (1_000 * USDC, USDC, 10));
+    assert_eq!((r.tokens("order_tok"), r.tokens("balance_tok")), (1_001 * USDC, BALANCE - 1_001 * USDC));
+    r.finish();
+}
+
+/// Jobs (2.0) pay the same rate, out of their amount: 1.00 pays the floor (0.05), 100.00 pays 0.30, 5,000.00 pays
+/// 15.00; the payee gets the rest and the funder paid the amount and nothing on top.
+#[test]
+fn a_job_pays_the_same_rate_out_of_its_amount() {
+    let mut r = Replay::load("job_fee");
+    let (mut dest, mut fees, mut left) = (0, 0, FUNDER);
+    for (units, fee) in [(1u64, 50_000u64), (100, 300_000), (5_000, 15_000_000)] {
+        let amount = units * USDC;
+        assert_eq!(fee_of(amount, 6), fee, "fee_of({units})");
+        assert_eq!(r.to(&format!("fund_{units}")), Answer::Accepted);
+        assert_eq!(r.to(&format!("pay_{units}")), Answer::Accepted);
+        (dest, fees, left) = (dest + amount - fee, fees + fee, left - amount);
+        assert_eq!((r.tokens("dest"), r.tokens("fee"), r.tokens("funder_tok")), (dest, fees, left), "the job of {units}");
+    }
+    r.finish();
 }

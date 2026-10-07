@@ -1,4 +1,4 @@
-"""The six guarantees of docs/INVARIANTS.md that had no test of their own (knos_pay 2.1 in LiteSVM):
+"""The six guarantees of docs/INVARIANTS.md that had no test of their own (knos_pay 2.2 in LiteSVM):
 
   4. a pay or fund token of one deployment is refused by the same build at other program ids;
   5. every ordering of two and of three of pay, cancel, expiry, refund, settle, release and revert, from an order that
@@ -6,7 +6,7 @@
      (after the orderings, time runs out and the one instruction that still takes each order is sent);
   6. RefundOrder on the committed build with real-money rules, sent by a stranger, with funding paused;
   7. two relayers sending one token in one slot: exactly one transaction is accepted, whichever comes first;
-  8. a top-up across a fee tier's edge (1,000 and 50,000) pays the difference between the two schedule values;
+  8. a top-up pays the difference between the two schedule values, across the floor and at every size (one rate, no tiers);
   9. a random walk over a Balance's day and total counters: they equal what was funded and never pass a limit."""
 from __future__ import annotations
 
@@ -31,13 +31,11 @@ from knos.settle.v2 import oidc, pay  # noqa: E402
 OTHER = Keypair.from_seed(bytes([41]) * 32).pubkey()        # where a second deployment of the same build lives in the first test
 
 
-def schedule(amount: int, bps: int = 250) -> int:
-    """The fee schedule, written out here and not taken from the client: `bps` of the first 1,000, 1% up to 50,000, 0.5% above, at least 0.40."""
-    first, second, third = min(amount, 1_000 * USDC), max(min(amount, 50_000 * USDC) - 1_000 * USDC, 0), max(amount - 50_000 * USDC, 0)
-    return max(first * bps // 10_000 + second * 100 // 10_000 + third * 50 // 10_000, 400_000)
+def schedule(amount: int, bps: int = 30) -> int:
+    """The fee schedule, written out here and not taken from the client: `bps` of the amount (0.30%, or a Plan's rate), at least 0.05. One rate."""
+    return max(amount * bps // 10_000, 50_000)
 
 
-# == 4. one deployment's token at another deployment ==================================================================
 def test_a_pay_or_fund_token_of_one_deployment_is_refused_by_the_same_build_at_other_program_ids():
     c = OrderChain()
     c.svm.add_program_from_file(OTHER, str(FIX / "knos_pay_v2_test.so"))       # the same bytes, another id: every address it derives differs
@@ -249,7 +247,8 @@ def one_block(c: OrderChain, *sends) -> list[bool]:
     """Every (instruction, relayer) as a transaction on one blockhash, all sent before the chain moves on: one slot."""
     blockhash, slot = c.svm.latest_blockhash(), c.svm.get_clock().slot
     txs = [VersionedTransaction(MessageV0.try_compile(r.pubkey(), [set_compute_unit_limit(1_400_000), c.marked(ix)], [], blockhash), [r]) for ix, r in sends]
-    out = ["Failed" not in type(c.svm.send_transaction(tx)).__name__ for tx in txs]
+    one_slot = getattr(c.svm, "_inner", c.svm)      # under the harness's wrapper, which gives every transaction a slot of its own
+    out = ["Failed" not in type(one_slot.send_transaction(tx)).__name__ for tx in txs]
     assert c.svm.get_clock().slot == slot and c.svm.latest_blockhash() == blockhash
     c.svm.expire_blockhash()
     return out
@@ -296,22 +295,23 @@ def test_two_relayers_send_one_token_in_one_slot_and_exactly_one_is_accepted():
             assert not c.send([pays(loser)[0]], loser) and c.balance(dest) == (50 * USDC if options is None else 50 * USDC * 3 // 4)
 
 
-# == 8. a top-up across a tier's edge ================================================================================
+# == 8. a top-up, across the floor and at every size =================================================================
 @pytest.fixture(scope="module")
 def chain():
     return OrderChain()
 
 
-@pytest.mark.parametrize("start,add", [(900, 200), (999, 1), (1_000, 1), (49_900, 200), (50_000, 1), (900, 49_200), (400, 99_600)])
-def test_a_top_up_across_a_fee_tier_pays_the_difference_between_the_two_schedule_values(chain, start, add):
+@pytest.mark.parametrize("start,add", [(5, 11), (16, 1), (16, 4), (900, 200), (999, 1), (5_000, 95_000), (400, 99_600)])
+def test_a_top_up_pays_the_difference_between_the_two_schedule_values_at_every_size(chain, start, add):
     c = chain
-    assert (schedule(900 * USDC), schedule(1_100 * USDC), schedule(49_900 * USDC), schedule(50_100 * USDC)) == (22_500_000, 26 * USDC, 514 * USDC, 515_500_000)
+    # the floor holds to 16.666666; then 0.30% of the whole amount, with no tier's edge anywhere
+    assert (schedule(5 * USDC), schedule(16 * USDC), schedule(17 * USDC), schedule(1_100 * USDC), schedule(100_000 * USDC)) == (50_000, 50_000, 51_000, 3_300_000, 300 * USDC)
     before = c.balance(c.funder_tok)
     order = c.fund_wallet(amount=start * USDC)
     assert before - c.balance(c.funder_tok) == start * USDC + schedule(start * USDC)
     assert c.send([pay.top_up_ix(c.funder.pubkey(), order, c.order(order), add * USDC)], c.funder), c.err
     o, total = c.order(order), (start + add) * USDC
-    # the funder has paid, in all, what one funding of the new amount costs: the added units at the rate of the tier each lies in
+    # the funder has paid, in all, what one funding of the new amount costs
     assert (o.amount, o.fee) == (total, schedule(total)) and before - c.balance(c.funder_tok) == total + schedule(total) == c.held(order)
     assert schedule(total) == pay.order_fee(total)
     # and the whole of it is paid out: the amount to the payee, the fee to FEE_OWNER and the relayer
@@ -320,19 +320,19 @@ def test_a_top_up_across_a_fee_tier_pays_the_difference_between_the_two_schedule
     assert c.balance(pay.ata(wallet, c.usdc)) == total and c.balance(c.fee) + c.balance(c.tip) - fees == schedule(total)
 
 
-def test_a_top_up_across_the_first_tier_of_a_balances_order_keeps_the_plans_rate_below_it_and_one_percent_above(chain):
+def test_a_top_up_of_a_balances_order_keeps_the_plans_rate(chain):
     c, owner = chain, user()
     w, wtok = c.wallet(c.usdc, 5_000 * USDC)
     assert c.send([pay.open_balance_ix(w.pubkey(), owner, c.usdc, spenders=[MAINT])], w), c.err
     bal = pay.balance_pda(owner, w.pubkey(), c.usdc)
     transfer(c, wtok, pay.baltok_pda(bal), 5_000 * USDC, w)
-    assert c.set_plan(owner, 100, c.now() + 10 * DAY), c.err
+    assert c.set_plan(owner, 10, c.now() + 10 * DAY), c.err
     order = c.fund_balance(amount=900 * USDC, balance=bal, repository_owner_id=owner)
-    assert c.order(order).fee == 9 * USDC == schedule(900 * USDC, 100)
+    assert c.order(order).fee == 900_000 == schedule(900 * USDC, 10)
     assert c.send([pay.top_up_ix(w.pubkey(), order, c.order(order), 200 * USDC)], w), c.err
     o = c.order(order)
-    assert (o.amount, o.fee) == (1_100 * USDC, 11 * USDC) and o.fee == schedule(1_100 * USDC, 100)
-    assert c.balance(pay.baltok_pda(bal)) == 5_000 * USDC - 1_100 * USDC - 11 * USDC
+    assert (o.amount, o.fee, o.fee_bps) == (1_100 * USDC, 1_100_000, 10) and o.fee == schedule(1_100 * USDC, 10)
+    assert c.balance(pay.baltok_pda(bal)) == 5_000 * USDC - 1_100 * USDC - 1_100_000
 
 
 # == 9. a Balance's counters ==========================================================================================

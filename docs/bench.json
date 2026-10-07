@@ -640,11 +640,11 @@
   },
   "second": "neither program id of the second deployment held an account on devnet when the cluster was read on 3 Oct 2026.",
   "stats": {
-   "updated": "2026-10-06 09:17 UTC",
+   "updated": "2026-10-07 00:56 UTC",
    "by_deployment": {
     "second": {
-     "funded": 54,
-     "completed": 45
+     "funded": 55,
+     "completed": 46
     }
    },
    "outside": {
@@ -659,29 +659,29 @@
    },
    "latency": {
     "merge_to_paid": {
-     "count": 41,
+     "count": 42,
      "median": 25,
      "p95": 58,
      "window": {
       "from": "2026-10-02",
-      "to": "2026-10-05"
+      "to": "2026-10-06"
      },
      "deployment": {
       "first": 2,
-      "second": 39
+      "second": 40
      },
      "definition": "seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank"
     },
     "comment_to_funded": {
-     "median": 46
+     "median": 45
     }
    }
   }
  },
  "release": {
   "tests_passing": {
-   "value": 2620,
-   "source": "pytest (ubuntu-latest, 3.12) of tests.yml run 37507234421 on drexthealpha/knos-rc 36024756773d62888e5ebcb24f5d4afed0fff24e, the staging tree of this release: 2620 passed, 46 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37507234421"
+   "value": 3173,
+   "source": "pytest (ubuntu-latest, 3.12) of tests.yml run 37582988812 on drexthealpha/knos-rc d20ac1982bdd7c44ba37645ffb47eda114fa4032, the staging tree of this release: 3173 passed, 50 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37582988812"
   },
   "outside_prs_merged_and_paid": {
    "value": 3,

@@ -90,7 +90,7 @@ export function playgroundHtml(s = {}) {
   return `${STYLE}<div class="playground k-card">
   <p class="k-kicker">Playground</p>
   <h2>Try it with test money</h2>
-  <p class="pg-note">Spend nothing: the devnet faucet pays in test USDC.</p>
+  <p class="pg-note">The devnet faucet pays in test USDC.</p>
   <div class="pg-acts"><a class="k-btn" id="pg-fund" href="${fundUrl()}" rel="noopener">${FUND_LABEL}</a>
     <a class="k-btn quiet" id="pg-take" href="${esc(takeUrl(s.tasks))}" rel="noopener">${TAKE_LABEL}</a>
     <button class="k-btn quiet" id="pg-again" type="button">Read again</button></div>

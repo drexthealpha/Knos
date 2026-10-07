@@ -102,9 +102,10 @@ def test_a_count_or_a_stage_that_is_not_the_manifests_fails(tree):
     # the committed pages state no count of capabilities (docs/CAPABILITIES.md is the count): one is written here, of a
     # manifest in which two deployed capabilities have been exercised at their public program ids
     assert not dc._COUNT.search((tree / CRITERIA).read_text(encoding="utf-8"))
+    before = dc.value("capabilities.exercised.public", tree)     # what the committed manifest records as exercised already
     _exercise(tree, "fund_by_comment", "pay_on_merge")
     n = dc.value("capabilities.exercised", tree)
-    assert n == dc.value("capabilities.exercised.public", tree) == 2 and dc.value("capabilities.exercised.staging", tree) == 0
+    assert n == dc.value("capabilities.exercised.public", tree) == before + 2 and dc.value("capabilities.exercised.staging", tree) == 0
     dc.write(tree)          # the stage cells that name them follow the manifest
     assert dc.problems(tree) == []
     _add(tree, CRITERIA, f"{n} capabilities are exercised on devnet.")
@@ -132,7 +133,7 @@ def test_a_count_or_a_stage_that_is_not_the_manifests_fails(tree):
 def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     text = (tree / DEMO).read_text(encoding="utf-8")
     # what the rehearsal ran on staging ids is tested locally on the public ids, and no stage cell says otherwise
-    assert "| `single_use_tokens` | tested locally |" in text and "| `pay_on_merge` | deployed on devnet |" in text and "on staging program ids |" not in text
+    assert "| `order_quorum` | tested locally |" in text and "| `pay_on_merge` | deployed on devnet |" in text and "on staging program ids |" not in text
     _swap(tree, DEMO, "| `statements` | tested locally |", "| `statements` | deployed on devnet |")
     _found(tree, DEMO, "the stage of statements is 'deployed on devnet'", "'tested locally'")
     assert dc.write(tree) == [DEMO] and dc.problems(tree) == []
@@ -141,17 +142,18 @@ def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     data = _exercise(tree, "pay_on_merge")
     lines = _found(tree, DEMO, "the stage of pay_on_merge", "'exercised on devnet'")
     assert any(CRITERIA in line and "capabilities exercised" in line for line in lines)
-    assert dc.stage_words(["single_use_tokens", "pay_on_merge"], tree) == "`single_use_tokens`: tested locally; `pay_on_merge`: exercised on devnet"
+    assert dc.stage_words(["order_quorum", "pay_on_merge"], tree) == "`order_quorum`: tested locally; `pay_on_merge`: exercised on devnet"
     # a run at any other address than the public id is never said as a plain "exercised on devnet" (capabilities.py refuses it)
-    staged = _exercise(tree, "single_use_tokens", deployed={"program": "knos_pay_staging", "id": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH", "version": "2.1"})
-    assert dc.stage_words(["single_use_tokens"], tree) == "exercised on devnet, on staging program ids" and dc.value("capabilities.exercised.staging", tree) == 1
-    _found(tree, DEMO, "the stage of single_use_tokens", "'exercised on devnet, on staging program ids'")
+    staged = _exercise(tree, "order_quorum", deployed={"program": "knos_pay_staging", "id": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH", "version": "2.1"})
+    assert dc.stage_words(["order_quorum"], tree) == "exercised on devnet, on staging program ids" and dc.value("capabilities.exercised.staging", tree) == 1
+    _found(tree, DEMO, "the stage of order_quorum", "'exercised on devnet, on staging program ids'")
     data = json.loads(json.dumps(staged))
     # README.md's table of programs is the manifest's versions
-    data["programs"]["knos_pay"]["on_chain"] = "2.1"
+    other = "2.0" if data["programs"]["knos_pay"]["on_chain"] != "2.0" else "2.1"      # a version the committed table does not give
+    data["programs"]["knos_pay"]["on_chain"] = other
     (tree / dc.MANIFEST).write_text(json.dumps(data), encoding="utf-8")
     _found(tree, "README.md", "the table of programs is not what the manifest says")
-    assert "README.md" in dc.write(tree) and "`knos-pay`, the escrow | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | runs `2.1` |" in (tree / "README.md").read_text(encoding="utf-8")
+    assert "README.md" in dc.write(tree) and f"`knos-pay`, the escrow | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | runs `{other}`" in (tree / "README.md").read_text(encoding="utf-8")
 
 
 def test_no_document_names_a_time_for_the_pending_upgrade_that_the_upgrade_record_does_not_have(tree):

@@ -92,7 +92,8 @@ def test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the
     o, h = c.order(order), hb_of(c, order)
     # nine tenths are paid now, in the payees' shares; the tenth and the fee on it stay in the order
     assert bal(c, ta, tb) == [12_600_000, 5_400_000] and (o.state, o.paid, o.hold_until) == ("warranty", 18 * USDC, c.now() + 30 * DAY)
-    assert bal(c, c.fee, c.tip) == [fee0 + 150_000, tip0 + pay.TIP_FIRST] and c.held(order) == 2 * USDC + FEE // 10
+    # (nine tenths of the fee of 20.00 are 0.054: the relayer's tip for creating two token accounts takes all of it)
+    assert bal(c, c.fee, c.tip) == [fee0, tip0 + FEE * 9 // 10] and c.held(order) == 2 * USDC + FEE // 10
     assert h.payees == [(a, wa, 1_400_000), (b, wb, 600_000)] and (h.payer, h.until) == (c.payer.pubkey(), o.hold_until)
     assert c.said("knos3:warranty") == [f"knos3:warranty order={order} held={2 * USDC} until={o.hold_until}"]
     # in warranty nothing else moves it: no second payment, no refund, no top-up, no release before its time
@@ -112,7 +113,7 @@ def test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the
     rent = c.lamports(pay.hb_pda(order))
     before, fee1, tip1 = c.lamports(c.payer.pubkey()), *bal(c, c.fee, c.tip)
     assert c.send([ix]), c.err
-    assert bal(c, ta, tb) == [14 * USDC, 6 * USDC] and bal(c, c.fee, c.tip) == [fee1, tip1 + pay.TIP]
+    assert bal(c, ta, tb) == [14 * USDC, 6 * USDC] and bal(c, c.fee, c.tip) == [fee1, tip1 + FEE // 10]
     assert c.data(order) is None and c.data(pay.ov_pda(order)) is None and c.data(pay.hb_pda(order)) is None and rent > 0
     assert c.lamports(c.payer.pubkey()) > before             # the three rents came back, less the transaction's fee
 
@@ -215,7 +216,7 @@ def test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_on
     assert pay_pr(c, order, one, pr=1), c.err
     o = c.order(order)
     # the order is kept as what is left of it: the amount its payees can still receive, and the fee still escrowed
-    assert (o.state, o.amount, o.fee, o.paid, c.balance(ta), c.held(order)) == ("open", 14 * USDC, FEE - 150_000, 0, 6 * USDC, 14 * USDC + FEE - 150_000)
+    assert (o.state, o.amount, o.fee, o.paid, c.balance(ta), c.held(order)) == ("open", 14 * USDC, FEE - FEE * 6 // 20, 0, 6 * USDC, 14 * USDC + FEE - FEE * 6 // 20)
     assert pay.read_marker(c.data(pay.done_pda(order, 1))) == (c.payer.pubkey(), order)
     assert not pay_pr(c, order, one, pr=1) and code(c) == 91                            # one pull request is paid once
     ix = pay_ix(c, order, one, pr=2)
@@ -224,7 +225,7 @@ def test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_on
     assert c.send([ix]) and pay_pr(c, order, one, pr=3), c.err
     o = c.order(order)
     assert (o.state, o.amount, o.fee, o.paid, c.balance(ta), c.held(order)) == ("open", 2 * USDC, FEE // 10, 0, 18 * USDC, 2 * USDC + FEE // 10)
-    assert bal(c, c.fee, c.tip) == [fee0 + 200_000, tip0 + 150_000 + 2 * pay.TIP]       # the fee's share of each payment
+    assert bal(c, c.fee, c.tip) == [fee0, tip0 + 3 * (FEE * 6 // 20)]       # the fee's share of each payment (0.018) is less than a tip: the relayer takes it
     # less than one rate is left: nothing more is paid, and the rest goes back without waiting for the deadline
     assert o.deadline < c.now() and not pay_pr(c, order, one, pr=4) and code(c) == 83
     marker = pay.done_pda(order, 2)
@@ -234,9 +235,9 @@ def test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_on
     # a small standing order topped up to a large one: the fee floor made the first payment's fee share larger than
     # the later ones', and still every rate is paid in full and the last payment closes the order
     small = c.fund_wallet(amount=5 * USDC, options=pay.opts(pay.F_STANDING, rate=2_500_000))
-    assert pay_pr(c, small, one, pr=1) and (c.order(small).amount, c.order(small).fee) == (2_500_000, 200_000)
+    assert pay_pr(c, small, one, pr=1) and (c.order(small).amount, c.order(small).fee) == (2_500_000, 25_000)
     assert c.send([pay.top_up_ix(c.funder.pubkey(), small, c.order(small), 95 * USDC)], c.funder), c.err
-    assert (c.order(small).amount, c.order(small).fee, c.held(small)) == (97_500_000, 2_437_500, 97_500_000 + 2_437_500)
+    assert (c.order(small).amount, c.order(small).fee, c.held(small)) == (97_500_000, 292_500, 97_500_000 + 292_500)
     at0 = c.balance(ta)
     for pr in range(2, 41):
         assert pay_pr(c, small, one, pr=pr), (pr, c.err)

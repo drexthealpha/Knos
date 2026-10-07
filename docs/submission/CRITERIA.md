@@ -7,12 +7,13 @@ Colosseum's hackathon page lists seven factors its judges weigh
 below is quoted from it). The same page says teams "must disclose all relevant past development work in the
 submission form"; that is [DISCLOSURE.md](../DISCLOSURE.md). The official rules list six criteria as well. Each
 gets one paragraph here: what the submission can show, and what it cannot. The round those paragraphs refer to
-is told once, in eight steps with the evidence under each, in [STORY.md](../STORY.md).
+is told once, in six beats with the evidence under each, in [STORY.md](../STORY.md).
 
 No count of capabilities is given on this page. How far each capability has got (implemented, tested, deployed,
 exercised on devnet, reproduced by someone else) is in [CAPABILITIES.md](../CAPABILITIES.md), written from
 [`docs/capabilities.json`](../capabilities.json), and which builds are live on the public program ids is in
-`web/upgrades.json`. The numbers about outside use are in [NUMBERS.md](NUMBERS.md), zeros included.
+`web/upgrades.json`; [MANIFEST.md](../MANIFEST.md) puts both on one page for this release, with the outstanding
+limits. The numbers about outside use are in [NUMBERS.md](NUMBERS.md), zeros included.
 
 ## The seven factors on Colosseum's page
 
@@ -57,7 +58,7 @@ check named, a valid one is paid on the forge's signature, a replayed token is r
 refunds without anyone's permission. Which of these runs on the public program ids on a given day is not stated
 here: [CAPABILITIES.md](../CAPABILITIES.md) gives each capability's stage and `web/upgrades.json` the live builds,
 and the demo captions each step with the program ids it ran on. From merge to paid took 25 seconds at the
-median, over 41 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
+median, over 42 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
 ([COMPARE.md](../COMPARE.md)): cloud platforms and billing companies already meter agents and move payments, with
 customers and real money, so that is not a difference; the difference is acceptance independent of every vendor,
 and nobody has yet paid for that. MergePay is on a mainnet with real USDC and no platform fee, and is ahead
@@ -83,9 +84,9 @@ well. That is a bet.
 > "Are the founders communicating the product vision clearly and capable of growing the product's user base?"
 
 One sentence and one number on every surface: of 241 merged agent pull requests that claimed passing tests, 30
-had a failed check. One page tells the round in eight steps with the evidence under each
-([STORY.md](../STORY.md)); the pitch and the demo tell the same eight in two minutes each
-([pitch_script.md](pitch_script.md), [demo_script.md](demo_script.md)), with a caption on any shot that is a
+had a failed check. One page tells the story in six beats with the evidence under each
+([STORY.md](../STORY.md)); the demonstration shows the same six in three minutes and the presentation is a
+separate script ([demo_script.md](demo_script.md), [pitch_script.md](pitch_script.md)), with a caption on any shot that is a
 replay or is played faster than it happened; and every number in them has a source that a script checks
 (`scripts/claims_check.py`). The other documents sit behind one map ([../README.md](../README.md)). Growing a
 user base is unproven: no buyer has heard any of this, and nobody outside Knos is known to run the free check.
@@ -95,8 +96,8 @@ user base is unproven: no buyer has heard any of this, and nobody outside Knos i
 > "Can this project become a scalable, sustainable business?"
 
 Not shown. Devnet is the test mode, and what can be real while the programs stay there is software invoiced off
-chain: Control, the Meter, a Supplier connection and a 30-day [Pilot](../PILOT.md) that starts free in shadow
-mode. Escrow and every settle fee on devnet are a demonstration in test money. None of the software has been
+chain: Control, the Meter, the Acceptance fee on value reconciled off chain, and a 30-day [Pilot](../PILOT.md) that
+starts free in shadow mode. Escrow and every fee the program collects on devnet are a demonstration in test money. None of the software has been
 sold, and there is no legal entity to invoice from. One customer is worked at these prices in [MARKET.md](../MARKET.md): an example, not a forecast.
 The code is MIT, so a fork can charge nothing; what it would lack has to be earned, in the order it could form:
 supplier reuse, a terms standard cited by hash, a delivery record, neutrality. Each has a measure in
@@ -171,3 +172,19 @@ what a zero-fee fork can and cannot copy are in [MARKET.md](../MARKET.md); the o
 exists to sign a contract or send an invoice, escrow and money transmission need legal advice that has not been
 taken, and one person holds every key and the one GitHub account the workflows live in
 ([DEPENDENCY.md](DEPENDENCY.md)).
+
+## Six evidence targets
+
+Targets, not results. Each row says what would count and where today's value is read; none is met unless that
+source says so, and nothing in the submission implies otherwise. A seventh was a change to the code and is in this
+release's list in [CHANGELOG.md](../../CHANGELOG.md): the batch commitment that hashes each complete event, and the
+two quorum findings, with their regression tests kept.
+
+| | target | what would count | where today's value is read |
+|---|---|---|---|
+| 1 | A release manifest | one page mapping source, deployed builds, capabilities and outstanding limits | [MANIFEST.md](../MANIFEST.md): published with this release, and `--check` holds it to its sources |
+| 2 | An independent reproduction | an unrelated developer's signed report in `reproductions/` | [NUMBERS.md](NUMBERS.md), row 7 |
+| 3 | Real buyer and supplier invoice reconciliations | a shadow count on a real invoice, recording disagreements and correct approvals as well as rejected lines | [NUMBERS.md](NUMBERS.md), row 9 |
+| 4 | A paid commercial engagement | one [Pilot](../PILOT.md) bought; it needs a legal entity to invoice from | [DISCLOSURE.md](../DISCLOSURE.md), "No paying customer" |
+| 5 | External composition | a consumer outside this repository that reads the verifier or verifies a receipt | [NUMBERS.md](NUMBERS.md), row 8 |
+| 6 | Founder and market fit, shown by customer understanding | conversations with the person who approves a supplier's invoice, each counted with its no | [NUMBERS.md](NUMBERS.md), row 5; prior development is disclosed in [DISCLOSURE.md](../DISCLOSURE.md) |

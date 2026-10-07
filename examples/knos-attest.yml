@@ -31,7 +31,7 @@
 # did not write, so it can only read, holds no secret and cannot ask GitHub for a signed statement. The second job,
 # the one that asks, checks out nothing and runs nothing from the pull request: it takes the first job's verdict as
 # text and checks it against the order. The first job uses minutes of this repository's Actions; the verdict is kept
-# as the run's artifact `knos-verdict`. An order paid on the merge has no suite to run, and the verdict says so.
+# as the run's artifact `knos-verdict-<attempt>`. An order paid on the merge has no suite to run, and the verdict says so.
 #
 # Why a run started by hand in your own repository is trusted. The escrow does not take your word, and it does not take
 # this file's. It takes GitHub's signature, which says which workflow ran, at which commit, in which repository,
@@ -83,7 +83,7 @@ jobs:
       contents: read
       issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
     with:
       repository: ${{ inputs.repository }}
       pull: ${{ fromJSON(inputs.pull) }}       # a number input started by hand reaches here as text, and the called workflow takes a number

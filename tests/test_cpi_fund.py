@@ -66,7 +66,7 @@ def test_a_treasury_funds_an_order_by_cpi_and_gets_it_back_when_nobody_delivers(
     fee = pay.order_fee(20 * USDC)
     assert o is not None and (o.state, o.repo_id, o.issue, o.amount, o.fee, o.mode, o.from_balance) == ("open", REPO, 41, 20 * USDC, fee, pay.MERGE, False)
     assert (o.source, o.refund_to, o.rent_to, o.mint, o.terms, o.deadline) == (TREASURY, TREASURY, TREASURY, c.usdc, TH, c.now() + 14 * DAY)
-    assert fee == 500_000 and c.held(order) == 20 * USDC + fee
+    assert fee == 60_000 and c.held(order) == 20 * USDC + fee
     assert c.balance(c.vault) == 1_000 * USDC - 20 * USDC - fee                         # debited the amount plus the fee
     rent = sol - c.lamports(TREASURY)
     assert rent == c.lamports(order) + c.lamports(pay.ov_pda(order)) == 6_493_680       # the rent of the two accounts, and no more
@@ -80,8 +80,8 @@ def test_a_treasury_funds_an_order_by_cpi_and_gets_it_back_when_nobody_delivers(
     # a top-up by CPI: the treasury signs as the order's source, and pays the fee on the new amount less what it paid
     assert c.dao_top_up(order, 60 * USDC), c.err
     o = c.order(order)
-    assert (o.amount, o.fee) == (80 * USDC, pay.order_fee(80 * USDC)) and c.held(order) == 82 * USDC
-    assert c.balance(c.vault) == 1_000 * USDC - 82 * USDC
+    assert (o.amount, o.fee) == (80 * USDC, pay.order_fee(80 * USDC)) and c.held(order) == 80_240_000
+    assert c.balance(c.vault) == 1_000 * USDC - 80_240_000
     assert not c.dao_top_up(order, USDC, admin=stranger)
     # nobody delivers. Before the deadline nothing comes back; after it anyone sends knos_pay's RefundOrder, and
     # the treasury has every token and every lamport it had
@@ -100,6 +100,6 @@ def test_an_order_the_treasury_funded_pays_the_author_of_the_merged_change():
     payees = [(AUTHOR, 10_000, author.pubkey())]
     assert c.pay(order, payees), c.err                    # GitHub signed that the pinned prove.yml saw the terms met
     assert c.balance(pay.ata(author.pubkey(), c.usdc)) == 100 * USDC      # the author receives the amount whole
-    assert c.balance(c.fee) + c.balance(c.tip) == pay.order_fee(100 * USDC) == 2_500_000
-    assert c.balance(c.vault) == 1_000 * USDC - 102_500_000 and c.order(order) is None
+    assert c.balance(c.fee) + c.balance(c.tip) == pay.order_fee(100 * USDC) == 300_000
+    assert c.balance(c.vault) == 1_000 * USDC - 100_300_000 and c.order(order) is None
     assert c.lamports(TREASURY) == 10 ** 9                # the rent of the closed order came back to the treasury

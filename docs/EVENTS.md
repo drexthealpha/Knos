@@ -113,6 +113,15 @@ funded there ([PLAYGROUND.md](PLAYGROUND.md)).
 month's statement, with a manifest of hashes. `knos events verify DIR` reads the log again and rebuilds every
 other file from it; a file that differs is named.
 
+## One definition of an event's hash
+
+An evaluation that arrives from a format 2 batch carries, in `evidence`, the batch, its root and the event's hash:
+`batch:<buyer>:<seller>:<yyyymm>.<seq>:<root>:event:<64 hex>`. That hash is the leaf of the batch's tree, computed by
+the one function both modules use (`knos.ledger.event_hash`; `knos.events.event_hash` is the same function, in hex),
+so the log and the batch cannot disagree about what an event is. The bytes it hashes are in
+[METER.md](METER.md#what-a-root-commits-to-two-formats). An evaluation from a format 1 batch has no such hash: that
+root binds the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted.
+
 ## What this proves
 
 - A removed, reordered or edited line is found, from the file alone, when anything follows it in the chain.
@@ -127,8 +136,10 @@ other file from it; a file that differs is named.
 - **Nothing here is on chain.** Uniqueness is enforced by this layer and by both parties' acknowledgements.
   The on-chain batch root commits to a set. It does not prove the set is complete, and it does not prove the
   set shares nothing with another batch or with the single records (`docs/METER.md`, "What the count proves and what it does not").
-- **Completeness.** The log holds what was ingested. An event nobody ingested is not in it, and nothing here
-  can know.
+- **That every relevant event was supplied.** The log holds what was ingested, and a batch root commits to what was
+  put under it. An event nobody supplied is in neither, and no hash can know. Completeness comes from both sides
+  submitting independently and reconciling: each party keeps its own ledger, `knos meter reconcile` reports the
+  omissions, duplicates, conflicts and corrections between the two, and each acknowledges the other's log.
 - **Lines removed from the end.** A shorter chain is still a chain. They are found only against a head you
   kept: `--head`, an export's manifest, or an acknowledgement the other party holds.
 - **A log rewritten whole before anyone acknowledged it.** Hashes and all, by whoever holds the file. Until a

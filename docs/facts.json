@@ -81,14 +81,6 @@
   },
   {
    "say": [
-    "2.5%"
-   ],
-   "what": "the fee: 250 basis points in the escrow program of the second deployment (the first deployment's constant is the same)",
-   "file": "programs-v2/knos_pay/src/lib.rs",
-   "has": "pub const FEE_BPS: u64 = 250;"
-  },
-  {
-   "say": [
     "0.05"
    ],
    "what": "the minimum fee, in a token with 6 decimals such as USDC",
@@ -166,49 +158,49 @@
   },
   {
    "say": [
-    "0.40",
-    "1,000",
-    "50,000",
-    "1%"
+    "0.30%",
+    "0.20%",
+    "0.10%",
+    "0.05"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Settle: paid by the funder on top, marginal in three tiers: 2.5% of the first 1,000, 1% to 50,000, 0.5% above; minimum 0.40; no maximum (FEE_BPS, FEE_TIER_1, FEE_BPS_2, FEE_TIER_2, FEE_BPS_3, ORDER_FEE_MIN of knos_pay 2.1, in whole units of the mint); the row every document and the pricing page repeat",
+   "what": "the price book, Acceptance: 0.30% of a dollar released or reconciled against a signed acceptance, paid by the funder on top; by contract 0.20% of a month's value above 1M and 0.10% above 10M, marginal; floor 0.05 USD; no cap. It replaces the Settle and Verify lines of the last price book; the row every document and the pricing page repeat (src/knos/billing.py BOOK, tests/data/billing_vectors.json)",
    "file": "docs/MARKET.md",
-   "has": "| Settle | dollar settled, paid by the funder on top | 2.5% of the first 1,000, 1% to 50,000, 0.5% above; minimum 0.40. On devnet: test money, zero revenue |"
+   "has": "| Acceptance | dollar released or reconciled against a signed acceptance | 0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap | funder, on top of the amount | knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain) |"
   },
   {
    "say": [
-    "0.05",
-    "0.02",
-    "10,000"
+    "0.002",
+    "100,000"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Meter: an organisation's first 10,000 evaluations in a month free, then 0.05 USD each; 0.02 on an annual commitment (knos_meter)",
+   "what": "the price book, Meter: an organisation's first 100,000 evaluations in a month free, then 0.002 USD each, from prepaid credits (knos_meter on devnet is unchanged and holds the last price book's constants in test credits)",
    "file": "docs/MARKET.md",
-   "has": "| Meter | evaluation | 10,000 a month free per organisation, then 0.05 USD; 0.02 on an annual commitment |"
+   "has": "| Meter | evaluation | 100,000 a month free per organisation, then 0.002 USD | buyer | prepaid credits |"
   },
   {
    "say": [
     "25,000",
-    "80,000",
-    "250,000"
+    "100,000",
+    "400,000"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Control, per organisation per year: Team 25,000 USD, Business 80,000, Enterprise from 250,000 (not deliverable yet); a contract price, enforced by nothing on chain; nobody has bought it",
+   "what": "the price book, Control, per organisation per year: Team 25,000 USD, Business 100,000, Enterprise from 400,000 (not deliverable yet); a contract price, enforced by nothing on chain; nobody has bought it",
    "file": "docs/MARKET.md",
-   "has": "| Control | organisation, per year | Team 25,000 USD; Business 80,000; Enterprise from 250,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist) |"
+   "has": "| Control | organisation, per year | Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist) | buyer | contract |"
   },
   {
    "say": [
     "110,000",
-    "24,000",
-    "130,000",
-    "390,000"
+    "240",
+    "30,000",
+    "130,240",
+    "390,720"
    ],
    "doc": "docs/MARKET.md",
-   "what": "one customer worked at the price book's prices, an example and not a customer: Control on the Business tier at 80,000 USD a year; 110,000 evaluations a month less 10,000 free = 100,000 billable x 0.02 x 12 = 24,000 of Meter, not charged because Verify is greater: 0.5% of 10,000,000 USD of accepted invoices = 50,000; together 130,000 USD a year. Three times that, 390,000, is the benefit a buyer should hold Knos to; nobody has measured it",
+   "what": "one customer worked at the price book's prices, an example and not a customer: Control on the Business tier at 100,000 USD a year; 110,000 evaluations a month less 100,000 free = 10,000 billable x 0.002 x 12 = 240 of Meter; Acceptance 0.30% of 10,000,000 USD of accepted invoices reconciled off chain = 30,000 (833,333 a month is under the first million); together 130,240 USD a year. Three times that, 390,720, is the benefit a buyer should hold Knos to; nobody has measured it",
    "file": "docs/MARKET.md",
-   "matches": "\\| Meter \\| \\(110,000 − 10,000\\) × 0\\.02 × 12 \\| 24,000, not charged \\|[\\s\\S]*\\*\\*130,000\\*\\*[\\s\\S]*390,000 USD a year against 130,000"
+   "matches": "\\| Meter \\| \\(110,000 − 100,000\\) × 0\\.002 × 12 \\| 240 \\|[\\s\\S]*\\*\\*130,240\\*\\*[\\s\\S]*390,720 USD a year against 130,240"
   },
   {
    "say": [
@@ -232,14 +224,14 @@
   },
   {
    "say": [
-    "65.00",
-    "515.00",
-    "765.00"
+    "3.00",
+    "15.00",
+    "300.00"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the fee an order pays under the tiers, worked by hand and by tests/web/price.mjs: 5,000 pays 25 + 1% of 4,000 = 65; 50,000 pays 25 + 1% of 49,000 = 515; 100,000 pays 515 + 0.5% of 50,000 = 765",
-   "file": "tests/web/price.mjs",
-   "has": "same(\"100,000, the most an order holds on devnet, pays 515 + 250 = 765.00\", fee(100000), \"765.00\");"
+   "what": "the fee the program takes at release, one rate and a floor, worked by hand in tests/data/billing_vectors.json and by tests/web/price.mjs: 1,000 pays 3.00; 5,000 pays 15.00; 100,000, the most an order holds on devnet, pays 300.00",
+   "file": "tests/data/billing_vectors.json",
+   "has": "[\"1000.00\", \"3.00\"], [\"5000.00\", \"15.00\"], [\"100000.00\", \"300.00\"]"
   },
   {
    "say": [
@@ -276,7 +268,7 @@
    "doc": "docs/MARKET.md",
    "what": "the price book, Pilot: one buyer and two suppliers for 30 days and one reconciled invoice, 2,500 USD, credited against year one; nobody has bought it and there is no legal entity to invoice from",
    "file": "docs/MARKET.md",
-   "has": "| Pilot | one buyer, two suppliers, 30 days, one reconciled invoice | 2,500 USD, credited against year one (nobody has bought it; no legal entity to invoice from yet) |"
+   "has": "| Pilot | one buyer, two suppliers, 30 days, one reconciled invoice | 2,500 USD, credited against year one | buyer | contract |"
   },
   {
    "say": [
@@ -418,28 +410,22 @@
   },
   {
    "say": [
-    "0.5%",
-    "0.5",
-    "1.5%"
+    "0.10%"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Settle under a contract: 0.5% to 1.5%; the program lets a Plan set 50 to 250 basis points (PLAN_BPS_MIN, FEE_BPS)",
-   "file": "programs-v2/knos_pay/src/lib.rs",
-   "has": "pub const PLAN_BPS_MIN: u64 = 50;"
+   "what": "the price book, Acceptance under a contract: a Plan can lower the program's rate for one owner, to 0.10% at the least (10 basis points; tests/data/billing_vectors.json on_chain.plan_bps_min). No such contract exists",
+   "file": "tests/data/billing_vectors.json",
+   "has": "\"plan_bps_min\": 10"
   },
   {
    "say": [
-    "0.30",
-    "8%",
-    "8.00%",
-    "2.50%",
-    "1.30%",
-    "1.03%"
+    "1.00%",
+    "16.67"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the relayer's tip, 0.05, or 0.30 on a payee's first payment (TIP, TIP_FIRST of knos_pay); and the effective settle fee shown before funding: 5 pays 0.40 (8.00%), 20 pays 0.50 (2.50%), 1,000 pays 25 (2.50%), 5,000 pays 65 (1.30%), 50,000 pays 515 (1.03%), so Knos is not cheaper on a small order",
-   "file": "docs/MARKET.md",
-   "matches": "Relayer tip: 0\\.05, or 0\\.30 on a payee's first payment[\\s\\S]*\\| 5 \\| 0\\.40 \\| 8\\.00% \\|\\n\\| 20 \\| 0\\.50 \\| 2\\.50% \\|\\n\\| 1,000 \\| 25 \\| 2\\.50% \\|\\n\\| 5,000 \\| 65 \\| 1\\.30% \\|\\n\\| 50,000 \\| 515 \\| 1\\.03% \\|"
+   "what": "what the program takes at release, shown before funding: fee = max(0.05, floor(amount x 30 / 10,000)); 5 pays 0.05 (1.00%), 20 pays 0.06, 100 pays 0.30, 1,000 pays 3, 5,000 pays 15, 100,000 pays 300 (0.30% each); a release under 16.67 pays the floor. The relayer's tip comes out of the fee",
+   "file": "tests/web/price.mjs",
+   "has": "[[5, \"0.05\", \"1.00%\"], [20, \"0.06\", \"0.30%\"]"
   },
   {
    "say": [
@@ -449,15 +435,6 @@
    "file": "docs/COMPARE.md",
    "has": "Knos's two deployments had made 15 payments on devnet when their logs were read on 3 Oct 2026",
    "doc": "docs/COMPARE.md"
-  },
-  {
-   "say": [
-    "45"
-   ],
-   "what": "tasks paid on the second deployment, on devnet (the site's stats.json of 2026-10-06 09:17 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.by_deployment.second.completed",
-   "equals": 45
   },
   {
    "say": [
@@ -497,24 +474,6 @@
   },
   {
    "say": [
-    "41"
-   ],
-   "what": "the payments that median is over (the site's stats.json of 2026-10-06 09:17 UTC)",
-   "json": "docs/bench.json",
-   "path": "devnet.stats.latency.merge_to_paid.count",
-   "equals": 41
-  },
-  {
-   "say": [
-    "2,620"
-   ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37507234421 on drexthealpha/knos-rc 36024756773d62888e5ebcb24f5d4afed0fff24e, the staging tree of this release: 2620 passed, 46 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37507234421",
-   "json": "docs/bench.json",
-   "path": "release.tests_passing.value",
-   "equals": 2620
-  },
-  {
-   "say": [
     "16,024,654"
    ],
    "what": "inputs the fuzzer ran against the claim parser in the latest nightly run of program.yml: `executions` and `source` in the fuzz.json of its `fuzz-claims` artifact. Measured: libFuzzer through cargo-fuzz on the claim parser (target claims), 300 seconds, commit 519dffc, https://github.com/drexthealpha/knos-rc/actions/runs/37185319408",
@@ -525,30 +484,32 @@
   },
   {
    "say": [
-    "250"
+    "1,000,000",
+    "10,000,000"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Verify: 0.5% of reconciled accepted invoice value, capped at 250 USD per deliverable; the month's invoice takes the greater of the Meter and Verify charges, never both; a proposal nobody has bought (src/knos/billing.py computes it)",
-   "file": "docs/MARKET.md",
-   "has": "| Verify | dollar of reconciled accepted invoice value | 0.5%, capped at 250 USD per deliverable (proposed; nobody has bought it) |"
+   "what": "the billing rule's volume rates, by contract and marginal: the first 1,000,000 USD of a month's accepted value pays 0.30%, what lies between 1,000,000 and 10,000,000 pays 0.20%, what lies above pays 0.10%, value released on chain lying first; a proposal nobody has bought (src/knos/billing.py computes it)",
+   "file": "src/knos/billing.py",
+   "has": "ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal(\"0.0020\")), (Decimal(10_000_000), Decimal(\"0.0010\")))"
   },
   {
    "say": [
-    "5,000"
+    "0.25"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Supplier connection: 5,000 USD a year for each supplier beyond the first five; the buyer pays; nobody has bought it",
+   "what": "the price book, Record: 0.25 USD a lookup of a supplier's delivery record through the hosted API, or by subscription; the public record page and its file are free; the API is not built. (The last price book's fee for connecting a supplier is gone: connecting a supplier costs nothing.)",
    "file": "docs/MARKET.md",
-   "has": "| Supplier connection | supplier beyond the first five, per year | 5,000 USD; the buyer pays |"
+   "has": "| Record | lookup of a supplier's delivery record through the hosted API | 0.25 USD, or by subscription (the public record page and its file are free) | the buyer, marketplace or insurer reading it | API (not built: a static file today) |"
   },
   {
    "say": [
-    "748.3"
+    "748.3",
+    "172.7"
    ],
    "doc": "docs/MARKET.md",
-   "what": "DoubleVerify, results for 2025 (26 Feb 2026): revenue of 748.3 million USD (company-reported, a public company's results)",
+   "what": "DoubleVerify, results for 2025 (26 Feb 2026): revenue of 748.3 million USD (company-reported, a public company's results); and free cash flow of 172,654 thousand USD for 2025 (211,183 of cash from operations less 38,529 of property and equipment), read in the same release on 6 Oct 2026",
    "source": "https://s206.q4cdn.com/961864615/files/doc_financials/2025/q4/DoubleVerify-Q4-FY25-Earnings-Release.pdf",
-   "read": "2026-10-05"
+   "read": "2026-10-06"
   },
   {
    "say": [
@@ -960,6 +921,90 @@
    "path": "release.pay_attempts_never.value",
    "equals": 9,
    "doc": "docs/RELAY.md"
+  },
+  {
+   "say": [
+    "120.82"
+   ],
+   "doc": "docs/UNIT_COSTS.md",
+   "what": "the price of SOL docs/UNIT_COSTS.md converts lamports at: CoinGecko showed 120.82 USD and Coinbase 120.81 on 6 Oct 2026",
+   "source": "https://www.coingecko.com/en/coins/solana",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.006"
+   ],
+   "doc": "docs/UNIT_COSTS.md",
+   "what": "GitHub Actions, a standard hosted Linux runner with 2 cores: 0.006 USD a minute",
+   "source": "https://docs.github.com/en/billing/reference/actions-runner-pricing",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.015"
+   ],
+   "doc": "docs/UNIT_COSTS.md",
+   "what": "Cloudflare R2, standard storage: 0.015 USD a GB a month; Class A operations 4.50 USD a million; egress free",
+   "source": "https://developers.cloudflare.com/r2/pricing/",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.0015",
+    "0.0024",
+    "0.012"
+   ],
+   "doc": "docs/UNIT_COSTS.md",
+   "what": "AWS Bedrock AgentCore evaluations: a custom evaluator 1.50 USD per 1,000 evaluations (model usage billed separately); built-in evaluators 0.0024 USD per 1,000 input tokens and 0.012 per 1,000 output tokens",
+   "source": "https://aws.amazon.com/bedrock/agentcore/pricing/",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "16,332"
+   ],
+   "doc": "docs/UNIT_COSTS.md",
+   "what": "the bytes of one recorded acceptance bundle, which docs/UNIT_COSTS.md prices for seven years of storage (tests/test_business_docs.py measures the file)",
+   "file": "docs/UNIT_COSTS.md",
+   "has": "| One acceptance bundle | 16,332 (2,948 compressed) | 0.0000206 |"
+  },
+  {
+   "say": [
+    "2.2",
+    "0.40"
+   ],
+   "doc": "docs/submission/SUBMISSION.md",
+   "what": "the fee on chain follows the build that is live: knos_pay 2.2 charges 0.30% with a minimum of 0.05; knos_pay 2.1, the public program until the upgrade to 2.2 executes, charges the 0.3.14 fee with a minimum of 0.40 (src/knos/fees.py NEW and OLD)",
+   "file": "src/knos/fees.py",
+   "has": "OLD = Rule(\"0.3.14\", \"2.1\", 250, 400_000, 50, 250, 50_000, ((1_000_000_000, 100), (50_000_000_000, 50)))"
+  },
+  {
+   "say": [
+    "46"
+   ],
+   "what": "tasks paid on the second deployment, on devnet (the site's stats.json of 2026-10-07 00:56 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.by_deployment.second.completed",
+   "equals": 46
+  },
+  {
+   "say": [
+    "42"
+   ],
+   "what": "the payments that median is over (the site's stats.json of 2026-10-07 00:56 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.latency.merge_to_paid.count",
+   "equals": 42
+  },
+  {
+   "say": [
+    "3,173"
+   ],
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37582988812 on drexthealpha/knos-rc d20ac1982bdd7c44ba37645ffb47eda114fa4032, the staging tree of this release: 3173 passed, 50 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37582988812",
+   "json": "docs/bench.json",
+   "path": "release.tests_passing.value",
+   "equals": 3173
   }
  ]
 }

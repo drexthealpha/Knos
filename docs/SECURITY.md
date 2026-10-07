@@ -235,13 +235,20 @@ replaces a binding a person made himself (`test_a_collaborator_cannot_rebind_a_p
 The funder cannot take it back in that time. When they bind a wallet, anyone can send `SettleOrder`. After 180
 days it goes back to the funder.
 
-**The fee.** The funder pays it on top of the amount, in marginal tiers: 2.5% of the first 1,000 whole units of the
-mint, 1% to 50,000, and 0.5% above; at least 0.40; no maximum. It is one pure function, `order_fee` in
-[`lib.rs`](../programs-v2/knos_pay/src/lib.rs), tested at the tier edges. It waits in the order's account. At the payment,
+**The fee.** The funder pays it on top of the amount: 0.30% of the amount, at least 0.05 of a whole unit of the
+mint, no maximum; one rate, no tiers, jobs and orders alike (a job's comes out of its amount). That is the rule of
+knos_pay 2.2, the build in this tree. **The public program charges the 0.3.14 fee until the upgrade to knos_pay 2.2
+executes**: 2.5% of the first 1,000 whole units, 1% to 50,000, and 0.5% above; at least 0.40; no maximum (a job: 2.5%,
+at least 0.05). Which rule is charged is the program's own answer to its Version instruction (2 from knos_pay 2.2
+on): `knos status` says which build runs, and the site, the client ([`fees.py`](../src/knos/fees.py)) and the SDK
+(`v2.feeRule`) show the fee of the build that is live. Orders funded before the upgrade keep the rate fixed at their
+funding. The fee is one pure function in
+[`lib.rs`](../programs-v2/knos_pay/src/lib.rs), tested at its edges. It waits in the order's account. At the payment,
 the payees receive their full shares; the relayer that paid for the transaction receives a tip out of the fee (0.05,
 or 0.30 when the transaction created a payee's token account); the rest goes to `FEE_OWNER`, an address of Knos's
 that has one other power: it can lower the rate of the orders funded from one repository owner's Balances, under a
-contract (`SetPlan`: the first tier's rate, between 0.5% and 2.5%, until an expiry). A refund returns amount and fee.
+contract (`SetPlan`, until an expiry: a rate between 0.10% and 0.30% from knos_pay 2.2 on; before it, the first
+tier's rate, between 0.5% and 2.5%). A refund returns amount and fee.
 
 ## 5. Signing keys: any issuer, refresh by anyone, private keys
 
@@ -361,7 +368,7 @@ orders whose deadline falls inside it.
 | who may sign a payment | the funder's repository | the funder's repository | one of four judges (section 2) |
 | the fee | from the payment | from the payment | paid by the funder on top |
 | after the pay token | a veto window | final at once | final at once, but for a holdback the funder set at funding |
-| the fee's size | 2.5% | 2.5% | tiers: 2.5%, 1%, 0.5%; at least 0.40 |
+| the fee's size | 2.5% | 2.5% | tiers: 2.5%, 1%, 0.5%; at least 0.40. From knos_pay 2.2 (in this tree, not live until its upgrade executes): 0.30%, at least 0.05, for jobs and orders alike; orders funded before the upgrade keep the rate fixed at their funding |
 | the most one holds | 500 | 500 | 100,000 on devnet |
 | what makes a token single-use | see [`programs`](../programs) | the bounty closing; a fund token by being newer than the Balance's last | one marker rule for every token (section 15) |
 | live | yes, for the bounties funded there | yes | from the moment the upgrade executes |
@@ -500,9 +507,10 @@ Nothing is posted in public only when the repository relays its own tokens, with
   chain.
 - **From source to chain.** docs/PROVENANCE.md follows each program from source commit to build hash to the hash on
   chain to its upgrade proposal; a link the repository does not record is printed as MISSING.
-- **Two of the builds before the upgrade have no build record.** The knos_oidc and knos_pay builds that run at the
-  public ids until proposals 3 and 4 execute have no build record at the upgrade gate, so nothing on chain ties
-  those builds to a commit; knos_meter's and knos_passkey's have one ([PROVENANCE.md](PROVENANCE.md)).
+- **Two of the builds before the upgrade have no build record.** The knos_oidc and knos_pay builds that ran at the
+  public ids until proposals 3 and 4 executed have no build record at the upgrade gate, so nothing on chain ties
+  those builds to a commit; knos_meter's and knos_passkey's have one. The four builds that run there now, those of
+  proposals 3 to 6, each have one ([PROVENANCE.md](PROVENANCE.md)).
 
 ## 14. The sandbox (tests mode)
 
@@ -794,7 +802,7 @@ paid by its acceptance checks (tests mode) took no neutral run at all: only its 
 `image` (`ref` and the `digest` the runtime reported), `artifact` (a hash of each of the two trees, the ones
 `knos judge rerun` compares), `order`, `repository`, `pull`, `issue`, `head`, `base`, `accept`, `reasons`,
 `sentence`, and `environment`: the repository and run it happened in, the runner's operating system, architecture
-and image version, and the `knos` version. It is kept as the run's artifact `knos-verdict` (`verdict.json`), it is
+and image version, and the `knos` version. It is kept as the run's artifact `knos-verdict-<attempt>` (`verdict.json`), it is
 the job output `verdict`, and it is posted as a comment that starts `knos-verdict: ` beside the token on the "knos
 tokens" issue. GitHub's signature covers none of it: the token says which workflow ran and where, and the verdict
 is that workflow's own account of how it decided.
@@ -857,23 +865,136 @@ by that commit. An `auto` payment made before the merge is not re-executed by a 
 pull requests only. This section narrows limit 15 below ("tests mode has no second look") for orders that ask for a
 quorum; it does not remove it.
 
-## Two findings from this release's adversarial tests
+## Where untrusted code runs
 
-1. **Quorum counts repositories, not people.** On an order funded from a wallet with quorum 2, one forge account that
-   can start the run in the order's repository and the run in the neutral repository satisfies both. The receipt
-   records whether evaluators share a controller (`same_controller`, [RECEIPT.md](RECEIPT.md)); the chain does not
-   enforce it. A buyer who needs two independent parties must name a neutral repository it does not control and
-   read that field.
-2. **Low: a judge's marker outlives its order by a second.** A quorum-2 order paid and funded again at the same
-   address within the same clock second inherits the earlier judge marker, so one new token then pays.
+The rule: a pull request's code and its tests never run in a job that can ask GitHub for a signed statement
+(`id-token: write`) or that holds a credential that can write to the repository; and what the job that signs takes
+from the job that ran such code is data it checks again, never an instruction. This section is the audit of the
+workflows a repository installs (`fund.yml`, `prove.yml`, `check.yml` and `attest.yml`, published to
+`drexthealpha/knos-workflows` by [`scripts/pinned_workflows.py`](../scripts/pinned_workflows.py)), of the two files that
+call them (`knos.yml`, `knos-check.yml`) and of `hermetic.yml`, job by job, and what this release changed.
+[`tests/test_workflows2.py`](../tests/test_workflows2.py) holds the shape and
+[`tests/test_verdict_gate.py`](../tests/test_verdict_gate.py) the hostile cases.
 
-Both are reproduced by ignored tests in
+GitHub's own guidance is the same rule in other words: code from a pull request "is only ever inspected as data and
+never executed" where a privileged token exists, a `workflow_run` workflow "should treat artifacts uploaded by other
+workflows as untrusted data"
+([securely using `pull_request_target`](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target)),
+the job token gets "the minimum required permissions", and "pinning an action to a full-length commit SHA is currently
+the only way to use an action as an immutable release"
+([secure use reference](https://docs.github.com/en/actions/reference/security/secure-use)). No workflow of Knos uses
+`pull_request_target`.
+
+**Every job.** "Code" is anything of a repository on the job's disk. Every action is named by a full commit
+([`scripts/action_pins.json`](../scripts/action_pins.json)); every job runs on the label `ubuntu-24.04`.
+
+| Workflow, job | Code it has and runs | Token permissions | Signs | What it takes from another job, and how it is checked |
+| --- | --- | --- | --- | --- |
+| `fund.yml` `command` | none: no checkout; `knos` installed by hash | contents read; issues and pull requests write; checks, statuses, actions read; id-token | yes | nothing |
+| `prove.yml` `settle` | none; `knos` by hash | the same | yes | nothing |
+| `prove.yml` `review` | none; `knos` by version | the same without id-token | no | nothing. Its outputs `tests`, `pull`, `head` name an issue, a pull request and a commit |
+| `prove.yml` `judge` | the default branch (checkout, no credential kept) and the pull request's head as plain files; **runs the pull request's code**, in the sandbox | contents read | no | `pull`, `head`, `tests` from `review`: the first two held to digits and hex before use, all three passed as arguments and never inside a script |
+| `prove.yml` `attest` | none; `knos` by hash | as `settle` | yes | from `judge`: that it succeeded, and the output `verdict`, read by the step before the command (below). From `review`: the three names, which the command reads again from GitHub |
+| `check.yml` `claims` | none; `knos` by version | read only | no | nothing |
+| `attest.yml` `rerun` | two commits of the order's public repository as plain files, fetched with no credential; **runs the pull request's code**, in the sandbox or the terms' image | contents read (given to the plan step alone) | no | nothing |
+| `attest.yml` `attest` | none; `knos` by hash | contents read; issues write; id-token | yes | from `rerun`: the output `verdict`, held to a strict shape by one step and then to the order, pull request, commits and bundle by the command (section 20) |
+| `attest.yml` `refused` | none; `knos` by hash | contents read; issues write | no | the same verdict, to post why nothing was signed |
+| `knos.yml`, `knos-check.yml` (callers) | none: each job is one call to a published workflow at a full commit | what the called jobs need between them | through the call | nothing. A called job can only have less than its caller grants, and `judge` asks for contents read |
+| `hermetic.yml` `container` (staging only, not published) | Knos's own repository, on a push to its `main` | contents read | no | nothing |
+
+**What the audit found.**
+
+1. *No job has both a pull request's code and the id-token, or a write to the repository's contents.* That held
+   before this release and is now one test over every published job.
+2. *`prove.yml`: the job that signs trusted one unbound fact from the job that ran the code.* `attest` started when
+   `judge` ended in success, and nothing said which pull request, commit or bundle that success was about except the
+   run they shared. **Fixed** (below).
+3. *`attest.yml`: the verdict was read by one lenient parser.* A key given twice, or characters outside plain
+   ASCII, were accepted as whatever the parser made of them. **Fixed**: a step holds the text to one reading first.
+   The verdict of that workflow still carries sentences (`sentence`, `reason`, `reasons`, `environment`); they are
+   posted, cleaned, in a comment and never decide anything. Removing them is a change to `knos attest` that this
+   release does not make.
+4. *`attest.yml`: the verdict's artifact had one name for every attempt of a run.* A job run again would write
+   into, or fail on, the earlier attempt's artifact. **Fixed**: the name carries the attempt. Nothing downloads that
+   artifact; the job that signs reads the job output. Two calls of `attest.yml` in one run still share a name: the
+   second upload fails, its job fails, and nothing is signed for it.
+5. *The jobs that run code or sign nothing install `knos` by version, not by hash,* with dependencies no newer than
+   a date, and the two judges add `pytest` and `pip` unpinned. **Not fixed.** None of these jobs can sign, and what
+   `review` hands on is read again from GitHub; but a wrong package there could make a judge say "passed". Locking
+   them by hash needs a second lock file written at release, which is release tooling and not workflow shape.
+6. *The machine is named by a label, not a digest.* A GitHub-hosted runner's image cannot be chosen by digest; the
+   verdict records the image's version as the machine reports it, which nothing signs. The container the hermetic
+   judge starts is named by digest (section 13). `hermetic.yml` named `ubuntu-latest` and used the Actions cache;
+   it now names `ubuntu-24.04` and uses none.
+7. *The sandbox is a user boundary inside one virtual machine* (section 14). GitHub does not let a container job
+   choose its network ("The `--network` and `--entrypoint` options are not supported":
+   [running jobs in a container](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container)),
+   so the network is cut where the code starts: a network namespace of its own (`unshare -n`), or `--network none`
+   for the container the judge starts itself. Code that broke out of it to root would own the judge's machine: its
+   exit status and its verdict. **Not fixable in workflow shape**; what such code could then do is bounded below.
+8. *In `attest.yml` `rerun` one step holds the job's read token and a later step runs the code.* The token is not
+   given to that step, and the code runs as another user with no network, so it can neither read nor use it short
+   of the escape in 7. The token reads public data only. Not changed.
+
+**The fix in `prove.yml`.** After the suite passed, `judge` writes one line of JSON, its only output: `v`, `kind`,
+`passed`, `repository_id`, `run`, `attempt`, `workflow_sha`, `pull`, `issue`, `head`, `base`, `accept` (the hash of
+the acceptance checks it ran), `changed` and `changed_count` (a hash and a count of the paths it was told the pull
+request changed), `runner` and `image`. Every value is a boolean, a bounded whole number or a string of a closed
+shape (a commit id, a sha256, one word of a list); none is free text. In `attest`, the step before the command
+([`src/knos/verdict_gate.py`](../src/knos/verdict_gate.py)) runs no pull request code, asks GitHub for no token, and:
+
+- reads the line strictly: at most 2,048 bytes, printable ASCII, one object, each key once, exactly those keys;
+- holds it to what the job knows itself: this repository, this run (an earlier attempt of it at most), this
+  workflow commit, and the pull request, issue and head commit `review` named, on this run's base commit;
+- works out again, from GitHub's record: that the commit is still the pull request's head; the hash of
+  `.knos/acceptance/<issue>/` on the base commit, file by file; which runner those files call for; what the pull
+  request changed (GitHub's comparison of the two commits), and what the judge's own rule, `classify_path`, says of
+  each path. A path the rule refuses, a bundle or a runner other than the base commit's, or a list of paths other
+  than GitHub's ends the job. A comparison lists at most 300 files
+  ([REST: compare two commits](https://docs.github.com/en/rest/commits/commits#compare-two-commits)); beyond that
+  the pull request's own list is classified, up to the 3,000 files GitHub lists
+  ([REST: list pull request files](https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files)), and the
+  judge's list is not compared.
+
+Only then does `knos settle --tests` run. It derives the audience itself from GitHub and the chain, as before, and
+is never handed the verdict. A verdict for another pull request, commit, issue, repository or run, a link or an
+oversized file in its place, and an artifact with a second file in it are each a test.
+
+**What a judge machine that was taken over can still do.** Say "passed" for the one pull request, at the one
+commit, against the one bundle its run was started for, when the suite did not pass. Nothing else: not another pull
+request, order, commit or payee, and not a path the rule refuses. That one bit is the judge machine's word, and no
+workflow shape removes it; a second judge that runs the suite itself does (section 20, and a quorum, section 19).
+
+**For a repository that installed an earlier commit of the workflows.** Nothing changes until it names the new
+commit: the old files, and the release they install, stay as they were. At the new commit the inputs, secrets,
+outputs, job names and permissions are the same. What differs: `judge` has an output; `attest` has one more step
+and can refuse for the reasons above; the artifact of `attest.yml` is named `knos-verdict-<attempt>`.
+
+## Two findings from the adversarial tests, fixed in this release's `knos_pay` build
+
+Both were found by the adversarial tests of the release before. Both are fixed in the `knos_pay` build of this
+release. That build is proposed after the release and is not live at the public id until its proposal executes
+([`web/upgrades.json`](../web/upgrades.json)); until then the public program behaves as the findings say.
+
+1. **Quorum counted repositories, not people.** On an order funded from a wallet with quorum 2, one forge account
+   that could start the run in the order's repository and the run in the neutral repository satisfied both.
+   Enforced by the new build: judges are counted by repository owner, so two repositories of one owner are one
+   judge; and the neutral judge must differ from both sides in owner and in the actor who started the run.
+2. **Low: a judge's marker outlived its order by a second.** A quorum-2 order paid and funded again at the same
+   address within the same clock second inherited the earlier judge marker, so one new token then paid. Enforced by
+   the new build: a marker is bound to the funding of the order it was made under, and counts for no other.
+
+What no program can enforce: that two accounts are two people. One person with two forge accounts and two owners
+is two judges to the chain. The receipt still records whether evaluators share a controller (`same_controller`,
+[RECEIPT.md](RECEIPT.md)); a buyer who needs two independent parties names a neutral repository it does not
+control and reads that field.
+
+The tests are no longer ignored and run with the others in
 [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs):
 `finding_one_account_that_starts_both_runs_is_one_judge_not_two` and
 `finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second`. In
-`programs-v2/handlers`, `cargo test --release --test adversarial -- --ignored` shows both failing on the program as
-built. Both are fixed in the next `knos_pay` build, which is not in this release.
-[INVARIANTS.md](INVARIANTS.md) lists them with the other adversarial tests.
+`programs-v2/handlers`, `cargo test --release --test adversarial` shows both passing on the program as built from
+this tree. [INVARIANTS.md](INVARIANTS.md) lists them with the other adversarial tests.
 
 ## Before mainnet
 
@@ -955,8 +1076,8 @@ The first three cannot be removed. They come with the design.
     2.2 (Knos 0.3.16) checks every byte of the header and the payload against RFC 8259, refuses a name that appears
     twice in the top-level object, and takes at most 64 levels and 128 top-level members: the 13 shapes are refused,
     and the differential test has no class outside its rule ([ASSURANCE.md](ASSURANCE.md), "The claim reader: strict
-    since 2.2"; [`fuzz.json`](fuzz.json)). 2.2 will be proposed after the pending upgrade executes; until that
-    proposal has executed after its 48-hour delay, devnet runs an earlier verifier (2.0, then 2.1 once proposal 3 has
+    since 2.2"; [`fuzz.json`](fuzz.json)). 2.2 is proposed after the push of Knos 0.3.18; until that
+    proposal has executed after its 48-hour delay, devnet runs an earlier verifier (2.1, since proposal 3
     executed), and [`web/upgrades.json`](../web/upgrades.json) says which is live. What stays: the
     strict rule is this project's reading of RFC 8259 (a name twice inside a nested object is not looked for), and
     `knos-pay` 2.1 and the interface crate still step over the values they do not read (2.2's strict reader is a

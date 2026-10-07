@@ -308,7 +308,7 @@
     },
     {
       "id": 8,
-      "invariant": "Fees never exceed the tier schedule",
+      "invariant": "Fees never exceed the schedule",
       "enforced_by": [
         "FundOrderWallet",
         "FundOrderBalance",
@@ -341,11 +341,11 @@
         },
         {
           "file": "tests/test_invariants_gaps.py",
-          "test": "test_a_top_up_across_a_fee_tier_pays_the_difference_between_the_two_schedule_values"
+          "test": "test_a_top_up_pays_the_difference_between_the_two_schedule_values_at_every_size"
         },
         {
           "file": "tests/test_invariants_gaps.py",
-          "test": "test_a_top_up_across_the_first_tier_of_a_balances_order_keeps_the_plans_rate_below_it_and_one_percent_above"
+          "test": "test_a_top_up_of_a_balances_order_keeps_the_plans_rate"
         },
         {
           "file": "tests/test_invariants_machine.py",
@@ -359,58 +359,44 @@
       "kani": [
         "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
         "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
-        "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount"
+        "an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount"
       ],
       "not_covered": null,
       "fee_proofs": {
         "record": "docs/kani.json#fee_proofs",
         "crate": "programs-v2/fee_proofs",
-        "status": "not verified",
+        "status": "verified but for one bound at one rate",
         "parts": [
           {
-            "amount": "0 to 1,000.00",
-            "rate_bps": "50..=249",
-            "stated": "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64",
+            "amount": "0 to 100,000.00",
+            "rate_bps": "10..=29",
+            "stated": "at least 0.05; 0.05 or at most 0.30% of the amount; adds to the amount in a u64",
             "result": "verified"
           },
           {
-            "amount": "0 to 1,000.00",
-            "rate_bps": "250",
-            "stated": "at least 0.40; adds to the amount in a u64",
+            "amount": "0 to 100,000.00",
+            "rate_bps": "30",
+            "stated": "at least 0.05; 0.05 or at most 0.31% of the amount; adds to the amount in a u64",
             "result": "verified"
           },
           {
-            "amount": "0 to 1,000.00",
-            "rate_bps": "250",
-            "stated": "0.40 or at most 2.5% of the amount",
+            "amount": "0 to 100,000.00",
+            "rate_bps": "30",
+            "stated": "0.05 or at most 0.30% of the amount",
             "result": "not verified"
           },
           {
-            "amount": "above 1,000.00, to 50,000.00",
-            "rate_bps": "50..=250",
-            "stated": "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64",
-            "result": "verified"
-          },
-          {
-            "amount": "above 50,000.00, to 100,000.00",
-            "rate_bps": "50..=250",
-            "stated": "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64",
+            "amount": "every u64",
+            "rate_bps": "30 (a job)",
+            "stated": "never more than the amount; at least 0.05 or the whole amount",
             "result": "verified"
           }
         ],
         "harnesses": [
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_50_to_100",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_101_to_150",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_151_to_200",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_201_to_225",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_226_to_231",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_232_to_237",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_238_to_243",
-          "the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_244_to_249",
-          "the_fee_of_an_amount_in_the_first_tier_at_the_rate_250_is_at_least_the_floor_and_adds_up",
-          "the_fee_of_an_amount_in_the_second_tier_is_within_its_bounds",
-          "the_fee_of_an_amount_in_the_third_tier_is_within_its_bounds",
-          "the_fee_of_an_amount_above_the_most_an_order_holds_is_within_its_bounds"
+          "the_fee_of_an_order_is_within_its_bounds_at_the_rates_10_to_19",
+          "the_fee_of_an_order_is_within_its_bounds_at_the_rates_20_to_29",
+          "the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points",
+          "the_fee_of_a_job_is_never_more_than_its_amount"
         ]
       }
     },
@@ -461,7 +447,8 @@
   "adversarial": {
     "tests": "programs-v2/handlers/tests/adversarial.rs",
     "vectors": "scripts/adversarial_vectors.py",
-    "ignored_findings": [
+    "ignored_findings": [],
+    "fixed_findings": [
       "finding_one_account_that_starts_both_runs_is_one_judge_not_two",
       "finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second"
     ]

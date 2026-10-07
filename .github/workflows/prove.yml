@@ -35,9 +35,13 @@ name: knos prove
 #            network while the tests run).
 #   attest   after judge succeeded:   knos settle --tests, for that pull request, that head commit and that issue.
 #            It has the id-token, checks out nothing and runs none of the pull request's code. From the judge job
-#            it takes one fact, that the job succeeded; which pull request, which commit and which issue come from
-#            review; who is paid, and whether the acceptance checks that ran are the ones that were funded, it
-#            works out itself, from GitHub and the chain.
+#            it takes that the job succeeded and one line of JSON, the verdict, which it reads as data
+#            (knos.verdict_gate: fixed keys, numbers and hashes, no free text): the verdict must be of this run, this
+#            pull request, this issue and these two commits, and what GitHub's own record can settle is worked out
+#            again here before anything is signed (the commit is the pull request's head; no changed path is one the
+#            judge's rule refuses; the acceptance checks the judge hashed are the base commit's). Which pull request,
+#            which commit and which issue come from review; who is paid, and whether the acceptance checks are the
+#            ones that were funded, the command works out itself, from GitHub and the chain.
 #            For a work order funded with `auto` the token it asks for has the audience
 #                knos3:auto:<order>:<head sha>:<terms hash>:1:<pull request>:<the author's id>.10000.<address or ->
 #            while the pull request is open: the funder chose, in the options the fund token signed, that the first
@@ -181,7 +185,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.17"
+        run: uv tool install --no-config "knos==0.3.18"
       - name: knos review
         id: review
         env:
@@ -191,9 +195,10 @@ jobs:
   # ---- tests mode: the funder's acceptance checks against the pull request. The one job that runs its code. ----------
   # THE BOUNDARY. This job is a separate GitHub-hosted virtual machine, with no id-token and no secret: a fresh machine for
   # this job alone, thrown away when it ends, that cannot ask GitHub to sign anything and holds nothing to steal. Its
-  # token only reads the repository's contents and is not given to the step that runs the code. Nothing but its success
-  # or failure leaves it: no output, no artifact, no cache. Inside it the code runs as another user, with an empty
-  # environment and no network. The step before the judge checks that last part the way the judge starts the code, on
+  # token only reads the repository's contents and is not given to the step that runs the code. Two things leave it: its
+  # success or failure, and one output, the verdict: one line of JSON with fixed keys (ids, commits, hashes, one word of
+  # a list) that the job that signs reads as data and checks again. No artifact, no cache. Inside it the code runs as
+  # another user, with an empty environment and no network. The step before the judge checks that last part the way the judge starts the code, on
   # this very machine, and fails the job before any of the pull request's code runs if there is a route out.
   judge:
     needs: review
@@ -205,6 +210,8 @@ jobs:
     cache-mode: read
     permissions:
       contents: read          # the two trees; nothing else of the repository, and nothing to write
+    outputs:
+      verdict: ${{ steps.verdict.outputs.verdict }}     # data for the job that signs, which believes none of it unchecked
     steps:
       - name: the default branch with its history, into base/
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -249,7 +256,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.17"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.18"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.
@@ -282,6 +289,16 @@ jobs:
         env:
           ISSUE: ${{ needs.review.outputs.tests }}
         run: knos proof judge --base base --pr pr --issue "$ISSUE" --changed changed.txt --sandbox require
+      # Only after the suite passed. One line: which run, pull request, issue and commits, the hash of the acceptance
+      # checks that ran, a hash of the changed paths. Nothing in it is free text.
+      - name: the verdict, one line of fixed fields (the job that signs checks every one)
+        id: verdict
+        env:
+          ISSUE: ${{ needs.review.outputs.tests }}
+          PULL: ${{ needs.review.outputs.pull }}
+          HEAD: ${{ needs.review.outputs.head }}
+        run: >-
+          "$(uv tool dir)/knos/bin/python" -m knos.verdict_gate emit --base base --issue "$ISSUE" --changed changed.txt
 
   # ---- tests mode: the token, in a job that never sees pull request code ---------------------------------------------
   attest:
@@ -318,6 +335,17 @@ jobs:
           KNOS_LOCK
           LOCK
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      # Before anything can be signed. The verdict is text from a machine that ran a stranger's code: it is parsed
+      # strictly, held to this run, pull request, issue and pair of commits, and what GitHub records is worked out again
+      # here. This step asks GitHub for no token; a verdict that does not hold ends the job.
+      - name: the judge's verdict, read as data and checked again here
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERDICT: ${{ needs.judge.outputs.verdict }}
+          PULL: ${{ needs.review.outputs.pull }}
+          HEAD: ${{ needs.review.outputs.head }}
+          ISSUE: ${{ needs.review.outputs.tests }}
+        run: python -m knos.verdict_gate check
       - name: knos settle, for the pull request, the head commit and the issue the judge passed
         env:
           GH_TOKEN: ${{ github.token }}

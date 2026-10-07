@@ -78,6 +78,7 @@ from solders.system_program import CreateAccountParams, create_account  # noqa: 
 from solders.transaction import VersionedTransaction  # noqa: E402
 
 from knos import chain  # noqa: E402
+from knos import fees as fee_rules  # noqa: E402
 from knos import mainnet_check as mc  # noqa: E402
 from knos.chain import said  # noqa: E402
 from knos.settle.relay import claims_of, header_of  # noqa: E402
@@ -218,7 +219,7 @@ class Svm:
 
     @property
     def version(self) -> int:
-        """1 when the escrow loaded here is 2.1, 0 for 2.0: what its own Version instruction answers."""
+        """2 when the escrow loaded here is 2.2, 1 for 2.1, 0 for 2.0: what its own Version instruction answers."""
         return relay.version(self, self.payer)
 
     def account(self, address: Pubkey) -> bytes | None:
@@ -615,7 +616,7 @@ def a_payment(new, tokens: list[Captured]) -> str:
     done = [x for x in paid.get("paid", []) if str(x.get("job")) == str(address)]
     if not done:
         raise Failed("the pay token was carried, and it did not pay the job its fund token made")
-    fee, to = pay.fee_of(j.amount), done[0].get("to")
+    fee, to = fee_rules.rule(svm.version).job(j.amount), done[0].get("to")       # the fee of the build loaded here, as the cluster runs it
     if to is None:
         held = pay.read_job(svm.account(address))
         if held is None or held.state != "held" or held.payee_id != int(paid["payee_id"]) or svm.balance(pay.vault_pda(j.mint)) != j.amount:
@@ -869,6 +870,12 @@ def _proof(c, gh, job: tuple[int, int, int, Pubkey], pull: int) -> str:
     return jwt
 
 
+def _net_of(c, net) -> int:
+    """What the payee of a drill's bounty of 5.00 receives: the bounty less the fee the knos_pay under drill takes out
+    of a job (asked of the program: 0.125 under 2.1, 0.05 under 2.2)."""
+    return 5_000_000 - fee_rules.live(net, c.payer).job(5_000_000)
+
+
 def _got(c, wallet: Pubkey) -> int:
     account = pay.ata(wallet, pay.faucet_mint())
     return c.balance(account) if c.data(account) is not None else 0
@@ -891,8 +898,8 @@ def _passes(c, net, seconds: int, until: Callable[[list[str]], bool] = lambda li
 def github_down_ten_minutes() -> Outage:
     """GitHub's API answers nothing for 600 s while three proofs wait in comments."""
     from knos.proof import ghrelay
-    net_of = 4_875_000
     with _relaying() as (c, net, gh, notes, _jwks):
+        net_of = _net_of(c, net)
         jobs = _funded(c, net, gh, 21, 3)
         c.warp(120)
         gh.out = True
@@ -955,7 +962,7 @@ def signing_key_expired_on_chain() -> Outage:
         if named is None or not c.send([oidc.refresh_ix(anyone.pubkey(), oidc.GITHUB, c.github, named, c.key_of(named))], anyone):
             raise Failed(f"a stranger's refresh was refused: {c.err}")
         r = relay.submit(net, c.payer, proof, None, JWKS, now=c.now())
-        if not r.get("ok") or _got(c, wallet) != 4_875_000:
+        if not r.get("ok") or _got(c, wallet) != _net_of(c, net):
             raise Failed(f"the same proof was not paid after the refresh: {r.get('why')}")
         took = c.now() - expires
     finally:
@@ -992,13 +999,13 @@ def relay_killed_mid_token() -> Outage:
         died = c.now()
         entry = next(iter(json.loads(notes.read_text(encoding="utf-8"))["journal"].values()), {}) if notes.is_file() else {}
         mid = [e for e in json.loads(notes.read_text(encoding="utf-8"))["journal"].values() if e.get("id") == ghrelay.token_id(proof)]
-        if not mid or mid[0].get("state") != "sending" or _got(c, job[3]) != 4_875_000:
+        if not mid or mid[0].get("state") != "sending" or _got(c, job[3]) != _net_of(c, net):
             raise Failed(f"the notes do not show the token in flight, or the chain did not take it: {entry}")
         took, said = _passes(c, net, 30, until=lambda lines: bool(lines))
-        if len(said) != 1 or f" {ghrelay.token_id(proof)} ok " not in said[0] or _got(c, job[3]) != 4_875_000:
+        if len(said) != 1 or f" {ghrelay.token_id(proof)} ok " not in said[0] or _got(c, job[3]) != _net_of(c, net):
             raise Failed(f"the token was not answered once after the restart: {said}")
         _extra, again = _passes(c, net, 15)
-        if again or _got(c, job[3]) != 4_875_000:
+        if again or _got(c, job[3]) != _net_of(c, net):
             raise Failed(f"the token was carried again: {again}")
     return Outage("the relay is killed between a send and its confirmation",
                   "the relay's process ended after the paying transaction landed and before it noted or logged anything (its notes said the token was being sent)",
@@ -1042,13 +1049,13 @@ def rpc_errors_and_stale_blockhashes() -> Outage:
             said = ghrelay.once(flaky, c.payer, now=c.now(), crank=False)
             if Flaky.failed != before or said:
                 tried.append(c.now() - began)
-        if len(said) != 1 or f" {ghrelay.token_id(proof)} ok " not in said[0] or _got(c, job[3]) != 4_875_000:
+        if len(said) != 1 or f" {ghrelay.token_id(proof)} ok " not in said[0] or _got(c, job[3]) != _net_of(c, net):
             raise Failed(f"the token was not paid once the endpoint answered: {said}")
         if any(" fail " in ln for ln in gh.log()):
             raise Failed("a failure of the endpoint was logged as a verdict on the token")
         tries = int(re.search(r" tries=(\d+) ", said[0]).group(1))
         _extra, again = _passes(c, net, 15)
-        if again or _got(c, job[3]) != 4_875_000:
+        if again or _got(c, job[3]) != _net_of(c, net):
             raise Failed(f"the token was carried again: {again}")
     return Outage("the RPC endpoint errors and returns stale blockhashes",
                   f"for {bad} s every transaction the relay sent failed: a closed connection, or \"Blockhash not found\"; reads still answered",

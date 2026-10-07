@@ -184,3 +184,46 @@ def test_the_command_prints_the_six_stages_alone_as_markdown(tmp_path):
     assert ls.main(["--log", str(log), "--events", str(events), "--offline", "--md"], said.append) == 0
     assert len(said) == 9 and said[0].startswith("| stage |") and all(ln.startswith("| ") for ln in said)
     assert said[2] == "| merge to paid, the whole wait | GitHub's `merged_at` to the block that paid | not recorded | not recorded | not recorded |"     # offline: no merge time, so nothing was timed
+
+
+def test_the_five_clocks_are_separate_rows_each_with_its_own_sample_and_no_number_without_one():
+    doc, get, when = sample()
+    r = ls.report(doc["comments"], doc["events"], get, when)
+    rows = r["clocks"]
+    assert [c[0] for c in ls.CLOCKS] == ["work execution", "evidence availability", "Knos decision processing", "chain inclusion, at `confirmed`",
+                                         "chain inclusion, at `finalized`", "bank availability"]
+    assert list(dict.fromkeys(row["clock"] for row in rows)) == [c[0] for c in ls.CLOCKS]
+    by = {row["part"].split(":")[0]: row for row in rows}
+    assert (by["relay pickup"]["n"], by["relay pickup"]["p50"], by["relay pickup"]["p95"], by["relay pickup"]["where"]) == (9, 3, 41, "devnet, 9 of 9 payments")
+    assert by["finality"]["n"] == 0 and by["finality"]["p50"] is None and by["finality"]["where"] == ls.NOT_RECORDED
+    # the decision clock is not this script's to measure: with no sample given it has no figure, and with one it says where it is from
+    assert all(row["n"] == 0 and row["p50"] is None and row["where"] == "not measured" for row in rows if row["clock"] == "Knos decision processing")
+    timed = ls.clocks(r["six"], {"rows": {"fresh, accepted": {"n": 40, "p50": 1.04, "p95": 1.31}, "cached, accepted": {"n": 40, "p50": 0.9, "p95": 1.1}}}, r["whole"])
+    fresh = next(row for row in timed if "fresh" in row["part"])
+    assert (fresh["n"], fresh["p50"], fresh["p95"], fresh["unit"]) == (40, 1.0, 1.3, "ms") and "no network" in fresh["where"] and "Not measured on devnet" in fresh["where"]
+    # there is no bank route, and the row says so instead of a figure
+    bank = rows[-1]
+    assert bank["clock"] == "bank availability" and bank["where"] == bank["part"] == "not applicable: no bank route" and bank["p50"] is None
+    table = ls.clock_table(timed)
+    assert table[0] == "| clock | what is timed | measured | n | p50 | p95 | whose wait | target |" and len(table) == 2 + len(timed) == 11
+    assert table[-1].startswith("| bank availability | not applicable: no bank route | not applicable: no bank route | - | - | - |")
+    assert "| not recorded | not recorded | not recorded | not recorded |" in next(ln for ln in table if ln.startswith("| chain inclusion, at `finalized`"))
+    for ln, row in zip(table[2:], timed):                       # a figure only beside its n
+        assert (f"| {row['n']} | " in ln) == bool(row["n"])
+    # the page: the table is this function's on what docs/load.json keeps, it says 5 of 41, and it names the machine of the local row
+    page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
+    kept = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))["relay"]
+    assert all(line in page for line in ls.clock_table(ls.clocks(kept["stages"]["six"], kept["decision"], kept["stages"]["whole"])))
+    assert "### The five clocks" in page and "Only 5 of those 41 carry stage times" in page and "devnet, 5 of 41 payments" in page
+    assert kept["decision"]["machine"] in page and kept["decision"]["rows"]["fresh, accepted"]["n"] == 40 and "has not been measured" in page
+    assert kept["decision"]["rows"]["fresh, accepted"]["p95"] < 2000 and kept["decision"]["rows"]["cached, accepted"]["p95"] < 200
+
+
+def test_the_command_prints_the_five_clocks_alone(tmp_path):
+    doc, _get, _when = sample()
+    log, events = tmp_path / "log.json", tmp_path / "events.json"
+    log.write_text(json.dumps({"comments": doc["comments"]}), encoding="utf-8")
+    events.write_text(json.dumps(doc["events"]), encoding="utf-8")
+    said: list[str] = []
+    assert ls.main(["--log", str(log), "--events", str(events), "--offline", "--clocks"], said.append) == 0
+    assert len(said) == 11 and said[0].startswith("| clock |") and said[-1].startswith("| bank availability |")

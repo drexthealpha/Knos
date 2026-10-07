@@ -197,14 +197,17 @@ def test_account_sizes_and_field_offsets_are_the_constants_of_the_source():
     lens = {**constants(STATE, ""), **constants(TERMS_RS, "")}
     sizes = {a["name"]: sum(size(f["type"]) for f in a["type"]["fields"]) for a in IDL["accounts"]}
     assert sizes == {"Balance": 160, "Job": 320, "Bind": 56, "Rep": 64, "Pair": 1, "Pause": 8, "Rate": 16, "BalX": 152, "Plan": 24, "Used": 41, "Order": 512,
-                     "Hb": 240, "Done": 65, "As": 88, "Q": 106}
+                     "Hb": 240, "Done": 73, "As": 88, "Q": 122}
     assert sizes == {"Balance": lens["BALANCE_LEN"], "Job": lens["JOB_LEN"], "Bind": lens["BIND_LEN"], "Rep": lens["REP_LEN"], "Pair": lens["PAIR_LEN"],
                      "Pause": lens["PAUSE_LEN"], "Rate": lens["RATE_LEN"], "BalX": lens["BALX_LEN"], "Plan": lens["PLAN_LEN"], "Used": lens["USED_LEN"],
                      "Order": lens["ORDER_LEN"], "Hb": lens["HB_LEN"], "Done": lens["DONE_LEN"], "As": lens["AS_LEN"], "Q": lens["Q_LEN"]}
-    assert {name for name in lens if name.endswith("_LEN")} == {"BALANCE_LEN", "JOB_LEN", "BIND_LEN", "REP_LEN", "PAIR_LEN", "PAUSE_LEN", "RATE_LEN",
+    assert {name for name in lens if name.endswith("_LEN")} | {"DONE_LEN_21", "Q_LEN_21"} == {name for name in lens if "_LEN" in name} and \
+        {name for name in lens if name.endswith("_LEN")} == {"BALANCE_LEN", "JOB_LEN", "BIND_LEN", "REP_LEN", "PAIR_LEN", "PAUSE_LEN", "RATE_LEN",
                                                                 "BALX_LEN", "PLAN_LEN", "USED_LEN", "ORDER_LEN", "HB_LEN", "DONE_LEN", "AS_LEN", "Q_LEN"}
+    # the two markers 2.1 wrote shorter (no stamp; no owner and actor) keep their lengths as constants: they are still on chain
+    assert (lens["DONE_LEN_21"], lens["Q_LEN_21"], pay.DONE_LEN, pay.DONE_LEN_21) == (65, 106, 73, 65)
     assert (pay.BALX_LEN, pay.PLAN_LEN, pay.ORDER_LEN) == (152, 24, 512)
-    assert (pay.HB_LEN, pay.DONE_LEN, pay.AS_LEN, pay.USED_LEN) == (240, 65, 88, 41)
+    assert (pay.HB_LEN, pay.DONE_LEN, pay.AS_LEN, pay.USED_LEN) == (240, 73, 88, 41)
     # every account's docs give its length
     for a in IDL["accounts"]:
         assert f" {sizes[a['name']]} byte" in " ".join(a["docs"]), a["name"]
@@ -228,13 +231,14 @@ def test_account_sizes_and_field_offsets_are_the_constants_of_the_source():
                   "O_NOT_BEFORE": "notBefore", "O_HOLD_UNTIL": "holdUntil", "O_WARRANTY_S": "warrantyS", "O_RESERVED_BY": "reservedBy",
                   "O_RESERVED_UNTIL": "reservedUntil", "O_CANCEL_AT": "cancelAt", "O_PAYEE": "payeeId", "O_FUNDER_ID": "funderId", "O_OWNER_ID": "ownerId",
                   "O_ARBITER_ID": "arbiterId", "O_JUDGE_REPO": "judgeRepoId", "O_SOURCE": "source", "O_REFUND_TO": "refundTo", "O_RENT_TO": "rentTo",
-                  "O_MINT": "mint", "O_TERMS": "terms", "O_WF_REPO": "wfRepoHash", "O_WF_SHA": "wfSha", "O_FEE_BPS": "feeBps", "O_RESERVED": "reserved"},
+                  "O_MINT": "mint", "O_TERMS": "terms", "O_WF_REPO": "wfRepoHash", "O_WF_SHA": "wfSha", "O_FEE_BPS": "feeBps", "O_INC": "inc", "O_GRACE": "grace",
+                  "O_RESERVED": "reserved"},
         "Used": {"U_PAYER": "payer", "U_AFTER": "after"},
         # the accounts of an order's terms (order_terms.rs). H_ENTRIES is where the first of the four entries starts
         "Hb": {"H_VERSION": "version", "H_BUMP": "bump", "H_N": "n", "H_PAYER": "payer", "H_UNTIL": "until", "H_ENTRIES": "payeeId0"},
-        "Done": {"D_PAYER": "payer", "D_ORDER": "order"},
+        "Done": {"D_PAYER": "payer", "D_ORDER": "order", "D_STAMP": "stamp"},
         "As": {"A_VERSION": "version", "A_BUMP": "bump", "A_PAYEE": "payeeId", "A_ORDER": "order", "A_TO": "to", "A_SINCE": "since"},
-        "Q": {"Q_BUMP": "bump", "Q_KIND": "kind", "Q_PAYER": "payer", "Q_ORDER": "order", "Q_SINCE": "since", "Q_ART": "artifact"},
+        "Q": {"Q_BUMP": "bump", "Q_KIND": "kind", "Q_PAYER": "payer", "Q_ORDER": "order", "Q_SINCE": "since", "Q_ART": "artifact", "Q_OWNER": "ownerId", "Q_ACTOR": "actorId"},
     }
     prefix = {"Job": "J_", "Balance": "B_", "Bind": "BD_", "Rep": "R_", "BalX": "X_", "Plan": "P_", "Order": "O_", "Used": "U_", "Hb": "H_", "Done": "D_", "As": "A_", "Q": "Q_"}
     entry = constants(TERMS_RS, "H_")["H_ENTRY"]        # the size of one entry of a holdback's record, not an offset
@@ -243,6 +247,7 @@ def test_account_sizes_and_field_offsets_are_the_constants_of_the_source():
         consts = {**constants(STATE, prefix[account]), **constants(TERMS_RS, prefix[account]), **(constants(JUDGE_RS, "BD_") if account == "Bind" else {})}
         consts.pop("H_ENTRY", None)
         consts.pop("Q_LEN", None)                       # a quorum marker's length, which its prefix makes look like an offset
+        consts.pop("Q_LEN_21", None)                    # and the length 2.1 wrote
         assert set(fields) == set(consts), account
         at = offsets(layout(account))
         assert {c: at[f] for c, f in fields.items()} == consts, account
@@ -261,7 +266,7 @@ def test_account_sizes_and_field_offsets_are_the_constants_of_the_source():
     # the times are signed: exactly the fields the source reads or writes as i64
     signed = {c for src in SRC.values() for pair in re.findall(r"i64_at\(&d, ([A-Z]\w+)\)|put_i64\(&mut d, ([A-Z]\w+),", src) for c in pair if c}
     assert signed == {"J_DEADLINE", "J_HOLD_UNTIL", "J_NOT_BEFORE", "B_LAST_IAT", "BD_IAT", "R_FIRST", "R_LAST", "X_DAY", "P_EXPIRES", "O_DEADLINE",
-                      "O_NOT_BEFORE", "O_HOLD_UNTIL", "O_WARRANTY_S", "O_RESERVED_UNTIL", "O_CANCEL_AT", "U_AFTER", "H_UNTIL", "A_SINCE", "Q_SINCE"}
+                      "O_NOT_BEFORE", "O_HOLD_UNTIL", "O_WARRANTY_S", "O_RESERVED_UNTIL", "O_CANCEL_AT", "U_AFTER", "H_UNTIL", "A_SINCE", "Q_SINCE", "D_STAMP"}
     for account, fields in names.items():
         assert {f["name"] for f in layout(account) if f["type"] == "i64"} == {fields[c] for c in signed if c in fields}, account
     for account in ("Pause", "Rate"):
@@ -328,9 +333,11 @@ def test_an_orders_accounts_written_as_the_idl_says_are_read_by_the_client():
          "daySpent": 7, "totalSpent": 9}
     assert pay.read_balx(encode(layout("BalX"), x)) == pay.BalanceX(day_limit=30, total_limit=70, repos=(REPO, 5), wf_sha=WF_SHA, day=20_717, day_spent=7, total_spent=9)
     assert pay.read_balx(encode(layout("BalX"), {**x, "wfSha": bytes(40)})).wf_sha == ""
-    plan = pay.read_plan(encode(layout("Plan"), {"version": 1, "bump": 249, "feeBps": 100, "ownerId": OWNER, "expires": 1_790_000_600}))
-    assert plan == pay.Plan(fee_bps=100, owner_id=OWNER, expires=1_790_000_600)
-    assert (pay.plan_bps(plan, 1_790_000_599), pay.plan_bps(plan, 1_790_000_600), pay.plan_bps(None, 0)) == (100, pay.FEE_BPS, pay.FEE_BPS)
+    plan = pay.read_plan(encode(layout("Plan"), {"version": 1, "bump": 249, "feeBps": 20, "ownerId": OWNER, "expires": 1_790_000_600}))
+    assert plan == pay.Plan(fee_bps=20, owner_id=OWNER, expires=1_790_000_600)
+    assert (pay.plan_bps(plan, 1_790_000_599), pay.plan_bps(plan, 1_790_000_600), pay.plan_bps(None, 0)) == (20, pay.FEE_BPS, pay.FEE_BPS)
+    # a Plan of 2.1 (50 to 250 basis points) that is still on chain lowers nothing: the rate is never above the standard one
+    assert pay.plan_bps(pay.Plan(fee_bps=100, owner_id=OWNER, expires=1_790_000_600), 1_790_000_599) == pay.FEE_BPS == 30
     # a holdback's record: only the entries it counts are read
     h = {"version": 1, "bump": 248, "n": 2, "payer": bytes(K["relayer"]), "until": 1_790_000_700, "payeeId0": PAYEE, "wallet0": bytes(K["wallet"]),
          "amount0": 350_000, "payeeId1": 9, "wallet1": bytes(K["funder"]), "amount1": 150_000, "payeeId2": 8, "wallet2": bytes(K["mint"]), "amount2": 1}
@@ -364,27 +371,29 @@ def test_every_error_code_and_bound_of_the_source_is_the_clients():
     assert set(pay.ERRORS) == own | stale_key and all(text and text[0].islower() and not text.endswith(".") for text in pay.ERRORS.values())
     value = lambda name: eval(re.search(rf"pub const {name}: \w+ = ([\d_ *]+);", LIB).group(1).replace("_", ""), {})  # noqa: E731, S307 - digits and * only
     for name in ("FEE_BPS", "FEE_MIN", "MIN_AMOUNT", "MAX_AMOUNT", "MIN_WORK", "MAX_WORK", "HOLD", "FAUCET_CAP", "FUND_PERIOD", "CLOCK_SLACK", "PAUSE_MAX", "MAX_TERMS",
-                 "TOKEN_AHEAD", "TOKEN_LIFE", "ORDER_FEE_MIN", "FEE_TIER_1", "FEE_TIER_2", "FEE_BPS_2", "FEE_BPS_3", "ORDER_MIN_AMOUNT", "TIP", "TIP_FIRST", "PLAN_BPS_MIN", "MAX_HOLDBACK_BPS",
+                 "TOKEN_AHEAD", "TOKEN_LIFE", "ORDER_MIN_AMOUNT", "TIP", "TIP_FIRST", "PLAN_BPS_MIN", "MAX_HOLDBACK_BPS",
                  "MAX_WARRANTY_DAYS", "MAX_KILL_BPS", "MAX_PAYEES"):
         assert value(name) == getattr(pay, name), name
-    for amount in (0, 1, 49_999, 50_000, 1_000_000, 1_999_999, 2_000_000, 5_000_000, 123_456_789, 500_000_000):
-        assert pay.fee_of(amount) == min(max(amount // 10_000 * 250 + amount % 10_000 * 250 // 10_000, 50_000), amount)
-    # an order's fee is paid on top, in three marginal tiers: the owner's Plan rate (or 2.5%) of the first 1,000 whole
-    # units, 1% from there to 50,000, 0.5% above; at least 0.40 and no maximum. The same sums as lib.rs's own test.
+    for name in ("ORDER_FEE_MIN", "FEE_TIER_1", "FEE_TIER_2", "FEE_BPS_2", "FEE_BPS_3"):       # 2.2: one rate, no tiers
+        assert f"pub const {name}" not in LIB and not hasattr(pay, name), name
+    assert (pay.FEE_BPS, pay.FEE_MIN, pay.PLAN_BPS_MIN, pay.GRACE) == (30, 50_000, 10, 7200) and "pub const GRACE: i64 = TOKEN_LIFE + knos_oidc::LATE;" in LIB
     part = lambda a, bps: a // 10_000 * bps + a % 10_000 * bps // 10_000  # noqa: E731 - bps_of
-    one, edges = 1_000_000, (0, 1, 5, 16, 100, 999, 1_000, 1_001, 2_000, 49_999, 50_000, 50_001, 100_000, 1_000_000)
-    for amount in [e * one + d for e in edges for d in (-1, 0, 1, 99, 100, 199, 200) if e * one + d >= 0]:
-        for bps in (50, 100, 150, 250):
-            first, second, third = min(amount, 1_000 * one), min(amount, 50_000 * one) - min(amount, 1_000 * one), amount - min(amount, 50_000 * one)
-            assert pay.order_fee(amount, bps) == max(part(first, bps) + part(second, 100) + part(third, 50), 400_000), (amount, bps)
-    table = [(5, 250, 0.4), (16, 250, 0.4), (100, 250, 2.5), (1_000, 250, 25), (2_000, 250, 35), (50_000, 250, 515), (100_000, 250, 765), (1_000_000, 250, 5_265),
-             (1_000, 50, 5), (2_000, 50, 15), (50_000, 150, 505), (100_000, 50, 745)]
+    for amount in (0, 1, 49_999, 50_000, 1_000_000, 1_999_999, 2_000_000, 5_000_000, 16_666_666, 16_670_000, 123_456_789, 500_000_000):
+        assert pay.fee_of(amount) == min(max(part(amount, 30), 50_000), amount)
+    # an order's fee is paid on top: the owner's Plan rate (or 0.30%) of the whole amount, at least 0.05 and no
+    # maximum; one rate, no tiers. The same sums as lib.rs's own test.
+    one, edges = 1_000_000, (0, 1, 5, 16, 17, 100, 999, 1_000, 1_001, 5_000, 50_000, 100_000, 1_000_000)
+    for amount in [e * one + d for e in edges for d in (-1, 0, 1, 333, 334, 9_999, 10_000) if e * one + d >= 0]:
+        for bps in (10, 15, 20, 30):
+            assert pay.order_fee(amount, bps) == max(part(amount, bps), 50_000), (amount, bps)
+    # the price book's examples, and a Plan
+    table = [(5, 30, 0.05), (16, 30, 0.05), (17, 30, 0.051), (100, 30, 0.3), (1_000, 30, 3), (5_000, 30, 15), (100_000, 30, 300), (1_000_000, 30, 3_000),
+             (1_000, 10, 1), (5_000, 20, 10), (100_000, 10, 100)]
     for units, bps, fee in table:
         assert pay.order_fee(units * one, bps) == round(fee * one), (units, bps)
-    assert (pay.order_fee(2_000 * 10 ** 9, 250, 9), pay.order_fee(200_000, 250, 2), pay.order_fee(100_000, 250, 0), pay.order_fee(60_000, 250, 0)) == (35 * 10 ** 9, 3_500, 765, 565)
-    assert pay.MAX_AMOUNT == 100_000 * one and pay.order_fee(pay.MAX_AMOUNT) == 765 * one
-    assert (pay.order_fee(5_000_000), pay.order_fee(16_000_040), pay.order_fee(500_000_000), pay.order_fee(2_000_000_000)) == (400_000, 400_001, 12_500_000, 35_000_000)
-    assert (pay.order_fee(5 * 10 ** 9, decimals=9), pay.order_fee(500, decimals=2)) == (400_000_000, 40)
+    assert (pay.order_fee(2_000 * 10 ** 9, 30, 9), pay.order_fee(200_000, 30, 2), pay.order_fee(100_000, 30, 0), pay.order_fee(60_000, 30, 0)) == (6 * 10 ** 9, 600, 300, 180)
+    assert pay.MAX_AMOUNT == 100_000 * one and pay.order_fee(pay.MAX_AMOUNT) == 300 * one
+    assert (pay.order_fee(5 * 10 ** 9, decimals=9), pay.order_fee(500, decimals=2)) == (50_000_000, 5)
 
 
 def test_audiences_and_terms_are_what_the_program_parses():

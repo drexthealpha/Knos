@@ -17,6 +17,7 @@ const { LINE_STATES, LINE_WORDS, COLUMNS, FEEDBACK, REPO_LINES, stateOf, answers
 const { SAMPLE_INVOICE, SAMPLE_BOOK } = await load("front_door_sample.js");
 const { parse, gather, statement, recorded } = await load("shadow.js");
 const { book } = JSON.parse(readFileSync(join(here, "../data/shadow_cases.json"), "utf8"));
+const proposal = JSON.parse(readFileSync(join(here, "../data/propose_terms.json"), "utf8"));
 
 let failed = 0;
 const ok = (what, cond, detail) => { if (!cond) failed++; console.log(`${cond ? "ok  " : "FAIL"} ${what}${cond || detail === undefined ? "" : `: ${JSON.stringify(detail)}`}`); };
@@ -60,7 +61,7 @@ async function page() {
   const browser = await chromiumOrSkip();
   const HOLDER = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Front door</title>
     <link rel="stylesheet" href="app.css"></head><body><main><form id="front-door"></form></main>
-    <script type="module">import { renderFrontDoor } from "./front_door.js"; window.door = renderFrontDoor(document.getElementById("front-door"), { now: new Date("2026-10-06T12:00:00Z") }); window.drawn = true;</script></body></html>`;
+    <script type="module">import { renderFrontDoor } from "./front_door.js"; window.door = renderFrontDoor(document.getElementById("front-door"), { now: new Date("2026-10-06T12:00:00Z"), proposeEnv: { now: Date.parse("2026-10-06T12:00:00Z") / 1000 } }); window.drawn = true;</script></body></html>`;
   const built = process.argv[3];
   if (!built || !existsSync(join(built, "index.html"))) { console.error("usage: node tests/web/front_door.mjs page <site dir>"); process.exit(2); }
   const server = createServer((req, res) => {
@@ -85,6 +86,9 @@ async function page() {
       if (o.offline) { strangers.push(u.href); return route.abort(); }
       sent.push({ method: q.method(), path: at, body: q.postData(), headers: q.headers() });
       if (at === "rate_limit") return route.fulfill({ status: 200, contentType: "application/json", headers: head, body: JSON.stringify({ resources: { core: { limit: 60, remaining: 50, reset: 2000000000 } } }) });
+      // what "Install the meter" reads to propose terms: the recorded repository of tests/data/propose_terms.json, as acme/app
+      const asTerms = at.replace("repos/acme/app", `repos/${proposal.repo}`);
+      if (o.proposing?.on && Object.prototype.hasOwnProperty.call(proposal.api, asTerms)) return route.fulfill({ status: 200, contentType: "application/json", headers: head, body: JSON.stringify(proposal.api[asTerms]).replaceAll(proposal.repo, "acme/app") });
       if (at.startsWith("repos/acme/app/pulls?")) return route.fulfill({ status: 200, contentType: "application/json", headers: head, body: JSON.stringify(listing) });
       const got = Object.prototype.hasOwnProperty.call(book, at) ? book[at] : { __unread: "not found or private" };
       if (got.__unread) return route.fulfill({ status: 404, contentType: "application/json", headers: head, body: "{}" });
@@ -106,12 +110,16 @@ async function page() {
   // 1. the first screen of the site itself: 40 words at most, one control, the round below it
   for (const [width, height] of [[1280, 800], [390, 844], [320, 640]]) {
     const { ctx, p, strangers } = await visit("", width, { height });
-    await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(700);
+    await p.evaluate(() => document.fonts.ready); await p.waitForFunction(() => !document.getElementById("hero-board").hasAttribute("aria-busy")); await p.waitForTimeout(700);
+    // prose, as tests/web/words.mjs counts it, and here with the bar: headings, sentences and links. Not counted, because
+    // it is the thing itself: a control (the box, a button, the handle of a fold), a figure (.k-num), and the rows of
+    // the leaderboard strip (data-not-prose: each is an agent's name, its bar and its count).
     const first = await p.evaluate(() => {
       const out = [], walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const data = "table, dl.facts, pre, code, textarea, select, input, button, label, summary, a.k-btn, a.button, [role=tab], .k-num, .mono, [data-not-prose]";
       for (let n = walk.nextNode(); n; n = walk.nextNode()) {
         const el = n.parentElement;
-        if (!n.textContent.trim() || el.closest("#demo, script, style, noscript") || !el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
+        if (!n.textContent.trim() || el.closest(`#demo, script, style, noscript, ${data}`) || !el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
         const range = document.createRange(); range.selectNodeContents(n);
         const r = range.getBoundingClientRect(), box = el.getBoundingClientRect();
         if (r.width <= 1 || box.width <= 1 || r.bottom <= 0 || r.top >= innerHeight) continue;
@@ -121,13 +129,22 @@ async function page() {
     });
     ok(`${width}px: the first screen says 40 words at most`, first.length <= 40 && first.length >= 15, [first.length, first.join(" ")]);
     const hero = await p.evaluate(() => ({ h1: document.querySelector("h1").textContent.trim(), fact: document.getElementById("hero-fact").textContent.trim(),
-      controls: [...document.querySelectorAll(".hero input, .hero textarea, .hero select, .hero button, .hero-words a:not(.k-num)")].map((e) => e.dataset.fd || e.id),
+      controls: [...document.querySelectorAll(".hero input, .hero textarea, .hero select, .hero button, .hero-words a:not(.k-num):not(#hero-board a)")].map((e) => e.dataset.fd || e.id),
       below: document.getElementById("demo").previousElementSibling.classList.contains("hero"), boxTop: document.querySelector("#front-door [data-fd=run]").getBoundingClientRect().bottom, fold: innerHeight }));
     ok(`${width}px: the sentence, then the number`, hero.h1 === "The neutral meter for AI agent work: neither side keeps the count." && hero.fact === "241 merged agent “tests pass” pull requests: 30 had a failed check." && words(hero.fact) <= 12, hero);
     ok(`${width}px: one control (a box, its button, a sample), above the fold, and the round below`, hero.controls.join() === "fd-in,run,sample" && hero.below && hero.boxTop <= hero.fold, hero);
+    // the week's leaderboard, directly under the box: a visual of the feed (agent_index.json), four rows, each agent a
+    // link to its public record, the 95% interval on every bar, and one link to the board
+    const feedRows = JSON.parse(readFileSync(join(built, "agent_index.json"), "utf8")).weeks[0].rows.filter((r) => r.rank != null).slice(0, 4);
+    const strip = await p.evaluate(() => { const b = document.getElementById("hero-board"), r = b.getBoundingClientRect(), f = document.getElementById("front-door").getBoundingClientRect();
+      return { rows: [...b.querySelectorAll("li")].map((li) => [li.dataset.agent, li.querySelector("a").getAttribute("href"), li.querySelector(".bs-n").textContent, !!li.querySelector(".bs-whisker")]),
+        board: b.querySelector(".bs-head a").getAttribute("href"), top: r.top, bottom: r.bottom, under: r.top >= f.bottom && r.top - f.bottom <= 40, fold: innerHeight, prose: b.querySelector("ol").hasAttribute("data-not-prose") }; });
+    same(`${width}px: the leaderboard strip is the feed's top rows, each linked to its record`, strip.rows, feedRows.map((r) => [r.agent, `#record=${r.agent}`, `${r.failed_at_merge} of ${r.merged}`, true]));
+    ok(`${width}px: it sits directly under the box, ${height >= 800 ? "whole above the fold" : "begun above the fold"}, and links to the board`, strip.under && strip.board === "#index" && (height >= 800 ? strip.bottom <= strip.fold : strip.top < strip.fold), strip);
+    ok(`${width}px: the first screen asks for the strip's own file, not the whole board`, await p.evaluate(() => performance.getEntriesByType("resource").some((e) => /\/board_strip\.js$/.test(e.name)) && !performance.getEntriesByType("resource").some((e) => /\/(index_board|mounts|app)\.js$/.test(e.name))));
     ok(`${width}px: the first screen does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
-    // the upgrades that are waiting, in one line on the first screen, from upgrades.json (a file of the site): inside the 40
-    // words counted above, in the hero's top margin above the sentence, and opened it says each proposal in the file's words
+    // the upgrades that are waiting, in one line on the first screen, from upgrades.json (a file of the site): the handle
+    // of a fold, two words and a badge (a control, so not among the prose counted above), in the hero's top margin above the sentence, and opened it says each proposal in the file's words
     const feed = JSON.parse(readFileSync(join(built, "upgrades.json"), "utf8")), pending = feed.entries.filter((e) => e.status === "pending");
     const up = await p.evaluate(() => { const d = document.getElementById("hero-upgrades"), r = d.getBoundingClientRect(), w = document.querySelector(".hero-words").getBoundingClientRect();
       const h = document.getElementById("hero-upgrades-line");
@@ -136,7 +153,7 @@ async function page() {
     const n = pending.length, due = Math.min(...pending.map((e) => e.earliest_execution)), now = await p.evaluate(() => Date.now() / 1000), over = pending.every((e) => e.squads_status === "Approved") && now >= due;
     const want = { words: over ? "Upgrades approved" : "Upgrades pending", badge: `"${n}"`, label: `${n} program upgrade${n === 1 ? "" : "s"} ${over ? "approved, delay over" : "pending"}` };
     ok(`${width}px: the upgrade line is on the first screen: "${want.label}" (the count a badge, two words), from upgrades.json, above the sentence and out of the flow`,
-      n ? up.shown && up.words === want.words && up.badge === want.badge && up.label === want.label && up.bottom <= up.wordsTop + 1 && up.bottom <= up.fold && up.inHero && up.place === "absolute" && first.join(" ").includes(want.words) : !up.shown, [up, want]);
+      n ? up.shown && up.words === want.words && up.badge === want.badge && up.label === want.label && up.bottom <= up.wordsTop + 1 && up.bottom <= up.fold && up.inHero && up.place === "absolute" : !up.shown, [up, want]);
     if (n) {
       await p.click("#hero-upgrades > summary");
       const told = await p.$$eval("#hero-upgrades-body p.upgrade", (l) => l.map((x) => [x.dataset.program, x.dataset.index, x.textContent]));
@@ -237,13 +254,29 @@ async function page() {
     ok("pasted: the result does not scroll sideways at 320 px", (await measure(p)).over <= 0, await measure(p));
     await p.fill("#fd-in", "this is not an invoice"); await p.click('[data-fd="run"]'); await done(p);
     same("pasted: words that name no pull request are said to be that", [await p.textContent('[data-fd="said"]'), await p.textContent(".fd-line .fd-why"), (await groups(p)).insufficient_evidence], ["Checked 1 line. 1 exception.", "No pull request named.", [1, [1]]]);
+    // BY KEYBOARD, FROM THE BOX. Enter checks what the box holds, many lines or one; Shift+Enter is a new line and checks
+    // nothing; one Tab from the box is on Check, and Enter there checks. (Enter in a box of several lines used to add a line.)
+    const fresh = () => p.evaluate(() => { delete document.getElementById("front-result").dataset.done; });
+    const said = () => p.textContent('[data-fd="said"]');
+    await p.fill("#fd-in", "first words\nsecond words"); await fresh(); await p.focus("#fd-in"); await p.keyboard.press("Enter"); await done(p);
+    same("keys: Enter in a box of two lines checks them and adds no line", [await said(), await p.inputValue("#fd-in")], ["Checked 2 lines. 2 exceptions.", "first words\nsecond words"]);
+    await p.keyboard.press("Shift+Enter"); await p.keyboard.type("third words");
+    same("keys: Shift+Enter is a new line, and checks nothing", [await p.inputValue("#fd-in"), await said(), await p.getAttribute("#front-result", "data-done") !== null],
+      ["first words\nsecond words\nthird words", "Checked 2 lines. 2 exceptions.", true]);
+    await fresh(); await p.keyboard.press("Tab");
+    same("keys: one Tab from the box is on Check", await p.evaluate(() => document.activeElement.dataset.fd), "run");
+    await p.keyboard.press("Enter"); await done(p);
+    same("keys: Enter there checks what the box holds", await said(), "Checked 3 lines. 3 exceptions.");
+    await p.fill("#fd-in", ""); await fresh(); await p.focus("#fd-in"); await p.keyboard.press("Enter");
+    await p.waitForFunction(() => document.querySelector('[data-fd="said"]').textContent.startsWith("Not read"));
+    same("keys: Enter in an empty box says what to paste, and adds no line", [await said(), await p.inputValue("#fd-in")], ["Not read: paste pull request links, or type owner/repo.", ""]);
     ok("pasted: no error on the page", errors.length === 0, errors);
     await ctx.close();
   }
 
   // 4. a public repository, named: its merged pull requests, and no host but api.github.com
   {
-    const { ctx, p, sent, strangers, errors } = await visit("door.html", 320);
+    const proposing = { on: false }, { ctx, p, sent, strangers, errors } = await visit("door.html", 320, { proposing });
     await p.fill("#fd-in", "acme/app"); await p.press("#fd-in", "Enter"); await done(p);
     const g = await groups(p), total = Object.values(g).reduce((a, v) => a + v[0], 0);
     same("repository: seven merged pull requests, each in a group", [total, await p.textContent('[data-fd="theirs"]'), await p.textContent('[data-fd="theirs-name"]'), Number(await p.textContent('[data-fd="ours"]'))], [7, "7", "Merged there", g.agreed[0]]);
@@ -252,6 +285,26 @@ async function page() {
     ok("repository: Install the meter is for that repository", (await p.getAttribute('[data-fd="install"]', "href")).startsWith("https://github.com/acme/app/new/main?filename="));
     ok("repository: every statement is twelve words at most", wordy(await statements(p)).length === 0, wordy(await statements(p)));
     ok("repository: the result does not scroll sideways at 320 px", (await measure(p)).over <= 0, await measure(p));
+    // INSTALL THE METER proposes the repository's terms in place (web/propose_view.js; GitHub's API is the stub above)
+    const before = sent.length; proposing.on = true;
+    await p.click('[data-fd="install"]');
+    await p.waitForFunction(() => document.querySelector('[data-fd="terms"]').dataset.state === "done");
+    const lines = await p.$$eval('[data-fd="terms"] li[data-field]', (l) => l.map((e) => [e.dataset.field, e.querySelector("span").textContent.length > 8, e.querySelector("small").textContent, !!e.closest("details")]));
+    ok("install: the proposed terms are a short list, each line with where it came from", lines.length === 10 && lines.every((x) => x[1] && x[2].length > 8) && lines.filter((x) => !x[3]).length <= 6
+      && /^license\/cla passed on every one of the last 10 merged pull requests/.test(lines.find((x) => x[0] === "checks")[2]), lines.map((x) => [x[0], x[2].slice(0, 40)]));
+    same("install: the date of the last merge is said", await p.textContent('[data-fd="terms"] [data-pt="said"]'), "Draft from 10 merges. Last merge: 2026-09-28.");
+    const accept = await p.getAttribute('[data-fd="terms"] [data-pt="file"]', "href"), termsFile = JSON.parse(decodeURIComponent(accept.split("&value=")[1]));
+    ok("install: one button opens GitHub's new-file page with .knos/terms.json filled in", accept.startsWith("https://github.com/acme/app/new/main?filename=.knos%2Fterms.json&value=") && termsFile.name === "acme/app" && termsFile.v === 3
+      && termsFile.checks.deciding.map((c) => c.name).join() === "license/cla,unit", accept.slice(0, 90));
+    await p.click('[data-fd="terms"] [data-pt="comment"]');
+    await p.waitForFunction(() => !document.querySelector('[data-fd="terms"] [data-pt="line"]').hidden);
+    same("install: one copies the fund comment, which stays in view", await p.textContent('[data-fd="terms"] [data-pt="line"]'), "/knos fund 50 checks: license/cla, unit paths: src/** days 14");
+    ok("install: the workflow file is one link of the list, and one button is primary", (await p.getAttribute('[data-fd="terms"] [data-pt="install"]', "href")).startsWith("https://github.com/acme/app/new/main?filename=.github%2Fworkflows%2Fknos.yml")
+      && await p.$$eval('[data-fd="terms"] .k-btn:not(.quiet)', (l) => l.length) === 1);
+    ok("install: GitHub is asked 17 times at most, GET only, and nobody else", sent.length - before <= 17 && sent.length - before >= 5 && sent.every((s) => s.method === "GET" && !s.headers.authorization) && strangers.length === 0, [sent.length - before, strangers]);
+    ok("install: every statement is twelve words at most", wordy(await statements(p)).length === 0, wordy(await statements(p)));
+    ok("install: the list does not scroll sideways at 320 px", (await measure(p)).over <= 0, await measure(p));
+    proposing.on = false;
     await p.fill("#fd-in", "acme/nothing-here"); await p.press("#fd-in", "Enter");
     await p.waitForFunction(() => /private/.test(document.querySelector('[data-fd="said"]').textContent));
     same("repository: one that is private or not there is said to be that", await p.textContent('[data-fd="said"]'), "Not read: that repository is private, or not there.");

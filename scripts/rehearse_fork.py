@@ -16,7 +16,7 @@ and the pinned guardian only, so they cannot be run here.
     5  wallet funding      the wallet funds a bounty with its own USDC
     6  a Balance           the wallet opens a Balance for a repository owner and puts USDC in it
     7  a bounty by comment  a GitHub-signed comment (test key) funds a second bounty from the Balance, verified on chain
-    8  a payment            a GitHub-signed proof pays the first bounty: the payee gets 97.5%, the fee account 2.5%
+    8  a payment            a GitHub-signed proof pays the first bounty: the payee gets the amount less the fee, the fee account the fee
     9  a refund             the second bounty's deadline passes (surfnet_timeTravel); the money goes back to the Balance
 
 Every step prints what it did and what it found; the first thing that is not as it should be stops the run (exit 1).
@@ -41,7 +41,7 @@ from solders.instruction import AccountMeta, Instruction  # noqa: E402
 from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 
-from knos import chain  # noqa: E402
+from knos import chain, fees  # noqa: E402
 from knos import mainnet_check as mc  # noqa: E402
 from knos.settle.v2 import oidc, pay, relay  # noqa: E402
 
@@ -364,11 +364,12 @@ class Rehearsal:
         if relay.version(self.ledger, self.relayer) < 1:      # 2.0 knows no single-use marker: its Pay takes one account fewer
             ix = Instruction(ix.program_id, bytes(ix.data), list(ix.accounts)[:-1])
         sig, rent = self.closing(self.job_a, job, [ix])
-        fee, got = pay.fee_of(job.amount), self.token_balance(pay.ata(self.payee_wallet, USDC_MINT))
+        rule = fees.live(self.ledger, self.relayer)       # the fee the forked build takes: 2.1's until the upgrade to 2.2 has executed
+        fee, got = rule.job(job.amount), self.token_balance(pay.ata(self.payee_wallet, USDC_MINT))
         self.expect(got == job.amount - fee, f"the payee holds {usdc(got)}, not {usdc(job.amount - fee)}")
         self.expect(self.token_balance(self.fee_tok) - self.fee0 == fee, "the fee account did not receive the fee")
         self.expect(vault0 - self.token_balance(pay.vault_pda(USDC_MINT)) == job.amount, "the vault did not release the job's money")
-        self.ok(f"the payee's wallet received {usdc(got)} and the fee account {usdc(fee)} ({pay.FEE_BPS / 100:g}%); {rent}")
+        self.ok(f"the payee's wallet received {usdc(got)} and the fee account {usdc(fee)} ({fees.pct(rule.job_bps)}, at least {usdc(rule.job_floor)}); {rent}")
         record = pay.read_rep(self.data(pay.rep_pda(self.payee)))
         self.ok(f"GitHub user {self.payee}'s record: {record.paid} payment(s) in real money, {usdc(record.total)} in all")
         for line in self.logs(sig):

@@ -17,8 +17,8 @@ it is upgradeable only through a multisig with a public 48-hour delay, until an 
 reading them back) runs in `tests/test_meter_e2e.py` against the program in LiteSVM. It has run on devnet once, on
 the release's staging deployment of knos_meter 1.1, with tokens GitHub signed for a staging copy of the workflows:
 5,000 evaluations in two batches, the seller's claim of 5,003, and a reconcile that named the 3 the buyer left out
-([CAPABILITIES.md](CAPABILITIES.md), "The 0.3.14 rehearsal on devnet"). The pinned knos_meter runs 1.0 until its upgrade
-executes.
+([CAPABILITIES.md](CAPABILITIES.md), "The 0.3.14 rehearsal on devnet"). The pinned knos_meter runs 1.1 since its upgrade
+(proposal 5) executed.
 
 ## Two modes
 
@@ -53,8 +53,60 @@ the buyer's count (seeds `"l"`, buyer, seller, month) and one for the seller's c
 of the first batch pays its rent, once; the program has no instruction that closes it, so the account stays and the
 rent is not returned. It is the record: the totals and the running hash of a month stay readable.
 
-The tree is RFC 6962's: leaf = sha256(0x00 || id), node = sha256(0x01 || left || right), over the batch's ids sorted
-ascending, each once.
+## What a root commits to: two formats
+
+The program reads the root as 32 opaque bytes, so what it is a hash of is the ledger's to state. There are two
+commitment formats. A new batch is format 2; a format 1 batch stays readable and verifiable as format 1.
+
+| format | the leaf is the hash of | so the root binds |
+|---|---|---|
+| 1 | the evaluation's id: sha256(0x00 \|\| id), node = sha256(0x01 \|\| left \|\| right), RFC 6962's tree over the ids sorted ascending, each once | the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted |
+| 2 | the whole event, in canonical bytes | every field of every evaluation: its four ids, verdict, amount and currency, buyer and seller, policy, artifact, evidence digest, evaluator, run, month and sequence |
+
+**Why format 2 exists.** Take two evaluations at one price and swap which of them was accepted. The count, the
+accepted count and the value do not move, and neither does a format 1 root, so the same signed audience stands for
+both. A format 1 batch therefore cannot show which deliverable was accepted. Under format 2 the two roots differ
+([`tests/test_ledger_format2.py`](../tests/test_ledger_format2.py), and the swap pair in the conformance vectors).
+
+**The event, byte for byte.** Eighteen texts in this order: `deliverable_id`, `evaluation_id`, `invoice_line_id`,
+`settlement_id` (the four ids of [`src/knos/ids.py`](../src/knos/ids.py)), `verdict` (one of the four words), `amount`
+(the line's rate), `currency`, `buyer`, `seller`, `order`, `milestone`, `policy` (the hash of the policy or terms it
+was judged under), `artifact` (the commit), `evidence` (sha256 of the issuer-signed token or receipt, as hex),
+`evaluator`, `run`, `month` (six digits) and `seq` (the batch it is counted in). A whole number is decimal with no
+leading zero; a field the line does not state is the empty text, and its emptiness is hashed. The bytes are
+`knos.event`, a zero byte, the byte 0x02, the byte 0x12, then each text as its length in bytes (u32 big-endian) and its
+UTF-8 bytes. There is no JSON in what is hashed.
+
+    leaf        = sha256("knos.leaf.2" 0x00 || event bytes)
+    node        = sha256("knos.node.2" 0x00 || left || right)
+    correction  = sha256("knos.fix.2"  0x00 || the correction's key)
+    root        = sha256("knos.root.2" 0x00 || number of leaves, u32 big-endian || top of the tree)
+
+The leaves are the events in ascending order of the 32-byte evaluation id, then the corrections in ascending order of
+key. An evaluation given twice is refused. The tree splits at the largest power of two below the number of leaves: a
+last leaf with no sibling is carried up as it is, never hashed with a copy of itself, and a leaf can never be read as
+a node because the two are hashed under different tags.
+
+**Telling the formats apart without trusting the writer.** A format 2 header says `"format":2` beside the root; a
+format 1 header says nothing, as before. The statement is checked, not believed: the format and the number of leaves
+are inside the root, and no tag is shared, so `knos meter verify` recomputes the root in the stated format and a
+header that names the wrong one fails, with the format the lines do hash to. A format 1 root or proof never checks as
+format 2, and the reverse.
+
+**Proofs.** `knos meter prove` gives a proof in the batch's format. A format 2 proof carries the event, so
+`knos meter prove --check` shows that the batch committed to this verdict and this amount for this deliverable. A
+format 1 proof shows that an id is in the set, and every command that prints one says so.
+
+**Old months.** `knos meter migrate <ledger> [--month YYYY-MM]` re-commits each format 1 batch as a new format 2
+batch written at the end of the file:
+
+    {"batch":{"accepted":3,"buyer":424242,"count":4,"format":2,"month":202610,"root":"<64 hex>","seller":555000,"seq":0,"supersedes":"202610.0:<the format 1 root>","value":6000000}}
+
+It has no lines of its own: its events are the lines of the batch it names, which stay where and as they were, with
+their header and their anchored root. It keeps that batch's month, sequence and three numbers, because it is the same
+count. It is not sent to the program as a batch: the program adds every batch to its totals and takes none of zero
+evaluations, so a second anchoring would count the month twice. Until both parties hold the file and reconcile, the
+new root is one party's statement about lines whose ids the chain already anchors.
 
 ## The ledger file
 
@@ -88,7 +140,8 @@ Solana say so). Tests: `tests/test_ledger.py`, `tests/test_ledger_periods.py`.
 |---|---|
 | `knos meter batch <events> --ledger <file> --month YYYY-MM` | adds a batch (the next `seq`) from evaluation lines or `knosm:eval:...` audiences, and prints the root, the totals and the audience the token must be signed for; `--claim` for the seller's own count |
 | `knos meter verify <ledger> [--rpc <url>] [--claim]` | recomputes every root, every total and the running hash; with `--rpc` it reads the Ledger account of every month in the file from that node and holds the file to it (the buyer's account, or with `--claim` the seller's), and prints the two on-chain counts side by side; exit 1 if anything differs. `--onchain totals.json` takes the account's five values from a file instead |
-| `knos meter prove <ledger> <id>` | the inclusion proof of one evaluation, as JSON; `knos meter prove --check <proof>` checks one without the ledger |
+| `knos meter prove <ledger> <id>` | the inclusion proof of one evaluation, as JSON, in the batch's commitment format; `knos meter prove --check <proof>` checks one without the ledger and says what the format binds |
+| `knos meter migrate <ledger> [--month YYYY-MM]` | re-commits each format 1 batch as a new format 2 batch at the end of the file that names the batch it supersedes; no line already in the file changes. `--dry-run` writes nothing |
 | `knos meter reconcile <buyer ledger> <seller ledger> [--rpc <url>]` | what only one side has, what they judged differently, what was entered twice, and the statement; with `--rpc`, each month's two on-chain counts side by side and how far apart they are |
 | `knos meter correct <ledger> <id> --batch <yyyymm>.<seq> --kind duplicate\|verdict\|withdrawn` | writes a correction of one anchored entry to `<ledger>.corrections`; the next `knos meter batch` carries it in its root. Nothing is sent to the chain. With `--kind verdict`: `--accepted 1\|0`, or `--verdict` and one of the four words |
 | `knos meter close <buyer ledger> <seller ledger> --month YYYY-MM` | writes the month's close record, `agreed` or `disputed` with every line in dispute; exit 1 when disputed. `--sign <record> --as buyer\|seller` has GitHub sign it in a run of that party; `--check <record>` checks the tokens kept beside it, with no network |
@@ -181,18 +234,18 @@ buyer's file. The files say what:
     202610 c9f06a898bc6dae84b02d8fabf6d608fa54706fbe1b356de72362c84019f3648 differs in verdict: buyer rejected at 2000000 in 202610, seller accepted at 2000000 in 202610
     buyer,424242
     seller,555000
-    rate,50000
-    free,10000
+    rate,2000
+    free,100000
     month,count,accepted,value,fee,buyer_only,seller_only,disputed
     202610,5,4,8000000,0,0,1,1
-    sha256,9e2185fec401d8bf8cfdb7b12c31fa7d320313077867a875b58a73b265a4538e
+    sha256,cfa4bcb4f5095580ad563bcbf6fc4471f3818e95b0c8c18cba41c9394f6cb16f
     202610 verdicts of what both hold: 4 accepted, 1 rejected, 0 insufficient evidence, 0 disputed; 4 deliverable(s) accepted for the first time (billed once each)
     The two ledgers differ. The statement counts only what both have and describe alike; settle the lines above between you.
 
 The statement counts what both sides have and describe alike, and beside it how many each side has alone and how
 many they dispute. It names the two roles, never "mine" and "theirs", and sorts by id, so the buyer and the seller
-get the same bytes and can compare the last line. `fee` is the price book's Meter line: the first 10,000 evaluations
-of a month are free, then 0.05 USD each (`--rate 20000` for an annual commitment), in millionths of a USD. The
+get the same bytes and can compare the last line. `fee` is the price book's Meter line: the first 100,000 evaluations
+of a month are free, then 0.002 USD each (`--rate` takes another, in millionths of a USD), from prepaid credits. The
 free allowance is the buyer's for the month across all its sellers; a buyer with several passes what is left with
 `--free`.
 
@@ -214,9 +267,14 @@ file, that each evaluation under the root is exactly the line the party holds (`
   derives the verdicts. A compromised runner or a wrong check signs just as well.
 - That a root is the root of real evaluations, or that a batch's count, accepted and value are those of the lines
   under it. `verify` does that, from the file.
-- **Completeness.** A root commits to what was put under it and says nothing of what was left out. A buyer that
-  leaves an evaluation out anchors a perfectly valid smaller count. Only the other party's ledger shows it, which is
-  why the seller anchors its own and why a month is [closed](#closing-a-month) from both.
+- **That every relevant event was supplied.** A root, in either format, commits to what was put under it and says
+  nothing of what was left out. A buyer that leaves an evaluation out anchors a perfectly valid smaller count.
+  Completeness comes from both sides submitting independently and reconciling: the seller anchors its own count, and
+  `knos meter reconcile` sets the two files against each other and reports what one side left out (omissions), what
+  one side entered twice (duplicates), what both hold and describe differently, with each differing field by name
+  (conflicts), and the corrections each side carries. For two format 2 ledgers every field is compared; when either
+  holds a format 1 batch, verdict, rate and month are, and the output says so. A month is
+  [closed](#closing-a-month) from both.
 - **That an evaluation was counted once.** In batch mode the program keeps no account per evaluation, so it cannot
   see one repeated in two batches, or recorded both singly (`Record`) and in a batch: the marker of the single mode
   and the root of a batch do not know of each other, and the buyer is billed for both. This is decided off chain, by
@@ -234,7 +292,7 @@ A statement gives three numbers for a month and never adds them together.
 
 | number | what it counts | what it is for |
 |---|---|---|
-| **evaluations** | every evaluation that counts once: one run of a policy on one artifact for one deliverable, accepted or rejected | the Meter's billable unit: the first 10,000 a month are free, then 0.05 USD each (0.02 on an annual commitment) |
+| **evaluations** | every evaluation that counts once: one run of a policy on one artifact for one deliverable, accepted or rejected | the Meter's billable unit: the first 100,000 a month are free, then 0.002 USD each |
 | **accepted outcomes** | deliverables (work order + milestone) with an accepted evaluation, counted once, in the month it is first accepted | what a vendor's per-outcome price multiplies |
 | **rejected evaluations** | evaluations whose verdict is rejected | the work that was judged and not accepted; billable to the Meter, not an outcome |
 
@@ -265,8 +323,8 @@ uses the second. Making the chain's `value` count per deliverable would need a p
     accepted_outcomes,6
     rejected_evaluations,1
     accepted_evaluations,6
-    meter_rate,50000
-    meter_free,10000
+    meter_rate,2000
+    meter_free,100000
     meter_fee,0
     value_of_accepted_evaluations,12000000
     value_of_accepted_outcomes,12000000
@@ -291,9 +349,10 @@ A verdict is one of four words ([`src/knos/ids.py`](../src/knos/ids.py)): `accep
 many were accepted, their value and a root; the single mode's token still carries accepted 1 or 0. So the chain
 knows two things about a verdict: accepted, or not. `insufficient_evidence` and `disputed` live in the off-chain
 ledger line and in corrections, and **in the anchored totals they count as "not accepted"**, together with
-`rejected`: for every batch, count - accepted = rejected + insufficient evidence + disputed. The root is over the
-evaluations' ids, so a line that says `insufficient_evidence` and the same line written as accepted 0 give the same
-root and the same token. What tells the three apart is the ledger file each party holds: `knos meter reconcile`
+`rejected`: for every batch, count - accepted = rejected + insufficient evidence + disputed. A format 1 root is over
+the evaluations' ids, so a line that says `insufficient_evidence` and the same line written as accepted 0 give the
+same root and the same token; a format 2 root is over the whole line, verdict included, so they do not. What tells
+the three apart in a format 1 batch is the ledger file each party holds: `knos meter reconcile`
 reports a line the buyer holds as insufficient evidence and the seller as rejected as a difference in verdict, and
 a month with such a line closes `disputed` until the two files say the same.
 
@@ -522,7 +581,7 @@ with a fee transfer; `ClaimBatch` 57,412 and 50,946. The relay asks for 110,000 
 | fees spent per evaluation | 3 × 5,000 = 15,000 lamports = 0.0018 USD | 15,000 ÷ 5,000 = 3 lamports = 0.00000036 USD |
 | rent per evaluation | (128 + 88) × 5,080 = 1,097,280 lamports = 0.1333 USD, locked, returned to the relayer from two hours into the next month | none |
 | rent per buyer, seller and month | none beyond the above (the month's count account, 64 bytes, is not in this table) | (128 + 96) × 5,080 = 1,137,920 lamports = 0.138 USD, once, not returned |
-| Knos's fee per evaluation past the free 10,000 | 0.05 USD (0.02 on a plan) | the same |
+| what knos_meter takes on devnet per evaluation past its free 10,000 (test money; the price book's Meter line is 0.002 USD past 100,000, from prepaid credits) | 0.05 (0.02 on a plan) | the same |
 | against the 0.05 USD price | the locked rent is 2.7 times the price | fee and rent together are about a hundred-thousandth of the price at 1,000,000 a month |
 
 The share of the instruction's own signature is 5,000 ÷ 5,000 = 1 lamport per evaluation; the other two lamports are
@@ -539,7 +598,7 @@ One buyer, one seller, 1,000,000 evaluations in the month, SOL at 121.50 USD.
 | SOL locked in rent at month end | 1,000,000 × 1,097,280 lamports = 1,097.28 SOL = 133,320 USD, put up by the relayer, returned from two hours into the next month | none |
 | SOL spent on rent | none (the markers' rent comes back) | 1,137,920 lamports = 0.00114 SOL = 0.14 USD for the buyer's Ledger account; the same again for the seller's claim |
 | SOL spent on transaction fees | 1,000,000 × 15,000 lamports = 15 SOL = 1,822.50 USD | 200 × 15,000 lamports = 0.003 SOL = 0.36 USD |
-| Knos's fee for the month | 990,000 × 0.05 = 49,500 USD (19,800 at 0.02) | the same |
+| what knos_meter takes for the month on devnet (test money; by the price book: 900,000 × 0.002 = 1,800 USD) | 990,000 × 0.05 = 49,500 (19,800 at 0.02) | the same |
 | credits that must be prepaid at one time | 0.05 USD: each evaluation is paid as it is recorded | 250 USD: a batch of 5,000 past the allowance is paid whole (100 USD at 0.02) |
 
 So the individual mode ties up about 133,000 USD of somebody's SOL for a month to count 49,500 USD of fees, and the

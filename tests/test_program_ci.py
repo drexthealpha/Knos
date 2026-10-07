@@ -378,6 +378,37 @@ def test_the_verifiers_two_targets_are_fuzzed_nightly_for_five_minutes_each_and_
     assert not [name for name, other in doc["jobs"].items() if name != "fuzz-claims" and "nightly" in str(other)]
 
 
+def test_every_kani_harness_of_knos_pay_runs_in_a_job_and_none_is_let_off_by_its_time():
+    """Every `#[kani::proof]` of programs-v2/knos_pay/src/proofs.rs is named by exactly one Kani step of program.yml
+    (`--exact --harness`), so a harness added, renamed or left out is found here. The fee-bounds harness, which did not
+    finish in 30 minutes (run 37569582253), has a job of its own with the hosted runner's 360 minutes; its step stops
+    first and fails, and nothing there lets a failure or the limit pass."""
+    from _ghexpr import runs
+    doc = _doc()
+    proofs = (ROOT / "programs-v2" / "knos_pay" / "src" / "proofs.rs").read_text(encoding="utf-8")
+    harnesses = re.findall(r"#\[kani::proof\]\s*(?:#\[[^\]]*\]\s*)*fn (\w+)\(", proofs)
+    assert len(harnesses) == proofs.count("#[kani::proof]") >= 5
+    named: list[str] = []
+    for name, job in doc["jobs"].items():
+        for step in job.get("steps", []):
+            if "kani-github-action" in str(step.get("uses", "")) and step["with"]["working-directory"] == "programs-v2/knos_pay":
+                args = step["with"]["args"].split()
+                assert "--exact" in args and "--harness" in args, name          # by name, or a harness could hide in "every"
+                # `--exact` takes the full path of a harness (Kani: "Please specify the fully-qualified name")
+                full = [args[i + 1] for i, a in enumerate(args) if a == "--harness"]
+                assert all(f.startswith("proofs::harness::") for f in full), name
+                named += [f.removeprefix("proofs::harness::") for f in full]
+                assert "continue-on-error" not in step and "continue-on-error" not in job, name
+    assert sorted(named) == sorted(harnesses) and len(named) == len(set(named))
+    fee = "an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount"
+    long = doc["jobs"]["kani-fee-bounds"]
+    [step] = [s for s in long["steps"] if "kani-github-action" in str(s.get("uses", ""))]
+    assert step["with"]["args"].split()[-2:] == ["--harness", f"proofs::harness::{fee}"] and step["with"]["args"].count("--harness") == 1
+    assert long["timeout-minutes"] == 360 and step["timeout-minutes"] < long["timeout-minutes"] and "needs" not in long
+    assert step["with"]["kani-version"] == doc["jobs"]["kani"]["steps"][1]["with"]["kani-version"]
+    for event, runs_it in (("schedule", True), ("workflow_dispatch", True), ("push", False), ("pull_request", False)):
+        assert runs(long["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
+
 def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_random_on_every_push():
     from _ghexpr import runs
     doc = _doc()
@@ -387,18 +418,18 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
         assert runs(job["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
     checkout, kani, fees = job["steps"]
     # the fee's bounds, on the program's own lines copied out as text: the same verifier, every harness of that crate
-    assert fees["uses"] == kani["uses"] and fees["with"] == {**kani["with"], "working-directory": "programs-v2/fee_proofs"}
+    assert fees["uses"] == kani["uses"] and fees["with"] == {**kani["with"], "working-directory": "programs-v2/fee_proofs", "args": "--output-format terse"}
     assert "#[kani::proof]" in (ROOT / "programs-v2" / "fee_proofs" / "src" / "lib.rs").read_text(encoding="utf-8")
     assert checkout["uses"] == _pin("actions/checkout@v7") and kani["uses"] == _pin("model-checking/kani-github-action@v1.1")
     # a named version of the verifier, in the crate whose arithmetic it proves; a harness that fails fails the step
     assert re.fullmatch(r"\d+\.\d+\.\d+", kani["with"]["kani-version"]) and kani["with"]["working-directory"] == "programs-v2/knos_pay"
-    assert set(kani["with"]) == {"kani-version", "working-directory", "args"} and "--harness" not in kani["with"]["args"]    # every harness
+    assert set(kani["with"]) == {"kani-version", "working-directory", "args"}
     crate = ROOT / "programs-v2" / "knos_pay"
     proofs, lib = (crate / "src" / "proofs.rs").read_text(encoding="utf-8"), (crate / "src" / "lib.rs").read_text(encoding="utf-8")
     # the proofs are in no build of the program: one line of lib.rs, the last, behind cfg(kani) or cfg(test)
     assert lib.rstrip().splitlines()[-1].startswith("#[cfg(any(kani, test))] mod proofs;") and lib.count("mod proofs") == 1
     harnesses = re.findall(r"#\[kani::proof\]\n(?:    #\[kani::unwind\(\d+\)\]\n)?    fn (\w+)\(\)", proofs)
-    assert harnesses == ["the_remainder_of_a_share_is_never_more_than_the_remainder", "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount",
+    assert harnesses == ["the_remainder_of_a_share_is_never_more_than_the_remainder", "an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount",
                          "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
                          "what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out",
                          "an_order_that_has_paid_nothing_has_given_out_none_of_its_fee"]
@@ -408,7 +439,7 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
     assert "WHAT IS ASSUMED" in proofs and "WHAT IS PROVED" in proofs and "WHAT IS NOT" in proofs
     # the same properties on inputs made from fixed seeds, in the programs' own `cargo test`, which every push runs
     tests = re.findall(r"    #\[test\]\n    fn (\w+)\(\)", proofs)
-    assert tests == ["the_model_is_the_arithmetic_of_the_source", "an_orders_fee_is_its_three_tiers_above_its_floor_and_a_share_is_never_more_than_the_whole",
+    assert tests == ["the_model_is_the_arithmetic_of_the_source", "an_orders_fee_is_its_one_rate_above_its_floor_and_a_share_is_never_more_than_the_whole",
                      "the_payees_shares_add_up_to_the_payment", "the_fee_an_order_has_given_out_grows_with_what_it_paid_and_ends_at_the_whole_fee",
                      "nothing_is_created_or_lost_over_the_life_of_an_order",
                      "a_standing_order_gives_out_its_fee_with_its_amount_and_keeps_the_rest_for_the_refund"]

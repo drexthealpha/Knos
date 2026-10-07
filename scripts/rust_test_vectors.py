@@ -268,11 +268,12 @@ def double_pay() -> Recorder:
 
 
 def order_fees() -> Recorder:
-    """A wallet funds five orders, one at each edge of the fee tiers; the funder cancels the first, twice."""
+    """A wallet funds seven orders: the price book's examples, and the two amounts either side of where 0.30% passes the
+    floor; the funder cancels the one of 100.00, twice."""
     r = scenario("order_fees")
     c = _order_chain(r)
     r.check(c.svm, "start", tokens=["funder_tok"])
-    for i, units in enumerate((100, 1_000, 1_001, 50_000, 50_001)):
+    for i, units in enumerate((5, 16, 17, 100, 1_000, 5_000, 100_000)):
         ix = c.fund_wallet_ix(2100 + i, units * USDC)
         order = ix.accounts[1].pubkey
         r.name_it(**{f"order_{units}": order, f"order_tok_{units}": pay.ov_pda(order)})
@@ -291,6 +292,49 @@ def order_fees() -> Recorder:
     r.check(c.svm, "cancelled", tokens=["funder_tok", "order_tok_100"], data=["order_100"])
     r.label("cancel_again")
     assert not c.send([pay.cancel_ix(c.funder.pubkey(), order)], signers=[c.funder])
+    return r
+
+
+def order_plan() -> Recorder:
+    """A Plan lowers the one rate of an owner's orders to no less than 10 basis points: 9 and 31 are refused, 10 is set,
+    and an order of 1,000.00 funded from the owner's Balance then escrows 1.00 on top; a wallet's order pays 0.30%."""
+    r = scenario("order_plan")
+    c = _order_chain(r)
+    r.name_it(plan=pay.plan_pda(_order.OWNER))
+    far = c.now() + 30 * DAY
+    for label, bps, ok in (("plan_of_9", 9, False), ("plan_of_31", 31, False), ("plan_of_10", 10, True)):
+        r.label(label)
+        assert c.set_plan(_order.OWNER, bps, far) is ok, c.err
+    tok = c.fund_token(2300, 1_000 * USDC)
+    ix = c.fund_balance_ix(tok, 2300)
+    order = ix.accounts[7].pubkey
+    r.name_it(order=order, order_tok=pay.ov_pda(order))
+    r.label("fund_under_the_plan")
+    assert c.send([ix]), c.err
+    assert (c.order(order).fee, c.order(order).fee_bps) == (pay.order_fee(1_000 * USDC, 10), 10)
+    r.check(c.svm, "funded", tokens=["balance_tok", "order_tok"], data=["order", "plan"])
+    return r
+
+
+def job_fee() -> Recorder:
+    """Jobs (2.0) pay the same rate out of their amount: 1.00 pays the floor, 0.05; 100.00 pays 0.30; 5,000.00 pays 15.00."""
+    r = scenario("job_fee")
+    c = _order_chain(r)
+    wallet, dest = c.wallet(c.usdc)
+    r.name_it(dest=dest)
+    r.check(c.svm, "start", tokens=["funder_tok", "fee", "dest"])
+    for units in (1, 100, 5_000):
+        n = 2400 + units
+        ix = pay.fund_wallet_ix(c.funder.pubkey(), c.funder_tok, c.usdc, _order.REPO, n, units * USDC, _pay2.WF_REPO, _pay2.WF_SHA, _order.TERMS)
+        job = ix.accounts[1].pubkey
+        r.label(f"fund_{units}")
+        assert c.send([ix], c.funder), c.err
+        c.warp(5)
+        j = pay.read_job(c.data(job))
+        tok = c.gh(pay.pay_audience(_order.REPO, n, _order.AUTHOR, _order.HEAD, j.terms, j.mode, wallet.pubkey()), repository_id=_order.REPO)
+        r.label(f"pay_{units}")
+        assert c.send([pay.pay_ix(c.payer.pubkey(), tok, c.key, job, j, _order.AUTHOR, wallet.pubkey(), used=c.data(tok))]), c.err
+        r.check(c.svm, f"paid_{units}", tokens=["funder_tok", "fee", "dest"])
     return r
 
 
@@ -389,7 +433,7 @@ def passkey_wallet() -> Recorder:
     return r
 
 
-SCENARIOS = (oidc_verify, pay_order, double_pay, order_fees, meter_count, passkey_wallet)
+SCENARIOS = (oidc_verify, pay_order, double_pay, order_fees, order_plan, job_fee, meter_count, passkey_wallet)
 
 
 def main(argv: list[str]) -> int:

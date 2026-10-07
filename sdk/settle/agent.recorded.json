@@ -220,6 +220,7 @@
    "address": "EiMEU7qmhQ1ti93raW9DC9zyAohjoP8VgFuuqKB8sWyY",
    "deadline": 1790003601
   },
+  "fee_version": 1,
   "issue": {
    "expired_issue": 4343,
    "issue": 4242,

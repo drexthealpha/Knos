@@ -18,174 +18,178 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
 endobj
 7 0 obj
-<< /Length 7127 >>
+<< /Length 7282 >>
 stream
 BT /F2 15 Tf 36 543.25 Td (Statement for invoice INV-2026-09) Tj ET
 BT /F1 8 Tf 36 530.35 Td (Each line of the invoice set against the evidence. Nothing here moves money.) Tj ET
 0.5 w 36 521.95 m 806 521.95 l S
+BT /F1 7.5 Tf 39 511.45 Td (invoice) Tj ET
 0.5 w 36 521.95 m 36 506.2 l S
+BT /F1 7.5 Tf 167.33 511.45 Td (INV-2026-09) Tj ET
 0.5 w 164.33 521.95 m 164.33 506.2 l S
 0.5 w 806 521.95 m 806 506.2 l S
 0.5 w 36 506.2 m 806 506.2 l S
-BT /F1 7.5 Tf 39 495.7 Td (invoice) Tj ET
+BT /F1 7.5 Tf 39 495.7 Td (date) Tj ET
 0.5 w 36 506.2 m 36 490.45 l S
-BT /F1 7.5 Tf 167.33 495.7 Td (INV-2026-09) Tj ET
+BT /F1 7.5 Tf 167.33 495.7 Td (2026-09-30) Tj ET
 0.5 w 164.33 506.2 m 164.33 490.45 l S
 0.5 w 806 506.2 m 806 490.45 l S
 0.5 w 36 490.45 m 806 490.45 l S
-BT /F1 7.5 Tf 39 479.95 Td (date) Tj ET
+BT /F1 7.5 Tf 39 479.95 Td (supplier) Tj ET
 0.5 w 36 490.45 m 36 474.7 l S
-BT /F1 7.5 Tf 167.33 479.95 Td (2026-09-30) Tj ET
+BT /F1 7.5 Tf 167.33 479.95 Td (Acme Agents) Tj ET
 0.5 w 164.33 490.45 m 164.33 474.7 l S
 0.5 w 806 490.45 m 806 474.7 l S
 0.5 w 36 474.7 m 806 474.7 l S
-BT /F1 7.5 Tf 39 464.2 Td (supplier) Tj ET
+BT /F1 7.5 Tf 39 464.2 Td (buyer) Tj ET
 0.5 w 36 474.7 m 36 458.95 l S
-BT /F1 7.5 Tf 167.33 464.2 Td (Acme Agents) Tj ET
+BT /F1 7.5 Tf 167.33 464.2 Td (Northwind) Tj ET
 0.5 w 164.33 474.7 m 164.33 458.95 l S
 0.5 w 806 474.7 m 806 458.95 l S
 0.5 w 36 458.95 m 806 458.95 l S
-BT /F1 7.5 Tf 39 448.45 Td (buyer) Tj ET
+BT /F1 7.5 Tf 39 448.45 Td (currency) Tj ET
 0.5 w 36 458.95 m 36 443.2 l S
-BT /F1 7.5 Tf 167.33 448.45 Td (Northwind) Tj ET
+BT /F1 7.5 Tf 167.33 448.45 Td (USD) Tj ET
 0.5 w 164.33 458.95 m 164.33 443.2 l S
 0.5 w 806 458.95 m 806 443.2 l S
 0.5 w 36 443.2 m 806 443.2 l S
-BT /F1 7.5 Tf 39 432.7 Td (currency) Tj ET
+BT /F1 7.5 Tf 39 432.7 Td (made from) Tj ET
 0.5 w 36 443.2 m 36 427.45 l S
-BT /F1 7.5 Tf 167.33 432.7 Td (USD) Tj ET
+BT /F1 7.5 Tf 167.33 432.7 Td (a shadow run: the invoice against GitHub's record) Tj ET
 0.5 w 164.33 443.2 m 164.33 427.45 l S
 0.5 w 806 443.2 m 806 427.45 l S
 0.5 w 36 427.45 m 806 427.45 l S
-BT /F1 7.5 Tf 39 416.95 Td (made from) Tj ET
+BT /F1 7.5 Tf 39 416.95 Td (evidence sha256) Tj ET
 0.5 w 36 427.45 m 36 411.7 l S
-BT /F1 7.5 Tf 167.33 416.95 Td (a shadow run: the invoice against GitHub's record) Tj ET
+BT /F1 7.5 Tf 167.33 416.95 Td (c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2) Tj ET
 0.5 w 164.33 427.45 m 164.33 411.7 l S
 0.5 w 806 427.45 m 806 411.7 l S
 0.5 w 36 411.7 m 806 411.7 l S
-BT /F1 7.5 Tf 39 401.2 Td (evidence sha256) Tj ET
+BT /F1 7.5 Tf 39 401.2 Td (evidence) Tj ET
 0.5 w 36 411.7 m 36 395.95 l S
-BT /F1 7.5 Tf 167.33 401.2 Td (c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2) Tj ET
+BT /F1 7.5 Tf 167.33 401.2 Td (inside the statement; not signed) Tj ET
 0.5 w 164.33 411.7 m 164.33 395.95 l S
 0.5 w 806 411.7 m 806 395.95 l S
 0.5 w 36 395.95 m 806 395.95 l S
-BT /F1 7.5 Tf 39 385.45 Td (evidence) Tj ET
+BT /F1 7.5 Tf 39 385.45 Td (status sha256) Tj ET
 0.5 w 36 395.95 m 36 380.2 l S
-BT /F1 7.5 Tf 167.33 385.45 Td (inside the statement; not signed) Tj ET
+BT /F1 7.5 Tf 167.33 385.45 Td (9d682ce8446ae4ca8fd06dfb4bf0b08d9a92a68ab8cf00a4d069df2375dd2bd5) Tj ET
 0.5 w 164.33 395.95 m 164.33 380.2 l S
 0.5 w 806 395.95 m 806 380.2 l S
 0.5 w 36 380.2 m 806 380.2 l S
-BT /F1 7.5 Tf 39 369.7 Td (status sha256) Tj ET
-0.5 w 36 380.2 m 36 364.45 l S
-BT /F1 7.5 Tf 167.33 369.7 Td (9d682ce8446ae4ca8fd06dfb4bf0b08d9a92a68ab8cf00a4d069df2375dd2bd5) Tj ET
-0.5 w 164.33 380.2 m 164.33 364.45 l S
-0.5 w 806 380.2 m 806 364.45 l S
-0.5 w 36 364.45 m 806 364.45 l S
-BT /F2 10 Tf 36 343.95 Td (What this statement answers) Tj ET
+BT /F2 10 Tf 36 359.7 Td (What this statement answers) Tj ET
+0.5 w 36 354.7 m 806 354.7 l S
+BT /F2 7.5 Tf 39 344.2 Td (question) Tj ET
+0.5 w 36 354.7 m 36 338.95 l S
+BT /F2 7.5 Tf 167.33 344.2 Td (answer) Tj ET
+0.5 w 164.33 354.7 m 164.33 338.95 l S
+0.5 w 806 354.7 m 806 338.95 l S
 0.5 w 36 338.95 m 806 338.95 l S
-BT /F2 7.5 Tf 39 328.45 Td (question) Tj ET
+BT /F1 7.5 Tf 39 328.45 Td (Authorised) Tj ET
 0.5 w 36 338.95 m 36 323.2 l S
-BT /F2 7.5 Tf 167.33 328.45 Td (answer) Tj ET
+BT /F1 7.5 Tf 167.33 328.45 Td (not known here: a shadow run reads the invoice and GitHub, not the order) Tj ET
 0.5 w 164.33 338.95 m 164.33 323.2 l S
 0.5 w 806 338.95 m 806 323.2 l S
 0.5 w 36 323.2 m 806 323.2 l S
-BT /F1 7.5 Tf 39 312.7 Td (Authorised) Tj ET
+BT /F1 7.5 Tf 39 312.7 Td (Billed) Tj ET
 0.5 w 36 323.2 m 36 307.45 l S
-BT /F1 7.5 Tf 167.33 312.7 Td (not known here: a shadow run reads the invoice and GitHub, not the order) Tj ET
+BT /F1 7.5 Tf 167.33 312.7 Td (5 lines, 590.00 USD on invoice INV-2026-09 from Acme Agents) Tj ET
 0.5 w 164.33 323.2 m 164.33 307.45 l S
 0.5 w 806 323.2 m 806 307.45 l S
 0.5 w 36 307.45 m 806 307.45 l S
-BT /F1 7.5 Tf 39 296.95 Td (Billed) Tj ET
+BT /F1 7.5 Tf 39 296.95 Td (Delivered) Tj ET
 0.5 w 36 307.45 m 36 291.7 l S
-BT /F1 7.5 Tf 167.33 296.95 Td (5 lines, 590.00 USD on invoice INV-2026-09 from Acme Agents) Tj ET
+BT /F1 7.5 Tf 167.33 296.95 Td (4 of 5 lines name work that was evaluated) Tj ET
 0.5 w 164.33 307.45 m 164.33 291.7 l S
 0.5 w 806 307.45 m 806 291.7 l S
 0.5 w 36 291.7 m 806 291.7 l S
-BT /F1 7.5 Tf 39 281.2 Td (Delivered) Tj ET
+BT /F1 7.5 Tf 39 281.2 Td (Passed) Tj ET
 0.5 w 36 291.7 m 36 275.95 l S
-BT /F1 7.5 Tf 167.33 281.2 Td (4 of 5 lines name work that was evaluated) Tj ET
+BT /F1 7.5 Tf 167.33 281.2 Td (2 lines, 160.00 USD agreed) Tj ET
 0.5 w 164.33 291.7 m 164.33 275.95 l S
 0.5 w 806 291.7 m 806 275.95 l S
 0.5 w 36 275.95 m 806 275.95 l S
-BT /F1 7.5 Tf 39 265.45 Td (Passed) Tj ET
+BT /F1 7.5 Tf 39 265.45 Td (Already billed) Tj ET
 0.5 w 36 275.95 m 36 260.2 l S
-BT /F1 7.5 Tf 167.33 265.45 Td (2 lines, 160.00 USD agreed) Tj ET
+BT /F1 7.5 Tf 167.33 265.45 Td (1 line, 100.00 USD: line 4 \(line 1\)) Tj ET
 0.5 w 164.33 275.95 m 164.33 260.2 l S
 0.5 w 806 275.95 m 806 260.2 l S
 0.5 w 36 260.2 m 806 260.2 l S
-BT /F1 7.5 Tf 39 249.7 Td (Already billed) Tj ET
+BT /F1 7.5 Tf 39 249.7 Td (Approved) Tj ET
 0.5 w 36 260.2 m 36 244.45 l S
-BT /F1 7.5 Tf 167.33 249.7 Td (1 line, 100.00 USD: line 4 \(line 1\)) Tj ET
+BT /F1 7.5 Tf 167.33 249.7 Td (2 agreed lines, 160.00 USD by Dana Reyes \(finance controller\) on 2026-10-01, role as stated) Tj ET
 0.5 w 164.33 260.2 m 164.33 244.45 l S
 0.5 w 806 260.2 m 806 244.45 l S
 0.5 w 36 244.45 m 806 244.45 l S
-BT /F1 7.5 Tf 39 233.95 Td (Approved) Tj ET
+BT /F1 7.5 Tf 39 233.95 Td (Disputed) Tj ET
 0.5 w 36 244.45 m 36 228.7 l S
-BT /F1 7.5 Tf 167.33 233.95 Td (2 agreed lines, 160.00 USD by Dana Reyes \(finance controller\) on 2026-10-01, role as stated) Tj ET
+BT /F1 7.5 Tf 167.33 233.95 Td (1 line, 250.00 USD, open) Tj ET
 0.5 w 164.33 244.45 m 164.33 228.7 l S
 0.5 w 806 244.45 m 806 228.7 l S
 0.5 w 36 228.7 m 806 228.7 l S
-BT /F1 7.5 Tf 39 218.2 Td (Disputed) Tj ET
+BT /F1 7.5 Tf 39 218.2 Td (Insufficient evidence) Tj ET
 0.5 w 36 228.7 m 36 212.95 l S
-BT /F1 7.5 Tf 167.33 218.2 Td (1 line, 250.00 USD, open) Tj ET
+BT /F1 7.5 Tf 167.33 218.2 Td (1 line, 80.00 USD, open) Tj ET
 0.5 w 164.33 228.7 m 164.33 212.95 l S
 0.5 w 806 228.7 m 806 212.95 l S
 0.5 w 36 212.95 m 806 212.95 l S
-BT /F1 7.5 Tf 39 202.45 Td (Insufficient evidence) Tj ET
+BT /F1 7.5 Tf 39 202.45 Td (Credited) Tj ET
 0.5 w 36 212.95 m 36 197.2 l S
-BT /F1 7.5 Tf 167.33 202.45 Td (1 line, 80.00 USD, open) Tj ET
+BT /F1 7.5 Tf 167.33 202.45 Td (0 lines, 0.00 USD refunded) Tj ET
 0.5 w 164.33 212.95 m 164.33 197.2 l S
 0.5 w 806 212.95 m 806 197.2 l S
 0.5 w 36 197.2 m 806 197.2 l S
-BT /F1 7.5 Tf 39 186.7 Td (Credited) Tj ET
+BT /F1 7.5 Tf 39 186.7 Td (Paid) Tj ET
 0.5 w 36 197.2 m 36 181.45 l S
-BT /F1 7.5 Tf 167.33 186.7 Td (0 lines, 0.00 USD refunded) Tj ET
+BT /F1 7.5 Tf 167.33 186.7 Td (2 lines, 160.00 USD \(devnet demonstration, paid outside Knos\)) Tj ET
 0.5 w 164.33 197.2 m 164.33 181.45 l S
 0.5 w 806 197.2 m 806 181.45 l S
 0.5 w 36 181.45 m 806 181.45 l S
-BT /F1 7.5 Tf 39 170.95 Td (Paid) Tj ET
+BT /F1 7.5 Tf 39 170.95 Td (Owed) Tj ET
 0.5 w 36 181.45 m 36 165.7 l S
-BT /F1 7.5 Tf 167.33 170.95 Td (2 lines, 160.00 USD \(devnet demonstration, paid outside Knos\)) Tj ET
+BT /F1 7.5 Tf 167.33 170.95 Td (0 lines, 0.00 USD payable) Tj ET
 0.5 w 164.33 181.45 m 164.33 165.7 l S
 0.5 w 806 181.45 m 806 165.7 l S
 0.5 w 36 165.7 m 806 165.7 l S
-BT /F1 7.5 Tf 39 155.2 Td (Owed) Tj ET
-0.5 w 36 165.7 m 36 149.95 l S
-BT /F1 7.5 Tf 167.33 155.2 Td (0 lines, 0.00 USD payable) Tj ET
-0.5 w 164.33 165.7 m 164.33 149.95 l S
-0.5 w 806 165.7 m 806 149.95 l S
-0.5 w 36 149.95 m 806 149.95 l S
-BT /F2 10 Tf 36 129.45 Td (Totals) Tj ET
+BT /F2 10 Tf 36 145.2 Td (Totals) Tj ET
+0.5 w 36 140.2 m 806 140.2 l S
+BT /F2 7.5 Tf 39 129.7 Td (state) Tj ET
+0.5 w 36 140.2 m 36 124.45 l S
+BT /F2 7.5 Tf 295.67 129.7 Td (lines) Tj ET
+0.5 w 292.67 140.2 m 292.67 124.45 l S
+BT /F2 7.5 Tf 424 129.7 Td (amount) Tj ET
+0.5 w 421 140.2 m 421 124.45 l S
+0.5 w 806 140.2 m 806 124.45 l S
 0.5 w 36 124.45 m 806 124.45 l S
-BT /F2 7.5 Tf 39 113.95 Td (state) Tj ET
+BT /F1 7.5 Tf 39 113.95 Td (billed) Tj ET
 0.5 w 36 124.45 m 36 108.7 l S
-BT /F2 7.5 Tf 295.67 113.95 Td (lines) Tj ET
+BT /F1 7.5 Tf 295.67 113.95 Td (5) Tj ET
 0.5 w 292.67 124.45 m 292.67 108.7 l S
-BT /F2 7.5 Tf 424 113.95 Td (amount) Tj ET
+BT /F1 7.5 Tf 424 113.95 Td (590.00) Tj ET
 0.5 w 421 124.45 m 421 108.7 l S
 0.5 w 806 124.45 m 806 108.7 l S
 0.5 w 36 108.7 m 806 108.7 l S
-BT /F1 7.5 Tf 39 98.2 Td (billed) Tj ET
+BT /F1 7.5 Tf 39 98.2 Td (agreed) Tj ET
 0.5 w 36 108.7 m 36 92.95 l S
-BT /F1 7.5 Tf 295.67 98.2 Td (5) Tj ET
+BT /F1 7.5 Tf 295.67 98.2 Td (2) Tj ET
 0.5 w 292.67 108.7 m 292.67 92.95 l S
-BT /F1 7.5 Tf 424 98.2 Td (590.00) Tj ET
+BT /F1 7.5 Tf 424 98.2 Td (160.00) Tj ET
 0.5 w 421 108.7 m 421 92.95 l S
 0.5 w 806 108.7 m 806 92.95 l S
 0.5 w 36 92.95 m 806 92.95 l S
-BT /F1 7.5 Tf 39 82.45 Td (agreed) Tj ET
+BT /F1 7.5 Tf 39 82.45 Td (disputed) Tj ET
 0.5 w 36 92.95 m 36 77.2 l S
-BT /F1 7.5 Tf 295.67 82.45 Td (2) Tj ET
+BT /F1 7.5 Tf 295.67 82.45 Td (1) Tj ET
 0.5 w 292.67 92.95 m 292.67 77.2 l S
-BT /F1 7.5 Tf 424 82.45 Td (160.00) Tj ET
+BT /F1 7.5 Tf 424 82.45 Td (250.00) Tj ET
 0.5 w 421 92.95 m 421 77.2 l S
 0.5 w 806 92.95 m 806 77.2 l S
 0.5 w 36 77.2 m 806 77.2 l S
-BT /F1 7.5 Tf 39 66.7 Td (disputed) Tj ET
+BT /F1 7.5 Tf 39 66.7 Td (duplicate) Tj ET
 0.5 w 36 77.2 m 36 61.45 l S
 BT /F1 7.5 Tf 295.67 66.7 Td (1) Tj ET
 0.5 w 292.67 77.2 m 292.67 61.45 l S
-BT /F1 7.5 Tf 424 66.7 Td (250.00) Tj ET
+BT /F1 7.5 Tf 424 66.7 Td (100.00) Tj ET
 0.5 w 421 77.2 m 421 61.45 l S
 0.5 w 806 77.2 m 806 61.45 l S
 0.5 w 36 61.45 m 806 61.45 l S
@@ -196,7 +200,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 9 0 R >>
 endobj
 9 0 obj
-<< /Length 10468 >>
+<< /Length 9903 >>
 stream
 0.5 w 36 559 m 806 559 l S
 BT /F2 7.5 Tf 39 548.5 Td (state) Tj ET
@@ -207,229 +211,221 @@ BT /F2 7.5 Tf 424 548.5 Td (amount) Tj ET
 0.5 w 421 559 m 421 543.25 l S
 0.5 w 806 559 m 806 543.25 l S
 0.5 w 36 543.25 m 806 543.25 l S
-BT /F1 7.5 Tf 39 532.75 Td (duplicate) Tj ET
+BT /F1 7.5 Tf 39 532.75 Td (insufficient evidence) Tj ET
 0.5 w 36 543.25 m 36 527.5 l S
 BT /F1 7.5 Tf 295.67 532.75 Td (1) Tj ET
 0.5 w 292.67 543.25 m 292.67 527.5 l S
-BT /F1 7.5 Tf 424 532.75 Td (100.00) Tj ET
+BT /F1 7.5 Tf 424 532.75 Td (80.00) Tj ET
 0.5 w 421 543.25 m 421 527.5 l S
 0.5 w 806 543.25 m 806 527.5 l S
 0.5 w 36 527.5 m 806 527.5 l S
-BT /F1 7.5 Tf 39 517 Td (insufficient evidence) Tj ET
-0.5 w 36 527.5 m 36 511.75 l S
-BT /F1 7.5 Tf 295.67 517 Td (1) Tj ET
-0.5 w 292.67 527.5 m 292.67 511.75 l S
-BT /F1 7.5 Tf 424 517 Td (80.00) Tj ET
-0.5 w 421 527.5 m 421 511.75 l S
-0.5 w 806 527.5 m 806 511.75 l S
-0.5 w 36 511.75 m 806 511.75 l S
-BT /F2 10 Tf 36 491.25 Td (Lines) Tj ET
-0.5 w 36 486.25 m 806 486.25 l S
-BT /F2 6.5 Tf 39 476.75 Td (line) Tj ET
-0.5 w 36 486.25 m 36 463.35 l S
-BT /F2 6.5 Tf 61 476.75 Td (reference) Tj ET
-0.5 w 58 486.25 m 58 463.35 l S
-BT /F2 6.5 Tf 165 476.75 Td (supplier) Tj ET
-0.5 w 162 486.25 m 162 463.35 l S
-BT /F2 6.5 Tf 215 476.75 Td (state) Tj ET
-0.5 w 212 486.25 m 212 463.35 l S
-BT /F2 6.5 Tf 267 476.75 Td (amount) Tj ET
-0.5 w 264 486.25 m 264 463.35 l S
-BT /F2 6.5 Tf 309 476.75 Td (why) Tj ET
-0.5 w 306 486.25 m 306 463.35 l S
-BT /F2 6.5 Tf 437 476.75 Td (ids: deliverable, evaluations, invoice) Tj ET
-BT /F2 6.5 Tf 437 468.3 Td (line, settlement) Tj ET
-0.5 w 434 486.25 m 434 463.35 l S
-BT /F2 6.5 Tf 555 476.75 Td (payment) Tj ET
-0.5 w 552 486.25 m 552 463.35 l S
-BT /F2 6.5 Tf 603 476.75 Td (evidence and its sha256) Tj ET
-0.5 w 600 486.25 m 600 463.35 l S
-BT /F2 6.5 Tf 753 476.75 Td (duplicate of) Tj ET
-0.5 w 750 486.25 m 750 463.35 l S
-0.5 w 806 486.25 m 806 463.35 l S
-0.5 w 36 463.35 m 806 463.35 l S
-BT /F1 6.5 Tf 39 453.85 Td (1) Tj ET
-0.5 w 36 463.35 m 36 423.55 l S
-BT /F1 6.5 Tf 61 453.85 Td (acme/app#1) Tj ET
-0.5 w 58 463.35 m 58 423.55 l S
-BT /F1 6.5 Tf 165 453.85 Td (Acme Agents) Tj ET
-0.5 w 162 463.35 m 162 423.55 l S
-BT /F1 6.5 Tf 215 453.85 Td (agreed) Tj ET
-0.5 w 212 463.35 m 212 423.55 l S
-BT /F1 6.5 Tf 267 453.85 Td (100.00) Tj ET
-0.5 w 264 463.35 m 264 423.55 l S
-0.5 w 306 463.35 m 306 423.55 l S
-BT /F1 6.5 Tf 437 453.85 Td (dlv_7d18ee5930ce4f8945ee626f) Tj ET
-BT /F1 6.5 Tf 437 445.4 Td (evl_d6f7851bb59a7591d7cd7726) Tj ET
-BT /F1 6.5 Tf 437 436.95 Td (inv_b4add9cf5f7842919a292b6f) Tj ET
-BT /F1 6.5 Tf 437 428.5 Td (stl_af382ff4f9349cb50eed8b34) Tj ET
-0.5 w 434 463.35 m 434 423.55 l S
-BT /F1 6.5 Tf 555 453.85 Td (paid outside) Tj ET
-BT /F1 6.5 Tf 555 445.4 Td (Knos) Tj ET
-0.5 w 552 463.35 m 552 423.55 l S
-BT /F1 6.5 Tf 603 453.85 Td (https://github.com/acme/app/pull/1) Tj ET
-BT /F1 6.5 Tf 603 445.4 Td (206ee504067266c371d222532799443853ad533) Tj ET
-BT /F1 6.5 Tf 603 436.95 Td (0fdd0aeac56dc927fc7d31a93) Tj ET
-0.5 w 600 463.35 m 600 423.55 l S
-0.5 w 750 463.35 m 750 423.55 l S
-0.5 w 806 463.35 m 806 423.55 l S
-0.5 w 36 423.55 m 806 423.55 l S
-BT /F1 6.5 Tf 39 414.05 Td (2) Tj ET
-0.5 w 36 423.55 m 36 383.75 l S
-BT /F1 6.5 Tf 61 414.05 Td (acme/app#2) Tj ET
-0.5 w 58 423.55 m 58 383.75 l S
-BT /F1 6.5 Tf 165 414.05 Td (Acme Agents) Tj ET
-0.5 w 162 423.55 m 162 383.75 l S
-BT /F1 6.5 Tf 215 414.05 Td (disputed) Tj ET
-0.5 w 212 423.55 m 212 383.75 l S
-BT /F1 6.5 Tf 267 414.05 Td (250.00) Tj ET
-0.5 w 264 423.55 m 264 383.75 l S
-BT /F1 6.5 Tf 309 414.05 Td (a check failed when this change was) Tj ET
-BT /F1 6.5 Tf 309 405.6 Td (merged: test) Tj ET
-0.5 w 306 423.55 m 306 383.75 l S
-BT /F1 6.5 Tf 437 414.05 Td (dlv_2588c667db86d1b266ea0121) Tj ET
-BT /F1 6.5 Tf 437 405.6 Td (evl_1ca8008cccb72826ece72b62) Tj ET
-BT /F1 6.5 Tf 437 397.15 Td (inv_740e3c083fd82e11c55a3889) Tj ET
-0.5 w 434 423.55 m 434 383.75 l S
-BT /F1 6.5 Tf 555 414.05 Td (held) Tj ET
-0.5 w 552 423.55 m 552 383.75 l S
-BT /F1 6.5 Tf 603 414.05 Td (https://github.com/acme/app/actions/runs/21/job/2) Tj ET
-BT /F1 6.5 Tf 603 405.6 Td (1) Tj ET
-BT /F1 6.5 Tf 603 397.15 Td (278c57dbd13ad16ac870c6f87d7a741a6c69b130) Tj ET
-BT /F1 6.5 Tf 603 388.7 Td (e3f5ee3bf5f7af60ce63991c) Tj ET
-0.5 w 600 423.55 m 600 383.75 l S
-0.5 w 750 423.55 m 750 383.75 l S
-0.5 w 806 423.55 m 806 383.75 l S
-0.5 w 36 383.75 m 806 383.75 l S
-BT /F1 6.5 Tf 39 374.25 Td (3) Tj ET
-0.5 w 36 383.75 m 36 352.4 l S
-BT /F1 6.5 Tf 61 374.25 Td (acme/app#3) Tj ET
-0.5 w 58 383.75 m 58 352.4 l S
-BT /F1 6.5 Tf 165 374.25 Td (Acme Agents) Tj ET
-0.5 w 162 383.75 m 162 352.4 l S
-BT /F1 6.5 Tf 215 374.25 Td (insufficient) Tj ET
-BT /F1 6.5 Tf 215 365.8 Td (evidence) Tj ET
-0.5 w 212 383.75 m 212 352.4 l S
-BT /F1 6.5 Tf 267 374.25 Td (80.00) Tj ET
-0.5 w 264 383.75 m 264 352.4 l S
-BT /F1 6.5 Tf 309 374.25 Td (the checks give no verdict: no check ran) Tj ET
-0.5 w 306 383.75 m 306 352.4 l S
-BT /F1 6.5 Tf 437 374.25 Td (dlv_7eb54ea7a68764c8c2d90d28) Tj ET
-BT /F1 6.5 Tf 437 365.8 Td (evl_ec16d038d8ff8e67c75980b0) Tj ET
-BT /F1 6.5 Tf 437 357.35 Td (inv_7dbdc2f0b5336695951583d2) Tj ET
-0.5 w 434 383.75 m 434 352.4 l S
-BT /F1 6.5 Tf 555 374.25 Td (held) Tj ET
-0.5 w 552 383.75 m 552 352.4 l S
-BT /F1 6.5 Tf 603 374.25 Td (https://github.com/acme/app/pull/3) Tj ET
-BT /F1 6.5 Tf 603 365.8 Td (e5922f5d4c1c0acce4aff442495673f35c479c227b) Tj ET
-BT /F1 6.5 Tf 603 357.35 Td (68097d014132bed0ac51dc) Tj ET
-0.5 w 600 383.75 m 600 352.4 l S
-0.5 w 750 383.75 m 750 352.4 l S
-0.5 w 806 383.75 m 806 352.4 l S
-0.5 w 36 352.4 m 806 352.4 l S
-BT /F1 6.5 Tf 39 342.9 Td (4) Tj ET
-0.5 w 36 352.4 m 36 321.05 l S
-BT /F1 6.5 Tf 61 342.9 Td (acme/app#1) Tj ET
-0.5 w 58 352.4 m 58 321.05 l S
-BT /F1 6.5 Tf 165 342.9 Td (Acme Agents) Tj ET
-0.5 w 162 352.4 m 162 321.05 l S
-BT /F1 6.5 Tf 215 342.9 Td (duplicate) Tj ET
-0.5 w 212 352.4 m 212 321.05 l S
-BT /F1 6.5 Tf 267 342.9 Td (100.00) Tj ET
-0.5 w 264 352.4 m 264 321.05 l S
-BT /F1 6.5 Tf 309 342.9 Td (billed twice on this invoice: same pull) Tj ET
-BT /F1 6.5 Tf 309 334.45 Td (request as line 1) Tj ET
-0.5 w 306 352.4 m 306 321.05 l S
-BT /F1 6.5 Tf 437 342.9 Td (dlv_7d18ee5930ce4f8945ee626f) Tj ET
-BT /F1 6.5 Tf 437 334.45 Td (inv_92705e08349c79f12e7a5249) Tj ET
-0.5 w 434 352.4 m 434 321.05 l S
-BT /F1 6.5 Tf 555 342.9 Td (held) Tj ET
-0.5 w 552 352.4 m 552 321.05 l S
-BT /F1 6.5 Tf 603 342.9 Td (https://github.com/acme/app/pull/1) Tj ET
-BT /F1 6.5 Tf 603 334.45 Td (206ee504067266c371d222532799443853ad533) Tj ET
-BT /F1 6.5 Tf 603 326 Td (0fdd0aeac56dc927fc7d31a93) Tj ET
-0.5 w 600 352.4 m 600 321.05 l S
-BT /F1 6.5 Tf 753 342.9 Td (line 1) Tj ET
-0.5 w 750 352.4 m 750 321.05 l S
-0.5 w 806 352.4 m 806 321.05 l S
-0.5 w 36 321.05 m 806 321.05 l S
-BT /F1 6.5 Tf 39 311.55 Td (5) Tj ET
-0.5 w 36 321.05 m 36 281.25 l S
-BT /F1 6.5 Tf 61 311.55 Td (acme/app#4) Tj ET
-0.5 w 58 321.05 m 58 281.25 l S
-BT /F1 6.5 Tf 165 311.55 Td (Acme Agents) Tj ET
-0.5 w 162 321.05 m 162 281.25 l S
-BT /F1 6.5 Tf 215 311.55 Td (agreed) Tj ET
-0.5 w 212 321.05 m 212 281.25 l S
-BT /F1 6.5 Tf 267 311.55 Td (60.00) Tj ET
-0.5 w 264 321.05 m 264 281.25 l S
-0.5 w 306 321.05 m 306 281.25 l S
-BT /F1 6.5 Tf 437 311.55 Td (dlv_3ff7922d689c11ef9b04a660) Tj ET
-BT /F1 6.5 Tf 437 303.1 Td (evl_5e98a492487590e945e006ea) Tj ET
-BT /F1 6.5 Tf 437 294.65 Td (inv_5633b01f50068344b40b1b61) Tj ET
-BT /F1 6.5 Tf 437 286.2 Td (stl_41ab1792c3b901c7bc0adb53) Tj ET
-0.5 w 434 321.05 m 434 281.25 l S
-BT /F1 6.5 Tf 555 311.55 Td (devnet) Tj ET
-BT /F1 6.5 Tf 555 303.1 Td (demonstration) Tj ET
-0.5 w 552 321.05 m 552 281.25 l S
-BT /F1 6.5 Tf 603 311.55 Td (https://github.com/acme/app/pull/4) Tj ET
-BT /F1 6.5 Tf 603 303.1 Td (a0428771cc3d4b5f69d69a24de9d44cf3573d7862) Tj ET
-BT /F1 6.5 Tf 603 294.65 Td (e40eca5c60d0302f829a8c0) Tj ET
-0.5 w 600 321.05 m 600 281.25 l S
-0.5 w 750 321.05 m 750 281.25 l S
-0.5 w 806 321.05 m 806 281.25 l S
-0.5 w 36 281.25 m 806 281.25 l S
-BT /F2 10 Tf 36 260.75 Td (Approvals and payment status) Tj ET
-0.5 w 36 255.75 m 806 255.75 l S
-BT /F2 7 Tf 39 245.75 Td (record) Tj ET
-0.5 w 36 255.75 m 36 240.65 l S
-BT /F2 7 Tf 107.75 245.75 Td (on) Tj ET
-0.5 w 104.75 255.75 m 104.75 240.65 l S
-BT /F2 7 Tf 176.5 245.75 Td (who or which line) Tj ET
-0.5 w 173.5 255.75 m 173.5 240.65 l S
-BT /F2 7 Tf 355.25 245.75 Td (what) Tj ET
-0.5 w 352.25 255.75 m 352.25 240.65 l S
-BT /F2 7 Tf 630.25 245.75 Td (amount or settlement id) Tj ET
-0.5 w 627.25 255.75 m 627.25 240.65 l S
-0.5 w 806 255.75 m 806 240.65 l S
-0.5 w 36 240.65 m 806 240.65 l S
-BT /F1 7 Tf 39 230.65 Td (approval) Tj ET
-0.5 w 36 240.65 m 36 225.55 l S
-BT /F1 7 Tf 107.75 230.65 Td (2026-10-01) Tj ET
-0.5 w 104.75 240.65 m 104.75 225.55 l S
-BT /F1 7 Tf 176.5 230.65 Td (Dana Reyes \(finance controller\)) Tj ET
-0.5 w 173.5 240.65 m 173.5 225.55 l S
-BT /F1 7 Tf 355.25 230.65 Td (2 agreed lines) Tj ET
-0.5 w 352.25 240.65 m 352.25 225.55 l S
-BT /F1 7 Tf 630.25 230.65 Td (160.00) Tj ET
-0.5 w 627.25 240.65 m 627.25 225.55 l S
-0.5 w 806 240.65 m 806 225.55 l S
-0.5 w 36 225.55 m 806 225.55 l S
-BT /F1 7 Tf 39 215.55 Td (settlement) Tj ET
-0.5 w 36 225.55 m 36 210.45 l S
-BT /F1 7 Tf 107.75 215.55 Td (2026-10-02) Tj ET
-0.5 w 104.75 225.55 m 104.75 210.45 l S
-BT /F1 7 Tf 176.5 215.55 Td (inv_b4add9cf5f7842919a292b6f) Tj ET
-0.5 w 173.5 225.55 m 173.5 210.45 l S
-BT /F1 7 Tf 355.25 215.55 Td (paid outside Knos by bank, reference BACS 77120) Tj ET
-0.5 w 352.25 225.55 m 352.25 210.45 l S
-BT /F1 7 Tf 630.25 215.55 Td (stl_af382ff4f9349cb50eed8b34) Tj ET
-0.5 w 627.25 225.55 m 627.25 210.45 l S
-0.5 w 806 225.55 m 806 210.45 l S
-0.5 w 36 210.45 m 806 210.45 l S
-BT /F1 7 Tf 39 200.45 Td (settlement) Tj ET
-0.5 w 36 210.45 m 36 195.35 l S
-BT /F1 7 Tf 107.75 200.45 Td (2026-10-03) Tj ET
-0.5 w 104.75 210.45 m 104.75 195.35 l S
-BT /F1 7 Tf 176.5 200.45 Td (inv_5633b01f50068344b40b1b61) Tj ET
-0.5 w 173.5 210.45 m 173.5 195.35 l S
-BT /F1 7 Tf 355.25 200.45 Td (devnet demonstration by chain, reference 5Yd1testtransaction) Tj ET
-0.5 w 352.25 210.45 m 352.25 195.35 l S
-BT /F1 7 Tf 630.25 200.45 Td (stl_41ab1792c3b901c7bc0adb53) Tj ET
-0.5 w 627.25 210.45 m 627.25 195.35 l S
-0.5 w 806 210.45 m 806 195.35 l S
-0.5 w 36 195.35 m 806 195.35 l S
-BT /F1 7.5 Tf 36 179.47 Td (A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them.) Tj ET
+BT /F2 10 Tf 36 507 Td (Lines) Tj ET
+0.5 w 36 502 m 806 502 l S
+BT /F2 6.5 Tf 39 492.5 Td (line) Tj ET
+0.5 w 36 502 m 36 479.1 l S
+BT /F2 6.5 Tf 61 492.5 Td (reference) Tj ET
+0.5 w 58 502 m 58 479.1 l S
+BT /F2 6.5 Tf 165 492.5 Td (supplier) Tj ET
+0.5 w 162 502 m 162 479.1 l S
+BT /F2 6.5 Tf 215 492.5 Td (state) Tj ET
+0.5 w 212 502 m 212 479.1 l S
+BT /F2 6.5 Tf 267 492.5 Td (amount) Tj ET
+0.5 w 264 502 m 264 479.1 l S
+BT /F2 6.5 Tf 309 492.5 Td (why) Tj ET
+0.5 w 306 502 m 306 479.1 l S
+BT /F2 6.5 Tf 437 492.5 Td (ids: deliverable, evaluations, invoice) Tj ET
+BT /F2 6.5 Tf 437 484.05 Td (line, settlement) Tj ET
+0.5 w 434 502 m 434 479.1 l S
+BT /F2 6.5 Tf 555 492.5 Td (payment) Tj ET
+0.5 w 552 502 m 552 479.1 l S
+BT /F2 6.5 Tf 603 492.5 Td (evidence and its sha256) Tj ET
+0.5 w 600 502 m 600 479.1 l S
+BT /F2 6.5 Tf 753 492.5 Td (duplicate of) Tj ET
+0.5 w 750 502 m 750 479.1 l S
+0.5 w 806 502 m 806 479.1 l S
+0.5 w 36 479.1 m 806 479.1 l S
+BT /F1 6.5 Tf 39 469.6 Td (1) Tj ET
+0.5 w 36 479.1 m 36 439.3 l S
+BT /F1 6.5 Tf 61 469.6 Td (acme/app#1) Tj ET
+0.5 w 58 479.1 m 58 439.3 l S
+BT /F1 6.5 Tf 165 469.6 Td (Acme Agents) Tj ET
+0.5 w 162 479.1 m 162 439.3 l S
+BT /F1 6.5 Tf 215 469.6 Td (agreed) Tj ET
+0.5 w 212 479.1 m 212 439.3 l S
+BT /F1 6.5 Tf 267 469.6 Td (100.00) Tj ET
+0.5 w 264 479.1 m 264 439.3 l S
+0.5 w 306 479.1 m 306 439.3 l S
+BT /F1 6.5 Tf 437 469.6 Td (dlv_7d18ee5930ce4f8945ee626f) Tj ET
+BT /F1 6.5 Tf 437 461.15 Td (evl_d6f7851bb59a7591d7cd7726) Tj ET
+BT /F1 6.5 Tf 437 452.7 Td (inv_b4add9cf5f7842919a292b6f) Tj ET
+BT /F1 6.5 Tf 437 444.25 Td (stl_af382ff4f9349cb50eed8b34) Tj ET
+0.5 w 434 479.1 m 434 439.3 l S
+BT /F1 6.5 Tf 555 469.6 Td (paid outside) Tj ET
+BT /F1 6.5 Tf 555 461.15 Td (Knos) Tj ET
+0.5 w 552 479.1 m 552 439.3 l S
+BT /F1 6.5 Tf 603 469.6 Td (https://github.com/acme/app/pull/1) Tj ET
+BT /F1 6.5 Tf 603 461.15 Td (206ee504067266c371d222532799443853ad533) Tj ET
+BT /F1 6.5 Tf 603 452.7 Td (0fdd0aeac56dc927fc7d31a93) Tj ET
+0.5 w 600 479.1 m 600 439.3 l S
+0.5 w 750 479.1 m 750 439.3 l S
+0.5 w 806 479.1 m 806 439.3 l S
+0.5 w 36 439.3 m 806 439.3 l S
+BT /F1 6.5 Tf 39 429.8 Td (2) Tj ET
+0.5 w 36 439.3 m 36 399.5 l S
+BT /F1 6.5 Tf 61 429.8 Td (acme/app#2) Tj ET
+0.5 w 58 439.3 m 58 399.5 l S
+BT /F1 6.5 Tf 165 429.8 Td (Acme Agents) Tj ET
+0.5 w 162 439.3 m 162 399.5 l S
+BT /F1 6.5 Tf 215 429.8 Td (disputed) Tj ET
+0.5 w 212 439.3 m 212 399.5 l S
+BT /F1 6.5 Tf 267 429.8 Td (250.00) Tj ET
+0.5 w 264 439.3 m 264 399.5 l S
+BT /F1 6.5 Tf 309 429.8 Td (a check failed when this change was) Tj ET
+BT /F1 6.5 Tf 309 421.35 Td (merged: test) Tj ET
+0.5 w 306 439.3 m 306 399.5 l S
+BT /F1 6.5 Tf 437 429.8 Td (dlv_2588c667db86d1b266ea0121) Tj ET
+BT /F1 6.5 Tf 437 421.35 Td (evl_1ca8008cccb72826ece72b62) Tj ET
+BT /F1 6.5 Tf 437 412.9 Td (inv_740e3c083fd82e11c55a3889) Tj ET
+0.5 w 434 439.3 m 434 399.5 l S
+BT /F1 6.5 Tf 555 429.8 Td (held) Tj ET
+0.5 w 552 439.3 m 552 399.5 l S
+BT /F1 6.5 Tf 603 429.8 Td (https://github.com/acme/app/actions/runs/21/job/2) Tj ET
+BT /F1 6.5 Tf 603 421.35 Td (1) Tj ET
+BT /F1 6.5 Tf 603 412.9 Td (278c57dbd13ad16ac870c6f87d7a741a6c69b130) Tj ET
+BT /F1 6.5 Tf 603 404.45 Td (e3f5ee3bf5f7af60ce63991c) Tj ET
+0.5 w 600 439.3 m 600 399.5 l S
+0.5 w 750 439.3 m 750 399.5 l S
+0.5 w 806 439.3 m 806 399.5 l S
+0.5 w 36 399.5 m 806 399.5 l S
+BT /F1 6.5 Tf 39 390 Td (3) Tj ET
+0.5 w 36 399.5 m 36 368.15 l S
+BT /F1 6.5 Tf 61 390 Td (acme/app#3) Tj ET
+0.5 w 58 399.5 m 58 368.15 l S
+BT /F1 6.5 Tf 165 390 Td (Acme Agents) Tj ET
+0.5 w 162 399.5 m 162 368.15 l S
+BT /F1 6.5 Tf 215 390 Td (insufficient) Tj ET
+BT /F1 6.5 Tf 215 381.55 Td (evidence) Tj ET
+0.5 w 212 399.5 m 212 368.15 l S
+BT /F1 6.5 Tf 267 390 Td (80.00) Tj ET
+0.5 w 264 399.5 m 264 368.15 l S
+BT /F1 6.5 Tf 309 390 Td (the checks give no verdict: no check ran) Tj ET
+0.5 w 306 399.5 m 306 368.15 l S
+BT /F1 6.5 Tf 437 390 Td (dlv_7eb54ea7a68764c8c2d90d28) Tj ET
+BT /F1 6.5 Tf 437 381.55 Td (evl_ec16d038d8ff8e67c75980b0) Tj ET
+BT /F1 6.5 Tf 437 373.1 Td (inv_7dbdc2f0b5336695951583d2) Tj ET
+0.5 w 434 399.5 m 434 368.15 l S
+BT /F1 6.5 Tf 555 390 Td (held) Tj ET
+0.5 w 552 399.5 m 552 368.15 l S
+BT /F1 6.5 Tf 603 390 Td (https://github.com/acme/app/pull/3) Tj ET
+BT /F1 6.5 Tf 603 381.55 Td (e5922f5d4c1c0acce4aff442495673f35c479c227b) Tj ET
+BT /F1 6.5 Tf 603 373.1 Td (68097d014132bed0ac51dc) Tj ET
+0.5 w 600 399.5 m 600 368.15 l S
+0.5 w 750 399.5 m 750 368.15 l S
+0.5 w 806 399.5 m 806 368.15 l S
+0.5 w 36 368.15 m 806 368.15 l S
+BT /F1 6.5 Tf 39 358.65 Td (4) Tj ET
+0.5 w 36 368.15 m 36 336.8 l S
+BT /F1 6.5 Tf 61 358.65 Td (acme/app#1) Tj ET
+0.5 w 58 368.15 m 58 336.8 l S
+BT /F1 6.5 Tf 165 358.65 Td (Acme Agents) Tj ET
+0.5 w 162 368.15 m 162 336.8 l S
+BT /F1 6.5 Tf 215 358.65 Td (duplicate) Tj ET
+0.5 w 212 368.15 m 212 336.8 l S
+BT /F1 6.5 Tf 267 358.65 Td (100.00) Tj ET
+0.5 w 264 368.15 m 264 336.8 l S
+BT /F1 6.5 Tf 309 358.65 Td (billed twice on this invoice: same pull) Tj ET
+BT /F1 6.5 Tf 309 350.2 Td (request as line 1) Tj ET
+0.5 w 306 368.15 m 306 336.8 l S
+BT /F1 6.5 Tf 437 358.65 Td (dlv_7d18ee5930ce4f8945ee626f) Tj ET
+BT /F1 6.5 Tf 437 350.2 Td (inv_92705e08349c79f12e7a5249) Tj ET
+0.5 w 434 368.15 m 434 336.8 l S
+BT /F1 6.5 Tf 555 358.65 Td (held) Tj ET
+0.5 w 552 368.15 m 552 336.8 l S
+BT /F1 6.5 Tf 603 358.65 Td (https://github.com/acme/app/pull/1) Tj ET
+BT /F1 6.5 Tf 603 350.2 Td (206ee504067266c371d222532799443853ad533) Tj ET
+BT /F1 6.5 Tf 603 341.75 Td (0fdd0aeac56dc927fc7d31a93) Tj ET
+0.5 w 600 368.15 m 600 336.8 l S
+BT /F1 6.5 Tf 753 358.65 Td (line 1) Tj ET
+0.5 w 750 368.15 m 750 336.8 l S
+0.5 w 806 368.15 m 806 336.8 l S
+0.5 w 36 336.8 m 806 336.8 l S
+BT /F1 6.5 Tf 39 327.3 Td (5) Tj ET
+0.5 w 36 336.8 m 36 297 l S
+BT /F1 6.5 Tf 61 327.3 Td (acme/app#4) Tj ET
+0.5 w 58 336.8 m 58 297 l S
+BT /F1 6.5 Tf 165 327.3 Td (Acme Agents) Tj ET
+0.5 w 162 336.8 m 162 297 l S
+BT /F1 6.5 Tf 215 327.3 Td (agreed) Tj ET
+0.5 w 212 336.8 m 212 297 l S
+BT /F1 6.5 Tf 267 327.3 Td (60.00) Tj ET
+0.5 w 264 336.8 m 264 297 l S
+0.5 w 306 336.8 m 306 297 l S
+BT /F1 6.5 Tf 437 327.3 Td (dlv_3ff7922d689c11ef9b04a660) Tj ET
+BT /F1 6.5 Tf 437 318.85 Td (evl_5e98a492487590e945e006ea) Tj ET
+BT /F1 6.5 Tf 437 310.4 Td (inv_5633b01f50068344b40b1b61) Tj ET
+BT /F1 6.5 Tf 437 301.95 Td (stl_41ab1792c3b901c7bc0adb53) Tj ET
+0.5 w 434 336.8 m 434 297 l S
+BT /F1 6.5 Tf 555 327.3 Td (devnet) Tj ET
+BT /F1 6.5 Tf 555 318.85 Td (demonstration) Tj ET
+0.5 w 552 336.8 m 552 297 l S
+BT /F1 6.5 Tf 603 327.3 Td (https://github.com/acme/app/pull/4) Tj ET
+BT /F1 6.5 Tf 603 318.85 Td (a0428771cc3d4b5f69d69a24de9d44cf3573d7862) Tj ET
+BT /F1 6.5 Tf 603 310.4 Td (e40eca5c60d0302f829a8c0) Tj ET
+0.5 w 600 336.8 m 600 297 l S
+0.5 w 750 336.8 m 750 297 l S
+0.5 w 806 336.8 m 806 297 l S
+0.5 w 36 297 m 806 297 l S
+BT /F2 10 Tf 36 276.5 Td (Approvals and payment status) Tj ET
+0.5 w 36 271.5 m 806 271.5 l S
+BT /F2 7 Tf 39 261.5 Td (record) Tj ET
+0.5 w 36 271.5 m 36 256.4 l S
+BT /F2 7 Tf 107.75 261.5 Td (on) Tj ET
+0.5 w 104.75 271.5 m 104.75 256.4 l S
+BT /F2 7 Tf 176.5 261.5 Td (who or which line) Tj ET
+0.5 w 173.5 271.5 m 173.5 256.4 l S
+BT /F2 7 Tf 355.25 261.5 Td (what) Tj ET
+0.5 w 352.25 271.5 m 352.25 256.4 l S
+BT /F2 7 Tf 630.25 261.5 Td (amount or settlement id) Tj ET
+0.5 w 627.25 271.5 m 627.25 256.4 l S
+0.5 w 806 271.5 m 806 256.4 l S
+0.5 w 36 256.4 m 806 256.4 l S
+BT /F1 7 Tf 39 246.4 Td (approval) Tj ET
+0.5 w 36 256.4 m 36 241.3 l S
+BT /F1 7 Tf 107.75 246.4 Td (2026-10-01) Tj ET
+0.5 w 104.75 256.4 m 104.75 241.3 l S
+BT /F1 7 Tf 176.5 246.4 Td (Dana Reyes \(finance controller\)) Tj ET
+0.5 w 173.5 256.4 m 173.5 241.3 l S
+BT /F1 7 Tf 355.25 246.4 Td (2 agreed lines) Tj ET
+0.5 w 352.25 256.4 m 352.25 241.3 l S
+BT /F1 7 Tf 630.25 246.4 Td (160.00) Tj ET
+0.5 w 627.25 256.4 m 627.25 241.3 l S
+0.5 w 806 256.4 m 806 241.3 l S
+0.5 w 36 241.3 m 806 241.3 l S
+BT /F1 7 Tf 39 231.3 Td (settlement) Tj ET
+0.5 w 36 241.3 m 36 226.2 l S
+BT /F1 7 Tf 107.75 231.3 Td (2026-10-02) Tj ET
+0.5 w 104.75 241.3 m 104.75 226.2 l S
+BT /F1 7 Tf 176.5 231.3 Td (inv_b4add9cf5f7842919a292b6f) Tj ET
+0.5 w 173.5 241.3 m 173.5 226.2 l S
+BT /F1 7 Tf 355.25 231.3 Td (paid outside Knos by bank, reference BACS 77120) Tj ET
+0.5 w 352.25 241.3 m 352.25 226.2 l S
+BT /F1 7 Tf 630.25 231.3 Td (stl_af382ff4f9349cb50eed8b34) Tj ET
+0.5 w 627.25 241.3 m 627.25 226.2 l S
+0.5 w 806 241.3 m 806 226.2 l S
+0.5 w 36 226.2 m 806 226.2 l S
+BT /F1 7 Tf 39 216.2 Td (settlement) Tj ET
+0.5 w 36 226.2 m 36 211.1 l S
+BT /F1 7 Tf 107.75 216.2 Td (2026-10-03) Tj ET
+0.5 w 104.75 226.2 m 104.75 211.1 l S
+BT /F1 7 Tf 176.5 216.2 Td (inv_5633b01f50068344b40b1b61) Tj ET
+0.5 w 173.5 226.2 m 173.5 211.1 l S
+BT /F1 7 Tf 355.25 216.2 Td (devnet demonstration by chain, reference 5Yd1testtransaction) Tj ET
+0.5 w 352.25 226.2 m 352.25 211.1 l S
+BT /F1 7 Tf 630.25 216.2 Td (stl_41ab1792c3b901c7bc0adb53) Tj ET
+0.5 w 627.25 226.2 m 627.25 211.1 l S
+0.5 w 806 226.2 m 806 211.1 l S
+0.5 w 36 211.1 m 806 211.1 l S
+BT /F1 7.5 Tf 36 195.22 Td (A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them.) Tj ET
 BT /F1 6.5 Tf 36 36 Td (Knos statement sha256 78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690   page 2 of 2) Tj ET
 endstream
 endobj
@@ -443,10 +439,10 @@ xref
 0000000320 00000 n 
 0000000464 00000 n 
 0000000600 00000 n 
-0000007778 00000 n 
-0000007914 00000 n 
+0000007933 00000 n 
+0000008069 00000 n 
 trailer
-<< /Size 10 /Root 1 0 R /Info 5 0 R /ID [<4dbc8f54fcf7d9e1ceb633ac8aecd4bc> <4dbc8f54fcf7d9e1ceb633ac8aecd4bc>] >>
+<< /Size 10 /Root 1 0 R /Info 5 0 R /ID [<84e9d1f3335dabfe4f650bbff2b54ac3> <84e9d1f3335dabfe4f650bbff2b54ac3>] >>
 startxref
-18434
+18023
 %%EOF

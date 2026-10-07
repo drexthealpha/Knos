@@ -15,7 +15,7 @@ import pytest
 
 pytest.importorskip("solders")
 
-from knos import approvals, commands, controls  # noqa: E402
+from knos import approvals, commands, controls, fees  # noqa: E402
 
 CASES = Path(__file__).parent / "data" / "procure_cases.json"
 S = controls.sample()
@@ -88,13 +88,17 @@ def test_an_offer_becomes_the_comment_the_relay_already_reads():
 def test_an_envelope_shows_before_and_after_and_refuses_by_the_amount_over():
     assert controls.envelope_state(ENV) == {"limit": 5000 * U, "committed": 1200 * U, "spent": 850 * U, "held": 150 * U, "left": 2800 * U}
     c = controls.commitment(but(OFFER, outcome="feature", suppliers=["hubot"]))
-    assert c == {"suppliers": 1, "periods": 3, "cap": 400 * U, "fee": 10 * U, "value": 1200 * U, "leaves": 1230 * U}
+    # the fee of knos_pay 2.2 (0.30%): 1.20 on each month's 400 ...
+    assert c == {"suppliers": 1, "periods": 3, "cap": 400 * U, "fee": 1_200_000, "value": 1200 * U, "leaves": 1_203_600_000}
+    # ... and under the 0.3.14 fee, which the public program charges until that upgrade executes: 10.00 on each
+    assert controls.commitment(but(OFFER, outcome="feature", suppliers=["hubot"]), rule=fees.OLD) == {
+        "suppliers": 1, "periods": 3, "cap": 400 * U, "fee": 10 * U, "value": 1200 * U, "leaves": 1230 * U}
     fine = controls.fit(ENV, c["leaves"])
-    assert fine["ok"] and fine["before"]["left"] == 2800 * U and fine["after"]["committed"] == 2430 * U and fine["after"]["left"] == 1570 * U
-    assert fine["sentence"] == "Fits: 1,230.00 is committed, and 1,570.00 stays in envelope `eng-2026q4`."
+    assert fine["ok"] and fine["before"]["left"] == 2800 * U and fine["after"]["committed"] == 2_403_600_000 and fine["after"]["left"] == 1_596_400_000
+    assert fine["sentence"] == "Fits: 1,203.60 is committed, and 1,596.40 stays in envelope `eng-2026q4`."
     over = controls.fit(ENV, controls.commitment(but(OFFER, cap=1000))["leaves"])
-    assert not over["ok"] and over["over"] == 275 * U and over["after"] == over["before"]
-    assert over["sentence"] == "Refused: this is 275.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left."
+    assert not over["ok"] and over["over"] == 209 * U and over["after"] == over["before"]
+    assert over["sentence"] == "Refused: this is 209.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left."
     assert controls.envelope_problems(but(ENV, spent=4000)) == ["The envelope is over its limit by 350.00."]
     assert controls.envelope_problems(but(ENV, left=1)) == ["`left` says 1, and the limit less committed, spent and held is 2,800.00."]
     assert controls.commitment(but(OFFER, suppliers=["a", "b"], period="week", ends="2026-10-14"))["periods"] == 2
@@ -260,15 +264,15 @@ def test_budget_offer_shows_the_envelope_before_and_after_and_refuses_over_the_l
     offer = root / "offers" / "bug-fix-octocat.yaml"
     rc, said = knos("budget", "offer", offer)
     assert rc == 0 and "before limit 5,000.00: committed 1,200.00, spent 850.00, held 150.00, left 2,800.00" in said
-    assert "after limit 5,000.00: committed 2,430.00, spent 850.00, held 150.00, left 1,570.00" in said
+    assert "after limit 5,000.00: committed 2,403.60, spent 850.00, held 150.00, left 1,596.40" in said
     assert "/knos offer @octocat rate 50 budget 400 checks: unit, lint paths: src/**, tests/** days 30" in said
     offer.write_text(controls.dump_yaml(but(OFFER, cap=1000)), encoding="utf-8")
     rc, said = knos("budget", "offer", offer, "--write")
-    assert rc == 1 and "Refused: this is 275.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left." in said and "/knos offer" not in said
+    assert rc == 1 and "Refused: this is 209.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left." in said and "/knos offer" not in said
     assert controls.read_yaml((root / "envelopes" / "eng-2026q4.yaml").read_text(encoding="utf-8")) == ENV      # a refusal writes nothing
     offer.write_text(controls.dump_yaml(OFFER), encoding="utf-8")
     assert knos("budget", "offer", offer, "--write")[0] == 0
-    assert knos("budget", "envelope", root / "envelopes" / "eng-2026q4.yaml")[1].endswith("committed 2,430.00, spent 850.00, held 150.00, left 1,570.00")
+    assert knos("budget", "envelope", root / "envelopes" / "eng-2026q4.yaml")[1].endswith("committed 2,403.60, spent 850.00, held 150.00, left 1,596.40")
     rc, said = knos("budget", "card", root / "rate-cards" / "maintenance-2026q4.yaml")
     assert rc == 0 and "bug-fix 50.00 test USDC per accepted pull request; terms bugfix" in said
     offer.write_text("kind: standing-offer\n", encoding="utf-8")
@@ -280,11 +284,11 @@ def test_funding_one_task_shows_the_envelope_before_and_after_and_refuses_over_t
     root, knos = repo
     env = root / "envelopes" / "eng-2026q4.yaml"
     rc, said = knos("budget", "envelope", env, "--fund", "500")
-    assert rc == 0 and "one task of 500.00, fee 12.50 on top." in said
+    assert rc == 0 and "one task of 500.00, fee 1.50 on top (12.50 until knos_pay 2.2 is live: `knos status` says which build runs)." in said
     assert "before limit 5,000.00: committed 1,200.00, spent 850.00, held 150.00, left 2,800.00" in said
-    assert "after limit 5,000.00: committed 1,712.50, spent 850.00, held 150.00, left 2,287.50" in said and "Fits: 512.50 is committed" in said
+    assert "after limit 5,000.00: committed 1,701.50, spent 850.00, held 150.00, left 2,298.50" in said and "Fits: 501.50 is committed" in said
     rc, said = knos("budget", "envelope", env, "--fund", "3000")
-    assert rc == 1 and "Refused: this is 245.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left." in said
+    assert rc == 1 and "Refused: this is 209.00 over envelope `eng-2026q4`. 2,800.00 of 5,000.00 is left." in said
     assert controls.read_yaml(env.read_text(encoding="utf-8")) == ENV
 
 

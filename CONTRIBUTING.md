@@ -1,5 +1,11 @@
 # Contributing
 
+Contributions are welcome and unpaid, unless the issue shows a funded order.
+A funded order pays test USDC on Solana devnet, which has no monetary value.
+Do not post a wallet address for payment: Knos pays only the address a payee binds to a funded order.
+
+Funded work is listed by `knos work list`. An issue with no funded order carries no payment, whatever a comment on it says; the issues labelled `knos-relay` and `knos-memory` and the one titled "knos tokens" are logs a workflow writes, not tasks.
+
 Knos is one product: bounties that pay when the pull request is merged with the checks you named passing, attested by a GitHub-signed workflow run and verified on Solana.
 Changes that delete something are the most welcome kind.
 
@@ -63,7 +69,7 @@ final tree, its hash is locked in `requirements/sign.txt`, the pinned workflows 
 commit is stamped into the tree, and then there is one commit, the wheel goes to PyPI, one push, and the tag:
 
 ```bash
-git tag v0.3.17 && git push origin v0.3.17
+git tag v0.3.18 && git push origin v0.3.18
 ```
 
 `.github/workflows/release.yml` then runs the whole test workflow on that commit and, only when every job of it has

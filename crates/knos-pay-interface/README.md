@@ -9,7 +9,7 @@ addresses, the three instructions a funder sends and a reader of the Order accou
 `solana-program`; it carries none of `knos_pay`'s code.
 
 ```toml
-knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.17" }
+knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.18" }
 ```
 
 ```rust
@@ -32,8 +32,8 @@ if o.amount != amount || o.refund_to != *treasury.key { return Err(ProgramError:
 ```
 
 The treasury is debited `amount + order_fee(amount, FEE_BPS, decimals)`: the payees receive the amount whole and the
-funder pays the fee on top (2.5% of the first 1,000 whole units of the mint, 1% from there to 50,000, 0.5% above; at
-least 0.40, no maximum). The order is at
+funder pays the fee on top (knos_pay 2.2: 0.30% of the amount, at least 0.05, no maximum; a program still at 2.1
+charges its own older fee, and the order's account holds what was charged). The order is at
 `f.address(&knos::ID, treasury.key)` and its money at `knos::ov(&knos::ID, &order)`.
 
 ## What is in it

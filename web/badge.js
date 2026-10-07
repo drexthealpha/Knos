@@ -81,6 +81,27 @@ export function verifiedSvg(v) {
   return draw(VERIFIED_LABEL, verifiedMessage(v), tip, "#1a7f37");
 }
 
+// ---- a supplier's record as a badge (src/knos/record_page.py `badge_data`, `badge_svg`: the same strings, the same bytes) ----
+// From the record file alone. With work settled through Knos it is "Knos-verified" and counts it; without, it says so
+// and gives the public row. The sample is always stated. Green only with accepted work settled through Knos.
+export const RECORD_LABEL = "Knos record";
+export const RECORD_RULE = "The supplier never pays for this record and cannot pay to change it.";
+export const RECORD_NOT_A_SCORE = "Counts with their samples. Nothing here is a score.";
+export function recordBadge(doc) {
+  const o = doc.orders, p = doc.public, c = Object.fromEntries(Object.entries(o.counts).map(([k, v]) => [k, v.n]));
+  let label = RECORD_LABEL, message = `nothing on record, as of ${doc.as_of}`;
+  if (o.sample) {
+    label = VERIFIED_LABEL;
+    message = `${c.accepted} accepted, ${c.reverted} reverted, sample ${o.sample}${o.period.from ? `, ${o.period.from} to ${o.period.to}` : `, as of ${doc.as_of}`}`;
+  } else if (p && p.sample) message = `no Knos orders yet; public PRs: ${p.failed_at_merge} of ${p.sample} had a failed check, week of ${p.week}`;
+  return { label, message, title: `${label}: ${doc.name}. ${message}. ${RECORD_NOT_A_SCORE} ${RECORD_RULE}`, colour: o.sample && c.accepted ? "#1a7f37" : "#57606a" };
+}
+export function recordBadgeSvg(doc) {
+  const b = recordBadge(doc);
+  return draw(b.label, b.message, b.title, b.colour);
+}
+export const recordBadgeMarkdown = (doc, image) => { const b = recordBadge(doc); return `[![${b.label}: ${b.message}](${image})](${doc.links.page})`; };
+
 // The badge with its evidence under it, or one line saying why there is none. `receipt` (optional): hashed again here.
 export async function renderVerified(el, v, receipt = null) {
   const same = !receipt || (verifiedIssued(v) && await receiptDigest(receipt) === v.digest);

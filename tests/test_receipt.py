@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from knos import receipt
+from knos import fees, receipt
 
 ROOT = Path(__file__).resolve().parents[1]
 VECTORS = json.loads((ROOT / "docs" / "receipt" / "vectors.json").read_text(encoding="utf-8"))
@@ -53,7 +53,12 @@ def test_five_receipts_are_valid_and_have_the_digests_the_vectors_give():
     first = VECTORS["valid"][0]["receipt"]
     said = " ".join(fx["paid"]["logs"])
     assert first["order"] == fx["order"]["address"] and f"amount={first['payees'][0]['amount']} to={first['payees'][0]['to']}" in said
-    assert f"paid={first['amounts']['paid']} of={first['amounts']['of']} fee={first['amounts']['fee']} tip={first['amounts']['tip']} judge=0" in said
+    # the receipt is of the payment knos_pay 2.1 made, and keeps the fee that build took (0.50 on 20: a receipt is never
+    # rewritten when the rule changes); the fixture is the same payment made again by the tree's build, under its own rule
+    took = re.search(rf"paid={first['amounts']['paid']} of={first['amounts']['of']} fee=(\d+) tip=(\d+) judge=0", said)
+    of, a = int(first["amounts"]["of"]), first["amounts"]
+    assert took and int(took[1]) + int(took[2]) == fees.rule(fx["fee_version"]).order(of) == fx["fee"] == 60_000
+    assert (a["fee"], a["tip"]) == ("200000", "300000") and int(a["fee"]) + int(a["tip"]) == fees.OLD.order(of) == 500_000
 
 
 def test_every_invalid_receipt_is_refused_for_its_reason():

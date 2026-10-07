@@ -1,9 +1,11 @@
 // The client of the example: it asks for the resource, reads the 402, checks the order it is asked to fund against
 // what it is willing to pay, funds it, and asks again with the order's address as its payment proof.
-import { KNOS_PAY, SCHEME, decode, encode, fundOrderWalletIx, orderAddress, orderFee, termsHash } from "./attested.mjs";
+import { KNOS_PAY, SCHEME, decode, encode, feesFor, fundOrderWalletIx, orderAddress, orderFee, termsHash } from "./attested.mjs";
 
 /**
- * `wallet`: { address, token, send(ix) -> signature } (send signs and submits). `limits`: { maxAmount, programs, mints }.
+ * `wallet`: { address, token, send(ix) -> signature } (send signs and submits). `limits`: { maxAmount, programs, mints, feeVersion }.
+ * `feeVersion`: what the program answered to Version, when the client asked it (2: knos_pay 2.2 and its 0.30% fee; 1: the 0.3.14 fee).
+ * Not given, the fee of either rule is accepted: the program takes its own, and `maxAmount` caps the price.
  * Returns { status, body, settlement, order, messages } where messages are the exact JSON objects exchanged.
  */
 export async function fetchAttested(url, wallet, limits, fetcher = fetch) {
@@ -18,7 +20,8 @@ export async function fetchAttested(url, wallet, limits, fetcher = fetch) {
   if (!limits.mints.includes(req.asset)) throw new Error(`refusing to pay in mint ${req.asset}`);
   if (BigInt(req.amount) > BigInt(limits.maxAmount)) throw new Error(`the price ${req.amount} is over this client's limit ${limits.maxAmount}`);
   if (x.termsHash !== await termsHash(x.terms)) throw new Error("the terms hash is not the hash of the terms");
-  if (x.fee !== String(orderFee(req.amount))) throw new Error("the fee is not knos_pay's fee for this amount");
+  const fees = limits.feeVersion === undefined || limits.feeVersion === null ? feesFor(req.amount) : [String(orderFee(req.amount, limits.feeVersion))];
+  if (!fees.includes(x.fee)) throw new Error("the fee is not knos_pay's fee for this amount");
   const order = await orderAddress(x.program, x.repoId, x.issue, wallet.address, x.seq);
   if (x.order !== null && x.order !== order) throw new Error("the order the server names is not the one this wallet's funding creates");
   const transaction = await wallet.send(await fundOrderWalletIx(req, wallet.address, wallet.token));

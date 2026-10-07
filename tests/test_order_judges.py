@@ -75,7 +75,7 @@ def test_what_a_neutral_run_cannot_do(chain):
     # a token for another order pays only that one
     t = c.pay_token(other, payees, **by_hand(AUTHOR))
     assert not c.send([c.pay_ix(order, t, payees)]) and code(c) == 87
-    assert c.held(order) == c.held(other) == 20 * USDC + 500_000 and paid_to(c, wallet) == 0
+    assert c.held(order) == c.held(other) == 20 * USDC + 60_000 and paid_to(c, wallet) == 0
     assert c.send([c.pay_ix(other, t, payees)]), c.err
     # the buyer's own run still pays a neutral order, as before
     assert c.pay(order, payees), c.err
@@ -128,8 +128,8 @@ def test_a_balance_funds_a_private_order_from_its_judge_repository_and_nothing_o
     funded = "\n".join(c.logs).encode()
     o = c.order(order)
     assert (o.state, o.from_balance, o.repo_id, o.issue, o.flags, o.judge_repo_id) == ("open", True, 0, 0, pay.F_PRIVATE, JUDGE_REPO)
-    assert (o.scope, o.terms, o.amount, o.fee, o.funder_id, o.owner_id) == (pay.scope_of(PRIVATE_REPO, SECRET_ISSUE, salt), pay.terms_hash(SECRET), 40 * USDC, USDC, MAINT, OWNER)
-    assert c.held(order) == 41 * USDC == before - c.balance(pay.baltok_pda(c.bal))
+    assert (o.scope, o.terms, o.amount, o.fee, o.funder_id, o.owner_id) == (pay.scope_of(PRIVATE_REPO, SECRET_ISSUE, salt), pay.terms_hash(SECRET), 40 * USDC, 120_000, MAINT, OWNER)
+    assert c.held(order) == 40_120_000 == before - c.balance(pay.baltok_pda(c.bal))
     assert c.said("knos3:terms") == [] and c.said("knos3:funded")[0].startswith(f"knos3:funded order={order} repo=0 issue=0 ")
     assert not c.send([ix]) and code(c) == 91                              # the token worked once
     # a run in the judge repository pays it; nobody else's does
@@ -281,7 +281,7 @@ def test_what_a_ruling_cannot_do(chain):
     # nobody else's run signs a ruling: not the order's own repository's
     own = c.gh(pay.rule_audience(order, payees), repository_id=REPO)
     assert not c.send([c.pay_ix(order, own, payees)]) and code(c) == 86
-    assert c.held(order) == 20 * USDC + 500_000 and paid_to(c, wallet) == 0
+    assert c.held(order) == 20 * USDC + 60_000 and paid_to(c, wallet) == 0
     # after the deadline the money goes back, ruling or not
     short = c.fund_wallet(work_s=3600, options=pay.opts(arbiter_id=arbiter))
     c.warp(3601)
@@ -555,4 +555,4 @@ def test_what_a_token_under_a_key_that_is_not_githubs_cannot_do():
     # its registrant ends the key, and what it verified ends with it
     assert c.send([oidc.revoke_ix(c.owner.pubkey(), GHE, company.n, registrant=c.owner.pubkey())], c.owner), c.err
     assert not c.send([company.pay_ix(order, good, payees)]) and code(c) == 78
-    assert c.held(order) == 20 * USDC + 500_000 and paid_to(c, wallet) == 5 * 20 * USDC
+    assert c.held(order) == 20 * USDC + 60_000 and paid_to(c, wallet) == 5 * 20 * USDC

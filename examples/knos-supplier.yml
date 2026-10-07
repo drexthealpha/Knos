@@ -1,0 +1,28 @@
+# .github/workflows/knos-supplier.yml: the supplier's kit in one line. The free Knos check on every pull request of
+# this repository, its result posted once, its receipt attached to the run. No secret, no money, no chain.
+#
+# The one line is the `uses:` below. What it does (the called file says it in full):
+#   - holds a "tests pass" or "CI is green" in the description against GitHub's record of the head commit, and applies
+#     this repository's CONTRIBUTING rules; it runs none of the pull request's code;
+#   - posts one comment and rewrites that same comment on later runs. A pull request from a fork runs with a token
+#     that can only read: the result is then the job's summary and conclusion, and no comment;
+#   - attaches the receipt as the artifact "knos-receipt-<pull request>".
+#
+# Keep the job's name starting with "knos": by that name Knos tells its own run from the checks it judges. Keep this
+# a workflow file of its own: Knos never counts the jobs of its own run as evidence.
+# The record, the badge and the receipt to send with an invoice: docs/RECORD.md in drexthealpha/Knos.
+name: knos supplier check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  knos:
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: write
+    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.18

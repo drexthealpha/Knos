@@ -43,12 +43,10 @@ pub const USDC_DEVNET: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJ
 pub const USDC_MAINNET: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
 // Prices and bounds, in millionths of ONE WHOLE UNIT of the mint (`units` turns them into the mint's smallest units).
-pub const FEE_BPS: u64 = 250; // 2.5%: the first tier of an order's fee
-pub const ORDER_FEE_MIN: u64 = 400_000; // 0.40
-pub const FEE_TIER_1: u64 = 1_000_000_000; // the first 1,000.00: FEE_BPS, or the owner's Plan
-pub const FEE_TIER_2: u64 = 50_000_000_000; // from there to 50,000.00: FEE_BPS_2; above it: FEE_BPS_3
-pub const FEE_BPS_2: u64 = 100; // 1%
-pub const FEE_BPS_3: u64 = 50; // 0.5%
+// The fee is knos_pay 2.2's: one rate and a floor. A program at 2.1 (the public one until the upgrade to 2.2 executes)
+// charges its own, older fee; what an order was charged is always the `fee` its account holds (`Order::fee`).
+pub const FEE_BPS: u64 = 30; // 0.30%: the one rate of an order's fee, or the owner's Plan (no lower than 10)
+pub const ORDER_FEE_MIN: u64 = 50_000; // 0.05: the floor
 pub const ORDER_MIN_AMOUNT: u64 = 5_000_000;
 pub const MAX_AMOUNT: u64 = 100_000_000_000; // 100,000.00 per order on devnet
 pub const MIN_WORK: i64 = 60;
@@ -76,17 +74,10 @@ pub fn units(micro: u64, decimals: u8) -> u64 {
 }
 /// `bps` basis points of an amount, rounded down, without overflow.
 pub fn bps_of(amount: u64, bps: u64) -> u64 { amount / 10_000 * bps + amount % 10_000 * bps / 10_000 }
-/// The fee a funder pays ON TOP of an order's amount, exactly as knos_pay computes it. Marginal, in whole units of
-/// the mint: `bps` (FEE_BPS for a wallet's order) of the first FEE_TIER_1 of the amount, FEE_BPS_2 of what lies
-/// between FEE_TIER_1 and FEE_TIER_2, FEE_BPS_3 of what lies above; each part rounded down; at least ORDER_FEE_MIN;
-/// no maximum. FundOrderWallet moves amount + order_fee(amount).
-pub fn order_fee(amount: u64, bps: u64, decimals: u8) -> u64 {
-    let (t1, t2) = (units(FEE_TIER_1, decimals), units(FEE_TIER_2, decimals));
-    let first = amount.min(t1);
-    let second = amount.min(t2) - first;
-    let third = amount - first - second;
-    (bps_of(first, bps) + bps_of(second, FEE_BPS_2) + bps_of(third, FEE_BPS_3)).max(units(ORDER_FEE_MIN, decimals))
-}
+/// The fee a funder pays ON TOP of an order's amount, exactly as knos_pay 2.2 computes it: `bps` (FEE_BPS for a
+/// wallet's order) of the amount, rounded down; at least ORDER_FEE_MIN; no maximum and no tiers. FundOrderWallet
+/// moves amount + order_fee(amount).
+pub fn order_fee(amount: u64, bps: u64, decimals: u8) -> u64 { bps_of(amount, bps).max(units(ORDER_FEE_MIN, decimals)) }
 
 /// sha256 of the terms JSON: what the order stores and a pay token must carry.
 pub fn terms_hash(json: &[u8]) -> [u8; 32] { hashv(&[json]).to_bytes() }
@@ -220,6 +211,10 @@ pub struct Order {
     pub paid: u64, pub deadline: i64, pub not_before: i64, pub hold_until: i64, pub warranty_s: i64, pub reserved_by: u64, pub reserved_until: i64,
     pub cancel_at: i64, pub payee_id: u64, pub funder_id: u64, pub owner_id: u64, pub arbiter_id: u64, pub judge_repo_id: u64, pub source: Pubkey,
     pub refund_to: Pubkey, pub rent_to: Pubkey, pub mint: Pubkey, pub terms: [u8; 32], pub wf_repo: [u8; 32], pub wf_sha: [u8; 40], pub fee_bps: u16,
+    /// The slot of the order's funding plus one, which its judges' markers are bound to (0: funded under 2.1).
+    pub inc: u64,
+    /// A pay token issued by the deadline is still taken for a grace after it, and no refund is taken before.
+    pub grace: bool,
 }
 impl Order {
     /// The order's fields, with no check of where the bytes came from: only their length and version.
@@ -236,7 +231,7 @@ impl Order {
             hold_until: i64_at(112), warranty_s: i64_at(120), reserved_by: u64_at(128), reserved_until: i64_at(136), cancel_at: i64_at(144),
             payee_id: u64_at(152), funder_id: u64_at(160), owner_id: u64_at(168), arbiter_id: u64_at(176), judge_repo_id: u64_at(184), source: key(192),
             refund_to: key(224), rent_to: key(256), mint: key(288), terms: d[320..352].try_into().unwrap(), wf_repo: d[352..384].try_into().unwrap(),
-            wf_sha: d[384..424].try_into().unwrap(), fee_bps: u16_at(424),
+            wf_sha: d[384..424].try_into().unwrap(), fee_bps: u16_at(424), inc: u64_at(432), grace: d[440] == 1,
         })
     }
     /// An order read ON CHAIN from an account another program was handed: the account's owner is `program`, and
@@ -250,6 +245,7 @@ impl Order {
     pub fn is(&self, flag: u8) -> bool { self.flags & flag != 0 }
     pub fn token_program(&self) -> Pubkey { if self.is(F_TOKEN2022) { TOKEN_2022 } else { TOKEN } }
     pub fn address(&self, program: &Pubkey) -> Pubkey { order(program, &self.scope, &self.source, self.seq) }
-    /// Whether RefundOrder would be accepted at `now`: open past the deadline, or held past the hold.
+    /// Whether RefundOrder would be accepted at `now`: open past the deadline, or held past the hold. (An order with
+    /// `grace` is refunded only once its grace has passed as well: this does not count the grace.)
     pub fn refundable(&self, now: i64) -> bool { (self.state == OPEN && now > self.deadline) || (self.state == HELD && now > self.hold_until) }
 }

@@ -55,16 +55,19 @@ USDC_MAINNET = Pubkey.from_string("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 COUNTED = (USDC_DEVNET, USDC_MAINNET)   # the record counts real money only in these mints (and test money in the faucet's)
 
 MERGE, TESTS = 0, 1
-FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT, FAUCET_CAP = 250, 50_000, 1_000_000, 100_000_000_000, 100_000_000
+FEE_BPS, FEE_MIN, MIN_AMOUNT, MAX_AMOUNT, FAUCET_CAP = 30, 50_000, 1_000_000, 100_000_000_000, 100_000_000
 MIN_WORK, MAX_WORK, HOLD, PAUSE_MAX = 60, 90 * 86_400, 180 * 86_400, 7 * 86_400
 FUND_PERIOD, CLOCK_SLACK, MAX_TERMS = 60, 30, 600
 TOKEN_AHEAD, TOKEN_LIFE = 300, 3600     # a token's iat is at most this far ahead of the chain's clock; its exp at most this long after its iat
 JOB_LEN, BALANCE_LEN, BIND_LEN, REP_LEN = 320, 160, 56, 64
 BALX_LEN, PLAN_LEN, ORDER_LEN, OPTS_LEN = 152, 24, 512, 48
 # orders (2.1). Amounts are millionths of one whole unit of the mint: `units` gives the mint's smallest units.
-ORDER_FEE_MIN, ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN = 400_000, 5_000_000, 50_000, 300_000, 50
-# an order's fee is marginal: FEE_BPS (or a Plan's rate) of the first FEE_TIER_1, FEE_BPS_2 up to FEE_TIER_2, FEE_BPS_3 above; no cap
-FEE_TIER_1, FEE_TIER_2, FEE_BPS_2, FEE_BPS_3 = 1_000_000_000, 50_000_000_000, 100, 50
+# the fee of a job and of an order is one rate, FEE_BPS (0.30%; an owner's Plan lowers an order's to no less than
+# PLAN_BPS_MIN), with one floor, FEE_MIN (0.05), and no cap: no tiers (knos_pay 2.2; 2.1 had three and a floor of 0.40)
+ORDER_MIN_AMOUNT, TIP, TIP_FIRST, PLAN_BPS_MIN = 5_000_000, 50_000, 300_000, 10
+# an order funded with the presentation grace (opts(grace=True)) takes a pay token the forge issued by its deadline
+# for GRACE seconds after it, and is not refunded before: TOKEN_LIFE plus the verifier's lateness (lib.rs GRACE)
+GRACE = TOKEN_LIFE + 3600
 MAX_HOLDBACK_BPS, MAX_WARRANTY_DAYS, MAX_KILL_BPS, MAX_PAYEES = 5000, 90, 2000, 4
 F_FAUCET, F_PRIVATE, F_NEUTRAL, F_STANDING, F_TOKEN2022 = 1, 2, 4, 8, 16
 STATES = {1: "open", 3: "held", 4: "warranty"}
@@ -93,7 +96,7 @@ ERRORS = {76: "the key that signed this token is not active on chain yet: it wai
           99: "a faucet balance holds test USDC and cannot be withdrawn",
           100: "more than this balance may spend in one day or in total; its wallet can raise the limit, or fund less",
           101: "this order exists already (use another seq), or the account is not an order",
-          102: "only the fee owner sets a plan, with a rate of 50 to 250 basis points and an expiry in the future",
+          102: "only the fee owner sets a plan, with a rate of 10 to 30 basis points and an expiry in the future",
           103: "this order is both standing and has a holdback, and such an order is never paid: its money goes back to its funder at the deadline; fund a new one that is standing or has a holdback, not both"}
 
 
@@ -103,19 +106,15 @@ def units(micro: int, decimals: int = 6) -> int:
 
 
 def fee_of(amount: int, decimals: int = 6) -> int:
-    """The fee of a job (2.0), taken out of its amount."""
-    return min(max(amount * FEE_BPS // 10_000, units(FEE_MIN, decimals)), amount)
+    """The fee of a job (2.0), taken out of its amount: FEE_BPS of it, at least FEE_MIN, never more than the amount."""
+    return min(order_fee(amount, FEE_BPS, decimals), amount)
 
 
 def order_fee(amount: int, bps: int = FEE_BPS, decimals: int = 6) -> int:
-    """The fee of an order (2.1), which its funder pays on top of the amount, exactly as the program computes it
-    (lib.rs order_fee): `bps` (FEE_BPS, or the owner's Plan) of the first 1,000 whole units, 1% of what lies between
-    1,000 and 50,000, 0.5% of what lies above, each part rounded down; at least 0.40; no maximum."""
-    t1, t2 = units(FEE_TIER_1, decimals), units(FEE_TIER_2, decimals)
-    first = min(amount, t1)
-    second = min(amount, t2) - first
-    third = amount - first - second
-    return max(first * bps // 10_000 + second * FEE_BPS_2 // 10_000 + third * FEE_BPS_3 // 10_000, units(ORDER_FEE_MIN, decimals))
+    """The fee of an order, which its funder pays on top of the amount, exactly as the program computes it (lib.rs
+    order_fee): `bps` basis points of the amount (FEE_BPS, or the owner's Plan) rounded down, at least FEE_MIN of a
+    whole unit; one rate, no tiers, no maximum. 5.00 -> 0.05; 100.00 -> 0.30; 5,000.00 -> 15.00; 100,000.00 -> 300.00."""
+    return max(amount * bps // 10_000, units(FEE_MIN, decimals))
 
 
 def terms_json(terms: dict) -> bytes:
@@ -561,10 +560,12 @@ def plan_pda(owner_id: int, program: Pubkey = PAY_ID) -> Pubkey:
 
 
 def opts(flags: int = 0, holdback_bps: int = 0, warranty_days: int = 0, kill_bps: int = 0, reserve_days: int = 0, rate: int = 0, arbiter_id: int = 0,
-         judge_repo_id: int = 0, salted: bool = False) -> bytes:
-    """The 48 bytes a funder fixes beside the amount and the terms. `flags`: F_PRIVATE, F_NEUTRAL, F_STANDING."""
+         judge_repo_id: int = 0, salted: bool = False, grace: bool = False) -> bytes:
+    """The 48 bytes a funder fixes beside the amount and the terms. `flags`: F_PRIVATE, F_NEUTRAL, F_STANDING.
+    `grace`: the presentation grace (GRACE): a pay token issued by the deadline still pays for that long after it,
+    and the refund waits as long. A program before 2.2 refuses the byte (E_TERMS)."""
     return (bytes([flags]) + holdback_bps.to_bytes(2, "little") + warranty_days.to_bytes(2, "little") + kill_bps.to_bytes(2, "little")
-            + bytes([reserve_days]) + _u64(rate) + _u64(arbiter_id) + _u64(judge_repo_id) + bytes([int(salted)]) + bytes(15))
+            + bytes([reserve_days]) + _u64(rate) + _u64(arbiter_id) + _u64(judge_repo_id) + bytes([int(salted), int(grace)]) + bytes(14))
 
 
 def order_fund_audience(issue: int, amount: int, mode: int, terms: bytes, balance: Pubkey, work_s: int = 14 * 86_400, seq: int = 0,
@@ -630,6 +631,8 @@ class Order:
     wf_repo_hash: bytes
     wf_sha: str
     fee_bps: int
+    inc: int = 0            # the slot of its funding plus one (0: funded under 2.1): its incarnation (state.rs O_INC)
+    grace: bool = False     # funded with the presentation grace
 
     @property
     def token_program(self) -> Pubkey:
@@ -638,6 +641,21 @@ class Order:
     @property
     def faucet(self) -> bool:
         return bool(self.flags & F_FAUCET)
+
+    @property
+    def stamp(self) -> int:
+        """What every marker made for this order carries (state.rs `stamp`): it differs for every funding of one
+        address. An order of 2.1: its `not_before`."""
+        return -self.inc if self.inc else self.not_before
+
+    @property
+    def pay_until(self) -> int:
+        """The last second a pay token is taken while the order is open, and the last a refund is refused."""
+        return self.deadline + GRACE if self.grace else self.deadline
+
+    def in_time(self, iat: int, now: int) -> bool:
+        """Whether a token issued at `iat` and shown at `now` is in time to pay this order (order.rs in_time)."""
+        return now <= self.deadline or (self.grace and iat <= self.deadline and now <= self.pay_until)
 
     @property
     def funder(self) -> Pubkey | int:
@@ -659,7 +677,7 @@ def read_order(data: bytes | None) -> Order | None:
                  reserved_until=_i64(data, 136), cancel_at=_i64(data, 144), payee_id=_n(data, 152), funder_id=_n(data, 160), owner_id=_n(data, 168),
                  arbiter_id=_n(data, 176), judge_repo_id=_n(data, 184), source=key(192), refund_to=key(224), rent_to=key(256), mint=key(288),
                  terms=bytes(data[320:352]), wf_repo_hash=bytes(data[352:384]), wf_sha=bytes(data[384:424]).decode("ascii", "replace"),
-                 fee_bps=_n(data, 424, 2))
+                 fee_bps=_n(data, 424, 2), inc=_n(data, 432), grace=data[440] == 1)
 
 
 @dataclass
@@ -701,7 +719,8 @@ def plan_bps(plan: Plan | None, now: int) -> int:
 
 
 def version_ix(program: Pubkey = PAY_ID) -> Instruction:
-    """Simulate it: a 2.1 program logs `knos2:version 1`; a 2.0 program refuses the instruction."""
+    """Simulate it: a 2.1 program logs `knos2:version 1`, 2.2 (one fee rate, a quorum of owners, the grace) logs
+    `knos2:version 2`; a 2.0 program refuses the instruction."""
     return Instruction(program, b"\x0c", [])
 
 
@@ -884,7 +903,8 @@ def bind_org_ix(relayer: Pubkey, bind_token: Pubkey, key: Pubkey, org_id: int, p
 # Revert), a standing offer paid once per pull request, a reservation (Reserve), a cancellation with notice and a
 # kill fee (Cancel, RefundOrder), an assigned payment (Assign), and markers that are closed when they no longer
 # matter (CloseMarker).
-HB_LEN, DONE_LEN, AS_LEN, USED_LEN = 240, 65, 88, 41
+HB_LEN, DONE_LEN, AS_LEN, USED_LEN = 240, 73, 88, 41
+DONE_LEN_21 = 65                                    # a done marker as 2.1 wrote it: no stamp
 NOTICE = 7 * 86_400                                 # a cancelled order still takes a pay token for this long
 USED_KEEP = TOKEN_AHEAD + TOKEN_LIFE + 3600 + 3600  # a used marker can be closed this long after it was made
 # The instructions that take a token (tag: the index of the token account). Each takes the token's marker: `marked`
@@ -952,7 +972,7 @@ def read_holdback(data: bytes | None) -> Holdback | None:
 def read_assign(data: bytes | None, o: Order | None = None) -> Pubkey | None:
     """The assignee in the account at assign_pda(order, payee). With `o` (the order as it is now): None too when the
     assignment was made for an earlier order at the same address, which the program ignores."""
-    if not data or len(data) != AS_LEN or data[0] != 1 or (o is not None and _i64(data, 80) != o.not_before):
+    if not data or len(data) != AS_LEN or data[0] != 1 or (o is not None and _i64(data, 80) != o.stamp):
         return None
     return Pubkey.from_bytes(data[48:80])
 
@@ -967,7 +987,7 @@ def read_marker(data: bytes | None) -> tuple[Pubkey, int | Pubkey] | None:
     """A marker's rent payer and, for a used marker, the time after which it can be closed; for a done marker, its order."""
     if data and len(data) == USED_LEN:
         return Pubkey.from_bytes(data[1:33]), _i64(data, 33)
-    if data and len(data) == DONE_LEN:
+    if data and len(data) in (DONE_LEN, DONE_LEN_21):
         return Pubkey.from_bytes(data[1:33]), Pubkey.from_bytes(data[33:65])
     return None
 

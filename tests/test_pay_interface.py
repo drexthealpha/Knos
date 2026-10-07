@@ -54,9 +54,12 @@ def test_the_crate_names_the_deployed_program_and_depends_on_solana_program_only
     assert ids["knos_pay"] not in readme or "ID" in readme
     # the program's own constants: a price here that is not the program's would quote a funder the wrong fee
     src = (ROOT / "programs-v2" / "knos_pay" / "src" / "lib.rs").read_text(encoding="utf-8")
-    for name in ("FEE_BPS", "ORDER_FEE_MIN", "FEE_TIER_1", "FEE_TIER_2", "FEE_BPS_2", "FEE_BPS_3", "ORDER_MIN_AMOUNT", "MAX_AMOUNT", "MIN_WORK", "MAX_TERMS"):
+    for name in ("FEE_BPS", "ORDER_MIN_AMOUNT", "MAX_AMOUNT", "MIN_WORK", "MAX_TERMS"):
         value = lambda text: re.search(rf"pub const {name}: \w+ = ([\d_]+);", text).group(1)  # noqa: E731
         assert value(lib) == value(src), name
+    # one rate and one floor since knos_pay 2.2 (the crate keeps the floor's older name), and no tier in either
+    floor = lambda text, name: re.search(rf"pub const {name}: \w+ = ([\d_]+);", text).group(1)  # noqa: E731
+    assert floor(lib, "ORDER_FEE_MIN") == floor(src, "FEE_MIN") == "50_000" and "FEE_TIER" not in lib and "FEE_TIER" not in src
 
 
 def test_the_crates_own_tests_pass_against_the_fixture():

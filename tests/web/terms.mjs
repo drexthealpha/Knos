@@ -33,6 +33,25 @@ let refusedShape = ""; try { page0.canonicalTerms({ ...files[0].terms, extra: 1 
 check("an object with another field is not terms", refusedShape.startsWith("Terms have exactly these fields"), refusedShape);
 check("a hash nobody published matches nothing", page0.published(index, "0".repeat(64)).length === 0);
 
+// Knos Terms 3: the registry lists documents of ten answers, and the browser's proposer gives the answer the Python one gives.
+const three = index.terms3?.documents || [], docs3 = three.map((t) => JSON.parse(readFileSync(join(root, page0.file3(t)), "utf8")));
+const prop = await import(pathToFileURL(join(root, "propose_terms.js")));
+const fixture = JSON.parse(readFileSync(new URL("../data/propose_terms.json", import.meta.url), "utf8"));
+check("the registry lists terms 3 documents, each answering ten questions", three.length >= 4 && docs3.every((d) => prop.missing(d).length === 0 && prop.questions(d).length === 10), three.length);
+check("the page's sha256 of each is the hash the index lists", (await Promise.all(docs3.map((d) => prop.digest(d)))).every((h, i) => h === three[i].hash));
+check("each line a published file carries is the line the page writes from its facts", docs3.filter((d) => d.built !== false).every((d) => prop.FIELDS.every(([f]) => prop.say(f, d[f]) === d[f].says)));
+check("the comment that funds each is the one the index lists", docs3.every((d, i) => d.built === false ? three[i].comment === "" : prop.comment(d) === three[i].comment));
+check("a file with a field missing is said to miss it", JSON.stringify(prop.missing({ ...docs3[0], dispute: undefined, price: null })) === JSON.stringify(["dispute", "price"]));
+const asked = [], recorded = async (path) => { asked.push(path); return fixture.api[path] ?? null; };
+const proposed = await prop.proposeTerms(fixture.repo, { get: recorded, now: Date.parse(fixture.now) / 1000 });
+check("terms proposed from a recorded repository are the ones the Python module proposes, hash included", JSON.stringify(proposed) === JSON.stringify(fixture.expected));
+check("...from at most 17 questions to the public API", asked.length <= 17 && asked.every((p) => p.startsWith("repos/")), asked.length);
+check("...and every field says where it came from", prop.FIELDS.every(([f]) => proposed.from[f].length >= 1));
+let stale = ""; try { await prop.proposeTerms(fixture.repo, { get: recorded, now: Date.parse(fixture.now) / 1000 + 40 * 86400 }); } catch (e) { stale = e.message; }
+check("a repository with no merge in 30 days gets no proposal, and the date is said", /last merged a pull request on 2026-09-28, 4\d days ago\. Nothing is proposed/.test(stale), stale);
+check("the semantic diff names the fields whose facts differ, whatever the key order", JSON.stringify(page0.changedFields(docs3[0], { ...docs3[0], price: { currency: "test USDC", says: "x", amount: "51.00" } })) === '["price"]'
+  && page0.changedFields(docs3[0], JSON.parse(JSON.stringify(docs3[0]))).length === 0);
+
 const skip = (why) => { console.log(`SKIP the browser part: ${why}`); process.exit(process.exitCode || 0); };
 let pw;
 try { pw = await import("playwright"); } catch {
@@ -46,11 +65,15 @@ try { browser = await chromium.launch(); } catch (e) { skip(`no Chromium to star
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
 const HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Terms</title>
 <link rel="stylesheet" href="app.css"></head><body><main id="terms"></main>
-<script type="module">import { renderTerms } from "./terms.js"; await renderTerms(document.getElementById("terms")); document.body.dataset.ready = "1";</script></body></html>`;
+<script type="module">import { renderTerms } from "./terms.js";
+const fixture = await (await fetch("fixture.json")).json(); window.asked = [];
+const get = async (path) => { window.asked.push(path); return fixture.api[path] ?? null; };
+await renderTerms(document.getElementById("terms"), { proposeEnv: { get, now: Date.parse(fixture.now) / 1000 } }); document.body.dataset.ready = "1";</script></body></html>`;
 let withRegistry = true;
 const server = createServer((req, res) => {
   const name = decodeURIComponent(new URL(req.url, "http://x").pathname);
   if (name === "/terms.html") { res.writeHead(200, { "content-type": "text/html" }); return res.end(HTML); }
+  if (name === "/fixture.json") { res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify(fixture)); }
   const path = join(root, name);
   if (!path.startsWith(root) || !existsSync(path) || (!withRegistry && name.startsWith("/terms/"))) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { "content-type": TYPES[extname(path)] || "application/octet-stream" }); res.end(readFileSync(path));
@@ -112,8 +135,45 @@ const names = [...new Set(index.templates.map((t) => t.name))], newest = page0.n
   check("text that is neither is said to be neither", JSON.stringify(await ask("pay me")) === JSON.stringify(["error", "Neither a sha256 nor JSON."]));
   check("the version table lists every version, in a .k-table", await page.$$eval("#terms-versions .k-table tbody tr", (r) => r.length) === index.templates.length);
 
+  // Knos Terms 3: ten questions, a version switcher whose changed answers move once, and terms proposed for a repository
+  const qa = await page.$$eval("#terms3-answers > div", (els) => els.map((e) => [e.dataset.field, e.querySelector("dt").textContent, e.querySelector("dd").textContent]));
+  check("a terms 3 file is shown as the ten questions it answers", qa.length === 10 && qa.every(([f, q, a], i) => f === prop.FIELDS[i][0] && q === prop.FIELDS[i][1] && a === docs3[0][f].says.replace(/`/g, "")), qa.map((x) => x[0]));
+  check("...with its hash", await page.$eval("#terms3-hash", (e) => e.textContent) === three[0].hash);
+  const to = three.findIndex((t) => t.name === "migration"), want3 = page0.changedFields(docs3[0], docs3[to]);
+  await page.selectOption("#terms3-pick", String(to));
+  await page.waitForFunction((v) => document.getElementById("terms3-answers").dataset.shown === v, `${three[to].name}@${three[to].version}`);
+  const moved = await page.$$eval("#terms3-answers > div[data-moved]", (els) => els.map((e) => [e.dataset.field, e.dataset.moved]));
+  check("switching version moves each answer that changed, once, and no other", JSON.stringify(moved) === JSON.stringify(want3.map((f) => [f, "1"])) && want3.length >= 3 && want3.length < 10, moved);
+  check("...and says how many changed", await page.$eval("#terms3-changed", (e) => e.textContent) === `${want3.length} of 10 answers changed.`);
+  check("...and nothing keeps moving", await page.evaluate(() => document.getAnimations().every((a) => a.effect.getComputedTiming().iterations === 1)));
+  await page.fill("#terms-repo", fixture.repo);
+  const t0 = Date.now();
+  await page.click("#terms-propose-go");
+  await page.waitForFunction(() => document.getElementById("terms-proposed").dataset.state === "done");
+  // the proposed terms as a short list the reader can accept (web/propose_view.js): the API is the recorded one
+  const pq = await page.$$eval("#terms-proposed li[data-field]", (els) => els.map((e) => [e.dataset.field, e.querySelector("span").textContent, e.querySelector("small").textContent, !!e.closest("details")]));
+  check("Propose terms lists the ten answers from the repository's record", pq.length === 10 && pq.every(([f, a]) => a === fixture.expected.terms[f].says.replace(/`/g, "")), pq.map((x) => x[0]));
+  check("...each line says where it came from", pq.every(([f, , from]) => from === fixture.expected.from[f][0].replace(/`/g, "") && from.length > 8), pq.map((x) => x[2]));
+  check("...what the repository itself answered leads, and the template's defaults wait in a fold", pq.filter((x) => !x[3]).length >= 2 && pq.filter((x) => !x[3]).length <= 6 && pq.filter((x) => x[3]).every(([f]) => fixture.expected.from[f].every((line) => line.startsWith("Template default"))), pq.map((x) => [x[0], x[3]]));
+  check("...says the date of the last merge", await page.$eval('#terms-proposed [data-pt="said"]', (e) => e.textContent) === "Draft from 10 merges. Last merge: 2026-09-28.");
+  check("...in well under a second on a recorded repository", Date.now() - t0 < 1500, Date.now() - t0);
+  const fileLink = await page.getAttribute('#terms-proposed [data-pt="file"]', "href"), [where, value] = fileLink.split("&value=");
+  check("one button opens GitHub's new-file page of that repository with .knos/terms.json filled in", where === `https://github.com/${fixture.expected.repo}/new/HEAD?filename=.knos%2Fterms.json`
+    && JSON.stringify(JSON.parse(decodeURIComponent(value))) === JSON.stringify(fixture.expected.terms) && (await page.getAttribute('#terms-proposed [data-pt="file"]', "target")) === "_blank", where);
+  check("...and it is the one primary button of the list", await page.$$eval("#terms-proposed .k-btn:not(.quiet)", (l) => l.map((b) => b.textContent).join()) === "Accept on GitHub");
+  await page.click('#terms-proposed [data-pt="comment"]');
+  await page.waitForFunction(() => /copied|Select/.test(document.querySelector('#terms-proposed [data-pt="comment"]').textContent));
+  const copied = await clip();
+  check("one copies the comment that funds an order on these terms, and leaves it in view", (copied === null || copied === fixture.expected.comment) && await page.$eval('#terms-proposed [data-pt="line"]', (e) => !e.hidden && e.textContent) === fixture.expected.comment, copied);
+  // a repository with no merge in 30 days: nothing is proposed, and the date is said
+  await page.evaluate(async (f) => { const { renderProposal } = await import("./propose_view.js");
+    const get = async (path) => f.api[path] ?? null; window.stale = await renderProposal(document.getElementById("terms-proposed"), f.repo, { proposeEnv: { get, now: Date.parse(f.now) / 1000 + 40 * 86400 } }); }, fixture);
+  check("a repository with no merge in 30 days gets no list and no button, and the date is said", await page.evaluate(() => window.stale === null && document.querySelectorAll("#terms-proposed li, #terms-proposed .k-btn").length === 0
+    && document.querySelector('#terms-proposed [data-pt="said"]').textContent === "Last merge: 2026-09-28, 48 days ago. Nothing proposed after 30 days." && document.getElementById("terms-proposed").dataset.state === "error"));
+  check("...and asked only the recorded reader", (await page.evaluate(() => window.asked.length)) <= 17);
+
   // the 12-word budget: every statement the page itself makes (a template's own sentence and the answers are data)
-  const said = await page.$$eval("#terms h2, #terms h3, #terms p:not(.terms-sentence):not(.terms-hash), #terms button, #terms th, #terms label", (els) => els.map((e) => e.textContent.trim().replace(/\s+/g, " ")));
+  const said = await page.$$eval("#terms h2, #terms h3, #terms p:not(.terms-sentence):not(.terms-hash), #terms button, #terms th, #terms label, #terms dt, #terms summary, #terms output", (els) => els.map((e) => e.textContent.trim().replace(/\s+/g, " ")));
   const long = said.filter((s) => s.split(" ").filter(Boolean).length > 12);
   check("no statement of the page is over 12 words", long.length === 0 && said.length > 10, long);
   check("the page raised no error", errors.length === 0, errors);
@@ -125,6 +185,11 @@ for (const width of [320, 390, 768, 1280]) {
   await page.fill("#terms-paste", index.templates[0].hash);
   await page.click("#terms-which");
   await page.waitForFunction(() => document.getElementById("terms-answer").dataset.found === "yes");
+  await page.fill("#terms-repo", fixture.repo);
+  await page.click("#terms-propose-go");
+  await page.waitForFunction(() => document.getElementById("terms-proposed").dataset.state === "done");
+  for (const fold of await page.$$("#terms-proposed details")) await fold.evaluate((d) => { d.open = true; });
+  await page.click('#terms-proposed [data-pt="comment"]');
   const [scroll, client] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
   check(`nothing scrolls sideways at ${width} px`, scroll <= client, [scroll, client]);
   await ctx.close();

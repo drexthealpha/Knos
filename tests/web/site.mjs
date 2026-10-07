@@ -413,7 +413,7 @@ await reset();
     check("the bar: six links and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === "Check an invoice,Demo,Console,Leaderboard,Pricing,Docs" && (await page.$$eval("#nav > a", (l) => l.length)) === 6 && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
       && await page.$$eval("#nav > a, #more-button", (l) => new Set(l.filter((a) => a.offsetParent !== null).map((a) => Math.round(a.getBoundingClientRect().top / 8))).size === 1), await bar());
     await page.click("#more-button");
-    check("  More opens the others, inside the window", (await under()).join() === "Story,For suppliers,Hold a key,Verifier,Playground,Terms,Records,Statement,Invoice from a file,Check a pull request,Fund,Get paid,Protect,Install,Numbers,Status,Pilot,Capabilities,Reproduce,Build" && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
+    check("  More opens the others, inside the window", (await under()).join() === "Story,For suppliers,Supplier records,Hold a key,Verifier,Playground,Terms,Records,Statement,Invoice from a file,Check a pull request,Fund,Get paid,Protect,Install,Numbers,Status,Pilot,Capabilities,Reproduce,Build" && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
       && await page.$eval("#more-list", (e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= document.documentElement.clientWidth; }) && (await overflow(page)) <= 1, await under());
     await page.keyboard.press("Escape");
     check("  Escape closes it and gives the button the focus back", (await under()).length === 0 && await page.evaluate(() => document.activeElement.id === "more-button"));
@@ -430,7 +430,7 @@ await reset();
     const shown = () => phone.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null).length);
     check("  a phone: Menu opens the bar's links and More, and never fifteen at once", (await shown()) === 6 && await phone.isVisible("#more-button") && (await overflow(phone)) <= 1, await shown());
     await phone.click("#more-button");
-    check("  and More, inside it, opens the rest", (await shown()) === 26 && (await overflow(phone)) <= 1, await shown());
+    check("  and More, inside it, opens the rest", (await shown()) === 27 && (await overflow(phone)) <= 1, await shown());
     await phone.close();
     const bare = await (await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1100, height: 900 } })).newPage();
     await bare.goto(base);
@@ -461,8 +461,23 @@ await reset();
   await settled(); await page.click("#more-button"); await page.click("#go-check");
   check("  Check a pull request, under More, puts the cursor in the box", await page.evaluate(() => document.activeElement.id === "pr-url"));
   // the pages other modules fill: not offered while empty, shown alone at their hash once they hold something
-  check("the pages other modules fill are there, and an empty one is not in the menu", (await page.$$eval("nav a[data-mount]", (a) => a.map((x) => x.getAttribute("href")))).join() === "#buy,#index,#story,#supplier,#keyholder,#verifier,#playground,#terms,#invoice-statement,#shadow,#install,#status,#pilot,#capabilities,#reproduce"
+  check("the pages other modules fill are there, and an empty one is not in the menu", (await page.$$eval("nav a[data-mount]", (a) => a.map((x) => x.getAttribute("href")))).join() === "#buy,#index,#story,#supplier,#record,#keyholder,#verifier,#playground,#terms,#invoice-statement,#shadow,#install,#status,#pilot,#capabilities,#reproduce"
     && await page.$$eval("nav a[data-mount]", (a) => a.every((x) => !x.hidden)));
+  // every row of the leaderboard links to that supplier's public record (web/supplier_record.js, mounted at #record=<slug>;
+  // the build copies docs/records/*.json to records/), and "Supplier records" under More opens the list of them
+  await visit(page, "#index"); await page.waitForSelector("#index .index-board tbody tr a.ib-record");
+  const recordLinks = await page.$$eval("#index .index-board tbody tr", (tr) => tr.map((r) => [r.dataset.agent, r.querySelector("a.ib-record").getAttribute("href")]));
+  check("leaderboard: every row links to its supplier's record, and the build holds each record's file", recordLinks.length >= 4 && recordLinks.every(([agent, href]) => href === `#record=${agent}` && existsSync(join(root, "records", `${agent}.json`))), JSON.stringify(recordLinks));
+  await page.click("#index .index-board tbody tr a.ib-record");
+  await page.waitForSelector("#record .supplier-record[data-supplier]");
+  check("  a press opens the record page: the supplier's name, the rule that it cannot be bought, its dispute link", (await page.evaluate(() => document.body.dataset.page)) === "record"
+    && (await text(page, "#record h2")) === `Public record of ${JSON.parse(readFileSync(join(root, "records", `${recordLinks[0][0]}.json`), "utf8")).name}` && (await text(page, '#record [data-sr="rule"]')) === "This record cannot be bought."
+    && /^https:\/\/github\.com\/drexthealpha\/Knos\/issues\/new/.test(await page.getAttribute('#record [data-sr="dispute"]', "href")) && await page.isVisible("#record .supplier-record"), await text(page, "#record h2"));
+  await visit(page, "#record"); await page.waitForSelector('#record [data-sr="pick"] a');
+  check("  Supplier records, with no supplier named, lists every record to pick from", (await page.$$eval('#record [data-sr="pick"] a', (l) => l.map((a) => a.getAttribute("href")))).join() === recordLinks.map((r) => r[1]).join());
+  await visit(page, "#capabilities"); await page.waitForSelector("#cap-manifest", { state: "attached" });
+  check("capabilities: one link opens what is live, in one page (docs/MANIFEST.md)", (await page.getAttribute("#cap-manifest", "href")) === "https://github.com/drexthealpha/Knos/blob/main/docs/MANIFEST.md" && (await text(page, "#cap-manifest")) === "What is live, in one page"
+    && existsSync(join(here, "../../docs/MANIFEST.md")));
   for (const id of ["buy", "install", "capabilities"]) {
     await visit(page, `#${id}`);
     if (id === "capabilities") await page.waitForSelector("#capabilities table", { state: "attached" });      // filled from capabilities.json, once it has loaded
@@ -498,10 +513,14 @@ await reset();
   // what the release's rehearsal ran on devnet ran on staging programs of its own, never on a public one: it is tested, and
   // its note gives the transaction and says it was a staging rehearsal; the rest is tested with no devnet run at all
   const rehearsed014 = ["meter_batch", "meter_seller_claim", "passkey_funder", "single_use_tokens", "fee_tiers", "x402_knos_order"];
-  const as014 = (c) => c.stage === "tested" && !c.evidence.deployed && !c.evidence.exercised && (rehearsed014.includes(c.id)
+  // ... unless a round at the public ids exercised it since: then its transaction is a public one, and the note keeps the
+  // rehearsal as what came before
+  const asRound = (c) => c.stage === "exercised" && c.evidence.exercised && (c.evidence.exercised.ids || "public") === "public" && !!c.evidence.deployed
+    && (!rehearsed014.includes(c.id) || (/rehearsed on a staging deployment/.test(c.note || "") && /the transaction here is at the public program id/.test(c.note || "")));
+  const as014 = (c) => asRound(c) || (c.stage === "tested" && !c.evidence.deployed && !c.evidence.exercised && (rehearsed014.includes(c.id)
     ? c.note.startsWith("Rehearsed on ") && c.note.includes("staging deployment") && c.note.includes("not on the public program ids") && /[1-9A-HJ-NP-Za-km-z]{86,88}/.test(c.note)
-    : !/^Rehearsed on /.test(c.note || ""));
-  check("  what 0.3.14 built is in it, each tested, the rehearsed ones with their staging transaction in the note, and none said to be deployed or exercised",
+    : !/^Rehearsed on /.test(c.note || "")));
+  check("  what 0.3.14 built is in it, each tested or exercised at the public ids, the rehearsed ones with their staging transaction in the note, none on a staging id",
     built014.every((id) => { const c = manifest.capabilities.find((x) => x.id === id); return c && as014(c); }),
     built014.filter((id) => { const c = manifest.capabilities.find((x) => x.id === id); return !c || !as014(c); }));
   // the release's rule: nothing is deployed or exercised on a program that is not a public id, at the version devnet runs there
@@ -983,7 +1002,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
 
   await visit(page, "#fund");
   let got = await ask("octo/widgets#7");
-  check("escrow: the amount, the fee when paid and the state", got.includes("20.00 test USDC") && got.includes("fee when paid: 0.50")
+  check("escrow: the amount, the fee when paid and the state", got.includes("20.00 test USDC") && got.includes("fee when paid: 0.06")
     && got.includes("open: paid when a maintainer merges the pull request that closes the issue"), got);
   check("  who funded it: the Balance of the owner, and the person who commented", got.includes("the Balance of GitHub owner 424242, by GitHub user 583231"));
   check("  when it goes back if nobody is paid", got.includes("goes back to where it came from in 336 h"));
@@ -1235,15 +1254,15 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await visit(page);
   await page.waitForSelector("#demo .kd-go");
   // every page is opened once, so that every page's links are in the document (a page's code arrives when it is first opened)
-  const PAGES_ALL = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "protect", "fund", "claim", "pricing", "records", "network", "build"];
+  const PAGES_ALL = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "record", "protect", "fund", "claim", "pricing", "records", "network", "build"];
   for (const name of PAGES_ALL) { await page.evaluate((h) => { location.hash = h; }, `#${name}`); await page.waitForFunction((n) => document.documentElement.dataset.ready === n, name); }
   await page.waitForSelector("#verifier a", { state: "attached" }); await page.waitForSelector("#terms-list .k-card", { state: "attached" }); await page.waitForSelector("#proc-approvals a", { state: "attached" });
   const hrefs = await page.$$eval("a[href]", (a) => a.map((x) => x.getAttribute("href")));
   const issuerDocs = (await import(pathToFileURL(join(root, "verifier.js")).href)).ISSUERS.map((i) => i.source);
   // the Console's sample approvals name where each was made: a comment in this project's own playground repository, never an account that is somebody else's
   check("links: the Console's sample is in the project's own playground repository", hrefs.some((h) => /^https:\/\/github\.com\/drexthealpha\/knos-playground\/issues\/\d+#issuecomment-\d+$/.test(h)) && !(await page.content()).includes("github.com/acme/"));
-  const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "fd-in", "check-a-pull-request", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "sample"].includes(h.slice(1).split("=")[0])
-    : h === TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records)\.json$|^terms\/[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
+  const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "fd-in", "check-a-pull-request", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "sample", "record"].includes(h.slice(1).split("=")[0])
+    : h === TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records)\.json$|^terms\/(?:3\/)?[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
   check("links: every link goes to a view, to the site's own address, to the project's own GitHub, to a transaction or an address on devnet's explorer, to Circle's devnet faucet, to a file of the site or to an issuer's own documentation (the verifier's table)", bad.length === 0, bad);
   check("  a link that opens a new tab does not hand over the page", await page.$$eval('a[target="_blank"]', (a) => a.every((x) => /noopener/.test(x.rel))));
   await page.close();
@@ -1414,73 +1433,94 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const rust = (file) => Object.fromEntries([...readFileSync(join(here, "../..", file), "utf8").matchAll(/^pub const (\w+): u(?:64|16|32|8|size) = ([\d_]+);/gm)].map((m) => [m[1], Number(m[2].replace(/_/g, ""))]));
   const pay = rust("programs-v2/knos_pay/src/lib.rs"), meter = rust("programs-v2/knos_meter/src/lib.rs");
   const page = await plain.newPage();
-  await visit(page, "#pricing");
+  // every fee on the page is the fee of the build that is LIVE (web/fee_live.js asks the program's Version): first with
+  // knos_pay 2.2 answering, where the page is this tree's price book; further down with 2.1, the 0.3.14 tiers
+  const liveAs = async (version, release) => { chain.simulate = { err: null, logs: [`Program log: knos2:version ${version}`] }; await visit(page, "#pricing");
+    await page.waitForFunction((r) => document.getElementById("calc-settle").dataset.fee === r && document.getElementById("bill-live").dataset.fee === r, release); };
+  const before = chain.simulate;
+  await liveAs(2, "0.3.18");
+  check("pricing: with knos_pay 2.2 live the calculator says the fee charged today, from the program, and no line about an upgrade", JSON.stringify(await page.$$eval("#bill-live dt, #bill-live dd", (l) => l.map((e) => e.textContent)))
+    === JSON.stringify(["Fee on devnet today", "0.30% of the amount, at least 0.05"]) && (await page.getAttribute("#bill-live", "data-source")) === "chain" && await gone(page, "#calc-next"));
   const c = await page.evaluate(async () => (await import("/price.js")).priceConstants());
-  check("pricing: every constant the page uses is the programs' own (knos_pay, knos_meter), by name", c.feeBps === pay.FEE_BPS && c.feeMin === pay.ORDER_FEE_MIN && c.tier1 === pay.FEE_TIER_1 && c.tier2 === pay.FEE_TIER_2 && c.feeBps2 === pay.FEE_BPS_2 && c.feeBps3 === pay.FEE_BPS_3 && !("feeMax" in c) && c.minAmount === pay.ORDER_MIN_AMOUNT
-    && c.maxAmount === pay.MAX_AMOUNT && c.tip === pay.TIP && c.tipFirst === pay.TIP_FIRST && c.planBpsMin === pay.PLAN_BPS_MIN
+  check("pricing: every constant of the fee the page uses is knos_pay's own, by name; the three METER_* are knos_meter's on devnet", c.feeBps === pay.FEE_BPS && c.feeMin === pay.FEE_MIN && c.tiered === false && !("feeMax" in c) && c.minAmount === pay.ORDER_MIN_AMOUNT
+    && c.maxAmount === pay.MAX_AMOUNT && c.tip === pay.TIP && c.tipFirst === pay.TIP_FIRST && c.planBpsMin === pay.PLAN_BPS_MIN && c.fee.release === "0.3.18" && c.fee.build === "2.2"
     && c.meterFee === meter.FEE && c.meterPlanMin === meter.PLAN_MIN && c.meterFree === meter.FREE_PER_MONTH, JSON.stringify([c, pay, meter]));
   check("  and says where each came from: exported by sdk/settle, or recorded in price.js", Object.values(c.source).every((x) => x === "exported" || x === "recorded") && Object.keys(c.source).length === 14, JSON.stringify(c.source));
   const book = await page.$$eval("#price-book tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.replace(/\s+/g, " ").trim())));
-  check("pricing: the price book is the seven lines of the book (tests/data/billing_vectors.json), in its words", JSON.stringify(book) === JSON.stringify([
-    ["Check", "pull request or artifact checked", "free, forever"],
-    ["Pilot", "one buyer, two suppliers, 30 days, one reconciled invoice", "2,500 USD, credited against year one (nobody has bought it; no legal entity to invoice from yet)"],
-    ["Meter", "evaluation", "10,000 a month free per organisation, then 0.05 USD; 0.02 on an annual commitment"],
-    ["Verify", "dollar of reconciled accepted invoice value", "0.5%, capped at 250 USD per deliverable (proposed; nobody has bought it)"],
-    ["Control", "organisation, per year", "Team 25,000 USD; Business 80,000; Enterprise from 250,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)"],
-    ["Supplier connection", "supplier beyond the first five, per year", "5,000 USD; the buyer pays"],
-    ["Settle", "dollar settled, paid by the funder on top", "2.5% of the first 1,000, 1% to 50,000, 0.5% above; minimum 0.40. On devnet: test money, zero revenue"]]), JSON.stringify(book));
+  const vectors = JSON.parse(readFileSync(join(here, "../data/billing_vectors.json"), "utf8"));
+  check("pricing: the price book is the six lines of Price book 3 (tests/data/billing_vectors.json), five columns, in its words", JSON.stringify(book) === JSON.stringify(vectors.lines) && book.length === 6 && book.every((r) => r.length === 5)
+    && JSON.stringify(book.map((r) => r[0])) === JSON.stringify(["Check", "Meter", "Acceptance", "Record", "Control", "Pilot"]) && book[2][2] === "0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap"
+    && book[1][2] === "100,000 a month free per organisation, then 0.002 USD" && JSON.stringify(await page.$$eval("#price-book thead th", (th) => th.map((x) => x.textContent))) === JSON.stringify(vectors.columns), JSON.stringify(book));
   check("  under it: the relayer's tip, and an order's bounds on devnet with a build for real money setting its own cap", (await text(page, "#price-tip")).replace(/\s+/g, " ").trim()
     === "Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from 5 to 100,000 test USDC on devnet; a build for real money sets its own cap." && c.minAmount === 5e6 && c.maxAmount === 100_000e6);
-  check("  it says what is enforced and what is a contract", (await text(page, "#price-honest")).includes("Control is a contract price that nothing on chain enforces"));
+  check("  it says what is enforced and what is a contract", (await text(page, "#price-honest")).replace(/\s+/g, " ").includes("The program enforces the Acceptance line at release: 0.30% and the floor.") && (await text(page, "#price-honest")).replace(/\s+/g, " ").includes("contract prices that nothing on chain enforces"));
 
   const rows = async (sel) => Object.fromEntries(await page.$$eval(`${sel} tr`, (tr) => tr.map((r) => [r.dataset.key, r.children[1].textContent.trim()])));
   const calc = async (amount, rate = "") => { await page.fill("#calc-amount", amount); await page.fill("#calc-rate", rate); return rows("#calc-table"); };
-  // fee = max(0.40, 2.5% of the first 1,000 + 1% from 1,000 to 50,000 + 0.5% above), as order_fee in programs-v2/knos_pay/src/lib.rs (tests/web/price.mjs
-  // has the tier edges); a contract rate replaces the first tier's; the tip comes out of the fee
-  for (const [amount, rate, want] of [["5", "", { funder: "5.40", payee: "5.00", fee: "0.40", tip: "0.05", knos: "0.35" }], ["20", "", { funder: "20.50", payee: "20.00", fee: "0.50", tip: "0.05", knos: "0.45" }],
-    ["100", "", { funder: "102.50", payee: "100.00", fee: "2.50", tip: "0.05", knos: "2.45" }], ["500", "", { funder: "512.50", payee: "500.00", fee: "12.50", tip: "0.05", knos: "12.45" }],
-    ["100", "1.5", { funder: "101.50", payee: "100.00", fee: "1.50", tip: "0.05", knos: "1.45" }], ["100", "0.5", { funder: "100.50", payee: "100.00", fee: "0.50", tip: "0.05", knos: "0.45" }],
-    ["7.5", "", { funder: "7.90", payee: "7.50", fee: "0.40", tip: "0.05", knos: "0.35" }],
-    ["5000", "", { funder: "5,065.00", payee: "5,000.00", fee: "65.00", tip: "0.05", knos: "64.95" }], ["50000", "", { funder: "50,515.00", payee: "50,000.00", fee: "515.00", tip: "0.05", knos: "514.95" }],
-    ["100000", "", { funder: "100,765.00", payee: "100,000.00", fee: "765.00", tip: "0.05", knos: "764.95" }], ["5000", "0.5", { funder: "5,045.00", payee: "5,000.00", fee: "45.00", tip: "0.05", knos: "44.95" }]]) {
+  // fee = max(0.05, 0.30% of the amount), as order_fee in programs-v2/knos_pay/src/lib.rs (tests/web/price.mjs has the edges); a contract
+  // rate replaces the one rate; the tip comes out of the fee and is never more than it
+  for (const [amount, rate, want] of [["5", "", { funder: "5.05", payee: "5.00", fee: "0.05", tip: "0.05", knos: "0.00" }], ["20", "", { funder: "20.06", payee: "20.00", fee: "0.06", tip: "0.05", knos: "0.01" }],
+    ["100", "", { funder: "100.30", payee: "100.00", fee: "0.30", tip: "0.05", knos: "0.25" }], ["500", "", { funder: "501.50", payee: "500.00", fee: "1.50", tip: "0.05", knos: "1.45" }],
+    ["100", "0.1", { funder: "100.10", payee: "100.00", fee: "0.10", tip: "0.05", knos: "0.05" }], ["7.5", "", { funder: "7.55", payee: "7.50", fee: "0.05", tip: "0.05", knos: "0.00" }],
+    ["5000", "", { funder: "5,015.00", payee: "5,000.00", fee: "15.00", tip: "0.05", knos: "14.95" }], ["50000", "", { funder: "50,150.00", payee: "50,000.00", fee: "150.00", tip: "0.05", knos: "149.95" }],
+    ["100000", "", { funder: "100,300.00", payee: "100,000.00", fee: "300.00", tip: "0.05", knos: "299.95" }], ["5000", "0.2", { funder: "5,010.00", payee: "5,000.00", fee: "10.00", tip: "0.05", knos: "9.95" }]]) {
     const got = await calc(amount, rate);
     check(`pricing: ${amount} at ${rate || "the standard rate"}: the funder pays ${want.funder}, the payee gets ${want.payee}, the fee ${want.fee}, the relay's tip ${want.tip}, Knos ${want.knos}`, JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
   }
   await calc("5");
-  check("  when a payee's token account has to be created the tip is the larger one and Knos keeps the rest", (await text(page, "#calc-table")).includes("0.30 when the paying transaction has to create the payee's token account") && (await text(page, '#calc-table [data-key="knos"]')).includes("0.10 in that case"));
-  for (const [amount, rate, words] of [["4", "", "at least 5.00 test USDC"], ["100001", "", "at most 100,000.00 test USDC on devnet"], ["abc", "", "a number like 20 or 7.5"], ["1.2345678", "", "a number like 20 or 7.5"], ["20", "3", "from 0.5% to 2.5%"], ["20", "0.4", "from 0.5% to 2.5%"], ["20", "x", "from 0.5% to 2.5%"]]) {
+  check("  the floor is said when the floor is the fee, and what Knos keeps on a payee's first payment", (await text(page, '#calc-table [data-key="fee"]')).includes("the floor: 0.30% of 5.00 would be 0.015, and the fee is never under 0.05") && (await text(page, '#calc-table [data-key="knos"]')).includes("on a payee's first payment"), await text(page, "#calc-table"));
+  for (const [amount, rate, words] of [["4", "", "at least 5.00 test USDC"], ["100001", "", "at most 100,000.00 test USDC on devnet"], ["abc", "", "a number like 20 or 7.5"], ["1.2345678", "", "a number like 20 or 7.5"], ["20", "3", "from 0.10% to 0.30%"], ["20", "0.05", "from 0.10% to 0.30%"], ["20", "x", "from 0.10% to 0.30%"]]) {
     await calc(amount, rate);
     check(`  ${amount} at ${rate || "the standard rate"} is refused in a sentence: ${words}`, (await text(page, "#calc-result")).includes(words) && await gone(page, "#calc-table"), await text(page, "#calc-result"));
   }
   const meterRows = async (n) => { await page.fill("#meter-n", n); return rows("#meter-table"); };
-  check("pricing: 25,000 evaluations a month: 10,000 free, 15,000 billable, 750.00 at the price, 300.00 at the lowest Plan rate", JSON.stringify(await meterRows("25000")) === JSON.stringify({ free: "10,000", billable: "15,000", list: "750.00", plan: "300.00" }));
-  check("  9,999 and 10,000 cost nothing, 10,001 costs one evaluation", JSON.stringify([await meterRows("9999"), await meterRows("10000"), await meterRows("10001")]) === JSON.stringify([
-    { free: "9,999", billable: "0", list: "0.00", plan: "0.00" }, { free: "10,000", billable: "0", list: "0.00", plan: "0.00" }, { free: "10,000", billable: "1", list: "0.05", plan: "0.02" }]));
-  check("  a very large month is exact (99,999,999,999 evaluations)", (await meterRows("99,999,999,999")).list === "4,999,999,499.95");
+  check("pricing: 250,000 evaluations a month: 100,000 free, 150,000 billable, 300.00 at 0.002 each", JSON.stringify(await meterRows("250000")) === JSON.stringify({ free: "100,000", billable: "150,000", list: "300.00" }), JSON.stringify(await meterRows("250000")));
+  check("  99,999 and 100,000 cost nothing, 101,000 costs a thousand evaluations", JSON.stringify([await meterRows("99999"), await meterRows("100000"), await meterRows("101000")]) === JSON.stringify([
+    { free: "99,999", billable: "0", list: "0.00" }, { free: "100,000", billable: "0", list: "0.00" }, { free: "100,000", billable: "1,000", list: "2.00" }]));
+  check("  a very large month is exact (99,999,999,999 evaluations)", (await meterRows("99,999,999,999")).list === "199,999,800.00", (await meterRows("99,999,999,999")).list);
   await page.fill("#meter-n", "-1");
   check("  anything else is a sentence", (await text(page, "#meter-result")).includes("whole number of evaluations") && await gone(page, "#meter-table"));
 
   const arithmetic = await text(page, "#arithmetic");
   const worked = await page.$$eval("#fee-worked tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim())));
-  check("pricing: the fee worked at 100, 5,000 and 50,000: 2.50; 25 + 40 = 65; 25 + 490 = 515", JSON.stringify(worked) === JSON.stringify([["100", "2.5% of 100", "2.50"], ["5,000", "2.5% of 1,000 + 1% of 4,000 = 25 + 40", "65"],
-    ["50,000", "2.5% of 1,000 + 1% of 49,000 = 25 + 490", "515"]]) && 25 + 40 === 65 && 25 + 490 === 515, JSON.stringify(worked));
+  check("pricing: the fee worked at 100, 5,000 and 100,000: one rate, one step each", JSON.stringify(worked) === JSON.stringify([["100", "0.30% of 100", "0.30"], ["5,000", "0.30% of 5,000", "15"], ["100,000", "0.30% of 100,000", "300"]]), JSON.stringify(worked));
   const pageWords = (await page.evaluate(() => document.querySelector("main").textContent)).replace(/\s+/g, " ");
   check("  nothing on the page says a fee has a maximum of 25, or that an order stops at 500", !/at most 25\b|maximum (?:of )?25\b|at most 500\b|1 to 500\b|capped at 500/.test(arithmetic) && !/at most 25\)|0\.40 test USDC, at most 25|from 1 to 500 test USDC, with/.test(pageWords)
-    && pageWords.includes("from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.") && pageWords.includes("(at least 0.40 test USDC, no maximum)"));
+    && pageWords.includes("from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.") && pageWords.includes("at least 0.05 test USDC and no maximum") && pageWords.includes("the 0.3.14 fee (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC)"));
   const effective = await page.$$eval("#fee-effective tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim())));
-  check("pricing: the effective fee before funding: 5 pays 0.40 (8.00%), 20 pays 0.50 (2.50%), 1,000 pays 25 (2.50%), 5,000 pays 65 (1.30%), 50,000 pays 515 (1.03%)", JSON.stringify(effective) === JSON.stringify([
-    ["5", "0.40", "8.00%"], ["20", "0.50", "2.50%"], ["1,000", "25", "2.50%"], ["5,000", "65", "1.30%"], ["50,000", "515", "1.03%"]]), JSON.stringify(effective));
-  check("  and it says Knos is not cheaper on a small order, and that the fee on devnet is test money", arithmetic.includes("Knos is not cheaper on a small order: 5 test USDC pays the minimum, 0.40, which is 8.00% of it.") && arithmetic.includes("On devnet the fee is test money: no real revenue."));
+  check("pricing: the effective fee before funding: 5 pays 0.05 (1.00%), and from 20 up 0.30%", JSON.stringify(effective) === JSON.stringify([
+    ["5", "0.05", "1.00%"], ["20", "0.06", "0.30%"], ["100", "0.30", "0.30%"], ["1,000", "3", "0.30%"], ["5,000", "15", "0.30%"], ["100,000", "300", "0.30%"]]), JSON.stringify(effective));
+  check("  and it says what a small order pays, and that the fee on devnet is test money", arithmetic.includes("5 test USDC pays the floor, 0.05: 1.00% of it.") && arithmetic.includes("On devnet the fee is test money: 0 revenue."));
   check("pricing: the page prints no revenue scenario: no table of what a year would take, and no bottom-up figure", await gone(page, `#${NOT_SAID[0]}`) && !new RegExp(`${NOT_SAID[0]}|1,000 million|121,125|bottom-up|\\b${NOT_SAID[1]}\\b`, "i").test(arithmetic), arithmetic.slice(0, 400));
+
+  // THE SAME PAGE WITH knos_pay 2.1 LIVE: every fee is the 0.3.14 one it charges, and one line says the next upgrade's
+  await liveAs(1, "0.3.14");
+  check("pricing: with knos_pay 2.1 live the calculator says the 0.3.14 fee, and one line: after the next upgrade", JSON.stringify(await page.$$eval("#bill-live dt, #bill-live dd", (l) => l.map((e) => e.textContent)))
+    === JSON.stringify(["Fee on devnet today", "2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40", "After the next upgrade", "0.30% of the amount, at least 0.05"]), await text(page, "#bill-live"));
+  for (const [amount, want, next] of [["5", { funder: "5.40", payee: "5.00", fee: "0.40", tip: "0.05", knos: "0.35" }, "0.05"], ["20", { funder: "20.50", payee: "20.00", fee: "0.50", tip: "0.05", knos: "0.45" }, "0.06"],
+    ["5000", { funder: "5,065.00", payee: "5,000.00", fee: "65.00", tip: "0.05", knos: "64.95" }, "15.00"], ["100000", { funder: "100,765.00", payee: "100,000.00", fee: "765.00", tip: "0.05", knos: "764.95" }, "300.00"]]) {
+    const got = await calc(amount);
+    check(`  2.1: ${amount} pays a fee of ${want.fee} today, and ${next} after the next upgrade`, JSON.stringify(got) === JSON.stringify(want) && (await text(page, "#calc-next")) === `After the next upgrade: ${next} on this order.`, JSON.stringify(got) + await text(page, "#calc-next"));
+  }
+  check("  2.1: the fee worked is the three tiers, and the effective fee is theirs", JSON.stringify(await page.$$eval("#fee-worked tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim()))))
+    === JSON.stringify([["100", "2.50% of 100", "2.50"], ["5,000", "2.50% of 1,000 + 1.00% of 4,000", "65"], ["100,000", "2.50% of 1,000 + 1.00% of 49,000 + 0.50% of 50,000", "765"]])
+    && JSON.stringify((await page.$$eval("#fee-effective tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim())))).slice(0, 2)) === JSON.stringify([["5", "0.40", "8.00%"], ["20", "0.50", "2.50%"]]));
+  await calc("20", "3");
+  check("  2.1: a contract rate is held to that build's bounds", (await text(page, "#calc-result")).includes("from 0.50% to 2.50%"), await text(page, "#calc-result"));
+  check("  2.1: what is enforced is said for today and for the next build", (await text(page, "#price-honest")).replace(/\s+/g, " ").includes("Until knos_pay 2.2 is live the program charges the 0.3.14 fee: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40. From 2.2: The program enforces"));
+  chain.simulate = before;
 
   // which fee applies today: asked of the program (instruction 12, simulated), never sent
   const said = async (sim) => { chain.simulate = sim; const before = calledAll("simulateTransaction").length; await visit(page, "#pricing"); await page.waitForFunction(() => !document.getElementById("price-version-now").textContent.includes("reading")); return { words: await text(page, "#price-version-now"), asked: calledAll("simulateTransaction").slice(before) }; };
   let got = await said({ err: { InstructionError: [0, "InvalidInstructionData"] }, logs: [] });
-  check("pricing: a program that refuses the Version instruction is 2.0: the fee of a job, 2.5% of the amount, at least 0.05, out of the amount", got.words.includes("the program on devnet is 2.0") && got.words.includes("a job: its fee is 2.5% of the amount, at least 0.05, and it comes out of the amount") && got.words.includes("The prices in this book are those of 2.1"), got.words);
+  check("pricing: a program that refuses the Version instruction is 2.0: a task funded now pays the fee that program holds, out of the amount", got.words.includes("the program on devnet is 2.0, older than this price book") && got.words.includes("pays the fee that program holds, out of the amount") && got.words.includes("The prices in this book are those of the next program"), got.words);
   const sentTx = readTx(Uint8Array.from(Buffer.from(got.asked[0].params[0], "base64")));
   check("  what was asked is instruction 12 of knos_pay, simulated and not sent", sentTx.length === 1 && sentTx[0].program === ids.knos_pay && sentTx[0].data.length === 1 && sentTx[0].data[0] === 12 && sentTx[0].accounts.length === 0 && chain.sent.length === 0);
   got = await said({ err: null, logs: ["Program log: knos2:version 1"] });
-  check("  a program that logs knos2:version 1 is 2.1: the funder pays the fee on top", got.words.includes("the program is 2.1") && got.words.includes("on top of the amount"), got.words);
+  check("  a program that logs knos2:version 1 is 2.1: it charges the 0.3.14 fee, and the calculator is said to show the fee charged today", got.words.includes("the program on devnet is 2.1.") && got.words.includes("Fee today: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC, paid by the funder on top")
+    && got.words.includes("From knos_pay 2.2: 0.30% of the amount, at least 0.05.") && got.words.includes("The calculator below shows the fee it charges today."), got.words);
+  got = await said({ err: null, logs: ["Program log: knos2:version 2"] });
+  check("  a program that logs knos2:version 2 is 2.2: it takes what the calculator says, the funder paying on top", got.words.includes("the program is 2.2 or later") && got.words.includes("on top of the amount"), got.words);
   got = await said({ err: "BlockhashNotFound", logs: [] });
   check("  any other answer is not guessed at", got.words.includes("could not be read just now"), got.words);
   chain.simulate = null;
@@ -2146,11 +2186,17 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await reset(); load(); await visit(page, ""); await page.waitForTimeout(300);
   check("upgrade: the first screen asks devnet nothing and shows no banner under the bar", await page.isHidden("#upgrade-banner") && called("getMultipleAccounts").length === 0 && called("getAccountInfo").length === 0);
   // what it shows instead: one line from upgrades.json, the file of the site scripts/upgrade_feed.py writes from the multisig
-  const feed = JSON.parse(readFileSync(join(root, "upgrades.json"), "utf8")), feedPending = feed.entries.filter((e) => e.status === "pending");
+  const built = JSON.parse(readFileSync(join(root, "upgrades.json"), "utf8")), builtPending = built.entries.filter((e) => e.status === "pending");
   await page.waitForSelector("#hero-upgrades:not([hidden])", { timeout: 5000 }).catch(() => {});
-  check("  but the pending upgrades in one line, from the site's upgrades.json: the count and two words", feedPending.length === 4 && await page.isVisible("#hero-upgrades")
-    && /^Upgrades (pending|approved)$/.test(await text(page, "#hero-upgrades-line")) && (await page.getAttribute("#hero-upgrades-line", "data-count")) === "4"
-    && /^4 program upgrades (pending|approved, delay over)$/.test(await page.getAttribute("#hero-upgrades-line", "aria-label")), await text(page, "#hero-upgrades-line"));
+  if (builtPending.length) {
+    check("  but the pending upgrades in one line, from the site's upgrades.json: the count and two words", await page.isVisible("#hero-upgrades")
+      && /^Upgrades (pending|approved)$/.test(await text(page, "#hero-upgrades-line")) && (await page.getAttribute("#hero-upgrades-line", "data-count")) === String(builtPending.length)
+      && new RegExp(`^${builtPending.length} program upgrades? (pending|approved, delay over)$`).test(await page.getAttribute("#hero-upgrades-line", "aria-label")), await text(page, "#hero-upgrades-line"));
+  } else {
+    check("  and with no upgrade pending in the site's upgrades.json, no line either", await page.isHidden("#hero-upgrades"));
+  }
+  // the line's words, on the feed as it stood with proposals 3 to 6 pending (tests/fixtures/before_round/web/upgrades.json)
+  const feed = JSON.parse(readFileSync(join(here, "..", "fixtures", "before_round", "web", "upgrades.json"), "utf8")), feedPending = feed.entries.filter((e) => e.status === "pending");
   const lib0 = await import(pathToFileURL(join(root, "front.js")).href), said = (l) => (l ? `${l.n}|${l.words}|${l.said}` : null);
   check("  the line is true before and after the earliest time one can run: pending before it, approved with the delay over after it, nothing for a file with none pending",
     said(lib0.feedLine(feed, Math.min(...feedPending.map((e) => e.earliest_execution)) - 1)) === "4|Upgrades pending|4 program upgrades pending"
@@ -2715,7 +2761,9 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("upgrade: every program the multisig holds is named, so a proposal for the meter or the passkey wallet is in the banner", JSON.stringify(up.programNames(ids)) === JSON.stringify({ [ids.knos_oidc]: "knos_oidc", [ids.knos_pay]: "knos_pay", [ids.knos_meter]: "knos_meter", [ids.knos_passkey]: "knos_passkey" })
     && JSON.stringify(up.programNames({ knos_pay: "P" })) === JSON.stringify({ P: "knos_pay" }));
   const feed = JSON.parse(readFileSync(join(root, "upgrades.json"), "utf8")), xml = readFileSync(join(root, "upgrades.xml"), "utf8");
-  check("upgrade feed: the site's file lists proposals 3 to 6 pending and 1 and 2 withdrawn, and the Atom feed says the same", feed.pending === 4 && JSON.stringify(feed.entries.map((e) => [e.index, e.program, e.status])) === JSON.stringify([[6, "knos_passkey", "pending"], [5, "knos_meter", "pending"], [4, "knos_pay", "pending"], [3, "knos_oidc", "pending"], [2, "knos_pay", "replaced"], [1, "knos_oidc", "replaced"]])
+  const now36 = feed.entries.find((e) => e.index === 3)?.status;          // pending until proposals 3 to 6 executed (7 October), executed after
+  check("upgrade feed: the site's file lists proposals 3 to 6 as one (pending, or executed) and 1 and 2 withdrawn, and the Atom feed says the same", ["pending", "executed"].includes(now36)
+    && feed.pending === (now36 === "pending" ? 4 : 0) && JSON.stringify(feed.entries.map((e) => [e.index, e.program, e.status])) === JSON.stringify([[6, "knos_passkey", now36], [5, "knos_meter", now36], [4, "knos_pay", now36], [3, "knos_oidc", now36], [2, "knos_pay", "replaced"], [1, "knos_oidc", "replaced"]])
     && feed.entries.every((e) => xml.includes(`upgrade proposal ${e.index} is ${e.status}`)) && (xml.match(/<entry>/g) || []).length === 6 && feed.entries.every((e) => e.program_address === ids[e.program]));
   const st = await import(pathToFileURL(join(root, "statements.js")).href);
   const scope = { type: "knos.audit-export", version: 1, program: ids.knos_pay, owner_id: 5001, from: "2026-09-01", to: "2026-09-30", wallets: "", partial: 0 };
@@ -2733,10 +2781,10 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const demo = JSON.parse(readFileSync(join(root, "demo_data.json"), "utf8"));
   await visit(page);
   await page.waitForSelector("#demo .kd-go");
-  check("demo: the round is mounted in the first screen, under the hero, and says it is a replay of a staging round", await page.isVisible("#demo") && await page.isVisible("#view-check") && (await page.$$eval("#demo .k-step", (l) => l.length)) === 6
-    && (await text(page, "#demo .kd-mark")).trim() === `A real devnet round, replayed (${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && demo.ids === "staging", await text(page, "#demo .kd-mark"));
+  check("demo: the round is mounted in the first screen, under the hero, and says which program ids it replays", await page.isVisible("#demo") && await page.isVisible("#view-check") && (await page.$$eval("#demo .k-step", (l) => l.length)) === 6
+    && (await text(page, "#demo .kd-mark")).trim() === `A real devnet round, replayed (${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && ["staging", "public"].includes(demo.ids), await text(page, "#demo .kd-mark"));
   await page.click("#demo .kd-go");
-  check("  one press funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Order funded: ${demo.fund.amount} test USDC held, fee ${demo.fund.fee}.` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
+  check("  one press funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Funded: ${demo.fund.amount} test USDC held; fee ${demo.fund.fee}, charged under the 0.3.14 fee.` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
   check("  the front door is above the round once it is mounted", await page.isVisible("#front-door [data-fd=run]") && (await overflow(page)) <= 1);
   for (const from of ['#nav > a[href="#demo"]', "#hero-cue"]) {
     await page.evaluate(() => { document.activeElement.blur(); scrollTo(0, 0); });

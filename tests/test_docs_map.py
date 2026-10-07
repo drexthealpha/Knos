@@ -1,12 +1,14 @@
 """docs/README.md is the map of the documents: every file in docs/*.md is on it once, under one of six questions, and
-every link on it leads to a file. docs/STORY.md and web/story.js tell one story in eight steps, each with evidence
-that exists in the repository; the last step is an invitation and claims nobody.
+every link on it leads to a file. docs/STORY.md and web/story.js tell the three-minute demonstration in six beats, each
+with evidence that exists in the repository; what follows the last beat is an invitation and claims nobody. docs/MANIFEST.md
+is what scripts/release_manifest.py writes from its sources.
 
 Everything here reads files; the one subprocess is node on tests/web/story.mjs, and it opens no network.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -17,7 +19,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 QUESTIONS = ["Does it work?", "Why does it matter?", "What is new?", "How do I use it?", "How do I build on it?", "How is it run and paid for?"]
-STEPS = 8
+STEPS = 6
 WORDS = re.compile(r"[A-Za-z0-9][\w'%.,/-]*")
 
 
@@ -44,12 +46,21 @@ def test_every_document_is_on_the_map_once_under_one_of_six_questions():
         assert target.startswith("https://") or (DOCS / target).exists(), target
 
 
-def test_the_front_page_has_five_parts_above_the_line_and_one_link_onward():
+def test_the_front_page_has_six_parts_above_the_line_and_three_links_onward():
     readme = read("README.md")
     above, below = readme.split("\n---\n", 1)
-    assert re.findall(r"(?m)^## (.+)$", above) == ["The number", "One comment", "Two ledgers", "What is real today", "Read more"]
+    # the claim and the meter lead; the bounty is the smallest example of the money; the table of today's numbers is lower
+    assert re.findall(r"(?m)^## (.+)$", above) == ["The claim", "The meter: two ledgers, one bill", "The money: released on a signature", "The number",
+                                                    "What is real today", "Read more"]
     more = above.split("## Read more")[1]
-    assert links(more) == ["docs/README.md"]
+    assert links(more) == ["docs/STORY.md", "docs/MANIFEST.md", "docs/README.md"]
+    claim = [line for line in above.split("## The claim")[1].split("\n## ")[0].splitlines() if line.strip()]
+    assert claim[:2] == ["Two parties who distrust each other compute the same bill from evidence a third party signed.",
+                         "The program releases the money on that signature, with no company and no oracle in the middle."]
+    assert len(claim) == 3 and claim[2].startswith("Limits, in one line: ") and links(claim[2]) == ["docs/DISCLOSURE.md"]      # ONE line of limits
+    for said in ("devnet", "test USDC", "no outside users yet"):
+        assert said in claim[2], said
+    assert above.index("## The claim") < above.index("<!-- bench:today -->") and "smallest example is a bounty" in above
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
     numbers = read("docs/submission/NUMBERS.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)
@@ -61,7 +72,7 @@ def test_the_front_page_has_five_parts_above_the_line_and_one_link_onward():
         assert rel.startswith("https://") or (ROOT / rel).exists(), rel
 
 
-def test_the_story_is_eight_steps_each_with_evidence_that_exists_and_asks_for_three_things():
+def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_three_things():
     story = read("docs/STORY.md")
     lines = [line for line in story.splitlines() if line.strip()]
     assert lines[1] == "**The neutral meter for AI agent work: neither side keeps the count.**"
@@ -71,16 +82,24 @@ def test_the_story_is_eight_steps_each_with_evidence_that_exists_and_asks_for_th
     for _n, title, said, _name, target in steps:
         assert len(WORDS.findall(f"{title} {said}")) <= 12, (title, said)
         assert target.startswith("https://") or (DOCS / target.split("#")[0]).exists(), target
-    assert steps[-1][1] == "Your invoice next." and steps[-1][4] == "https://drexthealpha.github.io/Knos/"
-    for word in ("customer", "paid us", "pilot"):                                           # the last step claims nobody
-        assert word not in f"{steps[-1][1]} {steps[-1][2]}".lower()
+    assert [s[1] for s in steps] == ["An invoice does not reconcile.", "Buyer authorises the deliverable.", "A tampered submission is refused.",
+                                     "Legitimate work is accepted.", "A replay pays nothing.", "Both sides rebuild one bill."]
+    after = story.split(steps[-1][4])[1].split("\n## ")[0]                                  # what follows the last beat claims nobody
+    assert "Then your own invoice: [check it](https://drexthealpha.github.io/Knos/). Nobody has paid for this yet." in after
+    for _n, title, said, _name, _target in steps:
+        for word in ("customer", "paid us", "pilot"):
+            assert word not in f"{title} {said}".lower()
+    # a link to a run on staging program ids says so in its own words, and the page says which beats
+    staged = [int(n) for n, _t, _s, name, _target in steps if "staging program ids" in name]
+    assert staged == [2, 4] and "The transactions of beats 2 and 4 ran on the staging program ids" in " ".join(story.split())
+    assert "](MANIFEST.md)" in story and "](submission/demo_script.md)" in story
     ask = story.split("## The ask")[1].split("\n## ")[0]
     needs = re.findall(r"(?m)^\d\. (.+)$", ask)
     assert len(needs) == 3 and all(n.startswith("Needed: ") for n in needs)
     assert "outside key holder" in needs[0] and "shadow count" in needs[1] and "outside review" in needs[2]
 
 
-def test_the_page_tells_the_same_eight_steps_and_stands_still_under_reduced_motion():
+def test_the_page_tells_the_same_six_beats_and_stands_still_under_reduced_motion():
     source = read("web/story.js")
     assert "export function renderStory(el, ctx" in source and "prefersReduced" in source
     assert not re.search(r"https?://(?!drexthealpha\.github\.io|github\.com/drexthealpha|explorer\.solana\.com)", source)
@@ -89,3 +108,58 @@ def test_the_page_tells_the_same_eight_steps_and_stands_still_under_reduced_moti
         pytest.skip("node is not installed")
     r = subprocess.run([node, str(ROOT / "tests" / "web" / "story.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120, check=False)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def _manifest():
+    spec = importlib.util.spec_from_file_location("release_manifest", ROOT / "scripts" / "release_manifest.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_the_release_manifest_is_what_its_sources_give_and_states_what_is_live_from_the_records():
+    rm = _manifest()
+    said = []
+    assert rm.main(["--check"], say=said.append) == 0, said
+    page = read("docs/MANIFEST.md")
+    assert page == rm.render() and page.splitlines()[0] == f"# Release manifest: Knos {rm.version()}"
+    for head in ("## Source", "## Programs: what is live at each public id", "## Pending proposals", "## Capabilities: the stage of each, with its evidence",
+                 "## Outstanding limits"):
+        assert f"\n{head}\n" in page, head
+    # what is LIVE is the version the capability manifest records and the hash the last read of the cluster found: never the proposal's
+    import json
+    caps, seen = json.loads(read("docs/capabilities.json")), json.loads(read("docs/provenance.json"))["programs"]
+    feed = json.loads(read("web/upgrades.json"))
+    for name, program in caps["programs"].items():
+        row = next(line for line in page.splitlines() if line.startswith(f"| {name} | `{program['id']}` |"))
+        assert f"| {name} {program['on_chain']} |" in row, name
+        if name in seen:
+            assert f"`{seen[name]['on_chain_hash']}`" in row, name
+    for entry in feed["entries"]:
+        if entry["status"] == "pending":                                                  # a pending proposal is listed, and is not called live
+            assert f"| {entry['index']} (`{entry['proposal']}`) | {entry['program']} | `{entry['build_hash']}` |" in page
+            row = next(line for line in page.splitlines() if line.startswith(f"| {entry['program']} | `"))
+            assert f"| {entry['index']}: pending |" in row and "(not the proposal's build)" in row
+    # every capability is a row with its stage; every limit of DISCLOSURE.md is a line, once
+    for c in caps["capabilities"]:
+        assert page.count(f"| `{c['id']}` | ") == 1, c["id"]
+    limits = rm.limits()
+    assert len(limits) == len(set(limits)) >= 10 and all(page.count(line) == 1 for line in limits)
+    assert all("\n" not in line and line.startswith("- **") for line in limits)             # one line each
+    assert not re.search(r"\b20\d\d-\d\d-\d\d", page)                                       # no time is printed
+    for rel in ("README.md", "docs/README.md", "docs/STORY.md"):
+        assert "MANIFEST.md" in read(rel), rel
+
+
+def test_the_release_manifest_check_fails_when_a_source_moves(tmp_path):
+    rm = _manifest()
+    for rel in ("pyproject.toml", "programs-v2/program_ids.json", "docs/capabilities.json", "docs/provenance.json", "web/upgrades.json",
+                "docs/DISCLOSURE.md", "docs/facts.json", "CHANGELOG.md", "docs/MANIFEST.md", "examples/upgrade_gate/src/lib.rs"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / rel, tmp_path / rel)
+    assert rm.main(["--check"], say=lambda _line: None, root=tmp_path) == 0
+    page = tmp_path / "docs" / "DISCLOSURE.md"
+    page.write_text(page.read_text(encoding="utf-8").replace("- **No letter of intent.**", "- **One letter of intent.**"), encoding="utf-8")
+    said = []
+    assert rm.main(["--check"], say=said.append, root=tmp_path) == 1 and "stale" in said[0]
+    assert rm.main([], say=said.append, root=tmp_path) == 0 and "- **One letter of intent.**" in (tmp_path / "docs" / "MANIFEST.md").read_text(encoding="utf-8")

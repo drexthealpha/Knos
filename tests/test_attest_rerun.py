@@ -59,8 +59,9 @@ class Judge:
     def __init__(self, passed: bool = True, image: str = ""):
         self.passed, self.image, self.asked = passed, image, []
 
-    def __call__(self, base, pr, cfg, sandbox="auto") -> dict:
+    def __call__(self, base, pr, cfg, changed=None, sandbox="auto") -> dict:
         self.asked.append((Path(base).name, Path(pr).name, dict(cfg), sandbox))
+        self.changed = changed
         ev = {"issue": cfg["issue"], "runner": "blackbox", "artifact": {"base": judge.tree_hash(base), "pr": judge.tree_hash(pr)}}
         if self.image:
             ev["image"] = {"ref": self.image, "digest": self.image.rsplit("@", 1)[-1], "runtime": "docker", "limits": {"memory": "512m"}}
@@ -111,8 +112,8 @@ def test_the_buyers_checks_say_success_and_the_suite_fails_when_it_is_run_again_
     # the plan named the two commits and the funded bundle; the suite was run on them, in the sandbox, and did not pass
     plan = json.loads((trees / "plan.json").read_text(encoding="utf-8"))
     assert plan == {"order": str(ORDER), "repository": "o/r", "pull": 12, "issue": 7, "head": head, "base": sha("main"),
-                    "accept": BY_TESTS["accept"], "image": ""} and (out["rerun"], out["base"], out["head"]) == ("1", sha("main"), head)
-    assert judged.asked == [("base", "pr", {"issue": "7"}, "require")]
+                    "accept": BY_TESTS["accept"], "image": "", "changed": ["src/a.py"]} and (out["rerun"], out["base"], out["head"]) == ("1", sha("main"), head)
+    assert judged.asked == [("base", "pr", {"issue": "7"}, "require")] and judged.changed == ["src/a.py"]      # GitHub's list, not the trees' difference
     assert code == 1 and "was run again here and did not pass (black-box)" in text and "Nothing is signed: the job that asks GitHub for the token does not start." in text
     v = json.loads(out["verdict"])
     assert v == json.loads((trees / "verdict.json").read_text(encoding="utf-8"))
@@ -347,3 +348,39 @@ def test_with_a_quorum_of_two_the_buyers_green_checks_alone_pay_nothing_when_the
     o, author, wallet, payees = order()
     carry(w.signer.asked, o, author, payees)
     assert c.order(o) is None and c.balance(pay.ata(wallet, c.usdc)) == 20 * USDC
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a black-box check is a shell script: the judge's machine is Linux or macOS")
+def test_a_default_branch_that_moved_after_the_pull_request_left_it_is_not_charged_to_the_pull_request(tmp_path):
+    """Found live in the 0.3.18 staging run (knos-e2e-202610020610 #24, attest.yml run 37570503437): the pull request
+    changed calc.py only, but the default branch had changed .github/workflows/ after it branched, so the merge's first
+    parent and the head differed there too, and the neutral judge refused the honest fix for a protected path. The
+    judge is told what GitHub lists for the pull request; a path the pull request itself changes is still refused."""
+    w, head, trees = staged(tmp_path)
+    trees = tmp_path / "real"
+    shutil.copytree(SAMPLE, trees / "base")
+    shutil.copytree(SAMPLE, trees / "pr")
+    (trees / "pr" / "calc.py").write_text('import re\nKNOWN = [("Hello World", "hello-world"), ("a  b", "a-b"), ("x", "x")]\n'
+                                          'def slugify(s):\n    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")\n', encoding="utf-8")
+    moved = trees / "base" / ".github" / "workflows" / "knos-attest.yml"          # on the default branch only, after the branch point
+    moved.parent.mkdir(parents=True, exist_ok=True)
+    moved.write_text("name: knos attest\n", encoding="utf-8")
+    w.hub.files[12] = [{"filename": "calc.py", "patch": "@@ -1 +1 @@"}]
+    run, _summary = step(w, "plan")
+    assert flow.attest(run, str(ORDER), "pay", 12, plan=str(trees)) == 0
+    plan = json.loads((trees / "plan.json").read_text(encoding="utf-8"))
+    assert plan["changed"] == ["calc.py"]
+    plan.update(issue=2, accept=judge.checks_hash(trees / "base" / ".knos" / "acceptance" / "2"))
+    v = flow._rerun_judge(plan, trees, dict(ATTESTER), sandbox="auto")
+    assert (v["passed"], v["reexecuted"], v["reasons"]) == (True, True, [])
+    # what the trees' difference alone says: the workflow is charged to the pull request, and the fix is refused
+    v = flow._rerun_judge({k: x for k, x in plan.items() if k != "changed"}, trees, dict(ATTESTER), sandbox="auto")
+    assert v["passed"] is False and any(".github/workflows/knos-attest.yml" in r for r in v["reasons"])
+    # a protected path the pull request itself changes is refused, as before
+    v = flow._rerun_judge({**plan, "changed": ["calc.py", ".github/workflows/knos-attest.yml"]}, trees, dict(ATTESTER), sandbox="auto")
+    assert v["passed"] is False and any(".github/workflows/knos-attest.yml" in r for r in v["reasons"])
+    # and GitHub that does not list the files whole is a plan that cannot be made: run it again
+    w.hub.files[12] = None
+    run, _summary = step(w, "plan")
+    run._files.clear()
+    assert flow.attest(run, str(ORDER), "pay", 12, plan=str(tmp_path / "again")) == 1

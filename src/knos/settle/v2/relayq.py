@@ -40,10 +40,36 @@ second `put` of its key is refused, and a leased entry is nobody else's until it
 Two processes that write one file at the same moment can still lose each other's change (the file is replaced whole);
 and two runners that each have a file of their own (the worker's event job today) know nothing of each other. In both
 cases the chain's single-use rule is what keeps a second send harmless, as it does for two overlapping runs.
+
+SINCE 0.3.18, THREE MORE THINGS.
+
+    notes that merge   `Notes`: a folder of append-only files, ONE PER RUNNER, a line per change, keyed by the
+                       journal's key for a token. A runner appends only to its own file and keeps a journal of its
+                       own, so nothing one run writes can replace, drain or close what another run holds. A reader
+                       merges every file by key:
+                           within one runner   its last line for a key is what it says now
+                           across runners      confirmed > refused > sending > waiting
+                           two `sending`       the earlier lease holds (then the runner's name): the other yields
+                           a `sending` past its `until` is read as `waiting`: that lease is over
+                       `confirmed` is true whoever says it (the chain has the token). `refused` is the program's or
+                       the relay's final answer, and only the runner that leased the token may write it. A runner that
+                       GAVE UP (its own count of tries ran out) writes `waiting` with `gave_up`: that ends its own
+                       tries and nobody else's. `Queue(..., notes=...)` asks the merge before it queues or leases, and
+                       appends as it goes. Two runners that share the folder never both carry one token; two that
+                       cannot share one (two GitHub runners alive at once) are where they were: the chain takes it once.
+    a feed             `work(..., feed=...)`: while a worker waits for a slow confirmation, the caller's `feed()` is
+                       asked every `feed_every` seconds for new entries (the sweep reads the comments again), and a
+                       free worker carries them. A pass no longer keeps new comments waiting behind its slowest token.
+    several payers     `Payers`: N fee-paying keys (KNOS_RELAY_KEYS). A lane always pays from one key (sha256 of the
+                       lane, modulo N: the same in every run, so a token tried again finds the account its first try
+                       verified it in), and with more than one key a key signs for one token at a time. Two tokens in
+                       flight then never pay from one fee account. With one key (the public worker today) nothing
+                       changes: all workers pay from it.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import math
@@ -55,7 +81,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterator, Mapping
 
 STATES = ("queued", "leased", "done", "dead")
 OPEN = ("queued", "leased")
@@ -77,6 +103,199 @@ EVENT_TYPE = "knos-token"                           # the `repository_dispatch` 
 LEFT_TO_SWEEP = ("verify", "withdraw", "passkey-fund")    # limited per repository per day in the sweep's notes: only the sweep queues and carries them
 _REPO = re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}")
 API = "https://api.github.com/"
+RANK = {"waiting": 0, "sending": 1, "refused": 2, "confirmed": 3}      # the notes' precedence across runners: the highest wins
+NOTES_KEEP = 3 * 3600   # a runner's notes file is dropped this long after its last line (a token is taken for at most 70 minutes)
+FEED_EVERY = 3.0        # seconds between two reads for new entries while a worker is still carrying (the sweep's own pace)
+_RUNNER = re.compile(r"[^A-Za-z0-9_.-]")
+
+
+class NotMine(ValueError):
+    """A runner tried to close a token it did not lease."""
+
+
+class Notes:
+    """The notes several runners share: a folder, one append-only file a runner (`<runner>.jsonl`), a JSON line a
+    change. See the module's text for the merge. `runner`: this run's name, the same for all its passes. Nothing here
+    replaces a file or writes to another runner's."""
+
+    def __init__(self, folder: Path, runner: str, clock: Callable[[], float] = time.time) -> None:
+        self.folder, self.runner, self.clock = Path(folder), _RUNNER.sub("-", runner)[:80] or "runner", clock
+        self._lock = threading.Lock()
+        self._read: dict[str, tuple[int, dict[str, dict[str, Any]], set[str]]] = {}     # file name -> (bytes read, last line a key, repositories)
+
+    @property
+    def file(self) -> Path:
+        return self.folder / f"{self.runner}.jsonl"
+
+    def _line(self, line: dict[str, Any]) -> None:
+        self.folder.mkdir(parents=True, exist_ok=True)
+        fd = os.open(self.file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+        try:
+            os.write(fd, (json.dumps(line, separators=(",", ":")) + "\n").encode())      # one write: a line is whole or absent
+        finally:
+            os.close(fd)
+
+    def _all(self) -> dict[str, tuple[dict[str, dict[str, Any]], set[str]]]:
+        """runner -> (its last line for each key, the repositories it named). Only what is new in a file is parsed;
+        a last line with no newline yet (its writer is mid-write, or was killed) is left for the next read."""
+        out: dict[str, tuple[dict[str, dict[str, Any]], set[str]]] = {}
+        try:
+            files = sorted(self.folder.glob("*.jsonl"))
+        except OSError:
+            files = []
+        for f in files:
+            done, last, repos = self._read.get(f.name, (0, {}, set()))
+            try:
+                with open(f, "rb") as fh:
+                    fh.seek(done)
+                    fresh = fh.read()
+            except OSError:
+                fresh = b""
+            whole = fresh[:fresh.rfind(b"\n") + 1]
+            for raw in whole.splitlines():
+                try:
+                    ln = json.loads(raw)
+                except ValueError:
+                    continue
+                if isinstance(ln, dict) and isinstance(ln.get("repo"), str):
+                    repos.add(ln["repo"])
+                elif isinstance(ln, dict) and isinstance(ln.get("k"), str) and ln.get("s") in RANK:
+                    last[ln["k"]] = ln
+            self._read[f.name] = (done + len(whole), last, repos)
+            out[f.stem] = (last, repos)
+        return out
+
+    def merged(self) -> dict[str, dict[str, Any]]:
+        """key -> {state, by, t, ...}: every runner's last word for the key, merged by the precedence."""
+        with self._lock:
+            now = self.clock()
+            best: dict[str, dict[str, Any]] = {}
+            for runner, (last, _repos) in self._all().items():
+                for key, ln in last.items():
+                    state = str(ln["s"])
+                    if state == "sending" and float(ln.get("until", 0)) <= now:
+                        state = "waiting"                       # that lease is over
+                    mine = {**{k: v for k, v in ln.items() if k not in ("k", "s")}, "state": state, "by": runner}
+                    had = best.get(key)
+                    if had is None or _beats(mine, had):
+                        best[key] = mine
+            return best
+
+    def theirs(self, key: str) -> dict[str, Any] | None:
+        """What the merge says of `key` when another runner said it; None when nobody did, or this runner's word stands."""
+        got = self.merged().get(key)
+        return got if got is not None and got["by"] != self.runner else None
+
+    def mine(self, key: str) -> dict[str, Any] | None:
+        with self._lock:
+            return self._all().get(self.runner, ({}, set()))[0].get(key)
+
+    def append(self, key: str, state: str, **about: Any) -> None:
+        """This runner's next word for `key`. `refused` only for a token this runner leased (its last word is
+        `sending`): NotMine otherwise. Nothing is appended after this runner's own `confirmed` or `refused`."""
+        if state not in RANK:
+            raise ValueError(f"a note's state is one of {', '.join(RANK)}")
+        last = self.mine(key)
+        if last is not None and last["s"] in ("confirmed", "refused"):
+            return
+        if state == "refused" and (last is None or last["s"] != "sending"):
+            raise NotMine(f"{self.runner} did not lease {key}: only the run that holds a token may write its refusal")
+        self._line({"k": key, "s": state, "t": self.clock(), **{k: v for k, v in about.items() if v is not None}})
+
+    def lease(self, key: str, until: float) -> bool:
+        """Appends `sending` and reads back: False (and `waiting` appended) when the merge closed the key meanwhile or
+        another runner's lease is earlier. Of two runners that lease in the same instant, exactly one is told True."""
+        self.append(key, "sending", until=until)
+        got = self.merged().get(key)
+        if got is None or got["by"] == self.runner:
+            return True
+        if got["state"] == "sending":
+            self.append(key, "waiting", yielded=got["by"])
+        return False
+
+    def repo(self, name: str) -> None:
+        """A repository a token was found in, for whoever sweeps (an event run says where it read)."""
+        if name not in self.repos():
+            self._line({"repo": name, "t": self.clock()})
+
+    def repos(self) -> set[str]:
+        with self._lock:
+            return {r for _last, repos in self._all().values() for r in repos}
+
+    def prune(self) -> int:
+        """Drops the files of runners whose last line is older than NOTES_KEEP (never this runner's): by then every
+        token they named is past the hour the chain takes it for. Returns how many."""
+        gone = 0
+        with self._lock:
+            now = self.clock()
+            for f in sorted(self.folder.glob("*.jsonl")) if self.folder.is_dir() else []:
+                if f.stem == self.runner:
+                    continue
+                last = self._all().get(f.stem, ({}, set()))[0]
+                try:
+                    newest = max((float(ln.get("t", 0)) for ln in last.values()), default=f.stat().st_mtime)
+                    if now - newest > NOTES_KEEP:
+                        f.unlink()
+                        self._read.pop(f.name, None)
+                        gone += 1
+                except OSError:
+                    continue
+        return gone
+
+
+def _beats(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
+    """Whether word `a` stands over word `b` in the merge."""
+    ra, rb = RANK[str(a["state"])], RANK[str(b["state"])]
+    if ra != rb:
+        return ra > rb
+    ta, tb = (float(a.get("t", 0)), str(a["by"])), (float(b.get("t", 0)), str(b["by"]))
+    return ta < tb if a["state"] == "sending" else ta > tb       # the earlier lease holds; of anything else, the later word
+
+
+class Payers:
+    """The keys that pay fees. `hold(lane)` hands the lane's key for as long as one token is carried with it."""
+
+    def __init__(self, keys: list[Any]) -> None:
+        seen: dict[str, Any] = {}
+        for k in keys:
+            seen.setdefault(str(k.pubkey()) if hasattr(k, "pubkey") else f"id:{id(k)}", k)
+        self.keys = list(seen.values()) or [None]
+        self._locks = [threading.Lock() for _ in self.keys]
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def index(self, lane: str) -> int:
+        return int.from_bytes(hashlib.sha256(str(lane).encode()).digest()[:8], "big") % len(self.keys)
+
+    @contextlib.contextmanager
+    def hold(self, lane: str) -> Iterator[Any]:
+        i = self.index(lane)
+        if len(self.keys) == 1:
+            yield self.keys[0]              # one key: every worker pays from it, as before
+            return
+        with self._locks[i]:                # several: a key signs for one token at a time
+            yield self.keys[i]
+
+
+def payers(first: Any = None, env: Mapping[str, str] | None = None) -> Payers:
+    """The relay's fee payers: `first` (KNOS_RELAY_KEY, as `knos.chain.key` reads it), then the keys of
+    KNOS_RELAY_KEYS: a JSON list of keys (each 64 numbers, or base58 text), or base58 keys separated by spaces,
+    commas or new lines. A key named twice counts once. Raises ValueError for text that is neither."""
+    text = ((os.environ if env is None else env).get("KNOS_RELAY_KEYS") or "").strip()
+    keys = [] if first is None else [first]
+    if text:
+        from solders.keypair import Keypair
+        try:
+            if text.startswith("["):
+                got = json.loads(text)
+                rows = [got] if got and all(isinstance(x, int) for x in got) else got
+                keys += [Keypair.from_bytes(bytes(r)) if isinstance(r, list) else Keypair.from_base58_string(str(r)) for r in rows]
+            else:
+                keys += [Keypair.from_base58_string(part) for part in re.split(r"[\s,;]+", text) if part]
+        except Exception:  # noqa: BLE001 - whatever the text was, it is not said back: it is a key
+            raise ValueError("KNOS_RELAY_KEYS is a JSON list of keys (each 64 numbers, or base58 text), or base58 keys separated by spaces or commas") from None
+    return Payers(keys)
 
 
 class Full(RuntimeError):
@@ -107,14 +326,17 @@ class Queue:
     killed process leaves behind is what the next one finds."""
 
     def __init__(self, path: Path, clock: Callable[[], float] = time.time, limit: int = LIMIT, lease: float = LEASE,
-                 workers: int = WORKERS, key: str = "journal", max_tries: int | None = MAX_TRIES, strict: bool = True) -> None:
+                 workers: int = WORKERS, key: str = "journal", max_tries: int | None = MAX_TRIES, strict: bool = True,
+                 notes: Notes | None = None) -> None:
         """`max_tries`: takes after which an entry is given up here; None when whoever carries it decides that (the
         sweep does: it tries a token for as long as the chain would take it). `strict`: an entry that waits to be
         tried again holds its lane, so nothing later of it leaves first. Without it only an entry in flight holds its
         lane: two of one lane are still never in flight together and still start in the order they came, but one
-        that waits (up to an hour, in the sweep) does not keep its owner's later tokens waiting with it."""
+        that waits (up to an hour, in the sweep) does not keep its owner's later tokens waiting with it. `notes`: what
+        several runners share (`Notes`); this journal is then this runner's alone, and what another runner confirmed,
+        refused or holds is read from the merge before a token is queued or leased."""
         self.path, self.clock, self.limit, self.lease, self.workers, self.key = Path(path), clock, limit, lease, max(1, workers), key
-        self.max_tries, self.strict = max_tries, strict
+        self.max_tries, self.strict, self.shared = max_tries, strict, notes
         self._lock = threading.Lock()
 
     # -- the file ----------------------------------------------------------------------------------------------------
@@ -172,9 +394,11 @@ class Queue:
         of a pass that was killed). Their entries are taken again by whoever asks next. Returns how many."""
         with self._lock:
             state = self._read()
-            mine = [e for e in state[self.key].values() if e.get("state") == "leased" and str(e.get("worker", "")).startswith(owner + ":")]
-            for e in mine:
+            mine = [(k, e) for k, e in state[self.key].items() if e.get("state") == "leased" and str(e.get("worker", "")).startswith(owner + ":")]
+            for k, e in mine:
                 e["lease_until"] = 0
+                if self.shared is not None:
+                    self.shared.append(k, "waiting")
             if mine:
                 self._write(state)
             return len(mine)
@@ -190,6 +414,9 @@ class Queue:
             had = journal.get(key)
             if had is not None and (had.get("state") not in OPEN or "item" in had):
                 return False
+            said = self.shared.theirs(key) if self.shared is not None else None
+            if said is not None and said["state"] in ("confirmed", "refused"):
+                return False                # another run has its answer: nothing to carry, and nothing of theirs is touched
             waiting = sum(1 for e in journal.values() if e.get("state") in OPEN and "item" in e)
             if waiting >= self.limit:
                 pace = float((state.get("queue") or {}).get("pace") or PACE)
@@ -200,11 +427,17 @@ class Queue:
                 for gone in ("worker", "lease_until", "taken"):
                     had.pop(gone, None)
                 self._write(state)
+                self._say(key, "waiting", id=about.get("id"))
                 return True
             journal[key] = {**about, "state": "queued", "lane": lane, "item": dict(item), "tries": 0, "seen": now, "last": now,
                             "seq": 1 + max((int(e.get("seq", 0)) for e in journal.values()), default=0)}
             self._write(state)
+            self._say(key, "waiting", id=about.get("id"))
             return True
+
+    def _say(self, key: str, state: str, **about: Any) -> None:
+        if self.shared is not None:
+            self.shared.append(key, state, **about)
 
     # -- out ---------------------------------------------------------------------------------------------------------
     def take(self, worker: str, skip: Any = (), leave: Any = ()) -> dict[str, Any] | None:
@@ -221,6 +454,17 @@ class Queue:
             for key, e in sorted(journal.items(), key=lambda kv: int(kv[1].get("seq", 0))):
                 if e.get("state") not in OPEN or "item" not in e or e.get("kind") in leave or e.get("lane", key) in heads:
                     continue
+                other = self.shared.theirs(key) if self.shared is not None else None
+                if other is not None and other["state"] != "waiting":
+                    if other["state"] == "sending":
+                        heads.add(e.get("lane", key))       # in flight in another run: its lane waits, and this is no try of ours
+                        continue
+                    # another run has the answer: this runner's own entry is closed with it, and nothing is sent
+                    e.update(state="done" if other["state"] == "confirmed" else "dead", last=now, by=other["by"],
+                             why=None if other["state"] == "confirmed" else str(other.get("why") or "another run of the relay had it refused"))
+                    for gone in ("worker", "lease_until", "taken"):
+                        e.pop(gone, None)
+                    continue
                 lost = e["state"] == "leased" and float(e.get("lease_until", 0)) <= now
                 ready = key not in skip and (lost or (e["state"] == "queued" and float(e.get("not_before", 0)) <= now))
                 if self.strict or ready or e["state"] == "leased":
@@ -230,7 +474,11 @@ class Queue:
                 if self.max_tries is not None and int(e.get("tries", 0)) >= self.max_tries:
                     said = e.get("why") or "no worker answered for it"
                     e.update(state="dead", gave_up=True, last=now, why=f"given up after {e['tries']} tries; the last one said: {said}")
+                    self._say(key, "waiting", gave_up=True)   # this run's tries are over; that closes the token for nobody else
                     heads.discard(e.get("lane", key))       # closed: the next of its lane may leave on this same call
+                    continue
+                if self.shared is not None and not self.shared.lease(key, now + self.lease):
+                    heads.add(e.get("lane", key))           # another run leased it in this instant, first: it is theirs
                     continue
                 if lost:
                     e["lost"] = int(e.get("lost", 0)) + 1   # times a worker took it and never answered
@@ -279,6 +527,13 @@ class Queue:
                 note(state)
                 state[self.key], state["queue"] = journal, meta
             self._write(state)
+            if self.shared is not None:
+                gave_up = e["state"] == "dead" and bool(e.get("gave_up"))
+                word = "confirmed" if e["state"] == "done" else "waiting" if e["state"] == "queued" or gave_up else "refused"
+                try:
+                    self.shared.append(key, word, why=e.get("why") if word == "refused" else None, gave_up=True if gave_up else None)
+                except NotMine:
+                    pass                    # its lease was never noted here (notes of an older run): the journal has the answer
             return str(e["state"])
 
     # -- seen --------------------------------------------------------------------------------------------------------
@@ -300,7 +555,8 @@ class Queue:
 def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], workers: int = WORKERS,
          idle: Callable[[], None] | None = None, after: Callable[[dict[str, Any], Mapping[str, Any], str], None] | None = None,
          drain: bool = True, owner: str = "", leave: Any = (), stop: Callable[[], bool] | None = None,
-         note: Callable[[dict[str, Any]], None] | None = None) -> dict[str, int]:
+         note: Callable[[dict[str, Any]], None] | None = None, feed: Callable[[], int] | None = None,
+         feed_every: float = FEED_EVERY) -> dict[str, int]:
     """`workers` threads carry the queue's entries until none is open. `handle(entry)` answers as a relay does; what
     it raises is a failure that may clear (the entry is tried again). A worker that stops without answering (the
     process is killed, or `handle` raises something that is not an Exception) leaves its lease to expire. `idle()` is
@@ -311,7 +567,12 @@ def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], wo
     ends when nothing more may; what is to be tried again, or leased to someone else, is left for the next pass.
     `owner`: a name before each worker's (`owner:w1`), so that a process can end its own lost leases (`Queue.release`).
     `leave`: kinds these workers do not carry. `stop()`: true when no worker should take another entry. `note`: see
-    `Queue.finish`."""
+    `Queue.finish`.
+
+    `feed()`: asked every `feed_every` seconds for as long as a worker is still carrying; it queues what is new and
+    returns how many entries it queued. Workers that have ended are started again for them, so what arrives while
+    one confirmation is awaited is carried by a free worker and not after it. What `feed` raises is its own failure:
+    it is asked again."""
     wait = idle or (lambda: time.sleep(0.2))
     stopped = 0
     guard = threading.Lock()
@@ -342,9 +603,33 @@ def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], wo
                 stopped += 1
 
     mark = f"{owner}:" if owner else ""
-    threads = [threading.Thread(target=run, args=(f"{mark}w{i + 1}",), name=f"knos-relay-w{i + 1}") for i in range(max(1, workers))]
-    for t in threads:
+    ended = threading.Condition()
+
+    def start(i: int) -> threading.Thread:
+        def body() -> None:
+            try:
+                run(f"{mark}w{i + 1}")
+            finally:
+                with ended:
+                    ended.notify_all()
+        t = threading.Thread(target=body, name=f"knos-relay-w{i + 1}")
         t.start()
+        return t
+
+    threads = [start(i) for i in range(max(1, workers))]
+    while feed is not None:
+        until = time.monotonic() + max(0.0, feed_every)
+        with ended:                         # until the time is up, or no worker is left (each says when it ends)
+            while any(t.is_alive() for t in threads) and until - time.monotonic() > 0:
+                ended.wait(until - time.monotonic())
+        if not any(t.is_alive() for t in threads) or (stop is not None and stop()):
+            break
+        try:
+            fresh = int(feed() or 0)
+        except Exception:  # noqa: BLE001 - a read that failed is asked again; the workers carry on
+            fresh = 0
+        if fresh > 0:                       # a worker that had ended (nothing was left for it) is started again
+            threads = [t if t.is_alive() else start(i) for i, t in enumerate(threads)]
     for t in threads:
         t.join()
     return {**queue.counts(), "stopped": stopped}
@@ -463,14 +748,18 @@ def ingest(queue: Queue, event_name: str, event: Mapping[str, Any], get: Callabl
 
 def carrier(ledger: Any, payer: Any, clock: Callable[[], float] = time.time) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """`handle` for `work`: one entry to the chain through `ghrelay.relay_one`, with the times of its own send noted
-    on a ledger of its own (several are in flight, each with its own first send and last confirmation)."""
+    on a ledger of its own (several are in flight, each with its own first send and last confirmation). `payer`: one
+    key, or `Payers` (each lane pays from its own)."""
     from ...proof import ghrelay
+    pool = payer if isinstance(payer, Payers) else Payers([payer])
 
     def handle(entry: dict[str, Any]) -> dict[str, Any]:
         item = entry["item"]
-        timed, picked = ghrelay.Timed(ledger, clock), clock()
+        picked = clock()
         terms = str(item["terms"]).encode() if item.get("terms") else None
-        sent = ghrelay.relay_one(timed, payer, item["kind"], item["jwt"], terms=terms) if terms else ghrelay.relay_one(timed, payer, item["kind"], item["jwt"])
+        with pool.hold(str(entry.get("lane") or entry["key"])) as key:
+            timed = ghrelay.Timed(ledger, clock)
+            sent = ghrelay.relay_one(timed, key, item["kind"], item["jwt"], terms=terms) if terms else ghrelay.relay_one(timed, key, item["kind"], item["jwt"])
         r = dict(sent)
         done, created = clock(), item.get("created")
         if r.get("ok") and (r.get("sigs") or r.get("already")):
@@ -486,12 +775,13 @@ def carrier(ledger: Any, payer: Any, clock: Callable[[], float] = time.time) -> 
 
 def serve_event(event_name: str, event: Mapping[str, Any], ledger: Any, payer: Any, path: Path, workers: int = WORKERS,
                 get: Callable[[str], Any] | None = None, post: Callable[[list[str]], None] | None = None,
-                clock: Callable[[], float] = time.time, say: Callable[[str], None] = print) -> int:
+                clock: Callable[[], float] = time.time, say: Callable[[str], None] = print, notes: Notes | None = None) -> int:
     """One event, start to end: queue what it names, carry it with `workers` workers, write the log's lines. A token
     the chain already showed done gets no line from here (whoever carried it writes its own). Returns the number of
-    tokens that reached the chain here."""
+    tokens that reached the chain here. `notes`: the notes this run shares with others (`Notes`); `path` is then this
+    run's own journal, and what the sweep holds or has answered is left to the sweep. `payer`: one key or `Payers`."""
     from ...proof import ghrelay
-    queue = Queue(path, clock, workers=workers)
+    queue = Queue(path, clock, workers=workers, notes=notes)
     try:
         ingest(queue, event_name, event, get or Forge(clock=clock).get, clock())
     except (Full, Slow, ValueError) as why:
@@ -514,7 +804,9 @@ def serve_event(event_name: str, event: Mapping[str, Any], ledger: Any, payer: A
                 say(f"relay: the log line was not written ({why})")
     try:
         repo = named(event_name, event)[0]
-        queue.note(lambda notes: notes.setdefault("repos", {}).update({repo: clock()}))      # the sweep reads this repository from now on
+        queue.note(lambda file: file.setdefault("repos", {}).update({repo: clock()}))      # the sweep reads this repository from now on
+        if notes is not None:
+            notes.repo(repo)
     except ValueError:
         pass
     work(queue, carrier(ledger, payer, clock), workers, after=after, leave=LEFT_TO_SWEEP)
@@ -532,7 +824,11 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     assert callable(relay.lane)
     event = json.loads(a.event.read_text(encoding="utf-8"))
-    carried = serve_event(a.event_name, event, chain.ledger(), chain.key(), ghrelay._state_path(), max(1, a.workers))
+    # a journal of this run's own, and the notes it shares: what a sweep with the same home (or the same
+    # KNOS_RELAY_NOTES folder) holds or has answered is read from the merge, and nothing of the sweep's is written
+    home, me = ghrelay._state_path(), f"event-{os.environ.get('GITHUB_RUN_ID') or os.getpid()}"
+    shared = Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or home.with_name(f"{home.stem}-notes")), me)
+    carried = serve_event(a.event_name, event, chain.ledger(), payers(chain.key()), home.with_name(f"ghrelay.{me}.json"), max(1, a.workers), notes=shared)
     print(f"relay: {carried} token{'' if carried == 1 else 's'} carried for this event", file=sys.stderr)
     return 0
 

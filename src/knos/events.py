@@ -604,7 +604,16 @@ def from_ledger(text: str) -> Iterator[Event]:
     for b in ledger.load(text):
         d = b.declared
         for e in b.evals:
-            yield from from_evaluation(e, "batch", b.month, f"batch:{d['buyer']}:{d['seller']}:{b.month}.{b.seq}:{d['root']}")
+            where = f"batch:{d['buyer']}:{d['seller']}:{b.month}.{b.seq}:{d['root']}"
+            # From format 2 on the batch commits to the whole event, so the log names the event's hash: the leaf itself.
+            yield from from_evaluation(e, "batch", b.month, where if b.format == 1 else f"{where}:event:{event_hash(e, b.month, b.seq)}")
+
+
+def event_hash(e, month: int | str, seq: int) -> str:
+    """The hash of one evaluation of the meter as an event, in hex: the leaf of its format 2 batch. There is one
+    definition, knos.ledger.event_hash, and this is it: the log and the batch agree on what an event is."""
+    from . import ledger
+    return ledger.event_hash(e, month_of(month), seq).hex()
 
 
 def from_audit(rows: Iterable[dict]) -> Iterator[Event]:

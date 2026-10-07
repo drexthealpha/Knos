@@ -12,7 +12,8 @@ or `{"id": ..., "refused": true}` for an input the format does not allow, or `{"
 operation the implementation does not do. The runner needs Python 3.10 and nothing of Knos's. `--require-all` makes an
 unsupported case a failure; `--format terms` runs one format.
 
-Kit version 2 has 288 cases. Version 2 added the last two rows and changed no vector of version 1:
+Kit version 3 has 330 cases. Version 2 added the receipt4 and ids rows, version 3 the last row; neither changed a
+vector of the version before:
 
 | format | versions | cases | what it fixes |
 |---|---|---|---|
@@ -23,6 +24,7 @@ Kit version 2 has 288 cases. Version 2 added the last two rows and changed no ve
 | statement | 1 | 8 | the meter's monthly statement and the hash both parties compare |
 | receipt4 | 4 | 60 | the acceptance receipt of version 4: four verdicts, the four ids, what the evidence does not show, and which receipts authorise payment ([RECEIPT.md](RECEIPT.md), [`receipt/vectors.v4.json`](receipt/vectors.v4.json)) |
 | ids | 1 | 57 | the ids of a deliverable, an evaluation, an invoice line and a settlement, the four verdicts, and the rule that bills a deliverable once ([METER.md](METER.md)) |
+| ledger2 | 2 | 42 | the meter's batch commitment, format 2: an event's canonical bytes, its leaf, a batch's root, an inclusion proof, and the pair of batches that differ only in which evaluation was accepted ([METER.md](METER.md)) |
 
 The receipt's vectors are the ones [`docs/receipt/vectors.json`](receipt/vectors.json) already held; the kit reads that
 file and keeps no copy. Nobody outside Knos has run the kit: the two implementations that pass it are Knos's own.
@@ -55,6 +57,25 @@ sha256(0x02 || key), in ascending order of key. `ledger.batch_root` takes ids al
 `ledger.batch_root_any` takes them in any order, with repeats and with corrections. `ledger.check_proof` checks an
 inclusion path against a root. A ledger's running hash after a batch is sha256(hash before || root || seq || count ||
 accepted || value), the four numbers as u64 little-endian, starting from 32 zero bytes.
+
+**Ledger, format 2** (`ledger2.event_bytes`, `ledger2.leaf`, `ledger2.root`, `ledger2.check_proof`). Format 1's root
+binds the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted.
+Format 2's leaf is the hash of the whole event. An event is eighteen texts, in this order: `deliverable_id`,
+`evaluation_id`, `invoice_line_id`, `settlement_id`, `verdict`, `amount`, `currency`, `buyer`, `seller`, `order`,
+`milestone`, `policy`, `artifact`, `evidence`, `evaluator`, `run`, `month`, `seq`. A whole number is written in decimal
+with no leading zero, the month as six digits, a field the line does not state as the empty text. Its bytes are
+`knos.event`, a zero byte, the byte 0x02 (the format), the byte 0x12 (the number of fields), then each text as its
+length in bytes (u32 big-endian) and its UTF-8 bytes. An event whose verdict is not one of the four words, whose
+numbers are written another way, or whose deliverable or evaluation id is not the id of its own order, milestone,
+artifact, policy, evaluator and run is refused. A leaf is sha256(`knos.leaf.2` 0x00 || bytes), a node
+sha256(`knos.node.2` 0x00 || left || right), a correction's leaf sha256(`knos.fix.2` 0x00 || key), and the root
+sha256(`knos.root.2` 0x00 || the number of leaves as u32 big-endian || the top of the tree). The leaves are the events
+in ascending order of their evaluation id (`ledger.eval_id`), then the corrections' keys in ascending order; an
+evaluation given twice is refused. The tree splits at the largest power of two below the number of leaves, so a last
+leaf with no sibling is carried up as it is and is never hashed with a copy of itself. The format and the number of
+leaves are inside the root, and every tag differs from format 1's one-byte prefixes, so a root or a proof of one format
+never checks as the other; the vectors include both directions and the pair that swaps which of two equal-priced
+evaluations was accepted. The root goes in the same place of the same audience: the program reads it as 32 bytes.
 
 **Audiences** (`audience.knos2_fund`, `audience.knos2_pay`, `audience.knos2_bind`, `audience.knos3_fund`,
 `audience.knos3_pay`, `audience.knos3_rule`, `audience.knos3_bind`, `audience.knos3_take`, `audience.knos3_cancel`,
@@ -107,14 +128,15 @@ It is narrow on purpose.
 
 | implementation | passed | not implemented | failed |
 |---|---|---|---|
-| Python (`conformance/impl/knos_python.py`, the functions the rest of Knos uses) | 288 | 0 | 0 |
-| JavaScript (`conformance/impl/knos_js.mjs`, the client in `sdk/settle`) | 195 | 93 | 0 |
+| Python (`conformance/impl/knos_python.py`, the functions the rest of Knos uses) | 330 | 0 | 0 |
+| JavaScript (`conformance/impl/knos_js.mjs`, the client in `sdk/settle`) | 237 | 93 | 0 |
 
-Of the JavaScript client's 195, 101 are answered by functions `sdk/settle` exports and 94 by a few lines in the adapter
+Of the JavaScript client's 237, 101 are answered by functions `sdk/settle` exports and 136 by a few lines in the adapter
 written from this page and from the description in each vector file, for operations the client has no function for:
 `receipt.digest`, `ledger.deliverable_id`, `statement.hash`, and the nine of the ids format (`ids.deliverable`,
 `ids.evaluation`, `ids.invoice_line`, `ids.settlement`, `ids.kind_of`, `ids.expect`, `ids.order_scope`, `ids.verdict`,
-`ids.billed_once`). They show that the descriptions are enough to write from; they are not a claim about the client.
+`ids.billed_once`), and the four of ledger format 2 (`ledger2.event_bytes`, `ledger2.leaf`, `ledger2.root`,
+`ledger2.check_proof`). They show that the descriptions are enough to write from; they are not a claim about the client.
 The 93 it does not do are three operations, and each is a difference between Knos's own two implementations that a
 user of the client should know:
 

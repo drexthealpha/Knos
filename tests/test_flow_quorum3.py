@@ -126,7 +126,8 @@ def test_a_fund_comment_names_the_third_reader_and_the_program_takes_exactly_wha
     # a run in a repository that is not the one named is no judge of this order
     assert not present(c, on_chain, payees, repository_id=JUDGE["id"] + 1, file="attest.yml", event_name="push") and code(c) == CLAIMS
     # c: the judge repository the comment named. Now all three have passed the same pull request: paid
-    assert present(c, on_chain, payees, repository_id=JUDGE["id"], file="attest.yml", event_name="push"), c.err
+    # (its owner is a third account: neither the buyer nor the seller. A judge repository of the buyer's would be no third reader)
+    assert present(c, on_chain, payees, repository_id=JUDGE["id"], repository_owner_id=9_000, file="attest.yml", event_name="push"), c.err
     assert paid_to(c, wallet) == 20 * USDC and c.order(on_chain) is None and c.said("knos3:settled")[0].endswith("judge=2")
 
 
@@ -138,13 +139,17 @@ def test_two_readers_of_one_owner_are_one_and_the_order_is_not_paid(tmp_path):
     payees = [(author, 10_000, wallet)]
     assert present(c, order, payees), c.err                                                       # a: the buyer's run
     assert present(c, order, payees, repository_id=JUDGE["id"], file="attest.yml", event_name="push"), c.err     # c: the judge repository
-    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=2 have=2 of=3"]
+    # the judge repository belongs to the owner of the order's repository: two repositories of one owner are one reader
+    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=2 have=1 of=3"]
     # the "neutral" run is the buyer's again: started by the Balance's owner, by the funder, or in the order's own repository
     for over in (c.neutral(OWNER), c.neutral(MAINT), c.neutral(author, REPO)):
         assert not present(c, order, payees, **over) and code(c) == CLAIMS, over
     assert paid_to(c, wallet) == 0 and c.order(order).state == "open" and c.quorum(order)[1] is None
-    # someone else's run is a third reader
+    # someone else's run is a second owner's, not a third: the judge repository is still the buyer's
     assert present(c, order, payees, **c.neutral(author)), c.err
+    assert c.said("knos3:quorum") == [f"knos3:quorum order={order} judge=1 have=2 of=3"] and paid_to(c, wallet) == 0
+    # a third owner's run in the judge repository is the third reader
+    assert present(c, order, payees, repository_id=JUDGE["id"], repository_owner_id=9_000, file="attest.yml", event_name="push"), c.err
     assert paid_to(c, wallet) == 20 * USDC
 
     # the chain does not know who owns a repository, so a judge repository of one of the sides is refused at funding, in words

@@ -27,7 +27,7 @@ name: knos attest (reusable workflow)
 # cannot be run from outside. The first job then runs nothing, and the verdict says: "this judge read the buyer
 # repository's check results; it did not run them".
 # The verdict (reexecuted, passed, the assurance, the image's digest, a hash of each tree, where it ran) is kept as the
-# run's artifact `knos-verdict` and posted as a `knos-verdict:` comment beside the token. The kind says
+# run's artifact `knos-verdict-<attempt>` and posted as a `knos-verdict:` comment beside the token. The kind says
 # which one: pay (the terms were met), take (reserve the order for someone), revert (inside the warranty, the holdback
 # goes back to the funder) or rule (the arbiter the order named decides). The audience of the statement names the
 # order, the pull request and the commit, so it is good for that one action and no other.
@@ -152,7 +152,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.17"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.18"
       - name: the plan (which two commits, which suite, which image), from the order on Solana and GitHub's record
         id: plan
         env:
@@ -226,7 +226,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: knos-verdict
+          name: knos-verdict-${{ github.run_attempt }}     # one name per attempt: a job run again never writes into an earlier attempt's artifact
           path: ${{ runner.temp }}/rerun/verdict.json
           if-no-files-found: ignore
 
@@ -255,6 +255,13 @@ jobs:
           KNOS_LOCK
           LOCK
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      # The first job's verdict is text from a machine that ran a stranger's code. Before the command reads it, it is
+      # held to what every reader reads the same way: small, plain characters, one object, each key once, only the
+      # fields a verdict has. Which order, pull request and commits it is about is the command's to check, next.
+      - name: the verdict, read as data (nothing is signed on text two readers could read differently)
+        env:
+          KNOS_RERUN: ${{ needs.rerun.outputs.verdict }}
+        run: python -m knos.verdict_gate shape
       - name: knos attest
         env:
           GH_TOKEN: ${{ github.token }}
@@ -294,6 +301,11 @@ jobs:
           KNOS_LOCK
           LOCK
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      # as in attest: the verdict is posted only when every reader would read it the same way
+      - name: the verdict, read as data (nothing is signed on text two readers could read differently)
+        env:
+          KNOS_RERUN: ${{ needs.rerun.outputs.verdict }}
+        run: python -m knos.verdict_gate shape
       - name: knos attest, refused, with the reasons posted
         env:
           GH_TOKEN: ${{ github.token }}

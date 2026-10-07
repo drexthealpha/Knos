@@ -7,6 +7,9 @@ order_terms.rs, section 5), and what a relay needs to carry their tokens:
   QUORUM    2 or 3: PayOrder pays only when that many distinct judges (0 the order's own repository, 1 a neutral run,
             2 the judge repository) have passed the same artifact. Each one before the last leaves a marker
             ["q", order, kind]; the last one pays. PayOrder takes the three markers after all its other accounts.
+            Distinct (2.2, `distinct`): judges whose runs were in repositories of one owner are one judge, and a
+            neutral run counts only when its owner is not the order repository's owner and its actor did not start
+            the run in the order's repository. Different forge accounts and owners: not different people.
 """
 from __future__ import annotations
 
@@ -19,7 +22,8 @@ from . import pay
 
 F_AUTO = 32
 F_QUORUM = 0xC0
-Q_LEN = 106
+Q_LEN = 122          # 2.2: the marker also names its judge's run (owner, actor); 2.1 wrote 106 bytes, which count for nothing
+Q_LEN_21 = 106       # that marker: the same fields up to the artifact, and no run
 KINDS = {"own": 0, "auto": 0, "neutral": 1, "private": 2}    # relay._judge's names -> the kind a marker records
 
 
@@ -58,19 +62,107 @@ def with_quorum(ix: Instruction, order: Pubkey, o: pay.Order, program: Pubkey = 
     return Instruction(ix.program_id, bytes(ix.data), [*ix.accounts, *(AccountMeta(q_pda(order, k, program), False, True) for k in range(3))])
 
 
-def read_q(data: bytes | None) -> tuple[int, Pubkey, Pubkey, int, bytes] | None:
-    """A quorum marker: (kind, who paid its rent, its order, the `not_before` of the order it was made for, the
-    artifact its judge passed). None when the account is not one."""
+def read_q(data: bytes | None) -> tuple[int, Pubkey, Pubkey, int, bytes, int, int] | None:
+    """A quorum marker: (kind, who paid its rent, its order, the stamp of the order it was made for (pay.Order.stamp),
+    the artifact its judge passed, the `repository_owner_id` of the judge's run, its `actor_id`). None when the
+    account is not one (a marker as 2.1 wrote it, 106 bytes, names no run and counts for nothing)."""
     if not data or len(data) != Q_LEN:
+        return None
+    return (data[1], Pubkey.from_bytes(data[2:34]), Pubkey.from_bytes(data[34:66]), int.from_bytes(data[66:74], "little", signed=True), bytes(data[74:106]),
+            int.from_bytes(data[106:114], "little"), int.from_bytes(data[114:122], "little"))
+
+
+def distinct(order_owner: int, who: list[tuple[int, int] | None]) -> int:
+    """How many judges these are, exactly as the program counts (order_terms.rs `distinct`). `who`: for each kind
+    (0 own repository, 1 neutral, 2 judge repository) the run that passed the artifact as (repository_owner_id,
+    actor_id), or None. `order_owner`: the Balance's owner id of a Balance's order, 0 for a wallet's."""
+    own, neutral, named = who
+    third_party = neutral is not None and (order_owner != 0 or own is not None) and neutral[0] != order_owner and (
+        own is None or (neutral[0] != own[0] and neutral[1] != own[1]))
+    owners = [w[0] for w in (own, neutral if third_party else None, named) if w is not None]
+    return len(set(owners))
+
+
+def passed(markers: dict[int, bytes | None], o: pay.Order, audience: str, kind: int, run: tuple[int, int] | None = None) -> int:
+    """How many distinct judges have passed this audience's artifact for the order as it is funded now, counting the
+    judge of `kind` who presents it. `markers`: {kind: the data of q_pda(order, kind)}. `run`: the presenting
+    token's (repository_owner_id, actor_id); the count is the program's only with it. Without it the presenter is
+    taken for an owner nobody else is, which is the most the program can count."""
+    art = artifact(audience)
+    who: list[tuple[int, int] | None] = [None, None, None]
+    for k in range(3):
+        q = read_q(markers.get(k))
+        if k != kind and q is not None and q[3] == o.stamp and q[4] == art:
+            who[k] = (q[5], q[6])
+    if run is None:
+        return distinct(o.owner_id, who) + 1
+    who[kind] = run
+    return distinct(o.owner_id, who)
+
+
+# -- both builds ----------------------------------------------------------------------------------------------------------
+# The public program runs 2.1 until the upgrade to 2.2 executes, so whoever carries a token reads the markers as the
+# build that is LIVE reads them: `passed21` on 2.1, `passed` (with the presenting run) on 2.2.
+NAMES = {0: "the order's own repository", 1: "the neutral run", 2: "the judge repository"}
+
+
+def read_any(data: bytes | None) -> tuple[int, Pubkey, Pubkey, int, bytes] | None:
+    """A quorum marker of either build, as far as both write it: (kind, who paid its rent, its order, the stamp of
+    the order it was made for, the artifact its judge passed). None when the account is not one."""
+    if not data or len(data) not in (Q_LEN, Q_LEN_21):
         return None
     return data[1], Pubkey.from_bytes(data[2:34]), Pubkey.from_bytes(data[34:66]), int.from_bytes(data[66:74], "little", signed=True), bytes(data[74:106])
 
 
-def passed(markers: dict[int, bytes | None], o: pay.Order, audience: str, kind: int) -> int:
-    """How many distinct judges have passed this audience's artifact for the order as it is funded now, counting the
-    judge of `kind` who presents it. `markers`: {kind: the data of q_pda(order, kind)}."""
-    art, have = artifact(audience), 1
+def _counts21(data: bytes | None, o: pay.Order, art: bytes) -> bool:
+    q = read_any(data) if data and len(data) == Q_LEN_21 else None
+    return q is not None and q[3] == o.not_before and q[4] == art
+
+
+def passed21(markers: dict[int, bytes | None], o: pay.Order, audience: str, kind: int) -> int:
+    """`passed` as knos_pay 2.1 counts: every other kind whose marker (106 bytes) is of this order's funding time and
+    this artifact is one more judge, whoever ran it."""
+    art = artifact(audience)
+    return 1 + sum(k != kind and _counts21(markers.get(k), o, art) for k in range(3))
+
+
+def stale(markers: dict[int, bytes | None], o: pay.Order, audience: str, kind: int) -> list[int]:
+    """The kinds, other than the presenting one, whose judge passed this artifact for this order under 2.1 and left a
+    marker 2.2 counts for nothing (it names no run): each has to sign again for his word to count."""
+    art = artifact(audience)
+    return [k for k in range(3) if k != kind and o.inc == 0 and _counts21(markers.get(k), o, art)]
+
+
+def spoke(markers: dict[int, bytes | None], o: pay.Order, audience: str, kind: int, run: tuple[int, int]) -> list[tuple[int, int] | None]:
+    """For each kind, the run (repository_owner_id, actor_id) that has passed this artifact for the order as it is
+    funded now, the presenting one included: what `distinct` counts on 2.2."""
+    art = artifact(audience)
+    who: list[tuple[int, int] | None] = [None, None, None]
     for k in range(3):
         q = read_q(markers.get(k))
-        have += k != kind and q is not None and q[3] == o.not_before and q[4] == art
-    return have
+        if k != kind and q is not None and q[3] == o.stamp and q[4] == art:
+            who[k] = (q[5], q[6])
+    who[kind] = run
+    return who
+
+
+def uncounted(order_owner: int, who: list[tuple[int, int] | None]) -> list[str]:
+    """Why judges who have spoken are fewer than those who spoke, in plain words: one sentence for each run that
+    `distinct` does not count as a judge of its own. Empty when every run counts."""
+    own, neutral, named = who
+    out, third = [], False
+    if neutral is not None:
+        if order_owner == 0 and own is None:
+            out.append("the neutral run is not counted until the order's own repository has passed this commit, because until then nothing shows "
+                       "that it is a third party's")
+        elif neutral[0] == order_owner or (own is not None and neutral[0] == own[0]):
+            out.append("the neutral run was in a repository of the account that owns the order's repository, and runs in repositories of one "
+                       "owner are one judge")
+        elif own is not None and neutral[1] == own[1]:
+            out.append("the neutral run was started by the account that started the run in the order's own repository, so it is not a third party's")
+        else:
+            third = True
+    if named is not None and any(e is not None and e[0] == named[0] for e in (own, neutral if third else None)):
+        out.append("the judge repository has the same owner as another judge that passed this commit, and runs in repositories of one owner are "
+                   "one judge")
+    return out

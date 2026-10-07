@@ -295,7 +295,7 @@
     },
     {
       "name": "SetPlan",
-      "docs": ["FEE_OWNER sets the fee rate (50..=250 basis points) of the orders funded from Balances of one repository owner, while now < expires."],
+      "docs": ["FEE_OWNER sets the fee rate (10..=30 basis points; the standard rate is 30) of the orders funded from Balances of one repository owner, while now < expires."],
       "accounts": [
         {"name": "feeOwner", "isMut": false, "isSigner": true, "desc": "FEE_OWNER"},
         {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the Plan's rent on first use"},
@@ -312,9 +312,9 @@
     {
       "name": "FundOrderWallet",
       "docs": [
-        "A wallet funds a work order for an issue of any public repository: the amount its payees will receive plus the fee on top (2.5% of the first 1,000 whole units of the mint, 1% from 1,000 to 50,000,",
-        "0.5% above; at least 0.40; no maximum), into the order's own token account. opts (48 bytes): flags u8 (PRIVATE 2, NEUTRAL 4, STANDING 8), holdbackBps u16,",
-        "warrantyDays u16, killBps u16, reserveDays u8, rate u64, arbiterId u64, judgeRepoId u64, salted u8, 15 zero bytes. A PRIVATE order: repoId and issue are 0",
+        "A wallet funds a work order for an issue of any public repository: the amount its payees will receive plus the fee on top (0.30% of the amount, one rate and no tiers;",
+        "at least 0.05 of a whole unit of the mint; no maximum), into the order's own token account. opts (48 bytes): flags u8 (PRIVATE 2, NEUTRAL 4, STANDING 8), holdbackBps u16,",
+        "warrantyDays u16, killBps u16, reserveDays u8, rate u64, arbiterId u64, judgeRepoId u64, salted u8, grace u8 (1: a pay token issued by the deadline still pays for 7200 seconds after it, and RefundOrder waits as long), 14 zero bytes. A PRIVATE order: repoId and issue are 0",
         "and terms is its scope (32 bytes) then the sha256 of its terms (32 bytes); otherwise terms is the terms JSON, which is logged. Refused while new funding is paused."
       ],
       "accounts": [
@@ -609,8 +609,8 @@
       "name": "CloseMarker",
       "docs": [
         "Anyone closes a marker that can no longer matter; its rent goes back to whoever paid it. A Used marker: after the time it stores (no token used when it was made can be accepted any more).",
-        "A Done marker: once nothing of this program is at its order's address (the order was paid out or refunded). The two kinds are told by their length.",
-        "A Q marker (106 bytes): once `order` is not the open order it was made for (closed, funded again later, or no longer open)."
+        "A Done marker: once the order it was made for is not at its order's address (the order was paid out or refunded, or one funded later is there). The kinds are told by their length.",
+        "A Q marker (122 bytes; 106 as 2.1 wrote it): once `order` is not the open order it was made for (closed, funded again later, or no longer open)."
       ],
       "accounts": [
         {"name": "marker", "isMut": true, "isSigner": false, "desc": "PDA [\"used\", ...] or PDA [\"done\", order, pr u64 LE] or PDA [\"q\", order, kind u8]"},
@@ -824,6 +824,7 @@
         "flags: FAUCET 1, PRIVATE 2, NEUTRAL 4, STANDING 8, TOKEN2022 16, AUTO 32 (paid unmerged by the black-box suite; only with mode 1), and in the two high bits QUORUM: flags >> 6 is 0, or the 2 or 3 distinct judges a payment needs. amount: what payees receive in total; fee: escrowed on top of it; paid: of the amount, so far.",
         "A private order stores 0 in repoId and issue and a scope its funder computed. Its money is in the token account PDA [\"ov\", order].",
         "holdbackBps, warrantyS: that share of a payment stays in the order through the warranty (holdUntil, state warranty), then Release pays it or Revert returns it. rate: what a STANDING order pays per pull request.",
+        "inc: the slot of the order's funding plus one (0: funded under 2.1): its incarnation, which every marker made for it carries. grace: 1 when it was funded with the presentation grace. feeBps: the rate fixed at funding (30, or a Plan's 10..=30; up to 250 on an order of 2.1).",
         "reserveDays, reservedBy, reservedUntil: a reservation (Reserve). cancelAt: when Cancel was sent (0: never). killBps: the share a taker is owed when a reserved order is cancelled.",
         "payeeId: set when held. arbiterId: the GitHub id whose ruling pays it (0: none). judgeRepoId: the repository id whose runs may judge it (0: none). feeBps: the fee rate fixed at funding.",
         "notBefore: a token must be issued at or after this. refundTo: the Balance's token account, or the funding wallet. rentTo: who paid the rents. terms, wfRepoHash, wfSha: as a Job's."
@@ -870,7 +871,10 @@
           {"name": "wfSha", "type": {"array": ["u8", 40]}},
           {"name": "feeBps", "type": "u16"},
           {"name": "padding0", "type": {"array": ["u8", 6]}},
-          {"name": "reserved", "type": {"array": ["u8", 80]}}
+          {"name": "inc", "type": "u64"},
+          {"name": "grace", "type": "u8"},
+          {"name": "padding1", "type": {"array": ["u8", 7]}},
+          {"name": "reserved", "type": {"array": ["u8", 64]}}
         ]
       }
     },
@@ -907,13 +911,14 @@
     },
     {
       "name": "Done",
-      "docs": ["PDA [\"done\", order, pr u64 LE]: exists once this standing order has paid this pull request. 65 bytes. done is 1. payer: who paid its rent. order: its order; CloseMarker closes it once that order is closed."],
+      "docs": ["PDA [\"done\", order, pr u64 LE]: exists once this standing order, as funded now, has paid this pull request. 73 bytes (65 as 2.1 wrote it, without stamp: such a marker counts for an order of 2.1 only). done is 1. payer: who paid its rent. order: its order. stamp: the stamp of the order it was made for (Order.inc negated; an order of 2.1: its notBefore); an order funded later at the same address ignores it, and CloseMarker closes it once that order is not there."],
       "type": {
         "kind": "struct",
         "fields": [
           {"name": "done", "type": "u8"},
           {"name": "payer", "type": "publicKey"},
-          {"name": "order", "type": "publicKey"}
+          {"name": "order", "type": "publicKey"},
+          {"name": "stamp", "type": "i64"}
         ]
       }
     },
@@ -921,7 +926,7 @@
       "name": "As",
       "docs": [
         "PDA [\"as\", order, payeeId u64 LE]: the wallet this order pays for that payee instead of the payee's own (Assign). 88 bytes. version is 1.",
-        "since: the notBefore of the order it was made for; an order funded later at the same address ignores it."
+        "since: the stamp of the order it was made for (Order.inc negated; an order of 2.1: its notBefore); an order funded later at the same address ignores it."
       ],
       "type": {
         "kind": "struct",
@@ -939,8 +944,9 @@
     {
       "name": "Q",
       "docs": [
-        "PDA [\"q\", order, kind u8]: judge `kind` (0 the order's own repository, 1 a neutral run, 2 the judge repository) passed an artifact for an order with a QUORUM (PayOrder). 106 bytes.",
-        "since: the notBefore of the order it was made for; an order funded later at the same address ignores it. artifact: sha256 of the audience after the order's address (head sha, terms hash, mode, pull request, payees).",
+        "PDA [\"q\", order, kind u8]: judge `kind` (0 the order's own repository, 1 a neutral run, 2 the judge repository) passed an artifact for an order with a QUORUM (PayOrder). 122 bytes (106 as 2.1 wrote it, without ownerId and actorId: such a marker counts for nothing).",
+        "ownerId, actorId: the repository_owner_id and the actor_id of the judge's run. Judges whose runs were in repositories of one owner count once, and a neutral run counts only when its owner is not the order repository's owner and its actor did not start the run in the order's repository.",
+        "since: the stamp of the order it was made for (Order.inc negated; an order of 2.1: its notBefore); an order funded later at the same address ignores it. artifact: sha256 of the audience after the order's address (head sha, terms hash, mode, pull request, payees).",
         "payer: who paid its rent and gets it back (CloseMarker) once its order is not the open order it was made for."
       ],
       "type": {
@@ -951,7 +957,9 @@
           {"name": "payer", "type": "publicKey"},
           {"name": "order", "type": "publicKey"},
           {"name": "since", "type": "i64"},
-          {"name": "artifact", "type": {"array": ["u8", 32]}}
+          {"name": "artifact", "type": {"array": ["u8", 32]}},
+          {"name": "ownerId", "type": "u64"},
+          {"name": "actorId", "type": "u64"}
         ]
       }
     }

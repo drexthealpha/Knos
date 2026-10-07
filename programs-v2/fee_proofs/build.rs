@@ -1,9 +1,9 @@
 //! Copies the fee arithmetic out of the program's source, as text, into OUT_DIR/fee.rs: the constants of the fee
-//! schedule, `bps_of` and `order_fee` from ../knos_pay/src/lib.rs, and `units` from ../knos_pay/src/state.rs. A line
+//! schedule, `bps_of`, `fee_of` and `order_fee` from ../knos_pay/src/lib.rs, and `units` from ../knos_pay/src/state.rs. A line
 //! that is missing stops the build: the proofs are about the program's lines or about nothing.
 use std::{env, fs, path::Path};
 
-const CONSTS: [&str; 9] = ["FEE_BPS", "MAX_AMOUNT", "ORDER_FEE_MIN", "FEE_TIER_1", "FEE_TIER_2", "FEE_BPS_2", "FEE_BPS_3", "ORDER_MIN_AMOUNT", "PLAN_BPS_MIN"];
+const CONSTS: [&str; 5] = ["FEE_BPS", "FEE_MIN", "MAX_AMOUNT", "ORDER_MIN_AMOUNT", "PLAN_BPS_MIN"];
 
 /// The item that starts with `head` at the start of a line, up to the end of that line (`one_line`) or to the first
 /// line that is `}` alone.
@@ -27,7 +27,8 @@ fn main() {
     let mut out = String::from("// Copied by build.rs from programs-v2/knos_pay/src/lib.rs and state.rs. Not edited by hand.\n");
     for name in CONSTS { out.push_str(&item(&lib, &format!("pub const {name}: u64 = "), true)); }
     out.push_str(&item(&lib, "pub fn bps_of(", true));
-    out.push_str(&item(&lib, "pub fn order_fee(", false));
+    out.push_str(&item(&lib, "pub fn fee_of(", true));
+    out.push_str(&item(&lib, "pub fn order_fee(", true));
     out.push_str("pub mod state {\n");
     out.push_str(&item(&state, "pub fn units(", false));
     out.push_str("}\n");

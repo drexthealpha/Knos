@@ -25,7 +25,7 @@ import { chromiumOrSkip, TYPES } from "./overflow.mjs";
 const root = process.argv[2], list = process.argv.includes("--list");
 if (!root || !existsSync(join(root, "index.html"))) { console.error("usage: node tests/web/words.mjs <site dir> [--list]"); process.exit(2); }
 export const PAGES = ["check", "buy", "index", "pricing", "story", "supplier", "keyholder", "verifier", "playground", "terms", "records", "invoice-statement", "shadow",
-  "fund", "claim", "protect", "install", "network", "status", "pilot", "capabilities", "reproduce", "build"];
+  "fund", "claim", "protect", "install", "network", "status", "pilot", "capabilities", "reproduce", "build", "record"];
 const RECORD_KEEPERS = ["records", "verifier", "network", "fund", "claim", "protect", "install", "build"];
 const FIRST = 40, STATEMENT = 12;
 let fails = 0;

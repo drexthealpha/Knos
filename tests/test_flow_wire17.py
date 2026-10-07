@@ -25,8 +25,8 @@ class Worded(Judge):
         super().__init__(passed=word == "accepted")
         self.word, self.reasons, self.notes = word, reasons, list(notes)
 
-    def __call__(self, base, pr, cfg, sandbox="auto") -> dict:
-        got = super().__call__(base, pr, cfg, sandbox)
+    def __call__(self, base, pr, cfg, changed=None, sandbox="auto") -> dict:
+        got = super().__call__(base, pr, cfg, changed, sandbox=sandbox)
         return {**got, "verdict": self.word, "reasons": self.reasons, "notes": self.notes,
                 "reason": "; ".join([*self.reasons, *self.notes]) or "every acceptance check passed"}
 

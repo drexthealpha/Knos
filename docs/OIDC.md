@@ -9,7 +9,7 @@ which workflow file at which commit, which account started the run, and any audi
 2.1 is the upgrade Knos 0.3.14 proposed. Until it executes, the second deployment on devnet is 0.3.12's: GitHub's
 and GitLab's keys only, and no private keys ([SECURITY.md](SECURITY.md), section 8).
 
-**2.2** is the build Knos 0.3.16 makes, and it will be proposed after the pending upgrade executes. It changes one thing: the token's header and payload must be JSON
+**2.2** is the build Knos 0.3.16 made first, and it is proposed after the push of Knos 0.3.18. It changes one thing: the token's header and payload must be JSON
 in every byte. 2.1 reads the claims it needs and steps over every other value by its brackets and quotes, so it
 verifies a payload the issuer really signed that is not strict JSON in a value nobody reads (`tru`, a number with a
 leading zero, brackets that do not match, a control character, bytes that are not UTF-8, `NaN`, a comment: 13
@@ -28,7 +28,7 @@ at verification, so no such payload ever reaches the account `knos_pay` reads. F
 crate's version stays 0.3.14 (a crate's version is in the bytes of what depends on it); the program is 2.2 by its
 `VERSION` constant and its `security.txt`.
 Until a 2.2 proposal has executed after its 48-hour delay, devnet runs a build that is lenient in the values it does
-not read: 2.0 until the 2.1 proposal executes, then 2.1. Which build is live is in [`web/upgrades.json`](../web/upgrades.json), not on this page. A 2.2 build says so
+not read: 2.1, since the 2.1 proposal (proposal 3) executed. Which build is live is in [`web/upgrades.json`](../web/upgrades.json), not on this page. A 2.2 build says so
 in its bytes: its `security.txt` carries `source_release: knos-oidc 2.2`.
 
 It charges nothing and does not know Knos's escrow exists. There are two deployments on devnet:
@@ -69,7 +69,7 @@ The interface crate, [`crates/knos-oidc-interface`](../crates/knos-oidc-interfac
 allocate, so it builds with solana-program, pinocchio or anchor of any version:
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.17" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.18" }
 ```
 
 ```rust

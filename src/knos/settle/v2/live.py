@@ -1,8 +1,8 @@
 """Which build of knos_meter and knos_passkey a cluster runs, asked before anything that needs the newer one is sent.
 
-Both were deployed at 1.0. Their 1.1 (the meter's batch mode, the passkey wallet's Fund) is a proposal of the upgrade
-multisig, and the 1.0 program keeps running until that proposal executes, 48 hours after it was approved at the
-earliest. A 1.0 program answers an instruction it does not have with "invalid instruction data", which tells nobody
+Both were deployed at 1.0. Their 1.1 (the meter's batch mode, the passkey wallet's Fund) came as a proposal of the
+upgrade multisig (proposals 5 and 6 at the public ids, executed), and a 1.0 program keeps running until such a proposal
+executes, 48 hours after it was approved at the earliest. A 1.0 program answers an instruction it does not have with "invalid instruction data", which tells nobody
 what to do. So the relay asks first, by simulation (no fee, nothing sent):
 
     knos_meter     Version (7): 1.1 logs `knosm:version 1.1`; 1.0 has no instruction 7

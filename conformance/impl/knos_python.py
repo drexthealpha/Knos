@@ -57,6 +57,20 @@ def _or_refuse(fn):
     return run
 
 
+def _event(o) -> tuple:
+    """An event of ledger format 2 as the vectors write it (an object of the eighteen texts) in the order they are hashed in."""
+    if not isinstance(o, dict) or set(o) != set(L.FIELDS):
+        raise L.Bad("an event has exactly the eighteen fields")
+    return tuple(o[k] for k in L.FIELDS)
+
+
+def _event_ok(o) -> bool:
+    try:
+        return L.event_problem(_event(o)) is None
+    except L.Bad:
+        return False
+
+
 def _parse_batch(i: dict):
     try:
         claim, b = L.parse_batch_audience(i["audience"])
@@ -101,6 +115,10 @@ OPS = {
     "ledger.batch_root_any": lambda i: L.merkle_root([_b(x) for x in i["ids"]], [_b(x) for x in i["corrections"]]).hex(),
     "ledger.check_proof": lambda i: L.check_proof(_b(i["id"]), i["index"], i["size"], [_b(x) for x in i["path"]], _b(i["root"]), i["correction"]),
     "ledger.chain_hash": lambda i: L.chain_hash(_b(i["before"]), _b(i["root"]), i["seq"], i["count"], i["accepted"], i["value"]).hex(),
+    "ledger2.event_bytes": _or_refuse(lambda i: L.encode_event(_event(i["event"])).hex()),
+    "ledger2.leaf": _or_refuse(lambda i: L.leaf2(_event(i["event"])).hex()),
+    "ledger2.root": _or_refuse(lambda i: L.merkle_root2([_event(e) for e in i["events"]], [_b(x) for x in i["corrections"]]).hex()),
+    "ledger2.check_proof": lambda i: _event_ok(i["event"]) and L.check_proof2(_event(i["event"]), i["index"], i["size"], [_b(x) for x in i["path"]], _b(i["root"])),
     "audience.knos2_fund": lambda i: pay.fund_audience(i["issue"], i["amount"], i["mode"], _b(i["terms"]), i["balance"], i["work_s"]),
     "audience.knos2_pay": lambda i: pay.pay_audience(i["repo_id"], i["issue"], i["payee_id"], i["head_sha"], _b(i["terms"]), i["mode"], i["address"]),
     "audience.knos2_bind": lambda i: pay.bind_audience(i["address"]),
@@ -117,7 +135,8 @@ OPS = {
     "audience.knos_oidc_key": lambda i: oidc.rotate_audience(i["issuer"], int(i["modulus"], 16)),
     "audience.gate": lambda i: gate.audience(i["program"], _b(i["executable"])),
     "audience.parse_knosm_batch": _parse_batch,
-    "statement.text": lambda i: L.statement(L.load(i["ledger"]), i["month"]),
+    # (the vector was written at the Meter price of its day, which a statement prints: a vector never changes, so the price is given)
+    "statement.text": lambda i: L.statement(L.load(i["ledger"]), i["month"], rate=50_000, free=10_000),
     "statement.hash": _statement_hash,
 }
 

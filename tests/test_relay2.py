@@ -12,6 +12,7 @@ import base64
 import json
 import re
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -23,7 +24,9 @@ from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 
 from _oidc2 import ROTATE_REF, TEST_ROTATE_SHA, Chain2  # noqa: E402
-from _pay2 import GUARDIAN, TEST_CLAIM_SHA, WF_REPO, WF_SHA, Chain, github_claims  # noqa: E402
+from _pay2 import GUARDIAN, TEST_CLAIM_SHA, WF_REPO, WF_SHA, github_claims  # noqa: E402
+from _pay2 import Chain as _Chain  # noqa: E402
+from _pay21 import BUILDS, Live, order_fee, pay21_build  # noqa: E402, F401 - the fixture `pay21`
 from _settle import FIX, SeedKey, b64, modulus, sign_jwt, signing_key  # noqa: E402
 
 from knos import chain  # noqa: E402
@@ -40,6 +43,21 @@ TERMS = pay.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}]
 TH = pay.terms_hash(TERMS)
 JWKS = {oidc.GITHUB: {"keys": [{"kty": "RSA", "alg": "RS256", "e": "AQAB", "kid": "k", "n": b64(oidc.modulus_bytes(modulus(signing_key())))}]}}
 _COUNT = [1000, 3_000_000]
+# The public program ids run knos_pay 2.1 until the upgrade to 2.2 executes, and the relay decides by the Version the
+# cluster answers. So every test of this file runs twice: against the tree's build (2.2) and against the build that
+# is live (2.1, the 0.3.17 release's). P(old, new) is what a test pins for each: `old` is the number 0.3.17 pinned.
+LIVE = Live()
+P = LIVE.pick
+
+
+@pytest.fixture(scope="module", params=BUILDS, ids=Live.name, autouse=True)
+def live(request, pay21):
+    yield from LIVE.run(request.param, pay21)
+
+
+def Chain(**kw) -> _Chain:
+    """A cluster that runs the knos_pay build under test."""
+    return _Chain(pay_build=LIVE.build, **kw)
 
 
 def issue() -> int:
@@ -194,7 +212,7 @@ class Net(chain.Ledger):
 
 
 @pytest.fixture(scope="module")
-def env():
+def env(live):
     return _setup(Chain())
 
 
@@ -318,9 +336,9 @@ def test_a_comment_funds_from_the_faucet_a_proof_pays_and_a_claim_binds(env):
     # the proof names the address the author gave in the pull request: paid at once, less the fee
     r = go(env, pay_jwt(c, repo, n, payee, wallet))
     assert r == {"ok": True, "kind": "pay", "sigs": r["sigs"], "repo_id": repo, "issue": n, "payee_id": payee, "head": "a" * 40,
-                 "paid": [{"job": str(job), "amount": 5 * USDC, "fee": 125_000, "mint": str(pay.faucet_mint()), "to": str(wallet), "held_until": None}]}, r
-    assert c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000 and c.data(job) is None
-    assert c.balance(pay.ata(pay.FEE_OWNER, pay.faucet_mint())) >= 125_000         # the relay made the fee account too
+                 "paid": [{"job": str(job), "amount": 5 * USDC, "fee": P(125_000, 50_000), "mint": str(pay.faucet_mint()), "to": str(wallet), "held_until": None}]}, r
+    assert c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000) and c.data(job) is None
+    assert c.balance(pay.ata(pay.FEE_OWNER, pay.faucet_mint())) >= P(125_000, 50_000)         # the relay made the fee account too
     # the payee binds a wallet from their own knos-claim repository: nothing is held, so nothing else moves
     bound = Keypair().pubkey()
     r = go(env, bind_jwt(c, payee, bound))
@@ -337,7 +355,7 @@ def test_a_comment_spends_a_balance_of_real_money_in_either_token_program(env):
     assert (j.faucet, j.from_balance, j.source, j.mint, j.owner_id, j.funder_id) == (False, True, c.bal, c.usdc, OWNER, MAINT)
     payee, wallet = user(), Keypair().pubkey()
     r = go(env, pay_jwt(c, REPO, n, payee, wallet))
-    assert r["ok"] and r["paid"][0]["mint"] == str(c.usdc) and c.balance(pay.ata(wallet, c.usdc)) == 19_500_000, r
+    assert r["ok"] and r["paid"][0]["mint"] == str(c.usdc) and c.balance(pay.ata(wallet, c.usdc)) == P(19_500_000, 19_940_000), r
     # a Token-2022 mint with extensions the escrow's list allows: the relay passes the Balance's token program, and
     # makes the payee's and the fee owner's token accounts with it
     coin = c.new_mint22(confidential=True, close_authority=True)
@@ -351,7 +369,7 @@ def test_a_comment_spends_a_balance_of_real_money_in_either_token_program(env):
     assert relay.balances_for(net, org) == [(bal, pay.read_balance(c.data(bal)), 40 * USDC)]
     r = go(env, pay_jwt(c, repo, n, payee, wallet))
     assert r["ok"], r
-    assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_750_000 and c.balance(pay.ata(pay.FEE_OWNER, coin, pay.TOKEN_2022)) == 250_000
+    assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == P(9_750_000, 9_950_000) and c.balance(pay.ata(pay.FEE_OWNER, coin, pay.TOKEN_2022)) == P(250_000, 50_000)
 
 
 def test_a_balance_with_limits_is_funded_with_its_side_account_and_refused_before_any_fee(env):
@@ -382,7 +400,7 @@ def test_with_no_wallet_the_payment_is_held_then_bound_then_settled(env):
     payee = user()
     r = go(env, pay_jwt(c, REPO, n, payee))                    # the author gave no address and has bound no wallet
     until = c.now() + pay.HOLD
-    assert r["ok"] and r["paid"] == [{"job": str(job), "amount": 8 * USDC, "fee": 200_000, "mint": str(c.usdc), "to": None, "held_until": until}], r
+    assert r["ok"] and r["paid"] == [{"job": str(job), "amount": 8 * USDC, "fee": P(200_000, 50_000), "mint": str(c.usdc), "to": None, "held_until": until}], r
     assert go(env, pay_jwt(c, REPO, n2, payee))["paid"][0]["held_until"] == c.now() + pay.HOLD
     assert [a for a, _j in relay.held_for(net, payee)] == sorted([job, job2], key=str) and relay.held_for(net, user()) == []
     assert [(a, j.state) for a, j in relay.jobs_for(net, REPO, n)] == [(job, "held")]
@@ -390,12 +408,12 @@ def test_with_no_wallet_the_payment_is_held_then_bound_then_settled(env):
     wallet = Keypair().pubkey()
     r = go(env, bind_jwt(c, payee, wallet))
     assert r["ok"] and r["wallet"] == str(wallet) and {(s["job"], s["amount"], s["fee"]) for s in r["settled"]} == \
-        {(str(job), 8 * USDC, 200_000), (str(job2), 4 * USDC, 100_000)}, r
-    assert c.balance(pay.ata(wallet, c.usdc)) == 7_800_000 + 3_900_000 and relay.held_for(net, payee) == []
+        {(str(job), 8 * USDC, P(200_000, 50_000)), (str(job2), 4 * USDC, P(100_000, 50_000))}, r
+    assert c.balance(pay.ata(wallet, c.usdc)) == P(7_800_000, 7_950_000) + P(3_900_000, 3_950_000) and relay.held_for(net, payee) == []
     # from now on a proof for this payee pays the bound wallet, whatever address it carries
     n3, job3 = funded(env)
     r = go(env, pay_jwt(c, REPO, n3, payee, Keypair().pubkey()))
-    assert r["ok"] and r["paid"][0]["to"] == str(wallet) and c.balance(pay.ata(wallet, c.usdc)) == 7_800_000 + 3_900_000 + 4_875_000, r
+    assert r["ok"] and r["paid"][0]["to"] == str(wallet) and c.balance(pay.ata(wallet, c.usdc)) == P(7_800_000, 7_950_000) + P(3_900_000, 3_950_000) + P(4_875_000, 4_950_000), r
 
 
 def test_one_proof_pays_one_job_and_the_next_run_pays_the_next(env):
@@ -416,7 +434,7 @@ def test_one_proof_pays_one_job_and_the_next_run_pays_the_next(env):
     jwt = pay_jwt(c, REPO, n, payee, wallet)
     r = go(env, jwt)
     assert r["ok"] and [p["job"] for p in r["paid"]] == [str(added[1])] and r["paid"][0]["to"] == str(wallet), r
-    assert c.balance(pay.ata(wallet, c.usdc)) == 21 * USDC - 525_000 and c.data(pay.used_pda(jwt)) is not None
+    assert c.balance(pay.ata(wallet, c.usdc)) == 21 * USDC - P(525_000, 63_000) and c.data(pay.used_pda(jwt)) is not None
     assert c.data(oidc.token_pda(c.payer.pubkey(), oidc.token_id(jwt))) is None
     # the same token again: what it did is on the payee's record, and it costs nothing; it does not pay a second job
     n0 = net.txs
@@ -427,7 +445,7 @@ def test_one_proof_pays_one_job_and_the_next_run_pays_the_next(env):
     for job, total in ((added[0], 20), (own, 5)):
         r = go(env, pay_jwt(c, REPO, n, payee, wallet))
         assert r["ok"] and [p["job"] for p in r["paid"]] == [str(job)], r
-    assert c.balance(pay.ata(wallet, c.usdc)) == 46 * USDC - 525_000 - 500_000 - 125_000
+    assert c.balance(pay.ata(wallet, c.usdc)) == 46 * USDC - P(525_000, 63_000) - P(500_000, 60_000) - P(125_000, 50_000)
     assert [(a, j.state) for a, j in relay.jobs_for(net, REPO, n)] == [(theirs, "open")]      # the stranger's job is not this proof's to pay
     c.warp(pay.TOKEN_AHEAD + 60)                                # (a token of the minutes just paid is taken for one of those payments)
     assert refused(env, pay_jwt(c, REPO, n, payee, wallet), None, "no open bounty on this issue pins this workflow at this commit")
@@ -483,8 +501,15 @@ def test_the_version_is_asked_by_simulation_once_and_what_is_new_is_used_only_on
     c, net = env
     monkeypatch.setattr(relay, "_VERSION", {})
     lamports0, n0 = lamports(c), net.txs
-    assert relay.version(net, c.payer) == 1 and relay._VERSION == {("litesvm", pay.PAY_ID): 1}      # the merged build logs `knos2:version 1`
+    # the build that is live logs `knos2:version 1`; the tree's, once it is, `knos2:version 2`
+    assert relay.version(net, c.payer) == P(1, 2) and relay._VERSION == {("litesvm", pay.PAY_ID): P(1, 2)}
     assert (lamports(c), net.txs) == (lamports0, n0)                                                # and asking cost nothing
+    # kept until a pass begins: `forget` drops this cluster's answer (or every one), and the next call asks again
+    relay._VERSION[("another cluster", pay.PAY_ID)] = 0
+    relay.forget(net)
+    assert relay._VERSION == {("another cluster", pay.PAY_ID): 0}
+    relay.forget()
+    assert relay._VERSION == {} and relay.version(net, c.payer) == P(1, 2) == relay.version(net, c.payer)
     old = Old(net)
     assert relay.version(old, c.payer) == relay.version(old, c.payer) == 0 and old.asked == 1      # the program's refusal is an answer, and it is kept
     down = Old(net, OSError("connection reset"))
@@ -595,7 +620,7 @@ class Unfunded:
                 (relay._UPGRADEABLE, bytes(45) + self.code) if a == self.pd else None for a in addresses]
 
 
-def test_with_no_funded_payer_the_version_is_read_from_the_executable_and_costs_nothing(env, monkeypatch):
+def test_with_no_funded_payer_the_version_is_read_from_the_executable_and_costs_nothing(env, monkeypatch, pay21):
     """A seller with no relay key (`knos settle --neutral`), or a repository with no secret, has no fee payer on chain,
     and a cluster refuses to simulate for one it has never seen (AccountNotFound): nothing was asked. The deployed
     executable answers instead, read with no payer at all: a 2.1 build holds Version's log line, a 2.0 build does not."""
@@ -605,16 +630,22 @@ def test_with_no_funded_payer_the_version_is_read_from_the_executable_and_costs_
     with pytest.raises(chain.RpcError, match="AccountNotFound"):
         net.simulate([pay.version_ix()], nobody)
     lamports0, n0 = lamports(c), net.txs
-    assert relay.version(net, nobody) == 1 and relay._VERSION == {("litesvm", pay.PAY_ID): 1}      # the merged build, as loaded
+    assert relay.version(net, nobody) == P(1, 2) and relay._VERSION == {("litesvm", pay.PAY_ID): P(1, 2)}      # the build that runs, as loaded
     assert (lamports(c), net.txs) == (lamports0, n0)                                                # read, never sent
-    built = (FIX / "knos_pay_v2_test.so").read_bytes()
+    built = (FIX / LIVE.build).read_bytes()
     assert relay._VERSION_LINE in built
     # through the upgradeable loader, as devnet deploys it: the program account names the ProgramData that holds the code
-    new = Unfunded("a 2.1 cluster", built)
-    assert relay.version(new) == relay.version(new) == 1 and (new.asked, new.read) == (1, 2)       # an answer, kept: asked once
+    new = Unfunded("a cluster of the build under test", built)
+    assert relay.version(new) == relay.version(new) == P(1, 2) and (new.asked, new.read) == (1, 2)       # an answer, kept: asked once
     for refusal in ("Transaction simulation failed: Attempt to debit an account but found no record of a prior credit.",
                     "transaction failed: InsufficientFundsForFee"):
-        assert relay.version(Unfunded(f"2.1, {refusal[-20:]}", built, refusal)) == 1             # the other words for a payer with nothing
+        assert relay.version(Unfunded(f"this build, {refusal[-20:]}", built, refusal)) == P(1, 2)   # the other words for a payer with nothing
+    # which of the two it is, is read from the fee rule in the code (the number Version logs is not in the bytes as
+    # text): 2.1 holds the tiered fee's upper edge, 2.2 has one rate and no such number. Both builds, whichever is live
+    old21, new22 = Path(pay21).read_bytes(), (FIX / "knos_pay_v2_test.so").read_bytes()
+    assert relay._TIERED.search(old21) and not relay._TIERED.search(new22) and not relay._TIERED.search((FIX / "knos_pay_v2_nodevnet.so").read_bytes())
+    assert (relay.version(Unfunded("2.1 by its bytes", old21)), relay.version(Unfunded("2.2 by its bytes", new22))) == (1, 2)
+    assert relay.version(Unfunded("2.2 with no faucet", (FIX / "knos_pay_v2_nodevnet.so").read_bytes())) == 2
     old = Unfunded("a 2.0 cluster", b"\x7fELF" + bytes(4096))
     assert relay.version(old) == relay.version(old) == 0 and old.asked == 1                        # 2.0 has no Version line: an answer, kept
     down = Unfunded("a cluster that does not answer", None)
@@ -625,7 +656,7 @@ def test_with_no_funded_payer_the_version_is_read_from_the_executable_and_costs_
     # and with a funded payer the simulation itself answers, with nothing read
     monkeypatch.setattr(relay, "_VERSION", {})
     reads0 = net.reads
-    assert relay.version(net, c.payer) == 1 and net.reads == reads0
+    assert relay.version(net, c.payer) == P(1, 2) and net.reads == reads0
 
 
 def refused(env, jwt: str, terms: bytes | None, want: str | None, payer: Keypair | None = None) -> dict:
@@ -820,7 +851,7 @@ def test_while_new_funding_is_paused_a_fund_token_waits_and_payments_go_on():
     # the pause ends while this token still works: the relay says how long to wait, and spends nothing meanwhile
     assert refused(env, jwt, TERMS, None) == {"ok": False, "kind": "fund", "retry": True, "wait": until - c.now(),
                                               "why": f"new funding is paused until {relay._when(until)}; payments and refunds go on"}
-    assert go(env, pay_jwt(c, repo, n, payee, wallet))["ok"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert go(env, pay_jwt(c, repo, n, payee, wallet))["ok"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000)
     pause(pay.PAUSE_MAX)                                         # a pause that outlasts the token: refused, and not to be tried again
     assert "retry" not in refused(env, jwt, TERMS, "new funding is paused until")
     pause(0)
@@ -896,7 +927,7 @@ def test_a_token_relayed_twice_or_by_two_relayers_is_done_once(env):
     wallet = Keypair().pubkey()
     claim = bind_jwt(c, payee, wallet)
     bound = go(env, claim)
-    assert bound["ok"] and len(bound["settled"]) == 1 and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert bound["ok"] and len(bound["settled"]) == 1 and c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000)
     n2 = net.txs
     for payer in (other, c.payer):
         again = go(env, claim, None, payer)
@@ -912,7 +943,7 @@ def test_a_token_relayed_twice_or_by_two_relayers_is_done_once(env):
     n3 = net.txs
     again = go(env, proof, None, other)
     assert again == {"ok": True, "kind": "pay", "sigs": paid["sigs"][-1:], "already": True, "repo_id": repo, "issue": n, "payee_id": payee, "head": "a" * 40,
-                     "paid": [{"job": "", "amount": 5 * USDC, "fee": 125_000, "mint": "", "to": str(wallet), "held_until": None}]}, again
+                     "paid": [{"job": "", "amount": 5 * USDC, "fee": P(125_000, 50_000), "mint": "", "to": str(wallet), "held_until": None}]}, again
     assert net.txs == n3 and relay.precheck(net, other, proof, None, JWKS, now=c.now()) == again
     # a proof for someone who was never paid for that issue is still what it was
     assert refused(env, pay_jwt(c, repo, n, user()), None, "no bounty is in escrow for this issue")
@@ -937,7 +968,7 @@ def test_a_token_carried_before_is_known_by_what_it_left_on_chain_and_by_nothing
     assert paid["ok"] and len(paid["paid"]) == 1 and len(relay.jobs_for(net, REPO, n)) == 1
     again = go(env, proof, None, c.fund())
     assert again == {"ok": True, "kind": "pay", "sigs": paid["sigs"][-1:], "already": True, "repo_id": REPO, "issue": n, "payee_id": payee, "head": "a" * 40,
-                     "paid": [{"job": "", "amount": 5 * USDC, "fee": 125_000, "mint": "", "to": str(wallet), "held_until": None}]}, again
+                     "paid": [{"job": "", "amount": 5 * USDC, "fee": P(125_000, 50_000), "mint": "", "to": str(wallet), "held_until": None}]}, again
     # later the issue is funded anew with other terms. A proof made for the old ones pays nothing, and that earlier
     # payment is not taken for its doing; nor is a line somebody else's program wrote at the payee's record
     c.warp(pay.TOKEN_AHEAD + 60)
@@ -947,7 +978,7 @@ def test_a_token_carried_before_is_known_by_what_it_left_on_chain_and_by_nothing
     theirs = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"
     net.named[pay.rep_pda(payee)].append("forged")
     net.when["forged"] = c.now()
-    net.said["forged"] = [f"Program {theirs} invoke [1]", f"Program log: knos2:paid repo={REPO} issue={n} payee={payee} amount=4875000 fee=125000 to={wallet}",
+    net.said["forged"] = [f"Program {theirs} invoke [1]", f"Program log: knos2:paid repo={REPO} issue={n} payee={payee} amount={P(4875000, 4950000)} fee={P(125000, 50000)} to={wallet}",
                           f"Program {theirs} success"]
     assert refused(env, stale, None, "the open bounty on this issue has other terms than the ones this token was made for")
 
@@ -983,8 +1014,8 @@ def test_a_claim_another_relayer_bound_still_sends_what_was_left_held(env):
     net.spent()
     r = go(env, claim, None, other)
     assert r == {"ok": True, "kind": "bind", "sigs": r["sigs"], "already": True, "user_id": payee, "wallet": str(wallet),
-                 "settled": [{"job": str(job), "amount": 6 * USDC, "fee": 150_000, "mint": str(c.usdc)}]}, r
-    assert (net.txs, net.waits) == (1, 1) and c.balance(pay.ata(wallet, c.usdc)) == 5_850_000      # one transaction: no token was verified for it
+                 "settled": [{"job": str(job), "amount": 6 * USDC, "fee": P(150_000, 50_000), "mint": str(c.usdc)}]}, r
+    assert (net.txs, net.waits) == (1, 1) and c.balance(pay.ata(wallet, c.usdc)) == P(5_850_000, 5_950_000)      # one transaction: no token was verified for it
 
 
 def test_a_claim_whose_token_is_verified_already_binds_before_it_sends_what_was_held(env):
@@ -1000,7 +1031,7 @@ def test_a_claim_whose_token_is_verified_already_binds_before_it_sends_what_was_
     net.spent()
     r = go(env, claim)
     assert r["ok"] and {s["job"] for s in r["settled"]} == set(map(str, held)) and "already" not in r, r
-    assert net.shape[0] == 1 and sum(net.shape) == net.txs <= 3 and c.balance(pay.ata(wallet, c.usdc)) == 5_850_000 + 6_825_000 + 7_800_000
+    assert net.shape[0] == 1 and sum(net.shape) == net.txs <= 3 and c.balance(pay.ata(wallet, c.usdc)) == P(5_850_000, 5_950_000) + P(6_825_000, 6_950_000) + P(7_800_000, 7_950_000)
     assert c.data(oidc.token_pda(c.payer.pubkey(), oidc.token_id(claim))) is None
 
 
@@ -1078,7 +1109,7 @@ def test_a_transaction_reported_lost_that_landed_is_seen_on_the_chain(env):
     assert r["ok"] and r["job"] == str(pay.job_pda(repo, n, pay.faucet_balance_pda(org))) and len(r["sigs"]) == 2 and "already" not in r, r      # the lost transaction is named too
     payee = user()
     r = relay.submit(Flaky(net).lose(2), c.payer, pay_jwt(c, repo, n, payee, wallet), None, JWKS, now=c.now())
-    assert r["ok"] and r["paid"][0]["to"] == str(wallet) and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000, r
+    assert r["ok"] and r["paid"][0]["to"] == str(wallet) and c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000), r
     r = relay.submit(Flaky(net).lose(2), c.payer, bind_jwt(c, payee, wallet), None, JWKS, now=c.now())
     assert r["ok"] and r["wallet"] == str(wallet) and pay.read_bind(c.data(pay.bind_pda(payee))).wallet == wallet, r
 
@@ -1164,7 +1195,7 @@ def test_an_unproven_bounty_goes_back_and_a_held_one_follows_its_payees_wallet(e
     wallet = Keypair().pubkey()
     tok = c.verify(bind_jwt(c, payee, wallet), oidc.GITHUB, c.github)
     assert c.send([pay.bind_ix(c.payer.pubkey(), tok, c.key, payee)]), c.err
-    assert len(relay.settle_held(net, cranker)) == 1 and c.balance(pay.ata(wallet, c.usdc)) == 8_775_000
+    assert len(relay.settle_held(net, cranker)) == 1 and c.balance(pay.ata(wallet, c.usdc)) == P(8_775_000, 8_950_000)
     assert relay.settle_held(net, cranker) == [] and relay.refund_due(net, cranker, c.now()) == []
 
 
@@ -1342,10 +1373,10 @@ def test_any_other_audience_is_only_verified_and_its_account_is_swept_when_its_h
 
 # -- work orders (2.1) --------------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
-def oenv():
+def oenv(live):
     """A chain with what orders need (tests/_order.py): Circle's stand-in mint, FEE_OWNER's token account, the owner's Balance."""
     from _order import OrderChain
-    c = OrderChain()
+    c = OrderChain(pay_build=LIVE.build)
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
     return c, Net(c)
 
@@ -1381,10 +1412,10 @@ def test_a_comment_funds_a_work_order_and_a_proof_pays_its_four_payees_in_two_tr
     net.spent()
     r = go(oenv, jwt, TERMS)
     assert r == {"ok": True, "kind": "fund", "sigs": r["sigs"], "order": str(order), "repo_id": REPO, "issue": n, "seq": 0, "amount": 100 * USDC,
-                 "fee": 2_500_000, "mode": 0, "faucet": False, "balance": str(c.bal), "deadline": c.now() + 14 * 86_400}, r
-    assert (net.txs, net.waits, net.shape) == (2, 2, [1, 1]) and c.held(order) == 102_500_000 == before - c.balance(pay.baltok_pda(c.bal))
+                 "fee": P(2_500_000, 300_000), "mode": 0, "faucet": False, "balance": str(c.bal), "deadline": c.now() + 14 * 86_400}, r
+    assert (net.txs, net.waits, net.shape) == (2, 2, [1, 1]) and c.held(order) == P(102_500_000, 100_300_000) == before - c.balance(pay.baltok_pda(c.bal))
     o = c.order(order)
-    assert (o.state, o.amount, o.fee, o.funder_id, o.terms, o.from_balance) == ("open", 100 * USDC, 2_500_000, MAINT, TH, True)
+    assert (o.state, o.amount, o.fee, o.funder_id, o.terms, o.from_balance) == ("open", 100 * USDC, P(2_500_000, 300_000), MAINT, TH, True)
     assert net.log_of(order, "knos3:terms ", by=pay.PAY_ID) == "knos3:terms " + TERMS.decode()
     # the same token from another relayer: the order is there, made by this very token; nothing is spent
     n0 = net.txs
@@ -1403,7 +1434,8 @@ def test_a_comment_funds_a_work_order_and_a_proof_pays_its_four_payees_in_two_tr
                  "paid": [{"id": i, "payee_id": i, "amount": 100 * USDC * bps // 10_000, "to": str(w), "held_until": None} for i, bps, w in payees]}, r
     assert [c.balance(pay.ata(w, c.usdc)) for _i, _b, w in payees] == [40 * USDC, 30 * USDC, 20 * USDC, 10 * USDC] and c.order(order) is None
     # the public relay is paid its tip (0.30: it made the payees' token accounts), FEE_OWNER the rest of the fee
-    assert c.balance(pay.ata(relayer.pubkey(), c.usdc)) == pay.TIP_FIRST == 300_000 and c.balance(c.fee) - fee0 == 2_200_000
+    # (2.5 of it under 2.1; under 2.2 the fee of 100.00 is 0.30, so the whole of it is the tip)
+    assert c.balance(pay.ata(relayer.pubkey(), c.usdc)) == pay.TIP_FIRST == 300_000 and c.balance(c.fee) - fee0 == P(2_200_000, 0)
     print(f"\nPayOrder, four new payees, beside the last Step: {net.sizes[-1]} bytes, {net.units[-1]:,} compute units")
     assert (net.txs, net.waits, net.shape) == (2, 2, [1, 1]) and chain.MAX_TX_BYTES < net.sizes[-1] <= relay.ROOM_V1 and net.units[-1] < chain.MAX_COMPUTE_UNITS
     # the proof again, by anyone: the order is gone, and the escrow's own log says who was paid; nothing is spent
@@ -1452,7 +1484,8 @@ def test_an_order_is_held_for_a_payee_with_no_wallet_then_settled_and_an_unprove
     wallet = Keypair().pubkey()
     assert go(oenv, bind_jwt(c, who, wallet))["ok"]
     assert len(relay.settle_orders_held(net, cranker)) == 1 and c.balance(pay.ata(wallet, c.usdc)) == 30 * USDC and c.order(order) is None
-    assert c.balance(pay.ata(cranker.pubkey(), c.usdc)) == pay.TIP_FIRST         # whoever settles takes the tip, in an account made on the way
+    # whoever settles takes the tip, in an account made on the way: TIP_FIRST, or the whole fee when that is less (2.2: 0.09 on 30.00)
+    assert c.balance(pay.ata(cranker.pubkey(), c.usdc)) == P(pay.TIP_FIRST, 90_000)
     assert relay.settle_orders_held(net, cranker) == []
     # an order nobody proved goes back to its Balance with the fee its funder paid; a wallet's order to that wallet
     n, late = ordered(oenv, 10 * USDC, work=600)
@@ -1461,7 +1494,7 @@ def test_an_order_is_held_for_a_payee_with_no_wallet_then_settled_and_an_unprove
     assert [a for a, _o in relay.orders(net, 1)] == sorted([late, theirs], key=str) or len(relay.orders(net, 1)) >= 2
     c.warp(601)
     assert len(relay.refund_orders_due(net, cranker, c.now())) >= 2 and c.order(late) is None and c.order(theirs) is None
-    assert c.balance(pay.baltok_pda(c.bal)) - bal0 == 10 * USDC + 400_000 and c.balance(c.funder_tok) - w0 == 10 * USDC + 400_000
+    assert c.balance(pay.baltok_pda(c.bal)) - bal0 == 10 * USDC + P(400_000, 50_000) and c.balance(c.funder_tok) - w0 == 10 * USDC + P(400_000, 50_000)
     assert relay.close_markers(net, cranker, c.now()) == []      # this relayer paid for no marker: nothing of its own to close
 
 
@@ -1537,7 +1570,15 @@ def test_an_orders_fund_token_is_refused_before_any_fee_and_the_faucet_funds_one
     from _order import transfer as move
     move(c, wtok, pay.baltok_pda(small), 20 * USDC, w)
     mine = dict(actor_id=org, repository_owner_id=org, repository_id=user())
-    assert refused(oenv, order_fund_jwt(c, n, 20 * USDC, small, **mine), TERMS, "the balance holds 20.00, less than this order and its fee (20.50)")
+    assert refused(oenv, order_fund_jwt(c, n, 20 * USDC, small, **mine), TERMS, f"the balance holds 20.00, less than this order and its fee ({P('20.50', '20.06')})")
+    # the fee is the live build's, to the unit: one unit short of it is refused before any transaction, and with that unit the
+    # program takes exactly what the relay counted (0.50 on 20.00 under 2.1, 0.06 under 2.2) and leaves the Balance empty
+    move(c, wtok, pay.baltok_pda(small), P(500_000, 60_000) - 1, w)
+    assert refused(oenv, order_fund_jwt(c, n, 20 * USDC, small, **mine), TERMS, "less than this order and its fee")
+    move(c, wtok, pay.baltok_pda(small), 1, w)
+    r = go(oenv, order_fund_jwt(c, n, 20 * USDC, small, **mine), TERMS)
+    assert r["ok"] and r["fee"] == P(500_000, 60_000) and c.balance(pay.baltok_pda(small)) == 0, r
+    assert c.held(Pubkey.from_string(r["order"])) == P(20_500_000, 20_060_000)
     # a second order on the issue from the same Balance takes another number, and each fund token works once
     n, first = ordered(oenv)
     assert refused(oenv, order_fund_jwt(c, n), TERMS, f"this issue already has order number 0 from this balance (order {first})")
@@ -1548,7 +1589,7 @@ def test_an_orders_fund_token_is_refused_before_any_fee_and_the_faucet_funds_one
     jwt = order_fund_jwt(c, n, 20 * USDC, pay.faucet_balance_pda(org), repository_owner_id=org, repository_id=repo)
     net.spent()
     r = go(oenv, jwt, TERMS)
-    assert r["ok"] and r["faucet"] and r["fee"] == 500_000 and (net.txs, net.waits) == (2, 2) and c.held(Pubkey.from_string(r["order"])) == 20_500_000, r
+    assert r["ok"] and r["faucet"] and r["fee"] == P(500_000, 60_000) and (net.txs, net.waits) == (2, 2) and c.held(Pubkey.from_string(r["order"])) == P(20_500_000, 20_060_000), r
     # the deployed 2.0 escrow knows no order: its relay says so, and spends nothing
     monkeypatch.setattr(relay, "_VERSION", {("litesvm", pay.PAY_ID): 0})
     for jwt in (order_fund_jwt(c, issue()), order_pay_jwt(c, first, [(77, 10_000, None)])):
@@ -1647,7 +1688,7 @@ def test_a_comment_in_its_judge_repository_funds_a_private_order_and_its_wallets
     net.spent()
     r = ghrelay.relay_one(net, c.payer, "fund", jwt, terms=found.terms, submit=lambda led, payer, t: relay.submit(led, payer, t, found.terms, JWKS, now=c.now()))
     order = pay.order_pda(scope, c.bal, 0)
-    assert r["ok"] and (r["order"], r["private"], r["issue"], r["repo_id"], r["amount"], r["fee"]) == (str(order), True, 0, judge_repo, 40 * USDC, USDC), r
+    assert r["ok"] and (r["order"], r["private"], r["issue"], r["repo_id"], r["amount"], r["fee"]) == (str(order), True, 0, judge_repo, 40 * USDC, P(USDC, 120_000)), r
     assert (net.txs, net.waits) == (2, 2)
     o = c.order(order)
     assert (o.state, o.from_balance, o.repo_id, o.issue, o.flags, o.judge_repo_id, o.scope, o.terms) == ("open", True, 0, 0, pay.F_PRIVATE, judge_repo, scope, th)
@@ -1902,8 +1943,8 @@ def test_a_revert_token_is_carried_exactly_when_the_escrow_returns_the_holdback_
     if verdict is None:
         assert relay.precheck(net, c.payer, jwt, None, JWKS, now=c.now()) is None
         r = go(oenv, jwt)
-        assert r["ok"] and (r["kind"], r["issue"], r["amount"]) == ("revert", n, 10_250_000) and c.order(order) is None, r
-        assert c.balance(pay.baltok_pda(c.bal)) - bal0 == 10_250_000
+        assert r["ok"] and (r["kind"], r["issue"], r["amount"]) == ("revert", n, P(10_250_000, 10_030_000)) and c.order(order) is None, r
+        assert c.balance(pay.baltok_pda(c.bal)) - bal0 == P(10_250_000, 10_030_000)
         return
     code, why = verdict
     assert refused(oenv, jwt, None, why)["kind"] == "revert"
@@ -1933,7 +1974,7 @@ def test_a_private_order_has_no_command_job_and_its_judge_repository_reverts_it(
     assert go(oenv, order_pay_jwt(c, order, [(who, 10_000, Keypair().pubkey())], terms=_SECRET, file="attest.yml", repository_id=judge_repo))["ok"]
     assert refused(oenv, revert_jwt(c, order, repository_id=REPO), None, NO_JUDGE)["kind"] == "revert"
     r = go(oenv, revert_jwt(c, order, file="attest.yml", repository_id=judge_repo))
-    assert r["ok"] and r["amount"] == 8_200_000 and c.order(order) is None, r
+    assert r["ok"] and r["amount"] == P(8_200_000, 8_024_000) and c.order(order) is None, r
 
 
 def test_an_order_is_reserved_then_cancelled_and_its_taker_gets_the_kill_fee(oenv):
@@ -1966,7 +2007,7 @@ def test_an_order_is_reserved_then_cancelled_and_its_taker_gets_the_kill_fee(oen
     cranker, bal0 = c.fund(), c.balance(pay.baltok_pda(c.bal))
     c.warp(pay.NOTICE + 1)
     assert relay.refund_orders_due(net, cranker, c.now()) and c.order(order) is None
-    assert c.balance(pay.ata(wallet, c.usdc)) == 4 * USDC and c.balance(pay.baltok_pda(c.bal)) - bal0 >= 36 * USDC + 1_000_000
+    assert c.balance(pay.ata(wallet, c.usdc)) == 4 * USDC and c.balance(pay.baltok_pda(c.bal)) - bal0 >= 36 * USDC + order_fee(LIVE.v, 40 * USDC)
 
 
 def test_a_holdback_waits_out_its_warranty_and_goes_to_the_payee_or_back_on_a_revert(oenv):
@@ -1981,7 +2022,7 @@ def test_a_holdback_waits_out_its_warranty_and_goes_to_the_payee_or_back_on_a_re
     r = go(oenv, proof)
     until = c.now() + 2 * 86_400
     assert r["ok"] and r["paid"] == [row(seller, 40 * USDC, wallet)] and (r["held_back"], r["warranty_until"]) == (10 * USDC, until), r
-    assert (net.txs, net.waits) == (2, 2) and c.order(kept).state == "warranty" and c.held(kept) == 10 * USDC + 250_000
+    assert (net.txs, net.waits) == (2, 2) and c.order(kept).state == "warranty" and c.held(kept) == 10 * USDC + P(250_000, 30_000)
     again = go(oenv, proof, None, c.fund())
     assert again["ok"] and again["already"] and again["paid"] == r["paid"], again
     assert refused(oenv, order_pay_jwt(c, kept, [(seller, 10_000, wallet)], pr=9), None, "what it holds back waits for its warranty")
@@ -2001,15 +2042,17 @@ def test_a_holdback_waits_out_its_warranty_and_goes_to_the_payee_or_back_on_a_re
     revert = token(c, pay.revert_audience(undone, "a" * 40))
     r = go(oenv, revert)
     assert r == {"ok": True, "kind": "revert", "sigs": r["sigs"], "order": str(undone), "head": "a" * 40, "repo_id": REPO, "issue": n2, "mint": str(c.usdc),
-                 "amount": 10_250_000}, r
-    assert c.order(undone) is None and c.balance(pay.baltok_pda(c.bal)) - bal0 == 10_250_000      # the holdback and the fee on it
+                 "amount": P(10_250_000, 10_030_000)}, r
+    assert c.order(undone) is None and c.balance(pay.baltok_pda(c.bal)) - bal0 == P(10_250_000, 10_030_000)      # the holdback and the fee on it
     again = go(oenv, revert, None, c.fund())
-    assert again["ok"] and again["already"] and again["amount"] == 10_250_000, again
+    assert again["ok"] and again["already"] and again["amount"] == P(10_250_000, 10_030_000), again
     # the other order's warranty runs out with no revert: anyone releases the holdback to the wallet recorded at payment
     c.warp(86_400 + 1)
     assert refused(oenv, token(c, pay.revert_audience(kept, "a" * 40)), None, "the warranty ended")
     assert len(relay.release_orders_due(net, cranker, c.now())) == 1 and c.order(kept) is None
-    assert c.balance(pay.ata(wallet, c.usdc)) == 40 * USDC + 40 * USDC + 10 * USDC and c.balance(pay.ata(cranker.pubkey(), c.usdc)) == pay.TIP
+    assert c.balance(pay.ata(wallet, c.usdc)) == 40 * USDC + 40 * USDC + 10 * USDC
+    # the releaser's tip is TIP, or all the fee the order still held when that is less (2.2: 0.03 of the 0.15 on 50.00 waited with the holdback)
+    assert c.balance(pay.ata(cranker.pubkey(), c.usdc)) == P(pay.TIP, 30_000)
     assert relay.release_orders_due(net, cranker, c.now()) == []
 
 
@@ -2028,7 +2071,7 @@ def test_a_standing_order_pays_each_pull_request_once_and_the_markers_rent_comes
     assert r["ok"] and r["left"] == 5 * USDC and c.balance(pay.ata(b[1], c.usdc)) == 10 * USDC, r
     # less than one rate is left: the order's deadline is in the past, and the rest goes back at once
     assert refused(oenv, order_pay_jwt(c, order, [(a[0], 10_000, a[1])], pr=13), None, "the order's deadline has passed")
-    marks = lambda who: net.program_accounts(pay.PAY_ID, pay.DONE_LEN, {1: bytes(who.pubkey())})  # noqa: E731
+    marks = lambda who: net.program_accounts(pay.PAY_ID, P(pay.DONE_LEN_21, pay.DONE_LEN), {1: bytes(who.pubkey())})  # noqa: E731 - 65 bytes as 2.1 writes it, 73 as 2.2
     assert len(marks(relayer)) == 2 and relay.close_markers(net, relayer, c.now()) == []            # the order still stands: its markers stay
     assert relay.refund_orders_due(net, relayer, c.now()) and c.order(order) is None
     before = lamports(c, relayer)
@@ -2411,7 +2454,7 @@ def test_without_v1_transactions_a_token_takes_four_legacy_ones_and_a_cluster_th
     assert (old.refused, old.takes_v1, net.txs, net.v1s) == (1, False, 4, 0)
     net.spent()
     ok(relay.submit(old, c.payer, pay_jwt(c, repo, n, payee, wallet), None, JWKS, now=c.now()))
-    assert (old.refused, net.txs, net.v1s) == (1, 4, 0) and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
+    assert (old.refused, net.txs, net.v1s) == (1, 4, 0) and c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000)
     assert chain.v1_refused(chain.RpcError("Transaction version (1) is not supported by the requesting client")) and not chain.v1_refused(chain.RpcError("custom program error: 0x54"))
     # a ledger that sends none, and the 2.0 escrow: four transactions and three waits each, as before
     monkeypatch.setattr(net, "takes_v1", False)
@@ -2499,8 +2542,8 @@ def test_the_harness_ledger_has_what_a_relay_and_a_settlement_use():
     assert ledger.log_of(job, "knos2:terms ") == "knos2:terms " + TERMS.decode() and ledger.log_of(job, "knos2:paid") is None
     assert ledger.log_of(job, "knos2:terms ", lambda line: False) is None and ledger.log_of(Keypair().pubkey(), "knos2:terms ") is None
     assert ledger.log_of(job, "knos2:terms ", by=pay.PAY_ID) == "knos2:terms " + TERMS.decode() and ledger.log_of(job, "knos2:terms ", by=pay.TOKEN) is None
-    assert relay.submit(ledger, c.payer, pay_jwt(c, repo, 7, payee, wallet), None, JWKS)["ok"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == 4_875_000
-    assert ledger.log_of(pay.rep_pda(payee), "knos2:paid ").startswith(f"knos2:paid repo={repo} issue=7 payee={payee} amount=4875000 fee=125000 to={wallet}")
+    assert relay.submit(ledger, c.payer, pay_jwt(c, repo, 7, payee, wallet), None, JWKS)["ok"] and c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000)
+    assert ledger.log_of(pay.rep_pda(payee), "knos2:paid ").startswith(f"knos2:paid repo={repo} issue=7 payee={payee} amount={P(4875000, 4950000)} fee={P(125000, 50000)} to={wallet}")
     assert ledger.infos([pay.faucet_mint(), Keypair().pubkey()]) == [(pay.TOKEN, c.data(pay.faucet_mint())), None]
     assert ledger.program_accounts(oidc.OIDC_ID, None, {50: bytes(c.payer.pubkey())}) == []      # the token accounts were closed behind the tokens
 

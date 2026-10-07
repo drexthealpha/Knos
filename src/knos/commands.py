@@ -2,7 +2,8 @@
 
     /knos fund <amount> [checks: a, b] [paths: glob, ...] [days N] [reserve N]     (alias: /knos bounty)
                         and, for a work order: [warranty N] [holdback N] [arbiter @login] [neutral off] [auto] [quorum 2|3]
-                        [judge: owner/repo]
+                        [judge: owner/repo] [grace]
+    /knos fund terms    the order the repository's own terms describe (`.knos/terms.json`, Knos Terms 3), and no other
     /knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]
     /knos raise <amount>    /knos cancel    /knos split @a 60 @b 40
     /knos take          /knos release       /knos address <address>      /knos mine
@@ -23,7 +24,7 @@ decided here (knos.who decides from what GitHub authenticates; the chain decides
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 DAYS, MAX_DAYS = 14, 90                             # until an unpaid bounty goes back; knos-pay's MAX_WORK
 RESERVE, MAX_RESERVE = 7, 90                        # days a `/knos take` lasts
@@ -46,6 +47,15 @@ class Fund:
     auto: bool = False                          # `auto`: the first pull request that passes the black-box suite is paid, without a merge
     quorum: int | None = None                   # `quorum 2` or `quorum 3`: that many distinct judges must pass the same pull request
     judge: str | None = None                    # `judge: owner/repo`: the third reader of a quorum, a repository neither side owns
+    grace: bool = False                         # `grace`: a pay token GitHub issued by the deadline is still taken for two hours after it (knos_pay 2.2)
+    cited: bool = False                         # written as `/knos fund terms`: the order is the one `.knos/terms.json` describes (`cite`)
+    name = "fund"
+
+
+@dataclass(frozen=True)
+class FundTerms:
+    """`/knos fund terms`: fund what the repository's Knos Terms 3 document says. It names no amount of its own: whoever
+    reads the document (knos.flow) turns it into a Fund with `cite`."""
     name = "fund"
 
 
@@ -181,7 +191,7 @@ FORMS = {   # the exact form to type, in the order `/knos help` lists them
 ALIASES = {"bounty": "fund"}
 _ABOUT = {
     "fund": "a maintainer, on an issue: put a bounty on it (a work order also takes `warranty N`, `holdback N`, `arbiter @login`, `neutral off`, "
-            "`auto`, `quorum 2`, `quorum 3 judge: owner/repo`)",
+            "`auto`, `quorum 2`, `quorum 3 judge: owner/repo`, `grace`; `/knos fund terms` funds what `.knos/terms.json` says)",
     "offer": "a maintainer, on an issue: a standing offer that pays one vendor for each accepted change",
     "raise": "on a funded issue: how its work order is topped up",
     "cancel": "a maintainer, on a funded issue: end its work order with 7 days' notice",
@@ -261,10 +271,10 @@ def _show(text: str, most: int = 40) -> str:
 _LOGIN = r"[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}"
 _OPTION = re.compile(r"(checks|paths)\s*:|(days|reserve|warranty|holdback|quorum)\s*:?\s*([0-9]{1,4})(?!\S)|(review)\s+[0-9]+(?!\S)"
                      r"|(arbiter)\s*:?\s*@?(" + _LOGIN + r")(?!\S)|(neutral)\s*:?\s*(on|off)(?!\S)"
-                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)|(auto)(?!\S)"
+                     r"|(rate|budget)\s*:?\s*([0-9.]{1,16})(?!\S)|(auto|grace)(?!\S)"
                      r"|(judge)\s*:?\s*(?:https://github\.com/)?(" + _LOGIN + r"/[A-Za-z0-9._-]{1,100})(?!\S)", re.I)
 _RANGE = {"days": (1, MAX_DAYS), "reserve": (0, MAX_RESERVE), "warranty": (0, 90), "holdback": (0, 50), "quorum": (2, 3)}     # knos-pay's limits
-_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral", "auto", "quorum", "judge")
+_FUND_TAKES = ("checks", "paths", "days", "reserve", "warranty", "holdback", "arbiter", "neutral", "auto", "quorum", "judge", "grace")
 _OFFER_TAKES = ("checks", "paths", "days", "rate", "budget")
 
 
@@ -325,7 +335,7 @@ def _options(text: str, takes: tuple[str, ...] = _FUND_TAKES) -> dict | str:
                 return f"`{key}` must be from {low} to {high}"
             out[key], i = int(m.group(3)), m.end()
             continue
-        if m.group(11):         # a bare word: `auto`
+        if m.group(11):         # a bare word: `auto`, `grace`
             out[key], i = True, m.end()
             continue
         if m.group(12):         # `judge: owner/repo`: GitHub is asked for it at funding (knos.flow)
@@ -363,12 +373,23 @@ def _bad(name: str, why: str) -> Error:
 
 
 def _fund(rest: str):
+    if rest.strip().lower() == "terms":
+        return FundTerms()
     first, _, more = rest.partition(" ")
     units = _units(first) if first else "the amount is missing"
     if isinstance(units, str):
         return _bad("fund", units)
     options = _options(more)
     return _bad("fund", options) if isinstance(options, str) else Fund(units, **options)
+
+
+def cite(doc: dict):
+    """`/knos fund terms` as the command it stands for: the `/knos fund` line a Knos Terms 3 document gives for its own
+    order (knos.terms3.comment), read as any comment is and marked `cited`. Raises knos.terms3.Refused for a document
+    that does not validate; an Error when its line is not one this grammar reads."""
+    from . import terms3
+    got = parse(terms3.comment(doc), False)
+    return replace(got, cited=True) if isinstance(got, Fund) else got
 
 
 def _offer(rest: str):

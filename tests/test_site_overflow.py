@@ -76,7 +76,10 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     assert (merged["prs"], merged["any_check_failed"]["prs"]) == (241, 30)
     door = hero[hero.index('<form id="front-door"'):hero.index("</form>")]
     assert re.findall(r'data-fd="(\w+)"', door) == ["run", "sample"] and '<textarea id="fd-in"' in door and 'id="mark3d"' in hero
-    assert [re.sub(r"<[^>]+>", "", b).strip() for b in re.findall(r"<button\b[^>]*>.*?</button>", hero)] == ["Check"]
+    # two buttons: the one primary action, and the sample beside it (quiet)
+    assert [re.sub(r"<[^>]+>", "", b).strip() for b in re.findall(r"<button\b[^>]*>.*?</button>", hero)] == ["Check", "Try a sample"]
+    assert 'class="k-btn" data-fd="run"' in hero and 'class="k-btn quiet" data-fd="sample"' in hero
+    assert 'id="hero-board"' in hero and hero.index('id="hero-board"') > hero.index("</form>")      # the leaderboard strip, directly under the box
     assert '<section id="demo" class="mount" aria-label="Demo" hidden></section>' in page.split('id="view-check"')[1].split("</section>")[0] + "</section>"
     words = _words(bar) + _words(hero)
     assert 20 <= len(words) <= 40, (len(words), words)

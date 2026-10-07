@@ -7,19 +7,23 @@
 //!   3. a payment and a refund sent together, and one after the other, in both orders   adv_deadline, adv_hold
 //!   4. one token sent twice                                     adv_duplicates, adv_meter_duplicates
 //!   5. one judge where an order asks for two or three           adv_quorum
+//!   6. one account, or one owner, behind two judges             adv_quorum_same_account, adv_quorum_owners
+//!   7. a marker of the order that was at an address before      adv_quorum_same_second, adv_reassign
+//!   8. a token shown after a deadline it was issued before      adv_grace
+//!   9. orders and markers as knos_pay 2.1 wrote them            adv_compat_2_1
 //!
-//! Two tests are `#[ignore]`d: each says what the program should do and fails on what it does today
-//! (`cargo test --release --test adversarial -- --ignored` shows both failing). They wait for a decision about the
-//! program; nothing in the program was changed for them.
+//! No test here is ignored. The two findings of 2.1 (6 and 7) were ignored tests until knos_pay 2.2 fixed them; they
+//! run with the rest, and a release does not go out with one of them failing.
 #[path = "../../testdata/harness.rs"]
 mod harness;
 use harness::{i64_at, u64_at, Answer, Replay};
-use knos_pay::state::{HELD, OPEN, O_AMOUNT, O_DEADLINE, O_HOLD_UNTIL, O_PAID, O_STATE, U_AFTER, WARRANTY};
-use knos_pay::{order_fee, E_AUD, E_ORDER, E_REPLAY, E_STATE, E_TOKEN, FEE_BPS, TIP};
+use knos_pay::order_terms::{DONE_LEN, DONE_LEN_21, D_STAMP, Q_ACTOR, Q_LEN, Q_LEN_21, Q_OWNER, Q_SINCE};
+use knos_pay::state::{stamp, HELD, OPEN, O_AMOUNT, O_DEADLINE, O_FEE, O_FEE_BPS, O_GRACE, O_HOLD_UNTIL, O_INC, O_NOT_BEFORE, O_PAID, O_STATE, U_AFTER, WARRANTY};
+use knos_pay::{order_fee, E_AUD, E_ORDER, E_REPLAY, E_STATE, E_TOKEN, FEE_BPS, GRACE, TIP};
 
 const USDC: u64 = 1_000_000;
 const AMOUNT: u64 = 20 * USDC; // every order here
-const FEE: u64 = 500_000; // 2.5% of 20.00
+const FEE: u64 = 60_000; // 0.30% of 20.00
 const HELD_BY_ORDER: u64 = AMOUNT + FEE;
 
 const fn refused(ix: u8, code: u32) -> Answer { Answer::Refused { ix, code } }
@@ -320,35 +324,274 @@ fn under_a_quorum_of_three_two_judges_move_nothing() {
     r.finish();
 }
 
-// == findings: what the program does today is recorded; what it should do is asserted, so these fail until it changes ====
+// == 6. one account, or one owner, behind two judges =====================================================================
 
-/// FINDING 1. A wallet's order with a quorum of 2. One GitHub account starts the run in the order's repository
-/// (judge a) and then, by hand, the neutral run in another repository it owns (judge b). The program counts two
-/// judges and pays: order_terms::quorum tells judges apart by where a run was, and refuses a neutral run by the
-/// funder or the owner only on a Balance's order (`o.kind == 1`); a wallet's order has no funder id to compare.
-/// What this test asks for: two tokens whose `actor_id` is the same are one judge, and nothing is paid.
+/// FINDING 1 of 2.1. A wallet's order with a quorum of 2. One GitHub account starts the run in the order's repository
+/// (judge a) and then, by hand, the neutral run in another repository it owns (judge b). 2.1 counted two judges and
+/// paid. Two runs started by one account are one judge: both tokens are accepted and nothing is paid, whether the
+/// account owns the order's repository or is a maintainer who owns nothing of it. A third party's neutral run pays.
 #[test]
-#[ignore = "FINDING 1: fails on the program as built; kept for the decision about order_terms::quorum"]
 fn finding_one_account_that_starts_both_runs_is_one_judge_not_two() {
     let mut r = Replay::load("adv_quorum_same_account");
     assert_eq!(r.to("own_run_started_by_the_account"), Answer::Accepted);
     assert_eq!((r.tokens("dest"), r.tokens("order_tok")), (0, HELD_BY_ORDER));
-    r.to("neutral_run_started_by_the_same_account");
+    assert_eq!(r.to("neutral_run_started_by_the_same_account"), Answer::Accepted);
     assert_eq!((r.tokens("dest"), r.tokens("order_tok")), (0, HELD_BY_ORDER), "the same account's second run paid a quorum of 2");
+    assert_eq!((r.data("order").unwrap()[O_STATE], u64_at(&r.data("order").unwrap(), O_PAID)), (OPEN, 0));
+    assert_eq!(r.to("own_run_started_by_a_maintainer"), Answer::Accepted);
+    assert_eq!(r.to("neutral_run_started_by_that_maintainer"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("other_tok"), r.tokens("fee"), r.tokens("relayer_tok")), (0, HELD_BY_ORDER, 0, 0), "a maintainer's two runs paid a quorum of 2");
+    assert_eq!(r.to("neutral_run_of_a_third_party"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("other_tok"), r.data("other"), r.tokens("order_tok")), (AMOUNT, 0, None, HELD_BY_ORDER));
+    r.finish();
 }
 
-/// FINDING 2. An order with a quorum of 2 is paid by its two judges, and its address is funded again while the
-/// chain's clock still shows the second the first order was funded in. The first judge's marker of the FIRST order
-/// is still there, and order_terms::said takes it for the second order's: it compares the marker's `since` with
-/// the order's `not_before`, which are the same second. The second judge's new token, alone, then pays the second
-/// order. What this test asks for: one judge's token moves nothing on the order funded again.
+const OWNERS: [&str; 10] = ["same_tok", "different_tok", "three_tok", "late_tok", "bal_tok", "baltok", "dest", "fee", "relayer_tok", "funder_tok"];
+
+/// Two repositories of one owner are one judge; of two owners, two. Wallet-funded orders with a quorum of 2 whose
+/// judges are their own repository and a judge repository: when the judge repository's run says the same
+/// `repository_owner_id` as the own run, nothing is paid; when it says another, the order is paid.
 #[test]
-#[ignore = "FINDING 2: fails on the program as built; kept for the decision about order_terms::said"]
+fn the_same_owner_behind_two_repositories_is_refused_as_a_second_judge_and_different_owners_are_accepted() {
+    let mut r = Replay::load("adv_quorum_owners");
+    assert_eq!(r.to("same_own"), Answer::Accepted);
+    let total = all(&r, &OWNERS);
+    assert_eq!(r.to("same_owner_two_repositories"), Answer::Accepted);
+    let o = r.data("same").unwrap();
+    assert_eq!((o[O_STATE], u64_at(&o, O_PAID), r.tokens("same_tok"), r.tokens("dest"), r.tokens("fee")), (OPEN, 0, HELD_BY_ORDER, 0, 0), "one owner's two repositories paid a quorum of 2");
+    assert_eq!(r.to("different_own"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("different_tok")), (0, HELD_BY_ORDER));
+    assert_eq!(r.to("different_owners"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("different_tok"), r.data("different"), r.tokens("same_tok"), all(&r, &OWNERS)), (AMOUNT, 0, None, HELD_BY_ORDER, total));
+}
+
+/// A quorum of 3 needs three owners. The own repository, a neutral third party and a judge repository that belongs
+/// to the own repository's owner are three judges of two owners: nothing is paid. A judge repository of a third
+/// owner pays.
+#[test]
+fn a_quorum_of_three_needs_three_owners() {
+    let mut r = Replay::load("adv_quorum_owners");
+    r.to("different_owners");
+    let (total, dest) = (all(&r, &OWNERS), r.tokens("dest"));
+    for label in ["three_own", "three_neutral", "three_judge_repository_of_the_owner"] {
+        assert_eq!(r.to(label), Answer::Accepted, "{label}");
+        let o = r.data("three").unwrap();
+        assert_eq!((o[O_STATE], u64_at(&o, O_PAID), r.tokens("three_tok"), r.tokens("dest")), (OPEN, 0, HELD_BY_ORDER, dest), "{label}");
+    }
+    assert_eq!(r.to("three_third_owner"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("three_tok"), r.data("three"), all(&r, &OWNERS)), (dest + AMOUNT, 0, None, total));
+}
+
+/// A wallet names a repository and no owner. Until the order's own repository has judged, nothing shows that a
+/// neutral run is a third party's: a neutral run and a judge repository's do not pay a quorum of 2; the own
+/// repository's run then does, with either of them.
+#[test]
+fn on_a_wallets_order_a_neutral_run_counts_only_once_the_orders_own_repository_has_spoken() {
+    let mut r = Replay::load("adv_quorum_owners");
+    r.to("three_third_owner");
+    let (total, dest) = (all(&r, &OWNERS), r.tokens("dest"));
+    for label in ["late_neutral", "late_judge_repository"] {
+        assert_eq!(r.to(label), Answer::Accepted, "{label}");
+        assert_eq!((r.data("late").unwrap()[O_STATE], r.tokens("late_tok"), r.tokens("dest")), (OPEN, HELD_BY_ORDER, dest), "{label}");
+    }
+    assert_eq!(r.to("late_own"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("late_tok"), r.data("late"), all(&r, &OWNERS)), (dest + AMOUNT, 0, None, total));
+}
+
+/// The same rule on an order funded from a Balance by a comment on the forge: the account that started the run in
+/// the order's repository is no second judge when it starts the neutral run; a third party's neutral run pays.
+#[test]
+fn on_a_balances_order_one_account_behind_both_runs_is_one_judge() {
+    let mut r = Replay::load("adv_quorum_owners");
+    r.to("late_own");
+    let (total, dest) = (all(&r, &OWNERS), r.tokens("dest"));
+    for label in ["balance_own_run_by_an_account", "balance_neutral_run_by_that_account"] {
+        assert_eq!(r.to(label), Answer::Accepted, "{label}");
+        assert_eq!((r.data("bal").unwrap()[O_STATE], r.tokens("bal_tok"), r.tokens("dest")), (OPEN, HELD_BY_ORDER, dest), "{label}");
+    }
+    assert_eq!(r.to("balance_neutral_run_of_a_third_party"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("bal_tok"), r.data("bal"), all(&r, &OWNERS)), (dest + AMOUNT, 0, None, total));
+    r.finish();
+}
+
+// == 7. a marker of the order that was at an address before ==============================================================
+
+/// FINDING 2 of 2.1. An order with a quorum of 2 is paid by its two judges, and its address is funded again while the
+/// chain's clock still shows the second the first order was funded in. The first judge's marker of the FIRST order
+/// is still there. 2.1 took it for the second order's (same `not_before`), and the second judge's new token alone
+/// paid. A marker now carries the stamp of the order it was written for (the slot of that order's funding), the
+/// order funded again has another, and one judge's token moves nothing. The address funded and judged in one
+/// transaction, which would be one slot, is refused whole.
+#[test]
 fn finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second() {
     let mut r = Replay::load("adv_quorum_same_second");
+    assert_eq!(r.to("first_judge"), Answer::Accepted);
+    let (first, marker) = (r.data("order").unwrap(), r.data("q_own").expect("the first judge's marker"));
+    assert_eq!((marker.len(), i64_at(&marker, Q_SINCE), stamp(&first)), (Q_LEN, -(u64_at(&first, O_INC) as i64), -(u64_at(&first, O_INC) as i64)));
+    assert_eq!(r.to("second_judge"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.data("order")), (AMOUNT, None));
+    assert_eq!(r.to("fund_and_judge_in_one_slot"), refused(2, E_STATE));
+    assert_eq!((r.data("order"), r.tokens("dest")), (None, AMOUNT));
     assert_eq!(r.to("fund_again_in_the_same_second"), Answer::Accepted);
-    let dest = r.tokens("dest");
+    let (dest, second) = (r.tokens("dest"), r.data("order").unwrap());
     assert_eq!((dest, r.tokens("order_tok")), (AMOUNT, HELD_BY_ORDER));
-    r.to("one_judge_alone");
-    assert_eq!((r.tokens("dest"), r.tokens("order_tok")), (dest, HELD_BY_ORDER), "one judge alone paid a quorum of 2");
+    assert_eq!(i64_at(&second, O_NOT_BEFORE), i64_at(&first, O_NOT_BEFORE), "the same second");
+    assert!(u64_at(&second, O_INC) > u64_at(&first, O_INC) && stamp(&second) != i64_at(&r.data("q_own").unwrap(), Q_SINCE), "another funding, another stamp");
+    assert_eq!(r.to("one_judge_alone"), Answer::Accepted);
+    let o = r.data("order").unwrap();
+    assert_eq!((r.tokens("dest"), r.tokens("order_tok"), o[O_STATE], u64_at(&o, O_PAID)), (dest, HELD_BY_ORDER, OPEN, 0), "one judge alone paid a quorum of 2");
+    assert_eq!(i64_at(&r.data("q_neutral").expect("the judge's word is recorded for the new order"), Q_SINCE), stamp(&o));
+    r.finish();
+}
+
+/// An assignment is for one funding of an address. The payee assigns the order's payment to a lender, and the lender
+/// is paid. The address is funded again in the same second: an assignment sent with the funding (one slot) is
+/// refused, and the next payment goes to the payee's own wallet, not to the lender of the order before.
+#[test]
+fn an_assignment_of_the_order_before_does_not_route_the_payment_of_one_funded_again_in_the_same_second() {
+    let mut r = Replay::load("adv_reassign");
+    assert_eq!(r.to("assign"), Answer::Accepted);
+    let first = r.data("order").unwrap();
+    assert_eq!(r.to("pay_the_assignee"), Answer::Accepted);
+    assert_eq!((r.tokens("lender_tok"), r.tokens("dest"), r.data("order")), (AMOUNT, 0, None));
+    assert_eq!(r.to("fund_and_assign_in_one_slot"), refused(2, E_STATE));
+    assert_eq!(r.to("fund_again_in_the_same_second"), Answer::Accepted);
+    let second = r.data("order").unwrap();
+    assert!(i64_at(&second, O_NOT_BEFORE) == i64_at(&first, O_NOT_BEFORE) && stamp(&second) != stamp(&first));
+    assert_eq!(r.to("pay_the_payee"), Answer::Accepted);
+    assert_eq!((r.tokens("lender_tok"), r.tokens("dest"), r.data("order")), (AMOUNT, AMOUNT, None), "the lender of the order before was paid again");
+    r.finish();
+}
+
+// == 8. a token shown after a deadline it was issued before ==============================================================
+
+const GRACED: [&str; 8] = ["first_tok", "last_tok", "over_tok", "plain_tok", "dest", "fee", "relayer_tok", "funder_tok"];
+
+/// The presentation grace, one second after the deadline of an order funded with it. A refund is refused; a token
+/// the forge issued a second after the deadline is refused; a token it issued ten seconds before the deadline pays.
+/// A payment and a refund in one transaction, in either order: refused whole. An order funded without the grace is
+/// what it was: its token is refused a second after the deadline and its refund goes through.
+#[test]
+fn a_token_issued_before_the_deadline_pays_after_it_and_no_refund_is_taken_meanwhile() {
+    let mut r = Replay::load("adv_grace");
+    assert_eq!(r.to("refund_a_second_after_the_deadline"), refused(1, E_STATE));
+    let (now, total, funder) = (r.now(), all(&r, &GRACED), r.tokens("funder_tok"));
+    for (name, grace) in [("first", 1), ("last", 1), ("over", 1), ("plain", 0)] {
+        let o = r.data(name).unwrap();
+        assert_eq!((i64_at(&o, O_DEADLINE), o[O_GRACE], o[O_STATE]), (now - 1, grace, OPEN), "{name}");
+    }
+    assert_eq!(r.to("token_issued_after_the_deadline"), refused(1, E_STATE));
+    assert_eq!(r.to("pay_and_refund_in_the_grace"), refused(2, E_ORDER));
+    assert_eq!(r.to("refund_and_pay_in_the_grace"), refused(1, E_STATE));
+    assert_eq!((r.tokens("first_tok"), r.tokens("dest"), r.tokens("funder_tok")), (HELD_BY_ORDER, 0, funder));
+    assert_eq!(r.to("token_issued_before_the_deadline"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.data("first"), r.tokens("funder_tok")), (AMOUNT, None, funder));
+    assert_eq!(r.to("refund_after_the_payment"), refused(1, E_ORDER));
+    assert_eq!(r.to("no_grace_no_payment"), refused(1, E_STATE));
+    assert_eq!(r.to("no_grace_refund"), Answer::Accepted);
+    assert_eq!((r.tokens("funder_tok"), r.data("plain"), r.tokens("dest"), all(&r, &GRACED), r.now()), (funder + HELD_BY_ORDER, None, AMOUNT, total, now));
+}
+
+/// The end of the grace. In its last second but one (the last in which any token issued by the deadline is still
+/// good) a refund is refused and such a token pays. At its last second a refund is still refused, and the token is
+/// refused by its own age (E_TOKEN): the grace is exactly as long as a token can live, so the refund waits for
+/// nothing. A second later the refund goes through, and nothing pays afterwards. No order both pays and refunds.
+#[test]
+fn the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_follows_at_once() {
+    let mut r = Replay::load("adv_grace");
+    r.to("no_grace_refund");
+    let (total, dest, funder) = (all(&r, &GRACED), r.tokens("dest"), r.tokens("funder_tok"));
+    let deadline = i64_at(&r.data("last").unwrap(), O_DEADLINE);
+    assert_eq!(GRACE, 7200);
+    assert_eq!(r.to("refund_in_the_last_second_a_token_lives"), refused(1, E_STATE));
+    assert_eq!(r.now(), deadline + GRACE - 1);
+    assert_eq!(r.to("pay_in_the_last_second_a_token_lives"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.data("last"), r.tokens("funder_tok")), (dest + AMOUNT, None, funder));
+    assert_eq!(r.to("refund_at_the_end_of_the_grace"), refused(1, E_STATE));
+    assert_eq!(r.now(), deadline + GRACE);
+    assert_eq!(r.to("pay_at_the_end_of_the_grace"), refused(1, E_TOKEN));
+    assert_eq!((r.tokens("over_tok"), r.tokens("funder_tok")), (HELD_BY_ORDER, funder));
+    assert_eq!(r.to("pay_after_the_grace"), refused(1, E_TOKEN));
+    assert_eq!(r.to("refund_after_the_grace"), Answer::Accepted);
+    assert_eq!(r.now(), deadline + GRACE + 1);
+    assert_eq!((r.tokens("funder_tok"), r.data("over"), r.tokens("dest")), (funder + HELD_BY_ORDER, None, dest + AMOUNT));
+    assert_eq!(r.to("pay_after_the_refund"), refused(1, E_ORDER));
+    assert_eq!(all(&r, &GRACED), total);
+    r.finish();
+}
+
+// == 9. orders and markers as knos_pay 2.1 wrote them ====================================================================
+
+const FEE_21: u64 = 500_000; // what 2.1 charged on 20.00: 2.5%
+const COMPAT: [&str; 11] = ["paid_tok", "refunded_tok", "reverted_tok", "quorum_tok", "alone_tok", "standing_tok", "fresh_tok", "dest", "fee", "relayer_tok", "funder_tok"];
+
+/// Orders in accounts as 2.1 wrote them (no incarnation, the rate 250, the fee of 2.1 in escrow) under this build.
+/// One is paid: its payee gets the amount, and the fee that leaves is the fee it was funded with, not today's. One
+/// with a holdback is paid and reverted inside its warranty: the holdback and the fee on it go back.
+#[test]
+fn an_order_funded_under_2_1_is_paid_and_reverted_with_the_fee_it_was_funded_with() {
+    let mut r = Replay::load("adv_compat_2_1");
+    assert_eq!(r.to("pay"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("fee"), r.tokens("relayer_tok"), r.data("paid")), (AMOUNT, FEE_21 - TIP, TIP, None));
+    let o = r.data("reverted").unwrap();
+    assert_eq!((u64_at(&o, O_INC), u64_at(&o, O_FEE), u16::from_le_bytes([o[O_FEE_BPS], o[O_FEE_BPS + 1]]), stamp(&o)), (0, FEE_21, 250, i64_at(&o, O_NOT_BEFORE)));
+    let funder = r.tokens("funder_tok");
+    assert_eq!(r.to("revert"), Answer::Accepted);
+    // nine tenths were paid with nine tenths of the fee; the tenth held back and its fee go back to the funder
+    assert_eq!((r.tokens("dest"), r.tokens("funder_tok"), r.data("reverted")), (AMOUNT + AMOUNT / 10 * 9, funder + AMOUNT / 10 + FEE_21 / 10, None));
+    assert_eq!((r.tokens("fee"), r.tokens("relayer_tok")), (FEE_21 - TIP + FEE_21 / 10 * 9 - TIP, 2 * TIP));
+}
+
+/// A quorum marker of 2.1 names no run (106 bytes), so it counts for nothing: a second judge alone does not pay on
+/// its word. The first judge signs again: the marker is made whole in place (122 bytes: owner and actor), and the
+/// second judge then pays the order, with the fee of 2.1.
+#[test]
+fn a_quorum_marker_of_2_1_counts_for_nothing_until_its_judge_signs_again() {
+    let mut r = Replay::load("adv_compat_2_1");
+    r.to("revert");
+    let (dest, total) = (r.tokens("dest"), all(&r, &COMPAT));
+    assert_eq!(r.data("q_own").unwrap().len(), Q_LEN_21);
+    assert_eq!(r.to("second_judge_on_a_marker_of_2_1"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("alone_tok"), r.data("alone").unwrap()[O_STATE]), (dest, AMOUNT + FEE_21, OPEN), "a marker of 2.1 counted as a judge");
+    assert_eq!(r.to("first_judge_signs_again"), Answer::Accepted);
+    let (q, o) = (r.data("q_own").unwrap(), r.data("quorum").unwrap());
+    assert_eq!((q.len(), i64_at(&q, Q_SINCE), u64_at(&q, Q_OWNER), u64_at(&q, Q_ACTOR)), (Q_LEN, i64_at(&o, O_NOT_BEFORE), 424_242, 1_234_567));
+    assert_eq!((r.tokens("dest"), r.tokens("quorum_tok")), (dest, AMOUNT + FEE_21));
+    assert_eq!(r.to("second_judge"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("quorum_tok"), r.data("quorum"), all(&r, &COMPAT)), (dest + AMOUNT, 0, None, total));
+}
+
+/// A standing order of 2.1 does not pay a pull request its 65-byte marker names, and pays another. An order of this
+/// build at an address where such a marker was left ignores it, pays the pull request, and marks it for itself (73
+/// bytes, with its stamp): the same pull request is then refused.
+#[test]
+fn a_done_marker_of_2_1_counts_for_an_order_of_2_1_and_for_no_other() {
+    const RATE: u64 = 6 * USDC;
+    let mut r = Replay::load("adv_compat_2_1");
+    r.to("second_judge");
+    let dest = r.tokens("dest");
+    assert_eq!((r.data("done_standing").unwrap().len(), r.data("done_fresh").unwrap().len()), (DONE_LEN_21, DONE_LEN_21));
+    assert_eq!(r.to("standing_pull_request_marked_by_2_1"), refused(1, E_REPLAY));
+    assert_eq!(r.tokens("dest"), dest);
+    assert_eq!(r.to("standing_another_pull_request"), Answer::Accepted);
+    assert_eq!((r.tokens("dest"), r.tokens("standing_tok")), (dest + RATE, AMOUNT + FEE_21 - RATE - FEE_21 * 6 / 20));
+    assert_eq!(r.to("a_new_order_ignores_a_marker_of_2_1"), Answer::Accepted);
+    let (done, o) = (r.data("done_fresh").unwrap(), r.data("fresh").unwrap());
+    assert_eq!((r.tokens("dest"), done.len(), i64_at(&done, D_STAMP)), (dest + 2 * RATE, DONE_LEN, stamp(&o)));
+    assert_eq!(r.to("and_marks_it_for_itself"), refused(1, E_REPLAY));
+    assert_eq!(r.tokens("dest"), dest + 2 * RATE);
+}
+
+/// An order of 2.1 has no grace: at its deadline a refund is refused, a second later it goes through, with the fee
+/// of 2.1 whole.
+#[test]
+fn an_order_funded_under_2_1_is_refunded_a_second_after_its_deadline() {
+    let mut r = Replay::load("adv_compat_2_1");
+    r.to("and_marks_it_for_itself");
+    let (funder, total) = (r.tokens("funder_tok"), all(&r, &COMPAT));
+    assert_eq!(r.to("refund_at_the_deadline"), refused(1, E_STATE));
+    assert_eq!(r.now(), i64_at(&r.data("refunded").unwrap(), O_DEADLINE));
+    assert_eq!(r.to("refund_a_second_after"), Answer::Accepted);
+    assert_eq!((r.tokens("funder_tok"), r.data("refunded"), r.tokens("refunded_tok"), all(&r, &COMPAT)), (funder + AMOUNT + FEE_21, None, 0, total));
+    r.finish();
 }

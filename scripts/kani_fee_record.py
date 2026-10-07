@@ -12,8 +12,10 @@ A harness is `verified` only when Kani printed VERIFICATION:- SUCCESSFUL with no
 `timed out` and `failed` prove nothing. The record carries the hash of src/lib.rs (the harnesses) and of the program's
 lines they are about (what build.rs copies out of knos_pay/src), so a change to either makes --check fail until the
 harnesses are run again. `summary` is written from the results, never by hand: the words `verified` (one harness
-over every amount is proved), `verified per tier` (every part of every tier is) or `not verified`, for the statement
+over every amount is proved, or every part is), `verified but for one bound at one rate` or `not verified`, for the statement
 "the fee is within its bounds for every amount an order may hold"; `parts` says which statement holds over which range.
+
+    python scripts/kani_fee_record.py --program         # the harnesses of programs-v2/knos_pay/src/proofs.rs (180 seconds each): the top of the record
 """
 from __future__ import annotations
 
@@ -34,29 +36,33 @@ CRATE = ROOT / "programs-v2" / "fee_proofs"
 RECORD = ROOT / "docs" / "kani.json"
 INVARIANTS = ROOT / "docs" / "invariants.json"
 LIMIT = 150
-FIRST = tuple(f"the_fee_of_an_amount_in_the_first_tier_is_within_its_bounds_at_the_rates_{lo}_to_{hi}" for lo, hi in ((50, 100), (101, 150), (151, 200), (201, 225), (226, 231), (232, 237), (238, 243), (244, 249)))
-TOP = "the_fee_of_an_amount_in_the_first_tier_at_the_rate_250_is_at_least_the_floor_and_adds_up"
-BOUNDS = "at least 0.40; 0.40 or at most 2.5% of the amount; adds to the amount in a u64"
+LOWER = tuple(f"the_fee_of_an_order_is_within_its_bounds_at_the_rates_{lo}_to_{hi}" for lo, hi in ((10, 19), (20, 29)))
+TOP = "the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points"
+JOB = "the_fee_of_a_job_is_never_more_than_its_amount"
+BOUNDS = "at least 0.05; 0.05 or at most 0.30% of the amount; adds to the amount in a u64"
+RANGE = "0 to 100,000.00"
 # every amount an order may hold at every rate, in parts: (amounts, rates, what is stated, the harnesses that state it)
-PARTS = (("0 to 1,000.00", "50..=249", BOUNDS, FIRST),
-         ("0 to 1,000.00", "250", "at least 0.40; adds to the amount in a u64", (TOP,)),
-         ("0 to 1,000.00", "250", "0.40 or at most 2.5% of the amount", ()),
-         ("above 1,000.00, to 50,000.00", "50..=250", BOUNDS, ("the_fee_of_an_amount_in_the_second_tier_is_within_its_bounds",)),
-         ("above 50,000.00, to 100,000.00", "50..=250", BOUNDS, ("the_fee_of_an_amount_in_the_third_tier_is_within_its_bounds",)))
-NO_HARNESS = ("No harness states it: asked of Kani 0.68 on 2026-10-06 for this range, CaDiCaL had not answered after 150 seconds and Kissat after 130 "
-              "(at this rate the bound is exact, with nothing to spare). Tested instead at each of the 1,000,000,001 amounts: "
-              "programs-v2/fee_proofs/tests/reference.rs, every_amount_of_the_first_tier_at_the_top_rate_is_the_reference.")
-WHOLE = "an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount"      # in knos_pay/src/proofs.rs: every amount, one harness
-COPIED = ("FEE_BPS", "MAX_AMOUNT", "ORDER_FEE_MIN", "FEE_TIER_1", "FEE_TIER_2", "FEE_BPS_2", "FEE_BPS_3", "ORDER_MIN_AMOUNT", "PLAN_BPS_MIN")
+PARTS = ((RANGE, "10..=29", BOUNDS, LOWER),
+         (RANGE, "30", "at least 0.05; 0.05 or at most 0.31% of the amount; adds to the amount in a u64", (TOP,)),
+         (RANGE, "30", "0.05 or at most 0.30% of the amount", ()),
+         ("every u64", "30 (a job)", "never more than the amount; at least 0.05 or the whole amount", (JOB,)))
+NO_HARNESS = ("No harness states it: at this rate the fee is exactly 0.30% rounded down, with nothing to spare. Asked of Kani 0.68 on 2026-10-06 "
+              "for this range in three forms (the bound itself; the amount drawn as its ten-thousands and a remainder; the bound taken apart "
+              "into the fee's thirties and their algebra), CaDiCaL had not answered any after 150 seconds; with one basis point to spare it "
+              "answers in under a second. Tested instead at all 10,000 remainders on 2,001 values of the ten-thousands and at 10,000,000 "
+              "amounts from a fixed seed: programs-v2/fee_proofs/tests/reference.rs, "
+              "every_remainder_at_the_top_rate_is_the_reference_and_within_thirty_basis_points.")
+WHOLE = "an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount"      # in knos_pay/src/proofs.rs: every amount and rate, one harness
+COPIED = ("FEE_BPS", "FEE_MIN", "MAX_AMOUNT", "ORDER_MIN_AMOUNT", "PLAN_BPS_MIN")
 ABOUT = ("Recorded runs of the Kani harnesses of programs-v2/fee_proofs/src/lib.rs, each run alone with a limit of 150 "
-         "seconds. They are about `order_fee`, `bps_of` and `units` as build.rs copies them, line for line, out of "
-         "programs-v2/knos_pay/src (lib.rs and state.rs), for a mint of 6 decimals and every rate from 50 to 250 basis "
-         "points. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed "
+         "seconds. They are about `order_fee`, `fee_of`, `bps_of` and `units` as build.rs copies them, line for line, out of "
+         "programs-v2/knos_pay/src (lib.rs and state.rs), for a mint of 6 decimals and every rate from 10 to 30 basis "
+         "points: one rate, no tiers. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed "
          "first, so nothing is proved by that entry. `range` is the set of amounts the harness assumes, in units of a "
          "millionth, and the rates it goes through; a harness proves its statement for that range and for nothing outside it. "
-         "`summary` is computed from the entries: its `status` is `verified` when one harness over every amount is, `verified "
-         "per tier` when every part is, and `not verified` otherwise; `parts` says which statement is verified over which "
-         "amounts and rates, and which is not.")
+         "`summary` is computed from the entries: its `status` is `verified` when one harness over every amount is, or when every part is; "
+         "`verified but for one bound at one rate` when the only part without a proof is the exact 0.30% at the rate 30; and `not verified` "
+         "otherwise; `parts` says which statement is verified over which amounts and rates, and which is not.")
 
 
 def harnesses() -> list[str]:
@@ -74,9 +80,9 @@ def ranges() -> dict[str, dict[str, str]]:
         body = source.split(f"fn {name}()", 1)[1].split("#[kani::proof]", 1)[0]
         rates = re.search(r"each_rate\(amount, (\d+), (\d+)\)", body)
         assumed = re.search(r"kani::assume\((amount [^;]*)\);", body)
-        assert assumed, f"{name}: no assumption about the amount"
-        out[name] = {"amount": assumed.group(1),
-                     "rate_bps": f"{rates.group(1)}..={rates.group(2)}" if rates else "250" if "order_fee(amount, FEE_BPS," in body else "50..=250"}
+        assert assumed or "let amount: u64 = kani::any();" in body, f"{name}: no assumption about the amount"
+        out[name] = {"amount": assumed.group(1) if assumed else "every u64",
+                     "rate_bps": f"{rates.group(1)}..={rates.group(2)}" if rates else "30" if "FEE_BPS, DECIMALS)" in body or "fee_of(amount" in body else "10..=30"}
     return out
 
 
@@ -91,7 +97,7 @@ def program_lines() -> str:
             return [lines[start]]
         return lines[start:lines.index("}", start) + 1]
     out = [line for name in COPIED for line in item(lib, f"pub const {name}: u64 = ", True)]
-    out += item(lib, "pub fn bps_of(", True) + item(lib, "pub fn order_fee(", False) + item(state, "pub fn units(", False)
+    out += item(lib, "pub fn bps_of(", True) + item(lib, "pub fn fee_of(", True) + item(lib, "pub fn order_fee(", True) + item(state, "pub fn units(", False)
     return "\n".join(out) + "\n"
 
 
@@ -130,9 +136,12 @@ def summary(records: list[dict], whole: bool) -> dict:
     proved = {r["name"] for r in records if r["proved"]}
     parts = [{"amount": amount, "rate_bps": rates, "stated": stated, "result": "verified" if names and all(n in proved for n in names) else "not verified",
               "harnesses": list(names), **({} if names else {"note": NO_HARNESS})} for amount, rates, stated, names in PARTS]
-    word = "verified" if whole else "verified per tier" if all(p["result"] == "verified" for p in parts) else "not verified"
-    return {"statement": "For every rate from 50 to 250 basis points and every amount from 0 to 100,000.00 at 6 decimals, the fee `order_fee` "
-                         "computes is at least 0.40, is 0.40 or at most 2.5% of the amount, and adds to the amount in a u64.",
+    missing = [p for p in parts if p["result"] != "verified"]
+    word = ("verified" if whole or not missing else
+            "verified but for one bound at one rate" if [(p["rate_bps"], p["stated"]) for p in missing] == [("30", "0.05 or at most 0.30% of the amount")] else "not verified")
+    return {"statement": "For every rate from 10 to 30 basis points and every amount from 0 to 100,000.00 at 6 decimals, the fee `order_fee` "
+                         "computes is at least 0.05, is 0.05 or at most 0.30% of the amount, and adds to the amount in a u64; a job's fee is never "
+                         "more than its amount.",
             "status": word, "whole_range_in_one_harness": "verified" if whole else "not verified", "parts": parts}
 
 
@@ -185,12 +194,73 @@ def check() -> list[str]:
     return wrong
 
 
+PROGRAM = ROOT / "programs-v2" / "knos_pay"
+PROGRAM_LIMIT = 180
+
+
+def program_harnesses() -> list[str]:
+    source = (PROGRAM / "src" / "proofs.rs").read_text(encoding="utf-8")
+    return re.findall(r"#\[kani::proof\]\s*(?:#\[[^\]]*\]\s*)*fn (\w+)\s*\(", source)
+
+
+def run_program() -> None:
+    """Runs every harness of programs-v2/knos_pay/src/proofs.rs alone, within PROGRAM_LIMIT seconds, and rewrites the
+    top of docs/kani.json (`harnesses`, `source`, `date`, `machine`): the record tests/test_provenance.py holds to the file."""
+    global CRATE
+    doc = json.loads(RECORD.read_text(encoding="utf-8"))
+    fee, CRATE = CRATE, PROGRAM
+    records = []
+    try:
+        for name in program_harnesses():
+            began = time.monotonic()
+            job = subprocess.Popen(["cargo", "kani", "--harness", name], cwd=PROGRAM, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                   encoding="utf-8", start_new_session=True)
+            try:
+                text, _ = job.communicate(timeout=PROGRAM_LIMIT)
+            except subprocess.TimeoutExpired:
+                os.killpg(job.pid, signal.SIGKILL)
+                job.communicate()
+                records.append({"name": name, "result": "timed out", "proved": False, "checks": None, "failed_checks": None, "unreachable_checks": None,
+                                "verification_seconds": None, "seconds": float(PROGRAM_LIMIT), "attempts": 1,
+                                "note": f"Not proved by this record: the solver had not answered when the {PROGRAM_LIMIT} seconds were over. "
+                                        "No failing check was reported."})
+                print(name, "timed out")
+                continue
+            summary_line = re.search(r"\*\* (\d+) of (\d+) failed(?: \((\d+) (?:unreachable|undetermined)\))?", text)
+            took = re.search(r"Verification Time: ([\d.]+)s", text)
+            if summary_line is None or took is None:
+                sys.exit(f"{name}: Kani did not finish a verification:\n{text[-2000:]}")
+            ok = "VERIFICATION:- SUCCESSFUL" in text and summary_line.group(1) == "0"
+            seconds = round(time.monotonic() - began, 1)
+            records.append({"name": name, "result": "verified" if ok else "failed", "proved": ok, "checks": int(summary_line.group(2)),
+                            "failed_checks": int(summary_line.group(1)), "unreachable_checks": int(summary_line.group(3) or 0),
+                            "verification_seconds": float(took.group(1)), "seconds": max(seconds, float(took.group(1))), "attempts": 1})
+            print(name, records[-1]["result"], records[-1]["seconds"])
+    finally:
+        CRATE = fee
+    doc["harnesses"] = records
+    doc["limit_seconds"], doc["command"], doc["date"] = PROGRAM_LIMIT, f"timeout {PROGRAM_LIMIT} cargo kani --harness <name>", datetime.date.today().isoformat()
+    doc["machine"] = f"x86_64 Linux, {os.cpu_count()} CPUs shared with other work"
+    doc["source"] = {**doc["source"], "sha256": hashlib.sha256((PROGRAM / "src" / "proofs.rs").read_bytes()).hexdigest()}
+    RECORD.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    if "fee_proofs" in doc:         # its summary reads the one harness over every amount, above
+        doc["fee_proofs"]["summary"] = summary(doc["fee_proofs"]["harnesses"], whole(doc))
+        RECORD.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        listed = json.loads(INVARIANTS.read_text(encoding="utf-8"))
+        next(i for i in listed["invariants"] if i["id"] == 8)["fee_proofs"] = for_invariants(doc["fee_proofs"])
+        INVARIANTS.write_text(json.dumps(listed, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--harness", action="append", default=[])
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--program", action="store_true")
     args = ap.parse_args(argv)
+    if args.program:
+        run_program()
+        return 0
     if args.check:
         wrong = check()
         print("\n".join(wrong) if wrong else "docs/kani.json: fee_proofs is about the source as it is")

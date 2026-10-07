@@ -80,7 +80,10 @@ ok("and so does every column head", heads.length === 5 && heads.every((t) => t.s
 ok("the board names no company as best in words", !/\b(best|worst|winner|leads|beats)\b/i.test(latest.replace(/<style>.*?<\/style>/s, "")));
 
 // nothing from anywhere else: no fetch, no import; the only addresses are links a reader may follow
-ok("the module asks for nothing", !/fetch\(|XMLHttpRequest|import\s*\(|^import /m.test(source) && !/src=|url\(|<link|<script/.test(latest));
+const stripSource = readFileSync(join(web, "board_strip.js"), "utf8");
+ok("the module asks for nothing but its own strip file, which asks for nothing", !/fetch\(|XMLHttpRequest|import\s*\(/.test(source) && JSON.stringify(source.match(/^(?:import|export) .* from "[^"]+";$/gm).map((l) => l.split(" from ")[1])) === '["\\"./board_strip.js\\";","\\"./board_strip.js\\";"]'
+  && !/fetch\(|XMLHttpRequest|import\s*\(|^import /m.test(stripSource) && !/src=|url\(|<link|<script/.test(latest));
+ok("every row of the board names its agent as a link to that agent's record", made.agents && Object.keys(made.agents).every((a) => latest.includes(`<a class="ib-record" href="#record=${a.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}">`)));
 ok("every address on the board is a dispute link or an issue", [...latest.matchAll(/https?:\/\/[^"<\s]+/g)].map((m) => m[0]).every((u) => u.startsWith("https://github.com/drexthealpha/Knos/issues") || u === "http://www.w3.org/2000/svg"));
 const fake = { innerHTML: "" };
 ok("it draws into an element that cannot be searched (no browser) without failing, and still takes a week as its third argument", renderIndexBoard(fake, made).innerHTML === indexBoardHtml(made) && renderIndexBoard(fake, made, "2026-09-21").innerHTML === indexBoardHtml(made, "2026-09-21"));
@@ -99,7 +102,7 @@ if (browser) {
   const page0 = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><body style="margin:16px"><div id="board"></div>
     <script type="module">import { renderIndexBoard } from "./index_board.js"; const get = async (u) => (await fetch(u)).json();
       renderIndexBoard(document.getElementById("board"), await get("./weekly.json"), { feed: await get("./feed.json") }); document.body.dataset.ready = "1";</script>`;
-  const files = { "/": ["text/html", page0], "/index_board.js": ["text/javascript", source], "/weekly.json": ["application/json", JSON.stringify(made)], "/feed.json": ["application/json", JSON.stringify(madeFeed)] };
+  const files = { "/": ["text/html", page0], "/index_board.js": ["text/javascript", source], "/board_strip.js": ["text/javascript", stripSource], "/weekly.json": ["application/json", JSON.stringify(made)], "/feed.json": ["application/json", JSON.stringify(madeFeed)] };
   const server = createServer((req, res) => { const f = files[new URL(req.url, "http://x").pathname]; if (!f) { res.writeHead(404); return res.end(); } res.writeHead(200, { "content-type": f[0] }); res.end(f[1]); });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${server.address().port}/`, asked = [];
@@ -140,7 +143,7 @@ if (browser) {
   ok("browser: the bar is as long as the share and the whisker spans the interval", bar[0] >= 100 && Math.abs(bar[1] - 0.30) < 0.02 && Math.abs(bar[2] - 0.199) < 0.02 && Math.abs(bar[3] - 0.226) < 0.02, bar);
   const still = await open({ reducedMotion: "reduce" });
   ok("browser: with reduced motion the bars are simply there", (await still.locator(".index-board.ib-anim").count()) === 0 && (await scale(still)) === 1 && (await still.evaluate(() => getComputedStyle(document.querySelector(".ib-fill")).transitionDuration)) === "0s");
-  ok("browser: nothing was asked of anyone but the page's own server", asked.length === 8 && asked.every((u) => u.startsWith(base)), asked);
+  ok("browser: nothing was asked of anyone but the page's own server", asked.length === 10 && asked.every((u) => u.startsWith(base)), asked);
   await browser.close(); server.close();
 }
 console.log(failed ? `${failed} failed` : "all passed");

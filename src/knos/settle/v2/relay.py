@@ -101,7 +101,7 @@ from solders.instruction import AccountMeta, Instruction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
-from ... import chain, receipt
+from ... import chain, fees, receipt
 from .. import oidc as first_oidc
 from .. import relay as first
 from ..relay import claims_of, header_of
@@ -197,11 +197,19 @@ _VERSION_LINE = b"knos2:version"         # Version's log line (fund.rs: msg!("kn
 _UPGRADEABLE = Pubkey.from_string("BPFLoaderUpgradeab1e11111111111111111111111")      # its program account names the ProgramData that holds the code
 
 
+# The 0.3.14 fee's upper tier edge, 50,000 whole units, as the executable of 2.1 holds it: one 64-bit load (lddw, any
+# register) of 50,000,000,000. The build with one fee rate (2.2) has no tiers, so no such load.
+_TIERED = re.compile(rb"\x18[\x00-\x0f]\x00\x00" + (50_000_000_000 & 0xFFFFFFFF).to_bytes(4, "little") + rb"\x00{4}"
+                     + re.escape((50_000_000_000 >> 32).to_bytes(4, "little")))
+
+
 def _built(ledger) -> int | None:
-    """Which knos-pay is deployed, read from its executable: no transaction, so no fee payer. 1 when the bytes hold
-    Version's log line, 0 when they do not (2.0 refuses instruction 12 and has no such line), None when they could not
-    be read. The program account holds the executable itself (loader v2, v4), or (the upgradeable loader) is the tag 2
-    and the address of the ProgramData account that holds it."""
+    """Which knos-pay is deployed, read from its executable: no transaction, so no fee payer. 0 when the bytes do not
+    hold Version's log line (2.0 refuses instruction 12 and has no such line); with the line, 1 when they hold the
+    tiered fee of 0.3.14 (`_TIERED`: 2.1) and 2 when they do not (2.2, one rate: the number a log line prints is not
+    in the bytes as text, the fee rule is in them as code). None when they could not be read. The program account
+    holds the executable itself (loader v2, v4), or (the upgradeable loader) is the tag 2 and the address of the
+    ProgramData account that holds it."""
     infos = getattr(ledger, "infos", None)
     if infos is None:
         return None
@@ -212,15 +220,30 @@ def _built(ledger) -> int | None:
             got = infos([Pubkey.from_bytes(data[4:36])])[0] if len(data) >= 36 and data[:4] == (2).to_bytes(4, "little") else None
     except Exception:  # noqa: BLE001 - not read is no answer
         return None
-    return None if got is None else int(_VERSION_LINE in bytes(got[1]))
+    if got is None:
+        return None
+    code = bytes(got[1])
+    return 0 if _VERSION_LINE not in code else 1 if _TIERED.search(code) else fees.NEW_VERSION
+
+
+def forget(ledger=None) -> None:
+    """Forgets what Version answered (for this ledger's cluster; with None, for every one), so that the next call asks
+    again. A worker calls it when a pass begins: an upgrade that executed between two passes is met by the next one,
+    and within a pass every token is planned against one answer."""
+    if ledger is None:
+        _VERSION.clear()
+    else:
+        _VERSION.pop((getattr(ledger, "url", None) or id(ledger), pay.PAY_ID), None)
 
 
 def version(ledger, payer: Keypair | None = None) -> int:
-    """Which knos-pay the cluster runs: 1 once 2.1 is live (its instruction 12 logs `knos2:version 1`), 0 for the
-    deployed 2.0 program, which refuses that instruction. Asked by simulation, so it costs nothing, and once per
-    process and cluster: an upgrade is announced 48 hours ahead, and a worker's run is shorter than that. A ledger that
-    cannot simulate, or a cluster that did not answer, counts as 0 for this call and is asked again on the next:
-    everything 2.1 added is used only on the answer 1. `payer`: any funded key (default: the relay key).
+    """Which knos-pay the cluster runs: 2 once 2.2 is live (its instruction 12 logs `knos2:version 2`: one fee rate,
+    judges counted by owner, markers bound to an order's funding, the presentation grace), 1 for 2.1, 0 for the 2.0
+    program, which refuses that instruction. Asked by simulation, so it costs nothing, and once per cluster until
+    `forget` (a worker forgets when a pass begins). A ledger that cannot simulate, or a cluster that did not answer,
+    counts as 0 for this call and is asked again on the next: everything 2.1 added is used only on an answer of 1 or
+    more, and everything 2.2 changed only on 2 or more (the fee funded, the markers read, who counts as a judge), so
+    whichever build is live is met with its own rules. `payer`: any funded key (default: the relay key).
     A simulation needs a fee payer that is on chain. A seller with no relay key (`knos settle --neutral`) or a
     repository with no secret has none, and the cluster refuses the simulation for that (AccountNotFound): then the
     deployed executable is read instead, which needs no payer at all (`_built`)."""
@@ -480,6 +503,26 @@ def _said_in(ledger, address: Pubkey, line: str, most: int = 10) -> list[str]:
     return []
 
 
+def _batch_taken(ledger, where: Pubkey, kind: str, b, most: int = 20) -> dict | None:
+    """Where knos_meter took exactly this batch (RecordBatch or ClaimBatch logs every number of the audience and its
+    root), among the last few transactions that named its Ledger account `where`: {"sigs", "fee", "chain"} as that
+    line says them, or None when none is found or the cluster does not say. A seq is taken once, so a line with this
+    seq and this root is this audience's own batch: any token for it asks for what the chain already shows. One with
+    another root is another batch, and is refused."""
+    head = (f"knosm:{kind} buyer={b.buyer} seller={b.seller} month={b.month} seq={b.seq} count={b.count} accepted={b.accepted} "
+            f"value={b.value} root={b.root.hex()} ")
+    recent, logs = getattr(ledger, "recent", None), getattr(ledger, "logs", None)
+    try:
+        for sig, _when in (recent(where, most) if recent and logs else []):
+            for line in chain.said(logs(sig), meter.METER_ID):
+                if line.startswith(head):
+                    fee, made = re.search(r" fee=(\d+)", line), re.search(r" chain=([0-9a-f]{64})", line)
+                    return {"sigs": [sig], "fee": int(fee.group(1)) if fee else 0, **({"chain": made.group(1)} if made else {})}
+    except Exception:  # noqa: BLE001, S110 - not known: the seq rule answers, as before
+        pass
+    return None
+
+
 # -- what each audience asks of the escrow, decided with reads alone ----------------------------------------------------
 Group = tuple[list[Instruction], int]       # instructions that go in one transaction together, and their compute units
 
@@ -496,6 +539,7 @@ class _Plan:
     have: bytes | None = None               # the token account as it stands
     v1: bool = False                        # whether its transactions go out as v1 ones (4,096 bytes): a 2.1 cluster, and a ledger that sends them
     register: list[Instruction] = field(default_factory=list)   # a signing key the chain needs first (a genesis key it has not seen)
+    soon: str | None = None                 # what to say when the program answers 83 to a plan every read allowed: tried again on the next pass
 
 
 def _github_token(t: _Token, now: int, private: bool = False) -> None:
@@ -686,7 +730,7 @@ def _plan_pay(ledger, me: Pubkey, t: _Token, now: int, v: int = 1) -> _Plan:
     if not mine:
         held = [(a, j) for a, j in agreed if j.state == "held" and j.payee_id == payee]
         if held:        # another relayer carried this token: the jobs wait for the payee to bind a wallet
-            entries = [{"job": str(a), "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint), "to": None, "held_until": j.hold_until} for a, j in held]
+            entries = [{"job": str(a), "amount": j.amount, "fee": fees.rule(v).job(j.amount), "mint": str(j.mint), "to": None, "held_until": j.hold_until} for a, j in held]
             raise _Stop({"ok": True, **result, "sigs": _last(ledger, held[0][0]), "already": True, "paid": entries})
         before = _paid_before(ledger, repo_id, issue, payee, iat - pay.TOKEN_AHEAD)
         if before:      # and here the payee had a wallet: the job was paid and is gone
@@ -714,13 +758,13 @@ def _plan_pay(ledger, me: Pubkey, t: _Token, now: int, v: int = 1) -> _Plan:
         for addr, j in mine:
             left = pay.read_job(_data(after, addr))         # gone: paid. Held: no wallet was known. Still open: this token did not pay it
             if left is None or left.state == "held":
-                paid.append({"job": str(addr), "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint),
+                paid.append({"job": str(addr), "amount": j.amount, "fee": fees.rule(v).job(j.amount), "mint": str(j.mint),
                              "to": str(wallet) if left is None and wallet is not None else None, "held_until": left.hold_until if left else None})
         return {"ok": True, **result, "sigs": sigs, "paid": paid} if paid else {"ok": False, "kind": kind, "why": "no open job on this issue accepted the token"}
     return _Plan(t, groups, done, alone=True)
 
 
-def _plan_bind(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
+def _plan_bind(ledger, me: Pubkey, t: _Token, now: int, v: int = fees.NEW_VERSION) -> _Plan:
     kind, c, p = "bind", t.c, t.aud.split(":")
     try:
         if len(p) != 3:
@@ -745,7 +789,7 @@ def _plan_bind(ledger, me: Pubkey, t: _Token, now: int) -> _Plan:
 
     def done(sigs: list[str], already: bool = False) -> dict:
         after = _read(ledger, [a for a, _j in held]) if held else {}
-        settled = [{"job": str(a), "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint)} for a, j in held if _data(after, a) is None]
+        settled = [{"job": str(a), "amount": j.amount, "fee": fees.rule(v).job(j.amount), "mint": str(j.mint)} for a, j in held if _data(after, a) is None]
         return {"ok": True, **result, "sigs": sigs, **({"already": True} if already else {}), "settled": settled}
     if bound is not None and iat <= bound.iat:
         if (bound.iat, bound.wallet) != (iat, wallet):
@@ -892,9 +936,10 @@ class _Ask:
     jwks: dict | None = None
 
 
-def _options(kind: str, raw: bytes, amount: int, actor: int = 0, owner: int = 0, mode: int = 1) -> tuple[bool, int]:
+def _options(kind: str, raw: bytes, amount: int, actor: int = 0, owner: int = 0, mode: int = 1, v: int = fees.NEW_VERSION) -> tuple[bool, int]:
     """The 48 bytes a funder fixes beside the amount (opts_of in order.rs, and the arbiter rule of order_judge::funded):
-    refused here as the program would. Returns (whether the order is PRIVATE, its judge repository's id)."""
+    refused here as the program of version `v` would. Returns (whether the order is PRIVATE, its judge repository's
+    id). Byte 33 is the presentation grace, which 2.2 reads and 2.1 refuses as it refuses any byte after the 33rd."""
     flags, holdback, warranty, kill, rate, arbiter, judge, salted = (raw[0], int.from_bytes(raw[1:3], "little"), int.from_bytes(raw[3:5], "little"),
                                                                     int.from_bytes(raw[5:7], "little"), int.from_bytes(raw[8:16], "little"),
                                                                     int.from_bytes(raw[16:24], "little"), int.from_bytes(raw[24:32], "little"), raw[32])
@@ -906,10 +951,13 @@ def _options(kind: str, raw: bytes, amount: int, actor: int = 0, owner: int = 0,
     if auto and mode != pay.TESTS:
         raise _no(kind, "`auto` pays a pull request without a merge, so only on a black-box acceptance suite: this issue has none "
                         "(.knos/acceptance/<issue>/ with a `blackbox.sh`), and without one only a merge pays")
+    if raw[33] == 1 and not any(raw[34:]) and v < fees.NEW_VERSION:
+        raise _no(kind, "this order asks for the presentation grace (a token issued by the deadline is still taken for two hours after it), which "
+                        "the escrow on this cluster does not have yet: it comes with the announced upgrade to knos_pay 2.2. Fund without it until then")
     if quorum and not 2 <= quorum <= judges:
         raise _no(kind, f"`quorum {quorum}` needs that many judges this order can have, and it has {judges}: its own repository, a neutral "
                         "run unless `neutral off`, and a judge repository if it names one")
-    ok = (flags & ~(pay.F_PRIVATE | pay.F_NEUTRAL | pay.F_STANDING | order_auto.F_AUTO | order_auto.F_QUORUM) == 0 and salted <= 1 and not any(raw[33:]) and holdback <= pay.MAX_HOLDBACK_BPS
+    ok = (flags & ~(pay.F_PRIVATE | pay.F_NEUTRAL | pay.F_STANDING | order_auto.F_AUTO | order_auto.F_QUORUM) == 0 and salted <= 1 and raw[33] <= (v >= fees.NEW_VERSION) and not any(raw[34:]) and holdback <= pay.MAX_HOLDBACK_BPS
           and warranty <= pay.MAX_WARRANTY_DAYS and kill <= pay.MAX_KILL_BPS and (holdback == 0 or warranty > 0)
           and (1 <= rate <= amount if standing else rate == 0) and private == bool(salted) and (not private or judge != 0))
     if not ok:
@@ -956,7 +1004,7 @@ def _plan_order_fund(a: _Ask) -> _Plan:
             raise ValueError(t.aud)
     except (KeyError, ValueError, TypeError):
         raise _no(kind, "malformed audience or claims") from None
-    private, judge_repo = _options(kind, bytes.fromhex(p[9]), amount, actor, owner_id, mode)
+    private, judge_repo = _options(kind, bytes.fromhex(p[9]), amount, actor, owner_id, mode, a.v)
     wf_sha = _fund_run(kind, c, None if private else terms, p[5], private=private)
     hidden = private_terms(terms) if private else None      # a private order: its scope, then its terms hash (order_judge::funded)
     if private:
@@ -1000,11 +1048,12 @@ def _plan_order_fund(a: _Ask) -> _Plan:
     if now < until:
         soon = until < int(c.get("exp", 0)) + oidc.LATE - 60
         raise _no(kind, f"new funding is paused until {_when(until)}; payments and refunds go on", **({"retry": True, "wait": until - now} if soon else {}))
-    bps = pay.plan_bps(pay.read_plan(_data(got, pay.plan_pda(owner_id))), now)
+    rule = fees.rule(a.v)       # the fee the program that is live will take on top: 2.1's tiers, or 2.2's one rate
+    bps = rule.plan_bps(pay.read_plan(_data(got, pay.plan_pda(owner_id))), now)
     groups: list[Group] = []
     if faucet:
         _bounds(kind, amount, 6, pay.ORDER_MIN_AMOUNT, "an order")
-        total = amount + pay.order_fee(amount, bps)
+        total = amount + rule.order(amount, bps)
         if _data(got, pay.faucet_mint()) is None:
             raise _no(kind, "this token spends the devnet faucet's test USDC, and this cluster has no faucet")
         if amount > pay.FAUCET_CAP:
@@ -1030,7 +1079,7 @@ def _plan_order_fund(a: _Ask) -> _Plan:
             raise _no(kind, "this commenter may not spend that balance: only its repository owner and the spenders its wallet listed can")
         if b.cap_per_job and amount > b.cap_per_job:
             raise _no(kind, f"that balance allows {_units(b.cap_per_job)} for one order; this token asks for {_units(amount)}")
-        total, one = amount + pay.order_fee(amount, bps, decimals), 10 ** decimals
+        total, one = amount + rule.order(amount, bps, decimals), 10 ** decimals
         if _amount(_data(got, baltok)) < total:
             raise _no(kind, f"the balance holds {_amount(_data(got, baltok)) / one:,.2f}, less than this order and its fee ({total / one:,.2f}); "
                             "add money to it or fund less")
@@ -1231,8 +1280,10 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
             raise already(rows)
         raise _no(kind, f"this standing order has paid pull request #{pr} already, and pays each one once" if o.state == "open" else
                   "the order is not open: it was paid, and what it holds back waits for its warranty")
-    if now > o.deadline:
-        raise _no(kind, "the order's deadline has passed: it goes back to its funder")
+    if not o.in_time(iat, now):     # the deadline, or (an order funded with the presentation grace) a token issued by it, shown within GRACE
+        raise _no(kind, "the order's deadline has passed, and this token was issued after it: the grace this order was funded with is for a token "
+                        "issued by the deadline; the order goes back to its funder" if o.grace and now <= o.pay_until else
+                  "the order's deadline has passed: it goes back to its funder")
     if iat < o.not_before:
         raise _no(kind, "this token is older than the order: it was made before the funding")
     if standing and o.holdback_bps:
@@ -1256,18 +1307,31 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
         raise _no(kind, "for an order with a quorum a neutral run counts only as a third party's: not one in the order's own repository, "
                         "and not one started by its funder")
     marks = _read(ledger, [order_auto.q_pda(order, k) for k in range(3)]) if need else {}
-    have = order_auto.passed({k: _data(marks, order_auto.q_pda(order, k)) for k in range(3)}, o, t.aud, order_auto.KINDS[judge]) if need else 0
+    said, mine = {k: _data(marks, order_auto.q_pda(order, k)) for k in range(3)}, order_auto.KINDS.get(judge, 0)      # (the arbiter is no kind: his ruling needs no quorum)
+    again: list[int] = []
+    lone: list[str] = []
+    if not need:
+        have = 0
+    elif a.v >= fees.NEW_VERSION:       # 2.2 counts owners: this token's run beside the runs the other markers name
+        ran = (_number(c.get("repository_owner_id")) or 0, _run(kind, o, t)[2])
+        have = order_auto.passed(said, o, t.aud, mine, run=ran)
+        again = order_auto.stale(said, o, t.aud, mine)      # a judge who passed under 2.1: his marker names no run and counts for nothing now
+        lone = order_auto.uncounted(o.owner_id, order_auto.spoke(said, o, t.aud, mine, ran)) if have < need else []
+    else:                               # 2.1 counts markers
+        have = order_auto.passed21(said, o, t.aud, mine)
     waits = have < need
+    fresh = a.v >= fees.NEW_VERSION and o.inc != 0 and (need or standing)   # 2.2 writes and counts no marker in the slot of the funding (83)
     first, cu = ([], 0) if held or waits else _tip_accounts(me, o, got)
     ix = order_auto.with_quorum(pay.pay_order_ix(me, t.account, t.key, order, o, wallets, pr=pr, used=t.jwt), order, o)
 
     def done(sigs: list[str]) -> dict:
         after = pay.read_order(ledger.account(order))
         if waits:       # this judge's word is recorded; the order pays when enough distinct judges have passed the same artifact
-            q = order_auto.read_q(ledger.account(order_auto.q_pda(order, order_auto.KINDS[judge])))
+            q = order_auto.read_any(ledger.account(order_auto.q_pda(order, mine)))
             if q is None or q[4] != order_auto.artifact(t.aud):
                 return {"ok": False, "kind": kind, "why": "the order did not accept the token"}
-            return {"ok": True, **result, "sigs": sigs, "paid": [], "quorum": {"have": have, "of": need}}
+            more = {**({"again": [order_auto.NAMES[k] for k in again]} if again else {}), **({"uncounted": lone} if lone else {})}
+            return {"ok": True, **result, "sigs": sigs, "paid": [], "quorum": {"have": have, "of": need, **more}}
         if after is not None and after.state == "held":
             row = {"id": payees[0][0], "payee_id": payees[0][0], "amount": due, "to": None, "held_until": after.hold_until}
             return {"ok": True, **result, "sigs": sigs, "paid": [row]}
@@ -1279,7 +1343,9 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
                 {"held_back": left - due, "warranty_until": after.hold_until} if after is not None and after.state == "warranty" else {})
         return {"ok": True, **result, "sigs": sigs, "paid": paid, **more}
     extra = (_CU["terms"] if standing or o.holdback_bps else 0) + (_CU["quorum"] if need else 0)
-    return _Plan(t, [([*first, ix], cu + _CU["pay_order"] + _CU["payee"] * len(payees) + extra)], done, alone=True)
+    soon = ("the order was funded in this very block, and its first payment or judge's word is taken from the next one on; "
+            "the same token is carried again on the next pass") if fresh else None
+    return _Plan(t, [([*first, ix], cu + _CU["pay_order"] + _CU["payee"] * len(payees) + extra)], done, alone=True, soon=soon)
 
 
 # -- what an order can promise (2.1, order_terms.rs): knos3:take, cancel, revert; and an organisation's wallet ------------
@@ -1459,7 +1525,7 @@ def _plan_org_bind(a: _Ask) -> _Plan:
 
     def done(sigs: list[str], already: bool = False) -> dict:
         after = _read(ledger, [addr for addr, _j in held]) if held else {}
-        settled = [{"job": str(addr), "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint)} for addr, j in held if _data(after, addr) is None]
+        settled = [{"job": str(addr), "amount": j.amount, "fee": fees.rule(a.v).job(j.amount), "mint": str(j.mint)} for addr, j in held if _data(after, addr) is None]
         return {"ok": True, **result, "sigs": sigs, **({"already": True} if already else {}), "settled": settled}
     if bound is not None:
         if not _org_made(raw):
@@ -1541,7 +1607,9 @@ def _plan_eval(a: _Ask) -> _Plan:
 def _plan_batch(a: _Ask, claim: bool = False) -> _Plan:
     """knosm:batch: the buyer's count of many evaluations in one token (RecordBatch), under Record's rules and paid
     from the same credits. knosm:claim: the seller's own count (ClaimBatch), from any workflow in a repository the
-    seller owns, with no credits and no fee. A batch token is taken once: its seq must be the Ledger's next."""
+    seller owns, with no credits and no fee. A batch token is taken once: its seq must be the Ledger's next. A token
+    for a batch the chain already took (its seq, its numbers and its root in the Ledger's recent logs) is answered
+    "already", with that transaction: another relayer carried it."""
     kind, ledger, me, t, now = "claim" if claim else "batch", a.ledger, a.me, a.t, a.now
     try:
         is_claim, b = meter.parse_batch_audience(t.aud)
@@ -1564,9 +1632,11 @@ def _plan_batch(a: _Ask, claim: bool = False) -> _Plan:
     if old := live.needs(ledger, a.payer, "knos_meter", now):     # the batch mode is 1.1's: 1.0 runs until the upgrade executes
         raise _no(kind, old)
     before = meter.read_ledger(_data(got, where))
-    if (before.next_seq if before else 0) != b.seq:     # the same token again, a batch out of order, or one that is missing: nothing is sent
-        raise _no(kind, meter.ERRORS[meter.E_SEQ], next_seq=before.next_seq if before else 0)
     result = dict(kind=kind, buyer_id=b.buyer, seller_id=b.seller, month=b.month, seq=b.seq, count=b.count, accepted=b.accepted, value=b.value, root=b.root.hex())
+    if before is not None and before.next_seq > b.seq and (taken := _batch_taken(ledger, where, kind, b)):
+        raise _Stop({"ok": True, **result, **taken, "already": True})     # this very batch is counted: another relayer carried it
+    if (before.next_seq if before else 0) != b.seq:     # a seq another batch took, a batch out of order, or one that is missing: nothing is sent
+        raise _no(kind, meter.ERRORS[meter.E_SEQ], next_seq=before.next_seq if before else 0)
     want = meter.chain_hash(before.chain if before else meter.ZERO, b.root, b.seq, b.count, b.accepted, b.value)
 
     def done(sigs: list[str]) -> dict:
@@ -1648,7 +1718,7 @@ class Kind:
 KINDS: dict[str, Kind] = {
     "knos2:fund:": Kind("fund", lambda a: _plan_fund(a.ledger, a.me, a.t, a.terms, a.now, a.v)),
     "knos2:pay:": Kind("pay", lambda a: _plan_pay(a.ledger, a.me, a.t, a.now, a.v)),
-    "knos2:bind:": Kind("bind", lambda a: _plan_bind(a.ledger, a.me, a.t, a.now)),
+    "knos2:bind:": Kind("bind", lambda a: _plan_bind(a.ledger, a.me, a.t, a.now, a.v)),
     "knos-oidc:key:": Kind("key", lambda a: _plan_key(a.ledger, a.me, a.t, a.jwks, a.now, a.v), github=False, first=True),
     "knos-oidc:ikey:": Kind("key", _plan_issuer_key, since=1, github=False),
     "knos3:fund:": Kind("fund", _plan_order_fund, since=1),
@@ -1898,13 +1968,19 @@ def _carry(ledger, payer: Keypair, plan: _Plan, again: Callable[[], _Plan]) -> d
             ledger.takes_v1 = False
             closed = True                           # (the retry closes what it opens)
             return _carry(ledger, payer, again(), again)
+        still = False       # whether every read still allows what the program just refused
         try:
             again()
+            still = True
         except _Stop as stop:
             if stop.result.get("ok"):
                 return {k: v for k, v in {**stop.result, "sigs": list(dict.fromkeys([*sigs, *stop.result.get("sigs", [])]))}.items() if k != "already"}
         except Exception:  # noqa: BLE001, S110 - the cluster is not answering: the failure stands, and is tried again
             pass
+        if still and plan.soon and _code(str(why)) == 83:
+            # the one refusal no read foresees: the slot of the order's funding. It clears with the next block; should
+            # it not, the passes are counted and the token is given up like any refusal that does not clear
+            return {"ok": False, "kind": t.kind, "why": plan.soon, "retry": True, "transient": True, "answered": True, "wait": 1}
         return _failed(t.kind, why)
     finally:
         if not closed:      # the token account has done its work, or failed to: take the rent back either way
@@ -2054,12 +2130,14 @@ def open_repositories(ledger) -> set[int]:
 
 
 def refund_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
-    """Sends back every work order nobody can be paid from any more: open past its deadline, or held past its hold.
+    """Sends back every work order nobody can be paid from any more: open past its deadline (`pay_until`: with the
+    presentation grace, two hours later), or held past its hold.
     To the Balance it came from, or to the funding wallet's token account (made if it is gone). Nothing on a 2.0 escrow."""
     if version(ledger, payer) < 1:
         return []
     me, txs = payer.pubkey(), []
-    due = [(addr, o) for state in (1, 3) for addr, o in orders(ledger, state) if now > (o.deadline if o.state == "open" else o.hold_until)]
+    # (an open order funded with the presentation grace is due GRACE after its deadline: until then a token issued by the deadline still pays it)
+    due = [(addr, o) for state in (1, 3) for addr, o in orders(ledger, state) if now > (o.pay_until if o.state == "open" else o.hold_until)]
     # an order cancelled while it was reserved owes its taker a kill fee first: to his bound wallet's token account,
     # made here if it is not there; with no wallet bound the fee stays held for him in the order and the rest goes back
     binds = _read(ledger, [pay.bind_pda(o.reserved_by) for _a, o in due if pay.kill_fee(o)])
@@ -2109,7 +2187,8 @@ def close_markers(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str
     """Takes back the rent of the markers this relayer paid for, once they no longer matter (CloseMarker): the
     single-use marker of a token (`used`) after the time it stores, by which no instruction accepts that token any
     more; and a standing order's marker of a paid pull request (`done`) once its order is closed. Several to a
-    transaction. Nothing on a 2.0 escrow, which has neither."""
+    transaction. Markers of both builds: 2.1 wrote a `done` of 65 bytes and a quorum marker of 106, 2.2 writes 73 and
+    122, and either program closes what it can read by one rule. Nothing on a 2.0 escrow, which has neither."""
     if version(ledger, payer) < 1:
         return []
     me, ixs = payer.pubkey(), []
@@ -2117,16 +2196,23 @@ def close_markers(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str
         got = pay.read_marker(data)
         if got is not None and got[0] == me and now > got[1]:
             ixs.append(pay.close_marker_ix(addr, me))
-    done = [(addr, pay.read_marker(data)) for addr, data in ledger.program_accounts(pay.PAY_ID, pay.DONE_LEN, {1: bytes(me)})]
-    done = [(addr, got[1]) for addr, got in done if got is not None and got[0] == me]
-    gone = _read(ledger, [order for _a, order in done])
-    ixs += [pay.close_marker_ix(addr, me, order) for addr, order in done if gone.get(order) is None]
+    new = version(ledger, payer) >= fees.NEW_VERSION        # 2.1 knows only its own two lengths, and writes no other
+    sizes = (pay.DONE_LEN_21, pay.DONE_LEN) if new else (pay.DONE_LEN_21,)
+    marks = [(addr, data) for size in sizes for addr, data in ledger.program_accounts(pay.PAY_ID, size, {1: bytes(me)})]
+    done = [(addr, got[1], data) for addr, data, got in ((a, d, pay.read_marker(d)) for a, d in marks) if got is not None and got[0] == me]
+    there = _read(ledger, [order for _a, order, _d in done])
+    for addr, order, data in done:      # its order is gone, or (2.2) the order there now is another funding: order_terms.rs close_marker
+        o = pay.read_order(_data(there, order))
+        if there.get(order) is None or (new and o is not None and (o.inc != 0 if len(data) == pay.DONE_LEN_21 else
+                                                                  o.stamp != int.from_bytes(data[65:73], "little", signed=True))):
+            ixs.append(pay.close_marker_ix(addr, me, order))
     # a quorum marker, once its order is not the open order it was made for (paid, refunded, or funded again later)
-    said = [(addr, order_auto.read_q(data)) for addr, data in ledger.program_accounts(pay.PAY_ID, order_auto.Q_LEN, {2: bytes(me)})]
+    said = [(addr, order_auto.read_any(data)) for size in ((order_auto.Q_LEN_21, order_auto.Q_LEN) if new else (order_auto.Q_LEN_21,))
+            for addr, data in ledger.program_accounts(pay.PAY_ID, size, {2: bytes(me)})]
     now_at = _read(ledger, [q[2] for _a, q in said if q is not None])
     for addr, q in said:
         o = pay.read_order(_data(now_at, q[2])) if q is not None else None
-        if q is not None and q[1] == me and (o is None or o.state != "open" or o.not_before != q[3]):
+        if q is not None and q[1] == me and (o is None or o.state != "open" or o.stamp != q[3]):
             ixs.append(pay.close_marker_ix(addr, me, q[2]))
     return _each(ledger, payer, [ixs[k:k + per_tx] for k in range(0, len(ixs), per_tx)])
 
@@ -2239,7 +2325,7 @@ def passkey_fund(ledger, payer: Keypair, request: str | bytes | dict, repo_id: i
         if _data(got, order) is not None:
             raise _no(kind, "there is an order at that address already: this wallet funded this issue before; sign again on the Buy page, "
                             "which then signs for the next order of the issue")
-        need = q.amount + pay.order_fee(q.amount, decimals=_decimals(_data(got, q.mint)))
+        need = q.amount + fees.live(ledger, payer).order(q.amount, decimals=_decimals(_data(got, q.mint)))
         source = pay.ata(w, q.mint, q.token_program)
         if _amount(_data(_read(ledger, [source]), source)) < need:
             raise _no(kind, f"the wallet holds less of this mint than the order's amount and its fee ({need} of its smallest units); "

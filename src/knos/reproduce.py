@@ -18,6 +18,16 @@ Five checks, each timed, each naming the capabilities of docs/capabilities.json 
                comment from the faucet Balance, pull request, merge, paid). It opens and merges a pull request there, so it
                is never run unasked
 
+Three more hold what the PUBLIC program ids and the published pages say to the public record, read-only, with no key:
+
+    provenance every pinned program's bytes on devnet hash to a build docs/provenance.json records for it (the build it
+               read there, or the one this release proposes), or to one the upgrade feed says has run since
+    payments   up to three payments docs/capabilities.json records at the public program ids, each read from the chain
+               and its token re-verified from GitHub's signature, exactly as `payment` does for the named one. Skipped,
+               and said, while the manifest records none
+    statement  the statement the site publishes is made again from its evidence (which the repository keeps beside the
+               same statement), and is the same statement
+
 A check ends `pass`, `fail` or `skipped` (it could not be asked: no network, no checkout, no token). Only `pass` counts.
 
 A report is made self-proving by GitHub, not by its author: examples/knos-reproduce.yml runs this command in the
@@ -68,6 +78,13 @@ SUPPORTS = {"payment": ("order_pay",), "programs": ("upgrade_delay", "upgrade_fe
             "simulator": ("single_use_tokens", "invariants_state_machine"), "claim": ("check",),
             "own_repo": ("fund_by_comment", "pay_on_merge")}
 ORDER = tuple(SUPPORTS)
+# The checks of the public round, after the five: read-only, against the PUBLIC program ids and the published pages.
+PUBLIC = {"provenance": ("provenance_chain",), "payments": ("order_pay",), "statement": ("statements",)}
+EVERY = {**SUPPORTS, **PUBLIC}                  # a report's rows: these checks, in this order, each with these capabilities
+RAW = "https://raw.githubusercontent.com/drexthealpha/Knos/main/"       # the public record, for an install that has no checkout
+STATEMENT = "https://drexthealpha.github.io/Knos/statement_sample.json"  # the statement the site publishes
+RECORDED = ("order_pay", "order_quorum", "x402_knos_order")              # capabilities whose public transaction is a PayOrder with a token
+MOST = 3                                                                 # payments re-verified in one run
 
 
 class Skip(Exception):
@@ -114,7 +131,7 @@ def run_check(cid: str, fn: Callable[[], dict], clock: Callable[[], float] = tim
     """One check as a row of the report. `fn` returns its evidence, or raises Skip or Fail; anything else it raises is
     a failure too, said in one line."""
     began = clock()
-    row: dict = {"id": cid, "capabilities": list(SUPPORTS[cid])}
+    row: dict = {"id": cid, "capabilities": list(EVERY[cid])}
     try:
         row.update(result="pass", evidence=fn(), why="")
     except Skip as why:
@@ -132,15 +149,15 @@ def build(checks: dict[str, Callable[[], dict]], only: list[str] | tuple = (), *
     """The report: who ran (the knos version, platform, Python, commit), and each check in the fixed order."""
     unknown = sorted(set(only) - set(checks))
     if unknown:
-        raise ValueError(f"no check is called {', '.join(unknown)}; the checks are {', '.join(c for c in ORDER if c in checks)}")
-    rows = [run_check(cid, checks[cid], clock) for cid in ORDER if cid in checks and (not only or cid in only)]
+        raise ValueError(f"no check is called {', '.join(unknown)}; the checks are {', '.join(c for c in EVERY if c in checks)}")
+    rows = [run_check(cid, checks[cid], clock) for cid in EVERY if cid in checks and (not only or cid in only)]
     return {"format": FORMAT, "knos": version, "python": platform.python_version(), "platform": platform.platform(), "commit": commit,
             "cluster": cluster, "at": int(now()), "checks": rows, **{r: sum(row["result"] == r for row in rows) for r in RESULTS}}
 
 
 def lines(report: dict) -> list[str]:
     """The report for a person: one line per check, then what to do with it."""
-    out = [f"{row['result'].upper():7} {row['id']:9} {row['seconds']:6.1f} s  " + (row["why"] or ", ".join(row["capabilities"])) for row in report["checks"]]
+    out = [f"{row['result'].upper():7} {row['id']:10} {row['seconds']:6.1f} s  " + (row["why"] or ", ".join(row["capabilities"])) for row in report["checks"]]
     return [*out, f"{report['pass']} passed, {report['fail']} failed, {report['skipped']} skipped. knos {report['knos']}, Python {report['python']}, "
                   f"{report['platform']}" + (f", commit {report['commit'][:12]}" if report["commit"] else "")]
 
@@ -213,7 +230,7 @@ def verified(doc, keys: dict[str, int], own: dict, name: str = "") -> tuple[dict
         wrong.append(f"the file is named {name}; this run's file is {file_name(claims)}")
     rows = report.get("checks")
     if report.get("format") != FORMAT or not isinstance(rows, list) or not all(
-            isinstance(r, dict) and r.get("id") in SUPPORTS and r.get("result") in RESULTS and r.get("capabilities") == list(SUPPORTS[r["id"]]) for r in rows) or \
+            isinstance(r, dict) and r.get("id") in EVERY and r.get("result") in RESULTS and r.get("capabilities") == list(EVERY[r["id"]]) for r in rows) or \
             len({r["id"] for r in rows}) != len(rows):
         wrong.append(f"the report is not a {FORMAT} report: its checks are not the ones `knos reproduce` writes, each once, with the capabilities it names")
     facts.update({k: claims.get(k) for k in ("repository", "repository_id", "repository_owner", "repository_owner_id", "actor", "actor_id", "run_id",
@@ -427,8 +444,126 @@ def own_repo(repo: str, env: dict, canary=None) -> dict:
     return evidence
 
 
+def provenance(account, record: Callable[[], dict], feed: Callable[[], dict], ids: dict | None = None) -> dict:
+    """Every pinned program's bytes on devnet against docs/provenance.json. `account(address)`: knos.mainnet_check's
+    reader; `record()`: docs/provenance.json; `feed()`: the published upgrade feed, asked only for a program that runs
+    a build the record does not name (an upgrade that executed after the record was written)."""
+    from . import mainnet_check as mc
+    from .settle.v2 import gate, oidc
+    ids = ids or oidc.IDS
+    try:
+        doc = record() or {}
+    except (*UNASKED, ValueError) as why:
+        raise Skip(f"docs/provenance.json could not be read ({' '.join(str(why).split())[:120]})") from None
+    names = [n for n in mc.PROGRAMS + mc.NEW_PROGRAMS if ids.get(n) and (doc.get("programs") or {}).get(n)]
+    if not names:
+        raise Fail("docs/provenance.json records no program, so there is nothing to hold the chain to")
+    state = _asked("devnet", lambda: {n: mc.program_data(account, ids[n]) for n in names})
+    out: dict = {"read": doc.get("read"), "programs": {}}
+    wrong, later = [], None
+    for name in names:
+        deployed, _authority, elf = state[name]
+        on_chain = gate.executable_hash(elf).hex() if deployed and elf else None
+        held, nxt = doc["programs"][name], (doc.get("next") or {}).get(name) or {}
+        row = out["programs"][name] = {"address": ids[name], "on_chain": on_chain, "recorded": held.get("on_chain_hash"), "next": nxt.get("build_hash")}
+        if on_chain is None:
+            wrong.append(f"{name}: not deployed at {ids[name]}")
+        elif on_chain == held.get("on_chain_hash"):
+            row["runs"] = "the build the record read there"
+        elif on_chain == nxt.get("build_hash"):
+            row["runs"] = "the build the record names as next"
+        else:
+            if later is None:
+                try:
+                    later = [e for e in (feed() or {}).get("entries", []) if isinstance(e, dict)]
+                except (*UNASKED, ValueError):
+                    later = []
+            told = next((e for e in later if e.get("program_address") == ids[name] and e.get("build_hash") == on_chain and e.get("status") in ("pending", "executed")), None)
+            if told is None:
+                wrong.append(f"{name}: devnet runs {on_chain}, which neither docs/provenance.json nor the upgrade feed names")
+            else:
+                row["runs"] = f"a build newer than the record: the upgrade feed names it (proposal {told.get('index')})"
+    if wrong:
+        raise Fail("; ".join(wrong), out)
+    return out
+
+
+def recorded_payments(manifest: dict, ids: dict) -> list[tuple[str, str]]:
+    """(capability, signature) of each payment docs/capabilities.json records at the PUBLIC knos_pay: order_pay first."""
+    out = []
+    for c in manifest.get("capabilities", []):
+        ev = c.get("evidence") or {}
+        dep, ex = ev.get("deployed") or {}, ev.get("exercised") or {}
+        if c.get("id") in RECORDED and ex.get("ids") == "public" and dep.get("id") == ids.get("knos_pay") and isinstance(ex.get("signature"), str):
+            out.append((str(c["id"]), ex["signature"]))
+    return sorted(out, key=lambda row: RECORDED.index(row[0]))
+
+
+def payments(call, jwks: Callable[[], dict], manifest: Callable[[], dict], ids: dict | None = None, most: int = MOST) -> dict:
+    """Up to `most` payments the manifest records at the public program ids, each re-verified as `payment` verifies
+    the named one. `manifest()`: docs/capabilities.json."""
+    from .settle.v2 import oidc
+    ids = ids or oidc.IDS
+    try:
+        found = recorded_payments(manifest() or {}, ids)
+    except (*UNASKED, ValueError) as why:
+        raise Skip(f"docs/capabilities.json could not be read ({' '.join(str(why).split())[:120]})") from None
+    if not any(cap == "order_pay" for cap, _sig in found):
+        raise Skip("docs/capabilities.json records no payment of an order at the public program ids yet: the release that exercises them there writes it")
+    rows: list[dict] = []
+    for cap, sig in found[:most]:
+        try:
+            got = payment(call, jwks, {"signature": sig, "pay": ids["knos_pay"], "oidc": ids["knos_oidc"]})
+        except Fail as why:
+            raise Fail(f"{cap}: {why}", {"verified": rows, "failed": {"capability": cap, "transaction": sig, **why.evidence}}) from None
+        rows.append({"capability": cap, **{k: got[k] for k in ("transaction", "order", "paid", "fee", "payees", "token_sha256", "kid", "key", "signed_for")}})
+    return {"program": ids["knos_pay"], "verifier": ids["knos_oidc"], "recorded": len(found), "verified": rows}
+
+
+def statement(published: Callable[[], dict], kept: Callable[[], dict]) -> dict:
+    """The statement the site publishes, made again from its evidence. `published()`: that statement, which names its
+    evidence by sha256 and does not carry it; `kept()`: the same statement as the repository keeps it with the evidence
+    inside (tests/data/statement/sept.json). Both are made again, and the published one from the evidence the kept one holds."""
+    from . import statement as st
+    try:
+        doc = published()
+        ev = doc.get("evidence") if isinstance(doc, dict) else None
+        bundle, source = None, "the statement itself"
+        if isinstance(ev, dict) and ev.get("embedded") is None:
+            whole = kept()
+            inside = whole.get("evidence") if isinstance(whole, dict) else None
+            if not isinstance(inside, dict) or inside.get("embedded") is None or inside.get("sha256") != ev.get("sha256"):
+                raise Fail("the statement the repository keeps does not hold the evidence the published one names",
+                           {"published_evidence": ev.get("sha256"), "kept_evidence": (inside or {}).get("sha256")})
+            again, said = st.verify(whole)
+            if not again:
+                raise Fail(f"the statement the repository keeps is not what its own evidence gives: {said}")
+            bundle, source = st.canonical(inside["embedded"]), "the statement the repository keeps with its evidence inside (tests/data/statement/sept.json)"
+    except (*UNASKED, ValueError) as why:
+        raise Skip(f"the published statement or its evidence could not be read ({' '.join(str(why).split())[:120]})") from None
+    try:
+        same, said = st.verify(doc, bundle)
+    except (st.Refused, KeyError, TypeError) as why:
+        raise Fail(f"the published statement cannot be made again: {why}") from None
+    evidence = {"sha256": doc.get("sha256"), "invoice": doc.get("invoice"), "source": doc.get("source"), "lines": len(doc.get("lines") or []),
+                "evidence_sha256": (doc.get("evidence") or {}).get("sha256"), "evidence_from": source, "totals": doc.get("totals")}
+    if not same:
+        raise Fail(f"the published statement is not what its evidence gives: {said}", evidence)
+    return evidence
+
+
+def _record(root: Path | None, path: str, env: dict) -> Callable[[], dict]:
+    """A file of the public record: from the checkout when there is one, else from the repository's main branch."""
+    def read() -> dict:
+        if root is not None and (root / path).is_file():
+            return json.loads((root / path).read_text(encoding="utf-8"))
+        return _fetch_json((env.get("KNOS_RECORD_URL") or RAW) + path)
+    return read
+
+
 def live(rpc: str = "", own: str = "", env: dict | None = None) -> dict[str, Callable[[], dict]]:
-    """The five checks against the real things: devnet (or `rpc`), GitHub's keys, the published feed, GitHub's API."""
+    """The checks against the real things: devnet (or `rpc`), GitHub's keys, the published feed, GitHub's API, and
+    the public record (docs/provenance.json, docs/capabilities.json, the site's statement)."""
     env = dict(os.environ) if env is None else env
 
     def call(method: str, params: list):
@@ -446,8 +581,21 @@ def live(rpc: str = "", own: str = "", env: dict | None = None) -> dict[str, Cal
         from . import mcp
         return mcp.Server()._check_pr({"pr": pr})
 
-    return {"payment": lambda: payment(call, lambda: _fetch_json(JWKS)), "programs": lambda: programs(account, lambda: _fetch_json(env.get("KNOS_UPGRADES_URL") or FEED)),
-            "simulator": lambda: simulator(checkout()), "claim": lambda: claim(check_pr), "own_repo": lambda: own_repo(own, env)}
+    root = checkout()
+
+    def feed() -> dict:
+        return _fetch_json(env.get("KNOS_UPGRADES_URL") or FEED)
+
+    def published() -> dict:
+        if root is not None and (root / "web" / "statement_sample.json").is_file() and not env.get("KNOS_STATEMENT_URL"):
+            return json.loads((root / "web" / "statement_sample.json").read_text(encoding="utf-8"))
+        return _fetch_json(env.get("KNOS_STATEMENT_URL") or STATEMENT)
+
+    return {"payment": lambda: payment(call, lambda: _fetch_json(JWKS)), "programs": lambda: programs(account, feed),
+            "simulator": lambda: simulator(root), "claim": lambda: claim(check_pr), "own_repo": lambda: own_repo(own, env),
+            "provenance": lambda: provenance(account, _record(root, "docs/provenance.json", env), feed),
+            "payments": lambda: payments(call, lambda: _fetch_json(JWKS), _record(root, "docs/capabilities.json", env)),
+            "statement": lambda: statement(published, _record(root, "tests/data/statement/sept.json", env))}
 
 
 # ---- the command line ---------------------------------------------------------------------------------------------------
@@ -460,17 +608,17 @@ def register(app, help_lines: list | None = None) -> None:
         help_lines.append(("reproduce", "For money", "Re-run what Knos says it does, against public things only, and write a report GitHub can sign."))
 
     @app.command("reproduce")
-    def reproduce(only: list[str] = typer.Option([], "--only", help=f"run only this check, or the checks behind this capability id (repeat for several); the checks: {', '.join(ORDER)}"),
+    def reproduce(only: list[str] = typer.Option([], "--only", help=f"run only this check, or the checks behind this capability id (repeat for several); the checks: {', '.join(EVERY)}"),
                   rpc: str = typer.Option("", "--rpc", help="the Solana JSON-RPC URL (default: KNOS_RPC, then devnet)"),
                   out_file: Path = typer.Option(Path("report.json"), "--out", help="where to write the report"),
                   own: str = typer.Option("", "--own-repo", help="OWNER/NAME of a repository of yours with Knos installed: also run one funded round there (test USDC; it opens and merges a pull request). Needs GH_TOKEN")) -> None:
         """Re-run, from this install and against public things only, what Knos says it does: a named devnet payment verified again from signatures, the on-chain programs against the hashes the release names, the local simulator's money invariants (from a source checkout), and the claim check on a public pull request. Writes a report; examples/knos-reproduce.yml has GitHub sign it in your repository. Exit 1 when a check fails. Devnet: test USDC."""
         from . import version
         checks = live(rpc, own)
-        wanted = [cid for cid in ORDER if cid in only or set(SUPPORTS[cid]) & set(only)]
-        unknown = [o for o in only if o not in ORDER and not any(o in caps for caps in SUPPORTS.values())]
+        wanted = [cid for cid in EVERY if cid in checks and (cid in only or set(EVERY[cid]) & set(only))]
+        unknown = [o for o in only if o not in EVERY and not any(o in caps for caps in EVERY.values())]
         if unknown:
-            typer.echo(f"No check is called {', '.join(unknown)} and none supports a capability of that name. The checks: {', '.join(ORDER)}.", err=True)
+            typer.echo(f"No check is called {', '.join(unknown)} and none supports a capability of that name. The checks: {', '.join(EVERY)}.", err=True)
             raise typer.Exit(2)
         report = build(checks, wanted, version=version(), commit=_commit(checkout()))
         out_file.write_bytes(canonical(report))

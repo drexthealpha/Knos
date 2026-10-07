@@ -27,6 +27,7 @@ from _order import AUTHOR, OWNER, REPO, USDC, WF_REPO, WF_SHA, OrderChain, user 
 from solders.keypair import Keypair  # noqa: E402
 from solders.signature import Signature  # noqa: E402
 
+from knos import fees  # noqa: E402
 from knos import terms as terms_mod  # noqa: E402
 from knos.settle.v2 import meter, pay  # noqa: E402
 
@@ -142,7 +143,9 @@ def expect(c: World, made: dict, now: int) -> dict:
                    order_row(made["balance_order"], {"kind": "balance", "ownerId": OWNER, "holds": held, "spent": b.spent, "capPerJob": b.cap_per_job,
                                                        "spenders": list(b.spenders), "faucet": b.faucet, "limits": bx is not None})],
         "job": {"address": str(made["job"]), "state": job.state, "mode": job.mode, "amount": job.amount, "deadline": job.deadline, "mint": str(job.mint), "terms": job.terms.hex(),
-                "source": str(job.source), "net": job.amount - pay.fee_of(job.amount)},
+                "source": str(job.source), "net": job.amount - fees.live(c.ledger).job(job.amount)},
+        # which knos_pay the recording was made on (knos.fees: 2 is 2.2 and the 0.3.18 fee): a job's fee is the one that build takes
+        "fee_version": fees.version(c.ledger),
         "expiring": {"address": str(made["expiring_order"]), "deadline": pay.read_order(c.data(made["expiring_order"])).deadline},
         "terms_json": made["terms"], "terms_words": describe, "now": now, "month": made["month"],
         "statement": {

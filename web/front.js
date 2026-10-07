@@ -202,7 +202,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -223,7 +223,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -243,7 +243,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -292,7 +292,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@160edd4e19fcfbc86f712f01225e0717a7dde2d7
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -331,7 +331,7 @@ export function workflowFacts() {
       : `${esc(repo)} at <code>${esc(ref)}</code>, which is a placeholder: no release has named the commit yet`; }).join("; ");
     return `<code>${file}</code> calls ${calls} of ${at}`;
   };
-  el.innerHTML = `<p class="fine">${said("knos.yml", WORKFLOW)}; ${said("knos-check.yml", CHECK_WORKFLOW)}. A bounty records that
+  el.innerHTML = `<p class="fine" data-fold="Which commit it calls">${said("knos.yml", WORKFLOW)}; ${said("knos-check.yml", CHECK_WORKFLOW)}. A bounty records that
     commit when it is funded, and the escrow takes the pay token only from the same commit.</p>`;
 }
 
@@ -473,7 +473,7 @@ async function check(ev) {
   }
 }
 
-export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder"];
+export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "record"];
 // Which page a hash shows: a filled mount, or one of the views (web/views.js: its VIEWS and ALIAS), or the first screen.
 const viewOf = (name) => { const v = ALIAS[name] || name; return VIEWS.includes(v) && v !== "check" ? v : null; };
 export const pageOf = (hash, filled = () => true) => { const name = String(hash).replace(/^#/, "").split("=")[0]; return MOUNTS.includes(name) && filled(name) ? name : viewOf(name) || "check"; };
@@ -526,12 +526,15 @@ export const PAGES = {
   "invoice-statement": page("./statements.js", "renderStatements"),
   story: page("./story.js", "renderStory"),
   keyholder: page("./keyholder.js", "renderKeyholder"),
+  record: page("./supplier_record.js", "renderSupplierRecord"),
   install: { files: ["./install.js"], draw: async () => (await import("./install.js")).renderInstall($("install-pr")) },
   capabilities: { files: ["./capabilities.js"], draw: async (el) => {
     const [m, data] = await Promise.all([import("./capabilities.js"), fetch("capabilities.json").then((r) => (r.ok ? r.json() : null)).catch(() => null)]);
     if (!data) return;
     el.innerHTML = `<h2>What Knos can do</h2>
-      <p class="lede">One row per capability, at its proven stage. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/CAPABILITIES.md">As a document</a></p><div class="card" id="capabilities-list"></div>`;
+      <p class="lede">One row per capability, at its proven stage.</p>
+      <div class="cap-links" data-keep><a class="k-btn quiet" id="cap-manifest" href="https://github.com/drexthealpha/Knos/blob/main/docs/MANIFEST.md">What is live, in one page</a>
+        <a id="cap-document" href="https://github.com/drexthealpha/Knos/blob/main/docs/CAPABILITIES.md">As a document</a></div><div class="card" id="capabilities-list"></div>`;
     m.renderCapabilities($("capabilities-list"), data);
   } },
   buy: chain("./buyer.js"), status: chain("./mounts.js"), index: chain("./mounts.js"), pilot: chain("./mounts.js"), reproduce: chain("./mounts.js"),
@@ -814,6 +817,20 @@ if (typeof document !== "undefined" && $("pr-form")) {
   // THE FRONT DOOR (web/front_door.js): the first screen's one control, your own invoice checked in place. Mounted
   // here, before anything else of the page is read, so it answers even when GitHub and devnet do not.
   if ($("front-door")) import("./front_door.js").then((m) => m.renderFrontDoor($("front-door"))).catch(() => {});
+  // THE WEEK'S LEADERBOARD, directly under the box (web/board_strip.js): asked for after the first paint, and index.html
+  // holds grey bars of its size until the feed (agent_index.json, the build's copy of docs/index.json) has answered.
+  // A build with no feed, or a feed with no placed agent, shows nothing there.
+  if ($("hero-board")) {
+    const board = $("hero-board"), later = window.requestIdleCallback || ((f) => setTimeout(f, 60));
+    requestAnimationFrame(() => later(async () => {
+      try {
+        const [m, feed] = await Promise.all([import("./board_strip.js"), fetch("agent_index.json").then((r) => (r.ok ? r.json() : null))]);
+        m.renderBoardStrip(board, { feed });
+      } catch { board.textContent = ""; }
+      board.removeAttribute("aria-busy");
+      if (!board.firstElementChild) board.hidden = true;
+    }));
+  }
   // Below it on the first screen: the example buttons and the recording (web/first.js) and the round (web/demo.js).
   // A transaction pasted into the box is read from Solana, and only then are the files that read Solana asked for.
   import("./first.js").then((m) => m.initFirst({ $, esc, EXPLORER, core })).catch(() => {});

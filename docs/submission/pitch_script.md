@@ -1,56 +1,88 @@
-# Pitch (two minutes, five beats)
+# Pitch (under three minutes, nine beats)
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-The spoken words are the lines that start with `>`: about 280 words, two minutes read aloud at an even pace
-(`tests/test_business_docs.py` counts them). The time in each heading is where the beat starts. It is the story of
-[STORY.md](../STORY.md): the number, one round, what cannot happen, the two ledgers, and what the project needs.
+The presentation: the customer, the insight, what was observed, the model, the founder. The technical
+demonstration is a separate page ([demo_script.md](demo_script.md)), and a clip cut from it keeps its captions.
 
-A spoken number is in `docs/facts.json` with its source, and `python scripts/claims_check.py` checks it. The last
-beat is read against the chain and [NUMBERS.md](NUMBERS.md) on the day of recording and says what is true then. A
-buyer, a pilot or an interview is said only if it exists and the other party agrees to be named. A clip cut from
-the demo keeps the demo's captions ([demo_script.md](demo_script.md)).
+The spoken words are the lines that start with `>`: about 410 words, just under three minutes read aloud at an even pace
+(`tests/test_business_docs.py` counts them). The time in each heading is where the beat starts.
+
+A spoken number is in `docs/facts.json` with its source, and `python scripts/claims_check.py` checks it. Beat seven
+is read against the chain and [NUMBERS.md](NUMBERS.md) on the day of recording and says the numbers as they are
+then. A buyer, a pilot or an interview is said only if it exists and the other party agrees to be named. The limits
+are one sentence, the last one; every one of them is in [DISCLOSURE.md](../DISCLOSURE.md).
 
 ## 1. The number (0:00)
 
 *On screen: the number, then one public pull request from the sample: its description says the tests pass, it is
-merged, and a check is red. Beside it, an invoice line billed per merge.*
+merged, and a check is red.*
 
-> Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. Billed per merge, each of
-> those 30 is a line on an invoice. The seller keeps that count. Knos is the neutral meter for AI agent work:
-> neither side keeps the count.
+> Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. Each was merged anyway.
 
-## 2. One round (0:20)
+## 2. The customer (0:10)
 
-*On screen, from the demo: the funding comment, the pull request with its regression test, the acceptance.*
+*On screen: an invoice for agent work, seven lines; the person who approves it; the supplier who sent it.*
 
-> One round. A buyer authorises work with one comment: the budget and the terms, fixed before the work starts. A
-> supplier submits a correct fix with its own regression test. A run that GitHub signs says the terms were met, a
-> Solana program checks that signature, and the work is accepted under the original terms. The supplier is paid
-> the posted amount, in test money.
+> Two people have this problem. One approves a supplier's invoice for agent work and cannot tell which lines were
+> delivered. The other is the supplier, who did deliver and has to prove it.
 
-## 3. What cannot happen (0:45)
+## 3. The insight (0:25)
 
-*On screen: the refused submission with the reason; the second settlement refused, the balance unchanged.*
+*On screen: two counts of the same month, side by side, that differ.*
 
-> Now the cheats. A tampered submission fails: in our benchmark, 56 of 63 cheating pull requests passed plain CI,
-> and the black-box check refused all 63. A duplicate settlement changes nothing: the second try moves no money.
+> Every vendor keeps its own count. The seller meters the work, and the seller writes the bill. Knos is the
+> neutral meter for AI agent work: neither side keeps the count.
 
-## 4. Two ledgers (1:05)
+## 4. A round (0:40)
 
-*On screen: two terminals, one statement; then the finance view with one exception.*
+*On screen, from the demo: the funding comment, the pull request with its regression test, the acceptance, the
+payment; then two terminals with one statement.*
 
-> Then the invoice. Each side keeps its own copy, so neither has to take the other's count. Buyer and supplier
-> each rebuild the statement from their own ledger, and they get the same record. Finance approves the agreed lines and sees the exception: a disputed line is named, and it is not
-> billed.
+> One round. A buyer fixes the price and the acceptance terms before the work starts, with one comment. A
+> supplier submits a fix with its own regression test. GitHub signs the run that judged it. A Solana program
+> checks that signature itself and releases the money: no company holds it, and no oracle reports it. At the
+> end of the month the buyer and the supplier each rebuild the statement from their own ledger, and they get the
+> same bill, line for line.
 
-## 5. What is real, and the ask (1:25)
+## 5. The cheat (1:15)
 
-*On screen: the site's Numbers page, the rows for accounts that are not Knos's; then the front door.*
+*On screen: the refused submission with its reason; the balance unchanged.*
 
-> What is real today. All of this is on Solana devnet, in test money. Funders other than Knos: 0. Buyers
-> interviewed: 0. Revenue: none. One person holds every key. So step eight is not a customer. It is your invoice:
-> paste it on the site, free, with no install. Knos needs three things it does not have: an outside key holder,
-> first buyers to run a shadow count, and an outside review.
+> Now a cheat: a submission that edits the test instead of fixing the bug. Plain CI passed 56 of 63 such
+> cheats. Knos refused all 63, and each refusal says why.
+
+## 6. The leaderboard (1:30)
+
+*On screen: the Agent PR Index on the site's first screen; one row's dispute link; a supplier's record and badge.*
+
+> This is the Agent PR Index: every week, for each coding agent, how often "tests pass" agreed with GitHub's own
+> checks. No vendor can pay for a row, and any row can be disputed in public. A supplier with a good record gets
+> it signed, to attach to an invoice.
+
+## 7. Outside the founder (1:50)
+
+*On screen: the nine rows of the site's Numbers page, as they are.*
+
+> What exists outside me today. One other GitHub account was paid 3 times on devnet, in test money, for pull
+> requests it wrote on tasks I funded. Outside funders: 0. Outside repositories: 0. Buyers interviewed: 0.
+> Independent reproductions: 0. Those numbers are read from the chain and the repository, not from me.
+
+## 8. The model (2:10)
+
+*On screen: the price book.*
+
+> The model is one fee. The check is free. Knos earns when value is released against a signed acceptance: thirty
+> cents on every hundred dollars, collected by the program, paid by the funder on top. The supplier never pays.
+> It starts with code, because a forge already signs its checks.
+
+## 9. The founder, and the limits (2:30)
+
+*On screen: the dated history in DISCLOSURE.md; then the front door.*
+
+> I work with coding agents every day, and mine told me tests passed that had not. I measured it, then built
+> this. Before the hackathon period I had built a different product, a shared memory for coding agents; this
+> one was written inside the period. The limits, in one sentence: Solana devnet, test money, one person holds
+> every key, and nobody has paid.
 
 *Closing card:* The neutral meter for AI agent work: neither side keeps the count.

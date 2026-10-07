@@ -23,7 +23,7 @@ CRATE = ROOT / "programs-v2" / "fee_proofs"
 
 def test_the_record_is_about_the_harnesses_and_the_programs_lines_as_they_are():
     assert rec.check() == []
-    assert [h["name"] for h in FEE["harnesses"]] == rec.harnesses() and len(rec.harnesses()) == 12
+    assert [h["name"] for h in FEE["harnesses"]] == rec.harnesses() and len(rec.harnesses()) == 4
     assert FEE["limit_seconds"] == 150 and FEE["version"] == KANI["version"]
 
 
@@ -40,35 +40,44 @@ def test_a_fee_harness_counts_as_proved_only_when_kani_verified_it_within_the_li
 def test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say():
     s = FEE["summary"]
     assert s == rec.summary(FEE["harnesses"], rec.whole(KANI))
-    assert s["status"] in ("verified", "verified per tier", "not verified")
-    assert {(p["amount"], p["rate_bps"]) for p in s["parts"]} == {
-        ("0 to 1,000.00", "50..=249"), ("0 to 1,000.00", "250"), ("above 1,000.00, to 50,000.00", "50..=250"), ("above 50,000.00, to 100,000.00", "50..=250")}
-    # the first tier's harnesses go through every rate from 50 to 249 once, with no gap
-    rates = sorted(tuple(int(n) for n in h["range"]["rate_bps"].split("..=")) for h in FEE["harnesses"] if h["name"] in rec.FIRST)
-    assert rates[0][0] == 50 and rates[-1][1] == 249 and all(b[0] == a[1] + 1 for a, b in zip(rates, rates[1:]))
-    assert all(h["range"]["amount"] == "amount <= FEE_TIER_1" for h in FEE["harnesses"] if h["name"] in (*rec.FIRST, rec.TOP))
+    assert s["status"] in ("verified", "verified but for one bound at one rate", "not verified")
+    assert {(p["amount"], p["rate_bps"]) for p in s["parts"]} == {("0 to 100,000.00", "10..=29"), ("0 to 100,000.00", "30"), ("every u64", "30 (a job)")}
+    # one rate, so no tier: the harnesses about an order go through every rate from 10 to 30 once, with no gap, over the whole range
+    rates = sorted(tuple(int(n) for n in h["range"]["rate_bps"].split("..=")) for h in FEE["harnesses"] if h["name"] in rec.LOWER)
+    assert rates[0][0] == 10 and rates[-1][1] == 29 and all(b[0] == a[1] + 1 for a, b in zip(rates, rates[1:]))
+    by = {h["name"]: h for h in FEE["harnesses"]}
+    assert by[rec.TOP]["range"] == {"amount": "amount <= MAX_AMOUNT", "rate_bps": "30"} and by[rec.JOB]["range"]["amount"] == "every u64"
+    assert all(h["range"]["amount"] == "amount <= MAX_AMOUNT" for h in FEE["harnesses"] if h["name"] in (*rec.LOWER, rec.TOP))
     for part in s["parts"]:
         assert part["result"] == "verified" or len(part.get("note", "")) > 40      # what is not proved says so and why
         assert all(n in rec.harnesses() for n in part["harnesses"])
+    # the exact bound at the top rate has no harness, and the record never calls the whole statement verified without one
+    exact = next(p for p in s["parts"] if p["stated"] == "0.05 or at most 0.30% of the amount")
+    assert exact["harnesses"] == [] and exact["result"] == "not verified" and (s["status"] != "verified" or rec.whole(KANI))
 
 
 def test_the_page_says_the_records_words_and_no_more():
-    body = PAGE.split("- **The fee's bounds, per tier**")[1].split("- **The meter:**")[0]
+    body = PAGE.split("- **The fee's bounds, by rate**")[1].split("- **The meter:**")[0]
     by = {(p["amount"], p["rate_bps"], p["stated"]): p["result"] for p in FEE["summary"]["parts"]}
-    assert ("above 1,000 and up to 50,000, every rate: **verified**" in body) is (by[("above 1,000.00, to 50,000.00", "50..=250", rec.BOUNDS)] == "verified")
-    assert ("above 50,000 and up to 100,000 (the most an order holds), every rate: **verified**" in body) is (by[("above 50,000.00, to 100,000.00", "50..=250", rec.BOUNDS)] == "verified")
-    assert ("0 to 1,000 at the rates 50 to 249: **verified**" in body) is (by[("0 to 1,000.00", "50..=249", rec.BOUNDS)] == "verified")
-    assert ('amount" is **not verified**' in body) is (by[("0 to 1,000.00", "250", "0.40 or at most 2.5% of the amount")] == "not verified")
-    assert ("is **not verified** as a whole" in body) is (FEE["summary"]["status"] == "not verified")
-    assert "**not verified** in one harness" in PAGE and FEE["summary"]["whole_range_in_one_harness"] == "not verified"
+    lower, top = body.split("- at the rates 10 to 29:")[1].split("\n  - ")[0], body.split("- at the rate 30, the rate of an order with no Plan:")[1].split("\n  - ")[0]
+    assert ("**verified**" in lower) is (by[("0 to 100,000.00", "10..=29", rec.BOUNDS)] == "verified") and "at most 0.30% of the amount" in lower
+    assert ("**verified**" in top) is (by[("0 to 100,000.00", "30", "at least 0.05; 0.05 or at most 0.31% of the amount; adds to the amount in a u64")] == "verified")
+    assert "at most 0.31% of the amount" in top and "0.30%" not in top
+    assert ('amount" is **not verified**' in body) is (by[("0 to 100,000.00", "30", "0.05 or at most 0.30% of the amount")] == "not verified")
+    assert ("never more than the amount: **verified**" in body) is (by[("every u64", "30 (a job)", "never more than the amount; at least 0.05 or the whole amount")] == "verified")
+    assert (f"is **{FEE['summary']['status']}**" in " ".join(body.split())) and FEE["summary"]["status"] in ("verified", "verified but for one bound at one rate", "not verified")
     assert f"within {FEE['limit_seconds']} seconds" in body
+    # the page does not say more of the one harness over every amount than the record does
+    whole = next(h for h in KANI["harnesses"] if h["name"] == rec.WHOLE)
+    assert FEE["summary"]["whole_range_in_one_harness"] == ("verified" if whole["proved"] else "not verified")
+    assert ("timed out and is not proved there" in PAGE) is (whole["result"] == "timed out")
 
 
 def test_the_native_test_named_for_the_unproved_part_exists():
     tests = (CRATE / "tests" / "reference.rs").read_text(encoding="utf-8")
     for name in re.findall(r"reference\.rs, (\w+)\.", rec.NO_HARNESS):
         assert f"fn {name}()" in tests
-    assert "for amount in 0..=FEE_TIER_1 {" in tests and "0..10_000_000u32" in tests
+    assert "for r in 0..10_000u64 {" in tests and "0..10_000_000u32" in tests and "assert_eq!(checked, 20_010_000);" in tests
 
 
 def test_the_proof_crate_is_in_no_programs_build_and_outside_the_releases_version_rules():
@@ -84,13 +93,15 @@ def test_the_proof_crate_is_in_no_programs_build_and_outside_the_releases_versio
         assert "fee_proofs" not in src.read_text(encoding="utf-8"), src.name
 
 
-def test_every_transaction_the_adversarial_tests_name_is_in_the_vectors_and_the_findings_stay_ignored():
+def test_every_transaction_the_adversarial_tests_name_is_in_the_vectors_and_no_finding_is_ignored():
     source = (ROOT / "programs-v2" / "handlers" / "tests" / "adversarial.rs").read_text(encoding="utf-8")
     tests = re.findall(r"#\[test\]\n((?:#\[ignore[^\n]*\]\n)?)fn (\w+)\(\) \{\n(.*?)\n\}\n", source, re.S)
-    assert len(tests) == source.count("#[test]") == 16
-    ignored = [name for mark, name, _ in tests if mark]
-    assert ignored == json.loads((ROOT / "docs" / "invariants.json").read_text(encoding="utf-8"))["adversarial"]["ignored_findings"]
-    assert all(name.startswith("finding_") and f"`{name}`" in PAGE for name in ignored) and len(ignored) == 2
+    assert len(tests) == source.count("#[test]") == 27 and "#[ignore" not in source
+    listed = json.loads((ROOT / "docs" / "invariants.json").read_text(encoding="utf-8"))["adversarial"]
+    # the two findings of knos_pay 2.1 are fixed and run as ordinary tests: a release does not go out with one failing
+    assert [name for mark, name, _ in tests if mark] == listed["ignored_findings"] == []
+    fixed = [name for _mark, name, _ in tests if name.startswith("finding_")]
+    assert sorted(fixed) == sorted(listed["fixed_findings"]) and len(fixed) == 2 and all(f"`{name}`" in PAGE for name in fixed)
     seen = set()
     for _mark, name, body in tests:
         loaded = re.findall(r'Replay::load\("(\w+)"\)', body)

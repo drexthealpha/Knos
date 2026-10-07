@@ -1,7 +1,7 @@
 """The pricing page is a calculator (web/pricing.js, web/price.js), and it gives the numbers of src/knos/billing.py.
 
 tests/web/price.mjs holds the arithmetic to tests/data/billing_vectors.json with no browser; tests/web/pricing.mjs opens
-the calculator in headless Chromium and types every year of that file into it. No node, no `playwright` package or no
+the calculator in headless Chromium and types the years of that file into it. No node, no `playwright` package or no
 browser: skipped, with the reason."""
 
 from __future__ import annotations
@@ -34,9 +34,9 @@ def run(script: str, timeout: int) -> str:
 
 def test_the_price_book_s_arithmetic_is_the_python_s() -> None:
     out = run("price.mjs", 60)
-    assert "a year: the worked example" in out and "every line of the price book is a row of docs/MARKET.md" in out
+    assert "a year: the worked customer" in out and "the worked customer pays 130,240.00 a year" in out and "every line of the price book is a row of docs/MARKET.md" in out
 
 
-def test_the_calculator_shows_the_same_numbers_and_chooses_the_greater_line() -> None:
+def test_the_calculator_shows_the_same_numbers_and_moves_the_acceptance_tiers() -> None:
     out = run("pricing.mjs", 170)
-    assert "the greater-of line visibly chooses" in out and "The rated party never pays." in out
+    assert "the tiers move" in out and "The rated party never pays." in out and "Connecting a supplier costs nothing." in out

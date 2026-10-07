@@ -3,6 +3,6 @@
   "name": "io.github.drexthealpha/knos",
   "description": "Bounties that pay when the pull request is merged with the checks you named passing.",
   "repository": {"url": "https://github.com/drexthealpha/Knos", "source": "github"},
-  "version": "0.3.17",
-  "packages": [{"registryType": "pypi", "identifier": "knos", "version": "0.3.17", "transport": {"type": "stdio"}, "packageArguments": [{"type": "positional", "value": "mcp"}]}]
+  "version": "0.3.18",
+  "packages": [{"registryType": "pypi", "identifier": "knos", "version": "0.3.18", "transport": {"type": "stdio"}, "packageArguments": [{"type": "positional", "value": "mcp"}]}]
 }

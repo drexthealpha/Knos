@@ -121,7 +121,7 @@ def test_any_changed_added_or_removed_leaf_changes_the_root():
 # -- a batch and a ledger ----------------------------------------------------------------------------------------------
 def test_a_batch_gives_the_root_the_totals_and_the_audience():
     evals = [_ev(1), _ev(2, accepted=False), _ev(3, rate=500)]
-    b = L.batch([evals[2].line(), evals[0].audience(), evals[1], evals[0]], 4, "2026-10")      # any of the three forms; a retry counts once
+    b = L.batch([evals[2].line(), evals[0].audience(), evals[1], evals[0]], 4, "2026-10", format=1)      # any of the three forms; a retry counts once
     assert (b.buyer, b.seller, b.month, b.seq, b.count, b.accepted, b.value) == (BUYER, SELLER, 202610, 4, 3, 2, 2_000_500)
     assert b.root == L.merkle_root(e.id for e in evals) and [e.id for e in b.evals] == sorted(e.id for e in evals)
     assert L.batch_audience(b) == f"knosm:batch:{BUYER}:{SELLER}:202610:4:3:2:2000500:{b.root.hex()}"
@@ -235,14 +235,14 @@ def test_reconcile_names_a_rate_a_month_and_a_duplicate():
         L.reconcile(seller, _ledger([replace(evals[0], seller=7)], [1]))
 
 
-def test_the_fee_is_the_price_books_after_the_free_ten_thousand():
-    assert (L.FREE_PER_MONTH, L.RATE) == (10_000, 50_000)
-    assert [L.fee(n) for n in (0, 9_999, 10_000, 10_001, 15_000)] == [0, 0, 0, 50_000, 250_000_000]
-    assert L.fee(15_000, rate=20_000) == 100_000_000 and L.fee(5, free=2) == 150_000         # an annual commitment; allowance partly used elsewhere
+def test_the_fee_is_the_price_books_after_the_free_hundred_thousand():
+    assert (L.FREE_PER_MONTH, L.RATE) == (100_000, 2_000)
+    assert [L.fee(n) for n in (0, 99_999, 100_000, 100_001, 1_000_000)] == [0, 0, 0, 2_000, 1_800_000_000]
+    assert L.fee(15_000, rate=20_000, free=10_000) == 100_000_000 and L.fee(5, free=2) == 6_000         # another rate and allowance; allowance partly used elsewhere
     evals = [_ev(i) for i in range(12)]
     r = L.reconcile(_ledger(evals, [12]), _ledger(evals, [5, 7]), free=10)
-    assert r.agreed and r.rows[0].fee == 100_000 and "\n202610,12,12,24000000,100000,0,0,0\n" in r.statement()
-    assert (L.usd(250_000_000), L.usd(50_000), L.usd(0)) == ("250", "0.05", "0")
+    assert r.agreed and r.rows[0].fee == 4_000 and "\n202610,12,12,24000000,4000,0,0,0\n" in r.statement()
+    assert (L.usd(1_800_000_000), L.usd(2_000), L.usd(0)) == ("1800", "0.002", "0")
 
 
 def test_export_is_one_row_per_evaluation():

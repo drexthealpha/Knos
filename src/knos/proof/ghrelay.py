@@ -134,6 +134,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from .. import ghwords
+
 TOKEN = re.compile(r"knos-(proof|fund|bind|veto|claim|key|verify|eval|take|cancel|revert|rule|gate):\s*(eyJ[\w-]+\.[\w-]+\.[\w-]+)")
 WITHDRAW = re.compile(r"knos-withdraw:\s*([A-Za-z0-9+/_-]{200,4000}={0,2})")    # a passkey wallet's withdrawal request: no token, see knos.settle.v2.passkey.request
 # a passkey's funding, as the Buy page writes it (the pattern of knos.settle.v2.passkey_fund.LINE, kept equal by a test)
@@ -491,6 +493,8 @@ def _note2(r: dict) -> str | None:
                     f"Order {r['order']}.")
         return (f"{_usdc(r['amount'])} {money} is in escrow as a work order for issue #{r['issue']} (its funder paid a fee of {_usdc(r['fee'])} on top), "
                 f"paid when {what}. Unpaid by {_day(r['deadline'])}, it goes back to its funder. Order {r['order']}.")
+    if k == "pay" and "order" in r and r.get("quorum") and not r.get("paid"):       # recorded, not paid: the reasons travel in the line
+        return ghwords.quorum_note(r["order"], r["quorum"])
     if k in ("pay", "rule") and "order" in r:
         sent, held = [p for p in r["paid"] if p["to"]], [p for p in r["paid"] if not p["to"]]
         out = [f"{_usdc(p['amount'])} was paid to {p['to']} (GitHub user id {p['payee_id']})" for p in sent]
@@ -688,6 +692,7 @@ def own_line(kind: str, repo: str, n: int, jwt: str, r: dict, queued: float | No
 
 
 _LOG: dict[str, int] = {}
+_LOG_BODY: dict[str, str] = {}      # the body of a log issue as it was found, until `post_log` has seen that it says what it is
 
 
 def _log_issue(repo: str = "", get=None) -> int | None:
@@ -698,6 +703,7 @@ def _log_issue(repo: str = "", get=None) -> int | None:
         if not res:
             return None
         _LOG[repo] = int(res[0]["number"])
+        _LOG_BODY[repo] = str(res[0].get("body") or "")
     return _LOG[repo]
 
 
@@ -713,7 +719,9 @@ def post_log(lines: list[str]) -> None:
             pass        # the label is there already
         n = _LOG[HOME_REPO] = int(_HUB.send(f"repos/{HOME_REPO}/issues", {
             "title": "Knos relay log", "labels": [LOG_LABEL],
-            "body": "One line per token the always-on worker relayed (see src/knos/proof/ghrelay.py)."})["number"])
+            "body": ghwords.MACHINE + "One line per token the always-on worker relayed (see src/knos/proof/ghrelay.py)."})["number"])
+    elif HOME_REPO in _LOG_BODY:        # a log opened before 0.3.18 does not say it is one: its body is edited once to say so
+        ghwords.say_machine(_HUB.send, f"repos/{HOME_REPO}/issues/{n}", _LOG_BODY.pop(HOME_REPO))
     while lines:                # a comment holds 65,536 characters
         take = max(1, next((i for i in range(1, len(lines) + 1) if sum(len(ln) + 1 for ln in lines[:i]) > 60_000), len(lines) + 1) - 1)
         _HUB.send(f"repos/{HOME_REPO}/issues/{n}/comments", {"body": "\n".join(lines[:take])})
@@ -934,10 +942,11 @@ def _held(state: dict, now: float, since: str) -> list[str]:
     return out
 
 
-def _cranks(ledger, payer) -> list[str]:
+def _cranks(ledger, payer, others=()) -> list[str]:
     """What needs no token, on both deployments: a proven payment whose wait is over, a bounty or a work order nobody
     proved in time, a held payment whose payee has bound a wallet since, a holdback whose warranty is over, and the
-    rent of this relayer's stale token accounts, of spent tokens' markers and of the meter's marks of months past."""
+    rent of this relayer's stale token accounts, of spent tokens' markers and of the meter's marks of months past.
+    `others`: the relay's further fee payers (KNOS_RELAY_KEYS): each takes back the rent of what it paid for."""
     from ..settle import relay as first
     from ..settle.v2 import relay as second
     now = int(ledger.now())
@@ -950,7 +959,9 @@ def _cranks(ledger, payer) -> list[str]:
               ("release", lambda: second.release_orders_due(ledger, payer, now), "a work order's warranty ended with no revert; what it held back went to its payees"),
               ("sweep", lambda: second.sweep(ledger, payer, now), None),
               ("sweep", lambda: second.close_markers(ledger, payer, now), None),
-              ("sweep", lambda: second.close_marks(ledger, payer, now), None))
+              ("sweep", lambda: second.close_marks(ledger, payer, now), None),
+              *(("sweep", lambda key=key, send=send: send(ledger, key, now), None)
+                for key in others for send in (second.sweep, second.close_markers, second.close_marks)))
     lines = []
     for kind, send, words in rounds:
         try:
@@ -982,8 +993,11 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
     hands = max(1, workers or int(os.environ.get("KNOS_RELAY_WORKERS") or relayq.WORKERS))
     me = f"sweep-{os.environ.get('GITHUB_RUN_ID') or os.getpid()}"
     # the pass's own time is the queue's: a wait of 10 s ends for the pass that starts 10 s later, on every run the same
-    queue = relayq.Queue(sp, lambda: at, limit=relayq.LIMIT, workers=hands, max_tries=None, strict=False)
+    # what this run shares with others (an event run, the sweep run it takes over from): append-only, merged by key
+    shared = relayq.Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or sp.with_name(f"{sp.stem}-notes")), me, lambda: at)
+    queue = relayq.Queue(sp, lambda: at, limit=relayq.LIMIT, workers=hands, max_tries=None, strict=False, notes=shared)
     queue.release(me)               # leases of this run's own workers: a pass has ended, so a lease it left was a worker killed
+    shared.prune()
     state = queue.notes()
     began = time.monotonic()
     since = _stamp(now - HORIZON)
@@ -992,11 +1006,14 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
     tries = dict(state.get("tries", {}))
     hold = {t: until for t, until in dict(state.get("hold", {})).items() if until > now}      # tokens not to be tried again before a time
     known = {r: t for r, t in dict(state.get("repos", {})).items() if now - t <= KNOWN_FOR}
+    for named in shared.repos() - set(known):
+        known[named] = now          # where an event run read: swept from now on
     day = _stamp(now)[:10]
     verified = dict(state.get("verify", {}).get("n", {})) if state.get("verify", {}).get("day") == day else {}
     if ledger is None:
         from .. import chain
         ledger, payer = chain.ledger(), chain.key()
+    pool = relayq.payers(payer)     # one key, or several (KNOS_RELAY_KEYS): a lane pays from one of them, always the same
     plock = threading.RLock()       # the pass's notes (state, seen, tries, hold, verified, lines), which several workers change
 
     def keep() -> None:
@@ -1018,6 +1035,10 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
         _post(state.pop("unposted"), state)
     raw = ledger._ledger if isinstance(ledger, Timed) else ledger
     ledger = ledger if isinstance(ledger, Timed) else Timed(ledger, lambda: time.time() + skew)
+    from ..settle.v2 import relay as second
+    # which knos_pay is live is asked anew by each pass, once: the fee a funding must hold, the markers a quorum counts
+    # and who is a judge all follow that answer, and an upgrade that executed since the last pass is met by this one
+    second.forget(ledger)
     lines, later = _held(state, now, since), []
     if lines:
         keep()                      # what was posted is out of the notes before anything else can stop this pass
@@ -1028,6 +1049,17 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
         except Exception:  # noqa: BLE001 - GitHub did not answer: a token the chain shows done is looked up one by one
             answered = set()
     listed: list = []
+    repos: set[str] = set()
+
+    def read(repo: str):
+        try:
+            return repo, found(repo, since)
+        except Exception:  # noqa: BLE001 - GitHub did not answer for this one: the next pass asks again
+            return repo, []
+
+    def read_all() -> list:
+        with ThreadPoolExecutor(max_workers=8) as readers:
+            return list(readers.map(read, sorted(repos)))
     if float(state.get("resting", 0)) > now:
         print(f"relay: the queue was full; comments are read again at {_stamp(float(state['resting']))} "
               f"(in {math.ceil(float(state['resting']) - now)} seconds). What is queued is carried meanwhile.", file=sys.stderr)
@@ -1043,61 +1075,75 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
         if now - state.get("searched", 0) >= SEARCH_EVERY:
             repos |= set(discover(since, state))
             state["searched"] = now
-
-        def read(repo: str):
-            try:
-                return repo, found(repo, since)
-            except Exception:  # noqa: BLE001 - GitHub did not answer for this one: the next pass asks again
-                return repo, []
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            listed = list(pool.map(read, sorted(repos)))
+        listed = read_all()
 
     def issued(item) -> int:
         try:
             return int(claims(item[2]).get("iat", 0))
         except Exception:  # noqa: BLE001 - not a token: relay_one reports it
             return 0
-    had = queue.entries()
-    # oldest first, whatever repository it is in: a balance takes its fund tokens in the order GitHub issued them
-    for repo, item in sorted(((repo, item) for repo, items in listed for item in items), key=lambda found: issued(found[1])):
-        kind, n, jwt, _who = item
-        terms, created = getattr(item, "terms", None), getattr(item, "created", None)
-        # a token is done once as it was posted: under this marker, with these terms. A copy posted another way is
-        # another matter, so nobody's copy can use up, or speak for, the token of the comment that posts it rightly
-        astray = kind == "withdraw" and not repo.endswith(CLAIM_REPO)       # a copy of a request, posted where none is read: it is not the request
-        # (a passkey's funding line is its own on each issue it is pasted on: a copy elsewhere never uses up the line on the issue it funds)
-        place = repo.encode() if astray else f"{repo}#{n}".encode() if kind == "passkey-fund" else b""
-        tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"") + place).hexdigest()[:16]
-        known[repo] = now
-        if tid in seen:
-            continue
-        if tid in had and "item" in had[tid]:           # in the journal: queued here on an earlier pass, or by an event run
-            if had[tid].get("state") not in relayq.OPEN:
-                seen.add(tid)                           # and answered there: its line is whoever carried it's to write
-                order.append(tid)
-            continue
-        if answer(kind, jwt) in answered:   # the log has its verdict, under this marker: the run before this one carried it
-            seen.add(tid)
-            order.append(tid)
-            continue
-        wrong = ("a withdrawal request is read only on an issue of a repository named knos-claim" if astray else None) if kind == "withdraw" \
-            else None if kind == "passkey-fund" else misposted(kind, jwt, terms)
-        if wrong:                   # logged without the token's id: whoever waits for that token is not answered by this
-            seen.add(tid)
-            order.append(tid)
-            lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its token ({token_id(jwt)[:8]}...): {wrong}")
-            later.append(lines[-1])
-            continue
-        what = {"kind": kind, "repo": repo, "n": n, "jwt": jwt, "terms": terms.decode() if terms else None, "created": created}
-        try:                        # journaled before the first transaction: a relay killed from here on finds the token again
-            queue.put(tid, _lane(kind, jwt, repo), what, id=token_id(jwt), kind=kind, where=f"{repo}#{n}")
-        except relayq.Full as full:
-            # backpressure: nothing more is read until the queue has had time to empty. The tokens stay in their comments.
-            state["resting"] = now + full.retry_after
-            print(f"relay: the queue is full ({queue.pending()} tokens wait and it holds {queue.limit}), because Solana or GitHub is answering slowly. "
-                  f"No comment is read for {full.retry_after} seconds; reading starts again at {_stamp(state['resting'])}. "
-                  "Nothing is lost: a token that was not taken is still in its comment.", file=sys.stderr)
-            break
+
+    def queue_found(listed: list) -> int:
+        """Queues every token of `listed` that is new here; returns how many. Called for the pass's first read, and
+        again (`relayq.work`'s feed) while a worker still carries: the pass's notes are changed under their lock, and
+        the queue is never asked while that lock is held (a worker's answer takes the two the other way round)."""
+        had, others, queued = queue.entries(), shared.merged(), 0
+        # oldest first, whatever repository it is in: a balance takes its fund tokens in the order GitHub issued them
+        for repo, item in sorted(((repo, item) for repo, items in listed for item in items), key=lambda found: issued(found[1])):
+            kind, n, jwt, _who = item
+            terms, created = getattr(item, "terms", None), getattr(item, "created", None)
+            # a token is done once as it was posted: under this marker, with these terms. A copy posted another way is
+            # another matter, so nobody's copy can use up, or speak for, the token of the comment that posts it rightly
+            astray = kind == "withdraw" and not repo.endswith(CLAIM_REPO)       # a copy of a request, posted where none is read: it is not the request
+            # (a passkey's funding line is its own on each issue it is pasted on: a copy elsewhere never uses up the line on the issue it funds)
+            place = repo.encode() if astray else f"{repo}#{n}".encode() if kind == "passkey-fund" else b""
+            tid = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (terms or b"") + place).hexdigest()[:16]
+            with plock:
+                known[repo] = now
+                if tid in seen:
+                    continue
+                if tid in had and "item" in had[tid]:           # in the journal: queued here on an earlier pass, or by an event run
+                    if had[tid].get("state") not in relayq.OPEN:
+                        seen.add(tid)                           # and answered there: its line is whoever carried it's to write
+                        order.append(tid)
+                    continue
+                theirs = others.get(tid)
+                if theirs is not None and theirs["by"] != shared.runner and theirs["state"] in ("confirmed", "refused"):
+                    seen.add(tid)                               # another run's notes have its answer: that run wrote its line
+                    order.append(tid)
+                    continue
+                if answer(kind, jwt) in answered:   # the log has its verdict, under this marker: the run before this one carried it
+                    seen.add(tid)
+                    order.append(tid)
+                    continue
+                wrong = ("a withdrawal request is read only on an issue of a repository named knos-claim" if astray else None) if kind == "withdraw" \
+                    else None if kind == "passkey-fund" else misposted(kind, jwt, terms)
+                if wrong:                   # logged without the token's id: whoever waits for that token is not answered by this
+                    seen.add(tid)
+                    order.append(tid)
+                    lines.append(f"knos-relay {kind} {repo}#{n} - fail this comment cannot carry its token ({token_id(jwt)[:8]}...): {wrong}")
+                    later.append(lines[-1])
+                    continue
+            what = {"kind": kind, "repo": repo, "n": n, "jwt": jwt, "terms": terms.decode() if terms else None, "created": created}
+            try:                        # journaled before the first transaction: a relay killed from here on finds the token again
+                queued += int(queue.put(tid, _lane(kind, jwt, repo), what, id=token_id(jwt), kind=kind, where=f"{repo}#{n}"))
+            except relayq.Full as full:
+                # backpressure: nothing more is read until the queue has had time to empty. The tokens stay in their comments.
+                with plock:
+                    state["resting"] = now + full.retry_after
+                print(f"relay: the queue is full ({queue.pending()} tokens wait and it holds {queue.limit}), because Solana or GitHub is answering slowly. "
+                      f"No comment is read for {full.retry_after} seconds; reading starts again at {_stamp(state['resting'])}. "
+                      "Nothing is lost: a token that was not taken is still in its comment.", file=sys.stderr)
+                break
+        return queued
+
+    def feed() -> int:
+        """While a worker still carries (a confirmation can take a minute): the same repositories are read again and
+        what is new is queued, so a free worker carries it now and not after the slowest token of this pass."""
+        if not repos or float(state.get("resting", 0)) > now:
+            return 0
+        return queue_found(read_all())
+    queue_found(listed)
     keep()
     killed: list[BaseException] = []
 
@@ -1123,13 +1169,15 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
             elif kind == "passkey-fund" and rid is None:
                 r = {"ok": False, "kind": kind, "retry": True, "transient": True, "why": f"GitHub did not say which repository {repo} is"}
             elif kind == "passkey-fund" and rid is not None:
-                r = dict(relay_one(timed, payer, kind, jwt, where=(rid, n)))
+                with pool.hold(str(entry.get("lane") or tid)) as key:
+                    r = dict(relay_one(timed, key, kind, jwt, where=(rid, n)))
             elif kind == "verify" and had_today >= VERIFY_PER_DAY:
                 r = {"ok": False, "kind": "verify", "why": f"{VERIFY_PER_DAY} tokens a day are verified for one repository, and this one has had "
                                                            "them; post it again after midnight UTC, or relay it yourself (anyone can)"}
             else:
                 more: dict[str, Any] = {"terms": terms} if terms else {}
-                r = dict(relay_one(timed, payer, kind, jwt, **more))
+                with pool.hold(str(entry.get("lane") or tid)) as key:      # this lane's fee payer, held while its token is carried
+                    r = dict(relay_one(timed, key, kind, jwt, **more))
         except Exception as why:  # noqa: BLE001 - what a relay raises says nothing about the token: tried again as any failure that may clear
             r = {"ok": False, "kind": kind, "retry": True, "transient": True, "why": f"{type(why).__name__}: {why}"}
         except BaseException as gone:  # noqa: BLE001 - the process is being stopped: nothing is noted, the lease stays, the next pass sends again
@@ -1207,12 +1255,13 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
             state["owners"].append(repo.split("/")[0])
         return q
 
-    relayq.work(queue, carry_one, hands, drain=False, owner=me, stop=lambda: bool(killed), note=_stamp_notes)
+    relayq.work(queue, carry_one, hands, drain=False, owner=me, stop=lambda: bool(killed), note=_stamp_notes, feed=feed,
+                feed_every=float(os.environ.get("KNOS_RELAY_REREAD") or relayq.FEED_EVERY))
     if killed:
         raise killed[0]             # the pass ends as the process would have: what it held is leased in the notes, and sent again next time
     if crank:
         try:
-            more = _cranks(ledger, payer)
+            more = _cranks(ledger, payer, pool.keys[1:]) if len(pool) > 1 else _cranks(ledger, payer)
         except Exception as why:  # noqa: BLE001 - the chain's clock could not be read; the next pass tries again
             more = []
             print(f"settle/refund: {why}", file=sys.stderr)

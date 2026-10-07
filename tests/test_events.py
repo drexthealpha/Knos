@@ -84,7 +84,7 @@ def test_one_evaluation_recorded_singly_and_inside_a_batch_is_counted_once_with_
     assert two.ok and len(two.duplicates) == 2 and sum(1 for e in two.added if e.first is None) == 2       # evaluation 2 and its acceptance are new
     d = next(x for x in two.duplicates if x["kind"] == "evaluation")
     assert [s["source"] for s in d["sources"]] == ["record", "batch"] and d["counted_at"] == 0
-    assert d["sources"][0]["evidence"] == "tx:5sigOfTheSingleRecord" and d["sources"][1]["evidence"] == f"batch:{BUYER}:{SELLER}:202610.0:{b.root.hex()}"
+    assert d["sources"][0]["evidence"] == "tx:5sigOfTheSingleRecord" and d["sources"][1]["evidence"] == f"batch:{BUYER}:{SELLER}:202610.0:{b.root.hex()}:event:{L.event_hash(_ev(1), 202610, 0).hex()}"
     st = E.statement(log, 202610)
     assert st["evaluations"]["accepted"] == 2 and st["accepted_deliverables"] == 2 and st["repeats_not_counted"] == 2
     assert {x["id"] for x in log.dupes()} == {x["id"] for x in two.duplicates}

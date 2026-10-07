@@ -2,7 +2,9 @@
 //
 //   renderTerms(el, env)   draws the registry into `el`: one card a template with its sentence, what it trusts, its
 //                          hash, "Cite in a contract" and "Fund with this"; a box that says which published template
-//                          a pasted terms JSON or hash is; and a table of every version.
+//                          a pasted terms JSON or hash is; and a table of every version. A Knos Terms 3 document is
+//                          shown as the ten questions it answers, with a version switcher (an answer that changed
+//                          moves once), and a box proposes terms for a repository (web/propose_terms.js).
 //
 // It reads one file of this site, terms/index.json (scripts/build_site.sh copies terms/ there), and asks nobody else.
 // The hash of pasted terms is computed here, from the same canonical bytes knos.terms.canonical writes: keys sorted,
@@ -10,7 +12,7 @@
 // most. `env`: { index } the registry already read, { fetchJson(path) } another reader, { copy(text) } another clipboard.
 export const STANDARD = "Knos Terms 1";
 export const MAX_BYTES = 600;
-const KEYS = ["accept", "checks", "deny", "mode", "paths", "reserve", "v"], MORE = ["image", "policy", "vendor"];
+const KEYS = ["accept", "checks", "deny", "mode", "paths", "reserve", "v"], MORE = ["contract", "image", "policy", "vendor"];
 const HASH = /^[0-9a-f]{64}$/;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
@@ -35,7 +37,9 @@ export function canonicalTerms(terms) {
   }
   if (![...terms.deny, ...terms.paths].every((g) => typeof g === "string")) throw new Error("deny and paths hold globs.");
   const sorted = [...checks.values()].sort((a, b) => byPoint(a.name, b.name) || a.app - b.app);
-  const out = { accept: terms.accept, checks: sorted.map((c) => ({ app: c.app, name: c.name })), deny: sortedSet(terms.deny) };
+  const out = { accept: terms.accept, checks: sorted.map((c) => ({ app: c.app, name: c.name })) };
+  if ("contract" in terms) out.contract = terms.contract;
+  out.deny = sortedSet(terms.deny);
   if ("image" in terms) out.image = terms.image;
   out.mode = terms.mode; out.paths = sortedSet(terms.paths);
   if ("policy" in terms) out.policy = terms.policy;
@@ -75,6 +79,33 @@ export function newest(index) {
 const JUDGE = { merge: "a maintainer's merge", "in-process": "in-process", "black-box": "black-box", hermetic: "hermetic" };
 export const trustOf = (t) => `Judge: ${JUDGE[t.trust?.judge] || "not said"}. Quorum: ${t.trust?.quorum || 1}.`;
 
+// ---- Knos Terms 3 (docs/TERMS.md): a document that answers ten questions, each in one required field ----------------
+export const STANDARD3 = "Knos Terms 3";
+export const QUESTIONS = [
+  ["deliverable", "What is one deliverable?"], ["evidence", "Whose signature counts?"], ["checks", "What decides?"],
+  ["window", "How long can it be reopened?"], ["changes", "What may change?"], ["dispute", "Who may appeal, and to whom?"],
+  ["evaluators", "Who may judge?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
+];
+export const file3 = (t) => `terms/3/${t.name}/${t.version}.json`;
+const facts = (d) => JSON.stringify(Object.keys(d || {}).filter((k) => k !== "says").sort().map((k) => [k, d[k]]));
+// The fields whose facts differ between two documents: a diff by meaning, not by text. No earlier document: none.
+export const changedFields = (a, b) => (a && b ? QUESTIONS.map(([f]) => f).filter((f) => facts(a[f]) !== facts(b[f])) : []);
+const ticked = (s) => esc(s).replace(/`([^`]*)`/g, "<code>$1</code>");
+// A document as its ten questions; `from`, when given, puts under each answer where it came from.
+export const tenQuestions = (doc, from) => QUESTIONS.map(([f, q]) => `<div data-field="${f}"><dt>${esc(q)}</dt>
+  <dd class="terms-sentence" data-not-prose data-keep>${ticked(doc?.[f]?.says || "This file does not answer it.")}</dd>${from ? `
+  <dd><details class="k-more"><summary>Where this came from</summary><ul data-not-prose>${(from[f] || []).map((s) => `<li>${ticked(s)}</li>`).join("")}</ul></details></dd>` : ""}</div>`).join("");
+const reduced = () => typeof matchMedia !== "function" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+// A changed answer moves once: it slides in from the side and stops. Nothing loops; with reduced motion nothing moves.
+function moveOnce(node) {
+  if (!node) return;
+  node.dataset.moved = String(Number(node.dataset.moved || 0) + 1);
+  if (reduced() || typeof node.animate !== "function") return;
+  const css = getComputedStyle(document.documentElement);
+  const frames = [{ transform: "translateX(12px)", opacity: 0.4 }, { transform: "none", opacity: 1 }], duration = parseFloat(css.getPropertyValue("--dur-2")) || 240;
+  try { node.animate(frames, { duration, easing: css.getPropertyValue("--ease").trim() || "ease-out", iterations: 1 }); } catch { node.animate(frames, { duration, iterations: 1 }); }
+}
+
 export async function renderTerms(el, env = {}) {
   if (el.dataset.terms) return;                 // drawn once, whoever calls
   el.dataset.terms = "1";
@@ -86,11 +117,18 @@ export async function renderTerms(el, env = {}) {
     el.innerHTML = `<h2>Terms</h2><p class="status" id="terms-none">This build holds no terms registry.</p>`;
     return;
   }
-  const rows = newest(index);
+  const rows = newest(index), three = index.terms3?.documents || [];
   el.innerHTML = `
     <p class="k-kicker">${esc(index.standard || STANDARD)}</p>
     <h2>Terms a contract can cite</h2>
     <p class="devnet">Test USDC on Solana devnet.</p>
+    <section class="k-card" id="terms-propose">
+      <h3><label for="terms-repo">Propose terms for a repository</label></h3>
+      <p><input id="terms-repo" type="text" placeholder="owner/name" spellcheck="false" autocomplete="off" autocapitalize="off">
+        <button type="button" class="k-btn" id="terms-propose-go" style="margin-top:12px">Propose terms</button></p>
+      <div id="terms-proposed" hidden></div>
+      <p><a href="https://github.com/drexthealpha/Knos/blob/main/docs/TERMS.md#proposed-from-a-repository">Read how a proposal is made</a></p>
+    </section>
     <div id="terms-list">${rows.map((t, i) => `
       <section class="k-card" data-tilt data-template="${esc(t.name)}">
         <p class="k-kicker">Version ${t.version}</p>
@@ -100,13 +138,23 @@ export async function renderTerms(el, env = {}) {
         <p class="terms-hash"><code class="k-num" data-copy>${esc(t.hash)}</code></p>
         <p class="terms-act">
           <button type="button" class="k-btn quiet" data-copy="hash" data-i="${i}">Copy fingerprint</button>
-          <button type="button" class="k-btn" data-copy="cite" data-i="${i}">Cite in a contract</button>
+          <button type="button" class="k-btn quiet" data-copy="cite" data-i="${i}">Cite in a contract</button>
           <button type="button" class="k-btn quiet" data-copy="fund" data-i="${i}">Fund with this</button>
           <a href="${esc(fileOf(t))}">Open the file</a>
         </p>
         <output class="terms-copied" aria-live="polite"></output>
       </section>`).join("")}
     </div>
+    ${three.length ? `<section class="k-card" id="terms3">
+      <p class="k-kicker">${esc(index.terms3.standard || STANDARD3)}</p>
+      <h3>Ten questions, one file</h3>
+      <p><label for="terms3-pick">Version</label>
+        <select id="terms3-pick">${three.map((t, i) => `<option value="${i}">${esc(t.name)} ${t.version}</option>`).join("")}</select>
+        <a id="terms3-file" href="${esc(file3(three[0]))}">Open the file</a></p>
+      <output id="terms3-changed" aria-live="polite"></output>
+      <dl id="terms3-answers"></dl>
+      <p class="terms-hash"><code class="k-num" id="terms3-hash"></code></p>
+    </section>` : ""}
     <section class="k-card" id="terms-check">
       <h3><label for="terms-paste">Paste terms, or a fingerprint</label></h3>
       <textarea id="terms-paste" rows="4" spellcheck="false" autocomplete="off"></textarea>
@@ -131,6 +179,39 @@ export async function renderTerms(el, env = {}) {
       try { await copy(what); button.textContent = done[button.dataset.copy]; } catch { button.textContent = "Select it below"; }
     });
   }
+  // Knos Terms 3: one document as the ten questions it answers. Switching version moves, once, each answer that changed.
+  const answers = el.querySelector("#terms3-answers"), docs = new Map();
+  const docOf = async (t) => { if (!docs.has(t)) docs.set(t, await fetchJson(file3(t))); return docs.get(t); };
+  let shown = null;
+  const show = async (t) => {
+    let doc;
+    try { doc = await docOf(t); } catch { el.querySelector("#terms3-changed").textContent = "This version's file is not in this build."; return; }
+    const changed = changedFields(shown, doc);
+    answers.innerHTML = tenQuestions(doc);
+    el.querySelector("#terms3-hash").textContent = t.hash;
+    el.querySelector("#terms3-file").setAttribute("href", file3(t));
+    const note = el.querySelector("#terms3-changed");
+    note.dataset.changed = String(changed.length);
+    note.textContent = shown ? `${changed.length} of 10 answers changed.` : (doc.built === false ? "Not built: needs a signing system of record." : "");
+    if (shown) for (const f of changed) moveOnce(answers.querySelector(`[data-field="${f}"]`));
+    shown = doc;
+    answers.dataset.shown = `${t.name}@${t.version}`;
+  };
+  if (three.length) {
+    el.querySelector("#terms3-pick").addEventListener("change", (e) => show(three[Number(e.target.value)]));
+    await show(three[0]);
+  }
+  // Terms proposed from a repository's own record (web/propose_terms.js, loaded when asked for).
+  // What is drawn is web/propose_view.js, the same list the front door and the Console show: each answer with where it
+  // came from, one button that opens GitHub's new-file page with .knos/terms.json filled in, one that copies the comment.
+  const repoBox = el.querySelector("#terms-repo"), proposed = el.querySelector("#terms-proposed");
+  const propose = async () => {
+    if (!repoBox.value.trim()) return;
+    const { renderProposal } = await import("./propose_view.js");
+    await renderProposal(proposed, repoBox.value, { propose: env.propose, proposeEnv: env.proposeEnv, copy });
+  };
+  el.querySelector("#terms-propose-go").addEventListener("click", propose);
+  repoBox.addEventListener("keydown", (e) => { if (e.key === "Enter") propose(); });
   const answer = el.querySelector("#terms-answer"), paste = el.querySelector("#terms-paste");
   const which = async () => {
     answer.dataset.found = "";

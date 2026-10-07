@@ -232,8 +232,8 @@ def test_a_line_without_a_verdict_in_words_is_written_as_it_always_was():
 
 def test_the_two_new_verdicts_are_not_accepted_on_chain_and_are_counted_apart_off_chain(capsys, tmp_path):
     evals = [_ev(1, 0, "accepted"), _ev(2, 0, "rejected"), _ev(3, 0, "insufficient_evidence"), _ev(4, 0, "disputed"), _ev(5, accepted=False)]
-    b = L.batch(evals, 0, MONTH)
-    plain = L.batch([_ev(i, accepted=i == 1) for i in range(1, 6)], 0, MONTH)               # the same five as 0.3.16 would have written them
+    b = L.batch(evals, 0, MONTH, format=1)
+    plain = L.batch([_ev(i, accepted=i == 1) for i in range(1, 6)], 0, MONTH, format=1)               # the same five as 0.3.16 would have written them
     assert (b.count, b.accepted, b.value) == (5, 1, 2_000_000) == (plain.count, plain.accepted, plain.value)
     assert b.root == plain.root and L.batch_audience(b) == L.batch_audience(plain)           # the token GitHub signs is the same token
     assert re.fullmatch(r"knosm:batch:424242:555000:202610:0:5:1:2000000:[0-9a-f]{64}", L.batch_audience(b))

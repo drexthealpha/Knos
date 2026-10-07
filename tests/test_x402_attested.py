@@ -22,11 +22,13 @@ def test_the_replayed_chain_is_what_knos_pay_does():
     r = subprocess.run([sys.executable, str(ROOT / "scripts" / "x402_fixture.py"), "--check"], capture_output=True, text=True, check=False,
                        env={**os.environ, "PYTHONPATH": str(ROOT / "src")})
     assert r.returncode == 0, r.stderr or r.stdout
+    from knos import fees
     from knos.settle.v2 import pay
     fx = json.loads((HERE / "fixtures.json").read_text(encoding="utf-8"))
     o = pay.read_order(bytes.fromhex(fx["order"]["data"]))
     assert (str(o.address()), o.amount, o.fee, str(o.source), o.state) == (fx["order"]["address"], fx["amount"], fx["fee"], fx["buyer"], "open")
-    assert fx["fee"] == pay.order_fee(fx["amount"]) and fx["paid"]["received"] == fx["amount"]            # the seller receives the amount whole
+    # the fee is the one of the build the fixture was recorded on (knos.fees: 2 is knos_pay 2.2 and the 0.3.18 fee)
+    assert fx["fee"] == fees.rule(fx["fee_version"]).order(fx["amount"]) and fx["paid"]["received"] == fx["amount"]   # the seller receives the amount whole
     assert fx["refunded"]["logs"] == [f"knos3:refunded order={fx['order']['address']} amount={fx['amount'] + fx['fee']}"]
 
 
@@ -49,7 +51,7 @@ def test_the_example_runs_a_server_and_a_client():
     if not node:
         pytest.skip("node is not installed: install Node 20 or later")
     done = subprocess.run([node, "--test", "--test-reporter=tap", "examples/x402_attested/test.mjs"], cwd=ROOT, capture_output=True, text=True, timeout=120)
-    assert done.returncode == 0 and re.search(r"^# pass 4$", done.stdout, re.M) and re.search(r"^# fail 0$", done.stdout, re.M), done.stdout[-3000:]
+    assert done.returncode == 0 and re.search(r"^# pass 5$", done.stdout, re.M) and re.search(r"^# fail 0$", done.stdout, re.M), done.stdout[-3000:]
 
 
 def test_the_offer_a_seller_copies_and_the_pages_messages_carry_terms_a_judge_can_read():
@@ -95,14 +97,16 @@ def _live(tmp_path, issue: int):
 def test_live_the_client_funds_a_real_order_over_rpc_is_served_and_the_seller_is_paid_on_acceptance(tmp_path):
     pytest.importorskip("solders.litesvm")
     from solders.pubkey import Pubkey
+    from knos import fees
     from knos.settle.v2 import pay
     c, shim, live, buyer, seller, tok, offer = _live(tmp_path, 77)
+    from _pay2 import ChainLedger
     try:
         got = live("run", "--key", str(tmp_path / "buyer.json"), "--offer", str(tmp_path / "offer.json"))
         order = Pubkey.from_string(got["order"])
         # the program ran: the order exists with the 402's terms, and the buyer's money (the amount and the fee) is in it
         o = c.order(order)
-        fee = pay.order_fee(offer["amount"])
+        fee = fees.live(ChainLedger(c)).order(offer["amount"])       # the fee of the build under test: the 402 and the program agree on it
         assert (got["status"], o.state, o.amount, o.fee, o.source, o.terms) == (200, "open", offer["amount"], fee, buyer.pubkey(), pay.terms_hash(offer["terms"].encode()))
         assert c.held(order) == offer["amount"] + fee and c.balance(tok) == 100 * 10 ** 6 - offer["amount"] - fee
         assert got["transaction"] in shim.txs and "sendTransaction" in shim.calls        # a transaction this process signed, verified by the chain

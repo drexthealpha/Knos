@@ -143,7 +143,11 @@ const STYLE = `.supplier textarea{min-height:96px;font-size:13px;width:100%}.sup
 .supplier [data-class=allowed_not_counted]>.sp-tag,.supplier p[data-class=allowed_not_counted]{color:var(--ink-2);border-style:dashed}
 .supplier .sp-out{transition:opacity var(--dur-2) var(--ease)}.supplier .sp-out[data-state=pending]{opacity:.5}
 .supplier table{border-collapse:collapse;width:100%}.supplier td,.supplier th{padding:6px 12px 6px 0;text-align:left;vertical-align:top;overflow-wrap:anywhere}
-.supplier td code{white-space:nowrap}@media (prefers-reduced-motion:reduce){.supplier .sp-out{transition:none}}`;
+.supplier td code{white-space:nowrap}@media (prefers-reduced-motion:reduce){.supplier .sp-out{transition:none}}
+@media (max-width:640px){.supplier thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.supplier tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}.supplier td{display:block;padding:2px 0}.supplier td code{white-space:normal;overflow-wrap:anywhere}}`;
+// Under 640 px a refusal is one block (its code, then its two sentences): three columns there squeeze each sentence to a
+// word a line (tests/web/overflow.mjs holds every table row of the site to ROW_MAX px).
 
 /** Fill `el` with the supplier's page. ctx: { fetch, base } (both optional; base is where terms/ and refusals.json are). */
 export function renderSupplier(el, ctx = {}) {
@@ -169,6 +173,7 @@ export function renderSupplier(el, ctx = {}) {
     <p class="fine" data-sp="count"></p>
     <div class="k-table"><table><thead><tr><th scope="col">Code</th><th scope="col">What happened</th><th scope="col">What to do</th></tr></thead><tbody data-sp="rows"></tbody></table></div>
     <p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/SUPPLIER.md" target="_blank" rel="noopener">Read the supplier's guide.</a> Run <code>knos preflight</code> in your checkout.</p>
+    <p class="fine" data-sp="kit"><a href="#record">See a public record.</a> <a href="https://github.com/drexthealpha/Knos/blob/main/docs/RECORD.md" target="_blank" rel="noopener">Get the badge, the install line and the invoice receipt.</a></p>
   </section>`;
   const $ = (name) => el.querySelector(`[data-sp="${name}"]`), box = el.querySelector("#sp-in"), pathBox = el.querySelector("#sp-path"), q = el.querySelector("#sp-q");
   let terms = null, refusals = [];

@@ -8,7 +8,7 @@ anew at its address first. After every step it checks, for all the state it has 
   (c) the test USDC in all token accounts together never changes;
   (d) an order that ended by a refund paid nobody, and one that ended paid returned nothing;
   (e) a Balance's spent counters equal the orders funded from it and never pass its limits;
-  (f) every fee is the tier schedule's.
+  (f) every fee is the schedule's: one rate, 0.30% or a Plan's, with a floor of 0.05.
 
 A failure names its seed and step: KNOS_MACHINE_SEED=<seed> replays that seed alone. KNOS_MACHINE_STEPS (steps per
 seed) and KNOS_MACHINE_SEEDS (how many seeds) scale the run. The last test runs the same machine against the program
@@ -46,9 +46,14 @@ ACTIONS = ["fund_wallet"] * 2 + ["fund_balance"] * 4 + ["comment"] + ["relay"] *
 WARPS = [5, 5, 30, 90, 600, 2 * 3600, 4 * 3600, DAY + 60, 8 * DAY]
 
 
-def schedule(amount: int, bps: int = 250) -> int:
-    """The fee schedule, written out here a second time: `bps` of the first 1,000, 1% up to 50,000, 0.5% above, at least 0.40."""
-    first, second, third = min(amount, 1_000 * USDC), max(min(amount, 50_000 * USDC) - 1_000 * USDC, 0), max(amount - 50_000 * USDC, 0)
+def schedule(amount: int, bps: int = 30) -> int:
+    """The fee schedule, written out here a second time: `bps` of the amount (0.30%, or a Plan's rate), at least 0.05. One rate."""
+    return max(amount * bps // 10_000, 50_000)
+
+
+def schedule_0_3_13(amount: int, bps: int = 250) -> int:
+    """The schedule of the build the last test runs (0.3.13): `bps` of the first 1,000, 1% up to 50,000, 0.5% above, at least 0.40."""
+    first, second, third = min(amount, 1_000 * USDC), min(amount, 50_000 * USDC) - min(amount, 1_000 * USDC), amount - min(amount, 50_000 * USDC)
     return max(first * bps // 10_000 + second * 100 // 10_000 + third * 50 // 10_000, 400_000)
 
 
@@ -101,7 +106,7 @@ class Machine:
         assert c.send([pay.open_balance_ix(w.pubkey(), self.owner2, c.usdc, spenders=[MAINT])], w), c.err
         self.bal2 = pay.balance_pda(self.owner2, w.pubkey(), c.usdc)
         transfer(c, wtok, pay.baltok_pda(self.bal2), 150_000 * USDC, w)
-        assert c.set_plan(self.owner2, 150, c.now() + 25 * DAY), c.err
+        assert c.set_plan(self.owner2, 150 if self.legacy else 15, c.now() + 25 * DAY), c.err     # 0.3.13 took 50 to 250; today 10 to 30
         self.limits = [3_000 * USDC, 20_000 * USDC]
         assert c.send([pay.set_balance_x_ix(c.owner.pubkey(), c.bal, *self.limits, repos=[REPO, REPO + 1])], c.owner), c.err
         self.day, self.day_spent, self.total_spent = 0, 0, 0
@@ -129,8 +134,11 @@ class Machine:
             raise AssertionError(self.bad[-1].text + "\n  " + "\n  ".join(self.trace[-15:]) + f"\n  replay: KNOS_MACHINE_SEED={self.seed}")
 
     def rate(self, o: pay.Order) -> int:
-        """The first tier's rate an order funded now pays: its owner's Plan from a Balance, 2.5% from a wallet."""
-        return pay.plan_bps(pay.read_plan(self.c.data(pay.plan_pda(o.owner_id))), self.c.now()) if o.from_balance else 250
+        """The rate an order funded now pays: its owner's Plan from a Balance, 0.30% from a wallet (0.3.13: 2.5%, and its own Plan's bounds)."""
+        if self.legacy:
+            plan = pay.read_plan(self.c.data(pay.plan_pda(o.owner_id)))
+            return plan.fee_bps if o.from_balance and plan is not None and self.c.now() < plan.expires else 250
+        return pay.plan_bps(pay.read_plan(self.c.data(pay.plan_pda(o.owner_id))), self.c.now()) if o.from_balance else 30
 
     # -- one transaction, booked -----------------------------------------------------------------------------------
     def act(self, name: str, address: Pubkey | None, send: Callable[[], bool], token: Token | None = None) -> bool:
@@ -181,8 +189,9 @@ class Machine:
                 paid += d
         book.funded, book.returned, book.paid, book.fees = book.funded + entered, book.returned + left, book.paid + paid, book.fees + fees
         if now is not None:
-            if entered and now.fee != schedule(now.amount, now.fee_bps) or now.fee != pay.order_fee(now.amount, now.fee_bps):
-                self.flag("f", name, f"an order of {now.amount} carries a fee of {now.fee}; the schedule says {schedule(now.amount, now.fee_bps)}")
+            due = schedule_0_3_13(now.amount, now.fee_bps) if self.legacy else schedule(now.amount, now.fee_bps)
+            if entered and now.fee != due or (not self.legacy and now.fee != pay.order_fee(now.amount, now.fee_bps)):
+                self.flag("f", name, f"an order of {now.amount} carries a fee of {now.fee}; the schedule says {due}")
             if entered and entered != now.amount + now.fee - (was.amount + was.fee if was else 0):
                 self.flag("f", name, f"{name} took {entered} for an order of {now.amount} and a fee of {now.fee}")
             book.amount, book.fee = now.amount, now.fee

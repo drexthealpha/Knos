@@ -192,6 +192,33 @@ def test_every_file_of_tests_web_runs_where_a_browser_is_installed_and_a_skip_th
                                                  for step in steps[:starts])
 
 
+def test_the_node_tests_of_the_site_run_in_two_parts_each_test_in_one_and_both_on_the_same_build():
+    """One job of every node test took 5m07s (tests.yml run 37570042831): they run as two parts side by side. Each
+    step that runs a test belongs to exactly one part, the site is built in both before anything drives it, and the
+    steps every part needs (the browser, the check that nothing skipped) have no condition."""
+    sdk = _jobs()["sdk"]
+    assert sdk["strategy"]["matrix"] == {"part": [1, 2]} and sdk["strategy"]["fail-fast"] is False
+    assert "${{ matrix.part }} of 2" in sdk["name"]
+    parts: dict[int, list[str]] = {1: [], 2: []}
+    built = None
+    for i, step in enumerate(sdk["steps"]):
+        run = str(step.get("run", ""))
+        if "bash scripts/build_site.sh" in run:
+            assert "if" not in step and "node " not in run
+            built = i
+        if re.search(r"^\s*node (sdk/|tests/web/|\"\$f\")", run, re.M):
+            part = {"matrix.part == 1": 1, "matrix.part == 2": 2}[step["if"]]
+            parts[part].append(run)
+            if "$RUNNER_TEMP/site" in run:
+                assert built is not None and i > built, step.get("name")
+    assert parts[1] and parts[2]
+    ran = {p: "\n".join(runs) for p, runs in parts.items()}
+    assert "for f in tests/web/*.mjs; do" in ran[2] and "node tests/web/site.mjs" in ran[1]
+    for name in re.findall(r"^\s*node tests/web/(\w+)\.mjs\b", ran[1] + "\n" + ran[2], re.M):
+        assert (f"node tests/web/{name}.mjs" in ran[1]) != (f"node tests/web/{name}.mjs" in ran[2]), name
+    assert "if" not in sdk["steps"][-1]
+
+
 def test_the_last_job_needs_every_other_job_and_passes_only_when_each_passed():
     jobs = _jobs()
     last = jobs["all-green"]

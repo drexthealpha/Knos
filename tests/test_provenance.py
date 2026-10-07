@@ -67,6 +67,8 @@ def _executed(data: dict, program: str = "knos_pay") -> tuple[dict, dict]:
     d["record"] = {"read": "2026-10-07T00:00:00Z", "programs": {program: {
         "on_chain_hash": e["build_hash"], "proposal": e["index"], "execution_signature": SIG,
         "on_chain_commit": e["source_commit"], "on_chain_run": e["gate_run"]}}}
+    # the made-up payment is the one scenario at the public id: the round the release recorded is left out of this copy
+    d["capabilities"]["capabilities"] = [c for c in d["capabilities"]["capabilities"] if "exercised" not in c["evidence"]]
     d["capabilities"]["capabilities"].append({
         "id": "made_up_for_the_test", "what": "A payment at the public id.", "stage": "exercised",
         "evidence": {"deployed": {"program": program, "id": d["ids"][program], "version": p["on_chain"]}, "exercised": {"signature": SIG2}}})

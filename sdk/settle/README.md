@@ -15,13 +15,13 @@ It speaks to the second deployment (`knos.v2`), whose programs are upgradeable o
 No registry account is needed. From the release:
 
 ```bash
-npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.17/knos-settle-0.3.17.tgz
+npm i https://github.com/drexthealpha/Knos/releases/download/v0.3.18/knos-settle-0.3.18.tgz
 ```
 
 Or import it in a browser:
 
 ```js
-import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.17/sdk/settle/index.js";
+import * as knos from "https://cdn.jsdelivr.net/gh/drexthealpha/Knos@v0.3.18/sdk/settle/index.js";
 ```
 
 ## Fund an order from a wallet in the browser
@@ -38,16 +38,20 @@ if (!wallet) throw new Error("This page found no Solana wallet. Install one and 
 const funder = await wallet.connect("solana:devnet");    // the wallet asks the person, then gives an address
 const { id: repoId } = await (await fetch("https://api.github.com/repos/drexthealpha/Knos")).json();
 const ix = await k.fundOrderWalletIx({ funder, funderToken: await knos.ata(funder, mint), mint, repoId, issue: 7, amount, terms,
-  wfRepo: "drexthealpha/knos-workflows", wfSha: "160edd4e19fcfbc86f712f01225e0717a7dde2d7" });   // the workflows that may pay it
+  wfRepo: "drexthealpha/knos-workflows", wfSha: "b7196a2ad17c72c36b00c0fded8b8e128196cacd" });   // the workflows that may pay it
 const { value } = await knos.rpc(RPC, "getLatestBlockhash", [{ commitment: "finalized" }]);
 const signature = await wallet.signAndSend(knos.serializeTx([ix], funder, value.blockhash), "solana:devnet");   // the wallet shows it first
-console.log(await knos.confirmed(RPC, signature), "- paid", amount / 1e6, "test USDC and a fee of", knos.v2.orderFee(amount) / 1e6, "on top");
+console.log(await knos.confirmed(RPC, signature), "- paid", amount / 1e6, "test USDC and a fee of", knos.v2.orderFee(amount) / 1e6, "on top from knos_pay 2.2");
 ```
 
 The order is for issue 7 of that repository: the 25 test USDC go to the person whose pull request closes the issue, once a
 maintainer merges it and the checks named in `terms` passed at its last commit. The fee is paid by the funder on top
-of the amount: 2.5% of the first 1,000 whole units of the mint, 1% from there to 50,000 and 0.5% above, at least 0.4 and
-with no maximum (`knos.v2.orderFee`). Unpaid at its deadline
+of the amount: 0.30% of it, at least 0.05 and with no maximum (`knos.v2.orderFee`), once knos_pay 2.2 is live on the
+public programs. Until that upgrade executes the public program charges the 0.3.14 fee: 2.5% of the first 1,000 whole
+units of the mint, 1% from there to 50,000 and 0.5% above, at least 0.40 (`knos.v2.orderFee(amount, null, 6,
+knos.v2.FEE_RULES.old)`). `knos.v2.feeRule(version)` gives the rule of the version the program answers to its Version
+instruction (2 from knos_pay 2.2 on), and `knos status` says which build runs. Orders funded before the upgrade keep
+the rate fixed at their funding. Unpaid at its deadline
 (14 days after funding, unless `workS` says otherwise), the order can be sent back to the wallet. The wallet needs the
 amount and the fee in test USDC, which Circle's [devnet faucet](https://faucet.circle.com) gives. The workflows in
 `wfRepo` and `wfSha` are the `prove.yml` that the repository's own `.github/workflows/knos.yml` calls: only a signed

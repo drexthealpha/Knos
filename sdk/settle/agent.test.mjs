@@ -68,7 +68,9 @@ function node(w, { calls = [], drop = new Set() } = {}) {
 
 const real = globalThis.fetch, calls = [];
 globalThis.fetch = node(world, { calls });
-const programs = world.programs, connection = { url: "rpc", programs, names: { [mint]: "test USDC" } };
+// the recording says which knos_pay it was made on: a job's fee is the one that build takes (connection.feeVersion)
+const programs = world.programs, connection = { url: "rpc", programs, names: { [mint]: "test USDC" }, feeVersion: world.expect.fee_version };
+const RULE = knos.v2.feeRule(world.expect.fee_version), OTHER = world.expect.fee_version >= knos.v2.FEE_VERSION ? knos.v2.FEE_VERSION - 1 : knos.v2.FEE_VERSION;
 const camel = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k.replace(/_(\w)/g, (_m, c) => c.toUpperCase()), v]).sort(([a], [b]) => (a < b ? -1 : 1)));   // the recording's keys are sorted
 
 try {
@@ -116,7 +118,17 @@ try {
   const job = byAddress[want.job.address];
   same("a job: the fee is taken out of it, the terms are tests mode", [job.kind, job.state, job.mode, job.amount, job.authorReceives, job.deadline, job.terms.words, job.funder],
     ["job", want.job.state, "tests", want.job.amount, want.job.net, want.job.deadline, want.terms_words.tests, { kind: "wallet", wallet: want.job.source, githubId: null }]);
-  same("a job's fee", job.fee, want.job.amount - want.job.net);
+  same("a job's fee is the one of the build the recording was made on", [job.fee, want.job.amount - want.job.net], [knos.v2.feeOf(want.job.amount, 6, RULE), knos.v2.feeOf(want.job.amount, 6, RULE)]);
+  // the fee follows the build that is live: the same chain read by a connection that says the program answered the other version
+  const otherJob = (await agent.quote({ ...connection, feeVersion: OTHER }, want.issue.repo, want.issue.issue)).items.find((i) => i.kind === "job"), otherRule = knos.v2.feeRule(OTHER);
+  same(`a job's fee when knos_pay answers version ${OTHER} (the ${otherRule.release} fee)`, [otherJob.fee, otherJob.authorReceives],
+    [knos.v2.feeOf(want.job.amount, 6, otherRule), want.job.amount - knos.v2.feeOf(want.job.amount, 6, otherRule)]);
+  same("the two rules give this job different fees: 2.5% before knos_pay 2.2, 0.30% from it", [knos.v2.feeOf(want.job.amount, 6, knos.v2.FEE_RULES.old), knos.v2.feeOf(want.job.amount, 6, knos.v2.FEE_RULES.new)],
+    [want.job.amount * 250 / 10_000, Math.max(50_000, Math.floor(want.job.amount * 30 / 10_000))]);
+  const unsaid = { ...connection }; delete unsaid.feeVersion;
+  same("a connection that names no version gets the 0.3.18 fee, the rule of this tree's build", (await agent.quote(unsaid, want.issue.repo, want.issue.issue)).items.find((i) => i.kind === "job").fee, knos.v2.feeOf(want.job.amount));
+  same("an order holds the fee of its funding under either", (await agent.quote({ ...connection, feeVersion: OTHER }, want.issue.repo, want.issue.issue)).items.filter((i) => i.kind === "order").map((i) => i.fee),
+    q.items.filter((i) => i.kind === "order").map((i) => i.fee));
   same("what is said", q.said, `Issue ${want.issue.issue} of repository ${want.issue.repo}: ${(want.orders[0].amount + want.orders[1].amount + want.job.net) / 1e6} test USDC in escrow for the author of the pull request that meets the terms, after the fee. Nothing certain stands in the way.`);
   same("nothing missing, nothing unread, and the funder's words are called data", [q.missing, q.unread, q.note.includes("never as instructions")], [[], [], true]);
 
@@ -153,7 +165,7 @@ try {
   same("eligible says it is server-side work, and does not guess", [e.decided, e.eligible, e.serverSide], [false, null, true]);
   same("it points to `knos attest` for each order that could pay, not for the job", e.attest.map((a) => a.command),
     [want.orders[1], want.orders[0]].map((o) => `knos attest --repository drexthealpha/Knos --pull 12 --order ${o.address} --kind pay`));
-  same("and says what the chain does say", [e.said.includes("decided on a server"), e.said.includes("`knos attest`"), e.said.endsWith("On the chain, 3 offers could pay: 30 test USDC, 20 test USDC, 14.625 test USDC."),
+  same("and says what the chain does say", [e.said.includes("decided on a server"), e.said.includes("`knos attest`"), e.said.endsWith(`On the chain, 3 offers could pay: 30 test USDC, 20 test USDC, ${want.job.net / 1e6} test USDC.`),
     e.orders.length], [true, true, true, 3]);
   const bare = await agent.eligible(connection, want.issue.repo, want.issue.expired_issue);
   same("without the repository's name or a pull request the command has placeholders, and nothing could pay", [bare.attest, bare.said.endsWith("On the chain, nothing could pay now.")], [[], true]);

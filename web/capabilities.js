@@ -30,8 +30,12 @@ export function evidenceHtml(c) {
     said.push(`<a href="https://explorer.solana.com/tx/${esc(ev.exercised.signature)}?cluster=devnet" target="_blank" rel="noopener">${esc(ev.exercised.signature.slice(0, 8))}...</a>`);
   }
   if (ev.reproduced && /^https:\/\//.test(ev.reproduced.url || "")) said.push(`<a href="${esc(ev.reproduced.url)}" target="_blank" rel="noopener">outside run</a>`);
-  return said.join(", ") + (c.note ? `${said.length ? ". " : ""}${esc(c.note)}` : "");
+  // a note of twelve words or fewer is said in the row; a longer one (up to a hundred words) is a shut fold under it
+  const note = !c.note ? "" : c.note.split(/\s+/).length <= NOTE_WORDS ? `${said.length ? ". " : ""}${esc(c.note)}`
+    : `<details class="cap-note"><summary>Read the note</summary>${esc(c.note)}</details>`;
+  return said.join(", ") + note;
 }
+export const NOTE_WORDS = 12;
 
 export function tableHtml(data, stage = "all") {
   const rows = filtered(data, stage).map((c) => `<tr data-stage="${esc(stageOf(c))}"><td>${esc(c.what)}</td><td>${esc(STAGE_WORDS[stageOf(c)])}</td><td>${evidenceHtml(c)}</td></tr>`);
@@ -39,14 +43,25 @@ export function tableHtml(data, stage = "all") {
     || '<tr><td colspan="3">Nothing is at this stage yet.</td></tr>'}</table></div>`;
 }
 
+// Under 900 px a capability is one block (what it is, its stage, its evidence): three columns there squeeze the evidence
+// to a word a line (tests/web/overflow.mjs holds every table row of the site to ROW_MAX px). Here, not in app.css, whose
+// budget is spent.
+const STYLE = `@media (max-width:900px){table.capabilities th{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+table.capabilities tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}table.capabilities tr:first-child{padding:0;border:0}
+table.capabilities td{display:block;padding:2px 0;border:0}}
+table.capabilities .cap-note summary{cursor:pointer}`;
+
 // Mount the table and its filter in `el`. `data` is docs/capabilities.json, parsed.
 export function renderCapabilities(el, data) {
+  const doc = el.ownerDocument;
+  if (doc && !doc.getElementById("capabilities-style")) { const s = doc.createElement("style"); s.id = "capabilities-style"; s.textContent = STYLE; doc.head.appendChild(s); }
   const n = counts(data), total = (data?.capabilities || []).length;
   const options = [["all", `Every stage (${total})`], ...[...STAGES, "none"].map((s) => [s, `${STAGE_WORDS[s]} (${n[s]})`])];
   el.innerHTML = `<p><label>Show <select class="capabilities-stage">${options.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("")}</select></label></p>
     <div class="capabilities-table">${tableHtml(data, "all")}</div>
-    <p class="fine">A stage is the highest one with evidence, and needs the ones below it: a source file, a test, the on-chain version that carries it,
-      a transaction on devnet, someone else's run. Everything is on Solana devnet, in test USDC.</p>`;
+    <p class="fine" data-fold="What a stage means">A stage is the highest one with evidence, and needs the ones below it: a source file, a test, the on-chain version that carries it,
+      a transaction on devnet, someone else's run. Everything is on Solana devnet, in test USDC.</p>
+    <p class="fine capabilities-manifest"><a href="${REPO}docs/MANIFEST.md" target="_blank" rel="noopener">See source, deployed bytes and limits on one page.</a></p>`;
   const select = el.querySelector(".capabilities-stage"), table = el.querySelector(".capabilities-table");
   select.onchange = () => { table.innerHTML = tableHtml(data, select.value); };
   return el;

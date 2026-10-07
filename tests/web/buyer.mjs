@@ -60,7 +60,8 @@ const at = (size, ...fields) => { const out = new Uint8Array(size); for (const [
 const b64 = (u8) => Buffer.from(u8).toString("base64");
 const tokenBytes = ({ mint, owner, amount }) => at(165, [0, knos.unb58(mint)], [32, knos.unb58(owner)], [64, u64(amount)], [108, [1]]);
 const SIG = { fund: "2".repeat(88), pay: "3".repeat(88) };
-const chain = { wallet: null, holds: 100_000_000, order: null, calls: [], paid: false, accounts: new Map(), sigs: new Map() };
+// payVersion: what knos_pay answers to Version (1: 2.1, the 0.3.14 fee; 2: 2.2, the 0.3.18 fee; null: devnet does not answer and the page reads upgrades.json)
+const chain = { wallet: null, holds: 100_000_000, order: null, calls: [], paid: false, accounts: new Map(), sigs: new Map(), payVersion: 1, feed: null };
 
 // ---- an organisation with a budget, and its orders, as devnet and the site's files would hold them ---------------------------------------
 // octo (GitHub id 6001) owns octo/widgets. Its Balance: a cap of 500 per order, 300 a day of which 240 is spent today,
@@ -113,6 +114,7 @@ async function context(width) {
   });
   // the site's own files for the organisation: registered after the line above, so asked before it
   await ctx.route(`${base}audit/${ORG}.json`, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(orgStatement) }));
+  await ctx.route(`${base}upgrades.json`, (route) => (chain.feed ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(chain.feed) }) : route.continue()));
   await ctx.route(`${base}r/octo/widgets.json`, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ as_earner: { refusals_at_merge: 2 } }) }));
   await ctx.route("https://api.github.com/**", (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -133,6 +135,7 @@ async function context(width) {
     chain.calls.push({ method, params });
     let result;
     if (method === "getGenesisHash") result = DEVNET;
+    else if (method === "simulateTransaction" && chain.payVersion !== null) result = { value: { err: null, logs: logs([`knos2:version ${chain.payVersion}`]) } };
     else if (method === "getSlot") result = SLOT;
     else if (method === "getProgramAccounts") {      // the Balances of one GitHub owner: its id at byte 8
       const want = params[1].filters.find((f) => f.memcmp)?.memcmp;
@@ -163,6 +166,7 @@ async function open(ctx) {
   // the page's own hook calls renderBuyer; until it is there (and after: it draws once), the test calls it the same way
   await page.evaluate(async () => { const m = await import("./buyer.js"); await m.renderBuyer(document.getElementById("buy"), {}); window.dispatchEvent(new HashChangeEvent("hashchange")); });
   await page.waitForSelector("#buy-sentence:not(:empty)");
+  await page.waitForSelector("#buy[data-fee]");            // the page asked which build is live and drew its fees by that rule
   await page.evaluate(() => document.fonts.ready);
   return { page, errors };
 }
@@ -350,7 +354,7 @@ check("  the signature verifies under the wallet's key, with s in the lower half
   && BigInt(`0x${sig.subarray(32).toString("hex")}`) <= 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551n / 2n);
 check("  the button opens the issue on GitHub, and the page says to paste the line", (await page.$eval("#buy-open", (a) => a.href)) === "https://github.com/octo/widgets/issues/7"
   && /paste it in the comment box/.test(await text(page, "#buy-pk-result")) && /Then read the order under Invoice\./.test(await text(page, "#buy-pk-result")));
-check("  nothing was sent to Solana: the page only read", chain.calls.every((c) => ["getGenesisHash", "getSlot", "getMultipleAccounts", "getAccountInfo", "getProgramAccounts", "getSignaturesForAddress"].includes(c.method)), [...new Set(chain.calls.map((c) => c.method))]);
+check("  nothing was sent to Solana: the page only read, and simulated Version to learn which fee is live", chain.calls.every((c) => ["simulateTransaction", "getGenesisHash", "getSlot", "getMultipleAccounts", "getAccountInfo", "getProgramAccounts", "getSignaturesForAddress"].includes(c.method)), [...new Set(chain.calls.map((c) => c.method))]);
 writeFileSync(join(fixtures, "line.txt"), line);
 await page.fill("#buy-amount", "60");
 check("changing the order after signing takes the signed line away", !(await page.$("#buy-line")));
@@ -592,6 +596,48 @@ check("a build with controls_data.js: its explainFunding decides what the budget
   && (await text(sixth.page, "#buy-allowed [data-part=rule]")) === "a rule of the file" && (await text(sixth.page, "#buy-allowed [data-part=fee]")) === "1.25 test USDC, 2.50% of the amount"
   && JSON.stringify(await sixth.page.$$eval("#buy-fee-rows tbody tr", (l) => l.map((r) => [...r.cells].map((c) => c.textContent)))) === JSON.stringify([["5.00", "0.40", "8.00%"]]), await text(sixth.page, "#buy-allowed"));
 await ruled.close();
+
+// ---- the fee follows the build that is live ---------------------------------------------------------------------------------------------
+// above, the test's devnet answered Version as knos_pay 2.1 does, and every fee was the 0.3.14 one. The same page, three more ways:
+const KEEPS = "Orders funded before the upgrade keep the rate fixed at their funding.";
+async function feesOf(label) {
+  const ctx = await context(1280), got = await open(ctx), p = got.page;
+  await p.fill("#buy-amount", "100");
+  const out = { rule: await p.$eval("#buy", (e) => e.dataset.fee), source: await p.$eval("#buy", (e) => e.dataset.feeSource), cost: await text(p, "#buy-cost"), note: await text(p, "#buy-fee-note"),
+    rows: await p.$$eval("#buy-fee-rows tbody tr", (l) => l.map((r) => [...r.cells].map((c) => c.textContent))), under: await text(p, "#buy-fee-rule p"), errors: got.errors };
+  await p.fill("#buy-amount", "5");
+  out.small = [await text(p, "#buy-cost"), await text(p, "#buy-fee-warning")];
+  await ctx.close();
+  check(`  ${label}: no script error`, out.errors.length === 0, out.errors);
+  return out;
+}
+const NEW_ROWS = [["5.00", "0.05", "1.00%"], ["20.00", "0.06", "0.30%"], ["1,000.00", "3.00", "0.30%"], ["5,000.00", "15.00", "0.30%"], ["50,000.00", "150.00", "0.30%"]];
+const OLD_ROWS = [["5.00", "0.40", "8.00%"], ["20.00", "0.50", "2.50%"], ["1,000.00", "25.00", "2.50%"], ["5,000.00", "65.00", "1.30%"], ["50,000.00", "515.00", "1.03%"]];
+chain.payVersion = 1;
+const at21 = await feesOf("knos_pay 2.1 answers");
+check("while knos_pay 2.1 is live the page shows the 0.3.14 fee, says the program charges it now, and what 2.2 will charge", at21.rule === "0.3.14" && at21.source === "chain"
+  && /a fee of 2\.50 on top, which is 2\.50% of the amount/.test(at21.cost) && at21.note === `The program on devnet charges this now (the 0.3.14 fee). From knos_pay 2.2 this order pays 0.30. ${KEEPS}`
+  && JSON.stringify(at21.rows) === JSON.stringify(OLD_ROWS) && /^Fee today: 2\.5% of the first 1,000, 1% to 50,000, 0\.5% above, at least 0\.40 test USDC/.test(at21.under) && at21.under.endsWith(KEEPS), at21);
+chain.payVersion = 2;
+const at22 = await feesOf("knos_pay 2.2 answers");
+check("once knos_pay 2.2 is live the page shows the 0.3.18 fee: 100 pays 0.30, and 5 pays the minimum of 0.05 (1.00%)", at22.rule === "0.3.18" && at22.source === "chain"
+  && /^You pay 100\.30 test USDC: 100\.00 for whoever does the work, and a fee of 0\.30 on top, which is 0\.30% of the amount\./.test(at22.cost) && at22.note === `The program on devnet charges this now (knos_pay 2.2). ${KEEPS}`
+  && JSON.stringify(at22.rows) === JSON.stringify(NEW_ROWS) && at22.under === `Fee: 0.30% of the amount, at least 0.05 test USDC, paid by the funder on top (knos_pay 2.2 is live). ${KEEPS}`
+  && at22.small[0].includes("a fee of 0.05 on top, which is 1.00% of the amount") && /never less than 0\.05 test USDC/.test(at22.small[1]) && /an order of 5\.00 costs 1\.00%/.test(at22.small[1]), at22);
+// devnet does not answer: the page reads upgrades.json, the file written from the upgrade multisig's accounts
+chain.payVersion = null;
+chain.feed = { entries: [{ index: 4, program: "knos_pay", status: "executed" }, { index: 8, program: "knos_pay", status: "pending" }] };
+const feedOld = await feesOf("devnet silent, the feed has 2.2 pending");
+check("devnet silent and the 2.2 proposal still pending in upgrades.json: the 0.3.14 fee, from the feed", feedOld.rule === "0.3.14" && feedOld.source === "feed" && JSON.stringify(feedOld.rows) === JSON.stringify(OLD_ROWS), feedOld);
+chain.feed = { entries: [{ index: 4, program: "knos_pay", status: "executed" }, { index: 8, program: "knos_pay", status: "executed" }] };
+const feedNew = await feesOf("devnet silent, the feed has 2.2 executed");
+check("devnet silent and the 2.2 proposal executed in upgrades.json: the 0.3.18 fee, from the feed", feedNew.rule === "0.3.18" && feedNew.source === "feed" && JSON.stringify(feedNew.rows) === JSON.stringify(NEW_ROWS), feedNew);
+chain.feed = { not: "a feed" };
+const nobody = await feesOf("nobody answers");
+check("nobody answers: the 0.3.18 number with both rules said, never a rule claimed as live", nobody.rule === "0.3.18" && nobody.source === "none"
+  && nobody.note === `This is the fee from knos_pay 2.2. Until that upgrade is live the public program charges 2.50 on this order. ${KEEPS}`
+  && /once knos_pay 2\.2 is live; until that upgrade executes the public program charges the 0\.3\.14 fee \(2\.5% of the first 1,000, 1% to 50,000, 0\.5% above, at least 0\.40\)/.test(nobody.under) && nobody.under.endsWith(KEEPS), nobody);
+chain.payVersion = 1; chain.feed = null;
 
 await browser.close(); server.close();
 console.log(process.exitCode ? "the Buy page FAILED" : "the Buy page holds");

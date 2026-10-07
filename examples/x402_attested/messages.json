@@ -28,7 +28,7 @@
       "repository": "drexthealpha/Knos",
       "sha": "cccccccccccccccccccccccccccccccccccccccc"
      },
-     "fee": "500000",
+     "fee": "60000",
      "payee": {
       "githubId": "5550123"
      }
@@ -100,7 +100,7 @@
      "repository": "drexthealpha/Knos",
      "sha": "cccccccccccccccccccccccccccccccccccccccc"
     },
-    "fee": "500000",
+    "fee": "60000",
     "payee": {
      "githubId": "5550123"
     }
@@ -143,6 +143,6 @@
  "statusRefunded": {
   "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
   "state": "refunded",
-  "amount": "20500000"
+  "amount": "20060000"
  }
 }

@@ -2,14 +2,15 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Start with [STORY.md](STORY.md): the number, the round in eight steps, and what the project needs next. Every other
+Start with [STORY.md](STORY.md): the number, the three-minute demonstration in six beats, and what the project needs next. Every other
 document is listed once below. `tests/test_docs_map.py` fails when a file in this folder is missing from this page.
 
 ## 1. Does it work?
 
 | document | what it answers |
 |---|---|
-| [STORY.md](STORY.md) | the whole round on one page, each step with its evidence |
+| [STORY.md](STORY.md) | the demonstration's six beats on one page, each with its evidence |
+| [MANIFEST.md](MANIFEST.md) | this release on one page: source, the build live at each public id, every capability's stage, the limits |
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
 | [BENCH.md](BENCH.md) | every measured number, with the command that reproduces it |
 | [TAMPER.md](TAMPER.md) | which cheating submissions each judge refuses, and how much correct work each accepts |
@@ -32,6 +33,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [INDEX.md](INDEX.md) | the Agent PR Index: how often "tests pass" agrees with the checks, by agent and week |
 | [MARKET.md](MARKET.md) | who buys, the price book, the costs, and what can stop this |
 | [PILOT.md](PILOT.md) | the one offer for money: one buyer, its suppliers, 30 days |
+| [UNIT_COSTS.md](UNIT_COSTS.md) | what one unit costs Knos to deliver, measured or a budget, and the ceilings at a 90% and a 95% margin |
 | [SHADOW.md](SHADOW.md) | a neutral count beside an invoice a buyer already receives |
 
 ## 3. What is new?
@@ -45,6 +47,8 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [EVENTS.md](EVENTS.md) | one log of events under every recording mode: ids, acknowledgements, corrections, duplicates |
 | [RECEIPT.md](RECEIPT.md) | the acceptance receipt and its schema |
 | [TERMS.md](TERMS.md) | terms a contract can cite by hash |
+| [DISPUTES.md](DISPUTES.md) | who can do what in a dispute, at each state, with nobody from Knos |
+| [LIABILITY.md](LIABILITY.md) | each way the count can be wrong, what the software does, and what nobody has signed for |
 | [OUTCOMES.md](OUTCOMES.md) | outcomes other than a merged pull request |
 | [X402.md](X402.md) | a proposal: pay on signed acceptance over x402 |
 
@@ -57,6 +61,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [CONSOLE.md](CONSOLE.md) | the console, for whoever authorises a payment |
 | [FINANCE.md](FINANCE.md) | the four records of a deliverable, and the accounting exports |
 | [SUPPLIER.md](SUPPLIER.md) | for the supplier: the rules before the work, every refusal in plain words, appeals |
+| [RECORD.md](RECORD.md) | the supplier's kit: a public record, a badge, one line to install, a receipt for the invoice |
 | [VAULT.md](VAULT.md) | keeping evidence: sealed bundles, export, retention, checkpoints, a restore drill |
 | [PRIVATE.md](PRIVATE.md) | a neutral count for private repositories without showing the code |
 | [AGENTS.md](AGENTS.md) | an agent finds work, takes it, submits it and is paid |

@@ -63,7 +63,7 @@ example and has a Kubernetes cluster sign its evaluation: a workload identity, a
 | 2. The Job | The example's black-box suite judges `transform.sql` in a Kubernetes Job under the service account `knos-judge` | [`outcome_k8s_job.yaml`](../scripts/outcome_k8s_job.yaml), `scripts/outcome_k8s.py job` | the judging step is tested here outside a cluster; the Job ran in the kind cluster of staging [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) |
 | 3. The token | The pod asks its own cluster (the TokenRequest API) for a token of `knos-judge` whose audience is the evaluation, `knosm:eval:...`, the meter's audience | `scripts/outcome_k8s.py job` | the kind cluster of staging [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) issued it |
 | 4. Offline check | The token is checked against the cluster's key set (`kubectl get --raw /openid/v1/jwks`) by the on-chain verifier's rule, and a receipt is written | `scripts/outcome_k8s.py verify` | tested here on a token of the same shape signed by a test key; the kind cluster's token of staging [run 37483745385](https://github.com/drexthealpha/knos-rc/actions/runs/37483745385) verified offline against that cluster's key set |
-| 5. Devnet | A wallet registers the cluster's key as a private key, the token is written and stepped, and its account is VERIFIED | `scripts/outcome_k8s.py chain` | implemented; tested here in the test build of the verifier (LiteSVM); sent to devnet only by the release run, after the pending upgrade |
+| 5. Devnet | A wallet registers the cluster's key as a private key, the token is written and stepped, and its account is VERIFIED | `scripts/outcome_k8s.py chain` | implemented; tested here in the test build of the verifier (LiteSVM); sent to devnet only by the release run (the `issuer` round of `scripts/exercise_public.py`) |
 | 6. The count | The evaluation is one line of the seller's ledger | `knos meter batch --claim` | the line is written by step 5; see "What the meter does with it" |
 
 The run uploads one artifact, `outcome-k8s`: `token`, `jwks.json`, `openid-configuration.json`, `issuer`,
@@ -109,8 +109,8 @@ Check the artifact again on your own machine; nothing is sent:
     python scripts/outcome_k8s.py verify --token out/token --jwks out/jwks.json --issuer "$(cat out/issuer)" \
         --verdict out/verdict.json --out out/receipt.json
 
-Then devnet, with a devnet wallet, after the verifier's pending upgrade has executed (private keys are part of
-2.1). The token is asked for six hours and the verifier reads one until an hour after it expires, so this follows
+Then devnet, with a devnet wallet, on the verifier's 2.1 build, which the public id runs since proposal 3 executed
+(private keys are part of 2.1). The token is asked for six hours and the verifier reads one until an hour after it expires, so this follows
 the run the same day. The first command lists the transactions and sends none; `--send` sends them:
 
     python scripts/outcome_k8s.py chain --token out/token --jwks out/jwks.json --issuer "$(cat out/issuer)" \

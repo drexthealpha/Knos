@@ -47,7 +47,7 @@
 #                                           proposes. Two approved proposals for one program would both execute.
 #                                           Before any of that it makes its PLAN: the programs whose build here is not
 #                                           the one the chain runs. A release says which programs it changes
-#                                           (KNOS_CHANGES; 0.3.16: knos_oidc alone), and a program outside that list
+#                                           (KNOS_CHANGES; 0.3.18: knos_oidc and knos_pay, one set), and a program outside that list
 #                                           whose build differs STOPS the run with nothing withdrawn, written or
 #                                           proposed: its file is then not the verified build the chain runs (the
 #                                           earlier proposals have not executed, or it is a rebuild whose bytes moved
@@ -95,8 +95,8 @@
 #                      above (a build of knos_pay whose OIDC_ID is the staging verifier, say)
 #   KNOS_GATE_TOKENS   --propose: a folder with <program>.jwt for each of the four, the tokens program.yml asked GitHub
 #                      for (audience gate:<program>:<executable hash>). With them a missing record is written
-#   KNOS_CHANGES       --propose: the programs this release changes, separated by spaces (default: knos_oidc, which is
-#                      0.3.16's one upgrade). Only these are proposed; see --propose above
+#   KNOS_CHANGES       --propose: the programs this release changes, separated by spaces (default: "knos_oidc knos_pay",
+#                      0.3.18's one proposal set). Only these are proposed; see --propose above
 #   KNOS_GATE_WAIT     --propose: how many seconds to wait for a build's record at the upgrade gate before refusing
 #                      (default 1800: program.yml's verified builds and the relay take about that long after a push)
 #   KNOS_PRIORITY_FEE  micro-lamports per compute unit for the deploy (default 1000)
@@ -141,9 +141,9 @@ PROGRAMS="knos_oidc knos_pay"
 NEW_PROGRAMS="knos_meter knos_passkey upgrade_gate"
 UPGRADES="knos_oidc knos_pay knos_meter knos_passkey"   # what --propose proposes: every program the upgrade vault holds, in the order they execute
 # The programs THIS release changes. --propose proposes these and no other: a build of another program that is not what
-# the chain runs stops the run before anything is sent (plan, below). 0.3.16 changes knos_oidc alone; the other three
-# stay the builds of the tag scripts/bump_version.py holds their crates at (FROZEN_AT).
-CHANGES="${KNOS_CHANGES:-knos_oidc}"
+# the chain runs stops the run before anything is sent (plan, below). 0.3.18 changes knos_oidc and knos_pay; knos_meter and
+# knos_passkey stay the builds of the tag scripts/bump_version.py holds their crates at (FROZEN_AT).
+CHANGES="${KNOS_CHANGES:-knos_oidc knos_pay}"
 RC="$KEYS/rc"                                  # the staging keypairs and ids file
 SCHEDULE="$KEYS/upgrade-schedule.json"         # when the proposed upgrades can be executed: scripts/schedule_upgrade.sh reads it
 WORK="" VALIDATOR=""

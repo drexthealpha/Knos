@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import network_stats  # noqa: E402
 
-from knos import cli, ghwords, records  # noqa: E402
+from knos import cli, fees, ghwords, records  # noqa: E402
 from knos.settle.v2 import pay as pay2  # noqa: E402
 
 RECORDED = ROOT / "tests" / "web" / "recorded"
@@ -57,7 +57,7 @@ TERMS = '{"accept":"","checks":[],"deny":[],"mode":"merge","paths":[],"reserve":
 
 
 def funded_and_paid(n: int, at: int, repo=7001, issue=1, by=6001, payee=8001, amount=20_000_000, source="Bal1", **paid) -> list[dict]:
-    fee = pay2.fee_of(amount)
+    fee = fees.OLD.job(amount)          # made by knos_pay 2.1: a record keeps the fee that was charged
     return [line("funded", at, f"F{n}", repo=repo, issue=issue, amount=amount, mode=0, by=by, source=source, faucet=0),
             line("terms", at, f"F{n}", json=TERMS),
             line("paid", at + 100, f"P{n}", repo=repo, issue=issue, payee=payee, amount=amount - fee, fee=fee, to=f"Wallet{payee}", **paid)]
@@ -344,7 +344,7 @@ def test_every_reader_of_a_transaction_asks_for_version_1():
                 readers[path.relative_to(root).as_posix()] = (asks, re.findall(r"""maxSupportedTransactionVersion["']?\s*:\s*(\w+)""", text))
     assert readers == {"scripts/rehearse_fork.py": (1, ["1"]), "sdk/settle/agent.js": (1, ["1"]), "scripts/latency_stages.py": (1, ["1"]),
                        "src/knos/bundle.py": (2, ["1", "1", "1"]), "src/knos/chain.py": (1, ["1"]), "src/knos/observe.py": (1, ["1"]),      # bundle.py's third is its getBlock
-                       "src/knos/records.py": (2, ["1", "1"]), "web/buyer.js": (1, ["1"]), "web/first.js": (1, ["1"]), "scripts/provenance.py": (1, ["1"])}, readers
+                       "src/knos/records.py": (2, ["1", "1"]), "web/buyer.js": (1, ["1"]), "web/first.js": (1, ["1"]), "scripts/provenance.py": (1, ["1"]), "scripts/exercise_public.py": (1, ["1"])}, readers
 
 
 # ---- the commands -----------------------------------------------------------------------------------------------------
@@ -489,7 +489,7 @@ class Recorder:
 
 @pytest.fixture(scope="module")
 def orders() -> tuple[list[dict], dict]:
-    """Six work orders through knos_pay 2.1: a split, one held, one with a holdback that is released, one reverted,
+    """Six work orders through the tree's knos_pay (2.2: every fee below is 0.30% of the amount, the fee this build takes): a split, one held, one with a holdback that is released, one reverted,
     a standing offer whose rest goes back, and one reserved, cancelled and refunded with a kill fee. And a job, to
     show the two are kept apart. Returns (events, the names of what happened)."""
     pytest.importorskip("solders.litesvm")
@@ -540,22 +540,22 @@ def test_a_work_orders_lines_are_read_as_its_own_events_and_folded_into_orders(o
     assert [o["issue"] for o in got] == [11, 12, 13, 14, 15, 16] and all(o["repo"] == n["repo"] and o["v"] == 2 for o in got)
     s = by[n["split"]]
     assert (s["state"], s["amount"], s["fee_escrowed"], s["net"], s["fee"], s["by"], s["owner"], s["funder"], s["from_balance"], s["source"]) == (
-        "paid", 100_000_000, 2_500_000, 100_000_000, 2_500_000, n["maint"], n["owner"], f"gh:{n['owner']}", True, n["balance"])
+        "paid", 100_000_000, 300_000, 100_000_000, 300_000, n["maint"], n["owner"], f"gh:{n['owner']}", True, n["balance"])
     assert [(p["payee"], p["amount"], p["to"], p["pr"], p["kind"]) for p in s["payments"]] == [(9001, 70_000_000, str(n["a"][1]), 21, "paid"),
                                                                                              (9002, 30_000_000, str(n["b"][1]), 21, "paid")]
-    assert [p["fee"] for p in s["payments"]] == [2_500_000, 0] and s["payees"] == [9001, 9002] and s["terms"] and s["pr"] == 21
+    assert [p["fee"] for p in s["payments"]] == [300_000, 0] and s["payees"] == [9001, 9002] and s["terms"] and s["pr"] == 21
     assert (by[n["held"]]["state"], by[n["held"]]["payee"], by[n["held"]]["net"]) == ("held", 9004, 0)
     k = by[n["kept"]]                                                    # 80% at the merge, the holdback after its warranty: all of it reached the payee
     assert (k["state"], k["net"], k["fee"], [p["kind"] for p in k["payments"]], [p["amount"] for p in k["payments"]]) == (
-        "paid", 50_000_000, 1_250_000, ["paid", "released"], [40_000_000, 10_000_000])
+        "paid", 50_000_000, 150_000, ["paid", "released"], [40_000_000, 10_000_000])
     u = by[n["undone"]]                                                  # reverted inside the warranty: the holdback and the fee on it went back
-    assert (u["state"], u["net"], u["reverted_amount"], u["fee"]) == ("paid", 40_000_000, 10_250_000, 1_000_000)
+    assert (u["state"], u["net"], u["reverted_amount"], u["fee"]) == ("paid", 40_000_000, 10_030_000, 120_000)
     st = by[n["standing"]]                                               # a wallet's standing offer: two pull requests paid, the rest refunded
     assert (st["state"], st["standing"], st["funder"], st["net"], st["from_balance"], st["by"]) == ("paid", True, f"wallet:{n['funder']}", 20_000_000, False, 0)
     assert [p["pr"] for p in st["payments"]] == [31, 32] and st["refunded_amount"] > 5_000_000 and st["paid_at"] <= st["refunded_at"]
     t = by[n["taken"]]                                                   # reserved, cancelled, refunded: the taker's kill fee is a payment of its own kind
     assert (t["state"], t["reserved_by"], t["net"], t["kill"]) == ("refunded", 9003, 0, {"taker": 9003, "amount": 4_000_000, "held": False})
-    assert t["cancelled_at"] and t["refunded_amount"] == 37_000_000 and [(p["kind"], p["amount"]) for p in t["payments"]] == [("kill", 4_000_000)]
+    assert t["cancelled_at"] and t["refunded_amount"] == 36_120_000 and [(p["kind"], p["amount"]) for p in t["payments"]] == [("kill", 4_000_000)]
     assert (other["refunded"], other["reverted"], other["released"], other["cancelled"], other["reserved"], other["kill_fees"]) == (2, 1, 1, 1, 1, 1)
     # jobs and orders together: what the public numbers and a budget count
     work, both = records.work_of(events + funded_and_paid(1, events[-1]["at"] + 10))
@@ -566,8 +566,8 @@ def test_receipts_a_budget_and_the_export_count_work_orders_too(orders):
     events, n = orders
     rows = records.payments(events)
     assert [(r["issue"], r["pull_request"], r["payee_id"], r["amount_units"], r["fee_units"]) for r in rows] == [
-        (11, 21, 9001, 70_000_000, 2_500_000), (11, 21, 9002, 30_000_000, 0), (13, 23, 9001, 40_000_000, 1_000_000), (14, 24, 9002, 40_000_000, 1_000_000),
-        (13, None, 9001, 10_000_000, 250_000), (15, 31, 9001, 10_000_000, rows[5]["fee_units"]), (15, 32, 9002, 10_000_000, rows[6]["fee_units"]),
+        (11, 21, 9001, 70_000_000, 300_000), (11, 21, 9002, 30_000_000, 0), (13, 23, 9001, 40_000_000, 120_000), (14, 24, 9002, 40_000_000, 120_000),
+        (13, None, 9001, 10_000_000, 30_000), (15, 31, 9001, 10_000_000, rows[5]["fee_units"]), (15, 32, 9002, 10_000_000, rows[6]["fee_units"]),
         (16, None, 9003, 4_000_000, 0)]
     assert all(r["deployment"] == 2 and r["repository_id"] == n["repo"] and r["terms_hash"] and r["funded_transaction"] and r["transaction"] for r in rows)
     assert {r["funder"] for r in rows} == {f"gh:{n['owner']}", f"wallet:{n['funder']}"} and rows[0]["wallet"] == str(n["a"][1])

@@ -21,7 +21,7 @@ from solders.transaction import Transaction
 
 from solders.message import MessageV1, TransactionConfig, to_bytes_versioned
 
-from knos import chain
+from knos import chain, fees
 from knos.settle import oidc, pay
 from knos.settle.v2 import meter
 from knos.settle.v2 import oidc as oidc2
@@ -192,6 +192,17 @@ def balx_bytes(*, day_limit=50_000_000, total_limit=500_000_000, repos=(REPO, 7)
         _put(d, 88, wf_sha.encode())
     _put(d, 128, day, signed=True); _put(d, 136, day_spent); _put(d, 144, total_spent)
     return bytes(d)
+
+
+FEE_AMOUNTS = (0, 1, 5_000_000, 16_000_000, 20_000_000, 100_000_000, 500_000_000, 999_999_999, 1_000_000_000, 1_000_000_100,
+               2_000_000_000, 5_000_000_000, 49_999_999_999, 50_000_000_000, 50_000_000_200, pay2.MAX_AMOUNT, 10 ** 12)
+# upgrade feeds (web/upgrades.json's shape): which fee a page that asks no chain shows
+FEEDS = {"2.1 pending": {"entries": [{"index": 4, "program": "knos_pay", "status": "pending"}]},
+         "2.1 executed": {"entries": [{"index": 4, "program": "knos_pay", "status": "executed"}, {"index": 5, "program": "knos_meter", "status": "executed"}]},
+         "2.2 pending": {"entries": [{"index": 8, "program": "knos_pay", "status": "pending"}, {"index": 4, "program": "knos_pay", "status": "executed"}]},
+         "2.2 executed": {"entries": [{"index": 8, "program": "knos_pay", "status": "executed"}, {"index": 4, "program": "knos_pay", "status": "executed"}]},
+         "another program after": {"entries": [{"index": 7, "program": "knos_oidc", "status": "executed"}, {"index": 4, "program": "knos_pay", "status": "executed"}]},
+         "not a feed": {}}
 
 
 def plan_bytes(owner_id=OWNER, fee_bps=100, expires=NOW + 90 * 86_400) -> bytes:
@@ -668,7 +679,7 @@ def orders(k, bal, token) -> dict:
     token_issuers = {"a token of another issuer": bytes(issuer_token), "a token of a private key": bytes(private_token), "a GitHub token": token,
                      "a token still being verified": bytes(stepping), "too short": bytes(625)}
     plans = {"no plan": None, "a plan in force": pay2.read_plan(plan_bytes()), "an expired plan": pay2.read_plan(plan_bytes(expires=NOW - 1)),
-             "a rate below the floor": pay2.read_plan(plan_bytes(fee_bps=10)), "a rate above the cap": pay2.read_plan(plan_bytes(fee_bps=900)),
+             "a rate below the floor": pay2.read_plan(plan_bytes(fee_bps=5)), "a rate above the cap": pay2.read_plan(plan_bytes(fee_bps=900)),
              "expires this second": pay2.read_plan(plan_bytes(expires=NOW))}
     four = _payees(k, FOUR_PAYEES)
     ixs = {
@@ -734,8 +745,7 @@ def orders(k, bal, token) -> dict:
     return {
         "inputs": {"url": URL, "salt": SALT.hex(), "order_terms": ORDER_TERMS, "four_payees": FOUR_PAYEES, "head": HEAD},
         "constants": {"USDC_MAINNET": str(pay2.USDC_MAINNET), "COUNTED": [str(m) for m in pay2.COUNTED], "BALX_LEN": pay2.BALX_LEN, "PLAN_LEN": pay2.PLAN_LEN,
-                      "ORDER_LEN": pay2.ORDER_LEN, "OPTS_LEN": pay2.OPTS_LEN, "ORDER_FEE_MIN": pay2.ORDER_FEE_MIN, "FEE_TIER_1": pay2.FEE_TIER_1,
-                      "FEE_TIER_2": pay2.FEE_TIER_2, "FEE_BPS_2": pay2.FEE_BPS_2, "FEE_BPS_3": pay2.FEE_BPS_3, "MINTED": pay2.MINTED,
+                      "ORDER_LEN": pay2.ORDER_LEN, "OPTS_LEN": pay2.OPTS_LEN, "FEE_VERSION": fees.NEW_VERSION, "MINTED": pay2.MINTED,
                       "TOKEN_AT": {str(tag): at for tag, at in pay2.TOKEN_AT.items()},
                       "ORDER_MIN_AMOUNT": pay2.ORDER_MIN_AMOUNT, "TIP": pay2.TIP, "TIP_FIRST": pay2.TIP_FIRST, "PLAN_BPS_MIN": pay2.PLAN_BPS_MIN,
                       "MAX_HOLDBACK_BPS": pay2.MAX_HOLDBACK_BPS, "MAX_WARRANTY_DAYS": pay2.MAX_WARRANTY_DAYS, "MAX_KILL_BPS": pay2.MAX_KILL_BPS,
@@ -771,13 +781,17 @@ def orders(k, bal, token) -> dict:
             "private_fund_terms(scope, terms)": private_terms.hex(),
         },
         "order terms": {"json": o_terms.decode(), "hash": o_hash.hex()},
-        "order fees": {f"{a}/{bps}/{dec}": pay2.order_fee(a, bps, dec)
-                       for a in (0, 1, 5_000_000, 16_000_000, 20_000_000, 100_000_000, 500_000_000, 999_999_999, 1_000_000_000, 1_000_000_100,
-                                 2_000_000_000, 49_999_999_999, 50_000_000_000, 50_000_000_200, pay2.MAX_AMOUNT, 10 ** 12)
-                       for bps, dec in ((250, 6), (100, 6), (50, 6), (250, 9), (250, 2))},
+        # the fee of the build in this tree (knos.fees.NEW: 0.3.18, knos_pay 2.2) ...
+        "order fees": {f"{a}/{bps}/{dec}": fees.NEW.order(a, bps, dec) for a in FEE_AMOUNTS for bps, dec in ((30, 6), (20, 6), (10, 6), (30, 9), (30, 2))},
         "fees (decimals)": {f"{a}/{dec}": pay2.fee_of(a, dec) for a in (0, 1, 50_000, 1_000_000, 5_000_000_000) for dec in (2, 6, 9)},
+        # ... and the 0.3.14 fee, which the public program charges until the upgrade to knos_pay 2.2 executes
+        "order fees 0.3.14": {f"{a}/{bps}/{dec}": fees.OLD.order(a, bps, dec) for a in FEE_AMOUNTS for bps, dec in ((250, 6), (100, 6), (50, 6), (250, 9), (250, 2))},
+        "fees 0.3.14 (decimals)": {f"{a}/{dec}": fees.OLD.job(a, dec) for a in (0, 1, 50_000, 1_000_000, 5_000_000_000) for dec in (2, 6, 9)},
+        "fee rules": {name: {**dataclasses.asdict(r), "tiers": [list(t) for t in r.tiers]} for name, r in (("new", fees.NEW), ("old", fees.OLD))},
+        "fee version of a feed": {name: fees.feed_version(feed) for name, feed in FEEDS.items()},
         "units": {f"{m}/{dec}": pay2.units(m, dec) for m in (0, 1, 400_000, 25_000_000, 5_000_000) for dec in (0, 2, 6, 9)},
-        "plan bps": {name: pay2.plan_bps(plan, NOW) for name, plan in plans.items()},
+        "plan bps": {name: fees.NEW.plan_bps(plan, NOW) for name, plan in plans.items()},
+        "plan bps 0.3.14": {name: fees.OLD.plan_bps(plan, NOW) for name, plan in plans.items()},
         # what a refund owes a taker first, by the order it is read from
         "kill fees": {name: pay2.kill_fee(o) for name, o in read.items()},
         # where one payee of an order is paid: its assignee, else the address the token carries, else its bound wallet

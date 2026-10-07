@@ -1,6 +1,6 @@
 // node tests/web/motion.mjs <site dir>
 // The budget of the first screen and of what moves, held on a build of web/ in headless Chromium:
-//   words     the first screen says 40 words at most, at a laptop's width and a phone's, with every page of the bar offered
+//   words     the first screen says 40 words of prose at most (tests/web/words.mjs says what prose is), at a laptop's width and a phone's, with every page of the bar offered
 //   weight    app.css under 60 KB; motion.js and brand/mark3d.js under 18 KB together; palette.js under 12 KB and not
 //             asked for until it is opened; no request leaves the site
 //   stillness with `prefers-reduced-motion: reduce`, measured and not assumed: no element (or its ::before, ::after) on
@@ -73,7 +73,8 @@ const firstScreen = (page) => page.evaluate(() => {
   const words = [], walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = walk.nextNode(); n; n = walk.nextNode()) {
     const el = n.parentElement;
-    if (!n.textContent.trim() || el.closest("#demo, script, style, noscript") || !el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
+    // prose, as tests/web/words.mjs counts it (and here with the bar): not a control, a figure, or a row of a live view
+    if (!n.textContent.trim() || el.closest("#demo, script, style, noscript, table, dl.facts, pre, code, textarea, select, input, button, label, summary, a.k-btn, a.button, [role=tab], .k-num, .mono, [data-not-prose]") || !el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
     const range = document.createRange(); range.selectNodeContents(n);
     const r = range.getBoundingClientRect(), box = el.getBoundingClientRect();
     if (r.width <= 1 || box.width <= 1 || r.bottom <= 0 || r.top >= innerHeight) continue;       // a name kept for a screen reader is one pixel wide

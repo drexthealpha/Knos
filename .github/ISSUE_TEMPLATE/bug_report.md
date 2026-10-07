@@ -3,6 +3,11 @@ name: Something is wrong
 about: Knos refused when it should not have, paid when it should not have, or fell over
 labels: bug
 ---
+<!--
+Contributions are welcome and unpaid, unless the issue shows a funded order.
+A funded order pays test USDC on Solana devnet, which has no monetary value.
+Do not post a wallet address for payment: Knos pays only the address a payee binds to a funded order.
+-->
 
 **Where** (the site, a repository's Knos check, a bounty, `knos init` / the Stop hook, a program)
 

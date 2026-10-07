@@ -2,7 +2,7 @@
 // puts the amount in escrow (FundOrderWallet), the server delivers, and the escrow pays the seller when a GitHub-signed
 // acceptance arrives (PayOrder), or returns everything to the client after the deadline (RefundOrder). docs/X402.md is
 // the specification; this file is both roles' logic, with no dependency but Node and sdk/settle (which has none).
-import { ata, b58, findProgramAddress, hex, sha256, unb58, unhex } from "../../sdk/settle/index.js";
+import { ata, b58, findProgramAddress, hex, sha256, unb58, unhex, v2 } from "../../sdk/settle/index.js";
 
 export const SCHEME = "knos-order";     // lower case with a hyphen, as x402 names its own (exact, upto, batch-settlement)
 export const X402_VERSION = 2;
@@ -19,13 +19,16 @@ const num = (raw, o, bytes) => { let n = 0n; for (let i = bytes - 1; i >= 0; i--
 export const encode = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64");
 export const decode = (text) => JSON.parse(Buffer.from(text, "base64").toString("utf8"));
 
-/** The fee a funder pays on top of an order's amount (knos_pay's order_fee for a 6-decimal mint, no Plan): 2.5% of the
- *  first 1,000, 1% from there to 50,000, 0.5% above; at least 0.40. */
-export function orderFee(amount) {
-  const a = BigInt(amount), k = 1_000_000_000n, m = 50_000_000_000n, min = (x, y) => (x < y ? x : y);
-  const f = min(a, k) * 250n / 10_000n + (a > k ? (min(a, m) - k) * 100n / 10_000n : 0n) + (a > m ? (a - m) * 50n / 10_000n : 0n);
-  return f < 400_000n ? 400_000n : f;
+/** The fee a funder pays on top of an order's amount (knos_pay's fee for a 6-decimal mint, no Plan), by the rule of the
+ *  build that is LIVE. `version`: what knos_pay answers to its Version instruction (rpc.mjs payVersion). 2, from knos_pay
+ *  2.2 on: 0.30% of the amount, at least 0.05. 1 or 0, before that upgrade executes: 2.5% of the first 1,000, 1% from
+ *  there to 50,000, 0.5% above, at least 0.40. Not given: the rule of this tree's build (the 0.30% one). An order keeps
+ *  the fee it was funded with: orders funded before the upgrade keep the rate fixed at their funding. */
+export function orderFee(amount, version = undefined) {
+  return BigInt(v2.orderFee(amount, null, 6, v2.feeRule(version)));
 }
+/** The fee of `amount` under each rule a public program may be running: what a client that did not ask the program accepts. */
+export const feesFor = (amount) => [...new Set([v2.FEE_VERSION, v2.FEE_VERSION - 1].map((v) => String(orderFee(amount, v))))];
 export const scopeOf = (repoId, issue) => sha256(cat(enc.encode("knos3:scope"), le(repoId, 8), le(issue, 8)));
 export const termsHash = async (terms) => hex(await sha256(enc.encode(terms)));
 /** ["ord", scope, payer, seq]: the order a payer's funding creates for this requirement. */
@@ -43,7 +46,7 @@ export async function requirement(offer, payer = null) {
       repoId: String(offer.repoId), issue: String(offer.issue), seq: offer.seq, mode: offer.mode,
       terms: offer.terms, termsHash: await termsHash(offer.terms),
       workflows: { repository: offer.wfRepo, sha: offer.wfSha },
-      fee: String(orderFee(offer.amount)), payee: { githubId: String(offer.seller.githubId) },
+      fee: String(orderFee(offer.amount, offer.feeVersion)), payee: { githubId: String(offer.seller.githubId) },
     },
   };
 }

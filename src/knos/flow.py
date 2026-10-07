@@ -61,7 +61,7 @@ from typing import Any
 
 from solders.pubkey import Pubkey
 
-from . import badge, closing, commands, ghwords, playground, policy, terms, who
+from . import badge, closing, commands, fees, ghwords, playground, policy, terms, terms3, who
 from .settle.v2 import order_auto, pay
 
 MARK = "<!-- knos-review -->"       # the first line of the one comment `knos review` keeps up to date
@@ -82,7 +82,7 @@ MARKER = {"fund": "fund", "pay": "proof", "proof": "proof", "bind": "bind",     
           "cancel": "cancel", "take": "take", "revert": "revert", "rule": "rule"}
 WORD = "knosrelay"                  # the one word every token comment carries: the public worker finds them by it
 TOKENS = "knos tokens"              # the title of the issue, in the repository a run is in, on which `knos attest` posts what GitHub signed
-TOKENS_BODY = ("Knos posts here the tokens GitHub signed for runs of `knos attest` in this repository, one comment each. A token is no "
+TOKENS_BODY = (ghwords.MACHINE + "Knos posts here the tokens GitHub signed for runs of `knos attest` in this repository, one comment each. A token is no "
                "secret: it names one action on Solana and works once. Anyone may carry it there; Knos's public relay finds it here and does.")
 NEUTRAL_WAIT, NEUTRAL_EVERY = 180, 5    # `knos settle --neutral` looks this long, this often, for the comment the run it started posts
 RECORD = re.compile(r"<!-- knos-private-order (\{[^\n]*?\}) -->")      # on a private issue: what Solana does not keep of its order
@@ -110,7 +110,7 @@ class Run:
         ghrelay                                knos.proof.ghrelay: token_id(jwt), and wait_for(...) the public worker's line
         mint(audience)                         GitHub's signed token for this run
         clock(), sleep(seconds), env           this machine's clock, waiting, and the job's environment
-        version()                              which knos_pay is live: 0 (2.0, jobs) or 1 (2.1, work orders); asked of the relay
+        version()                              which knos_pay is live: 0 (2.0, jobs), 1 (2.1, work orders) or 2 (2.2, the 0.3.18 fee); asked of the relay
         screen(address), spent(owner_id)       knos.screen.check; knos.records.month_spent for a policy's monthly budget
         gh(*args)                              the GitHub CLI, on a person's own machine (`knos settle --neutral`)
         reads(repo, att)                       an attestor's second Run, for a repository it reads with KNOS_READ_TOKEN
@@ -175,7 +175,8 @@ class Run:
         return self._mint(audience) if self._mint else mint(audience, self.env)
 
     def version(self) -> int:
-        """Which knos_pay answers on this cluster: 1 when 2.1 is live (work orders), 0 when it is 2.0, or when nobody
+        """Which knos_pay answers on this cluster: 1 when 2.1 is live (work orders), 2 when 2.2 is (work orders at
+        the 0.3.18 fee: `fees.rule` of this number is the fee every comment states), 0 when it is 2.0, or when nobody
         could say (bounties are then jobs, as before: 2.1 keeps every 2.0 instruction). Asked once a run: of the
         function a caller hands in (`version=`), else of the relay's `version(ledger)` when the relay has one."""
         if self._program is None:
@@ -431,6 +432,12 @@ def _orders(run: Run, repo_id: int, issue: int) -> list:
                   key=lambda x: str(x[0]))
 
 
+def funded(run: Run, repo_id: int, issue: int) -> bool:
+    """Whether an issue holds money on chain: a job or a work order that is open, held or in its warranty, read the
+    way a settlement reads them. Raises when the chain does not answer: not knowing is not "there is none"."""
+    return bool(_jobs(run, int(repo_id), int(issue)) or _orders(run, int(repo_id), int(issue)))
+
+
 def _policy(run: Run, rp: dict) -> tuple:
     """(the repository's policy, "") from .knos/policy.yml on its default branch, read once a run; (None, "") when it
     has none; (None, why) when the file is there and cannot be used or GitHub did not give it. A policy that does
@@ -671,6 +678,7 @@ def _tokens_issue(github, here: str) -> int:
     listed = github(f"repos/{here}/issues?state=open&per_page=100")
     for i in listed if isinstance(listed, list) else []:
         if isinstance(i, dict) and i.get("title") == TOKENS and "pull_request" not in i:
+            ghwords.say_machine(github, f"repos/{here}/issues/{int(i['number'])}", i.get("body"))      # one opened before 0.3.18: edited once to say it is a log
             return int(i["number"])
     return int(github(f"repos/{here}/issues", {"title": TOKENS, "body": TOKENS_BODY})["number"])
 
@@ -687,8 +695,9 @@ def _verdict(line: str | None, kind: str, tid: str) -> dict:
         return {"ok": False, "kind": kind, "why": _short(m.group(2)) or "the relay gave no reason"}
     sig, note = re.search(r"\bsig=(\S+)", m.group(2)), re.search(r"\bnote=(.*?)(?:\s+t=[0-9.]+)?\s*$", m.group(2), re.S)
     at = {k: float(v) for k, v in re.findall(r"\b(queued_at|seen_at|sent_at|confirmed_at)=(\d+(?:\.\d+)?)(?= )", re.split(r"(?:^| )note=", m.group(2), maxsplit=1)[0])}
+    quorum = ghwords.quorum_read(note.group(1)) if note and kind == "pay" else None     # an order's judge recorded, nothing paid: how many count, and why not more
     return {"ok": True, "kind": kind, "sigs": [x for x in (sig.group(1).split(",") if sig else []) if x and x != "none"],
-            "note": _short(note.group(1)) if note else "", **({"times": at} if at else {})}
+            "note": _short(note.group(1)) if note else "", **({"times": at} if at else {}), **({"quorum": quorum, "paid": []} if quorum else {})}
 
 
 def _note(r: dict) -> str:
@@ -738,7 +747,7 @@ def _seen(run: Run, kind: str, c: dict, aud: list[str], before: list) -> dict:
         paid = []
         for address, j in before:
             now = pay.read_job(run.ledger.account(address))
-            row = {"job": str(address), "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint)}
+            row = {"job": str(address), "amount": j.amount, "fee": fees.rule(run.version()).job(j.amount), "mint": str(j.mint)}
             if now is None and to:                                      # the job is closed: paid, where the chain pays
                 paid.append({**row, "to": to, "held_until": None})
             elif now is not None and now.state == "held" and now.payee_id == payee:     # met its terms, and waiting for a wallet
@@ -1080,9 +1089,15 @@ def _relayed(run: Run, c: Case, r: dict, after: str, how: str) -> str:
     tx = _link(run, "transaction", "tx", r["sigs"][-1]) if r.get("sigs") else "an earlier token had carried it"
     if c.order and r.get("quorum"):         # an order with a quorum, before its last judge: a marker was written, nothing was paid
         q = r["quorum"]
+        # why a judge who spoke is not one more (knos_pay 2.2 counts owners), and whose word of before the upgrade has to be given again
+        same = "".join(f" It counts {q.get('have')} because {_short(w).rstrip('. ')}." for w in q.get("uncounted") or [])
+        again = (f" {' and '.join(q['again'])[0].upper()}{' and '.join(q['again'])[1:]} passed this commit before the escrow's upgrade to knos_pay 2.2, and "
+                 "a word recorded before it names no run, so it counts for nothing now: that judge signs again (run its workflow once more) and is "
+                 "counted then.") if q.get("again") else ""
         return (f"not paid yet. {name[0].upper()}{name[1:]} met its terms for {payee}, and Solana recorded this judge's word ({tx}, {took}): "
                 f"{q.get('have')} of the {q.get('of')} different judges its funder asked for have passed this commit, so nothing is paid until "
-                f"{q.get('of')} have. A neutral run is one more: someone who is not its funder runs `knos settle --neutral <this pull request's "
+                f"{q.get('of')} have.{same}{again} A neutral run is one more: someone who is not its funder"
+                + (" and owns no repository that judged it" if same else "") + " runs `knos settle --neutral <this pull request's "
                 "URL>`, which starts the pinned attest workflow in a repository of their own.")
     if c.order:
         return _paid_order(run, c, r, tx, took)
@@ -1174,9 +1189,14 @@ def _paid_order(run: Run, c: Case, r: dict, tx: str, took: str) -> str:
                    "anyone can release it to the same people; if the work is reverted before then, it goes back to the funder.")
     if order_auto.quorum_of(o.flags) and r.get("sigs"):       # a quorum whose judges share a controller is said, from the payment's receipt
         from . import statement
-        shared = statement.not_independent(r.get("receipt") or _quorum_receipt(run, str(r["sigs"][-1])))
+        made = r.get("receipt") or _quorum_receipt(run, str(r["sigs"][-1]))
+        shared = statement.not_independent(made)
         if shared:
             out.append(f"Its quorum: {shared}.")
+            if run.version() < fees.NEW_VERSION:      # 2.1 counts markers, so it paid; 2.2 counts owners and would have recorded one judge
+                seen = (made.get("evaluator_observed") or {}).get("evaluators") if isinstance(made, dict) else None
+                said = ghwords.one_owner(len(seen) if isinstance(seen, list) and len(seen) > 1 else order_auto.quorum_of(o.flags))
+                out.append(f"{said[0].upper()}{said[1:]}.")
     if standing:
         left = max(0, o.amount - o.paid - gross)
         out.append(f"The offer stays open: {_amount(left)} of {_amount(o.amount)} is left for further accepted changes until {who.when(o.deadline)}."
@@ -1218,16 +1238,46 @@ def command(run: Run) -> int:
     fresh = ev.get("action") == ("created" if "comment" in ev else "opened")      # an edit does not say it again
     on_pull = "pull_request" in on
     cmd = commands.parse(said.get("body") or "", on_pull) if fresh and on.get("number") and isinstance(said, dict) else None
-    if cmd is None or ("comment" not in ev and not isinstance(cmd, commands.Fund) and getattr(cmd, "command", "") != "fund"):
+    if cmd is None or ("comment" not in ev and not isinstance(cmd, (commands.Fund, commands.FundTerms)) and getattr(cmd, "command", "") != "fund"):
         return 0
     try:
-        reply = _act(run, cmd, said, on, on_pull)
+        if isinstance(cmd, commands.FundTerms):     # `/knos fund terms`: the order the repository's Knos Terms 3 document describes
+            cmd = _fund_terms(run)
+        reply = cmd if isinstance(cmd, str) else _act(run, cmd, said, on, on_pull)
     except Exception as why:  # noqa: BLE001 - whatever it was, the commenter is told
         run.failed = True
         reply = (f"Knos: this stopped before it was finished ({type(why).__name__}: {_short(why)}). `/knos status` shows what is in "
                  "escrow now; post the comment again to retry.")
     run.say(on["number"], reply)
     return 1 if run.failed else 0
+
+
+def _fund_terms(run: Run):
+    """`/knos fund terms` as the Fund it stands for (knos.commands.cite of `.knos/terms.json` on the default branch), or
+    the reply that says why nothing is funded."""
+    stop = "Knos: nothing was funded. "
+    try:
+        rp = _repo(run)
+        doc = _terms3(run, rp["branch"]) if rp is not None else None
+    except terms3.Refused as why:
+        return (stop + f"`{TERMS3}` on the default branch says it is a Knos Terms 3 document, and it is not one an order can be funded on: "
+                f"{_short(why).rstrip('. ')}. Fix the file (`knos terms verify` reads it the same way), then post the comment again.")
+    except OSError as why:
+        run.failed = True
+        return stop + f"GitHub did not answer for this repository's terms (`{TERMS3}` on the default branch: {_short(why)}). Post the comment again."
+    if rp is None:
+        run.failed = True
+        return stop + "GitHub did not answer for this repository. Post the comment again."
+    if doc is None:
+        return (stop + f"`/knos fund terms` funds the order this repository's terms describe, and it has none: there is no `{TERMS3}` on the "
+                "default branch. `knos terms propose` writes one from the repository's own checks; or comment `/knos fund <amount>`.")
+    try:
+        if not terms3.built(doc):
+            raise terms3.Refused(f"`{doc['name']}` describes work nothing can be paid for yet ({terms3.NOT_BUILT})")
+        cmd = commands.cite(doc)
+    except terms3.Refused as why:
+        return stop + f"These terms cannot fund an order: {_short(why).rstrip('. ')}."
+    return cmd.reply if isinstance(cmd, commands.Error) else cmd
 
 
 def _act(run: Run, cmd, said: dict, on: dict, on_pull: bool) -> str:
@@ -1298,9 +1348,20 @@ def _appeal(run: Run, cmd, said: dict, on: dict) -> str:
         return "Knos: the judge's memory (the knos-memory issue) could not be read, so no appeal was opened. Post the comment again."
     mine = [b for _name, b in store.rows("settlement") if isinstance(b, dict) and b.get("repo") == history.repo_key(run.repo) and b.get("pull") == number]
     verdict = "accepted" if any(b.get("paid") for b in mine) else "rejected" if any(b.get("refused") for b in mine) else ""
-    if not verdict:
-        return appeal.refused_reply(appeal.Refused("appeal.nothing"))
+    if not verdict:         # nothing settled yet, which is not an accepted verdict (appeal.nothing)
+        return appeal.refused_reply(appeal.Refused("appeal.unjudged"))
     facts, bought = _context(run, pull)
+    contract = str((bought or {}).get("contract") or "")
+    if verdict == "rejected" and contract:       # an order under Knos Terms 3: its terms say how long a rejection can be appealed
+        try:
+            doc = _terms3_cited(run, contract)
+        except Exception as why:  # noqa: BLE001
+            run.failed = True
+            return f"Knos: the terms this order was funded under could not be read from GitHub ({_short(why)}), so no appeal was opened. Post the comment again."
+        at = max((float(b.get("at") or 0) for b in mine if b.get("refused")), default=0.0)
+        late = appeal.window_closed(doc, at, run.clock()) if doc is not None and at else ""
+        if late:
+            return late
     issue = (facts.get("issue") or {}).get("number") if isinstance(facts.get("issue"), dict) else None
     thash = hashlib.sha256(terms.canonical(bought)).hexdigest() if bought else ""
     head = str((pull.get("head") or {}).get("sha") or "")
@@ -1439,14 +1500,18 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
     elif getattr(cmd, "auto", False) or getattr(cmd, "quorum", None) or getattr(cmd, "judge", None):
         return ("Knos: nothing was funded. `auto`, `quorum` and `judge` are options of a work order, and the escrow on this cluster does not hold "
                 f"work orders yet (knos_pay 2.1 is not live here). Leave them out, then {again}.")
+    elif getattr(cmd, "grace", False):
+        return ("Knos: nothing was funded. `grace` is an option of a work order, and the escrow on this cluster does not hold work orders yet "
+                f"(knos_pay 2.2 is not live here). Leave it out, then {again}.")
     try:
         paused = pay.read_pause(run.ledger.account(pay.pause_pda()))
         if paused > run.now():
             return (f"Knos: nothing was funded. New funding is paused on Solana until {who.when(paused)} (a pause lasts "
                     f"{pay.PAUSE_MAX // 86_400} days at most); payments, refunds and withdrawals go on. {retry} after that.")
         pays = att.rp if att is not None else rp      # whose money: the repository the fund token is minted in, and its owner
-        if plan is not None:    # the funder pays the fee on top: the Balance has to hold both
-            plan["fee"] = pay.order_fee(cmd.units, pay.plan_bps(pay.read_plan(run.ledger.account(pay.plan_pda(pays["owner"]))), run.now()))
+        if plan is not None:    # the funder pays the fee on top, as the program that is live takes it: the Balance has to hold both
+            rule = fees.rule(run.version())
+            plan["fee"] = rule.order(cmd.units, rule.plan_bps(pay.read_plan(run.ledger.account(pay.plan_pda(pays["owner"]))), run.now()))
         balance, mint_, faucet, no = _balance(run, pays, att.actor if att is not None else commenter, cmd, number, again,
                                               plan["fee"] if plan else 0, plan is not None)
         if stranger and balance is not None and not faucet:
@@ -1478,6 +1543,34 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
         run.failed = True
         return (f"Knos: GitHub did not answer for this issue's acceptance checks (.knos/acceptance/{number}/ on the default "
                 f"branch: {_short(why)}), so the bounty's terms could not be fixed and nothing was funded. {retry}.")
+    doc = None          # the repository's Knos Terms 3 document (`.knos/terms.json`), when it has one: the order is then held to it
+    if not tip and not offer and att is None:
+        try:
+            doc = _terms3(run, rp["branch"])
+        except terms3.Refused as why:
+            return (f"Knos: nothing was funded. `{TERMS3}` on the default branch says it is a Knos Terms 3 document, and it is not one an order can "
+                    f"be funded on: {_short(why).rstrip('. ')}. Fix the file (`knos terms verify` reads it the same way), then {again}.")
+        except OSError as why:
+            run.failed = True
+            return (f"Knos: GitHub did not answer for this repository's terms (`{TERMS3}` on the default branch: {_short(why)}), so nothing was "
+                    f"funded. {retry}.")
+    if getattr(cmd, "cited", False) and doc is None:
+        return (f"Knos: nothing was funded. `/knos fund terms` funds the order this repository's terms describe, and it has none: there is no "
+                f"`{TERMS3}` on the default branch. `knos terms propose` writes one from the repository's own checks; or comment "
+                "`/knos fund <amount>`.")
+    if doc is not None and not run.version():
+        return (f"Knos: nothing was funded. This repository's terms (`{TERMS3}`, Knos Terms 3) describe a work order, and the escrow on this "
+                "cluster does not hold work orders yet (knos_pay 2.1 is not live here).")
+    if doc is not None and plan is not None:        # terms 3, enforced: an order that says anything the document does not is not funded
+        built, differs = _terms3_order(doc, cmd, plan, built)
+        if differs:
+            return (f"Knos: nothing was funded. This repository's terms (`{TERMS3}`: {doc['name']} version {doc['version']}) and this order "
+                    f"do not say the same thing. {' '.join(differs)} Comment `/knos fund terms` to fund exactly what the terms say, or "
+                    "publish a new version of the terms first.")
+        try:
+            data = terms.canonical({**built.terms, **plan["terms"]})
+        except terms.Refused as why:
+            return f"Knos: {why}"
     work = (terms.TIP_DAYS if tip else cmd.days) * 86_400
     mode = pay.TESTS if built.terms["mode"] == "tests" else pay.MERGE
     if plan and plan.get("auto") and mode != pay.TESTS:     # the chain refuses it too: AUTO goes with mode 1 and nothing else
@@ -1531,7 +1624,8 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
     money = f"{_amount(r.get('amount') or cmd.units)} {_money(run, mint_)}"
     took = f"{r['seconds']} s after {after}"
     if plan is not None:
-        return _funded_order(run, cmd, rp, number, balance, mint_, r.get("faucet", faucet), plan, built, r, money, took, work) + (
+        cited = f"\n\n{terms3.cite(doc)}." if doc is not None else ""       # the sentence a contract carries: these terms, this version, this hash
+        return _funded_order(run, cmd, rp, number, balance, mint_, r.get("faucet", faucet), plan, built, r, money, took, work) + cited + (
             _proposed(run, asked, built) if att is None else "")     # (the judge's memory is an issue of the repository, and an attestor keeps none there)
     job = _link(run, "job on Solana", "address", r.get("job") or pay.job_pda(rp["id"], number, balance))
     if tip:
@@ -1547,6 +1641,109 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
         f"To earn it: open a pull request whose description says `Fixes #{number}`. {told[-1]} For the money to reach you when it "
         "is paid, comment `/knos address <your Solana address>` on your pull request; without an address it waits for you "
         f"until you bind a wallet ({HOLD_DAYS} days at most).")) + _proposed(run, asked, built)
+
+
+TERMS3 = ".knos/terms.json"             # the repository's Knos Terms 3 document (knos.terms3), on its default branch
+TERMS3_HISTORY = 20                     # how many past versions of that file are looked through for the one an order cites
+
+
+def _terms3(run: Run, ref: str) -> dict | None:
+    """The repository's Knos Terms 3 document at one commit or branch, validated; None when it has no `.knos/terms.json`
+    there, or that file is not Knos Terms 3 (an older format keeps its meaning). Raises OSError when GitHub does not
+    answer for the file (not knowing is not "there is none"), and knos.terms3.Refused, with the words, for a file that
+    says it is terms 3 and is not a document an order can cite."""
+    try:
+        got = run.github(f"repos/{run.repo}/contents/{TERMS3}?ref={urllib.parse.quote(str(ref), safe='')}")
+    except OSError as why:
+        if getattr(why, "code", None) != 404:
+            raise
+        return None
+    if got is None:
+        return None
+    try:
+        text = base64.b64decode(got["content"]).decode("utf-8") if got.get("encoding") == "base64" else None
+    except (AttributeError, KeyError, TypeError, ValueError):
+        text = None
+    if text is None:
+        raise OSError(f"GitHub's copy of {TERMS3} was not understood")
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    return terms3.validate(data) if terms3.is_terms3(data) else None
+
+
+def _terms3_order(doc: dict, cmd, plan: dict, built: terms.Built) -> tuple[terms.Built, list[str]]:
+    """An order about to be funded, held to the Knos Terms 3 document of its repository: (the terms it is funded on,
+    which carry `contract`, the document's hash, and the document's protected paths; what the order says that the
+    document does not, one sentence each: knos.terms3.check_order). The checks, the acceptance suite and the image are
+    still the repository's own as `_built` found them: when they are not the ones the document names, that is one of
+    the sentences."""
+    try:
+        want = terms3.order_terms(doc)
+    except terms3.Refused as why:
+        return built, [f"{_short(why).rstrip('. ')}."]
+    mine = {**built.terms, "deny": want["deny"], "contract": terms3.digest(doc)}
+    held = plan["holdback"] // 100 if plan["holdback"] % 100 == 0 else plan["holdback"] / 100
+    said = terms3.check_order(doc, units_=cmd.units, days=cmd.days, holdback=held, warranty=plan["warranty"], quorum=plan.get("quorum") or 1,
+                              order_terms_=mine, arbiter=plan.get("arbiter") or "")
+    if plan.get("grace") and doc["deadline"]["late"] == "refused":
+        said.append("The order asks for `grace` (a token issued by the deadline is taken for a while after it); the terms say a token presented "
+                    "late is refused.")
+    return built._replace(terms=mine), said
+
+
+def _terms3_cited(run: Run, contract: str) -> dict | None:
+    """The Knos Terms 3 document whose hash an order's terms carry (`contract`): the repository's `.knos/terms.json` on
+    its default branch, or the past version of that file with that hash (a version never changes; a change is a new
+    file with its own hash). None when none of the last TERMS3_HISTORY versions is it. Raises OSError when GitHub
+    does not answer."""
+    refs: list[str] = [str(_repo_known(run)["branch"])]
+    try:
+        past = run.github(f"repos/{run.repo}/commits?path={urllib.parse.quote(TERMS3, safe='')}&per_page={TERMS3_HISTORY}")
+    except OSError as why:
+        if getattr(why, "code", None) != 404:
+            raise
+        past = None
+    refs += [str(c.get("sha")) for c in (past if isinstance(past, list) else []) if isinstance(c, dict) and c.get("sha")][:TERMS3_HISTORY]
+    for ref in dict.fromkeys(refs):
+        try:
+            doc = _terms3(run, ref)
+        except terms3.Refused:
+            continue
+        if doc is not None and terms3.digest(doc) == contract:
+            return doc
+    return None
+
+
+def _terms3_signer(run: Run, c: "Case", jwt: str, pull: dict) -> bool:
+    """Whether the run that GitHub just signed `jwt` for may judge this case. An order funded with no terms 3 (its
+    terms carry no `contract`): yes, as before. One funded under Knos Terms 3: only when that document names an
+    evaluator with the token's issuer, repository and workflow (knos.terms3.evaluator_allowed; an evaluator written as
+    anyone's repository is never a party's: the order's owner, the pull request's author, a payee). Otherwise the
+    case says why (`c.why`, or `c.unread` when the document could not be had) and nothing is sent."""
+    contract = str((c.terms or {}).get("contract") or "")
+    if not contract:
+        return True
+    try:
+        doc = _terms3_cited(run, contract)
+    except Exception as why:  # noqa: BLE001 - GitHub did not answer
+        c.unread.append(f"the terms this order was funded under (`{TERMS3}`) could not be read from GitHub ({_short(why)})")
+        return False
+    if doc is None:
+        c.unread.append(f"the terms this order was funded under (Knos Terms 3, sha256 {contract[:16]}) are not among the last versions of "
+                        f"`{TERMS3}` in this repository, so who may judge it could not be checked")
+        return False
+    got = _claims(jwt)
+    issuer, where, workflow = str(got.get("iss") or terms3.GITHUB), str(got.get("repository") or ""), str(got.get("job_workflow_ref") or "")
+    parties = (run.repo.split("/")[0], str((pull.get("user") or {}).get("login") or ""), *(str(p[3] or "") for p in c.payees))
+    if terms3.evaluator_allowed(doc, issuer, where, workflow, tuple(p for p in parties if p)) is not None:
+        return True
+    names = ", ".join(f"`{e['name']}`" for e in doc["evaluators"]["list"]) or "none"
+    c.why.append(f"its terms (Knos Terms 3: {doc['name']} version {doc['version']}) name who may judge it ({names}), and this run is none of "
+                 f"them: it ran `{_plain(workflow.split('@')[0]) or 'no workflow GitHub named'}` in {_plain(where) or 'a repository GitHub did not name'}")
+    c.fix.append("A run of a workflow the terms name signs for it: the workflow file calls that workflow, in a repository the terms allow.")
+    return False
 
 
 PROCUREMENT = ".knos/procurement"         # knos.controls.PROCUREMENT: the buyer's rate cards, standing offers, envelopes, approval policy and approvals
@@ -1690,6 +1887,10 @@ def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None, 
     auto, quorum = bool(getattr(cmd, "auto", False)), int(getattr(cmd, "quorum", None) or 0)
     if (auto or quorum) and att is not None:
         return stop + f"`auto` and `quorum` are for a public order that pays one pull request, and this one is private. Leave them out, then {again}."
+    grace = bool(getattr(cmd, "grace", False))
+    if grace and run.version() < fees.NEW_VERSION:      # 2.1 refuses the byte (E_TERMS): said here, before GitHub is asked to sign anything
+        return (stop + f"`grace` asks that a token GitHub issued by the deadline still pays for {_days(pay.GRACE // 3600).replace('day', 'hour')} after it, and the "
+                f"escrow that is live on this cluster does not know that option yet (it comes with knos_pay 2.2). Leave out `grace`, then {again}.")
     named = getattr(cmd, "judge", None)
     if named and att is not None:
         return stop + f"A private order's judge is its attestor repository already. Leave out `judge:`, then {again}."
@@ -1712,8 +1913,8 @@ def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None, 
     flags = ((pay.F_NEUTRAL if neutral else 0) | (pay.F_STANDING if offer else 0) | (pay.F_PRIVATE if att is not None else 0)
              | (order_auto.F_AUTO if auto else 0) | order_auto.quorum_flags(quorum))
     return {"cmd": cmd, "opts": pay.opts(flags, holdback, warranty, 0, cmd.reserve, cmd.rate if offer else 0, ids.get("arbiter", ("", 0))[1],
-                                         att.rp["id"] if att is not None else judge_repo[1], att is not None),
-            "attestor": att.run.repo if att is not None else "",
+                                         att.rp["id"] if att is not None else judge_repo[1], att is not None, grace=grace),
+            "grace": grace, "attestor": att.run.repo if att is not None else "",
             "terms": {**({"policy": policy.digest(rules)} if rules is not None else {}), **({"vendor": ids["vendor"][1]} if offer else {})},
             "warranty": warranty, "holdback": holdback, "arbiter": ids.get("arbiter", ("", 0))[0], "neutral": neutral,
             "vendor": ids.get("vendor", ("", 0))[0], "from_policy": from_policy, "fee": 0, "seq": 0, "auto": auto, "quorum": quorum, "judge": judge_repo[0]}
@@ -1743,6 +1944,9 @@ def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: 
                "started by hand with this repository and the pull request's number." if plan.get("attestor") else
                "Only this repository's workflow can have it paid (`neutral off`).")
     back = f"If it is not paid by {deadline}, the money and the fee go back to where they came from."
+    if plan.get("grace"):
+        back = (f"A token GitHub issued by {deadline} still pays for {_days(pay.GRACE // 3600).replace('day', 'hour')} after it (`grace`). If it is not paid "
+                "by then, the money and the fee go back to where they came from.")
     if isinstance(cmd, commands.Offer):
         vendor = plan["vendor"]
         return "\n\n".join((
@@ -1812,8 +2016,10 @@ def _order_word(run: Run, cmd, said: dict, on: dict) -> str:
         if o.faucet:
             return (f"Knos: nothing was added. The work order on issue #{number} ({link}) holds test USDC from the devnet faucet, and the "
                     f"faucet tops nothing up. {second}")
-        # TopUp charges the tiers on the new whole amount, less the fee already paid (order.rs top_up), not a fee on the part added
-        fee = max(pay.order_fee(o.amount + cmd.units, o.fee_bps or pay.FEE_BPS, o.decimals) - o.fee, 0)
+        # TopUp charges the live build's fee on the new whole amount, at the order's own rate where that is lower, less
+        # the fee already paid (order.rs top_up), not a fee on the part added
+        rule = fees.rule(run.version())
+        fee = max(rule.order(o.amount + cmd.units, min(o.fee_bps or rule.bps, rule.bps), o.decimals) - o.fee, 0)
         return (f"Knos: nothing was added by this comment. The work order on issue #{number} ({link}) was funded from "
                 f"{'the balance' if o.from_balance else 'the wallet'} `{o.source}`, and only {'the wallet that opened that balance' if o.from_balance else 'that wallet'} "
                 f"can add to it: it signs knos_pay's TopUp for {_amount(cmd.units)} {_money(run, o.mint)}, and pays Knos's fee of {_amount(fee)} on "
@@ -2155,14 +2361,35 @@ def _status_of(run: Run) -> _Status | None:
     return getattr(run, "_status", None)
 
 
-def _accepted(run: Run, c: "Case") -> None:
-    """A case passed and GitHub signed for it: the comment says so now, before the token goes to the chain."""
+def _provisional(run: Run, c: "Case", jwt: str) -> str:
+    """The provisional decision on a token this job is about to send (knos.decide): the relay's own reads, made before
+    anything is sent, as one line for the status comment. It never says paid. "" when there is no token, when the relay
+    this run uses has no `precheck` to ask, or when anything at all goes wrong: the decision is a convenience for the
+    reader, and its failure is logged and never stands in a payment's way."""
+    if not jwt or not callable(getattr(run.relay, "precheck", None)):
+        return ""
+    try:
+        from . import decide
+        beside = c.raw or None
+        doc = decide.provisional(decide.token(jwt, beside, ledger=run.ledger, now=run.clock()), at=int(run.clock()), jwt=jwt, terms=beside)
+        run.output("provisional", decide.digest(doc))
+        return decide.comment_line(doc)
+    except Exception as why:  # noqa: BLE001 - best effort
+        _err(f"knos: the provisional decision could not be made ({type(why).__name__}: {_short(why)}); settling goes on")
+        return ""
+
+
+def _accepted(run: Run, c: "Case", jwt: str = "") -> None:
+    """A case passed and GitHub signed for it: the comment says so now, before the token goes to the chain, with the
+    provisional decision on that token (`_provisional`) when one could be made."""
     st = _status_of(run)
     if st is None or "accepted" in st.at:
         return
     st.reach("accepted")
+    decided = _provisional(run, c, jwt)
     st.write(f"Knos: accepted, settling. Everything {_what(run, c)} asks for holds at this pull request's last commit and GitHub signed "
-             f"this run. The payment to @{c.paid.get('login')} is on its way to Solana; this comment is edited when it lands.")
+             f"this run. The payment to @{c.paid.get('login')} is on its way to Solana; this comment is edited when it lands."
+             + (f" {decided}" if decided else ""))
 
 
 def _settled(run: Run, cases: list) -> None:
@@ -2271,6 +2498,16 @@ def _attest(run: Run, rp: dict, number: int | None, head: str, issue: int | None
     if found.get("state") != "open" and not found.get("merged_at"):
         run.note(f"Knos settle: pull request #{number} was closed without being merged, so nothing was signed.")
         return 0
+    handed = str(run.env.get("VERDICT") or "")
+    if handed.strip():      # the judge job's verdict, when the workflow hands it to this step too: the bundle is read at the commit it names
+        from . import verdict_gate
+        try:
+            v = verdict_gate.read(handed)
+            verdict_gate.holds(v, verdict_gate.expected(run.env, str(number), head, str(issue or 0)))
+        except verdict_gate.Refused as why:
+            run.note(f"Knos settle: nothing was signed. {str(why)[0].upper()}{str(why)[1:]}.")
+            return 1
+        run.judged_at = v["base"]
     _settle_safely(run, rp, found, run.began, "its acceptance checks passed", False, False, int(issue or 0))
     return 1 if run.failed else 0
 
@@ -2469,7 +2706,9 @@ def _prove(run: Run, rp: dict, pull: dict, c: Case, since: float) -> None:
                      f"run used `{pin[1][:7]}`")
         c.fix.append(f"Point this repository's workflow file at commit `{job.wf_sha}` of Knos's workflows again.")
         return
-    _accepted(run, c)
+    if not _terms3_signer(run, c, jwt, pull):       # an order funded under Knos Terms 3: only an evaluator its terms name signs for it
+        return
+    _accepted(run, c, jwt)
     c.result = _carried(run, "proof", jwt, since) if run.att is not None else deliver("proof", jwt, int(pull["number"]), run=run, since=since)
 
 
@@ -3094,8 +3333,13 @@ def _environment(env) -> dict:
 def _rerun_plan(run: Run, address, o, pull: dict, c: Case) -> dict | None:
     """What the re-execution job fetches and runs for a merged pull request of an order paid by its acceptance checks:
     {"order", "repository", "pull", "issue", "head" (the commit that was merged), "base" (the commit it was merged
-    onto: the merge commit's first parent), "accept" (the bundle's hash, from the terms), "image" (the terms', or "")}.
-    None for an order paid on the merge: there is no suite to run. Raises OSError when GitHub does not name the base."""
+    onto: the merge commit's first parent), "accept" (the bundle's hash, from the terms), "image" (the terms', or ""),
+    "changed" (the paths the pull request changed, as GitHub lists its files: a rename under both its names)}.
+    The judge is told those paths and not the difference of the two trees: when the default branch moved after the pull
+    request left it, the first parent holds files the pull request never touched, and a tree difference would charge
+    them to it (a workflow the buyer changed after it, say, read as a pull request that changes a protected path).
+    None for an order paid on the merge: there is no suite to run. Raises OSError when GitHub does not name the base,
+    or does not list the pull request's files whole."""
     if not c.terms or c.terms["mode"] != "tests" or o.mode != pay.TESTS:
         return None
     merge = str(pull.get("merge_commit_sha") or "")
@@ -3105,8 +3349,12 @@ def _rerun_plan(run: Run, address, o, pull: dict, c: Case) -> dict | None:
     head = str((pull.get("head") or {}).get("sha") or "")
     if not re.fullmatch(_HEX40, base) or not re.fullmatch(_HEX40, head):
         raise OSError("GitHub did not name the commit the pull request was merged onto")
+    files = _changes(run, int(pull["number"]))
+    if files is None:
+        raise OSError("GitHub did not list the files the pull request changed")
+    changed = sorted({str(f.get(k)) for f in files if isinstance(f, dict) for k in ("filename", "previous_filename") if f.get(k)})
     return {"order": str(address), "repository": run.repo, "pull": int(pull["number"]), "issue": int(o.issue), "head": head, "base": base,
-            "accept": str(c.terms["accept"]), "image": str(c.terms.get("image") or "")}
+            "accept": str(c.terms["accept"]), "image": str(c.terms.get("image") or ""), "changed": changed}
 
 
 def _rerun_verdict(plan: dict | None, env, judged: dict | None = None, why: str = "") -> dict:
@@ -3134,8 +3382,22 @@ def _rerun_verdict(plan: dict | None, env, judged: dict | None = None, why: str 
 
 def _rerun_read(text: str) -> dict | str:
     """The verdict the re-execution job handed over, read as what it is: text from a job that ran a stranger's code.
-    Returns it only when it is one small JSON object of exactly the fields `_rerun_verdict` writes, each of its type and
-    shape; else one sentence saying what is wrong. Whether it is about THIS order is the caller's to check."""
+    First knos.verdict_gate.shape: what two readers could read differently (a key twice, a fraction, a character
+    outside printable ASCII, something nested) is refused before anything is made of it. Then it is returned only when
+    it is one small JSON object of exactly the fields `_rerun_verdict` writes, each of its type and shape; else one
+    sentence saying what is wrong. Whether it is about THIS order is the caller's to check."""
+    from . import verdict_gate
+    gate = ""
+    try:
+        verdict_gate.shape(text)
+    except verdict_gate.Refused as why:
+        gate = f"the re-execution's verdict is not text every reader reads the same way: {why}"
+    got = _rerun_fields(text)
+    return got if isinstance(got, str) or not gate else gate
+
+
+def _rerun_fields(text: str) -> dict | str:
+    """`_rerun_read` after the gate: exactly the fields `_rerun_verdict` writes, each of its type and shape."""
     if len(text) > 8192:
         return "the re-execution's verdict is larger than a verdict is"
     try:
@@ -3202,7 +3464,9 @@ def _rerun_judge(plan: dict, folder: Path, env, judge_fn=None, sandbox: str = "r
     if plan["image"]:
         cfg["image"] = plan["image"]            # the image that was funded, whatever proof.toml says at this commit
     try:
-        judged = (judge_fn or judge.judge)(base, pr, cfg, sandbox=sandbox)
+        # the paths GitHub lists for the pull request (the plan's), never the difference of the two trees: see _rerun_plan
+        changed = plan.get("changed")
+        judged = (judge_fn or judge.judge)(base, pr, cfg, [str(n) for n in changed] if isinstance(changed, list) else None, sandbox=sandbox)
     except Exception as why:  # noqa: BLE001 - a judge that could not run is a suite that did not pass here
         return _rerun_verdict(plan, env, why=f"the judge could not run here ({type(why).__name__}: {_short(why)})"[:200])
     return _rerun_verdict(plan, env, judged)
@@ -3508,13 +3772,14 @@ def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str
             if payees.strip() and payees.strip() != aud.split(":")[-1]:
                 return no(f"`--payees {_plain(payees.strip())}` is not who GitHub's record says is paid ({aud.split(':')[-1]}). Leave it empty.", found)
             said = f"pull request #{number} takes {what}: it pays {', '.join('@' + str(x[3]) for x in c.payees)}"
-            code = _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no)
+            code = _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no, c, pull_)
             _rerun_said(run, verdict, appealed=appealed)       # after the token, so that a relayer's first comment on the issue is the token's
             return code
     return _attest_sign(run, kind, aud, said, found, pull or o.issue, o, no)
 
 
-def _attest_sign(run: Run, kind: str, aud: str, said: str, found: str | None, number: int, o, no) -> int:
+def _attest_sign(run: Run, kind: str, aud: str, said: str, found: str | None, number: int, o, no, case: "Case | None" = None,
+                 pull: dict | None = None) -> int:
     """The end of `knos attest`, whatever it asks for: GitHub signs `aud`, and the token is relayed here or posted for
     a relayer. `o`: the work order the token is for (None for an evaluation, which names none on chain)."""
     try:
@@ -3525,6 +3790,9 @@ def _attest_sign(run: Run, kind: str, aud: str, said: str, found: str | None, nu
     if pin and o is not None and (bytes(o.wf_repo_hash), o.wf_sha) != pin:
         return no(f"The order was funded through Knos's workflows at commit `{o.wf_sha[:7]}`, and only a run at that commit is accepted for "
                   f"it; this run used `{pin[1][:7]}`. Point your knos-attest.yml at commit `{o.wf_sha}`.", found or "")
+    if case is not None and not _terms3_signer(run, case, jwt, pull or {}):     # an order under Knos Terms 3: only an evaluator its terms name
+        stopped = (case.why or case.unread or ["its terms do not name this run as a judge"])[-1]
+        return no(f"Nothing is sent: {stopped}.", found or "")
     run.output("audience", aud)
     where = None
     carried = ("It is no secret: it can do only what it names, once. Any relayer carries it to Solana: `knos relay` with a funded key, or "

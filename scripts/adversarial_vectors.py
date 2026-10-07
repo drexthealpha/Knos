@@ -4,13 +4,16 @@
 The same recorder as scripts/rust_test_vectors.py (every call that reaches LiteSVM is written down, each transaction
 as its signed bytes with what the program answered), over scenarios an opponent would try: accounts closed and made
 again at the same address, the second before, at and after every time limit, a payment and a refund sent together,
-one token sent twice, and one judge alone where an order asks for two or three.
+one token sent twice, one judge alone where an order asks for two or three, one owner behind two judges, a marker
+of the order that was at an address before, a token shown after a deadline it was issued before, and orders and
+markers as knos_pay 2.1 wrote them.
 
     python scripts/adversarial_vectors.py            # write the files
     python scripts/adversarial_vectors.py --check    # fail if a committed file differs from what this would write
 
-Two scenarios (`adv_quorum_same_account`, `adv_quorum_same_second`) record what the programs do today and the Rust
-tests that replay them say what they should do instead; those tests are `#[ignore]`d until the program is judged.
+`adv_quorum_same_account` and `adv_quorum_same_second` recorded two defects of knos_pay 2.1 (one account counted as
+two judges; a judge's marker counted for the order funded next at its address). 2.2 fixed both, and the Rust tests
+that replay them are ordinary tests.
 """
 from __future__ import annotations
 
@@ -26,13 +29,16 @@ import _meter  # noqa: E402
 import _order  # noqa: E402
 import test_order_terms as terms  # noqa: E402
 from _order import HEAD, OWNER, REPO, USDC  # noqa: E402
+from solders.pubkey import Pubkey  # noqa: E402
 
 from knos.settle.v2 import meter, order_auto, pay  # noqa: E402
 
-E_STATE, E_AUD, E_REPLAY, E_ORDER = 83, 87, 91, 101
+E_STATE, E_TOKEN, E_AUD, E_REPLAY, E_ORDER = 83, 84, 87, 91, 101
 HOUR = 3600
 Q2 = pay.opts(pay.F_NEUTRAL | order_auto.quorum_flags(2))
 JUDGE_REPO = 31_313_131
+FIRM = 9_000            # owns the judge repository when the buyer does not
+MAINT = _order.MAINT
 
 
 def _chain(r: rv.Recorder) -> "_order.OrderChain":
@@ -342,49 +348,249 @@ def adv_quorum() -> rv.Recorder:
                                ("two_second_judge", two, c.neutral(author)),
                                ("three_first_judge", three, {}), ("three_second_judge", three, c.neutral(author)),
                                ("three_second_judge_again", three, c.neutral(author)), ("three_first_judge_again", three, {}),
-                               ("three_third_judge", three, dict(repository_id=JUDGE_REPO, file="attest.yml", event_name="push"))):
+                               ("three_third_judge", three, dict(repository_id=JUDGE_REPO, repository_owner_id=FIRM, file="attest.yml", event_name="push"))):
         assert _present(c, r, label, order, payees, **over), c.err
         _money(c, r, label)
     return r
 
 
 def adv_quorum_same_account() -> rv.Recorder:
-    """RECORDS A DEFECT (see the ignored test). A wallet's order with a quorum of 2: the run in the order's
-    repository is started by one account, and the same account then starts the neutral run in a repository it owns.
-    The program counts two judges and pays."""
+    """FINDING 1 of 2.1, fixed. A wallet's order with a quorum of 2: the run in the order's repository is started by
+    one account, and the same account then starts the neutral run in a repository it owns: one judge, nothing paid.
+    Once with the repository's owner as that account, once with a maintainer who owns nothing of the order's; then a
+    third party's neutral run pays."""
     r = rv.scenario("adv_quorum_same_account")
     c = _chain(r)
     payees = _payee(c, r)
     order = _fund(c, r, "order", options=Q2)
+    other = _fund(c, r, "other", options=Q2)
     c.warp(5)
     _money(c, r, "start")
     assert _present(c, r, "own_run_started_by_the_account", order, payees, actor_id=OWNER), c.err
-    _present(c, r, "neutral_run_started_by_the_same_account", order, payees, **c.neutral(OWNER))
+    assert _present(c, r, "neutral_run_started_by_the_same_account", order, payees, **c.neutral(OWNER)), c.err
+    _money(c, r, "owner")
+    assert _present(c, r, "own_run_started_by_a_maintainer", other, payees, actor_id=MAINT), c.err
+    assert _present(c, r, "neutral_run_started_by_that_maintainer", other, payees, **c.neutral(MAINT)), c.err
+    _money(c, r, "maintainer")
+    assert _present(c, r, "neutral_run_of_a_third_party", other, payees, **c.neutral(_order.user())), c.err
     _money(c, r, "end")
     return r
 
 
 def adv_quorum_same_second() -> rv.Recorder:
-    """RECORDS A DEFECT (see the ignored test). An order with a quorum of 2 is paid by its two judges and its address
-    funded again within the same second of the chain's clock: the first judge's marker of the first order still
-    counts, and the second judge's new token alone pays the second order."""
+    """FINDING 2 of 2.1, fixed. An order with a quorum of 2 is paid by its two judges and its address funded again
+    within the same second of the chain's clock: the first judge's marker of the first order carries the first
+    order's stamp, and the second judge's new token alone moves nothing. Before that: the address funded and judged
+    in ONE transaction (one slot) is refused whole."""
     r = rv.scenario("adv_quorum_same_second")
     c = _chain(r)
     payees = _payee(c, r)
     author, n = payees[0][0], _order.issue()
     order = _fund(c, r, "order", n, options=Q2)
-    assert _present(c, r, None, order, payees) and _present(c, r, None, order, payees, **c.neutral(author)), c.err
+    r.name_it(q_own=order_auto.q_pda(order, 0), q_neutral=order_auto.q_pda(order, 1))
+    o1 = c.order(order)
+    assert _present(c, r, "first_judge", order, payees) and _present(c, r, "second_judge", order, payees, **c.neutral(author)), c.err
     assert c.order(order) is None
+    alone = c.pay_token(order, payees, o1, **c.neutral(author))
+    _send(c, r, "fund_and_judge_in_one_slot", [c.fund_wallet_ix(n, options=Q2), c.pay_ix(order, alone, payees, o1)], E_STATE, payer=c.funder, signers=[c.payer])
     r.label("fund_again_in_the_same_second")
     assert c.fund_wallet(n, options=Q2) == order
+    assert (c.order(order).not_before, c.order(order).stamp != o1.stamp) == (o1.not_before, True)
     _money(c, r, "funded_again")
-    _present(c, r, "one_judge_alone", order, payees, **c.neutral(author))
+    _send(c, r, "one_judge_alone", [c.pay_ix(order, alone, payees)])
+    _money(c, r, "end")
+    return r
+
+
+def adv_quorum_owners() -> rv.Recorder:
+    """Judges are counted by the owners of the repositories their runs were in. A wallet's orders: the order's
+    repository and a judge repository of the same owner are one judge; of different owners, two; a quorum of 3 with
+    two owners behind three judges does not pay until a third owner's run; a neutral run and a judge repository do
+    not pay a wallet's order before its own repository has spoken. A Balance's order (funded by a comment on the
+    forge): the same account behind the own run and the neutral run is one judge, and a third party's pays."""
+    r = rv.scenario("adv_quorum_owners")
+    c = _chain(r)
+    payees = _payee(c, r)
+    seller = payees[0][0]
+    named = dict(repository_id=JUDGE_REPO, file="attest.yml", event_name="push")
+    two = pay.opts(order_auto.quorum_flags(2), judge_repo_id=JUDGE_REPO)
+    same, different = _fund(c, r, "same", options=two), _fund(c, r, "different", options=two)
+    three = _fund(c, r, "three", options=pay.opts(pay.F_NEUTRAL | order_auto.quorum_flags(3), judge_repo_id=JUDGE_REPO))
+    late = _fund(c, r, "late", options=pay.opts(pay.F_NEUTRAL | order_auto.quorum_flags(2), judge_repo_id=JUDGE_REPO))
+    bal = c.fund_balance(options=Q2)
+    r.name_it(bal=bal, bal_tok=pay.ov_pda(bal), baltok=pay.baltok_pda(c.bal))
+    c.warp(5)
+    _money(c, r, "start")
+    steps = (("same_own", same, {}), ("same_owner_two_repositories", same, dict(named, repository_owner_id=OWNER)),
+             ("different_own", different, {}), ("different_owners", different, dict(named, repository_owner_id=FIRM)),
+             ("three_own", three, {}), ("three_neutral", three, c.neutral(seller)), ("three_judge_repository_of_the_owner", three, dict(named, repository_owner_id=OWNER)),
+             ("three_third_owner", three, dict(named, repository_owner_id=FIRM)),
+             ("late_neutral", late, c.neutral(seller)), ("late_judge_repository", late, dict(named, repository_owner_id=FIRM)), ("late_own", late, {}),
+             ("balance_own_run_by_an_account", bal, dict(actor_id=seller)), ("balance_neutral_run_by_that_account", bal, c.neutral(seller)),
+             ("balance_neutral_run_of_a_third_party", bal, c.neutral(_order.user())))
+    for label, order, over in steps:
+        assert _present(c, r, label, order, payees, **over), f"{label}: {c.err}"
+        _money(c, r, label)
+    return r
+
+
+def adv_grace() -> rv.Recorder:
+    """The presentation grace (orders funded with opts(grace=True)), at every boundary. A token the forge issued by
+    the deadline pays a second after it and in the last second such a token can live; one issued a second after the
+    deadline does not; a refund is refused through the whole grace and goes through the second after it; a payment
+    and a refund in one transaction are refused whole. An order without the grace is refunded a second after its
+    deadline, as before."""
+    r = rv.scenario("adv_grace")
+    c = _chain(r)
+    payees = _payee(c, r)
+    graced = pay.opts(grace=True)
+    g1, g2, g3 = (_fund(c, r, name, work_s=HOUR, options=graced) for name in ("first", "last", "over"))
+    plain = _fund(c, r, "plain", work_s=HOUR)
+    o = {k: c.order(k) for k in (g1, g2, g3, plain)}
+    t = o[g1].deadline
+    assert all(x.deadline == t for x in o.values()) and o[g1].grace and not o[plain].grace and o[g1].pay_until == t + pay.GRACE
+    c.warp(t - 10 - c.now())
+    early = c.pay_token(g1, payees)
+    c.warp(10)
+    at = {k: c.pay_token(k, payees, exp=t + pay.TOKEN_LIFE) for k in (g2, g3)}      # the longest a token may live
+    at[plain] = c.pay_token(plain, payees)
+    c.warp(1)
+    after = c.pay_token(g1, payees)
+    assert c.now() == t + 1
+    _money(c, r, "start")
+
+    def refund(k):
+        return pay.refund_order_ix(c.payer.pubkey(), k, o[k])
+
+    _send(c, r, "refund_a_second_after_the_deadline", [refund(g1)], E_STATE)
+    _send(c, r, "token_issued_after_the_deadline", [c.pay_ix(g1, after, payees)], E_STATE)
+    _send(c, r, "pay_and_refund_in_the_grace", [c.pay_ix(g1, early, payees), refund(g1)], E_ORDER)
+    _send(c, r, "refund_and_pay_in_the_grace", [refund(g1), c.pay_ix(g1, early, payees)], E_STATE)
+    _send(c, r, "token_issued_before_the_deadline", [c.pay_ix(g1, early, payees)])
+    _send(c, r, "refund_after_the_payment", [refund(g1)], E_ORDER)
+    _send(c, r, "no_grace_no_payment", [c.pay_ix(plain, at[plain], payees)], E_STATE)
+    _send(c, r, "no_grace_refund", [refund(plain)])
+    c.warp(t + pay.GRACE - 1 - c.now())
+    _send(c, r, "refund_in_the_last_second_a_token_lives", [refund(g2)], E_STATE)
+    _send(c, r, "pay_in_the_last_second_a_token_lives", [c.pay_ix(g2, at[g2], payees)])
+    c.warp(1)
+    _send(c, r, "refund_at_the_end_of_the_grace", [refund(g3)], E_STATE)
+    _send(c, r, "pay_at_the_end_of_the_grace", [c.pay_ix(g3, at[g3], payees)], E_TOKEN)
+    c.warp(1)
+    _send(c, r, "pay_after_the_grace", [c.pay_ix(g3, at[g3], payees)], E_TOKEN)
+    _send(c, r, "refund_after_the_grace", [refund(g3)])
+    _send(c, r, "pay_after_the_refund", [c.pay_ix(g3, at[g3], payees, o[g3])], E_ORDER)
+    _money(c, r, "end")
+    return r
+
+
+# == orders and markers as knos_pay 2.1 wrote them ========================================================================
+FEE_21 = 500_000        # what 2.1 charged on 20.00: 2.5%
+
+
+def _as_2_1(c, order) -> None:
+    """Rewrites an order this build funded into the account 2.1 would have left: no incarnation, no grace (bytes 432 to
+    512 zero), the rate 250 and the fee 2.1 charged, which its token account then holds."""
+    from solders.account import Account
+    a, o = c.svm.get_account(order), c.order(order)
+    d = bytearray(a.data)
+    d[72:80] = FEE_21.to_bytes(8, "little")
+    d[424:426] = (250).to_bytes(2, "little")
+    d[432:512] = bytes(80)
+    c.svm.set_account(order, Account(a.lamports, bytes(d), a.owner))
+    c.mint_to(c.usdc, pay.ov_pda(order), FEE_21 - o.fee)
+    assert (c.order(order).inc, c.order(order).fee, c.order(order).stamp, c.held(order)) == (0, FEE_21, o.not_before, o.amount + FEE_21)
+
+
+def _marker_2_1(c, address, data: bytes) -> None:
+    """A marker as 2.1 wrote it, at its address, with the rent of its length, paid by the chain's payer."""
+    from solders.account import Account
+    c.svm.set_account(address, Account(c.svm.minimum_balance_for_rent_exemption(len(data)), data, pay.PAY_ID))
+
+
+def adv_compat_2_1() -> rv.Recorder:
+    """Orders funded under 2.1 (their accounts as 2.1 wrote them: the fee of 2.1, its rate, no incarnation) under this
+    build: one is paid (its own fee, not today's), one refunded a second after its deadline (no grace), one paid with
+    a holdback and reverted in its warranty. A quorum marker of 2.1 (106 bytes, naming no run) counts for nothing:
+    the judge signs again and the marker is made whole, then a second judge pays. A standing order of 2.1 does not
+    pay a pull request its 65-byte marker names; an order of this build at an address with such a marker does."""
+    r = rv.scenario("adv_compat_2_1")
+    c = _chain(r)
+    payees = _payee(c, r)
+    seller = payees[0][0]
+    paid, refunded = _fund(c, r, "paid"), _fund(c, r, "refunded", work_s=HOUR)
+    reverted = _fund(c, r, "reverted", options=pay.opts(holdback_bps=1000, warranty_days=1))
+    quorum, alone = _fund(c, r, "quorum", options=Q2), _fund(c, r, "alone", options=Q2)
+    standing_opts = pay.opts(pay.F_STANDING, rate=6 * USDC)
+    standing, fresh = _fund(c, r, "standing", options=standing_opts), _fund(c, r, "fresh", options=standing_opts)
+    for k in (paid, refunded, reverted, quorum, alone, standing):
+        _as_2_1(c, k)
+    # the own repository's judge passed pull request 7 for both quorum orders under 2.1: its markers, as 2.1 wrote them
+    for k in (quorum, alone):
+        o = c.order(k)
+        q, bump = Pubkey.find_program_address([b"q", bytes(k), bytes([0])], pay.PAY_ID)
+        art = order_auto.artifact(pay.order_pay_audience(k, HEAD, o.terms, o.mode, 7, payees))
+        _marker_2_1(c, q, bytes([bump, 0]) + bytes(c.payer.pubkey()) + bytes(k) + o.not_before.to_bytes(8, "little", signed=True) + art)
+    r.name_it(q_own=order_auto.q_pda(quorum, 0), done_standing=pay.done_pda(standing, 1), done_fresh=pay.done_pda(fresh, 1))
+    for k in (standing, fresh):
+        _marker_2_1(c, pay.done_pda(k, 1), bytes([1]) + bytes(c.payer.pubkey()) + bytes(k))
+    c.warp(5)
+    _money(c, r, "start")
+    _send(c, r, "pay", [c.pay_ix(paid, c.pay_token(paid, payees), payees)])
+    _money(c, r, "paid")
+    assert terms.pay_pr(c, reverted, payees), c.err
+    c.warp(5)
+    challenge = terms.revert_token(c, reverted)
+    _send(c, r, "revert", [pay.revert_ix(c.payer.pubkey(), challenge, c.key, reverted, c.order(reverted), terms.hb_of(c, reverted))])
+    _money(c, r, "reverted")
+    # the quorum: a second judge alone does not pay on the word of a marker that names nobody
+    assert _present(c, r, "second_judge_on_a_marker_of_2_1", alone, payees, **c.neutral(seller)), c.err
+    assert _present(c, r, "first_judge_signs_again", quorum, payees), c.err
+    assert _present(c, r, "second_judge", quorum, payees, **c.neutral(seller)), c.err
+    _money(c, r, "quorum")
+    # standing orders and their done markers
+    _send(c, r, "standing_pull_request_marked_by_2_1", [terms.pay_ix(c, standing, payees, pr=1)], E_REPLAY)
+    _send(c, r, "standing_another_pull_request", [terms.pay_ix(c, standing, payees, pr=2)])
+    _send(c, r, "a_new_order_ignores_a_marker_of_2_1", [terms.pay_ix(c, fresh, payees, pr=1)])
+    _send(c, r, "and_marks_it_for_itself", [terms.pay_ix(c, fresh, payees, pr=1)], E_REPLAY)
+    _money(c, r, "standing")
+    o = c.order(refunded)
+    c.warp(o.deadline - c.now())
+    _send(c, r, "refund_at_the_deadline", [pay.refund_order_ix(c.payer.pubkey(), refunded, o)], E_STATE)
+    c.warp(1)
+    _send(c, r, "refund_a_second_after", [pay.refund_order_ix(c.payer.pubkey(), refunded, o)])
+    _money(c, r, "end")
+    return r
+
+
+def adv_reassign() -> rv.Recorder:
+    """An assignment is for one funding of an address. A payee assigns an order's payment to a lender and the lender
+    is paid; the address is funded again in the same second, and the next payment goes to the payee's own wallet."""
+    r = rv.scenario("adv_reassign")
+    c = _chain(r)
+    who = _order.user()
+    wallet, dest = c.wallet(c.usdc)
+    lender, lender_tok = c.wallet(c.usdc)
+    r.name_it(dest=dest, lender_tok=lender_tok)
+    assert c.bind(who, wallet.pubkey()), c.err
+    payees, n = [(who, 10_000, None)], _order.issue()
+    order = _fund(c, r, "order", n)
+    assign = pay.assign_ix(wallet.pubkey(), order, who, lender.pubkey())
+    r.label("assign")
+    assert c.send([assign], wallet), c.err
+    _send(c, r, "pay_the_assignee", [terms.pay_ix(c, order, payees)])
+    _money(c, r, "assigned")
+    assert c.order(order) is None
+    _send(c, r, "fund_and_assign_in_one_slot", [c.fund_wallet_ix(n), assign], E_STATE, payer=c.funder, signers=[wallet])
+    r.label("fund_again_in_the_same_second")
+    assert c.fund_wallet(n) == order
+    _send(c, r, "pay_the_payee", [terms.pay_ix(c, order, payees)])
     _money(c, r, "end")
     return r
 
 
 SCENARIOS = (adv_reopen, adv_deadline, adv_hold, adv_warranty, adv_duplicates, adv_meter_duplicates, adv_quorum, adv_quorum_same_account,
-             adv_quorum_same_second)
+             adv_quorum_same_second, adv_quorum_owners, adv_grace, adv_compat_2_1, adv_reassign)
 
 
 def main(argv: list[str]) -> int:

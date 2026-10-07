@@ -35,7 +35,7 @@ or for a maintainer with a bounty: the free check and `/knos fund` already serve
 ## What the buyer gets: four deliverables
 
 A Pilot is **one buyer, two suppliers, 30 days, one reconciled invoice, and quantified findings.** Two suppliers
-are the scope the price covers; a third is a second Pilot or a Supplier connection under a contract.
+are the scope the price covers; a third is a second Pilot. Under a contract, connecting a supplier costs nothing.
 
 | | deliverable | what it is |
 |---|---|---|
@@ -84,19 +84,22 @@ on the buyer's own numbers. The rule as one worked line, at the example of [MARK
 
 | a year's price | × 3 | the benefit the findings must show |
 |---|---|---|
-| 130,000 USD (Control Business 80,000 + Verify 50,000, the greater of Meter 24,000 and Verify 50,000) | × 3 | 390,000 USD a year |
+| 130,240 USD (Control Business 100,000 + Meter 240 + Acceptance 30,000, which is 0.30% of 10 million USD reconciled off chain) | × 3 | 390,720 USD a year |
 
 For the Pilot alone the same line is 2,500 × 3 = 7,500 USD of benefit found in the 30 days. The benefit is the sum of
 what the four measures above are worth to the buyer: hours no longer spent, lines no longer paid twice or paid for
-work that did not meet its terms, days no longer waited. `knos bill estimate` prints the price and the benefit to
+work that did not meet its terms, days no longer waited. An hour saved counts only when it lowers what the buyer
+spends or lets it not hire. The price is not the buyer's whole cost either: its own compute, the integration and the
+exceptions its people still handle are beside it ([UNIT_COSTS.md](UNIT_COSTS.md)). `knos bill estimate` prints the price and the benefit to
 demand for any plan and volume. **Knos has not shown this benefit for anyone.** Nobody has measured it, and a Pilot
 that finds less will say how much less, and that the buyer should not buy.
 
 ## What it costs
 
 2,500 USD for one buyer and two suppliers, for 30 days, invoiced off chain in ordinary money. The suppliers pay
-nothing. No fee is taken on chain: any settlement during a Pilot is on devnet in test USDC, and a fee in test
-money is not revenue.
+nothing, and connecting them costs nothing. No real fee is taken on chain: any release during a Pilot is on devnet in
+test USDC, where the program's 0.30% is test money and zero revenue. Acceptance on the one invoice the Pilot
+reconciles is inside the 2,500 USD.
 
 **The 2,500 USD is credited against year one.** A buyer who goes on to an annual contract
 ([MARKET.md](MARKET.md), section 3) pays that year's invoices less the 2,500 USD already paid: on the Team plan,

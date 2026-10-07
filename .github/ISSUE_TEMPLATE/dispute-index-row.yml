@@ -6,6 +6,10 @@ body:
   - type: markdown
     attributes:
       value: |
+        Contributions are welcome and unpaid, unless the issue shows a funded order.
+        A funded order pays test USDC on Solana devnet, which has no monetary value.
+        Do not post a wallet address for payment: Knos pays only the address a payee binds to a funded order.
+
         Anyone can dispute a row: a vendor, a maintainer, a reader. It costs nothing, and no payment changes a row.
         The dispute is public. It is listed in `docs/index_disputes.json`, and the row carries a mark while it is open.
         The method and its limits are in [docs/INDEX.md](https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md).

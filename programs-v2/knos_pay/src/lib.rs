@@ -25,6 +25,12 @@
 //! into a faucet Balance only. Lamports: a job's rent goes back to whoever paid it (`rent_to`) when the job closes;
 //! the other accounts keep theirs.
 //!
+//! 2.2 (this build; no account changed its size or its address, and an order funded under 2.1 is paid, refunded and
+//! reverted as it was): ONE FEE RATE, 0.30% with a floor of 0.05, for jobs and orders alike (`fee_of`, `order_fee`);
+//! an order is stamped with its FUNDING (state::O_INC) and every marker made for it carries that stamp, so none
+//! outlives it (order_terms.rs, "INCARNATION"); a quorum counts repository OWNERS, not repositories
+//! (order_terms::distinct); and an order may be funded with a PRESENTATION GRACE (`GRACE`).
+//!
 //! 2.1: WORK ORDERS. Instructions 0..11 are 2.0 and keep their bytes, but for four fixes: bounds and the fee floor are
 //! whole units of the mint (10^decimals, read from the mint); the record counts real money only in Circle's USDC;
 //! Token-2022 mints pass an allow-list of extensions; a Balance can carry a side account of limits (FundBalance takes
@@ -61,7 +67,8 @@
 //!   Order    ["ord", scope, source, seq u32]     one work order; scope is sha256("knos3:scope" || repo id || issue), or a private one
 //!   ov       ["ov", order]                       token account: that order's money and nothing else
 //!   Hb       ["hb", order]                       where the holdback of an order in WARRANTY goes: the wallets paid, and their parts
-//!   Done     ["done", order, pr u64]             this standing order has paid this pull request
+//!   Done     ["done", order, pr u64]             this standing order, as funded now, has paid this pull request
+//!   Q        ["q", order, kind u8]               a judge of this order, as funded now, passed an artifact (a QUORUM)
 //!   As       ["as", order, payee id]             the wallet this order pays for that payee instead of the payee's own
 //!   Rate     ["rate", repo id]                   devnet: the faucet's last use by this repository
 //!   mint     ["mint"]                            devnet: the faucet's test-USDC mint (SPL Token, 6 decimals)
@@ -188,7 +195,7 @@
 //!                  actor spends it, nobody withdraws it). The token's marker is made here as MINTED: the funding
 //!                  instruction that spends that Balance with it is the one thing that still takes it.
 //!   12 Version
-//!                  Logs `knos2:version 1`. A client simulates it to learn whether 2.1 is live (2.0 refuses the tag).
+//!                  Logs `knos2:version 2` (2.1 logged 1). A client simulates it to learn what is live (2.0 refuses the tag).
 //!   13 SetBalanceX authority(s,w) balance(w) balx(w) system
 //!                  data: day_limit u64, total_limit u64, repos [u64; 8], wf_sha [u8; 40]
 //!                  The wallet that opened the Balance sets its side account ["balx", balance] (created on first use;
@@ -198,7 +205,7 @@
 //!   14 SetPlan     fee_owner(s) payer(s,w) plan(w) system
 //!                  data: owner_id u64, fee_bps u16, expires i64
 //!                  FEE_OWNER sets the fee rate of the orders funded from Balances of one repository owner:
-//!                  PLAN_BPS_MIN..=FEE_BPS basis points while now < expires (which must be in the future).
+//!                  PLAN_BPS_MIN..=FEE_BPS basis points (10 to 30) while now < expires (which must be in the future).
 //!   15 FundOrderWallet funder(s,w) order(w) ov(w) funder_token(w) mint auth token_program system pause
 //!                  data: issue u64, repo_id u64, amount u64, mode u8, work i64, seq u32, opts [u8; 48], wf_repo [u8; 32], wf_sha [u8; 40], terms bytes
 //!                  Any wallet funds an order for an issue of any public repository; nothing is needed in that
@@ -206,7 +213,7 @@
 //!                  bounds as a job; repo_id not 0; the order ["ord", scope, funder, seq] does not exist; the mint
 //!                  passes the mint rules. opts (order.rs): flags u8 (PRIVATE 2, NEUTRAL 4, STANDING 8),
 //!                  holdback_bps u16, warranty_days u16, kill_bps u16, reserve_days u8, rate u64, arbiter_id u64,
-//!                  judge_repo_id u64, salted u8, 15 zero bytes. A PRIVATE order (salted 1): repo_id and issue are 0
+//!                  judge_repo_id u64, salted u8, grace u8 (1: GRACE), 14 zero bytes. A PRIVATE order (salted 1): repo_id and issue are 0
 //!                  and `terms` is its scope [32] then the hash of its terms [32]. Money: amount + order_fee(amount),
 //!                  funder_token -> ov. Logs knos3:funded and knos3:terms.
 //!   16 FundOrderBalance relayer(s,w) fund_token key balance(w) baltok(w) balx(w) plan order(w) ov(w) used(w) mint auth token_program system pause
@@ -222,7 +229,8 @@
 //!                  order; then one ["as", order, payee] per payee, in the same order (it need not exist, but cannot be
 //!                  left out); then ["done", order, pr](w) for a STANDING order, or ["hb", order](w) for one with a holdback.
 //!                  `used` is the token's marker: a pay token or a ruling pays, or holds, once.
-//!                  Anyone relays. The order is OPEN before its deadline. The token is a judge's (order_judge.rs): the
+//!                  Anyone relays. The order is OPEN before its deadline (an order funded with `grace`: or within GRACE
+//!                  after it, on a token issued by the deadline). The token is a judge's (order_judge.rs): the
 //!                  workflows of the order's pinned repository at its pinned commit, a first attempt, and one of
 //!                  a. prove.yml run in the order's own repository; b. for a NEUTRAL order that is not PRIVATE,
 //!                  attest.yml started by hand by the account that owns the repository it ran in; c. prove.yml or
@@ -269,7 +277,8 @@
 //!                  `actor_id` funded the order or owns the Balance. With a token the signer pays the rent of its marker
 //!                  `used`, and only then must it be writable.
 //!   22 RefundOrder relayer(s,w) order(w) ov(w) refund_token(w) auth rent_to(w) mint token_program
-//!                  Anyone relays; no token. OPEN past its deadline or HELD past its hold: everything the order's
+//!                  Anyone relays; no token. OPEN past its deadline (and past GRACE after it, for an order funded with
+//!                  `grace`) or HELD past its hold: everything the order's
 //!                  account holds goes to refund_token (the Balance's token account, or a token account of the
 //!                  funding wallet); both accounts are closed. An order cancelled while reserved owes its taker
 //!                  kill_bps of the amount first: two more accounts follow, the taker's Bind and a token account of
@@ -388,26 +397,29 @@ pub const TEST_PLAN_SIGNER: Option<Pubkey> = None;
 
 // Amounts below are millionths of ONE WHOLE UNIT of the mint (10^decimals of its smallest units): state::units turns
 // them into the mint's smallest units with the decimals read from the mint. For a 6-decimal mint they are the same.
-pub const FEE_BPS: u64 = 250;             // 2.5%: a job's fee, and the first tier of an order's
-pub const FEE_MIN: u64 = 50_000;          // jobs (2.0): 0.05; never more than the amount
+pub const FEE_BPS: u64 = 30;              // 0.30%: the one rate, of a job's fee and of an order's
+pub const FEE_MIN: u64 = 50_000;          // the floor of both: 0.05; a job's fee is never more than its amount
 pub const MIN_AMOUNT: u64 = 1_000_000;    // jobs (2.0): 1.00
 pub const MAX_AMOUNT: u64 = 100_000_000_000; // 100,000.00 per job and per order on devnet; a build for real money decides its own cap
-// orders (2.1): the funder pays the fee on top of the amount; the payees receive the amount. The fee is marginal, in
-// three tiers of the amount, and has a floor and no cap (order_fee).
-pub const ORDER_FEE_MIN: u64 = 400_000;   // 0.40
-pub const FEE_TIER_1: u64 = 1_000_000_000;   // the first 1,000.00: FEE_BPS, or the owner's Plan
-pub const FEE_TIER_2: u64 = 50_000_000_000;  // from there to 50,000.00: FEE_BPS_2; above it: FEE_BPS_3
-pub const FEE_BPS_2: u64 = 100;           // 1%
-pub const FEE_BPS_3: u64 = 50;            // 0.5%
+// orders (2.1): the funder pays the fee on top of the amount; the payees receive the amount. One rate, no tiers, the
+// same floor as a job's and no cap (order_fee). 2.2 replaced the three tiers and the 0.40 floor of 2.1; an order
+// keeps the fee it was funded with (it is in the order, with its rate).
 pub const ORDER_MIN_AMOUNT: u64 = 5_000_000; // 5.00
 pub const TIP: u64 = 50_000;              // 0.05 of the fee goes to whoever paid for the paying transaction
-pub const TIP_FIRST: u64 = 300_000;       // 0.30 when that transaction created a payee's token account
-pub const PLAN_BPS_MIN: u64 = 50;         // a Plan lowers the fee rate to 50..=250 basis points
+pub const TIP_FIRST: u64 = 300_000;       // 0.30 when that transaction created a payee's token account; never more than the fee
+pub const PLAN_BPS_MIN: u64 = 10;         // a Plan lowers the fee rate to 10..=30 basis points
 pub const MAX_HOLDBACK_BPS: u16 = 5000;
 pub const MAX_WARRANTY_DAYS: u16 = 90;
 pub const MAX_KILL_BPS: u16 = 2000;
 pub const MAX_PAYEES: usize = 4;
-pub const VERSION: u32 = 1;               // what Version logs: 2.1 is live (2.1 as first built, without ONE MARKER, was never deployed)
+pub const VERSION: u32 = 2;               // what Version logs: 1 was 2.1; 2 is 2.2 (one fee rate, judges bound to an order's funding, a quorum of owners, GRACE)
+/// PRESENTATION GRACE, for an order funded with `grace` in its options. A pay token the forge issued at or before the
+/// order's deadline (its `iat`) is still accepted for this long after the deadline, and RefundOrder is refused for
+/// exactly as long: so a relay that was down at the deadline does not erase a payment that was earned in time, and a
+/// payment and a refund are never both possible in the same second. It is TOKEN_LIFE + knos_oidc::LATE: no token
+/// issued by the deadline is accepted by gh.rs later than that whatever this program allowed, so a longer window
+/// would delay a refund for nothing and a shorter one would refuse tokens that are still good.
+pub const GRACE: i64 = TOKEN_LIFE + knos_oidc::LATE;
 pub const MIN_WORK: i64 = 60;
 pub const MAX_WORK: i64 = 90 * 86_400;
 pub const HOLD: i64 = 180 * 86_400;       // how long a proven job waits for its payee to bind a wallet
@@ -463,19 +475,12 @@ solana_security_txt::security_txt! {
 pub fn bps_of(amount: u64, bps: u64) -> u64 { amount / 10_000 * bps + amount % 10_000 * bps / 10_000 }
 /// The fee of a job's payment (2.0), taken out of the amount: FEE_BPS of it, at least FEE_MIN of a whole unit of the
 /// mint, never more than the amount.
-pub fn fee_of(amount: u64, decimals: u8) -> u64 { bps_of(amount, FEE_BPS).max(state::units(FEE_MIN, decimals)).min(amount) }
-/// The fee of an order (2.1), paid by the funder on top of the amount. Marginal, in whole units of the mint: `bps`
-/// (FEE_BPS, or the owner's Plan) of the first FEE_TIER_1 of the amount, FEE_BPS_2 of what lies between FEE_TIER_1 and
-/// FEE_TIER_2, FEE_BPS_3 of what lies above; each part rounded down; at least ORDER_FEE_MIN; no cap. A Plan lowers
-/// the first tier's rate only. Never more than 2.5% of the amount above the floor, so amount + fee fits a u64 for
+pub fn fee_of(amount: u64, decimals: u8) -> u64 { order_fee(amount, FEE_BPS, decimals).min(amount) }
+/// The fee of an order, paid by the funder on top of the amount: `bps` basis points of it (FEE_BPS, or the owner's
+/// Plan, never less than PLAN_BPS_MIN) rounded down, at least FEE_MIN of a whole unit of the mint; one rate, no
+/// tiers, no cap. Never more than the larger of the floor and 0.30% of the amount, so amount + fee fits a u64 for
 /// every amount the program takes.
-pub fn order_fee(amount: u64, bps: u64, decimals: u8) -> u64 {
-    let (t1, t2) = (state::units(FEE_TIER_1, decimals), state::units(FEE_TIER_2, decimals));
-    let first = amount.min(t1);
-    let second = amount.min(t2) - first;
-    let third = amount - first - second;
-    (bps_of(first, bps) + bps_of(second, FEE_BPS_2) + bps_of(third, FEE_BPS_3)).max(state::units(ORDER_FEE_MIN, decimals))
-}
+pub fn order_fee(amount: u64, bps: u64, decimals: u8) -> u64 { bps_of(amount, bps).max(state::units(FEE_MIN, decimals)) }
 /// Whether the record counts a payment in this mint as real money.
 pub fn counted(mint: &Pubkey) -> bool { *mint == USDC_DEVNET || *mint == USDC_MAINNET || Some(*mint) == TEST_USDC }
 
@@ -520,44 +525,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_fee_is_two_and_a_half_percent_with_a_floor_and_never_more_than_the_amount() {
-        for (amount, fee) in [(0, 0), (1, 1), (49_999, 49_999), (50_000, 50_000), (1_000_000, 50_000), (2_000_000, 50_000), (2_000_040, 50_001),
-                              (5_000_000, 125_000), (500_000_000, 12_500_000), (100_000_000_000, 2_500_000_000), (u64::MAX, u64::MAX / 10_000 * 250 + (u64::MAX % 10_000) * 250 / 10_000)] {
-            assert_eq!(fee_of(amount, 6), fee, "{amount}");
+    fn the_fee_is_thirty_basis_points_with_a_floor_of_five_cents_and_a_jobs_is_never_more_than_the_amount() {
+        const U: u64 = 1_000_000;   // one whole unit of a 6-decimal mint
+        // the price book's examples: 5.00 -> 0.05; 100.00 -> 0.30; 1,000.00 -> 3.00; 5,000.00 -> 15.00; 100,000.00 -> 300.00
+        for (amount, fee) in [(5 * U, 50_000), (100 * U, 300_000), (1_000 * U, 3 * U), (5_000 * U, 15 * U), (100_000 * U, 300 * U),
+                              // where 0.30% passes the floor: 16.666666 is still the floor, 16.67 is one unit above it
+                              (16 * U, 50_000), (16_666_666, 50_000), (16_670_000, 50_010), (20 * U, 60_000), (1_000_000 * U, 3_000 * U)] {
+            assert_eq!((order_fee(amount, FEE_BPS, 6), fee_of(amount, 6)), (fee, fee), "{amount}");
+        }
+        // an order's fee is on top and has the floor whatever the amount; a job's is taken out of it and never more than it
+        for (amount, job, order) in [(0, 0, 50_000), (1, 1, 50_000), (49_999, 49_999, 50_000), (50_000, 50_000, 50_000), (U, 50_000, 50_000),
+                                     (u64::MAX, u64::MAX / 10_000 * 30 + (u64::MAX % 10_000) * 30 / 10_000, u64::MAX / 10_000 * 30 + (u64::MAX % 10_000) * 30 / 10_000)] {
+            assert_eq!((fee_of(amount, 6), order_fee(amount, FEE_BPS, 6)), (job, order), "{amount}");
             assert!(fee_of(amount, 6) <= amount);
         }
+        // a Plan lowers the one rate, to no less than 10 basis points; the floor stays
+        assert_eq!((order_fee(1_000 * U, 10, 6), order_fee(1_000 * U, 20, 6), order_fee(100_000 * U, 10, 6), order_fee(20 * U, 10, 6)), (U, 2 * U, 100 * U, 50_000));
         // the floor is 0.05 of a whole unit, whatever the mint's decimals
         assert_eq!((fee_of(1_000_000_000, 9), fee_of(100, 2), fee_of(3, 0), fee_of(1_000_000, 9)), (50_000_000, 5, 0, 1_000_000));
-    }
-
-    #[test]
-    fn an_orders_fee_is_on_top_in_three_marginal_tiers_with_a_floor_of_forty_cents_and_no_cap() {
-        const U: u64 = 1_000_000;   // one whole unit of a 6-decimal mint
-        for (amount, bps, fee) in [
-            // the floor, and where 2.5% passes it
-            (0, 250, 400_000), (5 * U, 250, 400_000), (16 * U, 250, 400_000), (16 * U + 40, 250, 400_001), (100 * U, 250, 2_500_000),
-            // the edge of the first tier: 2.5% of 1,000 is 25.00, and the unit after it is charged 1%
-            (1_000 * U - 1, 250, 24_999_999), (1_000 * U, 250, 25 * U), (1_000 * U + 99, 250, 25 * U), (1_000 * U + 100, 250, 25 * U + 1),
-            (1_001 * U, 250, 25 * U + 10_000), (2_000 * U, 250, 35 * U),
-            // the edge of the second: 25 + 1% of 49,000 = 515.00, and the unit after it is charged 0.5%
-            (50_000 * U - 1, 250, 515 * U - 1), (50_000 * U, 250, 515 * U), (50_000 * U + 199, 250, 515 * U), (50_000 * U + 200, 250, 515 * U + 1),
-            (50_001 * U, 250, 515 * U + 5_000),
-            // the most an order holds: 515 + 0.5% of 50,000 = 765.00; and no cap beyond it
-            (100_000 * U, 250, 765 * U), (1_000_000 * U, 250, 5_265 * U),
-            // a Plan lowers the first tier and nothing else
-            (100 * U, 50, 500_000), (1_000 * U, 50, 5 * U), (1_000 * U, 150, 15 * U), (2_000 * U, 50, 15 * U), (50_000 * U, 150, 505 * U),
-            (100_000 * U, 50, 745 * U), (16 * U, 50, 400_000),
-        ] {
-            assert_eq!(order_fee(amount, bps, 6), fee, "{amount} {bps}");
-        }
-        // every u64, without overflow: the three parts are parts of the amount
-        assert_eq!(order_fee(u64::MAX, 250, 6), 25 * U + 490 * U + bps_of(u64::MAX - 50_000 * U, 50));
-        // the tiers and the floor are whole units of the mint, whatever its decimals
-        assert_eq!((order_fee(5_000_000_000, 250, 9), order_fee(500, 250, 2), order_fee(100, 250, 0)), (400_000_000, 40, 2));
-        assert_eq!((order_fee(2_000_000_000_000, 250, 9), order_fee(200_000, 250, 2), order_fee(100_000, 250, 0), order_fee(60_000, 250, 0)),
-                   (35_000_000_000, 3_500, 765, 565));
-        const { assert!(TIP_FIRST <= ORDER_FEE_MIN && TIP <= TIP_FIRST && PLAN_BPS_MIN <= FEE_BPS && ORDER_MIN_AMOUNT <= MAX_AMOUNT) };
-        const { assert!(FEE_TIER_1 < FEE_TIER_2 && FEE_TIER_2 <= MAX_AMOUNT && FEE_BPS_3 <= FEE_BPS_2 && FEE_BPS_2 <= FEE_BPS) };
+        assert_eq!((order_fee(5_000_000_000, 30, 9), order_fee(500, 30, 2), order_fee(100, 30, 0), order_fee(100_000, 30, 0)), (50_000_000, 5, 0, 300));
+        const { assert!(FEE_BPS == 30 && FEE_MIN == 50_000 && PLAN_BPS_MIN == 10 && TIP <= FEE_MIN && TIP <= TIP_FIRST && ORDER_MIN_AMOUNT <= MAX_AMOUNT) };
+        const { assert!(GRACE == 7200) };
         assert!(counted(&USDC_DEVNET) && counted(&USDC_MAINNET) && !counted(&FEE_OWNER));
     }
 

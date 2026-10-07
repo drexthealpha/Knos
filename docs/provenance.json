@@ -1,35 +1,47 @@
 {
- "read": "2026-10-05T17:37:34Z",
+ "read": "2026-10-07T05:01:21Z",
  "cluster": "devnet",
  "rpc": "https://api.devnet.solana.com",
  "programs": {
   "knos_oidc": {
    "address": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
-   "on_chain_hash": "71f8fe068c94ce69262e7fa250f65fc149334d60f6742ad66ac6b91624c0d1df",
+   "on_chain_hash": "3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d",
+   "live_slot": 508314408,
+   "on_chain_commit": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5",
+   "on_chain_run": 37237561915,
    "proposal": 3,
-   "proposal_status": "Approved"
+   "proposal_status": "Executed",
+   "execution_signature": "2KwefqMHCE9idyD6cXEt91GJERAbyHWGJbaGc5YzzLXV1WvDFp1VkGAMD9XYg1eGBinBx6LKE9wtNUTtQkGSu7Sq"
   },
   "knos_pay": {
    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
-   "on_chain_hash": "75d7eb959f75575f6816942ad18a97c93a01690782e2b82ce01d7823c94e0a69",
+   "on_chain_hash": "2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507",
+   "live_slot": 508314432,
+   "on_chain_commit": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5",
+   "on_chain_run": 37237561915,
    "proposal": 4,
-   "proposal_status": "Approved"
+   "proposal_status": "Executed",
+   "execution_signature": "4413TSB4ugAkQdwus9Pjcof94G8Wq6cBvRjAN1F4dD2mFJ6zji1aDBvpQQtZ73dPFFZcHVvaVYWcQSBXFjjiZ6cK"
   },
   "knos_meter": {
    "address": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
-   "on_chain_hash": "0253391fe7558df98e3f11d66f5902d2e4d7d0ae6606a3156ccadb61e93eacde",
-   "on_chain_commit": "567fd12ca41af083f422b0e3f19e5c26cb8a3144",
-   "on_chain_run": 37190964532,
+   "on_chain_hash": "10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4",
+   "live_slot": 508314467,
+   "on_chain_commit": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5",
+   "on_chain_run": 37237561915,
    "proposal": 5,
-   "proposal_status": "Approved"
+   "proposal_status": "Executed",
+   "execution_signature": "3K2h2Q4DMHp1gSf7rgAprAmt5VFfuDUzUMEDmCjMrnpF2AkBf3dp4B6htszgXu6mY1Zo1JCt7fSwTnFEHb4n3g5Z"
   },
   "knos_passkey": {
    "address": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
-   "on_chain_hash": "888d3b68d3f80d4e512f58cf566c0e0123f4e92eaccd59c507be8486b59c84d5",
-   "on_chain_commit": "567fd12ca41af083f422b0e3f19e5c26cb8a3144",
-   "on_chain_run": 37190964532,
+   "on_chain_hash": "a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81",
+   "live_slot": 508314496,
+   "on_chain_commit": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5",
+   "on_chain_run": 37237561915,
    "proposal": 6,
-   "proposal_status": "Approved"
+   "proposal_status": "Executed",
+   "execution_signature": "4AgyQUDedwhkC8pQMQUPbiKcrLwnpM828ThbVybxZ4eRrhvZD1p2kfURBXrXUHibKxzQv68E85eMKyWf77BgG6fn"
   }
  }
 }

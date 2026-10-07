@@ -12,7 +12,7 @@ chain ([MARKET.md](MARKET.md)), and none has been sold. Only settlement in real 
 
 | # | Gate | Passed when | Today |
 |---|---|---|---|
-| 1 | The two adversarial findings are fixed | the `knos_pay` build that fixes them runs on the public devnet ids, and the two ignored tests in [`adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) pass without `--ignored` | open: both fail on the program as built ([SECURITY.md](SECURITY.md), "Two findings") |
+| 1 | The two adversarial findings are fixed | the `knos_pay` build that fixes them runs on the public devnet ids, and the two tests in [`adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) pass without `--ignored` | open: both pass on the build of this tree, which is proposed after the release and is not live at the public ids until it executes ([SECURITY.md](SECURITY.md), "Two findings") |
 | 2 | Outside key holders | `outside` in [`web/keyholders.json`](../web/keyholders.json) is not empty, after the proposal that adds the key executed on chain, and one person can no longer meet the threshold alone | 0 outside holders; all member keys are the founder's ([KEYHOLDER.md](KEYHOLDER.md), [GOVERNANCE.md](GOVERNANCE.md)) |
 | 3 | Verified builds reproduced by someone else | a report from a machine that is not the founder's shows the on-chain bytes hashing to the verified build ([REPRODUCE.md](REPRODUCE.md), [ASSURANCE.md](ASSURANCE.md)), and a capability stands at `reproduced` | nobody outside has done it |
 | 4 | An outside security review | `docs/review.json` names a reviewer, a report at an https address, the commit, and the executable hashes reviewed, and those hashes are the bytes on chain | none; `knos mainnet-check` fails on this line on purpose |

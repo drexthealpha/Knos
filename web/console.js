@@ -10,7 +10,7 @@
 // and the total limit (on the amount and its fee), then what the Balance holds. web/controls_data.js decides it with
 // `explainFunding`, the decision of `knos budget check`; `explainLocal` below reads the same rules for what that file
 // is not handed (what the Balance holds now), and its answer stands when the two disagree toward refusing.
-import { quote, show, percent } from "./price.js";
+import { quote, show, percent, feeNote } from "./price.js";
 import * as rules from "./controls_data.js";
 import * as proc from "./procure.js";
 
@@ -27,14 +27,15 @@ export const share = (fee, amount) => `${((fee * 100) / amount).toFixed(2)}%`;
 export const controls = rules;
 
 // ---- 1. the fee, before funding --------------------------------------------------------------------------------------------------------
-/** What an order of `units` costs its funder: { fee, pays, pct, words, warning }. `warning` is "" from 20 test USDC up. */
+/** What an order of `units` costs its funder: { fee, pays, pct, words, warning, note }. `c`: priceConstants of the live build (web/fee_live.js). `warning` is "" from 20 test USDC up. */
 export function feeView(units, c) {
   const q = quote(units, c), pct = share(q.fee, units), least = quote(c.minAmount, c);
   const binds = Math.ceil((c.feeMin * 10_000) / c.feeBps);        // below this the minimum is the fee
   const words = `You pay ${show(q.funderPays)} test USDC: ${show(q.amount)} for whoever does the work, and a fee of ${show(q.fee)} on top, which is ${pct} of the amount. The person paid receives the whole ${show(q.amount)}.`;
   const warning = units >= SMALL ? "" : `A small order pays a high fee. The fee is never less than ${show(c.feeMin)} test USDC, so under ${show(binds)} it is more than ${percent(c.feeBps)}: an order of ${show(c.minAmount)} costs ${share(least.fee, c.minAmount)}. `
     + `This order's fee is ${pct}. Small purchases are cheaper pooled into one order with milestones, or bought at a standing rate.`;
-  return { fee: q.fee, pays: q.funderPays, pct, words, warning };
+  // which rule the number is (the fee follows the build that is live), and what an older order keeps
+  return { fee: q.fee, pays: q.funderPays, pct, words, warning, note: feeNote(units, c) };
 }
 
 // ---- 2. is this allowed: the organisation's budget ---------------------------------------------------------------------------------------
@@ -182,9 +183,10 @@ export function exceptionsOf({ lines, live = new Map(), now, refused = null, rep
       "Decide with the supplier whether the work is redone. A new order is needed to pay for it again.", "the buyer and the supplier", reverted.transaction);
     if (ruled) add("challenged", "Challenged, and decided by the arbiter the order named at funding.", "Nothing on chain: the ruling stands for this order. File it with the contract.", "the buyer", ruled.transaction);
     if (o?.state === "open") {
-      const left = show(o.amount - o.paid);
+      const left = show(o.amount - o.paid), due = o.grace && Number.isFinite(o.payUntil) ? o.payUntil : o.deadline;      // the refund opens after the grace, when the order has one
       if (o.cancelAt) add("cancelled", `Cancelled by its funder: it ends ${when(o.cancelAt)}, and ${left} test USDC goes back then.`, o.cancelAt <= now ? "Send the refund." : "Wait for the notice to end, then send the refund.", "anyone");
-      else if (o.deadline <= now) add("refundable", `Past its deadline (${when(o.deadline)}) and unpaid: ${left} test USDC can go back to the funder.`, "Send the refund. The money can only go back to where it came from.", "anyone");
+      else if (o.deadline <= now && due > now) add("grace", `Past its deadline (${when(o.deadline)}), inside its 2 hours' grace: a signed acceptance can still pay until ${when(due)}.`, "Wait for the grace to end, then send the refund.", "anyone");
+      else if (due <= now) add("refundable", `Past its deadline (${when(o.deadline)})${o.grace ? ` and its grace (${when(due)})` : ""} and unpaid: ${left} test USDC can go back to the funder.`, "Send the refund. The money can only go back to where it came from.", "anyone");
       else if (o.reservedBy && o.reservedUntil <= now) add("stale", `Reserved by GitHub id ${o.reservedBy}, and the reservation ran out ${when(o.reservedUntil)} with nothing delivered.`,
         `Ask them, or let someone else take it: the order is open to any supplier again until ${when(o.deadline)}.`, "the buyer");
     }
@@ -194,7 +196,7 @@ export function exceptionsOf({ lines, live = new Map(), now, refused = null, rep
   return rows;
 }
 
-const KIND = { held: "Held for a wallet", review: "In a review window", reverted: "Reverted", challenged: "Challenged", cancelled: "Cancelled", refundable: "Past deadline, refundable", stale: "Reserved and stale", refused: "Refused tokens" };
+const KIND = { grace: "Past deadline, in grace", held: "Held for a wallet", review: "In a review window", reverted: "Reverted", challenged: "Challenged", cancelled: "Cancelled", refundable: "Past deadline, refundable", stale: "Reserved and stale", refused: "Refused tokens" };
 export function exceptionsHtml(rows, explorer, scope) {
   if (!rows.length) return `<p class="status ok" id="buy-exc-none">Nothing waits for a person: no order of ${esc(scope)} is held, in a review window, reverted, past its deadline or stale.</p>`;
   const tx = (t) => (/^[1-9A-HJ-NP-Za-km-z]{60,90}$/.test(t || "") ? ` <a href="${esc(explorer("tx", t))}" target="_blank" rel="noopener">${esc(t.slice(0, 8))}…</a>` : "");

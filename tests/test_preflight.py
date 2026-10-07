@@ -141,6 +141,60 @@ def test_it_recalls_what_was_refused_before_under_the_same_terms_and_remembers_i
     assert history.refused_before(history.NullStore(), "repo", thash) == []
 
 
+def test_a_refusal_remembered_under_a_terms_hash_is_recalled_by_the_next_preflight_under_the_same_hash(knos_home, work, tmp_path):
+    """Through knos.proof.history and the memory engine, nothing else: the first preflight has nothing to recall; a
+    refusal is then remembered under the terms' hash (what a settlement does when it refuses); the next preflight under
+    the same terms prints it, and one under other terms does not."""
+    pytest.importorskip("sibyl_memory_client", reason="the memory engine (sibyl-memory-client) is not installed: there is nothing to recall from")
+    thash = terms.terms_hash(TESTS)
+    (work / "src").mkdir(exist_ok=True)
+    (work / "src" / "auth.py").write_text("def login():\n    return True\n", encoding="utf-8")
+    first = preflight.check(work, _terms_file(tmp_path, TESTS), issue="7")
+    assert first["terms_hash"] == thash and first["memory"]["on"] is True and first["memory"]["warnings"] == []
+    assert "Remembered:" not in preflight.words(first)
+    history.refused(history.SibylStore.for_repo(work), "repo", thash, 12, "judge.acceptance-failed", "", "dana", 1_790_000_000)
+    again = preflight.check(work, _terms_file(tmp_path, TESTS), issue="7")
+    assert [w["said"] for w in again["memory"]["warnings"]] == ["1 earlier submission was refused for your change does not pass the acceptance checks."]
+    assert "Remembered: 1 earlier submission was refused for your change does not pass the acceptance checks." in preflight.words(again).splitlines()
+    assert again["memory"]["said"] == "Memory is on: this result is remembered in the memory engine."
+    other = preflight.check(work, _terms_file(tmp_path, MERGE), issue="7")
+    assert other["terms_hash"] != thash and other["memory"]["on"] is True and other["memory"]["warnings"] == []
+
+
+def test_a_memory_store_that_does_not_answer_is_given_a_bounded_wait_and_one_clear_line(work, tmp_path, monkeypatch):
+    """A preflight once hung on the store and printed nothing. The answer about the change never depends on memory:
+    a store that does not answer in its time is left behind, and the report says memory is off."""
+    import threading
+    release = threading.Event()
+
+    class Stuck:
+        def __getattr__(self, name):
+            if name in ("held", "_knos_until"):
+                raise AttributeError(name)
+            return lambda *a, **k: release.wait(60) and []
+
+    monkeypatch.setenv("KNOS_MEMORY_WAIT", "0.05")
+    (work / "src").mkdir(exist_ok=True)
+    (work / "src" / "auth.py").write_text("def login():\n    return True\n", encoding="utf-8")
+    try:
+        report = preflight.run(preflight.read_terms(terms.canonical(MERGE).decode("ascii")), [("A", "src/auth.py")], tree=work, store=Stuck(),
+                               repo="repo", memory={"on": True, "said": "Memory is on: this result is remembered in the memory engine."})
+        assert report["ready"] is True and report["memory"]["on"] is False and report["memory"]["warnings"] == []
+        assert report["memory"]["said"] == "Memory is off: the memory engine did not answer within 0.05 seconds. Nothing is recalled or remembered."
+        assert report["memory"]["said"] in preflight.words(report).splitlines() and "remembered" not in report["memory"]
+        monkeypatch.setattr(history.SibylStore, "for_repo", classmethod(lambda cls, repo: release.wait(60) and None))
+        store, said = preflight.memory(work)                       # the store that does not open in time: the same line, and a store that keeps nothing
+        assert isinstance(store, history.NullStore) and said == {"on": False, "said": report["memory"]["said"]}
+        whole = preflight.check(work, _terms_file(tmp_path, MERGE))
+        assert whole["fixes"] == [f for f in whole["fixes"] if "memory" not in f.lower()], whole["fixes"]
+        assert whole["memory"] == {"on": False, "said": report["memory"]["said"], "warnings": []} and "changes" in whole
+    finally:
+        release.set()
+    assert preflight.bounded(lambda: 7) == 7
+    with pytest.raises(KeyError):
+        preflight.bounded(lambda: {}["x"])
+
+
 def test_with_the_memory_engine_absent_it_still_works_and_says_memory_is_off(work, tmp_path, monkeypatch):
     real = builtins.__import__
 

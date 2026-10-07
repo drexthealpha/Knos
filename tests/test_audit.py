@@ -17,7 +17,7 @@ import pytest
 from solders.pubkey import Pubkey
 
 import _finance as fin
-from knos import audit, cli, receipt, records
+from knos import audit, cli, fees, receipt, records
 from knos.settle.v2 import pay as pay2
 
 ACME, OTHER = 5001, 5002
@@ -37,17 +37,18 @@ def line(event: str, at: int, tx: str, **fields) -> dict:
 
 
 def funded(order: str, at: int, tx: str, amount: int, source: str = BAL, by: int = 6001, flags: int = 0, repo: int = 7001, issue: int = 1) -> list[dict]:
-    return [line("order_funded", at, tx, order=order, repo=repo, issue=issue, seq=0, amount=amount, fee=pay2.fee_of(amount), mode=0, by=by,
+    return [line("order_funded", at, tx, order=order, repo=repo, issue=issue, seq=0, amount=amount, fee=fees.OLD.job(amount), mode=0, by=by,
                  source=source, flags=flags, deadline=at + 30 * DAY),
             line("order_terms", at, tx, json=TERMS)]
 
 
 def paid(order: str, at: int, tx: str, shares, of: int, sofar: int, judge: int, pr: int = 7, fee: int | None = None) -> list[dict]:
-    """One payment's log lines. Its fee is the program's (order_pay.rs): the order's fee, which its funder put in on
+    """One payment's log lines. Its fee is the one knos_pay 2.1 took, the build that was live in this month (fees.OLD: a
+    history keeps the fee that was charged): the order's fee, which its funder put in on
     top under the tiers (2.50 on an order of 100), in the share of the order this payment pays; the relayer's tip is
     0.05 of it."""
     if fee is None:
-        fee = pay2.order_fee(of) * sum(a for _, a in shares) // of
+        fee = fees.OLD.order(of) * sum(a for _, a in shares) // of
     return [*(line("order_paid", at, tx, order=order, pr=pr, payee=i, amount=a, to=f"W{i}") for i, a in shares),
             line("order_settled", at, tx, order=order, paid=sofar, of=of, fee=fee - 50_000, tip=50_000, judge=judge)]
 
@@ -117,8 +118,8 @@ def test_a_line_says_what_was_bought_who_supplied_who_evaluated_and_what_became_
     assert a["terms_hash"] == pay2.terms_hash(TERMS.encode()).hex() and a["artifact"] == "pull:7001#7"
     assert (a["supplier_ids"], a["wallets"], a["judge"], a["verdict"]) == ("8001", "W8001", "repository", "accepted")
     assert "prove.yml" in a["evaluator"] and "own repository" in a["evaluator"]
-    assert (a["paid_units"], a["fee_units"], a["transaction"], a["funded_transaction"]) == (str(100 * U), str(pay2.order_fee(100 * U)), "PA", "FA")
-    assert pay2.order_fee(100 * U) == 2_500_000 == int(a["funder_fee_units"])          # 2.50 on 100, in and out
+    assert (a["paid_units"], a["fee_units"], a["transaction"], a["funded_transaction"]) == (str(100 * U), str(fees.OLD.order(100 * U)), "PA", "FA")
+    assert fees.OLD.order(100 * U) == 2_500_000 == int(a["funder_fee_units"])          # 2.50 on 100, in and out
     assert a["exception"] == "" and a["resolved_by"] == ""
     # who had authority over the money: the commenter the owner had listed, in the cell after commenter_id
     assert (a["commenter_id"], a["owner_id"], a["authorised_by"]) == ("6001", "5001", "gh:6001 (spender)")

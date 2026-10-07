@@ -134,7 +134,9 @@ def test_with_a_token_file_and_the_upgrade_drills_log_every_row_runs(tmp_path, w
     assert [r for name, r in got.items() if name != "second operator"] == ["pass"] * 14, got
     assert got["second operator"].startswith("not run: not yet run by a second person")     # no script runs it, and --strict does not ask for it
     line = next(s for s in said if s.startswith("a payment "))
-    assert ("4.875 to the wallet the proof names and 0.125 to the fee account" in line) if wallet else (f"held for GitHub user {PAYEE}" in line)
+    # the cluster this test serves runs the tree's knos_pay (2.2), and the drill counts the fee of the build it finds:
+    # 0.05 out of a job of 5.00 (under 2.1, which the public ids run until the upgrade, the same row reads 4.875 and 0.125)
+    assert ("4.95 to the wallet the proof names and 0.05 to the fee account" in line) if wallet else (f"held for GitHub user {PAYEE}" in line)
     replay = next(s for s in said if s.startswith("a replay is refused "))
     assert "the pay token again: error 8" in replay and "the fund token again: error 91" in replay and "no money moved" in replay
     doc = out.read_text(encoding="utf-8")

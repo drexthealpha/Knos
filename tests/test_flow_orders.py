@@ -1,8 +1,14 @@
 """knos.flow with knos_pay 2.1 behind it: a funding comment opens a WORK ORDER, settle pays orders and jobs alike, and the
 order's own commands (offer, raise, cancel, split, take). The fakes are tests/_flow.py's; `w.version = 1` is a chain
-whose escrow is 2.1. While it is 0 every comment does what it did before (tests/test_flow.py)."""
+whose escrow is 2.1. While it is 0 every comment does what it did before (tests/test_flow.py).
+
+The public program runs 2.1 until the upgrade to 2.2 executes, and every comment states the fee of the build that is
+LIVE. So each test here runs twice: on a chain that answers Version 2 (2.2: 0.30%, at least 0.05) and on one that
+answers 1 (2.1: the tiers of 0.3.14, at least 0.40). P(old, new) is what a test pins for each; `old` is what 0.3.17 pinned."""
 from __future__ import annotations
 
+import pytest
+from _pay21 import BUILDS, Live
 from _flow import ADDRESS, DEVIN, EVE, HUBOT, MONA, REPO, REPO_ID, WALLET, World, check, key
 from _hub import user
 from knos import chain, commands, flow, policy, terms
@@ -17,9 +23,18 @@ NEUTRAL = ("After a merge the seller can have it paid without this repository's 
            "URL>` asks GitHub to sign in a repository of their own.")
 
 
-def world(tmp_path, version: int = 1, **kw) -> World:
+LIVE = Live()
+P = LIVE.pick
+
+
+@pytest.fixture(scope="module", params=BUILDS, ids=Live.name, autouse=True)
+def live(request):
+    yield from LIVE.run(request.param, "")
+
+
+def world(tmp_path, version: int | None = None, **kw) -> World:
     w = World(tmp_path, **kw)
-    w.version = version
+    w.version = LIVE.v if version is None else version
     w.hub.issue(7, "Slugify keeps punctuation.")
     w.hub.users["erin"] = ERIN
     w.hub.required = [{"context": "test", "integration_id": 15368}]
@@ -52,10 +67,10 @@ def test_a_funding_comment_opens_a_work_order_and_the_reply_says_the_fee_the_war
     options = pay.opts(0, 2000, 14, 0, 7, 0, ERIN["id"])
     assert w.signer.asked == [pay.order_fund_audience(7, 20_000_000, pay.MERGE, pay.terms_hash(raw), FAUCET, 14 * 86_400, 0, options)]
     (address, o), = w.chain.orders(7)
-    assert address == str(ORDER) and (o.amount, o.fee, o.holdback_bps, o.warranty_s, o.arbiter_id, o.reserve_days) == (20_000_000, 500_000, 2000, 14 * 86_400, 77, 7)
+    assert address == str(ORDER) and (o.amount, o.fee, o.holdback_bps, o.warranty_s, o.arbiter_id, o.reserve_days) == (20_000_000, P(500_000, 60_000), 2000, 14 * 86_400, 77, 7)
     assert not o.flags & pay.F_NEUTRAL and w.chain.jobs() == []
     assert got.startswith(f"Knos: 20.00 {MONEY} from the devnet faucet is in escrow for issue #7 as a work order ({LINK}), 30 s after the comment. "
-                          "The funder pays Knos's fee of 0.50 on top, so whoever is paid receives the full amount.\n\n")
+                          f"The funder pays Knos's fee of {P('0.50', '0.06')} on top, so whoever is paid receives the full amount.\n\n")
     assert ("Warranty: 20% of each payment is held back for 14 days after it is paid; if the work is reverted in that time, that part goes "
             "back to the funder. Arbiter: @erin rules if a payment is disputed. If it is not paid by 2026-10-05 14:13 UTC, the money and the "
             "fee go back to where they came from.") in got
@@ -64,7 +79,7 @@ def test_a_funding_comment_opens_a_work_order_and_the_reply_says_the_fee_the_war
     got = said(w, 7, HUBOT, "/knos fund 5")
     second = pay.order_pda(pay.scope_of(REPO_ID, 7), FAUCET, 1)
     assert w.signer.asked[-1].split(":")[8:] == ["1", pay.opts(pay.F_NEUTRAL, reserve_days=7).hex()] and str(second) in got
-    assert "The funder pays Knos's fee of 0.40 on top" in got and "No warranty: a payment is final when it is made. No arbiter is named." in got
+    assert f"The funder pays Knos's fee of {P('0.40', '0.05')} on top" in got and "No warranty: a payment is final when it is made. No arbiter is named." in got
     assert got.endswith(NEUTRAL) and len(w.chain.orders(7)) == 2
     # what cannot be an order is said with the comment that can
     assert said(w, 7, HUBOT, "/knos fund 2") == ("Knos: nothing was funded. A work order holds from 5 to 100000, and this one asks for 2. Comment "
@@ -109,7 +124,7 @@ def test_a_merge_pays_a_work_order_in_full_and_the_token_names_the_order_the_pul
     got = settled(w)
     head = w.hub.pulls[12]["head"]["sha"]
     assert w.signer.asked == [pay.order_pay_audience(ORDER, head, pay.terms_hash(terms.canonical(BOUGHT)), pay.MERGE, 12, [(MONA["id"], 10_000, None)])]
-    assert got == (f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid Knos's fee of 0.50 on top. It went to "
+    assert got == (f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid Knos's fee of {P('0.50', '0.06')} on top. It went to "
                    f"`{WALLET}`, the wallet bound to @mona's GitHub account ([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 30 s after the merge).")
     assert w.chain.orders() == [] and w.screened == [WALLET]
     # no wallet: held for the payee, in full
@@ -143,7 +158,7 @@ def test_a_maintainers_split_before_the_merge_pays_up_to_four_people_and_only_wh
     assert got.startswith("Knos: noted. If this pull request is merged and takes a work order, the order pays @mona 60%, @eve 40%.")
     got = settled(w)
     assert w.signer.asked[-1].endswith(f":12:{MONA['id']}.6000.-,{EVE['id']}.4000.-")
-    assert got.startswith(f"Knos: paid. The work order on issue #7 paid 20.00 {MONEY} in full (its funder paid Knos's fee of 0.50 on top): "
+    assert got.startswith(f"Knos: paid. The work order on issue #7 paid 20.00 {MONEY} in full (its funder paid Knos's fee of {P('0.50', '0.06')} on top): "
                           f"@mona 12.00 (60%) to `{WALLET}`, @eve 8.00 (40%) to `{ADDRESS}` (")
     assert sorted(w.screened) == sorted([WALLET, ADDRESS])
     # a split after the merge counts for nothing, and one that names someone with no wallet is not paid at all
@@ -245,7 +260,7 @@ def test_raise_says_how_cancel_gives_notice_and_take_reserves_the_order_too(tmp_
     source = w.chain.balance("treasury", 100_000_000, spenders=[HUBOT["id"]])
     w.chain.order(7, 20_000_000, BOUGHT, source=source, flags=pay.F_NEUTRAL)
     got = said(w, 7, EVE, "/knos raise 10")
-    assert f"was funded from the balance `{source}`, and only the wallet that opened that balance can add to it: it signs knos_pay's TopUp for 10.00 {MONEY}, and pays Knos's fee of 0.25 on top" in got
+    assert f"was funded from the balance `{source}`, and only the wallet that opened that balance can add to it: it signs knos_pay's TopUp for 10.00 {MONEY}, and pays Knos's fee of {P('0.25', '0.03')} on top" in got
     # a job is neither, and no order is no order
     w = world(tmp_path / "job", version=0)
     w.chain.fund(7, 20_000_000, BOUGHT)
@@ -258,7 +273,7 @@ def test_raise_says_how_cancel_gives_notice_and_take_reserves_the_order_too(tmp_
 def test_without_a_relay_key_an_orders_tokens_travel_as_comments_and_status_shows_the_order(tmp_path):
     w = world(tmp_path, relay_key=False)
     got = said(w, 7, HUBOT, "/knos fund 20")
-    assert f"as a work order ({LINK})" in got and "Knos's fee of 0.50 on top" in got and [x[1] for x in w.worker.posted()] == ["fund"]
+    assert f"as a work order ({LINK})" in got and f"Knos's fee of {P('0.50', '0.06')} on top" in got and [x[1] for x in w.worker.posted()] == ["fund"]
     assert f"20.00 {MONEY} is in escrow for issue #7 as a work order until 2026-10-05" in said(w, 7, EVE, "/knos status")
     w.clock.sleep(3600)
     w.hub.checks[w.hub.pull(12, MONA, "Fixes #7")["head"]["sha"]] = [check("test")]
@@ -571,7 +586,9 @@ def test_a_seller_with_no_key_and_no_funded_payer_settles_with_neutral(tmp_path,
     w.hub.merge(12)
     monkeypatch.setattr(relay, "_VERSION", {})
     payers, programdata = [], Keypair().pubkey()
-    code = b"\x7fELF" + bytes(64) + relay._VERSION_LINE + b" {}" + bytes(64)            # a 2.1 build: it holds Version's log line
+    # the executable holds Version's log line, and (2.1) the tiered fee's upper edge as one 64-bit load; 2.2 has one rate and no such number
+    tiers = bytes([0x18, 1, 0, 0]) + (50_000_000_000 & 0xFFFFFFFF).to_bytes(4, "little") + bytes(4) + (50_000_000_000 >> 32).to_bytes(4, "little")
+    code = b"\x7fELF" + bytes(64) + relay._VERSION_LINE + b" {}" + bytes(64) + P(tiers, b"")
 
     def simulate(ixs, payer, signers=None, v1=False):
         payers.append(payer)
@@ -596,7 +613,7 @@ def test_a_seller_with_no_key_and_no_funded_payer_settles_with_neutral(tmp_path,
     assert calls[1] == ("workflow", "run", "knos-attest.yml", "--repo", "mona/knos-attest", "-f", "repository=o/r", "-f", "pull=12", "-f",
                         f"order={ORDER}", "-f", "kind=pay")
     assert f"Started `knos attest` in mona/knos-attest for the work order on issue #7 (20.00 test USDC) of o/r, order {ORDER}." in capsys.readouterr().out
-    assert run.version() == 1 and len(payers) == 1 and w.chain.account(payers[0].pubkey()) is None     # asked once, with a payer that holds nothing
+    assert run.version() == P(1, 2) and len(payers) == 1 and w.chain.account(payers[0].pubkey()) is None     # asked once, with a payer that holds nothing
     # a cluster whose executable cannot be read either gives no answer: nothing is claimed, and the next run asks again
     monkeypatch.setattr(relay, "_VERSION", {})
 
@@ -732,7 +749,7 @@ def test_every_settlement_is_remembered_and_a_funding_proposes_terms_from_that_m
     got = flow.suggest_terms("o/r", memory.read("o/r", w.hub)[1])
     assert got["checks"] == ["lint", "fuzz"] and got["said"][0].startswith("In this repository, changes under `docs/guide` failed `lint` 4 times") and got["paths"] == ["docs/**", "src/**"]
     # the same with a work order's reply
-    w.version = 1
+    w.version = LIVE.v
     w.hub.issue(10)
     assert flow.command(w.run(w.hub.commented(10, HUBOT, "/knos fund 20"))) == 0
     assert "changes under `docs/guide` failed `lint` 4 times: add it?" in w.hub.knos(10)[-1] and "as a work order" in w.hub.knos(10)[-1]
@@ -832,7 +849,7 @@ def test_a_stranger_funds_a_playground_task_from_the_faucet_three_times_a_day_an
         return w.hub.knos(n)[-1]
 
     w = World(tmp_path)
-    w.version = 1
+    w.version = LIVE.v
     assert w.hub.can.get("eve") is None and playground.FUND == "/knos fund 5 checks: none auto"
     refused = "Knos: `/knos fund` is for people with write access to this repository."
     assert opened(w, 60).startswith(refused) and w.signer.asked == [] and w.chain.orders() == []      # o/r is not the playground
@@ -907,7 +924,7 @@ def test_replies_count_days_say_where_an_assigned_payment_went_and_do_not_ask_fo
     (_a, o), = w.chain.orders(7)
     w.chain.accounts[str(pay.assign_pda(ORDER, MONA["id"]))] = _assign_bytes(ORDER, MONA["id"], lender, o.not_before)
     got = settled(w)
-    assert got.startswith(f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid Knos's fee of 0.50 on top. It went to "
+    assert got.startswith(f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid Knos's fee of {P('0.50', '0.06')} on top. It went to "
                           f"`{lender}`, the wallet @mona assigned this order's payment to (knos_pay Assign: whoever advanced them the money is "
                           "paid in their place) ("), got
     # an assignment made for an earlier order at the same address counts for nothing: the bound wallet is paid, and said so
@@ -978,9 +995,12 @@ def test_raise_quotes_the_fee_a_top_up_costs_by_the_tiers_on_the_new_whole_amoun
     funder = Keypair().pubkey()
     w.chain.order(7, 900_000_000, BOUGHT, source=funder, flags=pay.F_NEUTRAL, kind=0)
     got = said(w, 7, HUBOT, "/knos raise 200", most=4000)
-    # 900 paid 22.50; 1,100 costs 25.00 (2.5% of the first 1,000) + 1.00 (1% of the next 100): 3.50 more, not 2.5% of 200
-    assert pay.order_fee(1_100_000_000) - pay.order_fee(900_000_000) == 3_500_000
-    assert f"it signs knos_pay's TopUp for 200.00 {MONEY}, and pays Knos's fee of 3.50 on top" in got
+    # 2.1: 900 paid 22.50; 1,100 costs 25.00 (2.5% of the first 1,000) + 1.00 (1% of the next 100): 3.50 more, not 2.5% of 200
+    # 2.2: one rate, so 900 paid 2.70 and 1,100 costs 3.30: 0.60 more
+    from knos import fees
+    assert fees.OLD.order(1_100_000_000) - fees.OLD.order(900_000_000) == 3_500_000
+    assert fees.NEW.order(1_100_000_000) - fees.NEW.order(900_000_000) == pay.order_fee(1_100_000_000) - pay.order_fee(900_000_000) == 600_000
+    assert f"it signs knos_pay's TopUp for 200.00 {MONEY}, and pays Knos's fee of {P('3.50', '0.60')} on top" in got
 
 
 # ---- `auto` and `quorum`: options of the order, fixed at funding; the token under knos3:auto for an open pull request ---

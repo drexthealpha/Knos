@@ -18,7 +18,7 @@ from _order import AUTHOR, DAY, MAINT, OWNER, REPO, USDC, OrderChain, code, issu
 from _pay2 import WF_SHA, ChainLedger  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 
-from knos import cli, controls  # noqa: E402
+from knos import cli, controls, fees  # noqa: E402
 from knos.settle.v2 import pay  # noqa: E402
 from knos.settle.v2 import relay as relay2  # noqa: E402
 
@@ -98,25 +98,29 @@ def test_limits_set_with_budget_set_are_enforced_by_the_program_and_budget_check
 
     # within every limit: predicted fine, and the program takes it; the limits count the amount and the fee
     rule, _err, d = predicted(knos, 20)
-    assert (rule, d["fee"], d["effectivePct"], d["total"]) == ("ok", 500_000, "2.50", 20_500_000) and d["fee"] == pay.order_fee(20 * USDC)
+    # the fee is the one of the build under test (knos.fees.live asks the program): the numbers below follow it
+    live = fees.live(ChainLedger(c))
+    with_fee, m = (lambda whole: whole * USDC + live.order(whole * USDC)), controls.money
+    f20 = live.order(20 * USDC)
+    assert (rule, d["fee"], d["effectivePct"], d["total"]) == ("ok", f20, controls.percent(f20, 20 * USDC), with_fee(20))
     assert fund(c, 20) is None, c.err
     x = pay.read_balx(c.data(pay.balx_pda(c.bal)))
-    assert (x.day_spent, x.total_spent) == (20_500_000, 20_500_000)
+    assert (x.day_spent, x.total_spent) == (with_fee(20), with_fee(20))
 
-    # over today's limit: 40 is under the cap, and 41.00 with the 20.50 of today is over 60
+    # over today's limit: 40 is under the cap, and with its fee and what today already counts it is over 60
     rule, err, d = predicted(knos, 40)
-    assert (rule, err) == ("day", 100) and "39.50 is left until midnight UTC" in d["sentence"]
+    assert (rule, err) == ("day", 100) and f"{m(60 * USDC - with_fee(20))} is left until midnight UTC" in d["sentence"]
     assert fund(c, 40) == 100
-    assert predicted(knos, 38)[0] == "ok" and fund(c, 38) is None             # 38.95 fits: 59.45 of 60
+    assert predicted(knos, 38)[0] == "ok" and fund(c, 38) is None             # 38 and its fee still fit under 60
     c.warp(DAY)                                                               # the next UTC day: today's count starts again
     assert predicted(knos, 40)[0] == "ok" and fund(c, 40) is None, c.err
 
     # the total limit, lowered under what is spent: the counters stay, and the program refuses with the same error
     assert knos("set", "--owner", "acme", "--total", 110, "--per-day", 0, "--keypair", keyfile)[0] == 0
     rule, err, d = predicted(knos, 20)
-    assert (rule, err) == ("total", 100) and "100.45 spent so far" in d["sentence"]
+    assert (rule, err) == ("total", 100) and f"{m(with_fee(20) + with_fee(38) + with_fee(40))} spent so far" in d["sentence"]
     assert fund(c, 20) == 100
-    assert predicted(knos, 9)[0] == "ok" and fund(c, 9) is None               # 9.40 fits: 109.85 of 110
+    assert predicted(knos, 9)[0] == "ok" and fund(c, 9) is None               # 9 and its fee fit under 110
 
 
 def test_without_a_key_budget_set_prints_before_and_after_and_sends_nothing(world, monkeypatch):
@@ -169,16 +173,19 @@ def test_only_the_wallet_that_opened_the_balance_can_send_what_budget_set_builds
 
 def test_budget_show_and_who_say_what_the_chain_has(world):
     c, knos, keyfile = world
-    assert c.set_plan(OWNER, 100, c.now() + 30 * DAY), c.err
+    live, m = fees.live(ChainLedger(c)), controls.money     # the rule of the build under test: the lines below follow it
+    assert c.set_plan(OWNER, live.plan_min, c.now() + 30 * DAY), c.err
     assert knos("set", "--owner", "acme", "--cap", 50, "--per-day", 60, "--total", 500, "--repo", "acme/app", "--repo", "acme/other",
                 "--workflows-commit", WF_SHA, "--keypair", keyfile)[0] == 0
-    assert fund(c, 20) is None, c.err                       # at the Plan's 1%: 0.40, the minimum
+    assert fund(c, 20) is None, c.err                       # at the Plan's lowest rate: the least fee
+    spent = 20 * USDC + live.order(20 * USDC, live.plan_min)
+    assert spent == 20 * USDC + pay.units(live.floor)
     rc, said = knos("show", "--owner", "acme")
     assert rc == 0, said
-    for line in (f"Balance {c.bal}: holds 99,979.60 of mint {c.usdc}, for the repositories of GitHub id {OWNER} (acme).",
-                 "cap per order        50.00", "daily limit          60.00; 20.40 spent today (UTC), 39.60 left",
-                 "total limit          500.00; 20.40 spent, 479.60 left", f"allowed repositories acme/app (id {REPO}), acme/other (id {OTHER})",
-                 f"workflows commit     {WF_SHA}", f"spenders             maint (id {MAINT}), besides the owner", "fee                  a Plan: 1% of the first 1,000 until "):
+    for line in (f"Balance {c.bal}: holds {m(100_000 * USDC - spent)} of mint {c.usdc}, for the repositories of GitHub id {OWNER} (acme).",
+                 "cap per order        50.00", f"daily limit          60.00; {m(spent)} spent today (UTC), {m(60 * USDC - spent)} left",
+                 f"total limit          500.00; {m(spent)} spent, {m(500 * USDC - spent)} left", f"allowed repositories acme/app (id {REPO}), acme/other (id {OTHER})",
+                 f"workflows commit     {WF_SHA}", f"spenders             maint (id {MAINT}), besides the owner", f"fee                  a Plan: {live.rate(live.plan_min)} until ", f"the {live.release} fee, which knos_pay {live.build} charges", fees.KEEPS):
         assert line in said, (line, said)
     rc, said = knos("show", "--owner", "acme", "--no-names")
     assert rc == 0 and f"allowed repositories id {REPO}, id {OTHER}" in said
@@ -213,10 +220,10 @@ def _cases() -> list[dict]:
     vary = {
         "fine: a spender, 100": {},
         "fine: the owner, the minimum fee on 5": {"byId": 424242, "amount": 5_000_000},
-        "fine: a Plan at 1%": {"plan": {"feeBps": 100, "ownerId": 424242, "expires": now + 1}},
-        "fine: a Plan that ended is the standard rate": {"plan": {"feeBps": 100, "ownerId": 424242, "expires": now}},
-        "fine: a Plan under the lowest rate is held to it": {"plan": {"feeBps": 10, "ownerId": 424242, "expires": now + 9}},
-        "fine: exactly the daily limit": {"amount": 4_935_643_565},
+        "fine: a Plan at 0.20%": {"plan": {"feeBps": 20, "ownerId": 424242, "expires": now + 1}},
+        "fine: a Plan that ended is the standard rate": {"plan": {"feeBps": 20, "ownerId": 424242, "expires": now}},
+        "fine: a Plan under the lowest rate is held to it": {"plan": {"feeBps": 5, "ownerId": 424242, "expires": now + 9}},
+        "fine: exactly the daily limit": {"amount": 4_985_044_866},
         "fine: yesterday's count is not today's": {"balx": {**x, "day": now // 86_400 - 1, "daySpent": 5_900_000_000}, "amount": 4_900_000_000},
         "fine: no side account, 50,000": {"balance": free, "balx": None, "amount": 50_000_000_000},
         "fine: the side account is ignored until the Balance says it has one": {"balance": free, "amount": 50_000_000_000},
@@ -230,11 +237,11 @@ def _cases() -> list[dict]:
         "cap: before the repository": {"amount": 5_000_000_001, "repoId": 6},
         "repository: not listed": {"repoId": 6},
         "workflows: another commit": {"wfSha": "d" * 40},
-        "day: one unit over": {"amount": 4_935_643_566},
-        "day: before the total": {"amount": 4_950_000_000, "balx": {**x, "totalSpent": 59_000_000_000}},
+        "day: one unit over": {"amount": 4_985_044_867},
+        "day: before the total": {"amount": 4_990_000_000, "balx": {**x, "totalSpent": 59_000_000_000}},
         "total: over": {"balx": {**x, "daySpent": 0, "totalSpent": 59_950_000_000}},
-        "funds: the Balance holds less than amount and fee": {"holds": 102_499_999},
-        "fine: the Balance holds exactly amount and fee": {"holds": 102_500_000},
+        "funds: the Balance holds less than amount and fee": {"holds": 100_299_999},
+        "fine: the Balance holds exactly amount and fee": {"holds": 100_300_000},
         "amount: under 5": {"amount": 4_999_999, "balx": None, "balance": free},
         "amount: over 100,000": {"amount": 100_000_000_001, "balx": None, "balance": free},
     }
@@ -260,9 +267,19 @@ def test_the_cases_file_is_what_the_python_answers_and_each_rule_is_in_it():
     got = json.loads(_file())
     assert {c["out"]["rule"] for c in got["cases"]} == set(controls.RULES)
     assert all(c["name"].split(":")[0] == ("fine" if c["out"]["ok"] else c["out"]["rule"]) for c in got["cases"])
-    # the price book's table, to the cent: 5 -> 0.40 (8.00%), 20 -> 0.50 (2.50%), 1,000 -> 25, 5,000 -> 65 (1.30%), 50,000 -> 515 (1.03%)
+    # the price book's table, to the cent, under the 0.3.18 fee (0.30%, at least 0.05) ...
     assert [(controls.money(r["amount"]), controls.money(r["fee"]), r["effectivePct"]) for r in got["feeTable"]] == [
+        ("5.00", "0.05", "1.00"), ("20.00", "0.06", "0.30"), ("1,000.00", "3.00", "0.30"), ("5,000.00", "15.00", "0.30"), ("50,000.00", "150.00", "0.30")]
+    # ... and under the 0.3.14 fee, which the public program charges until knos_pay 2.2 is live
+    assert [(controls.money(r["amount"]), controls.money(r["fee"]), r["effective_pct"]) for r in controls.fee_table(rule=fees.OLD)] == [
         ("5.00", "0.40", "8.00"), ("20.00", "0.50", "2.50"), ("1,000.00", "25.00", "2.50"), ("5,000.00", "65.00", "1.30"), ("50,000.00", "515.00", "1.03")]
+    # the same decision under the 0.3.14 fee: 4,935.643565 and its fee of 64.356435 were exactly the 5,000 left of a day
+    q = next(c["in"] for c in got["cases"] if c["name"] == "fine: a spender, 100")
+    b, x = q["balance"], q["balx"]
+    balance = pay.Balance(b["faucet"], b["ownerId"], Pubkey.default(), Pubkey.default(), b["capPerJob"], 0, tuple(b["spenders"]), 0, b["hasX"])
+    balx = pay.BalanceX(x["dayLimit"], x["totalLimit"], tuple(x["repos"]), x["wfSha"], x["day"], x["daySpent"], x["totalSpent"])
+    was = [controls.decide(balance, balx, q["repoId"], a, q["byId"], q["now"], rule=fees.OLD) for a in (4_935_643_565, 4_935_643_566, 100_000_000)]
+    assert [(d.rule, d.fee, d.bps) for d in was] == [("ok", 64_356_435, 250), ("day", 64_356_435, 250), ("ok", 2_500_000, 250)]
     assert controls.money(1) == "0.000001" and controls.money(1_234_567_890_120) == "1,234,567.89012" and controls.percent(1, 0) == "0.00"
 
 

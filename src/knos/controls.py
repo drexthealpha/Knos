@@ -42,7 +42,7 @@ from pathlib import Path
 
 from solders.pubkey import Pubkey
 
-from . import commands
+from . import commands, fees
 from .settle.v2 import pay
 
 RULES = {"owner": 92, "spender": 92, "cap": 93, "repository": 92, "workflows": 86, "day": 100, "total": 100, "funds": 94, "amount": 81, "ok": 0}
@@ -64,11 +64,10 @@ def percent(fee: int, amount: int) -> str:
     return f"{h // 100}.{h % 100:02d}"
 
 
-def fee_table(bps: int = pay.FEE_BPS, decimals: int = 6) -> list[dict]:
-    """The effective settle fee at the price book's amounts: [{amount, fee, total, effective_pct}], in the mint's units."""
-    unit = 10 ** decimals
-    return [{"amount": a * unit, "fee": (f := pay.order_fee(a * unit, bps, decimals)), "total": a * unit + f, "effective_pct": percent(f, a * unit)}
-            for a in FEE_TABLE]
+def fee_table(bps: int | None = None, decimals: int = 6, rule: fees.Rule = fees.NEW) -> list[dict]:
+    """The effective fee at the price book's amounts: [{amount, fee, total, effective_pct}], in the mint's units, under
+    `rule` (knos.fees: the tree's by default; pass fees.live(ledger) for the one the cluster's program applies now)."""
+    return [{"amount": a, "fee": f, "total": a + f, "effective_pct": percent(f, a)} for a, f in fees.table(FEE_TABLE, rule, bps, decimals)]
 
 
 @dataclass(frozen=True)
@@ -79,8 +78,8 @@ class Decision:
     sentence: str           # what happens and what to do, in plain words
     fee: int                # what the funder pays on top, in the mint's units
     total: int              # amount + fee: what leaves the Balance
-    effective_pct: str      # the fee as a percentage of the amount, like "2.50"
-    bps: int                # the first tier's rate in use: the standard one or the owner's Plan
+    effective_pct: str      # the fee as a percentage of the amount, like "0.30"
+    bps: int                # the rate in use: the standard one or the owner's Plan
 
     def as_json(self) -> dict:
         """The keys web/controls_data.js answers with."""
@@ -94,14 +93,15 @@ def spent_today(x: pay.BalanceX | None, now: int) -> int:
 
 
 def decide(balance: pay.Balance, x: pay.BalanceX | None, repo_id: int, amount: int, by_id: int, now: int, *, plan: pay.Plan | None = None,
-           holds: int | None = None, repo_owner_id: int | None = None, wf_sha: str | None = None, decimals: int = 6) -> Decision:
+           holds: int | None = None, repo_owner_id: int | None = None, wf_sha: str | None = None, decimals: int = 6,
+           rule: fees.Rule = fees.NEW) -> Decision:
     """Whether a comment by GitHub id `by_id` in repository `repo_id` may fund an order of `amount` from this Balance at
     `now`, and which rule decides: the program's checks in the program's order (the module's table). `x` is the side
     account (None: the Balance has none), `plan` the owner's Plan, `holds` what the Balance holds, `repo_owner_id` the
     id of the repository's owner and `wf_sha` the commit of the workflows the run would use; a rule whose fact is
-    not given (None) is not judged."""
-    bps = pay.plan_bps(plan, now)
-    fee = pay.order_fee(amount, bps, decimals)
+    not given (None) is not judged. `rule`: the fee rule (knos.fees) of the program that would be asked."""
+    bps = rule.plan_bps(plan, now)
+    fee = rule.order(amount, bps, decimals)
     total, m = amount + fee, lambda u: money(u, decimals)
     cost = f"{m(amount)} and a fee of {m(fee)} ({percent(fee, amount)}%) leave the Balance: {m(total)}"
 
@@ -176,17 +176,18 @@ class Budget:
     holds: int
     decimals: int
     now: int
+    rule: fees.Rule = fees.NEW      # the fee rule of the program this was read from (knos.fees.live)
 
 
 def budgets(ledger, owner_id: int) -> list[Budget]:
     """Every Balance set aside for one GitHub owner's repositories (each wallet's, and on devnet the faucet's)."""
     from .settle.v2 import relay
     now, plan = int(ledger.now()), pay.read_plan(ledger.account(pay.plan_pda(owner_id)))
-    out = []
+    out, live = [], fees.live(ledger)        # the fee shown follows the build the cluster runs
     for address, b, holds in relay.balances_for(ledger, owner_id):
         mint = ledger.account(b.mint)
         out.append(Budget(address, b, pay.read_balx(ledger.account(pay.balx_pda(address))) if b.has_x else None, plan, holds,
-                          mint[44] if mint and len(mint) >= 82 else 6, now))
+                          mint[44] if mint and len(mint) >= 82 else 6, now, live))
     return out
 
 
@@ -242,7 +243,7 @@ def changes(b: Budget, *, cap: int | None = None, spenders=None, per_day: int | 
 def check(b: Budget, repo_id: int, amount: int, by_id: int, *, repo_owner_id: int | None = None, wf_sha: str | None = None) -> Decision:
     """`decide` over what the chain has now."""
     return decide(b.balance, b.x, repo_id, amount, by_id, b.now, plan=b.plan, holds=b.holds, repo_owner_id=repo_owner_id, wf_sha=wf_sha,
-                  decimals=b.decimals)
+                  decimals=b.decimals, rule=b.rule)
 
 
 # ---- words --------------------------------------------------------------------------------------------------------------
@@ -258,7 +259,7 @@ def _named(ids, name) -> str:
 def show_lines(b: Budget, repo_name=lambda i: "", login=lambda i: "", unit: str = "test USDC") -> list[str]:
     """`knos budget show` for one Balance. `repo_name` and `login`: GitHub's names for ids ("" when unknown)."""
     m, bal, x = (lambda u: money(u, b.decimals)), b.balance, b.x
-    today, bps = spent_today(x, b.now), pay.plan_bps(b.plan, b.now)
+    today, bps = spent_today(x, b.now), b.rule.plan_bps(b.plan, b.now)
     out = [f"Balance {b.address}: holds {m(b.holds)} {unit}, for the repositories of GitHub id {bal.owner_id}"
            + (f" ({n})" if (n := login(bal.owner_id)) else "") + ".",
            f"  cap per order        {m(bal.cap_per_job) if bal.cap_per_job else 'none'}"]
@@ -275,10 +276,12 @@ def show_lines(b: Budget, repo_name=lambda i: "", login=lambda i: "", unit: str 
     out.append("  spenders             " + ("any commenter in the owner's repositories (the devnet faucet: test money)" if bal.faucet else
                                            (_named(bal.spenders, login) if bal.spenders else "none") + ", besides the owner"))
     if b.plan is not None and b.now < b.plan.expires:
-        out.append(f"  fee                  a Plan: {bps / 100:g}% of the first 1,000 until {_when(b.plan.expires)}, then the standard 2.5%")
+        out.append(f"  fee                  a Plan: {b.rule.rate(bps)} until {_when(b.plan.expires)}, then the standard {fees.pct(b.rule.bps)}")
     else:
-        out.append(f"  fee                  standard: {bps / 100:g}% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40"
+        out.append(f"  fee                  standard: {b.rule.rate()}"
                    + (f" (a Plan ended {_when(b.plan.expires)})" if b.plan is not None else " (no Plan)"))
+    out.append(f"                       the {b.rule.release} fee, which knos_pay {b.rule.build} charges"
+               + ("" if b.rule is fees.NEW else f"; from knos_pay {fees.NEW.build}: {fees.NEW.rate()}") + f". {fees.KEEPS}")
     out.append("  The limits count what leaves the Balance (amount and fee); the cap counts the amount.")
     return out
 
@@ -647,12 +650,12 @@ def periods_of(offer: dict) -> int:
     return max(1, (days + one // 2) // one)
 
 
-def commitment(offer: dict, bps: int = pay.FEE_BPS) -> dict:
+def commitment(offer: dict, bps: int | None = None, rule: fees.Rule = fees.NEW) -> dict:
     """What opening a sound offer promises, in millionths: {suppliers, periods, cap, fee, value, leaves}. The cap is
-    one supplier's for one period, and each is funded by one comment, so `fee` is the settle fee of one cap; `value`
+    one supplier's for one period, and each is funded by one comment, so `fee` is the fee of one cap under `rule`; `value`
     is caps alone (what an approval is asked for) and `leaves` adds the fees (what an envelope counts)."""
     cap = units_of(offer["cap"]) or 0
-    n, periods, fee = (1 if offer["suppliers"] == "anyone" else len(offer["suppliers"])), periods_of(offer), pay.order_fee(cap, bps)
+    n, periods, fee = (1 if offer["suppliers"] == "anyone" else len(offer["suppliers"])), periods_of(offer), rule.order(cap, bps)
     return {"suppliers": n, "periods": periods, "cap": cap, "fee": fee, "value": cap * n * periods, "leaves": (cap + fee) * n * periods}
 
 
@@ -928,11 +931,13 @@ def register(app, help_lines: list | None = None) -> None:
         env = load(cli, file, "budget envelope", envelope_problems)
         if fund is not None:
             amount = cli._units(fund, 6)
-            got = fit(env, amount + pay.order_fee(amount))
+            fee, was = fees.NEW.order(amount), fees.OLD.order(amount)
+            got = fit(env, amount + fee)
             if as_json:
                 typer.echo(json.dumps({"name": env["name"], **got}, sort_keys=True))
             else:
-                cli.out.print(f"Envelope {env['name']}: one task of {money(amount)}, fee {money(pay.order_fee(amount))} on top.", markup=False)
+                cli.out.print(f"Envelope {env['name']}: one task of {money(amount)}, fee {money(fee)} on top"
+                              + ("." if fee == was else f" ({money(was)} until knos_pay {fees.NEW.build} is live: `knos status` says which build runs)."), markup=False)
                 bars(cli, got["before"], "before")
                 bars(cli, got["after"], "after")
                 cli.out.print(got["sentence"], markup=False)

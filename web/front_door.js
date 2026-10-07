@@ -88,6 +88,7 @@ const STYLE = `.fd textarea{min-height:64px;font-size:15px;resize:vertical}.fd .
 .fd-group[data-empty]{opacity:.55}.fd-line{padding:10px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.fd-line p{margin:0 0 6px}.fd-line .fd-why{color:var(--ink-2)}
 .fd-line dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px 12px;margin:0}.fd-line dt{font-size:12px;color:var(--ink-2)}.fd-line dd{margin:0}
 .fd-line[data-approved]{background:color-mix(in srgb,var(--ok) 9%,transparent);transition:background var(--dur-2) var(--ease)}
+.hero:has(>#front-result:not([hidden])) .hero-board{display:none}
 .fd-under{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;margin:16px 0 8px}.fd-result [hidden]{display:none}`;
 
 /** Draw the front door. `el`: the form (or an empty element, which is given one). env, all optional: { out } where the
@@ -98,14 +99,14 @@ export function renderFrontDoor(el, env = {}) {
   if (!el.querySelector("textarea")) {
     el.classList.add("fd");
     el.innerHTML = `<textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
-      <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <a href="#sample" data-fd="sample">Try a sample</a></p>`;
+      <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <button type="button" class="k-btn quiet" data-fd="sample">Try a sample</button></p>`;
   }
   let out = env.out || doc.getElementById("front-result");
   if (!out) { out = doc.createElement("div"); out.id = "front-result"; el.after(out); }
   out.classList.add("fd-result");
   const box = el.querySelector("textarea"), $ = (name) => out.querySelector(`[data-fd="${name}"]`);
   const budget = { remaining: null, limit: ANONYMOUS_AN_HOUR, reset: null, asked: 0, spent: false };
-  let busy = false, last = null, motion = null;
+  let busy = false, last = null, motion = null, checking = null, again = false, meter = null;
   import("./motion.js").then((m) => { motion = m; }).catch(() => { /* the page is whole without it */ });
 
   const frame = (said, theirs) => {
@@ -122,6 +123,7 @@ export function renderFrontDoor(el, env = {}) {
           <a data-fd="statement" href="#invoice-statement">Open the statement</a></p>
         <p data-fd="approved" role="status" aria-live="polite"></p>
         <p class="fd-under"><a data-fd="install" href="#install">Install the meter</a> <a data-fd="feedback" href="${esc(FEEDBACK)}" target="_blank" rel="noopener">Tell us what it missed</a></p>
+        <div data-fd="terms" hidden></div>
         <p class="fine">A failed check is not proof of bad work.</p>
         <p class="fine">Nothing left this page but pull request names.</p>
       </div>`;
@@ -137,16 +139,17 @@ export function renderFrontDoor(el, env = {}) {
   };
 
   async function run(sample = false) {
-    if (busy) return;
+    if (busy) { again = !sample && box.value !== checking; return; }     // asked while a check runs: what the box holds now is checked next, when it is not what is being checked
+    checking = sample ? null : box.value; again = false;
     let what;
     try { what = sample ? { invoice: parse(SAMPLE_INVOICE) } : reading(box.value); } catch (e) {
       frame(/^line \d+/.test(e.message) ? `Not read: ${e.message}.` : "Not read: paste pull request links, or type owner/repo.", ""); return;
     }
-    busy = true; last = null; budget.spent = false;
+    busy = true; last = null; meter = null; budget.spent = false;
     const repo = what.repo ? `${what.repo.owner}/${what.repo.repo}` : "";
     frame(repo ? `Reading ${repo}.` : `Checking ${what.invoice.lines.length} ${what.invoice.lines.length === 1 ? "line" : "lines"}.`, repo ? "Merged there" : "Supplier's count");      // the pending state, before anything is asked
     $("mark").hidden = !sample;
-    const finish = (said) => { busy = false; $("said").textContent = said; };
+    const finish = (said) => { busy = false; $("said").textContent = said; if (again && box.value !== checking) setTimeout(run, 0); again = false; };
     let get = env.get || (sample ? recorded(SAMPLE_BOOK) : null), invoice = what.invoice;
     if (!get) {
       try {
@@ -217,6 +220,7 @@ export function renderFrontDoor(el, env = {}) {
     })();
     const href = at && at.owner && pinnedFile(INSTALL_WORKFLOW) ? installLink(at) : null;
     if (href) Object.assign($("install"), { href, target: "_blank", rel: "noopener" });
+    meter = at && at.owner ? { repo: `${at.owner}/${at.repo}`, branch: at.branch, href } : null;
     $("approve").disabled = agreed.length === 0;
     $("after").hidden = false;
     const text = repo ? `${invoice.lines.map((ln) => ln.pr).join("\n")}\n` : sample ? SAMPLE_INVOICE : box.value;
@@ -259,10 +263,21 @@ export function renderFrontDoor(el, env = {}) {
 
   el.addEventListener("submit", (ev) => { ev.preventDefault(); run(); });
   el.querySelector('[data-fd="sample"]').addEventListener("click", (ev) => { ev.preventDefault(); box.value = SAMPLE_INVOICE; run(true); });
-  box.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey && (ev.ctrlKey || ev.metaKey || !box.value.includes("\n")) && box.value.trim()) { ev.preventDefault(); run(); } });
+  // Enter in the box checks what is in it, whatever it holds (a pasted invoice has many lines: Enter used to add one more
+  // there and check nothing); Shift+Enter is the new line. An Enter that ends an input method's composition is not one.
+  box.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing && ev.keyCode !== 229) { ev.preventDefault(); run(); } });
   box.addEventListener("paste", () => setTimeout(() => { if (box.value.includes("\n")) run(); }, 0));      // a pasted invoice is checked as it lands
   out.addEventListener("click", (ev) => {
     const what = ev.target.closest("[data-fd]")?.dataset.fd;
+    // INSTALL THE METER, for a repository that was named: its terms are proposed from its own checks, in place
+    // (web/propose_view.js, asked for now), and the workflow file is one link in what is drawn. The sample names no
+    // repository of the reader's, so there the link stays a link to the Install page.
+    if (what === "install" && meter && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey) {
+      ev.preventDefault();
+      const mine = meter, box = $("terms");
+      import("./propose_view.js").then((m) => m.renderProposal(box, mine.repo, { branch: mine.branch, install: mine.href, propose: env.propose, proposeEnv: env.proposeEnv }))
+        .then(() => box.scrollIntoView?.({ block: "nearest", behavior: motion && !motion.prefersReduced() ? "smooth" : "auto" })).catch(() => { box.hidden = false; box.textContent = "Not read. Try again."; });
+    }
     if (what === "approve") approve().catch(() => { $("approved").textContent = "Not recorded. Try again."; });
     if (what === "csv") download().catch(() => { $("approved").textContent = "Download failed. Try again."; say("Download failed", "bad"); });
   });

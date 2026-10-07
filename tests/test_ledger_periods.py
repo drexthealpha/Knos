@@ -185,7 +185,7 @@ def test_verify_fails_an_anchored_repeat_by_name_until_a_correction_is_anchored(
 # -- 3. corrections -----------------------------------------------------------------------------------------------------
 def test_a_correction_is_anchored_under_its_own_leaf_and_changes_no_counter():
     e = [_ev(i) for i in range(1, 8)]
-    plain = L.batch(e[4:], 1, MONTH)
+    plain = L.batch(e[4:], 1, MONTH, format=1)
     fix = L.Correction(SELLER, e[0].id.hex(), MONTH, 0, "verdict", False)
     carried = L.batch(e[4:], 1, MONTH, [fix])
     assert plain.root == L.merkle_root([x.id for x in e[4:]])                                   # no correction: the tree of 0.3.14, so anchored roots still verify

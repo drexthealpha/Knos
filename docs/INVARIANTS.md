@@ -62,7 +62,7 @@ account is closed with the order.
   alone is model-checked by the Kani harnesses in [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs), which also
   say what they assume and do not cover. The one recorded run ([`kani.json`](kani.json)) verified four of the five,
   the ones about shares, payments and conservation; the fee-bounds harness timed out and is not proved there
-  (invariant 8 says what is proved of the fee's bounds, per tier, by the harnesses of
+  (invariant 8 says what is proved of the fee's bounds, rate by rate, by the harnesses of
   [`fee_proofs`](../programs-v2/fee_proofs/src/lib.rs)).
 - **A 0.3.12 bounty** shares one vault per mint with the other bounties, so for it the guarantee is arithmetic, not
   a separate account: `Pay`, `Settle` and `Refund` move exactly the job's amount and close the job
@@ -141,7 +141,10 @@ instruction sent afterwards finds no order.
 - **The states:** OPEN; HELD (accepted, the payee has no wallet yet); WARRANTY (paid but for a holdback). The ends:
   paid in full (`PayOrder`, `SettleOrder`, `Release`), returned (`RefundOrder`, `Revert`).
 - **Enforced by:** disjoint conditions on the chain's clock. `PayOrder` needs `now <= deadline`; `RefundOrder` needs
-  `now > deadline` (OPEN) or `now > hold_until` (HELD). `Revert` runs only inside the warranty, `Release` only after
+  `now > deadline` (OPEN) or `now > hold_until` (HELD). An order funded with the presentation grace (below, "A token
+  shown after a deadline it was issued before") moves both by the same 7,200 seconds: `PayOrder` until
+  `deadline + 7200` on a token issued by the deadline, `RefundOrder` after `deadline + 7200`, so the two stay
+  disjoint. `Revert` runs only inside the warranty, `Release` only after
   it. `Cancel` ends nothing: once per order it moves the deadline to at most seven days away, and a pay token still
   pays until then. Solana runs transactions that write the same account one after another, never interleaved, so
   two instructions on one order see each other's result.
@@ -213,52 +216,61 @@ exactly what the first relay gave them.
   relayer, and the payee is paid once. This is the simulator, which runs the two one after the other as a leader
   does; two relayers against a running validator, with its forks and retries, have not been raced.
 
-### 8. Fees never exceed the tier schedule
+### 8. Fees never exceed the schedule
 
-The fee of an order is one pure function of its amount, `order_fee`: 2.5% of the first 1,000, 1% from 1,000 to
-50,000, 0.5% above, and at least 0.40; the funder pays it on top, and nothing else is ever taken from an order.
+The fee is one pure function of the amount: 0.30% of it rounded down, at least 0.05. One rate, no tiers, no cap. An
+order's funder pays it on top (`order_fee`), and nothing else is ever taken from an order; a job's is taken out of
+its amount and is never more than it (`fee_of`). 5.00 pays 0.05; 100.00 pays 0.30; 1,000.00 pays 3.00; 5,000.00 pays
+15.00; 100,000.00, the most an order holds on devnet, pays 300.00.
 
-- **Enforced by:** `FundOrderWallet` and `FundOrderBalance` take `amount + order_fee(amount)` and store the rate;
-  `TopUp` takes the fee of the new amount less the fee already there; a Plan (`SetPlan`, signed by `FEE_OWNER`) can
-  only lower the first tier's rate, to between 0.5% and 2.5%, until an expiry; the relayer's tip (0.05, or 0.30 on
-  a payee's first payment) comes out of the fee, not on top of it; a refund returns the fee with the amount. An
-  order holds at most 100,000 on devnet.
-- **The minimum is a floor, so on a small order the fee is more than 2.5% of the amount:** 0.40 on an order of 5 is
-  8%. The schedule, not a percentage, is the bound.
-- **Checked by:** the unit tests of `order_fee` at the tier edges in
-  [`lib.rs`](../programs-v2/knos_pay/src/lib.rs) and the Kani harnesses in
-  [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs) (run by `cargo test` and `cargo kani`, not by pytest). The
-  harness for the fee's bounds over every amount at once,
-  `an_orders_fee_is_between_its_floor_and_the_first_tiers_rate_for_every_amount`, timed out in the recorded run
-  ([`kani.json`](kani.json)): **not verified** in one harness;
+- **Enforced by:** `FundOrderWallet` and `FundOrderBalance` take `amount + order_fee(amount)` and store the rate and
+  the fee in the order; `TopUp` takes the fee of the new amount less the fee already there; a Plan (`SetPlan`, signed
+  by `FEE_OWNER`) can only lower the rate, to between 0.10% and 0.30%, until an expiry; the relayer's tip (0.05, or
+  0.30 on a payee's first payment, never more than the fee) comes out of the fee, not on top of it; a refund returns
+  the fee with the amount.
+- **The minimum is a floor, so on a small order the fee is more than 0.30% of the amount:** 0.05 on an order of 5 is
+  1%. The schedule, not a percentage, is the bound.
+- **An order keeps the fee it was funded with.** The fee and its rate are in the order's account. An order funded
+  under the build before this one (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40) pays, refunds
+  and reverts with that fee; a top-up of it is charged at 0.30% and never less than the fee already there. A Plan set
+  under that build (0.5% to 2.5%) is read as 0.30%: no rate is above the standard one.
+- **Volume rates are not on chain.** The price book's lower rates above 1M and 10M a month are a rebate by contract.
+  The program knows 0.30%, the floor, and a Plan's rate for one repository owner.
+- **Checked by:** the unit tests of `order_fee` and `fee_of` in [`lib.rs`](../programs-v2/knos_pay/src/lib.rs) and
+  the Kani harnesses in [`proofs.rs`](../programs-v2/knos_pay/src/proofs.rs) (run by `cargo test` and `cargo kani`,
+  not by pytest); `the_fee_is_thirty_basis_points_with_a_floor_of_five_cents_at_every_size`,
+  `a_plan_lowers_the_rate_to_no_less_than_ten_basis_points` and `a_job_pays_the_same_rate_out_of_its_amount` in
+  [`programs-v2/handlers/tests/knos_pay.rs`](../programs-v2/handlers/tests/knos_pay.rs), against the built program;
   `test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top`,
   `test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate`,
   `test_the_orders_repository_pays_one_payee_in_full_and_the_fee_is_split` and
   `test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came` in `tests/test_order_chain.py`.
-- **The fee's bounds, per tier** (at least 0.40; 0.40 or at most 2.5% of the amount; amount plus fee fits a u64; for
-  a mint of 6 decimals and every rate a Plan can set, 50 to 250 basis points). The harnesses of
+- **The fee's bounds, by rate** (for a mint of 6 decimals, every amount from 0 to 100,000.00 and every rate a Plan
+  can set, 10 to 30 basis points). The harnesses of
   [`programs-v2/fee_proofs`](../programs-v2/fee_proofs/src/lib.rs) are about the program's own lines, copied as text
   by its `build.rs`; each ran alone within 150 seconds and [`kani.json`](kani.json) (`fee_proofs`, written by
   `scripts/kani_fee_record.py`) records them:
-  - above 1,000 and up to 50,000, every rate: **verified**;
-  - above 50,000 and up to 100,000 (the most an order holds), every rate: **verified**;
-  - 0 to 1,000 at the rates 50 to 249: **verified** (eight harnesses that take the rates one by one);
-  - 0 to 1,000 at the rate 250, the rate of an order with no Plan: the floor and the sum are **verified**; "at most
-    2.5% of the amount" is **not verified** (at that rate the bound is exact, and the solver did not answer). It is
-    tested instead at each of the 1,000,000,001 amounts of that tier, with 10,000,000 amounts and rates from a fixed
-    seed and every amount within 20,000 units of each edge of the schedule at every rate, against a reference in
-    128-bit integers (`cargo test --release` in `programs-v2/fee_proofs`, not run by pytest).
+  - at the rates 10 to 29: at least 0.05; 0.05 or at most 0.30% of the amount; amount plus fee fits a u64:
+    **verified** (two harnesses that take the rates one by one);
+  - at the rate 30, the rate of an order with no Plan: at least 0.05; 0.05 or at most 0.31% of the amount; amount
+    plus fee fits a u64: **verified**;
+  - at the rate 30, "0.05 or at most 0.30% of the amount" is **not verified**: at that rate the fee is exactly 0.30%
+    rounded down, with nothing to spare, and the solver did not answer in any of four forms. It is tested instead at
+    all 10,000 remainders of an amount by ten thousand on 2,001 values of its ten-thousands, with 10,000,000 amounts
+    and rates from a fixed seed and every amount within 20,000 units of each edge of the schedule at every rate,
+    against a reference in 128-bit integers (`cargo test --release` in `programs-v2/fee_proofs`, not run by pytest);
+  - a job's fee, at every u64 amount: never more than the amount: **verified**.
 
-  So the statement over every amount an order may hold is **verified per tier** except for that one bound at that
-  one rate in the first tier, and is **not verified** as a whole.
+  So the statement over every amount an order may hold is **verified but for one bound at one rate**. The one
+  harness over every u64 amount and every rate at once,
+  `an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount` in `proofs.rs`, is recorded at the top of
+  [`kani.json`](kani.json) with what it got.
 - **The meter:** the fee of a month is the count beyond the free allowance times the rate, taken from prepaid
   Credits, and a batch that Credits cannot pay is refused whole
   (`test_the_first_ten_thousand_evaluations_of_a_month_are_free_and_credits_never_go_below_zero` in
   `tests/test_meter_chain.py`; `tests/test_meter_batch.py`).
-- **Across a tier's edge:**
-  `test_a_top_up_across_a_fee_tier_pays_the_difference_between_the_two_schedule_values` (to and over 1,000 and 50,000,
-  and over both at once) and
-  `test_a_top_up_across_the_first_tier_of_a_balances_order_keeps_the_plans_rate_below_it_and_one_percent_above` in
+- **A top-up:** `test_a_top_up_pays_the_difference_between_the_two_schedule_values_at_every_size` (across the floor,
+  and to the most an order holds) and `test_a_top_up_of_a_balances_order_keeps_the_plans_rate` in
   `tests/test_invariants_gaps.py`. The Kani harness
   `what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out` proves, for every amount an order
   may have at 6 decimals and every rate, that the amount and its fee are exactly what the payees, the tip and
@@ -344,7 +356,36 @@ evidence missing, devnet reset), held to the page by
 What those tests do not show: that an outage ends, that somebody runs a relay, or that a token is carried before
 its hour is over. When it is not, the token is spent time and the payment needs a new one (`/knos settle` signs a
 fresh token when GitHub is back); if nobody asks, nothing pays. An outage of GitHub or of the cluster that outlasts an
-order's deadline means the accepted work is not paid by this order at all.
+order's deadline means the accepted work is not paid by this order at all, unless the order was funded with the
+presentation grace and the token was signed in time:
+
+**A token shown after a deadline it was issued before (the presentation grace).** As the program was built before,
+`PayOrder` compared the deadline with the chain's clock at the moment the token was SHOWN. A token the forge signed
+before the deadline was refused when a relay that was down, or a congested cluster, showed it a second after. An
+order can now be funded with the grace (one byte of its options, the funder's choice, fixed at funding):
+
+- a pay token whose `iat` is at or before the deadline is accepted until `deadline + 7200` seconds;
+- `RefundOrder` is refused until `deadline + 7200` and accepted from the second after, so a payment and a refund
+  are never both possible in the same second, and a buyer's refund is later by at most two hours;
+- a token issued after the deadline is refused as before, and so is one shown after the window.
+
+Why 7,200 seconds and not a day: it is the longest any token issued by the deadline can live. The program takes no
+token whose expiry is more than an hour after its `iat`, and the verifier refuses every token an hour after its
+expiry. A longer window would delay the refund for nothing, because no token would be accepted in the extra time; a
+shorter one would refuse tokens that are still good. A token GitHub itself signs lives five minutes, so in practice
+it must be shown within 65 minutes of being signed. An outage longer than that still loses the payment: carrying a
+proof across it would need the verifier to accept an older token, and the verifier is not changed by this build.
+
+What the grace does not cover, and why. It is off unless the funder asks for it, so that the relay and every test
+that sends a refund the second after a deadline keep their meaning for every other order; an order funded under
+the build before this one never has it. A challenge of a holdback (`Revert`) is still compared with the clock when
+it is shown: a challenge signed in the last minute of a warranty and shown after it is refused. A 0.3.12 bounty has
+no grace. Checked by `a_token_issued_before_the_deadline_pays_after_it_and_no_refund_is_taken_meanwhile` and
+`the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_follows_at_once` in
+[`adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) (a second after the deadline; the last second a
+token lives; the end of the window; the second after it; both instructions in one transaction, in both orders) and
+by the unit test of `Order::in_time` in [`order.rs`](../programs-v2/knos_pay/src/order.rs), which asserts for every
+boundary that a refund and a payment are never both in time.
 
 **What is guaranteed in place of liveness: a refund path always exists.** Invariant 6: after its deadline an unpaid
 order's whole balance goes back where it came from on an instruction that needs no token, no GitHub, no relay of
@@ -373,16 +414,76 @@ against the test builds in `tests/fixtures`, the transactions `scripts/adversari
 again after a payment and after a refund (invariants 2, 3); the second before, at and after a deadline, the end of a
 hold and the end of a warranty (5, 6); a payment and a refund, a settlement and a refund, a release and a challenge
 in one transaction in both orders and in two (5); one token twice in one transaction, in two, and a meter's token
-shown to `PayOrder` and a payment's to the meter (3, 4); one judge alone under a quorum of 2 and of 3.
+shown to `PayOrder` and a payment's to the meter (3, 4); one judge alone under a quorum of 2 and of 3; one account
+and one owner behind two judges; a marker of the order that was at an address before; a token shown after a deadline
+it was issued before; and orders and markers in accounts as the build before this one wrote them.
 
-Two of its tests are ignored because the program, as built, does what they say it should not. Neither is fixed in
-this release:
+None of its tests is ignored. Two were, while the program did what they said it should not; this build fixes both,
+and they run with the rest.
 
-- **One account can be two judges of a wallet's order.** Under a quorum of 2, the account that starts the run in the
-  order's repository can also start the neutral run in another repository, and the order is paid. A neutral run by
-  the funder or the owner is refused only on a Balance's order; judges are told apart by where a run was, not by who
-  started it (`finding_one_account_that_starts_both_runs_is_one_judge_not_two`).
-- **A judge's marker outlives its order by a second.** An order with a quorum of 2 that is paid and funded again at
-  the same address within the same second of the chain's clock takes the first order's marker for its own, and one
-  new token for the same work then pays it
-  (`finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second`).
+### A quorum counts owners of repositories, not repositories
+
+An order with a quorum of 2 or 3 pays when that many distinct judges have passed the same artifact: the order's own
+repository, a neutral run, the judge repository. The finding
+(`finding_one_account_that_starts_both_runs_is_one_judge_not_two`): on a wallet's order, the account that started
+the run in the order's repository could start the neutral run in another repository it owned, and the order paid.
+The rule now, the same for an order funded by a wallet, by a passkey, by a comment on a forge or from a Balance
+(`order_terms::distinct`; each judge's marker records the `repository_owner_id` and the `actor_id` of its run):
+
+1. Judges whose runs were in repositories of one owner are one judge.
+2. A neutral run counts only when its owner is not the owner of the order's repository and the account that
+   started it is not the account that started the run in the order's repository. A wallet names a repository and
+   no owner, so on a wallet's order a neutral run counts only once the order's own repository has passed the same
+   artifact; before that its token is recorded and nothing is paid.
+
+**What this enforces:** that the judges counted are different forge accounts and different owners of repositories,
+as the forge signed them. **What it cannot:** that two accounts are two people. One person with two accounts, an
+owner and a friend, or two parties who agreed, are two judges here; a forge signs account ids and nothing about who
+is behind them. The receipt's `same_controller` field ([RECEIPT.md](RECEIPT.md)) is still what a buyer reads for
+that. Two costs of the rule: a judge repository that belongs to the owner of the order's repository no longer
+counts as a second judge, and on a wallet's order a neutral run and a judge repository cannot pay without the
+order's own repository.
+
+Checked by `finding_one_account_that_starts_both_runs_is_one_judge_not_two`,
+`the_same_owner_behind_two_repositories_is_refused_as_a_second_judge_and_different_owners_are_accepted`,
+`a_quorum_of_three_needs_three_owners`,
+`on_a_wallets_order_a_neutral_run_counts_only_once_the_orders_own_repository_has_spoken` and
+`on_a_balances_order_one_account_behind_both_runs_is_one_judge` in `adversarial.rs`;
+`test_one_account_or_one_owner_behind_two_judges_is_one_judge` in `tests/test_order_quorum.py`; the unit test of
+`distinct` in [`order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs). An order funded through a passkey is
+a wallet's order on chain (the passkey's wallet signs `FundOrderWallet`), so it takes the wallet's path; no test
+funds one through the passkey program and then judges it under a quorum.
+
+### A marker does not outlive its order
+
+A quorum marker, a standing order's `done` marker and an assignment are accounts of their own, named by their
+order's address; an address is funded again once the order there was paid or refunded. The finding
+(`finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second`): a marker was tied
+to its order by the second of the order's funding, so an order paid and funded again within one second took the
+earlier marker for its own, and one new token then paid it.
+
+Every order now stores its **incarnation**: the slot of its funding plus one. Every marker made for it carries that
+number, and counts only for the order that has it. Nothing writes or counts such a marker in the slot its order was
+funded in (the instruction is refused; the next slot, 400 milliseconds later, takes it). So a marker that carries
+slot S was written in a later slot, while its order was there; the address was free again only after that; whatever
+is funded there next is funded in a slot after S. The same holds for `done` markers and assignments, which before
+this build were tied to the second (an assignment) or to nothing (a `done` marker outlived its order until someone
+closed it). Markers the build before this one wrote are shorter and are told apart by their length: a quorum marker
+of that build names no run and counts for nothing until its judge signs again; its `done` marker counts for an order
+of that build and for no other.
+
+Checked by `finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second` (the same
+second, another slot; and a funding and a judge in one transaction, refused whole),
+`an_assignment_of_the_order_before_does_not_route_the_payment_of_one_funded_again_in_the_same_second`,
+`a_quorum_marker_of_2_1_counts_for_nothing_until_its_judge_signs_again` and
+`a_done_marker_of_2_1_counts_for_an_order_of_2_1_and_for_no_other` in `adversarial.rs`;
+`test_a_marker_does_not_outlive_its_order_even_within_one_second` in `tests/test_order_quorum.py`.
+
+### An order funded before this build
+
+`an_order_funded_under_2_1_is_paid_and_reverted_with_the_fee_it_was_funded_with` and
+`an_order_funded_under_2_1_is_refunded_a_second_after_its_deadline` in `adversarial.rs` put orders on the chain in
+accounts as the build before this one wrote them (the fee and the rate of that build, no incarnation, no grace) and
+pay, revert and refund them with this build: each moves the fee it was funded with, and the refund comes the second
+after the deadline. These are accounts written by the test, byte for byte in the earlier layout; no order funded by
+the deployed program was replayed.

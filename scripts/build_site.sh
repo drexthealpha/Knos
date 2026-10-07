@@ -40,6 +40,8 @@ cp docs/agent_weekly.json "$out/agent_weekly.json"
 "${PYTHON:-python3}" scripts/agent_pr_index.py board --check
 cp docs/index.json "$out/agent_index.json"
 cp docs/index.atom "$out/index.atom"
+# A supplier's public record (docs/RECORD.md): the file and its badge, which the record page reads.
+mkdir -p "$out/records" && cp docs/records/*.json "$out/records/"
 # The registry of published terms (terms/, which scripts/terms_registry.py builds): the Terms page reads terms/index.json,
 # and the address `knos terms cite` prints is a file here.
 rm -rf "$out/terms" && cp -r terms "$out/terms"

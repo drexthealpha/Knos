@@ -1,12 +1,18 @@
-// The story on one page: the number, one round in eight steps that play in order, and what the project needs next.
-// docs/STORY.md says the same eight steps with the same evidence (tests/web/story.mjs holds the two together).
+// The story on one page: the number, the three-minute demonstration in six beats that play in order, and what the
+// project needs next. docs/STORY.md says the same six beats with the same evidence (tests/web/story.mjs holds the two
+// together), and docs/submission/demo_script.md is the same six, timed.
 //
 //   renderStory(el[, ctx])   draws it into el. ctx: { repo, front, merged, failed, reduced }, each optional
 //   storyHtml(ctx)           the same as text, for a test with no browser
-//   play(root[, opts])       steps go idle -> live -> done (a refusal: bad), one after the other; resolves when the last has
+//   play(root[, opts])       beats go idle -> live -> done (a refusal: bad), one after the other; resolves when the last has
 //
-// Every step is in the page from the start, so a reader who asked for no movement sees all eight, in their last state,
+// Each beat is a card (.k-step under .story-steps, drawn by web/app.css): numbered, dim until it plays, lifted while it
+// is live, then settled green, or red with one shake for the refusal. The first screen is the sentence, the number and
+// the six cards: what the project needs next waits in a fold under them (the page's first screen says 40 words at most).
+// Every beat is in the page from the start, so a reader who asked for no movement sees all six, in their last state,
 // and nothing moves. Nothing is requested from any host: the evidence is links, and the reader follows them or not.
+// A beat whose evidence ran on staging program ids says so beside its link (`staging`), until a run on the public
+// program ids replaces it.
 import { prefersReduced } from "./motion.js";
 
 export const SENTENCE = "The neutral meter for AI agent work: neither side keeps the count.";
@@ -16,25 +22,24 @@ export const FRONT = "https://drexthealpha.github.io/Knos/";
 const TX = "https://explorer.solana.com/tx/";
 export const STEP_MS = 480;                         // --dur-3: how long a step is live before the next one starts
 
-// `ends`: the state a step rests in. `path` is a file of the repository; `url` is a transaction or the site.
+// `ends`: the state a beat rests in. `path` is a file of the repository; `url` is a transaction. `staging`: the
+// transaction ran on staging program ids, not the public ones.
+export const STAGING = "Staging program ids";
 export const STEPS = [
-  { title: "Buyer authorises.", says: "One comment fixes the budget and terms before work starts.", ends: "done",
+  { title: "An invoice does not reconcile.", says: "Seven lines; five are exceptions.", ends: "done",
+    evidence: "The sample invoice", path: "examples/shadow/invoice.csv" },
+  { title: "Buyer authorises the deliverable.", says: "One comment fixes price and terms first.", ends: "done", staging: true,
     evidence: "The funding transaction (devnet, staging program ids)", url: `${TX}4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL?cluster=devnet` },
-  { title: "Supplier submits.", says: "A correct fix arrives with its own regression test.", ends: "done",
-    evidence: "The correct submissions and the test that runs them", path: "tests/test_tamper_bench.py" },
-  { title: "Accepted under the original terms.", says: "The signed run pays the posted amount.", ends: "done",
-    evidence: "The paying transaction (devnet, staging program ids)", url: `${TX}63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq?cluster=devnet` },
-  { title: "A tampered submission fails.", says: "All 63 cheating pull requests were refused.", ends: "bad",
+  { title: "A tampered submission is refused.", says: "All 63 cheating pull requests were refused.", ends: "bad",
     evidence: "The tamper benchmark", path: "docs/TAMPER.md" },
-  { title: "A duplicate settlement changes nothing.", says: "The second try moves no money.", ends: "done",
-    evidence: "The test that sends every accepted proof twice", path: "tests/test_double_pay.py" },
-  { title: "Both sides rebuild the same record.", says: "Each ledger gives the same statement.", ends: "done",
+  { title: "Legitimate work is accepted.", says: "The signed run pays the posted amount.", ends: "done", staging: true,
+    evidence: "The paying transaction (devnet, staging program ids)", url: `${TX}63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq?cluster=devnet` },
+  { title: "A replay pays nothing.", says: "Tokens work once. One judge is no quorum.", ends: "done",
+    evidence: "The tests that replay tokens and split a quorum", path: "programs-v2/handlers/tests/adversarial.rs" },
+  { title: "Both sides rebuild one bill.", says: "An outsider verifies the receipt offline.", ends: "done",
     evidence: "The test that reconciles two ledgers", path: "tests/test_ledger.py" },
-  { title: "Finance approves the agreed lines.", says: "The exception stays visible and unbilled.", ends: "done",
-    evidence: "The four records and the exports", path: "docs/FINANCE.md" },
-  { title: "Your invoice next.", says: "Paste it. Nobody has paid for this yet.", ends: "live",
-    evidence: "Check your own invoice", url: FRONT },
 ];
+export const NEXT = "Check your own invoice";      // after the last beat: the reader's own invoice, at the front door
 
 // What the project needs next. Each is a need: none of the three exists.
 export const ASK = [
@@ -44,20 +49,21 @@ export const ASK = [
 ];
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-export const linkOf = (step, ctx = {}) => (step.url === FRONT ? ctx.front || FRONT : step.url || (ctx.repo || REPO) + step.path);
+export const linkOf = (step, ctx = {}) => step.url || (ctx.repo || REPO) + step.path;
 
 /** The page as text. With `ctx.reduced` every step is already in its last state. */
 export function storyHtml(ctx = {}) {
   const merged = ctx.merged ?? MERGED, failed = ctx.failed ?? FAILED;
   const steps = STEPS.map((s, i) => `<li class="k-step" data-step="${i + 1}" data-ends="${s.ends}" data-state="${ctx.reduced ? s.ends : "idle"}">`
     + `<strong>${esc(s.title)}</strong> <span>${esc(s.says)}</span><br>`
-    + `<a href="${esc(linkOf(s, ctx))}"${s.url === FRONT ? "" : ' target="_blank" rel="noopener"'}>${esc(s.evidence)}</a></li>`).join("");
+    + `<a href="${esc(linkOf(s, ctx))}" target="_blank" rel="noopener">${esc(s.evidence)}</a>`
+    + `${s.staging ? ` <small class="story-staging">${esc(STAGING)}</small>` : ""}</li>`).join("");
   return `<p class="k-kicker">${esc(SENTENCE)}</p>`
-    + `<h2>One round, eight steps</h2>`
+    + `<h2>Three minutes, six beats</h2>`
     + `<p class="story-number"><strong class="k-num">${esc(merged)}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${esc(failed)}</strong> had a failed check.</p>`
-    + `<ol class="story-steps k-stage" aria-label="One round in eight steps" data-not-prose data-keep>${steps}</ol>`
-    + `<p><button type="button" class="k-btn quiet story-play"${ctx.reduced ? " hidden" : ""}>Play again</button></p>`
-    + `<h3>The ask</h3><ol class="story-ask">${ASK.map((a) => `<li>${esc(a)}</li>`).join("")}</ol>`;
+    + `<ol class="story-steps k-stage" aria-label="The demonstration in six beats" data-not-prose data-keep>${steps}</ol>`
+    + `<p><a class="k-btn story-next" href="${esc(ctx.front || FRONT)}">${esc(NEXT)}</a> <button type="button" class="k-btn quiet story-play"${ctx.reduced ? " hidden" : ""}>Play again</button></p>`
+    + `<details class="k-more story-ask-fold"><summary>The ask: three needs</summary><ol class="story-ask" data-keep>${ASK.map((a) => `<li>${esc(a)}</li>`).join("")}</ol></details>`;
 }
 
 /** Plays the steps under `root` in order. `wait(ms)` is the clock (a test passes its own). Resolves when the last step
@@ -68,7 +74,6 @@ export async function play(root, { wait = (ms) => new Promise((r) => setTimeout(
   for (const li of steps) {
     if (root.storyRun !== run) return false;
     li.dataset.state = "live";
-    if (li.dataset.ends === "live") break;             // the last step is the reader's: it stays open
     await wait(ms);
     if (root.storyRun !== run) return false;
     li.dataset.state = li.dataset.ends;
@@ -76,10 +81,37 @@ export async function play(root, { wait = (ms) => new Promise((r) => setTimeout(
   return true;
 }
 
+// The cards' look. It is put in the page's head once (never in the story's own markup, which carries no style): a beat is
+// a .k-step whose dot is its number; idle it is dim, live it lifts and takes the accent, done its number turns green,
+// and the refusal turns red and shakes once (web/app.css .k-step). Nothing loops; with reduced motion nothing moves.
+export const STYLE = `.story-number { font-size: var(--s2); color: var(--ink-2); margin: 0 0 20px; } .story-number .k-num { color: var(--ink); }
+.story-steps { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); counter-reset: beat; }
+.story-steps > .k-step { counter-increment: beat; min-width: 0; padding: 16px 18px 16px 56px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--ink);
+overflow-wrap: anywhere; transition: opacity var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease), translate var(--dur-2) var(--ease); }
+.story-steps > .k-step::before { content: counter(beat); left: 16px; top: 15px; width: 26px; height: 26px; display: grid; place-items: center; border-width: 1.5px; font: 600 13px/1 var(--text); color: var(--ink-2);
+font-variant-numeric: tabular-nums; }
+.story-steps > .k-step::after { display: none; }
+.story-steps > .k-step:last-child { padding-bottom: 16px; }
+.story-steps > .k-step strong { display: block; margin: 0 0 2px; }
+.story-steps > .k-step span { color: var(--ink-2); }
+.story-steps > .k-step a { display: inline-block; margin-top: 8px; font-size: var(--s0); }
+.story-steps > .k-step .story-staging { display: block; color: var(--ink-2); font-size: var(--s-1); }
+.story-steps > .k-step[data-state="idle"] { opacity: .5; }
+.story-steps > .k-step[data-state="live"] { border-color: var(--accent); box-shadow: var(--depth-2); translate: 0 -2px; }
+.story-steps > .k-step[data-state="live"]::before { color: var(--accent); }
+.story-steps > .k-step[data-state="done"]::before { color: var(--paper); }
+.story-steps > .k-step[data-state="bad"] { border-color: color-mix(in srgb, var(--bad) 60%, var(--line)); }
+.story-steps > .k-step[data-state="bad"] strong { color: var(--bad); }
+.story-steps > .k-step[data-state="bad"]::before { color: var(--paper); }
+.story-ask { margin: 4px 0 0; padding-left: 1.3em; }
+@media (prefers-reduced-motion: reduce) { .story-steps > .k-step { transition: none; } }`;
+
 /** Draws the story into `el`. It plays once when it comes into view, and again when the reader asks. */
 export function renderStory(el, ctx = {}) {
   if (!el) return null;
   const reduced = ctx.reduced ?? prefersReduced();
+  const doc = el.ownerDocument;
+  if (doc && !doc.getElementById("story-style")) { const st = doc.createElement("style"); st.id = "story-style"; st.textContent = STYLE; doc.head.appendChild(st); }
   el.innerHTML = storyHtml({ ...ctx, reduced });
   if (reduced) return el;
   const start = () => play(el, ctx);

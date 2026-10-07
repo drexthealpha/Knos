@@ -26,11 +26,27 @@ order takes, and what the page does not do.
 ## The fee, before funding
 
 The page never shows the rate alone. Beside the amount it says the fee as an amount and as a share of the order, and
-under 20 test USDC it warns: the fee is never less than 0.40, so an order of 5 costs 8.00%. Small purchases are
-cheaper pooled into one order with milestones, or bought at a standing rate. The table under the amount is the price
-book's:
+under 20 test USDC it warns that the fee is never less than the minimum. Small purchases are
+cheaper pooled into one order with milestones, or bought at a standing rate.
+
+**The fee shown follows the build that is live.** The page asks knos_pay which build it is (its Version instruction,
+simulated: nothing is sent) and, when devnet does not answer, reads `upgrades.json`, the file written from the upgrade
+multisig's accounts. From knos_pay 2.2 the fee is 0.30% of the amount, at least 0.05, and the table under the amount
+is:
 
 | Order | Fee | Fee as a share |
+| ---: | ---: | ---: |
+| 5 | 0.05 | 1.00% |
+| 20 | 0.06 | 0.30% |
+| 1,000 | 3 | 0.30% |
+| 5,000 | 15 | 0.30% |
+| 50,000 | 150 | 0.30% |
+
+Until that upgrade executes the public program charges the 0.3.14 fee, and the page shows it: the fee is never less
+than 0.40, so an order of 5 costs 8.00%. A line under the fee says which rule the number is and what the other rule
+would charge. Orders funded before the upgrade keep the rate fixed at their funding.
+
+| Order | Fee (0.3.14) | Fee as a share |
 | ---: | ---: | ---: |
 | 5 | 0.40 | 8.00% |
 | 20 | 0.50 | 2.50% |
@@ -38,7 +54,7 @@ book's:
 | 5,000 | 65 | 1.30% |
 | 50,000 | 515 | 1.03% |
 
-`tests/web/buyer.mjs` reads these five rows off the page. On devnet the fee is test money.
+`tests/web/buyer.mjs` reads both tables off the page: one with the program answering as knos_pay 2.1, one as 2.2. On devnet the fee is test money.
 
 ## A governed order, counted
 

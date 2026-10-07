@@ -6,7 +6,8 @@ Of 241 merged agent pull requests that claimed passing tests, 30 had a failed ch
 
 Of first agent pull requests that claimed passing tests, 17.8% had a failed check (147 of 826 repositories).
 
-- Story: [../STORY.md](../STORY.md), the number, one round in eight steps, and what the project needs next
+- Story: [../STORY.md](../STORY.md), the number, the demonstration in six beats, and what the project needs next
+- This release on one page: [../MANIFEST.md](../MANIFEST.md), the source, the build live at each public program id, every capability's stage, the limits
 - Site: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)
 - Code: [github.com/drexthealpha/Knos](https://github.com/drexthealpha/Knos) (MIT)
 - Network: Solana devnet. The money is test USDC. Track: Solana.
@@ -16,11 +17,12 @@ What is in this folder:
 | file | what it is |
 |---|---|
 | this file | the text for each field of the form, each under its limit of a thousand characters, and the checklist for the day of submission |
-| [../STORY.md](../STORY.md) | the one page: the number, the round in eight steps with the evidence under each, and the ask |
+| [../STORY.md](../STORY.md) | the one page: the number, the six beats with the evidence under each, and the ask |
+| [../MANIFEST.md](../MANIFEST.md) | the release manifest, written by a script: source, the build live at each public program id, pending proposals, every capability's stage with its evidence, the outstanding limits |
 | [NUMBERS.md](NUMBERS.md) | the nine numbers about outside use, each with today's value, zeros included |
-| [pitch_script.md](pitch_script.md) | the pitch video, two minutes in five beats, opening with the number |
-| [demo_script.md](demo_script.md) | the demo video, two minutes: the same round in eight steps, each captioned with the program ids it ran on |
-| [CRITERIA.md](CRITERIA.md) | one paragraph for each factor Colosseum lists, founder and market fit included, and for each criterion in the rules |
+| [pitch_script.md](pitch_script.md) | the presentation, under three minutes: the number, the customer, the insight, a round, the model, the founder, and the limits in one sentence |
+| [demo_script.md](demo_script.md) | the technical demonstration, three minutes in six beats, each captioned with the program ids it ran on |
+| [CRITERIA.md](CRITERIA.md) | one paragraph for each factor Colosseum lists, founder and market fit included, and for each criterion in the rules; then six evidence targets, as targets |
 | [../PILOT.md](../PILOT.md) | the one offer for money: a 30-day pilot for one buyer and its suppliers, and what blocks it |
 | [../TEAM.md](../TEAM.md) | who builds Knos today, and the three roles the plan needs first, none hired |
 | [../GOVERNANCE.md](../GOVERNANCE.md) | who can change what today, and three plans: an outside key holder, a two-owner organisation, the verifier frozen after an outside review |
@@ -30,6 +32,13 @@ What is in this folder:
 | [weekly_update.md](weekly_update.md) | the one-minute weekly update |
 | [../CAPABILITIES.md](../CAPABILITIES.md) | the index of evidence: every capability, the stage it has reached (implemented, tested locally, deployed, exercised on devnet, reproduced by someone else) and the file that shows it |
 
+What this release (0.3.18) changes, each at the stage [../MANIFEST.md](../MANIFEST.md) gives it and no higher: the
+price book is one fee on value released against a signed acceptance; a supplier gets a kit (a signed public
+record, a badge, a one-line install, a verified receipt to attach to an invoice); a batch's commitment hashes each
+complete canonical event (format 2); and two quorum findings are fixed in the escrow, with their tests kept as
+release blockers. The escrow build that carries the last is in the tree and is not the build at the public program
+id until a proposal for it has executed.
+
 A number that only the release run can measure is a slot, `[[stat: name]]`; `python scripts/bench_docs.py --slots`
 lists the ones still open. Every field is under a thousand characters, and `tests/test_business_docs.py` counts them. Three fields state facts about the founder that nothing in the repository can back;
 each says so, and the founder confirms it before pasting.
@@ -38,7 +47,9 @@ each says so, and the founder confirms it before pasting.
 
 - [ ] **Confirm the Solana ecosystem track is selected in the form.** A submission with no track selected is not
       in that track.
-- [ ] Both videos open for someone who is not signed in, and neither is longer than two minutes.
+- [ ] Both videos open for someone who is not signed in, and neither is longer than three minutes.
+- [ ] `python scripts/release_manifest.py --check` passes, and [../MANIFEST.md](../MANIFEST.md) has been read on the day:
+      no field and no shot says a build is live that the manifest does not.
 - [ ] Every shot that is a replay, or is played faster than it happened, carries its caption for its whole length.
 - [ ] Every step of the demo is captioned with the program ids it ran on: staging program ids until
       `web/upgrades.json` shows the pending upgrade executed and a step has run on the public ones.
@@ -51,7 +62,7 @@ each says so, and the founder confirms it before pasting.
 - [ ] `web/upgrades.json` has been read on the day. A step of the demo shows only what ran, on the program ids
       its caption names; a step whose capability has run nowhere is cut, not staged.
 - [ ] The three fields marked "the founder confirms this" have been read and are true on the day.
-- [ ] The last beat of the pitch and the last step of the demo have been read against the chain on the day: if an outside account has
+- [ ] Beat seven of the pitch and the last beat of the demo have been read against the chain on the day: if an outside account has
       funded an order since this was written, the count is updated from `docs/facts.json`; if a conversation has
       happened, it is added only with the other party's agreement to be named.
 - [ ] Every team member is registered on colosseum.com. Today the team is one person.
@@ -105,10 +116,10 @@ came to 64,291 USD on 2 Oct 2026. The offer starts free, in shadow mode, and bec
 
 No traction is claimed beyond what the chain counts. Knos's own account funded every task paid so far, in test
 USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one outside contributor, for bounties
-Knos funded itself, and the rest to Knos's own accounts. When the release ran, 45 tasks had been
+Knos funded itself, and the rest to Knos's own accounts. When the release ran, 46 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
-their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 41
-payments. 2,620 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 42
+payments. 3,173 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 
@@ -126,15 +137,15 @@ it. docs/COMPARE.md has every source.
 
 ## monetization
 
-The price book (docs/MARKET.md). Check: free, forever. Pilot: one buyer, two suppliers, 30 days, one reconciled
-invoice, 2,500 USD, credited against year one. Meter: 10,000 evaluations a month free per organisation, then
-0.05 USD, or 0.02 on an annual commitment. Verify, proposed: 0.5% of reconciled accepted invoice value, capped
-at 250 USD per deliverable. Control, per year: Team 25,000 USD, Business 80,000; Enterprise from 250,000 is not deliverable
-yet. Supplier connection: 5,000 USD a year each beyond the first five, paid by the buyer. Settle: 2.5% of the
-first 1,000, 1% to 50,000, 0.5% above, minimum 0.40; on devnet it is test money, zero revenue. A month's invoice
-is the subscription plus the greater of the Meter and Verify charges, never both for one activity. Knos never
-charges the party being rated. Nobody has bought anything, and there is no legal entity to invoice from. No
-token.
+One fee, on value released against a signed acceptance (docs/MARKET.md). Check: free, forever. Meter: a monthly
+free allowance per organisation, then a fraction of a cent an evaluation. Acceptance: thirty cents per hundred
+dollars released or reconciled against a signed acceptance, less by contract at volume, no cap; the funder pays
+it on top. On chain: 0.30%, minimum 0.05, from knos_pay 2.2 (before that upgrade: the 0.3.14 fee, minimum 0.40;
+earlier orders keep their rate). It replaces the earlier settle and verify fees; connecting a supplier costs
+nothing. Record: the public record is free; a hosted lookup is priced, not built. Control: Team 25,000 USD a
+year; larger plans are not deliverable yet. Pilot: one buyer, two suppliers, 30 days, one reconciled invoice,
+2,500 USD, credited against year one. Knos never charges the party being rated. Nothing has been sold, there is
+no legal entity to invoice from, and on devnet every fee is test money. No token.
 
 ## teamCommitment
 

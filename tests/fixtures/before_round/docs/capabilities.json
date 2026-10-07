@@ -1,0 +1,2632 @@
+{
+ "_about": "What Knos can do and how far each thing has got. `stage` is the highest of `stages` that has evidence; scripts/capabilities.py checks the evidence (offline, and against devnet with --rpc) and renders the table in README.md. An exercised signature that no document of this repository gives is left out and filled by the release; nothing is `reproduced` until a document links someone else's run. Only a public program id is evidence for `deployed` and `exercised`: the `knos_*` addresses of programs-v2/program_ids.json and upgrade_gate's own `declare_id!`, each listed under `programs` with the version devnet runs there (`on_chain`). A deployment of a build at an address of its own (the 0.3.14 rehearsal's staging programs) is never evidence: what ran there is said in the capability's note, with its transaction, and the capability stays `tested` until a transaction at a public id exercises it. docs/CAPABILITIES.md lists the rehearsal's transactions.",
+ "cluster": "devnet",
+ "stages": [
+  "implemented",
+  "tested",
+  "deployed",
+  "exercised",
+  "reproduced"
+ ],
+ "programs": {
+  "knos_oidc": {
+   "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+   "versions": [
+    "2.0",
+    "2.1"
+   ],
+   "on_chain": "2.0"
+  },
+  "knos_pay": {
+   "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+   "versions": [
+    "2.0",
+    "2.1"
+   ],
+   "on_chain": "2.0"
+  },
+  "knos_meter": {
+   "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+   "versions": [
+    "1.0",
+    "1.1"
+   ],
+   "on_chain": "1.0"
+  },
+  "knos_passkey": {
+   "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+   "versions": [
+    "1.0",
+    "1.1"
+   ],
+   "on_chain": "1.0"
+  },
+  "upgrade_gate": {
+   "id": "2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW",
+   "versions": [
+    "1.0"
+   ],
+   "on_chain": "1.0"
+  }
+ },
+ "capabilities": [
+  {
+   "id": "check",
+   "what": "A pull request's claims about its tests and CI are checked against GitHub's own check runs, free.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/claims.py",
+     "names": "def read(text: str) -> Claim"
+    },
+    "tested": {
+     "test": "tests/test_proof.py",
+     "names": "test_claims_are_read_by_kind_not_phrasing"
+    }
+   },
+   "note": "Runs in GitHub Actions and on the author's machine: there is no program to deploy."
+  },
+  {
+   "id": "install_by_pull_request",
+   "what": "One link opens a pull request that installs Knos in a repository, with no secret.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/install.js",
+     "names": "export function installLink"
+    },
+    "tested": {
+     "test": "tests/test_install_link.py",
+     "names": "test_the_link_opens_githubs_editor_with_the_exact_file_and_fits"
+    }
+   },
+   "note": "The link is built and checked here; no outside repository is known to have installed by it."
+  },
+  {
+   "id": "terms_templates",
+   "what": "Five terms templates give a funding comment and the exact terms it funds.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms_templates.py",
+     "names": "def export"
+    },
+    "tested": {
+     "test": "tests/test_install_link.py",
+     "names": "test_every_templates_comment_parses_into_terms_whose_hash_is_the_templates"
+    }
+   },
+   "note": "The hashes are made with sample facts; a repository's own are in the reply to its comment."
+  },
+  {
+   "id": "stop_hook",
+   "what": "Before a coding agent stops, a hook checks what it says is done against the repository.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/hook.py",
+     "names": "def last_message"
+    },
+    "tested": {
+     "test": "tests/test_proof.py",
+     "names": "test_the_stop_hook_blocks_then_lets_go_after_three_on_unchanged_evidence"
+    }
+   }
+  },
+  {
+   "id": "mcp_tools",
+   "what": "An MCP server gives a coding agent the check, the terms and the order tools.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/mcp.py",
+     "names": "def _tool"
+    },
+    "tested": {
+     "test": "tests/test_mcp.py",
+     "names": "tools/list"
+    }
+   }
+  },
+  {
+   "id": "agent_tools",
+   "what": "An agent with its own key finds funded work, takes it, submits it after the local check passes, and collects.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/mcp.py",
+     "names": "knos_submit_work"
+    },
+    "tested": {
+     "test": "tests/test_agentkey.py",
+     "names": "test_an_agent_finds_takes_submits_and_is_paid_on_an_auto_order_with_no_person_in_between"
+    }
+   },
+   "note": "Tested against stand-ins for GitHub and the chain; on the rehearsal's staging deployment an agent found, took and submitted an auto order with these tools and was paid (order_auto_accept). The tools that post are off until the operator turns them on."
+  },
+  {
+   "id": "verify_github",
+   "what": "A program on Solana verifies a GitHub Actions OpenID Connect token and other programs read the result.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/lib.rs",
+     "names": "pins::ISSUERS"
+    },
+    "tested": {
+     "test": "tests/test_oidc2_chain.py",
+     "names": "test_a_github_token_is_verified_in_two_transactions"
+    },
+    "deployed": {
+     "program": "knos_oidc",
+     "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "verify_gitlab",
+   "what": "The same program verifies a gitlab.com CI token under GitLab's own, longer key.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/pins.rs",
+     "names": "ISSUER_GITLAB"
+    },
+    "tested": {
+     "test": "tests/test_oidc2_chain.py",
+     "names": "test_a_gitlab_token_under_a_4096_bit_key_is_verified_in_six"
+    },
+    "deployed": {
+     "program": "knos_oidc",
+     "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "verify_any_issuer",
+   "what": "A key of any RS256 issuer is admitted on GitHub's signature and its tokens are verified.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/lib.rs",
+     "names": "ISSUER_OTHER"
+    },
+    "tested": {
+     "test": "tests/test_oidc2_chain.py",
+     "names": "test_any_rs256_issuer_is_admitted_on_githubs_signature"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json). More evidence: tests/test_issuers.py verifies a token of each of eleven documented issuers' shapes (the capability `verifier_issuer_matrix`)."
+  },
+  {
+   "id": "key_guardian",
+   "what": "A guardian multisig approves or revokes a signing key and can do nothing else.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/lib.rs",
+     "names": "guardian"
+    },
+    "tested": {
+     "test": "tests/test_oidc2_chain.py",
+     "names": "test_only_the_guardian_approves_and_revokes_and_it_can_do_nothing_else"
+    },
+    "deployed": {
+     "program": "knos_oidc",
+     "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "fund_by_comment",
+   "what": "One comment on an issue funds a task from the repository owner's Balance.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/fund.rs",
+     "names": "pub fn fund_balance"
+    },
+    "tested": {
+     "test": "tests/test_pay2_chain.py",
+     "names": "test_one_comment_funds_a_job_from_the_owners_balance"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "fund_from_wallet",
+   "what": "A wallet funds a task with its own money.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/fund.rs",
+     "names": "pub fn fund_wallet"
+    },
+    "tested": {
+     "test": "tests/test_pay2_chain.py",
+     "names": "test_a_wallet_funds_a_job_with_its_own_money"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "pay_on_merge",
+   "what": "A merge that GitHub signs pays the author of the pull request.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/pay.rs",
+     "names": "pub fn pay"
+    },
+    "tested": {
+     "test": "tests/test_pay2_chain.py",
+     "names": "test_a_proof_pays_the_address_the_token_carries"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "hold_and_bind",
+   "what": "A payee with no wallet is held for, and paid once they bind a wallet from their own repository.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/pay.rs",
+     "names": "pub fn bind"
+    },
+    "tested": {
+     "test": "tests/test_pay2_chain.py",
+     "names": "test_with_no_wallet_the_job_is_held_for_the_payee_and_paid_once_they_bind_one"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "refund",
+   "what": "With no proof by the deadline the money goes back where it came from.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/pay.rs",
+     "names": "pub fn refund"
+    },
+    "tested": {
+     "test": "tests/test_pay2_chain.py",
+     "names": "test_with_no_proof_by_the_deadline_the_money_goes_back_where_it_came_from"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "pause",
+   "what": "The guardian pauses new funding for a limited time and money in escrow still leaves.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/fund.rs",
+     "names": "pub fn pause"
+    },
+    "tested": {
+     "test": "tests/test_pay2_chain.py",
+     "names": "test_the_guardian_pauses_new_funding_only_and_nobody_else_can"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.0"
+    }
+   }
+  },
+  {
+   "id": "work_orders",
+   "what": "A work order fixes its checks, paths, payees and deadline as a hash at funding, and the funder pays the fee on top.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order.rs",
+     "names": "pub fn fund_order_wallet"
+    },
+    "tested": {
+     "test": "tests/test_order_chain.py",
+     "names": "test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. A `/knos fund 10` comment funded the order, its fee of 0.40 on top."
+  },
+  {
+   "id": "order_pay",
+   "what": "An order pays up to four payees when a signed run says its terms were met.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_pay.rs",
+     "names": "pub fn pay_order"
+    },
+    "tested": {
+     "test": "tests/test_order_chain.py",
+     "names": "test_up_to_four_payees_share_an_order_and_every_unit_is_paid"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The merged pull request's token paid the order's 10.00 to its payee."
+  },
+  {
+   "id": "tests_mode",
+   "what": "An order in tests mode is paid only when a black-box test run the author cannot see passes.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/judge.py",
+     "names": "def checks_hash"
+    },
+    "tested": {
+     "test": "tests/test_judge_langs.py",
+     "names": "def test_node"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The auto order above was in tests mode: its black-box suite, which the author could not see, passed on the pull request."
+  },
+  {
+   "id": "order_auto_accept",
+   "what": "An order funded as auto pays the first pull request its black-box suite passes, with no merge and no person's step.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_judge.rs",
+     "names": "pub const AUTO"
+    },
+    "tested": {
+     "test": "tests/test_order_auto.py",
+     "names": "test_the_first_pull_request_the_suite_passes_is_paid_with_no_merge_and_the_second_finds_the_order_closed"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. An agent found, took and submitted the work through the MCP tools, and its pull request was accepted with no merge; the payment was held for the account until its wallet was bound, then paid. The funder chooses it at funding, and only for an order paid by the black-box suite."
+  },
+  {
+   "id": "order_challenge",
+   "what": "A neutral run that finds the paid head failing, sent inside the order's warranty, returns the holdback to the funder.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "THE CHALLENGE"
+    },
+    "tested": {
+     "test": "tests/test_order_auto.py",
+     "names": "test_a_strangers_neutral_failing_run_inside_the_window_stops_the_release_and_after_it_does_not"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 5H6mrHjgLhRxgFNWLa8p1R5BVhgzsU22Yj2b6AGbqzANCiaHLKRN6XuVYziRaTiQaqTL4pFwpfTnnRMS3csi3EL5; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The neutral run came from another repository than the order's, inside the warranty; it signed because the paid pull request's merge had been reverted, not by running the checks on the head again. Only what the order still holds returns: what was paid at acceptance stays paid, and after the warranty no challenge is heard."
+  },
+  {
+   "id": "order_quorum",
+   "what": "An order with a quorum pays only when two or three distinct judges passed the same artifact.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn quorum"
+    },
+    "tested": {
+     "test": "tests/test_order_quorum.py",
+     "names": "test_two_distinct_judges_pay_and_two_tokens_of_one_kind_count_once"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2R5DKU5gCiuppGkXpNnegZfeCVfPbHpWTWTcj9QYzE3nAc4P5jCMaNPjGJUA1fwwzwn37Wm97bD62CKBG6DgCxuT; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. A `quorum 2` order recorded its first judge, then paid on the second. The knos_pay 2.2 build of this tree counts judges by repository owner and binds their markers to the order's funding (`quorum_by_owner`): tested, not deployed."
+  },
+  {
+   "id": "hermetic_judge",
+   "what": "The black-box judge runs a submission in a container named by image digest, with no network.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/judge.py",
+     "names": "def container_argv"
+    },
+    "tested": {
+     "test": "tests/test_judge_hermetic.py",
+     "names": "test_with_an_image_the_submission_runs_only_through_the_container_and_the_verdict_records_the_digest"
+    }
+   },
+   "note": "Its end-to-end test ran in a real container on GitHub's runner in the staging repository's run 37217535106; elsewhere the one test that needs a real container is skipped where there is none. No hermetic judgment has run on devnet."
+  },
+  {
+   "id": "holdback_release",
+   "what": "A holdback stays in the order through its warranty and is then released to the payees.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn release"
+    },
+    "tested": {
+     "test": "tests/test_order_terms.py",
+     "names": "test_a_holdback_stays_in_the_order_through_the_warranty"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "warranty_revert",
+   "what": "A revert inside the warranty returns the holdback and its fee to the funder.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn revert"
+    },
+    "tested": {
+     "test": "tests/test_order_terms.py",
+     "names": "test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 3bjQyXi6wPacnkYpwr7GZdoJabs8HnQauTUoofbraJRFHzmyK2sDtC2DJ1JQd1XkSwEVhBxF1vG5cWyRR4YkUgGY; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. A revert inside the warranty returned the holdback and its fee, 2.08, to the funder."
+  },
+  {
+   "id": "seller_settle",
+   "what": "A seller settles an order without the buyer, from a run in the seller's own repository.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_judge.rs",
+     "names": "pub fn judge"
+    },
+    "tested": {
+     "test": "tests/test_order_judges.py",
+     "names": "test_a_seller_pays_himself_after_the_buyers_repository_deleted_its_workflow"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "neutral_attest",
+   "what": "A neutral run attests an order against GitHub's public record and can sign nothing else.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/flow.py",
+     "names": "neutral"
+    },
+    "tested": {
+     "test": "tests/test_order_judges.py",
+     "names": "test_what_a_neutral_run_cannot_do"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "arbiter_rule",
+   "what": "The arbiter an order named rules who is paid.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_judge.rs",
+     "names": "pub fn command"
+    },
+    "tested": {
+     "test": "tests/test_order_judges.py",
+     "names": "test_the_arbiter_an_order_named_rules_who_is_paid"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "reserve_cancel",
+   "what": "A seller reserves an order, and a funder cancels with notice and a kill fee.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn reserve"
+    },
+    "tested": {
+     "test": "tests/test_order_terms.py",
+     "names": "test_a_reservation_a_cancellation_with_notice_and_the_kill_fee"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 61oAvGWKUyNrR3V3hCnhh4VLjove6Uz6XyQDbJ1VuikLiZdtQuHX7nwYvM2Ug6L3ETCCmGUGC18fTEuWTFAhwzTP; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The signature is a funder's Cancel; a Reserve is in docs/CAPABILITIES.md."
+  },
+  {
+   "id": "top_up",
+   "what": "A funder adds to an order's amount and pays the fee on the addition.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order.rs",
+     "names": "pub fn top_up"
+    },
+    "tested": {
+     "test": "tests/test_order_chain.py",
+     "names": "test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "assign",
+   "what": "A payee assigns an order's payment to another wallet, such as a financier's.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn assign"
+    },
+    "tested": {
+     "test": "tests/test_order_terms.py",
+     "names": "test_a_payee_assigns_an_orders_payment_and_only_the_assignee_can_change_it"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "advance_by_assignment",
+   "what": "A financier assigned an order before it is paid receives the payment and the holdback, and an assignment made after acceptance moves nothing.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/advance/README.md",
+     "names": "The assignment has to be made before the order is paid"
+    },
+    "tested": {
+     "test": "tests/test_advance.py",
+     "names": "test_an_assignment_before_acceptance_pays_the_financier_at_acceptance_and_at_release_and_never_the_seller"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json). What the financier pays the seller is a plain transfer off the order; no advance has been made, and Knos charges nothing for one."
+  },
+  {
+   "id": "standing_order",
+   "what": "A standing order pays its rate once per accepted pull request until its budget is spent.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_pay.rs",
+     "names": "pub fn pay_order"
+    },
+    "tested": {
+     "test": "tests/test_order_terms.py",
+     "names": "test_a_standing_order_pays_its_rate_once_per_pull_request"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "org_balance_limits",
+   "what": "A Balance carries daily and total limits, a list of repositories and a pinned workflow.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/fund.rs",
+     "names": "pub fn set_balance_x"
+    },
+    "tested": {
+     "test": "tests/test_order_chain.py",
+     "names": "test_a_balance_with_a_side_account_enforces_all_of_it"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "org_wallet",
+   "what": "A pull request by a bot is paid to its organisation's wallet.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_judge.rs",
+     "names": "pub fn bind_org"
+    },
+    "tested": {
+     "test": "tests/test_order_judges.py",
+     "names": "test_a_pull_request_by_a_bot_is_paid_to_its_organisations_wallet"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "plans",
+   "what": "A Plan lowers an owner's fee rate until it expires, and only the fee owner sets one.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/fund.rs",
+     "names": "pub fn set_plan"
+    },
+    "tested": {
+     "test": "tests/test_order_chain.py",
+     "names": "test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "fee_tiers",
+   "what": "Under knos_pay 2.1 an order's fee is marginal in three tiers, paid by the funder on top, with a floor and no maximum.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/fees.py",
+     "names": "def rule"
+    },
+    "tested": {
+     "test": "tests/test_fees.py",
+     "names": "test_the_014_fee_is_kept_exactly_as_the_public_program_charges_it"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2CuqkJsNDMgE4eGXkEEemq11tS6JNVu5QTyAjRQcASJANVHKYGqZ2pbDAgzkso4qSmM5ZwtXGHKnLCTppkVi4eXy; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. An order of 5,000 test USDC was funded with a fee of 65 on top, and one of 100 with 2.50. This is the fee the public program charges until knos_pay 2.2 is live; the 2.2 build of this tree replaces it with one rate (`fee_one_rate`)."
+  },
+  {
+   "id": "single_use_tokens",
+   "what": "Every signed token is taken once by every instruction, and its marker's rent returns when no instruction can accept it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/state.rs",
+     "names": "pub fn mark_used"
+    },
+    "tested": {
+     "test": "tests/test_double_pay.py",
+     "names": "test_no_instruction_takes_a_token_twice_and_a_second_try_never_moves_money"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. The signature is a fund token's one use. The double payment of the 0.3.13 build was attempted and refused (error 83), and the accepted token of each token-taking instruction, sent again, was refused; the refused transactions are in docs/CAPABILITIES.md."
+  },
+  {
+   "id": "private_attestor",
+   "what": "An order for a private repository is attested by a named attestor and nothing of the repository is public.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/flow.py",
+     "names": "attestor"
+    },
+    "tested": {
+     "test": "tests/test_flow_private.py",
+     "names": "test_nothing_of_the_private_repository_is_in_any_public_place"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "meter_single",
+   "what": "One attested evaluation is counted once on chain, with no escrow.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_meter/src/meter.rs",
+     "names": "pub fn record"
+    },
+    "tested": {
+     "test": "tests/test_meter_chain.py",
+     "names": "test_an_evaluation_is_billed_and_counted_once_and_a_retry_is_free"
+    },
+    "deployed": {
+     "program": "knos_meter",
+     "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+     "version": "1.0"
+    }
+   }
+  },
+  {
+   "id": "meter_batch",
+   "what": "One signed token counts a batch of evaluations under a Merkle root.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_meter/src/meter.rs",
+     "names": "pub fn record_batch"
+    },
+    "tested": {
+     "test": "tests/test_meter_batch.py",
+     "names": "test_a_batch_of_five_thousand_is_counted_and_billed_once_and_its_token_is_taken_once"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_meter 1.1 build (signature 5NVNK5nHiegrQDffQBuziqqrrDEWyN66zWPKfetb3q8tavoBpsD1LwCh4BirwWPTBewuFFYarNPKQrU7RU1t37XX; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_meter carries it only once its upgrade to 1.1 has executed, and no transaction there is recorded yet. 5,000 evaluations in two batches of 2,500; the signature is the second."
+  },
+  {
+   "id": "meter_seller_claim",
+   "what": "The seller writes its own count of the same month, so a buyer's omission shows on chain.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_meter/src/meter.rs",
+     "names": "pub fn claim_batch"
+    },
+    "tested": {
+     "test": "tests/test_meter_batch.py",
+     "names": "test_the_sellers_claim_is_written_only_from_the_sellers_repositories"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_meter 1.1 build (signature 4KThmRd6XFohHrkX3cqXdUCoLnfMiwuTkt8WigFpB7any9pJpYeBHP3eVg7jsqhaqJNmQ6dYuLK3zhqZMCKRGQup; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_meter carries it only once its upgrade to 1.1 has executed, and no transaction there is recorded yet. The seller claimed 5,003 evaluations against the buyer's 5,000, and `knos meter reconcile --rpc` named the 3 the buyer left out."
+  },
+  {
+   "id": "passkey_payee_wallet",
+   "what": "A payee is paid to a wallet that only a passkey can spend from.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_passkey/src/lib.rs",
+     "names": "fn withdraw"
+    },
+    "tested": {
+     "test": "tests/test_passkey_chain.py",
+     "names": "test_a_wallet_is_paid_before_it_exists_and_one_transaction_opens_it_and_withdraws"
+    },
+    "deployed": {
+     "program": "knos_passkey",
+     "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+     "version": "1.0"
+    }
+   }
+  },
+  {
+   "id": "passkey_funder",
+   "what": "A funder with only a passkey funds an order and a relayer pays the transaction fee.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_passkey/src/lib.rs",
+     "names": "fn fund("
+    },
+    "tested": {
+     "test": "tests/test_passkey_fund.py",
+     "names": "test_a_passkey_funds_an_order_and_the_same_assertion_cannot_fund_again"
+    }
+   },
+   "note": "Rehearsed on staging deployments of the knos_passkey 1.1 and knos_pay 2.1 builds (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_passkey and knos_pay carry it only once their upgrades to 1.1 and 2.1 have executed, and no transaction there is recorded yet. A passkey wallet funded an order of 10.00 and the relayer paid the transaction fee."
+  },
+  {
+   "id": "passkey_fund_relay",
+   "what": "A relay carries a passkey funder's signed comment to the chain, and the same comment again is refused.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relay.py",
+     "names": "def passkey_fund("
+    },
+    "tested": {
+     "test": "tests/test_passkey_relay.py",
+     "names": "test_a_comment_funds_the_order_and_the_same_comment_again_is_refused"
+    }
+   },
+   "note": "Rehearsed on staging deployments of the knos_passkey 1.1 and knos_pay 2.1 builds (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_passkey and knos_pay carry it only once their upgrades to 1.1 and 2.1 have executed, and no transaction there is recorded yet. The relay carried the `/knos passkey-fund` line to the chain."
+  },
+  {
+   "id": "buyer_page",
+   "what": "The site's Buy page writes an order from a template and a passkey signs the line that funds it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/buyer.js",
+     "names": "export function renderBuyer"
+    },
+    "tested": {
+     "test": "tests/test_site_buyer.py",
+     "names": "test_the_buy_page_in_a_browser_and_its_signed_line_on_chain"
+    }
+   },
+   "note": "Rehearsed on staging deployments of the knos_passkey 1.1 and knos_pay 2.1 builds (signature 3hkcqi1yKqqdWo3vHAXxNPbo8Y41UahExt8M6som7jTBHZeKTD8mazVhSn83infgu5ZKKq9vgnwhKHHRdu4rRi8; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_passkey and knos_pay carry it only once their upgrades to 1.1 and 2.1 have executed, and no transaction there is recorded yet. The Buy page, in a browser, wrote the order from a template and a passkey signed the line that funded it."
+  },
+  {
+   "id": "gitlab_pay",
+   "what": "A GitLab project funds an order and is paid on a merge to a protected branch; it cannot yet bind a wallet, reserve, cancel or revert, use the faucet, or run on a self-managed GitLab, and it has no relayer, command or page.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/gl.rs",
+     "names": "pub const GL_ID"
+    },
+    "tested": {
+     "test": "tests/test_gitlab_pay.py",
+     "names": "test_a_gitlab_project_funds_an_order_and_the_merge_request_author_is_paid"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json). Tested in the local simulator with tokens signed by a test key; no pipeline on gitlab.com has funded or paid."
+  },
+  {
+   "id": "gitlab_ci_example",
+   "what": "An example `.gitlab-ci.yml` shows which pipeline asks for the fund token and which for the pay token.",
+   "stage": "implemented",
+   "evidence": {
+    "implemented": {
+     "path": "examples/gitlab/.gitlab-ci.yml",
+     "names": "NOT RUN ON gitlab.com YET"
+    }
+   },
+   "note": "Never run on GitLab. `tests/test_workflows2.py` loads it as YAML and runs the script entry that splits the audience."
+  },
+  {
+   "id": "relay",
+   "what": "Anyone can run the relay that carries signed tokens to the chain.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relay.py",
+     "names": "def kind_of"
+    },
+    "tested": {
+     "test": "tests/test_relay2.py",
+     "names": "test_a_comment_funds_from_the_faucet_a_proof_pays_and_a_claim_binds"
+    }
+   },
+   "note": "Runs in GitHub Actions: there is no program to deploy."
+  },
+  {
+   "id": "adapters",
+   "what": "Adapter workflows turn a signed event (a release, a deployment, an attestation, a tracker's webhook) into a settlement or a count.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/adapters/release.yml",
+     "names": "knos"
+    },
+    "tested": {
+     "test": "tests/test_adapters.py",
+     "names": "test_a_pay_adapter_starts_the_repositorys_own_knos_workflow_which_settles_on_that_event"
+    }
+   },
+   "note": "Workflow files, tested by parsing and against the program in the local simulator; none has run in an outside repository."
+  },
+  {
+   "id": "canary",
+   "what": "A canary funds and pays one order in a round and fails when the payment does not land in five minutes.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/knos-canary.yml",
+     "names": "canary"
+    },
+    "tested": {
+     "test": "tests/test_flow_orders.py",
+     "names": "test_the_canary_times_each_leg_of_one_round"
+    }
+   }
+  },
+  {
+   "id": "load_local_1000",
+   "what": "1,000 orders open at once are each paid once and none is lost.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/load.py",
+     "names": "def run_local"
+    },
+    "tested": {
+     "test": "tests/test_load.py",
+     "names": "test_the_page_is_what_the_script_renders_and_the_committed_run_is_a_thousand"
+    }
+   },
+   "note": "Measured in the local simulator only; time on a cluster is derived, not measured."
+  },
+  {
+   "id": "invariants_state_machine",
+   "what": "A random state machine of orders, tokens and replays keeps every stated invariant, and finds the double payment of the 0.3.13 build.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "tests/test_invariants_machine.py",
+     "names": "class Machine"
+    },
+    "tested": {
+     "test": "tests/test_invariants_machine.py",
+     "names": "test_the_machine_finds_the_double_payment_of_the_0_3_13_build_within_its_default_budget"
+    }
+   },
+   "note": "Run in the local simulator on the test builds; the 0.3.13 build is read from the repository's history."
+  },
+  {
+   "id": "rust_handler_tests",
+   "what": "The instruction handlers of the four programs are driven from Rust against the built binaries.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/testdata/harness.rs",
+     "names": "pub fn "
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/knos_pay.rs",
+     "names": "fn pay_order_with_the_same_token_again_is_refused"
+    }
+   },
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest."
+  },
+  {
+   "id": "kani_fee_conservation",
+   "what": "Kani harnesses state that an order's amount and fee are exactly what the payees, the relayer and the fee owner receive.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/proofs.rs",
+     "names": "#[kani::proof]"
+    },
+    "tested": {
+     "test": "tests/test_provenance.py",
+     "names": "test_the_conservation_harness_is_among_the_proved_ones"
+    }
+   },
+   "note": "One recorded run (docs/kani.json; Kani 0.68.0, each harness alone, 180-second limit) verified 4 of 5 harnesses, fee conservation among them; the fee-bounds harness over every amount timed out and is NOT proved (the bounds are proved tier by tier apart: fee_bounds_proofs). The test holds the record to the harness names and to the file's hash: no test of this repository runs Kani itself."
+  },
+  {
+   "id": "receipt",
+   "what": "A paid order gives a receipt that anyone can check against the chain.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_receipt.py",
+     "names": "test_five_receipts_are_valid_and_have_the_digests_the_vectors_give"
+    }
+   }
+  },
+  {
+   "id": "evidence_bundle",
+   "what": "An evidence bundle holds what an order's verdict follows from, and verifies with no network.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/bundle.py",
+     "names": "def verify"
+    },
+    "tested": {
+     "test": "tests/test_bundle.py",
+     "names": "test_two_builds_of_one_order_are_the_same_bytes_and_the_verdict_follows_from_the_bundle_alone"
+    }
+   },
+   "note": "Built from a replayed chain in the tests; no bundle of a devnet order is published."
+  },
+  {
+   "id": "receipt_mirror",
+   "what": "A mirror of receipts keeps what the chain's history no longer serves, and verifies against the chain.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/bundle.py",
+     "names": "def receipts_of"
+    },
+    "tested": {
+     "test": "tests/test_bundle.py",
+     "names": "test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_it"
+    }
+   },
+   "note": "Tested on a replayed chain; no public mirror runs."
+  },
+  {
+   "id": "sas_receipt",
+   "what": "The receipt is built as a Solana Attestation Service attestation with the same digest.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/sas_receipt.mjs",
+     "names": "attestation"
+    },
+    "tested": {
+     "test": "tests/test_receipt.py",
+     "names": "test_the_script_builds_the_attestation_and_its_digest_is_the_python_one"
+    }
+   }
+  },
+  {
+   "id": "x402_example",
+   "what": "An `x402` server takes a Knos order as payment for a resource.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/x402_attested/server.mjs",
+     "names": "x402"
+    },
+    "tested": {
+     "test": "tests/test_x402_attested.py",
+     "names": "test_the_example_runs_a_server_and_a_client"
+    }
+   },
+   "note": "Runs against a replayed chain."
+  },
+  {
+   "id": "x402_knos_order",
+   "what": "The proposed `knos-order` scheme funds a real order over RPC, serves the resource, and pays or refunds.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/x402_attested/live.mjs",
+     "names": "knos-order"
+    },
+    "tested": {
+     "test": "tests/test_x402_attested.py",
+     "names": "test_live_the_client_funds_a_real_order_over_rpc_is_served_and_the_seller_is_paid_on_acceptance"
+    }
+   },
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 3nkWX5SusF5TTg5pWHVeeZQTZGP57vzWkburiRZntPQ5o6Q5M5jvY1ubEBhB5dhybhB3h2RVMQmcSSDN7yhD1Yq6; docs/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids: the public knos_pay and knos_oidc carry it only once their upgrade to 2.1 has executed, and no transaction there is recorded yet. `node live.mjs run` funded an order over RPC, was served, and the seller was paid on acceptance; the signature is the payment, the funding is in docs/CAPABILITIES.md."
+  },
+  {
+   "id": "cpi_fund",
+   "what": "Another program funds an order by CPI through the interface crate.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/cpi_fund/src/lib.rs",
+     "names": "knos_pay"
+    },
+    "tested": {
+     "test": "tests/test_cpi_fund.py",
+     "names": "test_a_treasury_funds_an_order_by_cpi_and_gets_it_back_when_nobody_delivers"
+    }
+   },
+   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "oidc_gate",
+   "what": "Another program gates its own instruction on a fact GitHub signed.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/oidc_gate/src/lib.rs",
+     "names": "knos_oidc"
+    },
+    "tested": {
+     "test": "tests/test_oidc_gate.py",
+     "names": "test_a_program_gates_on_a_github_signed_fact"
+    }
+   },
+   "note": "An example program: not deployed."
+  },
+  {
+   "id": "upgrade_gate",
+   "what": "A program records that GitHub's runner built exactly the bytes of a proposed upgrade.",
+   "stage": "deployed",
+   "evidence": {
+    "implemented": {
+     "path": "examples/upgrade_gate/src/lib.rs",
+     "names": "upgrade_gate"
+    },
+    "tested": {
+     "test": "tests/test_upgrade_gate.py",
+     "names": "test_a_build_is_recorded_only_on_githubs_word_and_once"
+    },
+    "deployed": {
+     "program": "upgrade_gate",
+     "id": "2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW",
+     "version": "1.0"
+    }
+   }
+  },
+  {
+   "id": "upgrade_delay",
+   "what": "The second deployment is upgradeable only through a multisig with a public 48-hour delay.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/governance.mjs",
+     "names": "upgrade"
+    },
+    "tested": {
+     "test": "tests/test_governance.py",
+     "names": "test_upgrade_propose_refuses_a_buffer_whose_build_the_gate_has_not_recorded"
+    }
+   },
+   "note": "The multisig is the Squads program's, not a program of this repository."
+  },
+  {
+   "id": "upgrade_feed",
+   "what": "Every upgrade proposal is published as a file and an Atom feed, with its build hash, commit and earliest time.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/upgrade_feed.py",
+     "names": "def entries"
+    },
+    "tested": {
+     "test": "tests/test_upgrade_feed.py",
+     "names": "test_one_entry_per_upgrade_of_a_knos_program_with_its_build_its_commit_its_time_and_its_status"
+    }
+   },
+   "note": "A feed reader sees a new proposal when the site is next built; the banner on the site reads the chain itself."
+  },
+  {
+   "id": "policy",
+   "what": "A repository's policy file decides who may fund, how much, and what an order asks.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/policy.py",
+     "names": "def _parse"
+    },
+    "tested": {
+     "test": "tests/test_flow_orders.py",
+     "names": "test_the_repositorys_policy_decides_who_may_fund_how_much"
+    }
+   }
+  },
+  {
+   "id": "screening",
+   "what": "Every payout address is screened against a sanctions list before a payment.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/screen.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_screen.py",
+     "names": "test_listed_matches_exactly_and_a_hex_address_in_any_case"
+    }
+   }
+  },
+  {
+   "id": "statements",
+   "what": "Payments are exported as statements and receipts from the escrows' own logs.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/records.py",
+     "names": "RECEIPT_COLUMNS"
+    },
+    "tested": {
+     "test": "tests/test_records.py",
+     "names": "test_receipts_add_up_to_what_the_public_numbers_say_to_the_unit"
+    }
+   }
+  },
+  {
+   "id": "badge",
+   "what": "A badge says a payment was made on proof, with its scope, its money and its date.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/badge.py",
+     "names": "def svg"
+    },
+    "tested": {
+     "test": "tests/test_badge.py",
+     "names": "test_a_badge_states_its_scope_its_money_and_its_date"
+    }
+   },
+   "note": "Every payment so far is test USDC, so every badge is grey."
+  },
+  {
+   "id": "audit_export",
+   "what": "An organisation exports every order of a period as one hash-chained file that two parties can compare.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/audit.py",
+     "names": "def export"
+    },
+    "tested": {
+     "test": "tests/test_audit.py",
+     "names": "test_two_parties_exporting_the_same_period_get_the_same_bytes"
+    }
+   },
+   "note": "Runs on the author's machine: there is no program to deploy."
+  },
+  {
+   "id": "agent_pr_index",
+   "what": "A public index counts how often an agent's pull request says its checks pass when one had failed.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_index.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_classification_and_deterministic_root"
+    }
+   }
+  },
+  {
+   "id": "agent_weekly_rates",
+   "what": "The index gives each agent's rate of failed checks by week.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_index.py",
+     "names": "def week_counts"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_the_weekly_series_counts_each_agent_by_the_week_a_pull_request_was_opened"
+    }
+   },
+   "note": "Computed from the committed sample and from a capped scan read on 5 Oct 2026, cut by week; the weekly job opens a pull request and merges nothing."
+  },
+  {
+   "id": "mainnet_check",
+   "what": "A command lists what must be true before mainnet and fails while any line is not.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/mainnet_check.py",
+     "names": "def program_data"
+    },
+    "tested": {
+     "test": "tests/test_mainnet_check.py",
+     "names": "test_all_gates_pass_and_exit_zero"
+    }
+   }
+  },
+  {
+   "id": "deliverable_identity",
+   "what": "A deliverable is an order and a milestone, and it is one accepted outcome whatever number of pull requests carried it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ledger.py",
+     "names": "def deliverable_id"
+    },
+    "tested": {
+     "test": "tests/test_ledger_periods.py",
+     "names": "test_a_deliverable_split_into_ten_pull_requests_is_one_accepted_outcome"
+    }
+   },
+   "note": "Off chain, in the ledger a statement is made from; no program was changed for it."
+  },
+  {
+   "id": "meter_corrections",
+   "what": "A wrong verdict or a withdrawal is netted by a correction anchored under a leaf of its own, and the statement names who issued it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ledger.py",
+     "names": "class Correction"
+    },
+    "tested": {
+     "test": "tests/test_ledger_periods.py",
+     "names": "test_a_correction_is_anchored_under_its_own_leaf_and_changes_no_counter"
+    }
+   },
+   "note": "Tested on the local harness; no correction has been anchored on devnet."
+  },
+  {
+   "id": "meter_period_close",
+   "what": "A month is closed off chain when both ledgers agree after repeats and corrections, each side signs the close with a GitHub run of its own, and no real close has been signed yet.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ledger.py",
+     "names": "def close("
+    },
+    "tested": {
+     "test": "tests/test_ledger_periods.py",
+     "names": "test_each_side_signs_the_close_and_the_tokens_are_checked_against_the_keys_alone"
+    }
+   },
+   "note": "Off chain: the close is a record and two tokens GitHub signed, checked against GitHub's keys alone. The tests sign with a test key. Nobody has closed a real month."
+  },
+  {
+   "id": "ledger_dedup",
+   "what": "The same evidence sent again is not another evaluation: the ledger keeps the first and lists every repeat with its reason.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ledger.py",
+     "names": "def canonical"
+    },
+    "tested": {
+     "test": "tests/test_ledger_periods.py",
+     "names": "test_canonical_keeps_the_first_and_lists_every_repeat_with_its_reason"
+    }
+   }
+  },
+  {
+   "id": "receipt_five_parts",
+   "what": "A receipt keeps five things apart: the identity the issuer authenticated, the execution evidence, the acceptance policy, the commercial authorisation, and what remains trusted.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def build3"
+    },
+    "tested": {
+     "test": "tests/test_receipt.py",
+     "names": "test_version_3_keeps_five_things_apart_in_order_and_versions_1_and_2_still_check"
+    }
+   },
+   "note": "Receipt version 3; versions 1 and 2 still check."
+  },
+  {
+   "id": "evaluator_independence_record",
+   "what": "A receipt records whether each evaluator's run was the buyer's own, the seller's own or neither, computed from the ids the issuer signed.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def independence_of"
+    },
+    "tested": {
+     "test": "tests/test_receipt.py",
+     "names": "test_each_independence_flag_is_computed_from_the_ids_the_issuer_signed"
+    }
+   },
+   "note": "A record of who ran the evaluation, not a judgment that the evaluator is honest."
+  },
+  {
+   "id": "verify_without_chain",
+   "what": "`knos bundle verify --no-chain` checks a bundle with no cluster and says what the signatures prove, what is an archived copy, and what needs a cluster.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/bundle.py",
+     "names": "def verify_offline"
+    },
+    "tested": {
+     "test": "tests/test_receipt_offline.py",
+     "names": "test_with_the_chain_gone_the_bundle_says_what_signatures_prove_what_is_an_archived_copy_and_what_needs_a_cluster"
+    }
+   },
+   "note": "What survives a devnet reset is the issuer's signature and the archived copies; that the payment happened is then an archived copy, and the output says so."
+  },
+  {
+   "id": "budget_controls_cli",
+   "what": "`knos budget` shows, checks and changes an organisation's limits, and names the rule that would refuse an order first.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/controls.py",
+     "names": "def authority_of"
+    },
+    "tested": {
+     "test": "tests/test_controls.py",
+     "names": "test_limits_set_with_budget_set_are_enforced_by_the_program_and_budget_check_names_the_rule_first"
+    }
+   },
+   "note": "The limits are the ones the deployed program already enforces (`org_balance_limits`); this is the command line for them. Without a key it prints the change and sends nothing."
+  },
+  {
+   "id": "console",
+   "what": "The site's console shows an operator the budgets, whether a deliverable was billed before, the exceptions, the effective fee and a receipt's five parts on one screen.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/console.js",
+     "names": "export function receiptParts"
+    },
+    "tested": {
+     "test": "tests/test_site_buyer.py",
+     "names": "test_the_buy_page_in_a_browser_and_its_signed_line_on_chain"
+    }
+   },
+   "note": "Drawn in a browser from mocked chain data in the tests. It reads GitHub and devnet in the browser; nobody outside Knos has used it."
+  },
+  {
+   "id": "observer_view",
+   "what": "`knos observe` lists what anyone can read of an order on chain and what a private order hides, and draws who paid whom how often.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/observe.py",
+     "names": "def order_facts"
+    },
+    "tested": {
+     "test": "tests/test_observe.py",
+     "names": "test_a_private_order_hides_its_repository_issue_branch_checks_and_paths_and_still_shows_who_was_paid_how_much_and_when"
+    }
+   }
+  },
+  {
+   "id": "relay_journal_and_retries",
+   "what": "The relay writes a token to its journal before sending it, tries again on fixed times while the token is good, and says in one status line what waits.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/ghrelay.py",
+     "names": "journaled before sent"
+    },
+    "tested": {
+     "test": "tests/test_relay_failures.py",
+     "names": "test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody_is_paid_twice"
+    }
+   },
+   "note": "Tested against a stand-in for GitHub and the local harness. The public worker runs the 0.3.14 relay until this release is published."
+  },
+  {
+   "id": "dependency_drills",
+   "what": "Each dependency's failure is drilled on a local validator: what broke, what a user sees, how it recovers and how long it took.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/drills.py",
+     "names": "def dependency_rows"
+    },
+    "tested": {
+     "test": "tests/test_drills.py",
+     "names": "test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took"
+    }
+   },
+   "note": "Local drills, not an outage on devnet; docs/DRILLS.md has the rows."
+  },
+  {
+   "id": "workflow_capacity_model",
+   "what": "A capacity model names the first limit a given number of repositories and deliverables a day would meet, and what lifts it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/capacity.py",
+     "names": "def bounds"
+    },
+    "tested": {
+     "test": "tests/test_capacity.py",
+     "names": "test_each_limit_binds_where_its_arithmetic_says"
+    }
+   },
+   "note": "Arithmetic on counted requests and published limits (docs/LOAD.md); not a load test at that volume."
+  },
+  {
+   "id": "reproduction_kit",
+   "what": "`knos reproduce` runs fixed checks in someone else's repository and GitHub signs the report's hash, and a file of it is accepted only when the run is not Knos's own.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/reproduce.py",
+     "names": "def verified"
+    },
+    "tested": {
+     "test": "tests/test_reproduce.py",
+     "names": "test_a_run_of_knos_own_is_refused_by_owner_id_by_who_started_it_and_by_name"
+    }
+   },
+   "note": "reproductions/ is empty: nobody outside has sent a run, so nothing is `reproduced`."
+  },
+  {
+   "id": "neutral_reexecution",
+   "what": "The neutral judge runs an order's black-box suite again in its own environment before it signs, and this second run has never run on GitHub.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/flow.py",
+     "names": "def _rerun_read"
+    },
+    "tested": {
+     "test": "tests/test_attest_rerun.py",
+     "names": "test_the_buyers_checks_say_success_and_the_suite_fails_when_it_is_run_again_so_nothing_is_signed"
+    }
+   },
+   "note": "For an order paid on its merge there is no suite to run: the run reads the checks' conclusions and its verdict says so. The changed attest.yml is published with this release; until it has run once on GitHub this is tested locally only."
+  },
+  {
+   "id": "doc_claims_check",
+   "what": "One script holds every count, stage, upgrade time and measured number in the documents to its one source, and fails on any that differs.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/doc_claims.py",
+     "names": "def problems"
+    },
+    "tested": {
+     "test": "tests/test_doc_claims.py",
+     "names": "test_this_tree_states_every_registered_fact_once_and_as_its_source_has_it"
+    }
+   }
+  },
+  {
+   "id": "agent_index_weekly_scan",
+   "what": "A weekly job reads one whole week of agent pull requests day by day and adds it to the published series, and so far no run has added a week.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_index.py",
+     "names": "def scan_week"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_one_whole_week_is_read_day_by_day_past_the_cap_and_added_to_the_published_series"
+    }
+   },
+   "note": "Its one run on GitHub (staging, 5 Oct 2026) did not finish reading the week in its time and added nothing. The job opens a pull request and merges nothing."
+  },
+  {
+   "id": "opt_in_profiles",
+   "what": "A public profile is shown only for an account that opted in with a file in its own repository, and every line gives its sample size.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/badge.js",
+     "names": "PROFILE_FILE"
+    },
+    "tested": {
+     "test": "tests/test_badge.py",
+     "names": "test_a_profile_is_shown_only_to_an_account_that_opted_in_and_every_line_has_its_sample_size"
+    }
+   },
+   "note": "Nobody has opted in."
+  },
+  {
+   "id": "outcome_examples",
+   "what": "Three outcomes that are not a merged pull request (a labelled dataset, a transformation, a reconciliation) are each accepted by a black-box suite that refuses a cheat a naive check passes.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "docs/OUTCOMES.md",
+     "names": "examples/outcomes/"
+    },
+    "tested": {
+     "test": "tests/test_outcomes.py",
+     "names": "test_there_are_three_outcomes_and_each_has_the_same_layout"
+    }
+   },
+   "note": "Examples run locally; none has been funded or paid on devnet."
+  },
+  {
+   "id": "knos_verify_action",
+   "what": "A GitHub Action gives a verdict on a pull request from GitHub's record of the commit, with a read-only token, and it has never run on GitHub.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": ".github/actions/knos-verify/verify.py",
+     "names": "def verdict"
+    },
+    "tested": {
+     "test": "tests/test_integrations.py",
+     "names": "test_the_script_gives_a_verdict_from_githubs_record_of_the_commit"
+    }
+   },
+   "note": "Tested with a stand-in for GitHub's API. docs/RELEASE.md has the first real run as a step after the push."
+  },
+  {
+   "id": "webhook_verifier",
+   "what": "A platform can verify a bundle's evidence itself with one file, in Python or TypeScript, and both answer every case the same.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "integrations/webhook/knos_verify.py",
+     "names": "def verify"
+    },
+    "tested": {
+     "test": "tests/test_integrations.py",
+     "names": "test_the_typescript_verifier_answers_every_case_as_the_python_one_does"
+    }
+   },
+   "note": "No platform uses it (docs/INTEGRATIONS.md)."
+  },
+  {
+   "id": "agent_host_routes",
+   "what": "`knos init` writes the hook each of ten agent hosts reads, into the project only, and none has been run inside a real host.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/init.py",
+     "names": "def project_cli"
+    },
+    "tested": {
+     "test": "tests/test_host_hooks.py",
+     "names": "test_every_host_knos_names_has_a_route_and_a_test"
+    }
+   },
+   "note": "Each route is tested against the event its host documents, recorded in tests/_host_events.py; no host application was started."
+  },
+  {
+   "id": "oidc_differential",
+   "what": "The built verifier and an independent reference gave the same answer on 8,855 generated tokens, with 0 disagreements.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "tests/test_oidc_differential.py",
+     "names": "def reference"
+    },
+    "tested": {
+     "test": "tests/test_oidc_differential.py",
+     "names": "test_the_recorded_long_run_is_of_this_program_this_seed_and_this_corpus"
+    }
+   },
+   "note": "The recorded run is docs/fuzz.json, against the test build of knos_oidc 2.2. No class of token is outside the rule: the 13 shapes of a signed payload that is not strict JSON in a value the verifier does not read, which 2.1 accepted, are refused."
+  },
+  {
+   "id": "fuzz_rsa_diff_target",
+   "what": "A fuzz target asks the program's RSA arithmetic, big integers and the `rsa` crate whether each input is an RS256 signature, and fails when they differ.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/fuzz/src/rsa_diff.rs",
+     "names": "pub fn agree"
+    },
+    "tested": {
+     "test": "tests/test_oidc_differential.py",
+     "names": "test_the_seed_corpus_of_the_fuzz_targets_is_made_from_these_cases_and_the_wycheproof_vectors"
+    }
+   },
+   "note": "A harness beside the program; the program's source is unchanged. Its seeds are the differential cases and the Wycheproof vectors; the nightly job fuzzes it for five minutes."
+  },
+  {
+   "id": "cli_lazy_start",
+   "what": "`knos --version` and each single command start without importing the other commands' modules.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/__main__.py",
+     "names": "def main"
+    },
+    "tested": {
+     "test": "tests/test_startup.py",
+     "names": "test_one_command_loads_no_other_commands_module"
+    }
+   }
+  },
+  {
+   "id": "site_cache",
+   "what": "A tab keeps what it read, draws a view at once from what was kept, reads again, and says how old a view is when the second read fails.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/cache.js",
+     "names": "export function makeCache"
+    },
+    "tested": {
+     "test": "tests/web/live.mjs",
+     "names": "cache: what one page kept, the next page of the tab reads"
+    }
+   },
+   "note": "The test is a Node script that needs a browser; run it with `node tests/web/live.mjs`."
+  },
+  {
+   "id": "live_round_view",
+   "what": "The site shows the latest canary round stage by stage with GitHub's and devnet's own times, and never draws an old round as live.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/live.js",
+     "names": "export function renderLive"
+    },
+    "tested": {
+     "test": "tests/web/live.mjs",
+     "names": "live, stale: a round three hours old is the last round"
+    }
+   },
+   "note": "Tested against a mocked GitHub and a mocked devnet with the clock held; run it with `node tests/web/live.mjs`."
+  },
+  {
+   "id": "brand",
+   "what": "The mark and the wordmark are one drawing in every copy: the README's header, the site's icon, the card and the badge.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/brand.py",
+     "names": "def lighten"
+    },
+    "tested": {
+     "test": "tests/test_brand.py",
+     "names": "test_every_copy_is_the_same_drawing"
+    }
+   }
+  },
+  {
+   "id": "shadow_mode",
+   "what": "Shadow mode reads an invoice that bills per merged change and says which billed changes had a failed check when they were merged.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/shadow.py",
+     "names": "def statement"
+    },
+    "tested": {
+     "test": "tests/test_shadow.py",
+     "names": "test_the_command_runs_offline_against_a_recording"
+    }
+   },
+   "note": "Never run against live GitHub: every test reads a recording, and the page (web/shadow.js, tests/test_site_shadow.py) is driven with a mocked API. No buyer's invoice has been checked with it."
+  },
+  {
+   "id": "playground",
+   "what": "A stranger funds a test order in the playground repository by opening one issue, inside limits on the amount, the slots and the day.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/playground.py",
+     "names": "def refuses"
+    },
+    "tested": {
+     "test": "tests/test_playground.py",
+     "names": "test_a_stranger_funds_only_by_opening_an_issue_within_the_amount_the_slots_and_the_day"
+    }
+   },
+   "note": "Not live until its repository is published: the tests run the rules and draw the page from mocked data, and no stranger has funded anything there. The money is the devnet faucet's test USDC."
+  },
+  {
+   "id": "interactive_demo",
+   "what": "The first screen replays one recorded round in six steps a visitor drives with the keyboard, and shows nothing the repository does not record.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/demo.js",
+     "names": "export async function renderDemo"
+    },
+    "tested": {
+     "test": "tests/test_site_demo.py",
+     "names": "test_every_signature_and_number_of_the_demo_is_in_the_repositorys_records"
+    }
+   },
+   "note": "A replay of recorded data (web/demo_data.json), not a live round. Its replay step is recorded as error 83, the order is not in the state this needs (already paid), not as the single-use error."
+  },
+  {
+   "id": "design_system",
+   "what": "The site has one set of variables and classes for surface, depth and motion, a first screen of forty words at most, and no movement for a reader who asks for none.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/motion.js",
+     "names": "prefersReduced"
+    },
+    "tested": {
+     "test": "tests/test_site_overflow.py",
+     "names": "test_the_budget_of_words_weight_and_motion_holds"
+    }
+   },
+   "note": "The browser part needs node, the playwright package and Chromium (tests/web/motion.mjs); without them it is skipped."
+  },
+  {
+   "id": "verifier_issuer_matrix",
+   "what": "Eleven issuers of RS256 workload tokens are documented with what the verifier takes from each, and a token of each one's shape verifies under a key registered for its address.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/issuers/README.md",
+     "names": "eleven sources of identity"
+    },
+    "tested": {
+     "test": "tests/test_issuers.py",
+     "names": "test_a_token_of_this_issuers_shape_verifies_under_a_key_registered_for_its_url"
+    }
+   },
+   "note": "Tested in the Solana runtime with keys made in the test: no issuer but GitHub and GitLab has signed a token Knos verified. The deployed verifier refuses ES256, ES384 and PS256 tokens; ES256 is a capability of its own (es256_tokens)."
+  },
+  {
+   "id": "finance_exports",
+   "what": "An accepted deliverable is exported as one bill line in the import formats of several accounting products, each file with the statement's hash.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/exports.py",
+     "names": "FORMATS = {"
+    },
+    "tested": {
+     "test": "tests/test_exports.py",
+     "names": "test_every_file_is_the_golden_file_byte_for_byte"
+    }
+   },
+   "note": "The SAP and Coupa files are best effort and unverified: their columns come from the products' public notes, and no file has been imported into either product. Runs on the author's machine: there is no program to deploy."
+  },
+  {
+   "id": "audit_export_v2",
+   "what": "Version 2 of the audit file also lists an organisation's bounties, what is still owed, and the buyer's own references.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/audit.py",
+     "names": "def records_of"
+    },
+    "tested": {
+     "test": "tests/test_audit.py",
+     "names": "test_an_organisation_that_only_posted_bounties_gets_its_bounties_not_an_empty_file"
+    }
+   },
+   "note": "A file of version 1 still verifies. Runs on the author's machine: there is no program to deploy."
+  },
+  {
+   "id": "four_linked_objects",
+   "what": "Every deliverable is shown as four linked records made from the statement alone: authorisation, acceptance, commercial record and settlement status.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/audit.py",
+     "names": "def record("
+    },
+    "tested": {
+     "test": "tests/test_audit.py",
+     "names": "test_a_record_is_four_linked_objects_made_from_the_statement_alone"
+    }
+   },
+   "note": "The site makes the same four from the same rows (web/finance_data.js, tests/web/finance.mjs). Settlement on devnet is a demonstration in test USDC."
+  },
+  {
+   "id": "five_named_states",
+   "what": "A payment goes through five named states (received, accepted, submitted, confirmed, finalized), the same in the workflow's comment, the relay log and the site.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/flow.py",
+     "names": "STATES = (\"received\", \"accepted\", \"submitted\", \"confirmed\", \"finalized\")"
+    },
+    "tested": {
+     "test": "tests/test_flow.py",
+     "names": "test_a_settlement_is_one_comment_posted_at_received_and_edited_through_the_five_states"
+    }
+   }
+  },
+  {
+   "id": "relay_stage_times",
+   "what": "Every line the relay logs for a payment carries when it was queued, seen, sent and confirmed, whoever relayed it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/ghrelay.py",
+     "names": "class Timed"
+    },
+    "tested": {
+     "test": "tests/test_ghrelay.py",
+     "names": "test_every_ok_line_carries_the_four_times_whoever_relayed"
+    }
+   },
+   "note": "Lines written before this release carry no stage times; scripts/latency_stages.py lists those payments apart."
+  },
+  {
+   "id": "quorum_three_readers",
+   "what": "A funding comment names a third reader, a repository neither side owns, and an order with a quorum of three pays only when all three passed the same artifact.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/commands.py",
+     "names": "judge: owner/repo"
+    },
+    "tested": {
+     "test": "tests/test_flow_quorum3.py",
+     "names": "test_a_fund_comment_names_the_third_reader_and_the_program_takes_exactly_what_it_signed"
+    }
+   },
+   "note": "Runs at the public id only once the upgrade to `knos_pay 2.1` has executed (the live state is in web/upgrades.json). Two readers of one owner count as one."
+  },
+  {
+   "id": "outcome_orders",
+   "what": "An outcome that is not a merged pull request is funded by one comment from a template, and only the honest file is paid.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms_templates.py",
+     "names": "OUTCOMES = {"
+    },
+    "tested": {
+     "test": "tests/test_flow_quorum3.py",
+     "names": "test_a_labelled_dataset_is_funded_by_a_comment_and_only_the_honest_file_is_paid"
+    }
+   },
+   "note": "The flow test is the data-labelling example of examples/outcomes, run in the Solana runtime; the other outcomes have a template and no flow test."
+  },
+  {
+   "id": "terms_registry",
+   "what": "Published terms are files named by their hash that are never rewritten, and a contract can cite one in a sentence both sides can check.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms_registry.py",
+     "names": "def verify"
+    },
+    "tested": {
+     "test": "tests/test_terms_registry.py",
+     "names": "test_a_published_file_that_changes_fails_and_is_never_rewritten"
+    }
+   },
+   "note": "No contract is known to cite these terms."
+  },
+  {
+   "id": "terms_memory",
+   "what": "Every settlement is remembered through Sibyl, and a funding comment is offered terms from that memory and nothing from an empty one.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/history.py",
+     "names": "def terms_supported"
+    },
+    "tested": {
+     "test": "tests/test_flow_orders.py",
+     "names": "test_every_settlement_is_remembered_and_a_funding_proposes_terms_from_that_memory_and_nothing_from_an_empty_one"
+    }
+   },
+   "note": "The memory is the repository's own Sibyl store; without Sibyl nothing is proposed."
+  },
+  {
+   "id": "index_bounded_scan",
+   "what": "The weekly index sample stays inside a fixed budget of requests and minutes, publishes what it has, and resumes from its checkpoint.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_index.py",
+     "names": "def sample_week"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_the_weekly_sample_stays_in_its_budget_publishes_what_it_has_and_resumes_from_its_checkpoint"
+    }
+   },
+   "note": "Tested against a recorded GitHub; the scheduled workflow has not yet published a week from this sample."
+  },
+  {
+   "id": "honest_work_rate",
+   "what": "The tamper benchmark also measures how much honest work each judge accepts, and lists every honest submission a judge refused with its reason.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/tamper_bench.py",
+     "names": "--honest"
+    },
+    "tested": {
+     "test": "tests/test_tamper_bench.py",
+     "names": "test_honest_submissions_are_accepted_and_one_with_tests_of_its_own_says_they_were_not_counted"
+    }
+   },
+   "note": "The black-box judge accepted 61 of 61 honest submissions, of which the 48 of the set before, 48 of 48; cheats accepted: 0 of 63, 0 of 102, 0 of 25 on tasks that are not code and 0 of 14 new ones, every figure from one run of the whole benchmark in this release (docs/TAMPER.md, docs/ASSURANCE.md). Knos's own tasks and submissions; nobody outside has run the set."
+  },
+  {
+   "id": "provenance_chain",
+   "what": "Each program is followed from source commit to build hash to the hash on chain to its upgrade proposal, and a link the repository does not record is printed as MISSING.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/provenance.py",
+     "names": "def chain_of"
+    },
+    "tested": {
+     "test": "tests/test_provenance.py",
+     "names": "test_every_program_has_the_seven_links_and_a_missing_one_gives_its_reason"
+    }
+   },
+   "note": "No program's chain is complete in the committed record (docs/PROVENANCE.md): the exercised scenario is MISSING for each, the execution transaction is MISSING while its proposal has not executed, and the knos_oidc and knos_pay builds that run at the public ids before the upgrade have no build record."
+  },
+  {
+   "id": "conformance_kit",
+   "what": "A kit of vectors lets another implementation show, case by case, that it reads Knos's formats as Knos does.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "conformance/run.py",
+     "names": "def run"
+    },
+    "tested": {
+     "test": "tests/test_conformance.py",
+     "names": "test_a_wrong_implementation_is_caught_case_by_case"
+    }
+   },
+   "note": "Run only against Knos's own Python and JavaScript; no outside implementation has run it."
+  },
+  {
+   "id": "release_registry_rule",
+   "what": "A release publishes a crate or a package at its own version, and only a version the registry lacks.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/release.py",
+     "names": "def registry_plan"
+    },
+    "tested": {
+     "test": "tests/test_release_gate.py",
+     "names": "test_a_crate_held_at_an_older_version_is_a_green_skip_and_a_version_that_is_neither_is_red"
+    }
+   },
+   "note": "Tested against a mocked registry index; the rule first runs for real in the release of 0.3.16."
+  },
+  {
+   "id": "oidc_strict_json",
+   "what": "The verifier reads every value of a token's header and payload as strict JSON and refuses a token that is not.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/strict.rs",
+     "names": "pub fn fields"
+    },
+    "tested": {
+     "test": "tests/test_oidc_differential.py",
+     "names": "test_the_program_and_the_reference_give_the_same_answer_on_every_case"
+    }
+   },
+   "note": "knos_oidc 2.2 is not deployed: it will be proposed after the pending upgrade executes, and until that proposal has executed devnet runs an earlier version, which accepts such a token (the live state is in web/upgrades.json)."
+  },
+  {
+   "id": "unwrap_inventory",
+   "what": "Every place where a program's source writes a panic is listed with the reason it cannot be reached or what happens when it is.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "tests/test_unwraps.py",
+     "names": "def places"
+    },
+    "tested": {
+     "test": "tests/test_unwraps.py",
+     "names": "test_every_written_panic_in_program_code_has_a_reason_and_every_reason_a_place"
+    }
+   },
+   "note": "The list is docs/UNWRAPS.md. Indexing is counted by file, not explained line by line."
+  },
+  {
+   "id": "outcome_not_code",
+   "what": "One outcome that is not code is signed by a Kubernetes cluster's service-account issuer, checked offline by the verifier's rule and verified under a private key.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/outcome_k8s.py",
+     "names": "def verify_token"
+    },
+    "tested": {
+     "test": "tests/test_outcome_k8s.py",
+     "names": "test_the_verifier_takes_the_token_under_a_private_key_through_the_instructions_chain_would_send"
+    }
+   },
+   "note": "Tested with a test key; a kind cluster's token was verified offline in staging run 37483745385 of drexthealpha/knos-rc (https://github.com/drexthealpha/knos-rc/actions/runs/37483745385); nothing of it is on devnet, and the meter does not count it on chain."
+  },
+  {
+   "id": "events_ledger",
+   "what": "One append-only log of events sits under every recording mode, with durable ids, signed acknowledgements, corrections and duplicate detection.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/events.py",
+     "names": "def ingest"
+    },
+    "tested": {
+     "test": "tests/test_events.py",
+     "names": "test_one_evaluation_recorded_singly_and_inside_a_batch_is_counted_once_with_both_sources"
+    }
+   },
+   "note": "A file beside the ledgers, written when a recording command is given --events or KNOS_EVENTS; nothing on chain reads it."
+  },
+  {
+   "id": "ap_statement",
+   "what": "One invoice becomes a statement as JSON, CSV and PDF that say the same; each line is agreed, disputed, duplicate or has insufficient evidence, and anyone rebuilds it from its evidence.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/statement.py",
+     "names": "def as_pdf"
+    },
+    "tested": {
+     "test": "tests/test_statement.py",
+     "names": "test_verify_makes_the_statement_again_from_its_evidence_and_names_the_first_line_that_differs"
+    }
+   },
+   "note": "Made from example evidence; no buyer's invoice has been run through it."
+  },
+  {
+   "id": "four_verdicts_four_ids",
+   "what": "A receipt of version 4 says one of four verdicts, only an accepted one authorises payment, and a deliverable, an evaluation, an invoice line and a settlement each have an id of their own.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def build4"
+    },
+    "tested": {
+     "test": "tests/test_verdicts_ids.py",
+     "names": "test_every_version_4_vector_checks_and_only_an_accepted_receipt_authorises_payment"
+    }
+   },
+   "note": "The programs on chain know accepted and rejected only; the other two verdicts are recorded off chain."
+  },
+  {
+   "id": "relay_queue",
+   "what": "The relay takes tokens through a queue with leases: several workers, each payer's tokens in order, a killed worker's entry taken again, nothing sent twice.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "class Queue"
+    },
+    "tested": {
+     "test": "tests/test_relayq.py",
+     "names": "test_200_entries_4_workers_one_kill_one_slow_confirmation_each_handled_once_in_its_payers_order"
+    }
+   },
+   "note": "Tested against a simulated relay and clock; the public relay's sweep has not run on it on devnet."
+  },
+  {
+   "id": "evidence_vault",
+   "what": "An evidence bundle is sealed to the buyer, the supplier and an auditor, exported, kept under a retention policy and restored from the export alone after the working copy and the chain are gone.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/vault.py",
+     "names": "def restore"
+    },
+    "tested": {
+     "test": "tests/test_vault.py",
+     "names": "test_restore_from_the_export_alone_after_the_working_copy_and_the_chain_are_gone"
+    }
+   },
+   "note": "The restore drill runs on files made in the test; no outside party holds a key."
+  },
+  {
+   "id": "private_path",
+   "what": "A private repository's verdict leaves as a record of a verdict word and hashes, signed for by an attestor both parties approved; the code stays where it is.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/private.py",
+     "names": "def record"
+    },
+    "tested": {
+     "test": "tests/test_private_path.py",
+     "names": "test_the_record_that_leaves_holds_a_verdict_word_and_hashes_and_nothing_else"
+    }
+   },
+   "note": "Nobody has run it in a private repository."
+  },
+  {
+   "id": "supplier_preflight",
+   "what": "A supplier checks a change against an order's terms before submitting it, and is told which line of the terms a refusal would cite and what was refused before under the same terms.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/preflight.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_preflight.py",
+     "names": "test_a_change_inside_the_terms_is_ready_and_one_outside_names_the_line_that_says_so"
+    }
+   }
+  },
+  {
+   "id": "supplier_appeal",
+   "what": "A supplier contests a rejection: the verdict moves to disputed with who, when and why, and the neutral judge's re-run overturns or upholds it in plain words.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/appeal.py",
+     "names": "def open_"
+    },
+    "tested": {
+     "test": "tests/test_appeal.py",
+     "names": "test_the_neutral_judges_pass_overturns_and_its_fail_upholds_with_the_reason_in_plain_words"
+    }
+   },
+   "note": "The `/knos appeal` comment is read by the workflow's job; no appeal has been opened outside the tests."
+  },
+  {
+   "id": "refusal_table",
+   "what": "Every refusal the programs, the terms, the judge and the comment parser can give has a row of two plain sentences: what happened and what to do.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ghwords.py",
+     "names": "def refusal_table"
+    },
+    "tested": {
+     "test": "tests/test_refusals.py",
+     "names": "test_every_program_error_has_a_row_and_no_row_names_an_error_that_is_gone"
+    }
+   }
+  },
+  {
+   "id": "billing_rule",
+   "what": "A month's invoice is Control, Meter, Acceptance on value reconciled off chain and record lookups; value released on chain is never charged again, and every line names the rule that produced it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/billing.py",
+     "names": "def invoice"
+    },
+    "tested": {
+     "test": "tests/test_billing.py",
+     "names": "test_the_worked_customer_month_by_month_adds_up_to_130_240"
+    }
+   },
+   "note": "Arithmetic on example months. Nobody has been invoiced: nothing has been sold and there is no legal entity to invoice from."
+  },
+  {
+   "id": "agent_leaderboard",
+   "what": "The Agent PR Index is a weekly leaderboard with a 95% interval and the sample size on every row, a minimum sample to be placed, and a dispute path whose open and resolved cases are published.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_board.py",
+     "names": "def board"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_a_disputed_row_is_marked_with_its_link_and_a_resolved_one_that_changed_a_number_is_in_the_changelog"
+    }
+   },
+   "note": "No dispute has been filed."
+  },
+  {
+   "id": "front_door",
+   "what": "The site's first control checks a pasted supplier invoice or a named public repository in place: a neutral count and every mismatch, with no install, wallet or sign-up.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/front_door.js",
+     "names": "export function renderFrontDoor"
+    },
+    "tested": {
+     "test": "tests/test_site_front_door.py",
+     "names": "test_the_first_screen_checks_your_own_invoice"
+    }
+   },
+   "note": "The browser part needs node, the playwright package and Chromium (tests/web/front_door.mjs); without them it is skipped."
+  },
+  {
+   "id": "es256_tokens",
+   "what": "An ES256 token is verified in one transaction: Solana's secp256r1 precompile checks the signature, and `VerifyEs256` checks that what it verified is the issuer's key, the token and its signature.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_oidc/src/es256.rs",
+     "names": "pub fn precompile"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/knos_oidc_es256.rs",
+     "names": "a_good_token_is_verified_in_one_transaction"
+    }
+   },
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest. In the default build of knos_oidc in this tree (202,032 bytes; the verifier's data account on devnet has room for 279,360, so no extension is needed) and NOT deployed: no public program id runs it, and the build is not proposed yet. Two fixed test keys; no token of a real ES256 issuer has been verified. A signing input of at most 780 bytes (docs/ES256.md)."
+  },
+  {
+   "id": "contributor_tests_not_counted",
+   "what": "A correct fix that adds its own regression test is accepted: an added test file runs and is not counted, an existing protected test edited or deleted is refused, and the funder's suite alone decides.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/judge.py",
+     "names": "def classify_path"
+    },
+    "tested": {
+     "test": "tests/test_tamper_bench.py",
+     "names": "test_an_added_test_or_test_configuration_is_allowed_and_cannot_decide"
+    }
+   },
+   "note": "Measured on Knos's own tasks (docs/TAMPER.md): 61 of 61 honest submissions accepted, 0 of 14 cheats aimed at what a pull request may now add. `knos preflight` and the supplier page give the same answer from the same rule."
+  },
+  {
+   "id": "procurement_objects",
+   "what": "Standing offers, rate cards and budget envelopes are read from files and held to each other; an envelope shows before and after and refuses by the amount over.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/controls.py",
+     "names": "def envelope_state"
+    },
+    "tested": {
+     "test": "tests/test_procurement.py",
+     "names": "test_an_envelope_shows_before_and_after_and_refuses_by_the_amount_over"
+    }
+   },
+   "note": "Files in a repository, checked by the command line. The funding workflow does not ask the gate yet, and nothing on chain reads them."
+  },
+  {
+   "id": "approval_chains",
+   "what": "An approval counts only from an account that holds the role on that day and within its limit; a self-approval above the limit is refused, and the chain says what waits for whom.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/approvals.py",
+     "names": "def chain"
+    },
+    "tested": {
+     "test": "tests/test_procurement.py",
+     "names": "test_the_chain_says_what_waits_for_whom_and_counts_only_authority"
+    }
+   },
+   "note": "`knos approve record | check | status`. An approval's author and time are the forge's; the funding workflow does not ask the gate yet."
+  },
+  {
+   "id": "fee_bounds_proofs",
+   "what": "Kani proves on the program's own lines that an order's fee is at least 0.05, is 0.05 or at most 0.30% of the amount, and adds to the amount in a u64.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/fee_proofs/src/lib.rs",
+     "names": "#[kani::proof]"
+    },
+    "tested": {
+     "test": "tests/test_fee_proofs.py",
+     "names": "test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say"
+    }
+   },
+   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 10 to 30 basis points, one rate and no tiers (the knos_pay 2.2 build of this tree, not deployed). docs/kani.json `fee_proofs`, status `verified but for one bound at one rate`; its `parts` say which statement is verified over which amounts and rates. The test holds the record to the source's hash: no test of this repository runs Kani itself."
+  },
+  {
+   "id": "adversarial_replays",
+   "what": "What an opponent would try is replayed against the built programs: an address funded again, the second before and after every time limit, a payment and a refund together, one token twice, one judge under a quorum.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/adversarial_vectors.py",
+     "names": "adv_"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/adversarial.rs",
+     "names": "one_pay_token_twice_in_one_transaction_or_in_two_pays_once"
+    }
+   },
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test --release --test adversarial`), not run by pytest. Two of its tests are ignored because the program as built fails them: one account can be two judges of a wallet's order, and a judge's marker outlives its order by a second (docs/SECURITY.md). Neither is fixed in this release."
+  },
+  {
+   "id": "reader_template",
+   "what": "A program of its own, built against the published interface crate only, releases once for its own workflow's token and refuses five mistakes a reader can make.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/reader_template/src/lib.rs",
+     "names": "pub fn process"
+    },
+    "tested": {
+     "test": "tests/test_reader_template.py",
+     "names": "test_it_releases_once_for_its_own_workflow_and_refuses_the_five_mistakes"
+    }
+   },
+   "note": "An example in a workspace of its own, not deployed. No program outside this repository is known to read the verifier."
+  },
+  {
+   "id": "keyholder_path",
+   "what": "A page makes a member key in the browser, keeps the private half with the person and asks with the public half only; one command adds the holder.",
+   "stage": "implemented",
+   "evidence": {
+    "implemented": {
+     "path": "web/keyholder.js",
+     "names": "export function renderKeyholder"
+    }
+   },
+   "note": "Outside key holders: 0. One person, the founder, holds every member key of both multisigs (docs/KEYHOLDER.md, docs/GOVERNANCE.md); nobody has asked."
+  },
+  {
+   "id": "fee_one_rate",
+   "what": "An order's and a job's fee is one rate: 0.30% of the amount, floor 0.05, no maximum and no tiers; a Plan lowers it to no less than 0.10%.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/lib.rs",
+     "names": "pub fn order_fee"
+    },
+    "tested": {
+     "test": "tests/test_fees.py",
+     "names": "test_the_018_fee_is_one_rate_with_a_floor_and_is_pay_pys_own_numbers"
+    }
+   },
+   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json). Until then the public program charges the 0.3.14 fee (`fee_tiers`); orders funded before the upgrade keep the rate fixed at their funding."
+  },
+  {
+   "id": "quorum_by_owner",
+   "what": "A quorum counts judges by repository owner, the neutral judge differs from both sides in owner and actor, and a judge's marker counts only for the funding of the order it was made under.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "pub fn quorum"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/adversarial.rs",
+     "names": "the_same_owner_behind_two_repositories_is_refused_as_a_second_judge_and_different_owners_are_accepted"
+    }
+   },
+   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json). What the program cannot know: that two accounts are two people."
+  },
+  {
+   "id": "presentation_grace",
+   "what": "An order may give a token issued by its deadline a grace in which it can still be presented; the refund follows when no such token can live.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_terms.rs",
+     "names": "grace"
+    },
+    "tested": {
+     "test": "programs-v2/handlers/tests/adversarial.rs",
+     "names": "the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_follows_at_once"
+    }
+   },
+   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json)."
+  },
+  {
+   "id": "commitment_format2",
+   "what": "A batch's commitment (format 2) hashes each complete canonical event, so swapping which of two equal-priced evaluations was accepted changes the root.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/ledger.py",
+     "names": "def merkle_root2"
+    },
+    "tested": {
+     "test": "tests/test_ledger_format2.py",
+     "names": "test_the_swap_keeps_the_root_in_format_1_and_changes_it_in_format_2"
+    }
+   },
+   "note": "Tested on ledger files; no format 2 batch is anchored on the public ids. knos_meter is unchanged: the root is opaque to the program."
+  },
+  {
+   "id": "supplier_record",
+   "what": "A supplier's public record is one file: each deliverable counted once, with the evidence behind every count.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_page.py",
+     "names": "def build"
+    },
+    "tested": {
+     "test": "tests/test_record_page.py",
+     "names": "test_a_record_counts_the_log_once_a_deliverable_and_lists_the_evidence_behind_every_count"
+    }
+   },
+   "note": "The committed records are cut from the public index of agent pull requests; no supplier outside Knos has a record of paid work."
+  },
+  {
+   "id": "record_badge",
+   "what": "A badge is drawn from a supplier's record, states its sample and is green only for accepted work.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_page.py",
+     "names": "def badge_svg"
+    },
+    "tested": {
+     "test": "tests/test_record_page.py",
+     "names": "test_the_badge_is_drawn_from_the_record_states_its_sample_and_is_green_only_for_accepted_work"
+    }
+   },
+   "note": "Nobody outside Knos shows one."
+  },
+  {
+   "id": "invoice_receipt",
+   "what": "A verified receipt becomes one page to attach to an invoice, with the file that proves it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_page.py",
+     "names": "def invoice_receipt"
+    },
+    "tested": {
+     "test": "tests/test_record_page.py",
+     "names": "test_the_receipt_for_an_invoice_is_one_page"
+    }
+   },
+   "note": "No invoice has been sent with one."
+  },
+  {
+   "id": "supplier_install",
+   "what": "One line in a supplier's repository runs the free check on every pull request, posts once and attaches the receipt.",
+   "stage": "implemented",
+   "evidence": {
+    "implemented": {
+     "path": ".github/workflows/supplier.yml",
+     "names": "knos supplier check"
+    }
+   },
+   "note": "A reusable workflow called at a release's tag; it has not run in a repository outside Knos."
+  },
+  {
+   "id": "terms3_format",
+   "what": "Knos Terms 3 is a versioned document that answers ten questions; a file missing one is refused by name, and two versions diff by meaning.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms3.py",
+     "names": "def validate"
+    },
+    "tested": {
+     "test": "tests/test_terms3.py",
+     "names": "test_a_file_missing_a_field_is_refused_and_the_refusal_names_it"
+    }
+   },
+   "note": "`knos terms verify` and `knos terms diff` read it. Funding does not enforce a terms 3 document yet."
+  },
+  {
+   "id": "terms3_proposed",
+   "what": "Terms 3 are proposed from a repository's own record: the checks that passed on every recent merge, its test directories and its code owners.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/propose_terms.py",
+     "names": "def propose"
+    },
+    "tested": {
+     "test": "tests/test_propose_terms.py",
+     "names": "test_the_checks_that_passed_on_every_recent_merge_decide_and_the_others_are_said"
+    }
+   },
+   "note": "Tested on recorded answers of GitHub's API. A repository with no merge in 30 days gets no proposal."
+  },
+  {
+   "id": "provisional_decision",
+   "what": "A decision is given the moment the evidence arrives, as a provisional receipt that never authorises payment; the final receipt names the one it supersedes.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/decide.py",
+     "names": "def provisional"
+    },
+    "tested": {
+     "test": "tests/test_decide.py",
+     "names": "test_a_provisional_receipt_never_authorises_payment_and_never_says_paid"
+    }
+   },
+   "note": "`knos decide`. The workflows and the relay do not post it yet."
+  },
+  {
+   "id": "relay_notes_merge",
+   "what": "Relay runs keep notes that merge by key, so two runners carry one token once; each lane pays from its own fee payer.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "def payers"
+    },
+    "tested": {
+     "test": "tests/test_relay_speed.py",
+     "names": "test_in_every_interleaving_of_two_runners_one_token_is_sent_once_and_both_end_with_its_answer"
+    }
+   },
+   "note": "Tested with stand-in runners and a stand-in chain; the public relay runs with one fee payer."
+  },
+  {
+   "id": "verdict_gate",
+   "what": "A verdict crosses from the job that runs a pull request's code to the job that signs as one line of fixed fields, read as data and checked again from GitHub's record.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/verdict_gate.py",
+     "names": "def recheck"
+    },
+    "tested": {
+     "test": "tests/test_verdict_gate.py",
+     "names": "test_an_honest_verdict_is_read_held_and_checked_again_from_githubs_record"
+    }
+   },
+   "note": "The signing job runs none of the pull request's code. Tested on recorded answers; the published workflows carry it from the next republish."
+  },
+  {
+   "id": "agent_pays_agent",
+   "what": "An agent pays another agent only when an evaluator signs the acceptance; wrong work releases nothing and the buyer is refunded at expiry.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/agent_pays_agent/buyer.mjs",
+     "names": "knos-order"
+    },
+    "tested": {
+     "test": "tests/test_agent_pays_agent.py",
+     "names": "test_the_seller_is_paid_only_when_the_evaluator_signs_the_acceptance"
+    }
+   },
+   "note": "Separate processes against the test builds of knos_pay and knos_oidc in the simulator, in test USDC; no outside agent has used it."
+  },
+  {
+   "id": "upstream_gate",
+   "what": "Nothing is sent to, opened on or recommended for an outside repository unless it merged a pull request in the last 30 days; what cannot be read is a refusal.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/upstream_check.py",
+     "names": "def last_merged"
+    },
+    "tested": {
+     "test": "tests/test_upstream_check.py",
+     "names": "test_a_repository_whose_last_merge_is_older_than_30_days_is_refused"
+    }
+   },
+   "note": "Tested on recorded answers of GitHub's API; the date of the last merge is printed."
+  },
+  {
+   "id": "claim_guard",
+   "what": "A claim on an issue or log that holds no funded order gets one automatic answer and a label, once.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/claim_guard.py",
+     "names": "def answer"
+    },
+    "tested": {
+     "test": "tests/test_claim_guard.py",
+     "names": "test_a_second_event_posts_nothing_and_a_marker_in_a_strangers_comment_does_not_count"
+    }
+   },
+   "note": "Runs from .github/workflows/claims.yml on this repository; tested on recorded events."
+  }
+ ]
+}

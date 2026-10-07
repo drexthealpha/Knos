@@ -42,7 +42,7 @@ async function link(connection) {
   const c = typeof connection === "string" ? { url: connection } : connection ?? {};
   if (typeof c.url !== "string" || !c.url) throw new Error("Pass the RPC address (a string) or { url, programs }: these calls read the chain and nothing else.");
   const programs = { ...(await deployment()), ...c.programs };
-  return { url: c.url, programs, pay: programs.knos_pay, meter: programs.knos_meter, names: c.names ?? {}, now: c.now ?? null, ids: v2.client({ ...programs }) };
+  return { url: c.url, programs, pay: programs.knos_pay, meter: programs.knos_meter, names: c.names ?? {}, now: c.now ?? null, feeVersion: c.feeVersion ?? null, ids: v2.client({ ...programs }) };
 }
 
 const safe = (big) => (big <= 9007199254740991n && big >= -9007199254740991n ? Number(big) : big);
@@ -201,7 +201,8 @@ export async function quote(connection, repo, issue) {
   const cache = new Map(), items = [], unread = [], missing = [];
   for (const x of read) {
     const { o } = x, decimals = decimalsOf(x), orderish = x.kind === "order";
-    const fee = orderish ? o.fee : v2.feeOf(o.amount, decimals), payee = safe(BigInt(o.amount) - BigInt(orderish ? o.paid : fee));
+    // an order holds the fee it was funded with; a job's is taken when it is paid, by the rule of the build live then (connection.feeVersion)
+    const fee = orderish ? o.fee : v2.feeOf(o.amount, decimals, v2.feeRule(c.feeVersion)), payee = safe(BigInt(o.amount) - BigInt(orderish ? o.paid : fee));
     const got = await termsOf(c, x.address, o.terms);
     if (!got?.terms) unread.push(`the terms of the ${x.kind} ${x.address}`);
     const why = whyNot(o, now);

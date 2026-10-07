@@ -17,6 +17,9 @@ A row can be disputed (.github/ISSUE_TEMPLATE/dispute-index-row.yml). docs/index
                    "outcome": "<what was found, in words>" or null,
                    "changed": [{"field": "failed_at_merge", "from": 10, "to": 9}]}]}
 
+Beside the feed it writes one record file an agent, docs/records/<agent>.json (knos.record_page, docs/RECORD.md): the
+agent's row as the public part of its record, labelled as coming from public pull requests and not from Knos orders.
+
 An open dispute marks its row, with the link, on the board of its week and of every later one. A resolved dispute
 that changed a number is listed in the changelog. Nothing here reads a payment: a row cannot be bought.
 """
@@ -263,6 +266,10 @@ def main(series_path: str, disputes_path: str | None, doc_path: str, feed_path: 
     with open(doc_path, encoding="utf-8") as f:
         page = f.read()
     want = {doc_path: render(page, table(doc), doc_path), feed_path: json.dumps(doc, ensure_ascii=False, indent=1) + "\n", atom_path: atom(doc)}
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+    from knos import record_page       # standard library only: every agent's row as the public part of its record
+    records = os.path.join(os.path.dirname(os.path.abspath(feed_path)), "records")
+    want.update({os.path.join(records, name): text for name, text in record_page.index_records(doc).items()})
     stale = []
     for path, text in want.items():
         try:
@@ -273,6 +280,7 @@ def main(series_path: str, disputes_path: str | None, doc_path: str, feed_path: 
         if not same:
             stale.append(path)
             if not check:
+                os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
                 with open(path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(text)
     top = doc["weeks"][0]

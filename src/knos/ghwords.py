@@ -10,6 +10,66 @@ import re
 
 RATE = "set GH_TOKEN to lift its rate limit"
 
+# The first words of every issue a workflow keeps as a log (the relay's log, the "knos tokens" issue, the judge's
+# memory): nobody should read one as a task with a price on it.
+MACHINE = "This is a log written by a workflow. It is not a task and carries no payment. "
+
+
+def machine_body(body) -> str | None:
+    """The body an existing log issue should have, when it does not say what it is yet; None when it does."""
+    text = str(body or "")
+    return None if MACHINE.strip() in text else MACHINE + text
+
+
+def say_machine(send, path: str, body) -> bool:
+    """Edit a log issue's body once so that it says what it is. `send(path, data, "PATCH")` writes GitHub's API. True
+    when the body was edited; False when it already says so, or could not be written (the log goes on either way)."""
+    want = machine_body(body)
+    if want is None:
+        return False
+    try:
+        send(path, {"body": want}, "PATCH")
+    except Exception:  # noqa: BLE001 - a sentence that could not be added is added the next time
+        return False
+    return True
+
+
+# ---- a quorum, in the public worker's log line and in a comment -------------------------------------------------------
+_COUNT = {2: "two", 3: "three"}
+_QUORUM = re.compile(r"(\d) of (\d) judges have passed this commit for order (\S+): nothing is paid until \d have\."
+                     r"(?: Not counted: (.*?)\.)?(?: To sign again: ([^.|]+?)\.)?(?: \(another relayer carried it first\))?\s*", re.S)
+
+
+def quorum_note(order, q: dict) -> str:
+    """The note of the worker's log line for a pay token that an order with a quorum recorded and did not pay on: how
+    many judges count, why one that spoke is not one more (`uncounted`) and whose word has to be given again
+    (`again`), in a form `quorum_read` reads back."""
+    not_counted = " | ".join(" ".join(str(w).replace("|", "/").split()).rstrip(". ") for w in q.get("uncounted") or [])
+    again = ", ".join(str(n) for n in q.get("again") or [])
+    return (f"{int(q.get('have') or 0)} of {int(q.get('of') or 0)} judges have passed this commit for order {order}: nothing is paid until "
+            f"{int(q.get('of') or 0)} have." + (f" Not counted: {not_counted}." if not_counted else "") + (f" To sign again: {again}." if again else ""))
+
+
+def quorum_read(note) -> dict | None:
+    """`quorum_note`'s words as the relay's own result has them: {"have", "of", "uncounted"?, "again"?}; None for any
+    other note."""
+    m = _QUORUM.fullmatch(str(note or "").strip())
+    if not m:
+        return None
+    out: dict = {"have": int(m.group(1)), "of": int(m.group(2))}
+    if m.group(5):
+        out["again"] = [n.strip() for n in m.group(5).split(",") if n.strip()]
+    if m.group(4):
+        out["uncounted"] = [w.strip() for w in m.group(4).split(" | ") if w.strip()]
+    return out
+
+
+def one_owner(judges: int = 2) -> str:
+    """What a payment's comment says when the judges of its quorum share an owner and the build that is live counted
+    each of them (knos_pay 2.1 counts markers; 2.2 counts owners, and would have moved nothing)."""
+    n = _COUNT.get(int(judges), str(int(judges)))
+    return f"{n} judges, one owner: counted as {n} by the build that is live; the next build counts one"
+
 
 def code_of(why: BaseException) -> int | None:
     """The HTTP status of a failed request: urllib's `code`, or the number in a message like "HTTP 403 for ..." that a
@@ -112,6 +172,7 @@ REFUSALS: dict[str, tuple[str, str]] = {
     "rerun.insufficient-evidence": ("This run could not decide (insufficient evidence).", "Run the workflow again; nothing is paid or held against you."),
     # an appeal (knos.appeal)
     "appeal.nothing": ("An accepted verdict leaves nothing to appeal.", "Read `/knos status` for when the money moves."),
+    "appeal.unjudged": ("No verdict on this pull request is on record yet.", "Comment it again once the pull request is settled."),
     "appeal.not-supplier": ("Only the account that did the work can appeal.", "Ask the pull request's author to comment it."),
     "appeal.no-reason": ("The appeal gives no reason.", "Comment `/knos appeal <reason>` with one sentence."),
     "appeal.open": ("An appeal of this verdict is open already.", "Wait for the neutral judge's run to end."),

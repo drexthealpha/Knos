@@ -10,6 +10,9 @@ export type Connection = string | {
   names?: Record<string, string>;
   /** Unix time to judge deadlines by; the default is the chain's own clock. */
   now?: number;
+  /** What knos_pay answers to its Version instruction (2 from knos_pay 2.2 on, which charges the 0.3.18 fee: 0.30%, at least 0.05; 1 or 0
+   *  before, which charge the 0.3.14 fee). It decides the fee shown for a job; an order holds its own. Default: the 0.3.18 fee. */
+  feeVersion?: number;
 };
 
 /** A repository: its GitHub id (the number `id` that GitHub's API and webhooks give), or { id, name: "owner/name" }. */

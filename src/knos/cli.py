@@ -621,7 +621,7 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
     pull request that closes the issue is merged and meets the terms shown; unpaid, it goes back to the wallet. On an
     issue of a repository that runs no Knos workflow it is a neutral work order (the fee on top), which the person
     who did the work has paid after the merge with `knos settle --neutral`."""
-    from . import commands, judge, terms
+    from . import commands, fees, judge, terms
     from .settle.v2 import pay
     from .settle.v2 import relay as second
     name, n = _issue(where)
@@ -638,7 +638,8 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
     # waits for its own run: on knos-pay 2.1 the money becomes a NEUTRAL work order, as the site's "Fund any issue"
     # makes it, and after the merge the seller's own knos-attest.yml has it paid (`knos settle --neutral`).
     installed = _file_pin(name, branch, ".github/workflows/knos.yml", "prove.yml")
-    order = installed is None and second.version(ledger, wallet) == 1
+    live = second.version(ledger, wallet)          # 1: knos_pay 2.1; 2: 2.2, whose fee is one rate (knos.fees)
+    order = installed is None and live >= 1
     if order:
         wf_repo, wf_sha = _given_pin(workflow) if workflow else _release_pin()
         if units < pay.units(pay.ORDER_MIN_AMOUNT, decimals):
@@ -666,7 +667,7 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
         seq = next((s for s in range(ORDER_SEQS) if ledger.account(pay.order_pda(scope, me, s)) is None), None)
         if seq is None:
             raise Stop(f"This wallet has already funded {where} {ORDER_SEQS} times. Use another wallet, or wait until one of those orders is paid or sent back.")
-        fee = pay.order_fee(units, decimals=decimals)
+        fee = fees.rule(live).order(units, decimals=decimals)       # what the program that is live takes on top
         need, made = units + fee, pay.order_pda(scope, me, seq)
         ix = pay.fund_order_wallet_ix(me, source, m, repo_id, n, units, wf_repo, wf_sha, raw, pay.MERGE, days * 86_400, seq,
                                       pay.opts(pay.F_NEUTRAL), token_program=program)
@@ -700,8 +701,8 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
 @_app.command()
 def bounty(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE")) -> None:
     """What is in escrow for an issue, read from Solana devnet."""
+    from . import fees
     from .settle import relay as first
-    from .settle.v2 import pay
     from .settle.v2 import relay as second
     name, n = _issue(where)
     repo_id = int(_github(f"repos/{name}")["id"])
@@ -711,8 +712,9 @@ def bounty(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE")) -> None
     if not jobs and not old:
         out.print(f"No bounty is in escrow for {where}. A maintainer funds one by commenting on the issue: /knos fund 20", markup=False)
         return
+    rule = fees.live(ledger) if jobs else fees.rule()   # a job's fee is taken when it is paid: by the build that is live (asked only when a job is there)
     for addr, j in jobs:
-        net = j.amount - pay.fee_of(j.amount)
+        net = j.amount - rule.job(j.amount)
         state = (f"open: paid when the pull request that closes it is merged and meets its terms; goes back to its funder {_when(j.deadline)}" if j.state == "open"
                  else f"held for GitHub user id {j.payee_id}, who has named no wallet yet: {_money(net, j.mint)} waits for `knos claim <address>` until {_when(j.hold_until)}")
         out.print(f"{_money(j.amount, j.mint)}  {state}  job {addr}", markup=False)
@@ -726,6 +728,7 @@ def bounty(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE")) -> None
 @_app.command()
 def due(login: str = typer.Argument(..., help="a GitHub login")) -> None:
     """Where a GitHub account is paid, what is held for it, its record, and what the first deployment still owes it."""
+    from . import fees
     from .settle import pay as pay1
     from .settle import relay as first
     from .settle.v2 import pay
@@ -736,8 +739,10 @@ def due(login: str = typer.Argument(..., help="a GitHub login")) -> None:
     bound, rep = pay.read_bind(ledger.account(pay.bind_pda(uid))), pay.read_rep(ledger.account(pay.rep_pda(uid)))
     out.print(f"{login} (GitHub user id {uid}) is paid at {bound.wallet}." if bound else
               f"{login} (GitHub user id {uid}) has named no wallet: a payment whose pull request gives no address is held for them.", markup=False)
-    for addr, j in second.held_for(ledger, uid):
-        out.print(f"{_money(j.amount - pay.fee_of(j.amount), j.mint)} is held for issue #{j.issue} of repository id {j.repo_id} until {_when(j.hold_until)}  job {addr}", markup=False)
+    held = second.held_for(ledger, uid)
+    rule = fees.live(ledger) if held else fees.rule()   # a held job's fee is taken when it is paid: by the build that is live (asked only when one is held)
+    for addr, j in held:
+        out.print(f"{_money(j.amount - rule.job(j.amount), j.mint)} is held for issue #{j.issue} of repository id {j.repo_id} until {_when(j.hold_until)}  job {addr}", markup=False)
     s = lambda n: "" if n == 1 else "s"  # noqa: E731
     if rep.paid:
         out.print(f"Its record: paid for {rep.paid} pull request{s(rep.paid)} by {rep.funders} funder{s(rep.funders)}, {_usdc(rep.total)} in all, "
@@ -1131,6 +1136,7 @@ _MODULES = (    # (the commands it adds, how); in the order they were always reg
     (("appeal",), lambda: _mod("appeal").register(_app, _HELP)),                   # knos appeal (src/knos/appeal.py)
     (("approve",), lambda: _mod("approvals").register(_app, _HELP)),               # knos approve: approval chains of a procurement object (src/knos/approvals.py)
     (("vault",), lambda: _mod("vault").register(_app, _HELP)),                     # knos vault: sealed evidence, export, retention, restore (src/knos/vault.py)
+    (("decide",), lambda: _mod("decide").register(_app, _HELP)),                   # knos decide: a provisional receipt the moment the evidence arrives (src/knos/decide.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
 _loaded: set[int] = set()
@@ -1145,7 +1151,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "approve") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "approve", "decide") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     _HELP[:] = [row for row in _HELP if row not in tail] + tail
     _arrange()
 

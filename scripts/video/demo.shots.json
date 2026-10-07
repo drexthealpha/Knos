@@ -1,14 +1,16 @@
 {
- "_about": "The shot list of the two-minute demo (docs/submission/demo_script.md): one round in eight steps on devnet. A step that ran on the staging program ids of the 0.3.14 rehearsal carries the `staging` caption; `web/upgrades.json` has the live state, read on the day. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 120`. tests/test_business_docs.py holds this file to the script.",
- "limit_seconds": 120,
+ "_about": "The shot list of the three-minute demonstration (docs/submission/demo_script.md): one story in six beats. A beat that ran on staging program ids carries the `staging` caption, and one that ran in the local simulator carries `simulator`; `web/upgrades.json` and docs/MANIFEST.md have the live state, read on the day. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 180`. tests/test_business_docs.py holds this file to the script.",
+ "limit_seconds": 180,
  "program_ids": "staging",
  "captions": {
   "first": "Built during the hackathon: everything shown. Older work is listed in docs/DISCLOSURE.md.",
+  "sample": "Sample: a made-up invoice from a made-up supplier.",
   "replay": "Replay of a run recorded earlier",
   "faster": "Recorded at N times speed",
   "offline": "The network is off",
   "money": "Solana devnet. Test USDC.",
-  "staging": "Staging program ids on Solana devnet"
+  "staging": "Staging program ids on Solana devnet",
+  "simulator": "Local simulator: not devnet"
  },
  "shots": [
   {
@@ -19,39 +21,37 @@
    "faster": false,
    "captions": [
     "first",
-    "money"
+    "sample"
    ],
-   "shows": "the number; a public pull request from the measured sample with its claim, merged state and failed check; the funding comment and the order's budget and terms"
+   "shows": "the number; the site's first screen with the sample invoice of seven lines, checked: two lines agree and five are exceptions, each with its reason"
   },
   {
    "moment": "two",
    "start": "0:20",
-   "end": "0:35",
+   "end": "0:45",
+   "kind": "live",
+   "faster": false,
+   "captions": [
+    "money"
+   ],
+   "shows": "the issue that is the deliverable; the buyer's funding comment; the order with its price, its acceptance terms and their hash; the supplier who takes it"
+  },
+  {
+   "moment": "three",
+   "start": "0:45",
+   "end": "1:25",
    "kind": "replay",
    "faster": true,
    "captions": [
     "replay",
     "faster"
    ],
-   "shows": "a pull request with a correct fix and the regression test it adds; the pinned workflow run starting"
-  },
-  {
-   "moment": "three",
-   "start": "0:35",
-   "end": "0:50",
-   "kind": "replay",
-   "faster": true,
-   "captions": [
-    "replay",
-    "faster",
-    "money"
-   ],
-   "shows": "the verdict accepted; the record with the terms as funded; the paying transaction and the supplier's balance"
+   "shows": "a pull request that edits the existing test and leaves the bug; plain CI green; the judge's refusal word for word with its code; the order's balance unchanged"
   },
   {
    "moment": "four",
-   "start": "0:50",
-   "end": "1:05",
+   "start": "1:25",
+   "end": "1:55",
    "kind": "replay",
    "faster": true,
    "captions": [
@@ -59,45 +59,30 @@
     "faster",
     "money"
    ],
-   "shows": "a submission that changes what the checks see is rejected with the reason; the order's balance unchanged"
+   "shows": "a pull request with the fix and a regression test in a new file; the verdict accepted; the paying transaction and the supplier's balance; the deliverable, evaluation, invoice line and settlement with their ids"
   },
   {
    "moment": "five",
-   "start": "1:05",
-   "end": "1:20",
+   "start": "1:55",
+   "end": "2:25",
    "kind": "live",
    "faster": false,
    "captions": [
-    "money"
+    "money",
+    "simulator"
    ],
-   "shows": "the same proof sent again and refused by the program; the repeated evidence listed as a duplicate in the ledger"
+   "shows": "the token that paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate; an order that asks for two judges paying nothing for one judge or for two runs started by one account"
   },
   {
    "moment": "six",
-   "start": "1:20",
-   "end": "1:35",
+   "start": "2:25",
+   "end": "3:00",
    "kind": "live",
    "faster": false,
-   "captions": [],
-   "shows": "buyer and supplier each rebuilding the same statement from their own ledger, with the same digest"
-  },
-  {
-   "moment": "seven",
-   "start": "1:35",
-   "end": "1:50",
-   "kind": "live",
-   "faster": false,
-   "captions": [],
-   "shows": "the finance view: agreed lines approved and exported; one disputed line shown as an exception and left out"
-  },
-  {
-   "moment": "eight",
-   "start": "1:50",
-   "end": "2:00",
-   "kind": "live",
-   "faster": false,
-   "captions": [],
-   "shows": "the Numbers page, the rows for accounts that are not Knos's; the front door where an invoice is pasted"
+   "captions": [
+    "offline"
+   ],
+   "shows": "buyer and supplier each rebuilding the same statement with the same digest; a third machine with the network off verifying the receipt file; the front door"
   }
  ]
 }

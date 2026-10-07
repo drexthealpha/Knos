@@ -1,23 +1,34 @@
 # Reproduce Knos yourself
 
-**Nobody outside has done this yet.** No capability in [capabilities.json](capabilities.json) is `reproduced`, and
-[`reproductions/`](../reproductions) is empty. This page is how the first one gets there without anyone taking the
-maintainer's word, or yours.
+**Nobody outside has done this yet.** Outside reproductions: 0, which is the number of signed reports
+[`reproductions/`](../reproductions) holds. No capability in [capabilities.json](capabilities.json) is `reproduced`.
+This page is how the first one gets there without anyone taking the maintainer's word, or yours.
 
 ## Two clicks and one button
 
-Signed by GitHub, in a repository of your own, with nothing installed (this is the one that counts):
+Three lines, with nothing installed, no key, no wallet and no money (no fork? [**Use this template**](https://github.com/new?template_owner=drexthealpha&template_name=knos-task&name=knos-reproduce&visibility=public&owner=@me)
+instead, below):
 
-1. Open [**Use this template**](https://github.com/new?template_owner=drexthealpha&template_name=knos-task&name=knos-reproduce&visibility=public&owner=@me)
-   and press **Create repository**. The template is [drexthealpha/knos-task](https://github.com/drexthealpha/knos-task);
-   it already holds [`knos-reproduce.yml`](../examples/knos-reproduce.yml), and a repository made from a template has
-   Actions on (a fork does not).
-2. In your new repository open **Actions**, choose **knos reproduce** and press **Run workflow**.
+1. [Fork drexthealpha/Knos](https://github.com/drexthealpha/Knos/fork) and, in the fork, open **Actions** and enable
+   workflows (a fork has them off until its owner says so).
+2. Choose **knos reproduce** and press **Run workflow**. That is the one button.
+3. When the second run, **knos reproduction, to send**, is green, open the link on its page and press **Create pull
+   request**.
 
-Then download the run's artifact `knos-reproduction` and send the file in it (below).
+What the button does. The first run installs the released knos, runs `knos reproduce` against public things only and
+has GitHub sign the report (below). The second,
+[`knos-reproduction-send.yml`](../.github/workflows/knos-reproduction-send.yml), starts by itself when the first ends:
+it puts the signed file on a branch `reproduction-<run id>` of your fork as `reproductions/<owner>-<repo>-<run id>.json`,
+that file and nothing else, and prints a link that opens the pull request to drexthealpha/Knos with its title and text
+filled in. The last press is yours because it has to be: a workflow's token is good for the repository the workflow is
+in and for no other ([GitHub's documentation](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication)),
+so a run in your fork cannot open a pull request here. The link is GitHub's own form
+([query parameters](https://docs.github.com/en/pull-requests/reference/using-query-parameters-to-create-a-pull-request)).
 
-The same workflow runs anywhere else: in a fork of [drexthealpha/Knos](https://github.com/drexthealpha/Knos) once you
-enable Actions there, or copied to `.github/workflows/` of any repository of yours.
+Without a fork: the template makes a repository of your own that already holds
+[`knos-reproduce.yml`](../examples/knos-reproduce.yml) and has Actions on. Press **Create repository**, then
+**Actions**, **knos reproduce**, **Run workflow**. A repository made from a template is no fork, so no pull request can
+come from it: download the run's artifact `knos-reproduction` and send the file in it ("How to send it").
 
 ## From a terminal
 
@@ -31,8 +42,9 @@ It needs no secret, no wallet and no money, and it writes nothing to your reposi
 
 ## What each check proves
 
-`knos reproduce` runs a fixed list against public things only: Solana devnet, GitHub's published keys, the public
-upgrade feed, and one public pull request. Each check ends `pass`, `fail` or `skipped` (it could not be asked from
+`knos reproduce` runs a fixed list against public things only: Solana devnet at the PUBLIC program ids, GitHub's
+published keys, the public upgrade feed, the public record (`docs/provenance.json`, `docs/capabilities.json`, the
+statement the site publishes and its evidence) and one public pull request. It reads; it sends no transaction. Each check ends `pass`, `fail` or `skipped` (it could not be asked from
 there); only `pass` counts for anything.
 
 | check | what it does | what a pass proves | capabilities |
@@ -41,6 +53,9 @@ there); only `pass` counts for anything.
 | `programs` | Hashes the bytes devnet runs at each pinned program id, reads the upgrade multisig and its proposals from the chain, and holds both against the [upgrade feed](https://drexthealpha.github.io/Knos/upgrades.json) the release names. A pending upgrade passes when the buffer waiting on chain hashes to the build the feed names and the chain gives its execution time; an executed one when the program runs that build. | The programs are upgradeable only through a multisig with a public 48-hour delay, and what is announced is what is waiting or running. The live state is the feed, so this holds before and after an upgrade executes. | `upgrade_delay`, `upgrade_feed` |
 | `simulator` | From a source checkout only: runs `tests/test_double_pay.py` and the random state machine `tests/test_invariants_machine.py` at its default budget on the local simulator. | No token pays twice and the stated money invariants hold over random sequences, on the committed program builds. | `single_use_tokens`, `invariants_state_machine` |
 | `claim` | Runs `knos check` on one named, merged public pull request (SciML/SciMLBase.jl#1574) and compares the verdict with the one recorded in [agent_pr_ci.json](agent_pr_ci.json). | The free claim check gives the recorded answer from GitHub's own record: the description says tests pass, and a check failed at the head commit. | `check` |
+| `provenance` | Hashes the bytes devnet runs at each pinned program id and holds each to [provenance.json](provenance.json): the build it read there, or the one this release proposes (`next`). A program that runs a build newer than the record passes only when the upgrade feed names that build. | The deployed programs are the builds the record ties to a commit and a verified-build run ([PROVENANCE.md](PROVENANCE.md)). | `provenance_chain` |
+| `payments` | Takes up to three payments [capabilities.json](capabilities.json) records at the PUBLIC program ids (`order_pay`, then `order_quorum` and `x402_knos_order`) and verifies each as `payment` does: the transaction, the token inside it, GitHub's signature, the audience, the terms hash. Skipped, and said, while the manifest records none: it records none today. | The payments Knos says it made at the public ids were made on a GitHub-signed token for that order. | `order_pay` |
+| `statement` | Fetches the [statement the site publishes](https://drexthealpha.github.io/Knos/statement_sample.json) and makes it again from its evidence (`knos statement verify` does the same). The site's statement names its evidence by sha256 and does not carry it, so the evidence is taken from the same statement as the repository keeps it (`tests/data/statement/sept.json`), which is made again too. | The published statement is what its evidence gives: every line, total and hash. It is a sample: its buyer and supplier are made up. | `statements` |
 | `own_repo` | Only with `--own-repo OWNER/NAME` and `GH_TOKEN`: one funded round in a repository of yours that has Knos installed ([INSTALL.md](INSTALL.md)): an issue funded by comment from the faucet Balance, a pull request, the merge, the payment. It opens and merges a pull request there, so it never runs unasked. | The whole flow works for someone who is not the maintainer, on test USDC. | `fund_by_comment`, `pay_on_merge` |
 
 The payment in `payment` was made by the 0.3.14 release rehearsal on its own devnet deployment of the 2.1 build, which
@@ -77,14 +92,19 @@ not built.
 
 ## How to send it
 
-Open a pull request to drexthealpha/Knos that adds the file as `reproductions/<owner>-<repo>-<run id>.json` and
-nothing else. The run's page prints the text to use; the template is
-[`reproduction.md`](../.github/PULL_REQUEST_TEMPLATE/reproduction.md) (append `?template=reproduction.md` to the
-pull request's URL). The result of the check is on the pull request's checks, with its reasons on the run's page; a
-pull request from a fork is given a read-only token, so it is not a comment.
+From a fork there is nothing to do by hand: the second run prepared the pull request, and its page holds the link.
 
-A check that failed is a bug, not a reproduction: open an issue and attach `report.json`. The last question in the
-template, what was awkward or broken on the way, is the part nobody inside can answer.
+From any other repository: open a pull request to drexthealpha/Knos that adds the file as
+`reproductions/<owner>-<repo>-<run id>.json` and nothing else. The run's page prints the text to use; the template is
+[`reproduction.md`](../.github/PULL_REQUEST_TEMPLATE/reproduction.md) (append `?template=reproduction.md` to the
+pull request's URL).
+
+Either way the result of the check is on the pull request's checks, with its reasons on the run's page; a pull request
+from a fork is given a read-only token, so it is not a comment.
+
+A check that failed is a bug, not a reproduction: open an issue and attach `report.json`; the second run says so in
+place of the link. The last question in the pull request's text, what was awkward or broken on the way, is the part
+nobody inside can answer.
 
 ## How long it takes
 
@@ -95,6 +115,7 @@ Measured on 5 October 2026 (two runs of `payment` and `programs`, one of `simula
 | `payment` | 3.5 s and 5.0 s |
 | `programs` | 4.7 s and 7.8 s |
 | `simulator` (source checkout, 8 tests) | 11.8 s |
+| `provenance`, `payments`, `statement` | not measured: new in this release, and no cluster could be reached from where they were written |
 | `claim` | not measured: GitHub's API could not be reached from where this was written |
 | `own_repo` | not measured |
 | the whole workflow in a fork | not measured: nobody has run it yet |

@@ -92,6 +92,7 @@ fn an_order_knos_pay_wrote_reads_as_the_python_client_reads_it() {
     assert_eq!((o.reserved_by, o.payee_id, o.funder_id, o.owner_id, o.arbiter_id, o.judge_repo_id, o.fee_bps as u64),
                (n(&w["reserved_by"]), n(&w["payee_id"]), n(&w["funder_id"]), n(&w["owner_id"]), n(&w["arbiter_id"]), n(&w["judge_repo_id"]), n(&w["fee_bps"])));
     assert_eq!((o.source, o.refund_to, o.rent_to, o.mint), (key(&w["source"]), key(&w["refund_to"]), key(&w["rent_to"]), key(&w["mint"])));
+    assert_eq!((o.inc, o.grace), (n(&w["inc"]), w["grace"].as_bool().unwrap()));
     assert_eq!((o.scope.to_vec(), o.terms.to_vec(), o.wf_repo.to_vec()), (unhex(&w["scope"]), unhex(&w["terms"]), unhex(&w["wf_repo_hash"])));
     assert_eq!(core::str::from_utf8(&o.wf_sha).unwrap(), w["wf_sha"].as_str().unwrap());
     // what the funder asked for is what the order says, and the fee is the one this crate computes

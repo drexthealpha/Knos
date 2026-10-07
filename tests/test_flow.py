@@ -1884,6 +1884,7 @@ def test_an_appeal_with_no_rejection_on_record_opens_nothing_and_says_so(tmp_pat
     run = w.run(w.hub.commented(12, DEVIN, "/knos appeal the regression test I added passes"))
     assert flow.command(run) == 0 and run.outputs == {}
     said = w.hub.knos(12)[-1]
-    assert said.startswith("Knos: no appeal was opened.") and said.endswith("(`appeal.nothing`)")
+    assert said.startswith("Knos: no appeal was opened.") and said.endswith("(`appeal.unjudged`)")
+    assert "accepted" not in said        # nothing on record is not an accepted verdict (what knos-playground#4 was told)
     run = w.run(w.hub.commented(12, DEVIN, "/knos appeal"))
     assert flow.command(run) == 0 and "say why after it" in w.hub.knos(12)[-1]

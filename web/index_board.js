@@ -7,6 +7,8 @@
 //   boardOf(weekly, week)                                   the rows: the same counts scripts/agent_pr_board.py `board` gives
 //   agentBadgeSvg(row, week)                                one agent's row as a small badge, an SVG string
 //   disputeUrl(agent, week)                                 a new "Dispute a row" issue with the agent and the week filled in
+//   renderBoardStrip(el, { weekly | feed, rows, href })     the top rows as bars with whiskers, for a first screen (web/board_strip.js)
+// Every row of the board names its agent as a link to that agent's public record (#record=<slug>, web/supplier_record.js).
 //
 // A row: of an agent's merged pull requests that claimed passing tests and whose checks had finished, how many had a
 // failed check, over every week read up to and including the one shown. The share is a bar from 0; its 95% Wilson
@@ -21,6 +23,7 @@ const pct = (x) => `${(x * 100).toFixed(1)}%`;
 const num = (n) => Number(n).toLocaleString("en-US");
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
 export const TOO_FEW = "too few to rank";
+const slugOf = (agent) => String(agent).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 export const ISSUES = "https://github.com/drexthealpha/Knos/issues";
 export const TEMPLATE = "dispute-index-row.yml";
 export const FEED_SCHEMA = "knos.agent-pr-index/1";
@@ -99,7 +102,7 @@ function rowHtml(r, week, least) {
   const place = r.rank != null ? `<strong class="ib-place k-num">${esc(r.rank)}</strong>${r.overlaps_above ? ` <span class="ib-none ib-overlap" title="Its interval reaches into the one above">overlaps</span>` : ""}`
     : `<span class="ib-none ib-unranked"${r.status === TOO_FEW ? ` title="Fewer than ${esc(least)} merged claims read"` : ""}>${esc(r.status)}</span>`;
   const marks = r.disputed.map((d) => ` <a class="ib-disputed" href="${esc(d.issue)}" target="_blank" rel="noopener">† disputed</a>`).join("");
-  return `<tr data-agent="${esc(r.agent)}" data-placed="${r.rank != null}" data-disputed="${r.disputed.length > 0}"><td>${place}</td><th scope="row">${esc(r.agent)}${marks}</th>
+  return `<tr data-agent="${esc(r.agent)}" data-placed="${r.rank != null}" data-disputed="${r.disputed.length > 0}"><td>${place}</td><th scope="row"><a class="ib-record" href="#record=${esc(slugOf(r.agent))}">${esc(r.agent)}</a>${marks}</th>
     <td class="ib-head">${rateCell(r)}</td>
     <td class="ib-n k-num">${esc(num(r.claimed_passing))}</td>
     <td class="ib-act"><a class="ib-dispute" href="${esc(disputeUrl(r.agent, week))}" target="_blank" rel="noopener">Dispute this row</a>
@@ -135,6 +138,7 @@ const STYLE = `<style>
 .index-board .ib-svg{display:block;max-width:100%;overflow-x:auto;margin:6px 0}
 .index-board .ib-svg svg{display:block;max-width:none}
 .index-board tbody th{white-space:nowrap}
+.index-board .ib-record{font-weight:600;font-size:1.05em}
 .index-board .ib-notes{margin:8px 0 0;padding-left:1.2em}
 </style>`;
 
@@ -189,3 +193,13 @@ export function renderIndexBoard(el, weekly, opts) {
   }
   return el;
 }
+
+// ---- the strip: the board's top rows, small enough for a first screen ---------------------------------------------------
+// It lives in web/board_strip.js, a file of its own, so the first screen asks for the strip and not for this whole
+// board. Here the same three functions also take the weekly series (ctx.weekly), which they turn into the board first.
+import * as strip from "./board_strip.js";
+export { STRIP_WORDS, stripWords } from "./board_strip.js";
+const boarded = (ctx = {}) => (ctx.weekly && !(ctx.feed && ctx.feed.schema === FEED_SCHEMA) && weeksOf(ctx.weekly).length ? { ...ctx, board: boardOf(ctx.weekly, weeksOf(ctx.weekly)[0]) } : ctx);
+export const stripRows = (ctx) => strip.stripRows(boarded(ctx));
+export const boardStripHtml = (ctx) => strip.boardStripHtml(boarded(ctx));
+export const renderBoardStrip = (el, ctx) => strip.renderBoardStrip(el, boarded(ctx));

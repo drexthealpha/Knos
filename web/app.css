@@ -145,7 +145,7 @@ button.ghost { background: transparent; color: var(--fg); border-color: var(--li
 button.ghost:hover { background: var(--soft); filter: none; }
 button.small { padding: 6px 12px; min-height: 36px; font-size: var(--s0); margin: 2px 4px 2px 0; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-form button[type="submit"] { margin-top: 16px; width: 100%; }
+form button[type="submit"] { margin-top: 16px; min-width: 9em; }
 button.wide { margin-top: 10px; width: 100%; }
 a.button { display: inline-flex; align-items: center; margin: 8px 8px 0 0; overflow-wrap: anywhere; }
 a.button.quiet { background: transparent; color: var(--fg); border-color: var(--line); }
@@ -678,3 +678,28 @@ details.k-fold > summary:has(> :is(h3, h4)) { font-size: var(--s1); font-weight:
 .mount > .k-skeleton, .view > .k-skeleton { margin: var(--sp-6) 0; }
 /* the cue is an arrow alone: a target a thumb can hit */
 .hero-cue { padding: 10px 16px; } .hero-cue::after { width: 9px; height: 9px; }
+
+/* 0.3.18: the first screen: a smaller headline, and the week's leaderboard under the box (#hero-board keeps its height from the first paint). */
+.hero h1 { font-size: clamp(30px, 4.3vw, 56px); line-height: 1.04; margin: 0 0 16px; max-width: 13em; }
+.hero .hero-fact { font-size: var(--s1); margin: 0 0 20px; }
+@media (min-width: 900px) { .hero .hero-fact { font-size: var(--s2); } .hero { padding: 40px 0 44px; } }
+.fd .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.fd .actions .k-btn, form.fd button[type="submit"] { flex: 0 0 auto; width: auto; min-width: 9em; margin-top: 0; }
+.hero-board { margin: 24px 0 0; padding: 14px 16px; min-height: 152px; max-width: 620px; border: 1px solid var(--line); border-radius: var(--radius); background: color-mix(in srgb, var(--paper-2) 78%, transparent); }
+.hero-board[hidden] { display: none; }
+.hero-board .board-strip, .hero-board ol { display: grid; gap: 8px; min-width: 0; list-style: none; margin: 0; padding: 0; } .hero-board .bs-head { margin: 0; min-height: 1.5em; }
+.hero-board li { display: grid; grid-template-columns: 6.5em minmax(60px, 1fr) 5.5em; gap: 10px; align-items: center; min-height: 22px; }
+.bs-sk { display: block; height: 10px; border-radius: 5px; background: var(--line); }
+
+.cap-links { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin: 0 0 20px; } .cap-links .k-btn { margin: 0; }
+
+/* 0.3.18: one look for every fold, button, caption; one primary action a step. */
+main details:not(.k-more, .hero-upgrades) > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; padding: 8px 0 6px; font-size: var(--s0); font-weight: 500; color: var(--ink-2); border-radius: 6px; cursor: pointer; }
+main details:not(.k-more, .hero-upgrades) > summary::-webkit-details-marker { display: none; }
+main details:not(.k-more, .hero-upgrades) > summary::before { content: ""; flex: none; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: -45deg; transition: rotate var(--dur-1) var(--ease); }
+main details:not(.k-more, .hero-upgrades)[open] > summary::before { rotate: 45deg; }
+main table caption { text-align: left; caption-side: top; padding: 0 0 8px; color: var(--ink-2); font-size: var(--s0); }
+#keyholder .k-step:not([data-state="live"]) .k-btn:not(.quiet), #keyholder .k-step:not([data-state="live"]) button:not(.quiet):not(.ghost):not(.copy) { background: color-mix(in srgb, var(--paper-2) 70%, transparent); color: var(--ink); border-color: var(--line); }
+label.k-btn { margin: 0; vertical-align: middle; }
+.terms-act { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; } .terms-act .k-btn { margin: 0; }
+@media (prefers-reduced-motion: reduce) { main details > summary::before { transition: none; } }

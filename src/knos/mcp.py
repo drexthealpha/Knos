@@ -301,6 +301,7 @@ class Server:
         `bind(address, ledger)` binds a payout address, `scopes(token)` reads a classic token's scopes: tests give
         them; otherwise knos.agentkey.send, _local_check, _bind_with_gh and knos.agentkey.scopes_of."""
         self._ledger = ledger
+        self._rule = None              # the fee rule of the build the cluster runs (knos.fees), asked on first use
         self._get = github or _github
         self._post_to, self._run, self._bind, self._scopes = post, run or _local_check, bind or _bind_with_gh, scopes
         self._names: dict[int, str] = {}   # repository id -> owner/name, for as long as the server runs
@@ -424,6 +425,14 @@ class Server:
         except Exception as why:  # noqa: BLE001 - RPC errors, timeouts, a refused cluster
             raise Failed(f"Solana {_cluster()} did not answer: {_line(why)}.") from None
 
+    def _fee(self, amount: int) -> int:
+        """The fee of a job of the second deployment, by the rule of the build the cluster runs now (knos.fees): the
+        0.3.14 fee until knos_pay 2.2 is live, the 0.3.18 fee after. Asked once for each server."""
+        if self._rule is None:
+            from . import fees
+            self._rule = self._chain(fees.live)
+        return self._rule.job(amount)
+
     def _row(self, address, job, repo: str | None) -> dict:
         """A job of the first deployment."""
         from .settle import pay
@@ -436,12 +445,11 @@ class Server:
     def _row2(self, address, job, repo: str | None) -> dict:
         """A job of the second deployment. Its money is named: a job can be funded in any mint, and only the devnet
         faucet's and Circle's devnet USDC are "test USDC" (amount_usdc is null for any other)."""
-        from .settle.v2 import pay
         usdc = _is_usdc(job.mint)
         return {"repo": repo, "issue": job.issue,
                 "url": f"https://github.com/{repo}/issues/{job.issue}" if repo else None,
                 "amount_usdc": _usdc(job.amount) if usdc else None,
-                "net_usdc": _usdc(job.amount - pay.fee_of(job.amount)) if usdc else None,
+                "net_usdc": _usdc(job.amount - self._fee(job.amount)) if usdc else None,
                 "paid_when": PAID_WHEN.get(job.mode, "unknown"), "refunded_after": _iso(job.deadline),
                 "job": str(address), "deployment": 2, "money": _money(job.mint), "amount_units": job.amount,
                 "funded_from": "a balance, by a comment" if job.from_balance else "a wallet"}
@@ -749,7 +757,7 @@ class Server:
         if page and (page.get("state") == "closed" or "pull_request" in page):
             missing.append("that is a closed issue" if page.get("state") == "closed" else "that is a pull request, and a bounty goes on an issue")
         can = self._verdict(missing, unread)
-        fee = pay.fee_of(got.units)
+        fee = self._fee(got.units)
         url = f"https://github.com/{repo}/issues/{n}"
         return {"issue": f"{repo}#{n}", "post": self._post(comment, url, "a maintainer: someone who can write to the repository"), "sent": False,
                 "can": can, "missing": missing, "unread": unread, "amount_usdc": _usdc(got.units), "fee_usdc": _usdc(fee), "author_receives_usdc": _usdc(got.units - fee),
@@ -814,11 +822,10 @@ class Server:
 
     def _work_row(self, addr, w, is_order: bool, repo: str | None, now: int) -> dict:
         from . import terms
-        from .settle.v2 import pay
         parsed = self._order_terms(addr, w) if is_order else self._parsed(addr, w)
         auto = is_order and _auto(w, parsed)
         mode = "auto" if auto else "tests" if w.mode == 1 else "merge"
-        net, usdc = (w.amount if is_order else w.amount - pay.fee_of(w.amount)), _is_usdc(w.mint)      # an order's fee is escrowed on top
+        net, usdc = (w.amount if is_order else w.amount - self._fee(w.amount)), _is_usdc(w.mint)      # an order's fee is escrowed on top
         held = is_order and w.reserved_by and w.reserved_until > now
         return {"repo": repo, "issue": w.issue, "url": f"https://github.com/{repo}/issues/{w.issue}" if repo else None,
                 "kind": "work order" if is_order else "bounty", "address": str(addr), "you_receive_usdc": _usdc(net) if usdc else None,
@@ -1020,7 +1027,7 @@ class Server:
                     bind = {"sent": False, "why": str(why)}
         asking = [True]
         held = [{"repo": self._name(w.repo_id, asking), "repo_id": w.repo_id, "issue": w.issue, "kind": "work order" if o else "bounty",
-                 "net_units": w.amount if o else w.amount - pay.fee_of(w.amount), "money": _money(w.mint), "held_until": _iso(w.hold_until), "address": str(a)}
+                 "net_units": w.amount if o else w.amount - self._fee(w.amount), "money": _money(w.mint), "held_until": _iso(w.hold_until), "address": str(a)}
                 for a, w, o in [(a, j, False) for a, j in jobs] + [(a, x, True) for a, x in orders]]
         wallet = str(bound.wallet) if bound else None
         s = "" if len(held) == 1 else "s"
@@ -1054,7 +1061,6 @@ class Server:
     def _quote(self, args: dict) -> dict:
         from . import terms
         from .settle import pay as pay1
-        from .settle.v2 import pay
         repo, n = self._issue_of(args, "knos_quote")
         _info, jobs, old, now = self._on(repo, n)
         page, about = self._issue_page(repo, n), {"assigned": None, "untrusted": {"title": None, "labels": None}}
@@ -1082,7 +1088,7 @@ class Server:
             elif not _is_usdc(j.mint):
                 missing.append(f"{who} is not test USDC")
             else:
-                total, net = total + j.amount, net + j.amount - pay.fee_of(j.amount)
+                total, net = total + j.amount, net + j.amount - self._fee(j.amount)
         for addr, j in sorted(old, key=lambda x: -x[1].amount):
             rows.append({**self._row(addr, j, repo), "state": j.state, "mode": "merge" if j.mode == 0 else "tests"})
             if j.state == "open" and j.deadline > now:
@@ -1196,7 +1202,7 @@ class Server:
         rep1 = pay1.read_rep(self._chain(lambda ledger: ledger.account(pay1.rep_pda(user_id))))
         asking, waits = [True], []
         for addr, j in held:
-            usdc, net = _is_usdc(j.mint), j.amount - pay.fee_of(j.amount)
+            usdc, net = _is_usdc(j.mint), j.amount - self._fee(j.amount)
             repo = self._name(j.repo_id, asking)
             waits.append({"repo": repo, "repo_id": j.repo_id, "issue": j.issue, "net_usdc": _usdc(net) if usdc else None,
                           "money": _money(j.mint), "net_units": net, "held_until": _iso(j.hold_until), "job": str(addr)})

@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from solders.pubkey import Pubkey  # noqa: E402
 
-from knos import commands, terms as T  # noqa: E402
+from knos import commands, fees, terms as T  # noqa: E402
 from knos.settle.v2 import pay as P  # noqa: E402
 
 RECORDED = ROOT / "tests" / "web" / "recorded" / "fund_any_issue.json"
@@ -87,7 +87,8 @@ def recorded() -> dict:
             "order": {"args": {"funder": str(funder), "funderToken": str(funder_token), "mint": str(USDC), "repoId": REPO_ID, "issue": ISSUE, "amount": AMOUNT, "wfRepo": WF_REPO,
                                "wfSha": WF_SHA, "terms": terms.decode("ascii"), "mode": P.MERGE, "workS": WORK_S, "options": options.hex()},
                      "scope": P.scope_of(REPO_ID, ISSUE).hex(), "orders": orders, "ix": ixs,
-                     "fee": P.order_fee(AMOUNT), "terms_checks": ["test"], "terms_paths": ["src/**"], "terms_sha256": hashlib.sha256(terms).hexdigest(),
+                     "fee": fees.OLD.order(AMOUNT),      # what the public program (knos_pay 2.1) takes on this order: the page is tested against that build
+                     "terms_checks": ["test"], "terms_paths": ["src/**"], "terms_sha256": hashlib.sha256(terms).hexdigest(),
                      "describe": T.describe(T.parse(terms), "funder")}}
 
 

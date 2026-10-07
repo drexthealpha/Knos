@@ -148,6 +148,7 @@ def bind(address: str, wait: float = 600, gh: Callable[..., str] = _gh, ledger=N
     """Names `address` as where the logged-in GitHub account is paid (the second deployment's Bind), and says what
     became of it. Returns {"login", "repo", "created", "bound": bool, "said": the relayer's words, or None}. Raises
     Cannot with the reason."""
+    from . import fees
     from .commands import address_ok
     from .settle.v2 import pay, relay
     if not address_ok(address or ""):
@@ -164,7 +165,8 @@ def bind(address: str, wait: float = 600, gh: Callable[..., str] = _gh, ledger=N
         say(f"{login} (GitHub user id {uid}) is already paid at {address}. Nothing to do.")
         return {"login": login, "repo": repo, "created": False, "bound": True, "said": None}
     if held:
-        net = sum(j.amount - pay.fee_of(j.amount) for _a, j in held)
+        rule = fees.live(ledger)        # a held payment's fee is taken when it is sent: by the knos_pay build that is live
+        net = sum(j.amount - rule.job(j.amount) for _a, j in held)
         say(f"{len(held)} payment{'s' if len(held) != 1 else ''}, {net / 1_000_000:,.2f} in all, {'are' if len(held) != 1 else 'is'} held for {login} "
             f"and will be sent to {address}.")
     created = _repository(gh, repo, say, sleep)
@@ -189,6 +191,7 @@ def bind_org(org: str, address: str, wait: float = 600, gh: Callable[..., str] =
     """Names `address` as where the ORGANISATION `org` is paid (knos_pay's BindOrg), started by the logged-in member,
     and says what became of it. Returns {"login" (the member), "org", "org_id", "repo", "created", "bound": bool,
     "said": the relayer's words, or None}. Raises Cannot with the reason."""
+    from . import fees
     from .commands import address_ok
     from .settle.v2 import pay, relay
     if not address_ok(address or ""):
@@ -213,7 +216,8 @@ def bind_org(org: str, address: str, wait: float = 600, gh: Callable[..., str] =
         say(f"{name} (GitHub organisation id {oid}) is already paid at {address}. Nothing to do.")
         return {**out, "bound": True}
     if held:
-        net = sum(j.amount - pay.fee_of(j.amount) for _a, j in held)
+        rule = fees.live(ledger)        # a held payment's fee is taken when it is sent: by the knos_pay build that is live
+        net = sum(j.amount - rule.job(j.amount) for _a, j in held)
         say(f"{len(held)} payment{'s' if len(held) != 1 else ''}, {net / 1_000_000:,.2f} in all, {'are' if len(held) != 1 else 'is'} held for {name} "
             f"and will be sent to {address}.")
     try:

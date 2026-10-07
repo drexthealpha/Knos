@@ -611,8 +611,10 @@ def test_the_committed_weekly_file_is_the_committed_sample_cut_by_week_and_the_p
     assert sum(c for was in PUBLISHED_0315.values() for _, c, *_ in was.values()) == 467      # the capped sample of 467
     assert set(series["designs"]) >= {w["design"] for a in series["agents"].values() for w in a["weeks"]} | {agent_pr_index.DESIGN}
     devin = next(w for w in series["agents"]["devin"]["weeks"] if w["week"] == "2026-09-28")
-    assert "Capped: true" in page and ("| not ranked: rate not recorded | devin | not recorded | 140 | 120 | 70 of 109 (64.2%;" in page
-                                       if devin["design"] == "newest-first-capped-v0" else "| capped: drew " in page)
+    if devin["design"] == "newest-first-capped-v0":
+        assert "Capped: true" in page and "| not ranked: rate not recorded | devin | not recorded | 140 | 120 | 70 of 109 (64.2%;" in page
+    else:   # the page says what the week's reading says: capped, with what was drawn, or read whole
+        assert (f"Capped: {'true' if devin['capped'] else 'false'}." in page) and (("| capped: drew " in page) == bool(devin["capped"]))
     again = tmp_path / "again.json"
     again.write_text(json.dumps(series), encoding="utf-8")                   # the format is the script's: restating the file changes nothing
     assert subprocess.run([sys.executable, str(ROOT / "scripts" / "agent_pr_index.py"), "weekly", "--sample", "docs/agent_pr_ci.json", "--restate", str(again)],

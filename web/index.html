@@ -45,6 +45,7 @@
       <div class="more-list" id="more-list">
         <a href="#story" data-mount="story" hidden>Story</a>
         <a href="#supplier" data-mount="supplier" hidden>For suppliers</a>
+        <a href="#record" data-mount="record" hidden>Supplier records</a>
         <a href="#keyholder" data-mount="keyholder" hidden>Hold a key</a>
         <a href="#verifier" data-mount="verifier" hidden>Verifier</a>
         <a href="#playground" data-mount="playground" hidden>Playground</a>
@@ -76,18 +77,23 @@
 
 <main>
   <section id="view-check" class="view">
-    <!-- THE FIRST SCREEN: 40 words at most, bar included (tests/web/front_door.mjs counts them). The sentence, the
-         figure (docs/backtest.json: 30 of the 241 merged), and ONE control: a box for your own invoice or a repository's
-         name, with a sample (web/front_door.js draws the answer into #front-result, in place). The round that used to
-         lead (web/demo.js fills #demo) is below it. -->
+    <!-- THE FIRST SCREEN: 40 words of prose at most, bar included (tests/web/front_door.mjs counts them as
+         tests/web/words.mjs does). The sentence, the figure (docs/backtest.json: 30 of the 241 merged), ONE control: a box
+         for your own invoice or a repository's name, with a sample (web/front_door.js draws the answer into
+         #front-result, in place), and directly under it the week's leaderboard as a strip. The round (web/demo.js fills
+         #demo) is below it. -->
     <div class="hero k-stage">
       <div class="hero-words">
         <h1 id="check">The neutral meter for AI agent work: neither side keeps the count.</h1>
         <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: 30 had a failed check.</p>
         <form id="front-door" class="fd">
           <textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
-          <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <a href="#sample" data-fd="sample">Try a sample</a></p>
+          <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <button type="button" class="k-btn quiet" data-fd="sample">Try a sample</button></p>
         </form>
+        <!-- The weekly leaderboard, directly under the box (web/board_strip.js, from agent_index.json): asked for after
+             the first paint. Until it answers these grey bars hold its place, so nothing moves when it lands. -->
+        <div id="hero-board" class="hero-board" aria-label="Agent PR Index, this week" aria-busy="true"><div class="board-strip" aria-hidden="true"><p class="bs-head"><i class="bs-sk" style="width:12em"></i></p>
+          <ol class="bs-rows"><li><i class="bs-sk"></i><i class="bs-sk"></i><i class="bs-sk"></i></li><li><i class="bs-sk"></i><i class="bs-sk"></i><i class="bs-sk"></i></li><li><i class="bs-sk"></i><i class="bs-sk"></i><i class="bs-sk"></i></li><li><i class="bs-sk"></i><i class="bs-sk"></i><i class="bs-sk"></i></li></ol></div></div>
       </div>
       <!-- An upgrade of the programs that is waiting, said on the first screen in one line from upgrades.json (a file of
            this site, written from the multisig's accounts when the site is built): web/front.js. It sits in the hero's own
@@ -192,6 +198,7 @@
   <section id="invoice-statement" class="mount" aria-label="Statement" hidden></section>
   <section id="story" class="mount" aria-label="Story" hidden></section>
   <section id="keyholder" class="mount" aria-label="Hold a key" hidden></section>
+  <section id="record" class="mount" aria-label="Supplier record" hidden></section>
 
   <section id="view-protect" class="view" hidden>
     <h2 id="protect">Protect a repository</h2>
@@ -346,8 +353,10 @@
 <p class="fine">A task is paid when a maintainer merges a pull request that closes the issue and its funded checks
   passed at the last commit. The payment is final. <code>/knos reject</code> before merging keeps a pull request from
   the bounty. Unpaid by the deadline, the money goes back; that needs no token.</p>
-<p class="fine">Fee: paid by the funder on top of the amount, 2.5% of the first 1,000, 1% to 50,000 and 0.5%
-  above (at least 0.40 test USDC, no maximum), and only when someone is paid: a refund returns it with the amount.
+<p class="fine">Fee: 0.30% of the amount, at least 0.05 test USDC and no maximum, paid by the funder on top, once
+  knos_pay 2.2 is live; until that upgrade executes the program charges the 0.3.14 fee (2.5% of the first 1,000, 1% to
+  50,000, 0.5% above, at least 0.40 test USDC). It is charged only when someone is paid: a refund returns it with the
+  amount. Orders funded before the upgrade keep the rate fixed at their funding.
   <a href="#pricing">Pricing</a> says which fee the program on devnet applies today.</p>
 </details>
 
@@ -547,14 +556,13 @@
     <div class="k-card" id="bill"></div>
     <div class="card">
       <h3>The price book</h3>
-      <div class="table-wrap"><table id="price-book"><thead><tr><th>Line</th><th>Unit</th><th>Price</th></tr></thead><tbody>
-        <tr><th scope="row">Check</th><td>pull request or artifact checked</td><td>free, forever</td></tr>
-        <tr><th scope="row">Pilot</th><td>one buyer, two suppliers, 30 days, one reconciled invoice</td><td>2,500 USD, credited against year one (nobody has bought it; no legal entity to invoice from yet)</td></tr>
-        <tr><th scope="row">Meter</th><td>evaluation</td><td>10,000 a month free per organisation, then 0.05 USD; 0.02 on an annual commitment</td></tr>
-        <tr><th scope="row">Verify</th><td>dollar of reconciled accepted invoice value</td><td>0.5%, capped at 250 USD per deliverable (proposed; nobody has bought it)</td></tr>
-        <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000 USD; Business 80,000; Enterprise from 250,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td></tr>
-        <tr><th scope="row">Supplier connection</th><td>supplier beyond the first five, per year</td><td>5,000 USD; the buyer pays</td></tr>
-        <tr><th scope="row">Settle</th><td>dollar settled, paid by the funder on top</td><td>2.5% of the first 1,000, 1% to 50,000, 0.5% above; minimum 0.40. On devnet: test money, zero revenue</td></tr>
+      <div class="table-wrap"><table id="price-book"><thead><tr><th>Line</th><th>Unit</th><th>Price</th><th>Who pays</th><th>Where it is enforced</th></tr></thead><tbody>
+        <tr><th scope="row">Check</th><td>pull request or artifact checked</td><td>free, forever</td><td>nobody</td><td>nowhere</td></tr>
+        <tr><th scope="row">Meter</th><td>evaluation</td><td>100,000 a month free per organisation, then 0.002 USD</td><td>buyer</td><td>prepaid credits</td></tr>
+        <tr><th scope="row">Acceptance</th><td>dollar released or reconciled against a signed acceptance</td><td>0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap</td><td>funder, on top of the amount</td><td>knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)</td></tr>
+        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the hosted API</td><td>0.25 USD, or by subscription (the public record page and its file are free)</td><td>the buyer, marketplace or insurer reading it</td><td>API (not built: a static file today)</td></tr>
+        <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td><td>buyer</td><td>contract</td></tr>
+        <tr><th scope="row">Pilot</th><td>one buyer, two suppliers, 30 days, one reconciled invoice</td><td>2,500 USD, credited against year one</td><td>buyer</td><td>contract</td></tr>
       </tbody></table></div>
       <p class="fine" id="price-version">Which fee applies to a task today is read from the program:
   <span id="price-version-now">reading Solana devnet…</span></p>
@@ -562,9 +570,10 @@
 <summary>What the programs enforce</summary>
 <p class="fine" id="price-tip">Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from
   <span id="price-bounds">5 to 100,000</span> test USDC on devnet; a build for real money sets its own cap.</p>
-<p class="fine" id="price-honest">The programs enforce the Settle and Meter lines. Control is a contract price that nothing
-  on chain enforces, and so is the Pilot, invoiced off chain (<a href="#pilot">what the Pilot is</a>). Under a Plan the
-  program only lets the Settle rate be lowered, never raised.</p>
+<p class="fine" id="price-honest"><span id="price-honest-now"></span>The program enforces the Acceptance line at release: 0.30% and the floor. Volume rates
+  are a rebate by contract, off chain. Meter is charged from prepaid credits. Control and the Pilot are contract prices that
+  nothing on chain enforces (<a href="#pilot">what the Pilot is</a>). Under a Plan the program only lets the Acceptance rate
+  be lowered, never raised.</p>
 </details>
     </div>
     <div class="card" id="calc-settle">
@@ -588,22 +597,23 @@
     <div class="card" id="arithmetic">
       <h3>The fee, worked</h3>
       <details class="k-more">
-<summary>How the tiers apply</summary>
-<p>Each tier's rate applies to the part of the amount inside that tier. The funder pays the fee on top; the payee
+<summary>How the rate applies</summary>
+<p id="fee-how">One rate applies to the whole amount, and the fee is never under the floor. The funder pays the fee on top; the payee
   receives the amount in full.</p>
 </details>
       <div class="table-wrap"><table id="fee-worked"><thead><tr><th>Amount</th><th>How</th><th>Fee</th></tr></thead><tbody></tbody></table></div>
       <h3>The effective fee, before you fund</h3>
       <div class="table-wrap"><table id="fee-effective"><thead><tr><th>Order</th><th>Fee</th><th>Effective fee</th></tr></thead><tbody>
-        <tr data-amount="5"><th scope="row">5</th><td>0.40</td><td>8.00%</td></tr>
-        <tr data-amount="20"><th scope="row">20</th><td>0.50</td><td>2.50%</td></tr>
-        <tr data-amount="1000"><th scope="row">1,000</th><td>25</td><td>2.50%</td></tr>
-        <tr data-amount="5000"><th scope="row">5,000</th><td>65</td><td>1.30%</td></tr>
-        <tr data-amount="50000"><th scope="row">50,000</th><td>515</td><td>1.03%</td></tr>
+        <tr data-amount="5"><th scope="row">5</th><td>0.05</td><td>1.00%</td></tr>
+        <tr data-amount="20"><th scope="row">20</th><td>0.06</td><td>0.30%</td></tr>
+        <tr data-amount="100"><th scope="row">100</th><td>0.30</td><td>0.30%</td></tr>
+        <tr data-amount="1000"><th scope="row">1,000</th><td>3</td><td>0.30%</td></tr>
+        <tr data-amount="5000"><th scope="row">5,000</th><td>15</td><td>0.30%</td></tr>
+        <tr data-amount="100000"><th scope="row">100,000</th><td>300</td><td>0.30%</td></tr>
       </tbody></table></div>
       <details class="k-more">
 <summary>Small orders pay more</summary>
-<p id="fee-small">Knos is not cheaper on a small order: 5 test USDC pays the minimum, 0.40, which is 8.00% of it. The calculator above shows this share for any amount before you fund. On devnet the fee is test money: no real revenue.</p>
+<p id="fee-small">5 test USDC pays the floor, 0.05: 1.00% of it. On devnet the fee is test money: 0 revenue.</p>
 </details>
     </div>
   </section>

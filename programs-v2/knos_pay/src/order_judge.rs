@@ -271,7 +271,7 @@ mod tests {
         Order { state: OPEN, mode: 0, kind: 1, flags, decimals: 6, reserve_days: 0, repo, issue: 7, scope: [0; 32], seq: 0, holdback_bps: 0, kill_bps: 0,
                 fee_bps: 250, amount: 5_000_000, fee: 400_000, rate: 0, paid: 0, deadline: 100, not_before: 0, hold_until: 0, warranty_s: 0, reserved_by: 0,
                 reserved_until: 0, cancel_at: 0, payee: 0, funder_id: 555_000, owner_id: 424_242, arbiter_id, judge_repo_id, source: z, refund_to: z,
-                rent_to: z, mint: z, terms: [0xab; 32], wf_repo: [1; 32], wf_sha: [b'c'; 40] }
+                rent_to: z, mint: z, terms: [0xab; 32], wf_repo: [1; 32], wf_sha: [b'c'; 40], inc: 1, grace: false }
     }
     /// A token of the pinned workflows: `file`, run in `repo` owned by `owner`, started by `actor` on `event`.
     fn run(file: &str, repo: u64, owner: u64, actor: u64, event: &str, aud: &str) -> Gh {

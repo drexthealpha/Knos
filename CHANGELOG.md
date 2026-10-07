@@ -1,5 +1,124 @@
 # Changelog
 
+## 0.3.18 (October 2026)
+
+**Priced like a protocol: one fee on accepted value, a kit for the supplier, a commitment that binds every event,
+and the two quorum findings fixed.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) unless a line below says otherwise; nothing new was reproduced by
+anyone else. Two program builds change, `knos_oidc` and `knos_pay`: both are proposed through the multisig after
+the release, and neither is live at its public id until its proposal executes.
+
+### For a buyer and a supplier
+
+- **One fee, on value released against a signed acceptance.** Price book 3 has six lines: Check (free), Meter,
+  Acceptance, Record, Control and Pilot. Acceptance is 0.30% of the amount, at least 0.05, with no cap, paid by the
+  funder on top; it replaces the percentage on settlement and the percentage on reconciled invoice value. Value
+  released on chain pays the fee there and is never invoiced again. Lower rates above 1,000,000 and 10,000,000 a
+  month are a rebate by contract, off chain. There is no fee for connecting a supplier, and the rated party never
+  pays. These are proposed prices: nobody has paid one ([`docs/MARKET.md`](docs/MARKET.md), section 3).
+- **What a unit costs to deliver.** Each line of the price book has a direct cost, labelled measured or budget, and
+  the ceiling it may carry at a gross margin of 90% and of 95%. Three lines miss, and the page says which: a
+  release at the floor, the free evaluations, and Control at the budget. `knos bill margin` prints a month's
+  margin line by line ([`docs/UNIT_COSTS.md`](docs/UNIT_COSTS.md)).
+- **A kit for the supplier, at no cost to the supplier.** A public record for an agent or a vendor
+  (`knos record build`), a badge that always carries its sample, one `uses:` line that runs the free check on every
+  pull request and none of the pull request's code, and one page to send with an invoice
+  (`knos record receipt`), which restates an acceptance receipt and names the command that checks it with no
+  network. Knos wrote these records and nobody outside has reviewed them ([`docs/RECORD.md`](docs/RECORD.md)).
+- **Acceptance is a versioned contract.** Knos Terms 3 is one document of ten fields, cited by the sha256 of its
+  canonical bytes; an order's terms hash names one version and no other, and `knos terms diff` says what changed
+  between two versions by meaning. `knos terms propose <owner/repo>` drafts one from the checks that passed on a
+  repository's last 10 merged pull requests, and proposes nothing for a repository that merged none in the last
+  30 days. The workflow that funds an order does not read a Terms 3 file yet
+  ([`docs/TERMS.md`](docs/TERMS.md)).
+- **Disputes and liability, written down.** Who can do what at each state of an appeal, which clock runs and
+  where the money is ([`docs/DISPUTES.md`](docs/DISPUTES.md)); and, for each way the count can be wrong, who
+  notices, what evidence exists and where the loss falls today: with the parties, never with Knos, because there
+  is no legal entity, no warranty and no service commitment ([`docs/LIABILITY.md`](docs/LIABILITY.md)).
+- **Agent pays agent, only when the work is accepted.** Two agents with keys of their own and an evaluator that
+  is neither, under the proposed x402 `knos-order` scheme: right work is paid the amount whole; wrong work is not,
+  and at expiry the buyer has the amount and the fee back. Both runs are tests on the simulator with the program
+  builds; the devnet run has not been made ([`examples/agent_pays_agent`](examples/agent_pays_agent),
+  [`docs/X402.md`](docs/X402.md)).
+- **A claim with no funded order gets one plain answer.** A pull request or an issue that carries a bounty
+  platform's commands or a wallet on another chain, against an issue nobody funded, is answered once and labelled
+  `no-order`; nothing is closed and no word of the claim is quoted (`.github/workflows/claims.yml`,
+  `src/knos/claim_guard.py`). `scripts/tidy_issues.py` lists every open issue and pull request of Knos's own
+  repositories and what to do with each, and writes nothing without `--apply`.
+- **The story in six beats,** each with one file, test or transaction as its evidence
+  ([`docs/STORY.md`](docs/STORY.md)), and one page for the release: the source, the build each public program id
+  runs, every capability's stage and the limits still open, written by a script
+  ([`docs/MANIFEST.md`](docs/MANIFEST.md)). A reproduction is two clicks and one button in a fork
+  ([`docs/REPRODUCE.md`](docs/REPRODUCE.md)); nobody outside has pressed it.
+
+### Underneath
+
+- **A commitment that binds every event.** A format 1 batch root is a hash of evaluation ids: it binds the set of
+  ids, the count, the accepted count and the value, and not which evaluation was accepted. Format 2 hashes each
+  whole event in canonical bytes, so the root binds every field of every evaluation. A new batch is format 2; a
+  format 1 batch stays verifiable as format 1, and `knos meter migrate` re-commits an old month without anchoring
+  it twice ([`docs/METER.md`](docs/METER.md), "What a root commits to").
+- **`knos_pay` 2.2: one rate, and the two quorum findings fixed.** The fee on an order is
+  `max(0.05, floor(amount x 30 / 10,000))` in place of three tiers, and a Plan may lower the rate to no less than
+  10 basis points. Judges of a quorum are counted by repository owner, and a neutral judge must differ from the
+  order's side in owner and in the account that started the run. A judge's marker is bound to the funding of the
+  order it was made under. Both findings' tests are no longer ignored and run with the others. What no program
+  can enforce: that two accounts are two people ([`docs/SECURITY.md`](docs/SECURITY.md),
+  [`docs/INVARIANTS.md`](docs/INVARIANTS.md)).
+- **A token signed in time is not lost to a late relay.** An order can be funded with a presentation grace, the
+  funder's choice, fixed at funding: a pay token issued at or before the deadline is accepted until 7,200 seconds
+  after it, and the refund is refused until then. It is off unless asked for
+  ([`docs/INVARIANTS.md`](docs/INVARIANTS.md)).
+- **The proofs, in the record's words.** The fee function over every amount to 100,000.00 and every rate from 10
+  to 30 basis points is "verified but for one bound at one rate": the exact 0.30% at the rate 30 is "not
+  verified" and is tested instead. Of the five harnesses over the program's own lines, four are "verified" and
+  one, the fee between its floor and the one rate for every amount, "timed out", so nothing is proved by it
+  ([`docs/kani.json`](docs/kani.json)).
+- **A decision before the chain settles.** `knos decide` answers accepted, rejected or insufficient evidence from
+  the token in hand, by the reads a relay makes before it spends a fee, and writes a provisional receipt that
+  never authorises payment; the final receipt names it and replaces it. Measured on one machine with the chain
+  simulated in the same process: 40 fresh decisions, 1.1 ms at the median and 9.3 ms at p95. On devnet, four
+  decisions on real fund tokens took 4.3 to 32.6 s each over the shared public RPC, a first reading and not a
+  benchmark; nothing posts the provisional line yet ([`docs/RELAY.md`](docs/RELAY.md),
+  [`docs/LOAD.md`](docs/LOAD.md)).
+- **The relay's runs no longer cross.** An event run and the sweep each keep a journal and append notes to a file
+  of their own, and a reader merges every file by key, so two runs that share a folder send a token once. In
+  `worker.yml` the two are on separate runners and the guard is still the chain's: a token works once. A relay
+  may pay from several fee payers; the public worker runs one ([`docs/RELAY.md`](docs/RELAY.md)).
+- **Untrusted code never shares a job with the signing authority.** One test holds every published job to that.
+  In `prove.yml` the job that signs no longer trusts the bare success of the job that ran the code: it reads one
+  strict line of closed-shape values, holds it to its own run, and works out the rest again from GitHub's record
+  before anything is signed. Two limits stay open and are listed: jobs that cannot sign install by version, not by
+  hash, and the sandbox is a user boundary inside one virtual machine
+  ([`docs/SECURITY.md`](docs/SECURITY.md), "Where untrusted code runs").
+- **The x402 messages are the tree's.** The example, its fixture and the page's message blocks are recorded on
+  this tree's `knos_pay` build: 0.06 on 20.00. The public program charges 0.50 on the same 20.00 until the upgrade
+  executes, and the page says which build each figure is for ([`docs/X402.md`](docs/X402.md)).
+- **No program crate moved.** The four programs and the two interface crates stay at 0.3.14, the version their
+  builds were made at; `knos_meter` and `knos_passkey` stay byte for byte the builds of proposals 5 and 6.
+
+### Not true yet
+
+- No outside funder, no buyer conversation, no letter of intent, no outside key holder, no outside reproduction,
+  and no outside program that reads the verifier.
+- Both new program builds, `knos_oidc` (strict JSON and ES256) and `knos_pay` 2.2, are proposed after the release
+  as one set and are live only when they execute. Until then the public programs charge the earlier fee (2.5% of
+  the first 1,000, 1% to 50,000, 0.5% above, at least 0.40) and count the judges of a quorum by repository. The
+  live state is in [`web/upgrades.json`](web/upgrades.json).
+- Terms 3, the supplier workflow, `knos terms propose` and the claim guard ran for the first time in this release,
+  in Knos's own repositories only: `knos terms propose` drafted the terms of `drexthealpha/knos-e2e` from its merged
+  pull requests, the supplier workflow judged two test pull requests in a staging repository, and the claim guard
+  answered a claim of payment by an outside account on a staging issue. None has run for another owner's repository.
+- One format 2 batch is anchored, at the public `knos_meter`: four evaluations of Knos's own pull requests, with
+  one account as buyer and seller.
+- The records hold zero Knos orders for outside suppliers: what they show is public pull requests.
+- The record lookup through a hosted API is not built; single sign-on, private deployment and a support contract
+  do not exist, so the Control plans cannot be delivered.
+- Nothing has been sold, and there is no legal entity to sell from.
+
 ## 0.3.17 (October 2026)
 
 **Bring your own invoice: correct work is accepted, every line has one of four verdicts and four ids, and every

@@ -161,7 +161,7 @@ def test_every_listed_fact_of_a_public_order_is_found_and_says_where():
     want = {"buyer organisation: GitHub id": str(OWNER), "buyer organisation: name": "octo", "who gave the funding command": str(MAINT),
             "where the money came from (a Balance or a wallet)": str(w.c.bal), "repository: id": str(REPO), "repository: name": "octo/widgets",
             "issue": str(PUBLIC_ISSUE), "pull request": "7", "branch": "refs/heads/main", "supplier (payee): GitHub id": str(AUTHOR),
-            "supplier (payee): name": "mona", "supplier (payee): wallet": str(WALLET_A), "amount": "20.000000", "fee": "0.500000 on top, paid by the funder",
+            "supplier (payee): name": "mona", "supplier (payee): wallet": str(WALLET_A), "amount": "20.000000", "fee": "0.060000 on top, paid by the funder",
             "mint (which money)": str(w.c.usdc), "checks named in the terms": "build-and-test", "allowed paths": "src/billing/**",
             "terms text": PUBLIC_TERMS.decode(), "workflow commit": WF_SHA, "accepted commit": "a" * 40,
             "other orders of the same Balance or wallet": "3 in all, 95.000000 funded", "order sizes with this supplier": "2 payments: 20.000000, 40.000000"}
@@ -211,7 +211,7 @@ def test_a_private_order_hides_its_repository_issue_branch_checks_and_paths_and_
     # what it still shows, said honestly: the money, both parties, the wallet, the times, the attestor, the link to the Balance's other orders
     assert {f: got[f]["learns"] for f in LEAKS} == dict.fromkeys(LEAKS, observe.YES) and set(LEAKS) <= set(facts["still_public"])
     want = {"buyer organisation: GitHub id": str(OWNER), "buyer organisation: name": "octo", "supplier (payee): GitHub id": str(AUTHOR), "supplier (payee): name": "mona",
-            "supplier (payee): wallet": str(WALLET_A), "amount": "40.000000", "fee": "1.000000 on top, paid by the funder", "mint (which money)": str(w.c.usdc),
+            "supplier (payee): wallet": str(WALLET_A), "amount": "40.000000", "fee": "0.120000 on top, paid by the funder", "mint (which money)": str(w.c.usdc),
             "judge (attestor) repository": f"{ATTESTOR} (id {ATTESTOR_ID})", "other orders of the same Balance or wallet": "3 in all, 95.000000 funded",
             "order sizes with this supplier": "2 payments: 20.000000, 40.000000", "where the money came from (a Balance or a wallet)": str(w.c.bal)}
     assert {k: got[k]["value"] for k in want} == want

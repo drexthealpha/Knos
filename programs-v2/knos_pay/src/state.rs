@@ -155,8 +155,10 @@ pub const O_MINT: usize = 288;
 pub const O_TERMS: usize = 320;     // sha256 of the terms JSON
 pub const O_WF_REPO: usize = 352;   // sha256 of "owner/name": the repository that holds the pinned workflows
 pub const O_WF_SHA: usize = 384;    // their commit, 40 hex characters
-pub const O_FEE_BPS: usize = 424;   // u16: the fee rate fixed at funding (TopUp charges the same)
-pub const O_RESERVED: usize = 432;  // 80 bytes, zero: for what comes later
+pub const O_FEE_BPS: usize = 424;   // u16: the fee rate fixed at funding (TopUp charges it, or FEE_BPS when that is lower)
+pub const O_INC: usize = 432;       // u64: this order's INCARNATION, the slot of its funding plus one (0: funded under 2.1). `stamp`
+pub const O_GRACE: usize = 440;     // u8, opts: 1: a pay token issued by the deadline is taken for GRACE after it, and no refund before
+pub const O_RESERVED: usize = 448;  // 64 bytes, zero: for what comes later
 pub const ORDER_LEN: usize = 512;
 
 // Pair ["pair", payee_id, funder key]: one byte (1); exists once this funder has paid this payee in real money
@@ -165,6 +167,19 @@ pub const PAIR_LEN: usize = 1;
 pub const RATE_LEN: usize = 16;
 // Pause ["pause"]: new funding is refused until this time (i64)
 pub const PAUSE_LEN: usize = 8;
+
+/// THE INCARNATION of an order (`d`: the data of its account), as every marker made for it carries it (Q, Done, As).
+/// An order's address is its scope, its source and its seq, so the same address is funded again once the order there
+/// was paid or refunded, and a marker is an account of its own that is still there. The stamp differs for every
+/// funding of one address:
+///   - an order funded by this build stores the slot of its funding plus one (O_INC), and its stamp is that number
+///     negated: never a time, so never the stamp of an order funded under 2.1;
+///   - nothing writes or counts a stamped marker in the slot its order was funded in (`settled`). So a marker that
+///     carries slot S was written in a later slot, while its order was there; the address was free again only after
+///     that, and whatever is funded there next is funded in a slot after S.
+///   - an order funded under 2.1 (O_INC 0) keeps the stamp its markers were written with: its `not_before`.
+pub fn stamp(d: &[u8]) -> i64 { stamp_of(u64_at(d, O_INC), i64_at(d, O_NOT_BEFORE)) }
+pub fn stamp_of(inc: u64, not_before: i64) -> i64 { if inc == 0 { not_before } else { (inc as i64).wrapping_neg() } }
 
 pub fn u16_at(d: &[u8], o: usize) -> u16 { u16::from_le_bytes([d[o], d[o + 1]]) }
 pub fn put_u16(d: &mut [u8], o: usize, v: u16) { d[o..o + 2].copy_from_slice(&v.to_le_bytes()); }
@@ -371,8 +386,8 @@ mod tests {
                      (O_ISSUE, 8), (O_SCOPE, 32), (O_SEQ, 4), (O_HOLDBACK_BPS, 2), (O_KILL_BPS, 2), (O_AMOUNT, 8), (O_FEE, 8), (O_RATE, 8), (O_PAID, 8),
                      (O_DEADLINE, 8), (O_NOT_BEFORE, 8), (O_HOLD_UNTIL, 8), (O_WARRANTY_S, 8), (O_RESERVED_BY, 8), (O_RESERVED_UNTIL, 8), (O_CANCEL_AT, 8),
                      (O_PAYEE, 8), (O_FUNDER_ID, 8), (O_OWNER_ID, 8), (O_ARBITER_ID, 8), (O_JUDGE_REPO, 8), (O_SOURCE, 32), (O_REFUND_TO, 32),
-                     (O_RENT_TO, 32), (O_MINT, 32), (O_TERMS, 32), (O_WF_REPO, 32), (O_WF_SHA, 40), (O_FEE_BPS, 2), (O_RESERVED, 80)];
-        assert_eq!(O_RESERVED + 80, ORDER_LEN);
+                     (O_RENT_TO, 32), (O_MINT, 32), (O_TERMS, 32), (O_WF_REPO, 32), (O_WF_SHA, 40), (O_FEE_BPS, 2), (O_INC, 8), (O_GRACE, 1), (O_RESERVED, 64)];
+        assert_eq!(O_RESERVED + 64, ORDER_LEN);
         for (fields, len) in [(&job[..], JOB_LEN), (&balance[..], BALANCE_LEN), (&bind[..], BIND_LEN), (&rep[..], REP_LEN), (&balx[..], BALX_LEN),
                               (&plan[..], PLAN_LEN), (&order[..], ORDER_LEN)] {
             let mut end = 0;

@@ -44,7 +44,7 @@ RESERVE, MAX_RESERVE = 7, 90
 STATUS, ANY = 0, -1                # a check's `app`: a commit status; any source
 STATES = ("passed", "failed", "skipped", "pending", "absent", "unreadable")
 _KEYS = frozenset(("accept", "checks", "deny", "mode", "paths", "reserve", "v"))
-_ORDER_KEYS = frozenset(("image", "policy", "vendor"))     # terms may also say these; without them a job's bytes stay as they were
+_ORDER_KEYS = frozenset(("contract", "image", "policy", "vendor"))     # terms may also say these; without them a job's bytes stay as they were
 # <registry>/<name>@sha256:<64 hex>: a registry host (a dot, a port, or localhost), a lower-case path, and a digest. No tag.
 _IMAGE = re.compile(r"(?=[^/]*[.:]|localhost/)[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]{1,5})?(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)+@sha256:[0-9a-f]{64}")
 
@@ -116,6 +116,10 @@ def _clean(terms) -> dict:
         if not isinstance(terms["policy"], str) or not re.fullmatch(r"[0-9a-f]{64}", terms["policy"]):
             raise Refused("policy is the hash of the repository's policy file (64 hex characters)")
         more["policy"] = terms["policy"]
+    if "contract" in terms:     # sha256 of the Knos Terms 3 document the order is funded under (knos.terms3.digest)
+        if not isinstance(terms["contract"], str) or not re.fullmatch(r"[0-9a-f]{64}", terms["contract"]):
+            raise Refused("contract is the hash of the terms 3 document the order cites (64 hex characters)")
+        more["contract"] = terms["contract"]
     if "vendor" in terms:       # a standing offer: the GitHub id of the one account it pays
         more["vendor"] = _int(terms["vendor"], 1, 2**63 - 1, "vendor")
     if "image" in terms:        # the hermetic judge's image (knos.judge): fixed at funding like every other field

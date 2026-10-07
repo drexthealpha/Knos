@@ -239,18 +239,23 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     lines = [line for line in first.splitlines() if line.strip()]
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
     number = f"Of {merged['prs']} merged agent pull requests that claimed passing tests, {merged['any_check_failed']['prs']} had a failed check."
-    # the one sentence, the one number, one line to the site and one command: four lines, forty words at most
-    assert lines[0] == f"**{cc.SENTENCE}**" and lines[1] == number and len(lines) == 4
-    assert lines[2] == "Check your own invoice: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)"
-    assert re.fullmatch(r"`[^`]+`", lines[3]) and "knos shadow" in lines[3]
+    # the one noun, the one sentence, the one number, one link to the site and one command: five lines, forty words at most
+    assert lines[0] == "**Knos: the neutral meter.**" and lines[1] == f"**{cc.SENTENCE}**" and lines[2] == number and len(lines) == 5
+    assert lines[3] == "[Check your own invoice](https://drexthealpha.github.io/Knos/)"
+    assert re.fullmatch(r"`[^`]+`", lines[4]) and "knos shadow" in lines[4] and "&&" not in lines[4]            # ONE command
     said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 40, said
-    # under it: the number's source, the one-comment round, the two ledgers, each in three lines at most
+    # under it: the claim in two lines and the limits in one; the meter, the money and the number's source in three lines each
     parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", readme.split("\n---\n", 1)[0])[1:])] * 2))
     assert "17.8%" in parts["The number"] and "](docs/BENCH.md)" in parts["The number"] and "](docs/backtest.json)" in parts["The number"]
-    assert "`/knos fund " in parts["One comment"] and "knos meter reconcile" in parts["Two ledgers"]
-    for name in ("The number", "One comment", "Two ledgers"):
+    meter, money = "The meter: two ledgers, one bill", "The money: released on a signature"
+    assert "`/knos fund " in parts[money] and "knos meter reconcile" in parts[meter]
+    for name in ("The claim", "The number", meter, money):
         assert len([line for line in parts[name].splitlines() if line.strip()]) <= 3, name
+    assert list(parts).index("The claim") == 0 and list(parts).index(meter) < list(parts).index(money) < list(parts).index("What is real today")
+    assert "no company and no oracle in the middle" in parts["The claim"] and parts["The claim"].count("](docs/DISCLOSURE.md)") == 1
+    for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table
+        assert zero not in readme.split("## What is real today")[0], zero
     # one table says what is real, with the numbers of NUMBERS.md in a block this script writes; then one link onward
     bd = _script("bench_docs")
     table = bd.today(json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8")), bd.repo_numbers())

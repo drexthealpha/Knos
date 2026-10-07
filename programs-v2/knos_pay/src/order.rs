@@ -6,16 +6,17 @@
 //! require that the account received exactly what they asked for.
 use crate::{err, fund::*, gh::*, state::*, token::*, *};
 use knos_oidc::claims::{self, parts};
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult, hash::hashv, msg, program_error::ProgramError, pubkey::Pubkey, sysvar::Sysvar};
 
 pub const OPTS_LEN: usize = 48;
 /// What a funder fixes beside the amount and the terms. 48 bytes: flags u8 @0 (PRIVATE 2, NEUTRAL 4, STANDING 8, AUTO 32, and
 /// in its two high bits QUORUM 2 or 3; the program sets FAUCET and TOKEN2022 itself), holdback_bps u16 @1, warranty_days u16 @3, kill_bps u16 @5,
 /// reserve_days u8 @7, rate u64 @8, arbiter_id u64 @16, judge_repo_id u64 @24, salted u8 @32 (1: a private order,
-/// whose 32-byte scope follows in the instruction data), 15 zero bytes.
+/// whose 32-byte scope follows in the instruction data), grace u8 @33 (1: the order has the PRESENTATION GRACE, `GRACE`
+/// in lib.rs: the funder's choice, because it delays his refund by that long), 14 zero bytes.
 pub struct Opts {
     pub flags: u8, pub holdback_bps: u16, pub warranty_days: u16, pub kill_bps: u16, pub reserve_days: u8, pub rate: u64, pub arbiter_id: u64,
-    pub judge_repo_id: u64, pub salted: bool,
+    pub judge_repo_id: u64, pub salted: bool, pub grace: bool,
 }
 /// The options, read and checked: holdback at most MAX_HOLDBACK_BPS and only with a warranty, warranty at most
 /// MAX_WARRANTY_DAYS, kill fee at most MAX_KILL_BPS; a STANDING order has a rate between 1 and its amount, any other
@@ -28,14 +29,14 @@ pub struct Opts {
 pub fn opts_of(o: &[u8], amount: u64) -> Result<Opts, ProgramError> {
     if o.len() != OPTS_LEN { return Err(ProgramError::InvalidInstructionData); }
     let v = Opts { flags: o[0], holdback_bps: u16_at(o, 1), warranty_days: u16_at(o, 3), kill_bps: u16_at(o, 5), reserve_days: o[7], rate: u64_at(o, 8),
-                   arbiter_id: u64_at(o, 16), judge_repo_id: u64_at(o, 24), salted: o[32] == 1 };
+                   arbiter_id: u64_at(o, 16), judge_repo_id: u64_at(o, 24), salted: o[32] == 1, grace: o[33] == 1 };
     let standing = v.flags & F_STANDING != 0;
     let private = v.flags & F_PRIVATE != 0;
     let quorum = v.flags >> 6;
     let judges = 1 + (v.flags & F_NEUTRAL != 0) as u8 + (v.judge_repo_id != 0) as u8;
     let plain = !standing && !private;
     let ok = v.flags & !(F_PRIVATE | F_NEUTRAL | F_STANDING | F_AUTO | F_QUORUM) == 0 && o[32] <= 1
-        && (v.flags & F_AUTO == 0 || plain) && (quorum == 0 || (plain && (2..=judges).contains(&quorum))) && o[33..] == [0u8; 15]
+        && (v.flags & F_AUTO == 0 || plain) && (quorum == 0 || (plain && (2..=judges).contains(&quorum))) && o[33] <= 1 && o[34..] == [0u8; 14]
         && v.holdback_bps <= MAX_HOLDBACK_BPS && v.warranty_days <= MAX_WARRANTY_DAYS && v.kill_bps <= MAX_KILL_BPS
         && (v.holdback_bps == 0 || v.warranty_days > 0)
         && (if standing { v.rate >= 1 && v.rate <= amount } else { v.rate == 0 })
@@ -53,8 +54,24 @@ pub struct Order {
     pub deadline: i64, pub not_before: i64, pub hold_until: i64, pub warranty_s: i64, pub reserved_by: u64, pub reserved_until: i64, pub cancel_at: i64,
     pub payee: u64, pub funder_id: u64, pub owner_id: u64, pub arbiter_id: u64, pub judge_repo_id: u64, pub source: Pubkey, pub refund_to: Pubkey,
     pub rent_to: Pubkey, pub mint: Pubkey, pub terms: [u8; 32], pub wf_repo: [u8; 32], pub wf_sha: [u8; 40],
+    pub inc: u64, pub grace: bool,
 }
 impl Order {
+    /// What every marker made for this order carries (state::stamp): it differs for every funding of this address.
+    pub fn stamp(&self) -> i64 { stamp_of(self.inc, self.not_before) }
+    /// The last second a pay token is taken for this order while it is OPEN, and the last a refund is refused: its
+    /// deadline, or GRACE after it for an order funded with `grace`.
+    pub fn pay_until(&self) -> i64 { if self.grace { self.deadline.saturating_add(GRACE) } else { self.deadline } }
+    /// Whether a token issued at `iat` and shown at `now` is in time to pay this order: shown by the deadline; or, for
+    /// an order with `grace`, issued by the deadline and shown within GRACE after it.
+    pub fn in_time(&self, iat: i64, now: i64) -> bool { now <= self.deadline || (self.grace && iat <= self.deadline && now <= self.pay_until()) }
+    /// REFUSES in the slot this order was funded in (E_STATE): what writes or counts a marker stamped with this
+    /// order's funding (a quorum's, an assignment, a standing order's `done`) waits for the next slot, which is what
+    /// makes the stamp differ for every funding of one address (state::stamp). An order of 2.1 has no such rule.
+    pub fn settled(&self) -> ProgramResult {
+        if self.inc != 0 && Clock::get()?.slot.checked_add(1) == Some(self.inc) { return Err(err(E_STATE)); }
+        Ok(())
+    }
     pub fn is(&self, flag: u8) -> bool { self.flags & flag != 0 }
     /// How many distinct judges must pass the same artifact before this order pays: 0 (one judge's token pays), 2 or 3.
     pub fn quorum(&self) -> u8 { self.flags >> 6 }
@@ -76,7 +93,7 @@ pub fn load_order(program_id: &Pubkey, a: &AccountInfo) -> Result<Order, Program
         payee: u64_at(&d, O_PAYEE), funder_id: u64_at(&d, O_FUNDER_ID), owner_id: u64_at(&d, O_OWNER_ID), arbiter_id: u64_at(&d, O_ARBITER_ID),
         judge_repo_id: u64_at(&d, O_JUDGE_REPO), source: key_at(&d, O_SOURCE), refund_to: key_at(&d, O_REFUND_TO), rent_to: key_at(&d, O_RENT_TO),
         mint: key_at(&d, O_MINT), terms: d[O_TERMS..O_TERMS + 32].try_into().unwrap(), wf_repo: d[O_WF_REPO..O_WF_REPO + 32].try_into().unwrap(),
-        wf_sha: d[O_WF_SHA..O_WF_SHA + 40].try_into().unwrap(),
+        wf_sha: d[O_WF_SHA..O_WF_SHA + 40].try_into().unwrap(), inc: u64_at(&d, O_INC), grace: d[O_GRACE] == 1,
     })
 }
 /// The order's own accounts, as every instruction on an existing order takes them: its token account ["ov", order],
@@ -171,6 +188,8 @@ fn escrow<'a>(program_id: &Pubkey, e: &Escrow<'a, '_>, m: &Mint, n: &NewOrder, j
     d[O_WF_REPO..O_WF_REPO + 32].copy_from_slice(n.wf_repo);
     d[O_WF_SHA..O_WF_SHA + 40].copy_from_slice(n.wf_sha);
     put_u16(&mut d, O_FEE_BPS, n.bps as u16);
+    // the incarnation: the slot of this funding plus one, never 0 (state::stamp)
+    put_u64(&mut d, O_INC, Clock::get()?.slot.saturating_add(1)); d[O_GRACE] = n.opts.grace as u8;
     msg!("knos3:funded order={} repo={} issue={} seq={} amount={} fee={} mode={} by={} source={} flags={} deadline={}", b58(e.order.key), n.repo, n.issue,
          n.seq, n.amount, fee, n.mode, n.funder_id, b58(n.source), flags, deadline);
     // the terms of a public order are public and cannot change; a private order's are a hash only (it is in the account)
@@ -247,7 +266,7 @@ pub fn fund_order_balance(program_id: &Pubkey, accounts: &[AccountInfo], json: &
 /// 23 TopUp: more money for an open order from where its money came: the funding wallet signs (a wallet's order), or
 /// the wallet that opened the Balance signs and the Balance's token account pays (a Balance's order: `balance` is
 /// that Balance; for a wallet's order the account is not read). The fee on the new amount is charged at the rate
-/// fixed at funding. Not paused; the order is OPEN before its deadline; the new amount is within MAX_AMOUNT.
+/// fixed at funding (FEE_BPS when that is lower), less the fee already there. Not paused; the order is OPEN before its deadline; the new amount is within MAX_AMOUNT.
 /// data: add u64 (what is added to the amount; the fee comes on top).
 pub fn top_up(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i64) -> ProgramResult {
     let [signer, order, ov, from, balance, mint, auth, token, pause] = take(accounts)?;
@@ -259,7 +278,9 @@ pub fn top_up(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], now: i
     let (m, ab) = order_accounts(program_id, &o, order.key, ov, auth, mint, token)?;
     let add = u64_at(data, 0);
     let amount = o.amount.checked_add(add).filter(|a| add > 0 && *a <= units(MAX_AMOUNT, m.decimals)).ok_or_else(|| err(E_TERMS))?;
-    let fee = order_fee(amount, o.fee_bps as u64, m.decimals).max(o.fee);
+    // at the rate fixed at funding, or today's when that is lower (an order of 2.1 was funded at up to 250 basis
+    // points and in tiers): never less than the fee that is already there, so a top-up never takes fee back out
+    let fee = order_fee(amount, (o.fee_bps as u64).min(FEE_BPS), m.decimals).max(o.fee);
     let total = add.checked_add(fee - o.fee).ok_or(ProgramError::ArithmeticOverflow)?;
     if o.kind == 1 {
         let b = load_balance(program_id, balance)?;
@@ -286,6 +307,7 @@ mod tests {
         o[16..24].copy_from_slice(&77u64.to_le_bytes()); o[24..32].copy_from_slice(&judge.to_le_bytes()); o[32] = salted;
         o
     }
+    fn graced(mut o: [u8; OPTS_LEN], grace: u8) -> [u8; OPTS_LEN] { o[33] = grace; o }
 
     #[test]
     fn options_are_read_and_bounded() {
@@ -293,18 +315,23 @@ mod tests {
         assert_eq!((v.flags, v.holdback_bps, v.warranty_days, v.kill_bps, v.reserve_days, v.rate, v.arbiter_id, v.judge_repo_id, v.salted),
                    (F_NEUTRAL | F_STANDING, 5000, 90, 2000, 7, 5, 77, 9, false));
         assert!(opts_of(&opts(0, 0, 0, 0, 0, 0, 0), 10).is_ok() && opts_of(&opts(F_PRIVATE, 0, 0, 0, 0, 9, 1), 10).is_ok());
+        // the presentation grace is one byte, 0 or 1, on any order
+        assert!(!v.grace && opts_of(&graced(opts(F_STANDING, 0, 0, 0, 5, 0, 0), 1), 10).ok().unwrap().grace);
+        assert!(opts_of(&graced(opts(F_PRIVATE, 0, 0, 0, 0, 9, 1), 1), 10).is_ok() && opts_of(&graced(opts(0, 0, 0, 0, 0, 0, 0), 2), 10).err() == Some(err(E_TERMS)));
         // AUTO; a quorum of 2 with two possible judges, of 3 with all three
         for good in [opts(F_AUTO, 0, 0, 0, 0, 0, 0), opts(F_AUTO | 0x80 | F_NEUTRAL, 1000, 30, 0, 0, 0, 0), opts(0x80, 0, 0, 0, 0, 9, 0), opts(0xc0 | F_NEUTRAL, 0, 0, 0, 0, 9, 0)] {
             assert!(opts_of(&good, 10).is_ok(), "{good:?}");
         }
         let mut junk = opts(0, 0, 0, 0, 0, 0, 0);
         junk[40] = 1;
+        let mut next = opts(0, 0, 0, 0, 0, 0, 0);
+        next[34] = 1;
         for bad in [opts(0, 5001, 90, 0, 0, 0, 0), opts(0, 100, 91, 0, 0, 0, 0), opts(0, 0, 0, 2001, 0, 0, 0), opts(0, 100, 0, 0, 0, 0, 0),
                     opts(F_STANDING, 0, 0, 0, 0, 0, 0), opts(F_STANDING, 0, 0, 0, 11, 0, 0), opts(0, 0, 0, 0, 5, 0, 0), opts(F_FAUCET, 0, 0, 0, 0, 0, 0),
                     opts(F_TOKEN2022, 0, 0, 0, 0, 0, 0), opts(64, 0, 0, 0, 0, 0, 0), opts(0x80, 0, 0, 0, 0, 0, 0), opts(0xc0 | F_NEUTRAL, 0, 0, 0, 0, 0, 0),
                     opts(0x80 | F_NEUTRAL | F_STANDING, 0, 0, 0, 5, 0, 0), opts(F_AUTO | F_STANDING, 0, 0, 0, 5, 0, 0), opts(F_AUTO | F_PRIVATE, 0, 0, 0, 0, 9, 1),
                     opts(0x80 | F_PRIVATE, 0, 0, 0, 0, 9, 1), opts(F_PRIVATE, 0, 0, 0, 0, 9, 0), opts(0, 0, 0, 0, 0, 9, 1),
-                    opts(F_PRIVATE, 0, 0, 0, 0, 0, 1), opts(0, 0, 0, 0, 0, 0, 2), junk] {
+                    opts(F_PRIVATE, 0, 0, 0, 0, 0, 1), opts(0, 0, 0, 0, 0, 0, 2), junk, next] {
             assert!(opts_of(&bad, 10).err() == Some(err(E_TERMS)), "{bad:?}");
         }
     }
@@ -322,5 +349,60 @@ mod tests {
         }
         assert!(order_fund_aud(aud.as_bytes(), &Pubkey::new_from_array([8; 32])).is_err());
         assert_ne!(public_scope(1, 2), public_scope(2, 1));
+    }
+}
+
+#[cfg(test)]
+mod time_tests {
+    use super::*;
+
+    fn order(deadline: i64, grace: bool, inc: u64, not_before: i64) -> Order {
+        let z = Pubkey::new_from_array([0; 32]);
+        Order { state: OPEN, mode: 0, kind: 0, flags: 0, decimals: 6, reserve_days: 0, repo: 1, issue: 1, scope: [0; 32], seq: 0, holdback_bps: 0, kill_bps: 0,
+                fee_bps: 30, amount: 5_000_000, fee: 50_000, rate: 0, paid: 0, deadline, not_before, hold_until: 0, warranty_s: 0, reserved_by: 0,
+                reserved_until: 0, cancel_at: 0, payee: 0, funder_id: 0, owner_id: 0, arbiter_id: 0, judge_repo_id: 0, source: z, refund_to: z, rent_to: z,
+                mint: z, terms: [0; 32], wf_repo: [0; 32], wf_sha: [0; 40], inc, grace }
+    }
+
+    /// Every boundary of the deadline and of the grace: (issued, shown) -> taken. A refund is possible exactly from
+    /// the second after `pay_until`, so for every `now` at most one of the two is.
+    #[test]
+    fn a_token_is_in_time_by_the_deadline_or_issued_by_it_and_shown_within_the_grace() {
+        const T: i64 = 1_790_000_000;
+        let (plain, graced) = (order(T, false, 9, 0), order(T, true, 9, 0));
+        assert_eq!((plain.pay_until(), graced.pay_until()), (T, T + GRACE));
+        for (iat, now, without, with) in [
+            (T - 10, T - 1, true, true), (T - 10, T, true, true), (T, T, true, true),
+            // shown after the deadline: only with the grace, and only a token the forge issued by the deadline
+            (T - 10, T + 1, false, true), (T, T + 1, false, true), (T + 1, T + 1, false, false), (T + 1, T + 2, false, false),
+            (T, T + GRACE - 1, false, true), (T, T + GRACE, false, true), (T, T + GRACE + 1, false, false), (T - 10, T + GRACE + 1, false, false),
+            // a token dated ahead of the clock (TOKEN_AHEAD) is in time while the clock is: it is the clock that is behind
+            (T + 5, T, true, true),
+        ] {
+            assert_eq!((plain.in_time(iat, now), graced.in_time(iat, now)), (without, with), "{} {}", iat - T, now - T);
+        }
+        for o in [&plain, &graced] {
+            for now in [T - 1, T, T + 1, T + GRACE - 1, T + GRACE, T + GRACE + 1, T + 2 * GRACE] {
+                let refund = now > o.pay_until();
+                for iat in [T - GRACE, T - 1, T, T + 1, now] { assert!(!(refund && o.in_time(iat, now)), "{} {}", iat - T, now - T); }
+            }
+        }
+        // the grace is no longer than a token can live: nothing issued by the deadline is good after it anyway
+        assert_eq!(GRACE, TOKEN_LIFE + knos_oidc::LATE);
+        assert!(order(i64::MAX - 5, true, 9, 0).pay_until() == i64::MAX);
+    }
+
+    #[test]
+    fn a_stamp_is_the_funding_slot_for_this_build_and_the_funding_time_for_an_order_of_2_1() {
+        assert_eq!((order(0, false, 0, 1_790_000_000).stamp(), order(0, false, 1, 1_790_000_000).stamp(), order(0, false, 400_000_001, 7).stamp()),
+                   (1_790_000_000, -1, -400_000_001));
+        // two fundings in one second and different slots; an order of 2.1 and one of this build in the same second
+        assert_ne!(order(0, false, 5, 100).stamp(), order(0, false, 6, 100).stamp());
+        assert_ne!(order(0, false, 0, 100).stamp(), order(0, false, 101, 100).stamp());
+        let mut d = [0u8; ORDER_LEN];
+        put_i64(&mut d, O_NOT_BEFORE, 77);
+        assert_eq!(stamp(&d), 77);
+        put_u64(&mut d, O_INC, 12);
+        assert_eq!(stamp(&d), -12);
     }
 }

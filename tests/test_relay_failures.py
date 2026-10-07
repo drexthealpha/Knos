@@ -12,6 +12,7 @@ import urllib.error
 import pytest
 
 import test_worker as tw
+from _pay21 import each_build, pay21_build  # noqa: F401 - the fixtures `build` and `pay21`: a test that takes `build` runs on knos_pay 2.2 and on the live 2.1
 from test_worker import HOME, PAYER, TERMS, Ledger, fund_aud, jwt
 
 from knos.proof import ghrelay
@@ -308,7 +309,7 @@ def test_a_token_is_in_the_notes_before_it_is_sent_and_a_killed_pass_loses_nothi
     assert sorted(e["state"] for e in notes(state)["journal"].values()) == ["confirmed", "confirmed"]
 
 
-def test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody_is_paid_twice(monkeypatch, tmp_path):
+def test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody_is_paid_twice(build, monkeypatch, tmp_path):
     """On LiteSVM, knos_pay and knos_oidc as built: the paying transaction lands, the process ends before it noted or
     logged anything, and the next pass sends the same token again. The chain's single-use marker answers "done":
     the payee holds the payment once, the fee account its fee once, and the log has one line."""
@@ -320,7 +321,7 @@ def test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody
     from knos.settle import relay as relay1
     from knos.settle.v2 import pay
     from knos.settle.v2 import relay as relay2
-    c = Chain()
+    c = Chain(pay_build=build.build)
     net, gh = Net(c), GitHub()
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
     gh.issues[HOME] = [{"number": 1, "state": "open", "labels": [ghrelay.LOG_LABEL]}]
@@ -347,7 +348,9 @@ def test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody
     with pytest.raises(KeyboardInterrupt):
         ghrelay.once(net, c.payer, now=c.now(), crank=False)
     got, fee = pay.ata(wallet, pay.faucet_mint()), pay.ata(pay.FEE_OWNER, pay.faucet_mint())
-    assert c.balance(got) == 4_875_000 and c.balance(fee) == 125_000 and len(gh.log()) == 1      # paid; only the funding has its line
+    # paid, less the fee the live build takes out of a job of 5.00 (0.125 under 2.1, 0.05 under 2.2); only the funding has its line
+    paid, took = build.pick(4_875_000, 4_950_000), build.pick(125_000, 50_000)
+    assert c.balance(got) == paid and c.balance(fee) == took and len(gh.log()) == 1
     saved = notes(tmp_path / "ghrelay.json")
     assert [e["state"] for e in saved["journal"].values() if e["id"] == ghrelay.token_id(proof)] == ["sending"]
     monkeypatch.setattr(ghrelay, "relay_one", real)
@@ -358,7 +361,7 @@ def test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody
     [line] = ghrelay.once(net, c.payer, now=c.now(), crank=False)
     assert f" {ghrelay.token_id(proof)} ok " in line and " tries=2 " in line and line.count("(another relayer carried it first)") == 1
     assert " sent_at=- confirmed_at=- " in line                     # it sent nothing this time, and says no time it did not measure
-    assert c.balance(got) == 4_875_000 and c.balance(fee) == 125_000                             # the second send moved nothing
+    assert c.balance(got) == paid and c.balance(fee) == took                                     # the second send moved nothing
     assert relay2.submit(net, c.payer, proof, None, JWKS, now=c.now()).get("already") is True    # and a third is answered the same, from reads
     assert net.txs - sent <= 1 and ghrelay.once(net, c.payer, now=c.now() + 3, crank=False) == [] and len(gh.log()) == 2
 

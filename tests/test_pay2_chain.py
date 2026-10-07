@@ -597,9 +597,9 @@ def test_a_proof_pays_the_address_the_token_carries(chain):
     sol0 = c.lamports(c.payer.pubkey())
     assert do_pay(c, job, tok, payee, wallet), c.err
     # 2.5% to the fee account, the rest to the wallet the author named; the job is gone
-    assert (c.balance(pay.ata(wallet, c.usdc)), c.balance(c.fee) - fee0, vault0 - c.balance(pay.vault_pda(c.usdc))) == (4_875_000, 125_000, 5 * USDC)
+    assert (c.balance(pay.ata(wallet, c.usdc)), c.balance(c.fee) - fee0, vault0 - c.balance(pay.vault_pda(c.usdc))) == (4_950_000, 50_000, 5 * USDC)
     assert c.data(job) is None
-    assert c.said("knos2:") == [f"knos2:paid repo={REPO} issue={j.issue} payee={payee} amount=4875000 fee=125000 to={wallet}"]
+    assert c.said("knos2:") == [f"knos2:paid repo={REPO} issue={j.issue} payee={payee} amount=4950000 fee=50000 to={wallet}"]
     # the relayer paid the transaction and the rent of the payee's record, of the pair and of the token's single-use
     # marker (which keeps who paid for it and when it may be closed), and got the job's rent back (it had paid it)
     rent = c.svm.minimum_balance_for_rent_exemption
@@ -627,12 +627,12 @@ def test_a_proof_pays_the_payees_bound_wallet_whatever_address_the_token_carries
     hidden = swap(pay_ix(c, c.payer.pubkey(), tok, c.key, job, j, payee, named), "bind", pay.bind_pda(user()))
     assert not c.send([hidden]) and code(c) == 88
     assert do_pay(c, job, tok, payee, bound), c.err
-    assert (c.balance(pay.ata(bound, c.usdc)), c.balance(pay.ata(named, c.usdc))) == (39 * USDC, 0)     # the fee: 2.5% of 40
+    assert (c.balance(pay.ata(bound, c.usdc)), c.balance(pay.ata(named, c.usdc))) == (39_880_000, 0)     # the fee: 0.30% of 40
     assert c.said("knos2:paid")[0].endswith(f" to={bound}")
     # a proof with no address pays the bound wallet too
     job = fund_balance(c)
     assert do_pay(c, job, pay_token(c, job, payee), payee, bound), c.err
-    assert c.balance(pay.ata(bound, c.usdc)) == 39 * USDC + 4_875_000
+    assert c.balance(pay.ata(bound, c.usdc)) == 39_880_000 + 4_950_000
 
 
 def test_with_no_wallet_the_job_is_held_for_the_payee_and_paid_once_they_bind_one(chain):
@@ -663,8 +663,8 @@ def test_with_no_wallet_the_job_is_held_for_the_payee_and_paid_once_they_bind_on
     c.token_account(wallet, c.usdc)
     assert not c.send([pay.settle_ix(c.payer.pubkey(), job, j, thief)]) and code(c) == 88
     assert c.send([pay.settle_ix(c.payer.pubkey(), job, j, wallet)], tag="settle"), c.err
-    assert c.balance(pay.ata(wallet, c.usdc)) == 7_800_000 and c.balance(pay.vault_pda(c.usdc)) == vault0 - 8 * USDC and c.data(job) is None
-    assert c.said("knos2:") == [f"knos2:paid repo={REPO} issue={j.issue} payee={payee} amount=7800000 fee=200000 to={wallet}"]
+    assert c.balance(pay.ata(wallet, c.usdc)) == 7_950_000 and c.balance(pay.vault_pda(c.usdc)) == vault0 - 8 * USDC and c.data(job) is None
+    assert c.said("knos2:") == [f"knos2:paid repo={REPO} issue={j.issue} payee={payee} amount=7950000 fee=50000 to={wallet}"]
     assert not c.send([pay.settle_ix(c.payer.pubkey(), job, j, wallet)]) and code(c) == 82
     # an open job cannot be settled: it has no proof
     job = fund_wallet(c)
@@ -874,7 +874,7 @@ def test_one_proof_pays_one_job_and_every_job_on_the_issue_is_paid_by_a_proof_of
     # a pay token pays exactly one job (2.1): the second job on the issue needs a token of another run
     assert not do_pay(c, added, tok, payee, wallet) and code(c) == 91
     assert do_pay(c, added, pay_token(c, added, payee, wallet), payee, wallet), c.err
-    assert c.balance(pay.ata(wallet, c.usdc)) == 4_875_000 + 19_500_000
+    assert c.balance(pay.ata(wallet, c.usdc)) == 4_950_000 + 19_940_000
     assert not do_pay(c, theirs, tok, payee, wallet) and code(c) == 86
 
 
@@ -969,17 +969,17 @@ def test_the_record_counts_real_money_test_money_and_self_payment_apart_and_dist
     # real money from the owner's Balance: one payment, one funder
     proven(c, fund_balance(c, amount=5 * USDC), payee, wallet)
     t1 = c.now()
-    assert rep() == pay.Record(paid=1, funders=1, total=4_875_000, test_paid=0, self_paid=0, test_total=0, first=t1, last=t1)
+    assert rep() == pay.Record(paid=1, funders=1, total=4_950_000, test_paid=0, self_paid=0, test_total=0, first=t1, last=t1)
     assert c.data(pay.pair_pda(payee, OWNER)) == b"\x01"
     # the same owner again, through another wallet's Balance for that owner: still one funder
     c.warp(100)
     proven(c, fund_balance(c, amount=5 * USDC, balance=c.small), payee, wallet)
-    assert rep() == pay.Record(paid=2, funders=1, total=9_750_000, test_paid=0, self_paid=0, test_total=0, first=t1, last=c.now())
+    assert rep() == pay.Record(paid=2, funders=1, total=9_900_000, test_paid=0, self_paid=0, test_total=0, first=t1, last=c.now())
     # a sponsor's wallet: a second funder; the same wallet again: still two
     proven(c, fund_wallet(c, amount=10 * USDC), payee, wallet)
-    assert (rep().paid, rep().funders, rep().total) == (3, 2, 19_500_000) and c.data(pay.pair_pda(payee, c.funder.pubkey())) == b"\x01"
+    assert (rep().paid, rep().funders, rep().total) == (3, 2, 19_850_000) and c.data(pay.pair_pda(payee, c.funder.pubkey())) == b"\x01"
     proven(c, fund_wallet(c, amount=10 * USDC), payee, wallet)
-    assert (rep().paid, rep().funders, rep().total) == (4, 2, 29_250_000)
+    assert (rep().paid, rep().funders, rep().total) == (4, 2, 29_800_000)
     # the faucet's test USDC counts apart and makes no funder
     org, repo, n = user(), user(), issue()
     tok = faucet_token(c, n, org, repo, 50 * USDC)
@@ -988,8 +988,8 @@ def test_the_record_counts_real_money_test_money_and_self_payment_apart_and_dist
     job = pay.job_pda(repo, n, fbal)
     assert do_pay(c, job, pay_token(c, job, payee, wallet), payee, wallet), c.err
     last = rep().last
-    assert rep() == pay.Record(paid=4, funders=2, total=29_250_000, test_paid=1, self_paid=0, test_total=48_750_000, first=t1, last=last)
-    assert c.data(pay.pair_pda(payee, org)) is None and c.balance(pay.ata(wallet, c.test_usdc)) == 48_750_000
+    assert rep() == pay.Record(paid=4, funders=2, total=29_800_000, test_paid=1, self_paid=0, test_total=49_850_000, first=t1, last=last)
+    assert c.data(pay.pair_pda(payee, org)) is None and c.balance(pay.ata(wallet, c.test_usdc)) == 49_850_000
     # test USDC that a wallet earned and puts into a job of its own is still test money: the mint decides
     earner, etok = c.wallet(c.test_usdc)
     c.warp(pay.FUND_PERIOD)
@@ -1001,7 +1001,7 @@ def test_the_record_counts_real_money_test_money_and_self_payment_apart_and_dist
     job = fund_wallet(c, amount=20 * USDC, funder=earner, funder_tok=etok, mint=c.test_usdc)
     assert pay.read_job(c.data(job)).faucet
     proven(c, job, payee, wallet)
-    assert (rep().paid, rep().test_paid, rep().test_total, rep().last) == (4, 2, 48_750_000 + 19_500_000, last)
+    assert (rep().paid, rep().test_paid, rep().test_total, rep().last) == (4, 2, 49_850_000 + 19_940_000, last)
     # self-payment counts apart: the Balance's owner is the payee
     proven(c, fund_balance(c), OWNER, wallet)
     assert rep(OWNER) == pay.Record(paid=0, funders=0, total=0, test_paid=0, self_paid=1, test_total=0, first=0, last=0)
@@ -1019,7 +1019,7 @@ def test_the_record_counts_real_money_test_money_and_self_payment_apart_and_dist
     assert do_pay(c, job, pay_token(c, job, other, c.funder.pubkey()), other, c.funder.pubkey()), c.err
     assert (rep(me).self_paid, rep(me).paid, rep(other).self_paid, rep(other).paid) == (1, 0, 1, 0)
     assert c.data(pay.pair_pda(me, c.funder.pubkey())) is None
-    assert rep() == pay.Record(paid=4, funders=2, total=29_250_000, test_paid=2, self_paid=0, test_total=68_250_000, first=t1, last=last)
+    assert rep() == pay.Record(paid=4, funders=2, total=29_800_000, test_paid=2, self_paid=0, test_total=69_790_000, first=t1, last=last)
 
 
 # -- the devnet faucet ---------------------------------------------------------------------------------------------------
@@ -1071,9 +1071,9 @@ def test_on_devnet_one_comment_funds_a_bounty_with_test_usdc_and_no_wallet(chain
     # paid like any job; the record counts it as test money
     payee, wallet = user(), Keypair().pubkey()
     assert do_pay(c, job, pay_token(c, job, payee, wallet), payee, wallet), c.err
-    assert c.balance(pay.ata(wallet, c.test_usdc)) == 4_875_000
+    assert c.balance(pay.ata(wallet, c.test_usdc)) == 4_950_000
     r = pay.read_rep(c.data(pay.rep_pda(payee)))
-    assert (r.paid, r.test_paid, r.test_total, r.first) == (0, 1, 4_875_000, 0)
+    assert (r.paid, r.test_paid, r.test_total, r.first) == (0, 1, 4_950_000, 0)
     # unproven, the test USDC goes back to the faucet Balance, where the next comment finds it
     c.warp(pay.FUND_PERIOD)
     n3 = issue()
@@ -1096,7 +1096,7 @@ def test_the_faucet_exists_once_and_the_real_money_build_has_none(chain):
     # everything else is the same program
     job = fund_balance(real, amount=5 * USDC)
     wallet = proven(real, job)
-    assert real.balance(pay.ata(wallet, real.usdc)) == 4_875_000
+    assert real.balance(pay.ata(wallet, real.usdc)) == 4_950_000
 
 
 def test_the_faucet_mints_nothing_for_a_token_that_names_another_balance(chain):
@@ -1196,7 +1196,7 @@ def test_a_token_is_refused_once_its_key_is_revoked():
     # their deadlines, and the Balance's wallet takes its unspent money back
     c.token_account(late_wallet, c.usdc)
     assert c.send([pay.settle_ix(c.payer.pubkey(), held, pay.read_job(c.data(held)), late_wallet)]), c.err
-    assert c.balance(pay.ata(late_wallet, c.usdc)) == 4_875_000
+    assert c.balance(pay.ata(late_wallet, c.usdc)) == 4_950_000
     c.warp(14 * DAY + 1)
     for job in (unproven, account(uses["Pay"], "job")):
         assert refund(c, job), c.err
@@ -1317,7 +1317,7 @@ def test_a_token_2022_stablecoin_with_its_usual_extensions_works_end_to_end(chai
     assert c.svm.get_account(vault).owner == t22 and (c.balance(vault), c.balance(baltok)) == (100 * USDC, 200 * USDC)
     payee, wallet = user(), Keypair().pubkey()
     assert do_pay(c, job, pay_token(c, job, payee, wallet), payee, wallet), c.err
-    assert (c.balance(pay.ata(wallet, coin, t22)), c.balance(fee), c.balance(vault)) == (97_500_000, 2_500_000, 0)
+    assert (c.balance(pay.ata(wallet, coin, t22)), c.balance(fee), c.balance(vault)) == (99_700_000, 300_000, 0)
     # a wallet's job: held, then settled after the payee binds
     job = fund_wallet(c, amount=10 * USDC, funder=w, funder_tok=wtok, mint=coin)
     late = user()
@@ -1326,7 +1326,7 @@ def test_a_token_2022_stablecoin_with_its_usual_extensions_works_end_to_end(chai
     assert bind(c, late, bound), c.err
     c.token_account(bound, coin)
     assert c.send([pay.settle_ix(c.payer.pubkey(), job, pay.read_job(c.data(job)), bound)], tag="settle_2022"), c.err
-    assert c.balance(pay.ata(bound, coin, t22)) == 9_750_000
+    assert c.balance(pay.ata(bound, coin, t22)) == 9_950_000
     # unproven jobs refund: to the Balance, to the wallet; the rest of the Balance is withdrawn
     from_balance = fund_balance(c, amount=50 * USDC, balance=bal, repo=repo, work=60, repository_owner_id=org, repository_id=repo)
     from_wallet = fund_wallet(c, amount=20 * USDC, funder=w, funder_tok=wtok, mint=coin, work_s=60)
@@ -1408,7 +1408,7 @@ def test_a_mint_is_a_mint_of_the_token_program_passed_and_harmless_extensions_ar
     c.token_account(pay.FEE_OWNER, nine)
     job = fund_wallet(c, amount=5 * 10 ** 9, funder=k, funder_tok=ktok, mint=nine)
     wallet = proven(c, job)
-    assert c.balance(pay.ata(wallet, nine)) == 4_875_000_000
+    assert c.balance(pay.ata(wallet, nine)) == 4_950_000_000
 
 
 def add_extension(c: Chain, mint: Pubkey, kind: int, value: bytes) -> None:
@@ -1439,7 +1439,7 @@ def test_a_mint_that_turns_bad_takes_no_new_money_and_money_in_escrow_still_leav
     # what is in escrow is paid, and the Balance's unspent money is withdrawn
     payee, wallet = user(), Keypair().pubkey()
     assert do_pay(c, job, pay_token(c, job, payee, wallet), payee, wallet), c.err
-    assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_750_000 and c.balance(pay.vault_pda(coin)) == 0
+    assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_950_000 and c.balance(pay.vault_pda(coin)) == 0
     assert c.send([pay.withdraw_ix(w.pubkey(), bal, coin, token_program=pay.TOKEN_2022)], w), c.err
     assert c.balance(wtok) == 90 * USDC
 
@@ -1459,7 +1459,7 @@ def test_an_address_that_was_sent_lamports_before_it_exists_is_still_created(cha
     wallet = Keypair().pubkey()
     assert bind(c, payee, wallet), c.err
     assert do_pay(c, job, pay_token(c, job, payee), payee, wallet), c.err
-    assert c.balance(pay.ata(wallet, coin)) == 9_750_000 and pay.read_rep(c.data(pay.rep_pda(payee))).test_paid == 1
+    assert c.balance(pay.ata(wallet, coin)) == 9_950_000 and pay.read_rep(c.data(pay.rep_pda(payee))).test_paid == 1
     assert c.lamports(w.pubkey()) > 0 and c.data(job) is None
 
 
@@ -1480,7 +1480,7 @@ def test_a_job_is_paid_and_refunded_whatever_the_account_its_rent_goes_to_has_be
     assert c.svm.get_account(k.pubkey()).executable
     before = c.lamports(k.pubkey())
     wallet = proven(c, jobs[0])
-    assert c.balance(pay.ata(wallet, c.usdc)) == 4_875_000 and c.data(jobs[0]) is None
+    assert c.balance(pay.ata(wallet, c.usdc)) == 4_950_000 and c.data(jobs[0]) is None
     c.warp(601)
     assert refund(c, jobs[1]), c.err
     assert c.data(jobs[1]) is None and c.lamports(k.pubkey()) == before + 2 * 3_118_080
@@ -1513,7 +1513,7 @@ def test_a_frozen_or_missing_destination_moves_nothing_and_one_transaction_takes
     assert not c.send([ix, ix]) and code(c) == 82 and untouched(), c.err
     assert not c.send([ix, pay.refund_ix(c.payer.pubkey(), job, j)]) and code(c) == 82 and untouched(), c.err
     assert c.send([ix]), c.err
-    assert (c.balance(vault), c.balance(fee_tok), c.balance(dest), c.data(job)) == (0, 250_000, 9_750_000, None)
+    assert (c.balance(vault), c.balance(fee_tok), c.balance(dest), c.data(job)) == (0, 50_000, 9_950_000, None)
 
 
 def test_tokens_sent_to_a_vault_directly_belong_to_no_job_and_stay_there(chain):
@@ -1529,7 +1529,7 @@ def test_tokens_sent_to_a_vault_directly_belong_to_no_job_and_stay_there(chain):
     wallet = proven(c, first)
     c.warp(61)
     assert refund(c, second), c.err
-    assert (c.balance(pay.ata(wallet, coin)), c.balance(wtok), c.balance(vault)) == (9_750_000, 87 * USDC, 3 * USDC)
+    assert (c.balance(pay.ata(wallet, coin)), c.balance(wtok), c.balance(vault)) == (9_950_000, 87 * USDC, 3 * USDC)
 
 
 def test_a_mints_issuer_keeps_its_powers_over_the_vault_and_the_job_waits(chain):
@@ -1551,7 +1551,7 @@ def test_a_mints_issuer_keeps_its_powers_over_the_vault_and_the_job_waits(chain)
     assert not do_pay(c, job, tok, payee, wallet) and pay.read_job(c.data(job)).state == "open"      # the token program: not enough in the vault
     transfer(c, seized, vault, 4 * USDC, issuer, coin)
     assert do_pay(c, job, tok, payee, wallet), c.err
-    assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_750_000 and c.balance(vault) == 0
+    assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_950_000 and c.balance(vault) == 0
 
 
 # -- the invariant -------------------------------------------------------------------------------------------------------

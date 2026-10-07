@@ -83,7 +83,7 @@ export function renderStatus(el, env = {}) {
     <p class="lede">Check the relay and a whole round.</p>
     <div class="card" id="relay-status">
       <h3>The public relay</h3>
-      <details class="k-more"><summary>More</summary><p>A signed token is a comment on GitHub until someone carries it to Solana. The public relay does that about once a minute and pays the transaction fee;
+      <details class="k-more"><summary>What the relay does</summary><p>A signed token is a comment on GitHub until someone carries it to Solana. The public relay does that about once a minute and pays the transaction fee;
         anyone else can carry the same token with <code>knos relay</code>. It writes one line in a public log for every token it answers for.</p></details>
       <p id="relay-head" class="status" role="status" aria-live="polite">Open this page to read the relay's log.</p>
       <div id="relay-latest"></div>
@@ -210,7 +210,7 @@ export function renderPilot(el, esc = escHtml) {
     <div class="card" id="pilot-gets">
       <details class="k-more"><summary>What the buyer gets: four deliverables</summary>
       <ol id="pilot-deliverables">${PILOT_DELIVERABLES.map(([name, what]) => `<li><strong>${esc(name)}.</strong> ${esc(what)}</li>`).join("")}</ol></details>
-      <p class="fine">Each statement can be checked from the two ledger files alone. Totals are also written to Solana devnet as test data, to show the mechanism; nothing in the Pilot depends on devnet keeping its history.</p>
+      <p class="fine" data-fold="Checked from two ledger files">Each statement can be checked from the two ledger files alone. Totals are also written to Solana devnet as test data, to show the mechanism; nothing in the Pilot depends on devnet keeping its history.</p>
     </div>
     <div class="card" id="pilot-blockers">
       <details class="k-more"><summary>What stands in the way, plainly</summary>
@@ -236,7 +236,7 @@ export function renderReproduce(el, listed, esc = escHtml) {
     <p class="lede">Do not take the maintainer's word. Run one command.</p>
     <pre>${esc(REPRODUCE_COMMAND)}</pre>
     <div class="card" id="repro-count-card"><h3>Reproductions from outside</h3>${count}
-      <p class="fine">A file counts only when GitHub signed the run in a repository that is not Knos's own; a run in one of Knos's accounts is refused by the same check that accepts everyone else's.
+      <p class="fine" data-fold="Which files count">A file counts only when GitHub signed the run in a repository that is not Knos's own; a run in one of Knos's accounts is refused by the same check that accepts everyone else's.
         Each capability's stage: <a href="#capabilities">Capabilities</a>.</p></div>
     <div class="card" id="repro-how">
       <details class="k-more"><summary>Three lines: run, fork, send the result</summary>

@@ -37,7 +37,7 @@ JS_NOT_IMPLEMENTED = {"receipt.check", "receipt.verdict", "statement.text"}
 def test_the_vectors_are_the_ones_kit_version_1_names_and_every_case_is_well_formed():
     m = kit.manifest()
     named = {e["format"]: e["sha256"] for e in m["formats"]}
-    assert m["kit"] == 2 and {k: named[k] for k in KIT_1} == KIT_1 and set(named) - set(KIT_1) == {"receipt4", "ids"}     # version 2 added two, changed none
+    assert m["kit"] == 3 and {k: named[k] for k in KIT_1} == KIT_1 and set(named) - set(KIT_1) == {"receipt4", "ids", "ledger2"}     # versions 2 and 3 added three, changed none
     todo = kit.cases()
     assert len({c["id"] for c in todo}) == len(todo) == sum(e["cases"] for e in m["formats"])
     for e in m["formats"]:
@@ -99,7 +99,7 @@ def test_the_javascript_client_passes_every_case_it_implements():
     assert re.search(rf"^\| JavaScript [^|]*\| {done} \| {left} \| 0 \|$", DOC, re.M)
     source = (KIT / "impl" / "knos_js.mjs").read_text(encoding="utf-8")
     adapter = set(re.findall(r'^  "([a-z_.0-9]+)":', source.split("const ADAPTER")[1], re.M))
-    assert adapter == {"receipt.digest", "ledger.deliverable_id", "statement.hash"} | {c["op"] for c in kit.cases() if c["format"] == "ids"}     # what the SDK has no function for
+    assert adapter == {"receipt.digest", "ledger.deliverable_id", "statement.hash"} | {c["op"] for c in kit.cases() if c["format"] in ("ids", "ledger2")}     # what the SDK has no function for
     by_adapter = sum(1 for c in kit.cases() if c["op"] in adapter)
     assert f"{done - by_adapter} are answered by functions `sdk/settle` exports and {by_adapter} by a few lines in the adapter" in DOC
     for op in adapter | JS_NOT_IMPLEMENTED:
@@ -153,7 +153,7 @@ def test_the_vectors_are_what_knos_computes_today():
         assert json.loads(c["expect"]["output"]["json"]) == c["input"]["terms"]            # terms.hash cases are already canonical
         assert len(c["expect"]["output"]["json"]) <= terms.MAX_BYTES
     text = next(c for c in by_op["statement.text"])
-    assert ledger.statement(ledger.load(text["input"]["ledger"]), text["input"]["month"]) == text["expect"]["output"]
+    assert ledger.statement(ledger.load(text["input"]["ledger"]), text["input"]["month"], rate=50_000, free=10_000) == text["expect"]["output"]      # the Meter price of the vector's day, which a statement prints
     assert any(c["input"]["statement"] == text["expect"]["output"] and c["expect"]["output"]["agrees"] for c in by_op["statement.hash"])
     empty = next(c for c in by_op["ledger.batch_root_any"] if not c["input"]["ids"])
     assert empty["expect"]["output"] == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"   # sha256 of nothing (RFC 6962)

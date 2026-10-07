@@ -15,6 +15,7 @@ import urllib.parse
 
 from solders.pubkey import Pubkey
 
+import _pay21
 from _hub import BOT, Hub, user
 from knos import closing, commands, flow
 from knos.settle.v2 import pay
@@ -122,15 +123,16 @@ def order_bytes(repo_id: int, issue: int, amount: int, source: Pubkey, terms_has
                 flags: int = pay.F_NEUTRAL | pay.F_FAUCET, fee: int | None = None, rate: int = 0, paid: int = 0, deadline: int = 0, not_before: int = 0,
                 holdback_bps: int = 0, warranty_days: int = 0, kill_bps: int = 0, reserve_days: int = 0, arbiter: int = 0, mint: Pubkey | None = None,
                 owner_id: int = HUBOT["id"], funder_id: int = HUBOT["id"], wf_repo: str = WF_REPO, wf_sha: str = WF_SHA, kind: int = 1,
-                scope: bytes | None = None, judge_repo: int = 0) -> bytes:
+                scope: bytes | None = None, judge_repo: int = 0, version: int = 1) -> bytes:
     """A work order as programs-v2/knos_pay lays it out (state.rs): what knos.settle.v2.pay.read_order reads. A PRIVATE
-    one: `repo_id` and `issue` 0, its `scope` given, `judge_repo` the repository whose runs pay it."""
+    one: `repo_id` and `issue` 0, its `scope` given, `judge_repo` the repository whose runs pay it. `version`: the
+    knos_pay that funded it (what Version answers), which decides the fee escrowed with it when none is given."""
     d = bytearray(pay.ORDER_LEN)
     d[0], d[1], d[2], d[3], d[4], d[6], d[7] = 2, state, mode, kind, flags, 6, reserve_days
     d[24:56], d[56:60] = scope or pay.scope_of(repo_id, issue), seq.to_bytes(4, "little")
     d[184:192] = judge_repo.to_bytes(8, "little")
     d[60:62], d[62:64] = holdback_bps.to_bytes(2, "little"), kill_bps.to_bytes(2, "little")
-    for offset, value in ((8, repo_id), (16, issue), (64, amount), (72, pay.order_fee(amount) if fee is None else fee), (80, rate), (88, paid),
+    for offset, value in ((8, repo_id), (16, issue), (64, amount), (72, _pay21.order_fee(version, amount) if fee is None else fee), (80, rate), (88, paid),
                           (96, deadline), (104, not_before), (120, warranty_days * 86_400), (160, funder_id), (168, owner_id), (176, arbiter)):
         d[offset:offset + 8] = int(value).to_bytes(8, "little")
     mint = mint or (pay.faucet_mint() if flags & pay.F_FAUCET else pay.USDC_DEVNET)
@@ -169,6 +171,7 @@ class Chain:
 
     def __init__(self, clock: Clock):
         self.clock, self.accounts, self.logs, self.down, self.prefixed, self.ahead, self.newer = clock, {}, {}, False, False, 0, {}
+        self.version = 1        # the knos_pay this chain runs, as Version answers: its orders are funded at that build's fee
 
     def _up(self) -> None:
         if self.down:
@@ -220,7 +223,7 @@ class Chain:
         at = self.clock() if at is None else at
         address = pay.order_pda(pay.scope_of(REPO_ID, issue), source, seq)
         self.accounts[str(address)] = order_bytes(REPO_ID, issue, units, source, pay.terms_hash(raw), seq=seq, deadline=int(at) + days * 86_400,
-                                                  not_before=int(at), **more)
+                                                  not_before=int(at), **{"version": self.version, **more})
         self.logs[str(address)] = raw
         return address
 
@@ -265,6 +268,7 @@ class Relay:
     def __init__(self, clock: Clock, takes: float = 30):
         self.clock, self.takes, self.refusals, self.submitted, self.n = clock, takes, [], [], 0
         self.answered = []                                   # what `submit` returned, in order
+        self.version = 1                                     # the knos_pay it stands for, as Version answers: it charges that build's fee
 
     def _sig(self) -> str:
         self.n += 1
@@ -325,7 +329,7 @@ class Relay:
                 held[0] = 3
                 held[56:64], held[48:56] = payee.to_bytes(8, "little"), until.to_bytes(8, "little")
                 ledger.accounts[address] = bytes(held)
-            paid.append({"job": address, "amount": j.amount, "fee": pay.fee_of(j.amount), "mint": str(j.mint), "to": to, "held_until": until})
+            paid.append({"job": address, "amount": j.amount, "fee": _pay21.job_fee(self.version, j.amount), "mint": str(j.mint), "to": to, "held_until": until})
         if not paid:
             return {"ok": False, "kind": "pay", "why": "no open job on this issue accepted the token"}
         return {"ok": True, "kind": "pay", "sigs": [self._sig(), self._sig()], "repo_id": repo_id, "issue": issue, "payee_id": payee,
@@ -351,7 +355,7 @@ class Relay:
                 return {"ok": False, "kind": "fund", "why": "the order exists already, or its terms are not the ones the token names"}
             faucet = balance == str(pay.faucet_balance_pda(int(c["repository_owner_id"])))
             n = lambda o, size: int.from_bytes(options[o:o + size], "little")  # noqa: E731
-            fee, deadline = pay.order_fee(amount), int(self.clock()) + int(aud[6])
+            fee, deadline = _pay21.order_fee(self.version, amount), int(self.clock()) + int(aud[6])
             mint = pay.faucet_mint()
             if not faucet:
                 b = pay.read_balance(ledger.accounts[balance])
@@ -364,7 +368,7 @@ class Relay:
                 flags=options[0] | (pay.F_FAUCET if faucet else 0),
                 rate=n(8, 8), deadline=deadline, not_before=int(c["iat"]), holdback_bps=n(1, 2), warranty_days=n(3, 2), kill_bps=n(5, 2),
                 reserve_days=options[7], arbiter=n(16, 8), mint=mint, funder_id=int(c["actor_id"]), wf_repo=pin[0], wf_sha=pin[1],
-                owner_id=int(c["repository_owner_id"]), scope=scope if private else None, judge_repo=judge_repo)
+                owner_id=int(c["repository_owner_id"]), scope=scope if private else None, judge_repo=judge_repo, fee=fee)
             if not private:                                  # a private order's terms are never logged
                 ledger.logs[str(order)] = terms
             return {"ok": True, "kind": "fund", "sigs": [self._sig(), self._sig()], "order": str(order), "repo_id": int(c["repository_id"]) if private else REPO_ID,
@@ -703,9 +707,18 @@ class World:
         self.signer = Signer(self.clock, actor["id"])
         self.env = {"GITHUB_RUN_ID": "77", **({"KNOS_RELAY_KEY": "[1,2,3]"} if relay_key else {})}
         self.runs = 0
-        self.version = 0                                                  # knos_pay on this chain: 0 is 2.0 (jobs), 1 is 2.1 (work orders)
+        self.version = 0                                                  # knos_pay on this chain: 0 is 2.0 (jobs), 1 is 2.1 (work orders), 2 is 2.2 (the 0.3.18 fee)
         self.screened, self.screen = [], lambda address: (True, "screened: not listed.")      # knos.screen.check, by its contract
         self.month_spent = 0                                              # knos.records.month_spent for the owner
+
+    @property
+    def version(self) -> int:
+        return self._version
+
+    @version.setter
+    def version(self, v: int) -> None:
+        """The fakes that stand for the program charge what the build of this Version charges."""
+        self._version = self.chain.version = self.relay.version = v
 
     def run(self, event: dict, **env) -> flow.Run:
         said = event.get("comment") or event.get("issue") or {}

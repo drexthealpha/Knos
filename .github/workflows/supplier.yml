@@ -1,0 +1,112 @@
+name: knos supplier check (reusable workflow)
+
+# A reusable workflow for a supplier's own repository: the free check on every pull request, its result posted once,
+# and its receipt kept as an artifact. No bounty, no money, no chain, no secret. A repository calls it with one line
+# (examples/knos-supplier.yml, docs/RECORD.md):
+#
+#     uses: drexthealpha/Knos/.github/workflows/supplier.yml@<a release tag, or its full commit sha>
+#
+# What the one job does, and nothing else:
+#   - runs the Knos check (action.yml at the commit pinned below: `knos proof gate`, which runs none of the pull
+#     request's code): a "tests pass" or "CI is green" in the description is held against GitHub's record of the head
+#     commit's checks, and the repository's CONTRIBUTING rules are read from the base commit;
+#   - writes the receipt: one JSON file with the repository, the pull request, the head commit, the result and the
+#     judge's evidence with its sha256, and uploads it as the artifact "knos-receipt-<pull request>";
+#   - posts the result once: one comment on the pull request, found again by its first line and rewritten on every
+#     later run, never a second one. A pull request from a fork runs with a token that can only read, whatever a file
+#     asks: the comment is then skipped and said so, and the result is the job's summary and conclusion;
+#   - fails when a claim does not hold, so the check can be required before a merge.
+#
+# How GitHub runs this: a reusable workflow called from another repository sees the caller's event, repository and
+# token. It takes no inputs and no secret: nothing a caller passes can change which code runs here. The receipt is
+# the check's own record, signed by nobody: it is not an acceptance receipt (docs/RECEIPT.md), and nothing is paid on it.
+on:
+  workflow_call: {}
+
+permissions: {}
+
+jobs:
+  check:
+    name: knos supplier check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # the newest run for a pull request replaces an older one still going: its head or its description has changed
+    concurrency:
+      group: knos-supplier-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read          # the base commit and the pull request's diff
+      checks: read            # GitHub's record of the head commit
+      pull-requests: write    # the one comment
+    steps:
+      - name: the Knos check
+        id: knos
+        continue-on-error: true      # a claim that does not hold is still posted and still gets its receipt; the last step fails the job
+        uses: drexthealpha/Knos@f03ec515d8666c46e3fdc6bb0123bc0786d5dd75 # v0.3.17
+      - name: the receipt
+        id: receipt
+        env:
+          PASSED: ${{ steps.knos.outputs.passed }}
+          EVIDENCE: ${{ steps.knos.outputs.evidence }}
+          NUM: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/knos-receipt"
+          rm -rf "$out"; mkdir -p "$out"
+          if [ -z "$PASSED" ] || [ ! -s "$EVIDENCE" ]; then
+            echo "Knos stopped before it reached a verdict, so there is no receipt. The step above says why; run the job again."
+            exit 1
+          fi
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg num "$NUM" --arg head "$HEAD" --arg passed "$PASSED" \
+                --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+                --arg sha "$(sha256sum "$EVIDENCE" | cut -d' ' -f1)" --slurpfile evidence "$EVIDENCE" \
+            '{schema: "knos.check-receipt/1", repository: $repo, pull_request: ($num | tonumber), head: $head, passed: ($passed == "true"),
+              run: $run, evidence_sha256: $sha, evidence: $evidence[0],
+              limits: "The check'"'"'s own record, signed by nobody. It says what the description claimed and what GitHub recorded, not that the work is good."}' \
+            > "$out/knos-receipt-$NUM.json"
+          echo "file=$out/knos-receipt-$NUM.json" >> "$GITHUB_OUTPUT"
+      - name: attach the receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-receipt-${{ github.event.pull_request.number }}
+          path: ${{ steps.receipt.outputs.file }}
+          if-no-files-found: error
+          overwrite: true
+      - name: post the result once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PASSED: ${{ steps.knos.outputs.passed }}
+          FILE: ${{ steps.receipt.outputs.file }}
+          NUM: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mark='<!-- knos-supplier-check -->'
+          run="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          {
+            echo "$mark"
+            if [ "$PASSED" = true ]; then
+              echo "**Knos check: the claims hold.** What this description says agrees with GitHub's record of the head commit."
+            else
+              echo "**Knos check: a claim does not hold.**"
+              jq -r '.evidence.reasons[]? | "- " + .' "$FILE"
+            fi
+            echo
+            echo "Receipt: the artifact \`knos-receipt-$NUM\` of [this run]($run). The check ran none of this pull request's code, and nobody paid for it."
+          } > "$RUNNER_TEMP/knos-comment.md"
+          cat "$RUNNER_TEMP/knos-comment.md" >> "$GITHUB_STEP_SUMMARY"
+          api="repos/$GITHUB_REPOSITORY/issues"
+          id=$(gh api "$api/$NUM/comments?per_page=100" --jq "[.[] | select(.body | startswith(\"$mark\"))][0].id // empty" || true)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "$api/comments/$id" -F body=@"$RUNNER_TEMP/knos-comment.md" > /dev/null \
+              || echo "::notice title=Knos check::The comment could not be rewritten with this run's token. The result is this job's summary."
+          else
+            gh api -X POST "$api/$NUM/comments" -F body=@"$RUNNER_TEMP/knos-comment.md" > /dev/null \
+              || echo "::notice title=Knos check::A pull request from a fork runs with a token that can only read, so no comment was posted. The result is this job's summary."
+          fi
+      - name: the result
+        env:
+          PASSED: ${{ steps.knos.outputs.passed }}
+        run: |
+          [ "$PASSED" = true ] || { echo "A claim in this pull request's description does not hold. The comment and the receipt say which."; exit 1; }

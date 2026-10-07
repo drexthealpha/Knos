@@ -43,12 +43,55 @@ product boundary, not a signature: [SECURITY.md](SECURITY.md) says what breaks i
 For Knos the same move would be an organisation's runner that makes `prove.yml` report a passing suite, or answer
 "merged, checks green" for a pull request that is neither. The token would verify.
 
+## Under every rung: what the workflow's shape enforces
+
+The ladder is about who could make a false statement. Below it is a floor that needs no new trust, only the shape of
+the workflow files, and it is held by tests ([SECURITY.md](SECURITY.md), "Where untrusted code runs"):
+
+- **Enforced by shape.** A pull request's code runs only in a job with a token that reads, no secret and no
+  `id-token`: it cannot ask the forge to sign anything. The job that signs has no checkout, no git and no artifact:
+  it installs `knos` by the hash of every file and runs none of that code. What crosses between them is one line of
+  fixed fields with no free text, which the signing job reads strictly, holds to its own run, pull request, issue
+  and two commits, and checks again against the forge's record (the head commit, the acceptance bundle's hash, the
+  judge's rule on every changed path) before the command that can sign starts. Every action is named by a full
+  commit.
+- **Not enforced by shape.**
+  - *A compromised runner image.* The label `ubuntu-24.04` is not a digest and the token does not name the image
+    (the example above). The verdict records the image's version as the machine reports it; nothing signs it.
+  - *The forge itself.* It runs both jobs, carries the output between them, answers the API the second job checks
+    against, and signs. A forge that lies is outside every rung but d and e.
+  - *The judge's own code being wrong.* The signing job proves which `knos` it installed, not that `classify_path`
+    or the sandbox is right. That is what the tamper corpus ([TAMPER.md](TAMPER.md)) and a second, different
+    judge are for.
+  - *That the suite passed.* One bit, for one pull request at one commit against one bundle, is still the word of
+    the machine that ran the code. Rungs a and b are how a second machine says it too.
+
+**Escape and substitution tests a reviewer should run.** Each is independent of Knos's own tests; a reviewer should
+write the hostile input rather than reuse ours.
+
+1. *Out of the sandbox.* In a fork, open a pull request whose code, under the acceptance suite, tries: a TCP
+   connection by address, a DNS lookup, reading `/proc/1/environ` and `$GITHUB_*`, `sudo -n true`, writing outside
+   its tree, and reading the runner's work folder. Expect every one to fail and the judge job's log to hold no token.
+2. *From the judge to the signer.* With a copy of the workflows in a staging repository, replace the judge's last
+   step with one that prints a verdict for another pull request, another head commit, another issue, another run id;
+   then one with a key twice, one of 1 MB, one whose `image` is a shell command. Expect the signing job to end at
+   the step before `knos settle`, and no token comment.
+3. *Past the rule.* A pull request that edits an existing test, one that renames it away, one that adds a workflow
+   file, each with a judge patched to say "passed". Expect the signing job to refuse by the path's code.
+4. *A stale verdict.* Push a commit to the pull request between the judge and the signer (hold the signer with the
+   `knos-settle` line). Expect "no longer the one that was judged".
+5. *Across runs.* Start two runs for two pull requests at once and confirm neither signer accepts the other's
+   verdict; run a failed `rerun` job of `attest.yml` again and confirm the second attempt's artifact has its own
+   name.
+6. *The shape itself.* Read each published file at the commit an order records and confirm by eye what
+   `tests/test_workflows2.py` asserts: no job has both `id-token: write` and a checkout, a fetch or a download.
+
 ## The ladder
 
 | Rung | Closes | Still trusted | Today |
 |---|---|---|---|
-| a. Quorum of judges in repositories different parties control | one runner, one maintainer | the forge; that the parties are different people | built and tested in a simulator; never run on the public program ids |
-| b. Re-execution by a neutral judge from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself | built; the re-execution has run only in tests |
+| a. Quorum of judges in repositories different parties control | one runner, one maintainer | the forge; that the parties are different people | built and tested in a simulator; never run on the public program ids. In each judge, the job that runs the code cannot sign (shape, above) |
+| b. Re-execution by a neutral judge from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself; that the re-execution's one bit is true | built; the re-execution has run only in tests. Its verdict is read strictly and held to the order by the job that signs (shape, above) |
 | c. Build provenance of the judge | what code the judge installed | the forge as builder and signer; the machine (see the example above) | not built here; the parts exist at GitHub and Sigstore |
 | d. Proof of what the forge's API returned | the answers | a notary or a proxy, or the proof system | not built; no system we found checks a transcript on Solana |
 | e. An attested enclave runs the judge | the machine | the chip vendor's root key; side channels; the cloud | not built; GitHub offers no attested runner |
@@ -100,6 +143,12 @@ still read through the API. Both runs are GitHub's runners and the same `knos` r
 
 **Maturity.** Built; tested against stand-ins for GitHub and the chain. The verdict it writes is not signed by
 GitHub: it is the workflow's own account of how it decided.
+
+**Enforced by shape, and not.** The `rerun` job cannot sign and the `attest` job runs none of the code; the verdict
+between them is held to one reading (small, plain characters, each key once, only a verdict's fields) before
+`knos attest` holds it to the order, the pull request, the two commits and the bundle. Not enforced: that `rerun`'s
+"passed" is true. A pull request that escaped the sandbox there could write it; it could not make it name another
+order, and the same escape would have to work in every judge of a quorum.
 
 ### c. Build provenance of the judge itself
 

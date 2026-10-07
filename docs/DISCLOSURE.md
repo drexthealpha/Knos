@@ -6,6 +6,13 @@ page says what existed before that moment, what of it is still in the repository
 what came from elsewhere. The repository's git history shows all of it, and the commands at the end reproduce
 every count.
 
+## Development completed before the hackathon period
+
+Completed before 13:00 UTC on 14 Sep 2026: Knos 0.1.0 to 0.1.8 and unreleased work on it, a shared local memory for
+coding agents (83 commits, 1 to 14 Sep 2026). That is a different product from the one submitted. Of the lines at
+Knos 0.3.11, 1.1% date from it; the table further down lists them. The verifier, the escrow, the meter, the ledger,
+the judge and the site were written after that moment.
+
 ## What existed before the competition and what was built during it
 
 The short form, by date. Times are UTC and are the commits' own (`git log`); a release's date is its release
@@ -24,7 +31,9 @@ commit's. The sections after this one give the detail and the line counts.
 | 2 Oct 2026 | Knos 0.3.9 (04:56), 0.3.10 (09:51: the first deployment on devnet), 0.3.11 (14:10, commit `f3dfd3d`) | during |
 | 3 Oct 2026 | three pull requests by another account merged; Knos 0.3.12 (16:13: the second deployment) | during |
 | 4 Oct 2026 | Knos 0.3.13 (09:02), Knos 0.3.14 (21:46, commit `6eb81dd`) | during |
-| after 4 Oct 2026 | Knos 0.3.15: clients, workflows, site, documents and tests; no program changed | during |
+| 5 Oct 2026 | Knos 0.3.15 (10:49, commit `72511b3`) and 0.3.16 (23:47, commit `50ecb05`) | during |
+| 6 Oct 2026 | Knos 0.3.17 (20:00, commit `f03ec51`) | during |
+| after 6 Oct 2026 | Knos 0.3.18 | during |
 
 **Everything the product is today was built during the contest period.** What predates it is a different product,
 of which 1.1% of the lines at Knos 0.3.11 remain (the table below says which).
@@ -121,6 +130,7 @@ One dependency also carries over: Sibyl's memory client, which the judge and the
   by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
   [GOVERNANCE.md](GOVERNANCE.md).
 
+- **Knos 0.3.16 to 0.3.18** (5 Oct 2026 onward): [CHANGELOG.md](../CHANGELOG.md) has each list.
 - **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
   [CHANGELOG.md](../CHANGELOG.md) has the list. The offer of a paid [Pilot](PILOT.md) and the page on who builds
   Knos ([TEAM.md](TEAM.md)) were written for it.
@@ -165,52 +175,30 @@ Commits in this repository were written with coding agents. Every commit is auth
 who is responsible for it. Commits carry no co-author trailers, because the author of record is the person who
 reviewed and committed the change.
 
-## What only people can supply, and does not exist
+## Outstanding limits
 
-Code cannot produce any of these, and none of them exists today. Each is said once, with what would change it.
+Each limit is said once, on one line. Code cannot produce the first fifteen. `python scripts/release_manifest.py`
+copies these lines into [MANIFEST.md](MANIFEST.md).
 
-- **No buyer has been interviewed.** Not one. Every statement in this repository about what a buyer wants is the
-  founder's reasoning from public sources ([MARKET.md](MARKET.md)).
+- **No buyer has been interviewed.** Every statement here about what a buyer wants is the founder's reasoning from public sources ([MARKET.md](MARKET.md)).
 - **No letter of intent.** Nobody has written that they would use or buy Knos.
-- **No paying customer.** Nobody has paid for anything. No price in the price book has been charged to anyone.
-- **No pilot.** The [Pilot](PILOT.md) is an offer. Nobody has bought it and nobody has been offered it.
-- **No outside funder.** Knos's own account funded every task on both deployments, in test money. Up to Knos
-  0.3.11 every payment was Knos's own account paying itself. Since then 3 payments have gone to another GitHub
-  account, for the three pull requests named above. The site's Numbers page counts outside use apart from Knos's
-  own.
-- **Outside key holders today: 0.** Both multisigs are 2-of-3 and one person holds all three keys. *Changes when*
-  one person opens a "Key holder request" and the proposal that adds their key has executed
-  ([KEYHOLDER.md](KEYHOLDER.md)).
-- **One founder, pseudonymous:** the GitHub account drexthealpha. No legal name is published. *Changes when* the
-  founder publishes one.
-- **No co-founder,** employee or adviser. *Changes when* a person joins and is named in [TEAM.md](TEAM.md).
-- **No legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos, and there are no terms of
-  service. *Changes when* a company is formed and named here.
-- **No legal advice taken.** [REGULATION.md](REGULATION.md) is what the founder read. *Changes when* a lawyer is
-  engaged and that page says on what.
-- **No outside review,** of the programs, the workflows, the relay, the clients, the site or the documents.
-  *Changes when* a reviewer's findings are published and linked from [ASSURANCE.md](ASSURANCE.md).
-- **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples, and no
-  comparison of two counts is published.
-- **No outside program is known to read the verifier.** The interface and the examples are in the repository
-  ([COMPOSE.md](COMPOSE.md)); nobody outside Knos is known to call them.
-- **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash,
-  rerunning the benchmarks, or running the drills.
-- **The Rust crates and the npm package are not on crates.io or npm.** A first publish to each needs the owner to
-  sign in once at crates.io and at npmjs.com and create a token; that has not been done. Until then
-  `knos-oidc-interface` and `knos-settle` are installed from this repository ([INSTALL.md](INSTALL.md)). The Python
-  package is on PyPI.
-
-## What else has not been done
-
-- **No mainnet deployment.** No real money has moved.
-- **No second operator.** If the founder is unavailable, nobody answers a report, approves a key or cancels a
-  proposal. *Changes when* someone else runs the checklist in [OPERATOR.md](OPERATOR.md) and its drill is recorded.
-- **No organisation account.** The pinned workflows and the relay live in one personal GitHub account; if it is
-  suspended, funded orders can only be refunded. *Changes when* the steps of [GOVERNANCE.md](GOVERNANCE.md),
-  section 9, are taken.
-- The first deployment cannot be changed, so its known limits stay ([SECURITY.md](SECURITY.md)). The second
-  deployment can be changed only through a multisig with a public 48-hour delay.
+- **No paying customer.** No price in the price book has been charged to anyone.
+- **No pilot.** The [Pilot](PILOT.md) is an offer; nobody has bought it or been offered it.
+- **No outside funder.** Knos's own account funded every task, in test money. Since 0.3.11, 3 payments have gone to another GitHub account, for three pull requests it wrote.
+- **Outside key holders today: 0.** Both multisigs are 2-of-3 and one person holds all three keys ([KEYHOLDER.md](KEYHOLDER.md) says what changes it).
+- **One founder, pseudonymous:** the GitHub account drexthealpha; no legal name is published.
+- **No co-founder,** employee or adviser ([TEAM.md](TEAM.md)).
+- **No legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos, and there are no terms of service.
+- **No legal advice taken.** [REGULATION.md](REGULATION.md) is what the founder read.
+- **No outside review,** of the programs, the workflows, the relay, the clients, the site or the documents ([ASSURANCE.md](ASSURANCE.md)).
+- **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples.
+- **No outside program is known to read the verifier.** The interface and the examples are Knos's own ([COMPOSE.md](COMPOSE.md)).
+- **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash, rerunning the benchmarks or running the drills.
+- **The Rust crates and the npm package are not on crates.io or npm.** They install from this repository ([INSTALL.md](INSTALL.md)); the Python package is on PyPI.
+- **No mainnet deployment.** Solana devnet and test USDC only; no real money has moved.
+- **No second operator.** If the founder is unavailable, nobody answers a report, approves a key or cancels a proposal ([OPERATOR.md](OPERATOR.md)).
+- **No organisation account.** The pinned workflows and the relay live in one personal GitHub account ([GOVERNANCE.md](GOVERNANCE.md), section 9).
+- **The first deployment cannot be changed,** so its known limits stay ([SECURITY.md](SECURITY.md)); the second changes only through a multisig with a public 48-hour delay.
 
 ## Reproduce the counts
 

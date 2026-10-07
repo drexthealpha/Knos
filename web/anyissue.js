@@ -8,7 +8,7 @@
 // then shows what the order would be and says why nothing can be sent. The terms are worked out here, in the form
 // src/knos/terms.py `canonical` writes (tests/test_fund_any_issue.py records Python's answers, and tests/web/site.mjs holds this file
 // to them), with a check named in the box counting from any source, as `describe` words it.
-import { priceConstants, quote, unitsOf, show, plain, percent } from "./price.js";
+import { priceConstants, quote, unitsOf, show, plain, feeRate, feeNote } from "./price.js";
 import { programVersion } from "./version.js";
 import { pinsOf, WORKFLOW } from "./front.js";
 import { runDay } from "./upgrade.js";
@@ -178,7 +178,8 @@ const ROLES = ["the funder (you, signing)", "the order", "the order's token acco
 
 export function initAnyIssue(ctx) {
   const { $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign, say, upgrades } = ctx;
-  const c = priceConstants(), state = { avail: null, preview: null, pending: null };
+  let c = priceConstants();              // the fee follows the build that is live: set again below from the program's own answer
+  const state = { avail: null, preview: null, pending: null };
   const link = (kind, id, text = id) => `<a class="mono" href="${esc(EXPLORER(kind, id))}" target="_blank" rel="noopener">${esc(text)}</a>`;
 
   function refresh() {
@@ -194,6 +195,7 @@ export function initAnyIssue(ctx) {
     try {
       const [i, up, k] = await Promise.all([ids(), upgrades, client().catch(() => null)]);
       const version = await programVersion(knos, RPC, i.knos_pay).catch(() => null);
+      c = priceConstants(knos, version);   // the 0.3.14 fee until knos_pay 2.2 answers, the 0.3.18 fee after; nobody answered: this tree's own, and the page says both
       state.avail = availability({ version, funding: !!k && !!orderFunding(knos, k), up });
     } catch { state.avail = availability({ version: null, funding: false }); }
     out.className = `status ${state.avail.ok ? "ok" : ""}`;
@@ -242,7 +244,8 @@ export function initAnyIssue(ctx) {
           <dl class="facts" id="any-facts">
             <dt>Issue</dt><dd><a id="any-issue-link" href="https://github.com/${esc(full)}/issues/${number}" target="_blank" rel="noopener">${esc(full)}#${number}</a>: ${esc(title)}</dd>
             <dt>Repository</dt><dd>GitHub repository id ${repo.id}. The order is for this repository's issue number ${number}.</dd>
-            <dt>You pay</dt><dd><strong id="any-pay">${show(q.funderPays)}</strong> test USDC: ${show(q.amount)} for the person who does the work, and ${show(q.fee)} fee on top (${percent(c.feeBps)} of the first ${(c.tier1 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps2)} from there to ${(c.tier2 / 1e6).toLocaleString("en-US")}, ${percent(c.feeBps3)} above; at least ${show(c.feeMin)}, no maximum).</dd>
+            <dt>You pay</dt><dd><strong id="any-pay">${show(q.funderPays)}</strong> test USDC: ${show(q.amount)} for the person who does the work, and ${show(q.fee)} fee on top (${esc(feeRate(c).replace("% to ", "% from there to ").replace(", at least", "; at least"))}, no maximum).</dd>
+            <dt>Which fee</dt><dd id="any-fee-note" data-fee="${esc(c.fee.release)}">${esc(feeNote(q.amount, c))}</dd>
             <dt>Time to do it</dt><dd id="any-time">${read.days} day${read.days === 1 ? "" : "s"}. Unpaid by then, the order can be sent back to your wallet.</dd>
             <dt>Paid when</dt><dd><ul id="any-sentences">${describeTerms(read.terms).map((s) => `<li>${esc(s).replace(/`([^`]*)`/g, "<code>$1</code>")}</li>`).join("")}</ul></dd>
             <dt>Paid only by</dt><dd id="any-pin">a signed run of the workflows of <a href="https://github.com/${esc(pin.repo)}" target="_blank" rel="noopener">${esc(pin.repo)}</a> at commit

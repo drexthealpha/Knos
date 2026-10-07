@@ -1,0 +1,108 @@
+{
+ "schema": "knos.supplier-record/1",
+ "supplier": "claude-code",
+ "name": "claude-code",
+ "as_of": "2026-10-07",
+ "rule": "The supplier never pays for this record and cannot pay to change it.",
+ "not_a_score": "Counts with their samples. Nothing here is a score.",
+ "orders": {
+  "label": "work settled through Knos",
+  "category": "deliverables evaluated under Knos orders and meters",
+  "sample": 0,
+  "period": {
+   "from": null,
+   "to": null,
+   "unit": "month"
+  },
+  "counts": {
+   "accepted": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   },
+   "rejected": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   },
+   "insufficient_evidence": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   },
+   "disputed": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   },
+   "appealed": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   },
+   "overturned": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   },
+   "reverted": {
+    "n": 0,
+    "from": "nothing on record",
+    "evidence": []
+   }
+  },
+  "parts": {
+   "events": {
+    "read": false,
+    "why": "not given when this file was built"
+   },
+   "memory": {
+    "read": false,
+    "why": "not given when this file was built"
+   }
+  }
+ },
+ "public": {
+  "label": "from public pull requests, not from Knos orders",
+  "source": "docs/index.json",
+  "source_sha256": "27858e2dbd60c30bde314143f438532e8301c6e239b2007b4c9fbd57fa7db4a8",
+  "category": "merged pull requests whose description claimed passing tests",
+  "week": "2026-09-28",
+  "read": "2026-10-07",
+  "weeks": 9,
+  "period": {
+   "from": "2026-06-29",
+   "to": "2026-09-28",
+   "unit": "week starting"
+  },
+  "claimed_passing": 41,
+  "sample": 31,
+  "failed_at_merge": 3,
+  "share": 0.0968,
+  "ci95": [
+   0.0335,
+   0.249
+  ],
+  "rank": 3,
+  "status": "ranked",
+  "min_sample_to_rank": 30,
+  "overlaps_above": true,
+  "disputed": [],
+  "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-09-28&agent=claude-code&week=2026-09-28",
+  "method": "https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"
+ },
+ "limits": [
+  "Knos wrote this file and nobody outside Knos has reviewed it: dispute it with the link in it.",
+  "The file is not signed. The evidence a count links to is: a transaction, a batch root, or a log line's hash.",
+  "A failed check is not always a failed test or a false claim.",
+  "Accepted means the agreed checks passed. It does not show that the work has no defect.",
+  "Nothing recorded is not the same as nothing done."
+ ],
+ "links": {
+  "page": "https://drexthealpha.github.io/Knos/#record=claude-code",
+  "file": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/claude-code.json",
+  "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+claude-code&agent=claude-code&week=2026-09-28",
+  "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/RECORD.md"
+ },
+ "sha256": "04e80bdd11f7fb2e21e460947c0796903b8c7de5e2c7c131f9e914fd44d4e041"
+}

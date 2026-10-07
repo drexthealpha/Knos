@@ -43,7 +43,10 @@ export async function jsonFile(path) {
   return data;
 }
 const sharedTable = (esc, head, rows) => (rows.length ? `<div class="table-wrap"><table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="fine">Nothing to show yet.</p>`);
-const sharedSource = (esc, data, path, id = "rec-source") => `<p class="fine" id="${id}">Read from <a href="${esc(path)}">${esc(path)}</a>, made ${esc(stamp(data.generated))} from ${esc(data.source?.summary || "a source the file does not name")}.</p>`;
+// The file and its time in one line; what it was made from (on the Pages build a list of some thirty words: the chain's
+// log lines, the relay log, GitHub, the Index's root) in a shut fold under it, so no sentence passes twelve words.
+const sharedSource = (esc, data, path, id = "rec-source") => `<div class="fine" id="${id}"><p>Read from <a href="${esc(path)}">${esc(path)}</a>, made ${esc(stamp(data.generated))}.</p>`
+  + `<details class="k-more"><summary>What it was made from</summary><p>${esc(data.source?.summary || "a source the file does not name")}.</p></details></div>`;
 export const isLogin = (x) => LOGIN.test(x);
 export const tableHtml = sharedTable, sourceHtml = sharedSource;
 
@@ -197,7 +200,7 @@ export function initRecords(ctx) {
       if (!r) { box.innerHTML = `<p class="fine">This site has no records.json yet, so there is no one to list.</p>`; return; }
       const list = (items, hash) => (items.length ? `<ul class="inline">${items.map((x) => `<li><a href="#${hash}=${x.split("/").map(encodeURIComponent).join("/")}">${esc(x)}</a></li>`).join("")}</ul>` : `<p class="fine">None yet.</p>`);
       box.innerHTML = `<h4>Accounts with a record (${r.accounts.length})</h4>${list(r.accounts, "u")}<h4>Repositories with a record (${r.repositories.length})</h4>${list(r.repositories, "r")}
-        <p class="fine">No file, unnamed by GitHub: ${esc(r.unnamed_accounts || 0)} accounts, ${esc(r.unnamed_repositories)} repositories.</p><details class="k-more"><summary>Why</summary><p class="fine">${esc(r.note)}.</p></details>${sharedSource(esc, r, "records.json", "rec-index-source")}`;
+        <p class="fine">No file, unnamed by GitHub: ${esc(r.unnamed_accounts || 0)} accounts, ${esc(r.unnamed_repositories)} repositories.</p><details class="k-more"><summary>Why some are unnamed</summary><p class="fine">${esc(r.note)}.</p></details>${sharedSource(esc, r, "records.json", "rec-index-source")}`;
     } catch (e) { box.innerHTML = `<p class="status bad">${esc(e.message)}</p>`; }
   }
 

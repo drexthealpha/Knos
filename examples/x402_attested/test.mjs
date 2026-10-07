@@ -15,6 +15,7 @@ const OFFER = {
   network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", program: fx.program, mint: fx.mint, amount: fx.amount, workSeconds: fx.work_s,
   repoId: fx.repo_id, issue: fx.issue, seq: fx.seq, mode: fx.mode, terms: fx.terms, wfRepo: fx.wf_repo, wfSha: fx.wf_sha,
   seller: { githubId: fx.seller.github_id, wallet: fx.seller.wallet },
+  feeVersion: fx.fee_version,      // the build the fixture was recorded on: the 402 names the fee that build takes
 };
 const DELIVERY = { delivered: "https://github.com/octo/widgets/pull/12", head: fx.head, note: "paid when the order's pinned workflow attests the merge" };
 const LIMITS = { maxAmount: 50_000_000, mints: [fx.mint] };
@@ -150,3 +151,32 @@ if (process.argv.includes("--write")) {       // messages.json: the JSON blocks 
                 JSON.stringify({ ...got.messages, statusPaid: paid, statusRefunded: await status(w2.chain, fx.program, got2.order) }, null, 1) + "\n");
   await w.close(); await w2.close();
 }
+
+test("the fee the 402 names follows the build that is live", async () => {
+  const { orderFee, feesFor, requirement } = await import("./attested.mjs");
+  // knos_pay 2.2 (Version answers 2): 0.30%, at least 0.05. Before it: the 0.3.14 tiers, at least 0.40.
+  assert.deepEqual([5_000_000, 20_000_000, 100_000_000, 5_000_000_000].map((a) => String(orderFee(a, 2))), ["50000", "60000", "300000", "15000000"]);
+  assert.deepEqual([5_000_000, 20_000_000, 100_000_000, 5_000_000_000].map((a) => String(orderFee(a, 1))), ["400000", "500000", "2500000", "65000000"]);
+  assert.equal(String(orderFee(20_000_000)), "60000");                     // nobody asked: the rule of this tree's build
+  assert.deepEqual(feesFor(20_000_000), ["60000", "500000"]);
+  const at = async (feeVersion) => (await requirement({ ...OFFER, feeVersion })).extra.fee;
+  assert.deepEqual([await at(1), await at(2), await at(undefined)], ["500000", "60000", "60000"]);
+  // a client that asked the program holds the server to that build's fee; one that did not accepts either rule's and nothing else
+  const refusing = async (fee, limits) => {
+    const chain = replay(), srv = server({ ...OFFER }, chain, async () => DELIVERY);
+    await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+    const url = `http://127.0.0.1:${srv.address().port}/work/77`;
+    const tampered = async (u, init) => {
+      const res = await fetch(u, init);
+      if (res.status !== 402) return res;
+      const body = JSON.parse(Buffer.from(res.headers.get("PAYMENT-REQUIRED"), "base64").toString("utf8"));
+      body.accepts[0].extra.fee = fee;
+      return new Response(JSON.stringify(body), { status: 402, headers: { "PAYMENT-REQUIRED": Buffer.from(JSON.stringify(body)).toString("base64") } });
+    };
+    const wallet = { address: fx.buyer, token: fx.buyer_token, send: async () => { throw new Error("funded"); } };
+    try { await fetchAttested(url, wallet, limits, tampered); return "served"; } catch (e) { return /fee is not knos_pay's fee/.test(e.message) ? "refused" : e.message; }
+    finally { await new Promise((r) => srv.close(r)); }
+  };
+  assert.deepEqual([await refusing("60000", { ...LIMITS, feeVersion: 1 }), await refusing("500000", { ...LIMITS, feeVersion: 2 }), await refusing("500000", { ...LIMITS, feeVersion: 1 }),
+    await refusing("60000", LIMITS), await refusing("500000", LIMITS), await refusing("70000", LIMITS)], ["refused", "refused", "funded", "funded", "funded", "refused"]);
+});

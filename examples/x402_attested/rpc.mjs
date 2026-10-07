@@ -5,7 +5,7 @@
 import { createPrivateKey, sign } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { accountInfo, ata, b58, chainTime, confirmed, messageOf, rpc, said, serializeTx } from "../../sdk/settle/index.js";
+import { FEE_OWNER, SYSTEM, accountInfo, ata, b58, chainTime, confirmed, messageOf, rpc, said, serializeTx } from "../../sdk/settle/index.js";
 
 const PKCS8 = Buffer.from("302e020100300506032b657004220420", "hex");     // the DER in front of a raw Ed25519 seed
 const BUDGET = "ComputeBudget111111111111111111111111111111";
@@ -25,6 +25,17 @@ export function chainOf(url, seconds = 60) {
     url,
     now: () => chainTime(url),
     account: async (address) => { const a = await accountInfo(url, address); return a && { owner: a.owner, data: a.data }; },
+    /** Which knos_pay runs at `program`, asked of the program itself (Version, simulated: nothing is sent or paid): 2 is
+     *  knos_pay 2.2 (the 0.30% fee), 1 is 2.1 and 0 is 2.0 (the 0.3.14 fee), null when the cluster did not say. */
+    async payVersion(program) {
+      try {
+        const tx = serializeTx([{ program, data: Uint8Array.of(12), accounts: [] }], FEE_OWNER, SYSTEM);
+        const sim = (await rpc(url, "simulateTransaction", [Buffer.from(tx).toString("base64"), { encoding: "base64", sigVerify: false, replaceRecentBlockhash: true, commitment: "confirmed" }])).value;
+        const line = (sim.logs || []).find((l) => /Program log: knos2:version \d+$/.test(l));
+        if (line) return Number(line.split(" ").at(-1));
+        return JSON.stringify(sim.err ?? null).includes("InvalidInstructionData") ? 0 : null;
+      } catch { return null; }
+    },
     /** Every line a program logged in a transaction that named `address`, oldest first (an order's whole history). */
     async logs(address) {
       const sigs = await rpc(url, "getSignaturesForAddress", [address, { limit: 100, commitment: "confirmed" }]);

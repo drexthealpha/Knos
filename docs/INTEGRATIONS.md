@@ -42,15 +42,16 @@ that was found.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | GitPay | [worknenjoy/gitpay](https://github.com/worknenjoy/gitpay) | [`LICENSE.md`](https://github.com/worknenjoy/gitpay/blob/master/LICENSE.md) is CC BY-NC-ND 4.0; [`CONTRIBUTING.md`](https://github.com/worknenjoy/gitpay/blob/master/CONTRIBUTING.md) says contributions are MIT | TypeScript, Node, Express, Sequelize, React | 2026-10-02 | Invited by the guide; commits by three authors other than the maintainer and dependabot | `src/modules/tasks/taskSolutionFetchData.ts` (five flags, one of them `isPRMerged`) and `src/app/controllers/pull-request.ts` (`verifyPullRequestMerged`) | An optional environment variable naming one check that must have passed at the pull request's head commit |
 | MergePay | [codeswithroh/mergepay](https://github.com/codeswithroh/mergepay) | MIT | Solidity, GitHub Actions, TypeScript | 2026-09-30 | None seen; one maintainer. The [guide](https://github.com/codeswithroh/mergepay/blob/main/CONTRIBUTING.md) invites them and asks for an issue before changing the pinned workflows | `.github/workflows/award.yml`: runs when the pull request is merged, then the contract verifies GitHub's token | A second example workflow whose award job needs a `knos-verify` job; nothing pinned changes |
-| Algora | [algora-io/algora](https://github.com/algora-io/algora) | AGPL-3.0 | Elixir, Phoenix | 2026-07-18 | None seen; every recent commit is one maintainer's; no contribution guide | `lib/algora_web/controllers/webhooks/github_controller.ex`, `pull_request.closed`: the claim is approved and, with autopay, charged at the merge | An optional required check in front of autopay; it needs the app to read check runs, which is their decision |
 | Superteam Earn | [SuperteamDAO/earn](https://github.com/SuperteamDAO/earn) | AGPL-3.0 | TypeScript, Next.js, Prisma | 2026-10-03 | Merges come from branches of the organisation; the [guide](https://github.com/SuperteamDAO/earn/blob/main/CONTRIBUTING.md) asks for pull requests against `staging` | A sponsor picks winners among submitted links in the sponsor dashboard; no code decides that tests passed | None that is a patch: a submission that links a pull request could show its checks, which is a feature to propose in an issue |
 | Drips | [drips-network/app](https://github.com/drips-network/app) | GPL-3.0 | TypeScript, SvelteKit | 2026-10-03 | Not seen; no contribution guide at the root | Not in this repository: its commits refer to a separate Wave service | Not looked into further |
 | Polar | [polarsource/polar](https://github.com/polarsource/polar) | Apache-2.0 | Python, TypeScript | 2026-10-03 | The [guide](https://github.com/polarsource/polar/blob/main/CONTRIBUTING.md) requires an assigned issue before any code change | Nowhere now: the server has no module for funding issues | None; it is a billing product today |
 
+<!-- not-active -->
 ### Open source, not active enough to review a pull request
 
 | Platform | Source | License | Stack | Last commit | Note |
 | --- | --- | --- | --- | --- | --- |
+| Algora | [algora-io/algora](https://github.com/algora-io/algora) | AGPL-3.0 | Elixir, Phoenix | 2026-07-18 | No pull request merged since #347 on 2026-06-26 (`upstream_check.py`, 7 Oct 2026). A claim is approved and, with autopay, charged at the merge (`lib/algora_web/controllers/webhooks/github_controller.ex`, `pull_request.closed`) |
 | bounty.new | [bountydotnew/bounty.new](https://github.com/bountydotnew/bounty.new) | MIT | TypeScript | 2026-05-15 | Its [`RULES.md`](https://github.com/bountydotnew/bounty.new/blob/main/RULES.md) blocks content with wallet addresses and warns on accounts with few merged pull requests. Left alone |
 | Ubiquity OS rewards | [ubiquity-os-marketplace/text-conversation-rewards](https://github.com/ubiquity-os-marketplace/text-conversation-rewards) | MIT (in `package.json`) | TypeScript | 2026-04-28 | A plugin that prices a contribution from its conversation; the earlier [UbiquiBot](https://github.com/ubiquity/ubiquibot) says it is deprecated |
 | tea | [teaxyz/chai](https://github.com/teaxyz/chai) | MIT | Python | 2026-01-11 | Package data, not a flow where a pull request is accepted and paid |
@@ -61,13 +62,33 @@ that was found.
 | Gitcoin bounties | [gitcoinco/web](https://github.com/gitcoinco/web) | AGPL-3.0 | Python, Django | 2023-08-01 | Not read further |
 | Bountysource | [bountysource/core](https://github.com/bountysource/core) | MIT | Ruby | 2021-08-17 | Not read further |
 
+<!-- /not-active -->
 ### No public application source found
 
 Opire (its organisation shows one public repository, of guidelines), OnlyDust (the repositories tried could not
 be cloned anonymously), IssueHunt, Boss.dev, BountyHub (a public command-line client,
-[bountyhub-org/bh](https://github.com/bountyhub-org/bh), and no platform source), Replit Bounties, Dework (public
+<!-- not-active -->[bountyhub-org/bh](https://github.com/bountyhub-org/bh)<!-- /not-active -->, with no pull request merged since 2026-01-31, and no platform source), Replit Bounties, Dework (public
 forks last updated in 2022, no application), Layer3 and Wonderverse. For these the action and the badge still work
 from the repository's side, since both need only GitHub.
+
+## The 30-day gate
+
+Knos sends nothing to, opens nothing on and recommends nothing for a repository it does not own unless that
+repository merged a pull request in the last 30 days. One script decides:
+
+```
+python scripts/upstream_check.py --docs docs/INTEGRATIONS.md docs/X402.md --list     # the outside repositories these pages name
+python scripts/upstream_check.py --docs docs/INTEGRATIONS.md docs/X402.md            # exit 0 only if every one merged in 30 days
+```
+
+It prints, for each repository, the date of its newest merged pull request, and it treats a repository it cannot
+read as a refusal. The table "not active enough to review a pull request" is already marked and is left out of the
+check (`--marked` puts it back). "Last commit" is a commit date from an anonymous clone, not a merged pull request.
+The second command was run against GitHub on 7 October 2026: six repositories had merged a pull request in the last
+30 days and two had not, algora-io/algora (last #347, 26 June 2026) and bountyhub-org/bh (last #38, 31 January
+2026). Both are now marked as not active, and nothing is opened on either. A repository the script refuses later
+moves to the marked table the same way, with the date it printed. Every repository on this page is named as
+research, not as a recommendation to use it.
 
 ## What is not done
 

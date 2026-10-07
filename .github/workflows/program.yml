@@ -391,7 +391,9 @@ jobs:
         with:
           kani-version: "0.68.0"
           working-directory: programs-v2/knos_pay
-          args: --output-format terse
+          # every harness of src/proofs.rs but the fee's bounds, which has the job below (tests/test_program_ci.py
+          # holds the two lists to the file: none drops out)
+          args: --output-format terse --exact --harness proofs::harness::the_remainder_of_a_share_is_never_more_than_the_remainder --harness proofs::harness::a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order --harness proofs::harness::what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out --harness proofs::harness::an_order_that_has_paid_nothing_has_given_out_none_of_its_fee
       # the bounds of an order's fee, on the program's own lines (programs-v2/fee_proofs copies them out as text):
       # every harness of its src/lib.rs, `cargo kani` there. docs/kani.json `fee_proofs` records what each proves
       - uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
@@ -399,6 +401,24 @@ jobs:
           kani-version: "0.68.0"
           working-directory: programs-v2/fee_proofs
           args: --output-format terse
+
+  # The fee's bounds over every u64 amount and every rate, the one harness of programs-v2/knos_pay/src/proofs.rs the
+  # kani job above leaves out: it did not finish in that job's 30 minutes (run 37569582253; docs/kani.json: not in 180
+  # seconds). It gets the hosted runner's whole limit, 360 minutes. A failing check fails it, and so does the limit: the
+  # step stops at 350 minutes and fails; a timeout is never a pass.
+  kani-fee-bounds:
+    name: kani (an order's fee between its floor and its one rate, for every amount)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
+        timeout-minutes: 350
+        with:
+          kani-version: "0.68.0"
+          working-directory: programs-v2/knos_pay
+          args: --output-format terse --exact --harness proofs::harness::an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount
 
   verified-build:
     # The deployed binaries are THESE: `solana-verify build` in a pinned docker image, so `solana-verify

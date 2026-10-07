@@ -10,7 +10,8 @@ const here = dirname(fileURLToPath(import.meta.url)), dir = mkdtempSync(join(tmp
 // price.js imports ./settle.js, which only the built site has: an empty one makes every constant "recorded"
 writeFileSync(join(dir, "settle.js"), "export {};\n");
 for (const f of ["price.js", "controls_data.js"]) writeFileSync(join(dir, f), readFileSync(join(here, "../../web", f), "utf8"));
-const { explainFunding, feeTable, money, percent, decodeBalance, decodeBalx, decodePlan, base58, RULES } = await import(pathToFileURL(join(dir, "controls_data.js")).href);
+const { priceConstants } = await import(pathToFileURL(join(dir, "price.js")).href);
+const { explainFunding, feeTable, planBps, money, percent, decodeBalance, decodeBalx, decodePlan, base58, RULES } = await import(pathToFileURL(join(dir, "controls_data.js")).href);
 const { cases, feeTable: table } = JSON.parse(readFileSync(join(here, "../data/controls_cases.json"), "utf8"));
 
 let failed = 0;
@@ -21,11 +22,18 @@ for (const c of cases) same(c.name, sorted(explainFunding(c.in)), sorted(c.out))
 same("every rule is in the cases", [...new Set(cases.map((c) => c.out.rule))].sort(), Object.keys(RULES).sort());
 same("the effective-fee table is the Python's", feeTable().map(sorted), table.map(sorted));
 same("the table as the price book prints it", feeTable().map((r) => `${money(r.amount)} -> ${money(r.fee)} (${r.effectivePct}%)`),
+  ["5.00 -> 0.05 (1.00%)", "20.00 -> 0.06 (0.30%)", "1,000.00 -> 3.00 (0.30%)", "5,000.00 -> 15.00 (0.30%)", "50,000.00 -> 150.00 (0.30%)"]);
+// the fee follows the build that is live: with the constants of the program that answered version 1, the 0.3.14 table and decision
+const old = priceConstants(undefined, 1);
+same("the table while knos_pay 2.1 is live (the 0.3.14 fee)", feeTable(undefined, old).map((r) => `${money(r.amount)} -> ${money(r.fee)} (${r.effectivePct}%)`),
   ["5.00 -> 0.40 (8.00%)", "20.00 -> 0.50 (2.50%)", "1,000.00 -> 25.00 (2.50%)", "5,000.00 -> 65.00 (1.30%)", "50,000.00 -> 515.00 (1.03%)"]);
+same("the decision while knos_pay 2.1 is live", explainFunding({ balance: { ownerId: 7, spenders: [], capPerJob: 0 }, repoId: 1, amount: 20_000_000, byId: 7 }, old).sentence,
+  "Fine: 20.00 and a fee of 0.50 (2.50%) leave the Balance: 20.50.");
+same("a Plan is held to the rule's own range: 20 bps is 20 from 2.2 on and 50 before", [planBps({ feeBps: 20, expires: 9 }, 1), planBps({ feeBps: 20, expires: 9 }, 1, old)], [20, 50]);
 same("money and percent", [money(1), money(1_234_567_890_120), percent(1, 0)], ["0.000001", "1,234,567.89012", "0.00"]);
 same("only the named facts are needed: no plan, no clock, no side account",
   explainFunding({ balance: { ownerId: 7, spenders: [], capPerJob: 0 }, repoId: 1, amount: 20_000_000, byId: 7 }).sentence,
-  "Fine: 20.00 and a fee of 0.50 (2.50%) leave the Balance: 20.50.");
+  "Fine: 20.00 and a fee of 0.06 (0.30%) leave the Balance: 20.06.");
 
 // the accounts' bytes: a Balance, its side account and a Plan, laid out as programs-v2/knos_pay/src/state.rs has them
 const u64 = (d, o, v) => new DataView(d.buffer).setBigUint64(o, BigInt(v), true);

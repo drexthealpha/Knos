@@ -23,7 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from knos import terms, terms_templates as tt  # noqa: E402
+from knos import terms, terms3, terms_templates as tt  # noqa: E402
+from knos.terms_registry import DIR3, STANDARD3, check3, sentence3  # noqa: E402
 from knos.terms_registry import (  # noqa: E402,F401  (what reads the registry lives in the package: `knos terms cite` needs it)
     NOT_PUBLISHED, SITE, STANDARD, Changed, check, cite, is_hash, latest, load, said, sentence, verify,
 )
@@ -76,15 +77,35 @@ def plan(root: Path = DIR) -> tuple[list[dict], dict[str, str]]:
     return sorted(rows, key=lambda r: (r["name"], r["version"])), new
 
 
-def index_text(rows: list[dict]) -> str:
-    return _dump({"standard": STANDARD, "site": SITE, "templates": rows})
+def plan3(root: Path = DIR) -> tuple[list[dict], dict[str, str]]:
+    """As `plan`, for the Knos Terms 3 documents of knos.terms3.TEMPLATES: published under terms/3/, never rewritten."""
+    rows = check3(root)
+    new: dict[str, str] = {}
+    newest = latest(rows)
+    for name in terms3.TEMPLATES:
+        doc, have = terms3.template(name), newest.get(name)
+        if have and terms3.digest({**doc, "version": have["version"]}) == have["hash"]:
+            continue
+        doc = terms3.validate({**doc, "version": have["version"] + 1 if have else 1})
+        text, digest = terms3.dumps(doc), terms3.digest(doc)
+        new[f"{DIR3}/{name}/{doc['version']}.json"] = text
+        rows.append({"name": name, "version": doc["version"], "hash": digest, "built": terms3.built(doc),
+                     "cite": sentence3(name, doc["version"], digest), "comment": terms3.comment(doc) if terms3.built(doc) else "",
+                     "needs": doc.get("needs", ""), "file_sha256": _sha(text)})
+    return sorted(rows, key=lambda r: (r["name"], r["version"])), new
+
+
+def index_text(rows: list[dict], rows3: list[dict] | None = None) -> str:
+    return _dump({"standard": STANDARD, "site": SITE, "templates": rows, "terms3": {"standard": STANDARD3, "documents": rows3 or []}})
 
 
 def build(root: Path = DIR, write: bool = True) -> list[str]:
     """Publish what the code holds and the registry does not. Returns the files a build adds or rewrites (the index
     among them when it differs); with write=False nothing is written, which is `--check`."""
     rows, new = plan(root)
-    index = index_text(rows)
+    rows3, new3 = plan3(root)
+    new = {**new, **new3}
+    index = index_text(rows, rows3)
     path = root / "index.json"
     stale = sorted(new) + ([] if path.exists() and path.read_text(encoding="utf-8") == index else ["index.json"])
     if write:

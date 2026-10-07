@@ -17,6 +17,7 @@ import urllib.error
 import pytest
 from _flow import HUBOT, MONA, WALLET, GitHub, World, check, claims, program_digits, program_u64, sha, stamp
 from _hub import BOT, user
+from _pay21 import BUILDS, Live
 from knos import flow, policy
 from knos.proof import ghrelay
 from knos.settle.v2 import pay
@@ -26,6 +27,15 @@ ATTESTOR, ATTESTOR_ID = "acme/knos-settle", 31_313_131
 TARGET, TARGET_ID = "acme/vault-core", 918_273_645
 ISSUE, PULL = 41_077, 41_123                # numbers no hash or address holds by chance
 ACME = user("acme", 9000, "Organization")
+# The chain answers Version 2 (knos_pay 2.2: 0.30%, at least 0.05), then 1 (2.1, which the public ids run until the
+# upgrade: the 0.3.14 tiers): every test runs on both, and P(old, new) is what it pins for each.
+LIVE = Live()
+P = LIVE.pick
+
+
+@pytest.fixture(scope="module", params=BUILDS, ids=Live.name, autouse=True)
+def live(request):
+    yield from LIVE.run(request.param, "")
 SALT = hashlib.sha256(b"a salt of this test's own").digest()
 POLICY = f"version: 1\nprivate: true\nattestor: {ATTESTOR}\ntargets: [{TARGET}]\nwho_may_fund: [hubot]\n"
 FUND = "/knos fund 20 checks: unit-suite paths: src/secret_module/**"
@@ -86,6 +96,7 @@ def world(tmp_path, held: int = 100_000_000, listed: bool = True) -> tuple[World
     """The private repository with issue #41077 and a check its branch requires; the organisation's Balance, which lists
     the attestor repository and hubot as a spender; and the attestor."""
     w = World(tmp_path, relay_key=False)
+    w.version = LIVE.v
     w.hub = GitHub(w.clock, TARGET, TARGET_ID)
     w.hub.repo["owner"] = dict(ACME)
     w.hub.required = [{"context": "unit-suite", "integration_id": 15368}]
@@ -112,7 +123,7 @@ def run(w: World, pub: Public, event: dict, here: str = ATTESTOR, starter: dict 
     return flow.Run(here, event, github=pub, ledger=w.chain, relay=w.relay, ghrelay=pub, mint=w.signer, key=lambda: "the relay key",
                     env={"GITHUB_RUN_ID": "77", "GITHUB_ACTOR_ID": str(starter["id"]), "GITHUB_ACTOR": starter["login"],
                          "GITHUB_STEP_SUMMARY": str(w.tmp / "summary.md"), **env},
-                    clock=w.clock, sleep=w.clock.sleep, scratch=w.tmp / f"runner-{w.runs}", version=lambda: 1, screen=w._screen,
+                    clock=w.clock, sleep=w.clock.sleep, scratch=w.tmp / f"runner-{w.runs}", version=lambda: LIVE.v, screen=w._screen,
                     spent=lambda owner_id: w.month_spent, reader=reader, salt=lambda: SALT)
 
 
@@ -152,9 +163,9 @@ def test_a_private_order_is_funded_from_the_attestor_and_its_salt_and_terms_stay
     raw = base64.b64decode(kept["terms"])
     scope, hashed = pay.scope_of(TARGET_ID, ISSUE, SALT), flow.hidden_terms(SALT, raw)
     # on chain: an amount, a Balance, a judge, two hashes. No repository, no issue, no terms, and no neutral run pays it
-    assert (o.repo_id, o.issue, o.amount, o.fee, o.judge_repo_id, o.owner_id, o.funder_id) == (0, 0, 20_000_000, 500_000, ATTESTOR_ID, ACME["id"], HUBOT["id"])
+    assert (o.repo_id, o.issue, o.amount, o.fee, o.judge_repo_id, o.owner_id, o.funder_id) == (0, 0, 20_000_000, P(500_000, 60_000), ATTESTOR_ID, ACME["id"], HUBOT["id"])
     assert o.flags & pay.F_PRIVATE and not o.flags & pay.F_NEUTRAL and (bytes(o.scope), bytes(o.terms)) == (scope, hashed)
-    assert address == str(pay.order_pda(scope, w.balance, 0)) and address not in w.chain.logs and w.chain.held(w.balance) == 79_500_000
+    assert address == str(pay.order_pda(scope, w.balance, 0)) and address not in w.chain.logs and w.chain.held(w.balance) == P(79_500_000, 79_940_000)
     # what GitHub signed: issue 0, and the hash of the scope and the terms hash where a public order has its terms hash
     options = pay.opts(pay.F_PRIVATE, reserve_days=7, judge_repo_id=ATTESTOR_ID, salted=True)
     assert w.signer.asked == [pay.order_fund_audience(0, 20_000_000, pay.MERGE, pay.private_fund_terms(scope, hashed), w.balance, 14 * 86_400, 0, options)]
@@ -164,7 +175,7 @@ def test_a_private_order_is_funded_from_the_attestor_and_its_salt_and_terms_stay
     assert json.loads(raw)["policy"] == policy.digest(policy.load(POLICY))
     assert reply.startswith(flow.ANSWER.format(kept["answers"]) + f"\nKnos: 20.00 test USDC from the balance `{w.balance}` is in escrow for issue "
                             f"#{ISSUE} as a private work order ([order on Solana](https://explorer.solana.com/address/{address}?cluster=devnet)), ")
-    assert "The funder pays Knos's fee of 0.50 on top" in reply and "`unit-suite` (the checks you named)" in reply
+    assert f"The funder pays Knos's fee of {P('0.50', '0.06')} on top" in reply and "`unit-suite` (the checks you named)" in reply
     assert reply.endswith(f"It is a private order: Solana shows its amount and, once it is paid, who was paid and the commit that was accepted, and never "
                           f"this repository, this issue or these terms. {ATTESTOR}'s workflow pays it after the merge, on its schedule or started by "
                           "hand with this repository and the pull request's number.")
@@ -237,7 +248,7 @@ def test_a_merge_whose_check_failed_is_refused_and_the_same_merge_is_paid_once_t
     assert claims(w.relay.submitted[1][0])["repository_id"] == str(ATTESTOR_ID) and "prove.yml@" in claims(w.relay.submitted[1][0])["job_workflow_ref"]
     assert w.chain.orders() == [] and w.relay.answered[1]["paid"] == [{"id": MONA["id"], "payee_id": MONA["id"], "to": WALLET, "held_until": None, "amount": 20_000_000}]
     paid = w.hub.knos(PULL)[-1]
-    assert paid.startswith(f"Knos: paid. @mona received 20.00 test USDC for issue #{ISSUE}, in full: its funder paid Knos's fee of 0.50 on top. It went to "
+    assert paid.startswith(f"Knos: paid. @mona received 20.00 test USDC for issue #{ISSUE}, in full: its funder paid Knos's fee of {P('0.50', '0.06')} on top. It went to "
                            f"`{WALLET}`, the wallet bound to @mona's GitHub account (")
     assert pub.comments[1]["body"].startswith("knos-proof: ") and "knos-terms" not in pub.comments[1]["body"]
     assert pub.log[1].startswith(f"knos-relay pay {ATTESTOR}#1 ") and f"20.00 was paid to {WALLET} (GitHub user id {MONA['id']}) for order {address}." in pub.log[1]

@@ -1,6 +1,6 @@
 {
- "_about": "The Knos conformance kit. `kit` is the kit's version (2 added the formats `receipt4` and `ids` and changed no vector of version 1); each format has its own versions. `sha256` is of the vectors as canonical JSON (keys sorted, no white space, UTF-8; `groups`: only those keys of the file), so it does not depend on line ends. Vectors named here never change: a change to a format is a new version of that format, with vectors of its own beside the old ones (docs/CONFORMANCE.md).",
- "kit": 2,
+ "_about": "The Knos conformance kit. `kit` is the kit's version (2 added the formats `receipt4` and `ids`, 3 added `ledger2`; neither changed a vector of the version before); each format has its own versions. `sha256` is of the vectors as canonical JSON (keys sorted, no white space, UTF-8; `groups`: only those keys of the file), so it does not depend on line ends. Vectors named here never change: a change to a format is a new version of that format, with vectors of its own beside the old ones (docs/CONFORMANCE.md).",
+ "kit": 3,
  "formats": [
   {
    "format": "receipt",
@@ -132,6 +132,21 @@
     "ids.billed_once"
    ],
    "cases": 57
+  },
+  {
+   "format": "ledger2",
+   "versions": [
+    2
+   ],
+   "file": "vectors/ledger.v2.json",
+   "sha256": "7b32338a6ffab2e08361e08d6b8e6bc3de73bf053d1dab2d20fd4d01ff08a5b2",
+   "ops": [
+    "ledger2.event_bytes",
+    "ledger2.leaf",
+    "ledger2.root",
+    "ledger2.check_proof"
+   ],
+   "cases": 42
   }
  ]
 }

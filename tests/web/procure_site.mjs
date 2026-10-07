@@ -143,6 +143,10 @@ if (shots) await page.locator("#buy-part-invoice").screenshot({ path: join(shots
 // ---- funding one task shows the envelope too (the task is funded under Offers) --------------------------------------------------------------
 await page.click("#proc-tab-offers");
 await page.fill("#buy-amount", "50");
+// the verdict is one line in the step; the envelope before and after is behind the fold "Budget, envelope, earlier bills"
+await page.waitForSelector("#buy-fit [data-fit='1']");
+check("the step says in one line whether the order fits its envelope", (await text("#buy-fit")) === (await page.locator("#buy-envelope [data-fit-said]").textContent()) && /^Fits: /.test(await text("#buy-fit")), await text("#buy-fit"));
+await page.click("#buy-controls > summary");
 await page.waitForSelector("#buy-envelope [data-fit='1']");
 check("funding a task shows the envelope before and after, fee included", (await page.locator("#buy-envelope [data-fact=left]").allInnerTexts()).join("|") === "1,570.00|1,518.75", await page.locator("#buy-envelope [data-fact=left]").allInnerTexts());
 await page.fill("#buy-amount", "2000");

@@ -138,8 +138,15 @@ jobs:
   # web app that uses it: every file of tests/web/, in headless Chromium where it has a page. Each of those files
   # prints SKIP and exits 0 when it finds no browser, which is right on a laptop and wrong here: the last step fails
   # the job if any of them said SKIP.
+  # Two jobs side by side, each with its own Chromium and its own build of the site: one alone took 4m49s and then
+  # 5m07s (run 37570042831), over the 5 minutes. Part 1: the client's and the site's numbers, the built site, the live
+  # round and the board. Part 2: the pages driven on that build, and every other file of tests/web/.
   sdk:
-    name: web (node tests/web/*.mjs in headless Chromium)
+    name: web (node tests/web/*.mjs in headless Chromium, ${{ matrix.part }} of 2)
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -152,7 +159,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
-      - run: node sdk/settle/test.mjs
+      - if: matrix.part == 1
+        run: node sdk/settle/test.mjs
       # Chromium for Playwright, kept between runs. Playwright's own advice is that restoring a cache takes about as long
       # as the download and that, if one is kept, its key is the Playwright version (https://playwright.dev/docs/ci#caching-browsers,
       # read 6 Oct 2026): so the key is the version installed below, and a run that finds the browser still installs the
@@ -171,27 +179,35 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Chromium starts (with no browser the job stops here; it does not go on and skip)
         run: node -e "import('playwright').then(async (pw) => { const b = await pw.chromium.launch(); console.log('chromium', b.version()); await b.close(); })"
-      - name: what the site computes with no browser (the status view's numbers; a Balance's limits, word for word as `knos budget check` answers; the price book's arithmetic)
+      - if: matrix.part == 1
+        name: what the site computes with no browser (the status view's numbers; a Balance's limits, word for word as `knos budget check` answers; the price book's arithmetic)
         run: |
           {
           node tests/web/status_data.mjs
           node tests/web/controls.mjs
           node tests/web/price.mjs
           } 2>&1 | tee -a "$WEB_LOG"
-      - name: shadow mode and the finance view's files, byte for byte what the Python writes, and shadow mode's page in headless Chromium
+      - if: matrix.part == 1
+        name: shadow mode and the finance view's files, byte for byte what the Python writes, and shadow mode's page in headless Chromium
         run: |
           {
           node tests/web/shadow.mjs
           node tests/web/shadow.mjs page
           node tests/web/finance.mjs
           } 2>&1 | tee -a "$WEB_LOG"
-      - name: the built site in headless Chromium (mocked GitHub and Solana)
+      - name: the site, built (both parts drive it)
         run: |
           {
           bash scripts/build_site.sh "$RUNNER_TEMP/site" "$(printf 'c%.0s' $(seq 40))"   # the commit the mocked chain pins
+          } 2>&1 | tee -a "$WEB_LOG"
+      - if: matrix.part == 1
+        name: the built site in headless Chromium (mocked GitHub and Solana)
+        run: |
+          {
           node tests/web/site.mjs "$RUNNER_TEMP/site"
           } 2>&1 | tee -a "$WEB_LOG"
-      - name: the first screen's round, the verifier, the playground, the Terms page, the budget of what moves and every page at five widths, each in headless Chromium on that build
+      - if: matrix.part == 2
+        name: the first screen's round, the verifier, the playground, the Terms page, the budget of what moves and every page at five widths, each in headless Chromium on that build
         run: |
           {
           node tests/web/demo.mjs "$RUNNER_TEMP/site"
@@ -201,7 +217,8 @@ jobs:
           node tests/web/motion.mjs "$RUNNER_TEMP/site"
           node tests/web/overflow.mjs "$RUNNER_TEMP/site"
           } 2>&1 | tee -a "$WEB_LOG"
-      - name: a round anyone can watch, and the Agent PR Index board, in headless Chromium (the page's clock is the test's; nothing is asked of the network)
+      - if: matrix.part == 1
+        name: a round anyone can watch, and the Agent PR Index board, in headless Chromium (the page's clock is the test's; nothing is asked of the network)
         run: |
           {
           node tests/web/live.mjs
@@ -210,7 +227,8 @@ jobs:
       # A file added to tests/web/ runs here with no line of its own: `node tests/web/<name>.mjs <the built site>`, the
       # arguments site.mjs takes. One that needs other arguments gets a line above. buyer.mjs needs a fixture that
       # tests/test_site_buyer.py makes: the `site` job runs it.
-      - name: every other file of tests/web/, on that build
+      - if: matrix.part == 2
+        name: every other file of tests/web/, on that build
         run: |
           for f in tests/web/*.mjs; do
             if [ "$f" = tests/web/buyer.mjs ] || grep -Eq "^ +node $f( |\$)" .github/workflows/tests.yml; then continue; fi

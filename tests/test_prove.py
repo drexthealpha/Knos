@@ -49,6 +49,11 @@ def test_every_action_is_pinned_to_a_commit():
             if name.startswith("drexthealpha/knos-workflows/"):
                 assert ref == "KNOS_WORKFLOWS_SHA" or re.fullmatch(r"[0-9a-f]{40}", ref), (f.name, name, ref)
                 continue
+            if name == "drexthealpha/Knos/.github/workflows/supplier.yml":
+                # the supplier's one line: Knos's own workflow at a release's tag, or the form its own header shows
+                # (tests/test_workflows2.py and tests/test_record_page.py hold its shape)
+                assert f.name in ("knos-supplier.yml", "supplier.yml") and (re.fullmatch(r"v\d+\.\d+\.\d+", ref) or ref.startswith("<")), (f.name, ref)
+                continue
             assert not name.startswith("drexthealpha/Knos/"), f"{f.name} still calls a workflow of the first deployment"
             assert re.fullmatch(r"[0-9a-f]{40}", ref), f"{f.name}: {name}@{ref} is not pinned to a commit"
             seen.add(ref)

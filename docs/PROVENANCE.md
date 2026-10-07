@@ -33,6 +33,12 @@ proposal's number, the slot in which the build went live at the public id, and t
 there. The last two are filled by `python scripts/exercise_public.py record`, and only for a program whose hash on
 chain is the proposal's build: until then they say so.
 
+knos_oidc and knos_pay have a second row in that table: the build this release proposes for them, as one set. Its
+source commit and its verified build hash are what `upgrade_gate` recorded for the build the release run made
+(`python scripts/exercise_public.py propose` writes them into `docs/provenance.json`, `next`, and
+`python scripts/provenance.py --write` fills the row). Until that run has made the build the row says **MISSING**,
+and until the proposal has executed it says `not live yet`.
+
 What the chain does not show: that the build does what its source says (that is what the tests, the fuzzing and the
 proofs are for), or that anyone outside Knos has followed it. Everything here is devnet.
 
@@ -45,98 +51,100 @@ Cluster: devnet. Upgrade multisig: `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK
 
 | program | public id | devnet runs, as docs/capabilities.json records it | the chain is about | links recorded | complete |
 |---|---|---|---|---|---|
-| knos_oidc | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 2.0 | proposal 3 (pending in web/upgrades.json), knos_oidc 2.1 | 5 of 7 | no |
-| knos_pay | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 2.0 | proposal 4 (pending in web/upgrades.json), knos_pay 2.1 | 5 of 7 | no |
-| knos_meter | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 1.0 | proposal 5 (pending in web/upgrades.json), knos_meter 1.1 | 5 of 7 | no |
-| knos_passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 1.0 | proposal 6 (pending in web/upgrades.json), knos_passkey 1.1 | 5 of 7 | no |
+| knos_oidc | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 2.1 | proposal 3 (executed in web/upgrades.json), knos_oidc 2.1 | 7 of 7 | yes |
+| knos_pay | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 2.1 | proposal 4 (executed in web/upgrades.json), knos_pay 2.1 | 7 of 7 | yes |
+| knos_meter | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 1.1 | proposal 5 (executed in web/upgrades.json), knos_meter 1.1 | 7 of 7 | yes |
+| knos_passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 1.1 | proposal 6 (executed in web/upgrades.json), knos_passkey 1.1 | 7 of 7 | yes |
 
 ### knos_oidc
 
-Public id `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W`. docs/capabilities.json records version 2.0 running there. The chain below is the build of proposal 3, knos_oidc 2.1, which was approved and had not executed when web/upgrades.json was generated: the public id runs the older build until it does, and the live state is in web/upgrades.json. Release note: CHANGELOG.md, 0.3.14.
+Public id `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W`. docs/capabilities.json records version 2.1 running there. The chain below is the build of proposal 3, knos_oidc 2.1, which runs there now. Release note: CHANGELOG.md, 0.3.14.
 
-What the public id ran when docs/provenance.json was read: `71f8fe068c94ce69262e7fa250f65fc149334d60f6742ad66ac6b91624c0d1df`; the commit and the run that built it are **MISSING**: upgrade_gate holds no build record for that hash, so nothing on chain ties that build to a commit.
+What the public id ran when docs/provenance.json was read: `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d`; upgrade_gate's record ties that build to commit `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` and run `37237561915`.
 
 | source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
 |---|---|---|---|---|---|
-| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 3 | not live yet | none: the public id does not run this build yet |
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 3 | 508314408 | [4G2Zew7L...](https://explorer.solana.com/tx/4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV?cluster=devnet) (`verify_github`), [31HzWxXF...](https://explorer.solana.com/tx/31HzWxXFoya7ZKphG9Tb9czvhKT9dZiCGP4F3sSvgkek9x7FLGATqsA1Mba45gpQpNFa8ELLcEUJyXCXZ2f92okk?cluster=devnet) (`outcome_not_code`) |
+| MISSING (the release run's verified build is not recorded yet) | MISSING (the release run's verified build is not recorded yet) | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | not proposed yet | not live yet | none: the public id does not run this build yet (not built yet) |
 
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
 | 2 | verified-build run | run `37237561915` of `.github/workflows/program.yml` (job `verified-build`), which upgrade_gate recorded on chain with the commit; the record holds the run's number and not its repository: the release reads runs of drexthealpha/Knos, so look at https://github.com/drexthealpha/Knos/actions/runs/37237561915 | web/upgrades.json |
-| 3 | build hash | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` (sha256 of the executable; read from the buffer) | web/upgrades.json |
-| 4 | hash on chain | `71f8fe068c94ce69262e7fa250f65fc149334d60f6742ad66ac6b91624c0d1df` (NOT the build above: its proposal had not executed; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
-| 5 | upgrade proposal | proposal 3 (3n6Vu67CRaUYK9sBYVwnKu9FexF5ZP9yKREnaizKaeLr): Approved, approved by 2 of 2, can execute once the time lock has run (`earliest_execution_utc` of this entry in the feed says when) | web/upgrades.json |
-| 6 | execution transaction | **MISSING**: the proposal had not executed when web/upgrades.json was generated | docs/provenance.json |
-| 7 | exercised scenario | **MISSING**: nothing can be exercised at the public id before the proposal executes; a run on a staging deployment is not evidence | docs/capabilities.json |
+| 3 | build hash | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` (sha256 of the executable; read from the earlier feed) | web/upgrades.json |
+| 4 | hash on chain | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` (the build above; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
+| 5 | upgrade proposal | proposal 3 (3n6Vu67CRaUYK9sBYVwnKu9FexF5ZP9yKREnaizKaeLr): Executed, approved by 2 of 2 | web/upgrades.json |
+| 6 | execution transaction | [`2KwefqMHCE9idyD6cXEt91GJERAbyHWGJbaGc5YzzLXV1WvDFp1VkGAMD9XYg1eGBinBx6LKE9wtNUTtQkGSu7Sq`](https://explorer.solana.com/tx/2KwefqMHCE9idyD6cXEt91GJERAbyHWGJbaGc5YzzLXV1WvDFp1VkGAMD9XYg1eGBinBx6LKE9wtNUTtQkGSu7Sq?cluster=devnet) | docs/provenance.json |
+| 7 | exercised scenario | [`4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV`](https://explorer.solana.com/tx/4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV?cluster=devnet) (verify_github: A program on Solana verifies a GitHub Actions OpenID Connect token and other programs read the result.) | docs/capabilities.json |
 
-Not complete: 2 of 7 links are MISSING (execution transaction, exercised scenario).
+Every link is recorded and the hash on chain is this build's.
 
 ### knos_pay
 
-Public id `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k`. docs/capabilities.json records version 2.0 running there. The chain below is the build of proposal 4, knos_pay 2.1, which was approved and had not executed when web/upgrades.json was generated: the public id runs the older build until it does, and the live state is in web/upgrades.json. Release note: CHANGELOG.md, 0.3.14.
+Public id `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k`. docs/capabilities.json records version 2.1 running there. The chain below is the build of proposal 4, knos_pay 2.1, which runs there now. Release note: CHANGELOG.md, 0.3.14.
 
-What the public id ran when docs/provenance.json was read: `75d7eb959f75575f6816942ad18a97c93a01690782e2b82ce01d7823c94e0a69`; the commit and the run that built it are **MISSING**: upgrade_gate holds no build record for that hash, so nothing on chain ties that build to a commit.
+What the public id ran when docs/provenance.json was read: `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507`; upgrade_gate's record ties that build to commit `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` and run `37237561915`.
 
 | source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
 |---|---|---|---|---|---|
-| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 4 | not live yet | none: the public id does not run this build yet |
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 4 | 508314432 | [4Q1cvM78...](https://explorer.solana.com/tx/4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK?cluster=devnet) (`fund_from_wallet`), [57E3wRPG...](https://explorer.solana.com/tx/57E3wRPGfY34MFq89Uxi75AS9PMoCT7eFwnXgnfsFpVg9mbtoHB4FVJ5bYNMGLPANuvrYygwc32Su2W8jE5XtVeY?cluster=devnet) (`refund`), [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) (`work_orders`), [59AfaYHT...](https://explorer.solana.com/tx/59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet) (`order_pay`), [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) (`tests_mode`), [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) (`order_auto_accept`), [432L2F98...](https://explorer.solana.com/tx/432L2F987ADLGHRPLuHMoULKQr8pYRMNyb9k2PAMZ5H7CJsix4JgqKbMHLx7yyY5kDmJnAt1Lb6fz5nMwEFhCCQJ?cluster=devnet) (`top_up`), [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) (`single_use_tokens`), [2noSVLKX...](https://explorer.solana.com/tx/2noSVLKXsSDc9iL72m6H4geVenuoDvrH7YiQ4FUEwLUYgEbWpqxk9TZxf6GQegSXCsZUR33GT2gn6HEUbkKTpwsX?cluster=devnet) (`x402_knos_order`) |
+| MISSING (the release run's verified build is not recorded yet) | MISSING (the release run's verified build is not recorded yet) | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | not proposed yet | not live yet | none: the public id does not run this build yet (not built yet) |
 
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
 | 2 | verified-build run | run `37237561915` of `.github/workflows/program.yml` (job `verified-build`), which upgrade_gate recorded on chain with the commit; the record holds the run's number and not its repository: the release reads runs of drexthealpha/Knos, so look at https://github.com/drexthealpha/Knos/actions/runs/37237561915 | web/upgrades.json |
-| 3 | build hash | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` (sha256 of the executable; read from the buffer) | web/upgrades.json |
-| 4 | hash on chain | `75d7eb959f75575f6816942ad18a97c93a01690782e2b82ce01d7823c94e0a69` (NOT the build above: its proposal had not executed; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
-| 5 | upgrade proposal | proposal 4 (4nDjbSWXPGsqHRzyPgcoYSdaXPqhM7hURN3Enr8Js7nA): Approved, approved by 2 of 2, can execute once the time lock has run (`earliest_execution_utc` of this entry in the feed says when) | web/upgrades.json |
-| 6 | execution transaction | **MISSING**: the proposal had not executed when web/upgrades.json was generated | docs/provenance.json |
-| 7 | exercised scenario | **MISSING**: nothing can be exercised at the public id before the proposal executes; a run on a staging deployment is not evidence | docs/capabilities.json |
+| 3 | build hash | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` (sha256 of the executable; read from the earlier feed) | web/upgrades.json |
+| 4 | hash on chain | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` (the build above; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
+| 5 | upgrade proposal | proposal 4 (4nDjbSWXPGsqHRzyPgcoYSdaXPqhM7hURN3Enr8Js7nA): Executed, approved by 2 of 2 | web/upgrades.json |
+| 6 | execution transaction | [`4413TSB4ugAkQdwus9Pjcof94G8Wq6cBvRjAN1F4dD2mFJ6zji1aDBvpQQtZ73dPFFZcHVvaVYWcQSBXFjjiZ6cK`](https://explorer.solana.com/tx/4413TSB4ugAkQdwus9Pjcof94G8Wq6cBvRjAN1F4dD2mFJ6zji1aDBvpQQtZ73dPFFZcHVvaVYWcQSBXFjjiZ6cK?cluster=devnet) | docs/provenance.json |
+| 7 | exercised scenario | [`4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK`](https://explorer.solana.com/tx/4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK?cluster=devnet) (fund_from_wallet: A wallet funds a task with its own money.) | docs/capabilities.json |
 
-Not complete: 2 of 7 links are MISSING (execution transaction, exercised scenario).
+Every link is recorded and the hash on chain is this build's.
 
 ### knos_meter
 
-Public id `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX`. docs/capabilities.json records version 1.0 running there. The chain below is the build of proposal 5, knos_meter 1.1, which was approved and had not executed when web/upgrades.json was generated: the public id runs the older build until it does, and the live state is in web/upgrades.json. Release note: CHANGELOG.md, 0.3.14.
+Public id `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX`. docs/capabilities.json records version 1.1 running there. The chain below is the build of proposal 5, knos_meter 1.1, which runs there now. Release note: CHANGELOG.md, 0.3.14.
 
-What the public id ran when docs/provenance.json was read: `0253391fe7558df98e3f11d66f5902d2e4d7d0ae6606a3156ccadb61e93eacde`; upgrade_gate's record ties that build to commit `567fd12ca41af083f422b0e3f19e5c26cb8a3144` and run `37190964532`.
+What the public id ran when docs/provenance.json was read: `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4`; upgrade_gate's record ties that build to commit `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` and run `37237561915`.
 
 | source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
 |---|---|---|---|---|---|
-| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 5 | not live yet | none: the public id does not run this build yet |
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 5 | 508314467 | [4FxxZjQD...](https://explorer.solana.com/tx/4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR?cluster=devnet) (`meter_batch`), [3zJVYD2y...](https://explorer.solana.com/tx/3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc?cluster=devnet) (`meter_seller_claim`) |
 
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
 | 2 | verified-build run | run `37237561915` of `.github/workflows/program.yml` (job `verified-build`), which upgrade_gate recorded on chain with the commit; the record holds the run's number and not its repository: the release reads runs of drexthealpha/Knos, so look at https://github.com/drexthealpha/Knos/actions/runs/37237561915 | web/upgrades.json |
-| 3 | build hash | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` (sha256 of the executable; read from the buffer) | web/upgrades.json |
-| 4 | hash on chain | `0253391fe7558df98e3f11d66f5902d2e4d7d0ae6606a3156ccadb61e93eacde` (NOT the build above: its proposal had not executed; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
-| 5 | upgrade proposal | proposal 5 (244HX9wyPMjypMLPkiSr2qJgv9vg4sVH1Jrz7oq24p3z): Approved, approved by 2 of 2, can execute once the time lock has run (`earliest_execution_utc` of this entry in the feed says when) | web/upgrades.json |
-| 6 | execution transaction | **MISSING**: the proposal had not executed when web/upgrades.json was generated | docs/provenance.json |
-| 7 | exercised scenario | **MISSING**: nothing can be exercised at the public id before the proposal executes; a run on a staging deployment is not evidence | docs/capabilities.json |
+| 3 | build hash | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` (sha256 of the executable; read from the earlier feed) | web/upgrades.json |
+| 4 | hash on chain | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` (the build above; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
+| 5 | upgrade proposal | proposal 5 (244HX9wyPMjypMLPkiSr2qJgv9vg4sVH1Jrz7oq24p3z): Executed, approved by 2 of 2 | web/upgrades.json |
+| 6 | execution transaction | [`3K2h2Q4DMHp1gSf7rgAprAmt5VFfuDUzUMEDmCjMrnpF2AkBf3dp4B6htszgXu6mY1Zo1JCt7fSwTnFEHb4n3g5Z`](https://explorer.solana.com/tx/3K2h2Q4DMHp1gSf7rgAprAmt5VFfuDUzUMEDmCjMrnpF2AkBf3dp4B6htszgXu6mY1Zo1JCt7fSwTnFEHb4n3g5Z?cluster=devnet) | docs/provenance.json |
+| 7 | exercised scenario | [`4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR`](https://explorer.solana.com/tx/4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR?cluster=devnet) (meter_batch: One signed token counts a batch of evaluations under a Merkle root.) | docs/capabilities.json |
 
-Not complete: 2 of 7 links are MISSING (execution transaction, exercised scenario).
+Every link is recorded and the hash on chain is this build's.
 
 ### knos_passkey
 
-Public id `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85`. docs/capabilities.json records version 1.0 running there. The chain below is the build of proposal 6, knos_passkey 1.1, which was approved and had not executed when web/upgrades.json was generated: the public id runs the older build until it does, and the live state is in web/upgrades.json. Release note: CHANGELOG.md, 0.3.14.
+Public id `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85`. docs/capabilities.json records version 1.1 running there. The chain below is the build of proposal 6, knos_passkey 1.1, which runs there now. Release note: CHANGELOG.md, 0.3.14.
 
-What the public id ran when docs/provenance.json was read: `888d3b68d3f80d4e512f58cf566c0e0123f4e92eaccd59c507be8486b59c84d5`; upgrade_gate's record ties that build to commit `567fd12ca41af083f422b0e3f19e5c26cb8a3144` and run `37190964532`.
+What the public id ran when docs/provenance.json was read: `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81`; upgrade_gate's record ties that build to commit `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` and run `37237561915`.
 
 | source commit | verified build hash | program id | proposal | slot it went live | exercise transactions |
 |---|---|---|---|---|---|
-| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 6 | not live yet | none: the public id does not run this build yet |
+| `6eb81dd152bd6cf752ee6c151b692f4a08815ae5` | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 6 | 508314496 | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) (`passkey_funder`), [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) (`passkey_fund_relay`), [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) (`buyer_page`) |
 
 | # | link | what is recorded | recorded in |
 |---|---|---|---|
 | 1 | source commit | [`6eb81dd152bd6cf752ee6c151b692f4a08815ae5`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) | web/upgrades.json |
 | 2 | verified-build run | run `37237561915` of `.github/workflows/program.yml` (job `verified-build`), which upgrade_gate recorded on chain with the commit; the record holds the run's number and not its repository: the release reads runs of drexthealpha/Knos, so look at https://github.com/drexthealpha/Knos/actions/runs/37237561915 | web/upgrades.json |
-| 3 | build hash | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` (sha256 of the executable; read from the buffer) | web/upgrades.json |
-| 4 | hash on chain | `888d3b68d3f80d4e512f58cf566c0e0123f4e92eaccd59c507be8486b59c84d5` (NOT the build above: its proposal had not executed; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
-| 5 | upgrade proposal | proposal 6 (DQ35JZ6CSq1iwzG78x6xn4wyTBYsFPnS3kDkrt4BWkVb): Approved, approved by 2 of 2, can execute once the time lock has run (`earliest_execution_utc` of this entry in the feed says when) | web/upgrades.json |
-| 6 | execution transaction | **MISSING**: the proposal had not executed when web/upgrades.json was generated | docs/provenance.json |
-| 7 | exercised scenario | **MISSING**: nothing can be exercised at the public id before the proposal executes; a run on a staging deployment is not evidence | docs/capabilities.json |
+| 3 | build hash | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` (sha256 of the executable; read from the earlier feed) | web/upgrades.json |
+| 4 | hash on chain | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` (the build above; when it was read is `read` in docs/provenance.json) | docs/provenance.json |
+| 5 | upgrade proposal | proposal 6 (DQ35JZ6CSq1iwzG78x6xn4wyTBYsFPnS3kDkrt4BWkVb): Executed, approved by 2 of 2 | web/upgrades.json |
+| 6 | execution transaction | [`4AgyQUDedwhkC8pQMQUPbiKcrLwnpM828ThbVybxZ4eRrhvZD1p2kfURBXrXUHibKxzQv68E85eMKyWf77BgG6fn`](https://explorer.solana.com/tx/4AgyQUDedwhkC8pQMQUPbiKcrLwnpM828ThbVybxZ4eRrhvZD1p2kfURBXrXUHibKxzQv68E85eMKyWf77BgG6fn?cluster=devnet) | docs/provenance.json |
+| 7 | exercised scenario | [`3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC`](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) (passkey_funder: A funder with only a passkey funds an order and a relayer pays the transaction fee.) | docs/capabilities.json |
 
-Not complete: 2 of 7 links are MISSING (execution transaction, exercised scenario).
+Every link is recorded and the hash on chain is this build's.
 
 <!-- provenance:end -->
 

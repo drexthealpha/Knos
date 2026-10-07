@@ -1,14 +1,14 @@
 {
  "_about": "Written by scripts/demo_data.py from the documents under `sources`; tests/test_site_demo.py holds every signature and number to them.",
  "cluster": "devnet",
- "ids": "staging",
- "date": "4 October 2026",
+ "ids": "public",
+ "date": "7 October 2026",
  "money": "test USDC",
  "fund": {
-  "comment": "/knos fund 10",
-  "tx": "4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL",
-  "order": "72mT1tBvTsf82bmttzfoytG7xhMJdWZyErRJYS5TJgh6",
-  "amount": "10.00",
+  "comment": "/knos fund 5",
+  "tx": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",
+  "order": "6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY",
+  "amount": "5.00",
   "fee": "0.40"
  },
  "claim": {
@@ -42,33 +42,31 @@
   ]
  },
  "paid": {
-  "tx": "63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq",
-  "amount": "10.00",
+  "tx": "59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV",
+  "amount": "5.00",
   "seconds": 25,
-  "payments": 41,
+  "payments": 42,
   "window": {
    "from": "2026-10-02",
-   "to": "2026-10-05"
+   "to": "2026-10-06"
   }
  },
  "replay": {
-  "tx": "5fN4sHZtD8Mrud2CRoFgDMwLWtUfNsZHC5b2UzKp9bpNEBCPMdVrxdS6KH28dmdo1Q8MohBF3mL5Du2qrrN9dLno",
+  "tx": "4hCf7a3FpKiTexPUxX4jvPbYUUQMvgHmyjHSVjbUJ2yqe3srzxLJrsZ8QY4dpT2pt4VFSRJ4j4kQMwEcapvk3Rrp",
   "error": 91,
   "means": "a token works once",
   "single_use_error": 91,
   "single_use": "a token works once"
  },
  "count": {
-  "buyer": 5000,
-  "seller": 5003,
-  "apart": 3,
+  "buyer": 4,
+  "seller": 4,
+  "apart": 0,
   "buyer_tx": [
-   "4doE2MRiw7sjKNmw8LYGkSgm2KNNKh1D4aMDGXRBTCUieU1iNyftSGLsxo2o95kBAMsDkK7CaH3pCjnte6nYAttJ",
-   "5NVNK5nHiegrQDffQBuziqqrrDEWyN66zWPKfetb3q8tavoBpsD1LwCh4BirwWPTBewuFFYarNPKQrU7RU1t37XX"
+   "4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR"
   ],
   "seller_tx": [
-   "4UYkZzTdEoz1M2FxQSDYX9Nq9ZzEbJ54JBZDGSsfJHVr1NKg9hnfAfvsv24pFDUmYUBLq1sZAZLbJHhGUeuP8b3M",
-   "4KThmRd6XFohHrkX3cqXdUCoLnfMiwuTkt8WigFpB7any9pJpYeBHP3eVg7jsqhaqJNmQ6dYuLK3zhqZMCKRGQup"
+   "3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc"
   ]
  },
  "sources": [

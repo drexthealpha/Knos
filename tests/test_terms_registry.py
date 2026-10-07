@@ -60,7 +60,7 @@ def test_the_registry_is_what_the_script_publishes_from_the_templates_in_the_cod
         assert row["trust"]["judge"] == ("merge" if ex["terms"]["mode"] == "merge" else "black-box") and row["trust"]["quorum"] == 1
     assert len({r["hash"] for r in newest.values()}) == len(newest)        # no two templates fund the same terms
     index = json.loads((ROOT / "terms" / "index.json").read_text(encoding="utf-8"))
-    assert set(index) == {"standard", "site", "templates"} and all({"name", "version", "hash", "sentence"} <= set(r) for r in index["templates"])
+    assert set(index) == {"standard", "site", "templates", "terms3"} and all({"name", "version", "hash", "sentence"} <= set(r) for r in index["templates"])
 
 
 def test_a_published_file_that_changes_fails_and_is_never_rewritten(tmp_path):

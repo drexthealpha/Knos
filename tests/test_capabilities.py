@@ -95,6 +95,12 @@ def _with(cid: str, **change) -> dict:
     return data
 
 
+def _runs(version: str, data: dict) -> dict:
+    """`data` with the manifest saying devnet runs `version` of knos_pay (what a case is about, whatever runs today)."""
+    data["programs"]["knos_pay"]["on_chain"] = version
+    return data
+
+
 def test_a_stage_without_evidence_is_refused():
     wo = BY_ID["seller_settle"]     # a knos_pay 2.1 capability that is tested, no more
     sig = "5" * 87
@@ -102,8 +108,8 @@ def test_a_stage_without_evidence_is_refused():
         "stage deployed without deployed evidence": _with("seller_settle", stage="deployed"),
         "stage tested without tested evidence": _with("seller_settle", evidence={"implemented": wo["evidence"]["implemented"]}),
         "stage exercised without deployed evidence": _with("seller_settle", stage="exercised", evidence={**wo["evidence"], "exercised": {"signature": sig}}),
-        "knos_pay 2.1 carries it, and devnet runs 2.0": _with("seller_settle", stage="deployed", evidence={
-            **wo["evidence"], "deployed": {"program": "knos_pay", "id": DATA["programs"]["knos_pay"]["id"], "version": "2.1"}}),
+        "knos_pay 2.1 carries it, and devnet runs 2.0": _runs("2.0", _with("seller_settle", stage="deployed", evidence={
+            **wo["evidence"], "deployed": {"program": "knos_pay", "id": DATA["programs"]["knos_pay"]["id"], "version": "2.1"}})),
         "is not a file of this repository": _with("seller_settle", evidence={**wo["evidence"], "implemented": {"path": "programs-v2/knos_pay/src/nothing.rs", "names": "fund_order"}}),
         "does not say 'test_an_order_flies'": _with("seller_settle", evidence={**wo["evidence"], "tested": {"test": "tests/test_order_chain.py", "names": "test_an_order_flies"}}),
         "is not a test file": _with("seller_settle", evidence={**wo["evidence"], "tested": {"test": "src/knos/flow.py", "names": "def "}}),
@@ -142,8 +148,9 @@ def test_a_stage_without_evidence_is_refused():
 
 def test_the_chain_is_asked_for_the_version_and_for_every_signature():
     sig, other = "5" * 87, "6" * 87
-    data = _with("fund_by_comment", stage="exercised", evidence={**BY_ID["fund_by_comment"]["evidence"], "exercised": {"signature": sig}})
-    data = json.loads(json.dumps(data))
+    # the manifest as it stood before the upgrade executed (tests/fixtures/before_round): devnet's answer decides which line is said
+    data = json.loads((ROOT / "tests" / "fixtures" / "before_round" / "docs" / "capabilities.json").read_text(encoding="utf-8"))
+    next(c for c in data["capabilities"] if c["id"] == "fund_by_comment").update(stage="exercised", evidence={**BY_ID["fund_by_comment"]["evidence"], "exercised": {"signature": sig}})
     next(c for c in data["capabilities"] if c["id"] == "pay_on_merge").update(stage="exercised", evidence={**BY_ID["pay_on_merge"]["evidence"], "exercised": {"signature": other}})
     pay = data["programs"]["knos_pay"]["id"]
 
@@ -177,22 +184,25 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     exercised = block[block.index("**Exercised on devnet:**"):block.index("**Deployed on devnet:**")]
     now = [c["id"] for c in DATA["capabilities"] if c["stage"] == "exercised"]
     assert all(f"`{cid}`" in exercised for cid in now) and exercised.count("`") == 2 * len(now)
-    assert not now and "**Exercised on devnet:** none recorded yet." in block
+    assert ("**Exercised on devnet:** none recorded yet." in block) == (not now)       # before a round at the public ids, and after it
     # README.md and the document say that a stage above `tested` is a run at a public program id, and where the rehearsal is
     assert block.count(cap.PUBLIC_ONLY) == 1 and full[full.index(cap.START):full.index(cap.END)].count(cap.PUBLIC_ONLY) == 1
     assert {cap.ids_of(c) for c in DATA["capabilities"] if c["stage"] == "exercised"} <= {"public"} and cap.ids_of(BY_ID["pay_on_merge"]) is None
-    # what the rehearsal ran is tested locally, never exercised or deployed: README.md names none of it
-    assert not any(f"`{cid}`" in block for cid in REHEARSED)
-    assert "`pay_on_merge`" in block and "`work_orders`" not in block
+    # what the rehearsal ran on staging ids is never a stage by that run: README.md names none of it for the rehearsal,
+    # and one it ran that a round at the public ids exercised since is named for that run, with its public transaction
+    for cid in REHEARSED:
+        assert (f"`{cid}`" in block) == (BY_ID[cid]["stage"] == "exercised" and cap.ids_of(BY_ID[cid]) == "public"), cid
+    assert "`pay_on_merge`" in block and "`order_quorum`" not in block        # deployed; rehearsed and not exercised at a public id
     rows = full[full.index(cap.START):full.index(cap.END)]
-    assert all(f"| {BY_ID[cid]['what']} | tested locally | " in rows for cid in REHEARSED) and "_staging" not in rows
+    assert all(f"| {BY_ID[cid]['what']} | {'exercised on devnet' if BY_ID[cid]['stage'] == 'exercised' else 'tested locally'} | " in rows
+               for cid in REHEARSED) and "_staging" not in rows
     assert all(c["what"] in rows for c in DATA["capabilities"]) and rows.count("\n| ") == len(DATA["capabilities"]) + 1
     assert "](../programs-v2/knos_pay/src/order.rs)" in rows
     # a manifest that changed is seen, written, and then the same again
     for rel in ("README.md", "docs/capabilities.json", cap.FULL):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, tmp_path / rel)
-    data = _with("work_orders", what="A work order, said another way.", stage=None, evidence={})
+    data = _with("order_quorum", what="A work order, said another way.", stage=None, evidence={})
     (tmp_path / "docs" / "capabilities.json").write_text(json.dumps(data), encoding="utf-8")
     assert cap.render(tmp_path, check=True) == [cap.FULL] and "said another way" not in (tmp_path / cap.FULL).read_text(encoding="utf-8")
     assert cap.render(tmp_path) == [cap.FULL] and cap.render(tmp_path) == []

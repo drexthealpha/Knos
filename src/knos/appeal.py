@@ -205,6 +205,19 @@ def refused_reply(why: Refused) -> str:
     return f"Knos: no appeal was opened. {happened} {do} (`{why.code}`)"
 
 
+def window_closed(doc: dict, rejected_at: float, now: float) -> str:
+    """For an order funded under Knos Terms 3 (`doc`, validated): "" while a rejection made at `rejected_at` can still
+    be appealed at `now` (knos.terms3.appeal_open), else the comment that says no appeal was opened and why. An order
+    with no such terms has no window here: its appeal is heard until the order ends."""
+    from . import terms3
+    if terms3.appeal_open(doc, rejected_at, now):
+        return ""
+    days = int(doc["dispute"]["within_days"])
+    return (f"Knos: no appeal was opened. The terms this order was funded under ({terms3.STANDARD}: {doc['name']} version {doc['version']}) give "
+            f"{days} day{'' if days == 1 else 's'} after a rejection to appeal it, and this pull request was rejected on {_iso(rejected_at)[:10]}. "
+            "Nothing moved: the money stays in the order until its deadline, and a new pull request is judged as any other.")
+
+
 def remember(store, appeal: dict) -> dict:
     """Keep where the appeal stands in the memory engine (knos.proof.history.appeal_outcome), and on the supplier's record."""
     from .proof import history

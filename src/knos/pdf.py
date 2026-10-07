@@ -117,20 +117,24 @@ class Doc:
         self._line(self.margin, self.y, self.margin + self.room, self.y)
 
     def table(self, head: list[str], rows: list[list[str]], widths: list[float], size: float = 7.0) -> None:
-        """A ruled table. Cells wrap; a row is never split across pages; the head is drawn again on every page."""
+        """A ruled table. Cells wrap; a row is never split across pages; the head is drawn again on every page.
+        A head of empty cells is no head: no row is drawn for it (an empty ruled row once opened the statement), and
+        the table starts with a rule above its first row, on every page it reaches."""
         if len(head) != len(widths) or any(len(r) != len(head) for r in rows):
             raise ValueError("every row has as many cells as the table has widths")
         scale = self.room / sum(widths)
         cols = [w * scale for w in widths]
         pad, lead = 3.0, size * 1.3
+        headed = any(str(h).strip() for h in head)
 
         def draw(cells: list[str], bold: bool) -> None:
             lines = [wrap(c, size, w - 2 * pad, bold) for c, w in zip(cells, cols)]
             height = max(len(part) for part in lines) * lead + 2 * pad
-            if self._need(height) and not bold:
+            fresh = self._need(height) and not bold
+            if fresh and headed:
                 draw(head, True)
             top, x = self.y, self.margin
-            if bold:
+            if bold or (not headed and (fresh or first)):
                 self._line(self.margin, top, self.margin + self.room, top)
             for part, w in zip(lines, cols):
                 for i, line in enumerate(part):
@@ -141,9 +145,12 @@ class Doc:
             self.y = top - height
             self._line(self.margin, self.y, self.margin + self.room, self.y)
 
-        draw(head, True)
+        first = True
+        if headed:
+            draw(head, True)
         for row in rows:
             draw([str(c) for c in row], False)
+            first = False
 
     def render(self) -> bytes:
         """The file: a header, the objects, the table of their offsets, the trailer. ASCII throughout."""

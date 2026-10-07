@@ -192,24 +192,24 @@ def test_a_pay_token_pays_exactly_one_job(chain):
 
 
 # == 2. Version, SetPlan ==============================================================================================
-def test_version_says_two_point_one_is_live(chain):
+def test_version_says_two_point_two_is_live(chain):
     c = chain
-    assert c.send([pay.version_ix()]) and c.said("knos2:version") == ["knos2:version 1"]
+    assert c.send([pay.version_ix()]) and c.said("knos2:version") == ["knos2:version 2"]
 
 
 def test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate():
     c = OrderChain()        # a chain of its own: it ends a month later, when the verifier's key has expired
     owner, soon = user(), c.now() + 30 * DAY
     stranger = c.fund()
-    assert not c.set_plan(owner, 100, soon, signer=stranger) and code(c) == 102
-    for bps, expires in ((49, soon), (251, soon), (100, c.now())):
+    assert not c.set_plan(owner, 20, soon, signer=stranger) and code(c) == 102
+    for bps, expires in ((9, soon), (31, soon), (50, soon), (250, soon), (20, c.now())):       # 10 to 30, and no rate of 2.1
         assert not c.set_plan(owner, bps, expires) and code(c) == 102
-    assert not c.set_plan(0, 100, soon) and code(c) == 102
-    assert c.set_plan(owner, 100, soon), c.err
+    assert not c.set_plan(0, 20, soon) and code(c) == 102
+    assert c.set_plan(owner, 20, soon), c.err
     p = pay.read_plan(c.data(pay.plan_pda(owner)))
-    assert (p.fee_bps, p.owner_id, p.expires) == (100, owner, soon) and pay.plan_bps(p, c.now()) == 100 and pay.plan_bps(p, soon) == 250
-    assert c.set_plan(owner, 50, soon + 1) and pay.read_plan(c.data(pay.plan_pda(owner))).fee_bps == 50
-    # an order from a Balance of that owner pays the plan's rate; any other pays 2.5%
+    assert (p.fee_bps, p.owner_id, p.expires) == (20, owner, soon) and pay.plan_bps(p, c.now()) == 20 and pay.plan_bps(p, soon) == 30
+    assert c.set_plan(owner, 10, soon + 1) and pay.read_plan(c.data(pay.plan_pda(owner))).fee_bps == 10
+    # an order from a Balance of that owner pays the plan's rate; any other pays 0.30%
     w, wtok = c.wallet(c.usdc, 1_000 * USDC)
     assert c.send([pay.open_balance_ix(w.pubkey(), owner, c.usdc)], w), c.err
     bal = pay.balance_pda(owner, w.pubkey(), c.usdc)
@@ -220,11 +220,11 @@ def test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate():
     assert not c.send([swap(ix, 6, pay.plan_pda(OWNER))]) and code(c) == 80        # another owner's plan account
     assert c.send([ix]), c.err
     o = c.order(ix.accounts[7].pubkey)
-    assert (o.fee, o.fee_bps) == (2 * USDC, 50) and c.held(ix.accounts[7].pubkey) == 402 * USDC
-    c.warp(31 * DAY)        # the plan has run out: an order from that Balance would pay 2.5% again, as a wallet's does
-    assert pay.plan_bps(pay.read_plan(c.data(pay.plan_pda(owner))), c.now()) == 250
+    assert (o.fee, o.fee_bps) == (400_000, 10) and c.held(ix.accounts[7].pubkey) == 400 * USDC + 400_000
+    c.warp(31 * DAY)        # the plan has run out: an order from that Balance would pay 0.30% again, as a wallet's does
+    assert pay.plan_bps(pay.read_plan(c.data(pay.plan_pda(owner))), c.now()) == 30
     order = c.fund_wallet(amount=400 * USDC)
-    assert c.order(order).fee == 10 * USDC
+    assert c.order(order).fee == 1_200_000
 
 
 # == 3. funding an order ==============================================================================================
@@ -236,23 +236,23 @@ def test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top():
     assert order == pay.order_pda(pay.scope_of(REPO, n), c.funder.pubkey(), 4)
     o = c.order(order)
     assert (o.state, o.mode, o.from_balance, o.flags, o.decimals, o.repo_id, o.issue, o.seq) == ("open", pay.TESTS, False, pay.F_NEUTRAL, 6, REPO, n, 4)
-    assert (o.amount, o.fee, o.paid, o.rate, o.fee_bps) == (100 * USDC, 2_500_000, 0, 0, 250) and o.fee == pay.order_fee(100 * USDC)
+    assert (o.amount, o.fee, o.paid, o.rate, o.fee_bps) == (100 * USDC, 300_000, 0, 0, 30) and o.fee == pay.order_fee(100 * USDC)
     assert (o.holdback_bps, o.warranty_s, o.kill_bps, o.reserve_days, o.arbiter_id, o.judge_repo_id) == (1000, 30 * DAY, 500, 7, 77, 88)
     assert (o.deadline, o.not_before, o.source, o.refund_to, o.rent_to, o.mint) == (c.now() + 3 * DAY, c.now() - 30, c.funder.pubkey(), c.funder.pubkey(),
                                                                                     c.funder.pubkey(), c.usdc)
     assert (o.terms, o.wf_repo_hash, o.wf_sha, o.scope) == (TH, pay.wf_repo_hash(WF_REPO), WF_SHA, pay.scope_of(REPO, n))
     assert (o.funder_id, o.owner_id, o.payee_id, o.reserved_by, o.cancel_at, o.hold_until) == (0, 0, 0, 0, 0, 0)
-    assert o.address() == order and bytes(c.data(order)[432:]) == bytes(80)
+    # its incarnation is the slot of its funding plus one; no grace was asked; the rest of the account is zero
+    assert o.address() == order and (o.inc, o.grace, o.stamp) == (c.slot() + 1, False, -(c.slot() + 1)) and bytes(c.data(order)[441:]) == bytes(71)
     # the order's money is alone in its own account: the amount and the fee
-    assert c.held(order) == 102_500_000 == before - c.balance(c.funder_tok)
+    assert c.held(order) == 100_300_000 == before - c.balance(c.funder_tok)
     assert c.said("knos3:terms") == ["knos3:terms " + TERMS.decode()]
     funded = c.said("knos3:funded")[0]
-    assert f"order={order} repo={REPO} issue={n} seq=4 amount=100000000 fee=2500000 mode=1 by=0 source={c.funder.pubkey()} flags=4" in funded
-    # the fee has a floor of 0.40 and no ceiling: 2.5% of the first 1,000, 1% from there to 50,000, 0.5% above;
-    # and the amount is between 5 and 100,000
-    assert c.order(c.fund_wallet(amount=5 * USDC)).fee == 400_000
-    assert c.order(c.fund_wallet(amount=500 * USDC)).fee == 12_500_000
-    for amount, fee in ((1_000 * USDC, 25 * USDC), (2_000 * USDC, 35 * USDC), (50_000 * USDC, 515 * USDC), (100_000 * USDC, 765 * USDC)):
+    assert f"order={order} repo={REPO} issue={n} seq=4 amount=100000000 fee=300000 mode=1 by=0 source={c.funder.pubkey()} flags=4" in funded
+    # the fee is one rate, 0.30%, with a floor of 0.05 and no ceiling: no tiers; and the amount is between 5 and 100,000
+    assert c.order(c.fund_wallet(amount=5 * USDC)).fee == 50_000
+    assert c.order(c.fund_wallet(amount=500 * USDC)).fee == 1_500_000
+    for amount, fee in ((1_000 * USDC, 3 * USDC), (5_000 * USDC, 15 * USDC), (50_000 * USDC, 150 * USDC), (100_000 * USDC, 300 * USDC)):
         funded, had = c.fund_wallet(amount=amount), c.balance(c.funder_tok)
         assert c.order(funded).fee == fee == pay.order_fee(amount) and c.held(funded) == amount + fee
         c.warp(14 * DAY + 1)        # and all of it goes back at the deadline
@@ -320,9 +320,9 @@ def test_a_comment_funds_an_order_from_a_balance_once(chain):
     assert c.send([ix], tag="fund_order_balance"), c.err
     order = pay.order_pda(pay.scope_of(REPO, n), c.bal, 2)
     o = c.order(order)
-    assert (o.state, o.from_balance, o.flags, o.amount, o.fee, o.seq) == ("open", True, pay.F_NEUTRAL, 40 * USDC, USDC, 2)
+    assert (o.state, o.from_balance, o.flags, o.amount, o.fee, o.seq) == ("open", True, pay.F_NEUTRAL, 40 * USDC, 120_000, 2)
     assert (o.funder_id, o.owner_id, o.source, o.refund_to, o.rent_to, o.not_before) == (MAINT, OWNER, c.bal, pay.baltok_pda(c.bal), c.payer.pubkey(), c.now() - pay.CLOCK_SLACK)
-    assert c.held(order) == 41 * USDC == before - c.balance(pay.baltok_pda(c.bal)) and pay.read_balance(c.data(c.bal)).spent == spent + 41 * USDC
+    assert c.held(order) == 40_120_000 == before - c.balance(pay.baltok_pda(c.bal)) and pay.read_balance(c.data(c.bal)).spent == spent + 40_120_000
     assert c.data(pay.used_pda(c.data(tok)))[:1] == b"\x01"
     # the same token again: the order exists; and once the order is gone, the token is still used up
     assert not c.send([ix]) and code(c) == 91
@@ -361,8 +361,8 @@ def test_what_a_fund_token_cannot_do(chain):
     t = c.fund_token(n, 31 * USDC)
     assert not c.send([c.fund_balance_ix(t, n)]) and code(c) == 93
     assert c.send([pay.set_balance_ix(c.owner.pubkey(), c.bal, spenders=[MAINT])], c.owner), c.err
-    t = c.fund_token(n, 99 * USDC + 1, balance=other)
-    assert not c.send([c.fund_balance_ix(t, n, other)]) and code(c) == 94      # 99.000001 and its fee are more than 100
+    t = c.fund_token(n, 99 * USDC + 800_000, balance=other)
+    assert not c.send([c.fund_balance_ix(t, n, other)]) and code(c) == 94      # 99.80 and its fee (0.2994) are more than 100
     assert c.send([ok]), c.err
 
 
@@ -374,18 +374,19 @@ def test_the_orders_repository_pays_one_payee_in_full_and_the_fee_is_split():
     rent = c.lamports(c.funder.pubkey())
     locked = c.lamports(order) + c.lamports(pay.ov_pda(order))
     assert c.pay(order, [(payee, 10_000, wallet)]), c.err
-    # the payee receives the posted amount, whole; this transaction created the payee's token account, so the tip is 0.30
+    # the payee receives the posted amount, whole; this transaction created the payee's token account, so the tip is 0.30:
+    # all of the fee of 100.00, and nothing is left for the fee account
     assert c.balance(pay.ata(wallet, c.usdc)) == 100 * USDC
-    assert (c.balance(c.tip), c.balance(c.fee)) == (300_000, 2_200_000)
+    assert (c.balance(c.tip), c.balance(c.fee)) == (300_000, 0)
     assert c.data(order) is None and c.data(pay.ov_pda(order)) is None and c.lamports(c.funder.pubkey()) == rent + locked
     r = pay.read_rep(c.data(pay.rep_pda(payee)))
     assert (r.paid, r.total, r.funders, r.first) == (1, 100 * USDC, 1, c.now()) and c.data(pay.pair_pda(payee, c.funder.pubkey())) == b"\x01"
     assert c.said("knos3:paid") == [f"knos3:paid order={order} pr=7 payee={payee} amount=100000000 to={wallet}"]
-    assert c.said("knos3:settled") == [f"knos3:settled order={order} paid=100000000 of=100000000 fee=2200000 tip=300000 judge=0"]
+    assert c.said("knos3:settled") == [f"knos3:settled order={order} paid=100000000 of=100000000 fee=0 tip=300000 judge=0"]
     # a payee whose token account exists: the tip is 0.05
     order = c.fund_wallet(amount=100 * USDC)
     assert c.pay(order, [(payee, 10_000, wallet)]), c.err
-    assert (c.balance(pay.ata(wallet, c.usdc)), c.balance(c.tip), c.balance(c.fee)) == (200 * USDC, 350_000, 2_200_000 + 2_450_000)
+    assert (c.balance(pay.ata(wallet, c.usdc)), c.balance(c.tip), c.balance(c.fee)) == (200 * USDC, 350_000, 250_000)
     # the token is of no use afterwards: the order is gone; funded again under the same address, the old proof is too old
     tok = c.pay_token(order, [(payee, 10_000, wallet)], o=o)
     assert not c.send([c.pay_ix(order, tok, [(payee, 10_000, wallet)], o=o)]) and code(c) == 101
@@ -407,7 +408,7 @@ def test_up_to_four_payees_share_an_order_and_every_unit_is_paid(chain):
     assert c.pay(order, payees, tag="pay_order_4"), c.err
     got = [c.balance(pay.ata(w, c.usdc)) for w in wallets]
     assert got == [50_000_001, 25_000_000, 16_670_000, 100 * USDC + 3 - 50_000_001 - 25_000_000 - 16_670_000] and sum(got) == 100 * USDC + 3
-    assert (c.balance(c.tip) - tip, c.balance(c.fee) - fee) == (300_000, 2_500_000 - 300_000) and c.data(order) is None
+    assert (c.balance(c.tip) - tip, c.balance(c.fee) - fee) == (300_000, 0) and c.data(order) is None
     for i in ids:
         r = pay.read_rep(c.data(pay.rep_pda(i)))
         assert (r.paid, r.funders) == (1, 1) and c.data(pay.pair_pda(i, OWNER)) == b"\x01"
@@ -437,7 +438,7 @@ def test_an_order_is_held_for_one_payee_without_a_wallet_and_settled_when_he_bin
     assert not c.send([swap(pay.settle_order_ix(c.payer.pubkey(), order, o, wallet), 11, pay.bind_pda(user()))]) and code(c) == 88
     tip, fee = c.balance(c.tip), c.balance(c.fee)
     assert c.settle(order, wallet), c.err
-    assert c.balance(pay.ata(wallet, c.usdc)) == 50 * USDC and (c.balance(c.tip) - tip, c.balance(c.fee) - fee) == (300_000, 950_000)
+    assert c.balance(pay.ata(wallet, c.usdc)) == 50 * USDC and (c.balance(c.tip) - tip, c.balance(c.fee) - fee) == (150_000, 0)   # the fee of 50.00 is 0.15: the tip takes it all
     assert c.data(order) is None and c.data(pay.ov_pda(order)) is None
     assert c.said("knos3:settled")[0].endswith("judge=9")
     # a split is never held: with one payee who cannot be paid nothing moves
@@ -501,7 +502,7 @@ def test_what_a_pay_token_and_its_relayer_cannot_do(chain):
     c.warp(3601)
     assert not c.send([c.pay_ix(short, c.pay_token(short, payees), payees)]) and code(c) == 83
     assert c.send([ok]), c.err
-    assert state() == (0, 30 * USDC + 750_000, 30 * USDC, before[3] + 700_000, before[4] + 50_000)
+    assert state() == (0, 30 * USDC + 90_000, 30 * USDC, before[3] + 40_000, before[4] + 50_000)
 
 
 def test_tokens_sent_to_an_orders_account_cannot_stop_it_from_closing(chain):
@@ -510,7 +511,7 @@ def test_tokens_sent_to_an_orders_account_cannot_stop_it_from_closing(chain):
     transfer(c, c.owner_tok, pay.ov_pda(order), 7, c.owner)
     fee = c.balance(c.fee)
     assert c.pay(order, [(payee, 10_000, wallet)]), c.err
-    assert c.balance(pay.ata(wallet, c.usdc)) == 20 * USDC and c.balance(c.fee) - fee == 500_000 - 300_000 + 7 and c.data(pay.ov_pda(order)) is None
+    assert c.balance(pay.ata(wallet, c.usdc)) == 20 * USDC and c.balance(c.fee) - fee == 60_000 - 60_000 + 7 and c.data(pay.ov_pda(order)) is None
 
 
 def test_an_order_in_a_token_2022_mint_and_in_a_mint_of_nine_decimals(chain):
@@ -523,11 +524,11 @@ def test_an_order_in_a_token_2022_mint_and_in_a_mint_of_nine_decimals(chain):
         assert c.send([ix], w), c.err
         order = ix.accounts[1].pubkey
         o = c.order(order)
-        assert (o.fee, o.decimals, o.token_program) == (unit * 4 // 10, c.data(mint)[44], c.token_program(mint)) and c.held(order) == 10 * unit + o.fee
+        assert (o.fee, o.decimals, o.token_program) == (unit * 5 // 100, c.data(mint)[44], c.token_program(mint)) and c.held(order) == 10 * unit + o.fee
         payee, wallet = user(), Keypair().pubkey()
         assert c.pay(order, [(payee, 10_000, wallet)]), c.err
         tp = c.token_program(mint)
-        assert (c.balance(pay.ata(wallet, mint, tp)), c.balance(tip), c.balance(pay.ata(pay.FEE_OWNER, mint, tp))) == (10 * unit, unit * 3 // 10, unit // 10)
+        assert (c.balance(pay.ata(wallet, mint, tp)), c.balance(tip), c.balance(pay.ata(pay.FEE_OWNER, mint, tp))) == (10 * unit, unit * 5 // 100, 0)
         # anybody's mint: counted as a test payment
         r = pay.read_rep(c.data(pay.rep_pda(payee)))
         assert (r.paid, r.total, r.test_paid, r.test_total) == (0, 0, 1, 0)
@@ -547,8 +548,8 @@ def test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before():
     for index, key, want in ((2, pay.ov_pda(other), 80), (5, thief.pubkey(), 80), (6, c.new_mint(), 80), (4, thief.pubkey(), 80)):
         assert not c.send([swap(ok, index, key)]) and code(c) == want, index
     assert c.send([ok], tag="refund_order"), c.err         # no token: it works whatever happens to GitHub or to Knos
-    assert c.balance(c.funder_tok) == before + 60 * USDC + 1_500_000 and c.lamports(c.funder.pubkey()) == rent + locked
-    assert c.data(order) is None and c.data(pay.ov_pda(order)) is None and c.said("knos3:refunded") == [f"knos3:refunded order={order} amount=61500000"]
+    assert c.balance(c.funder_tok) == before + 60 * USDC + 180_000 and c.lamports(c.funder.pubkey()) == rent + locked
+    assert c.data(order) is None and c.data(pay.ov_pda(order)) is None and c.said("knos3:refunded") == [f"knos3:refunded order={order} amount=60180000"]
     assert not c.send([ok]) and code(c) == 101
     assert not c.refund(other) and code(c) == 83            # its deadline has not passed
     # a held order goes back when its hold ends, not when its deadline does
@@ -556,21 +557,21 @@ def test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before():
     c.warp(14 * DAY)
     assert not c.refund(other) and code(c) == 83
     c.warp(pay.HOLD)
-    assert c.refund(other) and c.balance(c.funder_tok) == before + 60 * USDC + 1_500_000 + 20 * USDC + 500_000, c.err
+    assert c.refund(other) and c.balance(c.funder_tok) == before + 60 * USDC + 180_000 + 20 * USDC + 60_000, c.err
 
 
 def test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came(chain):
     c = chain
     order = c.fund_wallet(amount=10 * USDC)
-    assert c.order(order).fee == 400_000
+    assert c.order(order).fee == 50_000
     before = c.balance(c.funder_tok)
     top = lambda add, signer=None, **kw: c.send([pay.top_up_ix((signer or c.funder).pubkey(), order, c.order(order), add, **kw)], signer or c.funder)  # noqa: E731
     assert top(4 * USDC), c.err                     # 14: the fee stays at its floor
-    assert (c.order(order).amount, c.order(order).fee, c.held(order)) == (14 * USDC, 400_000, 14_400_000)
-    assert top(86 * USDC), c.err                    # 100: 2.5% is 2.50
-    assert (c.order(order).amount, c.order(order).fee, c.held(order)) == (100 * USDC, 2_500_000, 102_500_000)
-    assert before - c.balance(c.funder_tok) == 90 * USDC + 2_100_000
-    assert c.said("knos3:topup") == [f"knos3:topup order={order} add=86000000 amount=100000000 fee=2500000"]
+    assert (c.order(order).amount, c.order(order).fee, c.held(order)) == (14 * USDC, 50_000, 14_050_000)
+    assert top(86 * USDC), c.err                    # 100: 0.30% is 0.30
+    assert (c.order(order).amount, c.order(order).fee, c.held(order)) == (100 * USDC, 300_000, 100_300_000)
+    assert before - c.balance(c.funder_tok) == 90 * USDC + 250_000
+    assert c.said("knos3:topup") == [f"knos3:topup order={order} add=86000000 amount=100000000 fee=300000"]
     # nothing, over 100,000 in all, someone else, someone else's money
     stranger, stranger_tok = c.wallet(c.usdc, 100 * USDC)
     assert not top(0) and code(c) == 81
@@ -584,7 +585,7 @@ def test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came(chain):
     assert not c.send([swap(ix, 0, stranger.pubkey())], stranger) and code(c) == 98
     assert not c.send([swap(ix, 3, c.owner_tok)], c.owner) and code(c) == 98
     assert c.send([ix], c.owner), c.err
-    assert (c.order(of_balance).amount, c.order(of_balance).fee, b - c.balance(pay.baltok_pda(c.bal))) == (20 * USDC, 500_000, 10 * USDC + 100_000)
+    assert (c.order(of_balance).amount, c.order(of_balance).fee, b - c.balance(pay.baltok_pda(c.bal))) == (20 * USDC, 60_000, 10 * USDC + 10_000)
     # the payees then receive the whole new amount; after the deadline nothing is added
     payee, wallet = user(), Keypair().pubkey()
     assert c.pay(order, [(payee, 10_000, wallet)]) and c.balance(pay.ata(wallet, c.usdc)) == 100 * USDC, c.err
@@ -680,12 +681,12 @@ def test_on_devnet_the_faucet_mints_an_orders_amount_and_the_fee_on_top():
     bal = pay.faucet_balance_pda(org)
     tok = c.fund_token(n, 20 * USDC, balance=bal, repository_owner_id=org, repository_id=repo, actor=user())
     assert c.send([pay.faucet_open_ix(c.payer.pubkey(), tok, c.key, org, repo)]), c.err
-    assert c.balance(pay.baltok_pda(bal)) == 20 * USDC + 500_000
+    assert c.balance(pay.baltok_pda(bal)) == 20 * USDC + 60_000
     ix = pay.fund_order_balance_ix(c.payer.pubkey(), tok, c.key, bal, test_usdc, org, repo, n, TERMS, c.data(tok))
     assert c.send([ix]), c.err
     order = ix.accounts[7].pubkey
     o = c.order(order)
-    assert o.faucet and (o.amount, o.fee, o.repo_id, c.balance(pay.baltok_pda(bal)), c.held(order)) == (20 * USDC, 500_000, repo, 0, 20 * USDC + 500_000)
+    assert o.faucet and (o.amount, o.fee, o.repo_id, c.balance(pay.baltok_pda(bal)), c.held(order)) == (20 * USDC, 60_000, repo, 0, 20 * USDC + 60_000)
     # over the faucet's cap of 100, and under an order's minimum of 5, nothing is minted
     for amount in (100 * USDC + 1, 5 * USDC - 1):
         c.warp(61)

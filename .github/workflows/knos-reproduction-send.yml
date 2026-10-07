@@ -1,0 +1,96 @@
+# .github/workflows/knos-reproduction-send.yml: after `knos reproduce` has run in a FORK of drexthealpha/Knos, put the
+# signed reproduction on a branch of that fork and print ONE link that opens the pull request, filled in.
+#
+# What starts it:
+#
+#   The end of a run of `knos reproduce` in this repository (`workflow_run`). Nobody starts it by hand: the one button
+#       is "Run workflow" on `knos reproduce` (docs/REPRODUCE.md). This job takes that run's artifact
+#       `knos-reproduction` (the report and the token GitHub signed for its hash, in one file,
+#       <owner>-<repo>-<run id>.json), creates the branch `reproduction-<run id>` in THIS repository from the commit
+#       drexthealpha/Knos has on main, adds the file as reproductions/<owner>-<repo>-<run id>.json and nothing else,
+#       and writes the link to the run's page.
+#
+# Why a link and not a pull request: the token a workflow gets is good for the repository the workflow is in and for no
+# other (https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication),
+# so a run in your fork cannot open a pull request in drexthealpha/Knos. The link opens GitHub's own form with the
+# branch, the title and the text in place (https://docs.github.com/en/pull-requests/reference/using-query-parameters-to-create-a-pull-request):
+# the last press, "Create pull request", is yours, under your name.
+#
+# What it can do in this repository: read the artifact of that one run, and write one branch and one file to this
+# repository (`contents: write`). It installs nothing, runs no knos code and no code from the artifact, and reaches no
+# secret; it needs none. What it cannot do: write anywhere else, or sign anything (it asks GitHub for no token).
+# In a repository that is not a fork of drexthealpha/Knos (one made from the template, or a copy) there is no branch a
+# pull request could come from: it says so and stops, and the artifact is sent by hand as docs/REPRODUCE.md describes.
+# In drexthealpha's own repositories it does nothing: a run of Knos's own is not a reproduction.
+name: knos reproduction, to send
+
+on:
+  workflow_run:
+    workflows: ["knos reproduce"]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  send:
+    if: github.event.workflow_run.conclusion == 'success' && github.repository_owner != 'drexthealpha'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: the reproduction, onto a branch of this fork, and the link that opens the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.event.workflow_run.id }}
+          UPSTREAM: drexthealpha/Knos
+          DEFAULT: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          case "$RUN" in ''|*[!0-9]*) echo "The run that ended names no id."; exit 1 ;; esac
+          gh run download "$RUN" --repo "$GITHUB_REPOSITORY" --name knos-reproduction --dir out
+          want="$(printf '%s' "${GITHUB_REPOSITORY}-${RUN}" | sed 's/[^A-Za-z0-9._-]/-/g').json"
+          if [ "$(ls out | wc -l)" != 1 ] || [ ! -f "out/$want" ]; then
+            echo "The artifact knos-reproduction of run $RUN does not hold exactly $want, so nothing is sent."; exit 1
+          fi
+          parent="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.parent.full_name // ""')"
+          if [ "$parent" != "$UPSTREAM" ]; then
+            { echo "This repository is not a fork of $UPSTREAM, so no pull request can come from it."
+              echo "Download the artifact \`knos-reproduction\` of [the run](https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN) and add \`$want\` as \`reproductions/$want\` in a pull request to $UPSTREAM (docs/REPRODUCE.md, \"How to send it\")."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="reproduction-$RUN"
+          main="$(gh api "repos/$UPSTREAM/git/ref/heads/main" --jq .object.sha)"
+          # a fork shares its parent's commits; if this one cannot be named here, the fork's own default branch is the base
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$main" >/dev/null 2>&1 \
+            || gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$DEFAULT" --jq .object.sha)" >/dev/null
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/reproductions/$want" -f branch="$branch" \
+            -f message="Reproduction of Knos by $GITHUB_REPOSITORY_OWNER: run $RUN" -f content="$(base64 -w0 "out/$want")" >/dev/null
+          WANT="$want" BRANCH="$branch" python3 - <<'LINK'
+          import hashlib, json, os, urllib.parse
+          repo, run, name, branch, upstream = (os.environ[k] for k in ("GITHUB_REPOSITORY", "RUN", "WANT", "BRANCH", "UPSTREAM"))
+          report = json.load(open(os.path.join("out", name), encoding="utf-8"))["report"]
+          sha = hashlib.sha256(json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")).hexdigest()
+          owner, short = repo.split("/")
+          rows = "\n".join(f"| `{c['id']}` | {c['result']} | {c['seconds']} s | {', '.join(c['capabilities'])} |" for c in report["checks"])
+          body = (f"Reproduction of Knos {report['knos']} by {owner}\n\n"
+                  f"Adds `reproductions/{name}`: the report of `knos reproduce` and the token GitHub signed for it in "
+                  f"[this run](https://github.com/{repo}/actions/runs/{run}) of {repo}.\n\n"
+                  f"| check | result | time | capabilities |\n|---|---|---|---|\n{rows}\n\n"
+                  f"Report sha256 `{sha}`. I am not the maintainer of Knos and I ran this in a repository of my own.\n\n"
+                  "What was awkward or broken on the way:\n")
+          title = f"Reproduction of Knos {report['knos']} by {owner}"
+          link = (f"https://github.com/{upstream}/compare/main...{owner}:{short}:{branch}?quick_pull=1"
+                  f"&title={urllib.parse.quote(title)}&body={urllib.parse.quote(body)}")
+          failed = [c["id"] for c in report["checks"] if c["result"] == "fail"]
+          text = (f"The reproduction is on the branch `{branch}` of {repo} as `reproductions/{name}`.\n\n"
+                  + (f"**A check failed ({', '.join(failed)}), so this is a bug to report and not a reproduction to send:** open an issue on {upstream} and attach "
+                     "`report.json` (the artifact `knos-report`).\n" if failed else
+                     f"**[Open the pull request]({link})** and press **Create pull request**. Its last line asks what was awkward or broken on the way: "
+                     "that is the part nobody inside can answer.\n"))
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(text)
+          LINK

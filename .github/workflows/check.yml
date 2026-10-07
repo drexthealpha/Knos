@@ -62,7 +62,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.17"
+        run: uv tool install --no-config "knos==0.3.18"
       - name: knos check
         env:
           GH_TOKEN: ${{ github.token }}

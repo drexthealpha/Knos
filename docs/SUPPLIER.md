@@ -108,6 +108,7 @@ test fails when a refusal exists without its two sentences.
 | `rerun.cannot-run` | The neutral judge could not run on its machine. | Run it again; nothing is held against you. |
 | `rerun.insufficient-evidence` | This run could not decide (insufficient evidence). | Run the workflow again; nothing is paid or held against you. |
 | `appeal.nothing` | An accepted verdict leaves nothing to appeal. | Read `/knos status` for when the money moves. |
+| `appeal.unjudged` | No verdict on this pull request is on record yet. | Comment it again once the pull request is settled. |
 | `appeal.not-supplier` | Only the account that did the work can appeal. | Ask the pull request's author to comment it. |
 | `appeal.no-reason` | The appeal gives no reason. | Comment `/knos appeal <reason>` with one sentence. |
 | `appeal.open` | An appeal of this verdict is open already. | Wait for the neutral judge's run to end. |

@@ -43,6 +43,41 @@ const idOf = async (kind, ...parts) => {
 };
 const kindOf = (id) => { const m = /^([a-z]{3})_[0-9a-f]{24}$/.exec(String(id)); return (m && Object.keys(PREFIX).find((k) => PREFIX[k] === m[1])) || null; };
 
+// -- ledger format 2 ---------------------------------------------------------------------------------------------------
+const FIELDS = ["deliverable_id", "evaluation_id", "invoice_line_id", "settlement_id", "verdict", "amount", "currency", "buyer", "seller", "order", "milestone",
+  "policy", "artifact", "evidence", "evaluator", "run", "month", "seq"];
+const unhex = (text) => Uint8Array.from(text.match(/../g) || [], (h) => parseInt(h, 16));
+const join = (chunks) => {
+  const all = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const c of chunks) { all.set(c, at); at += c.length; }
+  return all;
+};
+const u32 = (n) => { const out = new Uint8Array(4); new DataView(out.buffer).setUint32(0, n); return out; };
+const tagged = async (tag, ...parts) => sha256(join([enc.encode(`${tag}\0`), ...parts]));
+const whole = (text, most) => /^(0|[1-9][0-9]{0,19})$/.test(text) && BigInt(text) < most;
+// 'knos.event' 0x00, 0x02, 0x12, then each of the eighteen texts as its length (u32 big-endian) and its UTF-8 bytes; refused when it is not one event
+const eventBytes = async (e) => {
+  if (!e || typeof e !== "object" || Object.keys(e).length !== FIELDS.length || !FIELDS.every((k) => typeof e[k] === "string")) throw new Refuse();
+  if (!VERDICTS.includes(e.verdict) || !["amount", "buyer", "seller", "seq"].every((k) => whole(e[k], 1n << 64n)) || !whole(e.milestone, 1n << 32n)) throw new Refuse();
+  if (!/^[0-9]{6}$/.test(e.month) || !/^[0-9a-f]{64}$/.test(e.order) || !/^[0-9a-f]{64}$/.test(e.policy) || !/^[0-9a-f]{40}$/.test(e.artifact)
+    || !/^([0-9a-f]{64})?$/.test(e.evidence)) throw new Refuse();
+  const dlv = await idOf("deliverable", e.order, e.milestone);
+  if (e.deliverable_id !== dlv || e.evaluation_id !== await idOf("evaluation", dlv, e.artifact, e.policy, e.evaluator, e.run)) throw new Refuse();
+  if ((e.invoice_line_id && kindOf(e.invoice_line_id) !== "invoice_line") || (e.settlement_id && kindOf(e.settlement_id) !== "settlement")) throw new Refuse();
+  const chunks = [enc.encode("knos.event\0"), Uint8Array.of(2, FIELDS.length)];
+  for (const k of FIELDS) { const raw = enc.encode(e[k]); chunks.push(u32(raw.length), raw); }
+  return join(chunks);
+};
+const leaf2 = async (e) => tagged("knos.leaf.2", await eventBytes(e));
+const top2 = async (hashes) => {
+  if (hashes.length === 1) return hashes[0];
+  let k = 1;
+  while (k * 2 < hashes.length) k *= 2;
+  return tagged("knos.node.2", await top2(hashes.slice(0, k)), await top2(hashes.slice(k)));
+};
+const seal2 = (size, top) => tagged("knos.root.2", u32(size), top);
+
 const SDK = {
   "terms.hash": async (i) => ({ json: new TextDecoder().decode(v2.termsJson(i.terms)), sha256: hex(await v2.termsHash(v2.termsJson(i.terms))) }),
   "terms.canonical": async (i) => { const raw = v2.canonicalTerms(i.terms); return { json: new TextDecoder().decode(raw), sha256: hex(await v2.termsHash(raw)) }; },
@@ -110,6 +145,35 @@ const ADAPTER = {
       if (e.verdict === "accepted" && !seen.has(e.deliverable)) { seen.add(e.deliverable); out.push(n); }
     }
     return out;
+  },
+  // Ledger format 2, from the description in conformance/vectors/ledger.v2.json: the leaf is the hash of the whole event.
+  "ledger2.event_bytes": async (i) => hex(await eventBytes(i.event)),
+  "ledger2.leaf": async (i) => hex(await leaf2(i.event)),
+  "ledger2.root": async (i) => {
+    const byKey = new Map();
+    for (const e of i.events) {
+      const leaf = await leaf2(e), key = hex(await meter.evalKey(e.order, e.artifact, e.policy, Number(e.milestone)));
+      if (byKey.has(key)) throw new Refuse();
+      byKey.set(key, leaf);
+    }
+    const leaves = [...byKey.keys()].sort().map((k) => byKey.get(k));
+    for (const k of [...new Set(i.corrections)].sort()) leaves.push(await tagged("knos.fix.2", unhex(k)));
+    return hex(await seal2(leaves.length, leaves.length ? await top2(leaves) : new Uint8Array(0)));
+  },
+  "ledger2.check_proof": async (i) => {
+    let r;
+    try { r = await leaf2(i.event); } catch (e) { if (e instanceof Refuse) return false; throw e; }
+    if (!(i.index >= 0 && i.index < i.size)) return false;
+    let fn = i.index, sn = i.size - 1;
+    for (const p of i.path.map(unhex)) {
+      if (sn === 0) return false;
+      if (fn % 2 === 1 || fn === sn) {
+        r = await tagged("knos.node.2", p, r);
+        while (fn % 2 === 0 && fn !== 0) { fn = Math.floor(fn / 2); sn = Math.floor(sn / 2); }
+      } else r = await tagged("knos.node.2", r, p);
+      fn = Math.floor(fn / 2); sn = Math.floor(sn / 2);
+    }
+    return sn === 0 && hex(await seal2(i.size, r)) === i.root;
   },
   // sha256 of the bytes above the first line that starts "sha256,"
   "statement.hash": async (i) => {

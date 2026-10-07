@@ -50,7 +50,7 @@ Money in the rows without tokens is a 6-decimal SPL Token mint made in the simul
 
 ## When a dependency fails
 
-These rows are of another kind than the ones above. Each breaks one thing Knos depends on and follows a payment through it. They need a token signed for every step, and nothing but GitHub can sign one the deployed programs take, so they run the programs' test builds (`knos_oidc` `1c7c7af6ca85f2c5e49aa69516069e5bd47a63328968d644703fb6d196ebc1ee`; `knos_pay` `325e699ccab376493d2b3f04a66f5140747407afc54c312e48a542a84f1b31db`: the same source built with a key this repository holds) in LiteSVM, with the relay's own code and the fakes of GitHub and of the RPC endpoint that the tests use. Seconds are the simulator's: the drill moves the clock, and the relay makes a pass every 3 s as the public worker does. No cluster and no GitHub is touched, and none of these failures has been rehearsed on devnet.
+These rows are of another kind than the ones above. Each breaks one thing Knos depends on and follows a payment through it. They need a token signed for every step, and nothing but GitHub can sign one the deployed programs take, so they run the programs' test builds (`knos_oidc` `1c7c7af6ca85f2c5e49aa69516069e5bd47a63328968d644703fb6d196ebc1ee`; `knos_pay` `412dd881e298c1e51d75f8790ab199b9b7b9203d4a86366974797dfd5ba23e0d`: the same source built with a key this repository holds) in LiteSVM, with the relay's own code and the fakes of GitHub and of the RPC endpoint that the tests use. Seconds are the simulator's: the drill moves the clock, and the relay makes a pass every 3 s as the public worker does. No cluster and no GitHub is touched, and none of these failures has been rehearsed on devnet.
 
 7 of 7 rows passed, 0 failed, 0 were not run.
 

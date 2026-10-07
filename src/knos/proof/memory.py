@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 
+from ..ghwords import MACHINE, say_machine
 from ..terms import pages
 from . import history
 
@@ -23,7 +24,7 @@ LABEL = "knos-memory"
 BOT = (41898282, "github-actions[bot]")
 MARK = "<!-- knos-memory 1 -->"      # the first line of a comment that holds lessons
 _TITLE = "Knos memory"
-_ABOUT = ("Knos keeps here what its judge learned from pull requests to this repository: one comment per run, written "
+_ABOUT = (MACHINE + "Knos keeps here what its judge learned from pull requests to this repository: one comment per run, written "
           "by GitHub Actions and read at the start of every later run. Comments by anyone else, and edited comments, "
           "are ignored. Close this issue to make Knos forget.")
 _ROOM = 60_000                       # a comment holds 65536 characters
@@ -91,6 +92,16 @@ def pull(repo: str, store, get) -> int | None:
     return None if found is None else history.import_lessons(store, found)
 
 
+def _say_what_it_is(repo: str, n: int, get, post) -> bool:
+    """An issue opened before 0.3.18 does not say it is a log: its body is edited once to say so (`post(path, data,
+    "PATCH")`). Nothing is edited when it says so already, and a failure here never stops a lesson being posted."""
+    try:
+        issue = get(f"repos/{repo}/issues/{int(n)}")
+    except Exception:  # noqa: BLE001 - GitHub did not answer: the next run asks again
+        return False
+    return isinstance(issue, dict) and say_machine(post, f"repos/{repo}/issues/{int(n)}", issue.get("body"))
+
+
 def push(repo: str, store, get, post, run: str = "") -> int | None:
     """Post the lessons the store holds and the issue does not: one comment (more only when they do not fit in
     one), in an issue it opens when the repository has none. Returns how many lessons were posted; None, with
@@ -109,6 +120,8 @@ def push(repo: str, store, get, post, run: str = "") -> int | None:
         return 0
     if n is None:
         n = int(post(f"repos/{repo}/issues", {"title": _TITLE, "body": _ABOUT, "labels": [LABEL]})["number"])
+    else:
+        _say_what_it_is(repo, n, get, post)
     batch: list[dict] = []
     for x in [*new, None]:
         if batch and (x is None or len(comment([*batch, x], run)) > _ROOM):

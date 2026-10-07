@@ -18,7 +18,7 @@ pytest.importorskip("solders.litesvm")
 from _meter import BUYER, ORDER, POLICY, SELLER, Meter  # noqa: E402
 from test_relay2 import JWKS, Net, token  # noqa: E402
 
-from knos import chain, cli  # noqa: E402
+from knos import chain, cli, decide  # noqa: E402
 from knos import ledger as L  # noqa: E402
 from knos.settle.v2 import meter, relay  # noqa: E402
 
@@ -176,11 +176,23 @@ def test_a_buyers_batches_and_a_sellers_claim_from_file_to_chain_and_back(tmp_pa
     rc, said = _meter(capsys, "verify", str(forged), "--rpc", RPC)
     assert rc == 1 and "these are not the batches that were anchored" in said and "accepted: the ledger gives" in said
 
-    # -- no token counts twice: the relay sends nothing, and the program refuses it (125) whoever sends it
+    # -- no token counts twice: the relay sends nothing, and the program refuses it (125) whoever sends it. A token whose
+    # batch the chain already took is answered "already", with the transaction that took it (another relayer carried
+    # it), and `knos decide` says accepted; a token for a taken seq with any other root is refused by the seq rule
     before, sent = (mine_on, theirs_on, c.held(credits)), net.txs
-    for jwt in (jwt0, jwt1, sjwt):
+    for jwt, first in ((jwt0, r0), (jwt1, r1), (sjwt, rs)):
         r = go(jwt)
-        assert not r["ok"] and r["why"] == meter.ERRORS[meter.E_SEQ], r
+        assert r["ok"] and r["already"] and r["sigs"] == first["sigs"][-1:] and (r["seq"], r["root"]) == (first["seq"], first["root"]), r
+        assert relay.precheck(net, c.payer, jwt, None, JWKS, now=c.now())["already"]
+        assert decide.token(jwt, ledger=net, jwks=JWKS, now=c.now())["decision"] == "accepted"
+    for aud in (meter.batch_audience(BUYER, SELLER, month, 0, 3000, b0.accepted, b0.value, b1.root),
+                meter.batch_audience(BUYER, SELLER, month, 1, 2000, b1.accepted, b1.value + 1, b1.root),
+                meter.batch_audience(BUYER, SELLER, month, 0, 5003, s0.accepted, s0.value, b0.root, "claim")):
+        claimed = aud.startswith("knosm:claim")
+        r = go(token(c, aud, file="count.yml" if claimed else "attest.yml", repository_owner_id=SELLER if claimed else BUYER, run_attempt=1))
+        assert not r["ok"] and r["why"] == meter.ERRORS[meter.E_SEQ] and not r.get("already"), r
+        assert decide.token(token(c, aud, file="count.yml" if claimed else "attest.yml", repository_owner_id=SELLER if claimed else BUYER, run_attempt=1),
+                            ledger=net, jwks=JWKS, now=c.now())["decision"] == "rejected"
     assert net.txs == sent
     assert not c.batch(credits, aud0) and c.code == meter.E_SEQ and not c.batch(credits, aud1) and c.code == meter.E_SEQ
     assert not c.claim(claim) and c.code == meter.E_SEQ

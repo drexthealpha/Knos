@@ -1,10 +1,11 @@
 # Reproductions
 
 One JSON file per run of `knos reproduce` that someone outside Knos made in a repository of their own:
-`<owner>-<repo>-<run id>.json`, holding the report and the token GitHub signed for it. How to make one and what each
-check proves: [docs/REPRODUCE.md](../docs/REPRODUCE.md).
+`<owner>-<repo>-<run id>.json`, holding the report and the token GitHub signed for it. How to make one (a fork, one button,
+one link) and what each check proves: [docs/REPRODUCE.md](../docs/REPRODUCE.md).
 
-**This folder is empty. Nobody outside has sent a reproduction yet.** Knos does not add files here: a run in an
+**This folder is empty: 0 reproductions. Nobody outside has sent a reproduction yet.** The count of outside
+reproductions, wherever Knos states one, is the number of `.json` files here and nothing else. Knos does not add files here: a run in an
 account of `scripts/own_github_ids.json`, or in a repository of drexthealpha, is refused by the same check that
 accepts everyone else's. So no capability in [docs/capabilities.json](../docs/capabilities.json) is `reproduced`.
 

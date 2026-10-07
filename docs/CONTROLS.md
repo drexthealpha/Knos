@@ -283,7 +283,8 @@ reopened: same
 evaluations one deliverable may take; an accepted deliverable is billed once however many it took. `reopened` is
 `same` (reopened work is the same deliverable and is not billed again) or `new` (it is a new deliverable and needs a
 new approval). The offer commits its cap for every supplier and every period it spans, counted to the nearest whole
-period: 400 a month for one supplier over a quarter is 1,200, and 1,230 with the settle fee of each month's funding.
+period: 400 a month for one supplier over a quarter is 1,200, and 1,203.60 with the fee of each month's funding
+(0.30%, from knos_pay 2.2; 1,230 under the 0.3.14 fee the public program charges until that upgrade executes).
 
 A budget envelope:
 
@@ -319,7 +320,10 @@ workflow already reads, and with `--write` it adds the commitment to the envelop
 before and after while the three fields of an offer are typed, and beside the amount when one task is funded.
 
 For one task, `knos budget envelope FILE --fund 500` prints the same before and after with the fee on top, and
-refuses over the limit the same way. It sends and writes nothing.
+refuses over the limit the same way. It sends and writes nothing, and asks no chain: it counts the fee of knos_pay 2.2
+(0.30%, at least 0.05) and says beside it what the 0.3.14 fee is (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40),
+which the public program charges until the upgrade executes. `knos budget show` and `knos budget check` read the chain and use the fee of the build that is live. Orders
+funded before the upgrade keep the rate fixed at their funding.
 
 The approval policy:
 

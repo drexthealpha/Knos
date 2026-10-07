@@ -1,4 +1,4 @@
-"""Test harness for the second deployment's escrow (programs-v2/knos_pay) inside LiteSVM, beside the second
+"""Test harness for the second deployment's escrow (programs-v2/knos_pay, 2.2) inside LiteSVM, beside the second
 deployment's verifier. The builds are tests/fixtures/knos_pay_v2_test.so and knos_oidc_v2_test.so (`--features
 testkeys`: they trust the seed-derived test keys of tests/_settle.py, a test claim workflow pin, a test rotate
 workflow pin and a test guardian). Tokens are verified with the second deployment's client, knos.settle.v2.oidc.
@@ -50,12 +50,42 @@ def _key(key: Pubkey | None) -> bytes:
     return bytes(key) if key is not None else bytes(32)
 
 
+class _Slots:
+    """LiteSVM in which a transaction never lands in the slot of the one before it: sent or simulated in a slot the
+    last one was sent in, it moves the chain to the next slot first, in the same second. That is what transactions
+    sent one after the other do on a cluster (LiteSVM alone never moves its slot). knos_pay 2.2 stamps an order with
+    the slot of its funding and takes nothing that writes a marker for it in that same slot (state.rs `stamp`), so a
+    chain whose slot stood still would refuse every quorum, assignment and standing payment. A slot a test set
+    itself (`warp_to_slot`, `set_clock`) is left as it is: the transaction lands exactly there. Two instructions in
+    ONE transaction are one slot: that is how a test puts a funding and a judge together."""
+    def __init__(self, svm):
+        self._inner, self._sent_in = svm, None
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+    def _next(self) -> None:
+        c = self._inner.get_clock()
+        if c.slot == self._sent_in:
+            c.slot += 1
+            self._inner.set_clock(c)
+        self._sent_in = c.slot
+
+    def send_transaction(self, tx):
+        self._next()
+        return self._inner.send_transaction(tx)
+
+    def simulate_transaction(self, tx):
+        self._next()
+        return self._inner.simulate_transaction(tx)
+
+
 class Chain:
     def __init__(self, pay_build: str = "knos_pay_v2_test.so", oidc_build: str = "knos_oidc_v2_test.so"):
         for build, crate in ((oidc_build, "knos_oidc"), (pay_build, "knos_pay")):
             assert (FIX / build).is_file(), f"tests/fixtures/{build} is missing: build it in programs-v2/{crate} with cargo build-sbf --features testkeys"
         assert oidc.OIDC_ID == pay.OIDC_ID          # the verifier whose token accounts the escrow accepts
-        self.svm = LiteSVM()
+        self.svm = _Slots(LiteSVM())
         self.svm.add_program_from_file(oidc.OIDC_ID, str(FIX / oidc_build))
         self.svm.add_program_from_file(pay.PAY_ID, str(FIX / pay_build))
         c = self.svm.get_clock(); c.unix_timestamp = NOW; self.svm.set_clock(c)
@@ -77,6 +107,9 @@ class Chain:
 
     def now(self) -> int:
         return int(self.svm.get_clock().unix_timestamp)
+
+    def slot(self) -> int:
+        return int(self.svm.get_clock().slot)
 
     def marked(self, ix):
         """An instruction of the escrow that takes a token, with that token's marker in its place when the

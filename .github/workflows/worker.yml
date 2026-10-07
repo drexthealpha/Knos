@@ -44,6 +44,15 @@ name: always-on worker
 # What the event does NOT shorten: a run takes GitHub's time to start plus this job's install (10 to 21 s were seen),
 # so while the chain relays, its 3 s pass is there first. The event is for the two cases above.
 #
+# NOTES THAT MERGE (0.3.18). Each run appends what it does to a file of its own (`ghrelay-notes/<run>.jsonl` in its
+# home: one line a change, keyed by token) and keeps a journal of its own; a reader merges every file by key,
+# confirmed > refused > sending > waiting. So a run never replaces, drains or closes what another run holds. The
+# chain of runs hands the folder on with its notes (the cache below). The event job is on another runner and has
+# no cache (this job sees the fee key, and tests/test_workflows2.py lists every cache such a job may have), so the
+# two do not see each other's lines while both are alive: there the chain still takes a token once.
+# FEE PAYERS. One today: KNOS_RELAY_KEY. KNOS_RELAY_KEYS (a secret that is not set) may name more; each owner's
+# tokens then always pay from the same one of them, and a key signs for one token at a time (docs/RELAY.md).
+#
 # Each run's title names the run it takes over from, so that the first step of the next one can tell the chain's runs apart.
 # An event run is titled "relay for ...", which no step of the chain counts.
 run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || 'relay' }}
@@ -168,6 +177,7 @@ jobs:
         if: steps.chain.outputs.go == 'true'
         env:
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          KNOS_RELAY_KEYS: ${{ secrets.KNOS_RELAY_KEYS }}
           GH_TOKEN: ${{ github.token }}
           KNOS_RELAY_LOG_REPO: ${{ github.repository }}
           PYTHONPATH: ${{ github.workspace }}/src
@@ -191,6 +201,7 @@ jobs:
         if: steps.chain.outputs.go == 'true'
         env:
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          KNOS_RELAY_KEYS: ${{ secrets.KNOS_RELAY_KEYS }}
           GH_TOKEN: ${{ github.token }}
           KNOS_RELAY_LOG_REPO: ${{ github.repository }}
           PYTHONPATH: ${{ github.workspace }}/src
@@ -242,6 +253,7 @@ jobs:
       - name: carry what this event names, 4 at a time
         env:
           KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          KNOS_RELAY_KEYS: ${{ secrets.KNOS_RELAY_KEYS }}
           GH_TOKEN: ${{ github.token }}
           KNOS_RELAY_LOG_REPO: ${{ github.repository }}
           KNOS_RELAY_WORKERS: "4"

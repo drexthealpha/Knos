@@ -65,6 +65,12 @@ const statements = (h) => h.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/<(
 const long = [playgroundHtml({ tasks: tasksOf([issues[0], issues[3]], bounties), outsiders: some }), playgroundHtml({}), playgroundHtml({ tasks: null }), playgroundHtml({ tasks: [], outsiders: null })]
   .flatMap(statements).filter((s) => s.split(/\s+/).length > 12);
 ok("no statement on it is longer than 12 words", long.length === 0, long);
+// the first screen's 40 words (tests/web/words.mjs, which counts no figure, table, button or control) hold with every
+// count read, as the Pages build writes them: the staging build of 7 Oct said 41 there
+const prose = (h) => h.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/<(table|button|strong)[\s\S]*?<\/\1>/g, " ").replace(/<a class="k-btn[\s\S]*?<\/a>/g, " ").replace(/<[^>]+>/g, " ")
+  .split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+const firstScreen = prose(playgroundHtml({ tasks, outsiders: some }));
+ok("the first screen says 40 words at most with every count read", firstScreen <= 40, firstScreen);
 ok("it claims nobody has used it", !/\b(users?|customers?|people have|already funded|join)\b/i.test(html.replace(/<style>[\s\S]*?<\/style>/, "")));
 ok("the module asks only GitHub's API and its own site", [...source.matchAll(/https?:\/\/[a-z0-9.-]+/gi)].map((m) => m[0]).every((u) => ["https://github.com", "https://api.github.com"].includes(u)) && !/XMLHttpRequest|import\s*\(|^import /m.test(source));
 

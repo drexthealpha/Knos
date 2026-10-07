@@ -350,3 +350,43 @@ def test_a_not_paid_written_after_paid_is_not_kept_and_a_paid_written_after_not_
     other = history._id("settlement", "r", 12, "b" * 40)
     assert history.paid_settlements(memory.read("o/r", hub)[1]) == {SETTLED} and other != SETTLED
     assert history.paid_settlements([]) == set() == history.paid_settlements(history.NullStore()) == history.paid_settlements(object())
+
+
+class Editable(Issues):
+    """The same issues, on a forge that also reads one issue and takes an edit of its body (PATCH)."""
+
+    def __init__(self):
+        super().__init__()
+        self.edits = []
+
+    def __call__(self, path: str, data: dict | None = None, method: str | None = None):
+        m = re.fullmatch(r"repos/o/r/issues/(\d+)", path)
+        if m and method == "PATCH":
+            self.edits.append((path, data))
+            self.issues[int(m.group(1)) - 1].update(data)
+            return {}
+        if m and data is None:
+            return dict(self.issues[int(m.group(1)) - 1])
+        return super().__call__(path, data)
+
+
+def test_the_memory_issue_says_it_is_a_log_and_one_opened_before_is_edited_once_to_say_so(tmp_path):
+    said = "This is a log written by a workflow. It is not a task and carries no payment. "
+    assert memory._ABOUT.startswith(said + "Knos keeps here what its judge learned")
+    # opened now: the sentence is the first thing its body says, and nothing is ever edited
+    hub = Editable()
+    assert memory.push("o/r", settled(tmp_path, "new", True, hub), hub, hub) == 1 and hub.issues[0]["body"] == memory._ABOUT
+    other = history.SibylStore.local(tmp_path / "other")
+    history.import_lessons(other, [{"category": "settlement", "name": history._id("settlement", "r", 13, "b" * 40),
+                                    "body": {**remembered(tmp_path, hub), "pull": 13}}])
+    assert memory.push("o/r", other, hub, hub) == 1 and hub.edits == []
+    # opened by an earlier release: edited once, when the next lesson is posted, and the lesson is posted all the same
+    hub = Editable()
+    n = hub.open(BOT, title="Knos memory", body="Knos keeps here what its judge learned.")
+    assert memory.push("o/r", settled(tmp_path, "old", True, hub), hub, hub) == 1
+    assert hub.edits == [(f"repos/o/r/issues/{n}", {"body": said + "Knos keeps here what its judge learned."})] and len(hub.comments[n]) == 1
+    assert memory.push("o/r", other, hub, hub) == 1 and len(hub.edits) == 1 and len(hub.comments[n]) == 2
+    # a forge that takes no edit: the lesson is posted, and nothing is lost
+    plain = Issues()
+    n = plain.open(BOT, title="Knos memory", body="")
+    assert memory.push("o/r", settled(tmp_path, "plain", True, plain), plain, plain) == 1 and len(plain.comments[n]) == 1

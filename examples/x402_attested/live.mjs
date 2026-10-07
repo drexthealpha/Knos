@@ -35,8 +35,10 @@ const deliver = (offer) => async (order) => ({ delivered: offer.delivery ?? null
 
 async function main() {
   const chain = chainOf(need("rpc"), Number(flags.wait ?? 60));
+  // the fee the 402 names follows the build that is live: the program is asked which it is (rpc.mjs payVersion), unless the offer says
+  const live = async (offer) => ({ ...offer, feeVersion: offer.feeVersion ?? (await chain.payVersion(offer.program)) ?? undefined });
   if (mode === "serve") {
-    const offer = offerOf(need("offer"));
+    const offer = await live(offerOf(need("offer")));
     await listen(server(offer, chain, deliver(offer)), Number(flags.port ?? 4020));
     return console.error(`selling ${new URL(offer.url).pathname} on http://127.0.0.1:${flags.port ?? 4020} for an order of ${offer.program}`);
   }
@@ -53,7 +55,7 @@ async function main() {
   if (mode !== "run" && mode !== "buy") throw new Error("say what to do: run, serve, buy, status or refund (the usage is at the top of live.mjs)");
   let url = flags.url, srv = null, offer = null;
   if (mode === "run") {            // the seller's server on a free local port; the client really connects to it over HTTP
-    offer = offerOf(need("offer"));
+    offer = await live(offerOf(need("offer")));
     srv = server(offer, chain, deliver(offer));
     await listen(srv, 0);
     url = `http://127.0.0.1:${srv.address().port}${new URL(offer.url).pathname}`;

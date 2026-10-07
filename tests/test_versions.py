@@ -164,3 +164,23 @@ def test_unlock_removes_an_earlier_releases_lock_line_and_keeps_the_files_line_e
     assert not b.unlock("1.2.4", tmp_path)               # nothing left to remove
     sign.write_bytes(lock("1.2.4"))
     assert not b.unlock("1.2.4", tmp_path) and sign.read_bytes() == lock("1.2.4")     # a release's own lock stays
+
+
+def test_a_bump_adds_the_tags_key_to_the_action_pins_and_never_renames_an_earlier_tags_commit(tmp_path):
+    """A commit cannot name itself: the release's tag gets a key whose value is the placeholder, and the earlier
+    tag keeps the commit it names (the supplier workflow runs the action at it)."""
+    import json
+    root, old = _copy(tmp_path), b.project()
+    (root / "scripts").mkdir(exist_ok=True)
+    pins = {"note": "n", "pins": {"actions/checkout@v7": "3" * 40, "drexthealpha/Knos@" + "v0.0.1": "f" * 40, "x/y@v1": "1" * 40}}
+    (root / b.SELF_PINS).write_text(json.dumps(pins, indent=1) + "\n", encoding="utf-8")
+    assert f"{b.SELF_PINS}: no key drexthealpha/Knos@v{old} " in "\n".join(b.disagreements(root=root, changelog=False))
+    assert b.SELF_PINS in b.bump(NEW, root)
+    got = json.loads((root / b.SELF_PINS).read_text(encoding="utf-8"))["pins"]
+    assert got == {**pins["pins"], f"drexthealpha/Knos@v{NEW}": b.SELF_PIN} and list(got)[2] == f"drexthealpha/Knos@v{NEW}"
+    assert b.bump(NEW, root) == [] and b.disagreements(NEW, root, changelog=False) == []
+    # this tree: the release's key is there, and the action the supplier workflow runs is an earlier tag's commit
+    here = json.loads((ROOT / b.SELF_PINS).read_text(encoding="utf-8"))["pins"]
+    assert here[f"drexthealpha/Knos@v{old}"] == b.SELF_PIN or re.fullmatch(r"[0-9a-f]{40}", here[f"drexthealpha/Knos@v{old}"])
+    used = re.search(r"uses: drexthealpha/Knos@([0-9a-f]{40})", (ROOT / ".github" / "workflows" / "supplier.yml").read_text(encoding="utf-8")).group(1)
+    assert used in here.values()

@@ -4,6 +4,9 @@
                                    to that repository, in which money, as of which day
     knos badge <owner/repo>#<pr>   an SVG: what that pull request was paid, in which money, on which day
     knos record <login or id>      knos_pay's reputation account for a payee (state.rs R_*), with its caveats
+    knos record build <supplier>   a supplier's public record file, docs/records/<slug>.json (knos.record_page, docs/RECORD.md)
+    knos record receipt <file>     an acceptance receipt as one PDF page and JSON, to send with an invoice
+    knos badge record <slug>       an SVG from a supplier's record file, in the same drawing as the two above
 
 `knos badge` writes the SVG to a file and prints the Markdown that shows it and links it to the repository's record on
 the site (r/<owner>/<repo>.html, the page that lists every payment with its transaction). The SVG is one file with no
@@ -248,11 +251,28 @@ def register(app) -> None:
     typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
     @app.command("badge")
-    def badge_cmd(where: str = typer.Argument(..., help="owner/repo, or owner/repo#<pull request>"),
+    def badge_cmd(where: str = typer.Argument(..., help="owner/repo, or owner/repo#<pull request>; or `record <slug>` for a supplier's record"),
+                  what: str = typer.Argument("", help="with `record`: the supplier's slug, or the path of its record file"),
+                  records_dir: Path = typer.Option(Path("docs/records"), "--records", help="with `record`: the folder the record files are in"),
                   to_file: Path = typer.Option(None, "--out", help="where the SVG is written (default: knos-paid.svg, or knos-paid-<pr>.svg)"),
                   limit: int = typer.Option(1000, "--limit", help="how many of each escrow's newest transactions to read (at most 1000)")) -> None:
         """Write a "paid on proof" badge (an SVG) for a repository or one pull request, and print the Markdown that links it to the record."""
         from . import cli, records
+        if where == "record":
+            record_page = importlib.import_module("knos.record_page")     # named, not imported: it reads the memory engine, which a job that signs does not install
+            path = Path(what) if what.endswith(".json") else records_dir / f"{what}.json"
+            if not what or not path.is_file():
+                raise cli.Stop(f"There is no record file at {path}.", "Write it first: knos record build <supplier>")
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            why = record_page.check(doc)
+            if why:
+                raise cli.Stop(f"{path} is not a record to draw a badge from: {why}.", "Write it again: knos record build <supplier>")
+            image = to_file or Path(f"knos-record-{doc['supplier']}.svg")
+            image.write_text(record_page.badge_svg(doc), encoding="utf-8", newline="\n")
+            b = record_page.badge_data(doc)
+            cli.err.print(f"Wrote {image}: {b['label']}: {b['message']}. Commit it, then paste this line:", markup=False)
+            typer.echo(record_page.badge_markdown(doc, image.as_posix()))
+            return
         repo, _, n = where.partition("#")
         if repo.count("/") != 1 or (n and not n.isdigit()):
             raise cli.Stop("Name the repository as owner/repo, or one pull request as owner/repo#12.")
@@ -268,10 +288,35 @@ def register(app) -> None:
         typer.echo(markdown(data, path.as_posix()))
 
     @app.command("record")
-    def record_cmd(who: str = typer.Argument(..., help="a GitHub login, or a GitHub user id"),
+    def record_cmd(who: str = typer.Argument(..., help="a GitHub login, or a GitHub user id; or `build <supplier>`, or `receipt <acceptance receipt file>`"),
+                   what: str = typer.Argument("", help="with `build`: the supplier's name; with `receipt`: the acceptance receipt's file"),
+                   out: Path = typer.Option(None, "--out", help="build: the folder to write (default docs/records); receipt: the files' path without the ending"),
+                   index: Path = typer.Option(Path("docs/index.json"), "--index", help="build: the Agent PR Index feed, for an agent it measures"),
+                   events_log: Path = typer.Option(None, "--events", help="build: the events log to count work settled through Knos from (default: KNOS_EVENTS)"),
+                   supplier_id: list[str] = typer.Option([], "--id", help="build: a name the supplier has in the events log (repeat it; default: the supplier's name)"),
+                   memory: Path = typer.Option(None, "--memory", help="build: the folder of the Sibyl store to recall the supplier from"),
+                   repo: list[str] = typer.Option([], "--repo", help="build: a repository to recall the supplier in, owner/repo (repeat it)"),
+                   as_of: str = typer.Option(None, "--as-of", help="build: the day to write in the file, YYYY-MM-DD"),
+                   invoice: str = typer.Option("", "--invoice", help="receipt: the number of the invoice it goes with"),
                    as_json: bool = typer.Option(False, "--json", help="the record as JSON (what web/badge.js renderRecord reads)")) -> None:
         """A payee's record as knos_pay keeps it on Solana: paid, distinct funders, first and last, with test money and self-paid shown apart."""
         from . import cli
+        if what and who in ("build", "receipt"):
+            from . import events
+            record_page = importlib.import_module("knos.record_page")     # named, not imported (as above)
+            try:
+                if who == "build":
+                    path, doc = record_page.run_build(what, out or Path("docs/records"), index, events.where(events_log), supplier_id, memory, repo, as_of)
+                    for line in record_page.lines(doc):
+                        cli.out.print(line, markup=False)
+                    cli.err.print(f"Wrote {path}. Its page: {doc['links']['page']}. Its badge: knos badge record {doc['supplier']}", markup=False)
+                else:
+                    pdf_path, json_path, doc = record_page.run_receipt(Path(what), out, invoice)
+                    cli.out.print(f"Wrote {pdf_path} and {json_path}: {doc['accepted']['words']}, receipt {doc['receipt_sha256']}.", markup=False)
+                    cli.out.print(f"Whoever receives it checks the receipt file with no network: {doc['verify']['command']}", markup=False)
+            except (OSError, ValueError) as why:
+                raise cli.Stop(f"Nothing was written: {why}", "The record's inputs and the receipt's are described in docs/RECORD.md.") from None
+            return
         from .settle.v2 import pay
         uid = int(who) if who.isdigit() else int(cli._github(f"users/{who}")["id"])
         v = record_view(pay.read_rep(cli._ledger().account(pay.rep_pda(uid))), uid, "" if who.isdigit() else who,

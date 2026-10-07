@@ -35,14 +35,14 @@
    },
    "name": "fine: a spender, 100",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
-    "total": 102500000
+    "sentence": "Fine: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30.",
+    "total": 100300000
    }
   },
   {
@@ -80,14 +80,14 @@
    },
    "name": "fine: the owner, the minimum fee on 5",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "8.00",
-    "fee": 400000,
+    "effectivePct": "1.00",
+    "fee": 50000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 5.00 and a fee of 0.40 (8.00%) leave the Balance: 5.40.",
-    "total": 5400000
+    "sentence": "Fine: 5.00 and a fee of 0.05 (1.00%) leave the Balance: 5.05.",
+    "total": 5050000
    }
   },
   {
@@ -120,23 +120,23 @@
     "now": 1790000000,
     "plan": {
      "expires": 1790000001,
-     "feeBps": 100,
+     "feeBps": 20,
      "ownerId": 424242
     },
     "repoId": 987654321,
     "repoOwnerId": null,
     "wfSha": null
    },
-   "name": "fine: a Plan at 1%",
+   "name": "fine: a Plan at 0.20%",
    "out": {
-    "bps": 100,
+    "bps": 20,
     "code": 0,
-    "effectivePct": "1.00",
-    "fee": 1000000,
+    "effectivePct": "0.20",
+    "fee": 200000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 1.00 (1.00%) leave the Balance: 101.00.",
-    "total": 101000000
+    "sentence": "Fine: 100.00 and a fee of 0.20 (0.20%) leave the Balance: 100.20.",
+    "total": 100200000
    }
   },
   {
@@ -169,7 +169,7 @@
     "now": 1790000000,
     "plan": {
      "expires": 1790000000,
-     "feeBps": 100,
+     "feeBps": 20,
      "ownerId": 424242
     },
     "repoId": 987654321,
@@ -178,14 +178,14 @@
    },
    "name": "fine: a Plan that ended is the standard rate",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
-    "total": 102500000
+    "sentence": "Fine: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30.",
+    "total": 100300000
    }
   },
   {
@@ -218,7 +218,7 @@
     "now": 1790000000,
     "plan": {
      "expires": 1790000009,
-     "feeBps": 10,
+     "feeBps": 5,
      "ownerId": 424242
     },
     "repoId": 987654321,
@@ -227,19 +227,19 @@
    },
    "name": "fine: a Plan under the lowest rate is held to it",
    "out": {
-    "bps": 50,
+    "bps": 10,
     "code": 0,
-    "effectivePct": "0.50",
-    "fee": 500000,
+    "effectivePct": "0.10",
+    "fee": 100000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 0.50 (0.50%) leave the Balance: 100.50.",
-    "total": 100500000
+    "sentence": "Fine: 100.00 and a fee of 0.10 (0.10%) leave the Balance: 100.10.",
+    "total": 100100000
    }
   },
   {
    "in": {
-    "amount": 4935643565,
+    "amount": 4985044866,
     "balance": {
      "capPerJob": 5000000000,
      "faucet": false,
@@ -272,13 +272,13 @@
    },
    "name": "fine: exactly the daily limit",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "1.30",
-    "fee": 64356435,
+    "effectivePct": "0.30",
+    "fee": 14955134,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 4,935.643565 and a fee of 64.356435 (1.30%) leave the Balance: 5,000.00.",
+    "sentence": "Fine: 4,985.044866 and a fee of 14.955134 (0.30%) leave the Balance: 5,000.00.",
     "total": 5000000000
    }
   },
@@ -317,14 +317,14 @@
    },
    "name": "fine: yesterday's count is not today's",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "1.31",
-    "fee": 64000000,
+    "effectivePct": "0.30",
+    "fee": 14700000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 4,900.00 and a fee of 64.00 (1.31%) leave the Balance: 4,964.00.",
-    "total": 4964000000
+    "sentence": "Fine: 4,900.00 and a fee of 14.70 (0.30%) leave the Balance: 4,914.70.",
+    "total": 4914700000
    }
   },
   {
@@ -351,14 +351,14 @@
    },
    "name": "fine: no side account, 50,000",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "1.03",
-    "fee": 515000000,
+    "effectivePct": "0.30",
+    "fee": 150000000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 50,000.00 and a fee of 515.00 (1.03%) leave the Balance: 50,515.00.",
-    "total": 50515000000
+    "sentence": "Fine: 50,000.00 and a fee of 150.00 (0.30%) leave the Balance: 50,150.00.",
+    "total": 50150000000
    }
   },
   {
@@ -396,14 +396,14 @@
    },
    "name": "fine: the side account is ignored until the Balance says it has one",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "1.03",
-    "fee": 515000000,
+    "effectivePct": "0.30",
+    "fee": 150000000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 50,000.00 and a fee of 515.00 (1.03%) leave the Balance: 50,515.00.",
-    "total": 50515000000
+    "sentence": "Fine: 50,000.00 and a fee of 150.00 (0.30%) leave the Balance: 50,150.00.",
+    "total": 50150000000
    }
   },
   {
@@ -430,14 +430,14 @@
    },
    "name": "fine: the faucet's, any commenter",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
-    "total": 102500000
+    "sentence": "Fine: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30.",
+    "total": 100300000
    }
   },
   {
@@ -475,14 +475,14 @@
    },
    "name": "fine: the pinned commit",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
-    "total": 102500000
+    "sentence": "Fine: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30.",
+    "total": 100300000
    }
   },
   {
@@ -520,14 +520,14 @@
    },
    "name": "owner: a stranger's repository",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 92,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "owner",
     "sentence": "Refused: the repository belongs to GitHub id 31337, and this Balance is for the repositories of GitHub id 424242. Fund from a repository of that owner.",
-    "total": 102500000
+    "total": 100300000
    }
   },
   {
@@ -565,14 +565,14 @@
    },
    "name": "spender: not listed",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 92,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "spender",
     "sentence": "Refused: GitHub id 31337 is not the owner (424242) and is not one of this Balance's spenders (555000, 777000). The Balance's wallet can add a spender: knos budget set --spender.",
-    "total": 102500000
+    "total": 100300000
    }
   },
   {
@@ -610,14 +610,14 @@
    },
    "name": "spender: nobody",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 92,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "spender",
     "sentence": "Refused: GitHub id 0 is not the owner (424242) and is not one of this Balance's spenders (555000, 777000). The Balance's wallet can add a spender: knos budget set --spender.",
-    "total": 102500000
+    "total": 100300000
    }
   },
   {
@@ -655,14 +655,14 @@
    },
    "name": "spender: before the cap",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 92,
-    "effectivePct": "1.17",
-    "fee": 105000000,
+    "effectivePct": "0.30",
+    "fee": 27000000,
     "ok": false,
     "rule": "spender",
     "sentence": "Refused: GitHub id 31337 is not the owner (424242) and is not one of this Balance's spenders (555000, 777000). The Balance's wallet can add a spender: knos budget set --spender.",
-    "total": 9105000000
+    "total": 9027000000
    }
   },
   {
@@ -700,14 +700,14 @@
    },
    "name": "cap: one unit over",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 93,
-    "effectivePct": "1.30",
-    "fee": 65000000,
+    "effectivePct": "0.30",
+    "fee": 15000000,
     "ok": false,
     "rule": "cap",
     "sentence": "Refused: 5,000.000001 is over the cap of 5,000.00 for one order. Fund less, or the Balance's wallet raises the cap: knos budget set --cap.",
-    "total": 5065000001
+    "total": 5015000001
    }
   },
   {
@@ -745,14 +745,14 @@
    },
    "name": "cap: before the repository",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 93,
-    "effectivePct": "1.30",
-    "fee": 65000000,
+    "effectivePct": "0.30",
+    "fee": 15000000,
     "ok": false,
     "rule": "cap",
     "sentence": "Refused: 5,000.000001 is over the cap of 5,000.00 for one order. Fund less, or the Balance's wallet raises the cap: knos budget set --cap.",
-    "total": 5065000001
+    "total": 5015000001
    }
   },
   {
@@ -790,14 +790,14 @@
    },
    "name": "repository: not listed",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 92,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "repository",
     "sentence": "Refused: repository id 6 is not one of the 2 this Balance allows (987654321, 5). The Balance's wallet can allow it: knos budget set --repo.",
-    "total": 102500000
+    "total": 100300000
    }
   },
   {
@@ -835,19 +835,19 @@
    },
    "name": "workflows: another commit",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 86,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "workflows",
     "sentence": "Refused: this Balance accepts only runs of the workflows at commit cccccccccccccccccccccccccccccccccccccccc, and this run is at dddddddddddddddddddddddddddddddddddddddd. Point the repository's workflow file at that commit, or the Balance's wallet pins another: knos budget set --pin-workflows.",
-    "total": 102500000
+    "total": 100300000
    }
   },
   {
    "in": {
-    "amount": 4935643566,
+    "amount": 4985044867,
     "balance": {
      "capPerJob": 5000000000,
      "faucet": false,
@@ -880,19 +880,19 @@
    },
    "name": "day: one unit over",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 100,
-    "effectivePct": "1.30",
-    "fee": 64356435,
+    "effectivePct": "0.30",
+    "fee": 14955134,
     "ok": false,
     "rule": "day",
-    "sentence": "Refused: 4,935.643566 and a fee of 64.356435 (1.30%) leave the Balance: 5,000.000001, which with the 1,000.00 already spent today is over the daily limit of 6,000.00. 5,000.00 is left until midnight UTC. Fund less, wait, or the Balance's wallet raises it: knos budget set --per-day.",
+    "sentence": "Refused: 4,985.044867 and a fee of 14.955134 (0.30%) leave the Balance: 5,000.000001, which with the 1,000.00 already spent today is over the daily limit of 6,000.00. 5,000.00 is left until midnight UTC. Fund less, wait, or the Balance's wallet raises it: knos budget set --per-day.",
     "total": 5000000001
    }
   },
   {
    "in": {
-    "amount": 4950000000,
+    "amount": 4990000000,
     "balance": {
      "capPerJob": 5000000000,
      "faucet": false,
@@ -925,14 +925,14 @@
    },
    "name": "day: before the total",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 100,
-    "effectivePct": "1.30",
-    "fee": 64500000,
+    "effectivePct": "0.30",
+    "fee": 14970000,
     "ok": false,
     "rule": "day",
-    "sentence": "Refused: 4,950.00 and a fee of 64.50 (1.30%) leave the Balance: 5,014.50, which with the 1,000.00 already spent today is over the daily limit of 6,000.00. 5,000.00 is left until midnight UTC. Fund less, wait, or the Balance's wallet raises it: knos budget set --per-day.",
-    "total": 5014500000
+    "sentence": "Refused: 4,990.00 and a fee of 14.97 (0.30%) leave the Balance: 5,004.97, which with the 1,000.00 already spent today is over the daily limit of 6,000.00. 5,000.00 is left until midnight UTC. Fund less, wait, or the Balance's wallet raises it: knos budget set --per-day.",
+    "total": 5004970000
    }
   },
   {
@@ -970,14 +970,14 @@
    },
    "name": "total: over",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 100,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "total",
-    "sentence": "Refused: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50, which with the 59,950.00 spent so far is over the total limit of 60,000.00. 50.00 is left. Fund less, or the Balance's wallet raises it: knos budget set --total.",
-    "total": 102500000
+    "sentence": "Refused: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30, which with the 59,950.00 spent so far is over the total limit of 60,000.00. 50.00 is left. Fund less, or the Balance's wallet raises it: knos budget set --total.",
+    "total": 100300000
    }
   },
   {
@@ -1006,7 +1006,7 @@
      "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
     },
     "byId": 555000,
-    "holds": 102499999,
+    "holds": 100299999,
     "now": 1790000000,
     "plan": null,
     "repoId": 987654321,
@@ -1015,14 +1015,14 @@
    },
    "name": "funds: the Balance holds less than amount and fee",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 94,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": false,
     "rule": "funds",
-    "sentence": "Refused: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50, and the Balance holds 102.499999. Add money to it: knos balance deposit.",
-    "total": 102500000
+    "sentence": "Refused: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30, and the Balance holds 100.299999. Add money to it: knos balance deposit.",
+    "total": 100300000
    }
   },
   {
@@ -1051,7 +1051,7 @@
      "wfSha": "cccccccccccccccccccccccccccccccccccccccc"
     },
     "byId": 555000,
-    "holds": 102500000,
+    "holds": 100300000,
     "now": 1790000000,
     "plan": null,
     "repoId": 987654321,
@@ -1060,14 +1060,14 @@
    },
    "name": "fine: the Balance holds exactly amount and fee",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 0,
-    "effectivePct": "2.50",
-    "fee": 2500000,
+    "effectivePct": "0.30",
+    "fee": 300000,
     "ok": true,
     "rule": "ok",
-    "sentence": "Fine: 100.00 and a fee of 2.50 (2.50%) leave the Balance: 102.50.",
-    "total": 102500000
+    "sentence": "Fine: 100.00 and a fee of 0.30 (0.30%) leave the Balance: 100.30.",
+    "total": 100300000
    }
   },
   {
@@ -1094,14 +1094,14 @@
    },
    "name": "amount: under 5",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 81,
-    "effectivePct": "8.00",
-    "fee": 400000,
+    "effectivePct": "1.00",
+    "fee": 50000,
     "ok": false,
     "rule": "amount",
     "sentence": "Refused: an order holds between 5.00 and 100,000.00, and 4.999999 is outside that.",
-    "total": 5399999
+    "total": 5049999
    }
   },
   {
@@ -1128,47 +1128,47 @@
    },
    "name": "amount: over 100,000",
    "out": {
-    "bps": 250,
+    "bps": 30,
     "code": 81,
-    "effectivePct": "0.76",
-    "fee": 765000000,
+    "effectivePct": "0.30",
+    "fee": 300000000,
     "ok": false,
     "rule": "amount",
     "sentence": "Refused: an order holds between 5.00 and 100,000.00, and 100,000.000001 is outside that.",
-    "total": 100765000001
+    "total": 100300000001
    }
   }
  ],
  "feeTable": [
   {
    "amount": 5000000,
-   "effectivePct": "8.00",
-   "fee": 400000,
-   "total": 5400000
+   "effectivePct": "1.00",
+   "fee": 50000,
+   "total": 5050000
   },
   {
    "amount": 20000000,
-   "effectivePct": "2.50",
-   "fee": 500000,
-   "total": 20500000
+   "effectivePct": "0.30",
+   "fee": 60000,
+   "total": 20060000
   },
   {
    "amount": 1000000000,
-   "effectivePct": "2.50",
-   "fee": 25000000,
-   "total": 1025000000
+   "effectivePct": "0.30",
+   "fee": 3000000,
+   "total": 1003000000
   },
   {
    "amount": 5000000000,
-   "effectivePct": "1.30",
-   "fee": 65000000,
-   "total": 5065000000
+   "effectivePct": "0.30",
+   "fee": 15000000,
+   "total": 5015000000
   },
   {
    "amount": 50000000000,
-   "effectivePct": "1.03",
-   "fee": 515000000,
-   "total": 50515000000
+   "effectivePct": "0.30",
+   "fee": 150000000,
+   "total": 50150000000
   }
  ]
 }

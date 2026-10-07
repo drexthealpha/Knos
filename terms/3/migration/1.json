@@ -1,0 +1,88 @@
+{
+  "standard": "Knos Terms 3",
+  "v": 3,
+  "name": "migration",
+  "version": 1,
+  "deliverable": {
+    "kind": "pull-request",
+    "one_per": "issue",
+    "says": "One deliverable is the accepted pull request for one issue. A new commit, or another pull request for the same issue, is a retry: the same deliverable, judged again and counted once. There is one for each issue."
+  },
+  "evidence": {
+    "sources": [
+      {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/attest.yml"
+      },
+      {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/prove.yml"
+      }
+    ],
+    "says": "Evidence counts only when signed by GitHub Actions for a run of drexthealpha/knos-workflows/.github/workflows/attest.yml; or by GitHub Actions for a run of drexthealpha/knos-workflows/.github/workflows/prove.yml."
+  },
+  "checks": {
+    "mode": "merge",
+    "deciding": [
+      {
+        "name": "unit",
+        "app": 15368
+      }
+    ],
+    "accept": "",
+    "authority": "the workflow files of acme/widgets at the commit the order was funded on",
+    "says": "A maintainer's merge decides, after `unit` (GitHub App 15368) passes at the last commit. The authoritative copy: the workflow files of acme/widgets at the commit the order was funded on."
+  },
+  "window": {
+    "warranty_days": 30,
+    "holdback_percent": 20,
+    "says": "20% of the payment waits 30 days in the order and goes back to the funder if the change is reverted in that time. What was already paid stays paid."
+  },
+  "changes": {
+    "paths": [],
+    "protected": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "may_add": [],
+    "says": "Any file may change. No change may touch `.github/**`, `.knos/**`. A contributor may add nothing outside that without the buyer's say."
+  },
+  "dispute": {
+    "who": "supplier",
+    "evaluator": "arbiter",
+    "within_days": 7,
+    "money": "order",
+    "no_answer": "refund-at-deadline",
+    "says": "The supplier may appeal a rejection within 7 days of it, with `/knos appeal <reason>`. There is no suite to run again. No arbiter is named, so a rejection stands unless both sides agree on one. Meanwhile the money stays in the order. With no verdict by the deadline, the money goes back to its funder."
+  },
+  "evaluators": {
+    "quorum": 1,
+    "list": [
+      {
+        "name": "own",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "repository": "acme/widgets",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/prove.yml",
+        "owner": "acme"
+      }
+    ],
+    "says": "These may judge: `own` (GitHub Actions, workflow drexthealpha/knos-workflows/.github/workflows/prove.yml, in acme/widgets, owned by acme). One of them is enough."
+  },
+  "price": {
+    "amount": "100.00",
+    "currency": "test USDC",
+    "says": "Pays 100.00 test USDC, once, for an accepted deliverable. The funder pays the fee on top."
+  },
+  "deadline": {
+    "days": 30,
+    "late": "refused",
+    "says": "The order is open for 30 days from funding, or less if the funder cancels, which takes 7 days' notice. A token presented after that is refused, and the money goes back to its funder."
+  },
+  "policy": {
+    "may_change": [
+      "@acme"
+    ],
+    "how": "new-version",
+    "says": "@acme may publish a new version. A version never changes: a change is the next version, with its own hash, and an order keeps the version it was funded on."
+  }
+}

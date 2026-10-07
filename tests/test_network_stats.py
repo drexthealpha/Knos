@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import network_stats  # noqa: E402
 
-from knos import chain  # noqa: E402
+from knos import chain, fees  # noqa: E402
 from knos.settle import pay  # noqa: E402
 from knos.settle.v2 import pay as pay2  # noqa: E402
 
@@ -125,7 +125,7 @@ def funded2(at, repo, issue, amount, by, source, faucet=0, signer="relayer"):
 
 
 def paid2(at, repo, issue, payee, amount, to="Wallet1"):
-    fee = pay2.fee_of(amount)
+    fee = fees.OLD.job(amount)          # made by knos_pay 2.1: a record keeps the fee that was charged
     return tx(at, "relayer", f"knos2:paid repo={repo} issue={issue} payee={payee} amount={amount - fee} fee={fee} to={to}", program=PAY2)
 
 
