@@ -239,10 +239,16 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     lines = [line for line in first.splitlines() if line.strip()]
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
     number = f"Of {merged['prs']} merged agent pull requests that claimed passing tests, {merged['any_check_failed']['prs']} had a failed check."
-    # the one noun, the one sentence, the one number, one link to the site and one command: five lines, forty words at most
-    assert lines[0] == "**Knos: the neutral meter.**" and lines[1] == f"**{cc.SENTENCE}**" and lines[2] == number and len(lines) == 5
-    assert lines[3] == "[Check your own invoice](https://drexthealpha.github.io/Knos/)"
-    assert re.fullmatch(r"`[^`]+`", lines[4]) and "knos shadow" in lines[4] and "&&" not in lines[4]            # ONE command
+    # the site's first screen, line for line where they share lines: the one sentence (the one noun leads it), the customer
+    # outcome, the one number, one link to the site: four lines, forty words at most
+    outcome = "Buyers and suppliers close invoices on evidence both can verify."
+    assert lines[0] == f"**{cc.SENTENCE}**" and cc.SENTENCE.startswith("The neutral meter ") and lines[1] == outcome and lines[2] == number and len(lines) == 4
+    assert lines[3] == "[Check your invoice](https://drexthealpha.github.io/Knos/)"
+    hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
+    assert f">{cc.SENTENCE}</h1>" in hero and f">{outcome}</p>" in hero and hero.index(cc.SENTENCE) < hero.index(outcome) < hero.index('id="hero-fact"')
+    # the ONE command is the first line under "Read more", no longer on the first screen
+    command = [line for line in readme.split("\n## Read more\n", 1)[1].splitlines() if line.strip()][0]
+    assert re.match(r"`[^`]+`: ", command) and "knos shadow" in command and "&&" not in command and readme.count("`uvx knos shadow invoice.csv`") == 1
     said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 40, said
     # under it: the claim in two lines and the limits in one; the meter, the money and the number's source in three lines each

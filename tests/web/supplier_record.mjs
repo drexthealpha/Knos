@@ -22,7 +22,7 @@ ok(`the strip says under ${STRIP_WORDS} words, labels and figures counted (${str
 ok("the strip is the same from the series and from the feed", strip === boardStripHtml({ feed }));
 ok("the strip shows the placed agents by place, four at most", JSON.stringify(stripRows({ weekly }).rows.map((r) => r.agent)) === JSON.stringify(top.slice(0, 4).map((r) => r.agent)));
 ok("every row of the strip has its sample beside the bar and its interval on it", top.slice(0, 4).every((r) => strip.includes(`${r.failed_at_merge} of ${r.merged}</span>`) && strip.includes(`left:${(r.ci95[0] * 100).toFixed(1)}%`)));
-ok("the strip links to the board and to each agent's record", strip.includes('href="#index">See the board</a>') && top.slice(0, 4).every((r) => strip.includes(`href="#record=${r.agent}"`)));
+ok("the strip links to the board and to each agent's record", strip.includes('href="#index">Failed checks</a>') && top.slice(0, 4).every((r) => strip.includes(`href="#record=${r.agent}"`)));
 ok("the strip's bars move only where motion is welcome", /@media \(prefers-reduced-motion: no-preference\)\{[^@]*\.bs-anim/.test(strip) && !/animation:|infinite/.test(strip));
 ok("with nothing read the strip draws nothing", boardStripHtml({}) === "" && boardStripHtml({ rows: 2, weekly }).split("<li").length === 3);
 

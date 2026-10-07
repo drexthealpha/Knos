@@ -10,8 +10,9 @@ name: tests
 #     and FAILS the job if the shard's tests took over 5 minutes. The rule is checked on every run, not hoped for.
 # Cores of GitHub's standard runners, which is what `-n auto` starts (read 6 Oct 2026,
 # https://docs.github.com/en/actions/reference/runners/github-hosted-runners): public repositories ubuntu-latest 4,
-# windows-latest 4, macos-latest 3 (arm64, 7 GB); private ones 2, 2 and 3. So macOS and Windows, the slowest two, get
-# three shards and Ubuntu two. pytest-xdist counts the cores itself (https://pytest-xdist.readthedocs.io/en/stable/distribution.html).
+# windows-latest 4, macos-latest 3 (arm64, 7 GB); private ones 2, 2 and 3. So macOS gets three shards and Ubuntu two;
+# Windows, the slowest, four: one of its three shards took 4m18s on a slow runner (run 37628951379; 2m34s the run
+# before), over the target. pytest-xdist counts the cores itself (https://pytest-xdist.readthedocs.io/en/stable/distribution.html).
 #
 # The suite is offline (conftest refuses every non-loopback connection) and includes the two Solana programs in
 # LiteSVM, the judge on Python, Node, Go and Rust repositories, its sandbox, and the tamper benchmark.
@@ -54,9 +55,10 @@ jobs:
           - {os: macos-latest, python: "3.12", shard: 2/3, part: 2of3}
           - {os: macos-latest, python: "3.12", shard: 3/3, part: 3of3}
           - {os: macos-latest, python: "3.12", shard: slow, part: slow}
-          - {os: windows-latest, python: "3.12", shard: 1/3, part: 1of3}
-          - {os: windows-latest, python: "3.12", shard: 2/3, part: 2of3}
-          - {os: windows-latest, python: "3.12", shard: 3/3, part: 3of3}
+          - {os: windows-latest, python: "3.12", shard: 1/4, part: 1of4}
+          - {os: windows-latest, python: "3.12", shard: 2/4, part: 2of4}
+          - {os: windows-latest, python: "3.12", shard: 3/4, part: 3of4}
+          - {os: windows-latest, python: "3.12", shard: 4/4, part: 4of4}
           - {os: windows-latest, python: "3.12", shard: slow, part: slow}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10

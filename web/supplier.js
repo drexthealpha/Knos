@@ -134,7 +134,8 @@ export function rulesHtml(terms) {
     <p class="sp-legend">${CLASSES.map((c) => `<span data-class="${c}"><span class="sp-tag">${esc(LABELS[c])}</span></span>`).join(" ")}</p>`;
 }
 
-const STYLE = `.supplier textarea{min-height:96px;font-size:13px;width:100%}.supplier .sp-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+const STYLE = `.supplier .sp-refusals{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:0 12px}.supplier .sp-refusals thead th{position:sticky;top:0;background:var(--paper)}
+.supplier textarea{min-height:96px;font-size:13px;width:100%}.supplier .sp-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .supplier input[type=text],.supplier input[type=search]{flex:1 1 180px;min-width:0;max-width:100%}
 .supplier .sp-tree ul{list-style:none;margin:0;padding-left:18px;border-left:1px solid var(--line)}.supplier .sp-tree>ul{padding-left:0;border-left:0}
 .supplier .sp-tree li{padding:3px 0;overflow-wrap:anywhere}.supplier .sp-tag{font-size:12px;padding:1px 8px;border-radius:var(--radius);border:1px solid var(--line);white-space:nowrap}
@@ -171,7 +172,7 @@ export function renderSupplier(el, ctx = {}) {
     <h3>Every refusal, in plain words</h3>
     <p class="sp-row"><input type="search" id="sp-q" aria-label="Search refusals" placeholder="Search: protected, pay.83, token" autocomplete="off"></p>
     <p class="fine" data-sp="count"></p>
-    <div class="k-table"><table><thead><tr><th scope="col">Code</th><th scope="col">What happened</th><th scope="col">What to do</th></tr></thead><tbody data-sp="rows"></tbody></table></div>
+    <div class="k-table sp-refusals" tabindex="0" role="region" aria-label="Every refusal"><table><thead><tr><th scope="col">Code</th><th scope="col">What happened</th><th scope="col">What to do</th></tr></thead><tbody data-sp="rows"></tbody></table></div>
     <p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/SUPPLIER.md" target="_blank" rel="noopener">Read the supplier's guide.</a> Run <code>knos preflight</code> in your checkout.</p>
     <p class="fine" data-sp="kit"><a href="#record">See a public record.</a> <a href="https://github.com/drexthealpha/Knos/blob/main/docs/RECORD.md" target="_blank" rel="noopener">Get the badge, the install line and the invoice receipt.</a></p>
   </section>`;

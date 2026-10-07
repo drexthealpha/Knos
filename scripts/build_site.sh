@@ -77,3 +77,5 @@ if [ -n "${KNOS_VIDEO_URL:-}" ]; then
   grep -q "video: { src" "$out/config.js"
 fi
 "${PYTHON:-python3}" scripts/pages_data.py --out "$out" --empty
+# the task board as a build that reads no board writes it (web/playground.js says so); the deploy overwrites it with what it read
+"${PYTHON:-python3}" scripts/task_board.py status --json --empty > "$out/tasks.json"

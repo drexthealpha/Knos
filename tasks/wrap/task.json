@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "wrap",
+ "title": "Wrap a text to a width",
+ "statement": "Test USDC, no monetary value.\n\nRead one line: a width (a whole number from 1 up), a space, then words separated by single spaces. Print the words on lines no longer than the width, as many words on each line as fit, with one space between words. A word longer than the width goes alone on its own line, whole.",
+ "file": "tasks/wrap.py",
+ "run": [
+  "python3",
+  "tasks/wrap.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "10 the quick brown fox",
+   "output": "the quick\nbrown fox"
+  },
+  {
+   "input": "3 a bb ccc dddd",
+   "output": "a\nbb\nccc\ndddd"
+  },
+  {
+   "input": "20 one",
+   "output": "one"
+  }
+ ],
+ "seed": 116,
+ "starting_files": {
+  "tasks/wrap.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

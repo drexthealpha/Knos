@@ -147,7 +147,7 @@ def test_the_second_workflow_follows_the_button_and_can_write_one_branch_of_the_
     assert doc["permissions"] == {} and list(doc["jobs"]) == ["send"]
     job = doc["jobs"]["send"]
     assert job["permissions"] == {"actions": "read", "contents": "write"} and "id-token" not in json.dumps(doc)
-    assert job["if"] == "github.event.workflow_run.conclusion == 'success' && github.repository_owner != 'drexthealpha'"
+    assert job["if"] == "github.event.workflow_run.conclusion == 'success'"         # an own run completes too (0.3.19), and is filed apart:
     [step] = job["steps"]
     assert "uses" not in step and "secrets." not in SEND.read_text(encoding="utf-8")                # no action, no secret: gh and python3 of the runner
     run = step["run"]
@@ -156,7 +156,12 @@ def test_the_second_workflow_follows_the_button_and_can_write_one_branch_of_the_
                            "DEFAULT": "${{ github.event.repository.default_branch }}"}
     # the file's name is the one the signing job gave it, and the pull request can only come from a fork of Knos
     assert """sed 's/[^A-Za-z0-9._-]/-/g').json""" in run and 're.sub(r"[^A-Za-z0-9._-]", "-", f"{repo}-{run}") + ".json"' in (ROOT / ".github" / "workflows" / "knos-reproduce.yml").read_text(encoding="utf-8")
-    assert run.index('"$parent" != "$UPSTREAM"') < run.index("git/refs") < run.index("contents/reproductions/$want")
+    own = run[run.index('= "${UPSTREAM%%/*}" ]; then'):run.index('parent="$(gh api')]
+    assert 'branch="reproduction-own-$RUN"' in own and "contents/reproductions/own/$want" in own and "contents/reproductions/$want" not in own
+    assert "not a reproduction and is never counted as one" in own and own.rstrip().endswith("fi")
+    assert own.count("exit 0") == 1 and "compare/main...$GITHUB_REPOSITORY_OWNER" not in own       # it ends there: no pull request as an outsider's
+    rest = run[run.index('parent="$(gh api'):]
+    assert rest.index('"$parent" != "$UPSTREAM"') < rest.index("git/refs") < rest.index("contents/reproductions/$want") and "reproductions/own" not in rest
     assert not re.search(r"(?m)^\s*(pip|pipx|uv|knos|npm) ", run) and "import knos" not in run and "from knos" not in run     # it installs nothing and runs no knos code
 
 

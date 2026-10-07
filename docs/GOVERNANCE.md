@@ -315,6 +315,15 @@ The steps, in order:
   options are an organisation that stays on the free plan, or several independent personal accounts of which more
   than one must attest. Neither is chosen.
 
+## Use the gate
+
+The delay, the build record and the check before a vote are not Knos's alone. [GATE.md](GATE.md) has the three
+commands that put another team's program behind the same arrangement on devnet
+([`examples/upgrade_gate/adopt.py`](../examples/upgrade_gate/adopt.py)): make a gate of your own that takes only
+your build workflow's token, hand the program's upgrade authority to a Squads vault with a time lock, and check every
+pending upgrade against the gate before voting. The same page says what it cannot do. Teams that have done it: 0
+([COMPOSE.md](COMPOSE.md), "Who uses the upgrade gate").
+
 ## 10. What is missing, in one list
 
 - An outside key holder on either multisig ([KEYHOLDER.md](KEYHOLDER.md)).

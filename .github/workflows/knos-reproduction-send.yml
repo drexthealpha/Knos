@@ -21,7 +21,12 @@
 # secret; it needs none. What it cannot do: write anywhere else, or sign anything (it asks GitHub for no token).
 # In a repository that is not a fork of drexthealpha/Knos (one made from the template, or a copy) there is no branch a
 # pull request could come from: it says so and stops, and the artifact is sent by hand as docs/REPRODUCE.md describes.
-# In drexthealpha's own repositories it does nothing: a run of Knos's own is not a reproduction.
+# In drexthealpha's own repositories a run of Knos's own is NOT a reproduction and is never counted as one. Until 0.3.19
+# this job skipped there, so its path had never run before a stranger tried it (the 0.3.18 release run could not pass
+# it as written). Now it completes: the same signed file goes onto the branch `reproduction-own-<run id>` of this
+# repository as reproductions/own/<owner>-<repo>-<run id>.json. Nothing counts that folder (the counts read
+# reproductions/*.json and no deeper), `knos.reproduce.verified(..., ours=True)` accepts there only a run that IS
+# Knos's own and gives it no capability, and a file of an own run directly under reproductions/ is refused as before.
 name: knos reproduction, to send
 
 on:
@@ -33,7 +38,7 @@ permissions: {}
 
 jobs:
   send:
-    if: github.event.workflow_run.conclusion == 'success' && github.repository_owner != 'drexthealpha'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -53,6 +58,22 @@ jobs:
           want="$(printf '%s' "${GITHUB_REPOSITORY}-${RUN}" | sed 's/[^A-Za-z0-9._-]/-/g').json"
           if [ "$(ls out | wc -l)" != 1 ] || [ ! -f "out/$want" ]; then
             echo "The artifact knos-reproduction of run $RUN does not hold exactly $want, so nothing is sent."; exit 1
+          fi
+          if [ "$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')" = "${UPSTREAM%%/*}" ]; then
+            # Knos's own run: filed apart, under reproductions/own/, where nothing is counted
+            branch="reproduction-own-$RUN"
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$DEFAULT" --jq .object.sha)" >/dev/null
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/reproductions/own/$want" -f branch="$branch" \
+              -f message="Knos's own run of knos reproduce: run $RUN (not a reproduction, never counted)" -f content="$(base64 -w0 "out/$want")" >/dev/null
+            { echo "This run is Knos's own, so it is **not a reproduction and is never counted as one**."
+              echo "The signed file is on the branch \`$branch\` of $GITHUB_REPOSITORY as \`reproductions/own/$want\`: the path a stranger takes, exercised."
+              if [ "$GITHUB_REPOSITORY" = "$UPSTREAM" ]; then
+                echo "[Open the pull request](https://github.com/$UPSTREAM/compare/$DEFAULT...$branch?quick_pull=1) to keep the file; outside reproductions stay at 0."
+              else
+                echo "To keep it, add that file as \`reproductions/own/$want\` in a pull request to $UPSTREAM."
+              fi
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           parent="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.parent.full_name // ""')"
           if [ "$parent" != "$UPSTREAM" ]; then

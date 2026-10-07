@@ -16,6 +16,11 @@ source, and lists its `limitations`: what this evidence does not show. A receipt
 not tell is a valid receipt and says so; only an accepted one authorises payment (`authorises_payment`). `build4`
 writes a version 3 receipt as version 4, `unpaid4` a receipt of a run nothing was paid for, `dispute` a contested one.
 
+Version 5 adds `assurance`: how much was verified, as one of four levels (reported, rerun, agreed, attested) that
+`assurance_of` computes from the receipt's own evidence, the parties still trusted at that level, and the control
+relationships the terms declare ("these accounts are one party"). `build5` writes a version 4 receipt as version 5;
+`assurance_of` reads the level of a receipt of any version (an older one is `reported` unless its evidence shows more).
+
 `check` is the whole rule set (the schema's shape and the rules a schema cannot say: shares add up, amounts add up,
 the judge matches the order). It needs no package. `render` is the receipt for a person, under the five headings.
 `mirror_write` / `mirror_find` keep receipts off chain (devnet can be reset); `attest` writes one as a Solana
@@ -28,7 +33,7 @@ import re
 
 from . import ids as _ids
 
-TYPE, VERSION = "knos.acceptance-receipt", 4          # `check` still reads versions 1, 2 and 3
+TYPE, VERSION = "knos.acceptance-receipt", 4          # `check` still reads versions 1, 2 and 3, and version 5 (`build5`)
 JUDGES = ("repository", "neutral", "attestor", "arbiter")     # the program's judge a, b, c, d (its log says 0, 1, 2, 3)
 MODES = ("merge", "tests")
 CLAIMS = ("actor_id", "event_name", "exp", "iat", "job_workflow_ref", "job_workflow_sha", "repository_id", "repository_owner_id", "run_attempt",
@@ -67,9 +72,11 @@ def build(*, cluster: str, program: str, order: str, scope: str, repository: dic
 
 
 def check(r) -> str | None:
-    """None when `r` is a valid receipt of version 1, 2, 3 or 4; otherwise the first reason it is not, in words."""
-    if isinstance(r, dict) and r.get("type") == TYPE and (type(r.get("version")) is not int or r["version"] not in (1, 2, 3, 4)):
-        return f"not a {TYPE} of version 1, 2 or 3, or of version 4"
+    """None when `r` is a valid receipt of version 1, 2, 3, 4 or 5; otherwise the first reason it is not, in words."""
+    if isinstance(r, dict) and r.get("type") == TYPE and (type(r.get("version")) is not int or r["version"] not in (1, 2, 3, 4, 5)):
+        return f"not a {TYPE} of version 1, 2 or 3, or of version 4 or 5"
+    if isinstance(r, dict) and r.get("type") == TYPE and r["version"] == 5:
+        return _check5(r)
     if isinstance(r, dict) and r.get("type") == TYPE and r["version"] == 4:
         return _check4(r)
     if isinstance(r, dict) and r.get("type") == TYPE and r["version"] == 3:
@@ -338,6 +345,8 @@ NO_LIMIT = "no limit set"
 ONE_JUDGE = "One judge spoke."
 SAME_CONTROLLER = ("These judges are not independent of each other: account {id} owns or started more than one of them. Two accounts run by one "
                    "person are one judge, and so are two runs of one account: count this quorum as one judge.")
+DECLARED_RELATED = ("These judges are not independent of each other: the terms declare accounts {a} and {b} to be one party. Count this quorum "
+                    "as one judge.")
 APART = ("The {n} judges have different owners and starters, by account id. An id is all that is recorded: two accounts run by one person are one "
          "judge, and no receipt can show that they are not.")
 
@@ -397,14 +406,45 @@ def evaluator(kind: str, claims: dict, buyers, sellers, rerun: dict | None = Non
             "independent_of_seller": not ({owner, actor} & sellers), **({} if rerun is None else {"reexecution": rerun})}
 
 
-def independence_of(evaluators: list[dict]) -> tuple[bool, str]:
-    """(whether two of the judges share an owner or a starter, the sentence a receipt says about it)."""
+def independence_of(evaluators: list[dict], declared=()) -> tuple[bool, str]:
+    """(whether two of the judges share an owner or a starter, the sentence a receipt says about it). `declared`: the
+    groups of account ids the terms declare to be one party (`related`); two judges whose accounts fall in one group
+    share a controller as surely as two that share an id, and the sentence names the two accounts and says who said so."""
     seen: dict[int, int] = {}
     for i, e in enumerate(evaluators):
-        for who in {e["owner_id"], e["actor_id"]}:
+        for who in sorted({e["owner_id"], e["actor_id"]}):
             if seen.setdefault(who, i) != i:
                 return True, SAME_CONTROLLER.format(id=who)
+    one = _party(declared)
+    told: dict[int, tuple[int, int]] = {}
+    for i, e in enumerate(evaluators):
+        for who in sorted({e["owner_id"], e["actor_id"]}):
+            first = told.setdefault(one(who), (i, who))
+            if first[0] != i:
+                return True, DECLARED_RELATED.format(a=first[1], b=who)
     return False, ONE_JUDGE if len(evaluators) == 1 else APART.format(n=len(evaluators))
+
+
+def related(declared) -> list[list[int]]:
+    """A declared list of control relationships in its one written form: groups of account ids that are one party,
+    merged where they overlap, each group and the list in rising order. The terms declare them ("these accounts are
+    one party"); nothing here can find a relationship nobody declared. ValueError for what is not such a list."""
+    if not isinstance(declared, (list, tuple)) or not all(isinstance(g, (list, tuple)) and len(g) >= 2 and all(type(x) is int and x > 0 for x in g) for g in declared):
+        raise ValueError("declared control relationships are lists of two or more account ids each: [[7001, 8002], ...]")
+    groups: list[set[int]] = []
+    for g in declared:
+        mine = set(g)
+        for other in [x for x in groups if x & mine]:
+            mine |= other
+            groups.remove(other)
+        groups.append(mine)
+    return sorted(sorted(g) for g in groups)
+
+
+def _party(declared):
+    """account id -> the party it belongs to (the smallest id of its declared group, or itself)."""
+    of = {x: g[0] for g in related(declared) for x in g}
+    return lambda who: of.get(who, who)
 
 
 def authorisation(*, order: str, milestone: int, funded_tx: str | None, funder_id: int = 0, login: str | None = None, wallet: str | None = None,
@@ -461,16 +501,19 @@ def chain_only(r: dict) -> dict:
     (`reexecution`). A mirror is written with no host asked, so two copies of one payment's receipt are the same
     receipt when these are equal."""
     o = r.get("evaluator_observed") if isinstance(r, dict) else None
-    if r.get("version") not in (3, 4) or not isinstance(o, dict) or not isinstance(o.get("evaluators"), list):
+    if r.get("version") not in (3, 4, 5) or not isinstance(o, dict) or not isinstance(o.get("evaluators"), list):
         return r
-    return {**r, "evaluator_observed": {**o, "evaluators": [{k: v for k, v in e.items() if k != "reexecution"} if isinstance(e, dict) else e
-                                                            for e in o["evaluators"]]}}
+    out = {**r, "evaluator_observed": {**o, "evaluators": [{k: v for k, v in e.items() if k != "reexecution"} if isinstance(e, dict) else e
+                                                           for e in o["evaluators"]]}}
+    if r["version"] == 5 and isinstance(r.get("assurance"), dict):     # the level follows from the evidence left: without the runs' words, reported
+        out["assurance"] = assurance_of(out, r["assurance"].get("declared_related") or ())
+    return out
 
 
 def as2(r: dict) -> dict:
     """The version 2 receipt a version 3 one holds (the same payment, without the fifth part and the judges' control);
     a receipt of version 1 or 2 as it is. What a reader that knows version 2 only is given."""
-    if r.get("version") == 4:
+    if r.get("version") in (4, 5):
         r3 = as3(r)
         return as2(r3) if r3 else r
     if r.get("version") != 3:
@@ -694,8 +737,8 @@ def dispute(r4: dict, *, role: str, by: str, at: int, reason: str) -> dict:
     (its sha256 and the verdict it gave). A payment the contested receipt recorded stays recorded: the money moved.
     The disputed receipt authorises none."""
     why = check(r4)
-    if why or r4["version"] != 4 or r4["disputed"] is not None:
-        raise ValueError(why or "a receipt of version 4 that is not disputed already is contested (write an older one as version 4 first: build4)")
+    if why or r4["version"] not in (4, 5) or r4["disputed"] is not None:
+        raise ValueError(why or "a receipt of version 4 or 5 that is not disputed already is contested (write an older one as version 4 first: build4)")
     o = r4["evaluator_observed"]
     r = {**r4, "evaluator_observed": {**o, "verdict": "disputed"},
          "disputed": {"by": {"role": role, "id": by}, "at": at, "reason": reason, "contests": {"sha256": digest(r4), "verdict": o["verdict"]}}}
@@ -712,7 +755,7 @@ def dispute(r4: dict, *, role: str, by: str, at: int, reason: str) -> dict:
 def contested(r: dict) -> dict | None:
     """The receipt a disputed receipt contests, rebuilt from it (its digest is `disputed.contests.sha256`); None for a
     receipt that is not disputed."""
-    if not isinstance(r, dict) or r.get("version") != 4 or not isinstance(r.get("disputed"), dict):
+    if not isinstance(r, dict) or r.get("version") not in (4, 5) or not isinstance(r.get("disputed"), dict):
         return None
     o, was = r["evaluator_observed"], r["disputed"]["contests"]["verdict"]
     args = (r["evidence_source"]["kind"], r["policy"]["mode"], bool(o["evaluators"]) and "reexecution" in o["evaluators"][-1], r["transaction"] is not None)
@@ -723,7 +766,7 @@ def contested(r: dict) -> dict | None:
 def verdict_of(r: dict) -> str:
     """The verdict of a valid receipt of any version, in one of the four words. Versions 1 to 3 are receipts of an
     accepted payment only."""
-    return r["evaluator_observed"]["verdict"] if r["version"] == 4 else "accepted"
+    return r["evaluator_observed"]["verdict"] if r["version"] >= 4 else "accepted"
 
 
 def authorises_payment(r) -> bool:
@@ -744,18 +787,18 @@ def exposed(r: dict) -> dict:
     else:
         o, a = two["evaluator_observed"], two["issuer_authenticated"]
         art, pol, kind, ver, mode = o["artifact"], {"terms_hash": two["policy"]["terms_hash"], "version": two["policy"]["version"]}, o["judge"]["kind"], o["judge"]["version"], two["policy"]["mode"]
-        src = r["evidence_source"] if r["version"] == 4 else {"kind": "issuer_token", "reference": a["token_sha256"], "signed_by": a["issuer"]}
+        src = r["evidence_source"] if r["version"] >= 4 else {"kind": "issuer_token", "reference": a["token_sha256"], "signed_by": a["issuer"]}
     judges = r["evaluator_observed"].get("evaluators", []) if r["version"] >= 3 else []
     return {"artifact": art, "policy": pol, "evidence_source": src, "evaluator": {"kind": kind, "version": ver, "controllers": judges},
             "verdict": verdict_of(r),
-            "limitations": r["limitations"] if r["version"] == 4 else limitations_of("issuer_token", "accepted", mode, bool(judges) and "reexecution" in judges[-1], True)}
+            "limitations": r["limitations"] if r["version"] >= 4 else limitations_of("issuer_token", "accepted", mode, bool(judges) and "reexecution" in judges[-1], True)}
 
 
 def as3(r: dict) -> dict | None:
     """The version 3 receipt a version 4 one holds, when it holds one: an accepted, paid deliverable. None for a
     receipt of version 4 that is rejected, insufficient, disputed or unpaid (version 3 cannot say those), and the
     receipt itself for an older one."""
-    if r.get("version") != 4:
+    if r.get("version") not in (4, 5):
         return r
     if r["evaluator_observed"]["verdict"] != "accepted" or r["transaction"] is None:
         return None
@@ -935,6 +978,128 @@ def _check4(r) -> str | None:
     return None
 
 
+# ---- version 5: how much was verified (the assurance level), and the control relationships the terms declare --------------
+NEW5 = ("assurance",)
+_KEYS5 = (*_KEYS4, *NEW5)
+LEVELS = ("reported", "rerun", "agreed", "attested")        # in rising order; each is computed from the evidence, never written by hand
+LEVEL_WORDS = {"reported": "a workflow reported the result",
+               "rerun": "an evaluator outside the supplier's control ran the pinned suite again",
+               "agreed": "two evaluators with different owners each ran the suite and agree",
+               "attested": "an attestation of the execution itself stands behind the result"}
+UNREACHABLE = ("attested",)       # defined, and no evidence Knos records today reaches it: no receipt may say it until an attestation of execution exists
+_T_ISSUER = "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded."
+_T_POLICY = "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+TRUSTED = {
+    "reported": [_T_ISSUER, "The run that reported the result, and whoever controls its repository, its workflow and its runner: the result is that run's word.",
+                 "The supplier, as far as the suite ran where the supplier's change could reach it.", _T_POLICY],
+    "rerun": [_T_ISSUER, "The one evaluator that ran the suite again, its operator and its runner: nobody else repeated it.", _T_POLICY],
+    "agreed": [_T_ISSUER, "That the evaluators which agree are not one party behind accounts nobody declared related: ids and declarations are all that is compared.",
+               "The runners the evaluators ran on.", _T_POLICY],
+    "attested": ["The root the attestation chains to, and the maker of the hardware or prover behind it.", _T_POLICY],
+}
+_T_UNSIGNED = "Whoever keeps the run's own record: no issuer signed it, so not even which workflow ran is authenticated."
+
+
+def assurance_of(r: dict, declared=()) -> dict:
+    """How much a valid receipt of any version shows was verified, from its own evidence: {level, trusted,
+    declared_related}. Nothing here is typed by anyone:
+
+        reported   a workflow reported the result. Every receipt reaches this, and a receipt of version 1 or 2, or one
+                   whose evaluators' entries say nothing of how they reached the verdict, reaches no more.
+        rerun      an evaluator outside the order's repository, whose owner and starter are neither a payee nor declared
+                   one party with a payee, says by its run's word that it ran the pinned suite itself.
+        agreed     two such evaluators, with different owners and starters and not declared one party, each ran it, and
+                   the verdict they stand behind is accepted. Two that share an id, or that the terms declare related,
+                   never agree: they are one evaluator.
+        attested   an attestation of the execution itself. Defined and unreachable: no evidence recorded today is one.
+
+    `declared`: the control relationships the terms declare (`related`); a version 5 receipt carries its own.
+    `trusted`: the parties a reader still trusts at that level."""
+    groups = related(declared)
+    one = _party(groups)
+    o = r["evaluator_observed"] if r["version"] >= 2 else {}
+    judges = o.get("evaluators") or [] if r["version"] >= 3 else []
+    sellers = {one(p["github_id"]) for p in r["payees"]}
+    signed = r["version"] < 4 or r["issuer_authenticated"] is not None
+
+    def party(e: dict) -> set[int]:
+        return {one(e["owner_id"]), one(e["actor_id"])}
+    ran = [e for e in judges if e["kind"] != "repository" and e["independent_of_seller"] and not (party(e) & sellers)
+           and (e.get("reexecution") or {}).get("reexecuted") is True]
+    was = (r["disputed"]["contests"]["verdict"] if r["disputed"] else o["verdict"]) if r["version"] >= 4 else "accepted"
+    both = was == "accepted" and any(not (party(a) & party(b)) for n, a in enumerate(ran) for b in ran[n + 1:])
+    level = "agreed" if both else "rerun" if ran else "reported"
+    return {"level": level, "trusted": list(TRUSTED[level]) if signed else [_T_UNSIGNED, *TRUSTED[level][1:]], "declared_related": groups}
+
+
+def build5(r4: dict, declared=()) -> dict:
+    """A version 4 receipt as version 5: the same receipt with `assurance`, computed here from its evidence and the
+    control relationships the terms declare (`declared`: groups of account ids that are one party). An older receipt
+    goes through `build4` first. A disputed receipt then contests the version 5 form of the receipt it contested."""
+    why = check(r4)
+    if why or r4["version"] != 4:
+        raise ValueError(why or "this receipt is not of version 4")
+    r = {**r4, "version": 5, "assurance": assurance_of(r4, declared)}
+    r = {k: r[k] for k in _KEYS5}
+    if r["disputed"] is not None:           # a disputed receipt contests the same receipt in this version: `build5` of the one it contested
+        r["disputed"] = {**r["disputed"], "contests": {**r["disputed"]["contests"], "sha256": digest(contested(r) or {})}}
+    why = check(r)
+    if why:
+        raise ValueError(why)
+    return r
+
+
+def as4(r: dict) -> dict:
+    """The version 4 receipt a version 5 one holds (the same facts without the assurance level); an older receipt as it
+    is. A disputed one names the digest of the version 4 receipt it then contests."""
+    if r.get("version") != 5:
+        return r
+    out = {**{k: r[k] for k in _KEYS4}, "version": 4}
+    if isinstance(out["disputed"], dict):
+        was = contested(out)
+        out["disputed"] = {**out["disputed"], "contests": {**out["disputed"]["contests"], "sha256": digest(was) if was else ""}}
+    return out
+
+
+def _check5(r) -> str | None:
+    if not isinstance(r, dict) or set(r) != set(_KEYS5):
+        return f"not a {TYPE} of version 1 to 5: as version 5, the receipt has fields {sorted(set(r) ^ set(_KEYS5))} missing or unknown"
+    try:
+        four = as4(r)
+    except (KeyError, TypeError, AttributeError):
+        four = {**{k: r[k] for k in _KEYS4}, "version": 4}          # not shaped for a dispute: version 4's rules say what is wrong
+    why = _check4(four)
+    if why:
+        return why
+    if r["disputed"] is not None and r["disputed"]["contests"]["sha256"] != digest(contested(r) or {}):
+        return "disputed.contests.sha256 is the digest of the receipt contested: this receipt with that verdict, and no dispute"
+    a = r["assurance"]
+    if not isinstance(a, dict) or set(a) != {"level", "trusted", "declared_related"}:
+        return "assurance is {level: reported, rerun, agreed or attested, trusted: who is still trusted at that level, declared_related: groups of account ids}"
+    try:
+        groups = related(a["declared_related"])
+    except ValueError as said:
+        return f"assurance.declared_related: {said}"
+    if groups != a["declared_related"] or len(groups) > 16 or any(len(g) > 16 for g in groups):
+        return "assurance.declared_related is at most 16 groups of at most 16 account ids, each group and the list in rising order, no account in two groups"
+    if a["level"] in UNREACHABLE:
+        return "assurance.level attested is defined and nothing recorded today reaches it: no receipt says it until an attestation of execution exists"
+    if a != assurance_of(r, groups):
+        return ("assurance is computed from the evidence, not chosen (knos.receipt.assurance_of): reported unless an evaluator outside the supplier's "
+                "control ran the suite itself (rerun), or two such with different owners, not declared related, agree (agreed)")
+    return None
+
+
+def _assured(a: dict, judges: list[dict]) -> list[str]:
+    """The assurance of a version 5 receipt in lines."""
+    said = "; ".join(" and ".join(str(x) for x in g) for g in a["declared_related"])
+    same, why = independence_of(judges, a["declared_related"]) if judges else (False, "")
+    return [f"   Assurance: {a['level']} ({LEVEL_WORDS[a['level']]}).",
+            "   Accounts the terms declare to be one party: " + (said + "." if said else "none declared."),
+            *([f"   DECLARED RELATED. {why}"] if same and why.startswith(DECLARED_RELATED[:40]) else []),
+            "   Still trusted at this level:", *(f"   - {t}" for t in a["trusted"])]
+
+
 # ---- the receipt for a person ---------------------------------------------------------------------------------------------
 def _utc(t: int) -> str:
     import datetime
@@ -999,8 +1164,9 @@ def _render4(r: dict) -> list[str]:
     source, the parts versions 1 to 3 print (as far as this receipt has them), and what the evidence does not show."""
     o, a, p, src, got, d, m = r["evaluator_observed"], r["issuer_authenticated"], r["policy"], r["evidence_source"], r["ids"], r["disputed"], r["amounts"]
     word = _ids.VERDICT_WORDS[o["verdict"]]
-    out = [f"Acceptance receipt, version 4: order {r['order']} on {r['cluster']}", "",
+    out = [f"Acceptance receipt, version {r['version']}: order {r['order']} on {r['cluster']}", "",
            f"Verdict: {word}. " + ("This receipt authorises the payment it records." if o["verdict"] == "accepted" else "This receipt authorises no payment."),
+           *(_assured(r["assurance"], o["evaluators"]) if r["version"] == 5 else []),
            f"   Deliverable {got['deliverable']}, evaluation {got['evaluation']}.",
            f"   Invoice line {got['invoice_line'] or 'not named'}; settlement {got['settlement'] or 'none: nothing was paid'}.",
            ("   Evidence: a token the issuer signed" + f" ({src['signed_by']}), recognised by sha256 {src['reference']}." if a is not None
@@ -1025,7 +1191,7 @@ def _render4(r: dict) -> list[str]:
 def render(r: dict) -> list[str]:
     """The receipt in lines a person reads. A version 4 receipt says its verdict, its ids and what its evidence does
     not show first (`_render4`); versions 1 to 3 are printed as they always were."""
-    return _render4(r) if r["version"] == 4 else _render3(r)
+    return _render4(r) if r["version"] >= 4 else _render3(r)
 
 
 def _render3(r: dict) -> list[str]:
@@ -1175,7 +1341,7 @@ def attest(r: dict, keypair: str | None = None, rpc: str | None = None, timeout:
             return {"attested": False, "why": "the attestation script needs Node and scripts/sas_receipt.mjs (npm ci --prefix scripts)"}
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "receipt.json"
-            path.write_bytes(canonical(r))          # as it is: the attestation's digest is this receipt's, whatever its version (the script reads 1, 2 and 3)
+            path.write_bytes(canonical(r))          # as it is: the attestation's digest is this receipt's, whatever its version (the script reads 1 to 5)
             done = (run or subprocess.run)([node, str(script), str(path), "--send", "--keypair", keypair, *(["--rpc", rpc] if rpc else [])],
                                            capture_output=True, text=True, timeout=timeout)
             if done.returncode != 0:

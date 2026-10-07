@@ -25,6 +25,9 @@ ONE = "The neutral meter for AI agent work: neither side keeps the count."
 WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 
 
+OUTCOME = "Buyers and suppliers close invoices on evidence both can verify."       # the customer outcome, under the sentence
+
+
 def _words(html: str) -> list[str]:
     return WORD.findall(re.sub(r"<[^>]+>", " ", html))
 
@@ -69,7 +72,7 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     bar = re.sub(r'<div class="more-list".*?</div>', "", bar, flags=re.S)                 # what More holds is one press away
     hero = page[page.index('<div class="hero'):page.index('<section id="demo"')]
     assert f'<h1 id="check">{ONE}</h1>' in hero
-    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 6      # six links in the bar: Check an invoice, Demo, Console, Leaderboard, Pricing, Docs
+    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 6      # six links in the bar: Check, Demo, Console, Leaderboard, Pricing, Docs
     fact = re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', hero, re.S)
     assert fact and len(_words(fact[1])) <= 12 and re.sub(r"<[^>]+>", "", fact[1]) == "241 merged agent “tests pass” pull requests: 30 had a failed check."
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
@@ -81,8 +84,17 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     assert 'class="k-btn" data-fd="run"' in hero and 'class="k-btn quiet" data-fd="sample"' in hero
     assert 'id="hero-board"' in hero and hero.index('id="hero-board"') > hero.index("</form>")      # the leaderboard strip, directly under the box
     assert '<section id="demo" class="mount" aria-label="Demo" hidden></section>' in page.split('id="view-check"')[1].split("</section>")[0] + "</section>"
-    words = _words(bar) + _words(hero)
+    # the 40 words are counted as tests/web/front_door.mjs counts them in a browser: prose (headings, sentences, links),
+    # the bar with them. A control (a button) and a figure (.k-num) are the thing itself, not a statement about it. Since
+    # 0.3.19 the customer outcome is one of the lines, inside the same 40.
+    assert f'<p class="hero-outcome" id="hero-outcome">{OUTCOME}</p>' in hero and hero.index(f">{ONE}</h1>") < hero.index(OUTCOME) < hero.index('id="hero-fact"')
+
+    def prose(html: str) -> list[str]:
+        html = re.sub(r"<button\b[^>]*>.*?</button>", " ", html, flags=re.S)
+        return _words(re.sub(r'<(\w+)\b[^>]*class="[^"]*\bk-num\b[^"]*"[^>]*>.*?</\1>', " ", html, flags=re.S))
+    words = prose(bar) + prose(hero)
     assert 20 <= len(words) <= 40, (len(words), words)
+    assert len(_words(bar) + _words(hero)) <= 48                              # and with every control's label and figure: no more than these
 
 
 def test_the_figure_on_the_first_screen_is_the_measured_one() -> None:

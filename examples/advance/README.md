@@ -4,9 +4,13 @@ A work order with a holdback pays most of its amount when the work is accepted a
 warranty. A seller who wants all of it at acceptance can assign the order's payment to a financier. The financier
 pays the seller off the order, and the order pays the financier.
 
-This uses what knos_pay 2.1 has today: `Assign` (instruction 24). Knos charges nothing for it and takes no part in
-the deal between the seller and the financier. Everything here is on Solana devnet with test USDC.
-`tests/test_advance.py` runs every step below in the Solana runtime (LiteSVM).
+This uses what knos_pay has today: `Assign` (instruction 24). Not offered by Knos: a third party can do this today
+with the program as it is. Knos charges nothing for it and takes no part in the deal between the seller and the
+financier. `tests/test_advance.py` runs every step below in the Solana runtime (LiteSVM), with test USDC.
+
+[docs/ADVANCE.md](../../docs/ADVANCE.md) is the whole of it: `knos advance offer | take | status`, the one
+transaction that pays the seller and assigns the order together, and the three ends (accepted, rejected, expired).
+This page is the case that page leaves out: an order with a holdback, where the transfer is made apart.
 
 ## What `Assign` does
 
@@ -24,7 +28,7 @@ the deal between the seller and the financier. Everything here is on Solana devn
 ## The steps
 
 The numbers are the test's: an order of 100 test USDC, 20% held back for 30 days, and a financier's price of 2%
-(the price book says 1 to 3%; the financier sets it, not Knos).
+(the financier sets it, not Knos).
 
 1. The funder opens the order: `/knos fund 100 holdback 20 warranty 30`.
 2. The seller binds a wallet, once: `knos claim <address>`.
@@ -58,6 +62,6 @@ The seller should assign only to a financier it trusts to make the off-order pay
 
 - An assignment of only the holdback after acceptance. The program would have to let the recorded wallet of a
   holdback hand it on.
-- Any on-chain tie between the financier's payment to the seller and the assignment (an escrow for the advance).
-- A command or a page for it: the instruction is built with the Python or JavaScript client.
+- An escrow for the advance. `knos advance take` puts the financier's payment and the assignment in one transaction,
+  which lands whole or not at all ([docs/ADVANCE.md](../../docs/ADVANCE.md)); nothing holds the money longer than that.
 - Nobody has financed an order this way; no financier exists.

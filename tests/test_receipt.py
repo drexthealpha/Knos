@@ -270,7 +270,7 @@ def test_version_3_keeps_five_things_apart_in_order_and_versions_1_and_2_still_c
     for v in VECTORS["invalid_v3"]:
         why = receipt.check(_changed(v, "valid_v3"))
         assert why is not None and v["why"] in why, (v["name"], why)
-    assert "version 1, 2 or 3" in receipt.check({"type": receipt.TYPE, "version": 5})
+    assert "version 1, 2 or 3" in receipt.check({"type": receipt.TYPE, "version": 6})
 
 
 def test_the_version_3_schema_agrees_with_the_checker():
@@ -420,7 +420,7 @@ def test_the_attestation_is_on_by_default_and_fails_soft(monkeypatch, tmp_path):
     monkeypatch.setenv("KNOS_NO_SAS", "1")      # the opt-out
     assert receipt.attest(r, run=run)["why"] == "attestations are turned off (KNOS_NO_SAS=1)" and len(sent) == 1
     script = (ROOT / "scripts" / "sas_receipt.mjs").read_text(encoding="utf-8")
-    assert "--init" in script and "[1, 2, 3, 4].includes(r.version)" in script and "r.version >= 2" in script and '"already": true' in script.replace("already: true", '"already": true')
+    assert "--init" in script and "[1, 2, 3, 4, 5].includes(r.version)" in script and "r.version >= 2" in script and '"already": true' in script.replace("already: true", '"already": true')
 
 
 # ---- how a judge outside the order's repository reached its verdict: its run's own words, held to the signed run ------------
@@ -716,13 +716,36 @@ def test_the_attestation_script_reads_a_version_3_receipt_and_attests_its_own_di
             f"import {{ fields }} from {json.dumps((ROOT / 'scripts' / 'sas_receipt.mjs').as_uri())};\n"
             f"const v = JSON.parse(fs.readFileSync({json.dumps(str(ROOT / 'docs' / 'receipt' / 'vectors.json'))}, 'utf8'));\n"
             "const text = (f) => Object.fromEntries(Object.entries(f).map(([k, x]) => [k, k === 'receipt_sha256' ? Buffer.from(x).toString('hex') : String(x)]));\n"
-            "let refused = ''; try { fields({ type: 'knos.acceptance-receipt', version: 5 }); } catch (e) { refused = e.message; }\n"
+            "let refused = ''; try { fields({ type: 'knos.acceptance-receipt', version: 6 }); } catch (e) { refused = e.message; }\n"
             "console.log(JSON.stringify({ three: v.valid_v3.map((x) => text(fields(x.receipt))), two: v.valid_v3.map((x) => text(fields(v.valid_v2[x.of].receipt))), refused }));\n")
     (tmp_path / "fields.mjs").write_text(code, encoding="utf-8")
     done = subprocess.run([node, str(tmp_path / "fields.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert done.returncode == 0, done.stderr
     got = json.loads(done.stdout)
-    assert got["refused"] == "this is not a Knos acceptance receipt of version 1, 2, 3 or 4 (docs/RECEIPT.md)."
+    assert got["refused"] == "this is not a Knos acceptance receipt of version 1 to 5 (docs/RECEIPT.md)."
     for v, three, two in zip(VECTORS["valid_v3"], got["three"], got["two"]):
         assert three["receipt_sha256"] == v["sha256"] != two["receipt_sha256"], v["name"]
         assert {k: x for k, x in three.items() if k != "receipt_sha256"} == {k: x for k, x in two.items() if k != "receipt_sha256"}, v["name"]
+
+
+def test_the_attestation_script_takes_a_version_5_receipt_and_attests_its_own_digest(tmp_path):
+    """Since 0.3.19 a receipt is written as version 5. The attestation's fields are those of the version 4 receipt it
+    holds, and the digest attested is the version 5 receipt's own: what `knos receipt` prints for it."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("needs Node")
+    five = [v for v in json.loads((ROOT / "docs" / "receipt" / "vectors.v5.json").read_text(encoding="utf-8"))["valid_v5"] if v["receipt"]["transaction"] is not None]
+    assert five, "no paid version 5 receipt among the vectors"
+    pairs = [{"five": v["receipt"], "four": receipt.as4(v["receipt"])} for v in five]
+    (tmp_path / "pairs.json").write_text(json.dumps(pairs), encoding="utf-8")
+    code = ("import fs from 'node:fs';\n"
+            f"import {{ fields }} from {json.dumps((ROOT / 'scripts' / 'sas_receipt.mjs').as_uri())};\n"
+            f"const pairs = JSON.parse(fs.readFileSync({json.dumps(str(tmp_path / 'pairs.json'))}, 'utf8'));\n"
+            "const text = (f) => Object.fromEntries(Object.entries(f).map(([k, x]) => [k, k === 'receipt_sha256' ? Buffer.from(x).toString('hex') : String(x)]));\n"
+            "console.log(JSON.stringify(pairs.map((p) => ({ five: text(fields(p.five)), four: text(fields(p.four)) }))));\n")
+    (tmp_path / "fields5.mjs").write_text(code, encoding="utf-8")
+    done = subprocess.run([node, str(tmp_path / "fields5.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 0, done.stderr
+    for v, pair, got in zip(five, pairs, json.loads(done.stdout)):
+        assert got["five"]["receipt_sha256"] == v["sha256"] == receipt.digest(v["receipt"]) != got["four"]["receipt_sha256"] == receipt.digest(pair["four"]), v["name"]
+        assert {k: x for k, x in got["five"].items() if k != "receipt_sha256"} == {k: x for k, x in got["four"].items() if k != "receipt_sha256"}, v["name"]

@@ -19,6 +19,10 @@ own files, byte for byte, with nothing in them that is not derived from the sour
                     the starter task's black-box acceptance checks under every issue number from 1 to
                     playground.SLOTS: a stranger's issue gets whatever number is next and cannot add files, and a
                     task with no checks could only be paid by a merge. docs/PLAYGROUND.md is what a stranger reads.
+                    It also holds the starting file and the public examples of every task of tasks/ here, and
+                    `check.py`, which tries a solution on them. scripts/task_board.py opens those tasks as funded
+                    issues and commits each one's checks under its issue's number, with the line in `board.json`:
+                    `build DIR` and `check DIR` read DIR/board.json, so a rebuild keeps what the board wrote.
     knos-attest     drexthealpha/knos-attest: the template a seller makes his own `knos-attest` repository from. It
                     holds examples/knos-attest.yml: a run by hand there asks GitHub to sign that an order's terms
                     were met (`knos settle --neutral` and the site start it).
@@ -101,6 +105,11 @@ The checks in `.knos/acceptance/<number>/` run your file as a separate process a
 answer matches, GitHub signs that it did and the escrow pays you: to the wallet you bound, or held for your account
 until you bind one. Nobody merges and nobody decides.
 
+**Take a funded task.** Issues labelled [`knos-funded`](https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Aknos-funded)
+are small programming tasks, each with its own file under `tasks/`. Edit that file, try it with
+`python3 check.py <task>`, and open the pull request with `Closes #<the issue's number>`. A maintainer merges a pull
+request that passes the check, and the merge pays your account. Test USDC, no monetary value.
+
 The limits: an issue is funded only as it is opened, with at most {most} test USDC; one account funds at most {per_day}
 in a day (UTC); the faucet serves this repository once a minute; issues 1 to {slots} have checks. A first pull request
 from an account that is new to GitHub waits until a maintainer lets its check run.
@@ -144,6 +153,43 @@ import sys
 
 words = sys.stdin.readline().split()
 print(" ".join(words))
+"""
+
+CHECK = """\"\"\"Try a solution before the pull request:  python3 check.py <task>
+
+Runs tasks/<task>.py on the public examples of tasks/<task>.examples.json, one process for each, and compares what it
+prints. The check that decides runs the same file on these and on inputs that are not here.\"\"\"
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def norm(text):
+    return "\\n".join(line.rstrip() for line in text.replace("\\r\\n", "\\n").strip("\\n").split("\\n"))
+
+
+def main(argv):
+    names = sorted(p.name[:-len(".examples.json")] for p in (HERE / "tasks").glob("*.examples.json"))
+    stem = argv[1].replace("-", "_") if len(argv) == 2 else ""
+    if stem not in names:
+        print("usage: python3 check.py <task>   one of: " + ", ".join(n.replace("_", "-") for n in names))
+        return 2
+    cases = json.loads((HERE / "tasks" / (stem + ".examples.json")).read_text(encoding="utf-8"))
+    for n, case in enumerate(cases, 1):
+        got = subprocess.run([sys.executable, str(HERE / "tasks" / (stem + ".py"))], input=(case["input"] + "\\n").encode("utf-8"), capture_output=True, timeout=60)
+        said = norm(got.stdout.decode("utf-8", "replace"))
+        if got.returncode != 0 or said != case["output"]:
+            print("example %d, the input %r: it printed %r, expected %r" % (n, case["input"], said, case["output"]))
+            return 1
+    print("all %d public examples agree. The check also runs inputs that are not here." % len(cases))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
 """
 
 ATTEST_README = """# knos-attest
@@ -201,7 +247,7 @@ REPOS: dict[str, tuple[str, dict[str, str | Path]]] = {
         ".github/ISSUE_TEMPLATE/fund-a-test-task.md": ISSUE_TEMPLATE,
         ".github/ISSUE_TEMPLATE/config.yml": ISSUE_CONFIG,
         ".github/pull_request_template.md": PULL_TEMPLATE,
-        "words.py": STARTER, "README.md": PLAYGROUND_README, "LICENSE": Path("LICENSE")}),
+        "words.py": STARTER, "check.py": CHECK, "README.md": PLAYGROUND_README, "LICENSE": Path("LICENSE")}),
     "knos-attest": ("the template a seller makes his attest repository from", {
         ".github/workflows/knos-attest.yml": Path("examples/knos-attest.yml"),
         "README.md": ATTEST_README, "LICENSE": Path("LICENSE")}),
@@ -259,6 +305,42 @@ def slots() -> dict[str, bytes]:
     return out
 
 
+def _board():
+    """scripts/task_board.py: the tasks of tasks/ and the bundle each gets under an issue's number."""
+    spec = importlib.util.spec_from_file_location("task_board", Path(__file__).with_name("task_board.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("task_board", mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def task_files(board: dict[int, str] | None = None) -> dict[str, bytes]:
+    """What the playground holds for the tasks of tasks/: each one's starting file and public examples, and, for every
+    issue `board` lists ({issue number: task}), that task's checks in place of the starter task's, with board.json."""
+    tb, out = _board(), {}
+    by_slug = {t["slug"]: t for t in tb.catalogue()}
+    for t in by_slug.values():
+        for rel, src in t["starting_files"].items():
+            out[rel] = (tb.TASKS / t["slug"] / src).read_bytes()
+        out[f"tasks/{Path(t['file']).stem}.examples.json"] = (json.dumps(t["public"], indent=1, ensure_ascii=False) + "\n").encode("utf-8")
+    for number, slug in sorted((board or {}).items()):
+        if slug not in by_slug:
+            raise SystemExit(f"board.json gives issue {number} the task {slug}, and tasks/ has none of that name")
+        for rel, data in tb.bundle(by_slug[slug], number).items():
+            out[f".knos/acceptance/{number}/{rel}"] = data
+    if board:
+        out[tb.BOARD] = tb.board_file(board)
+    return out
+
+
+def board_of(folder: Path) -> dict[int, str]:
+    """The board a checkout of the playground records (its board.json), {} when it has none."""
+    try:
+        return {int(k): str(v) for k, v in json.loads((folder / "board.json").read_text(encoding="utf-8"))["tasks"].items()}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}
+
+
 def tree_id(files: dict[str, bytes]) -> str:
     """The id git gives the tree that holds exactly these files (plain files, mode 100644): pinned_workflows.tree_id's
     answer, computed once per folder (that one walks every file again for every file, which 600 files do not allow)."""
@@ -279,8 +361,8 @@ def tree_id(files: dict[str, bytes]) -> str:
     return tree(files).hex()
 
 
-def files(name: str) -> dict[str, bytes]:
-    """Every file of the repository `name`, by its path there."""
+def files(name: str, board: dict[int, str] | None = None) -> dict[str, bytes]:
+    """Every file of the repository `name`, by its path there. `board`: the playground's board.json ({issue: task})."""
     if name not in REPOS:
         raise SystemExit(f"there is no repository {name} here: {', '.join(REPOS)}")
     out = {rel: (ROOT / src).read_bytes() if isinstance(src, Path) else src.encode("utf-8") for rel, src in REPOS[name][1].items()}
@@ -290,6 +372,7 @@ def files(name: str) -> dict[str, bytes]:
         for rel in (".github/ISSUE_TEMPLATE/fund-a-test-task.md", "README.md"):
             out[rel] = out[rel].decode("utf-8").format(**said).encode("utf-8")
         out.update(slots())
+        out.update(task_files(board))
     problems = wrong(name, out)
     if problems:
         raise SystemExit(f"{name} cannot be published as it is: " + "; ".join(problems))
@@ -358,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
         for name, (what, _files) in REPOS.items():
             print(f"{OWNER}/{name}: {what} ({len(files(name))} files, tree {tree_id(files(name))})")
         return 0
-    want = files(a.name)
+    want = files(a.name, board_of(Path(a.dir)) if a.name == "knos-playground" and a.command in ("build", "check") else None)
     if a.command == "tree":
         print(tree_id(want))
         return 0

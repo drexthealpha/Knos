@@ -211,6 +211,22 @@ def test_grace_is_an_option_of_fund_that_the_token_signs_on_2_2_and_a_plain_refu
         assert got.startswith("Knos: nothing was funded. ") and words in got and w.signer.asked == [] and w.chain.orders(7) == [] and w.chain.jobs(7) == []
 
 
+def test_a_receipts_declared_accounts_are_the_ones_of_the_terms_the_order_cites_or_none(tmp_path):
+    """`flow._declared`: what `knos attest` hands knos.receipt.build5. The accounts the order's own Knos Terms 3 document
+    declares to be one party; nothing for an order that cites no document, a version that is not found, or a forge
+    that does not answer: nothing is declared on a guess."""
+    w, doc = with_terms(tmp_path, evaluators={"quorum": 1, "list": [OWN], "related": [[8002, 7001], [9003, 7001]]})
+    assert terms3.declared(doc) == [[7001, 8002, 9003]]
+    run = w.run({})
+    assert flow._declared(run, {"contract": terms3.digest(doc)}) == [[7001, 8002, 9003]]
+    assert flow._declared(run, {}) == [] and flow._declared(run, None) == [] and flow._declared(run, {"contract": "ab" * 32}) == []
+    plain_w, plain_doc = with_terms(tmp_path / "plain")
+    assert flow._declared(plain_w.run({}), {"contract": terms3.digest(plain_doc)}) == []        # terms that declare nobody
+    down = w.run({})
+    down.github = lambda path, data=None, method=None: (_ for _ in ()).throw(OSError("502"))
+    assert flow._declared(down, {"contract": terms3.digest(doc)}) == []
+
+
 # ---- 3. the provisional decision --------------------------------------------------------------------------------------
 
 def _settling(w: World) -> str:
@@ -251,6 +267,53 @@ def test_the_accepted_edit_carries_the_provisional_decision_and_a_failure_of_dec
     capsys.readouterr()
     assert _settling(w).endswith(usual) and plain(w.hub.knos(12)[-1], 1500).startswith("Knos: paid. @mona received 20.00")
     assert "the provisional decision could not be made (ZeroDivisionError" in capsys.readouterr().err
+
+
+def test_where_the_offline_half_decides_its_line_is_posted_first_and_one_chain_request_replaces_it(tmp_path, monkeypatch, capsys):
+    """0.3.19: `decide.offline` (no network) gives the line that is posted at once; `decide.chain_check` (one request)
+    then gives the line that replaces it. The relay's whole precheck is not asked. A chain that does not answer, or a
+    check that fails, changes nothing and stops nothing."""
+    usual = "The payment to @mona is on its way to Solana; this comment is edited when it lands."
+    monkeypatch.setattr(relay2, "precheck", lambda *a, **k: pytest.fail("the relay's whole precheck was asked"))
+    offline = {"decision": "accepted", "why": decide.OFFLINE, "kind": "pay", "chain_read": False, "already": False, "rules": decide.RULES_OFFLINE}
+    monkeypatch.setattr(decide, "offline", lambda jwt, terms=None, **k: dict(offline))
+    asked: list = []
+
+    def settling(name: str, chain_check) -> tuple[World, list[str]]:
+        monkeypatch.setattr(decide, "chain_check", chain_check)
+        w = ordered(tmp_path / name)
+        w.chain.bind(MONA)
+        w.relay.precheck = relay2.precheck
+        before = len(w.hub.posted)
+        assert flow.settle(w.run(w.hub.merge(12))) == 0
+        return w, [d["body"].split("\n\n" + flow.STATUS)[0] for _p, d in w.hub.posted[before:] if str(d.get("body", "")).startswith("Knos: accepted, settling.")]
+
+    def answered(jwt, *, ledger, order=None, timeout=decide.CHAIN_TIMEOUT):
+        asked.append((ledger, order))
+        return {"read": True, "round_trips": 1, "why": "", "now": int(claims(jwt)["iat"]), "token_used": False, "paused_until": 0, "order": None}
+    w, (first, second) = settling("answered", answered)
+    assert asked == [(w.chain, None)]                                    # one request, of this run's own chain
+    assert first.endswith(f"{usual} Provisional: accepted ({decide.OFFLINE}). Not paid yet: the chain settles next. Provisional receipt " + first[-17:])
+    assert second.startswith(first.split(" Provisional: ")[0]) and "Provisional: accepted (decided from the signed evidence; the chain shows the token is unused" in second
+    assert first[-17:] != second[-17:] and "paid." not in second.replace("Not paid yet", "")           # a second provisional receipt, and never "paid"
+    assert plain(w.hub.knos(12)[-1], 1500).startswith("Knos: paid. @mona received 20.00")
+    # the chain shows the token used already: said, still provisional, and the chain decides
+    w, (first, second) = settling("used", lambda jwt, **k: {**answered(jwt, **k), "token_used": True})
+    assert "the chain shows this token used already" in second and "Provisional: accepted" in second
+    # the chain did not answer in time: the offline line stays, once
+    w, lines = settling("silent", lambda jwt, **k: {"read": False, "round_trips": 1, "why": "the chain did not answer (TimeoutError: no answer in 2 s)", "now": None,
+                                                    "token_used": None, "paused_until": None, "order": None})
+    assert len(lines) == 1 and f"Provisional: accepted ({decide.OFFLINE})" in lines[0]
+    assert plain(w.hub.knos(12)[-1], 1500).startswith("Knos: paid. @mona received 20.00")
+    # the check itself fails: logged, the offline line stays, the payment is made
+    capsys.readouterr()
+    w, lines = settling("broken", lambda jwt, **k: 1 / 0)
+    assert len(lines) == 1 and "chain state not yet read" in lines[0] and plain(w.hub.knos(12)[-1], 1500).startswith("Knos: paid. @mona received 20.00")
+    assert "the chain check of the provisional decision could not be made (ZeroDivisionError" in capsys.readouterr().err
+    # an offline rejection is said at once too, and nothing overrules it
+    monkeypatch.setattr(decide, "offline", lambda jwt, terms=None, **k: {**offline, "decision": "rejected", "why": "the signature is not the issuer's"})
+    w, lines = settling("rejected", answered)
+    assert len(lines) == 2 and all("Provisional: rejected (the signature is not the issuer's)" in line for line in lines)
 
 
 # ---- 4. the verdict gate ----------------------------------------------------------------------------------------------

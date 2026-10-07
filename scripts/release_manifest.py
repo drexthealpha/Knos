@@ -53,6 +53,14 @@ def _short(h: str | None) -> str:
     return f"`{h}`" if h else "not recorded"
 
 
+def _pending_after(data: dict, program: str, entry: dict | None) -> dict | None:
+    """The newest proposal for `program` that is pending and newer than `entry` (the one its chain is about), or None."""
+    after = int((entry or {}).get("index", -1))
+    mine = [e for e in data["upgrades"].get("entries", [])
+            if e.get("program") == program and e.get("status") == "pending" and int(e.get("index", 0)) > after]
+    return max(mine, key=lambda e: int(e.get("index", 0)), default=None)
+
+
 def programs(data: dict) -> list[str]:
     """One row for each program: what the public id runs, as the records say, and the build that would replace it."""
     lines = ["| program | public program id | LIVE at that id | hash at that id | its proposal | the proposal's verified build hash | built from |",
@@ -61,6 +69,10 @@ def programs(data: dict) -> list[str]:
     for c in prov.chains(data):
         e, now = c["entry"], c["now"] or {}
         same = bool(c["links"]["hash on chain"].get("same"))
+        # a provenance chain is about the newest proposal that RAN; a newer one that is pending is what would replace
+        # the build that is live, so the row names that one, and the hash at the id is not its build until it runs
+        if (later := _pending_after(data, c["program"], e)) is not None:
+            e, same = later, bool(now.get("hash")) and now.get("hash") == later.get("build_hash")
         live = f"{c['program']} {c['runs']}" if c["runs"] else "not recorded"
         if e is None:
             proposal, built, source = "none", "none", "none"

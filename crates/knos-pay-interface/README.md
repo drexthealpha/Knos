@@ -9,7 +9,7 @@ addresses, the three instructions a funder sends and a reader of the Order accou
 `solana-program`; it carries none of `knos_pay`'s code.
 
 ```toml
-knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.18" }
+knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.19" }
 ```
 
 ```rust
@@ -72,6 +72,6 @@ Every function takes the program's id, so a deployment on another cluster is ano
 (`src/knos/settle/v2/pay.py`): every address, every instruction for fixed inputs, and one Order account as the test
 build of `knos_pay` wrote it in LiteSVM. `cargo test` rebuilds all of it with this crate and compares bytes;
 `tests/test_pay_interface.py` fails when the committed fixture is not what the script writes now.
-A whole program built on this crate, with its test: [`examples/cpi_fund`](../../examples/cpi_fund).
+A whole program built on this crate, with its test: [`examples/cpi_fund`](https://github.com/drexthealpha/Knos/tree/main/examples/cpi_fund).
 
 MIT.

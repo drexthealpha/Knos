@@ -1,0 +1,89 @@
+{
+ "what": "One judge for one task, run in the RISC Zero zkVM; each run proved and then verified in a separate process. Written from the files run.sh and measure.py left; not edited by hand.",
+ "measured": "2026-10-07",
+ "machine": {
+  "cpus": 2,
+  "model": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memory_kb": 8223864,
+  "gpu": false,
+  "note": "a shared virtual machine with a load average between 5 and 12 while these ran: the wall-clock seconds are an upper figure, the CPU seconds are the steadier one"
+ },
+ "toolchain": {
+  "risc0_zkvm": "3.0.6",
+  "r0vm": "3.0.6 (cargo-risczero-x86_64-unknown-linux-gnu.tgz of the v3.0.6 release)",
+  "guest_rustc": "1.101.0-nightly (c36f14571 2026-10-01), -Zbuild-std",
+  "host_rustc": "1.95.0",
+  "guest_build_seconds": 395,
+  "host_build_seconds": 860
+ },
+ "image_id": "e95d5440dce55f43c566b0ee20f8fc08b2fd6c1cf7f5d1722c31ea54b4325617",
+ "checks_sha256": "682f98f4bed572933432c0f547b2ea752d14bedfb96b7ea56e8d82751140297c",
+ "program_bytes": 203496,
+ "journal_bytes": 70,
+ "runs": [
+  {
+   "fixture": "honest",
+   "receipt": "composite",
+   "dev_mode": false,
+   "verified": true,
+   "journal": "0176c012c7441f855269dc493700d6816af7de314b35b6adfe4b8c5ece50bb283c682f98f4bed572933432c0f547b2ea752d14bedfb96b7ea56e8d82751140297c0107000700",
+   "verdict": "passed",
+   "user_cycles": 6941,
+   "total_cycles": 32768,
+   "segments": 1,
+   "prove_seconds": 54.32,
+   "prove_cpu_seconds": 41.58,
+   "prover_max_rss_kb": 317904,
+   "receipt_bytes": 209702,
+   "seal_bytes": 209256,
+   "verify_seconds": 0.026,
+   "verifier_max_rss_kb": 10704
+  },
+  {
+   "fixture": "honest",
+   "receipt": "succinct",
+   "dev_mode": false,
+   "verified": true,
+   "journal": "0176c012c7441f855269dc493700d6816af7de314b35b6adfe4b8c5ece50bb283c682f98f4bed572933432c0f547b2ea752d14bedfb96b7ea56e8d82751140297c0107000700",
+   "verdict": "passed",
+   "user_cycles": 6941,
+   "total_cycles": 32768,
+   "segments": 1,
+   "prove_seconds": 216.56,
+   "prove_cpu_seconds": 163.44,
+   "prover_max_rss_kb": 1456432,
+   "receipt_bytes": 223366,
+   "seal_bytes": 222668,
+   "verify_seconds": 0.041,
+   "verifier_max_rss_kb": 10756
+  },
+  {
+   "fixture": "wrong",
+   "receipt": "succinct",
+   "dev_mode": false,
+   "verified": true,
+   "journal": "013b486f58f9230dd852daef16f82a49e5d8bd75149dbdc66345584dd5570feebc682f98f4bed572933432c0f547b2ea752d14bedfb96b7ea56e8d82751140297c0006000700",
+   "verdict": "failed",
+   "user_cycles": 6937,
+   "total_cycles": 32768,
+   "segments": 1,
+   "prove_seconds": 138.2,
+   "prove_cpu_seconds": 161.24,
+   "prover_max_rss_kb": 1456320,
+   "receipt_bytes": 223366,
+   "seal_bytes": 222668,
+   "verify_seconds": 0.025,
+   "verifier_max_rss_kb": 10700
+  }
+ ],
+ "refused": {
+  "what": "the honest succinct receipt, verified against an image id that is not the judge's",
+  "result": "claim digest does not match the expected digest"
+ },
+ "not_measured": [
+  "a Groth16 receipt (the 256-byte form a Solana verifier takes)",
+  "anything on a chain",
+  "a GPU",
+  "a second machine"
+ ]
+}

@@ -182,9 +182,36 @@ chain. For a closed month it checks GitHub's signatures on the close record with
 shadow run there is no signature to check: GitHub does not sign its API's answers, so the evidence is what was read
 on the day, and the statement says "not signed".
 
+**The goods-received note.** Accounts payable pays a line when three documents agree: the purchase order, the
+receipt of goods and the invoice. `knos statement grn` shows the three legs of one line side by side and says
+`MATCH`, or each mismatch in words. This is the three-way match, for one deliverable:
+
+    knos statement grn sept/ap-statement.json --line inv_... --receipt receipt.json --po PO-2026-0931
+    knos statement grn sept/ap-statement.json --line inv_... --receipt receipt.json --po PO-2026-0931 --record
+
+| leg | what it shows | read from |
+|---|---|---|
+| purchase order | the order's number (`--po`, the buyer's own, or the order's address), the hash of its terms, who approved the money, the price | the payment's acceptance receipt |
+| receipt of goods | the note's reference, the verdict, the evaluator and who controls it, the assurance level, the evidence | the receipt; without one, the statement's line |
+| invoice line | the line's id, reference, amount, state and payment | the statement and its status file |
+
+The mismatches it names: no purchase order on record (a statement alone does not carry the order); no evaluation
+on record; a receipt that nothing ties to the line; a receipt whose verdict is not accepted; an invoice line that
+bills more than the order's price; a line that is disputed, duplicate or without enough evidence. It exits 1 on a
+mismatch. It reads, and approves and moves nothing. `--record` appends the note to the status file.
+
+**Assurance level on every line.** Each line says how much was verified, computed and never typed
+([RECEIPT.md](RECEIPT.md), Version 5): the level of the receipt a recorded note was made from; without one,
+`reported` for a line an evaluation stands behind, and `not evaluated` for a line with none. The statement's own
+JSON does not change, so a statement made before this still verifies.
+
 **Exports.** `export --format quickbooks|netsuite` writes one bill per agreed line, in the columns of the table
 above, with the line's state, its payment status and its ids in the memo. A disputed or duplicate line, or one
 without enough evidence, is never a bill. `--format generic` lists every line with its state.
+Every export carries the three things a three-way match keys on. The generic file and the statement's CSV have a
+column for each: `po_reference` (empty until a note is recorded), `grn_reference` and `assurance`. QuickBooks' and
+NetSuite's import templates have no such columns, so there the same three are in the memo
+(`PO ... | GRN ... | assurance ...`). Each remains a file export, not an integration.
 
 In a browser: `renderStatements` in [`web/statements.js`](../web/statements.js) opens a statement file, checks its
 hash, downloads the same CSV and the same export files (`tests/web/statement.mjs` holds the bytes equal to the
@@ -233,6 +260,33 @@ What a supplier cannot see without the buyer:
 What stays with the supplier: every line of `owed`, the transactions it names, and the acceptance receipt of each
 payment. `knos receipt mirror` keeps a copy that verifies from the issuer's signature with no chain.
 
+## 6a. When the buyer goes quiet
+
+A supplier does not need the buyer's cooperation to be paid for accepted work. This is the path that exists, from
+the code, walked on the simulator by [`tests/test_supplier_completes.py`](../tests/test_supplier_completes.py)
+(a job on the second deployment's knos_pay test build):
+
+1. **The buyer funds, and signs nothing after that.** The money is in the program's vault; the job records its
+   deadline and where a refund would go.
+2. **The buyer cannot take it back before the deadline.** A refund sent by the buyer before the deadline is
+   refused by the program (error 83), on the first day and on the thirteenth of fourteen.
+3. **A rejection is appealed, and the money stays.** `/knos appeal <reason>` by the pull request's author moves the
+   verdict to disputed. It costs the supplier nothing, only the supplier can open it, and it gives the buyer no way
+   to the money either. The neutral judge runs the funded suite itself; if it passes, the rejection is overturned.
+4. **The supplier settles itself.** The proof is the forge's signature over the pinned workflow's run. The
+   supplier's own wallet sends it and pays the transaction fee; no signature of the buyer is in the transaction.
+   The program pays the wallet the proof names and takes the fee.
+5. **After that there is nothing to refund,** and the same proof pays nothing twice.
+6. **With no accepted work by the deadline the money goes back to the funder.** A proof sent after the deadline is
+   refused. Anyone may send the refund, the supplier too; it lands in the funder's account whoever sends it, and a
+   refund addressed elsewhere is refused (error 88).
+
+What this does not give the supplier: the deadline is the supplier's clock too, so an appeal opened late can be
+right and still pay nothing; an order funded with `neutral off` can be judged only from its own repository or its named
+judge's; and where no evaluator answers, the default is the refund. [DISPUTES.md](DISPUTES.md) has the clocks, the cancel
+notice of an order and who can do what at each state. This walk with a quiet buyer ran on the simulator only: it
+was not exercised on the public program ids.
+
 ## 7. What does not exist
 
 - **Single sign-on.** Knos has no accounts. Identity is GitHub's and a wallet's.
@@ -242,6 +296,10 @@ payment. `knos receipt mirror` keeps a copy that verifies from the issuer's sign
   vault as the funder, and that is the multisig's rule.
 - **A party that answers by contract.** No named legal entity, no terms of service, no support agreement.
 - **A connection to any finance system.** These are files. Nothing sends them, and nothing reads a reply.
+- **A purchase order system.** The goods-received note reads the order from the payment's receipt and takes the
+  buyer's own PO number as typed (`--po`). Nothing checks that number against a purchasing system.
+- **A statement line above `reported` without a receipt.** A shadow run and a closed month record what was
+  reported; a higher level needs the payment's receipt, and no receipt of a public payment is of version 5 yet.
 - **An import any of the four products has accepted.** The files are written from the products' public pages.
   No file here has been loaded into NetSuite, SAP, Coupa or QuickBooks.
 - **Names.** The statement carries GitHub's numeric ids.

@@ -98,8 +98,10 @@ that finds less will say how much less, and that the buyer should not buy.
 
 2,500 USD for one buyer and two suppliers, for 30 days, invoiced off chain in ordinary money. The suppliers pay
 nothing, and connecting them costs nothing. No real fee is taken on chain: any release during a Pilot is on devnet in
-test USDC, where the program's 0.30% is test money and zero revenue. Acceptance on the one invoice the Pilot
-reconciles is inside the 2,500 USD.
+test USDC, where the program's fee is test money and zero revenue. Acceptance on the one invoice the Pilot
+reconciles is inside the 2,500 USD. After it the price book applies: 0.30% of accepted value, 0.20% by contract
+on a month's value above 1 million and never lower, and outcomes under 20 USD netted into one release per payee
+per period ([MARKET.md](MARKET.md), section 3).
 
 **The 2,500 USD is credited against year one.** A buyer who goes on to an annual contract
 ([MARKET.md](MARKET.md), section 3) pays that year's invoices less the 2,500 USD already paid: on the Team plan,

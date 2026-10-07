@@ -368,10 +368,14 @@ export const LINE_STATES = ["agreed", "disputed", "duplicate", "insufficient_evi
 export const LINE_WORDS = { agreed: "agreed", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
 export const PAY_WORDS = { payable: "payable", paid_outside: "paid outside Knos", held: "held", refunded: "refunded", devnet_demonstration: "devnet demonstration" };
 export const STATEMENT_HEAD = ["line", "reference", "supplier", "state", "amount", "why", "deliverable", "evaluations", "invoice_line", "settlement", "payment", "evidence",
-  "evidence_sha256", "duplicate_of"];
+  "evidence_sha256", "duplicate_of", "assurance", "po_reference", "grn_reference"];
+export const NOT_EVALUATED = "not evaluated", GRN_KIND = "knos-grn";
+const NO_ORDER = { shadow: "no purchase order on record: a shadow run reads the invoice and GitHub, not the order; give the payment's receipt (--receipt)",
+  month: "no purchase order on record: a closed month names each order by its deliverable, not its terms or approver; give the payment's receipt (--receipt)",
+  events: "no purchase order on record: the log of events does not carry the order's terms or approver; give the payment's receipt (--receipt)" };
 export const STATEMENT_FORMATS = ["quickbooks", "netsuite", "generic"];
 const STATEMENT_GENERIC = ["bill_no", "line", "state", "payment", "date", "supplier", "reference", "amount", "currency", "why", "deliverable", "evaluations", "invoice_line",
-  "settlement", "evidence", "evidence_sha256", "duplicate_of", "statement_sha256"];
+  "settlement", "evidence", "evidence_sha256", "duplicate_of", "statement_sha256", "po_reference", "grn_reference", "assurance"];
 
 /** The statement the front door made last (web/front_door.js, through web/statement_make.js), for the Statement page
  *  (web/statements.js) to open: hand(st, status) keeps it and says so; the page opens it now, or when it is first drawn. */
@@ -402,14 +406,39 @@ const eventsOf = (st, status) => {
   if (status.kind !== STATUS_KIND || status.statement !== st.sha256) throw new Error("The status file is another statement's: it names another sha256.");
   return status.events;
 };
-/** statement.lines_now: the lines with the last settlement recorded for each, and who approved it. */
+/** statement.grn_reference: the first evaluation's id as a note's; empty for a line nothing evaluated. */
+export const grnReference = (ln) => (ln.evaluations.length ? `grn_${ln.evaluations[0].split("_").slice(1).join("_")}` : "");
+/** statement.lines_now: the lines with the last settlement recorded for each, who approved it, and its assurance level,
+ *  purchase order and goods-received note (computed: the recorded note's level, else reported, else "not evaluated"). */
 export function statementLines(st, status = null) {
   const events = eventsOf(st, status);
   return st.lines.map((ln) => {
     const paid = events.filter((e) => e.type === "settlement" && e.line === ln.invoice_line), last = paid[paid.length - 1];
     const ok = events.find((e) => e.type === "approval" && e.lines.includes(ln.invoice_line));
+    const noted = events.filter((e) => e.type === "grn" && e.line === ln.invoice_line).map((e) => e.grn), note = noted[noted.length - 1];
+    ln = { ...ln, assurance: note ? note.receipt_of_goods.assurance : ln.evaluations.length ? "reported" : NOT_EVALUATED,
+      po_reference: note && note.purchase_order ? note.purchase_order.number : "", grn_reference: grnReference(ln) };
     return { ...ln, settlement: last ? last.settlement : null, payment: last ? last.state : ln.payment, approved_by: ok ? `${ok.by} (${ok.role}) on ${ok.on}` : "" };
   });
+}
+/** statement.grn_said: a goods-received note's result in one sentence. */
+export const grnSaid = (note) => (note.match ? "match" : `mismatch: ${note.mismatches.join("; ")}`);
+/** statement.grn with no receipt at hand: the note recorded for the line as it was recorded, or one with no purchase
+ *  order (which never matches). The three legs: purchase_order, receipt_of_goods, invoice_line. */
+export function statementGrn(st, status, line) {
+  const events = eventsOf(st, status), ln = statementLines(st, status).find((x) => x.invoice_line === line);
+  if (!ln) throw new Error(`No line of this statement has the id ${line}. The ids are in the invoice_line column.`);
+  const kept = events.filter((e) => e.type === "grn" && e.line === line);
+  if (kept.length) return { ...kept[kept.length - 1].grn, recorded: kept[kept.length - 1].on };
+  const wrong = [NO_ORDER[st.source]];
+  if (!ln.evaluations.length) wrong.push("no receipt of goods: no evaluation of this line is on record");
+  if (ln.state !== "agreed") wrong.push(`the invoice line is ${LINE_WORDS[ln.state]}${ln.why ? `: ${ln.why}` : ""}`);
+  const goods = { reference: ln.grn_reference, verdict: ln.evaluations.length && ln.state === "agreed" ? "accepted" : "none",
+    evaluator: { shadow: "GitHub's checks at the merged commit", month: "the meter, as both ledgers recorded it", events: "the log of events" }[st.source],
+    controllers: [], assurance: ln.assurance, trusted: ln.evaluations.length ? [st.note] : [], declared_related: [], evidence: ln.evidence, receipt_sha256: null };
+  return { kind: GRN_KIND, version: 1, statement: st.sha256, reference: goods.reference, purchase_order: null, receipt_of_goods: goods,
+    invoice_line: { id: ln.invoice_line, line: ln.line, reference: ln.reference, supplier: ln.supplier, amount: ln.amount, currency: st.currency, state: ln.state, payment: ln.payment },
+    match: false, mismatches: wrong, recorded: null };
 }
 /** statement.answers: what whoever approves the invoice asks, answered in order: [[question, answer]]. */
 export function statementAnswers(st, status = null) {
@@ -445,9 +474,10 @@ export async function statementCells(st, status = null) {
     ["evidence", `${ev.embedded !== null && ev.embedded !== undefined ? "inside the statement" : "in a file beside the statement"}; ${ev.signed.length ? `signed through GitHub by the ${ev.signed.join(" and the ")}` : "not signed"}`],
     ["status sha256", events.length ? await sha256Hex(canonicalText(status)) : "none recorded"]];
   const rows = statementLines(st, status).map((r) => [String(r.line), r.reference, r.supplier, LINE_WORDS[r.state], r.amount, r.why, r.deliverable, r.evaluations.join(" "),
-    r.invoice_line, r.settlement || "", PAY_WORDS[r.payment], r.evidence, r.evidence_sha256, r.duplicate_of]);
+    r.invoice_line, r.settlement || "", PAY_WORDS[r.payment], r.evidence, r.evidence_sha256, r.duplicate_of, r.assurance, r.po_reference, r.grn_reference]);
   const totals = ["billed", ...LINE_STATES].map((name) => [name === "billed" ? name : LINE_WORDS[name], String(st.totals[name].lines), st.totals[name].amount]);
   const recorded = events.map((e) => (e.type === "approval" ? ["approval", e.on, `${e.by} (${e.role})`, `${e.lines.length} agreed lines`, e.amount]
+    : e.type === "grn" ? ["goods-received note", e.on, e.line, grnSaid(e.grn), e.grn.reference]
     : ["settlement", e.on, e.line, `${PAY_WORDS[e.state]} by ${e.method}, reference ${e.reference}`, e.settlement]));
   return { top, head: [...STATEMENT_HEAD], rows, totals, answers: statementAnswers(st, status), events: recorded };
 }
@@ -469,9 +499,11 @@ export async function statementExport(fmt, st, status = null, options = null) {
     found.push({ bill: ln.state === "agreed", bill_no: await billNumber(ln.deliverable, ln.supplier), line: ln.line, state: words, payment: paid, date: st.date, supplier: ln.supplier,
       reference: ln.reference, amount: ln.amount, currency: st.currency, why: ln.why, deliverable: ln.deliverable, evaluations: ln.evaluations.join(" "), invoice_line: ln.invoice_line,
       settlement: ln.settlement || "", evidence: ln.evidence, evidence_sha256: ln.evidence_sha256, duplicate_of: ln.duplicate_of, statement_sha256: st.sha256,
+      po_reference: ln.po_reference, grn_reference: ln.grn_reference, assurance: ln.assurance,
       description: `Invoice ${st.invoice} line ${ln.line}: ${ln.reference}`.replace(/[: ]+$/, ""),
       memo: [`${words}, ${paid}`, `Knos statement sha256:${st.sha256}`, `deliverable ${ln.deliverable}`, `invoice line ${ln.invoice_line}`, ...ln.evaluations.map((e) => `evaluation ${e}`),
-        ln.settlement ? `settlement ${ln.settlement}` : ""].filter(Boolean).join(" | ") });
+        ln.settlement ? `settlement ${ln.settlement}` : "", ln.po_reference ? `PO ${ln.po_reference}` : "", ln.grn_reference ? `GRN ${ln.grn_reference}` : "",
+        `assurance ${ln.assurance}`].filter(Boolean).join(" | ") });
   }
   const billed = found.filter((b) => b.bill && b.amount), when = (b) => day(b.date, o.date_format || FORMATS[fmt].date);
   if (fmt === "netsuite") return csvOf([NETSUITE, ...billed.map((b) => [b.bill_no, b.supplier, when(b), b.bill_no, b.memo, o.account, b.amount, b.description])]);

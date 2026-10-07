@@ -4,13 +4,13 @@ Spoken, about 150 words, over one screen recording. Every number is in `docs/fac
 
 ## What shipped (0:00)
 
-*On screen: the price book, a supplier's record, then [MANIFEST.md](../MANIFEST.md) and [STORY.md](../STORY.md).*
+*On screen: the CHANGELOG's first lines, then the upgrade status and [STORY.md](../STORY.md).*
 
-This release changes one program, the escrow. The price is now one fee, on value released against a signed
-acceptance, and the supplier never pays. Two quorum findings are fixed, and their tests block a release. That
-build is in the tree; it is not proposed yet. A supplier gets a kit: a signed public record, a badge and a
-one-line install. One page, the release manifest, ties the source to the build live at each public program id,
-every capability's stage and the open limits. The story is six beats in three minutes.
+This release changes no program: nothing under the programs moved by a byte. Small tickets are netted: they settle
+as one release per supplier and period, so the fee's floor is paid once. Every receipt now says how much was
+verified, with a level computed from its evidence, never typed. Two builds were proposed and approved
+on 7 October, and the multisig's time lock lets each execute 48 hours after its approval; until they do, devnet
+runs the earlier ones. The demonstration now opens on a refusal.
 
 ## One number (0:30)
 

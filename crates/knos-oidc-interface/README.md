@@ -11,7 +11,7 @@ version, and off chain. It reads the second deployment of knos-oidc unless you n
 account has the same layout under both.
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.18" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.19" }
 ```
 
 ```rust
@@ -95,11 +95,11 @@ A program trusts one deployment for a given token account, and says which.
 | | |
 |---|---|
 | address (devnet), the second deployment | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`ID`, `ID_STR`; also `v2::ID`) |
-| instructions and accounts | [`idl/knos_oidc_v2.json`](../../idl/knos_oidc_v2.json) |
+| instructions and accounts | [`idl/knos_oidc_v2.json`](https://github.com/drexthealpha/Knos/blob/main/idl/knos_oidc_v2.json) |
 | address of the first deployment | `vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE` (`v1::ID`, `v1::ID_STR`) |
-| its instructions and accounts | [`idl/knos_oidc.json`](../../idl/knos_oidc.json) |
-| how a token gets on chain, and the trust root | [`docs/OIDC.md`](../../docs/OIDC.md) |
-| a complete consumer | [`examples/oidc_gate`](../../examples/oidc_gate) |
+| its instructions and accounts | [`idl/knos_oidc.json`](https://github.com/drexthealpha/Knos/blob/main/idl/knos_oidc.json) |
+| how a token gets on chain, and the trust root | [`docs/OIDC.md`](https://github.com/drexthealpha/Knos/blob/main/docs/OIDC.md) |
+| a complete consumer | [`examples/oidc_gate`](https://github.com/drexthealpha/Knos/tree/main/examples/oidc_gate) |
 
 ## Tests
 

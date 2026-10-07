@@ -1946,6 +1946,22 @@ def why_failed(why: BaseException) -> str:
     return _failed(None, why)["why"]
 
 
+def _someone_else(ledger, sigs: list[str], me: Pubkey) -> bool:
+    """Whether the newest of `sigs` (transactions the chain shows did a token's work, which this relay did not see
+    confirmed) was paid for by another key than `me`: another relayer carried the token, and this relay's own lost
+    transaction did not land. False when the ledger cannot tell (the answer before 0.3.19: the work counts as this
+    relay's own). Seen live in staging on 7 Oct 2026: two relayers sent one fund token in the same second; the loser
+    logged the winner's transaction as its own."""
+    find = getattr(ledger, "payer_of", None)
+    if not sigs or find is None:
+        return False
+    try:
+        who = find(sigs[-1])
+    except Exception:  # noqa: BLE001 - the cluster did not say: the answer stays as it was before this was asked
+        return False
+    return who is not None and str(who) != str(me)
+
+
 def _carry(ledger, payer: Keypair, plan: _Plan, again: Callable[[], _Plan]) -> dict:
     """Sends what the plan holds and answers with what the chain then shows. `again` plans the same token anew: after
     a failure it tells whether the chain shows the token's work all the same (a transaction reported lost had landed)."""
@@ -1974,6 +1990,10 @@ def _carry(ledger, payer: Keypair, plan: _Plan, again: Callable[[], _Plan]) -> d
             still = True
         except _Stop as stop:
             if stop.result.get("ok"):
+                if _someone_else(ledger, [s for s in stop.result.get("sigs", []) if s not in sigs], me):
+                    # another relayer's transaction did the token's work while this one was carrying it: "already", and
+                    # what this relay sent on the way (its verification) is named apart, so the log credits the winner
+                    return {**stop.result, "already": True, "spent": sigs}
                 return {k: v for k, v in {**stop.result, "sigs": list(dict.fromkeys([*sigs, *stop.result.get("sigs", [])]))}.items() if k != "already"}
         except Exception:  # noqa: BLE001, S110 - the cluster is not answering: the failure stands, and is tried again
             pass

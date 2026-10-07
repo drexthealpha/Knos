@@ -1,4 +1,4 @@
-# Release manifest: Knos 0.3.18
+# Release manifest: Knos 0.3.19
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -8,7 +8,7 @@ limits still open. `python scripts/release_manifest.py` writes it from the files
 
 ## Source
 
-- Release: Knos 0.3.18 (`pyproject.toml`). Tag: [`v0.3.18`](https://github.com/drexthealpha/Knos/tree/v0.3.18); `git rev-list -n 1 v0.3.18` prints its commit. A file
+- Release: Knos 0.3.19 (`pyproject.toml`). Tag: [`v0.3.19`](https://github.com/drexthealpha/Knos/tree/v0.3.19); `git rev-list -n 1 v0.3.19` prints its commit. A file
   cannot hold the hash of the commit that holds it.
 - Cluster: Solana devnet. The money is test USDC. Mainnet is not touched.
 
@@ -20,8 +20,8 @@ not run: the public id runs the build in the third column until it does.
 
 | program | public program id | LIVE at that id | hash at that id | its proposal | the proposal's verified build hash | built from |
 |---|---|---|---|---|---|---|
-| knos_oidc | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | knos_oidc 2.1 | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` (the proposal's build) | 3: executed | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` | [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5), run `37237561915` |
-| knos_pay | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | knos_pay 2.1 | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` (the proposal's build) | 4: executed | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` | [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5), run `37237561915` |
+| knos_oidc | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | knos_oidc 2.1 | `3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d` (not the proposal's build) | 7: pending | `a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632` | [`f03ec51`](https://github.com/drexthealpha/Knos/commit/f03ec515d8666c46e3fdc6bb0123bc0786d5dd75), run `37523515307` |
+| knos_pay | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | knos_pay 2.1 | `2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507` (not the proposal's build) | 8: pending | `8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c` | [`f8bcd9d`](https://github.com/drexthealpha/Knos/commit/f8bcd9d51eda5e093cc92b0bcf0c8cc3676fa556), run `37589002080` |
 | knos_meter | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | knos_meter 1.1 | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` (the proposal's build) | 5: executed | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` | [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5), run `37237561915` |
 | knos_passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | knos_passkey 1.1 | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` (the proposal's build) | 6: executed | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` | [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5), run `37237561915` |
 | upgrade_gate | `2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW` | upgrade_gate 1.0 | not read | none | none | none |
@@ -35,7 +35,10 @@ shows whether it changed. Each link of each chain is in [PROVENANCE.md](PROVENAN
 Upgrade multisig `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK`, 2 of 3. From `web/upgrades.json`; when each can
 execute is its `earliest_execution_utc` there.
 
-None: web/upgrades.json lists no pending proposal.
+| proposal | program | would deploy build | approvals |
+|---|---|---|---|
+| 7 (`73mz8V7F42yLx8ZBXBbikP6nfiozxPC4gY8AREiEczwh`) | knos_oidc | `a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632` | 2 of 2 |
+| 8 (`B2Zp53Drtu8H16WBMApdcKa7zBcVjQzqsDo9s3pmw4e6`) | knos_pay | `8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c` | 2 of 2 |
 
 ## Capabilities: the stage of each, with its evidence
 
@@ -205,6 +208,20 @@ public program ids. The note of each capability and every lower stage's evidence
 | `agent_pays_agent` | tested locally | [`tests/test_agent_pays_agent.py`](../tests/test_agent_pays_agent.py) |
 | `upstream_gate` | tested locally | [`tests/test_upstream_check.py`](../tests/test_upstream_check.py) |
 | `claim_guard` | tested locally | [`tests/test_claim_guard.py`](../tests/test_claim_guard.py) |
+| `netted_settlement` | tested locally | [`tests/test_netting.py`](../tests/test_netting.py) |
+| `third_party_advance` | tested locally | [`tests/test_advance_offer.py`](../tests/test_advance_offer.py) |
+| `record_lookup_paid` | tested locally | [`tests/test_record_api.py`](../tests/test_record_api.py) |
+| `test_usdc_faucet` | tested locally | [`tests/test_faucet.py`](../tests/test_faucet.py) |
+| `funded_task_board` | tested locally | [`tests/test_task_board.py`](../tests/test_task_board.py) |
+| `claim_guard_worker` | tested locally | [`tests/test_claim_guard.py`](../tests/test_claim_guard.py) |
+| `relay_notes_log` | tested locally | [`tests/test_relayq.py`](../tests/test_relayq.py) |
+| `own_reproduction_path` | tested locally | [`tests/test_reproduce.py`](../tests/test_reproduce.py) |
+| `receipt_assurance` | tested locally | [`tests/test_assurance.py`](../tests/test_assurance.py) |
+| `declared_control` | tested locally | [`tests/test_assurance.py`](../tests/test_assurance.py) |
+| `goods_received_note` | tested locally | [`tests/test_assurance.py`](../tests/test_assurance.py) |
+| `supplier_completes` | tested locally | [`tests/test_supplier_completes.py`](../tests/test_supplier_completes.py) |
+| `upgrade_gate_adoption` | tested locally | [`tests/test_gate_adopt.py`](../tests/test_gate_adopt.py) |
+| `registry_plan` | tested locally | [`tests/test_gate_adopt.py`](../tests/test_gate_adopt.py) |
 
 ## Outstanding limits
 

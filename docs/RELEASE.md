@@ -4,33 +4,103 @@ ONE commit and ONE push to `drexthealpha/Knos`. Everything that can fail is done
 the operator's machine, and every command below can be run again after a failure: each reads what is already there
 and does only what is missing.
 
-This page is the plan for 0.3.18. The tools enforce the order: a step run too early stops and says which step comes
+This page is the plan for 0.3.19. The tools enforce the order: a step run too early stops and says which step comes
 first.
 
-What the release run does for 0.3.18, in order, each thing once. Nothing in it waits on a clock:
+0.3.19 changes no program: `programs-v2/`, `programs/`, `idl/` and the test builds are byte for byte those of 0.3.18,
+and the two builds that tree made (knos_oidc 2.2, knos_pay 2.2) are proposals 7 and 8 of the upgrade multisig
+already. So this release proposes nothing, and it waits for nothing. What the release run does, in order, each thing
+once:
 
-1. **`status`: what do the public program ids run?** Proposals 3 to 6 (knos_oidc 2.1, knos_pay 2.1, knos_meter 1.1,
-   knos_passkey 1.1) executed before this release's commit. `python scripts/exercise_public.py status` exits 0 when
-   all four run those builds.
-2. **If 0: the rounds, then `record`.** Every round of `scripts/exercise_public.py` on the PUBLIC ids, in test USDC.
-   `record` writes the manifest, the documents and the demo from that PUBLIC evidence, and moves a program's version
-   only where the hash on chain is its proposal's build.
-3. **The staging rehearsal of BOTH new builds**: knos_oidc (strict JSON and ES256) and knos_pay (one fee of 0.30% with
-   a floor of 0.05, and the two quorum fixes), on staging ids, with `python scripts/exercise_public.py rehearse --rc`.
-4. **ONE commit**, PyPI, **ONE push**, the tag, by the order below: staging; the wheel; the lock; the workflows; the
+1. **`status --want 2.2`: have proposals 7 and 8 executed?**
+   `python scripts/exercise_public.py status --rpc https://api.devnet.solana.com --want 2.2 --json` names each live
+   build by its hash and exits 0 only when knos_oidc and knos_pay run the builds of proposals 7 and 8.
+2. **If 0: the after rounds, then `record`, before the commit.** `python scripts/exercise_public.py run --phase
+   after --rpc <rpc> --keys <keys>`, then `record --keys <keys> --rpc <rpc>` ("0.3.19: the after rounds", below).
+3. **If 3: ship without them.** Nothing is marked exercised, no version moves, and the same two commands run on a
+   later day. Exit 1 is neither: read what it printed before anything else.
+4. **Either way, `run --resume`** finishes what 0.3.18's rounds left for the chain's clock, when its time has come: the
+   holdback's release, and the refund of the second order of the round `order`. It prints, per round, `due now` or
+   `not due before <time>`, and sends only what is due.
+5. **ONE commit**, PyPI, **ONE push**, the tag, by the order below: staging; the wheel; the lock; the workflows; the
    stamp; the test count; the private gate; ONE commit; PyPI; ONE push; the tag.
-5. **`propose`: ONE proposal set, `[knos_oidc, knos_pay]`,** after the push, from the verified builds of the pushed
-   commit; then `bash scripts/schedule_upgrade.sh`; then `knos status` shows both pending.
-6. **Publishes no crate.** The four programs and the two interface crates are held at 0.3.14
-   (`scripts/bump_version.py`, `PROGRAMS_FROZEN`), and neither interface crate is on crates.io
-   ("Publishing the crates and the npm package").
+6. **No `propose`.** `python scripts/exercise_public.py propose ...` refuses in this release, before it reads
+   anything: `refused: this release proposes nothing.` The sections below that describe a proposal set are the record
+   of how proposals 7 and 8 were made, kept for the next release that changes a program.
+7. **The crates and the npm package: only from a machine that is already signed in** ("Publishing the crates and the
+   npm package"). No account is created and no sign-in is started by the release run.
+8. **The repository as a stranger is served it**, logged out ("After the push: logged out", below).
 
-**If `status` exits 3** (it should not now): steps 2 and 5 are skipped, nothing is marked exercised, the demo keeps
-its staging label, and everything else ships, as 0.3.17 did. They are run later by the same commands.
+**Nothing in the release waits for a clock.** A round that needs time records `needs time: <when>` and is finished
+by `--resume` on another day.
 
-**Nothing in the release waits for a clock.** A round that needs a day (a holdback's warranty) records
-`needs time: <when>` and is finished by `--resume` on another day. The new proposals' own 48 hours are waited for by
-nothing: the site and `knos status` say when they execute.
+## 0.3.19: the after rounds
+
+Before proposals 7 and 8 execute, once, while knos_pay 2.1 is still live:
+
+```
+python scripts/exercise_public.py run --phase before --rpc https://api.devnet.solana.com --keys <keys>
+```
+
+It funds two orders of the run's own wallet under 2.1 (the 2.1 fee on each), one open for six hours past the
+arranged execution and one for half an hour past it, and keeps each order's account byte for byte. An order that is
+reserved for someone else is never used for this: the step reads only the orders its own evidence file funded. If
+it was not run in time, the step `stored_fee` says `cannot` and why; the order the 0.3.18 round funded under 2.1
+still goes back with its stored fee through `run --resume`.
+
+After they execute (`status --want 2.2` exits 0), and only then (otherwise: exit 3, `nothing was sent`):
+
+```
+python scripts/exercise_public.py run --phase after --rpc https://api.devnet.solana.com --keys <keys> [--neutral <owner>/<repo>]
+python scripts/exercise_public.py record --keys <keys> --rpc https://api.devnet.solana.com
+```
+
+| step | what it sends and checks | how it can end |
+|---|---|---|
+| `stored_fee` | the two orders funded under 2.1 read as written; a proof pays one, the other goes back at its deadline, each with the fee it was funded with | `ok`; `needs run: prove.yml` (no proof yet); `needs time`; `cannot` (no order was funded before) |
+| `one_rate` | three wallet orders: the fee read from each order's account is the one rate with its floor; all three go back after a minute | `ok`; `cannot` (the wallet cannot carry them) |
+| `one_owner` | a quorum of two, one owner behind both runs: nothing is paid, and the relay's answer (the workflow's comment) says why | `ok`; `needs run: prove.yml and attest.yml` |
+| `two_owners` | a quorum of two, two owners: pays | `ok`; `cannot: needs a second repository owner` unless `--neutral` names a repository of another owner, which is read and never written to |
+| `earlier_marker` | a marker of the order before counts for nothing for one funded again | `ok` on the simulator; `cannot` on devnet, whose clock cannot be arranged |
+| `grace` | an order with the presentation grace and a two-minute deadline: its refund right after the deadline is refused on chain; when the grace is over it goes back | `ok`; `needs time: <the end of the grace>` |
+| `strict` | a NaN claim under a private key of the run's own wallet is refused by the verifier's not-JSON error; the same token with a number is verified | `ok` |
+| `es256` | the run's own wallet registers a P-256 key as its private key; a token that key signed, as long as one transaction carries, is verified in one transaction; the same token again is refused because its account exists | `ok` |
+| `after_close` | every order of these steps still open goes back at its deadline | `ok`; `needs time` |
+
+`record` moves a stage only on a transaction that succeeded at a public program id, and a program's version only
+where the hash read at its public id is the build of its proposal (the feed's entry for proposal 7 or 8, or the
+multisig's own word that it executed together with how the build's hash begins). The same steps run end to end on
+the local simulator, with no key and no network: `python scripts/exercise_public.py run --simulate --phase after
+--out <file>` starts on the test build of the live source, funds the two orders, upgrades in place and runs the
+rest; `tests/test_exercise_public.py` runs it.
+
+**The site and the feed.** `python scripts/upgrade_feed.py --published` reads the multisig and then the site's own
+`upgrades.json`, and exits 1 with one line per proposal the site is behind on. The site's copy is written when the
+site is built, so after a proposal is made or executed it is behind until the pages workflow has run:
+`gh workflow run network.yml --repo drexthealpha/Knos --ref main`, then the same command again.
+
+**The scheduled run.** `bash scripts/schedule_upgrade.sh --show` says what is arranged, whether the key files and
+the Node packages are there now, and the log's last lines. `bash scripts/schedule_upgrade.sh --verify` is a dry
+trigger: it starts what the timer starts (a login shell with a bare environment, then the env file), installs the
+Node packages when they are missing, loads them, sends nothing, and exits 0 when the run would start. The run
+itself does the same check first: with `scripts/node_modules` missing it runs `npm ci --prefix scripts
+--omit=optional` and goes on; when the packages cannot be had it sends nothing and ends with exit 1 and one line
+starting `stopped:`. Every line it writes into `<key folder>/upgrade-run.log` starts with the time.
+
+## After the push: logged out
+
+What a stranger is served is checked without a session, from a shell with no GitHub token in its environment:
+
+```
+curl -sS -o /dev/null -w "%{http_code}\n" https://github.com/drexthealpha/Knos                  # 200: public. 404: private, or renamed
+curl -sS https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md | sha256sum
+git show HEAD:README.md | sha256sum                                                             # the same hash as the line above
+curl -sS https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md | head -n 30         # read the first screen as it is served
+```
+
+Then the repository's page in a private browser window: the README renders, its first screen is the one of the
+commit, every link on it opens, and the release named `v0.3.19` is the latest. Fine: all four. Not fine: the hash
+differs (the push did not land, or a cache: wait a minute and run it again) or the page asks to sign in.
 
 ## Why there is an order
 
@@ -249,6 +319,8 @@ Knos's own, with the public worker relaying.
 
 ## The chain: ONE proposal set of two programs, proposed after the push
 
+This section is the record of how 0.3.18 made proposals 7 and 8. 0.3.19 proposes nothing: `propose` refuses.
+
 0.3.18 changes TWO programs, proposed together as one set, `[knos_oidc, knos_pay]`:
 
 - **knos_oidc** is the build 0.3.17 made and rehearsed and could not propose: the strict JSON reader (`strict.rs`)
@@ -400,14 +472,14 @@ Two rules, each learned from a release that broke it:
 export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
 python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
 git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.18 && git push origin v0.3.18        # starts release.yml
+git tag v0.3.19 && git push origin v0.3.19        # starts release.yml
 ```
 
 `publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
 on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.18` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.19` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
 
 **Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that
@@ -450,8 +522,20 @@ Before anything is uploaded, on the release commit (each prints what would be up
 (cd sdk/settle && node test.mjs && npm pack --dry-run && npm publish --dry-run)
 ```
 
-0.3.18 does not make this first publish: the two crates are held at 0.3.14 and their jobs are green with a notice.
-The first publish, whenever the owner makes it, after a tag's tests passed:
+0.3.19 makes this first publish if and only if the release machine is ALREADY signed in to the registry, and it
+finds that out without starting a sign-in:
+
+```
+[ -n "${CARGO_REGISTRY_TOKEN:-}" ] || [ -s "${CARGO_HOME:-$HOME/.cargo}/credentials.toml" ] && echo "crates.io: signed in" || echo "crates.io: not signed in: skip the crates"
+npm whoami >/dev/null 2>&1 && echo "npm: signed in as $(npm whoami)" || echo "npm: not signed in: skip knos-settle"
+```
+
+Signed in: after the tag's tests passed, the two `cargo publish --locked` lines and the `npm publish` line below,
+without the `login` and `logout` lines around them. Not signed in: nothing is published, no account is created,
+`cargo login` and `npm login` are not run, and the jobs stay green with their notice. The crates are published at
+the version they are held at (0.3.14: `scripts/bump_version.py`, `PROGRAMS_FROZEN`), since their bytes did not change.
+
+The first publish by the owner, signing in for it:
 
 ```
 cargo login                                    # opens crates.io: sign in with GitHub, create a token, paste it
@@ -490,6 +574,8 @@ Until the first publish, the crates install as git dependencies and the client f
 ([INSTALL.md](INSTALL.md)).
 
 ## After the pending upgrade: the ONE proposal set
+
+This section is the record of how 0.3.18 made proposals 7 and 8. 0.3.19 proposes nothing: `propose` refuses.
 
 The pushed commit changes `programs-v2/knos_pay` (and holds the knos_oidc build no proposal has carried yet), so
 `program.yml` runs on main: it makes the verified build of each program and its `gate` job has GitHub sign the hash of
@@ -613,4 +699,8 @@ None of these runs is written into this release's commit ("Nothing after the pus
 | a round ends `needs time: <when>` | the chain's clock: a warranty or a deadline | go on with the release; `run --resume` after that time |
 | `deploy_v2.sh --propose`: the upgrade gate holds no record of this build | `program.yml`'s gate job or the relay has not finished, or the file is not the run's artifact | let the run finish and run it again; the buffer is written and stays |
 | the scheduled run says a proposal was NOT executed | too early, cancelled, or the machine was off | read the log; `bash scripts/schedule_upgrade.sh --run` |
+| the scheduled run ends `stopped: the upgrade run did not start and nothing was sent: ...` | the Node packages of `scripts/` were missing and `npm ci` could not install them (no npm on the run's PATH, or no network) | `npm ci --prefix scripts`, then `bash scripts/schedule_upgrade.sh --run`; `--verify` shows the same before the time comes |
+| `status --want 2.2` exits 3 | proposal 7 or 8 has not executed; the line names which, in the multisig's word | ship without the after rounds; run them on a later day |
+| `run --phase after` prints `nothing was sent` and exits 3 | the public ids do not run the builds of proposals 7 and 8 | the same: later |
+| `upgrade_feed.py --published` exits 1 | the site was built before a proposal was made or executed | `gh workflow run network.yml --repo drexthealpha/Knos --ref main`, then the same command |
 | the scheduled run CANNOT START: a key file cannot be read | the drive or mount that holds it was not there | mount it (open a terminal: the profile does), then `bash scripts/schedule_upgrade.sh --run` |

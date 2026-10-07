@@ -230,7 +230,7 @@ def _dispute(d, doc) -> dict:
 
 
 def _evaluators(d, doc) -> dict:
-    d = _keys(d, "evaluators", ("quorum", "list"))
+    d = _keys(d, "evaluators", ("quorum", "list"), ("related",))
     quorum = _int(d["quorum"], 1, 3, "`evaluators.quorum`")
     if not isinstance(d["list"], list) or (not d["list"] and doc.get("built", True)):
         raise Refused("`evaluators.list` names at least one evaluator")
@@ -253,7 +253,30 @@ def _evaluators(d, doc) -> dict:
         raise Refused(f"`evaluators`: a quorum of {quorum} needs {quorum} evaluators whose owners differ; these have "
                       f"{len(set(owners))} owner{'' if len(set(owners)) == 1 else 's'} ({', '.join(sorted(set(owners))) or 'none'}). "
                       "Two judges with one owner are one judge.")
-    return {"quorum": quorum, "list": sorted(rows, key=lambda r: r["name"])}
+    out = {"quorum": quorum, "list": sorted(rows, key=lambda r: r["name"])}
+    if "related" in d:      # optional (0.3.19): accounts the parties declare to be one party. Terms without it are the terms they were
+        out["related"] = _related(d["related"])
+    return out
+
+
+def _related(value) -> list[list[int]]:
+    """`evaluators.related` in its one written form: groups of account ids (the forge's numeric ids) that are one party,
+    merged where they overlap, in rising order (knos.receipt.related). An empty list is not written: leave the key out."""
+    from . import receipt
+    try:
+        groups = receipt.related(value)
+    except ValueError:
+        groups = []
+    if not groups:
+        raise Refused("`evaluators.related` lists the accounts declared to be one party, by their numeric ids: [[7001, 8002], ...]. "
+                      "With none to declare, leave the key out.")
+    return groups
+
+
+def declared(doc: dict) -> list[list[int]]:
+    """The control relationships a terms 3 document declares (`evaluators.related`), for knos.receipt.build5 and
+    assurance_of; [] for terms that declare none. Two evaluators the terms declare related never count as two."""
+    return [list(g) for g in validate(doc, strict=False)["evaluators"].get("related", [])]
 
 
 def _price(d, _doc) -> dict:
@@ -345,7 +368,9 @@ def say(field: str, d: dict, is_built: bool = True) -> str:
                          + ("any repository that neither party owns" if e["repository"] == ANYONE else f"{e['repository']}, owned by {e['owner']}") + ")"
                          for e in d["list"])
         need = "One of them is enough." if d["quorum"] == 1 else f"{d['quorum']} of them must accept the same work, and their owners differ."
-        return f"These may judge: {rows}. {need}"
+        one = ("" if not d.get("related") else " Declared to be one party, so never two evaluators: "
+               + "; ".join("accounts " + ", ".join(str(i) for i in g[:-1]) + f" and {g[-1]}" for g in d["related"]) + ".")
+        return f"These may judge: {rows}. {need}{one}"
     if field == "price":
         return f"Pays {d['amount']} {d['currency']}, once, for an accepted deliverable. The funder pays the fee on top."
     if field == "deadline":
@@ -561,6 +586,8 @@ def diff(a: dict, b: dict) -> list[tuple[str, str]]:
     _set(ev(ea), ev(eb), "evaluators", "An evaluator may now judge:", "An evaluator may no longer judge:", out)
     if ea["quorum"] != eb["quorum"]:
         out.append(("evaluators", f"How many evaluators must agree changed: {ea['quorum']} before, {eb['quorum']} now."))
+    if ea.get("related", []) != eb.get("related", []):
+        out.append(("evaluators", f"The accounts declared to be one party changed: {ea.get('related') or 'none'} before, {eb.get('related') or 'none'} now."))
     if a["price"] != b["price"]:
         out.append(("price", f"The price changed: {a['price']['amount']} {a['price']['currency']} before, {b['price']['amount']} {b['price']['currency']} now."))
     if a["deadline"]["days"] != b["deadline"]["days"]:

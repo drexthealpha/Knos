@@ -9,6 +9,9 @@ reproductions, wherever Knos states one, is the number of `.json` files here and
 account of `scripts/own_github_ids.json`, or in a repository of drexthealpha, is refused by the same check that
 accepts everyone else's. So no capability in [docs/capabilities.json](../docs/capabilities.json) is `reproduced`.
 
+Knos's own runs of the same path are kept apart in [`own/`](own/README.md) (0 files today). They are not
+reproductions: no count reads that folder, and a file there gives no capability.
+
 A file here is checked three times, never by taking anyone's word:
 
 1. When it arrives, `.github/workflows/reproductions.yml` checks GitHub's signature on the token, that the token's

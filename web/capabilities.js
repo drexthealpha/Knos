@@ -57,8 +57,10 @@ export function renderCapabilities(el, data) {
   if (doc && !doc.getElementById("capabilities-style")) { const s = doc.createElement("style"); s.id = "capabilities-style"; s.textContent = STYLE; doc.head.appendChild(s); }
   const n = counts(data), total = (data?.capabilities || []).length;
   const options = [["all", `Every stage (${total})`], ...[...STAGES, "none"].map((s) => [s, `${STAGE_WORDS[s]} (${n[s]})`])];
-  el.innerHTML = `<p><label>Show <select class="capabilities-stage">${options.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("")}</select></label></p>
-    <div class="capabilities-table">${tableHtml(data, "all")}</div>
+  // The page opens on what has run on devnet, the strongest stage with rows: every stage at once is a wall, one choice away.
+  const first = n.exercised ? "exercised" : "all";
+  el.innerHTML = `<p><label>Show <select class="capabilities-stage">${options.map(([v, t]) => `<option value="${esc(v)}"${v === first ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></label></p>
+    <div class="capabilities-table">${tableHtml(data, first)}</div>
     <p class="fine" data-fold="What a stage means">A stage is the highest one with evidence, and needs the ones below it: a source file, a test, the on-chain version that carries it,
       a transaction on devnet, someone else's run. Everything is on Solana devnet, in test USDC.</p>
     <p class="fine capabilities-manifest"><a href="${REPO}docs/MANIFEST.md" target="_blank" rel="noopener">See source, deployed bytes and limits on one page.</a></p>`;

@@ -26,6 +26,8 @@
 <!-- The first screen's control comes before the mark on a phone, and its answer before the mark too (web/front_door.js). -->
 <link rel="alternate" type="application/atom+xml" title="Knos: upgrade proposals of the programs" href="upgrades.xml">
 <link rel="alternate" type="application/atom+xml" href="index.atom" title="Agent PR Index">
+<!-- 0.3.19: under the sentence, one line: what a customer gets; the number follows it. Here, not in app.css, whose budget is spent. From 900 px the top margin is 28 px, so the upgrade line sits 2 px down and 24 px tall, inside it. -->
+<style>.hero .hero-fact { text-wrap: pretty; } .hero .hero-outcome { font-size: var(--s2); line-height: 1.35; font-weight: 500; color: var(--ink); max-width: 26em; margin: 0 0 8px; text-wrap: balance; } .hero .hero-fact { margin-bottom: 16px; } .hero .hero-board { margin-top: 16px; } .hero h1 { margin-bottom: 12px; } .hero .hero-fact .k-num { color: var(--ink); font-weight: 600; } @media (min-width: 900px) { .hero { padding-top: 28px; } .hero-upgrades { top: 2px; } .hero-upgrades > summary { padding-block: 2px; } }</style>
 </head>
 <body>
 <a class="k-skip" href="#fd-in">Skip to the invoice box</a>
@@ -34,7 +36,7 @@
   <nav id="nav" aria-label="Sections">
     <!-- Six links in the bar; the rest are under "More". A link with data-mount is a page a module fills: web/front.js
          shows the link when this build has that page. Without scripts every link is a plain link of the bar. -->
-    <a href="#check">Check an invoice</a>
+    <a href="#check">Check</a>
     <a href="#demo">Demo</a>
     <a href="#buy" data-mount="buy" hidden>Console</a>
     <a href="#index" data-mount="index" hidden>Leaderboard</a>
@@ -85,7 +87,8 @@
     <div class="hero k-stage">
       <div class="hero-words">
         <h1 id="check">The neutral meter for AI agent work: neither side keeps the count.</h1>
-        <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: 30 had a failed check.</p>
+        <p class="hero-outcome" id="hero-outcome">Buyers and suppliers close invoices on evidence both can verify.</p>
+        <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: <span class="k-num">30</span> had a failed check.</p>
         <form id="front-door" class="fd">
           <textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
           <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <button type="button" class="k-btn quiet" data-fd="sample">Try a sample</button></p>
@@ -327,7 +330,7 @@
               <p class="fine">Prefilled with Circle's devnet test USDC. SPL Token and Token-2022 mints work; a mint that
                 can block or tax a transfer is refused by the program.</p>
             </details>
-            <button type="submit" id="owner-go">Look it up</button>
+            <button type="submit" id="owner-go" class="k-btn quiet">Look it up</button>
           </form>
           <div id="owner-result" role="status" aria-live="polite"></div>
         </li>
@@ -524,7 +527,7 @@
         <input id="pk-dest" type="text" autocomplete="off" spellcheck="false" placeholder="a wallet address that holds test USDC">
         <label for="pk-login">Your GitHub login (the repository is <code>your-login/knos-claim</code>)</label>
         <input id="pk-login" type="text" autocomplete="off" placeholder="octocat">
-        <button type="submit" id="pk-sign">Sign a withdrawal</button>
+        <button type="submit" id="pk-sign" class="k-btn quiet">Sign a withdrawal</button>
         <div id="pk-request" role="status" aria-live="polite"></div>
       </form>
       <details id="pk-keep">
@@ -559,8 +562,8 @@
       <div class="table-wrap"><table id="price-book"><thead><tr><th>Line</th><th>Unit</th><th>Price</th><th>Who pays</th><th>Where it is enforced</th></tr></thead><tbody>
         <tr><th scope="row">Check</th><td>pull request or artifact checked</td><td>free, forever</td><td>nobody</td><td>nowhere</td></tr>
         <tr><th scope="row">Meter</th><td>evaluation</td><td>100,000 a month free per organisation, then 0.002 USD</td><td>buyer</td><td>prepaid credits</td></tr>
-        <tr><th scope="row">Acceptance</th><td>dollar released or reconciled against a signed acceptance</td><td>0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap</td><td>funder, on top of the amount</td><td>knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)</td></tr>
-        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the hosted API</td><td>0.25 USD, or by subscription (the public record page and its file are free)</td><td>the buyer, marketplace or insurer reading it</td><td>API (not built: a static file today)</td></tr>
+        <tr><th scope="row">Acceptance</th><td>dollar released or reconciled against a signed acceptance</td><td>0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap</td><td>funder, on top of the amount</td><td>knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)</td></tr>
+        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the machine-priced API</td><td>0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free</td><td>the buyer, marketplace or insurer reading it</td><td>API (not built: a static file today)</td></tr>
         <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td><td>buyer</td><td>contract</td></tr>
         <tr><th scope="row">Pilot</th><td>one buyer, two suppliers, 30 days, one reconciled invoice</td><td>2,500 USD, credited against year one</td><td>buyer</td><td>contract</td></tr>
       </tbody></table></div>

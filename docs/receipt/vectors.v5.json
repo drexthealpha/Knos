@@ -1,0 +1,1378 @@
+{
+ "note": "Conformance vectors of the acceptance receipt, version 5 (docs/RECEIPT.md, Version 5). A reader must accept every receipt of `valid_v5`, compute its digest and say its `assurance` level from the receipt's own evidence, and refuse every one of `invalid_v5`: `of` is the index of the valid receipt it was made from and `set` the fields changed (dotted paths). `verdict` and `authorises_payment` are as in version 4.",
+ "valid_v5": [
+  {
+   "name": "reported: version 4's first receipt as version 5; the order's own repository judged and nobody ran the suite again",
+   "sha256": "667e95abef310e4f3deca30bdca674f12cd203787080ec531d516efb921eb76c",
+   "verdict": "accepted",
+   "authorises_payment": true,
+   "assurance": "reported",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "localnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+    "repository": {
+     "id": 987654321,
+     "issue": 77
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "555000",
+      "event_name": "pull_request_target",
+      "exp": 1790003880,
+      "iat": 1790003580,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "repository_id": "987654321",
+      "repository_owner_id": "424242",
+      "run_attempt": "1",
+      "run_id": "36905461215",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "uiy2jsRXoDV8p9AB2zSuwmYvPqAREwfiThScSKFgTdx4dVa473s3HjkAwPRPZ9ecArMYcCbzWAE9aVP96f3Ywme"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "repository",
+      "version": "cccccccccccccccccccccccccccccccccccccccc"
+     },
+     "verdict": "accepted",
+     "checks": [
+      {
+       "name": "build",
+       "conclusion": "passed"
+      },
+      {
+       "name": "test",
+       "conclusion": "passed"
+      }
+     ],
+     "artifact": {
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pull_request": 12
+     },
+     "evaluators": [
+      {
+       "kind": "repository",
+       "repository_id": 987654321,
+       "owner_id": 424242,
+       "actor_id": 555000,
+       "runner": "github-hosted",
+       "independent_of_buyer": false,
+       "independent_of_seller": true
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+     "mode": "merge",
+     "allowed_paths": [
+      "src/**"
+     ],
+     "denied_paths": [
+      ".github/**",
+      ".knos/**"
+     ],
+     "version": 1
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": 424242,
+      "login": "octo",
+      "wallet": null
+     },
+     "source": {
+      "kind": "balance",
+      "address": "7tj9biW3KRJ7EEWmVUGigHiouCTXhV2dzcyvwma7Cyu7",
+      "owner_id": 424242
+     },
+     "limit": {
+      "cap_per_order": "50000000",
+      "daily": "200000000",
+      "total": "0",
+      "repositories": [
+       987654321
+      ]
+     },
+     "role": "owner",
+     "deliverable": {
+      "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "32acN4jvkNEGnU1QuTZx2U8BFLdxJMfJPtyVHsDnvGxgnC8Kn9gVd6TpbofWWjCuXiEZyesEaSgHs3njsZxr3tLk"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 5550123,
+      "bps": 10000,
+      "amount": "20000000",
+      "to": "6JhaGdekBjU2RfiYWSjYdQAibx4LfSfTNFEeMUHnUVz7"
+     }
+    ],
+    "amounts": {
+     "mint": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+     "decimals": 6,
+     "paid": "20000000",
+     "of": "20000000",
+     "fee": "200000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "35uS8fqUd1ARccqYuFaEbZy2kbFHr9uGcWLSg8FP1358V5Y8EEThyu4USBfHEhMjxd3QMKoNUMtHuhtMYKBXWcye",
+     "slot": 412,
+     "time": 1790003600
+    },
+    "ids": {
+     "deliverable": "dlv_ad4acb4e779aaf12f543a1c5",
+     "evaluation": "evl_7c3636e8916258c8c46d87e2",
+     "invoice_line": "inv_c5fcc8d732962826861d6392",
+     "settlement": "stl_daf248cd02fe52a0997cdc95"
+    },
+    "evidence_source": {
+     "kind": "issuer_token",
+     "reference": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "signed_by": "https://token.actions.githubusercontent.com"
+    },
+    "limitations": [
+     "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+     "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+     "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+    ],
+    "disputed": null,
+    "assurance": {
+     "level": "reported",
+     "trusted": [
+      "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+      "The run that reported the result, and whoever controls its repository, its workflow and its runner: the result is that run's word.",
+      "The supplier, as far as the suite ran where the supplier's change could reach it.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": []
+    }
+   }
+  },
+  {
+   "name": "rerun: an arbiter outside the order's repository, no payee's account, ran the suite itself",
+   "sha256": "81fd011a97ff1c61beaefd688e4085da56bad90ca120a44b0a6e908393495613",
+   "verdict": "accepted",
+   "authorises_payment": true,
+   "assurance": "rerun",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "364uSBHxyBwRXFYEycWhSLp5yJDp3N8tXfZ9sQNnKzkSpHWmYbD2BQZQU2xWUyKVQYSh4RBhdbtpeWUFoXutgcgE"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "arbiter",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [],
+     "artifact": {
+      "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "pull_request": 31
+     },
+     "evaluators": [
+      {
+       "kind": "arbiter",
+       "repository_id": 880000001,
+       "owner_id": 31337,
+       "actor_id": 31337,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "880000001",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000003",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM"
+     },
+     "source": {
+      "kind": "passkey",
+      "address": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "passkey",
+     "deliverable": {
+      "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "39ZjdfzY6kAU4NinRZjwrDf3F3Rnx977wh8azVWdb3Z1Dr7cQ93nq13aCc5crsTPvD6m8Bq3u5oo1BzeNzKPgEcr"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    },
+    "ids": {
+     "deliverable": "dlv_35f31b71fd7e1a2624bea235",
+     "evaluation": "evl_6ca421db89b7447d3361f946",
+     "invoice_line": null,
+     "settlement": "stl_13e1e7ac4fc5b5d36b27dccd"
+    },
+    "evidence_source": {
+     "kind": "issuer_token",
+     "reference": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "signed_by": "https://token.actions.githubusercontent.com"
+    },
+    "limitations": [
+     "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+     "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect."
+    ],
+    "disputed": null,
+    "assurance": {
+     "level": "rerun",
+     "trusted": [
+      "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+      "The one evaluator that ran the suite again, its operator and its runner: nobody else repeated it.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": []
+    }
+   }
+  },
+  {
+   "name": "agreed: a neutral evaluator of another owner ran it too, and both passed",
+   "sha256": "7a53c392d11fa84ab83259dcc592222c8c8bcf7365713bf585da0e0c0f7c032c",
+   "verdict": "accepted",
+   "authorises_payment": true,
+   "assurance": "agreed",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "364uSBHxyBwRXFYEycWhSLp5yJDp3N8tXfZ9sQNnKzkSpHWmYbD2BQZQU2xWUyKVQYSh4RBhdbtpeWUFoXutgcgE"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "arbiter",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [],
+     "artifact": {
+      "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "pull_request": 31
+     },
+     "evaluators": [
+      {
+       "kind": "neutral",
+       "repository_id": 990000002,
+       "owner_id": 9001,
+       "actor_id": 9002,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "990000002",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000009",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      },
+      {
+       "kind": "arbiter",
+       "repository_id": 880000001,
+       "owner_id": 31337,
+       "actor_id": 31337,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "880000001",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000003",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      }
+     ],
+     "same_controller": false,
+     "independence": "The 2 judges have different owners and starters, by account id. An id is all that is recorded: two accounts run by one person are one judge, and no receipt can show that they are not."
+    },
+    "policy": {
+     "terms_hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM"
+     },
+     "source": {
+      "kind": "passkey",
+      "address": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "passkey",
+     "deliverable": {
+      "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "39ZjdfzY6kAU4NinRZjwrDf3F3Rnx977wh8azVWdb3Z1Dr7cQ93nq13aCc5crsTPvD6m8Bq3u5oo1BzeNzKPgEcr"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    },
+    "ids": {
+     "deliverable": "dlv_35f31b71fd7e1a2624bea235",
+     "evaluation": "evl_6ca421db89b7447d3361f946",
+     "invoice_line": null,
+     "settlement": "stl_13e1e7ac4fc5b5d36b27dccd"
+    },
+    "evidence_source": {
+     "kind": "issuer_token",
+     "reference": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "signed_by": "https://token.actions.githubusercontent.com"
+    },
+    "limitations": [
+     "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+     "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect."
+    ],
+    "disputed": null,
+    "assurance": {
+     "level": "agreed",
+     "trusted": [
+      "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+      "That the evaluators which agree are not one party behind accounts nobody declared related: ids and declarations are all that is compared.",
+      "The runners the evaluators ran on.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": []
+    }
+   }
+  },
+  {
+   "name": "rerun, not agreed: the terms declare the two evaluators' owners to be one party",
+   "sha256": "c967b1391f9a2683b008c4904f7dfdd78c3614c3d3652ae70d51e35dffb94fdd",
+   "verdict": "accepted",
+   "authorises_payment": true,
+   "assurance": "rerun",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "364uSBHxyBwRXFYEycWhSLp5yJDp3N8tXfZ9sQNnKzkSpHWmYbD2BQZQU2xWUyKVQYSh4RBhdbtpeWUFoXutgcgE"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "arbiter",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [],
+     "artifact": {
+      "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "pull_request": 31
+     },
+     "evaluators": [
+      {
+       "kind": "neutral",
+       "repository_id": 990000002,
+       "owner_id": 9001,
+       "actor_id": 9002,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "990000002",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000009",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      },
+      {
+       "kind": "arbiter",
+       "repository_id": 880000001,
+       "owner_id": 31337,
+       "actor_id": 31337,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "880000001",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000003",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      }
+     ],
+     "same_controller": false,
+     "independence": "The 2 judges have different owners and starters, by account id. An id is all that is recorded: two accounts run by one person are one judge, and no receipt can show that they are not."
+    },
+    "policy": {
+     "terms_hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM"
+     },
+     "source": {
+      "kind": "passkey",
+      "address": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "passkey",
+     "deliverable": {
+      "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "39ZjdfzY6kAU4NinRZjwrDf3F3Rnx977wh8azVWdb3Z1Dr7cQ93nq13aCc5crsTPvD6m8Bq3u5oo1BzeNzKPgEcr"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    },
+    "ids": {
+     "deliverable": "dlv_35f31b71fd7e1a2624bea235",
+     "evaluation": "evl_6ca421db89b7447d3361f946",
+     "invoice_line": null,
+     "settlement": "stl_13e1e7ac4fc5b5d36b27dccd"
+    },
+    "evidence_source": {
+     "kind": "issuer_token",
+     "reference": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "signed_by": "https://token.actions.githubusercontent.com"
+    },
+    "limitations": [
+     "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+     "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect."
+    ],
+    "disputed": null,
+    "assurance": {
+     "level": "rerun",
+     "trusted": [
+      "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+      "The one evaluator that ran the suite again, its operator and its runner: nobody else repeated it.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": [
+      [
+       9001,
+       31337
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "reported, not rerun: the terms declare the evaluator and a payee to be one party",
+   "sha256": "2a1a89b41347132a92b758b1e66f2588ee7789c651d34de348ce5cee46fdc4d1",
+   "verdict": "accepted",
+   "authorises_payment": true,
+   "assurance": "reported",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "364uSBHxyBwRXFYEycWhSLp5yJDp3N8tXfZ9sQNnKzkSpHWmYbD2BQZQU2xWUyKVQYSh4RBhdbtpeWUFoXutgcgE"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "arbiter",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "accepted",
+     "checks": [],
+     "artifact": {
+      "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "pull_request": 31
+     },
+     "evaluators": [
+      {
+       "kind": "arbiter",
+       "repository_id": 880000001,
+       "owner_id": 31337,
+       "actor_id": 31337,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "880000001",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000003",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      }
+     ],
+     "same_controller": false,
+     "independence": "One judge spoke."
+    },
+    "policy": {
+     "terms_hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM"
+     },
+     "source": {
+      "kind": "passkey",
+      "address": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "passkey",
+     "deliverable": {
+      "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "39ZjdfzY6kAU4NinRZjwrDf3F3Rnx977wh8azVWdb3Z1Dr7cQ93nq13aCc5crsTPvD6m8Bq3u5oo1BzeNzKPgEcr"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    },
+    "ids": {
+     "deliverable": "dlv_35f31b71fd7e1a2624bea235",
+     "evaluation": "evl_6ca421db89b7447d3361f946",
+     "invoice_line": null,
+     "settlement": "stl_13e1e7ac4fc5b5d36b27dccd"
+    },
+    "evidence_source": {
+     "kind": "issuer_token",
+     "reference": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "signed_by": "https://token.actions.githubusercontent.com"
+    },
+    "limitations": [
+     "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+     "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect."
+    ],
+    "disputed": null,
+    "assurance": {
+     "level": "reported",
+     "trusted": [
+      "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+      "The run that reported the result, and whoever controls its repository, its workflow and its runner: the result is that run's word.",
+      "The supplier, as far as the suite ran where the supplier's change could reach it.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": [
+      [
+       222,
+       31337
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "reported: a rejected run nobody signed; no issuer is among the trusted",
+   "sha256": "3e25266dac9c885332e9b051786c1effb7a63cb116729ba7f9df9c4ba7973bec",
+   "verdict": "rejected",
+   "authorises_payment": false,
+   "assurance": "reported",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "localnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "scope": "3ada113468f7cf3424704252860379fc4bc42653cb46236bc7fec4484b71f9dc",
+    "repository": {
+     "id": 987654321,
+     "issue": 77
+    },
+    "issuer_authenticated": null,
+    "evaluator_observed": {
+     "judge": {
+      "kind": "repository",
+      "version": "cccccccccccccccccccccccccccccccccccccccc"
+     },
+     "verdict": "rejected",
+     "checks": [
+      {
+       "name": "build",
+       "conclusion": "passed"
+      },
+      {
+       "name": "test",
+       "conclusion": "failed"
+      }
+     ],
+     "artifact": {
+      "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "pull_request": 13
+     },
+     "evaluators": [],
+     "same_controller": false,
+     "independence": "No issuer signed for this evaluator: who controls it is not recorded, and its independence of the buyer and the seller cannot be computed."
+    },
+    "policy": {
+     "terms_hash": "4d7df9bff60d312cce46c0ebf923575cc54e92181f4a38638154b2ebcbe17b81",
+     "mode": "tests",
+     "allowed_paths": [
+      "src/**"
+     ],
+     "denied_paths": [
+      ".github/**",
+      ".knos/**"
+     ],
+     "version": 1
+    },
+    "commercial_authorisation": null,
+    "trust_remaining": [
+     "The run's own record and wherever it is kept: nothing here is signed by an issuer.",
+     "The code of the workflow at the commit named above: it decides what counts as accepted. Read it at that commit."
+    ],
+    "amendments": [],
+    "payees": [],
+    "amounts": {
+     "mint": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+     "decimals": 6,
+     "paid": "0",
+     "of": "20000000",
+     "fee": "0",
+     "tip": "0"
+    },
+    "transaction": null,
+    "ids": {
+     "deliverable": "dlv_ad4acb4e779aaf12f543a1c5",
+     "evaluation": "evl_77909506260b3e3ec98e28f0",
+     "invoice_line": null,
+     "settlement": null
+    },
+    "evidence_source": {
+     "kind": "run_record",
+     "reference": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "signed_by": null
+    },
+    "limitations": [
+     "No issuer signed this: the verdict is the run's own record, and whoever controls the run or its record could have written another.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "The named checks are what was looked at, at this commit and in the run's own environment. Nothing outside them was looked at.",
+     "Rejected means the policy's conditions were not met at this commit, as this evaluator saw it. It does not show that the work is wrong. It authorises no payment.",
+     "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record.",
+     "No payment is recorded here: this receipt does not show that anything was paid, or that anything is owed."
+    ],
+    "disputed": null,
+    "assurance": {
+     "level": "reported",
+     "trusted": [
+      "Whoever keeps the run's own record: no issuer signed it, so not even which workflow ran is authenticated.",
+      "The run that reported the result, and whoever controls its repository, its workflow and its runner: the result is that run's word.",
+      "The supplier, as far as the suite ran where the supplier's change could reach it.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": []
+    }
+   }
+  },
+  {
+   "name": "agreed and disputed: the buyer contests it; the level is of the evidence and does not move",
+   "sha256": "97ffb3e7f66691d9e996f3f7e5cee57f843490b7179f935bc85f457bf8830c58",
+   "verdict": "disputed",
+   "authorises_payment": false,
+   "assurance": "agreed",
+   "receipt": {
+    "type": "knos.acceptance-receipt",
+    "version": 5,
+    "cluster": "devnet",
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+    "scope": "d3a2f15ac0ffea6fd2d5a22b2e173c4125062ed6b9f38b0f83c534547f3f0400",
+    "repository": {
+     "id": 424242001,
+     "issue": 9
+    },
+    "issuer_authenticated": {
+     "provider": "github",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "claims": {
+      "actor_id": "31337",
+      "event_name": "workflow_dispatch",
+      "exp": 1790300300,
+      "iat": 1790300000,
+      "job_workflow_ref": "drexthealpha/Knos/.github/workflows/attest.yml@refs/tags/v0.3.13",
+      "job_workflow_sha": "abababababababababababababababababababab",
+      "repository_id": "880000001",
+      "repository_owner_id": "31337",
+      "run_attempt": "1",
+      "run_id": "37000000003",
+      "runner_environment": "github-hosted"
+     },
+     "token_sha256": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "verified": {
+      "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+      "key": "H8ThtUzgUFkhKKjSvjJdHHWWeYozVDPt5E36bTS7bzrE",
+      "transaction": "364uSBHxyBwRXFYEycWhSLp5yJDp3N8tXfZ9sQNnKzkSpHWmYbD2BQZQU2xWUyKVQYSh4RBhdbtpeWUFoXutgcgE"
+     }
+    },
+    "evaluator_observed": {
+     "judge": {
+      "kind": "arbiter",
+      "version": "abababababababababababababababababababab"
+     },
+     "verdict": "disputed",
+     "checks": [],
+     "artifact": {
+      "commit": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "pull_request": 31
+     },
+     "evaluators": [
+      {
+       "kind": "neutral",
+       "repository_id": 990000002,
+       "owner_id": 9001,
+       "actor_id": 9002,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "990000002",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000009",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      },
+      {
+       "kind": "arbiter",
+       "repository_id": 880000001,
+       "owner_id": 31337,
+       "actor_id": 31337,
+       "runner": "github-hosted",
+       "independent_of_buyer": null,
+       "independent_of_seller": true,
+       "reexecution": {
+        "reexecuted": true,
+        "assurance": "black-box",
+        "image_digest": null,
+        "environment": {
+         "github_repository_id": "880000001",
+         "github_run_attempt": "1",
+         "github_run_id": "37000000003",
+         "knos": "0.3.19",
+         "runner_os": "Linux"
+        }
+       }
+      }
+     ],
+     "same_controller": false,
+     "independence": "The 2 judges have different owners and starters, by account id. An id is all that is recorded: two accounts run by one person are one judge, and no receipt can show that they are not."
+    },
+    "policy": {
+     "terms_hash": "f41b2ac0476b3b4abd2e326e9906d1ade1a1cad31fcb8db0013c3fe7a523dd29",
+     "mode": "merge",
+     "allowed_paths": null,
+     "denied_paths": null,
+     "version": null
+    },
+    "commercial_authorisation": {
+     "funder": {
+      "github_id": null,
+      "login": null,
+      "wallet": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM"
+     },
+     "source": {
+      "kind": "passkey",
+      "address": "8JEvTXJ6sD5U4n1p7GEERYMPN9ijjs9ZM4ysJ3qhgyqM",
+      "owner_id": null
+     },
+     "limit": "no limit set",
+     "role": "passkey",
+     "deliverable": {
+      "order": "H3A27ScgBjYuA635CHhxdJoAYNY3ApT6RE2stdR9oWo4",
+      "milestone": 0
+     },
+     "billed_before": false,
+     "funded": "39ZjdfzY6kAU4NinRZjwrDf3F3Rnx977wh8azVWdb3Z1Dr7cQ93nq13aCc5crsTPvD6m8Bq3u5oo1BzeNzKPgEcr"
+    },
+    "trust_remaining": [
+     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+     "The account that ran the judge: the run was in a repository other than the one the work was merged in, started by its owner.",
+     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+    ],
+    "amendments": [],
+    "payees": [
+     {
+      "github_id": 111,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "82e3N6bVNexW24kKbDEB7rrQxre4PNVutqYUdH5WayZ2"
+     },
+     {
+      "github_id": 222,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "F6AmcTrYWuv2wZkMkKDLCnmHzfrxaXN6x7oo2E4Uqisx"
+     },
+     {
+      "github_id": 333,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "EYrr55ZNaTURyfG4Q6X2Q71YuawpQXufnRpXpuNRHWnN"
+     },
+     {
+      "github_id": 444,
+      "bps": 2500,
+      "amount": "12500000",
+      "to": "CDc1KJwpLbjCasEicUFks9Z33rzVmhXnhsw7oXw5PH2g"
+     }
+    ],
+    "amounts": {
+     "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+     "decimals": 6,
+     "paid": "50000000",
+     "of": "50000000",
+     "fee": "950000",
+     "tip": "300000"
+    },
+    "transaction": {
+     "signature": "2qT99wW2Sj19wRSwfYhJWfY7iXp14xHLxhHb46fA3iAz5iPtxp1DWG8e4ciYp5dVyYnrKabvHuGg1TkPuvnA9xJ",
+     "slot": 507300000,
+     "time": 1790300090
+    },
+    "ids": {
+     "deliverable": "dlv_35f31b71fd7e1a2624bea235",
+     "evaluation": "evl_6ca421db89b7447d3361f946",
+     "invoice_line": null,
+     "settlement": "stl_13e1e7ac4fc5b5d36b27dccd"
+    },
+    "evidence_source": {
+     "kind": "issuer_token",
+     "reference": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "signed_by": "https://token.actions.githubusercontent.com"
+    },
+    "limitations": [
+     "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+     "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+     "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+     "This verdict is contested and not resolved. It does not show which side is right. It authorises no payment until it is resolved."
+    ],
+    "disputed": {
+     "by": {
+      "role": "buyer",
+      "id": "octo-buyer"
+     },
+     "at": 1790300690,
+     "reason": "The suite did not cover the change.",
+     "contests": {
+      "sha256": "7a53c392d11fa84ab83259dcc592222c8c8bcf7365713bf585da0e0c0f7c032c",
+      "verdict": "accepted"
+     }
+    },
+    "assurance": {
+     "level": "agreed",
+     "trusted": [
+      "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+      "That the evaluators which agree are not one party behind accounts nobody declared related: ids and declarations are all that is compared.",
+      "The runners the evaluators ran on.",
+      "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+     ],
+     "declared_related": []
+    }
+   }
+  }
+ ],
+ "invalid_v5": [
+  {
+   "name": "a level typed higher than the evidence gives",
+   "of": 0,
+   "set": {
+    "assurance.level": "agreed"
+   },
+   "why": "computed from the evidence, not chosen"
+  },
+  {
+   "name": "a level typed lower than the evidence gives",
+   "of": 2,
+   "set": {
+    "assurance.level": "reported"
+   },
+   "why": "computed from the evidence, not chosen"
+  },
+  {
+   "name": "attested: defined, and nothing reaches it",
+   "of": 2,
+   "set": {
+    "assurance.level": "attested"
+   },
+   "why": "nothing recorded today reaches it"
+  },
+  {
+   "name": "a trusted party left out",
+   "of": 1,
+   "set": {
+    "assurance.trusted": []
+   },
+   "why": "computed from the evidence, not chosen"
+  },
+  {
+   "name": "the declared relationship dropped, the level kept",
+   "of": 3,
+   "set": {
+    "assurance.declared_related": []
+   },
+   "why": "computed from the evidence, not chosen"
+  },
+  {
+   "name": "a declared relationship added to a receipt that agreed",
+   "of": 2,
+   "set": {
+    "assurance.declared_related": [
+     [
+      9002,
+      31337
+     ]
+    ]
+   },
+   "why": "computed from the evidence, not chosen"
+  },
+  {
+   "name": "a declared group of one account",
+   "of": 0,
+   "set": {
+    "assurance.declared_related": [
+     [
+      7
+     ]
+    ]
+   },
+   "why": "two or more account ids"
+  },
+  {
+   "name": "a declared group out of order",
+   "of": 3,
+   "set": {
+    "assurance.declared_related": [
+     [
+      31337,
+      9001
+     ]
+    ]
+   },
+   "why": "in rising order"
+  },
+  {
+   "name": "no assurance at all",
+   "of": 0,
+   "set": {
+    "assurance": null
+   },
+   "why": "assurance is {level"
+  },
+  {
+   "name": "a field more in assurance",
+   "of": 0,
+   "set": {
+    "assurance.by": "the supplier"
+   },
+   "why": "assurance is {level"
+  },
+  {
+   "name": "version 4's rules still hold: an accepted receipt with a failed check",
+   "of": 1,
+   "set": {
+    "evaluator_observed.verdict": "rejected"
+   },
+   "why": "authorises no payment and records none"
+  },
+  {
+   "name": "a dispute that names another receipt",
+   "of": 6,
+   "set": {
+    "disputed.contests.sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "why": "the digest of the receipt contested"
+  }
+ ]
+}

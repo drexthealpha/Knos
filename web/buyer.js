@@ -16,7 +16,7 @@
 // sentence and the comment that file carries (knos.terms_templates.sentence, in JavaScript).
 import * as settle from "./settle.js";
 import * as passkey from "./passkey.js";
-import { passkeyFundIntent, intentComment } from "./passkey_fund.js";
+import { passkeyFundIntent, intentComment, faucetComment, FAUCET_ISSUE } from "./passkey_fund.js";
 import { termsOf, parseIssueUrl, workflowPin, orderAddress, listOf, F_NEUTRAL, SEQ_TRIES, MAX_DAYS, Refused } from "./anyissue.js";
 import { priceConstants, quote, unitsOf, show, feeWords, feeNext } from "./price.js";
 import { liveFee } from "./fee_live.js";
@@ -150,6 +150,7 @@ export function renderBuyer(el, env = {}) {
     <h2>Buy work per outcome</h2>
     <p class="lede">Fix price and terms first. Pay when a signed run accepts.</p>
     <div class="buy-top"><span class="devnet">Devnet: test USDC, never real money</span>
+      <a class="k-btn quiet" id="buy-get-usdc" href="${FAUCET_ISSUE}" target="_blank" rel="noopener">Get test USDC</a>
       <button type="button" class="k-btn quiet" id="buy-go-records">See one order as four records</button></div>
     <div class="k-tabs buy-tabs" role="tablist" aria-label="The console">${TABS.map(([k, label], n) => `<button type="button" class="k-btn quiet" role="tab" id="proc-tab-${k}" aria-controls="buy-part-${k}" aria-selected="${n === 0}" tabindex="${n === 0 ? 0 : -1}">${label}</button>`).join("")}</div>
 
@@ -215,6 +216,9 @@ export function renderBuyer(el, env = {}) {
         <div id="buy-pk-wallet" hidden>
           <dl class="facts"><dt>Wallet address</dt><dd><span class="mono" id="buy-pk-address"></span></dd>
             <dt>It holds</dt><dd><span id="buy-pk-balance">not read yet</span> <button type="button" id="buy-pk-refresh" class="ghost small">Check the balance</button></dd></dl>
+          <div id="buy-pk-get" hidden><p><a class="k-btn" id="buy-pk-get-open" target="_blank" rel="noopener">Get test USDC</a> <button type="button" id="buy-pk-get-copy" class="ghost small">Copy the line</button></p>
+            <pre id="buy-pk-get-line"></pre>
+            <p class="fine">Post the line on the faucet issue. Test USDC has no monetary value.</p></div>
           <p class="fine" id="buy-pk-faucet" data-fold="How to get test USDC">To get test USDC: send it to the address above from any devnet wallet, or ask <a href="https://faucet.circle.com/" target="_blank" rel="noopener">Circle's devnet faucet</a> for USDC on Solana devnet to that address. It is free and worth nothing.</p>
           <p><button type="button" id="buy-pk-sign">Sign the order with the passkey</button></p>
         </div>
@@ -511,6 +515,10 @@ export function renderBuyer(el, env = {}) {
       const account = held ? knos.readTokenAccount(held.data) : null;
       me.holds = account && account.mint === knos.USDC_DEVNET ? account.amount : 0;
       out.innerHTML = `<strong>${esc(show(me.holds))}</strong> test USDC`;
+      // GET TEST USDC: shown only while the wallet holds none; the line asks the faucet for this wallet's address
+      $("buy-pk-get").hidden = me.holds !== 0;
+      $("buy-pk-get-line").textContent = faucetComment(me.wallet);
+      $("buy-pk-get-open").href = FAUCET_ISSUE;
     } catch (e) { me.holds = null; out.textContent = `not read: devnet did not answer (${e.message})`; }
   }
   async function showWallet(words) {
@@ -537,6 +545,10 @@ export function renderBuyer(el, env = {}) {
     }
   };
   $("buy-pk-refresh").onclick = () => balance();
+  $("buy-pk-get-copy").onclick = async () => {
+    const b = $("buy-pk-get-copy");
+    try { await globalThis.navigator.clipboard.writeText($("buy-pk-get-line").textContent); b.textContent = "Copied"; } catch { b.textContent = "Select the line and copy it"; }
+  };
 
   $("buy-pk-sign").onclick = async () => {
     const out = $("buy-pk-result"), bad = (words) => say(out, `${esc(words)} Nothing was signed.`, "bad");

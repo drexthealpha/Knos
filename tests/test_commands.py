@@ -32,7 +32,11 @@ def test_every_command_is_read_into_its_own_type():
     assert c.parse("/knos appeal the test I added passes") == c.Appeal("the test I added passes")
     assert isinstance(c.parse("/knos appeal"), c.Error) and "say why after it" in c.parse("/knos appeal").reply     # an appeal says why
     assert c.parse("/knos settle") == c.Settle() and c.parse("/knos status") == c.Status() and c.parse("/knos help") == c.Help()
-    assert [k.name for k in (c.Fund, c.Offer, c.Raise, c.Cancel, c.Take, c.Release, c.Address, c.Mine, c.Pay, c.Split, c.Reject, c.Appeal, c.Tip, c.Settle, c.Status, c.Help)] == list(c.FORMS)
+    assert [k.name for k in (c.Fund, c.Offer, c.Raise, c.Cancel, c.Take, c.Release, c.Address, c.Mine, c.Pay, c.Split, c.Reject, c.Appeal, c.Tip, c.Settle, c.Faucet, c.Status, c.Help)] == list(c.FORMS)
+    # a request for test USDC is read here and judged nowhere here: knos.faucet takes the word as typed
+    assert c.parse(f"/knos faucet {ADDRESS}") == c.Faucet(ADDRESS) and c.parse("/knos FAUCET passkey") == c.Faucet("passkey")
+    assert c.parse("/knos faucet") == c.Faucet("") and c.parse("/knos faucet not-an-address and more") == c.Faucet("not-an-address")
+    assert c.parse(f"/knos faucet {ADDRESS}", on_pull=False) == c.Faucet(ADDRESS) and c.parse(f"/knos faucet {ADDRESS}", on_pull=True).kind == "misplaced"
     assert c.parse("/knos") == c.Help() == c.parse("/knos help me please")              # a bare /knos asks what there is
 
 

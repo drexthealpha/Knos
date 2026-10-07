@@ -849,6 +849,68 @@ def publishes_status(env=None) -> bool:
     return env.get("GITHUB_REPOSITORY") == HOME_REPO and f"{HOME_REPO}/.github/workflows/worker.yml@" in env.get("GITHUB_WORKFLOW_REF", "")
 
 
+def shares_notes(env=None) -> bool:
+    """Whether this relay keeps its notes in the relay log too (`relayq.LogStore`), so that a runner with another disk
+    sees them: the log repository's own worker does, in both its jobs, since only that workflow's lines count in the
+    log. KNOS_RELAY_SHARED_NOTES=1 turns it on for a relay of one's own that may write to its log; =0 turns it off."""
+    env = os.environ if env is None else env
+    asked = env.get("KNOS_RELAY_SHARED_NOTES", "")
+    if asked in ("0", "1"):
+        return asked == "1"
+    return env.get("GITHUB_REPOSITORY") == HOME_REPO and f"{HOME_REPO}/.github/workflows/worker.yml@" in env.get("GITHUB_WORKFLOW_REF", "")
+
+
+_STORE: dict[str, Any] = {}         # the one store of this process, kept from pass to pass: what it read stays read
+
+
+def log_store(env=None):
+    """This process's `relayq.LogStore` on the relay log; None when this relay shares no notes there (`shares_notes`)."""
+    if not shares_notes(env):
+        return None
+    if HOME_REPO not in _STORE:
+        from ..settle.v2 import relayq
+        _STORE[HOME_REPO] = relayq.LogStore(HOME_REPO, _api, _HUB.send, lambda: _log_issue(HOME_REPO), LOG_BOT)
+    return _STORE[HOME_REPO]
+
+
+def _github(path: str, data: dict | None = None, method: str | None = None):
+    """GitHub as `knos.flow.Run` reaches it, through the worker's own reader: every GET is conditional, so a listing
+    the worker holds already costs a 304. What the reader raises is an OSError here, as flow's own door raises."""
+    try:
+        return _HUB.send(path, data, method or "POST") if data is not None else _HUB.get(path)
+    except RuntimeError as why:
+        raise OSError(str(why)) from None
+
+
+def claim_repos(env=None) -> set[str]:
+    """The repositories this relay's PASS answers unfunded claims of payment in (knos.claim_guard): the ones
+    KNOS_CLAIM_REPOS names, for a relay of one's own whose GitHub token may comment there. Nobody else's relay answers
+    anything. The log repository's own worker names none: its sweep is a job of its own that holds no key
+    (.github/workflows/worker.yml, job `claims`), so the job that pays fees never needs to write to a pull request."""
+    env = os.environ if env is None else env
+    return {r.strip() for r in env.get("KNOS_CLAIM_REPOS", "").split(",") if "/" in r}
+
+
+def _claims(state: dict, now: float, ledger) -> list[dict]:
+    """The claim guard's sweep, on this pass, for each of `claim_repos` that is due (at most once in
+    claim_guard.SWEEP_EVERY seconds for one repository; when, is in the notes under `claims`). GitHub's timer for
+    claims.yml is not kept to any time (docs/RELAY.md, "The claim guard on the worker"); this pass is. A listing that
+    could not be read is an error line on the run's page, never silence, and is asked again a minute later."""
+    repos = claim_repos()
+    if not repos:
+        return []
+    from .. import claim_guard, flow
+    swept = {r: t for r, t in dict(state.get("claims", {})).items() if r in repos}
+    try:
+        return claim_guard.sweep_served(lambda repo: flow.Run(repo, {}, github=_github, ledger=ledger), repos, swept, now,
+                                        say=lambda words: print(words, file=sys.stderr))
+    except claim_guard.Unread as why:
+        print(f"::error title=claim guard::{why}", file=sys.stderr)
+        return why.done
+    finally:
+        state["claims"] = swept
+
+
 def publish_status(now: float | None = None) -> str | None:
     """Writes `status_line` into the log, with `rounds` under it: one comment, rewritten each time (its id is kept
     in the notes), so the log grows by nothing. A comment that is gone is posted anew. Returns the line; None when this relay writes none
@@ -994,7 +1056,10 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
     me = f"sweep-{os.environ.get('GITHUB_RUN_ID') or os.getpid()}"
     # the pass's own time is the queue's: a wait of 10 s ends for the pass that starts 10 s later, on every run the same
     # what this run shares with others (an event run, the sweep run it takes over from): append-only, merged by key
-    shared = relayq.Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or sp.with_name(f"{sp.stem}-notes")), me, lambda: at)
+    # and, where this relay may write the relay log, a line there for each lease and each answer: an event run on
+    # another runner reads those, and this pass reads its lines in the comments it fetches anyway (`read`, below)
+    store = log_store()
+    shared = relayq.Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or sp.with_name(f"{sp.stem}-notes")), me, lambda: at, store=store)
     queue = relayq.Queue(sp, lambda: at, limit=relayq.LIMIT, workers=hands, max_tries=None, strict=False, notes=shared)
     queue.release(me)               # leases of this run's own workers: a pass has ended, so a lease it left was a worker killed
     shared.prune()
@@ -1053,7 +1118,17 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
 
     def read(repo: str):
         try:
-            return repo, found(repo, since)
+            if store is None or repo != HOME_REPO:
+                return repo, found(repo, since)
+            fetched: list = []          # the log repository's comments, fetched for their tokens: the other runners' notes are in them
+
+            def getter(path: str):
+                got = _api(path)
+                fetched.extend(got if isinstance(got, list) else [])
+                return got
+            items = found(repo, since, getter)
+            store.take(fetched)
+            return repo, items
         except Exception:  # noqa: BLE001 - GitHub did not answer for this one: the next pass asks again
             return repo, []
 
@@ -1269,6 +1344,10 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
         later += more
     if later:
         _post(later, state)
+    try:
+        _claims(state, now, raw)    # unfunded claims of payment in the repositories this relay may write to, each at most once in 5 minutes
+    except Exception as why:  # noqa: BLE001 - the guard never stops a pass: the tokens were carried
+        print(f"::error title=claim guard::{type(why).__name__}: {why}", file=sys.stderr)
     state["round"] = {"at": now, "took": round(time.monotonic() - began, 1), "tokens": sum(1 for ln in lines if " ok sig=" in ln and " - - " not in ln)}
     keep()
     for ln in lines:

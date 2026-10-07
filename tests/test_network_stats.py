@@ -703,3 +703,44 @@ def test_an_outside_account_that_funds_in_a_knos_repository_from_the_faucet_is_a
     assert rules.count([], OWN, frozenset(), measured=False)["measured"] is False
     alone = network_stats.outsiders([j for j in jobs if (j["repo"], j["issue"]) == (7100, 7) or j["by"] == KNOS and j["payee"] == 0], OWN, frozenset({w["knos"]}), frozenset())
     assert (alone["funders"], alone["repositories"], alone["payees"], alone["measured"]) == (0, 0, 0, True)
+
+
+def test_a_wallet_that_funds_in_a_repository_of_knos_account_is_no_outside_funder_whatever_the_repository_is_called():
+    """The chain names a repository by its id only. A wallet that funds an order directly carries no owner on record,
+    so a wallet missing from the own-list once made a repository of Knos's account an "outside repository" (staging
+    stats.json of 7 Oct: 1 funder, 1 repository). GitHub is asked who owns each repository an outside funder would be
+    counted in; one owned by Knos's id is Knos's, with no repository name or id listed anywhere."""
+    w = {name: str(Pubkey(bytes([n]) * 32)) for n, name in enumerate(["stray", "stranger"], 40)}
+    history = [
+        funded2(100, 9101, 1, 5 * USDC, 0, w["stray"], signer=w["stray"]),         # a wallet not on the list, in Knos's repository
+        funded2(200, 9102, 1, 5 * USDC, 0, w["stranger"], signer=w["stranger"]),   # a wallet in a stranger's repository
+        funded2(300, 9103, 1, 5 * USDC, 0, w["stranger"], signer=w["stranger"]),   # ... and in one GitHub does not name
+    ]
+    jobs = network_stats.jobs_of(events(*history))[0]
+    owners = {9101: KNOS, 9102: 5009}
+    asked: list[str] = []
+
+    def get(path):
+        asked.append(path)
+        return {"owner": {"id": owners[int(path.split("/")[1])]}}           # KeyError for 9103: GitHub did not answer
+    pick = lambda c: (c["funders"], c["funders_in_outside_repositories"], c["repositories"])  # noqa: E731
+    # not asked: every wallet that is not on the list is outside, as before
+    assert pick(network_stats.outsiders(jobs, OWN, frozenset())) == (2, 2, 3)
+    # asked: Knos's repository is Knos's; the stranger's stays outside, and one GitHub does not name is never made Knos's
+    got = network_stats.outsiders(jobs, OWN, frozenset(), owner_of=network_stats.repo_owner(get))
+    assert pick(got) == (1, 1, 2)
+    assert sorted(asked) == ["repositories/9101", "repositories/9102", "repositories/9103"]     # once each
+    assert network_stats.summarize(events(*history), OWN, frozenset(), owner_of=network_stats.repo_owner(get))["outsiders"]["repositories"] == 2
+    # a GitHub that answers nothing makes no repository Knos's
+    assert network_stats.own_repositories(jobs, OWN, frozenset(), frozenset(), frozenset(), lambda r: None) == frozenset()
+
+
+def test_the_wallets_of_knos_own_runs_are_on_the_own_list():
+    """The passkey wallet (0.3.18), the supplier and advancer of the 0.3.19 rounds, the faucet key and the relay key
+    funded or were paid on devnet as Knos: none of them is an outside funder or payee."""
+    listed = json.loads((ROOT / "scripts" / "own_github_ids.json").read_text(encoding="utf-8"))
+    for wallet in ("HACtdcABcZnBHFpeLq4D6KYR2UkQaHpHt1GAe2uU6roM", "3Y7hmSXc9BGBeBqYGhZUrekhJUbmzR23cDSTs3YnK6HT",
+                   "BxEjZT4BnNbr1hHg8ntL8nSBrLVdfRs8jhjG9sR1kqze", "2trvjLFhTqK6ej5RgmPTf5oLQCK1TJbnhCqyp86GronR",
+                   "5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V"):
+        assert wallet in listed["wallets"] and wallet in network_stats.OWN_WALLETS
+    assert listed["ids"] == [KNOS]

@@ -1,6 +1,7 @@
 """From "staging" to "public": what the 2.1 and 1.1 builds add, run once at the PUBLIC program ids, and written down.
 
-    python scripts/exercise_public.py status --rpc URL [--json]
+    python scripts/exercise_public.py status --rpc URL [--json] [--want 2.2]
+    python scripts/exercise_public.py run --phase before|after --rpc URL --keys DIR [--resume] [--neutral OWNER/REPO]
     python scripts/exercise_public.py run --rpc URL --keys DIR [--only CAPABILITY] [--resume] [--again ROUND --since TIME]
     python scripts/exercise_public.py note ROUND --keys DIR key=value ...     what a step done outside this script printed
     python scripts/exercise_public.py record --keys DIR --rpc URL
@@ -16,6 +17,21 @@ status   hashes the executable of each of the four public programs the way docs/
          build this repository names). Exit 3: an upgrade has not executed yet: skip the exercises and ship the rest;
          nothing here waits. Exit 1: anything else (a hash nobody recorded, a cluster that does not answer). `--json`
          prints the same as one object, with the exit code in `exit`.
+
+         `--want 2.2` asks one more thing: do knos_oidc and knos_pay run the builds of proposals 7 and 8? Exit 0 only
+         then; exit 3 while either has not executed (said per program, with the multisig's own word for its proposal);
+         exit 1 for anything unexpected. `--json` names each live build by its hash either way.
+
+run --phase after   the rounds of knos_oidc 2.2 and knos_pay 2.2 at the PUBLIC ids, and only when `status --want 2.2`
+         is satisfied (else exit 3 with nothing sent): the one-rate fee (5.00 -> 0.05, 100.00 -> 0.30, 1,500.00 ->
+         4.50), an order funded BEFORE the upgrade read as written and paid or refunded with the fee it was funded
+         with (`run --phase before` funds two of this run's own while 2.1 is live; an order reserved for someone else
+         is never used), one owner behind both judges moves nothing and the relay's answer says why, two owners (`cannot:
+         needs a second repository owner` unless `--neutral OWNER/REPO` names a repository of another owner, which is
+         only ever read), a marker of an earlier funding counts for nothing, an order with the presentation grace and
+         a two-minute deadline, a NaN claim refused by the strict verifier (error 61), ES256. `--simulate` runs both
+         phases on the local simulator: the live source's test build, upgraded in place to this tree's.
+         `run --resume` (no phase) finishes what an earlier release's rounds left for the chain's clock, when due.
 
 run      for every capability of docs/capabilities.json below `exercised` that has a round here, runs the round in
          test USDC with the smallest amounts the programs take, and keeps what it sent and what it checked in
@@ -51,7 +67,9 @@ rehearse --rc   the staging rehearsal of knos_pay's new build, as one command: t
          open order goes back; staging is closed. `--simulate` runs all of it on the local simulator, starting on the
          test build of the live source (tests/fixtures/live) and upgrading in place to the tree's.
 
-propose  after proposals 3 to 6 have executed: the plan is every program whose verified build in --so-dir is not the
+propose  REFUSES in this release: its tree changes no program, and knos_oidc and knos_pay are proposed already
+         (proposals 7 and 8). What follows describes the command as the release before ran it.
+         After proposals 3 to 6 have executed: the plan is every program whose verified build in --so-dir is not the
          build its public id runs, and it must be exactly this release's set, [knos_oidc, knos_pay] (RELEASE_CHANGES in
          scripts/provenance.py); any other plan stops it with nothing sent. Each build is held to the record the
          upgrade gate keeps on chain for its hash, its bytes to the room of its program's data account (printed), and
@@ -91,6 +109,14 @@ PROGRAMS = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
 PROPOSALS = {"knos_oidc": 3, "knos_pay": 4, "knos_meter": 5, "knos_passkey": 6}       # the upgrades approved in 0.3.14
 NEW = {"knos_oidc": "2.1", "knos_pay": "2.1", "knos_meter": "1.1", "knos_passkey": "1.1"}
 OLD = {"knos_oidc": "2.0", "knos_pay": "2.0", "knos_meter": "1.0", "knos_passkey": "1.0"}
+# The set proposed after 0.3.18's push (approved 2026-10-07, executable two days later): the verified builds of that tree.
+NEXT_PROPOSALS = {"knos_oidc": 7, "knos_pay": 8}
+NEXT_VERSION = {"knos_oidc": "2.2", "knos_pay": "2.2", "knos_meter": "1.2", "knos_passkey": "1.2"}
+# How each of those builds' executable hash begins, as the run that proposed them printed it. The whole hash is in the
+# upgrade gate's record on chain and in the feed's entry; this is only what a build must also match when neither file
+# of this tree names it yet and the multisig says its proposal executed.
+NEXT_BUILD = {"knos_oidc": "7cad6dea", "knos_pay": "2743098f"}
+WANT = {"2.2": ("knos_oidc", "knos_pay")}
 EVIDENCE = "exercise_public.json"
 OUTSIDE = "outside.json"                # <keys>/outside.json: what a step done outside this script left (`note` writes it)
 REHEARSAL = "rehearse_rc.json"          # <keys>/rehearse_rc.json: what the staging rehearsal kept
@@ -191,6 +217,7 @@ def read_programs(account: Callable, root: Path = ROOT) -> dict[str, dict]:
     entries = (_json(root / "web" / "upgrades.json") or {}).get("entries", [])
     seen = _json(root / "docs" / "provenance.json") or {}
     out = {}
+    asked: dict[str, dict] = {}
     for name in PROGRAMS:
         got = account(str(mc.programdata_address(ids[name])))
         row: dict = {"id": ids[name], "hash": None, "slot": None, "build": None, "proposal": None, "is": "unknown"}
@@ -205,16 +232,65 @@ def read_programs(account: Callable, root: Path = ROOT) -> dict[str, dict]:
         elif mine and int(mine[0]["index"]) == PROPOSALS[name]:
             row.update(build=NEW[name], proposal=PROPOSALS[name], **{"is": "new"})
         elif nxt.get("build_hash") == row["hash"]:
-            row.update(build=str(nxt.get("version") or "?"), proposal=nxt.get("proposal"), **{"is": "next"})
+            row.update(build=str(nxt.get("version") or "?"), proposal=nxt.get("proposal") or NEXT_PROPOSALS.get(name), **{"is": "next"})
+        elif mine and int(mine[0]["index"]) == NEXT_PROPOSALS.get(name):            # the feed's entry for proposal 7 or 8 names this build
+            row.update(build=NEXT_VERSION[name], proposal=NEXT_PROPOSALS[name], **{"is": "next"})
+        elif name in NEXT_BUILD and row["hash"].startswith(NEXT_BUILD[name]) and (asked := asked or next_proposals(account, root)).get(name, {}).get("status") == "Executed":
+            row.update(build=NEXT_VERSION[name], proposal=NEXT_PROPOSALS[name], **{"is": "next"})       # no file names it yet: the multisig says it ran
         elif before.get("on_chain_hash") == row["hash"] and before.get("proposal_status") != "Executed":
             row.update(build=OLD[name], **{"is": "old"})
         out[name] = row
     return out
 
 
-def status_code(rows: dict[str, dict]) -> int:
+def next_proposals(account: Callable, root: Path = ROOT) -> dict[str, dict]:
+    """What the upgrade multisig says of proposals 7 and 8 now, read from their own accounts: per program {"proposal",
+    "version", "status"}. `status` is the multisig's word (Approved, Executed, ...), or None when the proposal cannot be
+    read or its transaction upgrades another program. An approved proposal also has `executable_from`."""
+    ids = _json(root / "programs-v2" / "program_ids.json")
+    feed = {e.get("index"): e for e in (_json(root / "web" / "upgrades.json") or {}).get("entries", [])}
+    out: dict[str, dict] = {}
+    for name, index in NEXT_PROPOSALS.items():
+        row: dict = {"proposal": index, "version": NEXT_VERSION[name], "status": None}
+        try:
+            squads, ms = Pubkey.from_string(ids["squads_program"]), Pubkey.from_string(ids["upgrade_multisig"])
+            got = account(str(mc.proposal_address(ms, index, squads)))
+            p = mc.read_proposal(got[1]) if got and str(got[0]) == ids["squads_program"] else None
+            tx = account(str(mc.transaction_address(ms, index, squads)))
+            kind, program, _buffer = mc.read_transaction(tx[1] if tx and str(tx[0]) == ids["squads_program"] else None)
+            if p is not None and (tx is None or (kind == "upgrade" and program == ids[name])):
+                row["status"] = p.status
+                held, _why = mc.multisig_at(account, ids["upgrade_multisig"], ids["squads_program"])
+                if p.status == "Approved" and held is not None:
+                    row["executable_from"] = p.at + held.time_lock
+        except Exception:  # noqa: BLE001, S110 - a proposal that cannot be read has no status: said as None, never guessed
+            pass
+        if row["status"] is None and feed.get(index, {}).get("program") == name:
+            row.update(status=feed[index].get("squads_status"), read="web/upgrades.json, as it was generated")
+        out[name] = row
+    return out
+
+
+def status_code(rows: dict[str, dict], want: str | None = None) -> int:
+    """0, 3 or 1. With `want` ("2.2"): 0 only when every program of that set runs that version's build."""
     kinds = {r["is"] for r in rows.values()}
-    return 1 if "unknown" in kinds else 3 if "old" in kinds else 0
+    if "unknown" in kinds:
+        return 1
+    if want:
+        return 0 if all(rows[n]["is"] == "next" and str(rows[n]["build"]) == want for n in WANT[want]) else 3
+    return 3 if "old" in kinds else 0
+
+
+def want_says(rows: dict[str, dict], asked: dict[str, dict], want: str) -> str:
+    """One line for `--want`: which proposals executed and which did not, in the multisig's own words."""
+    behind = [n for n in WANT[want] if not (rows[n]["is"] == "next" and str(rows[n]["build"]) == want)]
+    if not behind:
+        return (" and ".join(f"{n} {want} (proposal {asked[n]['proposal']})" for n in WANT[want])
+                + " are live at the public ids: run the after rounds (`run --phase after`)")
+    return ("; ".join(f"proposal {asked[n]['proposal']} ({n} {want}) has not executed"
+                      + (f": the multisig says {asked[n]['status']}" if asked[n].get("status") else ": its proposal could not be read")
+                      + (f", executable from {day(asked[n]['executable_from'])}" if asked[n].get("executable_from") else "") for n in behind)
+            + ". Nothing waits: ship without the after rounds; `run --phase after` runs them later (exit 3)")
 
 
 STATUS_SAYS = {0: "all four run the upgraded builds: run the exercises",
@@ -222,28 +298,34 @@ STATUS_SAYS = {0: "all four run the upgraded builds: run the exercises",
                1: "unexpected: nothing is exercised or recorded until this is understood (exit 1)"}
 
 
-def status(url: str, say: Callable[[str], None] = print, account: Callable | None = None, root: Path = ROOT, as_json: bool = False) -> int:
-    """What each public id runs, in lines or (`as_json`) as one JSON object with the same exit code in `exit`."""
+def status(url: str, say: Callable[[str], None] = print, account: Callable | None = None, root: Path = ROOT, as_json: bool = False,
+           want: str | None = None) -> int:
+    """What each public id runs, in lines or (`as_json`) as one JSON object with the same exit code in `exit`. `want`
+    ("2.2"): exit 0 only when that set's proposals executed (see the module's words on `status`)."""
+    asked: dict[str, dict] = {}
     try:
-        rows = read_programs(account or mc._rpc(url), root)
+        account = account or mc._rpc(url)
+        rows = read_programs(account, root)
+        asked = next_proposals(account, root)
     except Exception as why:  # noqa: BLE001 - a cluster that does not answer is not an answer
         if as_json:
             say(json.dumps({"exit": 1, "says": f"{url} could not be read ({type(why).__name__}: {why})", "programs": {}}, indent=1))
         else:
             say(f"stopped: {url} could not be read ({type(why).__name__}: {why})")
         return 1
+    code = status_code(rows, want)
+    last = STATUS_SAYS[code] if not want or code == 1 else want_says(rows, asked, want)
     if as_json:
-        code = status_code(rows)
-        say(json.dumps({"exit": code, "says": STATUS_SAYS[code], "programs": rows}, indent=1))
+        live = {n: {"version": r["build"], "hash": r["hash"], "proposal": r["proposal"]} for n, r in rows.items()}
+        say(json.dumps({"exit": code, "says": last, "programs": rows, "live": live, "proposals": asked, **({"want": want} if want else {})}, indent=1))
         return code
     for name, r in rows.items():
         what = {"new": f"{name} {r['build']}, the build of proposal {r['proposal']}",
-                "next": f"{name} {r['build']}, the later build docs/provenance.json names" + (f" (proposal {r['proposal']})" if r["proposal"] else ""),
+                "next": f"{name} {r['build']}, the later build" + (f" of proposal {r['proposal']}" if r["proposal"] else " docs/provenance.json names"),
                 "old": f"{name} {r['build']}: proposal {PROPOSALS[name]} has not executed",
                 "unknown": "a build no file of this repository records" if r["hash"] else "nothing: no program data at this id"}[r["is"]]
         say(f"{name} {r['id']}: runs {what}; hash {r['hash']}; last deployed in slot {r['slot']}")
-    code = status_code(rows)
-    say(STATUS_SAYS[code])
+    say(last)
     return code
 
 
@@ -270,6 +352,7 @@ class World:
     mint: Pubkey
     funder: Any             # the wallet of the round that needs no token, and its token account
     funder_token: Any
+    neutral: str | None = None      # `--neutral owner/repo`: a repository of ANOTHER owner whose comments are read for a second judge's token
 
     def pin(self) -> tuple[str, str, int]:     # pragma: no cover - overridden
         raise NotImplementedError
@@ -460,6 +543,8 @@ class Public(World):
                 found += [json.loads(line) for line in kept.read_text(encoding="utf-8").splitlines() if line.strip()]
             try:
                 new = replay_tokens.capture(self.repository, self.since, say=self.say)
+                if self.neutral:        # read, never written to: the second owner's own run posts its token there
+                    new += replay_tokens.capture(self.neutral, self.since, say=self.say)
                 replay_tokens.append(kept, new)
                 found += new
             except Exception as why:  # noqa: BLE001 - GitHub did not answer: the kept tokens are what there is
@@ -1203,7 +1288,11 @@ def round_fees(book: Book, st: dict) -> None:
     wf_repo, wf_sha, repo = w.pin()
     funder, source = w.funder, w.funder_token
     amount = ABOVE_THE_FIRST_TIER
-    words, rule = FEE_RULES["next" if book.ev["programs"].get("knos_pay", {}).get("is") == "next" else "new"]
+    later = book.ev["programs"].get("knos_pay", {}).get("is") == "next"
+    if later and not isinstance(w, Simulated) and "fund" not in st:
+        raise Skip("the public id no longer charges knos_pay 2.1's tiers, so `fee_tiers` cannot be exercised there any more; the one rate that replaced "
+                   "them is the step `one_rate` of `run --phase after` (capability `fee_one_rate`)")
+    words, rule = FEE_RULES["next" if later else "new"]
     terms = pay.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}], "mode": "merge", "v": 2})
     if "issue" not in st:
         most = amount + max(f(amount) for _words, f in FEE_RULES.values())
@@ -1573,7 +1662,8 @@ def round_section(ev: dict) -> str:
         rows = st.get("transactions") or []
         if not rows:
             continue
-        out += [f"**{name}.** {' '.join((ROUNDS[name][0].__doc__ or '').split())}", "", "| Step | Transaction | Result |", "| --- | --- | --- |"]
+        fn = ROUNDS[name][0] if name in ROUNDS else AFTER_STEPS[name][0]
+        out += [f"**{name}.** {' '.join((fn.__doc__ or '').split())}", "", "| Step | Transaction | Result |", "| --- | --- | --- |"]
         for r in rows:
             link = f"[{r['signature'][:8]}...](https://explorer.solana.com/tx/{r['signature']}?cluster=devnet)"
             out.append(f"| {r['what']} | {link} | " + (f"refused, error {r['refused']}: {r['means']}" if "refused" in r else f"succeeded at {r['program']}") + " |")
@@ -1609,14 +1699,21 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
         say("refused: this evidence is from the simulator. Only a run at the public program ids is written into the repository.")
         return 1
     import capabilities as cap
-    live = {n: p for n, p in ev["programs"].items() if p.get("is") == "new"}
+    # a program counts where the hash read at its public id is a build this repository names: proposal 3 to 6's ("new"),
+    # or proposal 7 or 8's ("next": read_programs gives that only on the hash)
+    live = {n: p for n, p in ev["programs"].items() if p.get("is") == "new" or (p.get("is") == "next" and p.get("proposal") == NEXT_PROPOSALS.get(n))}
+    version = {n: NEW[n] if p["is"] == "new" else NEXT_VERSION[n] for n, p in live.items()}
+    index = {n: PROPOSALS[n] if p["is"] == "new" else NEXT_PROPOSALS[n] for n, p in live.items()}
     for n, p in ev["programs"].items():
-        if p.get("is") != "new":
-            say(f"{n}: not the build of proposal {PROPOSALS[n]} at the public id ({p.get('is')}): its version, its proposal and its capabilities stay as they are")
+        if n not in live:
+            say(f"{n}: not the build of proposal {PROPOSALS[n]}" + (f" or {NEXT_PROPOSALS[n]}" if n in NEXT_PROPOSALS else "")
+                + f" at the public id ({p.get('is')}): its version, its proposal and its capabilities stay as they are")
 
     manifest = _json(root / "docs" / "capabilities.json")
     for n in live:
-        manifest["programs"][n]["on_chain"] = NEW[n]
+        manifest["programs"][n]["on_chain"] = version[n]
+        if version[n] not in manifest["programs"][n].get("versions", []):
+            manifest["programs"][n].setdefault("versions", []).append(version[n])
     moved = []
     for c in manifest["capabilities"]:
         e = ev["exercises"].get(c["id"]) or {}
@@ -1626,8 +1723,8 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
         if prog not in live or not _SIG.fullmatch(e["signature"]) or "tested" not in c["evidence"]:
             say(f"{c['id']}: not moved ({prog} is not on its upgraded build, or the evidence is not a transaction)")
             continue
-        version = c["evidence"].get("deployed", {}).get("version") or NEW[prog]
-        c["evidence"]["deployed"] = {"program": prog, "id": manifest["programs"][prog]["id"], "version": version}
+        ran_on = c["evidence"].get("deployed", {}).get("version") or version[prog]
+        c["evidence"]["deployed"] = {"program": prog, "id": manifest["programs"][prog]["id"], "version": ran_on}
         c["evidence"]["exercised"] = {"signature": e["signature"], "ids": "public", "round": e["round"], "asserted": e["asserted"],
                                       **({"refusals": e["refusals"]} if e.get("refusals") else {})}
         c["stage"] = "exercised"
@@ -1637,6 +1734,8 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
             note = (f'Before the upgrade it was rehearsed on a staging deployment (signature {sig.group(0)}; docs/CAPABILITIES.md, "The 0.3.14 rehearsal on '
                     'devnet"); the transaction here is at the public program id.') if sig else ""
         note = re.sub(r"^Runs at the public ids? only once .*?\(the live state is in web/upgrades\.json\)\.\s*", "", note)
+        # what a 2.2 capability said while its build was proposed and not live: no longer so once a transaction at the public id is its evidence
+        note = re.sub(r"^(In the knos_pay 2\.2 build of this tree: tested in the simulator, not deployed\.|knos_oidc 2\.2 is not deployed:).*?\(?(the live state is in )?web/upgrades\.json\)\.\s*", "", note)
         if note:
             c["note"] = note
         else:
@@ -1659,11 +1758,13 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
     wrong: list[str] = []
     for at, entry in enumerate(up["entries"]):
         n = entry["program"]
-        if entry["index"] != PROPOSALS.get(n):
+        if entry["index"] != index.get(n, PROPOSALS.get(n)):
             continue
         if n in live and entry["build_hash"] == live[n]["hash"]:
             row = seen.setdefault("programs", {}).setdefault(n, {"address": live[n]["id"]})
-            row.update(on_chain_hash=live[n]["hash"], live_slot=live[n]["slot"], proposal=PROPOSALS[n], proposal_status="Executed")
+            if row.get("proposal") != index[n]:         # the signature kept is the execution of the proposal before
+                row.pop("execution_signature", None)
+            row.update(on_chain_hash=live[n]["hash"], live_slot=live[n]["slot"], proposal=index[n], proposal_status="Executed")
             for key, value in (("on_chain_commit", entry.get("source_commit")), ("on_chain_run", entry.get("gate_run"))):
                 row.pop(key, None)
                 if value:
@@ -1695,7 +1796,7 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
         say(f"{script}: " + (done.stdout.strip().splitlines() or [done.stderr.strip()[-300:]])[0])
         if done.returncode not in (0,) and script == "demo_data.py":
             wrong.append(script)
-    say((f"moved to exercised: {', '.join(moved) or 'nothing'}; versions on chain: " + ", ".join(f"{n} {NEW[n]}" for n in live)) if live
+    say((f"moved to exercised: {', '.join(moved) or 'nothing'}; versions on chain: " + ", ".join(f"{n} {version[n]}" for n in live)) if live
         else "no program is on its upgraded build: nothing moved")
     return 1 if wrong else 0
 
@@ -1703,15 +1804,23 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
 # ---- propose -----------------------------------------------------------------------------------------------------------
 from provenance import RELEASE_CHANGES  # noqa: E402  the ONE proposal set of this release, in the order the upgrades execute: ("knos_oidc", "knos_pay")
 
-NEXT_VERSION = {"knos_oidc": "2.2", "knos_pay": "2.2", "knos_meter": "1.2", "knos_passkey": "1.2"}
+# What THIS release proposes: nothing. Its tree changes no program (programs-v2/ is byte for byte 0.3.18's), and the
+# builds RELEASE_CHANGES names were proposed as 7 and 8 on 2026-10-07.
+RELEASE_PROPOSES: tuple[str, ...] = ()
 
 
 def propose(url: str, keys: Path, so_dir: Path, say: Callable[[str], None] = print, account: Callable | None = None,
-            call: Callable[..., int] | None = None, root: Path = ROOT, changes: tuple[str, ...] = RELEASE_CHANGES) -> int:
-    """Proposes this release's upgrades as one set. The plan is read, never assumed: every program whose verified build
+            call: Callable[..., int] | None = None, root: Path = ROOT, changes: tuple[str, ...] = RELEASE_PROPOSES) -> int:
+    """Proposes a release's upgrades as one set. The plan is read, never assumed: every program whose verified build
     in `so_dir` is not the one its public id runs. It must be exactly `changes`; anything else is refused with nothing
-    sent. `call(argv, env)` runs deploy_v2.sh (the tests pass their own)."""
+    sent. `call(argv, env)` runs deploy_v2.sh (the tests pass their own). This release's `changes` is empty: refused
+    before anything is read."""
     import upgrade_feed as feed
+    if not changes:
+        say("refused: this release proposes nothing. Its tree changes no program, and " + " and ".join(
+            f"{n} {NEXT_VERSION[n]} is proposal {i}" for n, i in NEXT_PROPOSALS.items())
+            + " already: `status --want 2.2` says whether they executed. Nothing was read, written or proposed.")
+        return 1
     account = account or mc._rpc(url)
     rows = read_programs(account, root)
     behind = [n for n, r in rows.items() if r["is"] not in ("new", "next")]
@@ -1777,8 +1886,8 @@ def propose(url: str, keys: Path, so_dir: Path, say: Callable[[str], None] = pri
 def propose_oidc(url: str, keys: Path, so_dir: Path, say: Callable[[str], None] = print, account: Callable | None = None,
                  call: Callable[..., int] | None = None, root: Path = ROOT) -> int:
     """The name of 0.3.16's command, kept: it says what changed and does what `propose` does."""
-    say(f"`propose-oidc` is `propose` now: this release proposes {' and '.join(RELEASE_CHANGES)} as ONE set, never knos_oidc alone. Running `propose`:")
-    return propose(url, keys, so_dir, say, account, call, root)
+    say(f"`propose-oidc` is `propose` now: {' and '.join(RELEASE_CHANGES)} go as ONE set, never knos_oidc alone. Running `propose`:")
+    return propose(url, keys, so_dir, say, account, call, root, RELEASE_PROPOSES)
 
 
 # ---- rehearse --rc: knos_pay's new build on a staging id, before it is proposed -----------------------------------------
@@ -1942,8 +2051,13 @@ def rc_two_owners(book: Book, st: dict) -> None:
     other = lambda x: (int(x.c["repository_id"]) != w.pin()[2] and int(x.c["repository_owner_id"]) != st["one"]["owner"]  # noqa: E731
                        and int(x.c["actor_id"]) != st["one"]["actor"])
     if not sim and "other" not in st.get("tokens", {}) and w.find("pay", lambda x: x.aud.startswith(f"knos3:pay:{order}:") and other(x), None, book.taken()) is None:
+        if w.neutral:
+            raise Need("attest.yml", f"the owner of {w.neutral} starts the pinned attest.yml there by hand (`gh workflow run attest.yml -R {w.neutral} -f "
+                                     f"repository={w.repository} -f pull=<the merged pull request> -f order={order} -f kind=pay`); its comment is read "
+                                     "from there and nothing is ever sent to that repository. Then this again with `--resume`")
         raise Cannot("needs a second repository owner: every repository the release run can start a workflow in belongs to the founder, and two runs "
-                     "of one owner are one judge. Nothing was sent in a second owner's name")
+                     "of one owner are one judge. Nothing was sent in a second owner's name. `--neutral OWNER/REPO` names a repository of another "
+                     "owner who runs attest.yml there; it is only read")
     second = _rc_judge(book, st, "other", order, other, sim.c.neutral(sim.o.user()) if sim else {})
     _wallets, dest = _rc_dest(w, second)
     had = w.tokens(dest)
@@ -2011,10 +2125,11 @@ RC_STEPS: dict[str, tuple[Callable[[Book, dict], None], str]] = {
     "two_owners": (rc_two_owners, "after"), "same_second": (rc_same_second, "after"), "close": (rc_close, "after")}
 
 
-def rehearse_phase(w: World, ev: dict, phase: str, say: Callable[[str], None] = print) -> None:
-    """The steps of one phase that are not done yet. Each step's answer is kept in ev["rounds"][step]["result"]."""
+def rehearse_phase(w: World, ev: dict, phase: str, say: Callable[[str], None] = print, steps: dict | None = None, again: str = "rehearse --rc --resume") -> None:
+    """The steps of one phase that are not done yet. Each step's answer is kept in ev["rounds"][step]["result"].
+    `steps`: the table (RC_STEPS, or AFTER_STEPS for `run --phase`)."""
     book = Book(ev, w, say)
-    for name, (fn, when) in RC_STEPS.items():
+    for name, (fn, when) in (RC_STEPS if steps is None else steps).items():
         if when != phase:
             continue
         st = ev["rounds"].setdefault(name, {"round": name})
@@ -2030,7 +2145,7 @@ def rehearse_phase(w: World, ev: dict, phase: str, say: Callable[[str], None] = 
             say(f"  NEEDS A RUN of {need.workflow}: {need.how}")
         except Wait as wait:
             st["result"] = str(wait)
-            say(f"  {wait}; `rehearse --rc --resume` after it")
+            say(f"  {wait}; `{again}` after it")
         except Cannot as no:
             st["result"] = f"cannot: {no}"
             say(f"  cannot: {no}")
@@ -2114,6 +2229,416 @@ def rehearse_public(url: str, keys: Path, live_dir: Path, so_dir: Path, resume: 
     return code or closed
 
 
+# ---- run --phase before|after: knos_oidc 2.2 and knos_pay 2.2 at the PUBLIC ids ------------------------------------------
+# The time the scheduled task executes proposals 7 and 8, as the run that arranged it printed it. Only a floor for how
+# long the orders funded BEFORE stay open: the chain decides when the proposals run, and `status --want 2.2` reads that.
+AFTER_AT = int(datetime(2026, 10, 9, 8, 25, 45, tzinfo=timezone.utc).timestamp())
+ONE_RATE = ((10, 5 * USDC, 50_000), (11, 100 * USDC, 300_000), (12, 1_500 * USDC, 4_500_000))      # (sequence, amount, the fee of 0.30% with the 0.05 floor)
+AFTER_HOW = ("in the round's repository: merge a pull request that closes the issue the order names so that prove.yml posts its token, and start attest.yml "
+             "by hand where a second judge is asked for; then `run --phase after --resume`")
+STRICT_ISSUER = "https://strict.knos-exercise.invalid"      # `.invalid` never resolves (RFC 2606): an issuer that is nobody's
+
+
+def after_stored_fund(book: Book, st: dict) -> None:
+    """While knos_pay 2.1 is live: a wallet funds two orders of this run's own, one to be paid and one to go back
+    after the upgrade. Each holds the 2.1 fee (0.40 on 5.00), and its account is kept byte for byte."""
+    w = book.w
+    sim = isinstance(w, Simulated)
+    until = max(AFTER_AT, w.now())
+    for key, seq, work in (("pay", 0, _rc_work(w) if sim else until - w.now() + 6 * 3600), ("refund", 1, 600 if sim else until - w.now() + 1800)):
+        if key in st:
+            continue
+        sig, order, o = _rc_fund(w, st, seq, AMOUNT, work_s=max(work, pay.MIN_WORK))
+        _check(o.fee == fee_tiers_21(AMOUNT), f"the public id does not run knos_pay 2.1 any more: it charged {money(o.fee)} on {money(AMOUNT)}, and 2.1 charges "
+                                               f"{money(fee_tiers_21(AMOUNT))}. This order is not one funded before the upgrade")
+        st[key] = {"signature": sig, "order": str(order), "amount": o.amount, "fee": o.fee, "deadline": o.deadline, "data": have(w.account(order)).hex()}
+        book.tx(st, f"under knos_pay 2.1, a wallet funds an order of {money(o.amount)} with {money(o.fee)} on top, open until {day(o.deadline)}", sig, "knos_pay")
+
+
+def after_stored_fee(book: Book, st: dict) -> None:
+    """After the upgrade: the two orders funded under 2.1 read as they were written; a proof pays one and the other
+    goes back at its deadline, each with the fee it was funded with (0.40), not the new rule's (0.05)."""
+    w = book.w
+    before = book.ev["rounds"].get("stored_fund", {})
+    if not (before.get("pay") and before.get("refund")):
+        raise Cannot("no order of this run's own was funded before the upgrade: `run --phase before` funds two while knos_pay 2.1 is live, and an order "
+                     "reserved for someone else is never used for this. An order of the 0.3.18 round funded under 2.1 (round `order`) still goes back "
+                     "with its stored fee when its deadline has passed: `run --resume`")
+    st.setdefault("issue", book.ev["rounds"]["stored_fund"]["issue"])
+    need: Need | None = None
+    for key in ("pay", "refund"):
+        row, order = before[key], Pubkey.from_string(before[key]["order"])
+        if key in st:
+            continue
+        o = have(pay.read_order(w.account(order)), "the order funded before the upgrade")
+        _check(have(w.account(order)).hex() == row["data"] and (o.amount, o.fee, o.state) == (row["amount"], row["fee"], "open"),
+               "the upgrade changed the order's account, or the client reads another amount or fee from it")
+        _check(o.fee == fee_tiers_21(o.amount) != fee_flat(o.amount), "the order's stored fee is not the 2.1 fee it was funded with")
+        if key == "pay" and w.now() <= o.deadline:
+            try:
+                tok = _rc_judge(book, st, "proof", order, lambda x: int(x.c["repository_id"]) == w.pin()[2], {"repository_id": w.pin()[2]})
+            except Need as waits:       # no proof yet: the other order still goes back, and this one too once its deadline has passed
+                need = Need(waits.workflow, AFTER_HOW)
+                continue
+            _wallets, dest = _rc_dest(w, tok)
+            had = w.tokens(dest)
+            r = w.submit(tok)
+            _check(bool(r.get("ok")), f"knos_pay 2.2 did not pay the order funded under 2.1: {r.get('why')}")
+            _check(w.tokens(dest) - had == row["amount"] and w.account(order) is None, "the payee was not paid the order's amount, or the order is not closed")
+            st[key] = {"signature": r["sigs"][-1], "amount": row["amount"], "fee_kept": row["fee"]}
+            book.tx(st, f"knos_pay 2.2 pays the order funded under 2.1: {money(row['amount'])}, its fee as funded ({money(row['fee'])})", r["sigs"][-1], "knos_pay")
+            continue
+        w.wait_until(o.deadline, "the deadline of the order funded before the upgrade, after which it goes back with the fee it was funded with")
+        had = w.tokens(w.funder_token)
+        sig = w.send([pay.refund_order_ix(w.relayer.pubkey(), order, o)])
+        _check(w.tokens(w.funder_token) - had == row["amount"] + row["fee"] and w.account(order) is None,
+               "the order funded under 2.1 did not go back with its amount and the fee it was funded with")
+        st[key] = {"signature": sig, "amount": row["amount"], "fee_back": row["fee"], "refunded": True}
+        book.tx(st, f"the order funded under 2.1 goes back whole: {money(row['amount'])} and its stored fee of {money(row['fee'])}", sig, "knos_pay")
+    if need:
+        raise need
+
+
+def after_one_rate(book: Book, st: dict) -> None:
+    """The one rate on chain: 0.05 on an order of 5.00 (the floor), 0.30 on 100.00, 4.50 on 1,500.00; then all three
+    go back whole."""
+    w = book.w
+    todo = [(seq, amount, fee) for seq, amount, fee in ONE_RATE if f"fee{amount // USDC}" not in st]
+    cost = sum(amount + fee for _seq, amount, fee in todo)
+    if todo and w.tokens(w.funder_token) < cost:
+        raise Cannot(f"the funding wallet {w.funder.pubkey()} holds {money(w.tokens(w.funder_token))} test USDC, and the three orders with their fees take "
+                     f"{money(cost)} for one minute (it all comes back)")
+    for seq, amount, _fee in todo:
+        sig, order, o = _rc_fund(w, st, seq, amount, work_s=pay.MIN_WORK)
+        st[f"fee{amount // USDC}"] = {"signature": sig, "order": str(order), "amount": amount, "fee": o.fee, "deadline": o.deadline}
+        book.tx(st, f"an order of {money(amount)} is funded with a fee of {money(o.fee)} on top", sig, "knos_pay")
+    wrong = [f"{money(st[f'fee{a // USDC}']['fee'])} on {money(a)} (the rule gives {money(fee)})" for _seq, a, fee in ONE_RATE
+             if not st[f"fee{a // USDC}"]["fee"] == fee == fee_flat(a)]
+    if not wrong and "said" not in st:
+        st["said"] = [f"{money(a)} -> {money(fee)}" for _seq, a, fee in ONE_RATE]
+        book.done(st, "fee_one_rate", "knos_pay", st["fee100"]["signature"],
+                  ["each order's fee is read from its account on chain: " + "; ".join(st["said"]), "0.30% of the amount rounded down, never less than 0.05: one rate, no tier",
+                   "each fee came from the wallet on top of the amount"])
+    for _seq, amount, _fee in ONE_RATE:         # the money comes back whether or not the fee was right
+        row = st[f"fee{amount // USDC}"]
+        if "refund" in row:
+            continue
+        order = Pubkey.from_string(row["order"])
+        w.wait_until(row["deadline"], "the deadline of the orders nobody proves")
+        had = w.tokens(w.funder_token)
+        sig = w.send([pay.refund_order_ix(w.relayer.pubkey(), order, have(pay.read_order(w.account(order)), "the order"))])
+        _check(w.tokens(w.funder_token) - had == amount + row["fee"] and w.account(order) is None, f"the order of {money(amount)} did not go back whole, fee included")
+        row["refund"] = sig
+        book.tx(st, f"past its deadline the order of {money(amount)} goes back to the wallet, fee included", sig, "knos_pay")
+    _check(not wrong, "the build at the public id charged " + "; ".join(wrong))
+
+
+def after_one_owner(book: Book, st: dict) -> None:
+    """A quorum of two, and ONE owner behind both judges (the order's own repository, and a neutral run in another
+    repository of that owner): the second is recorded and counts for nothing, no money moves, and the relay's answer,
+    which the workflow posts as its comment, says why."""
+    w = book.w
+    sim = w if isinstance(w, Simulated) else None
+    if "answer" in st:
+        return
+    _n, order = _rc_order(w, st, 5)
+    if "fund" not in st:
+        sig, order, _o = _rc_fund(w, st, 5, AMOUNT, Q2, _rc_work(w))
+        st["fund"] = {"signature": sig, "order": str(order)}
+        book.tx(st, "a wallet funds an order that needs two judges", sig, "knos_pay")
+    one = sim.o.OWNER if sim else None
+    first = _rc_judge(book, st, "own", order, lambda x: int(x.c["repository_id"]) == w.pin()[2], {"repository_id": w.pin()[2], "actor_id": one})
+    if "one" not in st:
+        r = w.submit(first)
+        _check(bool(r.get("ok")) and not r.get("paid"), f"the first judge was not recorded as one of two: {r.get('why') or r.get('paid')}")
+        st["one"] = {"signature": r["sigs"][-1], "actor": int(first.c["actor_id"]), "owner": int(first.c["repository_owner_id"])}
+        book.tx(st, "the run in the order's repository is recorded: one of two", r["sigs"][-1], "knos_pay")
+    same = _rc_judge(book, st, "same", order, lambda x: int(x.c["repository_id"]) != w.pin()[2] and int(x.c["repository_owner_id"]) == st["one"]["owner"],
+                     sim.c.neutral(one) if sim else {})
+    _wallets, dest = _rc_dest(w, same)
+    had, held = w.tokens(dest), w.tokens(pay.ov_pda(order))
+    r = w.submit(same)
+    after = pay.read_order(w.account(order))
+    _check(w.tokens(dest) == had and w.tokens(pay.ov_pda(order)) == held and after is not None and after.state == "open" and after.paid == 0,
+           "ONE owner's two runs paid a quorum of two: this build does not tell judges apart by who owns the repository")
+    q = r.get("quorum") or {}
+    why = [str(x) for x in q.get("uncounted") or []] if r.get("ok") else [str(r.get("why"))]
+    _check(bool(why) and (not r.get("ok") or (q.get("have"), q.get("of")) == (1, 2)),
+           f"the relay's answer does not say why the second run is not a second judge: {r}")
+    _check(not r.get("ok") or any("one owner" in x for x in why), f"the relay's answer gives another reason than the one owner: {why}")
+    sig = (r.get("sigs") or [st["one"]["signature"]])[-1]
+    st["answer"] = {"signature": sig, "have": q.get("have"), "of": q.get("of"), "why": why, "recorded": bool(r.get("ok"))}
+    book.tx(st, "the same owner's neutral run " + ("is recorded and counts for nothing: still 1 of 2" if r.get("ok") else "is refused by the relay before anything is sent")
+            + "; no money moved", sig, "knos_pay")
+    book.done(st, "quorum_by_owner", "knos_pay", st["one"]["signature"],
+              ["two runs behind one repository owner are one judge: after both, the order is open, unpaid and holds what it held",
+               "the relay's answer, which the workflow posts as its comment, says why: " + " ".join(why)])
+
+
+def after_grace(book: Book, st: dict) -> None:
+    """An order funded with the presentation grace and a two-minute deadline: right after the deadline its refund is
+    refused on chain, because a token the forge issued by the deadline can still be shown; when the grace is over it
+    goes back whole. On the simulator a second such order is paid inside its grace."""
+    w = book.w
+    sim = w if isinstance(w, Simulated) else None
+    if "refund" in st:
+        return
+    _n, order = _rc_order(w, st, 8)
+    if "fund" not in st:
+        sig, order, o = _rc_fund(w, st, 8, AMOUNT, pay.opts(grace=True), work_s=120)
+        _check(o.grace and o.pay_until == o.deadline + pay.GRACE, "the order was not funded with the presentation grace")
+        st["fund"] = {"signature": sig, "order": str(order), "fee": o.fee, "deadline": o.deadline, "pay_until": o.pay_until}
+        book.tx(st, f"a wallet funds an order with the presentation grace, open for two minutes (until {day(o.deadline)})", sig, "knos_pay")
+    if sim and "paid" not in st:            # a token issued by the deadline, shown after it: only the simulator has a forge and a clock to arrange
+        sig, second, o2 = _rc_fund(w, st, 9, AMOUNT, pay.opts(grace=True), work_s=120)
+        tok = _rc_judge(book, st, "proof", second, lambda x: True, {"repository_id": sim.o.REPO})
+        sim.c.warp(o2.deadline - sim.c.now() + 5)
+        _wallets, dest = _rc_dest(w, tok)
+        had = w.tokens(dest)
+        r = w.submit(tok)
+        _check(bool(r.get("ok")) and w.tokens(dest) - had == AMOUNT, f"a token issued by the deadline did not pay inside the grace: {r.get('why')}")
+        st["paid"] = {"signature": r["sigs"][-1], "after_deadline_s": w.now() - o2.deadline}
+        book.tx(st, "a second such order: a token issued by its deadline pays it after the deadline, inside the grace", r["sigs"][-1], "knos_pay")
+    o = have(pay.read_order(w.account(order)), "the order")
+    if "early" not in st:
+        w.wait_until(st["fund"]["deadline"], "the order's deadline")
+        held = w.tokens(pay.ov_pda(order))
+        sig, code = w.refused([pay.refund_order_ix(w.relayer.pubkey(), order, o)])
+        _check(w.tokens(pay.ov_pda(order)) == held and w.account(order) is not None, "the refund inside the grace moved money")
+        st["early"] = {"signature": sig, "error": code, "means": pay.ERRORS.get(code or 0, "the program refused it")}
+        book.tx(st, "right after the deadline, inside the grace, the refund", sig, "knos_pay", code, st["early"]["means"])
+        book.done(st, "presentation_grace", "knos_pay", st["fund"]["signature"],
+                  [f"the order's deadline was {day(st['fund']['deadline'])} and it takes a token issued by then until {day(st['fund']['pay_until'])}",
+                   f"its refund right after the deadline is refused with error {code} and moves nothing",
+                   *(["on the simulator a second such order was paid after its deadline by a token issued before it"] if "paid" in st else
+                     ["paying inside the grace needs a merge within two minutes of the funding: not attempted at the public id"])],
+                  [{"signature": sig, "error": code, "means": st["early"]["means"], "what": "the refund of an order inside its presentation grace"}])
+    w.wait_until(st["fund"]["pay_until"], "the end of the grace, after which the order goes back")
+    had = w.tokens(w.funder_token)
+    sig = w.send([pay.refund_order_ix(w.relayer.pubkey(), order, have(pay.read_order(w.account(order)), "the order"))])
+    _check(w.tokens(w.funder_token) - had == o.amount + o.fee and w.account(order) is None, "the order did not go back whole when its grace was over")
+    st["refund"] = {"signature": sig}
+    book.tx(st, "the grace is over: the order goes back to the wallet with its fee", sig, "knos_pay")
+
+
+def after_strict(book: Book, st: dict) -> None:
+    """A token whose payload holds NaN, signed by a key this wallet registered as its own private key: the strict
+    verifier refuses it with its not-JSON error (61), and verifies the same token with a number in that place."""
+    w = book.w
+    if "refused" in st:
+        return
+    sys.path.insert(0, str(ROOT / "tests"))
+    import _settle
+    import outcome_k8s as k8s
+    not_json = int(have(re.search(r"pub const E_JSON: u32 = (\d+);", (ROOT / "programs-v2" / "knos_oidc" / "src" / "claims.rs").read_text(encoding="utf-8")))[1])
+    # nobody's key: its seed is written here, so anyone can sign with it, and it is registered as THIS wallet's private
+    # key only (every reader of a token it verifies sees the registrant). It speaks for no issuer and pays for nothing
+    key = _settle.SeedKey(2048, seed="knos exercise: the strict-json round's key")
+    n, me, now = _settle.modulus(key), w.relayer.pubkey(), w.now()
+
+    def token(extra: bytes, jti: str) -> str:
+        body = json.dumps({"aud": ["knos:strict"], "exp": now + 3600, "iat": now, "iss": STRICT_ISSUER, "jti": f"{jti}-{now}", "nbf": now - 600, "sub": "knos:exercise"},
+                          separators=(",", ":")).encode()
+        return _settle.sign_jwt(key, {}, {"alg": "RS256", "kid": "strict"}, raw_payload=body[:-1] + extra + b"}")
+
+    def groups(jwt: str) -> tuple[list, Pubkey]:
+        held = oidc.read_key(w.account(oidc.key_pda(STRICT_ISSUER, n, registrant=me)))
+        got, account, _key = k8s.chain_groups(me, jwt, n, STRICT_ISSUER, registered=held is not None and held.state == 1)
+        return got, account
+
+    if "control" not in st:         # the control: with a number where the NaN will be, the token is verified, so the NaN is what is refused
+        steps, account = groups(token(b',"x":1', "control"))
+        sig = [w.send(ixs) for _what, ixs in steps][-1]
+        _check(bool(have(oidc.read_token(w.account(account)), "the control token").verified), "the control token was not verified")
+        st["control"] = {"signature": sig, "token": str(account)}
+        book.tx(st, "the control: the token with a number in that place is verified under this wallet's private key", sig, "knos_oidc")
+    steps, _account = groups(token(b',"x":NaN', "nan"))
+    for _what, ixs in steps[:-1]:
+        w.send(ixs)
+    try:
+        sig, code = w.refused(steps[-1][1])
+    except Failed:
+        raise Failed("knos_oidc at this id verified a NaN claim: it is not the strict build") from None
+    _check(code == not_json, f"the NaN claim was refused with error {code}, not the verifier's not-JSON error {not_json}")
+    st["refused"] = {"signature": sig, "error": code}
+    book.tx(st, "the same token with NaN in that place is refused by the verifier", sig, "knos_oidc", code, "the payload is not JSON")
+    book.done(st, "oidc_strict_json", "knos_oidc", st["control"]["signature"],
+              [f"knos_oidc verified a token of {STRICT_ISSUER} under a private key this wallet registered, and refused the same token with a NaN claim with error {code}",
+               "the key's seed is public and the key is this wallet's private key only: it speaks for no issuer"],
+              [{"signature": sig, "error": code, "means": "the payload is not JSON", "what": "a NaN claim"}])
+
+
+ES256_ISSUER = "https://es256.knos-exercise.invalid"        # `.invalid` never resolves (RFC 2606): an issuer that is nobody's
+ES256_SEED = b"knos exercise: the es256 round's key"       # public, so anyone can sign with it: it speaks for no issuer
+
+
+def after_es256(book: Book, st: dict) -> None:
+    """ES256: this wallet registers a P-256 key as its own private key, and a token that key signed, as long as one
+    transaction carries, is verified in ONE transaction (the secp256r1 precompile, then VerifyEs256). The same token
+    sent again is refused: its account exists. The client is knos.settle.v2.oidc's; the key's seed is written here."""
+    w = book.w
+    if "refused" in st:
+        return
+    import hashlib
+
+    from solders.hash import Hash
+    sys.path.insert(0, str(ROOT / "tests"))
+    import _es256 as model          # P-256 in plain Python with RFC 6979 nonces: a key and a message give one signature
+    secret = int.from_bytes(hashlib.sha256(ES256_SEED).digest(), "big") % (model.N - 1) + 1
+    key, me, now = model.public(secret), w.relayer.pubkey(), w.now()
+    at = oidc.ec_key_pda(ES256_ISSUER, key, registrant=me)
+    exists = int(have(re.search(r"pub const E_STAGE: u32 = (\d+);", (ROOT / "programs-v2" / "knos_oidc" / "src" / "lib.rs").read_text(encoding="utf-8")))[1])
+    if "registered" not in st:      # sent again by the same wallet it only renews the key: safe to repeat
+        sig = w.send([oidc.register_private_es256_key_ix(me, ES256_ISSUER, key)])
+        held = have(oidc.read_ec_key(w.account(at)), "the P-256 key account")
+        _check(held.key == key and held.private and held.registrant == me and held.issuer_hash == oidc.issuer_hash(ES256_ISSUER)
+               and oidc.ec_key_usable(held, w.now())[0], "the key account is not this wallet's private P-256 key of that issuer, usable now")
+        st["registered"] = {"signature": sig, "key": str(at)}
+        book.tx(st, "this wallet registers a P-256 key as its own private key (RegisterPrivateEs256Key)", sig, "knos_oidc")
+
+    def signing(pad: int) -> bytes:
+        return model.signing_input({"alg": "ES256", "typ": "JWT", "kid": "exercise"},
+                                   {"aud": "knos:es256", "exp": st["exp"], "iat": st["iat"], "iss": ES256_ISSUER, "jti": f"es256-{st['iat']}", "sub": "knos:exercise", "pad": "x" * pad})
+
+    def fits(message: bytes) -> bool:      # as this ledger signs it: the compute-unit limit it adds takes room the bare two instructions would not
+        one = bytes(31) + bytes([1])        # any r and s above zero: only the length matters here
+        jwt = message.decode() + "." + model.b64url(one + one).decode()
+        try:
+            return len(bytes(chain.sign(oidc.verify_es256_ixs(me, at, jwt, key), w.relayer, None, Hash.default()))) <= 1232
+        except ValueError:          # longer than the program's own limit for a signing input
+            return False
+    if "token" not in st:
+        st.update(iat=now, exp=now + 3600)
+        message = have(next((signing(pad) for pad in range(600, -1, -1) if fits(signing(pad))), None), "a signing input that one transaction carries")
+        st["token"] = f"{message.decode()}.{model.b64url(model.sign(secret, message)).decode()}"
+    jwt = st["token"]
+    message, _signature = oidc.es256_parts(jwt)
+    account = oidc.token_pda(me, oidc.es256_token_id(jwt))
+    if "verified" not in st:
+        sig = w.send(oidc.verify_es256_ixs(me, at, jwt, key))
+        tok = have(oidc.read_token(w.account(account)), "the token account")
+        _check(tok.verified and tok.issuer == oidc.PRIVATE and tok.key == at and tok.claims()["iss"] == ES256_ISSUER and tok.claims()["jti"] == f"es256-{st['iat']}",
+               "the token account is not this token, verified under this wallet's key")
+        _check(oidc.token_issuer(w.account(account)) == (oidc.issuer_hash(ES256_ISSUER), me), "the token does not name the issuer's hash and the wallet that vouches for the key")
+        st["verified"] = {"signature": sig, "token": str(account), "signing_input_bytes": len(message)}
+        book.tx(st, f"an ES256 token of {len(message)} bytes is verified in one transaction (the secp256r1 precompile, then VerifyEs256)", sig, "knos_oidc")
+    sig, code = w.refused(oidc.verify_es256_ixs(me, at, jwt, key))
+    _check(code == exists, f"the same token sent again was refused with error {code}, not {exists} (its account exists)")
+    st["refused"] = {"signature": sig, "error": code}
+    book.tx(st, "the same token again is refused: one payer verifies one token into one account, once", sig, "knos_oidc", code, "the token account exists")
+    book.done(st, "es256_tokens", "knos_oidc", st["verified"]["signature"],
+              [f"knos_oidc verified an ES256 token of {st['verified']['signing_input_bytes']} bytes of {ES256_ISSUER} in one transaction, under a private P-256 key this wallet registered",
+               "the key's seed is public and the key is this wallet's private key only: it speaks for no issuer"],
+              [{"signature": sig, "error": code, "means": "the token account exists", "what": "the same token a second time"}])
+
+
+def after_close(book: Book, st: dict) -> None:
+    """Every order of these rounds that is still open goes back to the wallet at its deadline, fee included."""
+    w = book.w
+    back = st.setdefault("refunds", {})
+    for name in AFTER_STEPS:
+        for row in [x for x in book.ev["rounds"].get(name, {}).values() if isinstance(x, dict) and "order" in x and x["order"] not in back]:
+            order = Pubkey.from_string(row["order"])
+            o = pay.read_order(w.account(order))
+            if o is None or o.state != "open":
+                continue
+            w.wait_until(o.pay_until, f"the deadline of the order of `{name}`")
+            had = w.tokens(w.funder_token)
+            sig = w.send([pay.refund_order_ix(w.relayer.pubkey(), order, o)])
+            _check(w.tokens(w.funder_token) - had == o.amount - o.paid + o.fee and w.account(order) is None, f"the order of `{name}` did not go back whole")
+            back[row["order"]] = sig
+            book.tx(st, f"the open order of `{name}` goes back to the wallet with its fee", sig, "knos_pay")
+
+
+# name -> (the step, when it runs: before or after proposals 7 and 8 execute). The same shape as RC_STEPS, at the PUBLIC ids
+AFTER_STEPS: dict[str, tuple[Callable[[Book, dict], None], str]] = {
+    "stored_fund": (after_stored_fund, "before"), "stored_fee": (after_stored_fee, "after"), "one_rate": (after_one_rate, "after"),
+    "one_owner": (after_one_owner, "after"), "two_owners": (rc_two_owners, "after"), "earlier_marker": (rc_same_second, "after"),
+    "grace": (after_grace, "after"), "strict": (after_strict, "after"), "es256": (after_es256, "after"), "after_close": (after_close, "after")}
+AFTER_AGAIN = "run --phase after --resume"
+
+
+def after_summary(ev: dict, phase: str, say: Callable[[str], None] = print) -> int:
+    """One line per step of the phase, and the exit code: 1 when a step failed; `cannot`, `needs run` and `needs time` are said."""
+    names = [n for n, (_fn, when) in AFTER_STEPS.items() if when == phase]
+    results = {n: str(ev["rounds"].get(n, {}).get("result", "not run")) for n in names}
+    for n, r in results.items():
+        say(f"  {n}: {r}")
+    bad, open_ = [n for n, r in results.items() if r.startswith("failed")], [n for n, r in results.items() if r.startswith(("needs", "not run"))]
+    say(f"FAILED: {', '.join(bad)}: nothing of these rounds is recorded until that is understood" if bad else
+        f"not finished: {', '.join(open_)} wait; `{AFTER_AGAIN if phase == 'after' else 'run --phase before'}` goes on from here" if open_ else
+        f"the {phase} rounds are done: every step is ok, or cannot be done from here and says why" + ("; `record` writes them" if phase == "after" else ""))
+    return 1 if bad else 0
+
+
+def after_simulated(say: Callable[[str], None] = print) -> tuple[dict, int]:
+    """Both phases on the simulator: the chain starts on the test build of the source that is live, the orders of
+    `before` are funded there, knos_pay is replaced in place by this tree's test build, and the `after` steps run."""
+    kept = ((_json(LIVE_BUILDS) or {}).get("programs") or {}).get("knos_pay", {}).get("kept")
+    w = Simulated(pay_build=kept if kept and (ROOT / "tests" / "fixtures" / kept).is_file() else None)
+    try:
+        ev = new_evidence(w, simulated_programs())
+        ev["old_build"] = gate.executable_hash((ROOT / "tests" / "fixtures" / w.pay_build).read_bytes()).hex()
+        rehearse_phase(w, ev, "before", say, AFTER_STEPS, AFTER_AGAIN)
+        ev["new_build"] = w.upgrade()
+        say(f"upgraded in place: knos_pay runs this tree's test build {ev['new_build'][:16]}...")
+        rehearse_phase(w, ev, "after", say, AFTER_STEPS, AFTER_AGAIN)
+    finally:
+        w.close()
+    return ev, after_summary(ev, "after", say)
+
+
+def after_main(phase: str, where: Path | None, url: str | None, keys: Path | None, simulate: bool, since: str | None, neutral: str | None,
+               say: Callable[[str], None] = print, account: Callable | None = None, world: Callable[[], World] | None = None) -> int:
+    """`run --phase before|after`. At the public ids `after` runs only when `status --want 2.2` is satisfied, and
+    `before` only while knos_pay 2.1 is still live: otherwise exit 3 with nothing sent. `account` and `world` are the
+    tests' own cluster."""
+    if simulate:
+        ev, code = after_simulated(say)
+        if where:
+            _write(where, ev)
+            say(f"wrote {where}")
+        return code
+    if not (url and keys and where):
+        say("run --phase needs --rpc and --keys, or --simulate")
+        return 2
+    account = account or mc._rpc(url)
+    code = status(url, say, account, want="2.2")
+    if code == 1:
+        return 1
+    programs = read_programs(account)
+    if phase == "after" and code != 0:
+        say("nothing was sent: the after rounds run only on the builds of proposals 7 and 8")
+        return 3
+    if phase == "before" and programs["knos_pay"]["is"] != "new":
+        say("nothing was sent: knos_pay 2.1 is no longer what the public id runs, so no order can be funded BEFORE the upgrade any more")
+        return 3
+    w = world() if world else Public(url, keys, say, since)
+    w.neutral = neutral
+    old = _json(where)
+    ev = old if old and old.get("mode") == w.mode else new_evidence(w, programs)
+    ev["programs"] = programs
+    rehearse_phase(w, ev, phase, say, AFTER_STEPS, AFTER_AGAIN)
+    _write(where, ev)
+    say(f"wrote {where}")
+    return after_summary(ev, phase, say)
+
+
+def due(ev: dict, now: int, say: Callable[[str], None] = print) -> list[str]:
+    """What an earlier run left for the chain's clock, and whether its time has come: one line per round. The rounds
+    themselves finish it (`run --resume`); this only says what will be sent now and what still waits."""
+    out = []
+    for name, st in ev.get("rounds", {}).items():
+        t = st.get("needs_time")
+        if t is None and str(st.get("result", "")).startswith("needs time"):
+            t = 0
+        if t is None:
+            continue
+        out.append(name)
+        say(f"[{name}] left for the clock ({st.get('stopped') or st.get('result')}): " + ("due now: this run finishes it" if now > int(t) else f"not due before {day(int(t))}"))
+    return out
+
+
 # ---- the command ------------------------------------------------------------------------------------------------------
 def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
@@ -2121,7 +2646,10 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("words", nargs="*", help="note: the round's name, then key=value for each thing its outside step printed")
     ap.add_argument("--json", action="store_true", help="status: one JSON object (`exit` is the exit code)")
     ap.add_argument("--rc", action="store_true", help="rehearse: on staging ids (the only kind there is)")
-    ap.add_argument("--phase", choices=("before", "after"), help="rehearse: one phase alone, on the ids of KNOS_PROGRAM_IDS (what `rehearse --rc` calls)")
+    ap.add_argument("--phase", choices=("before", "after"), help="run: the rounds of proposals 7 and 8, before or after they execute, at the PUBLIC ids. "
+                                                                 "rehearse: one phase alone, on the ids of KNOS_PROGRAM_IDS (what `rehearse --rc` calls)")
+    ap.add_argument("--want", choices=tuple(WANT), help="status: exit 0 only when the builds of this version are live (2.2: proposals 7 and 8 executed)")
+    ap.add_argument("--neutral", help="run --phase after: owner/repo of ANOTHER owner whose attest.yml run is the second judge; it is read, never written to")
     ap.add_argument("--live-so-dir", type=Path, default=Path(os.environ["KNOS_LIVE_SO_DIR"]) if os.environ.get("KNOS_LIVE_SO_DIR") else None,
                     help="rehearse: the verified builds that are live (program.yml's run on the v0.3.14 tag)")
     ap.add_argument("--rpc", help="the cluster (devnet)")
@@ -2143,7 +2671,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     if a.command == "status":
         if not a.rpc:
             ap.error("status needs --rpc")
-        return status(a.rpc, say, as_json=a.json)
+        return status(a.rpc, say, as_json=a.json, want=a.want)
     where = a.evidence or (a.keys / EVIDENCE if a.keys else None)
     if a.command in ("propose", "propose-oidc"):
         if not (a.rpc and a.keys and a.so_dir):
@@ -2196,6 +2724,8 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
             def refresh(root: Path) -> None:
                 feed.write(root / "web", mc._rpc(a.rpc), ids, chain.Ledger(a.rpc).now(), mc._cluster(a.rpc))
         return record(ev, a.root, say, refresh)
+    if a.command == "run" and a.phase:
+        return after_main(a.phase, where, a.rpc, a.keys, a.simulate, a.since, a.neutral, say)
     if a.simulate:
         w: World = Simulated()
         programs = simulated_programs()
@@ -2212,6 +2742,8 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         old = None if a.fresh or a.simulate else _json(where)
         ev = old if old and old.get("mode") == w.mode else new_evidence(w, programs)
         ev["programs"] = programs
+        if a.resume:
+            due(ev, w.now(), say)
         if a.again:
             if a.again not in ROUNDS:
                 ap.error(f"--again takes a round: {', '.join(ROUNDS)}")

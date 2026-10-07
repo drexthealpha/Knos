@@ -133,7 +133,7 @@ if (browser) {
   await page.locator("tr[data-agent=alpha] .ib-copy").click();
   ok("browser: copying the badge answers at once", await page.waitForFunction(() => document.querySelector("tr[data-agent=alpha] .ib-copy, tr[data-agent=alpha] textarea") && !/^Copy SVG$/.test((document.querySelector("tr[data-agent=alpha] .ib-copy") || {}).textContent || ""), null, { timeout: 300 }).then(() => true, () => false));
   const boxed = await page.evaluate(() => { const w = document.querySelector(".k-table"); return [w.scrollWidth > w.clientWidth, getComputedStyle(w).overflowX]; });
-  ok("browser: at 320px the table scrolls inside its own box", boxed[0] === true && boxed[1] === "auto", boxed);
+  ok("browser: at 320px a row is a block as wide as its card: nothing to scroll", boxed[0] === false && boxed[1] === "auto", boxed);
   ok("browser: the picker has a label and the table a name", (await page.getByLabel("Week of", { exact: true }).count()) === 1 && (await page.getByRole("table", { name: "Agent PR Index, week of 2026-09-28" }).count()) === 1);
   const over = [];
   for (const w of [320, 480, 768, 1024, 1280]) { await page.setViewportSize({ width: w, height: 700 }); over.push(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)); }

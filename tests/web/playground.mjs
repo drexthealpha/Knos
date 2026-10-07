@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, "../.."), web = join(root, "web"), source = readFileSync(join(web, "playground.js"), "utf8");
 const lib = await import(pathToFileURL(join(web, "playground.js")).href);
-const { renderPlayground, playgroundHtml, tasksOf, fundUrl, takeUrl, editUrl, REPO, TEMPLATE, TASK_FILE, FUND_LABEL, TAKE_LABEL, LABEL_KNOS_FAUCET } = lib;
+const { renderPlayground, playgroundHtml, tasksOf, boardOf, leftOf, boardUrl, fundUrl, takeUrl, editUrl, REPO, TEMPLATE, TASK_FILE, FUND_LABEL, TAKE_LABEL, LABEL_KNOS_FAUCET } = lib;
 
 let failed = 0;
 const ok = (what, cond, detail) => { if (!cond) failed++; console.log(`${cond ? "ok  " : "FAIL"} ${what}${cond || detail === undefined ? "" : `: ${JSON.stringify(detail)}`}`); };
@@ -27,6 +27,26 @@ const definitions = { funders: "accounts that are not Knos's and funded a job", 
   funders_in_knos_repositories_faucet: `${LABEL_KNOS_FAUCET}: an outside account's comment` };
 const zeros = { measured: true, funders: 0, funders_in_outside_repositories: 0, funders_in_knos_repositories_faucet: 0, repositories: 0, payees: 0, summed: false, definitions };
 const some = { ...zeros, funders: 3, funders_in_outside_repositories: 1, funders_in_knos_repositories_faucet: 2, repositories: 1, payees: 2 };
+
+// the board as `python scripts/task_board.py status --json` writes it at the site's build
+const NOW = Date.parse("2026-10-07T12:00:00Z");
+const row = (n, title, deadline, extra = {}) => ({ issue: n, slug: "x", title, amount: 5_000_000, decimals: 6, currency: "test USDC", opened: "2026-10-07T09:00:00Z", deadline, url: `https://evil.example/${n}`, state: "funding asked", pulls: [], ...extra });
+const tasksFile = { v: 1, read: true, repository: REPO, at: "2026-10-07T12:00:00Z", note: "Test USDC, no monetary value.", target: 8,
+  tasks: [row(12, "Write a whole number as a <b>Roman</b> numeral", "2026-10-21T09:00:00Z"), row(31, "Run-length encode a line", "2026-10-07T17:30:00Z"), row(30, "Over", "2026-10-07T11:00:00Z"), { issue: "x" }] };
+const board = boardOf(tasksFile, NOW);
+ok("the board's rows are the funded tasks that still have time, oldest first", board.map((t) => t.number).join() === "12,31" && board[0].amount === "5" && board[0].currency === "test USDC", board);
+ok("time left is whole days, then whole hours", board[0].left === "13 days left" && board[1].left === "5 hours left" && leftOf("2026-10-08T12:00:00Z", NOW) === "1 day left" && leftOf("2026-10-07T12:20:00Z", NOW) === "1 hour left" && leftOf("2026-10-07T12:00:00Z", NOW) === "Ended" && leftOf("soon", NOW) === "");
+ok("a task's link is built here, never taken from the file", board.every((t) => t.url === `https://github.com/${REPO}/issues/${t.number}`));
+ok("a build that read no board, or another repository's, gives no rows and no zero", boardOf(null) === null && boardOf({ v: 1, read: false, tasks: [] }) === null && boardOf({ ...tasksFile, repository: "octo/else" }, NOW) === null && boardOf({ ...tasksFile, tasks: "x" }, NOW) === null);
+{
+  const h = playgroundHtml({ tasks: [], board });
+  ok("the board is a table: amount, time left, Take it", (h.match(/class="k-btn quiet pg-take-it"/g) || []).length === 2 && h.includes(`href="https://github.com/${REPO}/issues/12" rel="noopener" aria-label="Take task 12">Take it</a>`)
+    && h.includes(`<span class="k-num">5</span> test USDC`) && h.includes("<td>13 days left</td>") && h.includes("&lt;b&gt;Roman&lt;/b&gt;") && !h.includes("<b>Roman"));
+  ok("Take one goes to the board's oldest task", h.includes(`id="pg-take" href="https://github.com/${REPO}/issues/12"`));
+  ok("it says first that the money is worth nothing", h.includes("Test USDC, no monetary value."));
+  ok("no board read: it says so and links GitHub's list; an empty board says so", playgroundHtml({ board: null }).includes("Board not read in this build.") && playgroundHtml({ board: null }).includes(`href="${boardUrl()}"`) && playgroundHtml({ board: [] }).includes("No funded task is open now.") && !playgroundHtml({}).includes("pg-board-title"));
+  ok("an issue that is on the board is not listed a second time below it", tasksOf(issues, bounties, board).map((t) => t.number).join() === "14,9");
+}
 
 // ---- the two buttons -------------------------------------------------------------------------------------------------------
 const rules = read("src/knos/playground.py"), small = read("scripts/small_repos.py");
@@ -62,14 +82,14 @@ ok("before GitHub answers it says it is reading; when GitHub does not, it says s
 
 // ---- the word budget: every statement is 12 words or fewer, and none claims a user ----------------------------------------------
 const statements = (h) => h.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/<(th|td|a|button|p|span)[^>]*>/g, "\n").replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/g, "x").split(/\n|(?<=[.…!?])\s+(?=[A-Z])/).map((s) => s.trim()).filter(Boolean);
-const long = [playgroundHtml({ tasks: tasksOf([issues[0], issues[3]], bounties), outsiders: some }), playgroundHtml({}), playgroundHtml({ tasks: null }), playgroundHtml({ tasks: [], outsiders: null })]
+const long = [playgroundHtml({ tasks: tasksOf([issues[0], issues[3]], bounties), outsiders: some, board }), playgroundHtml({ board: null }), playgroundHtml({ board: [] }), playgroundHtml({}), playgroundHtml({ tasks: null }), playgroundHtml({ tasks: [], outsiders: null })]
   .flatMap(statements).filter((s) => s.split(/\s+/).length > 12);
 ok("no statement on it is longer than 12 words", long.length === 0, long);
 // the first screen's 40 words (tests/web/words.mjs, which counts no figure, table, button or control) hold with every
 // count read, as the Pages build writes them: the staging build of 7 Oct said 41 there
 const prose = (h) => h.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/<(table|button|strong)[\s\S]*?<\/\1>/g, " ").replace(/<a class="k-btn[\s\S]*?<\/a>/g, " ").replace(/<[^>]+>/g, " ")
   .split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
-const firstScreen = prose(playgroundHtml({ tasks, outsiders: some }));
+const firstScreen = prose(playgroundHtml({ tasks, outsiders: some, board }));
 ok("the first screen says 40 words at most with every count read", firstScreen <= 40, firstScreen);
 ok("it claims nobody has used it", !/\b(users?|customers?|people have|already funded|join)\b/i.test(html.replace(/<style>[\s\S]*?<\/style>/, "")));
 ok("the module asks only GitHub's API and its own site", [...source.matchAll(/https?:\/\/[a-z0-9.-]+/gi)].map((m) => m[0]).every((u) => ["https://github.com", "https://api.github.com"].includes(u)) && !/XMLHttpRequest|import\s*\(|^import /m.test(source));
@@ -77,16 +97,16 @@ ok("the module asks only GitHub's API and its own site", [...source.matchAll(/ht
 // ---- drawn with no browser: the reads, a failure of each, and a slow read that a newer one overtakes ---------------------------
 {
   const el = { innerHTML: "" }, asked = [];
-  const view = renderPlayground(el, { gh: (p) => { asked.push(p); return Promise.resolve(issues); }, file: (p) => { asked.push(p); return p === "bounties.json" ? Promise.resolve(bounties) : Promise.resolve(zeros); }, every: 0 });
+  const view = renderPlayground(el, { gh: (p) => { asked.push(p); return Promise.resolve(issues); }, file: (p) => { asked.push(p); return p === "bounties.json" ? Promise.resolve(bounties) : p === "tasks.json" ? Promise.resolve(tasksFile) : Promise.resolve(zeros); }, every: 0, now: () => NOW });
   ok("it says it is reading at once", el.innerHTML.includes("Reading GitHub…"));
   await view.first;
-  ok("then it has read one list from GitHub and two files of the site", asked.join() === `repos/${REPO}/issues?state=open&per_page=50,bounties.json,outsiders.json` && el.innerHTML === playgroundHtml({ tasks, outsiders: zeros }), asked);
+  ok("then it has read one list from GitHub and two files of the site", asked.join() === `repos/${REPO}/issues?state=open&per_page=50,bounties.json,outsiders.json,tasks.json` && el.innerHTML === playgroundHtml({ tasks: tasksOf(issues, bounties, board), outsiders: zeros, board }), asked);
   const down = { innerHTML: "" };
   await renderPlayground(down, { gh: () => Promise.reject(new Error("403")), file: () => { throw new Error("404"); }, every: 0 }).first;
-  ok("GitHub down and no files: it says so, with both buttons still there", down.innerHTML.includes("GitHub did not answer.") && down.innerHTML.includes(`href="${fundUrl()}"`) && down.innerHTML.includes("Outside counts: not read in this build."));
+  ok("GitHub down and no files: it says so, with both buttons still there", down.innerHTML.includes("GitHub did not answer.") && down.innerHTML.includes(`href="${fundUrl()}"`) && down.innerHTML.includes("Outside counts: not read in this build.") && down.innerHTML.includes("Board not read in this build."));
   const part = { innerHTML: "" };
   await renderPlayground(part, { gh: () => Promise.resolve(issues), file: (p) => (p === "bounties.json" ? Promise.reject(new Error("404")) : Promise.resolve(zeros)), every: 0 }).first;
-  ok("without devnet's list every task says devnet was not read", (part.innerHTML.match(/Devnet not read/g) || []).length === 3 && !part.innerHTML.includes("Funded:"));
+  ok("without devnet's list every task says devnet was not read", (part.innerHTML.match(/Devnet not read/g) || []).length === 3 && !part.innerHTML.includes("Funded:") && part.innerHTML.includes("Board not read in this build."));
   const race = { innerHTML: "" }, gates = [];
   const slow = renderPlayground(race, { gh: () => new Promise((r) => gates.push(r)), file: () => Promise.resolve(zeros), every: 0 });
   const second = slow.refresh();
@@ -111,7 +131,8 @@ if (browser) {
   const page0 = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="./app.css"><body style="margin:16px"><div id="playground"></div>
     <script type="module">import { renderPlayground } from "./playground.js"; window.view = renderPlayground(document.getElementById("playground"), { every: 0 }); await window.view.first; document.body.dataset.ready = "1";</script>`;
   const files = { "/": ["text/html", page0], "/playground.js": ["text/javascript", source], "/app.css": ["text/css", read("web/app.css")],
-    "/bounties.json": ["application/json", JSON.stringify(bounties)], "/outsiders.json": ["application/json", JSON.stringify(zeros)] };
+    "/bounties.json": ["application/json", JSON.stringify(bounties)], "/outsiders.json": ["application/json", JSON.stringify(zeros)],
+    "/tasks.json": ["application/json", JSON.stringify({ ...tasksFile, tasks: [row(40, "Write a whole number as a Roman numeral", "2099-01-01T00:00:00Z"), row(41, "Run-length encode a line", "2099-01-01T00:00:00Z")] })] };
   const server = createServer((req, res) => { const f = files[new URL(req.url, "http://x").pathname]; if (!f) { res.writeHead(404); return res.end(); } res.writeHead(200, { "content-type": f[0] }); res.end(f[1]); });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${server.address().port}/`, asked = [], api = `https://api.github.com/repos/${REPO}/issues?state=open&per_page=50`;
@@ -127,9 +148,11 @@ if (browser) {
   const page = await ctx.newPage();
   await page.goto(base, { waitUntil: "load" });
   await page.waitForSelector("body[data-ready]");
-  ok("browser: the two buttons are links to GitHub", (await page.getAttribute("#pg-fund", "href")) === fundUrl() && (await page.textContent("#pg-fund")) === FUND_LABEL && (await page.textContent("#pg-take")) === TAKE_LABEL && (await page.getAttribute("#pg-take", "href")) === `https://github.com/${REPO}/issues/9`);
+  ok("browser: the two buttons are links to GitHub", (await page.getAttribute("#pg-fund", "href")) === fundUrl() && (await page.textContent("#pg-fund")) === FUND_LABEL && (await page.textContent("#pg-take")) === TAKE_LABEL && (await page.getAttribute("#pg-take", "href")) === `https://github.com/${REPO}/issues/40`);
   ok("browser: the open tasks are listed with their state", (await page.locator("#pg-tasks tbody tr").count()) === 3 && (await page.locator('#pg-tasks tr[data-state="funded"]').count()) === 2 && (await page.textContent('#pg-tasks tr[data-issue="14"] .k-step')) === "Waiting for devnet");
   ok("browser: the three outside counts are zeros, shown as zeros", (await page.textContent("#pg-funders")) === "0 outside funders" && (await page.textContent("#pg-repos")) === "0 outside repositories" && (await page.textContent("#pg-payees")) === "0 outside payees");
+  ok("browser: the board lists each funded task with Take it", (await page.locator("#pg-board tbody tr").count()) === 2 && (await page.getAttribute('#pg-board tr[data-issue="40"] .pg-take-it', "href")) === `https://github.com/${REPO}/issues/40`
+    && (await page.textContent('#pg-board tr[data-issue="40"] .pg-take-it')) === "Take it" && /days left$/.test(await page.textContent('#pg-board tr[data-issue="41"] td:nth-child(3)')));
   ok("browser: a title with markup in it made no element", (await page.locator("#playground img").count()) === 0);
   for (const width of [320, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 700 });

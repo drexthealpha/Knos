@@ -60,6 +60,10 @@ jobs:
         run: python scripts/pages_data.py --out _site --events _events.json --index _site/index.json
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: the board of funded test tasks, as it is now (the build's empty document when it cannot be read)
+        run: python scripts/task_board.py status --json > _site/tasks.json || python scripts/task_board.py status --json --empty > _site/tasks.json
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: _site/

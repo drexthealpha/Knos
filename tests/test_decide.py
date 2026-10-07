@@ -1,5 +1,5 @@
 """`knos decide`: the decision is the relay's own reads, a provisional receipt never authorises payment, the final
-receipt supersedes it by name, and both speed targets hold on this machine (scripts/decide_bench.py measures them)."""
+receipt supersedes it by name, the offline half reads nothing, the chain half is one request, and the speed targets hold on this machine (scripts/decide_bench.py measures them)."""
 from __future__ import annotations
 
 import importlib.util
@@ -147,17 +147,174 @@ def test_the_final_receipt_supersedes_the_provisional_one_by_naming_it(env):
 
 
 def test_a_cached_ledger_answers_again_from_memory_for_its_time_and_sends_nothing(env):
+    """Counted against the first pass, never against a fixed number: the relay keeps the cluster's version for the
+    whole process (`relay.version`), so how many reads the FIRST decision makes depends on what ran before it."""
     c, net = env
     fund, now, clock = t2.faucet_jwt(c, t2.issue(), t2.user(), t2.user()), c.now(), [100.0]
-    kept = decide.Cached(net, ttl=30, clock=lambda: clock[0])
-    first = decide.token(fund, t2.TERMS, ledger=kept, payer=c.payer, jwks=t2.JWKS, now=now)
-    reads = kept.reads
-    assert first["decision"] == "accepted" and reads > 0 and kept.hits == 0
-    assert decide.token(fund, t2.TERMS, ledger=kept, payer=c.payer, jwks=t2.JWKS, now=now) == first and kept.reads == reads and kept.hits == reads
-    clock[0] += 31                                              # past its time: the chain is asked again
-    assert decide.token(fund, t2.TERMS, ledger=kept, payer=c.payer, jwks=t2.JWKS, now=now) == first and kept.reads == 2 * reads
-    with pytest.raises(AttributeError, match="sends nothing"):
-        kept.send([], c.payer)
+    for primed in (False, True):                                # alone in a fresh process, and after other decisions: the same
+        if not primed:
+            relay.forget()
+        kept = decide.Cached(net, ttl=30, clock=lambda: clock[0])
+        first = decide.token(fund, t2.TERMS, ledger=kept, payer=c.payer, jwks=t2.JWKS, now=now)
+        reads = kept.reads
+        assert first["decision"] == "accepted" and reads > 0 and kept.hits == 0
+        assert decide.token(fund, t2.TERMS, ledger=kept, payer=c.payer, jwks=t2.JWKS, now=now) == first and kept.reads == reads
+        again = kept.hits                                       # every read of the second decision came from memory
+        assert again >= 2 and reads - again == (0 if primed else 1), (primed, reads, again)
+        clock[0] += 31                                          # past its time: the chain is asked again
+        assert decide.token(fund, t2.TERMS, ledger=kept, payer=c.payer, jwks=t2.JWKS, now=now) == first and kept.reads == reads + again
+        with pytest.raises(AttributeError, match="sends nothing"):
+            kept.send([], c.payer)
+
+
+class FakeRpc:
+    """An RPC endpoint that counts its round trips: every method of `chain.Ledger` that is one request."""
+
+    def __init__(self, net, down: bool = False):
+        self.net, self.down, self.calls, self.url = net, down, [], "fake-rpc"
+
+    def __getattr__(self, name):
+        got = getattr(self.net, name)
+        if not callable(got):
+            return got
+
+        def asked(*a, **k):
+            self.calls.append(name)
+            if self.down:
+                raise ConnectionError("no route to the cluster")
+            return got(*a, **k)
+        return asked
+
+
+def _kept():
+    return {relay.oidc.ISSUERS[number]: doc for number, doc in t2.JWKS.items() if number in relay.oidc.ISSUERS}
+
+
+def test_the_offline_half_decides_from_the_signed_evidence_with_kept_keys_and_reads_nothing(env, tmp_path, monkeypatch):
+    c, net = env
+    fund, now, keys = t2.faucet_jwt(c, t2.issue(), t2.user(), t2.user()), c.now(), _kept()
+
+    def no_network(*a, **k):
+        raise AssertionError("the offline half fetched something")
+    monkeypatch.setattr(relay.first, "fetch_jwks", no_network)
+    monkeypatch.setattr(relay.urllib.request, "urlopen", no_network)
+    d = decide.offline(fund, t2.TERMS, keys=keys, now=now)
+    assert d == {"decision": "accepted", "why": "decided from the signed evidence; chain state not yet read", "kind": "fund", "chain_read": False,
+                 "already": False, "rules": "knos.decide.offline"}
+    p = decide.provisional(d, at=now, jwt=fund, terms=t2.TERMS)
+    assert decide.check(p) is None and p["authorises_payment"] is False and p["why"] == decide.OFFLINE
+    assert p["rules"] == {"by": "knos.decide.offline", "chain_read": False, "already_on_chain": False}
+    # refused for what it is, in the relay's words; and the same answers the relay's own token-alone reads give
+    forged = fund[:-6] + ("AAAAAA" if not fund.endswith("AAAAAA") else "BBBBBB")
+    assert decide.offline(forged, t2.TERMS, keys=keys, now=now)["why"] == "the signature is not the issuer's"
+    for jwt, terms, at in ((fund, None, now), (fund, b'{"mode":"merge"}', now), (fund, t2.TERMS, now + 3 * 3600), ("not a token", None, now)):
+        got, old = decide.offline(jwt, terms, keys=keys, now=at), decide.token(jwt, terms, jwks=t2.JWKS, now=at)
+        assert got["decision"] == old["decision"] == "rejected" and got["why"] == old["why"], (got, old)
+    # keys that are not kept are not fetched: no answer, and never the supplier's failure
+    none = decide.offline(fund, t2.TERMS, keys={}, now=now)
+    assert none["decision"] == "insufficient_evidence" and "none was fetched" in none["why"]
+    other = {k: {"keys": []} for k in keys}
+    assert decide.offline(fund, t2.TERMS, keys=other, now=now)["decision"] == "insufficient_evidence"
+    # kept on this machine: written once, read back the same, and a file that is not one keeps nothing
+    monkeypatch.setenv(decide.KEYS_ENV, str(tmp_path / "keys" / "issuer_keys.json"))
+    assert decide.kept_keys() == {} and decide.keep_keys(keys, at=now) == decide.keys_path() and decide.kept_keys() == keys
+    assert decide.offline(fund, t2.TERMS, now=now)["decision"] == "accepted"
+    decide.keys_path().write_text("[]", encoding="utf-8")
+    assert decide.kept_keys() == {}
+
+
+def test_the_chain_half_is_one_request_with_a_timeout_and_a_silent_chain_changes_nothing(env):
+    c, net = env
+    org, repo, n = t2.user(), t2.user(), t2.issue()
+    fund, now, keys = t2.faucet_jwt(c, n, org, repo), c.now(), _kept()
+    d = decide.offline(fund, t2.TERMS, keys=keys, now=now)
+    # before: the relay's precheck through the same counter. After: one getMultipleAccounts
+    relay.forget()
+    before = FakeRpc(net)
+    assert decide.token(fund, t2.TERMS, ledger=before, payer=c.payer, jwks=t2.JWKS)["decision"] == "accepted"
+    rpc = FakeRpc(net)
+    seen = decide.chain_check(fund, ledger=rpc)
+    assert rpc.calls == ["infos"] and len(before.calls) > 1 and before.calls.count("infos") >= 2, before.calls
+    assert seen == {"read": True, "round_trips": 1, "why": "", "now": c.now(), "token_used": False, "paused_until": 0, "order": None}
+    after = decide.after_chain(d, seen, fund)
+    assert after["decision"] == "accepted" and after["chain_read"] is True and after["why"].startswith("decided from the signed evidence; the chain shows the token is unused")
+    first = decide.provisional(d, at=now, jwt=fund, terms=t2.TERMS)
+    second = decide.provisional(after, at=now, jwt=fund, terms=t2.TERMS, updates=decide.digest(first))
+    assert decide.check(second) is None and second["rules"]["updates"] == decide.digest(first) and second["rules"]["chain"]["round_trips"] == 1
+    assert second["authorises_payment"] is False and second["rules"]["chain_read"] is True
+    # a chain that is down, or slower than the timeout: one request made, the offline answer stands, nothing raised
+    down = FakeRpc(net, down=True)
+    lost = decide.chain_check(fund, ledger=down)
+    assert down.calls == ["infos"] and lost["read"] is False and lost["why"].startswith("the chain did not answer (ConnectionError")
+    kept = decide.after_chain(d, lost, fund)
+    assert kept["decision"] == "accepted" and kept["chain_read"] is False and kept["why"].startswith(decide.OFFLINE + "; the chain did not answer")
+    import threading
+    gate = threading.Event()
+
+    class Slow:
+        def infos(self, addresses):
+            gate.wait(30)
+            return []
+    slow = decide.chain_check(fund, ledger=Slow(), timeout=0.05)
+    gate.set()
+    assert slow["read"] is False and "TimeoutError" in slow["why"]
+    # what the chain shows can take an acceptance back, and never turns a rejection into one
+    job = relay.pay.job_pda(repo, n, relay.pay.faucet_balance_pda(org))
+    absent = decide.chain_check(fund, ledger=rpc, order=job)
+    assert absent["order"] == {"address": str(job), "found": False, "state": None, "deadline": None}
+    assert decide.after_chain({**d, "kind": "pay"}, absent, fund)["decision"] == "rejected"
+    assert t2.go(env, fund, t2.TERMS)["ok"]
+    done = decide.chain_check(fund, ledger=rpc, order=job)
+    assert done["token_used"] is True and done["order"]["found"] and done["order"]["state"] == "open" and done["order"]["deadline"] > c.now()
+    used = decide.after_chain(d, done, fund)
+    assert used["decision"] == "accepted" and used["already"] is True
+    assert decide.after_chain({**d, "kind": "pay"}, {**done, "token_used": False}, fund)["why"].endswith("the order is open and before its deadline")
+    assert decide.after_chain({**d, "kind": "pay"}, {**done, "token_used": False, "now": done["order"]["deadline"] + 1}, fund)["decision"] == "rejected"
+    assert decide.after_chain({**d, "decision": "rejected", "why": "x"}, done, fund)["decision"] == "rejected"
+
+
+def test_a_meter_batch_the_chain_took_is_not_called_unused_by_the_chain_half():
+    # Found on devnet (0.3.19): knos_meter keeps no marker of a batch or claim token, so the chain half read only
+    # knos_pay's marker and said "the chain shows the token is unused" for batch 1 of 202610 an hour after RecordBatch
+    # had taken it. It now reads the pair's Ledger account in the same one request.
+    import base64
+    from knos import chain
+    from knos.settle.v2 import meter, pay
+
+    def b64(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+    now, aud = 1_791_378_000, "knosm:batch:142920951:142920951:202610:1:20:20:6400000:" + "2f" * 32
+    jwt = ".".join((b64(b'{"alg":"RS256"}'), b64(json.dumps({"aud": aud, "exp": now + 300}).encode()), b64(b"s" * 256)))
+    where = meter.ledger_pda(142920951, 142920951, 202610, False)
+
+    def account(next_seq: int) -> bytes:
+        return (bytes([1, 0, 0, 0]) + (202610).to_bytes(4, "little") + (142920951).to_bytes(8, "little") * 2 + next_seq.to_bytes(8, "little")
+                + bytes(meter.LEDGER_LEN - 32))
+
+    class Rpc:
+        def __init__(self, held):
+            self.held, self.asked = held, []
+
+        def infos(self, addresses):
+            self.asked.append(list(addresses))
+            clock = bytes(32) + now.to_bytes(8, "little")
+            return [(chain.CLOCK, clock) if a == chain.CLOCK else (meter.METER_ID, self.held) if a == where and self.held else None for a in addresses]
+    d = {"decision": "accepted", "why": decide.OFFLINE, "kind": "batch", "chain_read": False, "already": False}
+    for next_seq, decision, already, said in ((2, "accepted", True, "the chain shows batch 1 of this pair's month taken already (it takes 2 next)"),
+                                              (1, "accepted", False, "the chain shows batch 1 is the one the pair's Ledger account takes next"),
+                                              (0, "insufficient_evidence", False, "the chain takes batch 0 of this pair's month next, and this token names batch 1")):
+        rpc = Rpc(account(next_seq))
+        seen = decide.chain_check(jwt, ledger=rpc)
+        assert len(rpc.asked) == 1 and where in rpc.asked[0] and pay.used_pda(jwt) in rpc.asked[0]          # still one request
+        assert seen["token_used"] is False and seen["batch"] == {"address": str(where), "claim": False, "seq": 1, "next_seq": next_seq}
+        got = decide.after_chain(d, seen, jwt)
+        assert (got["decision"], got.get("already", False)) == (decision, already) and said in got["why"], got
+        assert "the token is unused" not in got["why"]
+    # a pair with no batch yet takes batch 0 next; a token that is not a batch's asks nothing of knos_meter
+    assert decide.chain_check(jwt, ledger=Rpc(None))["batch"]["next_seq"] == 0
+    other = ".".join((b64(b'{"alg":"RS256"}'), b64(json.dumps({"aud": "knos3:fund:1", "exp": now}).encode()), b64(b"t" * 256)))
+    assert "batch" not in decide.chain_check(other, ledger=Rpc(None))
 
 
 def test_the_two_targets_hold_here_a_cached_decision_under_200_ms_and_evidence_to_decision_under_2_s():
@@ -170,10 +327,16 @@ def test_the_two_targets_hold_here_a_cached_decision_under_200_ms_and_evidence_t
     assert rows["cached, accepted"]["p95"] < 200 and rows["no chain"]["p95"] < 200 and rows["free check"]["p95"] < 200, rows
     assert rows["fresh, accepted"]["p95"] < 2000 and rows["fresh, rejected"]["p95"] < 2000, rows
     assert r["decisions"] == {"fresh, accepted": ["accepted"], "fresh, rejected": ["rejected"], "cached, accepted": ["accepted"],
-                              "no chain": ["insufficient_evidence"], "free check": ["accepted"]}
+                              "no chain": ["insufficient_evidence"], "free check": ["accepted"], "offline, accepted": ["accepted"], "chain check": ["accepted"]}
     # the table states its machine and its sample, and the document holds what the script writes
     lines = bench.table(r, "2026-10-06")
-    assert "on this machine: " in lines[0] and "no network" in lines[0] and "not been measured" in lines[0] and len(lines) == 4 + len(bench.ROWS)
+    assert "on this machine: " in lines[0] and "no network" in lines[0] and "4.3 to 32.6 s" in lines[0] and "timed there on 24 real tokens" in lines[0]
+    assert len(lines) == 4 + len(bench.ROWS) and "a target, not a measurement" in lines[2]
+    assert rows["offline, accepted"]["p95"] < 250 and rows["chain check"]["p95"] < 250, rows       # the target, held on this machine
+    trips = bench.round_trips()
+    assert trips["after"] == {"n": 1, "calls": ["infos"]} and trips["before"]["n"] > trips["after"]["n"]
+    under = bench.split_lines(trips, {"n": 1, "p50": 700.0, "p95": 900.0, "max": 900.0, "inside": {"p50": 300.0, "p95": 400.0}, "decisions": ["x"]})
+    assert "the chain check makes 1 (1 infos: one getMultipleAccounts)" in under[1] and "does not meet it here" in under[3]
     doc = (ROOT / "docs" / "BENCH.md").read_text(encoding="utf-8")
     assert "## Decision time" in doc and bench.OPEN in doc and bench.CLOSE in doc
     held = doc.split(bench.OPEN)[1].split(bench.CLOSE)[0]
@@ -203,3 +366,34 @@ def test_the_command_is_registered_by_its_own_module_and_names_typer_only_inside
     file.write_text(json.dumps([{"name": "test", "conclusion": "failed"}]), encoding="utf-8")
     assert run.invoke(app, ["decide", "--checks-file", str(file)]).exit_code == 1
     assert run.invoke(app, ["decide"]).exit_code == 2
+
+
+def test_the_standalone_command_loads_no_command_line_library_and_the_relay_only_to_decide_on_a_token(tmp_path):
+    """`python -m knos.decide` reads its options with argparse: typer, click and rich are never imported, and the relay's
+    rules (solders under them) only by the half that decides on a token. The answers are `knos decide`'s."""
+    import os
+    import subprocess
+    checks = tmp_path / "checks.json"
+    checks.write_text(json.dumps([{"name": "test", "conclusion": "passed"}]), encoding="utf-8")
+    token = tmp_path / "token.txt"
+    token.write_text("not-a-token", encoding="utf-8")
+    probe = ("import json, sys\nfrom knos import decide\ncode = decide.main(sys.argv[1:])\n"
+             "print(json.dumps({'code': code, 'loaded': sorted(m for m in sys.modules if m.split('.')[0] in ('typer', 'click', 'rich', 'solders') "
+             "or m == 'knos.settle.v2.relay')}), file=sys.stderr)\n")
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src"), "KNOS_ISSUER_KEYS": str(tmp_path / "no-keys.json")}
+
+    def run(*args: str) -> tuple[dict, str]:
+        done = subprocess.run([sys.executable, "-c", probe, *args], capture_output=True, text=True, encoding="utf-8", env=env, timeout=120)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stderr.strip().splitlines()[-1]), done.stdout
+    said, out = run("--checks-file", str(checks))
+    assert said == {"code": 0, "loaded": []} and json.loads(out)["decision"] == "accepted"          # the free check: neither typer nor the relay
+    said, out = run("--token-file", str(token), "--no-chain", "--out", str(tmp_path / "p.json"))
+    assert said["code"] == 1 and "knos.settle.v2.relay" in said["loaded"] and not {"typer", "click", "rich"} & {m.split(".")[0] for m in said["loaded"]}
+    assert out.startswith("Provisional: rejected (this is not a token GitHub Actions or GitLab CI issued)")
+    assert decide.check(json.loads((tmp_path / "p.json").read_text(encoding="utf-8"))) is None
+    # one thing to decide, or the usage and exit 2, as the typer command gives
+    none = subprocess.run([sys.executable, "-m", "knos.decide"], capture_output=True, text=True, encoding="utf-8", env=env, timeout=120)
+    assert none.returncode == 2 and "give --token-file or --checks-file, one of them" in none.stderr
+    src = (ROOT / "src" / "knos" / "decide.py").read_text(encoding="utf-8")
+    assert "argparse.ArgumentParser(" in src.split("\ndef main(")[1] and "typer" not in src.split("\ndef main(")[1].split('"""', 2)[2]

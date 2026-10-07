@@ -108,7 +108,7 @@ async function page() {
   const done = (p) => p.waitForSelector("#front-result[data-done]");
 
   // 1. the first screen of the site itself: 40 words at most, one control, the round below it
-  for (const [width, height] of [[1280, 800], [390, 844], [320, 640]]) {
+  for (const [width, height] of [[1280, 800], [390, 844], [320, 640], [768, 1024], [1920, 1080]]) {
     const { ctx, p, strangers } = await visit("", width, { height });
     await p.evaluate(() => document.fonts.ready); await p.waitForFunction(() => !document.getElementById("hero-board").hasAttribute("aria-busy")); await p.waitForTimeout(700);
     // prose, as tests/web/words.mjs counts it, and here with the bar: headings, sentences and links. Not counted, because
@@ -132,6 +132,17 @@ async function page() {
       controls: [...document.querySelectorAll(".hero input, .hero textarea, .hero select, .hero button, .hero-words a:not(.k-num):not(#hero-board a)")].map((e) => e.dataset.fd || e.id),
       below: document.getElementById("demo").previousElementSibling.classList.contains("hero"), boxTop: document.querySelector("#front-door [data-fd=run]").getBoundingClientRect().bottom, fold: innerHeight }));
     ok(`${width}px: the sentence, then the number`, hero.h1 === "The neutral meter for AI agent work: neither side keeps the count." && hero.fact === "241 merged agent “tests pass” pull requests: 30 had a failed check." && words(hero.fact) <= 12, hero);
+    // under the sentence, one line: what a customer gets; then the number. An orphan: a last line of one word.
+    const outcome = await p.evaluate(() => { const o = document.getElementById("hero-outcome"), h = document.querySelector("h1"), f = document.getElementById("hero-fact");
+      const lastLine = (el) => { const r = document.createRange(); r.selectNodeContents(el); const rects = [...r.getClientRects()].filter((x) => x.width > 1), last = rects.at(-1).top;
+        const t = el.textContent.trim().split(/\s+/), probe = document.createRange(), node = el.lastChild.nodeType === 3 ? el.lastChild : el.lastChild.lastChild; let n = 0;
+        for (let i = node.textContent.length; i > 0; i--) { probe.setStart(node, i - 1); probe.setEnd(node, i); if (Math.abs(probe.getBoundingClientRect().top - last) > 4) break; n++; }
+        return rects.length > 1 && !node.textContent.trim().slice(-n).trim().includes(" ") && t.length > 1 && node.textContent.trim().slice(-n).trim().split(" ").length < 2 && new Set(rects.map((x) => Math.round(x.top))).size > 1; };
+      return { text: o.textContent.trim(), after: h.nextElementSibling === o, before: o.nextElementSibling === f, orphan: lastLine(o) }; });
+    ok(`${width}px: under the sentence, one line says the customer outcome, and no word is left alone on its last line`, outcome.text === "Buyers and suppliers close invoices on evidence both can verify." && outcome.after && outcome.before && !outcome.orphan, outcome);
+    const bars = await p.evaluate(() => [...document.querySelectorAll("#hero-board li")].map((li) => { const b = li.querySelector(".bs-bar").getBoundingClientRect(), f = li.querySelector(".bs-fill").getBoundingClientRect(), w = li.querySelector(".bs-whisker").getBoundingClientRect();
+      const [k, n] = li.querySelector(".bs-n").textContent.split(" of ").map(Number); return { want: k / n, got: f.width / b.width, whisker: w.width > 1 && getComputedStyle(li.querySelector(".bs-whisker")).opacity === "1" }; }));
+    ok(`${width}px: every bar of the strip is filled to its rate, with its whisker drawn`, bars.length === 4 && bars.every((b) => b.got > 0 && Math.abs(b.got - b.want) < 0.02 && b.whisker), bars);
     ok(`${width}px: one control (a box, its button, a sample), above the fold, and the round below`, hero.controls.join() === "fd-in,run,sample" && hero.below && hero.boxTop <= hero.fold, hero);
     // the week's leaderboard, directly under the box: a visual of the feed (agent_index.json), four rows, each agent a
     // link to its public record, the 95% interval on every bar, and one link to the board
@@ -143,6 +154,9 @@ async function page() {
     ok(`${width}px: it sits directly under the box, ${height >= 800 ? "whole above the fold" : "begun above the fold"}, and links to the board`, strip.under && strip.board === "#index" && (height >= 800 ? strip.bottom <= strip.fold : strip.top < strip.fold), strip);
     ok(`${width}px: the first screen asks for the strip's own file, not the whole board`, await p.evaluate(() => performance.getEntriesByType("resource").some((e) => /\/board_strip\.js$/.test(e.name)) && !performance.getEntriesByType("resource").some((e) => /\/(index_board|mounts|app)\.js$/.test(e.name))));
     ok(`${width}px: the first screen does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
+    await p.focus("#fd-in"); const order = [];
+    for (let i = 0; i < 3; i++) { await p.keyboard.press("Tab"); order.push(await p.evaluate(() => { const a = document.activeElement; return a.dataset.fd || (a.closest("#hero-board") ? "strip" : a.id || a.tagName); })); }
+    same(`${width}px: by keyboard, the box, then Check, then Try a sample, then the strip`, order, ["run", "sample", "strip"]);
     // the upgrades that are waiting, in one line on the first screen, from upgrades.json (a file of the site): the handle
     // of a fold, two words and a badge (a control, so not among the prose counted above), in the hero's top margin above the sentence, and opened it says each proposal in the file's words
     const feed = JSON.parse(readFileSync(join(built, "upgrades.json"), "utf8")), pending = feed.entries.filter((e) => e.status === "pending");
@@ -225,7 +239,7 @@ async function page() {
       const [d] = await Promise.all([p.waitForEvent("download"), p.click('[data-fd="csv"]')]), csv = readFileSync(await d.path(), "utf8");
       same("sample: Download CSV gives the statement `knos statement make` writes, with the approval: the same bytes", [d.suggestedFilename(), csv], ["statement-sha256-fb61f3411e72ffea.csv", fixture("front_door.csv")]);
       same("sample: its columns are the statement's, and every line is in one of the four states", [csv.split("\n")[10], [...new Set(csv.split("\n").slice(11, 18).map((r) => r.split(",")[3]))].sort()],
-        ["line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of", ["agreed", "disputed", "duplicate", "insufficient evidence"]]);
+        ["line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference", ["agreed", "disputed", "duplicate", "insufficient evidence"]]);
       await p.waitForSelector(".k-toast");
       same("sample: a toast says what was downloaded", await p.textContent(".k-toast"), "Downloaded statement-sha256-fb61f3411e72ffea.csv");
       ok("sample: every statement is still twelve words at most", wordy(await statements(p)).length === 0, wordy(await statements(p)));

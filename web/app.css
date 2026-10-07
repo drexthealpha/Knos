@@ -671,7 +671,7 @@ details.k-fold > summary:has(> :is(h3, h4)) { font-size: var(--s1); font-weight:
 /* the Console's first row: where the money is, and the one shortcut */
 .buy-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin: 0 0 var(--sp-5); } .buy-top .devnet { margin: 0; }
 /* a wide table on a phone scrolls in its own box at a width it can be read at */
-@media (max-width: 720px) { #verifier .k-table table { min-width: 640px; } #ib-table { min-width: 560px; } }
+@media (max-width: 720px) { #verifier .k-table table { min-width: 640px; } }
 /* the statement's tools sit on one line, whatever element each is */
 .k-statement-tools > * { margin: 0; }
 /* a page's section while its code is on its way */

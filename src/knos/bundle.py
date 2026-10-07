@@ -2,7 +2,7 @@
 seller hold the same bytes and either can re-derive the verdict with no network.
 
     MANIFEST.json   {"type", "version", "order", "files": {name: sha256}}
-    receipt.json    the acceptance receipt, version 4 (or 3, or 2), in canonical form (docs/RECEIPT.md)
+    receipt.json    the acceptance receipt, version 5 (or 4, 3, or 2), in canonical form (docs/RECEIPT.md)
     token.jwt       the raw token the issuer signed, as it was written to knos_oidc
     key.json        the issuer's public key that verified it: {issuer, kid, n, e, account}
     terms.json      the order's terms, the bytes that were hashed at funding
@@ -236,8 +236,8 @@ def _core(blob: bytes) -> tuple[dict, dict[str, bytes], int, list[tuple[str, str
     except Exception as e:  # noqa: BLE001
         raise ValueError(f"a file of the bundle cannot be read as what it is ({e})") from None
     why = rc.check(r)
-    if why or r["version"] not in (2, 3, 4) or rc.as3(r) is None or files["receipt.json"] != _json(r):     # a version 4 one of a paid, accepted deliverable
-        raise ValueError(f"receipt.json is not a valid version 2, 3 or 4 receipt of a payment in canonical form{': ' + why if why else ''}")
+    if why or r["version"] not in (2, 3, 4, 5) or rc.as3(r) is None or files["receipt.json"] != _json(r):     # a version 4 or 5 one of a paid, accepted deliverable
+        raise ValueError(f"receipt.json is not a valid version 2, 3, 4 or 5 receipt of a payment in canonical form{': ' + why if why else ''}")
     a, o, p = r["issuer_authenticated"], r["evaluator_observed"], r["policy"]
     # 1. what the issuer authenticated
     if key.get("e") != "AQAB" or not rs256(token, n):
@@ -670,7 +670,7 @@ def _verdict_beside(get, claims: dict, order: str, commit: str, pull: int) -> di
     return None
 
 
-def gather(call, events: list[dict], target: str, get, published=None, verdict: str | None = None) -> tuple[dict, dict[str, bytes]]:
+def gather(call, events: list[dict], target: str, get, published=None, verdict: str | None = None, declared=()) -> tuple[dict, dict[str, bytes]]:
     """(the receipt, the bundle's files) for the order or paying transaction `target`. `call(method, params)` is the
     cluster, `events` the escrow's history (records.history), `get(path)` the host's API. `published(issuer)`: the
     issuer's key list as `published_keys` gives it, archived as keys.json (None: no list is archived). `verdict`: the
@@ -752,6 +752,9 @@ def gather(call, events: list[dict], target: str, get, published=None, verdict: 
         raise ValueError("a re-execution is recorded for a judge outside the order's repository, run on GitHub: this payment's judge was not one")
     r = rc.build4(rc.build3(r, part, _quorum_before(call, events, o, sig, start, end, rc.JUDGES[settled["judge"]],
                                                     (part["funder"]["github_id"], part["source"]["owner_id"]), list(shares)), rerun))
+    # written as version 5 (0.3.19): the same receipt with its assurance level, computed from the evidence above and from
+    # `declared`, the accounts the order's terms declare to be one party (knos.terms3.declared; none when nobody gave them)
+    r = rc.build5(r, declared)
     genesis = call("getGenesisHash", [])
     archive = {"type": CHAIN_ARCHIVE, "version": 1, "cluster": r["cluster"], "genesis": genesis, "payment": _copy(call, sig, tx),
                "funding": _copy(call, o["tx"], funding) if funding else None, "verified": _copy(call, verified_tx),
@@ -937,15 +940,25 @@ def register(app, help_lines: list | None = None) -> None:
                  limit: int = typer.Option(1000, "--limit", help="how many of the escrow's newest transactions to read"),
                  verdict: Path = typer.Option(None, "--verdict", help="tests mode: the judge's verdict file (knos proof judge --evidence), kept as verdict.json"),
                  rerun: Path = typer.Option(None, "--reexecution", help="a neutral judge's own verdict (the `knos-verdict:` line of its comment, or its run's verdict.json): "
-                                                                        "recorded in the receipt's entry for that judge. Without it, the comment is looked for")) -> None:
+                                                                        "recorded in the receipt's entry for that judge. Without it, the comment is looked for"),
+                 terms3_file: Path = typer.Option(None, "--terms3", help="the Knos Terms 3 document the order was funded under: the accounts it declares to be one party "
+                                                                         "(evaluators.related) are held against the evaluators when the receipt's assurance level is computed")) -> None:
         """Write the evidence bundle of one payment: the receipt, the signed token, the key that verified it, the terms, the
         judge's version and inputs digest, the check conclusions as fetched, the judge's verdict when --verdict gives it, and a
         manifest. The same order gives the same bytes."""
         judge = importlib.import_module("knos.judge")       # named, not imported: `gather` is reached by the relay, and the judge is the command's alone
         url, call = _caller(rpc)
         try:
+            declared, contract = (), ""
+            if terms3_file is not None:
+                terms3 = importlib.import_module("knos.terms3")
+                doc = json.loads(terms3_file.read_text(encoding="utf-8"))
+                declared, contract = terms3.declared(doc), terms3.digest(terms3.validate(doc, strict=False))
             r, files = gather(call, _history(url, limit), target, judge.github, published_keys,
-                              rerun.read_text(encoding="utf-8") if rerun is not None else None)
+                              rerun.read_text(encoding="utf-8") if rerun is not None else None, declared)
+            cited = json.loads(files["terms.json"]).get("contract") if contract else None
+            if contract and cited != contract:      # a declaration counts only from the document the order itself cites
+                raise ValueError(f"--terms3 is version {contract[:16]} of its terms, and this order " + (f"cites {str(cited)[:16]}" if cited else "cites no Knos Terms 3 document"))
             if verdict is not None:
                 files["verdict.json"] = _json(judge.load_verdict(verdict)[0])
             blob = make(files, r["order"])

@@ -64,6 +64,8 @@ ISSUER = "https://token.actions.githubusercontent.com"
 JWKS = ISSUER + "/.well-known/jwks"
 FEED = "https://drexthealpha.github.io/Knos/upgrades.json"       # what the release names: written from the multisig's accounts
 MAINTAINER = "drexthealpha"
+REPRODUCTIONS = "reproductions"                 # one file a run of someone else's: the only folder any count reads
+OWN_DIR = "own"                                 # reproductions/own/: Knos's own runs of the same path, never counted
 RESULTS = ("pass", "fail", "skipped")
 # The payment `payment` re-verifies: the `order_pay` transaction of the 0.3.14 rehearsal, made on its own deployment of
 # the 2.1 build (the staging knos_pay and the verifier it accepts tokens from, named in docs/CAPABILITIES.md, "The 0.3.14
@@ -196,12 +198,25 @@ def file_name(claims: dict) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "-", f"{claims.get('repository', '')}-{claims.get('run_id', '')}") + ".json"
 
 
-def verified(doc, keys: dict[str, int], own: dict, name: str = "") -> tuple[dict, list[str]]:
+def is_own(claims: dict, own: dict) -> bool:
+    """Whether the run a token names is Knos's own: in a repository of the maintainer's, or of an account of
+    scripts/own_github_ids.json, or started by one. Such a run is never an outside reproduction."""
+    ids = {int(i) for i in own.get("ids", [])}
+    owner, owner_id, actor_id = str(claims.get("repository_owner", "")), str(claims.get("repository_owner_id", "")), str(claims.get("actor_id", ""))
+    return owner.lower() == MAINTAINER or (owner_id.isdigit() and int(owner_id) in ids) or (actor_id.isdigit() and int(actor_id) in ids)
+
+
+def verified(doc, keys: dict[str, int], own: dict, name: str = "", ours: bool = False) -> tuple[dict, list[str]]:
     """(what GitHub signed and which checks passed, everything wrong with the pair) for a reproduction: {"report", "token"}.
     `keys`: GitHub's keys, {kid: modulus}. `own`: scripts/own_github_ids.json, whose accounts are never an outside run.
     `name`: the file's name, held to the repository and run the token names. With anything wrong, nothing in it counts.
-    The token's expiry is not asked: it lasts minutes, and what matters is that GitHub signed it for these bytes."""
-    facts: dict = {"passed": [], "failed": [], "capabilities": []}
+    The token's expiry is not asked: it lasts minutes, and what matters is that GitHub signed it for these bytes.
+
+    `ours`: the file is one of reproductions/own/ (OWN_DIR): a run of Knos's own, kept so that the whole path (the
+    report, GitHub's signature, the file, this check) is exercised before a stranger tries it. Everything is held as
+    for anyone's file, except that the run MUST be Knos's own; and such a file counts for nothing: its `capabilities`
+    are always empty, `counted` is False, and no count of reproductions reads that folder."""
+    facts: dict = {"passed": [], "failed": [], "capabilities": [], "own": bool(ours), "counted": False}
     if not isinstance(doc, dict) or not isinstance(doc.get("report"), dict) or not isinstance(doc.get("token"), str) or set(doc) != {"report", "token"}:
         return facts, ['a reproduction is {"report": the report, "token": GitHub\'s token} and nothing else']
     report, token = doc["report"], doc["token"].strip()
@@ -220,12 +235,14 @@ def verified(doc, keys: dict[str, int], own: dict, name: str = "") -> tuple[dict
         wrong.append(f"the token's issuer is not {ISSUER}")
     if claims.get("aud") != AUDIENCE + digest(report):
         wrong.append("the token was not signed for this report (its audience is not knos-repro:<sha256 of the report>): the report was edited after it was signed")
-    ids = {int(i) for i in own.get("ids", [])}
     owner, owner_id, actor_id = str(claims.get("repository_owner", "")), str(claims.get("repository_owner_id", "")), str(claims.get("actor_id", ""))
     if not (owner and owner_id.isdigit() and actor_id.isdigit() and re.fullmatch(r"[^/\s]+/[^/\s]+", str(claims.get("repository", ""))) and str(claims.get("run_id", "")).isdigit()):
         wrong.append("the token does not name a repository, its owner, who started the run and the run")
-    elif owner.lower() == MAINTAINER or int(owner_id) in ids or int(actor_id) in ids:
+    elif is_own(claims, own) and not ours:
         wrong.append(f"the run is Knos's own (repository owner {owner}, id {owner_id}; started by id {actor_id}): an outside reproduction is someone else's")
+    elif ours and not is_own(claims, own):
+        wrong.append(f"the run is not Knos's own (repository owner {owner}, id {owner_id}; started by id {actor_id}): {REPRODUCTIONS}/{OWN_DIR}/ holds "
+                     f"only Knos's own runs, which count for nothing; someone else's reproduction goes in {REPRODUCTIONS}/")
     elif name and name != file_name(claims):
         wrong.append(f"the file is named {name}; this run's file is {file_name(claims)}")
     rows = report.get("checks")
@@ -240,8 +257,31 @@ def verified(doc, keys: dict[str, int], own: dict, name: str = "") -> tuple[dict
     if not wrong:
         facts["passed"] = [r["id"] for r in rows if r["result"] == "pass"]
         facts["failed"] = [r["id"] for r in rows if r["result"] == "fail"]
-        facts["capabilities"] = sorted({c for r in rows if r["result"] == "pass" for c in r["capabilities"]})      # a failed or skipped check counts for nothing
+        # a failed or skipped check counts for nothing; and nothing in a run of Knos's own counts for anything
+        facts["capabilities"] = [] if ours else sorted({c for r in rows if r["result"] == "pass" for c in r["capabilities"]})
+        facts["counted"] = not ours
     return facts, wrong
+
+
+def own_runs(root: Path, keys: dict[str, int], own: dict) -> tuple[dict[str, dict], list[str]]:
+    """({file: what GitHub signed} for every valid file of reproductions/own/, one line for each that is not valid).
+    These are Knos's own runs: none is a reproduction, none is counted, and none moves a capability."""
+    held: dict[str, dict] = {}
+    wrong: list[str] = []
+    folder = Path(root) / REPRODUCTIONS / OWN_DIR
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        rel = path.relative_to(root).as_posix()
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as why:
+            wrong.append(f"{rel}: not JSON ({why})")
+            continue
+        facts, bad = verified(doc, keys, own, path.name, ours=True)
+        if bad:
+            wrong.extend(f"{rel}: {line}" for line in bad)
+        else:
+            held[rel] = facts
+    return held, wrong
 
 
 def body(doc: dict, facts: dict) -> str:

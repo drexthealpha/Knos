@@ -248,6 +248,10 @@ CASES = {
     },
 }
 NOT_THE_PROGRAMS = {"create_ata_ix"}   # an instruction of the associated token account program, not of knos-pay
+# ES256 (programs-v2/knos_oidc/src/es256.rs, tags 10 to 15) is not in the IDL: the IDL is the instructions lib.rs's header
+# lists, and no file under idl/ changes in a release that changes no program. Its client (0.3.19) is held to the BUILT
+# program instead, by tests/test_es256_client.py; `secp256r1_ix` is the precompile's instruction, not knos_oidc's.
+NOT_IN_THE_IDL = {"knos_oidc_v2": {"register_private_es256_key_ix", "revoke_es256_ix", "verify_es256_ixs", "secp256r1_ix"}}
 MODULES = {name: client for name, (_, _, client) in PROGRAMS.items()}
 FIXED = {"u8": 1, "u16": 2, "u32": 4, "u64": 8, "i64": 8, "publicKey": 32}
 
@@ -326,6 +330,12 @@ def test_every_instruction_of_the_source_is_in_the_idl(program):
 def test_every_builder_of_the_client_is_checked(program):
     builders = {n for n, f in inspect.getmembers(MODULES[program], inspect.isfunction)
                 if n.endswith(("_ix", "_ixs")) and f.__module__ == MODULES[program].__name__} - NOT_THE_PROGRAMS
+    outside = NOT_IN_THE_IDL.get(program, set())
+    assert outside <= builders and not outside & {name.split(" ")[0] for name in CASES[program]}
+    held = (ROOT / "tests" / "test_es256_client.py").read_text(encoding="utf-8")
+    assert all(f"oidc.{name}(" in held for name in outside), "a builder outside the IDL is run against the built program"
+    assert not any(i["name"].endswith("Es256") or "Es256" in i["name"] for i in IDL[program]["instructions"])      # when the IDL names them, they move into CASES
+    builders -= outside
     assert builders == {name.split(" ")[0] for name in CASES[program]}
     assert {c[0] for c in CASES[program].values()} == {i["name"] for i in IDL[program]["instructions"]}
     # an instruction with optional accounts is built both without and with them

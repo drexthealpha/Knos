@@ -1,10 +1,10 @@
 // The Pricing view. First the calculator (renderPricing): plan, evaluations a month, accepted value a month, the share
 // of it released on chain and record lookups; the year's invoice lines change as they move, and the Acceptance line
-// shows the month's value moving through its three marginal rates. Under it the price book (index.html holds the
+// shows the month's value moving through its two marginal rates (the rate never goes below 0.20%). Under it the price book (index.html holds the
 // words; the numbers in it come from price.js) and the calculators of what the program takes at release. Nothing here
 // is sent anywhere. The arithmetic is yearEstimate in price.js, which is `estimate` in src/knos/billing.py: both are
 // held to tests/data/billing_vectors.json.
-import { priceConstants, priceBook, feeParts, RULE, PAYS, CONNECT, DEVNET, PLANS, BILL, yearEstimate, usd, centsOf, effectiveFees, quote, orderFee, meterCost, unitsOf, bpsOf, show, plain, rateOf, feeWords, feeRate, feeNext, FEE_VERSION } from "./price.js";
+import { priceConstants, priceBook, feeParts, RULE, PAYS, CONNECT, DEVNET, PLANS, BILL, yearEstimate, usd, centsOf, effectiveFees, quote, orderFee, meterCost, unitsOf, bpsOf, show, plain, rateOf, feeWords, feeRate, feeNext, enforcedNow, FEE_VERSION } from "./price.js";
 import { liveFee } from "./fee_live.js";
 import { programVersion } from "./version.js";
 
@@ -73,6 +73,15 @@ const STYLE = `
 .bill .bill-pays { font-weight: 600; color: var(--ink); margin: 14px 0 4px; }
 .bill .status.bad { margin: 0 0 8px; }
 @media (max-width: 520px) { .bill table th, .bill table td { padding-right: 8px; } .bill td.bill-say { font-size: var(--s-1); } .bill .bill-tier { grid-template-columns: minmax(0, 5.5em) minmax(24px, 1fr) auto; gap: 8px; font-size: var(--s-1); } }
+/* a phone: the price book's cells are stacked (app.css), so each says which column it is; small type keeps a long line of the book in view */
+@media (max-width: 560px) {
+  #price-book td, #price-book td:nth-child(2) { font-size: var(--s-1); line-height: 1.35; }
+  #price-book td::before { color: var(--fg); font-weight: 600; }
+  #price-book td:nth-child(2)::before { content: "Unit: "; }
+  #price-book td:nth-child(3)::before { content: "Price: "; }
+  #price-book td:nth-child(4)::before { content: "Who pays: "; }
+  #price-book td:nth-child(5)::before { content: "Enforced: "; }
+}
 @media (prefers-reduced-motion: reduce) { .bill tr[data-line] th, .bill tr[data-line] td, .bill .bill-tier .bill-bar i { transition: none; } }`;
 
 const TIER_NAMES = BILL.acceptBps.map((bps, n) => `${rateOf(bps)} ${n === 0 ? "to" : "above"} ${(BILL.acceptAbove[n] || BILL.acceptAbove[1]) / 1e6}M`);
@@ -178,6 +187,15 @@ export function initPricing(ctx) {
   const table = $("price-book"), book = table?.querySelector("tbody"), columns = table?.querySelectorAll("thead th").length || 3;
   if (book) book.innerHTML = priceBook().map((row) => `<tr><th scope="row">${esc(row[0])}</th>${row.slice(1, columns).map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("");
   set("price-rule", RULE);
+  // the book's on-chain cell follows the build that is LIVE: "today" and "after the next upgrade" while knos_pay 2.1
+  // runs, the book's one rule once Version is 2 (price.js, enforcedNow). Until somebody has answered it says so.
+  const enforced = columns >= 5 ? book?.querySelector("tr:nth-child(3) td:last-child") : null;
+  function drawEnforced(answered) {
+    if (!enforced) return;
+    enforced.dataset.fee = answered ? c.fee.release : ""; enforced.dataset.live = answered && c.fee.live ? "1" : "0";
+    enforced.textContent = enforcedNow(answered ? c : null);
+  }
+  drawEnforced(false);
   // three releases worked: one step each under one rate, the steps of each tier under the 0.3.14 rule
   const how = (whole) => (c.tiered ? feeParts(whole * 1e6, c.feeBps, c).filter((part) => part.of).map((part) => `${rateOf(part.bps)} of ${count(part.of / 1e6)}`).join(" + ") : `${rateOf(c.feeBps)} of ${count(whole)}`);
   function drawRule() {
@@ -236,7 +254,7 @@ export function initPricing(ctx) {
   }
 
   if ($("calc-form")) { $("calc-form").addEventListener("input", drawSettle); $("calc-form").addEventListener("submit", (ev) => ev.preventDefault()); drawSettle(); }
-  live.then((answer) => { c = answer.c; drawRule(); if ($("calc-form")) drawSettle(); }).catch(() => {});
+  live.then((answer) => { c = answer.c; drawRule(); drawEnforced(true); if ($("calc-form")) drawSettle(); }).catch(() => { drawEnforced(true); });
   if ($("meter-form")) { $("meter-form").addEventListener("input", drawMeter); $("meter-form").addEventListener("submit", (ev) => ev.preventDefault()); drawMeter(); }
 
   let said = false;

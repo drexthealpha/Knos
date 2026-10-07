@@ -1,88 +1,91 @@
 {
- "_about": "The shot list of the three-minute demonstration (docs/submission/demo_script.md): one story in six beats. A beat that ran on staging program ids carries the `staging` caption, and one that ran in the local simulator carries `simulator`; `web/upgrades.json` and docs/MANIFEST.md have the live state, read on the day. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 180`. tests/test_business_docs.py holds this file to the script.",
+ "_about": "The shot list of the three-minute demonstration (docs/submission/demo_script.md): one task in six steps, the refusal first. A step that ran on the public program ids carries the `public` caption, one that ran on staging program ids `staging`, and one that ran in the local simulator `simulator`; `web/upgrades.json` and docs/MANIFEST.md have the live state, read on the day. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 180`. tests/test_business_docs.py holds this file to the script.",
  "limit_seconds": 180,
- "program_ids": "staging",
+ "program_ids": "public",
  "captions": {
   "first": "Built during the hackathon: everything shown. Older work is listed in docs/DISCLOSURE.md.",
-  "sample": "Sample: a made-up invoice from a made-up supplier.",
   "replay": "Replay of a run recorded earlier",
   "faster": "Recorded at N times speed",
   "offline": "The network is off",
   "money": "Solana devnet. Test USDC.",
   "staging": "Staging program ids on Solana devnet",
-  "simulator": "Local simulator: not devnet"
+  "simulator": "Local simulator: not devnet",
+  "public": "Public program ids on Solana devnet"
  },
  "shots": [
   {
    "moment": "one",
    "start": "0:00",
-   "end": "0:20",
-   "kind": "live",
+   "end": "0:30",
+   "kind": "replay",
    "faster": false,
    "captions": [
     "first",
-    "sample"
+    "replay",
+    "public",
+    "money"
    ],
-   "shows": "the number; the site's first screen with the sample invoice of seven lines, checked: two lines agree and five are exceptions, each with its reason"
+   "shows": "the title; then FIRST the judge's refusal of step two with its reason, held while the number is said; then the issue that is the task, the buyer's funding comment, the order with its price, its acceptance terms and their hash, and the supplier who takes it"
   },
   {
    "moment": "two",
-   "start": "0:20",
-   "end": "0:45",
-   "kind": "live",
-   "faster": false,
+   "start": "0:30",
+   "end": "1:05",
+   "kind": "replay",
+   "faster": true,
    "captions": [
-    "money"
+    "replay",
+    "faster",
+    "public"
    ],
-   "shows": "the issue that is the deliverable; the buyer's funding comment; the order with its price, its acceptance terms and their hash; the supplier who takes it"
+   "shows": "a pull request that says the tests pass, edits the existing test and leaves the bug; plain CI green; the judge's refusal word for word with its code; payment withheld: the order's balance unchanged"
   },
   {
    "moment": "three",
-   "start": "0:45",
-   "end": "1:25",
+   "start": "1:05",
+   "end": "1:35",
    "kind": "replay",
    "faster": true,
    "captions": [
     "replay",
     "faster"
    ],
-   "shows": "a pull request that edits the existing test and leaves the bug; plain CI green; the judge's refusal word for word with its code; the order's balance unchanged"
+   "shows": "a pull request with the fix and a regression test in a new file; the verdict accepted; buyer and supplier each rebuilding the same statement from their own ledger, with the same digest"
   },
   {
    "moment": "four",
-   "start": "1:25",
-   "end": "1:55",
+   "start": "1:35",
+   "end": "2:00",
    "kind": "replay",
-   "faster": true,
+   "faster": false,
    "captions": [
     "replay",
-    "faster",
-    "money"
+    "public",
+    "money",
+    "offline"
    ],
-   "shows": "a pull request with the fix and a regression test in a new file; the verdict accepted; the paying transaction and the supplier's balance; the deliverable, evaluation, invoice line and settlement with their ids"
+   "shows": "the paying transaction and the supplier's balance before and after; the receipt file; a machine with the network off verifying that file alone"
   },
   {
    "moment": "five",
-   "start": "1:55",
-   "end": "2:25",
+   "start": "2:00",
+   "end": "2:20",
    "kind": "live",
    "faster": false,
    "captions": [
-    "money",
-    "simulator"
+    "public",
+    "money"
    ],
-   "shows": "the token that paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate; an order that asks for two judges paying nothing for one judge or for two runs started by one account"
+   "shows": "the token that paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate: no second payment"
   },
   {
    "moment": "six",
-   "start": "2:25",
+   "start": "2:20",
    "end": "3:00",
    "kind": "live",
    "faster": false,
-   "captions": [
-    "offline"
-   ],
-   "shows": "buyer and supplier each rebuilding the same statement with the same digest; a third machine with the network off verifying the receipt file; the front door"
+   "captions": [],
+   "shows": "the accounting export of the approved statement and its file; docs/MANIFEST.md: each public program id, its build, its hash and its commit; the limits as one line; the front door"
   }
  ]
 }

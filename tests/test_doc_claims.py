@@ -133,7 +133,7 @@ def test_a_count_or_a_stage_that_is_not_the_manifests_fails(tree):
 def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     text = (tree / DEMO).read_text(encoding="utf-8")
     # what the rehearsal ran on staging ids is tested locally on the public ids, and no stage cell says otherwise
-    assert "| `order_quorum` | tested locally |" in text and "| `pay_on_merge` | deployed on devnet |" in text and "on staging program ids |" not in text
+    assert "| `ledger_dedup` | tested locally |" in text and "| `pay_on_merge` | deployed on devnet |" in text and "on staging program ids |" not in text
     _swap(tree, DEMO, "| `statements` | tested locally |", "| `statements` | deployed on devnet |")
     _found(tree, DEMO, "the stage of statements is 'deployed on devnet'", "'tested locally'")
     assert dc.write(tree) == [DEMO] and dc.problems(tree) == []
@@ -142,11 +142,11 @@ def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     data = _exercise(tree, "pay_on_merge")
     lines = _found(tree, DEMO, "the stage of pay_on_merge", "'exercised on devnet'")
     assert any(CRITERIA in line and "capabilities exercised" in line for line in lines)
-    assert dc.stage_words(["order_quorum", "pay_on_merge"], tree) == "`order_quorum`: tested locally; `pay_on_merge`: exercised on devnet"
+    assert dc.stage_words(["ledger_dedup", "pay_on_merge"], tree) == "`ledger_dedup`: tested locally; `pay_on_merge`: exercised on devnet"
     # a run at any other address than the public id is never said as a plain "exercised on devnet" (capabilities.py refuses it)
-    staged = _exercise(tree, "order_quorum", deployed={"program": "knos_pay_staging", "id": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH", "version": "2.1"})
-    assert dc.stage_words(["order_quorum"], tree) == "exercised on devnet, on staging program ids" and dc.value("capabilities.exercised.staging", tree) == 1
-    _found(tree, DEMO, "the stage of order_quorum", "'exercised on devnet, on staging program ids'")
+    staged = _exercise(tree, "ledger_dedup", deployed={"program": "knos_pay_staging", "id": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH", "version": "2.1"})
+    assert dc.stage_words(["ledger_dedup"], tree) == "exercised on devnet, on staging program ids" and dc.value("capabilities.exercised.staging", tree) == 1
+    _found(tree, DEMO, "the stage of ledger_dedup", "'exercised on devnet, on staging program ids'")
     data = json.loads(json.dumps(staged))
     # README.md's table of programs is the manifest's versions
     other = "2.0" if data["programs"]["knos_pay"]["on_chain"] != "2.0" else "2.1"      # a version the committed table does not give

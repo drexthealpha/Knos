@@ -111,6 +111,7 @@ class Net(chain.Ledger):
         self.said: dict[str, list[str]] = {}            # signature -> the transaction's log
         self.when: dict[str, int] = {}                  # signature -> the chain's time when it landed
         self.named: dict[Pubkey, list[str]] = {}        # address -> the signatures that named it, oldest first
+        self.payers: dict[str, str] = {}                # signature -> its fee payer
 
     def _one(self, ixs, payer, signers, v1=False) -> str:
         with self.one_at_a_time:
@@ -130,6 +131,7 @@ class Net(chain.Ledger):
             self.sizes.append(len(bytes(tx)))
             self.units.append(used() if callable(used) else used)
             self.said[sig], self.when[sig] = logs, self.c.now()
+            self.payers[sig] = str(payer.pubkey())
             for key in tx.message.account_keys:
                 self.named.setdefault(key, []).append(sig)
             return sig
@@ -194,6 +196,10 @@ class Net(chain.Ledger):
     def logs(self, signature):
         self.reads += 1
         return self.said.get(signature, [])
+
+    def payer_of(self, signature):
+        self.reads += 1
+        return self.payers.get(signature)
 
     def touched(self, address):
         self.reads += 1
@@ -1100,6 +1106,28 @@ def test_a_hiccup_of_the_cluster_is_tried_again_and_a_refusal_is_not(env):
     c.warp(60)
     r = go(env, faucet_jwt(c, issue(), org, repo), TERMS, broke)
     assert r == {"ok": False, "kind": "fund", "why": "the relayer's key has no SOL to pay the fees with", "retry": True, "transient": True}, r
+
+
+def test_a_relayer_that_loses_the_race_on_its_last_transaction_says_another_carried_it_and_never_names_its_work(env):
+    """Live in staging on 7 Oct 2026 two relayers sent one fund token in the same second: each verified it, one
+    funded the order, and the other logged that funding transaction as its own, with no "another relayer carried it
+    first". The loser now answers `already`, names the winner's transaction, and keeps what it spent apart."""
+    c, net = env
+    org, repo, n = user(), user(), issue()
+    tok, other = faucet_jwt(c, n, org, repo), c.fund()
+    won = {}
+
+    class Raced(Flaky):
+        def send(self, ixs, payer, signers=None, v1=False):
+            if len(ixs) > 1 and not won:                         # this relay's last transaction: the other relayer is there first
+                won.update(go(env, tok, TERMS, other))
+                assert won["ok"] and "already" not in won, won
+            return super().send(ixs, payer, signers, v1)
+    r = relay.submit(Raced(net), c.payer, tok, TERMS, JWKS, now=c.now())
+    assert r["ok"] and r["already"] and r["job"] == won["job"], r
+    assert r["sigs"] == [won["sigs"][-1]] and net.payers[won["sigs"][-1]] == str(other.pubkey())       # the winner's, and only it
+    assert r["spent"] and all(net.payers[s] == str(c.payer.pubkey()) for s in r["spent"])               # what the loser sent, apart
+    assert not set(r["spent"]) & set(r["sigs"])
 
 
 def test_a_transaction_reported_lost_that_landed_is_seen_on_the_chain(env):

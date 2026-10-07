@@ -352,7 +352,7 @@ about money works; `/knos status` on a pull request then tells its author what t
 
 A supplier who wants the free check on every pull request of their own repository, its result posted once and its
 receipt attached to the run, adds one workflow file ([examples/knos-supplier.yml](../examples/knos-supplier.yml))
-whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.18`.
+whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.19`.
 
 It needs no secret, moves no money and reads no chain. The record, the badge and the receipt to send with an invoice
 are in [RECORD.md](RECORD.md), section 3.
@@ -422,7 +422,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.18
+      - uses: drexthealpha/Knos@v0.3.19
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -455,7 +455,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.18
+    - python -m pip install knos==0.3.19
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -487,7 +487,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.18/knos-settle-0.3.18.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.19/knos-settle-0.3.19.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -502,7 +502,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.18" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.19" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

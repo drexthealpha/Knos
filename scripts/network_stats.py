@@ -109,13 +109,41 @@ def kind_of(job: dict, own: frozenset = OWN, own_wallets: frozenset = OWN_WALLET
 
 
 def outsiders(jobs: list[dict], own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS, own_repos: frozenset = OWN_REPOS,
-              measured: bool = True) -> dict:
+              measured: bool = True, owner_of=None) -> dict:
     """Outside funders, outside repositories and outside payees: three numbers, never added (scripts/outsiders.py has
     the definitions). kind_of() calls a job in a repository of Knos's "own" whoever commented; this is where an outside
     account that funds there from the faucet is counted, as "outside funder, Knos repository, faucet money", apart
-    from the funders in outside repositories."""
+    from the funders in outside repositories. `owner_of(repo id)`: the GitHub id of the repository's owner (None: not
+    known). The chain names a repository by its id only, so a wallet that funds an order in a repository of Knos's
+    account carries no owner on record: every repository an outside funder would be counted in is asked, and one
+    whose owner is one of Knos's ids is Knos's (own_repositories)."""
     import outsiders as rules
-    return rules.count(jobs, own, own_wallets, own_repos, measured, frozenset(str(pay2.faucet_balance_pda(i)) for i in own))
+    balances = frozenset(str(pay2.faucet_balance_pda(i)) for i in own)
+    if owner_of is not None:
+        own_repos = own_repos | own_repositories(jobs, own, own_wallets, own_repos, balances, owner_of)
+    return rules.count(jobs, own, own_wallets, own_repos, measured, balances)
+
+
+def own_repositories(jobs: list[dict], own: frozenset, own_wallets: frozenset, own_repos: frozenset, own_balances: frozenset, owner_of) -> frozenset:
+    """The ids of the repositories, among those an outside funder would be counted in, whose owner is one of Knos's
+    GitHub ids. A repository GitHub does not name an owner for stays as it was: never made Knos's by a guess."""
+    import outsiders as rules
+    asked = {j["repo"] for j in jobs if j.get("repo") and (rules.funder_of(j, own, own_wallets, own_repos, own_balances) or ("", ""))[1] == "outside"}
+    return frozenset(r for r in asked if owner_of(r) in own)
+
+
+def repo_owner(get):
+    """owner_of for outsiders(): `repositories/<id>` on GitHub, once per id; None when GitHub does not answer."""
+    seen: dict = {}
+
+    def owner_of(repo: int) -> int | None:
+        if repo not in seen:
+            try:
+                seen[repo] = int(get(f"repositories/{int(repo)}")["owner"]["id"])
+            except Exception:  # noqa: BLE001 - not known: the repository is not made Knos's
+                seen[repo] = None
+        return seen[repo]
+    return owner_of
 
 
 def paid(job: dict) -> bool:
@@ -132,7 +160,7 @@ def _spread(seconds: list) -> dict:
     return {"count": len(took), "median": int(statistics.median(took)), "p90": took[math.ceil(0.9 * len(took)) - 1], "slowest": took[-1]}
 
 
-def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS) -> dict:
+def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS, owner_of=None) -> dict:
     """The counts of stats.json that the chain alone gives: outside, apart, totals, by_deployment, the funnel's last
     three stages, funded_to_paid and the newest payments, over jobs and work orders together; `orders`, the work
     orders' own part of the totals; and `meter`, the evaluations knos_meter counted, per month."""
@@ -162,7 +190,7 @@ def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset =
         "outside": sides["outside"],
         "apart": {"own": sides["own"], "self": sides["self"], "test": sides["test"]},
         # who outside Knos took part, whichever kind the job is: three numbers that are never added to each other
-        "outsiders": outsiders(jobs, own, own_wallets),
+        "outsiders": outsiders(jobs, own, own_wallets, owner_of=owner_of),
         "totals": {"funded": len(jobs), "completed": len(done) + other["unmatched_paid"], "open": state("open") + state("proven"),
                    "held": state("held"), "funded_amount": sum(j["amount"] for j in jobs), "paid_amount": sum(j["net"] for j in done), **other},
         "by_deployment": {name: {"funded": sum(1 for j in jobs if j["v"] == v), "completed": sum(1 for j in done if j["v"] == v)}
@@ -450,7 +478,7 @@ def collect(url: str, get=None, token: str | None = None, limit: int = 1000, now
         events.sort(key=lambda ev: ev["at"])        # stable: one transaction's lines stay in order
         if events_out:      # what scripts/pages_data.py counts from, so the chain is read once per build
             Path(events_out).write_text(json.dumps(events), encoding="utf-8")
-        data.update(summarize(events))
+        data.update(summarize(events, owner_of=None if get is None else repo_owner(get)))
         data["live"] = live(chain.Ledger(url))
         if problems:
             data["error"] = "; ".join(problems)

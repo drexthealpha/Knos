@@ -194,7 +194,7 @@ def four_of(row: dict, receipt: dict | None = None) -> dict:
     dlv = ids.deliverable(scope, int(said["pull_request"]) if said["standing"] == "1" else 0) if known else ""
     out = {"outcome": OUTCOMES.get(said["verdict"], ""), "deliverable_id": dlv, "evaluation_id": "", "invoice_line_id": "",
            "settlement_id": ids.settlement(dlv, "chain", said["transaction"]) if dlv and said["transaction"] and said["kind"] in MOVES else ""}
-    if receipt is not None and receipt.get("version") == 4:
+    if receipt is not None and receipt.get("version") in (4, 5):
         got = receipt["ids"]
         if got["deliverable"] != dlv or (got["settlement"] or "") not in ("", out["settlement_id"]):
             raise Refused(f"The receipt given for transaction {said['transaction']} is of another deliverable or settlement than the line it is given for.")

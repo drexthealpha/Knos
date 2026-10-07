@@ -6,7 +6,7 @@ import { jsonFile, tableHtml, sourceHtml, isLogin, KIND_WORDS } from "./records.
 import { show } from "./price.js";
 import { chained as auditChained, totals as auditTotals, auditWrite, recordsOf, exportAs, readRefs, FORMATS, UNVERIFIED } from "./finance_data.js";
 import { objectsHtml, chipOf } from "./console.js";
-import { statementCells, statementCsv, statementDigest, statementExport, statementLines, STATEMENT_KIND, STATEMENT_FORMATS, LINE_WORDS, LABEL, HANDED } from "./finance_data.js";
+import { statementCells, statementCsv, statementDigest, statementExport, statementLines, statementGrn, STATEMENT_KIND, STATEMENT_FORMATS, LINE_WORDS, PAY_WORDS, LABEL, HANDED } from "./finance_data.js";
 
 const ROLES = { seller: ["as_seller", "Seller: what the account was paid"], owner: ["as_owner", "Owner: what the account's money paid out"] };
 const KINDS = Object.keys(KIND_WORDS);
@@ -278,7 +278,18 @@ export function renderOrderStatement(el, env = {}) {
 // through the print rules scoped to .k-statement in web/app.css.
 
 const SAMPLE = "statement_sample.json";
-const SHOWN = ["line", "reference", "state", "amount", "why", "payment", "evidence"];
+const SHOWN = ["line", "reference", "state", "assurance", "amount", "why", "payment", "evidence"];
+
+/** One line's goods-received note as three cards side by side (order, receipt of goods, invoice line) and the match. */
+export function grnHtml(esc, note) {
+  const o = note.purchase_order, g = note.receipt_of_goods, i = note.invoice_line, cut = (t) => (String(t).length > 28 ? `${String(t).slice(0, 25)}…` : String(t));
+  const card = (leg, title, rows) => `<div class="k-card" data-grn-leg="${leg}"><p class="k-kicker">${title}</p>${rows.map(([k, v]) => `<p class="fine">${esc(k)} <span class="mono" title="${esc(v)}">${esc(cut(v))}</span></p>`).join("")}</div>`;
+  return `<section class="k-grn" data-grn="${esc(i.id)}" data-match="${note.match ? "1" : "0"}"><p class="k-kicker">Line ${esc(i.line)}: <span class="k-state" data-state="${note.match ? "agreed" : "disputed"}">${note.match ? "match" : "mismatch"}</span></p>
+    <div class="k-statement-totals">${card("order", "Purchase order", o ? [["number", o.number], ["terms", o.terms_hash], ["approver", o.approver], ["price", o.price]] : [["none", "on record"]])}
+      ${card("goods", "Receipt of goods", [["note", g.reference || "none"], ["evaluator", g.evaluator], ["assurance", g.assurance], ["evidence", g.evidence]])}
+      ${card("invoice", "Invoice line", [["id", i.id], ["amount", `${i.amount || "not priced"} ${i.currency}`.trim()], ["state", LINE_WORDS[i.state]], ["payment", PAY_WORDS[i.payment]]])}</div>
+    ${note.mismatches.length ? `<details class="k-more"><summary>Show why</summary><ul>${note.mismatches.map((w) => `<li class="fine">${esc(w)}</li>`).join("")}</ul></details>` : ""}</section>`;
+}
 
 /** The statement view, drawn into `el`. ctx: { file(path) -> JSON or null, print() } (both optional). Returns open(statement, status). */
 export function renderStatements(el, ctx = {}) {
@@ -318,9 +329,10 @@ export function renderStatements(el, ctx = {}) {
       <div class="k-table" id="aps-answers">${tableHtml(esc, ["question", "answer"], c.answers.map((a) => a.map(esc)))}</div>
       <div class="k-table" id="aps-lines">${tableHtml(esc, SHOWN, c.rows.map((r, n) => SHOWN.map((col) => (col === "state" ? `<span class="k-state" data-state="${esc(now[n].state)}">${esc(r[at(col)])}</span>`
         : col === "evidence" ? link(r[at(col)]) : col === "amount" ? `<span class="k-num">${esc(r[at(col)])}</span>` : esc(r[at(col)])))))}</div>
+      <details class="k-more" id="aps-grn"><summary>Match order, receipt, invoice</summary>${now.map((r) => grnHtml(esc, statementGrn(st, status, r.invoice_line))).join("")}</details>
       <details class="k-more"><summary>Show every id</summary>
-        <div class="k-table" id="aps-ids">${tableHtml(esc, ["line", "deliverable", "evaluations", "invoice line", "settlement", "evidence sha256"],
-          c.rows.map((r) => [r[at("line")], r[at("deliverable")], r[at("evaluations")], r[at("invoice_line")], r[at("settlement")], r[at("evidence_sha256")]].map((v) => `<span class="mono">${esc(v)}</span>`)))}</div>
+        <div class="k-table" id="aps-ids">${tableHtml(esc, ["line", "deliverable", "evaluations", "invoice line", "settlement", "evidence sha256", "purchase order", "goods-received note"],
+          c.rows.map((r) => [r[at("line")], r[at("deliverable")], r[at("evaluations")], r[at("invoice_line")], r[at("settlement")], r[at("evidence_sha256")], r[at("po_reference")], r[at("grn_reference")]].map((v) => `<span class="mono">${esc(v)}</span>`)))}</div>
         <div class="k-table" id="aps-top">${tableHtml(esc, ["", ""], [...c.top, ["statement sha256", st.sha256], ...c.events.map((e) => [e[0], e.slice(1).join(", ")])].map((a) => a.map(esc)))}</div></details>
       <p class="fine" id="aps-note">${esc(st.note)}</p></article>`;
     $("aps-csv").onclick = async () => save(await statementCsv(st, status), `${name}.csv`);

@@ -665,8 +665,9 @@ def render_relay(rel: dict) -> list[str]:
                 "level the relay waits for; no payment's finality was recorded.", ""]
         if dec:
             out += [f"What was measured locally: {dec['source']}. Machine: {dec['machine']}. That is the time Knos's own code takes to decide; on a "
-                    "cluster every read of the chain adds a round trip, and that has not been measured ([BENCH.md](BENCH.md), \"Decision time\").", ""]
-        out += ["What is a target and not a measurement: the last column. No decision has been timed on devnet by a benchmark (four `knos decide` runs on real fund tokens of this release's public rounds took 4.3 to 32.6 s each over the shared public RPC: a first reading, not a sample), no payment has been carried there by the "
+                    "cluster every read of the chain adds a round trip: four runs of the 0.3.18 command on devnet took 4.3 to 32.6 s each; the 0.3.19 "
+                    "command, once on each of 24 real tokens, took a median of 356 ms offline, 854 ms for the chain check and 9.1 s for the whole precheck ([BENCH.md](BENCH.md), \"Decision time\").", ""]
+        out += ["What is a target and not a measurement: the last column. No decision has been timed on devnet by a benchmark (four `knos decide` runs on real fund tokens of the 0.3.18 release's public rounds took 4.3 to 32.6 s each over the shared public RPC: a first reading, not a sample), no payment has been carried there by the "
                 "0.3.18 relay, and the floor stays above zero: a forge must run a job and sign before there is anything to decide "
                 "([RELAY.md](RELAY.md), \"The floor\").", ""]
     if q:

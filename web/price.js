@@ -1,4 +1,4 @@
-// Price book 3 and the arithmetic of the calculators. Pure functions: nothing here reads the page or the network.
+// Price book 3.1 and the arithmetic of the calculators. Pure functions: nothing here reads the page or the network.
 //
 // WHERE THE NUMBERS COME FROM, in one place.
 //   BILL      the price book's own numbers (docs/MARKET.md, "The price book"; src/knos/billing.py holds the same):
@@ -127,8 +127,9 @@ export function quote(amount, c, bps = c.feeBps) {
 // The price book's numbers. Rates are in basis points, money in whole USD unless a name says cents.
 export const BILL = Object.freeze({
   meterFree: 100_000, meterPerThousandCents: 200,                        // 0.002 USD an evaluation: 2.00 USD a thousand
-  acceptBps: Object.freeze([30, 20, 10]), acceptAbove: Object.freeze([0, 1_000_000, 10_000_000]), acceptFloorCents: 5,      // marginal, by the month; no cap
-  recordCents: 25,
+  acceptBps: Object.freeze([30, 20]), acceptAbove: Object.freeze([0, 1_000_000]), acceptFloorCents: 5,      // marginal, by the month; never under 0.20%; no cap
+  netBelowCents: 2_000,                                                    // an outcome under 20 USD is netted: one release per payee per period
+  recordCents: 10,
   control: Object.freeze({ none: 0, team: 25_000, business: 100_000, enterprise: 400_000 }),     // USD a year; Enterprise: from
   pilot: 2_500, benefitRule: 3,
 });
@@ -139,13 +140,13 @@ const short = (n) => (n >= 1_000_000 ? `${n / 1_000_000}M` : thousands(n));
 export const COLUMNS = Object.freeze(["Line", "Unit", "Price", "Who pays", "Where it is enforced"]);
 // The price book, row by row, in the words of docs/MARKET.md and of src/knos/billing.py (BOOK): the five COLUMNS.
 export function priceBook() {
-  const k = BILL.control, [r0, r1, r2] = BILL.acceptBps, [, a1, a2] = BILL.acceptAbove;
+  const k = BILL.control, [r0, r1] = BILL.acceptBps, [, a1] = BILL.acceptAbove, floor = (BILL.acceptFloorCents / 100).toFixed(2), record = (BILL.recordCents / 100).toFixed(2);
   return [
     ["Check", "pull request or artifact checked", "free, forever", "nobody", "nowhere"],
     ["Meter", "evaluation", `${thousands(BILL.meterFree)} a month free per organisation, then ${BILL.meterPerThousandCents / 100_000} USD`, "buyer", "prepaid credits"],
-    ["Acceptance", "dollar released or reconciled against a signed acceptance", `${rate(r0)}; by contract ${rate(r1)} above ${short(a1)} a month and ${rate(r2)} above ${short(a2)} a month; floor ${(BILL.acceptFloorCents / 100).toFixed(2)} USD; no cap`,
+    ["Acceptance", "dollar released or reconciled against a signed acceptance", `${rate(r0)}; by contract ${rate(r1)} on monthly value above ${short(a1)} (the rate never goes below ${rate(r1)}); small tickets are netted: outcomes under ${BILL.netBelowCents / 100} USD accumulate and settle as one release per payee per period, charged ${rate(r0)} of the netted amount with the ${floor} floor once per release; no cap`,
       "funder, on top of the amount", `knos_pay at release (on chain: ${rate(r0)} and the floor; volume rates are a rebate by contract, off chain)`],
-    ["Record", "lookup of a supplier's delivery record through the hosted API", `${(BILL.recordCents / 100).toFixed(2)} USD, or by subscription (the public record page and its file are free)`,
+    ["Record", "lookup of a supplier's delivery record through the machine-priced API", `${record} USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free`,
       "the buyer, marketplace or insurer reading it", "API (not built: a static file today)"],
     ["Control", "organisation, per year", `Team ${thousands(k.team)}; Business ${thousands(k.business)}; Enterprise from ${thousands(k.enterprise)} (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)`, "buyer", "contract"],
     ["Pilot", "one buyer, two suppliers, 30 days, one reconciled invoice", `${thousands(BILL.pilot)} USD, credited against year one`, "buyer", "contract"],
@@ -181,6 +182,26 @@ export function tiersOf(monthCents, volume = true) {
 }
 // Acceptance on one deliverable of `cents` that lies above the first `belowCents` of its month: at least the floor.
 export const acceptanceFee = (cents, belowCents = 0, volume = false) => (cents > 0 ? Math.max(BILL.acceptFloorCents, halfUp(marginal(belowCents + cents, volume, 1) - marginal(belowCents, volume, 1))) : 0);
+
+// Small tickets, netted: `outcomes` are one payee's outcomes of a period in whole cents, each under 20 USD. They settle
+// as ONE release: 0.30% of the netted amount, the floor once. { amount, fee, individually } in cents. As `netted` in
+// src/knos/billing.py; null when an outcome is not small.
+export function nettedFee(outcomes) {
+  if (!outcomes.length || outcomes.some((v) => !Number.isSafeInteger(v) || v <= 0 || v >= BILL.netBelowCents)) return null;
+  const amount = outcomes.reduce((sum, v) => sum + v, 0);
+  return { amount, fee: acceptanceFee(amount), individually: outcomes.reduce((sum, v) => sum + acceptanceFee(v), 0) };
+}
+
+// THE ON-CHAIN CELL OF THE BOOK FOLLOWS THE BUILD THAT IS LIVE. The book's Acceptance row says where the fee is
+// enforced, and what the program takes there is the rule of the build that answered (`c` from priceConstants): "today"
+// and "after the next upgrade" while the 0.3.14 fee is live; once Version is 2, the book's own cell, the one rule.
+// Nobody answered (c.fee.live false): both rules, and which comes first. `c` null: nobody has answered yet.
+export function enforcedNow(c, lib = settle) {
+  const book = priceBook()[2][4], tail = book.slice(book.indexOf("; volume rates")), own = `${rate(BILL.acceptBps[0])} and the floor`;
+  if (!c) return "knos_pay at release (reading the rate on chain today)";
+  if (c.fee.release === "0.3.18") return c.fee.live ? book : `knos_pay at release (on chain until the next upgrade: ${feeRate(priceConstants(lib, FEE_VERSION - 1))}; after it: ${own}${tail}`;
+  return `knos_pay at release (on chain today: ${feeRate(c)}; after the next upgrade: ${own}${tail}`;
+}
 
 // THE BILLING RULE for a year, as `estimate` in src/knos/billing.py: Control + Meter + Acceptance on value reconciled
 // off chain + record lookups, less the volume rebate on value released on chain. In whole cents. `evaluations` and

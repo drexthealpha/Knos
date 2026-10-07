@@ -75,8 +75,21 @@ def test_the_document_says_the_limits_the_code_holds_and_claims_nobody():
     assert f"| One account | {playground.PER_DAY} funded issues in a day (UTC) |" in doc and f"| Issues with checks | numbers 1 to {playground.SLOTS} |" in doc
     assert f"`{playground.FUND}`" in doc and f"`{playground.TASK}`" in doc and f"on {len(small.starter_cases())} recorded lines" in doc
     assert f"for up to {pay.HOLD // 86_400} days" in doc and f"https://github.com/{playground.REPO}/issues/new?template=fund-a-test-task.md" in doc
-    assert "**Nobody outside has used it yet.**" in doc and "outside funder, Knos repository, faucet money" in doc and "never added to each other" in doc
-    assert len(doc.splitlines()) <= 60                                                # one screen
+    assert "Nobody outside has used it" not in doc and "never claimed" in doc         # strangers came: the count says how many, the page does not
+    assert any(line.startswith("Test USDC, no monetary value.") for line in doc.splitlines()[:7])
+    assert "outside funder, Knos repository, faucet money" in doc and "never added to each other" in doc
+    assert "an outside payee, never an outside funder" in doc
+    # the stranger's path, in the order he walks it, and the board's limits as the code holds them
+    path = [doc.index(w) for w in ("**Fork.**", "**`Closes #N`.**", "**The check.**", "**The merge pays.**")]
+    assert path == sorted(path) and "`/knos address <address>`" in doc and "passkey wallet" in doc and "python3 check.py <task>" in doc
+    spec = importlib.util.spec_from_file_location("task_board_playground", ROOT / "scripts" / "task_board.py")
+    board = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(board)
+    tasks = board.catalogue()
+    assert f"The {len(tasks)} tasks are" in doc and f"keeps {board.TARGET} of them" in doc and {t["amount"] for t in tasks} == {pay.ORDER_MIN_AMOUNT}
+    assert f"| A funded task of the board | {pay.ORDER_MIN_AMOUNT // 10**6} test USDC, {tasks[0]['deadline_days']} days, {board.TARGET} open at once |" in doc
+    assert "three examples, 5 test USDC" in doc and all(len(t["public"]) == 3 and t["deadline_days"] == 14 for t in tasks)
+    assert len(doc.splitlines()) <= 90
     low = doc.lower()
     assert not any(w in low for w in ("immutable", "audited", "customers")) and "## How it is counted" in doc
     # the site links the same place and the same repository

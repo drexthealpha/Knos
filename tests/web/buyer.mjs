@@ -321,6 +321,8 @@ check("a passkey wallet is made: one credential on the authenticator, an address
 await page.waitForFunction(() => document.querySelector("#buy-pk-balance").textContent !== "not read yet");      // the balance is read after the wallet is shown
 check("  its test USDC is read from devnet, and the faucet path is a link, not a request", (await text(page, "#buy-pk-balance")) === "100.00 test USDC"
   && (await page.$eval("#buy-pk-faucet a", (a) => a.href)) === "https://faucet.circle.com/", await text(page, "#buy-pk-balance"));
+check("  a wallet that holds test USDC is not offered the faucet; the line it would post names this wallet", (await page.$eval("#buy-pk-get", (n) => n.hidden)) === true
+  && (await page.$eval("#buy-pk-get-line", (n) => n.textContent)) === `/knos faucet ${chain.wallet}` && (await page.$eval("#buy-pk-get-open", (a) => a.href)).includes("label%3Afaucet"), chain.wallet);
 const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("knos-passkey")));
 check("  the browser keeps its id and public key, as the Get paid page does, and nothing secret", Object.keys(kept).sort().join() === "credentialId,key" && /^0[23][0-9a-f]{64}$/.test(kept.key), kept);
 

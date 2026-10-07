@@ -6,7 +6,7 @@
 //   node scripts/sas_receipt.mjs --init --send --keypair FILE [--rpc URL]           the release step: create the credential and the schema, no receipt
 //
 // Issuing the attestation is on by default wherever Knos issues a receipt (knos.receipt.attest runs this script with
-// --send after the paying transaction is confirmed, and never fails the payment). A receipt of version 1, 2, 3 or 4 is taken;
+// --send after the paying transaction is confirmed, and never fails the payment). A receipt of version 1 to 5 is taken;
 // the attestation's fields are the same for all three, and its digest is the digest of the receipt it was given. An order attested already is not an error: {"sent": false, "already": true}.
 //
 // The Solana Attestation Service is program 22zoJMtdu4tQc2PzL74ZUT7FrwgB1Udec8DdW4yw4BdG (the same address on devnet and on
@@ -46,7 +46,7 @@ export const digest = (receipt) => createHash("sha256").update(canonical(receipt
 
 /** The attestation's data, field by field: what of the receipt goes on chain. A private order has repository_id and issue 0. */
 export function fields(r) {
-  if (r?.type !== "knos.acceptance-receipt" || ![1, 2, 3, 4].includes(r.version)) throw new Refused("this is not a Knos acceptance receipt of version 1, 2, 3 or 4 (docs/RECEIPT.md).");
+  if (r?.type !== "knos.acceptance-receipt" || ![1, 2, 3, 4, 5].includes(r.version)) throw new Refused("this is not a Knos acceptance receipt of version 1 to 5 (docs/RECEIPT.md).");
   // a version 4 receipt of an evaluation nothing was paid for (rejected, insufficient evidence) names no transaction: there is no payment to attest
   if (r.transaction === null) throw new Refused("this receipt names no transaction: nothing was paid, so there is no payment to attest.");
   const bytes = (hexText) => Array.from(Buffer.from(hexText, "hex"));

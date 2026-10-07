@@ -1155,7 +1155,7 @@
      "names": "test_the_conservation_harness_is_among_the_proved_ones"
     }
    },
-   "note": "One recorded run (docs/kani.json; Kani 0.68.0, each harness alone, 180-second limit) verified 4 of 5 harnesses, fee conservation among them; the fee-bounds harness over every amount timed out and is NOT proved (the bounds are proved tier by tier apart: fee_bounds_proofs). The test holds the record to the harness names and to the file's hash: no test of this repository runs Kani itself."
+   "note": "docs/kani.json (Kani 0.68.0, CBMC 6.11.0) records all 5 harnesses as verified, fee conservation among them: 4 in one run, each alone within 180 seconds, and the fee-bounds harness over every amount in program.yml's job of its own, kani-fee-bounds (run 37575047633 in 8,296 s and nightly run 37608154723 in 8,360 s, Kani's default solver, not cvc5). It bounds the fee by the program's own bps_of(amount, 30); that this is at most 0.30% of the amount rests on cvc5's translation (fee_bounds_proofs). The test holds the record to the harness names and to the file's hash: no test of this repository runs Kani itself."
   },
   {
    "id": "receipt",
@@ -2486,7 +2486,7 @@
      "names": "a_good_token_is_verified_in_one_transaction"
     }
    },
-   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest. In the default build of knos_oidc in this tree (202,032 bytes; the verifier's data account on devnet has room for 279,360, so no extension is needed) and NOT deployed: no public program id runs it, and the build is not proposed yet. Two fixed test keys; no token of a real ES256 issuer has been verified. A signing input of at most 780 bytes (docs/ES256.md)."
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest. In the default build of knos_oidc in this tree (202,032 bytes; the verifier's data account on devnet has room for 279,360, so no extension is needed) and NOT deployed: no public program id runs it until the upgrade that carries it (proposal 7) has executed. Two fixed test keys; no token of a real ES256 issuer has been verified. A signing input of at most 780 bytes (docs/ES256.md). A Python client exists since 0.3.19 (`src/knos/settle/v2/oidc.py`), held to the built program by `tests/test_es256_client.py`; the release run's `es256` round sends it at the public id once the build is live."
   },
   {
    "id": "contributor_tests_not_counted",
@@ -2550,7 +2550,7 @@
      "names": "test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say"
     }
    },
-   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 10 to 30 basis points, one rate and no tiers (the knos_pay 2.2 build of this tree, not deployed). docs/kani.json `fee_proofs`, status `verified but for one bound at one rate`; its `parts` say which statement is verified over which amounts and rates. The test holds the record to the source's hash: no test of this repository runs Kani itself."
+   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 10 to 30 basis points, one rate and no tiers (the knos_pay 2.2 build of this tree, not deployed). docs/kani.json `fee_proofs`, status `verified`; the exact 0.30% at the rate 30 by cvc5 with bit-vectors solved as integers, on whose translation that one result also rests; its `parts` say which statement is verified over which amounts and rates. The test holds the record to the source's hash: no test of this repository runs Kani itself."
   },
   {
    "id": "adversarial_replays",
@@ -2658,7 +2658,7 @@
      "names": "test_the_swap_keeps_the_root_in_format_1_and_changes_it_in_format_2"
     }
    },
-   "note": "Tested on ledger files; no format 2 batch is anchored on the public ids. knos_meter is unchanged: the root is opaque to the program."
+   "note": "Tested on ledger files. Format 2 batches are anchored at the public knos_meter (one in 0.3.18; two more, batch and claim, in the 0.3.19 release run, 202610.1 and 202610.2 of one account as buyer and seller). knos_meter is unchanged: the root is opaque to the program."
   },
   {
    "id": "supplier_record",
@@ -2766,7 +2766,7 @@
      "names": "test_a_provisional_receipt_never_authorises_payment_and_never_says_paid"
     }
    },
-   "note": "`knos decide`. The workflows and the relay do not post it yet."
+   "note": "`knos decide`, in two halves. Offline: the issuer's signature against key lists kept on the machine, then the token's claims and terms; no network. Chain check: one request with a timeout, written into a second provisional receipt that names the first. `knos.flow` posts the offline line and then the chain check's where the issuers' key lists are kept on the runner; where none is kept, the relay's whole precheck as before. No workflow keeps key lists yet, so on GitHub the line is still the precheck's. Not timed on devnet since the split: four runs of the 0.3.18 command took 4.3 to 32.6 s."
   },
   {
    "id": "relay_notes_merge",
@@ -2847,6 +2847,230 @@
     }
    },
    "note": "Runs from .github/workflows/claims.yml on this repository; tested on recorded events."
+  },
+  {
+   "id": "netted_settlement",
+   "what": "Accepted outcomes under 20.00 accumulate per supplier and period and settle as one release of the net, with the fee's floor paid once.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/netting.py",
+     "names": "def net_of"
+    },
+    "tested": {
+     "test": "tests/test_netting.py",
+     "names": "test_a_thousand_outcomes_settle_as_one_release_on_the_programs_as_they_are"
+    }
+   },
+   "note": "`knos net`. Tested in the simulator with the test builds; never run on devnet. The cap, the release, the root and the fee are enforced on chain; each line, the link from the release to the batch, and the buyer's credit inside the period are not (docs/NETTING.md)."
+  },
+  {
+   "id": "third_party_advance",
+   "what": "A third party pays a supplier now against a funded order and takes its place as payee, in one transaction that does both or neither.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/advance.py",
+     "names": "def take_ixs"
+    },
+    "tested": {
+     "test": "tests/test_advance_offer.py",
+     "names": "test_the_take_is_whole_or_nothing_no_assignment_without_the_payment_and_no_payment_without_the_assignment"
+    }
+   },
+   "note": "`knos advance`, on the program's Assign. Knos lends nothing and charges nothing for it. Tested in the simulator. No advancer exists; one advance ran on devnet at the public ids between two wallets of Knos's own release run (0.3.19), with no outside party (docs/ADVANCE.md)."
+  },
+  {
+   "id": "record_lookup_paid",
+   "what": "A supplier's record is sold per lookup by a server anyone can run: a call without payment gets a 402 that names the order to fund.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_api.py",
+     "names": "class Server"
+    },
+    "tested": {
+     "test": "tests/test_record_api.py",
+     "names": "test_two_agents_pay_then_get_the_json_a_replay_is_refused_and_one_agent_cannot_spend_the_others_order"
+    }
+   },
+   "note": "`knos record serve`. Knos hosts no such server; the public record page and its file stay free. Tested in the simulator and on a local socket; never run on devnet."
+  },
+  {
+   "id": "test_usdc_faucet",
+   "what": "A comment on the playground's faucet issue gives a fixed amount of test USDC once per account, journaled so a retry never sends twice.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/faucet.py",
+     "names": "def grant"
+    },
+    "tested": {
+     "test": "tests/test_faucet.py",
+     "names": "test_a_crash_between_signing_and_sending_loses_nothing_and_doubles_nothing"
+    }
+   },
+   "note": "`knos faucet` and `python -m knos.faucet --event`. Test USDC has no monetary value. Tested with a stand-in chain and forge; the faucet key does not exist yet and no grant has been made on devnet (docs/FAUCET.md)."
+  },
+  {
+   "id": "funded_task_board",
+   "what": "A script keeps a set number of funded test tasks open in the playground, each with a reference answer the judge accepts and wrong ones it refuses.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/task_board.py",
+     "names": "def open_tasks"
+    },
+    "tested": {
+     "test": "tests/test_task_board.py",
+     "names": "test_open_keeps_n_tasks_funded_and_a_second_run_does_nothing"
+    }
+   },
+   "note": "24 tasks under tasks/, 5 test USDC each. Tested with a stand-in forge and the simulator; the board has not been opened on GitHub or funded on devnet (tasks/README.md)."
+  },
+  {
+   "id": "claim_guard_worker",
+   "what": "The always-on worker sweeps unfunded claims of payment in a job of its own that holds no key.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/claim_guard.py",
+     "names": "def sweep_served"
+    },
+    "tested": {
+     "test": "tests/test_claim_guard.py",
+     "names": "test_the_relays_pass_sweeps_only_where_it_may_write_through_its_own_reader_and_says_an_unread_listing_as_an_error"
+    }
+   },
+   "note": "worker.yml job `claims`, once in every run of the chain; a relay of one's own may sweep in its pass (KNOS_CLAIM_REPOS). Not run on GitHub yet (docs/RELAY.md, \"The claim guard on the worker\")."
+  },
+  {
+   "id": "relay_notes_log",
+   "what": "Two relay runs on different runners see each other's leases and answers as lines in the relay log, so one token is carried once.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "class LogStore"
+    },
+    "tested": {
+     "test": "tests/test_relayq.py",
+     "names": "test_an_event_run_and_the_sweep_on_two_runners_see_each_other_through_the_relay_log"
+    }
+   },
+   "note": "Tested with stand-in runners and a stand-in forge. GitHub may list a comment a moment after it took it; both runs then send and the chain takes the token once. Not run on GitHub yet."
+  },
+  {
+   "id": "own_reproduction_path",
+   "what": "A run of `knos reproduce` by Knos itself is verified like anyone's, filed apart, and counted for nothing.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/reproduce.py",
+     "names": "def own_runs"
+    },
+    "tested": {
+     "test": "tests/test_reproduce.py",
+     "names": "test_an_own_run_completes_is_filed_apart_and_counts_for_nothing"
+    }
+   },
+   "note": "reproductions/own/ holds 0 files; the first is filed by a release run. No count of outside reproductions reads that folder."
+  },
+  {
+   "id": "receipt_assurance",
+   "what": "Every receipt and statement line carries an assurance level computed from its evidence: reported, rerun, agreed or attested.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def assurance_of"
+    },
+    "tested": {
+     "test": "tests/test_assurance.py",
+     "names": "test_every_level_is_computed_from_the_evidence_and_each_names_who_stays_trusted"
+    }
+   },
+   "note": "Receipt version 5 (`build5`), written wherever a receipt is made since 0.3.19; none has been written on devnet. Older receipts still verify and read as reported unless their evidence shows more. `attested` is defined and no receipt reaches it: nothing proves what a judge executed (docs/RECEIPT.md)."
+  },
+  {
+   "id": "declared_control",
+   "what": "Accounts the terms declare as related never count as two independent evaluators.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def related"
+    },
+    "tested": {
+     "test": "tests/test_assurance.py",
+     "names": "test_two_evaluators_never_agree_when_their_owners_match_or_the_terms_declare_them_related"
+    }
+   },
+   "note": "A declaration is what a party wrote in the terms: Knos does not discover who controls an account. Off chain only; the program's quorum counts repository owners."
+  },
+  {
+   "id": "goods_received_note",
+   "what": "A statement line has a goods-received note: the order, the acceptance and the invoice line side by side, and whether they match.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/statement.py",
+     "names": "def grn("
+    },
+    "tested": {
+     "test": "tests/test_assurance.py",
+     "names": "test_every_statement_line_says_its_level_and_a_note_matches_three_legs_or_says_the_mismatch"
+    }
+   },
+   "note": "`knos statement grn`. No buyer's accounts-payable system has taken one (docs/FINANCE.md)."
+  },
+  {
+   "id": "supplier_completes",
+   "what": "A supplier sends the forge's signed proof from its own wallet and is paid while the buyer does nothing more after funding.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/pay.py",
+     "names": "def order_pay_audience"
+    },
+    "tested": {
+     "test": "tests/test_supplier_completes.py",
+     "names": "test_the_supplier_is_paid_on_the_forges_signature_while_the_buyer_does_nothing"
+    }
+   },
+   "note": "The path that exists in knos_pay, walked in the simulator with the test build; with no accepted work by the deadline the money returns to its funder (docs/FINANCE.md, \"When the buyer goes quiet\")."
+  },
+  {
+   "id": "upgrade_gate_adoption",
+   "what": "Another project sets up the upgrade gate for its own program with one script: init, expect, record, check.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/upgrade_gate/adopt.py",
+     "names": "def main"
+    },
+    "tested": {
+     "test": "tests/test_gate_adopt.py",
+     "names": "test_record_and_check_against_the_gate_program"
+    }
+   },
+   "note": "Tested against the gate's test build in the simulator. The adopters list has zero rows (docs/GATE.md, docs/COMPOSE.md)."
+  },
+  {
+   "id": "registry_plan",
+   "what": "One command prints what a release would publish to crates.io and npm, checks that each package packs, and publishes nothing.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/release.py",
+     "names": "def registry_overview"
+    },
+    "tested": {
+     "test": "tests/test_gate_adopt.py",
+     "names": "test_the_registry_plan_says_what_would_be_published_where_and_publishes_nothing"
+    }
+   },
+   "note": "`python scripts/release.py registry-plan`. The interface crates and the JS SDK are not published yet."
   }
  ],
  "public_round": {

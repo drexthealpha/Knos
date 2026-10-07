@@ -1240,6 +1240,15 @@ def command(run: Run) -> int:
     cmd = commands.parse(said.get("body") or "", on_pull) if fresh and on.get("number") and isinstance(said, dict) else None
     if cmd is None or ("comment" not in ev and not isinstance(cmd, (commands.Fund, commands.FundTerms)) and getattr(cmd, "command", "") != "fund"):
         return 0
+    if isinstance(cmd, commands.Faucet):
+        # a request for test USDC is knos.faucet's to answer, in a job of its own (worker.yml, `faucet`): on the playground's
+        # faucet issue this job says nothing, so the request has one reply; anywhere else it says where the faucet is
+        repo: dict = ev["repository"] if isinstance(ev.get("repository"), dict) else {}
+        there = (playground.is_playground(str(repo.get("full_name") or run.repo), (repo.get("owner") or {}).get("id"), _devnet(run))
+                 and any(isinstance(lb, dict) and lb.get("name") == commands.FAUCET_LABEL for lb in on.get("labels") or []))
+        if not there:
+            run.say(on["number"], commands.FAUCET_ELSEWHERE)
+        return 1 if run.failed else 0
     try:
         if isinstance(cmd, commands.FundTerms):     # `/knos fund terms`: the order the repository's Knos Terms 3 document describes
             cmd = _fund_terms(run)
@@ -1691,6 +1700,20 @@ def _terms3_order(doc: dict, cmd, plan: dict, built: terms.Built) -> tuple[terms
         said.append("The order asks for `grace` (a token issued by the deadline is taken for a while after it); the terms say a token presented "
                     "late is refused.")
     return built._replace(terms=mine), said
+
+
+def _declared(run: Run, order_terms: dict) -> list:
+    """The accounts the order's Knos Terms 3 document declares to be one party (`evaluators.related`), for a receipt's
+    assurance level. [] when the order cites no such document, when the version it cites is not found, or when
+    GitHub does not answer: nothing is declared on a guess, and a receipt is written all the same."""
+    contract = order_terms.get("contract") if isinstance(order_terms, dict) else None
+    if not contract:
+        return []
+    try:
+        doc = _terms3_cited(run, str(contract))
+        return terms3.declared(doc) if doc is not None else []
+    except Exception:  # noqa: BLE001 - best effort: the level is then computed from the ids alone
+        return []
 
 
 def _terms3_cited(run: Run, contract: str) -> dict | None:
@@ -2361,35 +2384,66 @@ def _status_of(run: Run) -> _Status | None:
     return getattr(run, "_status", None)
 
 
-def _provisional(run: Run, c: "Case", jwt: str) -> str:
-    """The provisional decision on a token this job is about to send (knos.decide): the relay's own reads, made before
-    anything is sent, as one line for the status comment. It never says paid. "" when there is no token, when the relay
-    this run uses has no `precheck` to ask, or when anything at all goes wrong: the decision is a convenience for the
-    reader, and its failure is logged and never stands in a payment's way."""
+def _provisional(run: Run, c: "Case", jwt: str) -> tuple[str, Any]:
+    """The provisional decision on a token this job is about to send (knos.decide), as one line for the status comment,
+    and what asks the chain about it afterwards. It never says paid.
+
+    Two halves since 0.3.19. OFFLINE first, with no network: the issuer's signature against the key lists kept on this
+    machine, the token's claims and the terms that travel with it (`decide.offline`). When that decides, its line is
+    the one posted at once, and the second value is a function that makes ONE chain request with a timeout
+    (`decide.chain_check`) and gives the updated line, or "" when the chain did not answer or changed nothing. Where no
+    key list is kept for the token's issuer (a runner that never ran `knos decide --refresh-keys`), the offline half
+    cannot decide, and the line is the relay's whole precheck as before (`decide.token`: what `knos decide --full`
+    runs); nothing is asked afterwards then.
+
+    ("", None) when there is no token, when the relay this run uses has no `precheck` to ask, or when anything at all
+    goes wrong: the decision is a convenience for the reader, and its failure is logged and never stands in a
+    payment's way."""
     if not jwt or not callable(getattr(run.relay, "precheck", None)):
-        return ""
+        return "", None
     try:
         from . import decide
-        beside = c.raw or None
-        doc = decide.provisional(decide.token(jwt, beside, ledger=run.ledger, now=run.clock()), at=int(run.clock()), jwt=jwt, terms=beside)
+        beside, at = c.raw or None, int(run.clock())
+        first = decide.offline(jwt, beside, now=run.clock())
+        if first["decision"] == "insufficient_evidence":        # no kept key list decides it: the relay's own reads, as before
+            doc = decide.provisional(decide.token(jwt, beside, ledger=run.ledger, now=run.clock()), at=at, jwt=jwt, terms=beside)
+            run.output("provisional", decide.digest(doc))
+            return decide.comment_line(doc), None
+        doc = decide.provisional(first, at=at, jwt=jwt, terms=beside)
         run.output("provisional", decide.digest(doc))
-        return decide.comment_line(doc)
+
+        def asked() -> str:
+            try:
+                seen = decide.chain_check(jwt, ledger=run.ledger)
+                if not seen.get("read"):
+                    return ""
+                after = decide.provisional(decide.after_chain(first, seen, jwt), at=int(run.clock()), jwt=jwt, terms=beside, updates=decide.digest(doc))
+                run.output("provisional", decide.digest(after))
+                return decide.comment_line(after)
+            except Exception as why:  # noqa: BLE001 - best effort
+                _err(f"knos: the chain check of the provisional decision could not be made ({type(why).__name__}: {_short(why)}); settling goes on")
+                return ""
+        return decide.comment_line(doc), asked
     except Exception as why:  # noqa: BLE001 - best effort
         _err(f"knos: the provisional decision could not be made ({type(why).__name__}: {_short(why)}); settling goes on")
-        return ""
+        return "", None
 
 
 def _accepted(run: Run, c: "Case", jwt: str = "") -> None:
     """A case passed and GitHub signed for it: the comment says so now, before the token goes to the chain, with the
-    provisional decision on that token (`_provisional`) when one could be made."""
+    provisional decision on that token (`_provisional`) when one could be made: the offline line at once, then the
+    chain check's in its place when the chain answered."""
     st = _status_of(run)
     if st is None or "accepted" in st.at:
         return
     st.reach("accepted")
-    decided = _provisional(run, c, jwt)
-    st.write(f"Knos: accepted, settling. Everything {_what(run, c)} asks for holds at this pull request's last commit and GitHub signed "
-             f"this run. The payment to @{c.paid.get('login')} is on its way to Solana; this comment is edited when it lands."
-             + (f" {decided}" if decided else ""))
+    decided, asked = _provisional(run, c, jwt)
+    words = (f"Knos: accepted, settling. Everything {_what(run, c)} asks for holds at this pull request's last commit and GitHub signed "
+             f"this run. The payment to @{c.paid.get('login')} is on its way to Solana; this comment is edited when it lands.")
+    st.write(words + (f" {decided}" if decided else ""))
+    later = asked() if asked is not None else ""
+    if later and later != decided:
+        st.write(f"{words} {later}")
 
 
 def _settled(run: Run, cases: list) -> None:
@@ -3524,8 +3578,9 @@ def _reason_said(v: dict) -> str:
 
 
 def _unpaid(run: Run, word: str, about: dict, record: str) -> tuple[dict | None, str]:
-    """What a run that paid nothing leaves: (a version 4 receipt with the verdict `word`, rejected or insufficient_evidence,
-    which never authorises payment (knos.receipt.unpaid4), the same evaluation as a ledger line that says that verdict).
+    """What a run that paid nothing leaves: (a version 5 receipt with the verdict `word`, rejected or insufficient_evidence,
+    which never authorises payment (knos.receipt.unpaid4, then build5 for its assurance level; the version 4 receipt
+    itself should that step fail), the same evaluation as a ledger line that says that verdict).
     `about`: {"address", "order", "case", "pull"}. `record`: the run's own verdict line, whose sha256 the receipt names.
     Either is None or "" when the run does not know enough to write it: it is a record, never a condition."""
     from . import ids, ledger
@@ -3548,6 +3603,7 @@ def _unpaid(run: Run, word: str, about: dict, record: str) -> tuple[dict | None,
                           policy_version=t.get("v") if c.terms else None, mint=str(o.mint), decimals=int(o.decimals), of=int(o.rate if milestone else o.amount),
                           milestone=milestone, payees=payees if all(p["to"] not in ("", "None") for p in payees) else (),
                           record_sha256=hashlib.sha256(record.encode()).hexdigest())
+        made = rc.build5(made, _declared(run, t))       # version 5 (0.3.19): the same receipt with its assurance level, computed from its evidence
     except Exception as why:  # noqa: BLE001
         run.note(f"Knos attest: no receipt was written for this run ({_short(why)}). Its verdict above stands as it is.")
     try:

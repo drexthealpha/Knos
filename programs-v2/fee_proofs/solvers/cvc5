@@ -1,0 +1,18 @@
+#!/bin/sh
+# What Kani's `--solver cvc5` finds first on PATH when scripts/kani_fee_record.py runs a harness marked
+# `#[kani::solver(cvc5)]`: the cvc5 that is installed, asked to solve bit-vectors as integers. With that translation
+# a division by a constant is linear arithmetic, and the exact 0.30% of the fee is answered in seconds; as bits,
+# neither cvc5 nor a SAT solver answered it within the limit (docs/kani.json, `fee_proofs`).
+# The cvc5 it runs: $KNOS_CVC5 when set, or the next `cvc5` on PATH after this directory.
+self=$(cd "$(dirname "$0")" && pwd)
+real=${KNOS_CVC5:-}
+if [ -z "$real" ]; then
+  old=$IFS
+  IFS=:
+  for dir in $PATH; do
+    if [ "$dir" != "$self" ] && [ -x "$dir/cvc5" ]; then real="$dir/cvc5"; break; fi
+  done
+  IFS=$old
+fi
+if [ -z "$real" ]; then echo "cvc5 is not installed: put it on PATH or name it in KNOS_CVC5" >&2; exit 127; fi
+exec "$real" --solve-bv-as-int=sum "$@"

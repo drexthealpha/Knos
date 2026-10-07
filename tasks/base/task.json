@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "base",
+ "title": "Write a number in another base",
+ "statement": "Test USDC, no monetary value.\n\nRead one line: a whole number in base ten (it may be negative) and a base from 2 to 36, separated by a space. Print the number in that base, with lower-case letters for digits above 9, a leading `-` when negative, and `0` for zero.",
+ "file": "tasks/base.py",
+ "run": [
+  "python3",
+  "tasks/base.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "255 16",
+   "output": "ff"
+  },
+  {
+   "input": "-10 2",
+   "output": "-1010"
+  },
+  {
+   "input": "0 7",
+   "output": "0"
+  }
+ ],
+ "seed": 112,
+ "starting_files": {
+  "tasks/base.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

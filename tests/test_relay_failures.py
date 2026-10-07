@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import time as _time
 import urllib.error
 
 import pytest
@@ -19,6 +20,19 @@ from knos.proof import ghrelay
 
 T0 = 1_791_021_600.0        # a fixed time: nothing here reads this machine's clock
 PAY = "knos2:pay:1:7:9:" + "a" * 40 + ":" + "0" * 64 + ":0:-"
+
+
+class _TestTime:
+    """The module `time` as ghrelay sees it in these tests: `time()` is the test's clock, everything else is the module's."""
+
+    def __init__(self, clock: list) -> None:
+        self._clock = clock
+
+    def time(self) -> float:
+        return self._clock[0]
+
+    def __getattr__(self, name: str):
+        return getattr(_time, name)
 
 
 class GitHub(tw.GitHub):
@@ -50,6 +64,9 @@ class GitHub(tw.GitHub):
 def world(monkeypatch, tmp_path):
     """A fake GitHub behind a reader whose clock is the test's, the relays faked, notes of its own."""
     gh, relays, clock = GitHub(), tw.Relays(), [T0]
+    # once(now=...) times a token's stages as `now` plus this machine's seconds since the pass began: on a slow runner
+    # (windows, tests.yml 37625639394) those seconds reached a line's `wait=`. Here the pass reads the test's clock too.
+    monkeypatch.setattr(ghrelay, "time", _TestTime(clock))
     monkeypatch.setattr(ghrelay, "_HUB", ghrelay.Hub(gh.open, clock=lambda: clock[0]))
     monkeypatch.setattr(ghrelay, "_LOG", {})
     monkeypatch.setattr(ghrelay, "_state_path", lambda: tmp_path / "ghrelay.json")

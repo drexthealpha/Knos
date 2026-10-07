@@ -3,13 +3,15 @@
 //
 //   renderPlayground(el, env)   draws into `el` and keeps the list fresh; returns { refresh, stop }
 //   playgroundHtml(state)       the same as a string, from what was read
-//   tasksOf(issues, bounties)   the rows: GitHub's open issues of the playground, each with its state on devnet
+//   tasksOf(issues, bounties, board)   the rows: GitHub's open issues of the playground that are not on the board
+//   boardOf(file, now)          the board's rows: the funded tasks scripts/task_board.py keeps open, with the time each has left
 //   fundUrl(), takeUrl(tasks)   where the two buttons go
 //
 // What it reads, and nothing else:
 //   GitHub      api.github.com/repos/drexthealpha/knos-playground/issues (open issues; no token), as app.js reads GitHub
 //   this site   bounties.json (the open funded tasks counted from Solana devnet by scripts/pages_data.py) and
 //               outsiders.json (outside funders, repositories and payees: three numbers that are never added)
+//               tasks.json (the board: `python scripts/task_board.py status --json`, written when the site is built)
 // `env` replaces any of it: { gh(path), file(path), every (ms between reads; 0: read once), now() }.
 //
 // It uses the design contract's names (.k-card, .k-btn, .k-kicker, .k-num, .k-table, .k-step) and adds only what
@@ -31,20 +33,49 @@ export const fundUrl = () => `https://github.com/${REPO}/issues/new?template=${e
 export const editUrl = () => `https://github.com/${REPO}/edit/main/${TASK_FILE}`;
 export const listUrl = () => `https://github.com/${REPO}/issues`;
 // The oldest funded task first: it has waited longest. With none funded, GitHub's own list.
-export const takeUrl = (tasks) => (tasks || []).filter((t) => t.state === "funded").sort((a, b) => a.number - b.number)[0]?.url || listUrl();
+export const takeUrl = (tasks, board) => (board && board[0]?.url) || (tasks || []).filter((t) => t.state === "funded").sort((a, b) => a.number - b.number)[0]?.url || listUrl();
 
 const amount = (units, decimals = 6) => {
   const n = Number(units) / 10 ** decimals;
   return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "?";
 };
 
+// The board as the site's build read it (tasks.json). null: the build did not read it, and the page says so.
+const DAY = 86_400_000;
+export const leftOf = (deadline, now) => {
+  const ms = Date.parse(deadline) - now;
+  if (!Number.isFinite(ms)) return "";
+  if (ms <= 0) return "Ended";
+  const n = ms >= DAY ? Math.floor(ms / DAY) : Math.max(1, Math.floor(ms / 3_600_000)), unit = ms >= DAY ? "day" : "hour";
+  return `${n} ${unit}${n === 1 ? "" : "s"} left`;
+};
+export function boardOf(file, now = Date.now()) {
+  if (!file || file.read !== true || !Array.isArray(file.tasks) || String(file.repository || "").toLowerCase() !== REPO.toLowerCase()) return null;
+  return file.tasks.filter((t) => t && Number.isInteger(t.issue) && Number.isInteger(t.amount)).map((t) => ({ number: t.issue, title: String(t.title || ""),
+    amount: amount(t.amount, t.decimals ?? 6), currency: "test USDC", left: leftOf(t.deadline, now), url: `https://github.com/${REPO}/issues/${t.issue}` }))
+    .filter((t) => t.left !== "Ended").sort((a, b) => a.number - b.number);
+}
+export const boardUrl = () => `https://github.com/${REPO}/issues?q=${encodeURIComponent("is:issue is:open label:knos-funded")}`;
+
+function boardHtml(s) {
+  if (s.board === undefined) return "";
+  const head = `<h3 id="pg-board-title">Funded tasks</h3>`;
+  if (s.board === null) return `${head}<p class="pg-note" id="pg-board-unread">Board not read in this build. <a href="${boardUrl()}" rel="noopener">Open it on GitHub.</a></p>`;
+  if (!s.board.length) return `${head}<p class="pg-note" id="pg-board-none">No funded task is open now.</p>`;
+  return `${head}<div class="k-table"><table id="pg-board" aria-labelledby="pg-board-title"><thead><tr><th scope="col">Task</th><th scope="col">Pays</th><th scope="col">Time left</th><th scope="col">Do it</th></tr></thead><tbody>${s.board.map((t) =>
+    `<tr data-issue="${esc(t.number)}"><th scope="row"><span class="k-num">#${esc(t.number)}</span> ${esc(t.title)}</th>
+      <td><span class="k-num">${esc(t.amount)}</span> ${esc(t.currency)}</td><td>${esc(t.left)}</td>
+      <td><a class="k-btn quiet pg-take-it" href="${esc(t.url)}" rel="noopener" aria-label="Take task ${esc(t.number)}">Take it</a></td></tr>`).join("")}</tbody></table></div>`;
+}
+
 // issues: GitHub's list (pull requests are in it and are left out). bounties: bounties.json, or null when it was not read.
-export function tasksOf(issues, bounties) {
+export function tasksOf(issues, bounties, board) {
+  const onBoard = new Set((board || []).map((t) => t.number));
   const funded = new Map();
   for (const b of (bounties && Array.isArray(bounties.bounties) ? bounties.bounties : [])) {
     if (String(b.repository || "").toLowerCase() === REPO.toLowerCase() && Number.isInteger(b.issue)) funded.set(b.issue, b);
   }
-  return (Array.isArray(issues) ? issues : []).filter((i) => i && !i.pull_request && Number.isInteger(i.number) && i.state !== "closed").map((i) => {
+  return (Array.isArray(issues) ? issues : []).filter((i) => i && !i.pull_request && Number.isInteger(i.number) && i.state !== "closed" && !onBoard.has(i.number)).map((i) => {
     const b = funded.get(i.number);
     return { number: i.number, title: String(i.title || ""), by: String(i.user?.login || ""), url: `https://github.com/${REPO}/issues/${i.number}`,
       state: b ? "funded" : bounties ? "opened" : "unread", amount: b ? amount(b.amount, b.decimals) : null, currency: b ? String(b.currency || "test USDC") : null };
@@ -84,16 +115,19 @@ const STYLE = `<style>
 .playground table{border-collapse:collapse;width:100%}
 .playground th,.playground td{text-align:left;vertical-align:top;padding:6px 8px;font-weight:inherit}
 .playground .pg-count{white-space:nowrap}
+.playground h3{margin:16px 0 4px}
+.playground .pg-take-it{white-space:nowrap}
 </style>`;
 
 export function playgroundHtml(s = {}) {
   return `${STYLE}<div class="playground k-card">
   <p class="k-kicker">Playground</p>
   <h2>Try it with test money</h2>
-  <p class="pg-note">The devnet faucet pays in test USDC.</p>
+  <p class="pg-note">Test USDC, no monetary value.</p>
   <div class="pg-acts"><a class="k-btn" id="pg-fund" href="${fundUrl()}" rel="noopener">${FUND_LABEL}</a>
-    <a class="k-btn quiet" id="pg-take" href="${esc(takeUrl(s.tasks))}" rel="noopener">${TAKE_LABEL}</a>
+    <a class="k-btn quiet" id="pg-take" href="${esc(takeUrl(s.tasks, s.board))}" rel="noopener">${TAKE_LABEL}</a>
     <button class="k-btn quiet" id="pg-again" type="button">Read again</button></div>
+  <div id="pg-boarded">${boardHtml(s)}</div>
   <div id="pg-list" aria-live="polite">${listHtml(s)}</div>
   ${countsHtml(s.outsiders)}
   <p class="pg-note"><a href="${DOC}" rel="noopener">Read the limits.</a></p>
@@ -113,12 +147,14 @@ export function renderPlayground(el, env = {}) {
   };
   async function refresh() {
     const mine = ++round;
-    const [issues, bounties, outsiders] = await Promise.all([
+    const [issues, bounties, outsiders, board] = await Promise.all([
       Promise.resolve().then(() => gh(`repos/${REPO}/issues?state=open&per_page=50`)).catch(() => null),
       Promise.resolve().then(() => file("bounties.json")).catch(() => null),
-      Promise.resolve().then(() => file("outsiders.json")).catch(() => null)]);
+      Promise.resolve().then(() => file("outsiders.json")).catch(() => null),
+      Promise.resolve().then(() => file("tasks.json")).catch(() => null)]);
     if (stopped || mine !== round) return state;       // a newer read is on its way: this one is not drawn over it
-    state.tasks = Array.isArray(issues) ? tasksOf(issues, bounties) : null;
+    state.board = boardOf(board, (env.now || Date.now)());
+    state.tasks = Array.isArray(issues) ? tasksOf(issues, bounties, state.board) : null;
     state.outsiders = outsiders;
     draw();
     return state;

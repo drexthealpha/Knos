@@ -6,6 +6,9 @@
     knos record receipt <receipt>     one PDF page and its JSON for an acceptance receipt (docs/RECEIPT.md): what was
                                       agreed, delivered and accepted, by which evaluator, the evidence, how to check it
 
+    python -m knos.record_api         the same files behind a paid lookup, 0.10 test USDC a call (knos.record_api,
+                                      examples/record_api): a server anyone can run, and Knos hosts none
+
 A record has two parts, kept apart and each labelled with where it came from:
 
     orders    work settled through Knos. Counted from the events log (knos.events: deliverables accepted, rejected,

@@ -36,6 +36,7 @@ before the push, and what the chain says afterwards is published by the site's b
 
 from __future__ import annotations
 
+import hashlib
 import html
 import importlib.util
 import json
@@ -76,8 +77,26 @@ def _script(name: str):
     return mod
 
 
+# WHY THIS IS FAST ENOUGH TO RUN OFTEN. `problems` reads every public document sentence by sentence, and asks the
+# manifest for a stage several hundred times. Two things are kept so that neither is done twice:
+#   _READ      for the length of ONE call of `problems`, a JSON source parsed once. The files do not change inside a
+#              call, and nothing here writes into what it read. Outside a call nothing is kept: a test that edits a
+#              source between two calls gets the new one.
+#   _STATING   for the life of the process, the sentences of a document that can state one of the facts at all,
+#              keyed by the document's name and the hash of its bytes: a pure function of the text. A tree in which
+#              one document changed is read again for that document only.
+# Before these, one call took 1.3 s on an idle machine and tests/test_doc_claims.py, which makes about forty, 50 s.
+_READ: dict[str, dict] | None = None
+_STATING: dict[tuple[str, str], list[tuple[str, str]]] = {}
+
+
 def _json(root: Path, rel: str) -> dict:
-    return json.loads((root / rel).read_text(encoding="utf-8"))
+    if _READ is None:
+        return json.loads((root / rel).read_text(encoding="utf-8"))
+    key = str(root / rel)
+    if key not in _READ:
+        _READ[key] = json.loads((root / rel).read_text(encoding="utf-8"))
+    return _READ[key]
 
 
 def _int(word: str) -> int:
@@ -205,8 +224,26 @@ def _cells(line: str) -> list[str]:
 def _stage_tables(text: str, root: Path, known: set[str]):
     """(line number, the ids the row names, the stage cell, the line with the manifest's words in that cell) for every
     row of a table that has a "stage" column and names a capability in the column before it."""
-    lines, col = text.split("\n"), None
-    for i, line in enumerate(lines):
+    for i, col, cells, named in _stage_rows(text):
+        ids = [m for m in named if m in known]
+        if ids:
+            want = stage_words(ids, root)
+            yield i, ids, cells[col], "| " + " | ".join([*cells[:col], want, *cells[col + 1:]]) + " |"
+
+
+_ROWS: dict[str, list[tuple[int, int, list[str], list[str]]]] = {}      # sha256 of a text -> its rows under a "stage" column: a pure function of the text
+
+
+def _stage_rows(text: str) -> list[tuple[int, int, list[str], list[str]]]:
+    """(line number, the stage column, the row's cells, every `id` the column before it names) for each row of a
+    table that has a "stage" column. Kept by the text's hash: most documents have no such table and none changes
+    between two readings of a tree."""
+    key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    if key in _ROWS:
+        return _ROWS[key]
+    out: list[tuple[int, int, list[str], list[str]]] = []
+    col = None
+    for i, line in enumerate(text.split("\n")):
         if not line.lstrip().startswith("|"):
             col = None
             continue
@@ -216,10 +253,9 @@ def _stage_tables(text: str, root: Path, known: set[str]):
             continue
         if col < 1 or len(cells) <= col or set(cells[col]) <= set("-: "):
             continue
-        ids = [m for m in re.findall(r"`([a-z][a-z0-9_]*)`", cells[col - 1]) if m in known]
-        if ids:
-            want = stage_words(ids, root)
-            yield i, ids, cells[col], "| " + " | ".join([*cells[:col], want, *cells[col + 1:]]) + " |"
+        out.append((i, col, cells, re.findall(r"`([a-z][a-z0-9_]*)`", cells[col - 1])))
+    _ROWS[key] = out
+    return out
 
 
 def write(root: Path = ROOT) -> list[str]:
@@ -291,14 +327,102 @@ _ANY = re.compile(r"capabilit|nothing|none|tested locally|programs|proposal|paym
 _INLINE = re.compile(r"\(((?:`[a-z][a-z0-9_]*`(?:, | and )?)+); ([^()]+)\)")
 
 
+def _stating(root: Path, doc: str) -> list[tuple[str, str]]:
+    """The units of a document that hold a word one of the patterns needs (`_ANY`): most sentences state none of these
+    facts and are not read further. Kept by the document's bytes (`_STATING`)."""
+    key = (doc, hashlib.sha256((root / doc).read_bytes()).hexdigest())
+    if key not in _STATING:
+        _STATING[key] = [(section, s) for section, s in units(root, doc) if _ANY.search(s)]
+    return _STATING[key]
+
+
 def _stamp(m: re.Match) -> str:
     if m.group(1):
         return f"{m.group(1)} {m.group(2)}"
     return f"{m.group(5) or '2026'}-10-{int(m.group(3)):02d} {m.group(6)}"
 
 
+_SAID: dict[tuple, tuple[list[str], list[str]]] = {}     # (document, its bytes' hash, the facts it is held to) -> what its sentences say against them
+
+
+def _sentences(root: Path, doc: str, counts: dict, now: set[str], past: set[str], held: tuple) -> tuple[list[str], list[str]]:
+    """(what the sentences of one document say against the sources, one line each without the document's name; the
+    totals of payments it gives). A pure function of the document's text and of the few facts it is compared with, so it
+    is kept under both (`_SAID`): a tree in which one document or one source changed is read again only where it changed.
+    `held`: those facts, as `_problems` reads them once for the whole tree."""
+    key = (doc, hashlib.sha256((root / doc).read_bytes()).hexdigest(), held)
+    if key in _SAID:
+        return _SAID[key]
+    said: list[str] = []
+    paid: list[str] = []
+    for section, s in _stating(root, doc):                 # most sentences state none of these facts
+        short = s[:110] + ("..." if len(s) > 110 else "")
+        # counts and stages, against the manifest
+        for m in _COUNT.finditer(s):
+            if _int(m.group(1)) != counts[m.group(2).lower()] and not section:
+                said.append(f"says {m.group(1)} capabilities {m.group(2)}, and {MANIFEST} has {counts[m.group(2).lower()]}: {short}")
+        for m in _NONE.finditer(s) if not section else []:
+            for stage in filter(None, m.groups()):
+                if counts[stage.lower()]:
+                    said.append(f"says nothing is {stage}, and {MANIFEST} has {counts[stage.lower()]}: {short}")
+        if _COUNT.search(s) and not section:
+            for m in _WHERE.finditer(s):
+                if _int(m.group(1)) != (have := value(f"capabilities.exercised.{m.group(2).lower()}", root)):
+                    said.append(f"says {m.group(1)} exercised on {m.group(2)} ids, and {MANIFEST} has {have}: {short}")
+        if (m := _BLANKET.search(s)) and not section and counts["exercised"] and doc.endswith((".md", ".html")):
+            said.append(f"gives a whole release one stage ({m.group(0)!r}); {MANIFEST} has each capability's, and "
+                f"{counts['exercised']} are exercised: {short}")
+        for m in _PROGRAMS.finditer(s) if not section else []:
+            if _int(next(filter(None, m.groups()))) != value("programs", root):
+                said.append(f"counts {next(filter(None, m.groups()))} programs, and {IDS} has {value('programs', root)}: {short}")
+        for m in _PENDING.finditer(s) if not section else []:
+            if _int(m.group(1)) != value("upgrades.pending", root):
+                said.append(f"says {m.group(1)} proposals are pending, and {UPGRADES} has {value('upgrades.pending', root)}: {short}")
+        # the upgrade's times, against the upgrade record
+        if doc not in GENERATED and _UPGRADE.search(s):
+            history = doc in HISTORY and bool(WAS.search(s))
+            for m in _TIME.finditer(s):
+                t = _stamp(m)
+                if t not in now and not (history and t in past):
+                    said.append(f"names {t} UTC for an upgrade, and {UPGRADES} " + ("gives that time to a proposal that is not pending: it may stand only in "
+                        f"{' or '.join(sorted(HISTORY))}, in a sentence that says it was withdrawn" if t in past else "has no such time") + f": {short}")
+            for m in _DAY.finditer(s):
+                day = m.group(1) or f"2026-10-{int(m.group(2)):02d}"
+                if day not in {t[:10] for t in now} and not (history and day in {t[:10] for t in past}):
+                    said.append(f"names {day} as a day an upgrade runs, and {UPGRADES} has no pending proposal for that day: {short}")
+        # the fee and the order's limit
+        if not _SUPERSEDED.search(s):
+            if m := _FEE_MAX.search(s):
+                said.append(f"gives the fee a maximum ({m.group(0)!r}); it has none since 0.3.14: {short}")
+            # under an older release only "an order holds ... 500" is this limit: `order` is 0.3.13's word, and older
+            # releases had other limits of their own
+            about = r"\border\b" if section else r"order|bount|job|task|\bcap\b|holds?\b"
+            if (m := _OLD_LIMIT.search(s)) and re.search(about, s, re.I) and doc.endswith((".md", ".html")):
+                said.append(f"gives the old limit of 500 as current ({m.group(0)!r}); an order holds up to 100,000 on devnet: {short}")
+        # a total of payments is a reading of one day
+        for m in _PAYMENTS.finditer(s) if not section else []:
+            n = m.group(1) or m.group(2)
+            paid.append(n)
+            if not _DATED.search(s):
+                said.append(f"gives a total of {n} payments on devnet without the day it was read: {short}")
+    _SAID[key] = (said, paid)
+    return said, paid
+
+
 def problems(root: Path = ROOT) -> list[str]:
     """Everything a document says against a source or against another document, one line each."""
+    global _READ
+    mine = _READ is None
+    if mine:
+        _READ = {}          # every JSON source is parsed once for this call
+    try:
+        return _problems(root)
+    finally:
+        if mine:
+            _READ = None
+
+
+def _problems(root: Path) -> list[str]:
     bd = _script("bench_docs")
     out: list[str] = []
     counts = {s: value(f"capabilities.{s}", root) for s in _script("capabilities").STAGES}
@@ -306,61 +430,16 @@ def problems(root: Path = ROOT) -> list[str]:
     known = {c["id"] for c in _json(root, MANIFEST)["capabilities"]}
     totals: dict[str, list[str]] = {}
     docs = documents(root)
+    # every fact a sentence is compared with, read once: what a document's sentences say is kept under these (`_sentences`)
+    held = (tuple(sorted(counts.items())), tuple(sorted(now)), tuple(sorted(past)), value("programs", root), value("upgrades.pending", root),
+            value("capabilities.exercised.public", root), value("capabilities.exercised.staging", root))
     for doc in [*docs, *sorted(f"web/{p.name}" for p in (root / "web").glob("*.js")), *[o for o in OTHER if (root / o).is_file()]]:
         say = lambda text: out.append(f"{doc}: {text}")        # noqa: E731
-        for section, s in units(root, doc):
-            if not _ANY.search(s):                             # most sentences state none of these facts
-                continue
-            short = s[:110] + ("..." if len(s) > 110 else "")
-            # counts and stages, against the manifest
-            for m in _COUNT.finditer(s):
-                if _int(m.group(1)) != counts[m.group(2).lower()] and not section:
-                    say(f"says {m.group(1)} capabilities {m.group(2)}, and {MANIFEST} has {counts[m.group(2).lower()]}: {short}")
-            for m in _NONE.finditer(s) if not section else []:
-                for stage in filter(None, m.groups()):
-                    if counts[stage.lower()]:
-                        say(f"says nothing is {stage}, and {MANIFEST} has {counts[stage.lower()]}: {short}")
-            if _COUNT.search(s) and not section:
-                for m in _WHERE.finditer(s):
-                    if _int(m.group(1)) != (have := value(f"capabilities.exercised.{m.group(2).lower()}", root)):
-                        say(f"says {m.group(1)} exercised on {m.group(2)} ids, and {MANIFEST} has {have}: {short}")
-            if (m := _BLANKET.search(s)) and not section and counts["exercised"] and doc.endswith((".md", ".html")):
-                say(f"gives a whole release one stage ({m.group(0)!r}); {MANIFEST} has each capability's, and "
-                    f"{counts['exercised']} are exercised: {short}")
-            for m in _PROGRAMS.finditer(s) if not section else []:
-                if _int(next(filter(None, m.groups()))) != value("programs", root):
-                    say(f"counts {next(filter(None, m.groups()))} programs, and {IDS} has {value('programs', root)}: {short}")
-            for m in _PENDING.finditer(s) if not section else []:
-                if _int(m.group(1)) != value("upgrades.pending", root):
-                    say(f"says {m.group(1)} proposals are pending, and {UPGRADES} has {value('upgrades.pending', root)}: {short}")
-            # the upgrade's times, against the upgrade record
-            if doc not in GENERATED and _UPGRADE.search(s):
-                history = doc in HISTORY and bool(WAS.search(s))
-                for m in _TIME.finditer(s):
-                    t = _stamp(m)
-                    if t not in now and not (history and t in past):
-                        say(f"names {t} UTC for an upgrade, and {UPGRADES} " + ("gives that time to a proposal that is not pending: it may stand only in "
-                            f"{' or '.join(sorted(HISTORY))}, in a sentence that says it was withdrawn" if t in past else "has no such time") + f": {short}")
-                for m in _DAY.finditer(s):
-                    day = m.group(1) or f"2026-10-{int(m.group(2)):02d}"
-                    if day not in {t[:10] for t in now} and not (history and day in {t[:10] for t in past}):
-                        say(f"names {day} as a day an upgrade runs, and {UPGRADES} has no pending proposal for that day: {short}")
-            # the fee and the order's limit
-            if not _SUPERSEDED.search(s):
-                if m := _FEE_MAX.search(s):
-                    say(f"gives the fee a maximum ({m.group(0)!r}); it has none since 0.3.14: {short}")
-                # under an older release only "an order holds ... 500" is this limit: `order` is 0.3.13's word, and older
-                # releases had other limits of their own
-                about = r"\border\b" if section else r"order|bount|job|task|\bcap\b|holds?\b"
-                if (m := _OLD_LIMIT.search(s)) and re.search(about, s, re.I) and doc.endswith((".md", ".html")):
-                    say(f"gives the old limit of 500 as current ({m.group(0)!r}); an order holds up to 100,000 on devnet: {short}")
-            # a total of payments is a reading of one day
-            for m in _PAYMENTS.finditer(s) if not section else []:
-                n = m.group(1) or m.group(2)
-                if doc not in totals.setdefault(n, []):
-                    totals[n].append(doc)
-                if not _DATED.search(s):
-                    say(f"gives a total of {n} payments on devnet without the day it was read: {short}")
+        said, paid = _sentences(root, doc, counts, now, past, held)
+        out += [f"{doc}: {text}" for text in said]
+        for n in paid:
+            if doc not in totals.setdefault(n, []):
+                totals[n].append(doc)
         if doc.endswith(".md"):
             text = (root / doc).read_text(encoding="utf-8")
             for i, ids, cell, _line in _stage_tables(text, root, known):

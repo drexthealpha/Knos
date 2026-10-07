@@ -25,7 +25,10 @@ ok("a step says 12 words at most", STEPS.every((s) => words(`${s.title} ${s.says
 const demo = readFileSync(join(root, "docs/submission/demo_script.md"), "utf8");
 const timed = [...demo.matchAll(/^\| (\w+) \| \((\d:\d\d)\) \| \((\d:\d\d)\) \|/gm)];
 ok("the demonstration's script times the same six, from 0:00 to 3:00", timed.length === STEPS.length && timed[0][2] === "0:00" && timed[5][3] === "3:00", timed.map((m) => m[1]));
-ok("a beat whose evidence ran on staging program ids is labelled so, and only such a beat", STEPS.every((s) => !!s.staging === /staging program ids/.test(s.evidence)) && STEPS.filter((s) => s.staging).length === (storyHtml().match(/class="story-staging"/g) || []).length && storyHtml().includes(`<small class="story-staging">${STAGING}</small>`) && /\*\*Staging program ids\.\*\* The transactions of beats 2 and 4/.test(story), STEPS.map((s) => !!s.staging));
+ok("a step whose evidence ran on staging program ids is labelled so, and only such a step; today none does", STEPS.every((s) => !!s.staging === /staging program ids/.test(s.evidence)) && STEPS.filter((s) => s.staging).length === (storyHtml().match(/class="story-staging"/g) || []).length && /\*\*Public program ids\.\*\* The transactions of steps 1, 4 and 5/.test(story), STEPS.map((s) => !!s.staging));
+const round = JSON.parse(readFileSync(join(web, "demo_data.json"), "utf8"));
+ok("the three transactions are the public round's, as the demo's data file has them", round.ids === "public" && [[0, round.fund.tx], [3, round.paid.tx], [4, round.replay.tx]].every(([n, tx]) => STEPS[n].url === `https://explorer.solana.com/tx/${tx}?cluster=devnet` && /public program ids/.test(STEPS[n].evidence)), round.ids);
+ok("the refusal is step two, and the last step is the deployment identity", STEPS[1].ends === "bad" && STEPS.filter((s) => s.ends === "bad").length === 1 && STEPS[5].path === "docs/MANIFEST.md");
 ok("after the last beat: the reader's invoice at the front door, and no customer is quoted", NEXT === "Check your own invoice" && storyHtml().includes(`<a class="k-btn story-next" href="${FRONT}">${NEXT}</a>`) && story.includes(`[check it](${FRONT}). Nobody has paid for this yet.`) && STEPS.every((s) => !/customer|pilot|"/i.test(s.says)));
 ok("the ask is three needs, 12 words at most each, and the document's", ASK.length === 3 && ASK.every((a) => a.startsWith("Needed: ") && words(a) <= 12 && story.includes(a)), ASK.map(words));
 ok("the document opens with the sentence and the number", story.includes(`**${SENTENCE}**`) && story.includes(`Of ${MERGED} merged agent pull requests that claimed passing tests, ${FAILED} had a failed check.`));
@@ -45,10 +48,10 @@ const page = { querySelectorAll: () => lis };
 const seen = [];
 const done = await play(page, { wait: async () => { seen.push(lis.map((l) => l.dataset.state).join(",")); } });
 ok("the steps play in order, one live at a time", done === true && seen.length === 6 && seen.every((row, i) => { const st = row.split(","); return st[i] === "live" && st.filter((x) => x === "live").length === 1 && st.slice(i + 1).every((x) => x === "idle") && st.slice(0, i).every((x, j) => x === STEPS[j].ends); }), seen);
-ok("they rest as: five settled and the tampered one refused", lis.map((l) => l.dataset.state).join() === "done,done,bad,done,done,done");
+ok("they rest as: five settled and the claimed success refused", lis.map((l) => l.dataset.state).join() === "done,bad,done,done,done,done");
 let n = 0;
 const first = play(page, { wait: async () => { if (++n === 2) await play(page, { wait: async () => {} }); } });
-ok("playing again takes over from a run in progress", (await first) === false && lis.map((l) => l.dataset.state).join() === "done,done,bad,done,done,done");
+ok("playing again takes over from a run in progress", (await first) === false && lis.map((l) => l.dataset.state).join() === "done,bad,done,done,done,done");
 
 // a reader who asked for no movement: drawn once, at rest, with no listener and no timer
 const el = { innerHTML: "", querySelector: () => { throw new Error("nothing is wired under reduced motion"); } };

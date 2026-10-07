@@ -2,9 +2,11 @@
   "_about": "What one unit costs Knos to deliver, as `knos bill margin <month.json> docs/unit_costs.json` reads it. docs/UNIT_COSTS.md says where each figure comes from. A cost marked \"budget\" is a target nobody has measured; nothing has been sold, so no cost here was ever incurred for a customer.",
   "sol_usd": {"usd": "120.82", "source": "https://www.coingecko.com/en/coins/solana", "read": "2026-10-06"},
   "costs": {
-    "evaluation": {"usd": "0.0002", "kind": "budget, not measured", "of_which_measured": {"chain_fees_batched": "0.00000036", "ledger_storage_seven_years": "0.00000047"}},
+    "evaluation": {"usd": "0.00005", "kind": "budget, not measured", "of_which_measured": {"ledger_storage_seven_years": "0.00000047"}, "of_which_list_price": {"one_storage_write": "0.0000045"}},
+    "pair_month": {"usd": "0.1393", "kind": "measured", "what": "one anchored batch for one buyer-supplier pair in a month: 3 transactions (15,000 lamports) and the month's Ledger account (1,137,920 lamports of rent, not returned)"},
     "accepted_deliverable": {"usd": "0.10", "kind": "budget, not measured", "of_which_measured": {"evidence_bundle_storage_seven_years": "0.0000206"}},
     "record_lookup": {"usd": "0.01", "kind": "budget, not measured"},
-    "control_year": {"usd": "15000", "kind": "budget, not measured"}
+    "control_year": {"usd": "15000", "kind": "budget, not measured"},
+    "payee_account": {"usd": "0.18", "kind": "measured", "what": "rent of a payee's first token account, 1,488,440 lamports; whoever relays puts it up"}
   }
 }

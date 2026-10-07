@@ -22,22 +22,23 @@ export const FRONT = "https://drexthealpha.github.io/Knos/";
 const TX = "https://explorer.solana.com/tx/";
 export const STEP_MS = 480;                         // --dur-3: how long a step is live before the next one starts
 
-// `ends`: the state a beat rests in. `path` is a file of the repository; `url` is a transaction. `staging`: the
-// transaction ran on staging program ids, not the public ones.
+// `ends`: the state a step rests in. `path` is a file of the repository; `url` is a transaction: the three are those of
+// web/demo_data.json, the round at the public program ids (tests/web/story.mjs compares). `staging`: a transaction that
+// ran on staging program ids instead; none does today.
 export const STAGING = "Staging program ids";
 export const STEPS = [
-  { title: "An invoice does not reconcile.", says: "Seven lines; five are exceptions.", ends: "done",
-    evidence: "The sample invoice", path: "examples/shadow/invoice.csv" },
-  { title: "Buyer authorises the deliverable.", says: "One comment fixes price and terms first.", ends: "done", staging: true,
-    evidence: "The funding transaction (devnet, staging program ids)", url: `${TX}4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL?cluster=devnet` },
-  { title: "A tampered submission is refused.", says: "All 63 cheating pull requests were refused.", ends: "bad",
+  { title: "Buyer and supplier agree one task.", says: "Price and acceptance terms come first.", ends: "done",
+    evidence: "The funding transaction (devnet, public program ids)", url: `${TX}177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet` },
+  { title: "A claimed success fails the condition.", says: "Payment is withheld, with the reason.", ends: "bad",
     evidence: "The tamper benchmark", path: "docs/TAMPER.md" },
-  { title: "Legitimate work is accepted.", says: "The signed run pays the posted amount.", ends: "done", staging: true,
-    evidence: "The paying transaction (devnet, staging program ids)", url: `${TX}63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq?cluster=devnet` },
-  { title: "A replay pays nothing.", says: "Tokens work once. One judge is no quorum.", ends: "done",
-    evidence: "The tests that replay tokens and split a quorum", path: "programs-v2/handlers/tests/adversarial.rs" },
-  { title: "Both sides rebuild one bill.", says: "An outsider verifies the receipt offline.", ends: "done",
+  { title: "Valid work passes.", says: "Two independent records reconcile.", ends: "done",
     evidence: "The test that reconciles two ledgers", path: "tests/test_ledger.py" },
+  { title: "The payment executes.", says: "The supplier gets a portable receipt.", ends: "done",
+    evidence: "The paying transaction (devnet, public program ids)", url: `${TX}59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet` },
+  { title: "A replay pays nothing.", says: "No second payment.", ends: "done",
+    evidence: "The refused replay (devnet, public program ids)", url: `${TX}4hCf7a3FpKiTexPUxX4jvPbYUUQMvgHmyjHSVjbUJ2yqe3srzxLJrsZ8QY4dpT2pt4VFSRJ4j4kQMwEcapvk3Rrp?cluster=devnet` },
+  { title: "Accounts get an export.", says: "The deployment identity is one page.", ends: "done",
+    evidence: "The release manifest", path: "docs/MANIFEST.md" },
 ];
 export const NEXT = "Check your own invoice";      // after the last beat: the reader's own invoice, at the front door
 
@@ -59,9 +60,9 @@ export function storyHtml(ctx = {}) {
     + `<a href="${esc(linkOf(s, ctx))}" target="_blank" rel="noopener">${esc(s.evidence)}</a>`
     + `${s.staging ? ` <small class="story-staging">${esc(STAGING)}</small>` : ""}</li>`).join("");
   return `<p class="k-kicker">${esc(SENTENCE)}</p>`
-    + `<h2>Three minutes, six beats</h2>`
+    + `<h2>One task, six steps</h2>`
     + `<p class="story-number"><strong class="k-num">${esc(merged)}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${esc(failed)}</strong> had a failed check.</p>`
-    + `<ol class="story-steps k-stage" aria-label="The demonstration in six beats" data-not-prose data-keep>${steps}</ol>`
+    + `<ol class="story-steps k-stage" aria-label="The demonstration in six steps" data-not-prose data-keep>${steps}</ol>`
     + `<p><a class="k-btn story-next" href="${esc(ctx.front || FRONT)}">${esc(NEXT)}</a> <button type="button" class="k-btn quiet story-play"${ctx.reduced ? " hidden" : ""}>Play again</button></p>`
     + `<details class="k-more story-ask-fold"><summary>The ask: three needs</summary><ol class="story-ask" data-keep>${ASK.map((a) => `<li>${esc(a)}</li>`).join("")}</ol></details>`;
 }

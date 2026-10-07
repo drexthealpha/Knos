@@ -3,6 +3,7 @@
     knos statement make <evidence>      one statement as JSON (canonical), CSV and PDF
     knos statement approve <file> --agreed --by NAME --role ROLE
     knos statement pay <file> --line inv_... --method bank --ref REF --on DATE
+    knos statement grn <file> --line inv_...   the goods-received note of one line: order, acceptance and invoice line, matched
     knos statement show <file>          what was authorised, delivered, passed, already billed, approved, disputed, owed
     knos statement export <file> --format quickbooks|netsuite|generic
     knos statement verify <file>        make it again from its evidence: "same", or the first line that differs
@@ -51,7 +52,12 @@ NOTES = {"shadow": shadow.NOTE + " GitHub's answers are kept as they were read; 
          "month": "Made from a closed month of the meter. The tokens in the archive are GitHub's signatures of the close record; the chain was not asked.",
          "events": "Made from a log of events (knos events). The log's own chain of hashes was checked; what each event's evidence names was not read again."}
 HEAD = ("line", "reference", "supplier", "state", "amount", "why", "deliverable", "evaluations", "invoice_line", "settlement", "payment",
-        "evidence", "evidence_sha256", "duplicate_of")
+        "evidence", "evidence_sha256", "duplicate_of", "assurance", "po_reference", "grn_reference")
+GRN_KIND = "knos-grn"
+NOT_EVALUATED = "not evaluated"                    # what the assurance column says of a line no evaluation stands behind
+NO_ORDER = {"shadow": "no purchase order on record: a shadow run reads the invoice and GitHub, not the order; give the payment's receipt (--receipt)",
+            "month": "no purchase order on record: a closed month names each order by its deliverable, not its terms or approver; give the payment's receipt (--receipt)",
+            "events": "no purchase order on record: the log of events does not carry the order's terms or approver; give the payment's receipt (--receipt)"}
 MONTH_WHY = {"missing from the buyer's ledger": "the buyer's ledger has no record of this evaluation",
              "missing from the seller's ledger": "the supplier's ledger has no record of this evaluation",
              "verdict differs": "the two ledgers give this evaluation different verdicts",
@@ -403,11 +409,24 @@ def pay(st: dict, status: dict | None, line: str, method: str, reference: str, o
     return {**status, "events": [*status["events"], event]}
 
 
+def grn_reference(ln: dict) -> str:
+    """The reference of a line's goods-received note: the id of the first evaluation that stands behind it, as a note's
+    (`grn_` and the same 24 hex characters). Empty for a line nothing evaluated: no goods were received on record."""
+    return "grn_" + ln["evaluations"][0].split("_", 1)[1] if ln["evaluations"] else ""
+
+
 def lines_now(st: dict, status: dict | None = None) -> list[dict]:
-    """The statement's lines with what the status file adds: the last settlement recorded for each, and who approved it."""
+    """The statement's lines with what the status file adds: the last settlement recorded for each, and who approved it.
+    Each line also says its assurance level (knos.receipt.LEVELS), computed and never typed: the level of the receipt a
+    recorded goods-received note was made from; without one, `reported` for a line an evaluation stands behind (the
+    evidence is a record of what a workflow reported) and "not evaluated" for a line with none. `po_reference` is the
+    purchase order a recorded note names, `grn_reference` the note's own reference."""
     events = _status(st, status)["events"]
     out = []
     for ln in st["lines"]:
+        noted = [e["grn"] for e in events if e["type"] == "grn" and e["line"] == ln["invoice_line"]]
+        ln = {**ln, "assurance": noted[-1]["receipt_of_goods"]["assurance"] if noted else "reported" if ln["evaluations"] else NOT_EVALUATED,
+              "po_reference": (noted[-1]["purchase_order"] or {}).get("number", "") if noted else "", "grn_reference": grn_reference(ln)}
         paid = [e for e in events if e["type"] == "settlement" and e["line"] == ln["invoice_line"]]
         ok = next((e for e in events if e["type"] == "approval" and ln["invoice_line"] in e["lines"]), None)
         note = paid[-1].get("note", "") if paid else ""       # a quorum of one controller, from the payment's receipt (`pay`)
@@ -457,6 +476,107 @@ def answers(st: dict, status: dict | None = None) -> list[tuple[str, str]]:
     ]
 
 
+# ---- the goods-received note: the three-way match accounts payable performs, for one line --------------------------------
+
+def grn_said(note: dict) -> str:
+    """A goods-received note's result in one sentence: "match", or every mismatch."""
+    return "match" if note["match"] else "mismatch: " + "; ".join(note["mismatches"])
+
+
+def grn(st: dict, status: dict | None, line: str, receipt: dict | None = None, po: str = "") -> dict:
+    """The goods-received note of the invoice line `line`: three legs side by side and whether they match.
+
+        purchase_order     the funded order or standing offer: its number (`po`, the buyer's own, or the order's address),
+                           the hash of its terms, who approved the money and the price. It is read from the payment's
+                           acceptance receipt (`receipt`); a statement alone does not carry it.
+        receipt_of_goods   the acceptance: the evaluator, the assurance level computed from the receipt's evidence
+                           (knos.receipt.assurance_of), who is still trusted, and the evidence.
+        invoice_line       the supplier's line: its id, reference, amount, state and payment.
+
+    `match` is true when all three are there and agree; `mismatches` says each thing that is not, in words. With no
+    receipt given, the note recorded for the line (`grn_record`) is returned as it was recorded; with none recorded, a
+    note with no purchase order, which never matches. It reads; it moves and approves nothing."""
+    from decimal import Decimal
+
+    from . import receipt as rc
+    events = _status(st, status)["events"]
+    ln = next((x for x in lines_now(st, status) if x["invoice_line"] == line), None)
+    if ln is None:
+        raise Refused(f"No line of this statement has the id {line}. The ids are in the invoice_line column.")
+    kept = [e for e in events if e["type"] == "grn" and e["line"] == line]
+    if receipt is None and kept:
+        return {**kept[-1]["grn"], "recorded": kept[-1]["on"]}
+    order, goods, wrong = None, None, []
+    leg = {"id": ln["invoice_line"], "line": ln["line"], "reference": ln["reference"], "supplier": ln["supplier"], "amount": ln["amount"],
+           "currency": st["currency"], "state": ln["state"], "payment": ln["payment"]}
+    if receipt is not None:
+        why = rc.check(receipt)
+        if why:
+            raise Refused(f"--receipt is not a valid acceptance receipt: {why}")
+        seen, level = rc.exposed(receipt), rc.assurance_of(receipt, receipt["assurance"]["declared_related"] if receipt["version"] == 5 else ())
+        c, m = (receipt.get("commercial_authorisation") if receipt["version"] >= 3 else None), receipt["amounts"]
+        f = c["funder"] if c else None
+        price = Decimal(m["of"]) / (10 ** m["decimals"])
+        order = {"number": po.strip() or receipt["order"], "order": receipt["order"], "terms_hash": seen["policy"]["terms_hash"],
+                 "approver": ("not recorded in a receipt of this version" if f is None else f"GitHub account {f['github_id']}"
+                              + (f" ({f['login']})" if f["login"] else "") if f["github_id"] else f"wallet {f['wallet']}"),
+                 "price": f"{price:.2f}" if price == price.quantize(Decimal("0.01")) else format(price.normalize(), "f"), "funded": c["funded"] if c else None}
+        src = seen["evidence_source"]
+        goods = {"reference": ln["grn_reference"] or "grn_" + rc.ids_of(receipt, c["deliverable"]["milestone"] if c else 0)["evaluation"].split("_", 1)[1],
+                 "verdict": seen["verdict"], "evaluator": f"{seen['evaluator']['kind']}@{seen['evaluator']['version']}",
+                 "controllers": [{"kind": e["kind"], "owner_id": e["owner_id"], "actor_id": e["actor_id"]} for e in seen["evaluator"]["controllers"]],
+                 "assurance": level["level"], "trusted": level["trusted"], "declared_related": level["declared_related"],
+                 "evidence": f"{src['kind'].replace('_', ' ')} {src['reference'] or 'not kept'}", "receipt_sha256": rc.digest(receipt)}
+        paid = receipt["transaction"]["signature"] if receipt.get("transaction") else None
+        four = receipt.get("ids") or {}
+        tied = (four.get("invoice_line") == line or four.get("deliverable") == ln["deliverable"]
+                or (paid is not None and any(e["type"] == "settlement" and e["line"] == line and e["reference"] == paid for e in events)))
+        if not tied:
+            wrong.append("nothing ties this receipt to this line: it names another invoice line and deliverable, and no payment recorded for the line is its transaction")
+        if seen["verdict"] != "accepted":
+            wrong.append(f"the receipt's verdict is {ids.VERDICT_WORDS[seen['verdict']]}: it authorises no payment")
+        if ln["amount"] and Decimal(ln["amount"]) > price:
+            wrong.append(f"the invoice line bills {ln['amount']}; the order's price is {order['price']}")
+    else:
+        wrong.append(NO_ORDER[st["source"]])
+        goods = {"reference": ln["grn_reference"], "verdict": "accepted" if ln["evaluations"] and ln["state"] == "agreed" else "none",
+                 "evaluator": {"shadow": "GitHub's checks at the merged commit", "month": "the meter, as both ledgers recorded it",
+                               "events": "the log of events"}[st["source"]],
+                 "controllers": [], "assurance": ln["assurance"], "trusted": [st["note"]] if ln["evaluations"] else [], "declared_related": [],
+                 "evidence": ln["evidence"], "receipt_sha256": None}
+    if not ln["evaluations"] and receipt is None:
+        wrong.append("no receipt of goods: no evaluation of this line is on record")
+    if ln["state"] != "agreed":
+        wrong.append(f"the invoice line is {ids.LINE_WORDS[ln['state']]}" + (f": {ln['why']}" if ln["why"] else ""))
+    return {"kind": GRN_KIND, "version": 1, "statement": st["sha256"], "reference": goods["reference"], "purchase_order": order, "receipt_of_goods": goods,
+            "invoice_line": leg, "match": not wrong, "mismatches": wrong, "recorded": None}
+
+
+def grn_record(st: dict, status: dict | None, line: str, on: str, receipt: dict, po: str = "") -> dict:
+    """The status with one more record: the goods-received note of `line`, made from the payment's `receipt`, as it was
+    on the day `on`. The line then says the note's assurance level and purchase order in every form and export."""
+    status = _status(st, status)
+    note = {k: v for k, v in grn(st, status, line, receipt, po).items() if k != "recorded"}
+    return {**status, "events": [*status["events"], {"type": "grn", "line": line, "on": _day(on), "grn": note}]}
+
+
+def grn_lines(note: dict) -> list[str]:
+    """A goods-received note for a person: the three legs side by side, then "match" or each mismatch."""
+    o, g, i = note["purchase_order"], note["receipt_of_goods"], note["invoice_line"]
+    legs = [["PURCHASE ORDER", *([f"number {o['number']}", f"terms {o['terms_hash'][:16]}...", f"approver {o['approver']}", f"price {o['price']}"]
+                                 if o else ["none on record"])],
+            ["RECEIPT OF GOODS", f"note {g['reference'] or 'none'}", f"verdict {ids.VERDICT_WORDS.get(g['verdict'], g['verdict'])}", f"evaluator {g['evaluator']}",
+             f"assurance {g['assurance']}", f"evidence {g['evidence']}"],
+            ["INVOICE LINE", f"id {i['id']}", f"line {i['line']} {i['reference']}".rstrip(), f"amount {i['amount'] or 'not priced'} {i['currency']}".rstrip(),
+             f"state {ids.LINE_WORDS[i['state']]}", f"payment {PAY_WORDS[i['payment']]}"]]
+    cut = lambda text: text if len(text) <= 38 else text[:35] + "..."                # noqa: E731
+    rows = [" | ".join(f"{cut(leg[n]) if n < len(leg) else '':<38}" for leg in legs).rstrip() for n in range(max(len(leg) for leg in legs))]
+    return [f"Goods-received note {note['reference'] or '(no evaluation on record)'}, statement sha256 {note['statement'][:16]}..."
+            + (f", recorded {note['recorded']}" if note.get("recorded") else ""), *rows,
+            *(["Still trusted at this assurance level:", *(f"  - {t}" for t in g["trusted"])] if g["trusted"] else []),
+            "MATCH" if note["match"] else "MISMATCH", *(f"  - {w}" for w in note["mismatches"])]
+
+
 # ---- the three forms ------------------------------------------------------------------------------------------------
 
 def cells(st: dict, status: dict | None = None) -> dict:
@@ -472,11 +592,13 @@ def cells(st: dict, status: dict | None = None) -> dict:
             + (f"signed through GitHub by the {' and the '.join(ev['signed'])}" if ev["signed"] else "not signed")],
            ["status sha256", sha(canonical(status)) if status["events"] else "none recorded"]]
     rows = [[str(r["line"]), r["reference"], r["supplier"], ids.LINE_WORDS[r["state"]], r["amount"], r["why"], r["deliverable"], " ".join(r["evaluations"]),
-             r["invoice_line"], r["settlement"] or "", PAY_WORDS[r["payment"]], r["evidence"], r["evidence_sha256"], r["duplicate_of"]]
+             r["invoice_line"], r["settlement"] or "", PAY_WORDS[r["payment"]], r["evidence"], r["evidence_sha256"], r["duplicate_of"],
+             r["assurance"], r["po_reference"], r["grn_reference"]]
             for r in lines_now(st, status)]
     totals = [[name if name == "billed" else ids.LINE_WORDS[name], str(st["totals"][name]["lines"]), st["totals"][name]["amount"]]
               for name in ("billed", *ids.LINE_STATES)]
     events = [["approval", e["on"], f"{e['by']} ({e['role']})", f"{len(e['lines'])} agreed lines", e["amount"]] if e["type"] == "approval" else
+              ["goods-received note", e["on"], e["line"], grn_said(e["grn"]), e["grn"]["reference"]] if e["type"] == "grn" else
               ["settlement", e["on"], e["line"], f"{PAY_WORDS[e['state']]} by {e['method']}, reference {e['reference']}", e["settlement"]]
               for e in status["events"]]
     return {"top": top, "head": list(HEAD), "rows": rows, "totals": totals, "answers": [list(a) for a in answers(st, status)], "events": events}
@@ -515,9 +637,9 @@ def as_pdf(st: dict, status: dict | None = None) -> bytes:
     doc.space(10)
     doc.text("Lines", size=10, bold=True)
     doc.space(2)
-    doc.table(["line", "reference", "supplier", "state", "amount", "why", "ids: deliverable, evaluations, invoice line, settlement", "payment",
-               "evidence and its sha256", "duplicate of"],
-              [[r[0], r[1], r[2], r[3], r[4], r[5], "\n".join(x for x in (r[6], *r[7].split(" "), r[8], r[9]) if x), r[10],
+    doc.table(["line", "reference", "supplier", "state", "amount", "why", "ids: deliverable, evaluations, invoice line, settlement, purchase order, note",
+               "payment, assurance", "evidence and its sha256", "duplicate of"],
+              [[r[0], r[1], r[2], r[3], r[4], r[5], "\n".join(x for x in (r[6], *r[7].split(" "), r[8], r[9], r[15], r[16]) if x), f"{r[10]}\n{r[14]}",
                 "\n".join(x for x in (r[11], r[12]) if x), r[13]] for r in c["rows"]],
               [22, 104, 50, 52, 42, 128, 118, 48, 150, 56], size=6.5)
     if c["events"]:
@@ -603,7 +725,7 @@ def load(path: Path) -> tuple[dict, dict | None]:
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos statement make | approve | pay | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
+    """`knos statement make | approve | pay | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
     import datetime
 
     import importlib
@@ -700,6 +822,31 @@ def register(app, help_lines: list | None = None) -> None:
         last = status["events"][-1]
         typer.echo(f"recorded {last['settlement']}: line {line} is {PAY_WORDS[last['state']]} ({method}, reference {last['reference']}, {last['on']}). No money moved.")
         save(file, st, status)
+
+    @sub.command("grn")
+    def grn_(file: Path = file_arg, line: str = typer.Option(..., "--line", help="the invoice line's id (inv_...)"),
+             receipt: Path = typer.Option(None, "--receipt", help="the acceptance receipt of the line's payment (JSON): the purchase order and the acceptance are read from it"),
+             po: str = typer.Option("", "--po", help="the buyer's own purchase order number (the order's address when left out)"),
+             record: bool = typer.Option(False, "--record", help="append this note to the status file: the line's exports then carry its PO, note and assurance level"),
+             on: str = on_opt, as_json: bool = typer.Option(False, "--json", help="print the note as JSON")) -> None:
+        """Show the goods-received note of one line: the purchase order, the receipt of goods (the acceptance, with its assurance level and evidence) and the invoice line side by side, then "MATCH" or each mismatch. This is the three-way match accounts payable performs. It reads; it moves and approves nothing. Exit code 1 on a mismatch."""
+        try:
+            st, status = load(file)
+            try:
+                held = json.loads(receipt.read_text(encoding="utf-8")) if receipt else None
+            except (OSError, ValueError):
+                raise Refused(f"Cannot read {receipt} as a receipt's JSON.") from None
+            if record and held is None:
+                raise Refused("--record keeps a note made from the payment's receipt: give --receipt.")
+            kept = grn_record(st, status, line, today(on), held, po) if record and held is not None else None
+            note = grn(st, kept or status, line, None if kept else held, po)
+        except Refused as why:
+            raise stop(why) from None
+        typer.echo(canonical(note).decode() if as_json else "\n".join(grn_lines(note)), nl=not as_json)
+        if kept:
+            save(file, st, kept)
+        if not note["match"]:
+            raise typer.Exit(1)
 
     @sub.command("show")
     def show_(file: Path = file_arg, as_json: bool = typer.Option(False, "--json", help="print the lines with their status as JSON")) -> None:

@@ -1,0 +1,37 @@
+knos-statement,1,78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690
+invoice,INV-2026-09
+date,2026-09-30
+supplier,Acme Agents
+buyer,Northwind
+currency,USD
+made from,a shadow run: the invoice against GitHub's record
+evidence sha256,c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2
+evidence,inside the statement; not signed
+status sha256,33d59894a093759697227708ac004c4b4608f7ba85140181e1d6d909bb7c211d
+line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference
+1,acme/app#1,Acme Agents,agreed,100.00,,dlv_7d18ee5930ce4f8945ee626f,evl_d6f7851bb59a7591d7cd7726,inv_b4add9cf5f7842919a292b6f,stl_af382ff4f9349cb50eed8b34,paid outside Knos,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,,reported,,grn_d6f7851bb59a7591d7cd7726
+2,acme/app#2,Acme Agents,disputed,250.00,a check failed when this change was merged: test,dlv_2588c667db86d1b266ea0121,evl_1ca8008cccb72826ece72b62,inv_740e3c083fd82e11c55a3889,,held,https://github.com/acme/app/actions/runs/21/job/21,278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c,,reported,,grn_1ca8008cccb72826ece72b62
+3,acme/app#3,Acme Agents,insufficient evidence,80.00,the checks give no verdict: no check ran,dlv_7eb54ea7a68764c8c2d90d28,evl_ec16d038d8ff8e67c75980b0,inv_7dbdc2f0b5336695951583d2,,held,https://github.com/acme/app/pull/3,e5922f5d4c1c0acce4aff442495673f35c479c227b68097d014132bed0ac51dc,,reported,,grn_ec16d038d8ff8e67c75980b0
+4,acme/app#1,Acme Agents,duplicate,100.00,billed twice on this invoice: same pull request as line 1,dlv_7d18ee5930ce4f8945ee626f,,inv_92705e08349c79f12e7a5249,,held,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,line 1,not evaluated,,
+5,acme/app#4,Acme Agents,agreed,60.00,,dlv_3ff7922d689c11ef9b04a660,evl_5e98a492487590e945e006ea,inv_5633b01f50068344b40b1b61,stl_41ab1792c3b901c7bc0adb53,devnet demonstration,https://github.com/acme/app/pull/4,a0428771cc3d4b5f69d69a24de9d44cf3573d7862e40eca5c60d0302f829a8c0,,agreed,PO-2026-0932,grn_5e98a492487590e945e006ea
+total,billed,5,590.00
+total,agreed,2,160.00
+total,disputed,1,250.00
+total,duplicate,1,100.00
+total,insufficient evidence,1,80.00
+answer,Authorised,"not known here: a shadow run reads the invoice and GitHub, not the order"
+answer,Billed,"5 lines, 590.00 USD on invoice INV-2026-09 from Acme Agents"
+answer,Delivered,4 of 5 lines name work that was evaluated
+answer,Passed,"2 lines, 160.00 USD agreed"
+answer,Already billed,"1 line, 100.00 USD: line 4 (line 1)"
+answer,Approved,"2 agreed lines, 160.00 USD by Dana Reyes (finance controller) on 2026-10-01, role as stated"
+answer,Disputed,"1 line, 250.00 USD, open"
+answer,Insufficient evidence,"1 line, 80.00 USD, open"
+answer,Credited,"0 lines, 0.00 USD refunded"
+answer,Paid,"2 lines, 160.00 USD (devnet demonstration, paid outside Knos)"
+answer,Owed,"0 lines, 0.00 USD payable"
+approval,2026-10-01,Dana Reyes (finance controller),2 agreed lines,160.00
+settlement,2026-10-02,inv_b4add9cf5f7842919a292b6f,"paid outside Knos by bank, reference BACS 77120",stl_af382ff4f9349cb50eed8b34
+settlement,2026-10-03,inv_5633b01f50068344b40b1b61,"devnet demonstration by chain, reference 5Yd1testtransaction",stl_41ab1792c3b901c7bc0adb53
+goods-received note,2026-10-04,inv_5633b01f50068344b40b1b61,match,grn_5e98a492487590e945e006ea
+note,"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them."

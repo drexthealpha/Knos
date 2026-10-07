@@ -194,3 +194,29 @@ def test_the_committed_files_are_what_the_script_writes():
     feed = ET.fromstring((ROOT / "web" / "upgrades.xml").read_text(encoding="utf-8"))
     assert len(feed.findall(ATOM + "entry")) == len(doc["entries"])
     assert "upgrades.xml" in (ROOT / "web" / "upgrade.js").read_text(encoding="utf-8")
+
+
+def test_an_adopter_gets_the_full_feed_for_its_own_programs_and_its_own_gate(tmp_path):
+    """`--ids FILE` and `--gate ADDRESS` (docs/GATE.md): the programs the file names, held to the adopter's own gate."""
+    their_gate = IDS["guardian"]                                        # any address that is not Knos's gate
+    theirs = {"upgrade_multisig": IDS["upgrade_multisig"], "squads_program": SQUADS, "programs": {"their_program": OTHER_PROGRAM}, "upgrade_gate": their_gate}
+    h = gate.executable_hash(ELF_NEW)
+    at, (_owner, data) = record(OTHER_PROGRAM, ELF_NEW, COMMIT_NEW, 90)
+    mine = str(gate.record_pda(Pubkey.from_string(OTHER_PROGRAM), h, Pubkey.from_string(their_gate)))
+    assert mine != at
+    got = {e.index: e for e in uf.entries({**first_world(), mine: (their_gate, data)}.get, theirs)[1]}
+    assert sorted(got) == [5]                                           # the one proposal for their program: none of Knos's
+    assert (got[5].program, got[5].program_address, got[5].build_hash, got[5].source_commit, got[5].gate_run) == ("their_program", OTHER_PROGRAM, h.hex(), COMMIT_NEW, 90)
+    # a record at Knos's gate, or one owned by another program than their gate, vouches for nothing of theirs
+    assert {e.index: e for e in uf.entries({**first_world(), at: (str(gate.GATE_ID), data)}.get, theirs)[1]}[5].source_commit is None
+    assert {e.index: e for e in uf.entries({**first_world(), mine: (str(gate.GATE_ID), data)}.get, theirs)[1]}[5].source_commit is None
+    # the command: a file without programs, Knos's own folder, or a gate without a file is refused in words, and nothing is written
+    said: list[str] = []
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"upgrade_multisig": IDS["upgrade_multisig"]}), encoding="utf-8")
+    good = tmp_path / "ids.json"
+    good.write_text(json.dumps({k: v for k, v in theirs.items() if k != "upgrade_gate"}), encoding="utf-8")
+    assert uf.main(["--ids", str(bad), "--out", str(tmp_path)], said.append) == 2 and "programs" in said[-1]
+    assert uf.main(["--ids", str(good)], said.append) == 2 and "--out DIR" in said[-1]
+    assert uf.main(["--gate", their_gate], said.append) == 2 and "--gate goes with --ids" in said[-1]
+    assert not (tmp_path / "upgrades.json").exists()

@@ -93,7 +93,7 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   check(`words: the first screen says 40 words at most at ${width} by ${height}`, words.length <= 40 && words.length >= 20, [words.length, words.join(" ")]);
   if (width === 1280) {
     const bar = await page.$$eval("#nav > a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.textContent));
-    check("words: the bar shows six links and More", bar.join() === "Check an invoice,Demo,Console,Leaderboard,Pricing,Docs" && await page.isVisible("#more-button") && (await page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).length)) === 0, bar);
+    check("words: the bar shows six links and More", bar.join() === "Check,Demo,Console,Leaderboard,Pricing,Docs" && await page.isVisible("#more-button") && (await page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).length)) === 0, bar);
     const hero = await page.evaluate(() => ({ h1: document.querySelector("h1").textContent.trim(), fact: document.getElementById("hero-fact").textContent.trim().split(/\s+/).length,
       order: [...document.querySelectorAll(".hero h1, .hero #hero-fact, .hero .actions, .hero #mark3d, #demo")].map((e) => e.id || e.className || e.tagName),
       demoTop: document.getElementById("demo").getBoundingClientRect().top, fold: innerHeight, door: !!document.getElementById("front-door") }));   // with the front door (0.3.17) the round sits below it

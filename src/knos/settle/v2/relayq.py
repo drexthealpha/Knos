@@ -65,6 +65,26 @@ SINCE 0.3.18, THREE MORE THINGS.
                        verified it in), and with more than one key a key signs for one token at a time. Two tokens in
                        flight then never pay from one fee account. With one key (the public worker today) nothing
                        changes: all workers pay from it.
+
+SINCE 0.3.19, NOTES TWO RUNNERS BOTH SEE. An event run and the sweep are two GitHub runners: neither sees the other's
+folder. `LogStore` makes the relay-log issue (the open issue labelled knos-relay, which both may write) the notes'
+durable store, beside the folder:
+
+    append             one machine line as a comment, `knos-note 1 <runner> <json>`, for the three changes another
+                       runner must know (FORGE_STATES): `sending` (a lease, with its `until`), `confirmed`, `refused`.
+                       Nothing is written for `waiting`, for a repository's name, or twice for one change.
+    read               the comments the sweep's pass fetched anyway (the newest hundred of the log's repository,
+                       a conditional request) are handed in (`take`); only a lease reads on its own, once, straight
+                       after its own line, to see whether another runner's line is there first.
+    the same merge     confirmed > refused > sending > waiting, and a `sending` past its `until` is `waiting`. Of two
+                       `sending` the EARLIER COMMENT holds (GitHub's comment id, `at`), not the earlier clock: two
+                       runners' clocks differ, the order of two comments on one issue does not. So of two runners
+                       that lease one token, in any interleaving of their writes and reads, exactly one is told yes.
+    when GitHub fails  the line is written to this run's folder as before and the run says, once, that its notes are
+                       local until GitHub takes one again. The chain's single-use rule is then the guard, as in 0.3.18.
+    said on the page   an event run that finds a token and sends nothing for it says so on its run's page, naming the
+                       runner the notes say holds or answered it and the relay-log comment that says so (`passed_over`).
+Only lines the log repository's own workflow account wrote on the log issue count: anyone can comment on a public issue.
 """
 from __future__ import annotations
 
@@ -107,10 +127,103 @@ RANK = {"waiting": 0, "sending": 1, "refused": 2, "confirmed": 3}      # the not
 NOTES_KEEP = 3 * 3600   # a runner's notes file is dropped this long after its last line (a token is taken for at most 70 minutes)
 FEED_EVERY = 3.0        # seconds between two reads for new entries while a worker is still carrying (the sweep's own pace)
 _RUNNER = re.compile(r"[^A-Za-z0-9_.-]")
+NOTE_MARK = "knos-note 1 "                              # a note's line in the relay log: the mark, the runner, one JSON object
+FORGE_STATES = ("sending", "confirmed", "refused")      # the changes another runner must know: one comment each, and no other
+LOG_LABEL, LOG_BOT = "knos-relay", "github-actions[bot]"    # knos.proof.ghrelay's: the log issue's label, and who writes in it
 
 
 class NotMine(ValueError):
     """A runner tried to close a token it did not lease."""
+
+
+class LogStore:
+    """The relay-log issue as the notes' durable store (the module's text, "since 0.3.19"). `get(path)` and
+    `send(path, data)` reach GitHub's API (the sweep hands in its conditional reader); `issue()` gives the log
+    issue's number, None while there is none. `lines`: runner -> key -> its newest line read from the log, each with
+    `at`, the id of the comment that carries it. `failed`: why the last write or read did not happen (None: shared)."""
+
+    def __init__(self, repo: str, get: Callable[[str], Any], send: Callable[[str, dict[str, Any]], Any], issue: Callable[[], int | None],
+                 bot: str = LOG_BOT, say: Callable[[str], None] | None = None) -> None:
+        self.repo, self._get, self._send, self._issue, self.bot = repo, get, send, issue, bot
+        self._say = say or (lambda words: print(words, file=sys.stderr))
+        self.lines: dict[str, dict[str, dict[str, Any]]] = {}
+        self.failed: str | None = None
+        self.wrote = self.asked = 0             # comments written, and reads this store made on its own
+        self._lock = threading.Lock()
+
+    @property
+    def path(self) -> str:
+        """The request the sweep makes on every pass for the log's repository (`ghrelay.found`): the same text, so its
+        answer is reused and a read with nothing new is a 304."""
+        return f"repos/{self.repo}/issues/comments?sort=created&direction=desc&per_page=100"
+
+    def _fail(self, why: object) -> None:
+        said = " ".join(str(why).split())[:200]
+        if self.failed is None:
+            self._say(f"relay notes: GitHub did not take or give this run's shared notes ({said}). They are local to this run until it does: "
+                      "another runner does not see what this one holds, and the chain still takes a token once.")
+        self.failed = said
+
+    def _well(self) -> None:
+        if self.failed is not None:
+            self._say("relay notes: shared with the other runners again (the relay log took a line).")
+        self.failed = None
+
+    def take(self, comments: Any) -> int:
+        """Reads notes out of comments someone fetched (the sweep's pass, or `read`). Returns how many lines were new."""
+        try:
+            number = self._issue()
+        except Exception:  # noqa: BLE001 - which issue is the log is not known: nothing can be told to be a note
+            number = None
+        new = 0
+        if number is None or not isinstance(comments, list):
+            return 0
+        with self._lock:
+            for c in sorted((c for c in comments if isinstance(c, dict) and str(c.get("id", "")).isdigit()), key=lambda c: int(c["id"])):
+                if (c.get("user") or {}).get("login") != self.bot or not str(c.get("issue_url") or "").endswith(f"/issues/{number}"):
+                    continue
+                for text in str(c.get("body") or "").splitlines():
+                    if not text.startswith(NOTE_MARK):
+                        continue
+                    runner, _, raw = text[len(NOTE_MARK):].partition(" ")
+                    try:
+                        ln = json.loads(raw)
+                    except ValueError:
+                        continue
+                    if not (isinstance(ln, dict) and isinstance(ln.get("k"), str) and ln.get("s") in FORGE_STATES and _RUNNER.sub("-", runner) == runner and runner):
+                        continue
+                    had = self.lines.setdefault(runner, {}).get(ln["k"])
+                    if had is None or int(had["at"]) < int(c["id"]):
+                        self.lines[runner][ln["k"]] = {**ln, "at": int(c["id"])}
+                        new += 1
+        return new
+
+    def read(self) -> bool:
+        """Asks GitHub for the newest comments now (a lease does, after its own line). False when it did not answer."""
+        self.asked += 1
+        try:
+            self.take(self._get(self.path))
+        except Exception as why:  # noqa: BLE001 - GitHub did not answer: what was read before stands, and the run says so
+            self._fail(why)
+            return False
+        return True
+
+    def append(self, runner: str, line: Mapping[str, Any]) -> int | None:
+        """One comment for one change. Returns the comment's id; None (and `failed` says why) when GitHub did not take it."""
+        try:
+            number = self._issue()
+            if number is None:
+                raise RuntimeError("the relay log has no open issue yet")
+            got = self._send(f"repos/{self.repo}/issues/{number}/comments", {"body": NOTE_MARK + runner + " " + json.dumps(dict(line), separators=(",", ":"))})
+            at = int(got["id"])
+        except Exception as why:  # noqa: BLE001 - GitHub said no or did not answer: the line stays local
+            self._fail(why)
+            return None
+        self.wrote += 1
+        self._well()
+        with self._lock:
+            self.lines.setdefault(runner, {})[str(line["k"])] = {**line, "at": at}
+        return at
 
 
 class Notes:
@@ -118,8 +231,10 @@ class Notes:
     change. See the module's text for the merge. `runner`: this run's name, the same for all its passes. Nothing here
     replaces a file or writes to another runner's."""
 
-    def __init__(self, folder: Path, runner: str, clock: Callable[[], float] = time.time) -> None:
-        self.folder, self.runner, self.clock = Path(folder), _RUNNER.sub("-", runner)[:80] or "runner", clock
+    def __init__(self, folder: Path, runner: str, clock: Callable[[], float] = time.time, store: LogStore | None = None) -> None:
+        """`store`: the relay-log issue, for runners that share no folder (`LogStore`). Its lines are merged with the
+        folder's by the same rule; without it nothing changes."""
+        self.folder, self.runner, self.clock, self.store = Path(folder), _RUNNER.sub("-", runner)[:80] or "runner", clock, store
         self._lock = threading.Lock()
         self._read: dict[str, tuple[int, dict[str, dict[str, Any]], set[str]]] = {}     # file name -> (bytes read, last line a key, repositories)
 
@@ -163,6 +278,15 @@ class Notes:
                     last[ln["k"]] = ln
             self._read[f.name] = (done + len(whole), last, repos)
             out[f.stem] = (last, repos)
+        if self.store is not None:              # what the relay log holds: a runner's newer word for a key stands over its older one
+            for runner, lines in list(self.store.lines.items()):
+                last, repos = out.get(runner, ({}, set()))
+                both = dict(last)
+                for key, ln in list(lines.items()):
+                    had = both.get(key)
+                    if had is None or float(ln.get("t", 0)) >= float(had.get("t", 0)):
+                        both[key] = ln
+                out[runner] = (both, repos)
         return out
 
     def merged(self) -> dict[str, dict[str, Any]]:
@@ -200,12 +324,20 @@ class Notes:
             return
         if state == "refused" and (last is None or last["s"] != "sending"):
             raise NotMine(f"{self.runner} did not lease {key}: only the run that holds a token may write its refusal")
-        self._line({"k": key, "s": state, "t": self.clock(), **{k: v for k, v in about.items() if v is not None}})
+        line = {"k": key, "s": state, "t": self.clock(), **{k: v for k, v in about.items() if v is not None}}
+        if self.store is not None and state in FORGE_STATES:
+            at = self.store.append(self.runner, {k: v for k, v in line.items() if k in ("k", "s", "t", "until", "why")})
+            if at is not None:
+                line["at"] = at                 # where its comment stands among the log's: what orders two leases
+        self._line(line)
 
     def lease(self, key: str, until: float) -> bool:
         """Appends `sending` and reads back: False (and `waiting` appended) when the merge closed the key meanwhile or
-        another runner's lease is earlier. Of two runners that lease in the same instant, exactly one is told True."""
+        another runner's lease is earlier. Of two runners that lease in the same instant, exactly one is told True.
+        With a `store` the line is a comment and the read is of the log: the earlier comment holds."""
         self.append(key, "sending", until=until)
+        if self.store is not None and self.store.failed is None:
+            self.store.read()
         got = self.merged().get(key)
         if got is None or got["by"] == self.runner:
             return True
@@ -248,6 +380,8 @@ def _beats(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
     ra, rb = RANK[str(a["state"])], RANK[str(b["state"])]
     if ra != rb:
         return ra > rb
+    if a["state"] == "sending" and a.get("at") is not None and b.get("at") is not None:
+        return int(a["at"]) < int(b["at"])                       # two leases the relay log holds: the earlier comment, whatever the clocks say
     ta, tb = (float(a.get("t", 0)), str(a["by"])), (float(b.get("t", 0)), str(b["by"]))
     return ta < tb if a["state"] == "sending" else ta > tb       # the earlier lease holds; of anything else, the later word
 
@@ -721,9 +855,11 @@ def named(event_name: str, event: Mapping[str, Any]) -> tuple[str, list[int]]:
 
 
 def ingest(queue: Queue, event_name: str, event: Mapping[str, Any], get: Callable[[str], Any], now: float,
-           lane: Callable[[str], str] | None = None) -> list[str]:
+           lane: Callable[[str], str] | None = None, passed: list | None = None) -> list[str]:
     """Reads what the event names and queues every token posted there in the last 70 minutes that the journal does
-    not hold yet. Returns the keys queued. Raises Full (the queue), Slow (GitHub's quota) or ValueError (the event)."""
+    not hold yet. Returns the keys queued. Raises Full (the queue), Slow (GitHub's quota) or ValueError (the event).
+    `passed`: given a list, each token found and NOT queued is added to it as (key, kind, where, token id), so that
+    the run can say why it sends nothing for it (`passed_over`)."""
     from ...proof import ghrelay
     if lane is None:
         from . import relay
@@ -743,7 +879,25 @@ def ingest(queue: Queue, event_name: str, event: Mapping[str, Any], get: Callabl
         key = hashlib.sha256(f"{kind}\n{jwt}\n".encode() + (f.terms or b"")).hexdigest()[:16]      # the journal's key for a token as posted
         if queue.put(key, lane(jwt), item, id=ghrelay.token_id(jwt), kind=kind, where=f"{repo}#{n}"):
             queued.append(key)
+        elif passed is not None:
+            passed.append((key, kind, f"{repo}#{n}", ghrelay.token_id(jwt)))
     return queued
+
+
+def passed_over(queue: Queue, notes: Notes | None, key: str, kind: str, where: str, tid: str) -> str:
+    """The run page's line for a token this run found and does not carry: who answered it or holds it, as the
+    merged notes say (another runner's word, and the relay-log comment that carries it), or this run's own journal.
+    An event run that sends nothing for a token it found says so, and why: the log's `knos-note` lines are the reason."""
+    head = f"relay: {kind} {where} {tid}: not carried by this run:"
+    other = notes.theirs(key) if notes is not None else None
+    if other is not None:
+        state = {"confirmed": "has it on chain", "refused": "had it refused", "sending": "holds it (a lease)", "waiting": "waits for it"}[str(other["state"])]
+        at = f" (relay log comment {other['at']})" if other.get("at") is not None else " (its notes)"
+        return f"{head} {other['by']} {state}{at}, so nothing is sent from here"
+    e = queue.entries().get(key) or {}
+    if e.get("by"):
+        return f"{head} {e['by']} answered it while this run waited, so nothing is sent from here"
+    return f"{head} this run's journal has it already ({SPELLED.get(str(e.get('state')), e.get('state'))})"
 
 
 def carrier(ledger: Any, payer: Any, clock: Callable[[], float] = time.time) -> Callable[[dict[str, Any]], dict[str, Any]]:
@@ -782,10 +936,14 @@ def serve_event(event_name: str, event: Mapping[str, Any], ledger: Any, payer: A
     run's own journal, and what the sweep holds or has answered is left to the sweep. `payer`: one key or `Payers`."""
     from ...proof import ghrelay
     queue = Queue(path, clock, workers=workers, notes=notes)
+    passed: list = []
     try:
-        ingest(queue, event_name, event, get or Forge(clock=clock).get, clock())
+        mine = ingest(queue, event_name, event, get or Forge(clock=clock).get, clock(), passed=passed)
     except (Full, Slow, ValueError) as why:
+        mine = []
         say(f"relay: {why} The relay's next sweep of the comments carries what is posted there.")
+    for p in passed:
+        say(passed_over(queue, notes, *p))
     carried = 0
 
     def after(entry: dict[str, Any], r: Mapping[str, Any], state: str) -> None:
@@ -810,6 +968,11 @@ def serve_event(event_name: str, event: Mapping[str, Any], ledger: Any, payer: A
     except ValueError:
         pass
     work(queue, carrier(ledger, payer, clock), workers, after=after, leave=LEFT_TO_SWEEP)
+    entries = queue.entries()
+    for key in mine:                    # queued here, then closed by another runner's answer (`Queue.take`): said, as above
+        e = entries.get(key) or {}
+        if e.get("by"):
+            say(passed_over(queue, notes, key, str(e.get("kind")), str(e.get("where")), str(e.get("id"))))
     return carried
 
 
@@ -827,7 +990,10 @@ def main(argv: list[str] | None = None) -> int:
     # a journal of this run's own, and the notes it shares: what a sweep with the same home (or the same
     # KNOS_RELAY_NOTES folder) holds or has answered is read from the merge, and nothing of the sweep's is written
     home, me = ghrelay._state_path(), f"event-{os.environ.get('GITHUB_RUN_ID') or os.getpid()}"
-    shared = Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or home.with_name(f"{home.stem}-notes")), me)
+    store = ghrelay.log_store()         # the relay log, where this run may write it: what the sweep's runner sees of this one
+    if store is not None:
+        store.read()                    # one read: what the sweep holds or has answered, before anything is queued
+    shared = Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or home.with_name(f"{home.stem}-notes")), me, store=store)
     carried = serve_event(a.event_name, event, chain.ledger(), payers(chain.key()), home.with_name(f"ghrelay.{me}.json"), max(1, a.workers), notes=shared)
     print(f"relay: {carried} token{'' if carried == 1 else 's'} carried for this event", file=sys.stderr)
     return 0

@@ -6,15 +6,13 @@
   </picture>
 </h1>
 
-**Knos: the neutral meter.**
-
 **The neutral meter for AI agent work: neither side keeps the count.**
+
+Buyers and suppliers close invoices on evidence both can verify.
 
 Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.
 
-[Check your own invoice](https://drexthealpha.github.io/Knos/)
-
-`uvx knos shadow invoice.csv`
+[Check your invoice](https://drexthealpha.github.io/Knos/)
 
 ## The claim
 
@@ -65,6 +63,7 @@ The second number: 17.8% of first such pull requests, 147 of 826 repositories ([
 
 ## Read more
 
+`uvx knos shadow invoice.csv`: the same check from a terminal, on an invoice of your own.
 [docs/STORY.md](docs/STORY.md): the three-minute demonstration in six beats, each with its evidence.
 [docs/MANIFEST.md](docs/MANIFEST.md): this release on one page: source, the build live at each public program id, every capability's stage, the limits.
 [docs/README.md](docs/README.md): every document, under six questions.

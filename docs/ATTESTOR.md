@@ -3,7 +3,9 @@
 A payment in Knos rests on a token a forge signed. This page says exactly what that signature covers, what it leaves
 to a machine nobody signed for, and the five ways of narrowing that gap: what each costs, what it proves, what stays
 trusted, and how mature it is today. Two of the five exist in this repository. Three do not, and the last section
-says in which order Knos intends to take them. Outside pages were read on 2026-10-06 unless a line says otherwise;
+says in which order Knos intends to take them. For the fifth there is one experiment outside the product: a judge
+for one small task whose run was proved and the proof verified, with the time, memory and size measured here.
+Outside pages were read on 2026-10-06 unless a line says otherwise (the proved run and its sources: 2026-10-07);
 every figure about another system carries its link.
 
 ## The gap, exactly
@@ -94,7 +96,7 @@ write the hostile input rather than reuse ours.
 | b. Re-execution by a neutral judge from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself; that the re-execution's one bit is true | built; the re-execution has run only in tests. Its verdict is read strictly and held to the order by the job that signs (shape, above) |
 | c. Build provenance of the judge | what code the judge installed | the forge as builder and signer; the machine (see the example above) | not built here; the parts exist at GitHub and Sigstore |
 | d. Proof of what the forge's API returned | the answers | a notary or a proxy, or the proof system | not built; no system we found checks a transcript on Solana |
-| e. An attested enclave runs the judge | the machine | the chip vendor's root key; side channels; the cloud | not built; GitHub offers no attested runner |
+| e. Proof of what the judge executed: an attested enclave, or a proved run | the machine | enclave: the chip vendor's root key, side channels, the cloud. Proved run: the proof system and its setup; that the checks are the right ones | not built in the product; GitHub offers no attested runner. One experiment: a judge for one task, proved and verified off chain (below) |
 
 ### a. A quorum of judges
 
@@ -159,6 +161,9 @@ repositories use the Sigstore public instance and its transparency log; private 
 which has no transparency log. Alone they reach SLSA v1 Build Level 2; built through a reusable workflow, Level 3
 ([GitHub: artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations)).
 GitHub's own sentence about them: "artifact attestations are *not* a guarantee that an artifact is secure."
+Read again on 2026-10-07: an attestation carries the workflow, the repository, the commit, the event that started
+the run and the token's claims. It is the cheapest step on this page, and it says which workflow emitted a file,
+never what that workflow computed.
 
 **What a verifier could check off chain.** `gh attestation verify <file> --repo <owner>/<repo>`, with
 `--signer-workflow` to require the reusable workflow, before a judge installs or runs anything. For a release:
@@ -239,10 +244,14 @@ still wrong); the request (a proof of the wrong question's answer proves nothing
 
 **Maturity.** Research and early products. Nothing in Knos.
 
-### e. An attested enclave runs the judge
+### e. Proof of what the judge executed
 
-The machine signs for itself: hardware measures what was loaded and signs the measurement with a key the chip
-vendor certifies. This is the only rung that answers gap (1) for a judge in an organisation's hands.
+Two routes answer gap (1) for a judge in an organisation's hands. In the first the machine signs for itself. In the
+second no machine is believed: the run carries a proof that anyone checks.
+
+#### An attested enclave runs the judge
+
+Hardware measures what was loaded and signs the measurement with a key the chip vendor certifies.
 
 | Platform | What is signed | Signature | Root of trust |
 |---|---|---|---|
@@ -252,7 +261,10 @@ vendor certifies. This is the only rung that answers gap (1) for a judge in an o
 | [Azure confidential VMs](https://learn.microsoft.com/en-us/azure/confidential-computing/guest-attestation-confidential-virtual-machines-design) | a virtual TPM quote, with a SEV-SNP (1,184 bytes) or TDX (1,024 bytes) hardware report beneath it | the TPM quote by an RSA attestation key Azure certifies | AMD's or Intel's chain, and Azure's CA for the virtual TPM |
 
 **GitHub's position.** We found none. GitHub documents no attested or confidential hosted runner, its 2026 roadmap
-does not mention one, and the discussion that reports the larger-runner finding had no staff answer when read. An
+does not mention one, and the discussion that reports the larger-runner finding had no staff answer when read.
+Read again on 2026-10-07: the page that lists the hosted runners names no enclave, no confidential machine and no
+attestation of the runner; the standard Linux runner for a public repository has 4 CPUs and 16 GB of memory
+([GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)). An
 attested judge today would be a self-hosted runner inside an enclave, and `knos_pay` refuses self-hosted runners,
 rightly: without the attestation a self-hosted runner is the operator's word.
 
@@ -261,7 +273,8 @@ and in this release's build ES256 through Solana's secp256r1 precompile, for a t
 most 780 bytes ([ES256.md](ES256.md)). Against that:
 
 - **Nitro does not fit.** ES384 is a different curve. Solana's precompile is P-256 only, and we found no P-384
-  precompile or proposal for one. The document is CBOR in COSE, not a JSON token, and its certificate chain alone
+  precompile or proposal for one (the three precompiles are Ed25519, secp256k1 and secp256r1:
+  [Solana: precompiled programs](https://solana.com/docs/core/programs/precompiles), read 2026-10-07). The document is CBOR in COSE, not a JSON token, and its certificate chain alone
   exceeds one transaction. Doing P-384 inside a program is possible in principle and unmeasured here; on another
   chain a team measured about 12 to 13 million gas for each certificate and under 70 million for the whole
   document after optimisation
@@ -287,6 +300,98 @@ side channel or a physical attack that the vendor's threat model excludes; and t
 
 **Maturity.** The platforms are generally available. Nothing in Knos uses one.
 
+#### A proved run of the judge
+
+A zero-knowledge virtual machine runs a program compiled for RISC-V and produces a proof that this program, on some
+input, wrote this output. The program is named by a hash (the image id); the output (the journal) is public; the
+verifier needs neither the machine nor its operator. For a judge that is a fixed program this is gap (1) closed
+with no signer added.
+
+**The two systems with a verifier written for Solana**, as their own pages stood on 2026-10-07:
+
+| | RISC Zero | SP1 |
+|---|---|---|
+| Newest release on crates.io | `risc0-zkvm` 3.0.6 | `sp1-sdk` 6.8.1 |
+| The proof a chain can check | Groth16 over BN254: 256 bytes (64 + 128 + 64) and five public inputs, from the image id and the SHA-256 of the journal ([verifier source](https://github.com/boundless-xyz/risc0-solana/blob/832954160f12a5b292a33a7aa4f1afb649a1df23/solana-verifier/programs/groth_16_verifier/src/lib.rs)) | Groth16, "~260 bytes" ([proof types](https://docs.succinct.xyz/docs/sp1/generating-proofs/proof-types)) |
+| Verifier for Solana | [`boundless-xyz/risc0-solana`](https://github.com/boundless-xyz/risc0-solana): a Groth16 verifier and a router, built against `risc0-zkvm` 3.0.3; Apache-2.0; audited ([report of 20 March 2025](https://reports.zksecurity.xyz/reports/risc0-solana-contracts)); last commit on `main` 2025-10-23 | [`succinctlabs/sp1-solana`](https://github.com/succinctlabs/sp1-solana) 0.1.0; MIT; "This repository is not audited for production use."; last commit on `main` 2025-08-14; it carries verification keys up to SP1 5.0.0 and none for 6 |
+| Compute units to verify on Solana | none published that we found; RISC Zero's [list of verifier deployments](https://dev.risczero.com/api/blockchain-integration/contracts/verifier) names no Solana address | "around 280K compute units", above the default limit of 200K |
+| Proving on a CPU, as documented | "less than 10 GB" of memory may need a smaller segment; the Groth16 step "only works on x86" ([local proving](https://dev.risczero.com/api/generating-proofs/local-proving)) | "16+" cores and "16GB+" of memory; Groth16 "16GB+" ([hardware requirements](https://docs.succinct.xyz/docs/sp1/getting-started/hardware-requirements)) |
+| Stated security | 96 bits for the RISC-V prover, 99 for recursion; the Groth16 step rests on a trusted setup ceremony ([security model](https://dev.risczero.com/api/security-model)) | Groth16 rests on a trusted setup ceremony (the same page as the proof types) |
+
+Both verifiers sit on Solana's `alt_bn128` syscalls. The library under `sp1-solana` gives its own figure for the
+pairing check alone: "A plain Groth16 verify costs 78,293–108,762 CU", for one to eight public inputs
+([`groth16-solana`](https://github.com/Lightprotocol/groth16-solana), Apache-2.0). Neither verifier repository
+changed in the 30 days before this was read, so Knos opens nothing on either and recommends neither as maintained:
+building on one means carrying its verifier here.
+
+**What exists here.** [`experiments/judge_proof`](../experiments/judge_proof/README.md), outside the package and
+outside every wheel. Its guest program is a judge for one task of the playground's kind (`count_words`): seven
+fixed cases, each an input and the output a correct function returns. The input is the submission: the outputs a
+supplier's function gave, one line a case. The guest hashes the submission, compares it with the cases byte for
+byte, and commits 70 bytes: a version, the SHA-256 of the submission, the SHA-256 of the checks, the verdict, and
+how many cases passed of how many. The same rule in plain Python ([`reference.py`](../experiments/judge_proof/reference.py))
+gives the same 70 bytes, and a test holds the two together.
+
+**Measured on 2026-10-07** ([`results.json`](../experiments/judge_proof/results.json)): RISC Zero 3.0.6, its
+`r0vm` prover, 2 CPUs of a shared virtual machine with 8 GB of memory, no GPU. The machine was busy with other
+work, so the wall-clock seconds are an upper figure and the CPU seconds the steadier one. The run is 6,941 cycles
+of the judge in one segment of 32,768. Image id
+`e95d5440dce55f43c566b0ee20f8fc08b2fd6c1cf7f5d1722c31ea54b4325617`.
+
+| Run | Receipt | Prove, wall clock | Prove, CPU | Prover's peak memory | Receipt size | Verify |
+|---|---|---|---|---|---|---|
+| honest submission, verdict passed | composite (one STARK) | 54 s | 42 s | 0.32 GB | 209,702 bytes | 0.03 s |
+| honest submission, verdict passed | succinct (constant size) | 217 s | 163 s | 1.46 GB | 223,366 bytes | 0.04 s |
+| one wrong output, verdict failed | succinct | 138 s | 161 s | 1.46 GB | 223,366 bytes | 0.03 s |
+
+Each receipt was verified by a second process that holds only the receipt and the image id. The same receipt
+against another image id is refused ("claim digest does not match the expected digest"). The whole toolchain took
+about 1.2 GB of disk: the prover binary from the project's release (Apache-2.0), the two crates' builds, and the
+guest compiled by an ordinary nightly Rust, whose target `riscv32im-risc0-zkvm-elf` is upstream. Building both from nothing took 21
+minutes on this machine. A standard hosted runner has more of everything this run used; it was not run on one.
+
+**Not measured, and why.** The 256-byte Groth16 form, which is the only one the Solana verifiers take: the step
+that makes it is a further download and a further prover that this machine could not fetch (the project's installer
+does not accept the certificate of the proxy this machine reaches the network through), and its memory is not
+stated in the page we read. So this page gives no time for it and no compute units. No on-chain verifier is
+deployed, on any cluster, by this release.
+
+**What a verified receipt proves.** These checks (by hash, and by the image id that names the program holding
+them), over this submission (by hash), gave this verdict. Nothing about who ran it or where.
+
+**What it does not prove.**
+
+- *That the checks are the right ones.* Seven cases stand for a task; a table can be met by a function that is
+  wrong everywhere else. That is the buyer's terms, as it is at every rung.
+- *That the submitted function produced the outputs.* The guest reads outputs. Running the supplier's code inside
+  the proof needs that code compiled into the guest, or an interpreter for it there; neither exists here.
+- *Anything about a repository's own test suite.* A suite that needs an interpreter, a package index, a clock, a
+  file system or the network is not this program. The cost above is for seven thousand cycles; a Python
+  interpreter's start is not measured here and is not small.
+- *That the submission is the pull request.* Tying the hash in the journal to a commit is the forge's word or one
+  more statement inside the proof.
+- *That the proof system is sound.* The verifier trusts the circuits, and for the on-chain form a trusted setup.
+
+**The order of work to an on-chain `attested` level.** No receipt of Knos's says `attested` today, and no judge of
+Knos's is attested: the level stays out of the product until a verifier is live on the public program ids.
+
+1. Make the Groth16 receipt of this same run on an x86 machine with the memory it needs, and measure it.
+2. Verify it in the simulator the handler tests use, with the Groth16 verifier's code vendored at a pinned commit,
+   and measure the compute units. One transaction is the bound: 256 bytes of proof and 70 of journal fit.
+3. Name the judge in the terms: the image id and the checks' hash go into the hash a funding commits to, so a
+   proof for other checks pays nothing.
+4. A program change, proposed and time-locked like any other: an instruction that takes the proof and the journal,
+   recomputes the journal's hash, asks the verifier, and records a judge of a new kind for a quorum. This release
+   changes no program.
+5. Run the supplier's function inside the guest for one language with a small interpreter, and measure again.
+   Until then the level could only say "these outputs met these checks".
+6. Only then the word: a receipt's assurance line reads `attested` when, and only when, that instruction accepted
+   a proof on the public program ids.
+
+**What stays trusted.** The proof system and its setup; the verifier's code on chain; the checks.
+
+**Maturity.** One experiment, off chain, on one machine. Nothing in the product reads a proof.
+
 ## The order Knos intends, and why
 
 These are intentions. None of them is a date, and none exists beyond what the sections above say exists.
@@ -306,9 +411,11 @@ These are intentions. None of them is a date, and none exists beyond what the se
    signature only after the transcript proof has been useful off chain, because on chain it would add a trusted
    signer, and the reason for the whole ladder is to have fewer of those.
 5. **Rung e last.** It is the only complete answer to gap (1) and the most expensive, and the forge offers nothing
-   to build on. The intention is the indirect shape: an attestation checked off chain, a small token on chain. If
-   GitHub puts the runner group or an image measurement into the token, most of this rung becomes a one-line rule
-   in `knos_pay`, which is one more reason not to build it first.
+   to build on. For a judge that is a fixed, small program the intention is the proved run, in the order the
+   section above gives, because it adds no signer. For a judge that runs a repository's own suite the intention is
+   the indirect shape of the enclave: an attestation checked off chain, a small token on chain. If GitHub puts the
+   runner group or an image measurement into the token, most of the enclave route becomes a one-line rule in
+   `knos_pay`, which is one more reason not to build it first.
 
 What the ladder never removes: a signature authenticates a statement, not the truth
 ([SECURITY.md](SECURITY.md), "Known limits"). Each rung narrows who could make a false statement and what it would

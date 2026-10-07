@@ -330,6 +330,18 @@ def test_read_gives_both_escrows_oldest_first_and_says_what_it_could_not_read(mo
     assert [m for m, _p in asked] == ["getSignaturesForAddress", "getTransaction"] and asked[1][1][1]["maxSupportedTransactionVersion"] == 1
 
 
+def test_a_transactions_fee_payer_and_logs_come_from_one_reader_that_asks_for_version_1(monkeypatch):
+    """chain.Ledger.payer_of (the relay asks it whose transaction did a token's work) and logs read one answer."""
+    asked = []
+    tx = {"transaction": {"message": {"accountKeys": ["Payer1111", "Other"]}}, "meta": {"logMessages": ["Program log: x"]}}
+    monkeypatch.setattr(records.chain, "call", lambda url, method, params, timeout=0: asked.append((method, params)) or tx)
+    led = records.chain.Ledger("http://rpc")
+    assert led.payer_of("S") == "Payer1111" and led.logs("S") == ["Program log: x"]
+    assert [m for m, _p in asked] == ["getTransaction"] * 2 and all(p[1]["maxSupportedTransactionVersion"] == 1 for _m, p in asked)
+    monkeypatch.setattr(records.chain, "call", lambda url, method, params, timeout=0: None)
+    assert led.payer_of("S") is None and led.logs("S") == []
+
+
 def test_every_reader_of_a_transaction_asks_for_version_1():
     """A relay's transactions are version 1 on a 2.1 cluster, and a cluster refuses to give one to a reader that names a
     lower version (or none: then it gives legacy transactions only). So every place that asks a cluster for a

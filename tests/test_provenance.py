@@ -162,7 +162,10 @@ def test_the_kani_record_names_every_harness_of_proofs_rs_and_no_other():
 def test_a_harness_counts_as_proved_only_when_kani_verified_it_within_the_limit(h):
     assert h["result"] in ("verified", "failed", "timed out")
     assert h["proved"] is (h["result"] == "verified")
-    assert 0 < h["seconds"] <= KANI["limit_seconds"] + 1 and h["attempts"] >= 1
+    # the limit is the record's 180 seconds, or, for a harness recorded from program.yml's job of its own, that job's
+    # step limit as the workflow says it (test_a_harness_from_the_long_job_is_its_runs_on_this_source below)
+    limit = h["limit_seconds"] if "runs" in h else KANI["limit_seconds"]
+    assert 0 < h["seconds"] <= limit + 1 and h["attempts"] >= 1
     if h["result"] == "verified":
         assert h["checks"] > 0 and h["failed_checks"] == 0 and h["verification_seconds"] <= h["seconds"]
     if h["result"] == "timed out":
@@ -175,3 +178,64 @@ def test_the_conservation_harness_is_among_the_proved_ones():
     assert by_name["what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out"]["proved"]
     for h in KANI["harnesses"]:
         assert h["proved"] or len(h.get("note", "")) > 40, h["name"]        # one that is not proved says so and why
+
+
+def _record():
+    spec = importlib.util.spec_from_file_location("kani_fee_record", ROOT / "scripts" / "kani_fee_record.py")
+    rec = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rec)
+    return rec
+
+
+def test_a_harness_from_the_long_job_is_its_runs_on_this_source():
+    """Only the harness over every amount, which does not finish in 180 seconds, is recorded from program.yml's job of
+    its own; it is proved only when every run it names verified it, with the Kani the workflow names, and its limit and
+    command are the job's."""
+    rec = _record()
+    job = rec.long_job()
+    for h in KANI["harnesses"]:
+        if "runs" not in h:
+            continue
+        assert h["name"] == rec.WHOLE and h["limit_seconds"] == job["limit_seconds"] and h["command"] == f"cargo-kani {job['args']}"
+        assert h["attempts"] == len(h["runs"]) >= 1 and h["proved"] is all(r["result"] == "verified" for r in h["runs"])
+        assert h["verification_seconds"] == h["runs"][0]["verification_seconds"] and h["seconds"] == h["runs"][0]["seconds"]
+        assert h["solver"].startswith("CaDiCaL, Kani's default") is (rec.program_solver(h["name"]) is None)
+        for r in h["runs"]:
+            assert r["url"].endswith(f"/actions/runs/{r['id']}") and re.fullmatch(r"[0-9a-f]{40}", r["commit"]) and r["event"] in ("schedule", "workflow_dispatch")
+            assert r["kani"] == KANI["version"] == job["kani"] and r["cbmc"] == KANI["cbmc"]
+            assert 0 < r["verification_seconds"] <= r["seconds"] <= h["limit_seconds"] + 1
+            assert f"run {r['id']} " in h["note"]
+
+
+LONG_LOG = """kani (job)\tUNKNOWN STEP\t﻿2026-10-07T05:17:09.3174595Z Current runner version: '2.337.0'
+kani (job)\tUNKNOWN STEP\t2026-10-07T05:17:22.8418213Z [3/5] Installing rust toolchain version: nightly-2026-08-21-x86_64-unknown-linux-gnu
+kani (job)\tUNKNOWN STEP\t2026-10-07T05:17:29.8485286Z Kani Rust Verifier 0.68.0 (cargo plugin)
+kani (job)\tUNKNOWN STEP\t2026-10-07T05:17:29.8504045Z CBMC 6.11.0
+kani (job)\tUNKNOWN STEP\t2026-10-07T05:17:51.5884414Z Checking harness proofs::harness::{harness}...
+kani (job)\tUNKNOWN STEP\t2026-10-07T07:36:07.2438293Z VERIFICATION RESULT:
+kani (job)\tUNKNOWN STEP\t2026-10-07T07:36:07.2438658Z  ** {failed} of 64 failed (4 unreachable)
+kani (job)\tUNKNOWN STEP\t2026-10-07T07:36:07.2438985Z VERIFICATION:- {word}
+kani (job)\tUNKNOWN STEP\t2026-10-07T07:36:07.2439389Z Verification Time: 8295.655s
+kani (job)\tUNKNOWN STEP\t2026-10-07T07:36:07.2440683Z Complete - {ok} successfully verified harnesses, {failed} failures, 1 total.
+"""
+
+
+def test_the_long_jobs_log_is_read_for_what_kani_said_and_nothing_else():
+    rec = _record()
+    read = rec.read_long_log(LONG_LOG.format(harness=rec.WHOLE, failed=0, ok=1, word="SUCCESSFUL"))
+    assert read == {"result": "verified", "proved": True, "checks": 64, "failed_checks": 0, "unreachable_checks": 4, "verification_seconds": 8295.655,
+                    "seconds": 8317.4, "kani": "0.68.0", "cbmc": "6.11.0", "rust_toolchain": "nightly-2026-08-21", "cvc5": None}
+    failed = rec.read_long_log(LONG_LOG.format(harness=rec.WHOLE, failed=1, ok=0, word="FAILED"))
+    assert failed["result"] == "failed" and failed["proved"] is False and failed["failed_checks"] == 1
+    with pytest.raises(SystemExit):        # another harness's log is not this one's
+        rec.read_long_log(LONG_LOG.format(harness="an_order_that_has_paid_nothing_has_given_out_none_of_its_fee", failed=0, ok=1, word="SUCCESSFUL"))
+    with pytest.raises(SystemExit):        # a run cut off before Kani's last line proves nothing
+        rec.read_long_log(LONG_LOG.format(harness=rec.WHOLE, failed=0, ok=1, word="SUCCESSFUL").rsplit("kani (job)", 1)[0])
+
+
+def test_a_run_here_that_times_out_keeps_the_long_jobs_record_and_any_other_result_replaces_it():
+    rec = _record()
+    from_job = {"name": rec.WHOLE, "result": "verified", "runs": [{"id": 1}]}
+    timed_out, verified = {"name": rec.WHOLE, "result": "timed out"}, {"name": rec.WHOLE, "result": "verified"}
+    assert rec.kept(from_job, timed_out) is from_job and rec.kept(from_job, verified) is verified
+    assert rec.kept(None, timed_out) is timed_out and rec.kept({"name": rec.WHOLE, "result": "verified"}, timed_out) is timed_out

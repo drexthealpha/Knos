@@ -8,9 +8,9 @@ made from,a shadow run: the invoice against GitHub's record
 evidence sha256,4dc09fd9c90e9e56ea2d355dc3d3f601d3686a84918dcfd213c91b0514e2c4ff
 evidence,inside the statement; not signed
 status sha256,none recorded
-line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of
-1,acme/app#6,Acme Agents,duplicate,100.00,already billed: invoice INV-2026-09 line 1 agreed this deliverable on 2026-09-30,dlv_7d18ee5930ce4f8945ee626f,evl_5d601fa9c7f1d9495948c9fe,inv_748f1874de3b152cb9ff8a57,,held,https://github.com/acme/app/pull/6,3fb80ad1640b40d02f058ba4647f332634121e2900b6a98395c297d9eea64b2e,statement 78d11a83d310 line 1
-2,acme/app#7,Acme Agents,agreed,45.50,,dlv_663fe2a8f880fe089c604e6c,evl_b14134e3582e71d4484a62ff,inv_ba7acef37c7d738f5b0ddac9,,payable,https://github.com/acme/app/pull/7,536f761913ef73016ff9884467a255f93612d19dfb1d4149bc915fbaf0ae5bf8,
+line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference
+1,acme/app#6,Acme Agents,duplicate,100.00,already billed: invoice INV-2026-09 line 1 agreed this deliverable on 2026-09-30,dlv_7d18ee5930ce4f8945ee626f,evl_5d601fa9c7f1d9495948c9fe,inv_748f1874de3b152cb9ff8a57,,held,https://github.com/acme/app/pull/6,3fb80ad1640b40d02f058ba4647f332634121e2900b6a98395c297d9eea64b2e,statement 78d11a83d310 line 1,reported,,grn_5d601fa9c7f1d9495948c9fe
+2,acme/app#7,Acme Agents,agreed,45.50,,dlv_663fe2a8f880fe089c604e6c,evl_b14134e3582e71d4484a62ff,inv_ba7acef37c7d738f5b0ddac9,,payable,https://github.com/acme/app/pull/7,536f761913ef73016ff9884467a255f93612d19dfb1d4149bc915fbaf0ae5bf8,,reported,,grn_b14134e3582e71d4484a62ff
 total,billed,2,145.50
 total,agreed,1,45.50
 total,disputed,0,0.00

@@ -74,7 +74,7 @@ def box(tmp_path):
     kernel.write_text("6.8.0-45-generic\n", encoding="utf-8")
     # and no schtasks.exe off PATH: on a real WSL the one in Windows' System32 would make a real task
     env = {"PATH": f"{bin_dir}:/usr/bin:/bin", "KNOS_KEYS": str(keys), "CALLS": str(calls), "SYSTEMD": "0", "ATD": "0", "HOME": str(tmp_path), "TZ": "UTC",
-           "KNOS_OSRELEASE": str(kernel), "KNOS_SCHTASKS": str(tmp_path / "no-windows" / "schtasks.exe")}
+           "KNOS_OSRELEASE": str(kernel), "KNOS_UPGRADE_DEPS": "0", "KNOS_SCHTASKS": str(tmp_path / "no-windows" / "schtasks.exe")}
 
     def run(*args: str, **more: str):
         return subprocess.run(["bash", str(SCRIPT), *args], env={**env, **more}, capture_output=True, text=True)

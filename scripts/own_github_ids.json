@@ -1,5 +1,5 @@
 {
- "note": "What is Knos's own: GitHub account ids (the maintainer and the accounts its live tests run as) and wallets (a wallet has no GitHub id: Knos's own devnet keys, i.e. the rehearsal buyer, the CLI and deploy payers, the relay key, and the wallets the maintainer bound). scripts/network_stats.py never counts their activity as outside use.",
+ "note": "What is Knos's own: GitHub account ids (the maintainer and the accounts its live tests run as) and wallets (a wallet has no GitHub id: Knos's own devnet keys, i.e. the rehearsal buyer, the CLI and deploy payers, the relay key, the wallets the maintainer bound, the passkey wallet of the run's own passkey round, the supplier and advancer wallets of its netting, advance and record rounds, and the faucet key). A repository whose owner is one of these ids is Knos's without an entry here: GitHub is asked who owns it. scripts/network_stats.py never counts their activity as outside use.",
  "ids": [
   142920951
  ],
@@ -9,6 +9,11 @@
   "9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG",
   "PrHq3RscVtGwYsEinAy6buMFwytn8xZGPgj8ZuNwS6h",
   "EwSxyJFNQkNN9qtss4Qd7DTvrNYb62vgvhdwqgfErXDz",
-  "9a6RmArU8cfKGqWRfXU2i8xGXsvVFiNs97ZMVuYyozcW"
+  "9a6RmArU8cfKGqWRfXU2i8xGXsvVFiNs97ZMVuYyozcW",
+  "5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V",
+  "HACtdcABcZnBHFpeLq4D6KYR2UkQaHpHt1GAe2uU6roM",
+  "3Y7hmSXc9BGBeBqYGhZUrekhJUbmzR23cDSTs3YnK6HT",
+  "BxEjZT4BnNbr1hHg8ntL8nSBrLVdfRs8jhjG9sR1kqze",
+  "2trvjLFhTqK6ej5RgmPTf5oLQCK1TJbnhCqyp86GronR"
  ]
 }

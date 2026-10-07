@@ -55,6 +55,68 @@ transaction, so an order's terms history is explicit. Then the payment itself.
   [--mirror DIR]`, `knos bundle make ORDER [--verdict FILE]`, `knos bundle verify FILE [--rpc URL] [--mirror DIR]`,
   and with the chain gone `knos bundle verify FILE --no-chain` and `knos receipt verify FILE --no-chain`
 
+## Version 5
+
+Version 4 says what was concluded. Version 5 says **how much was verified**. It is version 4 with one more field,
+`assurance`, and `knos.receipt.build5` writes it from a version 4 receipt:
+
+```json
+"assurance": {
+  "level": "rerun",
+  "trusted": ["The issuer, for which workflow ran, ...", "The one evaluator that ran the suite again, ..."],
+  "declared_related": [[9001, 31337]]
+}
+```
+
+**The level is computed from the evidence, never typed.** `knos.receipt.assurance_of` reads the receipt's own
+fields, and `check` computes the level again and refuses a receipt that says another.
+
+| level | what the evidence shows | who is still trusted |
+|---|---|---|
+| `reported` | A workflow reported the result. Every receipt reaches this. | The issuer, for which workflow ran. The run that reported, and whoever controls its repository, workflow and runner. The supplier, as far as the suite ran where the supplier's change could reach it. Whoever wrote the terms. |
+| `rerun` | An evaluator outside the order's repository, whose owner and starter are no payee and not declared one party with a payee, says by its run's own word (`reexecution.reexecuted`) that it ran the pinned suite itself. | The issuer. That one evaluator, its operator and its runner: nobody else repeated it. Whoever wrote the terms. |
+| `agreed` | Two such evaluators, with different owners and starters and not declared one party, each ran the suite, and the verdict they stand behind is accepted. | The issuer. That the two are not one party behind accounts nobody declared related. Their runners. Whoever wrote the terms. |
+| `attested` | An attestation of the execution itself stands behind the result. | The root the attestation chains to, and the maker of the hardware or prover behind it. Whoever wrote the terms. |
+
+`attested` is defined and unreachable. Nothing Knos records today is an attestation of execution, so
+no receipt may say `attested`: `check` refuses one. The level exists so that a reader knows what is missing.
+
+The rerun is the run's own word. The issuer signs which workflow ran, not what it did; `check` holds the run and
+repository those words name to the ones the issuer signed, and no more. `rerun` therefore still trusts that one
+evaluator, and the table says so.
+
+**Declared control relationships.** Each entry of `evaluator_observed.evaluators` names the evaluator's repository
+owner (`owner_id`) and actor (`actor_id`), as in version 3. `same_controller` is true when two evaluators share an
+id. Two accounts run by one person share none, so the terms can declare them: `assurance.declared_related` is a
+list of groups of account ids that are one party, each group and the list in rising order, overlapping groups
+merged (`knos.receipt.related`). `knos.receipt.independence_of(evaluators, declared)` then answers for both: a
+shared id, or a declared group. Two evaluators are never `agreed` if their owners match or the terms declare them
+related, and an evaluator declared one party with a payee is not outside the supplier's control. A relationship
+nobody declared cannot be found by any receipt; that is the trust the `agreed` row names.
+
+**Older receipts.** Versions 1 to 4 still check, with the digests they always had. `assurance_of` reads the level
+of any version: an older receipt is `reported` unless its evidence shows more (a version 3 or 4 receipt whose
+evaluator entry carries a re-execution reads as `rerun`). `as4` gives a reader of version 4 the version 4 receipt a
+version 5 one holds. A mirror's copy, made from the chain alone, does not carry the runs' own words and reads
+`reported` (`chain_only`). A disputed version 5 receipt contests the version 5 form of the receipt it contests; a
+dispute does not move the level, which is of the evidence.
+
+Version 5 is what is written since 0.3.19: `knos bundle make`, `knos receipt mirror`, the relay's attestation of a
+payment and the receipt `knos attest` leaves for a run that paid nothing all write it (`build5` over the version 4
+receipt, so the level is computed and never typed). `knos bundle make --terms3 FILE` reads the declared control
+relationships from the Knos Terms 3 document the order cites, and refuses a document the order does not cite; a run
+of `knos attest` reads them from the repository's own copy of that document. Without one, nothing is declared.
+`knos bundle verify` takes versions 2 to 5, and so do the webhook verifiers (`integrations/webhook`). One version 5
+receipt of a public payment has been written (0.3.19): `knos bundle make` of an order a neutral attest.yml run in
+drexthealpha/knos-attest judged again and [paid](https://explorer.solana.com/tx/3i37jK6P7hWyMntNgEKT3TsiSQQcHzNh7Dku4zsZC3m1E53ynAJZvzBgKUyahH7C9eH2A6ctRHwuSdTSqFkWfGND?cluster=devnet).
+Its evaluator entry says `reexecuted: true`, and its level is `reported`, not `rerun`: the run's owner and starter
+and the payee are one GitHub account, the only one Knos's release run has. No `rerun` receipt exists yet.
+
+- Schema: [`docs/receipt/acceptance-receipt.v5.schema.json`](receipt/acceptance-receipt.v5.schema.json).
+- Conformance vectors: [`docs/receipt/vectors.v5.json`](receipt/vectors.v5.json): seven to accept, each with its
+  level, and twelve to refuse (a level typed higher or lower than the evidence gives, `attested`, a trusted party
+  left out, a declared relationship dropped or added, a malformed group).
+
 ## Version 4
 
 Versions 1 to 3 are receipts of one thing: an accepted deliverable that was paid. Version 4 is a receipt of an

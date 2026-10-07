@@ -160,13 +160,12 @@
    "say": [
     "0.30%",
     "0.20%",
-    "0.10%",
     "0.05"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Acceptance: 0.30% of a dollar released or reconciled against a signed acceptance, paid by the funder on top; by contract 0.20% of a month's value above 1M and 0.10% above 10M, marginal; floor 0.05 USD; no cap. It replaces the Settle and Verify lines of the last price book; the row every document and the pricing page repeat (src/knos/billing.py BOOK, tests/data/billing_vectors.json)",
+   "what": "the price book, Acceptance: 0.30% of a dollar released or reconciled against a signed acceptance, paid by the funder on top; by contract 0.20% of a month's value above 1M, marginal, and never lower; outcomes under 20 USD netted into one release per payee per period with the 0.05 floor once; no cap. It replaces the Settle and Verify lines of the last price book; the row every document and the pricing page repeat (src/knos/billing.py BOOK, tests/data/billing_vectors.json)",
    "file": "docs/MARKET.md",
-   "has": "| Acceptance | dollar released or reconciled against a signed acceptance | 0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap | funder, on top of the amount | knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain) |"
+   "has": "| Acceptance | dollar released or reconciled against a signed acceptance | 0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap | funder, on top of the amount | knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain) |"
   },
   {
    "say": [
@@ -488,18 +487,18 @@
     "10,000,000"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the billing rule's volume rates, by contract and marginal: the first 1,000,000 USD of a month's accepted value pays 0.30%, what lies between 1,000,000 and 10,000,000 pays 0.20%, what lies above pays 0.10%, value released on chain lying first; a proposal nobody has bought (src/knos/billing.py computes it)",
+   "what": "the billing rule's volume rates, by contract and marginal: the first 1,000,000 USD of a month's accepted value pays 0.30% and what lies above it pays 0.20%, never less, value released on chain lying first; a proposal nobody has bought (src/knos/billing.py computes it)",
    "file": "src/knos/billing.py",
-   "has": "ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal(\"0.0020\")), (Decimal(10_000_000), Decimal(\"0.0010\")))"
+   "has": "ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal(\"0.0020\")))"
   },
   {
    "say": [
-    "0.25"
+    "0.10"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Record: 0.25 USD a lookup of a supplier's delivery record through the hosted API, or by subscription; the public record page and its file are free; the API is not built. (The last price book's fee for connecting a supplier is gone: connecting a supplier costs nothing.)",
+   "what": "the price book, Record: 0.10 USD a lookup of a supplier's delivery record through the machine-priced API, paid per call by the caller; the public record page and its file stay free; the API is not built. (The last price book's fee for connecting a supplier is gone: connecting a supplier costs nothing.)",
    "file": "docs/MARKET.md",
-   "has": "| Record | lookup of a supplier's delivery record through the hosted API | 0.25 USD, or by subscription (the public record page and its file are free) | the buyer, marketplace or insurer reading it | API (not built: a static file today) |"
+   "has": "| Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | API (not built: a static file today) |"
   },
   {
    "say": [
@@ -962,6 +961,34 @@
   },
   {
    "say": [
+    "0.000025"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "AWS Bedrock AgentCore Policy: an authorization request 0.000025 USD; writing a policy from natural language 0.13 USD per 1,000 input tokens",
+   "source": "https://aws.amazon.com/bedrock/agentcore/pricing/",
+   "read": "2026-10-07"
+  },
+  {
+   "say": [
+    "0.7%"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "Stripe Billing, pay as you go: 0.7% of billing volume; basic usage-based billing through its Meters API is part of that price, with up to 100M events a month included",
+   "source": "https://stripe.com/billing/pricing",
+   "read": "2026-10-07"
+  },
+  {
+   "say": [
+    "0.03",
+    "0.016"
+   ],
+   "doc": "docs/MARKET.md",
+   "what": "MergePay: no platform fee; a relayer fee the funder sets, 0.03 USD an award by default, against about 0.016 USD of gas an award",
+   "source": "https://mergepay.fun",
+   "read": "2026-10-07"
+  },
+  {
+   "say": [
     "16,332"
    ],
    "doc": "docs/UNIT_COSTS.md",
@@ -999,12 +1026,12 @@
   },
   {
    "say": [
-    "3,173"
+    "3,366"
    ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37582988812 on drexthealpha/knos-rc d20ac1982bdd7c44ba37645ffb47eda114fa4032, the staging tree of this release: 3173 passed, 50 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37582988812",
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37641127012 on drexthealpha/knos-rc 5489135d9b64629ee2106136bc3522b0d4fd77f5, the staging tree of this release: 3366 passed, 51 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37641127012",
    "json": "docs/bench.json",
    "path": "release.tests_passing.value",
-   "equals": 3173
+   "equals": 3366
   }
  ]
 }

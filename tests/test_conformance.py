@@ -31,13 +31,14 @@ KIT_1 = {
     "statement": "d0fbcb03167af48c8a3d0249bb5fa582af5d84fb744716a6cf996ffbce5b5b50",
 }
 # What the JavaScript client does not do (conformance/impl/knos_js.mjs says why); every other operation it passes.
-JS_NOT_IMPLEMENTED = {"receipt.check", "receipt.verdict", "statement.text"}
+JS_NOT_IMPLEMENTED = {"receipt.check", "receipt.verdict", "receipt.assurance", "statement.text"}
 
 
 def test_the_vectors_are_the_ones_kit_version_1_names_and_every_case_is_well_formed():
     m = kit.manifest()
     named = {e["format"]: e["sha256"] for e in m["formats"]}
-    assert m["kit"] == 3 and {k: named[k] for k in KIT_1} == KIT_1 and set(named) - set(KIT_1) == {"receipt4", "ids", "ledger2"}     # versions 2 and 3 added three, changed none
+    assert m["kit"] == 4 and {k: named[k] for k in KIT_1} == KIT_1 and set(named) - set(KIT_1) == {"receipt4", "receipt5", "ids", "ledger2"}     # versions 2 to 4 added four, changed none
+    assert named["receipt4"] == "8a7541ea1e249d438ae6e07572082e754087c62c275de57451fe6152975d8dc2"                # version 5 of the receipt did not touch version 4's vectors
     todo = kit.cases()
     assert len({c["id"] for c in todo}) == len(todo) == sum(e["cases"] for e in m["formats"])
     for e in m["formats"]:

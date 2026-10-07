@@ -1,0 +1,7 @@
+# What the faucet job installs (worker.yml, job `faucet`): what a job that holds a key installs (sign.in), and the memory
+# engine, in which the faucet keeps its journal (knos.faucet, knos.proof.history). Each by its hash, and nothing else.
+#
+# Compile again after any change here, and at every release:
+#   uv pip compile requirements/faucet.in --generate-hashes --python-version 3.12 --no-config -o requirements/faucet.txt
+-r sign.in
+sibyl-memory-client>=0.8.1

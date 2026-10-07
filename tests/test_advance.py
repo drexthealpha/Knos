@@ -21,7 +21,7 @@ from knos.settle.v2 import pay  # noqa: E402
 
 AMOUNT, HOLDBACK, WARRANTY = 100 * USDC, 2000, 30          # an order of 100 test USDC, a fifth held back for 30 days
 NOW, LATER = AMOUNT * (10_000 - HOLDBACK) // 10_000, AMOUNT * HOLDBACK // 10_000
-PRICE = AMOUNT * 200 // 10_000                             # the financier's price in this example: 2% (the price book says 1 to 3%)
+PRICE = AMOUNT * 200 // 10_000                             # the financier's price in this example: 2% (the financier sets it, not Knos)
 
 
 def assign(c: OrderChain, signer: Keypair, order: Pubkey, who: int, to: Pubkey) -> bool:

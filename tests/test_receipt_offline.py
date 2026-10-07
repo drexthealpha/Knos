@@ -138,7 +138,7 @@ def doc(files: dict, name: str) -> dict:
 
 def test_the_receipt_built_on_the_harness_records_the_funding_and_the_judge(made):
     r, files, _blob, paid = made
-    assert receipt.check(r) is None and r["version"] == 4 and receipt.authorises_payment(r) and r["cluster"] == "localnet" and int(r["amounts"]["paid"]) == paid == 20 * USDC
+    assert receipt.check(r) is None and r["version"] == 5 and receipt.as4(r)["version"] == 4 and r["assurance"] == receipt.assurance_of(receipt.as4(r)) and receipt.authorises_payment(r) and r["cluster"] == "localnet" and int(r["amounts"]["paid"]) == paid == 20 * USDC
     part = r["commercial_authorisation"]
     assert part["funder"] == {"github_id": MAINT, "login": "mona", "wallet": None}          # the id the chain logged, the login its funding token carried
     assert part["source"]["kind"] == "balance" and part["source"]["owner_id"] == OWNER and part["role"] == "spender"
@@ -211,7 +211,7 @@ def test_the_issuer_s_live_key_list_is_used_when_the_network_is_there_and_a_rota
 def _receipt(files: dict, edit) -> bytes:
     r = doc(files, "receipt.json")
     edit(r)
-    if r.get("version") == 4:       # whoever edits a version 4 receipt writes the ids its new fields give, or it is refused for those alone
+    if r.get("version") in (4, 5):       # whoever edits a version 4 or 5 receipt writes the ids its new fields give, or it is refused for those alone
         r["ids"] = receipt.ids_of(r, r["commercial_authorisation"]["deliverable"]["milestone"], r["ids"]["invoice_line"])
     return bundle._json(r)
 

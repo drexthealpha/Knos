@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "hamming",
+ "title": "Count the bits in which two numbers differ",
+ "statement": "Test USDC, no monetary value.\n\nRead one line with two whole numbers from 0 up, separated by a space; each may be as large as 2 to the power 64. Print how many binary digits differ between them.",
+ "file": "tasks/hamming.py",
+ "run": [
+  "python3",
+  "tasks/hamming.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "1 4",
+   "output": "2"
+  },
+  {
+   "input": "7 7",
+   "output": "0"
+  },
+  {
+   "input": "0 255",
+   "output": "8"
+  }
+ ],
+ "seed": 120,
+ "starting_files": {
+  "tasks/hamming.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

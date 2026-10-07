@@ -1,0 +1,1036 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/drexthealpha/Knos/blob/main/docs/receipt/acceptance-receipt.v5.schema.json",
+ "title": "Knos acceptance receipt, version 5",
+ "description": "Version 4, with `assurance`: how much was verified (reported, rerun, agreed; attested is defined and no receipt may say it yet), who is still trusted at that level, and the groups of account ids the terms declare to be one party. The level is computed from the receipt's own evidence (knos.receipt.assurance_of); a schema cannot say that rule, `check` does.",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "amendments",
+  "amounts",
+  "assurance",
+  "cluster",
+  "commercial_authorisation",
+  "disputed",
+  "evaluator_observed",
+  "evidence_source",
+  "ids",
+  "issuer_authenticated",
+  "limitations",
+  "order",
+  "payees",
+  "policy",
+  "program",
+  "repository",
+  "scope",
+  "transaction",
+  "trust_remaining",
+  "type",
+  "version"
+ ],
+ "properties": {
+  "type": {
+   "const": "knos.acceptance-receipt"
+  },
+  "version": {
+   "const": 5
+  },
+  "cluster": {
+   "enum": [
+    "devnet",
+    "mainnet-beta",
+    "localnet"
+   ]
+  },
+  "program": {
+   "type": "string",
+   "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+  },
+  "order": {
+   "type": "string",
+   "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+  },
+  "scope": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "repository": {
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "id",
+      "issue"
+     ],
+     "properties": {
+      "id": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "issue": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    }
+   ]
+  },
+  "issuer_authenticated": {
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "description": "1. What the issuer authenticated: the host signed which workflow file at which commit ran in which repository for which event, and when; knos_oidc verified that signature on chain in `verified.transaction`.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "claims",
+      "issuer",
+      "provider",
+      "token_sha256",
+      "verified"
+     ],
+     "properties": {
+      "provider": {
+       "enum": [
+        "github",
+        "gitlab"
+       ]
+      },
+      "issuer": {
+       "type": "string",
+       "pattern": "^https://"
+      },
+      "claims": {
+       "oneOf": [
+        {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "actor_id",
+          "event_name",
+          "exp",
+          "iat",
+          "job_workflow_ref",
+          "job_workflow_sha",
+          "repository_id",
+          "repository_owner_id",
+          "run_attempt",
+          "run_id",
+          "runner_environment"
+         ],
+         "properties": {
+          "actor_id": {
+           "type": "string"
+          },
+          "event_name": {
+           "type": "string"
+          },
+          "exp": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "iat": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "job_workflow_ref": {
+           "type": "string"
+          },
+          "job_workflow_sha": {
+           "type": "string",
+           "pattern": "^[0-9a-f]{40}$"
+          },
+          "repository_id": {
+           "type": "string"
+          },
+          "repository_owner_id": {
+           "type": "string"
+          },
+          "run_attempt": {
+           "const": "1"
+          },
+          "run_id": {
+           "type": "string"
+          },
+          "runner_environment": {
+           "const": "github-hosted"
+          }
+         }
+        },
+        {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "ci_config_ref_uri",
+          "ci_config_sha",
+          "exp",
+          "iat",
+          "namespace_id",
+          "pipeline_id",
+          "pipeline_source",
+          "project_id",
+          "project_path",
+          "ref",
+          "ref_path",
+          "ref_protected",
+          "ref_type",
+          "runner_environment",
+          "sha",
+          "user_id"
+         ],
+         "properties": {
+          "ci_config_ref_uri": {
+           "type": "string"
+          },
+          "ci_config_sha": {
+           "type": "string",
+           "pattern": "^[0-9a-f]{40}$"
+          },
+          "exp": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "iat": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "namespace_id": {
+           "type": "string",
+           "pattern": "^[1-9][0-9]{0,16}$"
+          },
+          "pipeline_id": {
+           "type": "string"
+          },
+          "pipeline_source": {
+           "const": "pipeline"
+          },
+          "project_id": {
+           "type": "string",
+           "pattern": "^[1-9][0-9]{0,16}$"
+          },
+          "project_path": {
+           "type": "string",
+           "minLength": 1
+          },
+          "ref": {
+           "type": "string"
+          },
+          "ref_path": {
+           "type": "string",
+           "minLength": 1
+          },
+          "ref_protected": {
+           "const": "true"
+          },
+          "ref_type": {
+           "const": "branch"
+          },
+          "runner_environment": {
+           "const": "gitlab-hosted"
+          },
+          "sha": {
+           "type": "string",
+           "pattern": "^[0-9a-f]{40}$"
+          },
+          "user_id": {
+           "type": "string",
+           "pattern": "^[1-9][0-9]{0,16}$"
+          }
+         }
+        }
+       ]
+      },
+      "token_sha256": {
+       "type": "string",
+       "pattern": "^[0-9a-f]{64}$"
+      },
+      "verified": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "key",
+        "program",
+        "transaction"
+       ],
+       "properties": {
+        "program": {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+        },
+        "key": {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+        },
+        "transaction": {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "evaluator_observed": {
+   "description": "2. What the evaluator observed: the pinned judge's verdict, the named checks and their conclusions, the accepted commit and pull request, and the judge's version (the commit of its workflow); and, recorded not asserted, who controls each judge that spoke: its repository, that repository's owner, who started the run, the kind of runner, and whether owner and starter are other accounts than the buyer's and the seller's.",
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "artifact",
+    "checks",
+    "evaluators",
+    "independence",
+    "judge",
+    "same_controller",
+    "verdict"
+   ],
+   "properties": {
+    "judge": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "kind",
+      "version"
+     ],
+     "properties": {
+      "kind": {
+       "enum": [
+        "repository",
+        "neutral",
+        "attestor",
+        "arbiter"
+       ]
+      },
+      "version": {
+       "type": "string",
+       "pattern": "^[0-9a-f]{40}$"
+      }
+     }
+    },
+    "verdict": {
+     "enum": [
+      "accepted",
+      "rejected",
+      "insufficient_evidence",
+      "disputed"
+     ],
+     "description": "accepted is the only verdict that authorises payment. insufficient_evidence: the run could not tell; never an acceptance, never the supplier's failure. disputed: contested and not resolved."
+    },
+    "checks": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "conclusion",
+       "name"
+      ],
+      "properties": {
+       "name": {
+        "type": "string",
+        "minLength": 1
+       },
+       "conclusion": {
+        "enum": [
+         "passed",
+         "failed",
+         "missing"
+        ]
+       }
+      }
+     }
+    },
+    "artifact": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "commit",
+      "pull_request"
+     ],
+     "properties": {
+      "commit": {
+       "type": "string",
+       "pattern": "^[0-9a-f]{40}$"
+      },
+      "pull_request": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    },
+    "evaluators": {
+     "description": "The judges that spoke, the one whose token paid last. independent_of_buyer and independent_of_seller are computed from the ids (knos.receipt.evaluator); independent_of_buyer is null when the buyer is a wallet, which has no account id.",
+     "type": "array",
+     "minItems": 0,
+     "maxItems": 3,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "actor_id",
+       "independent_of_buyer",
+       "independent_of_seller",
+       "kind",
+       "owner_id",
+       "repository_id",
+       "runner"
+      ],
+      "properties": {
+       "kind": {
+        "enum": [
+         "repository",
+         "neutral",
+         "attestor",
+         "arbiter"
+        ]
+       },
+       "repository_id": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "owner_id": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "actor_id": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "runner": {
+        "type": "string",
+        "description": "The token's runner_environment: github-hosted, or self-hosted."
+       },
+       "independent_of_buyer": {
+        "type": [
+         "boolean",
+         "null"
+        ]
+       },
+       "independent_of_seller": {
+        "type": "boolean"
+       }
+      }
+     }
+    },
+    "same_controller": {
+     "description": "True when two of the judges share an owner or a starter: two accounts run by one person are one judge.",
+     "type": "boolean"
+    },
+    "independence": {
+     "description": "The sentence knos.receipt.independence_of gives for these judges.",
+     "type": "string",
+     "minLength": 1
+    }
+   }
+  },
+  "policy": {
+   "description": "3. Which policy produced the verdict: the hash of the terms fixed at funding, the mode, the allowed and denied paths and the terms' version (null when the terms are not public).",
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "allowed_paths",
+    "denied_paths",
+    "mode",
+    "terms_hash",
+    "version"
+   ],
+   "properties": {
+    "terms_hash": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    "mode": {
+     "enum": [
+      "merge",
+      "tests"
+     ]
+    },
+    "allowed_paths": {
+     "oneOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "uniqueItems": true
+      }
+     ]
+    },
+    "denied_paths": {
+     "oneOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "uniqueItems": true
+      }
+     ]
+    },
+    "version": {
+     "enum": [
+      1,
+      null
+     ]
+    }
+   }
+  },
+  "commercial_authorisation": {
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "description": "4. Who authorised the money, and under which limit: who funded (a GitHub account, by id and by the login its funding token carried, or a wallet), from what (a wallet, an organisation's Balance and its owner, a passkey wallet), the Balance's limits when it funded, whether the funder was the Balance's owner or a listed spender, and whether this deliverable (order and milestone) was paid before.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "billed_before",
+      "deliverable",
+      "funded",
+      "funder",
+      "limit",
+      "role",
+      "source"
+     ],
+     "properties": {
+      "funder": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "github_id",
+        "login",
+        "wallet"
+       ],
+       "properties": {
+        "github_id": {
+         "oneOf": [
+          {
+           "type": "integer",
+           "minimum": 1
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "login": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "minLength": 1
+        },
+        "wallet": {
+         "oneOf": [
+          {
+           "type": "string",
+           "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       }
+      },
+      "source": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "address",
+        "kind",
+        "owner_id"
+       ],
+       "properties": {
+        "kind": {
+         "enum": [
+          "wallet",
+          "balance",
+          "passkey"
+         ]
+        },
+        "address": {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+        },
+        "owner_id": {
+         "oneOf": [
+          {
+           "type": "integer",
+           "minimum": 1
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       }
+      },
+      "limit": {
+       "description": "The Balance's cap for one order, daily and total limits (0: none of that kind) and repository allow-list when it funded; \"no limit set\"; or null when the records read do not have them.",
+       "oneOf": [
+        {
+         "const": "no limit set"
+        },
+        {
+         "type": "null"
+        },
+        {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "cap_per_order",
+          "daily",
+          "repositories",
+          "total"
+         ],
+         "properties": {
+          "cap_per_order": {
+           "type": "string",
+           "pattern": "^(0|[1-9][0-9]{0,19})$"
+          },
+          "daily": {
+           "type": "string",
+           "pattern": "^(0|[1-9][0-9]{0,19})$"
+          },
+          "total": {
+           "type": "string",
+           "pattern": "^(0|[1-9][0-9]{0,19})$"
+          },
+          "repositories": {
+           "type": "array",
+           "items": {
+            "type": "integer",
+            "minimum": 1
+           },
+           "uniqueItems": true
+          }
+         }
+        }
+       ]
+      },
+      "role": {
+       "enum": [
+        "owner",
+        "spender",
+        "wallet",
+        "passkey"
+       ]
+      },
+      "deliverable": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "milestone",
+        "order"
+       ],
+       "properties": {
+        "order": {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+        },
+        "milestone": {
+         "type": "integer",
+         "minimum": 0
+        }
+       }
+      },
+      "billed_before": {
+       "description": "False, or the signature of the earlier transaction that paid this order and milestone.",
+       "oneOf": [
+        {
+         "const": false
+        },
+        {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+        }
+       ]
+      },
+      "funded": {
+       "description": "The funding transaction, or null when the history read does not reach it.",
+       "oneOf": [
+        {
+         "type": "string",
+         "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "trust_remaining": {
+   "description": "5. What trust remains, in plain words: exactly the list knos.receipt.trust_of gives for this provider, mode and judge.",
+   "type": "array",
+   "minItems": 2,
+   "items": {
+    "type": "string"
+   }
+  },
+  "amendments": {
+   "description": "Every change of the order's terms between its funding and this payment, oldest first, each with its transaction.",
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "detail",
+     "kind",
+     "time",
+     "transaction"
+    ],
+    "properties": {
+     "kind": {
+      "enum": [
+       "topup",
+       "assign",
+       "reserve",
+       "cancel",
+       "plan"
+      ]
+     },
+     "transaction": {
+      "type": "string",
+      "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+     },
+     "time": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "detail": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  },
+  "payees": {
+   "type": "array",
+   "minItems": 0,
+   "maxItems": 4,
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "amount",
+     "bps",
+     "github_id",
+     "to"
+    ],
+    "properties": {
+     "github_id": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "bps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000
+     },
+     "amount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+     },
+     "to": {
+      "type": "string",
+      "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+     }
+    }
+   }
+  },
+  "amounts": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "decimals",
+    "fee",
+    "mint",
+    "of",
+    "paid",
+    "tip"
+   ],
+   "properties": {
+    "mint": {
+     "type": "string",
+     "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+    },
+    "decimals": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 18
+    },
+    "paid": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "of": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "fee": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "tip": {
+     "type": "string",
+     "pattern": "^(0|[1-9][0-9]{0,19})$"
+    }
+   }
+  },
+  "transaction": {
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "signature",
+      "slot",
+      "time"
+     ],
+     "properties": {
+      "signature": {
+       "type": "string",
+       "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+      },
+      "slot": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "time": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    }
+   ]
+  },
+  "ids": {
+   "description": "The four ids (knos.ids). deliverable: the order and the milestone. evaluation: that deliverable, the commit, the terms' hash, the evaluator as <judge>@<version> and the run. invoice_line: the supplier's line, null when none is known. settlement: the paying transaction, null when nothing was paid.",
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "deliverable",
+    "evaluation",
+    "invoice_line",
+    "settlement"
+   ],
+   "properties": {
+    "deliverable": {
+     "type": "string",
+     "pattern": "^dlv_[0-9a-f]{24}$"
+    },
+    "evaluation": {
+     "type": "string",
+     "pattern": "^evl_[0-9a-f]{24}$"
+    },
+    "invoice_line": {
+     "oneOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "string",
+       "pattern": "^inv_[0-9a-f]{24}$"
+      }
+     ]
+    },
+    "settlement": {
+     "oneOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "string",
+       "pattern": "^stl_[0-9a-f]{24}$"
+      }
+     ]
+    }
+   }
+  },
+  "evidence_source": {
+   "description": "What the verdict rests on: a token the issuer signed and knos_oidc verified (reference: its sha256, signed_by: its issuer), or the run's own record, signed by nobody (reference: the record's sha256 or null, signed_by null).",
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "kind",
+    "reference",
+    "signed_by"
+   ],
+   "properties": {
+    "kind": {
+     "enum": [
+      "issuer_token",
+      "run_record"
+     ]
+    },
+    "reference": {
+     "oneOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "string",
+       "pattern": "^[0-9a-f]{64}$"
+      }
+     ]
+    },
+    "signed_by": {
+     "oneOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "string",
+       "pattern": "^https://"
+      }
+     ]
+    }
+   }
+  },
+  "limitations": {
+   "description": "What this evidence does not show, in plain sentences: first the ones that follow from the receipt (knos.receipt.limitations_of), then at most eight of the writer's own.",
+   "type": "array",
+   "minItems": 4,
+   "maxItems": 14,
+   "items": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 400
+   }
+  },
+  "disputed": {
+   "description": "null unless the verdict is disputed: who contested, when, why, and the receipt contested (its sha256, and the verdict it gave).",
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "by",
+      "at",
+      "reason",
+      "contests"
+     ],
+     "properties": {
+      "by": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "role",
+        "id"
+       ],
+       "properties": {
+        "role": {
+         "enum": [
+          "buyer",
+          "supplier",
+          "evaluator",
+          "other"
+         ]
+        },
+        "id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 100
+        }
+       }
+      },
+      "at": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "reason": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 500
+      },
+      "contests": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "sha256",
+        "verdict"
+       ],
+       "properties": {
+        "sha256": {
+         "type": "string",
+         "pattern": "^[0-9a-f]{64}$"
+        },
+        "verdict": {
+         "enum": [
+          "accepted",
+          "rejected",
+          "insufficient_evidence"
+         ]
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "assurance": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "declared_related",
+    "level",
+    "trusted"
+   ],
+   "properties": {
+    "level": {
+     "enum": [
+      "reported",
+      "rerun",
+      "agreed"
+     ]
+    },
+    "trusted": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string"
+     }
+    },
+    "declared_related": {
+     "type": "array",
+     "maxItems": 16,
+     "items": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    }
+   }
+  }
+ }
+}

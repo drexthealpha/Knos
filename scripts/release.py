@@ -16,6 +16,12 @@ docs/RELEASE.md is the plan; this is what it runs.
                                                 release.yml's question before it publishes a crate or the npm package:
                                                 is its version one this release may publish, and does the registry
                                                 lack it? Exit 1 only for a version that is neither the tag's nor held
+    python scripts/release.py registry-plan [--online]
+                                                with no package named: everything this repository would publish to
+                                                crates.io and npm, at which version, whether each packs here with
+                                                no network, and whether its README survives leaving the repository
+                                                (every link absolute). It publishes nothing. --online also asks each
+                                                registry whether the name is free or which versions it has
     python scripts/release.py held NAME         the version scripts/bump_version.py holds a crate at; nothing when it
                                                 moves with the release
 
@@ -353,6 +359,73 @@ def registry_plan_cmd(registry: str, name: str, tag: str) -> int:
     return code
 
 
+# ---- everything that would be published, in one plan ------------------------------------------------------------------------
+PACKAGES = (("crates", "knos-oidc-interface"), ("crates", "knos-pay-interface"), ("npm", "knos-settle"))
+OWNERS = {"crates": "cargo owner --list {name}", "npm": "npm owner ls {name}"}
+PUBLISH = {"crates": "cargo publish --manifest-path crates/{name}/Cargo.toml", "npm": "npm publish ./sdk/settle --access public"}
+
+
+def package_dir(registry: str, name: str, root: Path = ROOT) -> Path:
+    return root / "crates" / name if registry == "crates" else root / "sdk" / "settle"
+
+
+def relative_links(text: str) -> list[str]:
+    """The link and image targets of a Markdown page that only work inside the repository: a registry shows the page
+    alone, so each must be a whole URL (or an anchor of the page itself)."""
+    return [t for t in re.findall(r"\]\(([^)\s]+)", text) if not re.match(r"(https?://|mailto:|#)", t)]
+
+
+def pack_check(registry: str, name: str, root: Path = ROOT, run=subprocess.run) -> tuple[bool, str]:
+    """Does the package pack here with no network? crates: `cargo package --offline --no-verify` into a temporary
+    target folder (`cargo publish --dry-run` asks the registry, so it is the release run's command and not this one's);
+    npm: `npm pack --dry-run`. (it packs, what was said)."""
+    where = package_dir(registry, name, root)
+    with tempfile.TemporaryDirectory() as tmp:
+        if registry == "crates":
+            cmd = ["cargo", "package", "--offline", "--allow-dirty", "--no-verify", "--target-dir", tmp]
+        else:
+            cmd = ["npm", "pack", "--dry-run", "--json", "--offline"]
+        try:
+            r = run(cmd, cwd=where, capture_output=True, text=True, encoding="utf-8", timeout=150)
+        except (OSError, subprocess.TimeoutExpired) as failed:
+            return False, f"`{' '.join(cmd[:2])}` could not run here ({type(failed).__name__})"
+    if r.returncode != 0:
+        return False, f"`{' '.join(cmd[:4])}` failed: {(r.stderr or r.stdout).strip().splitlines()[-1:] or ['no output']}"
+    if registry == "crates":
+        found = re.search(r"Packaged (\d+) files", r.stderr + r.stdout)
+        return True, f"packs offline ({found.group(1)} files)" if found else "packs offline"
+    return True, f"packs offline ({len(json.loads(r.stdout)[0]['files'])} files)"
+
+
+def registry_overview(online: bool = False, fetch=None, run=subprocess.run, root: Path = ROOT) -> tuple[int, list[str]]:
+    """(exit status, lines): every package, where it would go, at which version, and whether it is ready. Red when one
+    does not pack, has a README link that breaks outside the repository, or (online) a registry did not answer."""
+    code, lines = 0, ["What a release would publish. Nothing is published by this command."]
+    for registry, name in PACKAGES:
+        where, version, at = REGISTRIES[registry], own_version(registry, name, root), held(name)
+        lines.append(f"{name} {version} -> {where}" + (f" (held at {at} by scripts/bump_version.py: a version is in a build's bytes)" if at else " (moves with the release)"))
+        ok, said = pack_check(registry, name, root, run)
+        broken = relative_links((package_dir(registry, name, root) / "README.md").read_text(encoding="utf-8"))
+        code |= 0 if ok and not broken else 1
+        lines.append(f"  pack    {'ok' if ok else 'FAILED'}: {said}")
+        lines.append("  README  ok: every link is absolute" if not broken else f"  README  FAILED: {len(broken)} links work only inside the repository: {', '.join(broken[:5])}")
+        if online:
+            try:
+                have = on_registry(registry, name, fetch)
+            except (OSError, ValueError, KeyError) as failed:
+                code, have = 1, None
+                lines.append(f"  name    FAILED: {where} did not answer ({failed})")
+            else:
+                lines.append(f"  name    free on {where}: the first version is published by hand" if have is None else
+                             f"  name    on {where} with {', '.join(sorted(have))}: check that it is ours with `{OWNERS[registry].format(name=name)}`"
+                             + ("" if version not in have else f"; {version} is already there, nothing to publish"))
+        else:
+            lines.append(f"  name    not asked here (no network). The release run: python scripts/release.py registry-plan --online; then `{OWNERS[registry].format(name=name)}`")
+        lines.append(f"  publish `{PUBLISH[registry].format(name=name)}`" + (" (first `cargo publish --dry-run` with the same path)" if registry == "crates" else " (first `npm pack --dry-run ./sdk/settle`)"))
+    lines.append("ready: every package packs and every README link is absolute." if code == 0 else "NOT ready: see FAILED above.")
+    return code, lines
+
+
 def publish_cmd() -> int:
     locked = lock_hash()
     if locked is None:
@@ -400,9 +473,10 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--dist", help="a folder whose wheel must be that file too")
     check.add_argument("--wait", type=int, default=0, help="seconds to keep asking while PyPI does not show the release")
     plan = sub.add_parser("registry-plan", help="may this release publish the package at its own version, and does the registry lack it")
-    plan.add_argument("registry", choices=sorted(REGISTRIES))
-    plan.add_argument("name")
-    plan.add_argument("--tag", required=True, help="the release's tag, vX.Y.Z")
+    plan.add_argument("registry", nargs="?", choices=sorted(REGISTRIES), help="with a name and --tag: one package; with nothing: the whole plan")
+    plan.add_argument("name", nargs="?")
+    plan.add_argument("--tag", help="the release's tag, vX.Y.Z (with a registry and a name)")
+    plan.add_argument("--online", action="store_true", help="the whole plan: also ask each registry whether the name is free")
     sub.add_parser("held", help="the version scripts/bump_version.py holds a crate at; nothing when it moves with the release").add_argument("name")
     a = ap.parse_args(argv)
     if a.command == "wheel":
@@ -414,6 +488,12 @@ def main(argv: list[str] | None = None) -> int:
     if a.command == "publish":
         return publish_cmd()
     if a.command == "registry-plan":
+        if a.registry is None:
+            code, lines = registry_overview(a.online)
+            print("\n".join(lines))
+            return code
+        if not a.name or not a.tag:
+            ap.error("registry-plan takes a registry, a name and --tag, or nothing at all")
         return registry_plan_cmd(a.registry, a.name, a.tag)
     if a.command == "held":
         print(held(a.name) or "")

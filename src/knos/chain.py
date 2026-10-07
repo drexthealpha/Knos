@@ -304,11 +304,19 @@ class Ledger:
         got = call(self.url, "getSignaturesForAddress", [str(address), {"limit": 1, "commitment": self.commitment}]) or []
         return got[0].get("blockTime") if got else None
 
+    def _transaction(self, signature: str) -> dict:
+        """One transaction as the cluster gives it (version 1 included); {} when the cluster no longer has it."""
+        return call(self.url, "getTransaction", [signature, {"encoding": "json", "commitment": self.commitment,
+                                                             "maxSupportedTransactionVersion": 1}], timeout=20) or {}
+
     def logs(self, signature: str) -> list[str]:
         """What the programs logged in one transaction, line by line; empty when the cluster no longer has it."""
-        got = call(self.url, "getTransaction", [signature, {"encoding": "json", "commitment": self.commitment,
-                                                            "maxSupportedTransactionVersion": 1}], timeout=20)
-        return list(((got or {}).get("meta") or {}).get("logMessages") or [])
+        return list((self._transaction(signature).get("meta") or {}).get("logMessages") or [])
+
+    def payer_of(self, signature: str) -> str | None:
+        """The fee payer of one transaction (its first account); None when the cluster no longer has it."""
+        keys = ((self._transaction(signature).get("transaction") or {}).get("message") or {}).get("accountKeys") or []
+        return str(keys[0]) if keys else None
 
     def history(self, address: Pubkey, most: int = 500):
         """The successful transactions that touched `address`, newest first: a hundred of the cluster's rows a

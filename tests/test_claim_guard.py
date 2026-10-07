@@ -29,6 +29,7 @@ Thank you for the pull request. One thing to set straight, so that nobody waits 
 - Knos pays only orders funded with `/knos fund`, on Solana devnet, in test USDC that has no monetary value.
 - A payment goes to the Solana address or passkey its payee binds. An address on another chain cannot be paid.
 - Funded work is listed by `knos work list`. The playground shows a funded order from start to finish: https://github.com/drexthealpha/knos-playground
+- Funded tasks anyone may take carry the label `knos-funded` there: https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Aknos-funded
 
 This pull request is welcome as an ordinary, unpaid contribution if it is useful, and will be read as one."""
 
@@ -206,6 +207,21 @@ def test_the_command_line_reads_an_event_file_and_prints_no_word_of_the_claim(tm
     assert capsys.readouterr().out == "claims: 2 read (open issues and pull requests), 1 with a claim of payment\nclaims: #51 nothing (answered already)\n"
 
 
+def test_a_sweep_names_a_claim_shaped_item_it_never_answers_and_answers_nothing_more(capsys):
+    """0.3.19, live in staging: the worker's `claims` job read the maintainer's test issue (a claim's words, written
+    by the owner) and printed only "0 with a claim of payment", as if there were none. It still answers nothing
+    the repository's own people or a bot wrote; it now names each such item on the run's page, and no word of it."""
+    owner = _pull(8, user={"login": "drexthealpha", "type": "User"}, author_association="OWNER")
+    robot = _pull(9, user={"login": "renovate[bot]", "type": "Bot"}, author_association="NONE")
+    hub = Hub(LOG, owner, robot)
+    assert claim_guard.main(["--sweep", "--repo", REPO], run=_run(hub)) == 0
+    assert capsys.readouterr().out == (
+        "claims: 3 read (open issues and pull requests), 0 with a claim of payment\n"
+        "claims: #8 not answered (it reads as a claim, but this repository's own people or a bot wrote it)\n"
+        "claims: #9 not answered (it reads as a claim, but this repository's own people or a bot wrote it)\n")
+    assert hub.sent == [] and 8 not in hub.comments and 9 not in hub.comments
+
+
 def test_a_sweep_that_cannot_read_the_listing_says_so_and_fails(capsys):
     """Run on a timer, a sweep whose listing GitHub did not give must not end green and silent, like one that found
     nothing to answer: it says it read nothing and exits 1. The same when the listing is cut short."""
@@ -227,3 +243,96 @@ def test_a_sweep_that_cannot_read_the_listing_says_so_and_fails(capsys):
     hub = Many(LOG, _pull())
     assert claim_guard.main(["--sweep", "--repo", REPO], run=_run(hub)) == 1 and hub.sent == []
     assert capsys.readouterr().out == "claims: nothing (the open issues and pull requests could not be read whole)\n"
+
+
+# -- the always-on worker's sweep (0.3.19): GitHub's timer is the fallback ------------------------------------------------
+def _fork_pull(number: int = 7, **more) -> dict:
+    """A pull request from a fork that carries the claim, as the issues listing gives it."""
+    return _pull(number, author_association="FIRST_TIME_CONTRIBUTOR", head={"sha": "b" * 40, "repo": {"full_name": "someone-outside/Knos", "fork": True}}, **more)
+
+
+def test_the_worker_answers_a_fork_pull_request_on_its_next_pass_once_and_never_the_owner():
+    owner = _pull(8, user={"login": "drexthealpha", "type": "User"}, author_association="OWNER")
+    hub, said, swept = Hub(LOG, _fork_pull(), owner), [], {}
+    got = claim_guard.sweep_served(lambda repo: _run(hub), [REPO], swept, 1000.0, say=said.append)
+    assert [(r["repo"], r["number"], r["did"]) for r in got] == [(REPO, 7, "answered")] and swept == {REPO: 1000.0}
+    assert [c["body"] for c in hub.comments[7]] == [EXPECTED] and hub.labels == {7: ["no-order"]} and 8 not in hub.comments
+    assert said == [f"claims: {REPO}: 3 read (open issues and pull requests), 1 with a claim of payment",
+                    f"claims: {REPO}#7 answered (/attempt, /claim, /opire, an EVM address, a bounty platform)",
+                    f"claims: {REPO}#8 not answered (it reads as a claim, but this repository's own people or a bot wrote it)"]
+    # every later pass inside five minutes asks GitHub nothing at all; the pass after that reads, and posts no second answer
+    before, asked = list(hub.sent), []
+
+    def counted(repo):
+        asked.append(repo)
+        return _run(hub)
+    for now in (1003.0, 1150.0, 1299.9):
+        assert claim_guard.sweep_served(counted, [REPO], swept, now, say=said.append) == []
+    assert asked == [] and swept == {REPO: 1000.0}
+    again = claim_guard.sweep_served(counted, [REPO], swept, 1300.0, say=said.append)
+    assert asked == [REPO] and [(r["number"], r["why"]) for r in again] == [(7, "answered already")]
+    assert hub.sent == before and len(hub.comments[7]) == 1 and said[-2:] == [
+        f"claims: {REPO}#7 nothing (answered already)",
+        f"claims: {REPO}#8 not answered (it reads as a claim, but this repository's own people or a bot wrote it)"]
+
+
+def test_the_answer_links_the_funded_tasks_of_the_playground():
+    assert claim_guard.FUNDED == "https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Aknos-funded"
+    for pull in (True, False):
+        text = claim_guard.answer(pull, [], [30])
+        assert text.count(claim_guard.FUNDED) == 1 and "label `knos-funded`" in text and text.startswith(claim_guard.MARK)
+
+
+def test_a_worker_sweep_that_cannot_read_a_listing_fails_loudly_sweeps_the_rest_and_asks_again_in_a_minute():
+    class Down(Hub):
+        def __call__(self, path, data=None, method=None):
+            if "issues?state=open" in path:
+                raise OSError("HTTP Error 502: Bad Gateway")
+            return super().__call__(path, data, method)
+    down, up, said, swept = Down(LOG, _fork_pull()), Hub(LOG, _fork_pull()), [], {}
+    hubs = {"octo/down": down, REPO: up}
+    with pytest.raises(claim_guard.Unread) as err:
+        claim_guard.sweep_served(lambda repo: _run(hubs[repo]), list(hubs), swept, 5000.0, say=said.append)
+    assert "octo/down could not be read whole" in str(err.value) and "asked again in 60 seconds" in str(err.value)
+    assert [(r["repo"], r["did"]) for r in err.value.done] == [(REPO, "answered")] and down.sent == [] and len(up.comments[7]) == 1
+    assert swept[REPO] == 5000.0 and swept["octo/down"] == 5000.0 - 300 + 60
+    assert claim_guard.sweep_served(lambda repo: _run(hubs[repo]), list(hubs), swept, 5059.0, say=said.append) == []       # not yet
+    with pytest.raises(claim_guard.Unread):
+        claim_guard.sweep_served(lambda repo: _run(hubs[repo]), list(hubs), swept, 5060.0, say=said.append)
+
+
+def test_the_relays_pass_sweeps_only_where_it_may_write_through_its_own_reader_and_says_an_unread_listing_as_an_error(monkeypatch, capsys):
+    home = ghrelay.HOME_REPO
+    worker = {"GITHUB_REPOSITORY": home, "GITHUB_WORKFLOW_REF": f"{home}/.github/workflows/worker.yml@refs/heads/main"}
+    # the log repository's own worker sweeps in a job of its own that holds no key (worker.yml, `claims`): its pass names none
+    assert ghrelay.claim_repos({}) == set() and ghrelay.claim_repos(worker) == set()
+    assert ghrelay.claim_repos({"KNOS_CLAIM_REPOS": "octo/widgets, nonsense"}) == {"octo/widgets"}
+    monkeypatch.delenv("KNOS_CLAIM_REPOS", raising=False)
+    monkeypatch.delenv("KNOS_RELAY_STATUS", raising=False)
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    state: dict = {}
+    assert ghrelay._claims(state, 100.0, Chain()) == [] and state == {}         # anyone else's relay answers nothing and asks nothing
+    monkeypatch.setenv("KNOS_CLAIM_REPOS", REPO)
+    hub = Hub(LOG, _fork_pull())
+
+    class Reader:           # the worker's conditional reader: get and send, RuntimeError when GitHub says no
+        def get(self, path):
+            try:
+                return hub(path)
+            except OSError as why:
+                raise RuntimeError(str(why)) from None
+
+        def send(self, path, data, method="POST"):
+            return hub(path, data, method)
+    monkeypatch.setattr(ghrelay, "_HUB", Reader())
+    monkeypatch.setattr(flow.Run, "version", lambda self: 1)
+    got = ghrelay._claims(state, 100.0, Chain())
+    assert [(r["number"], r["did"]) for r in got] == [(7, "answered")] and state == {"claims": {REPO: 100.0}} and len(hub.comments[7]) == 1
+    assert ghrelay._claims(state, 130.0, Chain()) == [] and len(hub.sent) == 3      # the comment, the label, the label on the item: nothing since
+    hub.issues.clear()
+    monkeypatch.setattr(hub, "__class__", type("Down", (Hub,), {"__call__": lambda self, path, data=None, method=None: (_ for _ in ()).throw(OSError("502"))}))
+    capsys.readouterr()
+    assert ghrelay._claims(state, 400.0, Chain()) == []
+    err = capsys.readouterr().err
+    assert "::error title=claim guard::the open issues and pull requests of drexthealpha/Knos could not be read whole" in err
+    assert state["claims"][REPO] == 400.0 - 240

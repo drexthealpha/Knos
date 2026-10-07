@@ -288,8 +288,8 @@ def register(app) -> None:
         typer.echo(markdown(data, path.as_posix()))
 
     @app.command("record")
-    def record_cmd(who: str = typer.Argument(..., help="a GitHub login, or a GitHub user id; or `build <supplier>`, or `receipt <acceptance receipt file>`"),
-                   what: str = typer.Argument("", help="with `build`: the supplier's name; with `receipt`: the acceptance receipt's file"),
+    def record_cmd(who: str = typer.Argument(..., help="a GitHub login, or a GitHub user id; or `build <supplier>`, or `receipt <acceptance receipt file>`, or `serve <offer file>`"),
+                   what: str = typer.Argument("", help="with `build`: the supplier's name; with `receipt`: the acceptance receipt's file; with `serve`: the seller's offer"),
                    out: Path = typer.Option(None, "--out", help="build: the folder to write (default docs/records); receipt: the files' path without the ending"),
                    index: Path = typer.Option(Path("docs/index.json"), "--index", help="build: the Agent PR Index feed, for an agent it measures"),
                    events_log: Path = typer.Option(None, "--events", help="build: the events log to count work settled through Knos from (default: KNOS_EVENTS)"),
@@ -300,6 +300,10 @@ def register(app) -> None:
                    invoice: str = typer.Option("", "--invoice", help="receipt: the number of the invoice it goes with"),
                    as_json: bool = typer.Option(False, "--json", help="the record as JSON (what web/badge.js renderRecord reads)")) -> None:
         """A payee's record as knos_pay keeps it on Solana: paid, distinct funders, first and last, with test money and self-paid shown apart."""
+        if who == "serve":      # knos record serve <offer file>: the machine-priced API anyone can run (src/knos/record_api.py); Knos hosts none
+            # named and not imported: the relay reaches this module, and the server's store is the memory engine's, which a relay's install lacks
+            importlib.import_module("knos.record_api").main([what] if what else [])
+            return
         from . import cli
         if what and who in ("build", "receipt"):
             from . import events

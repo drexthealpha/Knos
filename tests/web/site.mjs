@@ -410,7 +410,7 @@ await reset();
   {
     const bar = () => page.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null && !a.closest("#more-list")).map((a) => a.textContent));
     const under = () => page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.textContent));
-    check("the bar: six links and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === "Check an invoice,Demo,Console,Leaderboard,Pricing,Docs" && (await page.$$eval("#nav > a", (l) => l.length)) === 6 && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
+    check("the bar: six links and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === "Check,Demo,Console,Leaderboard,Pricing,Docs" && (await page.$$eval("#nav > a", (l) => l.length)) === 6 && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
       && await page.$$eval("#nav > a, #more-button", (l) => new Set(l.filter((a) => a.offsetParent !== null).map((a) => Math.round(a.getBoundingClientRect().top / 8))).size === 1), await bar());
     await page.click("#more-button");
     check("  More opens the others, inside the window", (await under()).join() === "Story,For suppliers,Supplier records,Hold a key,Verifier,Playground,Terms,Records,Statement,Invoice from a file,Check a pull request,Fund,Get paid,Protect,Install,Numbers,Status,Pilot,Capabilities,Reproduce,Build" && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
@@ -502,6 +502,8 @@ await reset();
   check("capabilities: the build carries the manifest of docs/, byte for byte", readFileSync(join(root, "capabilities.json"), "utf8") === readFileSync(join(here, "..", "..", "docs", "capabilities.json"), "utf8"));
   await visit(page, "#capabilities");
   await page.waitForSelector("#capabilities table.capabilities", { state: "visible" });
+  check("capabilities: the page opens on what was exercised on devnet, not on every row", (await page.inputValue("#capabilities .capabilities-stage")) === "exercised" && (await page.$$eval("#capabilities table.capabilities tr[data-stage]", (tr) => tr.every((r) => r.dataset.stage === "exercised") && tr.length)) === manifest.capabilities.filter((c) => c.stage === "exercised").length);
+  await page.selectOption("#capabilities .capabilities-stage", "all");
   const capRows = () => page.$$eval("#capabilities table.capabilities tr[data-stage]", (tr) => tr.map((r) => [r.dataset.stage, r.children[0].textContent, r.children[1].textContent]));
   check("capabilities: one row per capability of the manifest, each at its stage, shown alone with its link in the menu", JSON.stringify(await capRows()) === JSON.stringify(manifest.capabilities.map((c) => [c.stage || "none", c.what,
     { none: "not built", implemented: "implemented", tested: "tested locally", deployed: "deployed on devnet", exercised: "exercised on devnet", reproduced: "reproduced by someone else" }[c.stage || "none"]]))
@@ -1448,8 +1450,9 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("  and says where each came from: exported by sdk/settle, or recorded in price.js", Object.values(c.source).every((x) => x === "exported" || x === "recorded") && Object.keys(c.source).length === 14, JSON.stringify(c.source));
   const book = await page.$$eval("#price-book tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.replace(/\s+/g, " ").trim())));
   const vectors = JSON.parse(readFileSync(join(here, "../data/billing_vectors.json"), "utf8"));
-  check("pricing: the price book is the six lines of Price book 3 (tests/data/billing_vectors.json), five columns, in its words", JSON.stringify(book) === JSON.stringify(vectors.lines) && book.length === 6 && book.every((r) => r.length === 5)
-    && JSON.stringify(book.map((r) => r[0])) === JSON.stringify(["Check", "Meter", "Acceptance", "Record", "Control", "Pilot"]) && book[2][2] === "0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap"
+  check("pricing: the price book is the six lines of Price book 3 (tests/data/billing_vectors.json), five columns, in its words", JSON.stringify(book.map((r, n) => (n === 2 ? r.slice(0, 4) : r))) === JSON.stringify(vectors.lines.map((r, n) => (n === 2 ? r.slice(0, 4) : r))) && book[2][4] === await page.evaluate(async (k) => (await import("/price.js")).enforcedNow({ ...k, fee: { ...k.fee, live: true } }), c)
+    && book[2][4] === vectors.lines[2][4] && book.length === 6 && book.every((r) => r.length === 5)
+    && JSON.stringify(book.map((r) => r[0])) === JSON.stringify(["Check", "Meter", "Acceptance", "Record", "Control", "Pilot"]) && book[2][2] === vectors.lines[2][2] && book[2][2].startsWith("0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%") && !/0\.10% above|10M/.test(JSON.stringify(book))
     && book[1][2] === "100,000 a month free per organisation, then 0.002 USD" && JSON.stringify(await page.$$eval("#price-book thead th", (th) => th.map((x) => x.textContent))) === JSON.stringify(vectors.columns), JSON.stringify(book));
   check("  under it: the relayer's tip, and an order's bounds on devnet with a build for real money setting its own cap", (await text(page, "#price-tip")).replace(/\s+/g, " ").trim()
     === "Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from 5 to 100,000 test USDC on devnet; a build for real money sets its own cap." && c.minAmount === 5e6 && c.maxAmount === 100_000e6);
@@ -2761,10 +2764,11 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("upgrade: every program the multisig holds is named, so a proposal for the meter or the passkey wallet is in the banner", JSON.stringify(up.programNames(ids)) === JSON.stringify({ [ids.knos_oidc]: "knos_oidc", [ids.knos_pay]: "knos_pay", [ids.knos_meter]: "knos_meter", [ids.knos_passkey]: "knos_passkey" })
     && JSON.stringify(up.programNames({ knos_pay: "P" })) === JSON.stringify({ P: "knos_pay" }));
   const feed = JSON.parse(readFileSync(join(root, "upgrades.json"), "utf8")), xml = readFileSync(join(root, "upgrades.xml"), "utf8");
-  const now36 = feed.entries.find((e) => e.index === 3)?.status;          // pending until proposals 3 to 6 executed (7 October), executed after
-  check("upgrade feed: the site's file lists proposals 3 to 6 as one (pending, or executed) and 1 and 2 withdrawn, and the Atom feed says the same", ["pending", "executed"].includes(now36)
-    && feed.pending === (now36 === "pending" ? 4 : 0) && JSON.stringify(feed.entries.map((e) => [e.index, e.program, e.status])) === JSON.stringify([[6, "knos_passkey", now36], [5, "knos_meter", now36], [4, "knos_pay", now36], [3, "knos_oidc", now36], [2, "knos_pay", "replaced"], [1, "knos_oidc", "replaced"]])
-    && feed.entries.every((e) => xml.includes(`upgrade proposal ${e.index} is ${e.status}`)) && (xml.match(/<entry>/g) || []).length === 6 && feed.entries.every((e) => e.program_address === ids[e.program]));
+  const now78 = feed.entries.find((e) => e.index === 8)?.status;          // pending until proposals 7 and 8 execute (9 October), executed after
+  check("upgrade feed: the site's file lists proposals 7 and 8 as one (pending, or executed), 3 to 6 executed and 1 and 2 withdrawn, and the Atom feed says the same", ["pending", "executed"].includes(now78)
+    && feed.pending === (now78 === "pending" ? 2 : 0) && JSON.stringify(feed.entries.map((e) => [e.index, e.program, e.status])) === JSON.stringify([[8, "knos_pay", now78], [7, "knos_oidc", now78],
+      [6, "knos_passkey", "executed"], [5, "knos_meter", "executed"], [4, "knos_pay", "executed"], [3, "knos_oidc", "executed"], [2, "knos_pay", "replaced"], [1, "knos_oidc", "replaced"]])
+    && feed.entries.every((e) => xml.includes(`upgrade proposal ${e.index} is ${e.status}`)) && (xml.match(/<entry>/g) || []).length === 8 && feed.entries.every((e) => e.program_address === ids[e.program]));
   const st = await import(pathToFileURL(join(root, "statements.js")).href);
   const scope = { type: "knos.audit-export", version: 1, program: ids.knos_pay, owner_id: 5001, from: "2026-09-01", to: "2026-09-30", wallets: "", partial: 0 };
   const row = Object.fromEntries(st.AUDIT_COLUMNS.filter((c) => !["seq", "prev"].includes(c)).map((c) => [c, c.endsWith("_units") ? 0 : c === "currency" ? "test USDC" : ""]));

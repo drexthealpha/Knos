@@ -394,13 +394,22 @@ jobs:
           # every harness of src/proofs.rs but the fee's bounds, which has the job below (tests/test_program_ci.py
           # holds the two lists to the file: none drops out)
           args: --output-format terse --exact --harness proofs::harness::the_remainder_of_a_share_is_never_more_than_the_remainder --harness proofs::harness::a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order --harness proofs::harness::what_a_funder_puts_in_is_what_the_payees_the_relayer_and_the_fee_owner_take_out --harness proofs::harness::an_order_that_has_paid_nothing_has_given_out_none_of_its_fee
+      # cvc5 1.2.0, the solver of the one harness about the exact 0.30% (bit-vectors solved as integers:
+      # programs-v2/fee_proofs/solvers/cvc5). The archive is held to its SHA-256 before anything in it runs.
+      - name: cvc5 1.2.0
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/cvc5.zip" https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
+          echo "d18f174ff9a11923c32c3f871f844ed16bd77a28f51050b8e7c8d821c98a1c2e  $RUNNER_TEMP/cvc5.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cvc5.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/cvc5-Linux-x86_64-static/bin" >> "$GITHUB_PATH"
       # the bounds of an order's fee, on the program's own lines (programs-v2/fee_proofs copies them out as text):
-      # every harness of its src/lib.rs, `cargo kani` there. docs/kani.json `fee_proofs` records what each proves
-      - uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
-        with:
-          kani-version: "0.68.0"
-          working-directory: programs-v2/fee_proofs
-          args: --output-format terse
+      # every harness of its src/lib.rs, each alone with a limit of 150 seconds, with the Kani the step above
+      # installed. Five harnesses: 12.5 minutes at the very most, about two minutes as recorded (docs/kani.json
+      # `fee_proofs`). A harness that fails or runs out of its time is named in an error and the step is red; the
+      # last line printed is the total time.
+      - name: the fee's bounds (programs-v2/fee_proofs), each harness alone within 150 seconds
+        timeout-minutes: 15
+        run: python3 scripts/kani_fee_record.py --ci
 
   # The fee's bounds over every u64 amount and every rate, the one harness of programs-v2/knos_pay/src/proofs.rs the
   # kani job above leaves out: it did not finish in that job's 30 minutes (run 37569582253; docs/kani.json: not in 180

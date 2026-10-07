@@ -1,0 +1,8 @@
+knos-judge-checks/1 task=count_words
+the neutral meter => 3
+ => 0
+  two   spaces  => 2
+one => 1
+neither side keeps the count => 5
+tab	and space => 3
+a b c d e f g h i j => 10

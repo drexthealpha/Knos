@@ -71,7 +71,7 @@ def _set(receipt: dict, changes: dict) -> dict:
 
 
 def receipt_cases(vectors: dict, groups: list[str] | None = None) -> list[dict]:
-    """The cases of a receipt vector file (docs/receipt/vectors.json, vectors.v4.json): every valid receipt is accepted
+    """The cases of a receipt vector file (docs/receipt/vectors.json, vectors.v4.json, vectors.v5.json): every valid receipt is accepted
     and has the digest named; every invalid one is refused. `groups`: the file's groups the manifest names; a group
     `invalid<x>` is made from the receipts of `valid<x>`."""
     groups = groups or ["valid", "invalid", "valid_v2", "invalid_v2", "valid_v3", "invalid_v3"]
@@ -85,6 +85,9 @@ def receipt_cases(vectors: dict, groups: list[str] | None = None) -> list[dict]:
             if "authorises_payment" in v:       # version 4: a valid receipt is not always one that authorises payment
                 out.append({"id": f"receipt/{group}/{i}/verdict", "op": "receipt.verdict", "name": v["name"], "input": {"receipt": v["receipt"]},
                             "expect": {"output": {"verdict": v["verdict"], "authorises_payment": v["authorises_payment"]}}})
+            if "assurance" in v:                # version 5: the level a reader computes from the receipt's evidence, and who stays trusted
+                out.append({"id": f"receipt/{group}/{i}/assurance", "op": "receipt.assurance", "name": v["name"], "input": {"receipt": v["receipt"]},
+                            "expect": {"output": v["assurance"]}})
     for group in (g for g in groups if g.startswith("invalid")):
         of = "valid" + group[len("invalid"):]
         for i, v in enumerate(vectors[group]):

@@ -133,3 +133,19 @@ pdf_.A4                                             # tests/test_statement.py
 private_.receipt_shows                              # docs/PRIVATE.md; tests/test_private_path.py
 receipt_.exposed                                    # docs/RECEIPT.md (the six questions); tests/test_verdicts_ids.py
 relayq_.EVENT_TYPE                                  # the repository_dispatch type worker.yml listens for; tests/test_relayq.py holds the two together
+
+
+# 0.3.19. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.take_                         # knos.advance.register: knos advance take
+_.request_                      # knos.faucet.register: knos faucet request
+_.add_, _.dispute_              # knos.netting.register: knos net add | dispute
+_.grn_                          # knos.statement.register: knos statement grn
+# http.server calls a handler's do_GET for each GET request (knos.record_api.serve: `knos record serve`).
+_.do_GET
+# Public functions and constants with no caller inside src/knos or scripts, each held by the tests that name it.
+from knos import netting as netting_, record_api as record_api_
+
+netting_.anchored                                   # whether the two knos_meter Ledger accounts anchor a period; tests/test_netting.py
+record_api_.lookup                                  # the caller's side of a paid lookup, for an agent; tests/test_record_api.py
+receipt_.LEVELS                                     # the assurance levels in rising order (receipt version 5); tests/test_assurance.py
+settle_oidc2.revoke_es256_ix                        # ends a P-256 key (tag 14), for the guardian or the key's wallet; tests/test_es256_client.py

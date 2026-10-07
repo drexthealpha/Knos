@@ -125,7 +125,7 @@ facts and one plain line under `says`.
 | `window` | How long can it be reopened? | `warranty_days` and `holdback_percent`; both zero, or both not |
 | `changes` | What may change? | `paths` allowed, `protected` paths, and `may_add`: what a contributor may add without asking |
 | `dispute` | Who may appeal, and to whom? | `who` (the supplier), the `evaluator` (one of `evaluators.list`, or `arbiter`), `within_days`, where the `money` stays, and what happens with `no_answer` |
-| `evaluators` | Who may judge? | `quorum`, and a `list`: each a `name`, an `issuer`, a `repository`, a `workflow` and an `owner` |
+| `evaluators` | Who may judge? | `quorum`, and a `list`: each a `name`, an `issuer`, a `repository`, a `workflow` and an `owner`. Optional: `related`, the accounts the parties declare to be one party, as groups of numeric account ids (`[[7001, 8002]]`); two evaluators declared related never count as two ([RECEIPT.md](RECEIPT.md), assurance). Terms without the key keep the hash they had |
 | `price` | What does it pay? | `amount` and `currency` |
 | `deadline` | When does it end? | `days`, and what happens to a token presented `late` |
 | `policy` | Who may change these terms? | `may_change`: the logins or teams who may publish a new version, and `how` |

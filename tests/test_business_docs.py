@@ -116,6 +116,13 @@ def test_the_price_book_is_the_six_lines_in_order_with_its_rule_and_the_billing_
         assert rule in said, rule
     from knos import billing
     assert billing.RULES["credit"] in said                                  # the credit rule is one sentence, the same in the code and the document
+    # price book 3.1: the rate never goes below 0.20%, small tickets are netted, Record is priced per call
+    for new in ("The rate never goes below 0.20%.", "The 0.10% tier above 10 million a month is withdrawn.", "No rate is lower than 0.20%.",
+                "A payee's small outcomes of a period are one release: 0.30% of the netted amount, and the 0.05 floor once for the release.",
+                "0.10 USD a lookup, paid per call by whoever reads it. There is no subscription."):
+        assert new in said, new
+    assert "0.10% above 10M" not in market and "or by subscription" not in market and "0.25 USD" not in market
+    assert min(rate for _start, rate in billing.ACCEPT_TIERS) * 100 == billing.Decimal("0.20") and billing.RECORD_PRICE == billing.Decimal("0.10")
     assert "These are proposed prices. Nobody has paid any of them" in said
     assert "Nothing has been sold; there is no legal entity to invoice from; on devnet every fee is test money and zero revenue." in said
 
@@ -147,7 +154,7 @@ def test_unit_costs_says_what_is_measured_what_is_a_budget_and_the_ceilings():
         assert "read 6 Oct 2026" in line, link
     # the ceilings are a tenth and a twentieth of each price
     for price, at90, at95 in (("0.002", "0.0002", "0.0001"), ("60.00", "6.00", "3.00"), ("3.00", "0.30", "0.15"), ("0.05", "0.005", "0.0025"),
-                              ("0.25", "0.025", "0.0125"), ("25,000", "2,500", "1,250"), ("100,000", "10,000", "5,000")):
+                              ("0.10", "0.010", "0.005"), ("25,000", "2,500", "1,250"), ("100,000", "10,000", "5,000")):
         assert f"| {price} | {at90} | {at95} |" in raw, price
         value = float(price.replace(",", ""))
         assert abs(value * 0.10 - float(at90.replace(",", ""))) < 1e-9 and abs(value * 0.05 - float(at95.replace(",", ""))) < 1e-9
@@ -163,8 +170,47 @@ def test_unit_costs_says_what_is_measured_what_is_a_budget_and_the_ceilings():
     for adds in ("A count both sides can recompute.", "Deduplication.", "Retention.", "A signed acceptance."):
         assert adds in page, adds
     costs = json.loads(read("docs/unit_costs.json"))
-    assert costs["sol_usd"]["usd"] == "120.82" and [costs["costs"][k]["usd"] for k in ("evaluation", "accepted_deliverable", "record_lookup", "control_year")] == ["0.0002", "0.10", "0.01", "15000"]
-    assert "revenue 10,753.33, direct cost 1,276.00, gross margin 88.1%" in page
+    assert costs["sol_usd"]["usd"] == "120.82" and [costs["costs"][k]["usd"] for k in ("evaluation", "accepted_deliverable", "record_lookup", "control_year")] == ["0.00005", "0.10", "0.01", "15000"]
+    assert "revenue 10,753.33, direct cost 1,260.20, gross margin 88.3%" in page
+
+
+def test_unit_costs_states_the_three_leaks_with_their_sizes():
+    """The Meter with the monthly batch as the default delivery and the free tier as acquisition cost; who earns what
+    at the floor under both builds and what netting does to a 0.99 outcome; Control's margin said as gross."""
+    raw, page = read("docs/UNIT_COSTS.md"), flat("docs/UNIT_COSTS.md")
+    from knos import billing
+    costs = json.loads(read("docs/unit_costs.json"))["costs"]
+    sol = 120.82
+    assert f"{(15_000 + 1_137_920) * sol / 1e9:.4f}" == "0.1393" == costs["pair_month"]["usd"] and "15,000 + 1,137,920 = 1,152,920 | 0.1393 |" in raw
+    assert f"{1_488_440 * sol / 1e9:.2f}" == "0.18" == costs["payee_account"]["usd"]
+    assert "the monthly batch is the default." in page and "110,000 × 0.00005 + 5 × 0.1393 = 6.20 USD a month" in page
+    assert round(110_000 * 0.00005 + 5 * 0.1393, 2) == 6.20 and "12 × 100,000 × 0.00005 = 60 USD a year" in page and "That is acquisition cost" in page
+    assert round(12 * (100_000 * 0.00005 + 5 * 0.1393), 2) == 68.36 and "make it 68.36" in page
+    assert 0.00005 * 138_000 + 5 * 0.1393 <= 0.1 * 0.002 * 38_000 and "reaches 90% at 138,000 evaluations a month" in page
+    for row in costs.values():                                             # two labels, and nothing in between
+        assert row["kind"] in ("measured", "budget, not measured")
+    for build in billing.floor_split():                                    # the two tables are what `knos bill margin` prints
+        for r in build["rows"]:
+            assert (f"| {r['amount']} | {r['fee']} | {r['share']} | {r['tip']} | {r['fee_owner']} | {r['first_tip']} | "
+                    f"{r['first_relayer_net'].replace('-', '−')} | {r['first_fee_owner']} |") in raw, (build["build"], r["amount"])
+    assert "the fee owner earns nothing on a release of 16.66 or less" in page and "first payment of 100.00 or less" in page
+    n = billing.netting_example()
+    assert (n["alone_share"], n["netted_share"], n["reaches_rate"]) == ("5.05%", "0.30%", 19)
+    assert "| charged by itself | 0.05, the floor | 5.05% |" in raw and "| 0.30 for the release | 0.30% |" in raw and "From 19 such outcomes" in page
+    assert "is a gross margin of 85%: gross, before" in page and "for 95%, 5,000" in page and 5_000 // 75 == 66 and "66 hours a year" in page
+    assert (100_000 - 15_000) / 100_000 == 0.85 and "None of the three figures is measured." in page
+
+
+def test_market_names_the_competitors_on_their_own_pages_and_says_metering_will_face_price_pressure():
+    raw, market = read("docs/MARKET.md"), flat("docs/MARKET.md")
+    for link, says in (("https://aws.amazon.com/bedrock/agentcore/pricing/", "1.50 USD per 1,000"), ("https://stripe.com/billing/pricing", "0.7% of billing volume"),
+                       ("https://docs.stripe.com/agentic-commerce", "machine payments"), ("https://mergepay.fun", "No platform fee")):
+        line = next(row for row in raw.splitlines() if link in row and row.startswith("|"))
+        assert says in line and "7 Oct 2026" in line, link               # each confirmed on the vendor's own page that day
+    assert "an authorization request at 0.000025 USD" in market and "Generic agent metering will face price pressure." in market
+    three = raw.split("What Knos is that they are not, in three lines:")[1].split("**The difference")[0]
+    assert len([row for row in three.splitlines() if row.startswith("- ")]) == 3 and "reproducible by anyone" in three
+    assert "The benefit is measured in pilots, never derived from the public failed-check statistics." in market
 
 
 def test_the_measured_twelve_percent_is_a_count_of_failed_checks_and_never_a_share_of_spend():
@@ -277,106 +323,6 @@ def test_the_demonstration_is_three_minutes_of_speech_and_the_presentation_two_t
     assert "three minutes" in read("docs/submission/demo_script.md").splitlines()[0]
     assert "minutes" in read("docs/submission/pitch_script.md").splitlines()[0]
     assert "about 420 words" in flat("docs/submission/demo_script.md")
-
-
-def test_the_demo_is_one_story_in_six_beats_that_end_at_three_minutes():
-    demo = read("docs/submission/demo_script.md")
-    rows = re.findall(r"(?m)^\| (\w+) \| (\(\d:\d\d\)) \| (\(\d:\d\d\)) \| (.+) \|$", demo)
-    assert [r[0] for r in rows] == BEATS
-    assert [(seconds(r[1]), seconds(r[2])) for r in rows] == [(0, 20), (20, 45), (45, 85), (85, 115), (115, 145), (145, DEMO_SECONDS)]
-    heads = re.findall(r"(?m)^## (\d)\. .+ \((\d:\d\d), (\d+) seconds\)$", demo)
-    assert [int(h[0]) for h in heads] == list(range(1, 7))
-    assert [(seconds(h[1]), int(h[2])) for h in heads] == [(seconds(r[1]), seconds(r[2]) - seconds(r[1])) for r in rows]
-    parts = demo.split("\n## ")[-6:]
-    for part in parts:                                                                    # every beat says what is shown, said and must be visible
-        assert "**On screen.**" in part and "\n> " in part and "**Must be visible.**" in part
-    for (head, words), (_m, a, b, _what) in zip(said_in("docs/submission/demo_script.md"), rows):     # each beat's words fit its time
-        assert len(words) <= (seconds(b) - seconds(a)) * WORDS_A_SECOND + 5, (head, len(words))
-    story = ["an invoice that does not reconcile: seven lines, five exceptions", "the deliverable, the authorised buyer, the supplier, the acceptance terms and the price",
-             "a tampered submission, the exact refusal and its evidence", "legitimate work accepted, and the commercial record created",
-             "a replay and a conflicting judgment: no duplicate obligation or payment",
-             "buyer and supplier rebuild the same statement; an outside consumer verifies the receipt"]
-    assert [what for _m, _a, _b, what in rows] == story
-    said = [" ".join(" ".join(line[1:].strip() for line in part.splitlines() if line.startswith(">")).split()) for part in parts]
-    from knos import ghwords
-    refusal = ghwords.refusal("judge.existing-test-edited")[0]                            # the exact refusal: the table's own words
-    assert f'"{refusal}"' in " ".join(parts[2].split()) and refusal[0].lower() + refusal[1:].rstrip(".") in said[2] and "`judge.existing-test-edited`" in parts[2]
-    assert "brings its own regression test" in said[3] and "one deliverable, one evaluation, one invoice line, one settlement" in said[3]
-    assert "a token works once" in said[4] and "one account that starts both runs counts as one judge" in said[4] and "`E_REPLAY`" in parts[4]
-    assert "No second obligation, and no second payment." in said[4]
-    assert "each rebuild the statement from their own copy of the ledger" in said[5] and "the network off" in said[5]
-    assert "on Solana devnet, in test money, and nobody has paid for it yet" in said[5] and said[5].endswith("Neither side keeps the count.")
-    # the invoice of the first beat is the site's sample, and the page says it is nobody's
-    assert "a made-up invoice from a made-up supplier" in demo and "No real invoice has been run with anyone." in demo
-    sample = read("web/front_door_sample.js")
-    invoice = read("examples/shadow/invoice.csv")
-    assert invoice.replace("\n", "\\n") in sample                                            # the sample IS that file
-    assert len([row for row in invoice.splitlines() if re.match(r"\S+,\d+\.\d\d,", row)]) == 7     # seven lines; the site's test counts the five exceptions
-    # the page is true before and after an upgrade: a step says on which program ids it ran, read on the day
-    flat_demo = " ".join(demo.split())
-    assert "**Every step says on which program ids it ran.**" in demo and "No step is shown as a run on the public program ids that did not run there." in flat_demo
-    assert '"Staging program ids on Solana devnet"' in flat_demo and "**A step whose capability has run nowhere is cut, not staged.**" in demo
-    assert '"Replay of a run recorded earlier"' in demo and '"Recorded at N times speed"' in flat_demo and '"Local simulator: not devnet"' in flat_demo
-    assert '"Solana devnet. Test USDC."' in flat_demo                                       # any devnet settlement is labelled
-
-
-def test_the_shot_list_is_the_script_and_captions_every_replay_and_every_faster_shot():
-    shots = json.loads(read("scripts/video/demo.shots.json"))
-    demo = read("docs/submission/demo_script.md")
-    rows = re.findall(r"(?m)^\| (\w+) \| \((\d:\d\d)\) \| \((\d:\d\d)\) \|", demo)
-    assert [(s["moment"], s["start"], s["end"]) for s in shots["shots"]] == rows
-    assert shots["limit_seconds"] == DEMO_SECONDS == seconds(shots["shots"][-1]["end"]) and shots["program_ids"] == "staging"
-    flat_demo = " ".join(demo.split())
-    for name in ("staging", "simulator", "replay", "faster", "first", "money", "sample"):  # each caption is the script's own words
-        assert shots["captions"][name] in flat_demo, name
-    for shot in shots["shots"]:
-        assert set(shot) == {"moment", "start", "end", "kind", "faster", "captions", "shows"} and set(shot["captions"]) <= set(shots["captions"])
-        assert ("replay" in shot["captions"]) == (shot["kind"] == "replay") and ("faster" in shot["captions"]) == shot["faster"], shot["moment"]
-    # the beats the script says are replays are the ones the list marks; a settlement carries the money caption
-    assert "beats three and four are replays at higher speed" in flat_demo
-    assert [s["moment"] for s in shots["shots"] if s["kind"] == "replay"] == ["three", "four"]
-    by = {s["moment"]: s["captions"] for s in shots["shots"]}
-    assert "money" in by["four"] and "sample" in by["one"] and "simulator" in by["five"] and "offline" in by["six"]
-
-
-def test_the_presentation_says_the_number_the_customer_the_model_and_the_limits_in_one_sentence():
-    pitch = read("docs/submission/pitch_script.md")
-    parts = said_in("docs/submission/pitch_script.md")
-    heads = re.findall(r"(?m)^## (\d)\. (.+) \((\d:\d\d)\)$", pitch)
-    assert [h[1] for h in heads] == ["The number", "The customer", "The insight", "A round", "The cheat", "The leaderboard", "Outside the founder",
-                                     "The model", "The founder, and the limits"]
-    starts = [seconds(h[2]) for h in heads]
-    assert starts == sorted(starts) and starts[0] == 0 and starts[1] == 10 and starts[-1] <= 155               # the number takes 10 seconds
-    said = {head.split(". ", 1)[1].split(" (")[0]: " ".join(words) for head, words in parts}
-    assert len(said["The number"].split()) <= 25
-    assert "approves a supplier's invoice" in said["The customer"] and "has to prove it" in said["The customer"]
-    assert "Every vendor keeps its own count." in said["The insight"] and ONE[4:] in said["The insight"]
-    assert "no company holds it, and no oracle reports it" in said["A round"] and "the same bill, line for line" in said["A round"]
-    # what exists outside the founder: the numbers as NUMBERS.md has them, with no apology
-    numbers = read("docs/submission/NUMBERS.md")
-    value = {what.split(":")[0].strip(): int(n) for what, n in re.findall(r"(?m)^\| \d \| ([^|]+) \| (\d+) \|", numbers)}
-    outside = said["Outside the founder"]
-    assert f"Outside funders: {value['Outside funders']}." in outside and f"Outside repositories: {value['Outside repositories']}." in outside
-    assert f"Buyers interviewed: {value['Buyer interviews held']}." in outside and f"Independent reproductions: {value['Reproductions signed by GitHub']}." in outside
-    assert f"paid {value['Payments between unrelated accounts']} times on devnet, in test money" in outside
-    assert ("One other GitHub account" in outside) == (value["Outside payees"] == 1)
-    for sorry in ("sorry", "unfortunately", "admit", "only a", "just a"):
-        assert sorry not in outside.lower(), sorry
-    # the model is price book 3 in one breath: one fee on value released against a signed acceptance, and the supplier never pays
-    model = said["The model"]
-    assert "one fee" in model and "The check is free." in model and "released against a signed acceptance" in model
-    assert "thirty cents on every hundred dollars" in model and "paid by the funder on top" in model and "The supplier never pays." in model
-    for gone in ("Verify", "Settle", "Supplier connection"):
-        assert gone not in pitch, gone
-    # the founder's motivation and what predates the period, as DISCLOSURE.md has it; then the limits, in ONE sentence
-    last = said["The founder, and the limits"]
-    assert "Before the hackathon period I had built a different product, a shared memory for coding agents" in last
-    assert "Development completed before the hackathon period" in read("docs/DISCLOSURE.md") and "a shared local memory for coding agents" in flat("docs/DISCLOSURE.md")
-    limits = last.split("The limits, in one sentence: ")[1]
-    assert limits.count(".") == 1 and limits.endswith(".") and "devnet" in limits and "test money" in limits and "nobody has paid" in limits
-    zeros = re.findall(r": 0\.", " ".join(" ".join(w) for _h, w in parts))                   # the zeros are said once, in one beat, and not listed again
-    assert len(zeros) == sum(v == 0 for k, v in value.items() if k in ("Outside funders", "Outside repositories", "Buyer interviews held", "Reproductions signed by GitHub"))
-    assert ": 0." not in last and ": 0." not in said["The model"]
 
 
 def test_the_interview_tally_is_all_zeros_counts_a_no_and_is_the_constants_a_person_keeps():

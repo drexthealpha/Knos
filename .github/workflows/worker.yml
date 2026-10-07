@@ -49,13 +49,32 @@ name: always-on worker
 # confirmed > refused > sending > waiting. So a run never replaces, drains or closes what another run holds. The
 # chain of runs hands the folder on with its notes (the cache below). The event job is on another runner and has
 # no cache (this job sees the fee key, and tests/test_workflows2.py lists every cache such a job may have), so the
-# two do not see each other's lines while both are alive: there the chain still takes a token once.
+# two do not see each other's FILES while both are alive.
+# NOTES BOTH RUNNERS SEE (0.3.19). Both jobs may write the relay log (the open issue labelled knos-relay). A lease and
+# an answer are each one comment there, `knos-note 1 <run> <json>` (relayq.LogStore); the sweep reads the other's
+# lines in the comments its pass fetches anyway, and of two leases the earlier comment holds. When GitHub does not
+# take a line the run says so and keeps its notes local: there the chain still takes a token once (docs/RELAY.md).
+# THE CLAIM GUARD (0.3.19, job `claims`). Each run of the chain also runs claims.yml's sweep for this repository, once,
+# so about every 4.5 minutes while the chain relays: GitHub's timer for claims.yml did not fire once in 38 minutes in
+# the 0.3.18 release run. A claim is usually a pull request, and GitHub lets a workflow's token comment on one and
+# label it only with `pull-requests: write`. That permission is the `claims` job's alone: the job holds NO key (no
+# secret at all, only the run's own forge token), and the two jobs that hold the fee key keep the permissions they
+# had. A relay of one's own may still sweep in its pass (KNOS_CLAIM_REPOS; knos.claim_guard.sweep_served). A listing
+# the sweep cannot read is an error on the run's page.
+# THE FAUCET (0.3.19, job `faucet`). `/knos faucet <address | passkey>` on the playground's faucet issue gives a
+# fixed amount of test USDC, which has no monetary value (src/knos/faucet.py, docs/FAUCET.md). GitHub sends a comment's
+# event only to the repository it was written in, so this job runs where this file is installed AND that repository is
+# the one the variable KNOS_FAUCET_REPO names (default: drexthealpha/knos-playground); in Knos's own repository it is
+# skipped. It is a job of its own with a key of its own: KNOS_FAUCET_KEY holds test USDC and no SOL and signs the
+# transfer, KNOS_RELAY_KEY pays the fee. One run at a time (concurrency group `knos-faucet`); and should two overlap
+# all the same, the signature each posts before it sends is the lock (knos.faucet.grant). Without both secrets it says
+# so and ends green. It has not run on GitHub yet.
 # FEE PAYERS. One today: KNOS_RELAY_KEY. KNOS_RELAY_KEYS (a secret that is not set) may name more; each owner's
 # tokens then always pay from the same one of them, and a key signs for one token at a time (docs/RELAY.md).
 #
 # Each run's title names the run it takes over from, so that the first step of the next one can tell the chain's runs apart.
 # An event run is titled "relay for ...", which no step of the chain counts.
-run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || 'relay' }}
+run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || github.event_name == 'issue_comment' && 'relay for a comment' || 'relay' }}
 on:
   schedule:
     - cron: "*/5 * * * *"
@@ -64,6 +83,8 @@ on:
   workflow_run:
     workflows: [knos]
     types: [completed]
+  issue_comment:        # the faucet (job `faucet`), and only where that job runs: in every other repository this starts a run with every job skipped
+    types: [created]
   workflow_dispatch:
     inputs:
       after:
@@ -261,3 +282,86 @@ jobs:
         run: |
           [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
           python -m knos.settle.v2.relayq --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
+
+  # The claim guard's sweep, beside the chain: one comment and one label on an issue or pull request that claims a
+  # payment nobody funded (src/knos/claim_guard.py; claims.yml answers the event and keeps its own timer). It runs once
+  # in every run of the chain (each run is started by the one before it, `workflow_dispatch`), in a job of its own:
+  # NO secret is named here, so the fee key is never in the job that may write to pull requests, and this job's
+  # permissions are its own and not the workflow's.
+  claims:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read          # this repository's own code
+      issues: write           # one comment, one label
+      pull-requests: write    # the same on a pull request
+    concurrency:
+      group: knos-claims
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      - name: install what the check needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: answer every open claim of payment that no funded order stands behind
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m knos.claim_guard --sweep
+
+  # The faucet: one comment, one answer. Nothing of the comment reaches a shell: knos.faucet reads the event's file as
+  # data, and nothing the requester wrote but a base58 address reaches its reply. The code is Knos's, wherever this file
+  # runs: the checkout names the repository, at the ref the variable KNOS_FAUCET_REF names (default: main, the code the
+  # relay job of this file runs). The install is by hash (requirements/faucet.txt: what the relay installs, and the
+  # memory engine the journal is kept in); no cache of any kind.
+  faucet:
+    if: >-
+      github.event_name == 'issue_comment' && github.repository == (vars.KNOS_FAUCET_REPO || 'drexthealpha/knos-playground')
+      && !github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'faucet')
+      && github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write         # the faucet's one reply, and its edit
+    concurrency:
+      group: knos-faucet
+      cancel-in-progress: false
+    env:
+      KNOS_HOME: ${{ github.workspace }}/.knos-faucet-home
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: drexthealpha/Knos
+          ref: ${{ vars.KNOS_FAUCET_REF || 'main' }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      - name: install what the faucet needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/faucet.txt
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: answer the request, once
+        env:
+          KNOS_FAUCET_KEY: ${{ secrets.KNOS_FAUCET_KEY }}
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_FAUCET_KEY" ] || { echo "no KNOS_FAUCET_KEY secret: the faucet answers nobody here. Skipped."; exit 0; }
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: nothing would pay the transfer's fee. Skipped."; exit 0; }
+          python -m knos.faucet --event "$GITHUB_EVENT_PATH"

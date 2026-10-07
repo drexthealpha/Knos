@@ -18,13 +18,13 @@ jobs:
     name: knos command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/knos') || contains(github.event.comment.body, fromJSON('"\\n/knos"')))) || (github.event_name == 'issues' && (contains(github.event.issue.body, '/knos fund') || contains(github.event.issue.body, '/knos bounty')))
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
   settle:
     name: knos settle
     needs: command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: github.event_name != 'issues' && !cancelled() && (github.event_name != 'issue_comment' || needs.command.outputs.settle != '') && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
 `;
 export const ATTESTOR_WORKFLOW = `# .github/workflows/knos-attestor.yml, without its comments: read them in examples/knos-attestor.yml of drexthealpha/Knos
 name: knos attestor
@@ -60,7 +60,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
     secrets:
       KNOS_READ_TOKEN: \${{ secrets.KNOS_READ_TOKEN }}
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
@@ -77,7 +77,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@b7196a2ad17c72c36b00c0fded8b8e128196cacd
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
     secrets:
       KNOS_READ_TOKEN: \${{ secrets.KNOS_READ_TOKEN }}
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
@@ -85,6 +85,7 @@ jobs:
 export const TERMS = [{"name":"bugfix","sentence":"Pays 50 test USDC when checks `lint`, `unit` pass on a merge that only touches src/ and tests/; refund after 14 days","comment":"/knos fund 50 checks: unit, lint paths: src/**, tests/**","where":"an issue","terms":{"accept":"","checks":[{"app":15368,"name":"lint"},{"app":15368,"name":"unit"}],"deny":[".github/**",".knos/**"],"mode":"merge","paths":["src/**","tests/**"],"reserve":7,"v":1},"terms_json":"{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"lint\"},{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\",\"tests/**\"],\"reserve\":7,\"v\":1}","terms_hash":"91c3adb2adc12c66beb852fe809a096d4dd7028c0bc77ec209b6879ca753f2e3","assumes":{"checks":"each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit"}},{"name":"feature-blackbox","sentence":"Pays 80 test USDC when check `unit` passes on a pull request that also passes the issue's black-box acceptance suite; refund after 14 days","comment":"/knos fund 80 checks: unit","where":"an issue that has .knos/acceptance/<issue>/ on the default branch","terms":{"accept":"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d","checks":[{"app":15368,"name":"unit"}],"deny":[".github/**",".knos/**"],"mode":"tests","paths":[],"reserve":7,"v":1},"terms_json":"{\"accept\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"tests\",\"paths\":[],\"reserve\":7,\"v\":1}","terms_hash":"59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6","assumes":{"checks":"each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit","accept":"a sample hash: yours is the hash of your own acceptance bundle"}},{"name":"milestone","sentence":"Pays 100 test USDC when check `unit` passes on a merge; 20% of it waits 30 days and goes back if the change is reverted; refund after 30 days","comment":"/knos fund 100 checks: unit holdback 20 warranty 30 days 30","where":"an issue","terms":{"accept":"","checks":[{"app":15368,"name":"unit"}],"deny":[".github/**",".knos/**"],"mode":"merge","paths":[],"reserve":7,"v":1},"terms_json":"{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}","terms_hash":"d48a34bb43bc57e8c0fb46b9981c939c0648cec80f598efcf444f337b783a8d0","assumes":{"checks":"each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit"}},{"name":"private-attested","sentence":"Pays 50 test USDC when check `unit` passes on a merge that only touches src/; funded and paid by the organisation's attestor repository, so nothing public names the private one; refund after 14 days","comment":"/knos fund 50 checks: unit paths: src/**","where":"an issue of a private repository the attestor's policy lists","terms":{"accept":"","checks":[{"app":15368,"name":"unit"}],"deny":[".github/**",".knos/**"],"mode":"merge","paths":["src/**"],"policy":"f2ab964fdea7849f5726192ae7f6b6d7603da31174a51f4c76d2b6dfffc9504d","reserve":7,"v":1},"terms_json":"{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\"],\"policy\":\"f2ab964fdea7849f5726192ae7f6b6d7603da31174a51f4c76d2b6dfffc9504d\",\"reserve\":7,\"v\":1}","terms_hash":"6053bb7383ac533926cde0864f7c3a56963d730d45d9d0a6154bae46313642c5","assumes":{"checks":"each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit","policy":"the attestor repository's .knos/policy.yml is: version: 1; private: true; attestor: acme/knos-settle; targets: [acme/vault-core]"}},{"name":"standing-rate","sentence":"Pays @octocat 10 test USDC for each pull request of theirs, up to 100 test USDC in all, when check `unit` passes on a merge; refund after 90 days","comment":"/knos offer @octocat rate 10 budget 100 checks: unit days 90","where":"an issue","terms":{"accept":"","checks":[{"app":15368,"name":"unit"}],"deny":[".github/**",".knos/**"],"mode":"merge","paths":[],"reserve":0,"v":1,"vendor":583231},"terms_json":"{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1,\"vendor\":583231}","terms_hash":"357edc2100129d5f8ecd0c985901662f6be80e46ce2ae7c22a381bc94192c49e","assumes":{"checks":"each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit","vendor":"@octocat (account id 583231) stands for your vendor"}}];
 
 export const URL_LIMIT = 8191;
+export const FAUCET_ISSUE = "https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Afaucet";   // where `/knos faucet <address>` is posted (docs/FAUCET.md)
 const SPEC = /^(?:https:\/\/github\.com\/)?([A-Za-z0-9](?:-?[A-Za-z0-9]){0,38})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?(?:@([A-Za-z0-9._\/-]{1,200}))?$/;
 
 // { owner, repo, branch } from "owner/repo" or "owner/repo@branch" (the branch is main unless named); null otherwise.
@@ -150,6 +151,12 @@ export function renderInstall(el) {
     node(doc, "pre", { textContent: t.comment }), copyButton(doc, t.comment, "Copy the comment"),
     node(doc, "details", {}, [node(doc, "summary", { className: "fine", textContent: "The terms it funds" }), node(doc, "pre", { textContent: `${t.terms_json}\nsha256 ${t.terms_hash}` }),
       node(doc, "p", { className: "fine", textContent: `Post it on ${t.where}. These bytes were made with sample facts (${Object.values(t.assumes).join("; ")}); the reply to your comment shows your repository's own terms.` })])]));
-  el.replaceChildren(node(doc, "label", { htmlFor: "install-repo", textContent: "Install by pull request: your repository" }), input, out, file, terms);
+  // THE PATH ON ONE PAGE: test USDC from the faucet, the workflow in your repository, one comment, one merge (docs/FAUCET.md)
+  const path = node(doc, "ol", { id: "install-path", className: "fine" }, [
+    node(doc, "li", {}, [node(doc, "a", { id: "install-faucet", href: FAUCET_ISSUE, target: "_blank", rel: "noopener", textContent: "Get test USDC" }), ": no monetary value."]),
+    node(doc, "li", { textContent: "Install the workflow, below." }),
+    node(doc, "li", {}, ["Comment ", node(doc, "code", { textContent: "/knos fund 5" }), " on an issue."]),
+    node(doc, "li", { textContent: "Merge its fix: it pays." })]);
+  el.replaceChildren(path, node(doc, "label", { htmlFor: "install-repo", textContent: "Install by pull request: your repository" }), input, out, file, terms);
   show();
 }

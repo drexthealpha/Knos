@@ -6,9 +6,10 @@ The price book (docs/MARKET.md, section 3; BOOK below is the same six lines, fiv
 
     Check       free, forever
     Meter       100,000 evaluations a month free per organisation, then 0.002 USD
-    Acceptance  0.30% of value released or reconciled against a signed acceptance; by contract 0.20% above 1M a
-                month and 0.10% above 10M a month; floor 0.05 USD; no cap
-    Record      0.25 USD a lookup through the hosted API, or by subscription
+    Acceptance  0.30% of value released or reconciled against a signed acceptance; by contract 0.20% on monthly
+                value above 1M, and never lower; outcomes under 20 USD are netted: one release per payee per
+                period, 0.30% of the netted amount, the 0.05 floor once per release; no cap
+    Record      0.10 USD a lookup through the machine-priced API, paid per call by the caller
     Control     Team 25,000 USD a year; Business 100,000; Enterprise from 400,000
     Pilot       2,500 USD, credited against year one
 
@@ -20,6 +21,9 @@ The rules, each of which a line of the invoice names:
   laid end to end, value released on chain first; each deliverable pays the rate of the part of the month it lies
   in, and at least 0.05. On chain the program takes 0.30% whatever the month's volume, so the part of that which
   the volume rates would not have taken is a rebate, credited on the invoice.
+- Small tickets are netted. Accepted outcomes under 20 USD that name their payee accumulate, and settle as one
+  release per payee per period: 0.30% of the netted amount, the 0.05 floor once per release, not once per outcome.
+  An outcome that names no payee is charged by itself.
 - No charge for a duplicate, an infrastructure failure or a retry Knos caused. A rejection that ran correctly is an
   evaluation, and is counted; it is not an outcome, and carries no Acceptance.
 - An accepted deliverable is counted once, however many evaluations it took and however often it is listed.
@@ -39,7 +43,7 @@ for payment. On devnet every fee the program takes is test money: 0 revenue.
 
     knos bill estimate --plan business --evaluations 110000 --accepted 10000000
     knos bill explain month.json
-    knos bill margin month.json docs/unit_costs.json
+    knos bill margin month.json docs/unit_costs.json      (and who earns what at the floor, and what netting saves)
 """
 from __future__ import annotations
 
@@ -48,15 +52,18 @@ from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from . import netting
+
 CENT = Decimal("0.01")
 ZERO = Decimal(0)
 
 METER_FREE = 100_000                     # evaluations a month, per organisation
 METER_PRICE = Decimal("0.002")           # USD an evaluation after the free ones
 ACCEPT_RATE = Decimal("0.0030")          # of value released or reconciled against a signed acceptance
-ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal("0.0020")), (Decimal(10_000_000), Decimal("0.0010")))     # (monthly value above, rate), marginal, by contract
-ACCEPT_FLOOR = Decimal("0.05")           # USD per deliverable; there is no cap
-RECORD_PRICE = Decimal("0.25")           # USD a lookup of a supplier's delivery record through the hosted API
+ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal("0.0020")))     # (monthly value above, rate), marginal, by contract; the rate never goes below 0.20%
+ACCEPT_FLOOR = Decimal("0.05")           # USD per release (a deliverable by itself, or one payee's netted small outcomes); there is no cap
+NET_BELOW = Decimal(netting.SMALL) / netting.MICRO     # USD (20; the one definition is netting.SMALL): an outcome under this accumulates, and settles as one release per payee per period
+RECORD_PRICE = Decimal("0.10")           # USD a lookup of a supplier's delivery record through the machine-priced API
 CONTROL = {"none": ZERO, "team": Decimal(25_000), "business": Decimal(100_000), "enterprise": Decimal(400_000)}     # USD a year; Enterprise: from
 PILOT = Decimal(2_500)                   # USD, credited against year one
 BENEFIT_RULE = 3                         # what a buyer should demand before buying: a measured benefit of three times the price
@@ -66,10 +73,13 @@ BOOK = (
     ("Check", "pull request or artifact checked", "free, forever", "nobody", "nowhere"),
     ("Meter", "evaluation", "100,000 a month free per organisation, then 0.002 USD", "buyer", "prepaid credits"),
     ("Acceptance", "dollar released or reconciled against a signed acceptance",
-     "0.30%; by contract 0.20% above 1M a month and 0.10% above 10M a month; floor 0.05 USD; no cap", "funder, on top of the amount",
+     "0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets "
+     "are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the "
+     "0.05 floor once per release; no cap", "funder, on top of the amount",
      "knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)"),
-    ("Record", "lookup of a supplier's delivery record through the hosted API",
-     "0.25 USD, or by subscription (the public record page and its file are free)", "the buyer, marketplace or insurer reading it",
+    ("Record", "lookup of a supplier's delivery record through the machine-priced API",
+     "0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public "
+     "record page and its file stay free", "the buyer, marketplace or insurer reading it",
      "API (not built: a static file today)"),
     ("Control", "organisation, per year", "Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single "
      "sign-on, private deployment and support that do not exist)", "buyer", "contract"),
@@ -82,15 +92,16 @@ RULES = {
     "meter": "Meter: the first 100,000 evaluations a month are free, then 0.002 USD each.",
     "free_of_charge": "No charge for a duplicate, an infrastructure failure or a retry Knos caused.",
     "rejection": "A rejection that ran correctly is an evaluation, not an outcome.",
-    "acceptance": "Acceptance: 0.30% of value reconciled against a signed acceptance, at least 0.05 USD a deliverable, with no cap.",
-    "volume": "By contract the month's value above 1,000,000 pays 0.20% and above 10,000,000 pays 0.10%, each rate on its own part.",
+    "acceptance": "Acceptance: 0.30% of value reconciled against a signed acceptance, at least 0.05 USD a release, with no cap.",
+    "volume": "By contract the month's value above 1,000,000 pays 0.20%, each rate on its own part; the rate never goes below 0.20%.",
+    "netted": "Outcomes under 20 USD are netted: one release per payee per period, 0.30% of the netted amount, the 0.05 floor once.",
     "on_chain": "Value released on chain paid its Acceptance fee there and is never charged again.",
     "rebate": "On chain the fee is 0.30% of every release; what the volume rates would not have taken is a rebate by contract.",
     "once": "An accepted deliverable is counted once, however many evaluations it took.",
     "credit": ("Value that is disputed or reversed never carries an Acceptance charge: in the month it was accepted it is left out of the "
                "reconciled value, and when it was accepted in an earlier month the fee it was charged, 0.30% of it unless the earlier "
                "invoice shows less, is credited on the next invoice."),
-    "record": "Record: 0.25 USD a lookup through the hosted API. The public record page and its file are free.",
+    "record": "Record: 0.10 USD a lookup through the machine-priced API, paid per call. The public record page and its file are free.",
     "suppliers": "Connecting a supplier costs nothing.",
     "commitment": "An annual commitment is billed in twelve parts and drawn down by use; only what it does not cover is charged on top.",
     "separate": "Agreed separately, and listed as agreed.",
@@ -165,6 +176,33 @@ def acceptance_fee(value: Decimal, below: Decimal = ZERO, volume: bool = False) 
     return max(ACCEPT_FLOOR, cents(acceptance_span(below, value, volume))) if value > 0 else ZERO
 
 
+def netted(outcomes: Any, below: Decimal = ZERO, volume: bool = False) -> dict:
+    """Small tickets, netted: `outcomes` is [(payee, value)], each value under 20 USD. They accumulate, and each payee's
+    settle as ONE release for the period: 0.30% of the netted amount (the contract's rate where the month has reached
+    it), and the 0.05 floor once per release. `individually` is what the same outcomes cost one release each."""
+    by: dict[str, list[Decimal]] = {}
+    for who, value in outcomes:
+        if not str(who).strip() or not ZERO < value < NET_BELOW:
+            raise BillingError(f"a netted outcome names its payee and is more than 0 and under {show(NET_BELOW)}")
+        by.setdefault(str(who).strip(), []).append(value)
+    releases, fee, alone = [], ZERO, ZERO
+    for who, values in by.items():
+        amount = sum(values, ZERO)
+        one = acceptance_fee(amount, below, volume)
+        micro = amount * netting.MICRO
+        if not volume and micro == micro.to_integral_value():      # the release's fee is the one knos_pay takes for an order of the net (netting.fee_of), to the cent
+            one = cents(Decimal(netting.fee_of(int(micro))) / netting.MICRO)
+        releases.append({"payee": who, "outcomes": len(values), "amount": show(amount), "fee": show(one), "share": share(one, amount)})
+        fee, below = fee + one, below + amount
+        alone += sum((acceptance_fee(v) for v in values), ZERO)
+    return {"releases": releases, "outcomes": sum(len(v) for v in by.values()), "fee": fee, "individually": alone}
+
+
+def share(fee: Decimal, amount: Decimal) -> str:
+    """A fee as a share of what it is charged on: "0.30%"."""
+    return f"{fee / amount * 100:.2f}%" if amount > 0 else "none"
+
+
 def acceptance_parts(value: Decimal, volume: bool = True, months: int = 1) -> list[dict]:
     """How a period's value falls into the tiers: [{"rate", "of", "fee"}], the fee of each part not rounded."""
     out = []
@@ -216,11 +254,12 @@ def invoice(month: dict) -> dict:
         billed_to                "buyer" (default). Anything else is refused: the rated party never pays.
         evaluations              every evaluation run in the month, rejections included
         duplicates, infrastructure_failures, knos_retries      how many of those are free of charge
-        accepted                 [{"deliverable": id, "value": "1200.00", "on_chain": false}]  accepted this month, at the value
-                                 the acceptance names. "on_chain": true says the program released it and took its fee then.
+        accepted                 [{"deliverable": id, "value": "1200.00", "on_chain": false, "payee": "acme"}]  accepted this
+                                 month, at the value the acceptance names. "on_chain": true says the program released it and
+                                 took its fee then. "payee": who is paid; an outcome under 20 USD that names one is netted.
         disputed, reversed       [{"deliverable": id, "value": "...", "charged": "..."}]  this month's, or an earlier month's;
                                  "charged" is the fee the earlier invoice shows for it, when that is less than 0.30%
-        record_lookups           lookups of a supplier's delivery record through the hosted API
+        record_lookups           lookups of a supplier's delivery record through the machine-priced API
         suppliers                suppliers connected (it costs nothing; the line says so)
         committed                the annual commitment, USD (default 0)
         drawn                    how much of it earlier months of this year already used
@@ -270,6 +309,7 @@ def invoice(month: dict) -> dict:
 
     # 3. Acceptance: each accepted deliverable once, less what is disputed or reversed this month; never what the chain released
     accepted: dict[str, Decimal] = {}
+    payee: dict[str, str] = {}
     chain: set[str] = set()
     listed_again = 0
     for ident, value, row in _valued(month.get("accepted"), "accepted"):
@@ -281,6 +321,7 @@ def invoice(month: dict) -> dict:
             raise BillingError(f"accepted {ident}: on_chain is true or false")
         if row.get("on_chain", False):
             chain.add(ident)
+        payee[ident] = str(row.get("payee") or "").strip()
     earlier: list[tuple[str, str, Decimal]] = []
     left_out = ZERO
     for kind in ("disputed", "reversed"):
@@ -297,20 +338,28 @@ def invoice(month: dict) -> dict:
     released = sum((v for k, v in accepted.items() if k in chain), ZERO)
     reconciled = sum((v for k, v in accepted.items() if k not in chain), ZERO)
     below, acceptance, deliverables = released, ZERO, 0      # value released on chain lies first in the month
+    small: dict[str, list[Decimal]] = {}                      # payee -> its outcomes under 20 USD: netted, one release each
     for ident, value in accepted.items():
         if ident in chain or value <= 0:
             continue
+        deliverables += 1
+        if value < NET_BELOW and payee[ident]:
+            small.setdefault(payee[ident], []).append(value)
+            continue
         acceptance += acceptance_fee(value, below, volume)
         below += value
-        deliverables += 1
+    net = netted([(who, value) for who, values in small.items() for value in values], below, volume)
+    acceptance += net["fee"]
     parts = [p for p in acceptance_parts(released + reconciled, volume) if p["of"] > 0]
     how = (f"{show(reconciled)} reconciled off chain over {deliverables:,} deliverables"
            + (f", above {show(released)} released on chain" if released else "")
            + (f"; the month's {show(released + reconciled)}: " + ", ".join(f"{show(p['of'])} at {p['rate']}" for p in parts) if parts else "")
+           + (f"; {net['outcomes']:,} outcomes under {show(NET_BELOW)} netted into {len(net['releases']):,} releases: {show(net['fee'])}, "
+              f"not {show(net['individually'])}" if small else "")
            + (f"; {listed_again:,} listed again and counted once" if listed_again else "")
            + (f"; {show(left_out)} disputed or reversed this month left out" if left_out else ""))
-    lines.append(_line("acceptance", "Acceptance", acceptance, "volume" if volume and released + reconciled > ACCEPT_TIERS[1][0] else "acceptance", how,
-                       deliverables=deliverables, reconciled=show(reconciled)))
+    lines.append(_line("acceptance", "Acceptance", acceptance, "volume" if volume and released + reconciled > ACCEPT_TIERS[1][0] else "netted" if small else "acceptance", how,
+                       deliverables=deliverables, reconciled=show(reconciled), netted_outcomes=net["outcomes"], netted_releases=len(net["releases"])))
     if released:
         paid_there = cents(released * ACCEPT_RATE)
         lines.append(_line("on_chain", "Released on chain", ZERO, "on_chain",
@@ -440,6 +489,10 @@ def estimate_lines(e: dict) -> list[str]:
 
 # ---- gross margin: what a month's lines cost Knos to deliver, from a unit-cost file --------------------------------------
 COST_FIELDS = ("evaluation", "accepted_deliverable", "record_lookup", "control_year")
+MORE_COSTS = {"pair_month": ZERO, "payee_account": Decimal("0.18")}      # optional in a unit-cost file: one anchored batch for one buyer-supplier
+#                                                                          pair in a month; the rent of a payee's first token account
+SPLIT_AMOUNTS = (5, 20, 100, 1_000)      # whole test USDC: the releases `floor_split` works
+NET_EXAMPLE = (Decimal("0.99"), 100)     # the outcome `netting_example` works, and how many of them one payee is owed in a period
 
 
 def unit_costs(doc: Any) -> dict[str, Decimal]:
@@ -449,8 +502,8 @@ def unit_costs(doc: Any) -> dict[str, Decimal]:
     if not isinstance(rows, dict):
         raise BillingError("a unit-cost file is a JSON object")
     out = {}
-    for name in COST_FIELDS:
-        raw = rows.get(name)
+    for name in (*COST_FIELDS, *MORE_COSTS):
+        raw = rows.get(name, str(MORE_COSTS[name]) if name in MORE_COSTS else None)
         raw = raw.get("usd") if isinstance(raw, dict) else raw
         if isinstance(raw, (bool, float)) or raw is None:
             raise BillingError(f"unit cost {name}: write it as a string like \"0.0002\"")
@@ -465,8 +518,10 @@ def unit_costs(doc: Any) -> dict[str, Decimal]:
 
 def margin(month: dict, costs: Any) -> dict:
     """Revenue, direct cost and gross margin of one customer-month, line by line. Every counted evaluation costs
-    something to deliver, the free ones too; a deliverable released on chain is in no line (its fee is the program's,
-    and on devnet that is test money)."""
+    something to deliver, the free ones too, and the month's batch is anchored once for each supplier connected (the
+    file's `pair_month`); a deliverable released on chain is in no line (its fee is the program's, and on devnet that
+    is test money). With it: who earns what at the floor under both builds of the program (`floor_split`) and what a
+    small outcome pays by itself and netted (`netting_example`)."""
     inv, unit = invoice(month), unit_costs(costs)
     by = {row["line"]: row for row in inv["lines"]}
     rows = []
@@ -478,7 +533,8 @@ def margin(month: dict, costs: Any) -> dict:
 
     if "control" in by:
         add("control", by["control"]["what"], _amount(by["control"]), "1 month of 12", unit["control_year"] / 12)
-    add("meter", "Meter", _amount(by["meter"]), by["meter"]["counted"], by["meter"]["counted"] * unit["evaluation"])
+    pairs = _count(month.get("suppliers", 0), "suppliers") if by["meter"]["counted"] else 0
+    add("meter", "Meter", _amount(by["meter"]), by["meter"]["counted"], by["meter"]["counted"] * unit["evaluation"] + pairs * unit["pair_month"])
     add("acceptance", "Acceptance", _amount(by["acceptance"]), by["acceptance"]["deliverables"], by["acceptance"]["deliverables"] * unit["accepted_deliverable"])
     if "record" in by:
         add("record", "Record lookups", _amount(by["record"]), by["record"]["lookups"], by["record"]["lookups"] * unit["record_lookup"])
@@ -486,8 +542,57 @@ def margin(month: dict, costs: Any) -> dict:
     cost = sum((Decimal(r["direct_cost"].replace(",", "")) for r in rows), ZERO)
     return {"plan": inv["plan"], "month": inv["month"], "lines": rows, "revenue": show(revenue), "direct_cost": show(cost), "gross": show(revenue - cost),
             "margin": f"{(revenue - cost) / revenue * 100:.1f}%" if revenue > 0 else "none: no revenue",
+            "free_tier_year": show(12 * (METER_FREE * unit["evaluation"] + pairs * unit["pair_month"])),
+            "floor": floor_split(unit["payee_account"]), "netting": netting_example(),
             "note": ("Revenue is the lines before credits, the commitment and anything agreed separately. Direct cost is the unit-cost file's, and "
                      "a cost it marks as a budget is a budget, not a measurement. Nothing has been sold.")}
+
+
+def floor_split(payee_account: Decimal = MORE_COSTS["payee_account"], amounts: tuple = SPLIT_AMOUNTS) -> list[dict]:
+    """Who earns what on a release of each size, under both builds of knos_pay (knos.fees: 2.1 charges the 0.3.14 fee,
+    2.2 the 0.3.18 one; `knos status` says which is live). The fee is the funder's, on top. Out of it the relayer takes
+    its tip (0.05, or 0.30 when the paying transaction created the payee's token account, never more than the fee) and
+    the fee owner keeps the rest. `payee_account` is the rent the relayer puts up for that account, in USD: on a first
+    payment its tip less that rent is what it nets. `nothing_at`: the largest release that leaves the fee owner 0."""
+    from . import fees
+    from .settle.v2 import pay
+
+    unit, out = 1_000_000, []
+    u = lambda n: Decimal(n) / unit      # noqa: E731
+
+    def most(r: Any, tip: int) -> str:
+        """The largest whole-cent order, from the least an order holds, whose fee is no more than `tip`: "none" when even that one earns."""
+        lo, hi = pay.ORDER_MIN_AMOUNT // 10_000, pay.MAX_AMOUNT // 10_000
+        if r.order(lo * 10_000) > tip:
+            return "none"
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            lo, hi = (mid, hi) if r.order(mid * 10_000) <= tip else (lo, mid - 1)
+        return show(Decimal(lo) / 100)
+
+    for r in (fees.OLD, fees.NEW):
+        rows = []
+        for a in amounts:
+            fee = r.order(a * unit)
+            tip, first = min(pay.TIP, fee), min(pay.TIP_FIRST, fee)
+            rows.append({"amount": show(Decimal(a)), "fee": show(u(fee)), "share": share(u(fee), Decimal(a)), "tip": show(u(tip)), "fee_owner": show(u(fee - tip)),
+                         "first_tip": show(u(first)), "first_relayer_net": show(u(first) - payee_account), "first_fee_owner": show(u(fee - first))})
+        out.append({"build": r.build, "release": r.release, "rate": r.rate(), "rows": rows, "account": show(payee_account),
+                    "nothing_at": most(r, pay.TIP), "first_nothing_at": most(r, pay.TIP_FIRST)})
+    return out
+
+
+def netting_example(value: Decimal = NET_EXAMPLE[0], count: int = NET_EXAMPLE[1]) -> dict:
+    """What an outcome of `value` (under 20 USD) costs in fees by itself, and as one of `count` owed to one payee in a
+    period. By itself it pays the floor; netted, the release pays 0.30% of the netted amount and the floor once.
+    `reaches_rate`: how many such outcomes one payee needs in a period before the floor stops being the fee."""
+    alone = acceptance_fee(value)
+    net = netted([("payee", value)] * count)
+    need = next(n for n in range(1, 10_000) if cents(value * n * ACCEPT_RATE) > ACCEPT_FLOOR)
+    return {"value": show(value), "alone_fee": show(alone), "alone_share": share(alone, value), "count": count, "netted_amount": net["releases"][0]["amount"],
+            "netted_fee": show(net["fee"]), "netted_share": net["releases"][0]["share"], "individually": show(net["individually"]),
+            "one_in_a_period": share(netted([("payee", value)])["fee"], value), "reaches_rate": need,
+            "on_chain_least": show(Decimal(5)), "floor": show(ACCEPT_FLOOR)}
 
 
 def margin_lines(g: dict) -> list[str]:
@@ -497,6 +602,17 @@ def margin_lines(g: dict) -> list[str]:
         units = f"{r['units']:,}" if isinstance(r["units"], int) else str(r["units"])
         out.append(f"  {r['what']:<22} {units:>14} {r['revenue']:>14} {r['direct_cost']:>14} {r['gross']:>14}  {r['margin']}")
     out.append(g["note"])
+    out.append(f"The free evaluations: at most {g['free_tier_year']} a year for this organisation at these costs. It is acquisition cost.")
+    for b in g["floor"]:
+        out += ["", f"Who earns what at the floor, knos_pay {b['build']} (the {b['release']} fee: {b['rate']}). Test USDC; `knos status` says which build is live.",
+                f"  {'release':>10} {'fee':>8} {'share':>7} {'tip':>6} {'fee owner':>10}   a payee's first payment: {'tip':>5} {'less ' + b['account'] + ' rent':>15} {'fee owner':>10}"]
+        out += [f"  {r['amount']:>10} {r['fee']:>8} {r['share']:>7} {r['tip']:>6} {r['fee_owner']:>10}   {'':>24}{r['first_tip']:>5} {r['first_relayer_net']:>15} {r['first_fee_owner']:>10}" for r in b["rows"]]
+        said = lambda size: "never" if size == "none" else f"at {size} or less"      # noqa: E731
+        out.append(f"  The fee owner earns nothing: on a release, {said(b['nothing_at'])}; on a payee's first payment, {said(b['first_nothing_at'])}.")
+    n = g["netting"]
+    out += ["", f"Netting: an outcome of {n['value']} by itself pays the floor, {n['alone_fee']}: {n['alone_share']} of it. (On chain the least order is {n['on_chain_least']}.)",
+            f"  {n['count']:,} of them to one payee in a period, netted: one release of {n['netted_amount']} pays {n['netted_fee']}, {n['netted_share']}; one by one they pay {n['individually']}.",
+            f"  One alone in a period still pays the floor, {n['one_in_a_period']}; from {n['reaches_rate']} of them the rate is the fee."]
     return out
 
 

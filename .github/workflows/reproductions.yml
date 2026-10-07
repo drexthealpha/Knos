@@ -7,7 +7,8 @@ name: reproductions
 #   the token carries GitHub's signature (GitHub's keys as they are now, and scripts/github_oidc_keys.json);
 #   its audience is knos-repro:<sha256 of the report in the file>, so the report was not edited after it was signed;
 #   the repository's owner and the account that started the run are not drexthealpha or an account of
-#   scripts/own_github_ids.json: Knos's own run is not an outside reproduction;
+#   scripts/own_github_ids.json: Knos's own run is not an outside reproduction (a file under reproductions/own/ is the
+#   reverse: it must be Knos's own run, and it is counted for nothing);
 #   no check in the report failed, and at least one passed;
 #   the pull request adds JSON files under reproductions/ and changes nothing else.
 #
@@ -49,15 +50,18 @@ jobs:
           set -euo pipefail
           case "$PULL" in ''|*[!0-9]*) echo "not a pull request's number"; exit 1 ;; esac
           case "$HEAD" in ''|*[!0-9a-f]*) echo "not a commit"; exit 1 ;; esac
-          mkdir -p "$RUNNER_TEMP/sent"
+          mkdir -p "$RUNNER_TEMP/sent/own"
           gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PULL/files?per_page=100" --jq '.[] | [.status, .filename] | @tsv' > "$RUNNER_TEMP/files.tsv"
           other=""
           while IFS="$(printf '\t')" read -r status name; do
             base="${name#reproductions/}"
+            into="$RUNNER_TEMP/sent"
             case "$name" in reproductions/*.json) ;; *) other="$name"; continue ;; esac
+            # reproductions/own/<name>.json: a run of Knos's own, verified as one (it must be Knos's own) and counted for nothing
+            case "$base" in own/*) base="${base#own/}"; into="$RUNNER_TEMP/sent/own" ;; esac
             case "$base" in -*|*[!A-Za-z0-9._-]*) other="$name"; continue ;; esac
             if [ "$status" != added ]; then other="$name"; continue; fi
-            gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/$name?ref=$HEAD" > "$RUNNER_TEMP/sent/$base"
+            gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/$name?ref=$HEAD" > "$into/$base"
           done < "$RUNNER_TEMP/files.tsv"
           if [ -n "$other" ]; then
             echo "**Not accepted.** A reproduction is JSON files added under reproductions/ and nothing else, so that it can be merged without reading code. This pull request also changes another file, or changes a reproduction already there. Send the reproduction alone." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -68,4 +72,5 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           files=("$RUNNER_TEMP"/sent/*.json)
-          python3 scripts/capabilities.py reproduction --live "${files[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+          own=("$RUNNER_TEMP"/sent/own/*.json)
+          python3 scripts/capabilities.py reproduction --live "${files[@]}" --own "${own[@]}" | tee -a "$GITHUB_STEP_SUMMARY"

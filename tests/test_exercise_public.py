@@ -489,28 +489,44 @@ def test_propose_proposes_exactly_knos_oidc_and_knos_pay_as_one_set_and_refuses_
     monkeypatch.setattr(upgrade_feed, "gate_record", lambda account, program, build: vouched.get(build))
     assert ex.RELEASE_CHANGES == ("knos_oidc", "knos_pay")
     said: list[str] = []
+    # 0.3.19 proposes nothing: its tree changes no program and both builds are proposals 7 and 8 already. Refused before
+    # anything is read (the cluster here would raise), under either name
+    def unread(address):
+        raise AssertionError("propose read the cluster")
+    assert ex.RELEASE_PROPOSES == () and ex.propose("rpc", keys, so, said.append, unread, deploy, root) == 1 and not calls
+    assert said[-1] == ("refused: this release proposes nothing. Its tree changes no program, and knos_oidc 2.2 is proposal 7 and knos_pay 2.2 is proposal 8 "
+                        "already: `status --want 2.2` says whether they executed. Nothing was read, written or proposed.")
+    assert ex.propose_oidc("rpc", keys, so, said.append, unread, deploy, root) == 1 and not calls and "provenance" not in said[-1]
+    assert ex.main(["propose", "--rpc", "rpc", "--keys", str(keys), "--so-dir", str(so)], said.append) == 1 and said[-1].startswith("refused: this release proposes nothing")
+    said.clear()
+
+    # the mechanism itself, as 0.3.18 ran it, with that release's set
+    class ex18:
+        @staticmethod
+        def propose(*args):
+            return ex.propose(*args, changes=ex.RELEASE_CHANGES)
     # before the four proposals have executed: refused, exit 3, nothing called
     seen = json.loads((root / "docs" / "provenance.json").read_text(encoding="utf-8"))
     seen["programs"]["knos_meter"]["on_chain_hash"] = gate.executable_hash(b"old meter").hex()
     (root / "docs" / "provenance.json").write_text(json.dumps(seen), encoding="utf-8")
-    assert ex.propose("rpc", keys, so, said.append, cluster({**ELF, "knos_meter": b"old meter"}), deploy, root) == 3 and not calls
+    assert ex18.propose("rpc", keys, so, said.append, cluster({**ELF, "knos_meter": b"old meter"}), deploy, root) == 3 and not calls
     assert "proposals 3 to 6 have not all executed" in said[-1]
     # a third program's bytes differ from what is live: refused, nothing called
     builds(knos_meter=b"a rebuild of knos_meter")
-    assert ex.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 1 and not calls
+    assert ex18.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 1 and not calls
     assert said[-1].startswith("refused: the build of knos_meter in ") and "this release changes knos_oidc, knos_pay and no other" in said[-1]
     assert said[-1].endswith("The plan would be [knos_oidc, knos_pay, knos_meter]; it must be [knos_oidc, knos_pay]. Nothing was proposed.")
     # one of the two is still the build that is live: the set is not split
     builds(knos_pay=ELF["knos_pay"])
-    assert ex.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 1 and not calls
+    assert ex18.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 1 and not calls
     assert "the build of knos_pay in " in said[-1] and "is the one already live, and this release proposes knos_oidc, knos_pay as one set" in said[-1]
     assert "The plan would be [knos_oidc]; it must be [knos_oidc, knos_pay]." in said[-1]
     # a build the gate has no record of
     builds(knos_pay=b"not a verified build")
-    assert ex.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 1 and not calls and "holds no record of the build" in said[-1] and "of knos_pay" in said[-1]
+    assert ex18.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 1 and not calls and "holds no record of the build" in said[-1] and "of knos_pay" in said[-1]
     builds()
     said.clear()
-    assert ex.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 0
+    assert ex18.propose("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 0
     (argv, env), = calls
     assert argv[0] == "bash" and argv[1].endswith("scripts/deploy_v2.sh") and argv[2:] == ["--propose"]
     assert (env["KNOS_CHANGES"], env["KNOS_SO_DIR"], env["KNOS_KEYS"], env["KNOS_RPC"]) == ("knos_oidc knos_pay", str(so), str(keys), "rpc")
@@ -534,12 +550,7 @@ def test_propose_proposes_exactly_knos_oidc_and_knos_pay_as_one_set_and_refuses_
     # once both builds are live, status knows them by the name docs/provenance.json gave them, and there is nothing left to propose
     live = cluster({**ELF, **new})
     assert [ex.read_programs(live, root)[n]["is"] for n in ex.PROGRAMS] == ["next", "next", "new", "new"] and ex.status_code(ex.read_programs(live, root)) == 0
-    assert ex.propose("rpc", keys, so, said.append, live, deploy, root) == 1 and "there is nothing to propose" in said[-1]
-    # the old name still works, and says what it is now
-    calls.clear()
-    said.clear()
-    assert ex.propose_oidc("rpc", keys, so, said.append, cluster(ELF), deploy, root) == 0 and len(calls) == 1
-    assert said[0] == "`propose-oidc` is `propose` now: this release proposes knos_oidc and knos_pay as ONE set, never knos_oidc alone. Running `propose`:"
+    assert ex18.propose("rpc", keys, so, said.append, live, deploy, root) == 1 and "there is nothing to propose" in said[-1]
     # and scripts/schedule_upgrade.sh executes every proposal of the schedule, in the order of their indexes
     sh = (ROOT / "scripts" / "schedule_upgrade.sh").read_text(encoding="utf-8")
     assert "for each proposal, in the order of their indexes" in sh
@@ -610,3 +621,206 @@ def test_the_rehearsal_on_devnet_is_five_commands_in_order_and_what_cannot_be_do
     # on devnet: the same second cannot be arranged, and a second owner is never invented
     src = (ROOT / "scripts" / "exercise_public.py").read_text(encoding="utf-8")
     assert "four transactions do not land in one second of devnet's clock at will" in src and "Nothing was sent in a second owner's name" in src
+
+
+# ---- 0.3.19: after proposals 7 and 8 -----------------------------------------------------------------------------------
+NEXT = {"knos_oidc": b"knos_oidc 2.2: strict json and es256", "knos_pay": b"knos_pay 2.2: one rate, owners, grace" + bytes(64)}
+NEXT_HASH = {n: gate.executable_hash(e).hex() for n, e in NEXT.items()}
+
+
+def test_status_want_2_2_exits_0_only_when_proposals_7_and_8_executed_and_json_names_each_live_build_by_hash(tmp_path, monkeypatch):
+    root = tree(tmp_path)
+    asked = {n: {"proposal": i, "version": "2.2", "status": "Approved", "executable_from": 1_791_534_000 + i} for n, i in ex.NEXT_PROPOSALS.items()}
+    monkeypatch.setattr(ex, "next_proposals", lambda account, root=None: copy.deepcopy(asked))
+    said: list[str] = []
+    # 2.1 everywhere, 7 and 8 approved and waiting: plain status is 0 (the 0.3.18 rounds can run), --want 2.2 is 3, and nothing waits
+    assert ex.status("rpc", said.append, cluster(ELF), root) == 0
+    said.clear()
+    assert ex.status("rpc", said.append, cluster(ELF), root, want="2.2") == 3
+    assert said[-1] == ("proposal 7 (knos_oidc 2.2) has not executed: the multisig says Approved, executable from 2026-10-09 08:20 UTC; "
+                        "proposal 8 (knos_pay 2.2) has not executed: the multisig says Approved, executable from 2026-10-09 08:20 UTC. "
+                        "Nothing waits: ship without the after rounds; `run --phase after` runs them later (exit 3)")
+    # one of the two executed: still 3, and only the other is named
+    monkeypatch.setattr(ex, "NEXT_BUILD", {n: h[:8] for n, h in NEXT_HASH.items()})
+    asked["knos_oidc"] = {"proposal": 7, "version": "2.2", "status": "Executed"}
+    said.clear()
+    half = cluster({**ELF, "knos_oidc": NEXT["knos_oidc"]})
+    assert ex.status("rpc", said.append, half, root, want="2.2") == 3 and said[-1].startswith("proposal 8 (knos_pay 2.2) has not executed")
+    assert "runs knos_oidc 2.2, the later build of proposal 7" in said[0] and "runs knos_pay 2.1, the build of proposal 4" in said[1]
+    # both executed, and no file of the tree names the builds yet: the multisig's word and how each hash begins
+    asked["knos_pay"] = {"proposal": 8, "version": "2.2", "status": "Executed"}
+    both = cluster({**ELF, **NEXT})
+    said.clear()
+    assert ex.status("rpc", said.append, both, root, want="2.2", as_json=True) == 0
+    doc = json.loads(said[0])
+    assert doc["exit"] == 0 and doc["want"] == "2.2" and doc["says"] == ("knos_oidc 2.2 (proposal 7) and knos_pay 2.2 (proposal 8) are live at the public ids: "
+                                                                         "run the after rounds (`run --phase after`)")
+    assert doc["live"] == {"knos_oidc": {"version": "2.2", "hash": NEXT_HASH["knos_oidc"], "proposal": 7}, "knos_pay": {"version": "2.2", "hash": NEXT_HASH["knos_pay"], "proposal": 8},
+                           "knos_meter": {"version": "1.1", "hash": HASH["knos_meter"], "proposal": 5}, "knos_passkey": {"version": "1.1", "hash": HASH["knos_passkey"], "proposal": 6}}
+    assert doc["proposals"]["knos_pay"] == {"proposal": 8, "version": "2.2", "status": "Executed"} and doc["programs"]["knos_pay"]["is"] == "next"
+    # a build that begins otherwise is nobody's, whatever the multisig says: 1
+    monkeypatch.setattr(ex, "NEXT_BUILD", {"knos_oidc": "00000000", "knos_pay": "00000000"})
+    assert ex.status("rpc", said.append, both, root, want="2.2") == 1
+    # the feed's own entry for proposal 8 names the build: that is enough, with no word from the multisig
+    monkeypatch.setattr(ex, "next_proposals", lambda account, root=None: {n: {"proposal": i, "version": "2.2", "status": None} for n, i in ex.NEXT_PROPOSALS.items()})
+    feed = json.loads((root / "web" / "upgrades.json").read_text(encoding="utf-8"))
+    feed["entries"][:0] = [{"index": i, "program": n, "build_hash": NEXT_HASH[n], "status": "executed", "squads_status": "Executed"} for n, i in ex.NEXT_PROPOSALS.items()]
+    (root / "web" / "upgrades.json").write_text(json.dumps(feed), encoding="utf-8")
+    assert ex.status("rpc", said.append, both, root, want="2.2") == 0 and ex.status("rpc", said.append, cluster(ELF), root, want="2.2") == 3
+    # the real reader, on a cluster with no multisig: no status, never a guess, when the feed does not name 7 and 8
+    monkeypatch.undo()
+    alone = tmp_path / "feed_only"
+    (alone / "web").mkdir(parents=True)
+    (alone / "programs-v2").mkdir()
+    (alone / "programs-v2" / "program_ids.json").write_bytes((ROOT / "programs-v2" / "program_ids.json").read_bytes())
+    feed = json.loads((ROOT / "web" / "upgrades.json").read_text(encoding="utf-8"))
+    feed["entries"] = [e for e in feed["entries"] if e.get("index") not in ex.NEXT_PROPOSALS.values()]
+    (alone / "web" / "upgrades.json").write_text(json.dumps(feed), encoding="utf-8")
+    assert ex.next_proposals(cluster(ELF), alone) == {"knos_oidc": {"proposal": 7, "version": "2.2", "status": None}, "knos_pay": {"proposal": 8, "version": "2.2", "status": None}}
+    # a feed that names them: the multisig's word as the feed was generated, and said to be that
+    feed["entries"][:0] = [{"index": i, "program": n, "status": "pending", "squads_status": "Approved"} for n, i in ex.NEXT_PROPOSALS.items()]
+    (alone / "web" / "upgrades.json").write_text(json.dumps(feed), encoding="utf-8")
+    assert ex.next_proposals(cluster(ELF), alone) == {n: {"proposal": i, "version": "2.2", "status": "Approved", "read": "web/upgrades.json, as it was generated"}
+                                                      for n, i in ex.NEXT_PROPOSALS.items()}
+
+
+@pytest.fixture(scope="module")
+def phases():
+    """`run --simulate --phase after`: both phases on the simulator, the live source's test build upgraded in place."""
+    said: list[str] = []
+    ev, code = ex.after_simulated(said.append)
+    return ev, code, said
+
+
+def test_the_after_rounds_run_on_the_live_build_upgraded_in_place_and_assert_the_one_rate_and_the_stored_fee(phases):
+    ev, code, said = phases
+    if "knos_pay" not in ex.changed_fixtures():
+        pytest.skip("this tree's knos_pay test build is the live one: there is no 2.2 to run the after rounds on")
+    results = {n: ev["rounds"][n]["result"] for n in ex.AFTER_STEPS}
+    assert code == 0 and ev["old_build"] != ev["new_build"] and not [line for line in said if "FAILED" in line], results
+    assert {n for n, r in results.items() if r != "ok"} == set(), results
+    # ES256, through the client of knos.settle.v2.oidc: a private P-256 key registered, a token as long as one transaction of
+    # this ledger carries verified in ONE transaction, and the same token again refused because its account exists (69)
+    es = ev["rounds"]["es256"]
+    assert [t.get("refused") for t in es["transactions"]] == [None, None, 69] and es["refused"]["error"] == 69
+    assert 700 <= es["verified"]["signing_input_bytes"] <= ex.oidc.MAX_ES256_INPUT == 780 and len(es["token"].rsplit(".", 1)[0]) == es["verified"]["signing_input_bytes"]
+    done = ev["exercises"]["es256_tokens"]
+    assert done["status"] == "exercised" and done["signature"] == es["verified"]["signature"] and done["program"] == "knos_oidc"
+    assert done["asserted"][0].startswith(f"knos_oidc verified an ES256 token of {es['verified']['signing_input_bytes']} bytes of https://es256.knos-exercise.invalid in one transaction")
+    assert done["refusals"] == [{"signature": es["refused"]["signature"], "error": 69, "means": "the token account exists", "what": "the same token a second time"}]
+    # the one rate, each fee read from the order's account: 5.00 -> 0.05, 100.00 -> 0.30, 1,500.00 -> 4.50; and all of it came back
+    rate = ev["rounds"]["one_rate"]
+    assert [(rate[k]["amount"], rate[k]["fee"]) for k in ("fee5", "fee100", "fee1500")] == [(5_000_000, 50_000), (100_000_000, 300_000), (1_500_000_000, 4_500_000)]
+    assert all(ex._SIG.fullmatch(rate[k]["refund"]) for k in ("fee5", "fee100", "fee1500"))
+    assert ev["exercises"]["fee_one_rate"]["asserted"][0].endswith("5.00 -> 0.05; 100.00 -> 0.30; 1,500.00 -> 4.50")
+    # funded under 2.1 with 0.40 on 5.00; after the upgrade one is paid and one goes back, each with THAT fee
+    before, stored = ev["rounds"]["stored_fund"], ev["rounds"]["stored_fee"]
+    assert [(before[k]["amount"], before[k]["fee"]) for k in ("pay", "refund")] == [(5_000_000, 400_000)] * 2 and ex.fee_flat(5_000_000) == 50_000
+    assert stored["pay"]["fee_kept"] == 400_000 and stored["refund"] == {"signature": stored["transactions"][1]["signature"], "amount": 5_000_000, "fee_back": 400_000, "refunded": True}
+    assert said.index(next(line for line in said if line.startswith("upgraded in place"))) > said.index(next(line for line in said if "under knos_pay 2.1" in line))
+    # one owner behind both judges: recorded, counted for nothing, nothing moved, and the answer says why
+    one = ev["rounds"]["one_owner"]["answer"]
+    assert (one["have"], one["of"], one["recorded"]) == (1, 2, True) and "runs in repositories of one owner are one judge" in one["why"][0]
+    assert "says why: the neutral run was in a repository of the account that owns the order's repository" in ev["exercises"]["quorum_by_owner"]["asserted"][1]
+    two = ev["rounds"]["two_owners"]
+    assert two["one"]["owner"] != two["paid"]["owner"] and ev["rounds"]["earlier_marker"]["answer"]["signature"]
+    # the grace: two minutes, the refund refused right after the deadline, paid inside the grace, back when it is over
+    grace = ev["rounds"]["grace"]
+    assert grace["fund"]["pay_until"] - grace["fund"]["deadline"] == 7200 and grace["early"]["error"] == 83 and 0 < grace["paid"]["after_deadline_s"] < 7200
+    assert [t.get("refused") for t in grace["transactions"]] == [None, None, 83, None]
+    # strict JSON: the control verified, the NaN claim refused with 61, under a private key that speaks for nobody
+    strict = ev["exercises"]["oidc_strict_json"]
+    assert strict["refusals"] == [{"signature": ev["rounds"]["strict"]["refused"]["signature"], "error": 61, "means": "the payload is not JSON", "what": "a NaN claim"}]
+    assert {c for c, e in ev["exercises"].items() if e["status"] == "exercised"} == {"fee_one_rate", "quorum_by_owner", "presentation_grace", "oidc_strict_json", "es256_tokens"}
+    # nothing stays: every order these rounds opened is closed or went back
+    assert set(ev["rounds"]["after_close"]["refunds"]) == {ev["rounds"]["one_owner"]["fund"]["order"], ev["rounds"]["earlier_marker"]["second"]["order"]}
+
+
+def test_the_phases_run_at_the_public_ids_only_on_the_builds_they_are_for_and_a_second_owner_is_never_invented(tmp_path, monkeypatch):
+    keys = tmp_path / "keys"
+    keys.mkdir()
+    where, said, made = keys / "exercise_public.json", [], []
+    monkeypatch.setattr(ex, "next_proposals", lambda account, root=None: {n: {"proposal": i, "version": "2.2", "status": "Approved"} for n, i in ex.NEXT_PROPOSALS.items()})
+
+    def world():
+        made.append(1)
+        raise AssertionError("a world was opened")
+    live = cluster(ELF)
+    # the committed tree: proposals 3 to 6 are the feed's, so the stand-in builds are unknown here; use the real records' hashes instead
+    seen = json.loads((ROOT / "docs" / "provenance.json").read_text(encoding="utf-8"))["programs"]
+    monkeypatch.setattr(ex, "read_programs", lambda account, root=ROOT: {n: {"id": IDS[n], "hash": seen[n]["on_chain_hash"], "slot": 1, "build": ex.NEW[n], "proposal": ex.PROPOSALS[n], "is": "new"}
+                                                                         for n in ex.PROGRAMS})
+    # after, while 2.1 is live: exit 3, nothing sent, no world opened, no file written
+    assert ex.after_main("after", where, "rpc", keys, False, None, None, said.append, live, world) == 3 and not made and not where.exists()
+    assert said[-1] == "nothing was sent: the after rounds run only on the builds of proposals 7 and 8"
+    # before, once 2.2 is live: exit 3 as well
+    monkeypatch.setattr(ex, "read_programs", lambda account, root=ROOT: {n: {"id": IDS[n], "hash": "ab" * 32, "slot": 1, "build": "2.2" if n in ex.NEXT_PROPOSALS else ex.NEW[n],
+                                                                             "proposal": ex.NEXT_PROPOSALS.get(n, ex.PROPOSALS[n]), "is": "next" if n in ex.NEXT_PROPOSALS else "new"}
+                                                                         for n in ex.PROGRAMS})
+    assert ex.after_main("before", where, "rpc", keys, False, None, None, said.append, live, world) == 3 and not made
+    assert said[-1].startswith("nothing was sent: knos_pay 2.1 is no longer what the public id runs")
+    # after, with 2.2 live: the steps run in the world given, and what is kept is written (here: a world where the first step fails)
+    class Broken:
+        mode, neutral = "public", None
+
+        def now(self):
+            return 1_791_600_000
+    assert ex.after_main("after", where, "rpc", keys, False, None, "someone/judge", said.append, live, Broken) == 1
+    kept = json.loads(where.read_text(encoding="utf-8"))
+    assert kept["mode"] == "public" and kept["programs"]["knos_pay"]["build"] == "2.2" and kept["rounds"]["stored_fee"]["result"].startswith("cannot: no order of this run's own was funded before the upgrade")
+    assert "cannot: no client" not in json.dumps(kept) and kept["rounds"]["es256"]["result"] != "ok" and any(line.startswith("FAILED: ") for line in said)
+    # a second owner: said as what cannot be done, unless --neutral names a repository, which is only ever read
+    src = (ROOT / "scripts" / "exercise_public.py").read_text(encoding="utf-8")
+    assert "`--neutral OWNER/REPO` names a repository of another" in src and "nothing is ever sent to that repository" in src
+    assert "new += replay_tokens.capture(self.neutral, self.since, say=self.say)" in src and src.count("self.neutral") == 2
+    # an order reserved for someone else is never looked for: the stored-fee step reads only the orders this evidence funded
+    body = src[src.index("def after_stored_fee"):src.index("def after_one_rate")]
+    assert "program_accounts" not in body and 'book.ev["rounds"].get("stored_fund"' in body
+
+
+def test_record_moves_the_2_2_capabilities_and_the_versions_only_where_the_hash_is_proposal_7s_or_8s(phases, tmp_path):
+    if "knos_pay" not in ex.changed_fixtures():
+        pytest.skip("this tree's knos_pay test build is the live one")
+    ev = copy.deepcopy(phases[0])
+    root = tree(tmp_path)
+    shutil.copyfile(ROOT / "docs" / "capabilities.json", root / "docs" / "capabilities.json")       # the manifest of this release: the 2.2 capabilities are in it
+    feed = json.loads((root / "web" / "upgrades.json").read_text(encoding="utf-8"))
+    feed["entries"][:0] = [{"index": i, "program": n, "build_hash": NEXT_HASH[n], "status": "executed", "squads_status": "Executed", "source_commit": "cd" * 20, "gate_run": 9}
+                           for n, i in ex.NEXT_PROPOSALS.items()]
+    (root / "web" / "upgrades.json").write_text(json.dumps(feed), encoding="utf-8")
+    # knos_pay runs proposal 8's build; knos_oidc runs bytes nobody recorded
+    ev["programs"] = ex.read_programs(cluster({**ELF, "knos_pay": NEXT["knos_pay"], "knos_oidc": b"bytes nobody recorded"}), root)
+    assert [(r["is"], r["build"], r["proposal"]) for r in ev["programs"].values()] == [("unknown", None, None), ("next", "2.2", 8), ("new", "1.1", 5), ("new", "1.1", 6)]
+    ev["mode"] = "public"
+    said: list[str] = []
+    ex.record(ev, root, said.append)
+    data = json.loads((root / "docs" / "capabilities.json").read_text(encoding="utf-8"))
+    was = json.loads((ROOT / "docs" / "capabilities.json").read_text(encoding="utf-8"))
+    assert data["programs"]["knos_pay"]["on_chain"] == "2.2" and "2.2" in data["programs"]["knos_pay"]["versions"]
+    assert data["programs"]["knos_oidc"]["on_chain"] == was["programs"]["knos_oidc"]["on_chain"]
+    assert any(line.startswith("knos_oidc: not the build of proposal 3 or 7 at the public id (unknown)") for line in said)
+    by = {c["id"]: c for c in data["capabilities"]}
+    for cid in ("fee_one_rate", "quorum_by_owner", "presentation_grace"):
+        got = by[cid]
+        assert got["stage"] == "exercised" and got["evidence"]["deployed"] == {"program": "knos_pay", "id": IDS["knos_pay"], "version": "2.2"}, cid
+        assert got["evidence"]["exercised"]["signature"] == ev["exercises"][cid]["signature"] and got["evidence"]["exercised"]["ids"] == "public"
+        assert "not deployed" not in got.get("note", "") and "is not live" not in got.get("note", ""), got.get("note")
+    # knos_oidc's hash is not proposal 7's: its capability stays where it was, whatever the evidence holds
+    assert by["oidc_strict_json"]["stage"] == "tested" and any(line.startswith("oidc_strict_json: not moved") for line in said)
+    seen = json.loads((root / "docs" / "provenance.json").read_text(encoding="utf-8"))["programs"]["knos_pay"]
+    assert (seen["proposal"], seen["proposal_status"], seen["on_chain_hash"], seen["on_chain_commit"]) == (8, "Executed", NEXT_HASH["knos_pay"], "cd" * 20) and "execution_signature" not in seen
+    text = (root / "docs" / "CAPABILITIES.md").read_text(encoding="utf-8")
+    assert "**one_rate.** The one rate on chain: 0.05 on an order of 5.00" in text[text.index(ex.BEGIN):text.index(ex.END)]
+
+
+def test_resume_says_what_an_earlier_run_left_for_the_clock_and_the_2_1_tiers_are_not_claimed_on_2_2():
+    said: list[str] = []
+    ev = {"rounds": {"holdback": {"round": "holdback", "needs_time": 1_791_432_060, "stopped": "needs time: 2026-10-08 04:01 UTC: the end of the warranty"},
+                     "order": {"round": "order", "needs_time": 1_792_555_980, "stopped": "needs time: 2026-10-21 04:13 UTC: the second order's deadline"},
+                     "expiry": {"round": "expiry"}}}
+    assert ex.due(ev, 1_791_500_000, said.append) == ["holdback", "order"]
+    assert said[0].endswith("due now: this run finishes it") and said[1].endswith("not due before 2026-10-21 04:13 UTC")
+    # at a public id that runs 2.2 the round `fees` does not mark the 2.1 tiers exercised with a 0.30% order
+    src = (ROOT / "scripts" / "exercise_public.py").read_text(encoding="utf-8")
+    body = src[src.index("def round_fees"):src.index("def round_holdback")]
+    assert "the public id no longer charges knos_pay 2.1's tiers" in body and body.index("raise Skip") < body.index("fund_order_wallet_ix")

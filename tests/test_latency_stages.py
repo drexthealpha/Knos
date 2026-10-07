@@ -215,7 +215,7 @@ def test_the_five_clocks_are_separate_rows_each_with_its_own_sample_and_no_numbe
     kept = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))["relay"]
     assert all(line in page for line in ls.clock_table(ls.clocks(kept["stages"]["six"], kept["decision"], kept["stages"]["whole"])))
     assert "### The five clocks" in page and "Only 5 of those 41 carry stage times" in page and "devnet, 5 of 41 payments" in page
-    assert kept["decision"]["machine"] in page and kept["decision"]["rows"]["fresh, accepted"]["n"] == 40 and "has not been measured" in page
+    assert kept["decision"]["machine"] in page and kept["decision"]["rows"]["fresh, accepted"]["n"] == 40 and "four runs of the 0.3.18 command on devnet took 4.3 to 32.6 s each; the 0.3.19 command, once on each of 24 real tokens" in page and "that has not been measured" not in page
     assert kept["decision"]["rows"]["fresh, accepted"]["p95"] < 2000 and kept["decision"]["rows"]["cached, accepted"]["p95"] < 200
 
 

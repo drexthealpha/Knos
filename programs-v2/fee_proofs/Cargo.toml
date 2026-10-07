@@ -2,7 +2,7 @@
 # fee constants out of ../knos_pay/src (lib.rs and state.rs) as text, so what is proved here is the program's own
 # lines and this crate needs none of the program's dependencies. Nothing here is in any build of a program.
 #
-#   cd programs-v2/fee_proofs && cargo kani            # the harnesses of src/lib.rs
+#   python scripts/kani_fee_record.py --ci              # every harness of src/lib.rs, each alone (one needs cvc5)
 #   cd programs-v2/fee_proofs && cargo test --release  # the same function against a 128-bit reference
 #
 # Its version is 0.0.0 and stays: it is never released, and scripts/bump_version.py neither moves nor checks it.

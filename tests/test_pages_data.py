@@ -697,3 +697,34 @@ def test_outsiders_json_holds_the_three_outside_counts_with_their_definitions_an
     assert (empty["measured"], empty["funders"], empty["repositories"], empty["payees"], empty["summed"]) == (False, 0, 0, 0, False)
     assert "outside funder, Knos repository, faucet money" in empty["definitions"]["funders_in_knos_repositories_faucet"]
     assert {"funders", "repositories", "payees"} <= set(empty["definitions"]) and "generated" in empty and "source" in empty
+
+
+def test_outsiders_json_counts_outside_pull_requests_on_the_playgrounds_funded_tasks_and_says_none_when_not_read():
+    """`pulls` in outsiders.json (scripts/outsiders.py `pulls`): pull requests by accounts that are not Knos's against
+    the playground's funded tasks, as the forge lists them and the chain paid them. Not read is None, never 0."""
+    empty = json.loads(pages_data.empty(NOW)["outsiders.json"])["pulls"]
+    assert empty["measured"] is False and (empty["received"], empty["merged"], empty["paid"]) == (None, None, None) and empty["funders"] == 0
+    own = frozenset({4242})
+    jobs = [{"repo": 77, "issue": 4, "state": "paid", "payee": 9001, "to": "wallet", "by": 4242, "owner": 4242, "faucet": True, "source": "bal"},
+            {"repo": 77, "issue": 5, "state": "open", "payee": 0, "to": None, "by": 4242, "owner": 4242, "faucet": True, "source": "bal"},
+            {"repo": 78, "issue": 4, "state": "paid", "payee": 9002, "to": "wallet", "by": 4242, "owner": 4242, "faucet": True, "source": "bal"}]
+    pulls = [{"number": 20, "user": {"id": 9001}, "body": "Closes #4", "merged_at": "2026-10-07T10:00:00Z"},
+             {"number": 21, "user": {"id": 9003}, "body": "fixes #5", "merged_at": None},
+             {"number": 22, "user": {"id": 4242}, "body": "Closes #5", "merged_at": None}]          # Knos's own: not an outside pull request
+    asked: list[str] = []
+
+    def get(path):
+        asked.append(path)
+        if path == f"repos/{pages_data.PLAYGROUND}":
+            return {"id": 77}
+        return pulls if path.endswith("page=1") else []
+    got = pages_data.playground_pulls(get, jobs, own)
+    assert {k: got[k] for k in ("measured", "received", "merged", "paid", "accounts", "payees", "funders")} == {
+        "measured": True, "received": 2, "merged": 1, "paid": 1, "accounts": 2, "payees": 1, "funders": 0}
+    assert asked == [f"repos/{pages_data.PLAYGROUND}", f"repos/{pages_data.PLAYGROUND}/pulls?state=all&per_page=100&page=1"]
+    from knos import playground
+    assert pages_data.PLAYGROUND == playground.REPO
+    # GitHub not asked, the chain not read, or GitHub not answering: nothing is counted from a part of the list
+    for forge, chain_side in ((None, jobs), (get, None), (lambda path: (_ for _ in ()).throw(OSError("502")), jobs), (lambda path: {"id": 77} if "/pulls" not in path else {"message": "no"}, jobs)):
+        blank = pages_data.playground_pulls(forge, chain_side, own)
+        assert blank["measured"] is False and blank["received"] is None and blank["paid"] is None

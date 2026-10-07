@@ -13,8 +13,9 @@ be bought or changed for money. One limit, first: Knos wrote these records and n
 | the install | one `uses:` line (below) | the free check on every pull request, posted once, with its receipt |
 | the receipt for an invoice | `knos record receipt <acceptance receipt file>` | one PDF page and its JSON |
 
-The record's page on the site is `#record=<slug>`. The lookup of a record through a hosted API is a line of the
-price book that is not built: the file and its page are free, and static.
+The record's page on the site is `#record=<slug>`. The file and its page are free, and static. The price book's
+Record line (0.10 USD a lookup, paid per call) exists as a server anyone can run and Knos does not host:
+[section 5](#5-the-lookup-priced-for-machines).
 
 ## 1. The record
 
@@ -44,8 +45,11 @@ how many had a failed check, the share, its 95% Wilson interval, the weeks read,
 Nothing in the file is a score. `sha256` is the SHA-256 of the file's canonical JSON without that field
 (`knos.record_page.check`). The file is not signed: the evidence a count links to is.
 
-What the records hold today: no work has been settled through Knos for any ranked agent, so every count of `orders`
-is zero with sample zero, and the file says so. The `public` part is the index's row.
+What the records hold today: one file for each agent the index ranks, and each holds its index row only. The
+`public` part is that row: the merged pull requests that claimed passing tests, how many had a failed check, the
+interval, the weeks read. Every count of `orders` is zero with sample zero, and the file says so: no work has been
+settled through Knos for any ranked agent, and **no record holds a Knos order of an outside supplier yet**. A
+record is therefore not yet something to price a supplier on ([ADVANCE.md](ADVANCE.md)).
 
 ## 2. The badge
 
@@ -76,7 +80,7 @@ jobs:
       contents: read
       checks: read
       pull-requests: write
-    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.18
+    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.19
 ```
 
 The last line is the install. It runs the free check on every pull request and none of the pull request's code,
@@ -101,6 +105,16 @@ knos receipt <file>
 ```
 
 The page restates the receipt; the receipt file is the evidence, and the supplier's finance operator sends both.
+
+## 5. The lookup, priced for machines
+
+`python -m knos.record_api <offer.json>` ([`examples/record_api`](../examples/record_api)) serves the same files
+two ways: `/records/<slug>.json` free, and `/lookup/<slug>` for 0.10 test USDC a call, paid through the proposed
+x402 `knos-order` scheme ([X402.md](X402.md), "Record"). An order buys fifty lookups, because the program takes no
+order under 5.00; each call is signed by the wallet that funded the order, and a replayed call is refused. The paid
+answer is the record with the order, the count and the time it was served: nothing the free file lacks. Knos hosts
+no such server, no judge signs for lookups served, and nobody outside has paid for one. The rated supplier never
+pays: the reader does.
 
 ## What this does not show
 

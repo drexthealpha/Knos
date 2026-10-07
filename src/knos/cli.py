@@ -1137,6 +1137,9 @@ _MODULES = (    # (the commands it adds, how); in the order they were always reg
     (("approve",), lambda: _mod("approvals").register(_app, _HELP)),               # knos approve: approval chains of a procurement object (src/knos/approvals.py)
     (("vault",), lambda: _mod("vault").register(_app, _HELP)),                     # knos vault: sealed evidence, export, retention, restore (src/knos/vault.py)
     (("decide",), lambda: _mod("decide").register(_app, _HELP)),                   # knos decide: a provisional receipt the moment the evidence arrives (src/knos/decide.py)
+    (("net",), lambda: _mod("netting").register(_app, _HELP)),                     # knos net: small outcomes netted into one release (src/knos/netting.py)
+    (("advance",), lambda: _mod("advance").register(_app, _HELP)),                 # knos advance: a third party's advance against a funded order (src/knos/advance.py)
+    (("faucet",), lambda: _mod("faucet").register(_app, _HELP)),                   # knos faucet: test USDC for a first task (src/knos/faucet.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
 _loaded: set[int] = set()
@@ -1151,7 +1154,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "approve", "decide") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "approve", "decide", "net", "advance", "faucet") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     _HELP[:] = [row for row in _HELP if row not in tail] + tail
     _arrange()
 

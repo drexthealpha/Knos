@@ -18,8 +18,13 @@ name: claims
 #     (https://www.socket.dev/blog/github-actions-checkout-blocks-pull-request-target-checkouts): the pattern to avoid
 #     is a privileged token beside a stranger's code.
 #   - tests/test_workflows2.py holds every workflow of Knos to that: none is started by `pull_request_target`.
-# So a pull request is answered by the TIMER below: every 15 minutes the job lists the open issues and pull requests
-# through the API and answers the ones that claim a payment and have no answer. A fork's own `pull_request` event
+# So a pull request is answered by a SWEEP: the job lists the open issues and pull requests through the API and
+# answers the ones that claim a payment and have no answer. Since 0.3.19 the always-on worker runs that sweep on
+# its own passes, at most once in 5 minutes (worker.yml; knos.claim_guard.sweep_served), and the timer below is the
+# FALLBACK for when no worker runs. A timer alone was not enough: in the 0.3.18 release run this 15-minute schedule
+# did not fire once in 38 minutes. GitHub says scheduled workflows can be delayed when load is high and that a queued
+# run can be dropped (https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule,
+# read 2026-10-07). A fork's own `pull_request` event
 # carries a read-only token and could not comment; an event of the base repository can. Issues and comments are
 # answered at once by their own events, which GitHub always runs from the default branch's copy of this file.
 #

@@ -82,8 +82,8 @@ def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_thre
     for _n, title, said, _name, target in steps:
         assert len(WORDS.findall(f"{title} {said}")) <= 12, (title, said)
         assert target.startswith("https://") or (DOCS / target.split("#")[0]).exists(), target
-    assert [s[1] for s in steps] == ["An invoice does not reconcile.", "Buyer authorises the deliverable.", "A tampered submission is refused.",
-                                     "Legitimate work is accepted.", "A replay pays nothing.", "Both sides rebuild one bill."]
+    assert [s[1] for s in steps] == ["Buyer and supplier agree one task.", "A claimed success fails the condition.", "Valid work passes.",
+                                     "The payment executes.", "A replay pays nothing.", "Accounts get an export."]
     after = story.split(steps[-1][4])[1].split("\n## ")[0]                                  # what follows the last beat claims nobody
     assert "Then your own invoice: [check it](https://drexthealpha.github.io/Knos/). Nobody has paid for this yet." in after
     for _n, title, said, _name, _target in steps:
@@ -91,7 +91,7 @@ def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_thre
             assert word not in f"{title} {said}".lower()
     # a link to a run on staging program ids says so in its own words, and the page says which beats
     staged = [int(n) for n, _t, _s, name, _target in steps if "staging program ids" in name]
-    assert staged == [2, 4] and "The transactions of beats 2 and 4 ran on the staging program ids" in " ".join(story.split())
+    assert staged == [] and "The transactions of steps 1, 4 and 5 are one round on the public program ids" in " ".join(story.split())
     assert "](MANIFEST.md)" in story and "](submission/demo_script.md)" in story
     ask = story.split("## The ask")[1].split("\n## ")[0]
     needs = re.findall(r"(?m)^\d\. (.+)$", ask)
@@ -115,6 +115,25 @@ def _manifest():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def test_a_program_whose_proposal_ran_and_a_newer_one_is_pending_names_the_pending_one_in_its_row():
+    import copy
+    rm = _manifest()
+    data = copy.deepcopy(rm.prov.load())
+    ran = {"index": 4, "program": "knos_pay", "status": "executed", "build_hash": "a" * 64, "source_commit": "1" * 40, "gate_run": 1}
+    later = {"index": 8, "program": "knos_pay", "status": "pending", "build_hash": "b" * 64, "source_commit": "2" * 40, "gate_run": 2}
+    data["upgrades"] = {**data["upgrades"], "entries": [later, ran]}
+    seen = data["record"].setdefault("programs", {})
+    seen["knos_pay"] = {**seen.get("knos_pay", {}), "on_chain_hash": "a" * 64}
+    row = next(line for line in rm.programs(data) if line.startswith("| knos_pay | `"))
+    # what is live is the build that ran; the row's proposal is the one that would replace it, and it has not run
+    assert "| 8: pending |" in row and f"`{'b' * 64}`" in row and "(not the proposal's build)" in row and f"`{'a' * 64}`" in row
+    assert "| 4: executed |" not in row
+    # with nothing pending after it, the row is the proposal that ran, and the hash at the id is its build
+    data["upgrades"]["entries"] = [ran]
+    row = next(line for line in rm.programs(data) if line.startswith("| knos_pay | `"))
+    assert "| 4: executed |" in row and "(the proposal's build)" in row
 
 
 def test_the_release_manifest_is_what_its_sources_give_and_states_what_is_live_from_the_records():

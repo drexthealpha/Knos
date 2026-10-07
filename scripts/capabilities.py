@@ -7,7 +7,7 @@
     python scripts/capabilities.py render         write the summary between the markers in README.md and the table
                                                   between the markers in docs/*.md (docs/CAPABILITIES.md)
     python scripts/capabilities.py render --check exit 1 when a table is not what the manifest says
-    python scripts/capabilities.py reproduction [--live] FILE...
+    python scripts/capabilities.py reproduction [--live] FILE... [--own FILE...]
                                                   check reproductions someone sent (a pull request's files, as data):
                                                   GitHub's signature, the report's hash, that the run is not Knos's own,
                                                   that no check failed; --live reads GitHub's keys as they are now
@@ -132,13 +132,14 @@ def archived_keys(root: Path = ROOT) -> dict[str, int]:
     return _reproduce().keys_of(json.loads(path.read_text(encoding="utf-8"))) if path.is_file() else {}
 
 
-def reproduction(path: Path, keys: dict[str, int]) -> tuple[dict, list[str]]:
-    """(what GitHub signed and what passed, what is wrong) for one file sent as a reproduction."""
+def reproduction(path: Path, keys: dict[str, int], ours: bool = False) -> tuple[dict, list[str]]:
+    """(what GitHub signed and what passed, what is wrong) for one file sent as a reproduction. `ours`: the file is one
+    of reproductions/own/: a run of Knos's own, which must be Knos's own and counts for nothing."""
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as why:
         return dict(NOTHING), [f"not JSON ({why})"]
-    return _reproduce().verified(doc, keys, json.loads((ROOT / OWN).read_text(encoding="utf-8")), path.name)
+    return _reproduce().verified(doc, keys, json.loads((ROOT / OWN).read_text(encoding="utf-8")), path.name, ours=ours)
 
 
 def reproductions(root: Path = ROOT, keys: dict[str, int] | None = None) -> tuple[dict[str, dict], list[str]]:
@@ -175,6 +176,8 @@ def problems(data: dict, root: Path = ROOT) -> list[str]:
     out, seen = [], set()
     outside, invalid = reproductions(root)
     out += [f"{line}: it does not belong in {REPRODUCTIONS}/" for line in invalid]
+    rp = _reproduce()       # Knos's own runs (reproductions/own/): held to GitHub's signature like anyone's, and counted for nothing
+    out += [f"{line}: it does not belong in {REPRODUCTIONS}/{rp.OWN_DIR}/" for line in rp.own_runs(root, archived_keys(root), json.loads((ROOT / OWN).read_text(encoding="utf-8")))[1]]
     if list(data.get("stages") or []) != list(STAGES):
         out.append(f"`stages` must be {list(STAGES)}")
     public = public_ids(root)
@@ -402,7 +405,9 @@ def main(argv=None) -> int:
             print(f"capabilities: {doc} " + ("is not what the manifest says: run `python scripts/capabilities.py render`" if "--check" in argv else "written"))
         return 1 if changed and "--check" in argv else 0
     if argv[:1] == ["reproduction"]:
-        return sent([Path(a) for a in argv[1:] if a != "--live"], "--live" in argv)
+        rest = [a for a in argv[1:] if a != "--live"]
+        cut = rest.index("--own") if "--own" in rest else len(rest)      # after --own: files of reproductions/own/ (Knos's own runs)
+        return sent([Path(a) for a in rest[:cut]], "--live" in argv, own=[Path(a) for a in rest[cut + 1:]])
     if argv[:1] == ["keys"]:
         rp, path = _reproduce(), ROOT / KEYS
         doc = json.loads(path.read_text(encoding="utf-8"))
@@ -416,9 +421,11 @@ def main(argv=None) -> int:
     return 2
 
 
-def sent(paths: list[Path], live: bool = False, say=print, fetch=None, root: Path = ROOT) -> int:
-    """`reproduction FILE...`: what a pull request's files are worth, in Markdown for the run's page. Exit 1 unless every
-    file is a valid outside reproduction with no failed check and at least one that passed. The files are read as data."""
+def sent(paths: list[Path], live: bool = False, say=print, fetch=None, root: Path = ROOT, own: list[Path] | None = None) -> int:
+    """`reproduction FILE... [--own FILE...]`: what a pull request's files are worth, in Markdown for the run's page.
+    Exit 1 unless every file is a valid outside reproduction with no failed check and at least one that passed, and
+    every file after --own (reproductions/own/) a valid run of Knos's own, which counts for nothing. Files are read as data."""
+    own = list(own or [])
     rp = _reproduce()
     kept = archived_keys(root)
     keys = dict(kept)
@@ -427,8 +434,20 @@ def sent(paths: list[Path], live: bool = False, say=print, fetch=None, root: Pat
             keys.update(rp.keys_of((fetch or rp._fetch_json)(rp.JWKS)))
         except (OSError, ValueError) as why:
             say(f"GitHub's keys could not be read ({why}); the archived keys were used.")
-    bad = not paths
-    if not paths:
+    bad = not paths and not own
+    for path in own:
+        facts, wrong = reproduction(path, keys, ours=True)
+        if not wrong and facts["failed"]:
+            wrong = [f"the check `{c}` failed in this run" for c in facts["failed"]]
+        if not wrong and not facts["passed"]:
+            wrong = ["no check passed in this run (every one was skipped)"]
+        if wrong:
+            bad = True
+            say(f"**{rp.OWN_DIR}/{path.name}: not accepted.** " + "; ".join(wrong) + ".")
+            continue
+        say(f"**{rp.OWN_DIR}/{path.name}: a valid run of Knos's own.** GitHub signed report `{facts['report_sha256'][:16]}...` for [this run]({facts['run']}) of "
+            f"`{facts['repository']}`. Passed: {', '.join(facts['passed'])}. It is not a reproduction, is not counted and supports no capability.")
+    if not paths and not own:
         say(f"No file was given: a reproduction adds one JSON file under {REPRODUCTIONS}/.")
     for path in paths:
         facts, wrong = reproduction(path, keys)

@@ -1,5 +1,139 @@
 # Changelog
 
+## 0.3.19 (October 2026)
+
+**What exists, made true, fast and used: a decision from the evidence in milliseconds, small tickets netted, a
+faucet and a board of funded tasks for strangers, assurance on every receipt, and the fee bound proved.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) unless a line below says otherwise; nothing new was reproduced by
+anyone else. **No program changes in this release:** nothing under `programs-v2/knos_*`, `programs/` or `idl/`
+moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
+
+### For a buyer and a supplier
+
+- **Small tickets are netted.** Accepted outcomes under 20.00 accumulate per supplier and period and settle as one
+  release of the net, so the fee's 0.05 floor is paid once and not once per outcome. In the simulator, 1,000
+  outcomes of 0.32 (one sent twice and refused, one disputed) settle as one release of 319.68 for a fee of 0.95904
+  in 24 transactions; the escrow takes no single job under 1.00 at all. The cap, the release, the root and the fee
+  are enforced on chain; each line, and the buyer's credit inside the period, are not (`knos net`,
+  [`docs/NETTING.md`](docs/NETTING.md)).
+- **The price book says what it charges.** The 0.10% tier is withdrawn: by contract the rate is 0.20% on monthly
+  value above 1,000,000 and never lower. A record lookup through the machine-priced API is 0.10 a call, paid by the
+  caller; the public record page and its file stay free. The pricing page's rows are the book's own, its on-chain
+  cell follows the build that is live, and `knos bill` nets small outcomes the same way
+  ([`docs/MARKET.md`](docs/MARKET.md), section 3).
+- **A receipt says how much was verified.** Every receipt and statement line carries an assurance level computed
+  from its evidence, never typed: `reported`, `rerun`, `agreed` or `attested`, each with who a reader still
+  trusts. `attested` is defined and no receipt reaches it. Terms may declare accounts that are one party
+  (`evaluators.related`, optional: terms without it keep their hash), and two evaluators declared related never
+  count as two. A receipt is written as version 5 wherever one is made; versions 1 to 4 still verify
+  ([`docs/RECEIPT.md`](docs/RECEIPT.md)).
+- **A goods-received note for a statement line.** `knos statement grn` puts the order, the acceptance and the
+  invoice line side by side and says whether the three match, with the line's assurance level. No buyer's
+  accounts-payable system has taken one ([`docs/FINANCE.md`](docs/FINANCE.md)).
+- **A supplier completes while the buyer does nothing.** The path that exists is written down and walked in the
+  simulator: the buyer funds and goes quiet, the supplier's own wallet sends the forge's signed proof and is paid,
+  and with no accepted work by the deadline the money goes back to its funder
+  ([`docs/FINANCE.md`](docs/FINANCE.md), "When the buyer goes quiet").
+- **Test USDC for a first task of your own.** `/knos faucet <address>` on the playground's faucet issue gives 20
+  test USDC, once per account and per address in 7 days, 200 a day for everyone together, to an account at least 30
+  days old. A grant is journaled before anything is signed, so a retry never sends twice, and of two runs that
+  overlap one sends. Test USDC has no monetary value ([`docs/FAUCET.md`](docs/FAUCET.md)).
+- **A board of funded tasks anyone may take.** 24 small tasks, 5 test USDC each, every one with a reference answer
+  the judge accepts and wrong answers it refuses; a script keeps a set number open in the playground inside a daily
+  budget and approves nothing. A claim of payment that no order stands behind now links the funded tasks
+  ([`tasks/README.md`](tasks/README.md)).
+- **An advance by a third party, never by Knos.** An advancer pays a supplier now, less its discount, and takes
+  the supplier's place as payee of the funded order in one transaction that does both or neither; a rejection or
+  an expiry is the advancer's loss. Knos lends nothing and charges nothing for it, and no advancer exists
+  (`knos advance`, [`docs/ADVANCE.md`](docs/ADVANCE.md)).
+- **The record, sold per lookup by whoever runs the server.** `knos record serve` answers a lookup without payment
+  with a 402 that names the order to fund, serves fifty lookups for one order of 5.00, and refuses a replay. Knos
+  hosts no such server ([`docs/RECORD.md`](docs/RECORD.md), [`docs/X402.md`](docs/X402.md)).
+- **The first screen says the customer's outcome,** "Buyers and suppliers close invoices on evidence both can
+  verify.", inside the same 40 words, and the README opens with the same lines. The demonstration leads with a
+  refusal: a submission that claims success fails the condition and is not paid
+  ([`docs/STORY.md`](docs/STORY.md)).
+
+### Underneath
+
+- **A decision in two halves.** `knos decide` first decides from the signed evidence with no network (the issuer's
+  signature against key lists kept on the machine, the claims, the terms), then makes one chain request with a
+  timeout and writes a second provisional receipt that names the first. On one machine with the chain simulated in
+  the same process, 40 samples each: the offline half 0.6 ms at the median and 0.9 ms at p95, the chain check 0.7
+  ms and 0.9 ms. The whole offline command in a new process: 177 ms at the median, and it no longer loads the
+  command-line library. The workflow's status comment carries the offline line and then the chain check's where
+  key lists are kept on the runner, and the relay's whole precheck where none is
+  ([`docs/BENCH.md`](docs/BENCH.md), "Decision time"; [`docs/RELAY.md`](docs/RELAY.md)).
+- **The fee bound is proved.** The record of the fee function's proofs now reads "verified" for every amount to
+  100,000.00 and every rate from 10 to 30 basis points; the exact 0.30% at the rate 30 is proved by cvc5 with
+  bit-vectors solved as integers, and that one result rests on that translation too
+  ([`docs/kani.json`](docs/kani.json)).
+- **The one Kani harness over every amount is verified.**
+  `an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount`, every u64 amount and every rate from 10
+  to 30 at once, timed out at 180 seconds in the earlier record. Its job of
+  its own in `program.yml` (`kani-fee-bounds`) verified it in run 37575047633 (8,296 s) and again in the nightly run
+  37608154723 (8,360 s), Kani 0.68.0 and CBMC 6.11.0 with Kani's default solver, on this tree's `knos_pay` source.
+  It bounds the fee by the program's own `bps_of(amount, 30)`; that this is at most 0.30% of the amount is the cvc5
+  result above. `scripts/kani_fee_record.py --program-ci <run>` records such a run from GitHub's log of it.
+- **A first proof of what a judge executed, as an experiment.** One judge for one task runs inside a zkVM, and its
+  run is proved and then verified in a separate process: 54 s to prove an honest submission as a composite
+  receipt, 217 s as a succinct one, under 0.05 s to verify. It is in no package and no workflow, nothing on any chain
+  verifies it, and no receipt reads it ([`experiments/judge_proof`](experiments/judge_proof),
+  [`docs/ATTESTOR.md`](docs/ATTESTOR.md)).
+- **The worker's jobs keep their keys apart.** The claim guard's sweep runs in a job of the always-on worker that
+  holds no key, once in every run of the chain, because GitHub's own timer did not fire for 38 minutes in the last
+  release run. The faucet is a job with a key of its own that holds test USDC and no SOL. The two jobs that hold
+  the fee key have the permissions they had ([`docs/RELAY.md`](docs/RELAY.md)).
+- **Two relay runs on two runners see each other.** A lease and an answer are each one line in the relay log, so
+  an event run and the sweep carry one token once; when GitHub does not take a line the run says so and the chain
+  still takes a token once ([`docs/RELAY.md`](docs/RELAY.md)).
+- **After the upgrade, one command.** `python scripts/exercise_public.py status --want 2.2` says whether proposals
+  7 and 8 executed, and `run --phase after` then exercises the one-rate fee, a stored fee, the quorum by owner, the
+  grace, strict JSON and ES256 at the public ids; on the simulator every one of those rounds passes. A client for
+  ES256 exists: a wallet registers a P-256 key and a token of up to 780 bytes is verified in one transaction
+  ([`docs/RELEASE.md`](docs/RELEASE.md), [`docs/ES256.md`](docs/ES256.md)).
+- **The upgrade gate for another program.** One script sets it up for a program that is not Knos's (init, expect,
+  record, check), and the upgrade feed is written for any multisig's programs with `--ids` and `--gate`. The
+  adopters list has zero rows. `python scripts/release.py registry-plan` prints what a release would publish to
+  crates.io and npm and publishes nothing ([`docs/GATE.md`](docs/GATE.md), [`docs/COMPOSE.md`](docs/COMPOSE.md)).
+- **Knos's own reproduction runs to its end.** A run of `knos reproduce` by Knos itself is verified like anyone's
+  and filed under `reproductions/own/`, where it counts for nothing; the folder holds 0 files
+  ([`docs/REPRODUCE.md`](docs/REPRODUCE.md)).
+- **No program crate moved.** The four programs and the two interface crates stay at 0.3.14.
+
+### Not true yet
+
+- No outside funder, no buyer conversation, no letter of intent, no outside key holder, no outside reproduction,
+  and no outside program that reads the verifier.
+- Proposals 7 (`knos_oidc`: strict JSON and ES256) and 8 (`knos_pay` 2.2) are approved and have not executed.
+  Until they do, the public programs charge the earlier fee (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at
+  least 0.40) and count the judges of a quorum by repository. Proposal 7 was proposed and approved on 2026-10-07
+  08:14 UTC and proposal 8 on 2026-10-07 08:15 UTC, and the multisig's time lock lets each run 48 hours after its
+  approval. Whether they have is what `knos status` and [`web/upgrades.json`](web/upgrades.json) say.
+- The faucet has paid no one. Its key and its token account exist on devnet, but the account holds no test USDC:
+  Circle's devnet faucet asks a person to prove they are not a bot before it gives any. The task board has funded 8
+  tasks in the playground (issues #6 to #13, 5 test USDC each, from the faucet Balance). The worker's claim sweep has
+  run on GitHub in the staging repository only (run 37624637427: 3 open items read, none with a claim of payment).
+  Netting, an advance and a paid record lookup have run once each on devnet, between wallets of Knos's
+  own release run and on tokens of its own workflows: none with an outside party.
+- The proof of a judge's execution is an experiment with no on-chain verifier, and `attested` stays unreachable.
+- No workflow keeps the issuers' key lists on its runner, so on GitHub the provisional line is still the relay's
+  whole precheck. On devnet the split was timed once on each of 24 real tokens: a median of 356 ms offline, 854 ms
+  for the chain check and 9.1 s for the whole precheck, and 23 of the 24 had been carried before they were decided
+  ([`docs/BENCH.md`](docs/BENCH.md), "Decision time").
+- A cold decision is not instant. The whole offline command in a new process (`python -m knos.decide`: interpreter
+  start, imports, decision, receipt) took 177 ms at the median on one idle machine, and a busy machine takes
+  several times that. Through the whole `knos` command line it is slower again, and that was not benchmarked
+  ([`docs/BENCH.md`](docs/BENCH.md), "Decision time").
+- No version 5 receipt reads `rerun`. The one of a public payment (a neutral re-run of the release run's own order)
+  reads `reported`: its payee and the run's owner and starter are one GitHub account.
+- The record lookup's server is one anyone can run and Knos hosts none; single sign-on, private deployment and a
+  support contract do not exist, so the Control plans cannot be delivered.
+- Nothing has been sold, and there is no legal entity to sell from.
+
 ## 0.3.18 (October 2026)
 
 **Priced like a protocol: one fee on accepted value, a kit for the supplier, a commitment that binds every event,

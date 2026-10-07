@@ -672,7 +672,7 @@ def test_every_job_that_signs_or_sees_a_secret_installs_by_hash_and_nothing_unha
                 found[path.name, name] = _installs(job)
     # the test sees what it is meant to: the four jobs that sign, the relay and the canary (it holds a token), each with its one
     # hash-locked install
-    assert sorted(found) == sorted([*SIGNS, ("worker.yml", "relay"), ("worker.yml", "event"), ("knos-canary.yml", "canary")]), sorted(found)
+    assert sorted(found) == sorted([*SIGNS, ("worker.yml", "relay"), ("worker.yml", "event"), ("worker.yml", "faucet"), ("knos-canary.yml", "canary")]), sorted(found)
     assert all(len(lines) == 1 and "--require-hashes" in lines[0] for lines in found.values()), found
     # and it would catch the mistakes: no hashes, hashes without --no-deps or --no-build, an editable install, a tool install
     signing = {"permissions": {"id-token": "write"}, "jobs": {}}
@@ -1495,7 +1495,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.18 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.19 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1532,7 +1532,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.18 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.19 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()
@@ -1800,6 +1800,55 @@ def test_a_worker_run_takes_over_only_as_the_one_successor_and_a_second_chain_en
     assert go("76", [_run(76, "relay after 70"), _run(81, "relay after 77")])[0] == "go=true"
     # a junk `after` (typed by hand) is a start by hand: it goes only when no run is going
     assert go("x1", [_run(76, "relay after 75")])[0] == "go=false"
+
+
+def test_the_worker_keeps_its_keys_apart_the_claim_sweep_holds_none_and_the_faucet_holds_its_own():
+    """0.3.19 adds two jobs to worker.yml. The claim guard's sweep may write to pull requests and holds NO key: no secret
+    is named in it. The faucet holds the faucet key and the fee key, may write issues and nothing else, and runs only in
+    the repository a variable names. The two jobs that held the fee key before hold what they held: the workflow's own
+    permissions, with no `pull-requests` among them."""
+    doc = _doc(WF / "worker.yml")
+    jobs = doc["jobs"]
+    assert sorted(jobs) == ["claims", "event", "faucet", "relay"]
+    assert doc["permissions"] == {"contents": "read", "actions": "write", "issues": "write"}        # as before 0.3.19
+    assert "permissions" not in jobs["relay"] and "permissions" not in jobs["event"]               # the fee key's jobs: the workflow's, and no more
+    holds = {name: sorted(set(re.findall(r"secrets\.(\w+)", json.dumps(job)))) for name, job in jobs.items()}
+    assert holds == {"claims": [], "event": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"], "faucet": ["KNOS_FAUCET_KEY", "KNOS_RELAY_KEY", "KNOS_WORKER_KEY"],
+                     "relay": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"]}
+    # the sweep: the chain's runs only, one at a time, with the forge token and nothing else
+    claims = jobs["claims"]
+    assert claims["if"] == "github.event_name == 'workflow_dispatch'" and claims["concurrency"] == {"group": "knos-claims", "cancel-in-progress": False}
+    assert claims["permissions"] == {"contents": "read", "issues": "write", "pull-requests": "write"}
+    assert not _sees_a_secret_or_signs(doc, claims) and not _caches(claims) and "KEY" not in json.dumps(claims).replace("GITHUB_PATH", "")
+    assert [s.get("run") for s in _steps(claims)][-1] == "python -m knos.claim_guard --sweep" and _steps(claims)[-1]["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert _steps(claims, "actions/checkout@")[0]["with"] == {"persist-credentials": False}
+    assert "--require-hashes --no-deps --no-build -r requirements/sign.txt" in json.dumps(claims)
+    # the relay's own pass sweeps nowhere for the public worker (a relay of one's own names its repositories)
+    from knos.proof import ghrelay
+    assert ghrelay.claim_repos({"GITHUB_REPOSITORY": ghrelay.HOME_REPO, "GITHUB_WORKFLOW_REF": f"{ghrelay.HOME_REPO}/.github/workflows/worker.yml@refs/heads/main"}) == set()
+    # the faucet: a comment's event, in the one repository, on an issue (not a pull request) labelled faucet, never a bot's
+    faucet = jobs["faucet"]
+    assert doc["on"]["issue_comment"] == {"types": ["created"]} and "'relay for a comment'" in doc["run-name"]     # a title the chain's first step does not count
+    when = " ".join(faucet["if"].split())
+    assert when.startswith("github.event_name == 'issue_comment' && github.repository == (vars.KNOS_FAUCET_REPO || 'drexthealpha/knos-playground')")
+    assert "!github.event.issue.pull_request" in when and "contains(github.event.issue.labels.*.name, 'faucet')" in when and "github.event.comment.user.type != 'Bot'" in when
+    assert faucet["concurrency"] == {"group": "knos-faucet", "cancel-in-progress": False} and faucet["permissions"] == {"contents": "read", "issues": "write"}
+    assert _sees_a_secret_or_signs(doc, faucet) and not _caches(faucet)
+    checkout = _steps(faucet, "actions/checkout@")[0]["with"]
+    assert checkout == {"repository": "drexthealpha/Knos", "ref": "${{ vars.KNOS_FAUCET_REF || 'main' }}", "persist-credentials": False}
+    last = _steps(faucet)[-1]
+    assert last["env"] == {"KNOS_FAUCET_KEY": "${{ secrets.KNOS_FAUCET_KEY }}", "KNOS_RELAY_KEY": "${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}",
+                           "GH_TOKEN": "${{ github.token }}", "PYTHONPATH": "${{ github.workspace }}/src"}
+    script = last["run"].strip().splitlines()
+    assert script[-1] == 'python -m knos.faucet --event "$GITHUB_EVENT_PATH"' and "github.event." not in last["run"] and "${{" not in last["run"]
+    assert all("exit 0" in line and "Skipped." in line for line in script[:-1]) and len(script) == 3          # either secret absent: said, and green
+    assert "--require-hashes --no-deps --no-build -r requirements/faucet.txt" in json.dumps(faucet)
+    # what that list holds: the relay's own list, and the memory engine the journal is kept in (with what it needs)
+    names = lambda name: {line.split("==")[0] for line in (ROOT / "requirements" / name).read_text(encoding="utf-8").splitlines() if "==" in line and not line.startswith((" ", "#"))}  # noqa: E731
+    assert names("faucet.txt") - {"knos"} == (names("sign.txt") - {"knos"}) | {"sibyl-memory-client", "certifi"}
+    assert all("--hash=sha256:" in block for block in re.split(r"\n(?=\S)", (ROOT / "requirements" / "faucet.txt").read_text(encoding="utf-8")) if "==" in block)
+    # the other two jobs are not started by a comment
+    assert "issue_comment" not in jobs["relay"]["if"] and "issue_comment" not in jobs["event"]["if"] and "issue_comment" not in claims["if"]
 
 
 def test_a_worker_run_saves_its_notes_before_it_starts_the_next_run():

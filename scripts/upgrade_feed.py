@@ -1,6 +1,7 @@
 """The upgrade proposals of the Knos programs, as a file and a feed people can subscribe to.
 
-    python scripts/upgrade_feed.py [--rpc URL] [--out web] [--check]
+    python scripts/upgrade_feed.py [--rpc URL] [--out web] [--check] [--published [URL]]
+    python scripts/upgrade_feed.py --ids FILE [--gate ADDRESS] --out DIR [--rpc URL]      # another project's programs: the same full feed
 
 Every change to a program of the second deployment is a proposal of the upgrade multisig (Squads v4), public on chain
 for 48 hours before it can run. This script reads every proposal the multisig has made and writes
@@ -30,6 +31,12 @@ else `cancelled`.
 The network read runs at release time and whenever the site is built; a run that cannot read the cluster
 writes nothing and exits 2, so a stale file is never passed off as a fresh one. --check exits 1 while a proposal is
 pending.
+
+--published holds the feed the SITE serves to the multisig as it is now: it fetches <site>/upgrades.json (or URL) and
+compares each proposal's status with what this run just read. The site's copy is written when the site is built, so it
+is behind after a proposal is made or executed until the pages workflow has run again. Exit 1 with one line per
+proposal that differs, and the command that rebuilds the site; exit 0 when the site says what the chain says. On 7
+October 2026 the site still said "no pending proposal" hours after proposals 7 and 8 were approved; this is that check.
 """
 from __future__ import annotations
 
@@ -97,12 +104,14 @@ def program_hash(account: mc.Account, program: str) -> str | None:
     return gate.executable_hash(got[1][mc.PROGRAMDATA_HEADER:]).hex()
 
 
-def gate_record(account: mc.Account, program: str, build_hash: str | None) -> gate.Record | None:
+def gate_record(account: mc.Account, program: str, build_hash: str | None, gate_id: str | None = None) -> gate.Record | None:
+    """The record upgrade_gate holds for this build of this program. `gate_id`: an adopter's own gate (`--gate`); None: Knos's."""
     if build_hash is None:
         return None
-    at = gate.record_pda(Pubkey.from_string(program), bytes.fromhex(build_hash))
+    owner = Pubkey.from_string(gate_id) if gate_id else gate.GATE_ID
+    at = gate.record_pda(Pubkey.from_string(program), bytes.fromhex(build_hash), owner)
     got = account(str(at))
-    r = gate.read_record(got[1]) if got and str(got[0]) == str(gate.GATE_ID) else None
+    r = gate.read_record(got[1]) if got and str(got[0]) == str(owner) else None
     return r if r is not None and r.executable.hex() == build_hash and str(r.program) == program else None
 
 
@@ -122,7 +131,8 @@ def entries(account: mc.Account, ids: dict, previous: list[dict] | None = None, 
     ms, why = mc.multisig_at(account, multisig, squads)
     if ms is None:
         raise SystemExit(f"stopped: the upgrade multisig could not be read ({why}). Nothing was written.")
-    names = {ids[n]: n for n in PROGRAMS if n in ids}
+    # Knos's four programs, or the ones an adopter's file names under "programs" ({name: address}; `--ids`)
+    names = {str(at): str(n) for n, at in ids["programs"].items()} if isinstance(ids.get("programs"), dict) else {ids[n]: n for n in PROGRAMS if n in ids}
     before = {e["index"]: e for e in previous or []}
     squads_key, ms_key = Pubkey.from_string(squads), Pubkey.from_string(multisig)
     found: list[tuple[int, mc.Proposal, str, str, str]] = []
@@ -139,7 +149,7 @@ def entries(account: mc.Account, ids: dict, previous: list[dict] | None = None, 
             kind, program, buffer = "upgrade", old["program_address"], old["buffer"]
         if kind == "upgrade" and program in names:
             found.append((index, p, at, program, buffer))
-    newest_ran = {}                                             # program -> the index of the newest upgrade that ran
+    newest_ran: dict[str, int] = {}                                             # program -> the index of the newest upgrade that ran
     for index, p, _at, program, _buffer in found:
         if p.status == "Executed":
             newest_ran.setdefault(program, index)
@@ -151,7 +161,7 @@ def entries(account: mc.Account, ids: dict, previous: list[dict] | None = None, 
             h, where = old["build_hash"], "earlier feed"
         if h is None and p.status == "Executed" and newest_ran.get(program) == index:
             h, where = program_hash(account, program), "program"
-        rec = gate_record(account, program, h)
+        rec = gate_record(account, program, h, ids["upgrade_gate"]) if ids.get("upgrade_gate") else gate_record(account, program, h)
         void = index <= ms.stale_transaction_index
         later = any(i > index and prog == program for i, _p, _a, prog, _b in found)
         out.append(Entry(index=index, program=names[program], program_address=program, buffer=buffer, build_hash=h,
@@ -213,6 +223,35 @@ def as_atom(got: list[Entry], ids: dict, now: int) -> str:
             + "".join(one(e) for e in got) + "</feed>\n")
 
 
+def behind(got: list[Entry], published: dict | None) -> list[str]:
+    """Where a published upgrades.json does not say what the multisig says now: one plain line per proposal, newest
+    first. Empty: the site is current. `published`: the parsed file, or None when it could not be fetched."""
+    if not isinstance(published, dict) or not isinstance(published.get("entries"), list):
+        return ["the site's upgrades.json could not be read"]
+    theirs = {e.get("index"): e for e in published["entries"] if isinstance(e, dict)}
+    when = published.get("generated") or "an unknown time"
+    out = []
+    for e in got:
+        shown = theirs.get(e.index)
+        if shown is None:
+            out.append(f"proposal {e.index} ({e.program}) is {e.status} on chain, and the site's feed (generated {when}) does not have it")
+        elif shown.get("status") != e.status:
+            out.append(f"proposal {e.index} ({e.program}) is {e.status} on chain, and the site's feed (generated {when}) says {shown.get('status')}")
+    return out
+
+
+def fetch(url: str) -> dict | None:
+    """The JSON a URL serves, or None. https only."""
+    import urllib.request
+    if not url.startswith("https://"):
+        return None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"Cache-Control": "no-cache"}), timeout=30) as r:  # noqa: S310 - https only, checked above
+            return json.loads(r.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001 - a site that does not answer is "could not be read", said by `behind`
+        return None
+
+
 def write(out: Path, account: mc.Account, ids: dict, now: int, cluster: str) -> list[Entry]:
     old = out / "upgrades.json"
     previous = json.loads(old.read_text(encoding="utf-8")).get("entries") if old.exists() else None
@@ -227,8 +266,27 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("--rpc", default=mc.PUBLIC["devnet"], help="the cluster the multisig is read from")
     ap.add_argument("--out", type=Path, default=ROOT / "web", help="where upgrades.json and upgrades.xml go")
     ap.add_argument("--check", action="store_true", help="exit 1 while a proposal is pending")
+    ap.add_argument("--published", nargs="?", const=SITE + "upgrades.json", metavar="URL",
+                    help="also hold the site's own feed (default: the site's upgrades.json) to what was just read: exit 1 where it is behind")
+    ap.add_argument("--ids", type=Path, metavar="FILE", help="another project's ids, as JSON: {\"upgrade_multisig\": ADDRESS, \"programs\": {NAME: ADDRESS}} "
+                    "and, when it is not Squads v4's own, \"squads_program\" (default: Knos's, programs-v2/program_ids.json)")
+    ap.add_argument("--gate", metavar="ADDRESS", help="with --ids: the address of that project's own upgrade_gate, whose records name each build's commit and run")
     a = ap.parse_args(argv)
-    ids = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+    ids = json.loads((a.ids or ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+    if a.ids is not None:
+        knos = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
+        ids.setdefault("squads_program", knos["squads_program"])
+        if not isinstance(ids.get("programs"), dict) or not ids["programs"] or not ids.get("upgrade_multisig"):
+            say('stopped: --ids names a JSON file {"upgrade_multisig": ADDRESS, "programs": {NAME: ADDRESS}}. Nothing was written.')
+            return 2
+        if a.out == ROOT / "web":
+            say("stopped: with --ids give --out DIR too: web/ holds Knos's own feed. Nothing was written.")
+            return 2
+    if a.gate:
+        if a.ids is None:
+            say("stopped: --gate goes with --ids (Knos's own feed reads Knos's own gate). Nothing was written.")
+            return 2
+        ids["upgrade_gate"] = a.gate
     try:
         now, cluster = chain.Ledger(a.rpc).now(), mc._cluster(a.rpc)
         got = write(a.out, mc._rpc(a.rpc), ids, now, cluster)
@@ -241,6 +299,14 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         say(words(e))
     pending = sum(e.status == "pending" for e in got)
     say(f"{len(got)} upgrade proposals, {pending} pending; wrote {a.out / 'upgrades.json'} and {a.out / 'upgrades.xml'}")
+    if a.published:
+        late = behind(got, fetch(a.published))
+        for line in late:
+            say(line)
+        say(f"{a.published}: " + ("BEHIND the chain. Build the site again: gh workflow run network.yml --repo drexthealpha/Knos --ref main, then this again"
+                                  if late else "says what the chain says"))
+        if late:
+            return 1
     return 1 if a.check and pending else 0
 
 

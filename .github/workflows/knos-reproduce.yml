@@ -55,7 +55,7 @@ jobs:
           enable-cache: false
           ignore-empty-workdir: true
       - name: install knos, the released wheel
-        run: uv tool install --no-config "knos==0.3.18"
+        run: uv tool install --no-config "knos==0.3.19"
       - name: knos reproduce
         id: report
         env:
@@ -108,8 +108,9 @@ jobs:
           text = (f"Download the artifact `knos-reproduction`, add `{name}` as `reproductions/{name}` in a pull request to "
                   f"drexthealpha/Knos, and use this as its text:\n\n---\n\n{body}")
           if repo.split("/")[0].lower() == "drexthealpha":   # Knos's own account: the text above would not be true
-              text = (f"This run is in {repo}, an account of Knos's own, so it is not a reproduction: the check of a pull request to "
-                      f"drexthealpha/Knos refuses it, and there is nothing to send. The artifact `knos-reproduction` holds `{name}`, the "
+              text = (f"This run is in {repo}, an account of Knos's own, so it is not a reproduction and is never counted as one. "
+                      f"The workflow that follows this run files `{name}` under `reproductions/own/`, which no count reads: the path "
+                      f"is exercised, and that is all. The artifact `knos-reproduction` holds `{name}`, the "
                       f"report and the token GitHub signed for it in [this run](https://github.com/{repo}/actions/runs/{run}).\n\n"
                       f"| check | result | time | capabilities |\n|---|---|---|---|\n{rows}\n\nReport sha256 `{os.environ['SHA']}`.\n")
           print(text)

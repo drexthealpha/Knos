@@ -172,7 +172,9 @@ def test_the_playground_holds_the_callers_a_template_that_funds_and_checks_for_e
     # checks under every number a stranger's issue can get, each black-box, the same cases in each
     slots = {rel for rel in files if rel.startswith(".knos/acceptance/")}
     assert slots == {f".knos/acceptance/{n}/{name}" for n in range(1, p.SLOTS + 1) for name in ("blackbox.py", "cases.json", "README.md")}
-    assert len(files) == 8 + 3 * p.SLOTS
+    tasks = {rel for rel in files if rel.startswith("tasks/")}                      # every task's starting file and public examples, and check.py to try them
+    assert len(tasks) == 48 and {rel.rsplit(".", 1)[1] for rel in tasks} == {"py", "json"} and "check.py" in files and "board.json" not in files
+    assert len(files) == 9 + 48 + 3 * p.SLOTS
     for n in (1, 2, p.SLOTS):
         bundle = {name: files[f".knos/acceptance/{n}/{name}"] for name in ("blackbox.py", "cases.json", "README.md")}
         assert judge.black_box(bundle) == "" and bundle == accept.bundle(n, ["python3", p.TASK], r.starter_cases(), "text", 16)

@@ -96,7 +96,8 @@
 #   KNOS_GATE_TOKENS   --propose: a folder with <program>.jwt for each of the four, the tokens program.yml asked GitHub
 #                      for (audience gate:<program>:<executable hash>). With them a missing record is written
 #   KNOS_CHANGES       --propose: the programs this release changes, separated by spaces (default: "knos_oidc knos_pay",
-#                      0.3.18's one proposal set). Only these are proposed; see --propose above
+#                      0.3.18's one proposal set). Only these are proposed; see --propose above. 0.3.19 changes no
+#                      program: without KNOS_CHANGES set, --propose refuses in this tree before it reads anything
 #   KNOS_GATE_WAIT     --propose: how many seconds to wait for a build's record at the upgrade gate before refusing
 #                      (default 1800: program.yml's verified builds and the relay take about that long after a push)
 #   KNOS_PRIORITY_FEE  micro-lamports per compute unit for the deploy (default 1000)
@@ -129,6 +130,16 @@ for arg in "$@"; do
 done
 if [ "$UNGATED" = 1 ] && [ "$MODE" != --propose ]; then echo "--ungated goes with --propose" >&2; exit 2; fi
 if [ "$REPLACE" = 1 ] && [ "$MODE" != --propose ]; then echo "--replace goes with --propose" >&2; exit 2; fi
+
+# WHAT THIS TREE PROPOSES: NOTHING. 0.3.19 changes no program: programs-v2/ is byte for byte 0.3.18's, and the builds
+# 0.3.18 changed (knos_oidc, knos_pay) are proposals 7 and 8 of the upgrade multisig already. So --propose refuses here,
+# before a key or the cluster is read. A release that changes a program names it in RELEASE_PROPOSES again. KNOS_CHANGES,
+# set by hand, still says which programs a run may propose (an emergency fix; scripts/exercise_public.py sets it too).
+RELEASE_PROPOSES=""
+if [ "$MODE" = --propose ] && [ -z "$RELEASE_PROPOSES" ] && [ -z "${KNOS_CHANGES:-}" ]; then
+  echo "refused: this release proposes nothing. Its tree changes no program, and knos_oidc and knos_pay 2.2 are proposals 7 and 8 already (python scripts/exercise_public.py status --want 2.2 says whether they executed). Nothing was read, written or proposed. To propose a build all the same, name its programs: KNOS_CHANGES=\"knos_pay\" bash scripts/deploy_v2.sh --propose" >&2
+  exit 1
+fi
 
 KEYS="${KNOS_KEYS:-$ROOT/.knos-keys}"
 PAYER="${KNOS_FEE_PAYER:-$KEYS/payer.json}"

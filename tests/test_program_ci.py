@@ -416,9 +416,17 @@ def test_the_arithmetic_of_an_orders_money_is_proved_nightly_and_tested_at_rando
     assert "needs" not in job and job["timeout-minutes"] <= 30
     for event, runs_it in (("schedule", True), ("workflow_dispatch", True), ("push", False), ("pull_request", False)):
         assert runs(job["if"], {"github": {"event_name": event, "ref": "refs/heads/main"}}) is runs_it, event
-    checkout, kani, fees = job["steps"]
-    # the fee's bounds, on the program's own lines copied out as text: the same verifier, every harness of that crate
-    assert fees["uses"] == kani["uses"] and fees["with"] == {**kani["with"], "working-directory": "programs-v2/fee_proofs", "args": "--output-format terse"}
+    checkout, kani, cvc5, fees = job["steps"]
+    # the fee's bounds, on the program's own lines copied out as text: the Kani the step before installed, every
+    # harness of that crate alone within its limit, and a harness that fails or times out fails the step by name
+    assert fees["run"] == "python3 scripts/kani_fee_record.py --ci" and fees["timeout-minutes"] <= 15 and "continue-on-error" not in fees
+    spec = importlib.util.spec_from_file_location("kani_fee_record", ROOT / "scripts" / "kani_fee_record.py")
+    rec = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rec)
+    assert len(rec.harnesses()) * rec.LIMIT <= fees["timeout-minutes"] * 60 and str(rec.LIMIT) in fees["name"]
+    # the solver of the exact bound: one named version, held to a hash before it runs
+    assert re.search(r"releases/download/cvc5-(\d+\.\d+\.\d+)/cvc5-Linux-x86_64-static\.zip", cvc5["run"]).group(1) in cvc5["name"]
+    assert re.search(r'echo "[0-9a-f]{64}  \$RUNNER_TEMP/cvc5\.zip" \| sha256sum -c -', cvc5["run"]) and '>> "$GITHUB_PATH"' in cvc5["run"]
     assert "#[kani::proof]" in (ROOT / "programs-v2" / "fee_proofs" / "src" / "lib.rs").read_text(encoding="utf-8")
     assert checkout["uses"] == _pin("actions/checkout@v7") and kani["uses"] == _pin("model-checking/kani-github-action@v1.1")
     # a named version of the verifier, in the crate whose arithmetic it proves; a harness that fails fails the step

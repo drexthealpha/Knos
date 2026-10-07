@@ -878,6 +878,31 @@ def rank_page(title: str, head: list[str], rows: list[list], note: str, meta: di
 
 
 # ---- everything ------------------------------------------------------------------------------------------------------
+PLAYGROUND = "drexthealpha/knos-playground"        # knos.playground.REPO: where the funded test tasks are open to anyone
+
+
+def playground_pulls(get, jobs: list[dict] | None, own: frozenset, repo: str = PLAYGROUND) -> dict:
+    """Outside pull requests on the playground's funded tasks (scripts/outsiders.py `pulls`): received, merged, paid.
+    GitHub not read, or not whole (over 1,000 pull requests): every number is None, never 0."""
+    import outsiders as outside_rules
+    if get is None or jobs is None:
+        return outside_rules.pulls(None, jobs, own)
+    try:
+        ident, found = int(get(f"repos/{repo}")["id"]), []
+        for page in range(1, 11):
+            got = get(f"repos/{repo}/pulls?state=all&per_page=100&page={page}")
+            if not isinstance(got, list):
+                raise ValueError("not a list")
+            found += got
+            if len(got) < 100:
+                break
+        else:
+            raise ValueError("more than 1,000 pull requests")
+    except Exception:  # noqa: BLE001 - not read: say so with None, never a count of what was seen
+        return outside_rules.pulls(None, jobs, own)
+    return outside_rules.pulls(found, jobs, own, repo=ident)
+
+
 def build(events: list[dict], comments: list[dict] | None, get, index: dict | None, accounts: dict | None, names: Names, now: float,
           own: frozenset | None = None, own_wallets: frozenset | None = None, canary: str = CANARY, source: dict | None = None,
           partial: bool = False, canary_repo: str = CANARY_REPO) -> dict[str, str]:
@@ -913,7 +938,10 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
 
     # outside funders, outside repositories, outside payees: three numbers with their definitions, never added
     import outsiders as outside_rules
-    dump("outsiders.json", stamp(ns.outsiders(jobs, own, own_wallets) if ns else outside_rules.count([], own, own_wallets, measured=False)))
+    counted = ns.outsiders(jobs, own, own_wallets, owner_of=None if get is None else ns.repo_owner(get)) if ns else outside_rules.count([], own, own_wallets, measured=False)
+    # and, apart from those three: outside pull requests on the playground's funded tasks (the task board, tasks/README.md)
+    counted["pulls"] = playground_pulls(get, jobs if ns else None, own)
+    dump("outsiders.json", stamp(counted))
 
     # bounties
     bounties, expired = open_bounties(jobs, accounts, names, now)

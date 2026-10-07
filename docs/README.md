@@ -21,6 +21,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [ASSURANCE.md](ASSURANCE.md) | the tests, the fuzzing and the proofs; no outside firm has reviewed anything |
 | [UNWRAPS.md](UNWRAPS.md) | every place a program can panic, and why it cannot be reached |
 | [PROVENANCE.md](PROVENANCE.md) | source commit to build to the hash at the public program id |
+| [FAUCET.md](FAUCET.md) | how a stranger gets test USDC and funds a first task, the faucet's rules, and its key |
 | [REPRODUCE.md](REPRODUCE.md) | how someone else runs it and files a signed report |
 | [OPERATIONS.md](OPERATIONS.md) | whether the canary and the relay are working, from the public record |
 | [submission/NUMBERS.md](submission/NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
@@ -60,8 +61,10 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [PLAYGROUND.md](PLAYGROUND.md) | fund a test order with one comment, with a GitHub account and nothing else |
 | [CONSOLE.md](CONSOLE.md) | the console, for whoever authorises a payment |
 | [FINANCE.md](FINANCE.md) | the four records of a deliverable, and the accounting exports |
+| [NETTING.md](NETTING.md) | small outcomes netted into one release per supplier per period, and what the chain enforces of it |
 | [SUPPLIER.md](SUPPLIER.md) | for the supplier: the rules before the work, every refusal in plain words, appeals |
 | [RECORD.md](RECORD.md) | the supplier's kit: a public record, a badge, one line to install, a receipt for the invoice |
+| [ADVANCE.md](ADVANCE.md) | an advance by a third party against a funded order: the offer, the one transaction, the three ends, no recourse |
 | [VAULT.md](VAULT.md) | keeping evidence: sealed bundles, export, retention, checkpoints, a restore drill |
 | [PRIVATE.md](PRIVATE.md) | a neutral count for private repositories without showing the code |
 | [AGENTS.md](AGENTS.md) | an agent finds work, takes it, submits it and is paid |
@@ -71,6 +74,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | document | what it answers |
 |---|---|
 | [COMPOSE.md](COMPOSE.md) | the verifier, the escrow and the record, from another program |
+| [GATE.md](GATE.md) | the upgrade gate for your own program: three commands, and what it cannot do |
 | [ES256.md](ES256.md) | ES256 tokens in one transaction: tested here, not deployed |
 | [CONFORMANCE.md](CONFORMANCE.md) | the formats, with test vectors and a runner |
 | [INTEGRATIONS.md](INTEGRATIONS.md) | what a bounty or work platform can take; no platform uses it |

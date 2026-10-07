@@ -619,14 +619,25 @@ def said(root: Path = ROOT) -> dict[str, dict[str, list[str]]]:
     """{slot name: {value as written: [files that state it]}} over FRAMES, in every public document and the site."""
     out: dict[str, dict[str, list[str]]] = {}
     for doc in public_text(root):
-        text = _prose(root, doc)
-        for name, frames in FRAMES.items():
-            for frame in frames:
-                for m in re.finditer(frame, text):
-                    files = out.setdefault(name, {}).setdefault(m.group(1), [])
-                    if doc not in files:
-                        files.append(doc)
+        for name, stated in _stated(root, doc):
+            files = out.setdefault(name, {}).setdefault(stated, [])
+            if doc not in files:
+                files.append(doc)
     return out
+
+
+_STATED: dict[tuple[str, str], list[tuple[str, str]]] = {}     # (document, sha256 of its bytes) -> what it states: a pure function of its text
+
+
+def _stated(root: Path, doc: str) -> list[tuple[str, str]]:
+    """(slot name, value as written) for every frame of FRAMES a document states, in order. Kept by the document's
+    bytes, so a tree read twice (scripts/doc_claims.py, and its tests, read it many times) is matched once."""
+    import hashlib
+    key = (doc, hashlib.sha256((root / doc).read_bytes()).hexdigest())
+    if key not in _STATED:
+        text = _prose(root, doc)
+        _STATED[key] = [(name, m.group(1)) for name, frames in FRAMES.items() for frame in frames for m in re.finditer(frame, text)]
+    return _STATED[key]
 
 
 def _kept(src: dict, name: str):

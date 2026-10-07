@@ -58,7 +58,8 @@ them is Knos's own to shorten:
     work execution               the forge starts a runner and runs the job    workflow scheduling, evaluation
     evidence availability        the signed token reaches whoever acts on it   relay pickup
     Knos decision processing     the token in hand -> accepted or not          `knos decide` (scripts/decide_bench.py:
-                                                                               measured on one machine, no network)
+                                                                               measured on one machine, no network; on
+                                                                               devnet 4.3 to 32.6 s, four runs of 0.3.18)
     chain inclusion              the first send -> the paying transaction at   submission, confirmation; and finality,
                                  the commitment level `confirmed`              which is the level `finalized`
     bank availability            not applicable: no bank route                 nothing: Knos pays test USDC on devnet
@@ -129,7 +130,7 @@ CLOCKS = (("work execution", ("workflow scheduling", "evaluation"),
            "0 s for a run that relays its own token; otherwise one pass"),
           ("Knos decision processing", (),
            "Knos's own, all of it",
-           "under 2 s at p95 from the token in hand; under 200 ms at p95 for a cached decision"),
+           "targets on one machine with no network, not measurements: 250 ms at p95 for the offline decision, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet"),
           (f"chain inclusion, at `{COMMITMENT}`", ("submission", "confirmation"),
            "the cluster's, and the relay's sends: two verification transactions for a 2048-bit RSA key, then the payment",
            "none set: measured apart, at this commitment level"),

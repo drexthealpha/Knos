@@ -13,7 +13,9 @@
                    to the funder's own account or back to the wallet whose money it was is not counted.
 
 "Knos's" is scripts/own_github_ids.json: account ids, wallets and, under "repositories", repository ids. A repository
-is Knos's when its id is listed or the Balance the job spent belongs to one of Knos's accounts (a comment spends the
+is Knos's when its id is listed, when GitHub names one of Knos's account ids as its owner (scripts/network_stats.py
+own_repositories: the chain gives a repository's id only, so a wallet that funds there carries no owner on record), or
+when the Balance the job spent belongs to one of Knos's accounts (a comment spends the
 repository owner's Balance, and the faucet's Balance is the repository owner's too: its address is derived from the
 owner's id, so it is known even when the line that opened it was not read). An account is counted by its
 GitHub id, a wallet by its address; an id of 0 is "no account".
@@ -22,6 +24,8 @@ This reads a job as scripts/network_stats.py and scripts/pages_data.py hold it (
 needs nothing else, so a build that read no chain can still write the three zeros and say they were not measured.
 """
 from __future__ import annotations
+
+import re
 
 LABEL_KNOS_FAUCET = "outside funder, Knos repository, faucet money"
 DEFINITIONS = {
@@ -91,3 +95,44 @@ def count(jobs: list[dict], own: frozenset, own_wallets: frozenset, own_repos: f
     return {"measured": bool(measured), "funders": len(outside | faucet), "funders_in_outside_repositories": len(outside),
             "funders_in_knos_repositories_faucet": len(faucet), "repositories": len(repos), "payees": len(payees),
             "summed": False, "definitions": DEFINITIONS}
+
+
+# ---- pull requests strangers sent to funded tasks: counted from the forge and the chain, apart from the three above --------------
+PULL_DEFINITIONS = {
+    "received": "pull requests opened by accounts that are not Knos's that name (Closes #N) an issue a job or work order held money for",
+    "merged": "of those, the ones the forge says were merged",
+    "paid": "of those, the ones whose author the chain says was paid by the job on an issue the pull request names",
+    "accounts": "distinct accounts that opened the received ones",
+    "payees": "distinct accounts among the paid ones: each is an outside PAYEE. None is an outside funder: the task's money was Knos's",
+}
+_CLOSES = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)\b", re.I)
+
+
+def named_issues(pull: dict) -> set[int]:
+    """The issues a pull request's description says it closes."""
+    return {int(n) for n in _CLOSES.findall(str(pull.get("body") or ""))}
+
+
+def pulls(forge_pulls: list[dict] | None, jobs: list[dict] | None, own: frozenset, repo: int | None = None) -> dict:
+    """Outside pull requests on funded tasks of ONE repository. `forge_pulls`: the forge's list of its pull requests
+    (number, user.id, merged_at, body), None when the forge was not read. `jobs`: the chain's jobs and work orders
+    (knos.records), None when the chain was not read; `repo`: that repository's id there (None: every job given is its).
+    A number that was not read is None, never 0. `funders` is always 0 here and says why: paying a stranger for a task
+    Knos funded makes an outside payee."""
+    out: dict = {"measured": forge_pulls is not None and jobs is not None, "received": None, "merged": None, "paid": None, "accounts": None,
+                 "payees": None, "funders": 0, "summed": False, "definitions": PULL_DEFINITIONS}
+    if forge_pulls is None or jobs is None:
+        return out
+    mine = [j for j in jobs if repo is None or j.get("repo") == repo]
+    funded = {int(j["issue"]) for j in mine if j.get("issue")}
+    paid_to: dict[int, set[int]] = {}
+    for j in mine:
+        if _paid(j) and j.get("issue"):
+            paid_to.setdefault(int(j["issue"]), set()).update(int(i) for i in (j.get("payees") or [j.get("payee") or 0]) if i)
+    got = [(p, named_issues(p) & funded) for p in forge_pulls if isinstance(p, dict)]
+    got = [(p, on) for p, on in got if on and int((p.get("user") or {}).get("id") or 0) not in own | {0}]
+    author = lambda p: int(p["user"]["id"])  # noqa: E731
+    paid = [p for p, on in got if any(author(p) in paid_to.get(n, ()) for n in on)]
+    out.update(received=len(got), merged=sum(1 for p, _ in got if p.get("merged_at")), paid=len(paid), accounts=len({author(p) for p, _ in got}),
+               payees=len({author(p) for p in paid}))
+    return out

@@ -1,4 +1,4 @@
-// Price book 3's arithmetic (web/price.js), with no browser: node tests/web/price.mjs
+// Price book 3.1's arithmetic (web/price.js), with no browser: node tests/web/price.mjs
 // What the program takes at release is one rate with a floor and no cap; the invoice is Control + Meter + Acceptance on
 // value reconciled off chain + record lookups. The expected values are worked by hand in tests/data/billing_vectors.json,
 // which src/knos/billing.py is held to as well (tests/test_billing.py).
@@ -13,7 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url)), dir = mkdtempSync(join(tmp
 // price.js imports ./settle.js, which only the built site has: an empty one makes every constant "recorded"
 writeFileSync(join(dir, "settle.js"), "export {};\n");
 writeFileSync(join(dir, "price.js"), readFileSync(join(here, "../../web/price.js"), "utf8"));
-const { priceConstants, priceBook, COLUMNS, effectiveFees, orderFee, jobFee, feeParts, feeRate, feeWords, KEEPS, quote, meterCost, show, plain, RECORDED, RULE, PAYS, CONNECT, DEVNET, BILL, PLANS, yearEstimate, tiersOf, acceptanceFee, usd, centsOf, unitsOf } = await import(pathToFileURL(join(dir, "price.js")).href);
+const { priceConstants, priceBook, COLUMNS, effectiveFees, nettedFee, enforcedNow, orderFee, jobFee, feeParts, feeRate, feeWords, KEEPS, quote, meterCost, show, plain, RECORDED, RULE, PAYS, CONNECT, DEVNET, BILL, PLANS, yearEstimate, tiersOf, acceptanceFee, usd, centsOf, unitsOf } = await import(pathToFileURL(join(dir, "price.js")).href);
 
 let failed = 0;
 const same = (what, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) failed++; console.log(`${ok ? "ok  " : "FAIL"} ${what}${ok ? "" : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`); };
@@ -74,6 +74,7 @@ same("and they are the lines of tests/data/billing_vectors.json, five columns ea
 same("Verify, Settle and Supplier connection are not lines", priceBook().map((r) => r[0]).filter((name) => vectors.removed.includes(name)), []);
 const row = (name) => priceBook().find((r) => r[0] === name);
 same("Check is free, forever, and nobody pays", row("Check").slice(2), ["free, forever", "nobody", "nowhere"]);
+same("Acceptance never goes below 0.20%, nets small tickets, and Record is 0.10 a lookup paid per call", [/never goes below 0\.20%/.test(row("Acceptance")[2]), /one release per payee per period/.test(row("Acceptance")[2]), /^0\.10 USD a lookup, paid per call/.test(row("Record")[2]), /by subscription|hosted API/.test(row("Record").join(" "))], [true, true, true, false]);
 same("Acceptance has no cap, the funder pays it on top, and the program enforces 0.30% and the floor", [/no cap$/.test(row("Acceptance")[2]), row("Acceptance")[3], /^knos_pay at release/.test(row("Acceptance")[4])], [true, "funder, on top of the amount", true]);
 same("Control says Enterprise is not deliverable", [/^Team 25,000; Business 100,000; Enterprise from 400,000 /.test(row("Control")[2]), /not deliverable yet/.test(row("Control")[2])], [true, true]);
 same("the Pilot is credited against year one", row("Pilot")[2], "2,500 USD, credited against year one");
@@ -82,8 +83,8 @@ same("the rule is published with the book, in the document too", [RULE, market.i
 same("every line of the price book is a row of docs/MARKET.md, word for word", priceBook().filter((r) => !market.includes(`| ${r.join(" | ")} |`)).map((r) => r[0]), []);
 
 // ---- the billing rule: the numbers src/knos/billing.py gives ---------------------------------------------------------
-same("the constants of the billing rule are the book's", [BILL.meterFree, BILL.meterPerThousandCents / 100_000, BILL.acceptBps.map((b) => b / 10_000), BILL.acceptAbove, BILL.acceptFloorCents / 100, BILL.recordCents / 100, BILL.control, BILL.pilot, BILL.benefitRule],
-  [book.meter_free, Number(book.meter_price), book.acceptance_tiers.map((t) => Number(t[1])), book.acceptance_tiers.map((t) => Number(t[0])), Number(book.acceptance_floor), Number(book.record_price), Object.fromEntries(Object.entries(book.control).map(([k, v]) => [k, Number(v)])), Number(book.pilot), book.benefit_rule]);
+same("the constants of the billing rule are the book's", [BILL.meterFree, BILL.meterPerThousandCents / 100_000, BILL.acceptBps.map((b) => b / 10_000), BILL.acceptAbove, BILL.acceptFloorCents / 100, BILL.recordCents / 100, BILL.control, BILL.pilot, BILL.benefitRule, BILL.netBelowCents / 100],
+  [book.meter_free, Number(book.meter_price), book.acceptance_tiers.map((t) => Number(t[1])), book.acceptance_tiers.map((t) => Number(t[0])), Number(book.acceptance_floor), Number(book.record_price), Object.fromEntries(Object.entries(book.control).map(([k, v]) => [k, Number(v)])), Number(book.pilot), book.benefit_rule, Number(book.net_below)]);
 same("the plans offered are the book's", PLANS.map((p) => p[0]), Object.keys(book.control));
 const year = (y) => yearEstimate({ plan: y.in.plan, evaluations: y.in.evaluations, acceptedCents: centsOf(y.in.accepted), onChainPercent: y.in.on_chain_percent, lookups: y.in.lookups });
 for (const y of vectors.years) {
@@ -93,8 +94,22 @@ for (const y of vectors.years) {
 same("the total is the lines added once, less the rebate: nothing released on chain is in it", vectors.years.every((y) => { const e = year(y); return e.total === e.control + e.meter + e.acceptance + e.records - e.rebate; }), true);
 same("the worked customer pays 130,240.00 a year", usd(year(vectors.years[0]).total), "130,240.00");
 // the tiers of a month, and a deliverable's own fee
-same("20 million in a month: 1M at 0.30%, 9M at 0.20%, 10M at 0.10%", tiersOf(2_000_000_000).map((t) => [t.rate, usd(t.of), usd(t.fee)]), [["0.30%", "1,000,000.00", "3,000.00"], ["0.20%", "9,000,000.00", "18,000.00"], ["0.10%", "10,000,000.00", "10,000.00"]]);
-same("with no contract all of it pays 0.30%", tiersOf(2_000_000_000, false).map((t) => usd(t.of)), ["20,000,000.00", "0.00", "0.00"]);
+same("20 million in a month: 1M at 0.30%, 19M at 0.20%, and no rate under 0.20%", tiersOf(2_000_000_000).map((t) => [t.rate, usd(t.of), usd(t.fee)]), [["0.30%", "1,000,000.00", "3,000.00"], ["0.20%", "19,000,000.00", "38,000.00"]]);
+same("with no contract all of it pays 0.30%", tiersOf(2_000_000_000, false).map((t) => usd(t.of)), ["20,000,000.00", "0.00"]);
+// small tickets, netted: one release per payee per period, the floor once
+for (const [outcomes, fee, alone] of vectors.netting.rows) same(`netted: ${outcomes.length} outcomes of ${usd(outcomes[0])} pay ${usd(fee)}, not ${usd(alone)}`, [nettedFee(outcomes).fee, nettedFee(outcomes).individually], [fee, alone]);
+same("an outcome of 20 or more is not small, and nothing is not a release", [nettedFee([2000]), nettedFee([])], [null, null]);
+same("0.99 by itself pays 5.05% in fees; a hundred of them netted pay 0.30%", [(5 / 99 * 100).toFixed(2), (nettedFee(Array(100).fill(99)).fee / 9900 * 100).toFixed(2)], ["5.05", "0.30"]);
+// who earns what at the floor, under both builds (the tip comes out of the fee; 0.30 on a payee's first payment)
+for (const [build, version] of [["2.1", 1], ["2.2", 2]]) {
+  const k = priceConstants(undefined, version);
+  same(`knos_pay ${build}: fee, tip and fee owner on 5, 20, 100 and 1,000, and on a payee's first payment`, [5, 20, 100, 1000].map((a) => { const s = quote(u(a), k); return [usd(a * 100), show(s.fee), show(s.tip), show(s.knos), show(s.tipFirst), show(s.knosFirst)]; }), vectors.floor[build].rows);
+}
+same("under 2.2 the fee owner earns nothing at 16.66 and on a first payment of 100.00", [quote(u(16.66), c).knos, quote(u(16.67), c).knos > 0, quote(u(100), c).knosFirst, quote(u(100.01), c).knosFirst > 0], [0, true, 0, true]);
+// the book's on-chain cell follows the build that is live
+same("the on-chain cell: the book's own once 2.2 is live; today and after the next upgrade while 2.1 is; both when nobody answered; reading before", [enforcedNow(priceConstants(undefined, 2)), enforcedNow(priceConstants(undefined, 1)), enforcedNow(priceConstants()), enforcedNow(null)],
+  [vectors.lines[2][4], "knos_pay at release (on chain today: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40; after the next upgrade: 0.30% and the floor; volume rates are a rebate by contract, off chain)",
+    "knos_pay at release (on chain until the next upgrade: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40; after it: 0.30% and the floor; volume rates are a rebate by contract, off chain)", "knos_pay at release (reading the rate on chain today)"]);
 same("a deliverable: the floor is 0.05, nothing for no value, and there is no cap", [0, 1, 500, 1667, 2000, 400_000_000].map((v) => usd(acceptanceFee(v))), ["0.00", "0.05", "0.05", "0.05", "0.06", "12,000.00"]);
 same("a deliverable that crosses a tier pays each rate on its own part", usd(acceptanceFee(200_000_00, 900_000_00, true)), "500.00");
 same("the Meter: 1,000,000 evaluations a month are 900,000 billable: 1,800.00", [meterCost(1e6).free, meterCost(1e6).billable, usd(meterCost(1e6).cost)], [100000, 900000, "1,800.00"]);

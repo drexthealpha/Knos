@@ -6,14 +6,12 @@ This page is how the first one gets there without anyone taking the maintainer's
 
 ## Two clicks and one button
 
-Three lines, with nothing installed, no key, no wallet and no money (no fork? [**Use this template**](https://github.com/new?template_owner=drexthealpha&template_name=knos-task&name=knos-reproduce&visibility=public&owner=@me)
+Three lines for a stranger. Nothing installed, no key, no wallet, no money (no fork? [**Use this template**](https://github.com/new?template_owner=drexthealpha&template_name=knos-task&name=knos-reproduce&visibility=public&owner=@me)
 instead, below):
 
-1. [Fork drexthealpha/Knos](https://github.com/drexthealpha/Knos/fork) and, in the fork, open **Actions** and enable
-   workflows (a fork has them off until its owner says so).
-2. Choose **knos reproduce** and press **Run workflow**. That is the one button.
-3. When the second run, **knos reproduction, to send**, is green, open the link on its page and press **Create pull
-   request**.
+1. [Fork drexthealpha/Knos](https://github.com/drexthealpha/Knos/fork); in the fork open **Actions** and enable workflows.
+2. Choose **knos reproduce** and press **Run workflow**.
+3. When **knos reproduction, to send** is green, open its link and press **Create pull request**.
 
 What the button does. The first run installs the released knos, runs `knos reproduce` against public things only and
 has GitHub sign the report (below). The second,
@@ -29,6 +27,21 @@ Without a fork: the template makes a repository of your own that already holds
 [`knos-reproduce.yml`](../examples/knos-reproduce.yml) and has Actions on. Press **Create repository**, then
 **Actions**, **knos reproduce**, **Run workflow**. A repository made from a template is no fork, so no pull request can
 come from it: download the run's artifact `knos-reproduction` and send the file in it ("How to send it").
+
+## Knos's own run
+
+Until 0.3.19 nobody could run this path to its end from inside: the second workflow skipped in `drexthealpha`'s
+repositories and the check refused the file, so the first complete run would have been a stranger's. An own run now
+completes: the same signed file is put on the branch `reproduction-own-<run id>` as
+`reproductions/own/<owner>-<repo>-<run id>.json` ([what that folder is](../reproductions/own/README.md)).
+
+It is not a reproduction and is never counted as one. Every count reads `reproductions/*.json` and no deeper;
+`knos.reproduce.verified(..., ours=True)` accepts in `own/` only a run that is Knos's own and gives it no capability;
+an own run's file directly under `reproductions/` is refused as before. `reproductions/own/` holds 0 files today: the
+release run files the first. A pull request that adds a file under `own/` is checked by `reproductions.yml` like a
+stranger's (`scripts/capabilities.py reproduction --own`): it passes only for a run that is Knos's own, and says it
+counts for nothing. Seen in staging: [an own run](https://github.com/drexthealpha/knos-rc/actions/runs/37628067412),
+filed on its branch by the second workflow, and the check of its pull request green.
 
 ## From a terminal
 

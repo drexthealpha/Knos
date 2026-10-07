@@ -223,12 +223,15 @@ def statement_of(text: str) -> str:
 # ---- from the statement of one invoice (knos.statement) -----------------------------------------------------------------
 STATEMENT_FORMATS = ("quickbooks", "netsuite", "generic")
 STATEMENT_GENERIC = ("bill_no", "line", "state", "payment", "date", "supplier", "reference", "amount", "currency", "why", "deliverable", "evaluations",
-                     "invoice_line", "settlement", "evidence", "evidence_sha256", "duplicate_of", "statement_sha256")
+                     "invoice_line", "settlement", "evidence", "evidence_sha256", "duplicate_of", "statement_sha256", "po_reference", "grn_reference", "assurance")
 
 
 def statement_bills(st: dict, status: dict | None = None) -> list[dict]:
     """One dict per line of a statement, in its order, with what the status file adds. `bill` is true for an agreed
-    line only: that is what the two products' files hold."""
+    line only: that is what the two products' files hold. Each carries the three things a three-way match keys on: the
+    purchase order's reference (when a goods-received note was recorded: `knos statement grn --record`), the note's
+    reference and the assurance level. The generic file has a column for each; QuickBooks' and NetSuite's import
+    templates have none, so there they are in the memo."""
     from . import ids, statement
     out = []
     for ln in statement.lines_now(st, status):
@@ -238,10 +241,13 @@ def statement_bills(st: dict, status: dict | None = None) -> list[dict]:
                     "currency": st["currency"], "why": ln["why"], "deliverable": ln["deliverable"], "evaluations": " ".join(ln["evaluations"]),
                     "invoice_line": ln["invoice_line"], "settlement": ln["settlement"] or "", "evidence": ln["evidence"],
                     "evidence_sha256": ln["evidence_sha256"], "duplicate_of": ln["duplicate_of"], "statement_sha256": st["sha256"],
+                    "po_reference": ln["po_reference"], "grn_reference": ln["grn_reference"], "assurance": ln["assurance"],
                     "description": f"Invoice {st['invoice']} line {ln['line']}: {ln['reference']}".rstrip(": "),
                     "memo": " | ".join(x for x in (f"{words}, {paid}", f"Knos statement sha256:{st['sha256']}", f"deliverable {ln['deliverable']}",
                                                     f"invoice line {ln['invoice_line']}", *(f"evaluation {e}" for e in ln["evaluations"]),
-                                                    f"settlement {ln['settlement']}" if ln["settlement"] else "") if x)})
+                                                    f"settlement {ln['settlement']}" if ln["settlement"] else "",
+                                                    f"PO {ln['po_reference']}" if ln["po_reference"] else "", f"GRN {ln['grn_reference']}" if ln["grn_reference"] else "",
+                                                    f"assurance {ln['assurance']}") if x)})
     return out
 
 

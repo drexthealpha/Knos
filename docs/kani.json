@@ -1,5 +1,5 @@
 {
- "_about": "One recorded run of the Kani harnesses of programs-v2/knos_pay/src/proofs.rs, each run alone with a limit of 180 seconds (scripts/kani_fee_record.py --program). `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed before Kani answered, so nothing is proved by this record. `failed`: Kani found a failing check. tests/test_provenance.py holds the harness names here to the names in proofs.rs and the file's hash to the file. A harness is proved only for what its own text assumes (proofs.rs says what each assumes); a proof about the model is a proof about the program only as far as the test `the_model_is_the_arithmetic_of_the_source` ties the two.",
+ "_about": "One recorded run of the Kani harnesses of programs-v2/knos_pay/src/proofs.rs, each run alone with a limit of 180 seconds (scripts/kani_fee_record.py --program). `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed before Kani answered, so nothing is proved by this record. `failed`: Kani found a failing check. tests/test_provenance.py holds the harness names here to the names in proofs.rs and the file's hash to the file. A harness is proved only for what its own text assumes (proofs.rs says what each assumes); a proof about the model is a proof about the program only as far as the test `the_model_is_the_arithmetic_of_the_source` ties the two. A harness whose entry has `runs` did not finish within that limit here and is recorded instead from program.yml's job of its own for it (`kani-fee-bounds`; scripts/kani_fee_record.py --program-ci <run>): each run's id, commit, Kani, CBMC and solver as its log gives them, and its times; `limit_seconds` is that job's step limit. It counts as proved only when every run named reported VERIFICATION SUCCESSFUL with no failed check, at a commit where programs-v2/knos_pay, programs-v2/knos_oidc, programs-v2/Cargo.toml, programs-v2/Cargo.lock are byte for byte this tree's.",
  "tool": "Kani Rust Verifier",
  "version": "0.68.0",
  "cbmc": "6.11.0",
@@ -30,15 +30,48 @@
   },
   {
    "name": "an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount",
-   "result": "timed out",
-   "proved": false,
-   "checks": null,
-   "failed_checks": null,
-   "unreachable_checks": null,
-   "verification_seconds": null,
-   "seconds": 180.0,
-   "attempts": 1,
-   "note": "Not proved by this record: the solver had not answered when the 180 seconds were over. No failing check was reported."
+   "result": "verified",
+   "proved": true,
+   "checks": 64,
+   "failed_checks": 0,
+   "unreachable_checks": 4,
+   "verification_seconds": 8295.655,
+   "seconds": 8317.4,
+   "attempts": 2,
+   "limit_seconds": 21000,
+   "command": "cargo-kani --output-format terse --exact --harness proofs::harness::an_orders_fee_is_between_its_floor_and_the_one_rate_for_every_amount",
+   "solver": "CaDiCaL, Kani's default: the harness names no solver and the job installs no other",
+   "runs": [
+    {
+     "id": 37575047633,
+     "url": "https://github.com/drexthealpha/knos-rc/actions/runs/37575047633",
+     "job": 112641976418,
+     "commit": "1cfc58d9022451747bfcc07f74f4f87513c73ed0",
+     "event": "workflow_dispatch",
+     "date": "2026-10-07",
+     "kani": "0.68.0",
+     "cbmc": "6.11.0",
+     "rust_toolchain": "nightly-2026-08-21",
+     "result": "verified",
+     "verification_seconds": 8295.655,
+     "seconds": 8317.4
+    },
+    {
+     "id": 37608154723,
+     "url": "https://github.com/drexthealpha/knos-rc/actions/runs/37608154723",
+     "job": 112748614676,
+     "commit": "39750de0bf2172cc02dab558ea1c81ce95662c1b",
+     "event": "schedule",
+     "date": "2026-10-07",
+     "kani": "0.68.0",
+     "cbmc": "6.11.0",
+     "rust_toolchain": "nightly-2026-08-21",
+     "result": "verified",
+     "verification_seconds": 8360.492,
+     "seconds": 8412.1
+    }
+   ],
+   "note": "Not answered within 180 seconds here; verified in program.yml's job `kani-fee-bounds` on GitHub's hosted runner, 2 runs, each alone within 350 minutes: run 37575047633 (workflow_dispatch, commit 1cfc58d9): verified in 8296 s; run 37608154723 (schedule, commit 39750de0): verified in 8360 s. Kani 0.68.0, CBMC 6.11.0, solver CaDiCaL, Kani's default: the harness names no solver and the job installs no other."
   },
   {
    "name": "a_payment_takes_its_share_of_the_amount_and_of_the_fee_and_the_last_one_empties_the_order",
@@ -75,22 +108,22 @@
   }
  ],
  "fee_proofs": {
-  "_about": "Recorded runs of the Kani harnesses of programs-v2/fee_proofs/src/lib.rs, each run alone with a limit of 150 seconds. They are about `order_fee`, `fee_of`, `bps_of` and `units` as build.rs copies them, line for line, out of programs-v2/knos_pay/src (lib.rs and state.rs), for a mint of 6 decimals and every rate from 10 to 30 basis points: one rate, no tiers. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed first, so nothing is proved by that entry. `range` is the set of amounts the harness assumes, in units of a millionth, and the rates it goes through; a harness proves its statement for that range and for nothing outside it. `summary` is computed from the entries: its `status` is `verified` when one harness over every amount is, or when every part is; `verified but for one bound at one rate` when the only part without a proof is the exact 0.30% at the rate 30; and `not verified` otherwise; `parts` says which statement is verified over which amounts and rates, and which is not.",
+  "_about": "Recorded runs of the Kani harnesses of programs-v2/fee_proofs/src/lib.rs, each run alone with a limit of 150 seconds. They are about `order_fee`, `fee_of`, `bps_of` and `units` as build.rs copies them, line for line, out of programs-v2/knos_pay/src (lib.rs and state.rs), for a mint of 6 decimals and every rate from 10 to 30 basis points: one rate, no tiers. `verified`: Kani reported VERIFICATION SUCCESSFUL with no failed check. `timed out`: the limit passed first, so nothing is proved by that entry. `words` says it in full: `verified`, `failed`, or `not verified (timed out at N s, solver S)`. `solver` is what answered: CaDiCaL, Kani's default, or, for a harness marked `#[kani::solver(cvc5)]`, cvc5 with bit-vectors solved as integers (programs-v2/fee_proofs/solvers/cvc5), on whose translation that result also rests. `not_answered` lists the forms of the exact 0.30% and the solvers that were tried and did not answer, each once, and a false statement the solver refuted. `range` is the set of amounts the harness assumes, in units of a millionth, and the rates it goes through; a harness proves its statement for that range and for nothing outside it. `summary` is computed from the entries: its `status` is `verified` when one harness over every amount is, or when every part is; `verified but for one bound at one rate` when the only part without a proof is the exact 0.30% at the rate 30; and `not verified` otherwise; `parts` says which statement is verified over which amounts and rates, and which is not.",
   "version": "0.68.0",
-  "command": "timeout 150 cargo kani --harness <name>",
+  "command": "timeout 150 cargo kani --exact --harness harness::<name>",
   "directory": "programs-v2/fee_proofs",
   "limit_seconds": 150,
-  "date": "2026-10-06",
+  "date": "2026-10-07",
   "machine": "x86_64 Linux, 2 CPUs shared with other work",
   "source": {
    "path": "programs-v2/fee_proofs/src/lib.rs",
-   "sha256": "f0e12ed51be1303e7061a392c44037646980d3502d054b7e5816f5705d6a305a",
+   "sha256": "48054ea8ca1efcc47db2a7c091ffc918a94390fb9d0a02c7d7ee7b35bd0242ce",
    "program_lines_sha256": "abab17805feb90b33e2f50927efa26d4608c8ebb2b40f4713b38de7ac1588d14"
   },
   "summary": {
    "statement": "For every rate from 10 to 30 basis points and every amount from 0 to 100,000.00 at 6 decimals, the fee `order_fee` computes is at least 0.05, is 0.05 or at most 0.30% of the amount, and adds to the amount in a u64; a job's fee is never more than its amount.",
-   "status": "verified but for one bound at one rate",
-   "whole_range_in_one_harness": "not verified",
+   "status": "verified",
+   "whole_range_in_one_harness": "verified",
    "parts": [
     {
      "amount": "0 to 100,000.00",
@@ -115,9 +148,11 @@
      "amount": "0 to 100,000.00",
      "rate_bps": "30",
      "stated": "0.05 or at most 0.30% of the amount",
-     "result": "not verified",
-     "harnesses": [],
-     "note": "No harness states it: at this rate the fee is exactly 0.30% rounded down, with nothing to spare. Asked of Kani 0.68 on 2026-10-06 for this range in three forms (the bound itself; the amount drawn as its ten-thousands and a remainder; the bound taken apart into the fee's thirties and their algebra), CaDiCaL had not answered any after 150 seconds; with one basis point to spare it answers in under a second. Tested instead at all 10,000 remainders on 2,001 values of the ten-thousands and at 10,000,000 amounts from a fixed seed: programs-v2/fee_proofs/tests/reference.rs, every_remainder_at_the_top_rate_is_the_reference_and_within_thirty_basis_points."
+     "result": "verified",
+     "harnesses": [
+      "the_fee_of_an_order_at_the_rate_30_is_30_basis_points_rounded_down_or_the_floor"
+     ],
+     "note": "At this rate the fee is exactly 0.30% rounded down, with nothing to spare. The harness is answered by cvc5 with bit-vectors solved as integers (`--solve-bv-as-int=sum`): this one result rests on that translation as well as on Kani and CBMC. `not_answered` lists the forms and solvers that did not answer. Tested beside it at all 10,000 remainders on 2,001 values of the ten-thousands and at 10,000,000 amounts from a fixed seed: programs-v2/fee_proofs/tests/reference.rs, every_remainder_at_the_top_rate_is_the_reference_and_within_thirty_basis_points."
     },
     {
      "amount": "every u64",
@@ -137,13 +172,15 @@
      "amount": "amount <= MAX_AMOUNT",
      "rate_bps": "10..=19"
     },
+    "solver": "CaDiCaL 3.0.0",
+    "words": "verified",
     "result": "verified",
     "proved": true,
     "checks": 68,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 7.8606424,
-    "seconds": 8.4
+    "verification_seconds": 23.68087,
+    "seconds": 25.4
    },
    {
     "name": "the_fee_of_an_order_is_within_its_bounds_at_the_rates_20_to_29",
@@ -151,13 +188,15 @@
      "amount": "amount <= MAX_AMOUNT",
      "rate_bps": "20..=29"
     },
+    "solver": "CaDiCaL 3.0.0",
+    "words": "verified",
     "result": "verified",
     "proved": true,
     "checks": 68,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 16.117285,
-    "seconds": 16.5
+    "verification_seconds": 74.18406,
+    "seconds": 76.2
    },
    {
     "name": "the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points",
@@ -165,13 +204,15 @@
      "amount": "amount <= MAX_AMOUNT",
      "rate_bps": "30"
     },
+    "solver": "CaDiCaL 3.0.0",
+    "words": "verified",
     "result": "verified",
     "proved": true,
     "checks": 68,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 0.64779115,
-    "seconds": 1.1
+    "verification_seconds": 3.0085866,
+    "seconds": 5.5
    },
    {
     "name": "the_fee_of_a_job_is_never_more_than_its_amount",
@@ -179,14 +220,116 @@
      "amount": "every u64",
      "rate_bps": "30"
     },
+    "solver": "CaDiCaL 3.0.0",
+    "words": "verified",
     "result": "verified",
     "proved": true,
     "checks": 54,
     "failed_checks": 0,
     "unreachable_checks": 4,
-    "verification_seconds": 0.27814862,
-    "seconds": 0.7
+    "verification_seconds": 1.367756,
+    "seconds": 3.5
+   },
+   {
+    "name": "the_fee_of_an_order_at_the_rate_30_is_30_basis_points_rounded_down_or_the_floor",
+    "range": {
+     "amount": "amount <= MAX_AMOUNT",
+     "rate_bps": "30"
+    },
+    "solver": "cvc5 1.2.0, --solve-bv-as-int=sum",
+    "words": "verified",
+    "result": "verified",
+    "proved": true,
+    "checks": 63,
+    "failed_checks": 0,
+    "unreachable_checks": 4,
+    "verification_seconds": 3.2602327,
+    "seconds": 7.0
    }
-  ]
+  ],
+  "not_answered": {
+   "date": "2026-10-07",
+   "why": "Why the SAT solvers do not answer: `bps_of` divides the amount by 10,000 and takes its remainder by 10,000, and CBMC gives each its own quotient and remainder, so the bound at exactly 0.30% needs the two divisions to agree (a quotient and a remainder are unique), which a solver working on bits did not find in the time; even the division's identity alone was not answered. With one basis point to spare that agreement is not needed and CaDiCaL answers in under a second. As integers the division by a constant is linear arithmetic.",
+   "trials": [
+    {
+     "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts",
+     "solver": "CaDiCaL 3.0.0",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver CaDiCaL 3.0.0)"
+    },
+    {
+     "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts",
+     "solver": "Kissat 4.0.1",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver Kissat 4.0.1)"
+    },
+    {
+     "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts",
+     "solver": "Z3 5.1.0",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver Z3 5.1.0)"
+    },
+    {
+     "form": "without a division, in 128 bits, on `bps_of`: q * 10,000 <= amount * 30 < (q + 1) * 10,000",
+     "solver": "CaDiCaL 3.0.0",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver CaDiCaL 3.0.0)"
+    },
+    {
+     "form": "without a division, in 128 bits, on `bps_of`: q * 10,000 <= amount * 30 < (q + 1) * 10,000",
+     "solver": "Kissat 4.0.1",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver Kissat 4.0.1)"
+    },
+    {
+     "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts, for the top sixteenth of the amounts only (93,750.00 to 100,000.00)",
+     "solver": "CaDiCaL 3.0.0",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver CaDiCaL 3.0.0)"
+    },
+    {
+     "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts, for the top sixteenth of the amounts only (93,750.00 to 100,000.00)",
+     "solver": "Kissat 4.0.1",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver Kissat 4.0.1)"
+    },
+    {
+     "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts, with the division's identity assumed in the harness",
+     "solver": "CaDiCaL 3.0.0",
+     "limit_seconds": 150,
+     "words": "not verified (timed out at 150 s, solver CaDiCaL 3.0.0)"
+    },
+    {
+     "form": "the division alone: amount / 10,000 * 10,000 + amount % 10,000 == amount",
+     "solver": "CaDiCaL 3.0.0",
+     "limit_seconds": 60,
+     "words": "not verified (timed out at 60 s, solver CaDiCaL 3.0.0)"
+    },
+    {
+     "form": "the division alone: amount / 10,000 * 10,000 + amount % 10,000 == amount",
+     "solver": "cvc5 1.2.0, as bit-vectors",
+     "limit_seconds": 100,
+     "words": "not verified (timed out at 100 s, solver cvc5 1.2.0, as bit-vectors)"
+    },
+    {
+     "form": "the division alone: amount / 10,000 * 10,000 + amount % 10,000 == amount",
+     "solver": "cvc5 1.2.0, --solve-bv-as-int=sum",
+     "limit_seconds": 100,
+     "words": "verified (0.4 s)"
+    },
+    {
+     "form": "every rate from 10 to 30 in one harness, the rate unknown: the bounds of the harnesses above",
+     "solver": "cvc5 1.2.0, --solve-bv-as-int=sum",
+     "limit_seconds": 100,
+     "words": "not verified (timed out at 100 s, solver cvc5 1.2.0, --solve-bv-as-int=sum)"
+    },
+    {
+     "form": "a false statement, as a control: the fee is the floor, or ten thousand fees are LESS than thirty amounts",
+     "solver": "cvc5 1.2.0, --solve-bv-as-int=sum",
+     "limit_seconds": 100,
+     "words": "failed, as it must (3.6 s): the solver refutes what is not so"
+    }
+   ]
+  }
  }
 }

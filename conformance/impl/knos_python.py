@@ -43,6 +43,12 @@ def _receipt_check(i: dict):
     return True
 
 
+def _receipt_assurance(i: dict):
+    _receipt_check(i)
+    r = i["receipt"]
+    return receipt.assurance_of(r, r["assurance"]["declared_related"] if r["version"] == 5 else ())["level"]
+
+
 def _receipt_verdict(i: dict):
     _receipt_check(i)
     return {"verdict": receipt.verdict_of(i["receipt"]), "authorises_payment": receipt.authorises_payment(i["receipt"])}
@@ -98,6 +104,7 @@ OPS = {
     "receipt.digest": lambda i: receipt.digest(i["receipt"]),
     "receipt.check": _receipt_check,
     "receipt.verdict": _receipt_verdict,
+    "receipt.assurance": _receipt_assurance,
     "ids.deliverable": lambda i: I.deliverable(i["scope"], i["key"]),
     "ids.evaluation": lambda i: I.evaluation(i["deliverable"], i["artifact"], i["policy"], i["evaluator"], i["run"]),
     "ids.invoice_line": lambda i: I.invoice_line(i["supplier"], i["invoice"], i["line"]),

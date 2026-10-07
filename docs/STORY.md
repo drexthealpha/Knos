@@ -1,4 +1,4 @@
-# The story: three minutes, six beats
+# The story: one task, six steps
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -10,30 +10,30 @@ The count is in [backtest.json](backtest.json), made by `scripts/backtest.py` fr
 The claim: two parties who distrust each other compute the same bill from evidence a third party signed, and the
 program releases the money on that signature, with no company and no oracle in the middle.
 
-## The six beats
+## The six steps
 
-Each beat has one piece of evidence: a file, a test or a transaction. The site plays the same six
-([`web/story.js`](../web/story.js)), and [the demonstration's script](submission/demo_script.md) times them.
+One task, start to finish. Each step has one piece of evidence: a file, a test or a transaction. The site plays the
+same six ([`web/story.js`](../web/story.js)), and [the demonstration's script](submission/demo_script.md) times
+them and opens on the refusal of step 2.
 
-1. **An invoice does not reconcile.** Seven lines; five are exceptions.
-   Evidence: [The sample invoice](../examples/shadow/invoice.csv)
-2. **Buyer authorises the deliverable.** One comment fixes price and terms first.
-   Evidence: [The funding transaction (devnet, staging program ids)](https://explorer.solana.com/tx/4zeX8845JQkkBgqvRqUgAYiMPNaSWQJsxDTGyayyKATQ1ZXeDTJDpuTrMzkCd4pT1E9rrbYHw6Z4vWRnb1FKhYCL?cluster=devnet)
-3. **A tampered submission is refused.** All 63 cheating pull requests were refused.
+1. **Buyer and supplier agree one task.** Price and acceptance terms come first.
+   Evidence: [The funding transaction (devnet, public program ids)](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet)
+2. **A claimed success fails the condition.** Payment is withheld, with the reason.
    Evidence: [The tamper benchmark](TAMPER.md)
-4. **Legitimate work is accepted.** The signed run pays the posted amount.
-   Evidence: [The paying transaction (devnet, staging program ids)](https://explorer.solana.com/tx/63wT5rhYhEKbgmF5k8vEKdexzoCaXZCiDvRG2GQMGSMBBsc9avGfDw3izER9D6LHoe4ucJeinTBiWaWGWpnFWvfq?cluster=devnet)
-5. **A replay pays nothing.** Tokens work once. One judge is no quorum.
-   Evidence: [The tests that replay tokens and split a quorum](../programs-v2/handlers/tests/adversarial.rs)
-6. **Both sides rebuild one bill.** An outsider verifies the receipt offline.
+3. **Valid work passes.** Two independent records reconcile.
    Evidence: [The test that reconciles two ledgers](../tests/test_ledger.py)
+4. **The payment executes.** The supplier gets a portable receipt.
+   Evidence: [The paying transaction (devnet, public program ids)](https://explorer.solana.com/tx/59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet)
+5. **A replay pays nothing.** No second payment.
+   Evidence: [The refused replay (devnet, public program ids)](https://explorer.solana.com/tx/4hCf7a3FpKiTexPUxX4jvPbYUUQMvgHmyjHSVjbUJ2yqe3srzxLJrsZ8QY4dpT2pt4VFSRJ4j4kQMwEcapvk3Rrp?cluster=devnet)
+6. **Accounts get an export.** The deployment identity is one page.
+   Evidence: [The release manifest](MANIFEST.md)
 
 Then your own invoice: [check it](https://drexthealpha.github.io/Knos/). Nobody has paid for this yet.
 
-**Staging program ids.** The transactions of beats 2 and 4 ran on the staging program ids of the 0.3.14 rehearsal
-([CAPABILITIES.md](CAPABILITIES.md), "The 0.3.14 rehearsal on devnet"), not on the public ones; each link says so
-until a run on the public ids replaces it. Which build each public program id runs is in
-[MANIFEST.md](MANIFEST.md), from [`web/upgrades.json`](../web/upgrades.json). The money is test USDC.
+**Public program ids.** The transactions of steps 1, 4 and 5 are one round on the public program ids, the round
+the site's demo replays (`web/demo_data.json`, written by `scripts/demo_data.py`). Which build each public program
+id runs is in [MANIFEST.md](MANIFEST.md), from [`web/upgrades.json`](../web/upgrades.json). The money is test USDC.
 
 ## The ask
 

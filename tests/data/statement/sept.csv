@@ -8,12 +8,12 @@ made from,a shadow run: the invoice against GitHub's record
 evidence sha256,c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2
 evidence,inside the statement; not signed
 status sha256,9d682ce8446ae4ca8fd06dfb4bf0b08d9a92a68ab8cf00a4d069df2375dd2bd5
-line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of
-1,acme/app#1,Acme Agents,agreed,100.00,,dlv_7d18ee5930ce4f8945ee626f,evl_d6f7851bb59a7591d7cd7726,inv_b4add9cf5f7842919a292b6f,stl_af382ff4f9349cb50eed8b34,paid outside Knos,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,
-2,acme/app#2,Acme Agents,disputed,250.00,a check failed when this change was merged: test,dlv_2588c667db86d1b266ea0121,evl_1ca8008cccb72826ece72b62,inv_740e3c083fd82e11c55a3889,,held,https://github.com/acme/app/actions/runs/21/job/21,278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c,
-3,acme/app#3,Acme Agents,insufficient evidence,80.00,the checks give no verdict: no check ran,dlv_7eb54ea7a68764c8c2d90d28,evl_ec16d038d8ff8e67c75980b0,inv_7dbdc2f0b5336695951583d2,,held,https://github.com/acme/app/pull/3,e5922f5d4c1c0acce4aff442495673f35c479c227b68097d014132bed0ac51dc,
-4,acme/app#1,Acme Agents,duplicate,100.00,billed twice on this invoice: same pull request as line 1,dlv_7d18ee5930ce4f8945ee626f,,inv_92705e08349c79f12e7a5249,,held,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,line 1
-5,acme/app#4,Acme Agents,agreed,60.00,,dlv_3ff7922d689c11ef9b04a660,evl_5e98a492487590e945e006ea,inv_5633b01f50068344b40b1b61,stl_41ab1792c3b901c7bc0adb53,devnet demonstration,https://github.com/acme/app/pull/4,a0428771cc3d4b5f69d69a24de9d44cf3573d7862e40eca5c60d0302f829a8c0,
+line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference
+1,acme/app#1,Acme Agents,agreed,100.00,,dlv_7d18ee5930ce4f8945ee626f,evl_d6f7851bb59a7591d7cd7726,inv_b4add9cf5f7842919a292b6f,stl_af382ff4f9349cb50eed8b34,paid outside Knos,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,,reported,,grn_d6f7851bb59a7591d7cd7726
+2,acme/app#2,Acme Agents,disputed,250.00,a check failed when this change was merged: test,dlv_2588c667db86d1b266ea0121,evl_1ca8008cccb72826ece72b62,inv_740e3c083fd82e11c55a3889,,held,https://github.com/acme/app/actions/runs/21/job/21,278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c,,reported,,grn_1ca8008cccb72826ece72b62
+3,acme/app#3,Acme Agents,insufficient evidence,80.00,the checks give no verdict: no check ran,dlv_7eb54ea7a68764c8c2d90d28,evl_ec16d038d8ff8e67c75980b0,inv_7dbdc2f0b5336695951583d2,,held,https://github.com/acme/app/pull/3,e5922f5d4c1c0acce4aff442495673f35c479c227b68097d014132bed0ac51dc,,reported,,grn_ec16d038d8ff8e67c75980b0
+4,acme/app#1,Acme Agents,duplicate,100.00,billed twice on this invoice: same pull request as line 1,dlv_7d18ee5930ce4f8945ee626f,,inv_92705e08349c79f12e7a5249,,held,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,line 1,not evaluated,,
+5,acme/app#4,Acme Agents,agreed,60.00,,dlv_3ff7922d689c11ef9b04a660,evl_5e98a492487590e945e006ea,inv_5633b01f50068344b40b1b61,stl_41ab1792c3b901c7bc0adb53,devnet demonstration,https://github.com/acme/app/pull/4,a0428771cc3d4b5f69d69a24de9d44cf3573d7862e40eca5c60d0302f829a8c0,,reported,,grn_5e98a492487590e945e006ea
 total,billed,5,590.00
 total,agreed,2,160.00
 total,disputed,1,250.00

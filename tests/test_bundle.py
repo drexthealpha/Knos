@@ -132,10 +132,18 @@ def test_two_builds_of_one_order_are_the_same_bytes_and_the_verdict_follows_from
         members = tar.getmembers()
     assert [m.name for m in members] == sorted(["MANIFEST.json", "chain.json", *bundle.FILES]) and {(m.mtime, m.mode, m.uid, m.gid) for m in members} == {(0, 0o644, 0, 0)}
     got, done = bundle.verify(blob)                                # no network: `call` is not given
-    assert got == r and receipt.check(r) is None and r["version"] == 4       # a receipt is written as version 4 wherever one is made
+    assert got == r and receipt.check(r) is None and r["version"] == 5       # a receipt is written as version 5 wherever one is made (0.3.19)
+    # the same receipt as version 4 plus its assurance level, computed from its own evidence: one repository's run reported the result
+    four = receipt.as4(r)
+    assert four["version"] == 4 and receipt.check(four) is None and receipt.build5(four) == r and set(r) - set(four) == {"assurance"}
+    assert r["assurance"] == receipt.assurance_of(four) and r["assurance"]["level"] == "reported" and r["assurance"]["declared_related"] == []
+    # with the accounts the order's terms declare to be one party: the same payment, another receipt, and its bundle holds together too
+    told, files3 = bundle.gather(net.call, net.events(), ORDER, host(), declared=[[8002, 7001]])
+    assert told["assurance"]["declared_related"] == [[7001, 8002]] and receipt.as4(told) == four and receipt.digest(told) != receipt.digest(r)
+    assert bundle.verify(bundle.make(files3, told["order"]))[0] == told
     assert receipt.authorises_payment(r) and r["ids"] == receipt.ids_of(r, r["commercial_authorisation"]["deliverable"]["milestone"])
     three = receipt.as3(r)
-    assert three["version"] == 3 and receipt.check(three) is None and receipt.build4(three) == r   # and holds the version 3 one it was built from
+    assert three["version"] == 3 and receipt.check(three) is None and receipt.build5(receipt.build4(three)) == r   # and holds the version 3 one it was built from
     assert files["token.jwt"].decode().strip() == net.token and files["terms.json"] == TERMS
     assert json.loads(files["judge.json"])["inputs_sha256"] == bundle._sha(files["checks.json"])
     assert any("verdict follows again" in line for line in done) and "the chain was not asked" in done[-3]

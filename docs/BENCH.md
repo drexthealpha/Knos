@@ -379,13 +379,58 @@ headless Chromium against a mocked GitHub and Solana.
 `knos decide` answers accepted, rejected or insufficient evidence the moment the forge's signed token is in hand, by the reads a relay makes before it spends a fee (`knos.settle.v2.relay.precheck`), and writes a provisional receipt. A provisional receipt never authorises payment; the final receipt names it and replaces it ([LOAD.md](LOAD.md), "The five clocks").
 
 <!-- decide:time -->
-Measured on 2026-10-06 by `python scripts/decide_bench.py --write` on this machine: Intel(R) Xeon(R) Processor @ 2.80GHz, 2 CPUs, Linux x86_64, Python 3.11.15. The chain is LiteSVM with the committed test builds, in the same process: no network. A cluster adds a round trip to its RPC endpoint for every read of the chain; that has not been measured, on devnet or anywhere.
+Measured on 2026-10-07 by `python scripts/decide_bench.py --write` on this machine: Intel(R) Xeon(R) Processor @ 2.80GHz, 2 CPUs, Linux x86_64, Python 3.11.15. The chain is LiteSVM with the committed test builds, in the same process: no network. On devnet, four runs of the 0.3.18 command (the relay's whole precheck, on real fund tokens over the shared public RPC) took 4.3 to 32.6 s: a first reading, not a sample. The 0.3.19 split was timed there on 24 real tokens: the tables after this block.
 
-| decision | what is timed | n | p50 | p95 | slowest | every sample said | target at p95 |
+| decision | what is timed | n | p50 | p95 | slowest | every sample said | target at p95 (a target, not a measurement) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| fresh, accepted | a fund token never seen: signature checked, chain read | 40 | 1.1 ms | 9.3 ms | 10.6 ms | accepted | under 2000 ms |
-| fresh, rejected | a pay token for an issue with nothing in escrow: signature checked, chain read | 40 | 0.7 ms | 5.0 ms | 12.8 ms | rejected | under 2000 ms |
-| cached, accepted | the same fund token again, the chain's answers kept (`knos.decide.Cached`) | 40 | 1.0 ms | 7.8 ms | 12.8 ms | accepted | under 200 ms |
-| no chain | the token alone, `ledger=None`: insufficient evidence, or rejected | 40 | 0.4 ms | 0.7 ms | 12.7 ms | insufficient evidence | under 200 ms |
-| free check | the conclusions of three named checks, no token | 40 | 0.1 ms | 1.8 ms | 4.2 ms | accepted | under 200 ms |
+| fresh, accepted | a fund token never seen: signature checked, chain read | 40 | 1.2 ms | 1.9 ms | 2.1 ms | accepted | under 2000 ms |
+| fresh, rejected | a pay token for an issue with nothing in escrow: signature checked, chain read | 40 | 0.7 ms | 1.0 ms | 1.2 ms | rejected | under 2000 ms |
+| cached, accepted | the same fund token again, the chain's answers kept (`knos.decide.Cached`) | 40 | 0.9 ms | 1.4 ms | 6.1 ms | accepted | under 200 ms |
+| no chain | the token alone, `ledger=None`: insufficient evidence, or rejected | 40 | 0.4 ms | 0.6 ms | 0.7 ms | insufficient evidence | under 200 ms |
+| free check | the conclusions of three named checks, no token | 40 | 0.1 ms | 0.1 ms | 0.1 ms | accepted | under 200 ms |
+| offline, accepted | the fund token against kept key lists: signature, claims, terms; nothing read (`knos.decide.offline`) | 40 | 0.6 ms | 0.9 ms | 4.6 ms | accepted | under 250 ms |
+| chain check | one request to the simulated chain and the updated answer (`knos.decide.chain_check`, `after_chain`) | 40 | 0.7 ms | 0.9 ms | 1.3 ms | accepted | under 250 ms |
+
+Requests to an RPC endpoint for one fund token, counted through an endpoint that only counts (`round_trips()`): before the split, the relay's whole precheck made 4 calls of the ledger (1 now, 1 simulate, 2 infos), each at least one request, one after another, and fetched the issuer's key list besides; the chain check makes 1 (1 infos: one getMultipleAccounts), with a timeout of 2 s, and the offline half makes none.
+
+The whole offline command in a new process each time (`python -m knos.decide --token-file ... --no-chain`: interpreter start, imports, decision, receipt written), n 10: p50 177 ms, p95 198 ms, slowest 198 ms; of that, inside the command p50 102 ms, p95 122 ms. Every run said: Provisional: rejected (token expired) (the simulator's clock is not this machine's, so its token is past its time for the command; the signature and the key lookup are the same work). The 250 ms target is for the warm offline decision; the cold command meets it here.
+
+What `python -m knos.decide` imports, by `python -X importtime` (the median of 5 new processes, each module's own time summed): deciding on a token offline, 236 modules in 141 ms, typer not loaded, the relay's rules loaded (they are the rules it decides by); the free check, 91 modules in 55 ms, typer not loaded, the relay's rules not loaded. Before 0.3.19 the same command loaded typer for every answer: on this machine, idle, 151 modules in 94 ms for the free check and 268 in 165 ms for a token.
 <!-- /decide:time -->
+
+**On devnet, the 0.3.19 command** ([RELAY.md](RELAY.md), "Measuring the 0.3.18 path on devnet", step 4: `KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json`, then the same with `--full`), run on 2026-10-07 between 13:19 and 14:07 UTC on the operator's machine (WSL, 2 CPUs, over the shared public RPC `api.devnet.solana.com`), once on each of 24 real GitHub-signed tokens of that day, every one at most an hour old: 11 of the release run's own rounds and 13 that other steps of the same run posted in drexthealpha's repositories. The figures are the command's own (`decided in N ms (offline A ms, chain check B ms in 1 request)`); the interpreter's start is not in them. Fewer than 30 tokens, so the samples are given as they are, not as a distribution.
+
+| half | n | fastest | median | slowest |
+| --- | --- | --- | --- | --- |
+| offline (A): signature against the kept key lists, claims, terms | 24 | 170 ms | 356 ms | 863 ms |
+| chain check (B): one getMultipleAccounts, left after 2 s | 23 answered, 1 not answered in 2 s | 687 ms | 854 ms | 1,801 ms |
+| `--full` (N): the relay's whole precheck, the 0.3.18 path | 24 | 6.0 s | 9.1 s | 15.6 s |
+
+23 of the 24 tokens had been carried to the chain before they were decided here, so both commands answered from what the chain already showed; one (a meter claim) was decided before its relayer carried it, and its provisional receipt said its batch was the next the chain takes. The three fund tokens whose orders had been paid since were accepted by the chain half ("used already: what it asks for is done") and rejected by `--full` ("a fund token works once"). Three meter tokens, decided before the fix of this release, were said by the chain half to be "unused": knos_meter keeps no marker for them, and the chain half now reads the pair's Ledger account instead.
+
+| token | where it was posted | decided before or after the chain took it | A, ms | B, ms | N, ms | provisional | `--full` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| fund | knos-e2e-202610020250#2 | after | 863 | 745 | 6020 | accepted | rejected |
+| fund | knos-e2e-202610020250#3 | after | 357 | 903 | 7985 | accepted | rejected |
+| pay | knos-e2e-202610020250#2 | after | 339 | 829 | 9618 | accepted | accepted |
+| pay | knos-e2e-202610020250#3 | after | 199 | 795 | 8844 | accepted | accepted |
+| meter batch | knos-e2e-202610020610#25 | after | 537 | 892 | 10423 | accepted | accepted |
+| meter claim | knos-e2e-202610020610#25 | after | 344 | 825 | 10212 | accepted | accepted |
+| meter batch | knos-e2e-202610020610#25 | after | 219 | 942 | 7872 | accepted | accepted |
+| meter claim | knos-e2e-202610020610#25 | before | 170 | 935 | 10597 | accepted | accepted |
+| fund | knos-e2e#234 | after | 302 | 995 | 9202 | accepted | rejected |
+| pay | knos-e2e#235 | after | 505 | 1322 | 12047 | accepted | accepted |
+| pay (neutral attest) | knos-attest#1 | after | 629 | 2005 (not answered in 2 s) | 10184 | accepted | accepted |
+| fund | knos-e2e, comment 6039034066 | after | 654 | 1159 | 7439 | accepted | accepted |
+| pay | knos-e2e, comment 6039086119 | after | 569 | 955 | 7925 | accepted | accepted |
+| fund | knos-playground, comment 6038768371 | after | 184 | 1502 | 15626 | accepted | accepted |
+| fund | knos-playground, comment 6038794650 | after | 182 | 1608 | 8231 | accepted | accepted |
+| fund | knos-playground, comment 6038825053 | after | 181 | 687 | 8287 | accepted | accepted |
+| fund | knos-playground, comment 6038847607 | after | 183 | 720 | 8059 | accepted | accepted |
+| fund | knos-playground, comment 6038858790 | after | 233 | 699 | 7960 | accepted | accepted |
+| fund | knos-playground, comment 6038889632 | after | 426 | 765 | 8965 | accepted | accepted |
+| fund | knos-playground, comment 6038906197 | after | 395 | 764 | 8447 | accepted | accepted |
+| fund | knos-playground, comment 6038967955 | after | 355 | 1801 | 11373 | accepted | accepted |
+| fund | knos-rc, comment 6038879894 | after | 616 | 819 | 10453 | accepted | accepted |
+| fund | knos-rc, comment 6039629748 | after | 433 | 854 | 9549 | accepted | accepted |
+| fund | knos-relay-rc, comment 6038623582 | after | 548 | 844 | 10157 | accepted | accepted |

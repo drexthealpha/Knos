@@ -248,6 +248,39 @@ def test_a_published_terms_3_file_is_never_rewritten(tmp_path, monkeypatch):
     assert reg.build(root) == []
 
 
+def test_terms_may_declare_accounts_that_are_one_party_and_terms_that_declare_none_are_unchanged(tmp_path):
+    """`evaluators.related` (0.3.19), optional: groups of account ids that are one party. A document without the key
+    has the bytes and the hash it had; with it, the line says so, the version is another, the diff names it, a
+    receipt's assurance level reads it (`declared`), and `knos terms verify` accepts the file."""
+    from knos import receipt
+    doc = terms3.template("bug-fix")
+    before = terms3.digest(doc)
+    assert "related" not in terms3.validate(doc)["evaluators"] and terms3.declared(doc) == []
+    told = json.loads(json.dumps(doc))
+    told["evaluators"]["related"] = [[8002, 7001], [9003, 7001], [41, 42]]
+    got = terms3.validate(told, strict=False)
+    assert got["evaluators"]["related"] == [[41, 42], [7001, 8002, 9003]] == receipt.related(told["evaluators"]["related"]) == terms3.declared(told)
+    assert got["evaluators"]["says"].endswith(" Declared to be one party, so never two evaluators: accounts 41 and 42; accounts 7001, 8002 and 9003.")
+    assert got["evaluators"]["says"].startswith(terms3.validate(doc)["evaluators"]["says"])
+    assert terms3.digest(got) != before and terms3.digest(doc) == before                # another version; the one without the key is what it was
+    assert json.loads(terms3.dumps(got))["evaluators"]["related"] == [[41, 42], [7001, 8002, 9003]]
+    again = json.loads(json.dumps(got))
+    again["evaluators"]["related"] = [[42, 41], [9003, 8002], [8002, 7001]]              # the same parties, written otherwise: the same version
+    assert terms3.digest(terms3.validate(again, strict=False)) == terms3.digest(got)
+    assert ("evaluators", "The accounts declared to be one party changed: none before, [[41, 42], [7001, 8002, 9003]] now.") in terms3.diff(doc, got)
+    for bad in ([], [[7001]], [[7001, "8002"]], [[0, 5]], "7001,8002", [[7001, True]]):
+        told["evaluators"]["related"] = bad
+        with pytest.raises(terms3.Refused, match="`evaluators.related` lists the accounts declared to be one party"):
+            terms3.validate(told, strict=False)
+    # what an assurance level makes of it: two evaluators the terms declare related are one
+    assert receipt.related(terms3.declared(got)) == terms3.declared(got)
+    file = tmp_path / "declared.json"
+    file.write_text(terms3.dumps(got), encoding="utf-8")
+    said = CliRunner().invoke(_app(), ["terms", "verify", str(file)])
+    assert said.exit_code == 0 and "Declared to be one party, so never two evaluators: accounts 41 and 42" in said.output, said.output
+    assert f"sha256 {terms3.digest(got)}" in said.output
+
+
 def test_knos_terms_verify_refuses_a_file_missing_a_field_and_says_which(tmp_path):
     app, run = _app(), CliRunner()
     doc = terms3.template("bug-fix")

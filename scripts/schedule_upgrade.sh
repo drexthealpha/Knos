@@ -15,7 +15,12 @@
 # (bash scripts/deploy_v2.sh --propose --replace) executes nothing of it, whatever the schedule file names by then.
 #
 #   bash scripts/schedule_upgrade.sh              arrange the run, and print how to cancel it
-#   bash scripts/schedule_upgrade.sh --show       what is arranged, and what the log says so far
+#   bash scripts/schedule_upgrade.sh --show       what is arranged, whether the keys and the Node packages are there now, and
+#                                                 what the log says so far
+#   bash scripts/schedule_upgrade.sh --verify     a dry trigger: starts what the timer starts (a login shell with a bare
+#                                                 environment, then the env file), checks the schedule, the keys and the
+#                                                 Node packages (installing them when they are missing), loads them in
+#                                                 node, and sends NOTHING. Exit 0: the run would start. Do it after arranging
 #   bash scripts/schedule_upgrade.sh --cancel     take the arrangement back (the proposals stay as they are on chain).
 #                                                 The first step when a proposal must not execute: docs/RELEASE.md
 #   bash scripts/schedule_upgrade.sh --run        the run itself, now: what the timer calls. Safe by hand too: a
@@ -45,6 +50,15 @@
 #     member's) can be read. If one cannot (a drive that is not mounted, a file that moved), the log says which, and
 #     nothing is sent. Arranging checks the same at once, and `--show` says whether they can be read now.
 #
+# THE NODE PACKAGES COME FIRST. scripts/governance.mjs imports the packages scripts/package.json pins (@solana/web3.js,
+# @sqds/multisig). A run that found scripts/node_modules gone executed nothing (6 October 2026: `Cannot find package
+# '@solana/web3.js'`, four proposals left waiting). So --run, before it sends anything, holds scripts/node_modules to
+# scripts/package.json: every pinned package there at its pinned version, or `npm ci --prefix scripts --omit=optional`
+# and the same check again. When they cannot be had, nothing is sent, the log says why, and the last line on stderr is
+# one plain line starting `stopped:` with exit 1. Arranging checks the same at once, and so do --show and --verify.
+#
+# Every line this script writes into the log starts with the time (UTC).
+#
 # Running it again replaces the arrangement with one for the time the schedule file names now, so it is safe after a
 # second --propose. Nothing here sends a transaction before --run.
 #
@@ -57,22 +71,27 @@
 #   KNOS_OSRELEASE     the file that names the kernel (default /proc/sys/kernel/osrelease): Microsoft's means WSL even
 #                      where WSL_DISTRO_NAME is not set (sudo, a timer)
 #   KNOS_SCHTASKS      schtasks.exe when it is not on PATH (default /mnt/c/Windows/System32/schtasks.exe)
+#   KNOS_NODE_DIR      the folder whose package.json and node_modules governance.mjs runs on (default: scripts/)
+#   KNOS_UPGRADE_DEPS  0: the Node packages are neither checked nor installed (a machine that provides them another
+#                      way, and the tests that stand in for node). Anything else: checked first
 #
-# Needs: node 20 or later with `npm ci --prefix scripts` done, `knos` on PATH (pip install -e . or pipx install knos),
+# Needs: node 20 or later and npm (the run does `npm ci --prefix scripts` itself when it must), `knos` on PATH (pip install -e . or pipx install knos),
 # and one of the three timers.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
 
-ACTION=schedule WITH=""
+ACTION=schedule WITH="" BARE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --show) ACTION=show ;;
     --cancel) ACTION=cancel ;;
     --run) ACTION=run ;;
+    --verify) ACTION=verify ;;
+    --bare) BARE=1 ;;                        # --verify's second half, inside the login shell it started
     --with) shift; WITH="${1:-}"; case "$WITH" in systemd|at|schtasks) ;; *) echo "--with takes systemd, at or schtasks" >&2; exit 2 ;; esac ;;
     -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
-    *) echo "usage: bash scripts/schedule_upgrade.sh [--show | --cancel | --run] [--with systemd|at|schtasks]" >&2; exit 2 ;;
+    *) echo "usage: bash scripts/schedule_upgrade.sh [--show | --cancel | --run | --verify] [--with systemd|at|schtasks]" >&2; exit 2 ;;
   esac
   shift
 done
@@ -99,12 +118,43 @@ schtasks_exe() {
 # a unix time as date prints it: GNU date reads it with -d @t, the BSD date of macOS with -r t
 date_at() { local t="$1"; shift; date -d "@$t" "$@" 2>/dev/null || date -r "$t" "$@"; }
 utc() { date_at "$1" -u "+%Y-%m-%d %H:%M:%S UTC"; }
+stamp() { date -u "+%Y-%m-%d %H:%M:%S UTC"; }
 
 # the run is started by a timer, with a bare environment: what the arranging shell had comes first (and --show says
 # what the run will have)
 # shellcheck disable=SC1090  # written by this script when the run was arranged
-if { [ "$ACTION" = run ] || [ "$ACTION" = show ]; } && [ -f "$ENVFILE" ]; then . "$ENVFILE"; fi
+if { [ "$ACTION" = run ] || [ "$ACTION" = show ] || [ "$ACTION" = verify ]; } && [ -f "$ENVFILE" ]; then . "$ENVFILE"; fi
 command -v node >/dev/null 2>&1 || die "node is not on PATH. Install Node 20 or later."
+DEPS="${KNOS_NODE_DIR:-$ROOT/scripts}"
+
+# ---- the Node packages governance.mjs imports ------------------------------------------------------------------------------
+# those of <DEPS>/package.json's `dependencies` that are not in <DEPS>/node_modules at the pinned version, one per line
+# as name@version (the optional packages are for the rehearsal on a fork, never for an execution)
+deps_missing() {
+  node -e 'const fs = require("fs"), path = require("path"); const at = process.argv[1];
+    const want = JSON.parse(fs.readFileSync(path.join(at, "package.json"), "utf8")).dependencies || {};
+    for (const [name, version] of Object.entries(want)) {
+      let have = null;
+      try { have = JSON.parse(fs.readFileSync(path.join(at, "node_modules", name, "package.json"), "utf8")).version; } catch { /* not there */ }
+      if (have !== version) console.log(`${name}@${version}` + (have ? ` (found ${have})` : ""));
+    }' "$DEPS"
+}
+# deps: the packages are there, or are installed now. Says what it found and did, each line with the time. Returns 1,
+# with the reason as its last line, when they cannot be had
+deps() {
+  local missing
+  if [ "${KNOS_UPGRADE_DEPS:-1}" = 0 ]; then echo "$(stamp)  packages: not checked (KNOS_UPGRADE_DEPS=0)"; return 0; fi
+  missing="$(deps_missing 2>&1)" || { echo "$(stamp)  packages: $DEPS/package.json could not be read: $(printf '%s' "$missing" | tail -n 1)"; return 1; }
+  if [ -z "$missing" ]; then echo "$(stamp)  packages: every package $DEPS/package.json pins is installed"; return 0; fi
+  missing="$(printf '%s\n' "$missing" | paste -sd ' ' -)"
+  echo "$(stamp)  packages: missing from $DEPS/node_modules: $missing"
+  if ! command -v npm >/dev/null 2>&1; then echo "$(stamp)  packages: npm is not on PATH, so they cannot be installed: $missing"; return 1; fi
+  echo "$(stamp)  packages: npm ci --prefix $DEPS --omit=optional --no-audit --no-fund"
+  npm ci --prefix "$DEPS" --omit=optional --no-audit --no-fund < /dev/null 2>&1 | tail -n 15 | sed 's/^/       /' || true
+  missing="$(deps_missing 2>&1 | paste -sd ' ' -)"
+  if [ -n "$missing" ]; then echo "$(stamp)  packages: npm ci did not install $missing (the lines above say why)"; return 1; fi
+  echo "$(stamp)  packages: installed"
+}
 
 # ---- the keys the run signs with ---------------------------------------------------------------------------------------
 # the key files an execution signs with, one per line, as scripts/governance.mjs finds them: the fee payer's, then
@@ -124,7 +174,7 @@ unreadable() { local f; key_files | while IFS= read -r f; do if [ ! -f "$f" ] ||
 
 # ---- the run itself ---------------------------------------------------------------------------------------------------
 run() {
-  local index hash program failed=0 rpc missing
+  local index hash program failed=0 rpc missing why
   [ -f "$SCHEDULE" ] || die "$SCHEDULE is missing: nothing was proposed, or the key folder is another one (KNOS_KEYS)."
   rpc="$(field rpc)" || die "$SCHEDULE names no cluster."
   mkdir -p "$(dirname "$LOG")"
@@ -139,30 +189,65 @@ run() {
     tail -n "$(( $(printf '%s\n' "$missing" | wc -l) + 3 ))" "$LOG" >&2
     return 1
   fi
+  # the packages governance.mjs imports, before anything is sent: without them every proposal would fail one by one
+  if ! deps >> "$LOG" 2>&1; then
+    why="$(tail -n 1 "$LOG" | sed 's/^[0-9: -]*UTC  packages: //')"
+    echo "==== $(stamp)  the scheduled upgrade run CANNOT START (cluster $rpc; proposals $(field indexes)): the Node packages are not there. Nothing was sent. By hand: npm ci --prefix scripts, then bash scripts/schedule_upgrade.sh --run" >> "$LOG"
+    echo "stopped: the upgrade run did not start and nothing was sent: $why. Log: $LOG" >&2
+    return 1
+  fi
   {
     echo "==== $(date -u "+%Y-%m-%d %H:%M:%S UTC")  the scheduled upgrade run starts (cluster $rpc; proposals $(field indexes))"
     while read -r index hash program; do
       # only the build this run was arranged for: a proposal with no recorded build is never executed on its index alone
       if [ "$hash" = - ]; then
-        echo "---- proposal $index ($program): NOT executed: $SCHEDULE records no build for it, and this run executes only the build it was arranged for."
+        echo "---- $(stamp)  proposal $index ($program): NOT executed: $SCHEDULE records no build for it, and this run executes only the build it was arranged for."
         echo "     Propose again (bash scripts/deploy_v2.sh --propose writes the schedule with each build's hash), then: bash scripts/schedule_upgrade.sh"
         failed=$((failed + 1)); continue
       fi
-      echo "---- node scripts/governance.mjs upgrade execute $index --expect-hash $hash     ($program)"
+      echo "---- $(stamp)  node scripts/governance.mjs upgrade execute $index --expect-hash $hash     ($program)"
       if KNOS_KEYS="$KEYS" node "$ROOT/scripts/governance.mjs" upgrade execute "$index" --rpc "$rpc" --expect-hash "$hash" < /dev/null; then
-        echo "---- proposal $index: executed (or executed before)"
+        echo "---- $(stamp)  proposal $index: executed (or executed before)"
       else
-        echo "---- proposal $index: NOT executed (the lines above say why)"; failed=$((failed + 1))
+        echo "---- $(stamp)  proposal $index: NOT executed (the lines above say why)"; failed=$((failed + 1))
       fi
     done <<< "$(field plan)"
-    echo "---- knos status"
+    echo "---- knos status     ($(stamp))"
     if command -v knos >/dev/null 2>&1; then KNOS_RPC="$rpc" knos status || echo "---- knos status found something to look at (the lines above)"
     else echo "---- knos is not on PATH: run it by hand: KNOS_RPC=$rpc knos status"; fi
     if [ "$failed" = 0 ]; then echo "==== $(date -u "+%Y-%m-%d %H:%M:%S UTC")  done: every proposal is executed"
     else echo "==== $(date -u "+%Y-%m-%d %H:%M:%S UTC")  done: $failed proposal(s) NOT executed. Run it again by hand: bash scripts/schedule_upgrade.sh --run"; fi
   } >> "$LOG" 2>&1
   tail -n 3 "$LOG"
-  [ "$failed" = 0 ]
+  if [ "$failed" != 0 ]; then echo "stopped: $failed proposal(s) NOT executed; the log says why for each: $LOG" >&2; return 1; fi
+  echo "The site shows them executed with its next build (the pages workflow, every 30 minutes; now: gh workflow run network.yml)."
+}
+
+# ---- a dry trigger ----------------------------------------------------------------------------------------------------
+# What the timer starts, short of sending: first half here (this shell), second half (--bare) in a login shell with a bare
+# environment, as 48 hours later
+verify() {
+  local missing n
+  if [ "$BARE" = 0 ]; then
+    [ -f "$ENVFILE" ] || die "nothing is arranged (no $ENVFILE): arrange the run first (bash scripts/schedule_upgrade.sh), then --verify."
+    echo "dry trigger at $(stamp): env -i HOME=... KNOS_KEYS=$KEYS /bin/bash -l scripts/schedule_upgrade.sh --verify --bare"
+    env -i HOME="${HOME:-/}" KNOS_KEYS="$KEYS" /bin/bash -l "$ROOT/scripts/schedule_upgrade.sh" --verify --bare && return 0
+    echo "stopped: the dry trigger failed (the line above says why): the run arranged would not start. Nothing was sent." >&2
+    return 1
+  fi
+  [ -f "$SCHEDULE" ] || die "$SCHEDULE is missing: nothing was proposed, or the key folder is another one (KNOS_KEYS)."
+  field rpc >/dev/null || die "$SCHEDULE names no cluster."
+  n="$(field plan | awk '$2 == "-"' | wc -l)"
+  [ "$(( n ))" = 0 ] || die "$SCHEDULE records no build for $(( n )) proposal(s): the run would execute none of them."
+  missing="$(unreadable)"
+  [ -z "$missing" ] || die "a key file the run signs with cannot be read from a login shell: $(printf '%s\n' "$missing" | paste -sd ' ' -)"
+  deps || die "the Node packages are not there and could not be installed (the line above)."
+  if [ "${KNOS_UPGRADE_DEPS:-1}" != 0 ]; then
+    ( cd "$DEPS" && node --input-type=module -e 'const p = JSON.parse((await import("node:fs")).readFileSync("package.json", "utf8")); for (const n of Object.keys(p.dependencies || {})) await import(n);' ) \
+      || die "node $(node --version 2>/dev/null) could not load a package $DEPS/package.json pins (the lines above)."
+  fi
+  command -v knos >/dev/null 2>&1 || echo "note: knos is not on PATH in the run's shell: the run will say so instead of printing knos status"
+  echo "verified at $(stamp): the run would start. Schedule: proposals $(field indexes) on $(field rpc), run at $(utc "$(field run_at)"); $(( $(key_files | wc -l) )) key files readable; node $(node --version); the packages load. Nothing was sent."
 }
 
 # ---- taking an arrangement back --------------------------------------------------------------------------------------
@@ -215,7 +300,7 @@ arrange() {
       printf 'export PATH=%q\n' "$PATH"
       printf 'export KNOS_KEYS=%q\n' "$KEYS"
       printf 'export KNOS_FEE_PAYER=%q\n' "${KNOS_FEE_PAYER:-$KEYS/payer.json}"
-      for k in KNOS_MEMBERS KNOS_SCHEDULE; do
+      for k in KNOS_MEMBERS KNOS_SCHEDULE KNOS_NODE_DIR KNOS_UPGRADE_DEPS; do
         if [ -n "${!k:-}" ]; then printf 'export %s=%q\n' "$k" "${!k}"; fi
       done; } > "$ENVFILE" )
   command="$(printf '%q' "$ROOT/scripts/schedule_upgrade.sh")"
@@ -261,6 +346,8 @@ arrange() {
     echo "NOTE: this is WSL. A $kind timer fires only if this distribution is running at that time: keep a WSL window open until then,"
     echo "      or arrange it with Windows instead: bash scripts/schedule_upgrade.sh --with schtasks"
   fi
+  deps | sed 's/^[0-9: -]*UTC  //' || echo "NOTE: the run checks again and stops with nothing sent if they are still missing then. Now: npm ci --prefix scripts"
+  echo "A dry trigger, now: bash scripts/schedule_upgrade.sh --verify"
   echo "The run starts with bash -l and reads $ENVFILE: the fee payer's and $(( $(key_files | wc -l) - 1 )) member key file(s), each readable now."
   echo "It will run, for proposals $(field indexes) on $(field rpc): node scripts/governance.mjs upgrade execute <index>, then knos status."
   echo "Each is executed only while its buffer holds the build proposed:"
@@ -278,6 +365,11 @@ show() {
   # $(( )) around wc: the BSD wc of macOS pads its count with spaces
   if [ -z "$missing" ]; then echo "keys: the $(( $(key_files | wc -l) )) key files the run signs with can be read now"
   else echo "keys: the run could NOT start now: it cannot read $(printf '%s\n' "$missing" | paste -sd ' ' -)"; fi
+  if [ "${KNOS_UPGRADE_DEPS:-1}" = 0 ]; then echo "packages: not checked (KNOS_UPGRADE_DEPS=0)"
+  else missing="$(deps_missing 2>&1 | paste -sd ' ' -)"
+    if [ -z "$missing" ]; then echo "packages: every package $DEPS/package.json pins is installed"
+    else echo "packages: MISSING from $DEPS/node_modules: $missing (the run installs them first: npm ci --prefix scripts --omit=optional)"; fi
+  fi
   if [ -f "$LOG" ]; then echo "log ($LOG), its last lines:"; tail -n 12 "$LOG" | sed 's/^/  /'; else echo "log: nothing has run yet"; fi
 }
 
@@ -285,5 +377,6 @@ case "$ACTION" in
   run) run ;;
   cancel) cancel ;;
   show) show ;;
+  verify) verify ;;
   schedule) arrange ;;
 esac

@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "merge-intervals",
+ "title": "Merge overlapping intervals",
+ "statement": "Test USDC, no monetary value.\n\nRead one line of intervals written `a-b` (whole numbers from 0 up, a not above b), separated by spaces, in any order. Merge the ones that overlap or touch at an end point (`1-3` and `3-5` give `1-5`; `1-3` and `4-5` stay apart). Print the result in rising order, separated by spaces.",
+ "file": "tasks/merge_intervals.py",
+ "run": [
+  "python3",
+  "tasks/merge_intervals.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "1-3 2-6 8-10",
+   "output": "1-6 8-10"
+  },
+  {
+   "input": "5-7 1-2",
+   "output": "1-2 5-7"
+  },
+  {
+   "input": "1-3 3-5",
+   "output": "1-5"
+  }
+ ],
+ "seed": 108,
+ "starting_files": {
+  "tasks/merge_intervals.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

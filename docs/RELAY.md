@@ -222,12 +222,74 @@ once in each), a refusal, a run that dies with its lease, two leases in the same
 event run that gives up leaves the sweep's entry open and not one byte of the sweep's notes changed. An event run
 also tells the sweep which repository it read.
 
-Where this holds and where it does not. It holds for runs that share the folder: an operator who runs the sweep
-and the event entry on one machine, and the chain of sweep runs, which hands the folder on with its notes. In
+Where this held in 0.3.18 and where it did not. It held for runs that share the folder: an operator who runs the
+sweep and the event entry on one machine, and the chain of sweep runs, which hands the folder on with its notes. In
 `worker.yml` the event job is on a runner of its own with no cache (it sees the fee key, and a test lists every
-cache such a job may have), so while both are alive the two do not see each other's lines. There the guard is
-still the one two overlapping sweep runs rely on: the chain takes a token once, and a run logs nothing the log
-already has.
+cache such a job may have), so the two did not see each other's lines.
+
+**The relay log is the notes both runners see (0.3.19).** Both jobs may write one thing in common: the open issue
+labelled `knos-relay`. `relayq.LogStore` keeps the notes there as well as in the folder:
+
+- **A write is one comment, one machine line:** `knos-note 1 <run> {"k": <key>, "s": <state>, "t": <time>, ...}`.
+  Only three changes are written, the ones another runner must know: `sending` (a lease, with its `until`),
+  `confirmed`, `refused`. A token that waits, a repository's name and a yielded lease write nothing. So a token one
+  run carries costs two comments beside its log line, and a token two runs both reached for costs three.
+- **A read is the sweep's own fetch.** Every pass already asks for the newest hundred comments of the log's
+  repository (a conditional request: a 304 while nothing is new). The notes are read out of that answer. A run asks
+  on its own only once per lease, straight after its own line, with the same request.
+- **The merge is the same**, with one change that two machines need: of two `sending` the **earlier comment** holds
+  (GitHub's comment id), not the earlier clock. Two runners' clocks differ; the order of two comments on one issue
+  does not. A lease still ends at its `until`, read on the reader's clock; a lease lasts 180 s, so a few seconds of
+  difference move nothing.
+- **Only the log's own workflow account counts**, on the log issue: anyone can comment on a public issue, and a
+  note line in a stranger's comment, or on another issue, is not read.
+- **When GitHub does not take or give a line**, the run keeps its notes in its folder as in 0.3.18 and says so once
+  on its run page ("relay notes: ... They are local to this run until it does"), and once more when a line is taken
+  again. The guard is then the chain's: it takes a token once.
+- **A run that sends nothing for a token it found says why** on its page: `relay: <kind> <repo>#<n> <token id>: not
+  carried by this run: <runner> has it on chain (relay log comment <id>)`, or holds it, or had it refused. Until this
+  was seen live in staging an event run that found the sweep's token printed only "0 tokens carried".
+
+`tests/test_relayq.py` runs all six orders of two runners' two writes and two reads over one token, each with the
+clocks equal and 50 s apart either way (sent once in each); a runner that dies holding a lease (the other takes the
+token when the lease is over, and it is sent once); GitHub failing (local notes, said once); a stranger's line
+(ignored); and an event run and a sweep on two disks that see each other only through the log. What this does not
+close: GitHub may list a comment a moment after it took it; a run that reads in that moment does not see the other's
+line and both send. The chain then takes the token once, as before. Not measured on GitHub: the release run does
+that (below, "The claim guard on the worker" lists its two checks).
+
+## The claim guard on the worker
+
+`claims.yml` answers a claim of payment where nothing was funded (`src/knos/claim_guard.py`). A pull request from a
+fork can only be answered by its sweep, and until 0.3.19 the sweep ran on GitHub's timer alone. In the 0.3.18
+release run that 15-minute timer did not fire once in 38 minutes, and the sweep was started by hand. GitHub says
+as much of its timer: scheduled workflows can be delayed when load is high, and a queued run can be dropped
+([Events that trigger workflows, `schedule`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule),
+read 2026-10-07).
+
+So the always-on worker runs the same sweep, in a job of its own (`claims` in `worker.yml`). The job holds no key:
+no secret is named in it, only the run's own forge token, with `pull-requests: write` for itself alone. The two jobs
+that hold the fee key keep the permissions they had before, so the key is never in a job that may write to a pull
+request. The job runs once in every run of the chain, which is about every 4.5 minutes while the chain relays.
+
+A relay of one's own may sweep in its pass instead: every pass of `ghrelay.once` calls `claim_guard.sweep_served`
+for the repositories `KNOS_CLAIM_REPOS` names, where that relay's GitHub token may comment. The public worker names
+none.
+
+- **One sweep at a time** (the job's concurrency group `knos-claims`). A relay of one's own sweeps one repository at
+  most once in 5 minutes (`SWEEP_EVERY`), through its conditional reader: a listing with nothing new is a 304.
+- **Once, and never to the owner:** the answer is found again by its hidden first line; nothing is said to the
+  owner, a member, a collaborator or a bot (the guard's own rules, unchanged).
+- **Never silent:** a listing that could not be read whole fails the job (in a relay's own pass: an error line,
+  `::error title=claim guard::`, and that repository is asked again a minute later). It does not stop the relay.
+  An item that reads as a claim but is never answered (its author may write here, or is a bot) is named on the
+  page: `claims: #<n> not answered (...)`, and no word of it is quoted.
+- **The answer links the funded tasks:** the open issues labelled `knos-funded` in `drexthealpha/knos-playground`.
+
+`claims.yml` keeps its immediate triggers (an issue, a comment) and its timer, as the fallback when no worker runs.
+Not exercised on GitHub yet. The release run checks two things: a claim opened from a fork is answered by the
+worker's `claims` job within one run of the chain (5 minutes) with the timer disabled, and an event run and the sweep leave `knos-note`
+lines in the log for one token and send it once.
 
 **A repeat is harmless, and the queue relies on it.** A worker that is killed leaves a lease behind. When it
 expires the entry is sent again, whether or not the first worker had sent: the program takes a token once, and the
@@ -292,9 +354,9 @@ What is not done:
   run has happened: it runs from the first event after the file reaches `main`. Nobody dispatches `knos-token` there
   yet: the public worker gets `workflow_run` for its own repository's `knos` workflow, and nothing for the other
   repositories it serves (above: it cannot).
-- **In `worker.yml` an event run's notes end with its runner.** The notes merge wherever two runs share a folder
-  (above); the workflow does not hand the event job's file to the sweep, because that job may have no cache. What
-  an event run leaves open is the sweep's to carry from the comment, and a token both carry is taken once.
+- **In `worker.yml` an event run's folder ends with its runner; its notes do not (0.3.19).** The three changes
+  another runner must know are comments on the relay log (above). Not yet seen on GitHub: tested here with a
+  stand-in for GitHub's API. Where GitHub fails, a token both carry is taken once.
 - **A journal has one writer.** A run's own journal is still replaced whole on every change; since 0.3.18 no other
   run writes it. The shared notes are append-only, a line at a time, each run in its own file.
 
@@ -302,21 +364,37 @@ What is not done:
 
 The seconds above are to the paying block. The decision does not need them. `knos decide` (`src/knos/decide.py`)
 takes the token the forge just signed, with the terms that travel with a fund token, and answers accepted,
-rejected or insufficient evidence by the reads a relay makes before it spends a fee
-(`knos.settle.v2.relay.precheck`: the same function, not a second set of rules). It writes a **provisional
-receipt**: `"settlement": "provisional"`, `"authorises_payment": false`, named by its sha256. It never says paid
-and stands behind no payment; only the program releases money. The final receipt supersedes it by naming that
-hash (`decide.supersede`), and when the chain decided otherwise the line says `agrees: false` and the final
+rejected or insufficient evidence in two halves:
+
+| half | what it does | network |
+| --- | --- | --- |
+| offline (`decide.offline`) | checks the issuer's signature against key lists kept on this machine (`knos decide --refresh-keys` keeps them; the check is the one `knos bundle verify --no-chain` runs), then the claims and the terms by the relay's rules for a token alone. Its acceptance reads "decided from the signed evidence; chain state not yet read" | none |
+| chain check (`decide.chain_check`) | asks only what the chain can answer: the token unused, funding not paused, the chain's clock, and with `--order ADDRESS` whether that order or job is open and before its deadline | one request (getMultipleAccounts), left behind after 2 s (`--chain-timeout`) |
+
+Each half writes a **provisional receipt**: `"settlement": "provisional"`, `"authorises_payment": false`, named by
+its sha256; the second names the first (`rules.updates`). A chain that does not answer changes nothing and stops
+nothing: the offline answer stands and settling goes on. Neither half is the relay's precheck: a relay still makes
+every read of its own before it spends a fee, and `knos decide --full` (what `knos.flow` falls back to) is that precheck
+(`knos.settle.v2.relay.precheck`: the same function, not a second set of rules). A provisional receipt never says
+paid and stands behind no payment; only the program releases money. The final receipt supersedes it by naming
+that hash (`decide.supersede`), and when the chain decided otherwise the line says `agrees: false` and the final
 receipt stands. For the free check, with no token and no chain, `knos decide --checks-file` decides from the
 conclusions of the named checks.
 
-Measured on one machine with the chain simulated in the same process, so with no network
-([BENCH.md](BENCH.md), "Decision time"; the sample and the machine are stated there). On a cluster every read of
-the chain is a round trip to an RPC endpoint; that is not in the figure and has not been measured.
+What is measured, and where ([BENCH.md](BENCH.md), "Decision time"; the sample and the machine are stated there):
+the two halves on one machine with the chain simulated in the same process, so with no network; the whole offline
+command in a new process; and the requests each path makes, counted. What is measured on devnet: four runs of the
+0.3.18 command, which was the whole precheck, took 4.3 to 32.6 s over the shared public RPC: a first reading, not a
+sample. The 0.3.19 command, once on each of 24 real tokens (step 4 below, 7 October 2026), took a median of 356 ms
+for the offline half, 854 ms for the chain check (one of the 24 was not answered in its 2 s), and 9.1 s for the
+whole precheck; 23 of the 24 had been carried before they were decided. 250 ms at p95 for the offline decision is a
+target.
 
-What is not done: nothing posts the provisional line yet. `knos settle` writes "accepted, settling" at the moment
-it has the token; putting `decide.comment_line` into that same edit is one call in `knos.flow`, not made in this
-release's relay work.
+Who posts the line: `knos settle` writes "accepted, settling" at the moment it has the token, and the provisional
+line goes into that same edit (`knos.flow`). Where the offline half decides, its line is posted at once, then one
+chain request is made, and when the chain answered the line of the second receipt takes its place. Where no key list
+is kept for the token's issuer the offline half cannot decide, and the line is the relay's whole precheck, as in
+0.3.18. No workflow keeps key lists on its runner yet, so on GitHub the line is still the precheck's.
 
 ## Measuring the 0.3.18 path on devnet
 
@@ -341,10 +419,15 @@ the repository the payments are made in.
    comment and the chain takes it for an hour:
 
        gh api "repos/$REPO/issues/$PR/comments" --jq '.[] | select(.body | startswith("knos-proof:")) | .body' > token.txt
+       python -m knos.decide --refresh-keys          # once: keeps the issuers' key lists
        KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json
+       KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --full --out full.json
 
-   The last line on standard error is `decided in N ms; provisional receipt <sha256>`. Keep N for every token: that
-   sample, with its n, is the devnet row of the decision clock. Exit 0 is accepted, 1 anything else. A token the
+   The last line on standard error is `decided in N ms (offline A ms, chain check B ms in 1 request); provisional
+   receipt <sha256>`; with `--full` it is the 0.3.18 path, `decided in N ms`. Keep A, B and the `--full` N for every
+   token: those three samples, each with its n, are the devnet rows of the decision clock, and they go into
+   [BENCH.md](BENCH.md), "Decision time", under the table (until then the 4.3 to 32.6 s of the 0.3.18 run stands
+   there). Exit 0 is accepted, 1 anything else. A token the
    relay has carried by then is answered "the chain already shows what this token asks for": the reads are the
    same ones, and the row says which of its tokens were decided before and which after.
 

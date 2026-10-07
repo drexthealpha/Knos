@@ -110,7 +110,10 @@ function rowHtml(r, week, least) {
         <button type="button" class="k-btn quiet ib-copy" data-agent="${esc(r.agent)}">Copy SVG</button></details></td></tr>`;
 }
 
+// Under 720 px a row is a block, not a strip to scroll: place, agent and its claims on one line, the bar under them at the
+// card's width, then the row's links. The column heads stay for a screen reader.
 const STYLE = `<style>
+@media (max-width: 720px) { .index-board #ib-table, .index-board #ib-table tbody { display: block; min-width: 0; width: 100%; } .index-board #ib-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } .index-board #ib-table tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--line); } .index-board #ib-table td, .index-board #ib-table th { display: block; padding: 0; border: 0; min-width: 0; } .index-board #ib-table td.ib-n { grid-row: 1; grid-column: 3; color: var(--ink-2); font-size: var(--s0); } .index-board #ib-table td.ib-n::after { content: " claimed"; } .index-board #ib-table td.ib-head, .index-board #ib-table td.ib-act { grid-column: 1 / -1; } .index-board #ib-table td.ib-act { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; } .index-board #ib-table td.ib-act details { border: 0; margin: 0; padding: 0; } .index-board .ib-bar { min-width: 0; } .index-board #ib-table td.ib-act details { min-width: 0; max-width: 100%; } .index-board .ib-svg { display: block; max-width: 100%; overflow-x: auto; } }
 .index-board .ib-bar{position:relative;display:block;height:10px;min-width:200px;margin:4px 0 2px;border-radius:var(--radius,4px);background:var(--paper-2,var(--soft,#eeece5));border:1px solid var(--line,#e1dfd7)}
 .index-board .ib-fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px 0 0 3px;background:var(--accent,var(--ink-2,#5a606b));opacity:.7;transform-origin:left center}
 .index-board .ib-whisker{position:absolute;top:50%;height:2px;margin-top:-1px;background:var(--ink,var(--fg,#15171c));transform-origin:center}

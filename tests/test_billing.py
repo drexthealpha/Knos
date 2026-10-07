@@ -1,4 +1,4 @@
-"""The billing rule (src/knos/billing.py), Price book 3: a month's invoice = Control + Meter + Acceptance on value
+"""The billing rule (src/knos/billing.py), Price book 3.1: a month's invoice = Control + Meter + Acceptance on value
 reconciled off chain + Record lookups. The years and months of tests/data/billing_vectors.json are worked by hand from
 the price book, and the site's calculator (web/price.js) is held to the same file by tests/web/price.mjs. Nothing here
 opens the network."""
@@ -38,11 +38,24 @@ def test_the_constants_are_the_price_book():
     assert (b.ACCEPT_RATE, b.ACCEPT_FLOOR) == (D(book["acceptance_rate"]), D(book["acceptance_floor"]))
     assert [(str(start), str(rate)) for start, rate in b.ACCEPT_TIERS] == [tuple(t) for t in book["acceptance_tiers"]]
     assert b.CONTROL == {k: D(v) for k, v in book["control"].items()}
-    assert (b.RECORD_PRICE, b.PILOT, b.BENEFIT_RULE) == (D(book["record_price"]), D(book["pilot"]), book["benefit_rule"])
+    assert (b.RECORD_PRICE, b.PILOT, b.BENEFIT_RULE, b.NET_BELOW) == (D(book["record_price"]), D(book["pilot"]), book["benefit_rule"], D(book["net_below"]))
+    assert min(rate for _start, rate in b.ACCEPT_TIERS) == D("0.0020") and b.RECORD_PRICE == D("0.10")      # the 0.10% tier is withdrawn
     assert [list(row) for row in b.BOOK] == VECTORS["lines"]
     market = (ROOT / "docs" / "MARKET.md").read_text(encoding="utf-8")
     for row in b.BOOK:                                  # and the document prints the same six lines, word for word
         assert "| " + " | ".join(row) + " |" in market, row[0]
+
+
+def test_no_price_book_names_a_0_10_percent_tier():
+    """The withdrawn tier is not printed beside the rate: not in the book, the document's row, nor the site's book (web/
+    index.html's row without scripts, web/price.js's with them). The program's own Plan bound is another fact."""
+    site = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    book = site[site.index('id="price-book"'):]
+    book = book[:book.index("</table>")]
+    js = (ROOT / "web" / "price.js").read_text(encoding="utf-8")
+    js = js[js.index('["Acceptance", '):]
+    for where, text in (("BOOK", " ".join(" ".join(row) for row in b.BOOK)), ("web/index.html", book), ("web/price.js", js.splitlines()[0])):
+        assert "0.10%" not in text and "tier" not in text, where
 
 
 def test_the_lines_that_were_removed_are_gone():
@@ -88,10 +101,10 @@ def test_the_worked_customer_month_by_month_adds_up_to_130_240():
 def test_acceptance_is_marginal_has_a_floor_and_no_cap():
     fee = lambda value, below="0", volume=True: str(b.acceptance_fee(D(value), D(below), volume))      # noqa: E731
     assert [fee(v, volume=False) for v in ("0.00", "0.01", "5.00", "16.67", "20.00", "1000.00", "4000000.00")] == ["0", "0.05", "0.05", "0.05", "0.06", "3.00", "12000.00"]
-    assert fee("1000000") == "3000.00" and fee("1000000", "1000000") == "2000.00" and fee("1000000", "10000000") == "1000.00"
+    assert fee("1000000") == "3000.00" and fee("1000000", "1000000") == "2000.00" and fee("1000000", "10000000") == "2000.00"
     assert fee("2000000", "500000") == "4500.00"                       # 500,000 at 0.30% and 1,500,000 at 0.20%
-    assert fee("20000000") == "31000.00" and fee("20000000", volume=False) == "60000.00"      # the rates are by contract
-    assert fee("100000000") == "111000.00"                              # no cap: 3,000 + 18,000 + 90,000
+    assert fee("20000000") == "41000.00" and fee("20000000", volume=False) == "60000.00"      # the rates are by contract
+    assert fee("100000000") == "201000.00"                              # no cap, and never under 0.20%: 3,000 + 198,000
 
 
 def test_value_released_on_chain_is_never_charged_again():
@@ -144,12 +157,12 @@ def test_a_price_by_the_year_is_twelve_parts_that_add_up_to_the_cent():
 
 def test_an_annual_commitment_is_drawn_down_by_use_and_never_counted_twice_with_it():
     month = {"plan": "none", "committed": "12000", "evaluations": 350_000, "accepted": [{"deliverable": "a", "value": "100000"}], "record_lookups": 800}
-    first = b.invoice(month)                            # use: 500 of Meter, 300 of Acceptance, 200 of lookups
-    assert (amount(first, "meter"), amount(first, "acceptance"), amount(first, "record")) == ("500.00", "300.00", "200.00")
-    assert amount(first, "commitment") == "1,000.00" and amount(first, "drawn") == "-1,000.00"
-    assert first["total"] == "1,000.00" and first["commitment_remaining"] == "11,000.00"
+    first = b.invoice(month)                            # use: 500 of Meter, 300 of Acceptance, 80 of lookups
+    assert (amount(first, "meter"), amount(first, "acceptance"), amount(first, "record")) == ("500.00", "300.00", "80.00")
+    assert amount(first, "commitment") == "1,000.00" and amount(first, "drawn") == "-880.00"
+    assert first["total"] == "1,000.00" and first["commitment_remaining"] == "11,120.00"
     last = b.invoice({**month, "month": 12, "drawn": "11500"})
-    assert amount(last, "drawn") == "-500.00" and last["total"] == "1,500.00" and last["commitment_remaining"] == "0.00"
+    assert amount(last, "drawn") == "-500.00" and last["total"] == "1,380.00" and last["commitment_remaining"] == "0.00"
     assert b.estimate("none", 600_000, "0", committed="12000")["total"] == "12,000.00"          # 12,000 of use is the commitment
     assert b.estimate("none", 1_100_000, "0", committed="12000")["total"] == "24,000.00"        # 24,000 of use: 12,000 on top
 
@@ -187,8 +200,8 @@ def test_every_line_names_the_rule_that_produced_it():
                      "disputed": [{"deliverable": "old", "value": "90000"}], "suppliers": 7, "record_lookups": 4, "committed": "12000", "drawn": "11500"})
     assert all(row["rule"] in b.RULES.values() and row["what"] and row["amount"] for row in inv["lines"])
     assert [row["line"] for row in inv["lines"]] == ["control", "commitment", "not_charged", "meter", "acceptance", "on_chain", "record", "drawn", "suppliers", "rebate", "credit"]
-    # 8,333.34 + 1,000.00 + 20.00 + 1,602.40 + 1.00 - 500.00 - (2,000 x 0.10% = 1,000.00 rebate + 270.00 credit) = 9,186.74
-    assert amount(inv, "acceptance") == "1,602.40" and amount(inv, "credit") == "-1,270.00" and inv["total"] == "9,186.74"
+    # 8,333.34 + 1,000.00 + 20.00 + 1,602.40 + 0.40 - 500.00 - (1,000,000 x 0.10% = 1,000.00 rebate + 270.00 credit) = 9,186.14
+    assert amount(inv, "acceptance") == "1,602.40" and amount(inv, "credit") == "-1,270.00" and inv["total"] == "9,186.14"
     text = "\n".join(b.explain(inv))
     assert "rule: By contract the month's value above 1,000,000 pays 0.20%" in text and "Total" in text and "Connecting a supplier costs nothing." in text
 
@@ -201,7 +214,41 @@ def test_gross_margin_per_line_from_a_unit_cost_file():
     assert b.margin({"plan": "none"}, {"evaluation": "0.0002", "accepted_deliverable": "0.10", "record_lookup": "0.01", "control_year": "0"})["margin"] == "none: no revenue"
     with pytest.raises(b.BillingError, match="unit cost evaluation"):
         b.margin({"plan": "none"}, {"costs": {"evaluation": 0.0002}})
-    assert set(COSTS["costs"]) == set(b.COST_FIELDS) and all("budget" in row["kind"] for row in COSTS["costs"].values())
+    assert got["free_tier_year"] == VECTORS["margin"]["free_tier_year"]                # what the free evaluations cost at most: acquisition cost
+    assert set(COSTS["costs"]) == set(b.COST_FIELDS) | set(b.MORE_COSTS)
+    assert all(row["kind"] in ("budget, not measured", "measured") for row in COSTS["costs"].values())      # two labels, and nothing in between
+    text = "\n".join(b.margin_lines(got))
+    assert "Gross margin" in text and "acquisition cost" in text and "knos_pay 2.1" in text and "knos_pay 2.2" in text and "Netting:" in text
+
+
+def test_small_tickets_are_netted_one_release_per_payee_and_the_floor_once():
+    for values, fee, alone in VECTORS["netting"]["rows"]:
+        got = b.netted([("acme", D(v) / 100) for v in values])
+        assert (got["fee"] * 100, got["individually"] * 100, len(got["releases"])) == (fee, alone, 1), values
+    two = b.netted([("acme", D("0.99")), ("bolt", D("0.99"))])
+    assert two["fee"] == D("0.10") and len(two["releases"]) == 2          # one release per payee: the floor once each
+    for bad in ([("acme", D(20))], [("", D(1))], [("acme", D(0))]):       # 20 is not small; a netted outcome names its payee
+        with pytest.raises(b.BillingError, match="netted outcome"):
+            b.netted(bad)
+    rows = [{"deliverable": f"s{k}", "value": "0.99", "payee": "acme"} for k in range(100)]
+    inv = b.invoice({"plan": "none", "accepted": rows + rows})             # listed twice: still counted once
+    line = next(r for r in inv["lines"] if r["line"] == "acceptance")
+    assert (line["amount"], line["netted_outcomes"], line["netted_releases"], line["rule"]) == ("0.30", 100, 1, b.RULES["netted"])
+    assert b.invoice({"plan": "none", "accepted": [{"deliverable": f"s{k}", "value": "0.99"} for k in range(100)]})["total"] == "5.00"      # no payee named: one by one
+    chain = b.invoice({"plan": "none", "accepted": [{"deliverable": "c", "value": "5.00", "payee": "acme", "on_chain": True}]})
+    assert chain["total"] == "0.00"                                         # released on chain: its fee was paid there
+    n = b.netting_example()
+    assert (n["alone_share"], n["netted_share"], n["netted_fee"], n["individually"], n["reaches_rate"]) == ("5.05%", "0.30%", "0.30", "5.00", 19)
+
+
+def test_who_earns_what_at_the_floor_under_both_builds():
+    got = {x["build"]: x for x in b.floor_split()}
+    for build in ("2.1", "2.2"):
+        want = VECTORS["floor"][build]
+        assert [[r["amount"], r["fee"], r["tip"], r["fee_owner"], r["first_tip"], r["first_fee_owner"]] for r in got[build]["rows"]] == want["rows"]
+        assert (got[build]["nothing_at"], got[build]["first_nothing_at"]) == (want["nothing_at"], want["first_nothing_at"])
+    small = got["2.2"]["rows"][0]                                           # 5.00 under 2.2: the tip is the whole fee,
+    assert small["first_relayer_net"] == "-0.13"                            # and a relayer that opens the account is out 0.13
 
 
 def test_knos_bill_estimate_explain_and_margin(tmp_path):

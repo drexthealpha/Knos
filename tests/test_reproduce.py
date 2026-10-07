@@ -176,6 +176,42 @@ def test_a_run_of_knos_own_is_refused_by_owner_id_by_who_started_it_and_by_name(
         assert facts["capabilities"] == [] and facts["passed"] == []        # and nothing in it counts
 
 
+def test_an_own_run_completes_is_filed_apart_and_counts_for_nothing(tmp_path):
+    """reproductions/own/: the same signed pair, accepted only when the run IS Knos's own, with no capability; the
+    counts read reproductions/*.json and never that folder; an outsider's file there is refused."""
+    report, own_id = _report(), str(OWN["ids"][0])
+    mine = _signed(report, repository_owner="DrexTheAlpha", repository="DrexTheAlpha/Knos", repository_owner_id=own_id, actor_id=own_id)
+    name = "DrexTheAlpha-Knos-36905461215.json"
+    facts, wrong = rp.verified(mine, KEYS, OWN, name, ours=True)
+    assert wrong == [] and facts["own"] is True and facts["counted"] is False and facts["capabilities"] == []
+    assert facts["passed"] == ["payment", "programs", "claim"] and rp.file_name(facts) == name       # what ran is on record; it supports nothing
+    assert "the run is Knos's own" in rp.verified(mine, KEYS, OWN, name)[1][0]                      # as a reproduction it is refused, as before
+    theirs, bad = rp.verified(_signed(report), KEYS, OWN, "octo-widgets-36905461215.json", ours=True)
+    assert len(bad) == 1 and "the run is not Knos's own" in bad[0] and theirs["capabilities"] == [] and theirs["counted"] is False
+    edited = {"report": {**mine["report"], "knos": "9.9.9"}, "token": mine["token"]}
+    assert any("edited after it was signed" in line for line in rp.verified(edited, KEYS, OWN, name, ours=True)[1])
+    assert any("the file is named" in line for line in rp.verified(mine, KEYS, OWN, "other.json", ours=True)[1])
+    outside, _ = rp.verified(_signed(report), KEYS, OWN, "octo-widgets-36905461215.json")
+    assert outside["counted"] is True and outside["own"] is False
+    # on disk: the file under own/ is held by `own_runs`, and the folder every count reads is as empty as before
+    folder = tmp_path / "reproductions" / "own"
+    folder.mkdir(parents=True)
+    (folder / name).write_text(json.dumps(mine), encoding="utf-8")
+    (folder / "octo-widgets-36905461215.json").write_text(json.dumps(_signed(report)), encoding="utf-8")
+    held, wrong = rp.own_runs(tmp_path, KEYS, OWN)
+    assert list(held) == [f"reproductions/own/{name}"] and len(wrong) == 1 and wrong[0].startswith("reproductions/own/octo-widgets-36905461215.json: the run is not Knos's own")
+    assert list((tmp_path / "reproductions").glob("*.json")) == []                                    # bench_docs.py and capabilities.py count this glob
+    for script in ("bench_docs.py", "capabilities.py"):
+        text = (ROOT / "scripts" / script).read_text(encoding="utf-8")
+        assert '.glob("*.json")' in text and "rglob" not in text and "**/*.json" not in text, script
+    # the pull request's check takes own/ files apart and holds them as Knos's own; the page says so, and no longer
+    # that the check is red for them (it said that after the workflow had learned it: seen in the 0.3.19 staging run)
+    flow = (ROOT / ".github" / "workflows" / "reproductions.yml").read_text(encoding="utf-8")
+    assert 'into="$RUNNER_TEMP/sent/own"' in flow and '--own "${own[@]}"' in flow
+    page = (ROOT / "docs" / "REPRODUCE.md").read_text(encoding="utf-8")
+    assert "does not yet check" not in page and "checked by `reproductions.yml`" in page
+
+
 def test_a_report_edited_after_it_was_signed_is_refused_and_so_is_a_token_github_did_not_sign():
     doc = _signed(_report(simulator=_fail))
     edited = copy.deepcopy(doc)
@@ -279,6 +315,20 @@ def test_what_a_pull_request_sends_is_accepted_or_refused_in_words_and_a_failed_
     assert cap.sent([nothing], say=said.append) == 1 and "no check passed" in said[-1]
     (tmp_path / "x.json").write_text("{not json", encoding="utf-8")
     assert cap.sent([tmp_path / "x.json"], say=said.append) == 1 and cap.sent([], say=said.append) == 1
+    # a run of Knos's own, sent under reproductions/own/ (--own): accepted as that and as nothing more; an outsider's file there is refused
+    own_id = str(OWN["ids"][0])
+    mine = tmp_path / "DrexTheAlpha-Knos-36905461215.json"
+    mine.write_text(json.dumps(_signed(_report(), repository_owner="DrexTheAlpha", repository="DrexTheAlpha/Knos", repository_owner_id=own_id, actor_id=own_id)), encoding="utf-8")
+    assert cap.sent([], say=said.append, own=[mine]) == 0
+    assert "own/DrexTheAlpha-Knos-36905461215.json: a valid run of Knos's own" in said[-1] and "is not counted and supports no capability" in said[-1]
+    assert cap.sent([mine], say=said.append) == 1 and "the run is Knos's own" in said[-1]
+    assert cap.sent([], say=said.append, own=[good]) == 1 and "the run is not Knos's own" in said[-1]
+    assert cap.sent([good], say=said.append, own=[mine]) == 0
+    monkeypatch.setattr(cap, "sent", lambda paths, live=False, **kw: (paths, live, kw))
+    assert cap.main(["reproduction", "--live", "a.json", "--own", "b.json"]) == ([Path("a.json")], True, {"own": [Path("b.json")]})
+    assert cap.main(["reproduction", "a.json"]) == ([Path("a.json")], False, {"own": []})
+    monkeypatch.undo()
+    monkeypatch.setattr(cap, "archived_keys", lambda root=None: dict(KEYS))
     # --live: a key GitHub publishes now and the archive lacks is used, and the maintainer is told to archive it
     monkeypatch.setattr(cap, "archived_keys", lambda root=None: {})
     jwks = {"keys": [{"kty": "RSA", "e": "AQAB", "kid": "k", "n": rp.base64.urlsafe_b64encode(KEY.n.to_bytes(256, "big")).decode().rstrip("=")}]}
@@ -287,7 +337,9 @@ def test_what_a_pull_request_sends_is_accepted_or_refused_in_words_and_a_failed_
 
 
 def test_nothing_is_reproduced_yet_and_the_folder_holds_no_file_of_ours():
-    assert sorted(p.name for p in (ROOT / "reproductions").iterdir()) == [".gitkeep", "README.md"]
+    assert sorted(p.name for p in (ROOT / "reproductions").iterdir()) == [".gitkeep", "README.md", "own"]
+    assert sorted(p.name for p in (ROOT / "reproductions" / "own").iterdir()) == ["README.md"]      # Knos's own runs: none filed yet, and never counted
+    assert rp.own_runs(ROOT, cap.archived_keys(), OWN) == ({}, [])
     assert cap.reproductions() == ({}, []) and cap.key_problems() == []
     assert not [c["id"] for c in MANIFEST["capabilities"] if c["stage"] == "reproduced"]
     readme, doc = ((ROOT / p).read_text(encoding="utf-8") for p in ("reproductions/README.md", "docs/REPRODUCE.md"))
@@ -315,8 +367,12 @@ def test_the_workflow_that_checks_a_pull_request_only_reads_and_runs_nothing_fro
     assert checkout["with"] == {"ref": "${{ github.event.pull_request.base.sha }}", "persist-credentials": False}
     fetch, verify = [s["run"] for s in job["steps"] if "run" in s]
     assert "${{" not in fetch + verify and "git " not in fetch + verify       # no expression in a script, and nothing of the head is checked out
-    assert '> "$RUNNER_TEMP/sent/$base"' in fetch and "application/vnd.github.raw" in fetch and '[ "$status" != added ]' in fetch
-    assert 'python3 scripts/capabilities.py reproduction --live "${files[@]}"' in verify and "install" not in fetch + verify
+    assert 'into="$RUNNER_TEMP/sent"' in fetch and '> "$into/$base"' in fetch and "application/vnd.github.raw" in fetch and '[ "$status" != added ]' in fetch
+    # a file of reproductions/own/ goes to a folder of its own and is verified as a run of Knos's own (--own), never as a reproduction
+    assert 'case "$base" in own/*) base="${base#own/}"; into="$RUNNER_TEMP/sent/own" ;; esac' in fetch
+    assert fetch.index('own/*)') < fetch.index('case "$base" in -*|*[!A-Za-z0-9._-]*)')         # the name is held to the same letters after the folder is cut
+    assert 'python3 scripts/capabilities.py reproduction --live "${files[@]}" --own "${own[@]}"' in verify and "install" not in fetch + verify
+    assert 'own=("$RUNNER_TEMP"/sent/own/*.json)' in verify
 
 
 def test_the_example_signs_in_a_job_that_installs_nothing_and_its_file_is_one_the_check_accepts(tmp_path):

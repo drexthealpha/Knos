@@ -82,6 +82,15 @@ def golden() -> dict[str, bytes]:
            "october.csv": statement.as_csv(october()).encode()}
     for fmt in exports.STATEMENT_FORMATS:
         out[f"sept.{fmt}.csv"] = exports.write_statement(fmt, st, s, {"account": "6100 Contract engineering"}).encode()
+    # the goods-received note: of three lines with no receipt at hand, and of the last line recorded from its payment's receipt
+    sys.path.insert(0, str(ROOT / "tests"))
+    import _assurance
+    for n in (0, 1, 3):
+        out[f"sept.grn.{n + 1}.json"] = statement.canonical(statement.grn(st, s, st["lines"][n]["invoice_line"]))
+    last = st["lines"][4]["invoice_line"]
+    noted = statement.grn_record(st, s, last, "2026-10-04", _assurance.five("agreed", invoice_line=last, times=2), "PO-2026-0932")
+    out.update({"sept.grn.status.json": statement.canonical(noted), "sept.grn.5.json": statement.canonical(statement.grn(st, noted, last)),
+                "sept.grn.csv": statement.as_csv(st, noted).encode(), "sept.grn.generic.csv": exports.write_statement("generic", st, noted).encode()})
     return out
 
 
@@ -159,7 +168,8 @@ def test_the_json_the_csv_and_the_pdf_say_the_same(with_status):
         assert got == {"line": str(ln["line"]), "reference": ln["reference"], "supplier": ln["supplier"], "state": ids.LINE_WORDS[ln["state"]], "amount": ln["amount"],
                        "why": ln["why"], "deliverable": ln["deliverable"], "evaluations": " ".join(ln["evaluations"]), "invoice_line": ln["invoice_line"],
                        "settlement": ln["settlement"] or "", "payment": statement.PAY_WORDS[ln["payment"]], "evidence": ln["evidence"],
-                       "evidence_sha256": ln["evidence_sha256"], "duplicate_of": ln["duplicate_of"]}
+                       "evidence_sha256": ln["evidence_sha256"], "duplicate_of": ln["duplicate_of"],
+                       "assurance": ln["assurance"], "po_reference": ln["po_reference"], "grn_reference": ln["grn_reference"]}
     drawn = squeeze("".join(pdf.texts(statement.as_pdf(st, s))))
     for cell in (x for part in ("top", "rows", "totals", "answers", "events") for row in c[part] for x in row):
         assert squeeze(cell) in drawn, f"the PDF does not say {cell!r}"

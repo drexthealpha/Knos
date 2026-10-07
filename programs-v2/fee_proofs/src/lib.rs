@@ -14,15 +14,24 @@
 //!     least the floor (0.05); it is the floor, or at most 0.30% of the amount (ten thousand fees are at most thirty
 //!     amounts); the amount and the fee add up in a u64;
 //!   - at the rate 30 (an order with no Plan): the floor, the sum, and at most 0.31% of the amount;
+//!   - at the rate 30, the exact bound: the fee is the floor or at most 0.30% of the amount, and it is 0.30% of the
+//!     amount rounded down, or the floor, and nothing else (stated without a division, in 128 bits);
 //!   - a job's fee, at every u64 amount: never more than the amount, and at least the floor or the whole amount.
 //!
-//! WHAT IS NOT PROVED: at the rate 30, "at most 0.30% of the amount". There the fee is exactly 0.30% rounded down, with
-//! nothing to spare, and the solver (CaDiCaL, 150 seconds, Kani 0.68) answered none of the forms tried on 2026-10-06:
-//! the bound itself; the same with the amount drawn as its ten-thousands and a remainder; the bound taken apart into
-//! the fee's thirties (three assertions) with their algebra as a harness of its own, which did not finish either;
-//! the bound with thirty units to spare. With one basis point to spare (the harness above) it answers in under a
-//! second. The one harness over every u64 amount and every rate (knos_pay/src/proofs.rs) is recorded at the top of
-//! docs/kani.json with what it got.
+//! THE EXACT 0.30% AND ITS SOLVER. At the rate 30 the fee is exactly 0.30% rounded down, with nothing to spare.
+//! `bps_of` divides the amount by ten thousand and takes its remainder by ten thousand, and the verifier gives each
+//! its own quotient and remainder; the exact bound needs the two to agree, and no solver working on bits found that
+//! within the limit: not CaDiCaL, Kissat or Z3 on the bound, on its form without a division, or on a sixteenth of the
+//! amounts, and not even on the division's identity alone (docs/kani.json, `not_answered`, lists each once, as run on
+//! 2026-10-07). With one basis point to spare the agreement is not needed, and CaDiCaL answers in under a second.
+//! So that one harness is marked `#[kani::solver(cvc5)]` and is answered by cvc5 with bit-vectors solved as integers
+//! (`--solve-bv-as-int=sum`), where a division by a constant is linear arithmetic: seconds. Kani has no way to pass
+//! a solver its options, so solvers/cvc5 is a script that adds the option, and scripts/kani_fee_record.py puts it
+//! first on PATH; plain `cargo kani` here finds the installed cvc5 without the option and does not finish that
+//! harness. That result rests on cvc5's translation as well as on Kani and CBMC; the same setup refuted the bound
+//! written with `<` in place of `<=`. Every rate at once with the rate unknown was not answered either way. The one
+//! harness over every u64 amount and every rate (knos_pay/src/proofs.rs) is recorded at the top of docs/kani.json
+//! with what it got.
 //!
 //! WHY RATE BY RATE. With the rate unknown the solver is left the product of two unknowns, the amount's ten-thousands
 //! and the rate, to compare with another product. A harness that goes through its rates one after the other meets
@@ -95,9 +104,8 @@ mod harness {
     }
 
     /// 0 to 100,000.00 at the rate 30, the rate of an order with no Plan: the floor, the sum, and at most 0.31% of the
-    /// amount. NOT the 0.30% itself: at this rate that bound is exact, with nothing to spare, and the solver did not
-    /// answer it within the limit in any of the forms tried (the module documentation lists them); it is tested at
-    /// every remainder and at ten million amounts instead (tests/reference.rs).
+    /// amount, with Kani's default solver. The 0.30% itself, exact at this rate, is the last harness of this file,
+    /// which needs another solver (the module documentation says why).
     #[kani::proof]
     #[kani::unwind(8)]
     fn the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points() {
@@ -117,5 +125,22 @@ mod harness {
         let amount: u64 = kani::any();
         let fee = fee_of(amount, DECIMALS);
         assert!(fee <= amount && fee >= FLOOR.min(amount));
+    }
+
+    /// 0 to 100,000.00 at the rate 30: the exact bound. The fee is the floor, or at most 0.30% of the amount; and,
+    /// written without a division in 128 bits, `bps_of` is 0.30% of the amount rounded down and nothing else
+    /// (`q * 10,000 <= amount * 30 < (q + 1) * 10,000`), and the fee is that or the floor, whichever is larger.
+    /// Answered by cvc5 with bit-vectors solved as integers (solvers/cvc5); the module documentation says why.
+    #[kani::proof]
+    #[kani::unwind(8)]
+    #[kani::solver(cvc5)]
+    fn the_fee_of_an_order_at_the_rate_30_is_30_basis_points_rounded_down_or_the_floor() {
+        let amount = amount();
+        kani::assume(amount <= MAX_AMOUNT);
+        let fee = order_fee(amount, FEE_BPS, DECIMALS);
+        assert!(fee == FLOOR || fee * 10_000 <= amount * FEE_BPS);
+        let (q, p) = (bps_of(amount, FEE_BPS) as u128, amount as u128 * FEE_BPS as u128);
+        assert!(q * 10_000 <= p && p < (q + 1) * 10_000);
+        assert!(fee as u128 == q.max(FLOOR as u128));
     }
 }

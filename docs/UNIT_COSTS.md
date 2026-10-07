@@ -10,7 +10,9 @@ not measured]** is a target nobody has observed: nothing has been sold, so no co
 customer. Every USD figure from the chain is lamports converted at one price of SOL, stated below.
 
 `knos bill margin month.json docs/unit_costs.json` prints a month's revenue, direct cost and gross margin line by
-line from [`unit_costs.json`](unit_costs.json), which holds the four unit costs this page arrives at.
+line from [`unit_costs.json`](unit_costs.json), which holds the unit costs this page arrives at. Under them it
+prints who earns what at the floor under both builds of the program, and what a small outcome pays by itself and
+netted.
 
 ## The inputs
 
@@ -31,6 +33,7 @@ line from [`unit_costs.json`](unit_costs.json), which holds the four unit costs 
 | One evaluation in a batch of 5,000 | 3 | 0.00000036 | **[measured]** the same, divided |
 | One evaluation recorded by itself | 15,000, and 1,097,280 locked for up to a month | 0.0018, and 0.133 locked | **[measured]** the same page. It costs nine tenths of the 0.002 price, so the price assumes batches |
 | The month's Ledger account, per buyer and seller | 1,137,920, once | 0.137 | **[measured]** rent the clusters answered on 4 Oct 2026 |
+| **The default delivery: one anchored batch for one buyer and supplier in a month** | 15,000 + 1,137,920 = 1,152,920 | 0.1393 | **[measured]** the two rows above, added. It does not grow with the count |
 | One order, funded and paid: 12 transactions | 60,000 | 0.0072 | **[measured in the simulator]** [LOAD.md](LOAD.md): 10 transactions verify two tokens, one funds, one pays; 3,546,061 compute units ([load.json](load.json)) |
 | A payee's first payment: a token account of 165 bytes | 1,488,440, once per payee | 0.180 | **[measured]** rent, as above; whoever relays puts it up |
 
@@ -80,24 +83,94 @@ The largest direct cost a unit may carry at its price: 10% of the price for a gr
 
 | unit | price | ceiling at 90% | ceiling at 95% | what it carries today |
 |---|---|---|---|---|
-| One evaluation past the free ones | 0.002 | 0.0002 | 0.0001 | 0.00000036 of chain fees and 0.00000047 of storage **[measured]**; relay, ingestion, monitoring and support **[budget, not measured]**: 0.0002 in all |
+| One evaluation past the free ones | 0.002 | 0.0002 | 0.0001 | 0.00005 in all **[budget, not measured]**, of which storage 0.00000047 **[measured]**; and 0.1393 a month for each supplier's batch **[measured]** |
 | Acceptance on a deliverable of 20,000, the worked customer's | 60.00 | 6.00 | 3.00 | reconciled off chain: storage **[measured]**, and 0.10 for exceptions **[budget, not measured]** |
 | Acceptance on a release of 1,000 on chain | 3.00 | 0.30 | 0.15 | 0.0072 of chain fees **[measured in the simulator]**, the relayer's tip, and 0.10 for exceptions **[budget, not measured]** |
-| Acceptance at the floor: a release of 16.67 or less | 0.05 | 0.005 | 0.0025 | 0.0072 of chain fees: over both ceilings before any tip |
-| One record lookup | 0.25 | 0.025 | 0.0125 | 0.01 **[budget, not measured]**; the API is not built |
+| Acceptance at the floor: a release of 16.66 or less | 0.05 | 0.005 | 0.0025 | the relayer's tip is the whole fee: the fee owner earns nothing |
+| One record lookup | 0.10 | 0.010 | 0.005 | 0.01 **[budget, not measured]**: at the 90% ceiling, over the 95% one; the API is not built |
 | Control, Team, a year | 25,000 | 2,500 | 1,250 | not budgeted |
-| Control, Business, a year | 100,000 | 10,000 | 5,000 | 15,000 of onboarding and support **[budget, not measured]**: 85%, under both |
+| Control, Business, a year | 100,000 | 10,000 | 5,000 | 15,000 of onboarding and support **[budget, not measured]**: a gross margin of 85%, under both |
 
-Three lines miss, and the table says so:
+## The leaks
 
-- **The floor.** A release at the floor does not cover its own transactions at a 90% margin, and a relayer's tip
-  comes out of the same 0.05. Small releases are carried, not earned on.
-- **The free evaluations.** The first 100,000 a month cost what any evaluation costs. At the budget that is 20
-  USD a month for each organisation. The worked customer's Meter line earns 20 USD a month and costs 22.
-- **Control at the budget.** 15,000 USD a year of people for a 100,000 USD plan is a margin of 85%.
+Three lines of the last price book lost money or earned less than they said. Each is fixed by design here, or
+stated with its size.
 
-The worked customer's first month, at these costs: revenue 10,753.33, direct cost 1,276.00, gross margin 88.1%
-(Control 85.0%, Meter −10.0%, Acceptance 99.8%). `tests/test_billing.py` holds the command to those figures.
+### 1. The Meter and the free evaluations
+
+The last budget put 0.0002 USD on every evaluation, so the free 100,000 cost 20 USD a month and the worked
+customer's Meter line earned 20 and cost 22. The budget assumed nothing about delivery. This one does: **the
+monthly batch is the default.** One anchored batch for each buyer and supplier, 0.1393 USD a month, whatever the
+count. The chain's cost per evaluation is that divided by the count, and tends to zero.
+
+| component of one evaluation | USD | label |
+|---|---|---|
+| Chain, in the month's batch | 0.1393 a supplier a month, not per evaluation | **[measured]** section 1 |
+| Keeping its ledger event seven years | 0.00000047 | **[measured]** section 3 |
+| Writing it to object storage, if each event were one write | 0.0000045 | **[budget, not measured]** arithmetic at the vendor's list price; no bill was read |
+| Relay, ingestion and monitoring | the rest of 0.00005 | **[budget, not measured]** |
+| Support | nothing: reconciliation is self-service (section 4) | **[budget, not measured]** |
+| **In all** | **0.00005** | **[budget, not measured]** a quarter of the last budget |
+
+The worked customer, with five suppliers: 110,000 × 0.00005 + 5 × 0.1393 = 6.20 USD a month against 20.00 of
+revenue. The Meter line's gross margin is 69.0%, and it reaches 90% at 138,000 evaluations a month.
+
+**The free tier still costs.** An organisation that stays inside the free 100,000 pays nothing and costs at most
+12 × 100,000 × 0.00005 = 60 USD a year, and 1.67 USD a year more for each supplier it counts with. The worked
+customer's five suppliers make it 68.36. **That is acquisition cost**, not margin, and it is a ceiling: an
+organisation that runs fewer evaluations costs less.
+
+### 2. The floor
+
+The fee is the funder's, on top of the amount. Out of it the relayer takes a tip, 0.05, or 0.30 when the paying
+transaction created the payee's token account (0.18 USD of rent the relayer puts up, **[measured]**), and never
+more than the fee. The fee owner keeps the rest. In test USDC, from the constants of each build
+(`knos bill margin` prints both tables; `knos status` says which build is live):
+
+**knos_pay 2.1, the build live on 7 Oct 2026** (three tiers and a floor of 0.40):
+
+| release | fee | as a share | relayer's tip | fee owner | first payment: tip | less 0.18 of rent | fee owner |
+|---|---|---|---|---|---|---|---|
+| 5.00 | 0.40 | 8.00% | 0.05 | 0.35 | 0.30 | 0.12 | 0.10 |
+| 20.00 | 0.50 | 2.50% | 0.05 | 0.45 | 0.30 | 0.12 | 0.20 |
+| 100.00 | 2.50 | 2.50% | 0.05 | 2.45 | 0.30 | 0.12 | 2.20 |
+| 1,000.00 | 25.00 | 2.50% | 0.05 | 24.95 | 0.30 | 0.12 | 24.70 |
+
+**knos_pay 2.2, proposed on that day** (0.30% of the amount, at least 0.05):
+
+| release | fee | as a share | relayer's tip | fee owner | first payment: tip | less 0.18 of rent | fee owner |
+|---|---|---|---|---|---|---|---|
+| 5.00 | 0.05 | 1.00% | 0.05 | 0.00 | 0.05 | −0.13 | 0.00 |
+| 20.00 | 0.06 | 0.30% | 0.05 | 0.01 | 0.06 | −0.12 | 0.00 |
+| 100.00 | 0.30 | 0.30% | 0.05 | 0.25 | 0.30 | 0.12 | 0.00 |
+| 1,000.00 | 3.00 | 0.30% | 0.05 | 2.95 | 0.30 | 0.12 | 2.70 |
+
+Under 2.2 **the fee owner earns nothing on a release of 16.66 or less**, and
+nothing on a payee's first payment of 100.00 or less. On a first payment of 20 or less
+the relayer does not recover the rent it put up. Small releases one by one are carried, not earned on. Under
+2.1 the floor of 0.40 leaves the fee owner 0.35 on every release, at the price of 8.00% on a release of 5.
+
+**Netting is the fix.** Outcomes under 20 USD accumulate and settle as one release per payee per period:
+
+| an outcome of 0.99 | fee | as a share |
+|---|---|---|
+| charged by itself | 0.05, the floor | 5.05% |
+| one of 100 to one payee in a period, netted into one release of 99.00 | 0.30 for the release | 0.30% |
+| the only one to its payee in the period | 0.05, the floor once | 5.05% |
+
+From 19 such outcomes to one payee the rate is the fee and not the floor. Netting is reconciled off chain; the
+program has no instruction for it, and on chain the least order is 5 test USDC.
+
+### 3. Control at the budget
+
+15,000 USD a year of onboarding and support for a 100,000 USD plan is a **gross** margin of 85%: gross, before
+anything it costs to sell the plan or build the product. For 90% the people on one Business customer must cost
+10,000 USD a year; for 95%, 5,000. At 75 USD an hour that is 66 hours a year, five and a half a month. So
+self-service has to remove two thirds of the budgeted support, and nothing shows that it does. None of the three
+figures is measured.
+
+The worked customer's first month, at these costs: revenue 10,753.33, direct cost 1,260.20, gross margin 88.3%
+(Control 85.0%, Meter 69.0%, Acceptance 99.8%). `tests/test_billing.py` holds the command to those figures.
 
 ## The comparison a buyer will make
 
@@ -105,6 +178,7 @@ The worked customer's first month, at these costs: revenue 10,753.33, direct cos
 |---|---|---|---|
 | Amazon Web Services, Bedrock AgentCore | a custom evaluation | 1.50 USD per 1,000: 0.0015 each, "model usage billed separately" | **[vendor page]** [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 6 Oct 2026 |
 | The same, built-in evaluators | tokens | 0.0024 USD per 1,000 input tokens, 0.012 per 1,000 output tokens | the same page |
+| The same, Policy | an authorization request | 0.000025 USD | the same page, read 7 Oct 2026 |
 | Knos, Meter | an evaluation past 100,000 a month | 0.002 USD | [MARKET.md](MARKET.md), section 3; proposed, nobody has paid it |
 
 The Meter costs a third more than the cloud's evaluation call. What it adds that an evaluation call does not:
@@ -114,7 +188,9 @@ The Meter costs a third more than the cloud's evaluation call. What it adds that
 - **Retention.** The evidence is kept so that a receipt verifies later without Knos.
 - **A signed acceptance.** A third party signed the run that judged the work; the terms were fixed before it.
 
-If a buyer needs none of the four, the cloud's call is cheaper and Knos has nothing to sell it.
+If a buyer needs none of the four, the cloud's call is cheaper and Knos has nothing to sell it. Counting alone
+will face price pressure, and the Meter is not where Knos expects to earn ([MARKET.md](MARKET.md), "The
+competition, stated plainly").
 
 ## What the customer pays in all
 
@@ -137,4 +213,6 @@ pays for them after.
 - What a batch costs on a cluster. The count of transactions is measured; a run on devnet is not.
 - What a real evidence bundle weighs. The one measured is a recorded fixture.
 - How many tickets a million evaluations raise. Nobody has run a million.
+- What relay, ingestion and monitoring cost for one evaluation. The 0.00005 is a budget.
+- Whether a relayer will carry a payee's first payment of 20 or less at a loss. None has been asked.
 - Priority fees on mainnet.

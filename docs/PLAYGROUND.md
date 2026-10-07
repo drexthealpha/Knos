@@ -3,9 +3,28 @@
 One public repository, [drexthealpha/knos-playground](https://github.com/drexthealpha/knos-playground), where a GitHub
 account and nothing else is enough to try both sides of Knos. No wallet, nothing installed, nothing spent.
 
-**Nobody outside has used it yet.** The numbers at the end of this page are the count, whatever they are.
+Test USDC, no monetary value. Who outside has used it is counted at the end of this page, never claimed.
 
-## What a stranger does
+## Take a funded task (two minutes)
+
+Issues labelled [`knos-funded`](https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Aknos-funded)
+are small programming tasks: one file each, a statement, three examples, 5 test USDC. The site's
+[playground page](https://drexthealpha.github.io/Knos/#playground) lists them with the time each has left.
+
+1. **Fork.** Press the task's "Edit" link: GitHub forks the repository and opens the task's one file. Write `solve`.
+2. **`Closes #N`.** Open the pull request with `Closes #<the issue's number>` in its description.
+3. **The check.** Your file runs as a separate process on the examples and on inputs you have not seen, and what it
+   prints is compared with a reference. `python3 check.py <task>` tries the examples first. A pull request that
+   touches `.knos/` or `.github/` is refused before anything runs.
+4. **The merge pays.** A maintainer merges a pull request that passes, and the escrow pays your GitHub account: to the
+   address you bound with one comment (`/knos address <address>`) or to the site's passkey wallet, or held for your
+   account until you bind one.
+
+The 24 tasks are [`tasks/`](../tasks/README.md); [`scripts/task_board.py`](../scripts/task_board.py) keeps 8 of them
+open and funded, within a daily budget it prints. Each task's reference solution is public, so copying it passes:
+that is accepted for money worth nothing. The rest of this page is the starter task, which is paid with no merge.
+
+## What a stranger does with the starter task
 
 **Fund a test task.** [Open the issue](https://github.com/drexthealpha/knos-playground/issues/new?template=fund-a-test-task.md)
 and press **Submit new issue**. The template's text ends with the line `/knos fund 5 checks: none auto`. The workflow
@@ -39,7 +58,8 @@ every time and its cases are public, so a payment here shows that the mechanism 
 | One playground task | 5 test USDC, funded only as the issue is opened, once | the workflow ([`playground.py`](../src/knos/playground.py)) |
 | One account | 3 funded issues in a day (UTC) | the workflow, from GitHub's list of that account's issues |
 | Issues with checks | numbers 1 to 200 | the repository; a release adds more |
-| A first pull request from an account new to GitHub | waits for a maintainer to let its check run | GitHub (the least its approval setting allows) |
+| A funded task of the board | 5 test USDC, 14 days, 8 open at once | [`task_board.py`](../scripts/task_board.py); 5 is the least a work order holds |
+| A first pull request from an account new to GitHub | waits for a maintainer to let its check run; a run nobody approves in 30 days [expires](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/approve-runs-from-forks) | GitHub (the least its approval setting allows) |
 
 The program has no limit per account: that one is the workflow's, and the escrow takes a funding only from the
 workflow at the commit it pins. Anywhere but the playground, `/knos fund` is for someone who can write to the repository.
@@ -56,5 +76,9 @@ in `stats.json` under `outsiders` ([`scripts/outsiders.py`](../scripts/outsiders
   never one.
 - **Outside payees**: accounts that are not Knos's and were paid by a task somebody else funded. Solving your own
   task does not count.
+
+- **Outside pull requests on funded tasks**: received, merged and paid, three more numbers
+  (`pulls` in [`scripts/outsiders.py`](../scripts/outsiders.py)): received and merged from GitHub, paid from the chain.
+  A stranger paid for a task Knos funded is an outside payee, never an outside funder.
 
 What is Knos's is listed in [`scripts/own_github_ids.json`](../scripts/own_github_ids.json).

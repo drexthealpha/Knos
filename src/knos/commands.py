@@ -158,6 +158,14 @@ class Status:
 
 
 @dataclass(frozen=True)
+class Faucet:
+    """`/knos faucet <address | passkey>`: a request for test USDC. This module only reads the line: knos.faucet, which
+    the relay never loads, decides and answers, on the playground's faucet issue and nowhere else."""
+    to: str                 # what follows the word, as typed (an address, the word passkey, or nothing): knos.faucet reads it
+    name = "faucet"
+
+
+@dataclass(frozen=True)
 class Help:
     name = "help"
 
@@ -185,6 +193,7 @@ FORMS = {   # the exact form to type, in the order `/knos help` lists them
     "appeal": "/knos appeal <reason>",                  # knos.appeal acts on it; its words are here because the relay reads this module and not that one
     "tip": "/knos tip <amount>",
     "settle": "/knos settle",
+    "faucet": "/knos faucet <your Solana address | passkey>",       # knos.faucet acts on it (its FORM is this line; a test holds the two to one text)
     "status": "/knos status",
     "help": "/knos help",
 }
@@ -205,11 +214,16 @@ _ABOUT = {
     "appeal": "the pull request's author, on the pull request: contest a rejection; the neutral judge runs the checks again",
     "tip": "a maintainer, on a merged pull request: pay its author now",
     "settle": "on a merged pull request: try its payment again",
+    "faucet": "on the playground's faucet issue: test USDC, which has no monetary value",
     "status": "what is in escrow here",
     "help": "this list",
 }
 _ON_PULL = {"fund": False, "offer": False, "raise": False, "cancel": False, "split": True, "take": False, "release": False, "address": True, "mine": True, "pay": True, "reject": True,
-            "appeal": True, "tip": True, "settle": True}     # where a command belongs; status and help go anywhere
+            "appeal": True, "tip": True, "settle": True, "faucet": False}     # where a command belongs; status and help go anywhere
+FAUCET_LABEL = "faucet"             # the label of the one issue the faucet answers on (knos.faucet.LABEL)
+FAUCET_WHERE = "https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Afaucet"       # knos.faucet.WHERE
+FAUCET_ELSEWHERE = (f"Knos: the faucet answers on its own issue in the playground and nowhere else: {FAUCET_WHERE} "
+                    f"Post `{FORMS['faucet']}` there. It gives test USDC, which has no monetary value.")
 
 
 # ---- reading ---------------------------------------------------------------------------------------------------------
@@ -459,6 +473,7 @@ def _bare(kind):
 _READ = {"fund": _fund, "offer": _offer, "raise": _raise, "cancel": _bare(Cancel), "split": _split, "take": _bare(Take), "release": _bare(Release), "address": _address, "mine": _bare(Mine),
          "pay": _pay, "reject": lambda rest: Reject(rest[:200].strip()),
          "appeal": lambda rest: Appeal(rest[:200].strip()) if rest.strip() else _bad("appeal", "say why after it"), "tip": _tip, "settle": _bare(Settle),
+         "faucet": lambda rest: Faucet((rest.split() or [""])[0][:60]),       # handed to knos.faucet as typed: nothing about it is judged here
          "status": _bare(Status), "help": lambda rest: Help()}
 
 

@@ -17,8 +17,8 @@ export const STRIP_WORDS = 40;
 const STRIP_STYLE = `<style>
 .board-strip{display:grid;gap:8px;min-width:0}
 .board-strip .bs-head{margin:0;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;font-size:.86em}
-.board-strip .bs-head strong{font-weight:600;color:var(--ink,#15171c)}
-.board-strip .bs-head time{color:var(--ink-2,#5a606b);font-variant-numeric:tabular-nums;margin-left:6px}
+.board-strip .bs-head a{font-weight:600}
+.board-strip .bs-head time{color:var(--ink-2,#5a606b);font-variant-numeric:tabular-nums}
 .board-strip ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .board-strip li{display:grid;grid-template-columns:6.5em minmax(60px,1fr) 5.5em;gap:10px;align-items:center;min-width:0;min-height:22px}
 .board-strip li a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -47,7 +47,7 @@ export function boardStripHtml(ctx = {}) {
   const { week, rows } = stripRows(ctx);
   if (!rows.length) return "";
   return `<div class="board-strip" data-week="${esc(week)}">${STRIP_STYLE}
-    <p class="bs-head"><span><strong>Failed a check at merge</strong><time class="k-num" datetime="${esc(week)}" title="Week of ${esc(week)}">${esc(week)}</time></span> <a href="${esc(ctx.href || "#index")}">See the board</a></p>
+    <p class="bs-head"><a href="${esc(ctx.href || "#index")}">Failed checks</a> <time class="k-num" datetime="${esc(week)}" title="Week of ${esc(week)}">week of ${esc(week)}</time></p>
     <ol class="bs-rows" data-not-prose>${rows.map((r) => { const [lo, hi] = r.ci95; return `<li data-agent="${esc(r.agent)}"><a href="#record=${esc(slugOf(r.agent))}">${esc(r.agent)}</a>
       <span class="bs-bar" role="img" aria-label="${esc(`${pct(r.share)}, 95% interval ${pct(lo)} to ${pct(hi)}`)}"><span class="bs-fill" style="width:${(r.share * 100).toFixed(1)}%"></span><span class="bs-whisker" style="left:${(lo * 100).toFixed(1)}%;width:${Math.max(1, (hi - lo) * 100).toFixed(1)}%"></span></span>
       <span class="bs-n k-num">${esc(num(r.failed_at_merge))} of ${esc(num(r.merged))}</span></li>`; }).join("")}</ol>
@@ -68,7 +68,9 @@ export function renderBoardStrip(el, ctx = {}) {
   const root = el.querySelector ? el.querySelector(".board-strip") : null;
   if (root && !reduced() && typeof requestAnimationFrame === "function") {       // the bars grow in once; a reader who asked for no motion sees them drawn
     root.classList.add("bs-anim");
-    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add("in")));
+    const fill = () => root.classList.add("in");
+    requestAnimationFrame(() => requestAnimationFrame(fill));
+    setTimeout(fill, 600);                                                        // a tab that paints no frame still ends with its bars drawn
   }
   return el;
 }

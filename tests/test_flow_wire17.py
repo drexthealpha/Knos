@@ -82,6 +82,8 @@ def test_a_rejected_run_posts_the_judges_reason_in_the_tables_words_and_leaves_a
     r = json.loads(run.outputs["receipt"])
     assert receipt.check(r) is None and receipt.verdict_of(r) == "rejected" and not receipt.authorises_payment(r)
     assert r["transaction"] is None and r["amounts"]["paid"] == "0" and r["order"] == str(ORDER) and r["evaluator_observed"]["artifact"] == {"commit": head, "pull_request": 12}
+    # written as version 5 (0.3.19): its assurance level is computed from this evidence, a run's own record, and nothing is declared
+    assert r["version"] == 5 and r["assurance"] == receipt.assurance_of(receipt.as4(r)) and (r["assurance"]["level"], r["assurance"]["declared_related"]) == ("reported", [])
     assert r["evidence_source"] == {"kind": "run_record", "reference": hashlib.sha256(out["verdict"].encode()).hexdigest(), "signed_by": None}
     assert r["policy"]["terms_hash"] == hashlib.sha256(terms.canonical(BY_TESTS)).hexdigest() and r["evaluator_observed"]["judge"] == {"kind": "neutral", "version": SHA}
     e = ledger.parse(run.outputs["evaluation"])

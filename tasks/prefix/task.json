@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "prefix",
+ "title": "Print the longest common prefix of the words of a line",
+ "statement": "Test USDC, no monetary value.\n\nRead one line of words separated by spaces. Print the longest text every word starts with. When they share no start, print an empty line.",
+ "file": "tasks/prefix.py",
+ "run": [
+  "python3",
+  "tasks/prefix.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "flower flow flight",
+   "output": "fl"
+  },
+  {
+   "input": "dog cat",
+   "output": ""
+  },
+  {
+   "input": "same same",
+   "output": "same"
+  }
+ ],
+ "seed": 115,
+ "starting_files": {
+  "tasks/prefix.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

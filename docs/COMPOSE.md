@@ -77,4 +77,41 @@ account owned by `knos-oidc` is among its accounts. Nothing else is asked: no fe
 The fastest way to a first row is [`examples/reader_template`](../examples/reader_template): its test shows the
 whole path in a simulator, and its README the four commands to devnet.
 
+## Who uses the upgrade gate
+
+**Programs outside this repository behind the upgrade gate: 0.** Knos's own four programs are behind it.
+[GATE.md](GATE.md) is the page: three commands put a program of yours behind a public delay and a record of which
+commit GitHub's runner built its bytes from.
+
+| program id | cluster | its gate | a gated upgrade (the transaction that executed it) | source |
+|---|---|---|---|---|
+| none yet | | | | |
+
+To be listed, open a pull request that adds one row: your program's address, the cluster, your gate's address, and
+the signature of one transaction in which your multisig executed an upgrade of that program whose bytes your gate had
+recorded. The row is merged when the transaction is on the cluster, the program's upgrade authority is a Squads vault
+whose multisig has a time lock above zero, and the record `["build", program, hash]` exists under your gate for the
+bytes that upgrade deployed. No fee, no agreement, no contact first.
+
+## Install from a registry
+
+**Not published yet.** Neither interface crate is on crates.io and the JavaScript client is not on npm; today both
+are taken from the repository by tag, as the sections above show. The lines below are what an install will be once
+a release run publishes them and records the versions here.
+
+```toml
+knos-oidc-interface = "0.3.14"    # not published yet
+knos-pay-interface = "0.3.14"     # not published yet
+```
+
+```bash
+npm install knos-settle           # not published yet
+```
+
+`python scripts/release.py registry-plan` prints what would be published where and checks, with no network, that
+each package packs and that its README has no link that works only inside the repository. It publishes nothing.
+The release run adds `--online` (is each name free, or which versions does the registry hold), then
+`cargo owner --list <crate>` and `npm owner ls knos-settle` once a name exists. The interface crates stay at 0.3.14
+while the programs that link them do; the JavaScript client moves with each release.
+
 To rebuild the example programs and re-pin their test binaries: `bash scripts/build_programs_v2.sh examples`.

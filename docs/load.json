@@ -1089,38 +1089,73 @@
    "ok": true
   },
   "decision": {
-   "source": "`python scripts/decide_bench.py --write`, run on 2026-10-06: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network)",
+   "source": "`python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network)",
    "machine": "Intel(R) Xeon(R) Processor @ 2.80GHz, 2 CPUs, Linux x86_64, Python 3.11.15",
+   "round_trips": {
+    "before": 4,
+    "after": 1
+   },
+   "cold": {
+    "p50": 176.6,
+    "p95": 198.5,
+    "max": 198.5
+   },
+   "cold_imports": {
+    "token": {
+     "ms": 140.7,
+     "modules": 236,
+     "typer": false,
+     "relay": true
+    },
+    "checks": {
+     "ms": 54.9,
+     "modules": 91,
+     "typer": false,
+     "relay": false
+    }
+   },
    "rows": {
     "fresh, accepted": {
      "n": 40,
-     "p50": 1.142,
-     "p95": 9.297,
-     "max": 10.571
+     "p50": 1.154,
+     "p95": 1.93,
+     "max": 2.12
     },
     "fresh, rejected": {
      "n": 40,
-     "p50": 0.738,
-     "p95": 5.0,
-     "max": 12.772
+     "p50": 0.721,
+     "p95": 1.027,
+     "max": 1.192
     },
     "cached, accepted": {
      "n": 40,
-     "p50": 1.011,
-     "p95": 7.826,
-     "max": 12.793
+     "p50": 0.905,
+     "p95": 1.408,
+     "max": 6.05
     },
     "no chain": {
      "n": 40,
-     "p50": 0.443,
-     "p95": 0.715,
-     "max": 12.734
+     "p50": 0.43,
+     "p95": 0.635,
+     "max": 0.698
     },
     "free check": {
      "n": 40,
-     "p50": 0.056,
-     "p95": 1.761,
-     "max": 4.159
+     "p50": 0.058,
+     "p95": 0.084,
+     "max": 0.087
+    },
+    "offline, accepted": {
+     "n": 40,
+     "p50": 0.648,
+     "p95": 0.889,
+     "max": 4.647
+    },
+    "chain check": {
+     "n": 40,
+     "p50": 0.672,
+     "p95": 0.932,
+     "max": 1.297
     }
    }
   }

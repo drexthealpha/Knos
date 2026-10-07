@@ -365,7 +365,7 @@
       "fee_proofs": {
         "record": "docs/kani.json#fee_proofs",
         "crate": "programs-v2/fee_proofs",
-        "status": "verified but for one bound at one rate",
+        "status": "verified",
         "parts": [
           {
             "amount": "0 to 100,000.00",
@@ -383,7 +383,7 @@
             "amount": "0 to 100,000.00",
             "rate_bps": "30",
             "stated": "0.05 or at most 0.30% of the amount",
-            "result": "not verified"
+            "result": "verified"
           },
           {
             "amount": "every u64",
@@ -396,7 +396,8 @@
           "the_fee_of_an_order_is_within_its_bounds_at_the_rates_10_to_19",
           "the_fee_of_an_order_is_within_its_bounds_at_the_rates_20_to_29",
           "the_fee_of_an_order_at_the_rate_30_is_at_least_the_floor_adds_up_and_is_below_31_basis_points",
-          "the_fee_of_a_job_is_never_more_than_its_amount"
+          "the_fee_of_a_job_is_never_more_than_its_amount",
+          "the_fee_of_an_order_at_the_rate_30_is_30_basis_points_rounded_down_or_the_floor"
         ]
       }
     },

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -432,6 +433,13 @@ def test_the_shell_script_takes_one_new_mode_a_run_and_each_does_what_the_releas
         assert alone.returncode == 2 and "--ungated goes with --propose" in alone.stderr
         lone = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--new", "--replace"], capture_output=True, text=True)
         assert lone.returncode == 2 and "--replace goes with --propose" in lone.stderr
+        # 0.3.19 changes no program: --propose refuses in this tree before a key or the cluster is read (no KNOS_KEYS, no network here)
+        env = {k: v for k, v in os.environ.items() if k not in ("KNOS_CHANGES", "KNOS_KEYS", "KNOS_RPC")}
+        for flags in (["--propose"], ["--propose", "--replace"], ["--propose", "--ungated"]):
+            none = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), *flags], capture_output=True, text=True, env=env, timeout=60)
+            assert none.returncode == 1 and none.stdout == "" and none.stderr.startswith("refused: this release proposes nothing."), (flags, none.stderr)
+            assert "Nothing was read, written or proposed." in none.stderr and "proposals 7 and 8 already" in none.stderr
+        assert 'RELEASE_PROPOSES=""' in text
         said = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--help"], capture_output=True, text=True).stdout
         assert all(flag in said for flag in ("--new", "--rc ", "--rc-close", "--propose [--replace] [--ungated]", "KNOS_GATE_TOKENS", "KNOS_RC_SO_DIR",
                                              "KNOS_GATE_WAIT", "--ungated is for an emergency only"))

@@ -520,3 +520,218 @@ def test_the_worker_takes_the_event_in_a_job_of_its_own_that_keeps_no_notes_and_
     assert "'relay for a dispatch'" in doc["run-name"] and "'relay for a run'" in doc["run-name"]
     assert 'startswith("relay for ") | not' in relay["steps"][0]["run"]
     assert HOME == "drexthealpha/Knos"
+
+
+# -- notes two runners both see: the relay-log issue as the store (0.3.19) ----------------------------------------------
+class Log:
+    """The relay-log issue of one repository: comments in the order GitHub took them, newest first when listed.
+    `turns`: the order in which named runners' requests are let through (then anyone's)."""
+
+    def __init__(self, turns: str = "") -> None:
+        import threading
+        self.comments: list[dict] = []
+        self.down = False
+        self.turns, self.cv = list(turns), threading.Condition()
+
+    def _turn(self, who: str, do):
+        with self.cv:
+            assert self.cv.wait_for(lambda: not self.turns or self.turns[0] == who, timeout=20), f"{who} was never let through: {self.turns}"
+            try:
+                if self.down:
+                    raise RuntimeError("GitHub answered 502")
+                return do()
+            finally:
+                if self.turns:
+                    self.turns.pop(0)
+                self.cv.notify_all()
+
+    def _post(self, body: str, login: str = relayq.LOG_BOT, issue: int = 1) -> dict:
+        c = {"id": 9000 + len(self.comments), "user": {"login": login}, "issue_url": f"https://api.github.com/repos/{HOME}/issues/{issue}", "body": body}
+        self.comments.append(c)
+        return c
+
+    def store(self, who: str, said: list | None = None) -> relayq.LogStore:
+        return relayq.LogStore(HOME, lambda path: self._turn(who, lambda: list(reversed(self.comments))[:100]),
+                               lambda path, data: self._turn(who, lambda: self._post(data["body"])), lambda: 1,
+                               say=(said if said is not None else []).append)
+
+
+def _runner(tmp_path, log: Log, who: str, clock: list, said: list | None = None) -> tuple[relayq.Queue, relayq.Notes]:
+    """A runner with a disk of its own: its journal, its notes folder, and the one thing it shares, the log."""
+    notes = relayq.Notes(tmp_path / who / "notes", f"{who}-run", lambda: clock[0], store=log.store(who, said))
+    return relayq.Queue(tmp_path / who / "ghrelay.json", lambda: clock[0], notes=notes), notes
+
+
+@pytest.mark.parametrize("skew", [0.0, -50.0, 50.0])
+@pytest.mark.parametrize("turns", ["ABAB", "ABBA", "AABB", "BABA", "BAAB", "BBAA"])
+def test_in_every_interleaving_of_two_runners_writes_and_reads_one_token_is_sent_once(tmp_path, turns, skew):
+    """Each runner's lease is a write (its line) and a read (the log). Whatever order GitHub takes the four in, and
+    whatever the two clocks say, exactly one runner is told the token is its to send; the other sends nothing, then or
+    after it read the answer."""
+    import threading
+    log, ca, cb = Log(turns), [T0], [T0 + skew]
+    (qa, na), (qb, nb) = _runner(tmp_path, log, "A", ca), _runner(tmp_path, log, "B", cb)
+    for q_ in (qa, qb):
+        assert q_.put("tok", "lane", {"jwt": "x"}, id="i")
+    assert log.comments == []                                   # a token that waits is nobody's news: no comment
+    took: dict[str, dict | None] = {}
+    threads = [threading.Thread(target=lambda n=n, q_=q_: took.__setitem__(n, q_.take("w"))) for n, q_ in (("A", qa), ("B", qb))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    assert not log.turns and sorted(took) == ["A", "B"]
+    winners = [n for n, e in took.items() if e is not None]
+    assert len(winners) == 1, (turns, took)
+    first = relayq.NOTE_MARK + ("A-run" if log.comments[0]["body"].startswith(relayq.NOTE_MARK + "A-run ") else "B-run")
+    assert log.comments[0]["body"].startswith(first) and winners == [first[-5]]         # the earlier comment holds, not the earlier clock
+    win, lose = ((qa, qb) if winners == ["A"] else (qb, qa))
+    loser = nb if winners == ["A"] else na
+    assert lose.take("w") is None                               # in flight elsewhere: not this runner's to send
+    assert win.finish("tok", "w", {"ok": True}) == "done"
+    assert len(log.comments) == 3                               # two leases and one answer: one comment a change, and no other
+    loser.store.take(list(reversed(log.comments)))             # the sweep's next fetch of the log's comments, handed in
+    assert lose.take("w") is None and lose.entries()["tok"]["state"] == "done" and lose.entries()["tok"]["by"] == f"{winners[0]}-run"
+    assert len(log.comments) == 3 and loser.store.asked == 1    # the loser wrote nothing more, and asked GitHub once: at its lease
+
+
+def test_a_lease_whose_runner_died_is_taken_by_the_other_when_it_is_over_and_the_token_is_sent_once(tmp_path):
+    log, clock = Log(), [T0]
+    (qa, _na), (qb, nb) = _runner(tmp_path, log, "A", clock), _runner(tmp_path, log, "B", clock)
+    for q_ in (qa, qb):
+        q_.put("tok", "lane", {"jwt": "x"}, id="i")
+    assert qa.take("w") is not None                             # A leases, and its runner is gone before any answer
+    nb.store.read()
+    for later in (1.0, relayq.LEASE - 1.0):
+        clock[0] = T0 + later
+        assert qb.take("w") is None
+    clock[0] = T0 + relayq.LEASE
+    got = qb.take("w")
+    assert got is not None and got["tries"] == 1 and qb.finish("tok", "w", {"ok": True}) == "done"
+    assert [json.loads(c["body"].split(" ", 3)[3])["s"] for c in log.comments] == ["sending", "sending", "confirmed"]
+    assert [c["body"].split(" ")[2] for c in log.comments] == ["A-run", "B-run", "B-run"]
+
+
+def test_when_github_fails_the_notes_are_local_and_the_run_says_so_once_and_again_when_they_are_shared(tmp_path):
+    log, clock, said = Log(), [T0], []
+    qa, na = _runner(tmp_path, log, "A", clock, said)
+    log.down = True
+    for key in ("one", "two"):
+        qa.put(key, key, {"jwt": key}, id=key)
+        assert qa.take("w")["key"] == key                       # carried all the same: the chain takes a token once
+    assert log.comments == [] and na.store.failed == "GitHub answered 502"
+    assert len(said) == 1 and said[0].startswith("relay notes: GitHub did not take or give this run's shared notes (GitHub answered 502). They are local")
+    lines = [json.loads(ln) for ln in na.file.read_text(encoding="utf-8").splitlines()]
+    assert [(ln["k"], ln["s"]) for ln in lines] == [("one", "waiting"), ("one", "sending"), ("two", "waiting"), ("two", "sending")]
+    assert not any("at" in ln for ln in lines)
+    log.down = False
+    assert qa.finish("one", "w", {"ok": True}) == "done"
+    assert said[1:] == ["relay notes: shared with the other runners again (the relay log took a line)."] and na.store.failed is None
+    assert len(log.comments) == 1 and '"s":"confirmed"' in log.comments[0]["body"]
+
+
+def test_only_the_logs_own_account_on_the_log_issue_writes_a_note_and_the_sweeps_fetch_is_the_read(tmp_path, monkeypatch):
+    log = Log()
+    store = log.store("A")
+    line = relayq.NOTE_MARK + 'B-run {"k":"tok","s":"confirmed","t":5}'
+    log._post(line, login="someone-outside")                    # anyone can comment on a public issue
+    log._post(line, issue=2)                                    # the workflow's account, on another issue
+    log._post(relayq.NOTE_MARK + 'B-run {"k":"tok","s":"waiting","t":5}')      # not a state the log carries
+    assert store.take(list(reversed(log.comments))) == 0 and store.lines == {}
+    log._post("knos-relay fund octo/widgets#7 0123456789abcdef ok sig=s note=funded t=3\n" + line)
+    assert store.take(list(reversed(log.comments))) == 1 and store.lines["B-run"]["tok"]["s"] == "confirmed" and store.asked == 0
+    notes = relayq.Notes(tmp_path / "notes", "A-run", lambda: T0, store=store)
+    assert notes.theirs("tok")["state"] == "confirmed" and notes.theirs("tok")["by"] == "B-run"
+    # the request a lease makes is the sweep's own for the log's repository, so its answer is one GitHub already gave
+    assert store.path == f"repos/{HOME}/issues/comments?sort=created&direction=desc&per_page=100"
+    for name in ("KNOS_RELAY_SHARED_NOTES", "GITHUB_REPOSITORY", "GITHUB_WORKFLOW_REF"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(ghrelay, "_STORE", {})
+    assert ghrelay.log_store() is None                          # a relay of someone else's writes no note anywhere
+    worker = {"GITHUB_REPOSITORY": ghrelay.HOME_REPO, "GITHUB_WORKFLOW_REF": f"{ghrelay.HOME_REPO}/.github/workflows/worker.yml@refs/heads/main"}
+    assert ghrelay.shares_notes(worker) and not ghrelay.shares_notes({**worker, "KNOS_RELAY_SHARED_NOTES": "0"})
+    assert ghrelay.log_store(worker) is ghrelay.log_store(worker) and ghrelay.log_store(worker).path == f"repos/{ghrelay.HOME_REPO}/issues/comments?sort=created&direction=desc&per_page=100"
+
+
+def test_an_event_run_and_the_sweep_on_two_runners_see_each_other_through_the_relay_log(sweep, tmp_path, monkeypatch):
+    """Two disks, one log. What the event run answered the sweep does not send; what the event run holds in flight the
+    sweep leaves alone until that lease is over; and the sweep reads the other's lines in the comments its pass
+    fetches for the log's repository anyway."""
+    comments, sent, posted, _answers, _reads, once = sweep
+    now = ghrelay._unix("2026-10-04T08:00:30Z")
+    log, fetched = Log(), []
+    monkeypatch.setattr(ghrelay, "log_store", lambda env=None, store=log.store("S"): store)
+    monkeypatch.setattr(ghrelay, "_api", lambda path: fetched.append(path) or list(reversed(log.comments)))
+    monkeypatch.setattr(ghrelay, "found", lambda repo, since, getter=None: (getter(f"repos/{repo}/issues/comments") and []) if getter else
+                        (list(comments) if repo == "o/r" else []))
+    one = jwt(fund_aud(7), repository="o/r", repository_owner_id="77", run_id="1")
+    three = jwt(fund_aud(9), repository="o/r", repository_owner_id="78", run_id="3")
+    api = [_comment(12, ghrelay.token_comment("fund", one, TERMS), "2026-10-04T08:00:10Z")]
+    event = {"client_payload": {"repo": "o/r", "number": 12}}
+    theirs = relayq.Notes(tmp_path / "event-runner" / "notes", "event-1", lambda: now, store=log.store("E"))
+
+    class Ledger:
+        def send(self):
+            return "sig"
+    assert relayq.serve_event("repository_dispatch", event, Ledger(), None, tmp_path / "event-runner" / "ghrelay.json", get=lambda path: api,
+                              post=posted.extend, clock=lambda: now, say=lambda line: None, notes=theirs) == 1
+    assert sent == [("fund", ghrelay.token_id(one))] and [c["body"].split('"s":"')[1].split('"')[0] for c in log.comments] == ["sending", "confirmed"]
+    assert not (tmp_path / "ghrelay-notes" / "event-1.jsonl").exists()          # the sweep's disk holds nothing of the event run's
+    comments.append(ghrelay.Found("fund", 12, one, "octocat", TERMS.encode(), now - 20))
+    assert once(now + 3) == [] and len(sent) == 1 and fetched == [f"repos/{ghrelay.HOME_REPO}/issues/comments"]
+    assert len(log.comments) == 2                                               # the sweep wrote nothing about a token it did not carry
+    # the event run holds the next one in flight: the sweep leaves it until that lease is over, then sends it once
+    api.append(_comment(12, ghrelay.token_comment("fund", three, TERMS), "2026-10-04T08:00:25Z"))
+    held = relayq.Queue(tmp_path / "event-runner" / "ghrelay.json", lambda: now + 7, notes=theirs)
+    [key] = relayq.ingest(held, "repository_dispatch", event, lambda path: api, now + 7)
+    assert held.take("event:w1")["key"] == key
+    comments.append(ghrelay.Found("fund", 12, three, "octocat", TERMS.encode(), now - 5))
+    assert once(now + 9) == [] and once(now + 60) == [] and len(sent) == 1
+    [line] = once(now + 7 + relayq.LEASE)
+    assert f" {ghrelay.token_id(three)} ok " in line and len(sent) == 2
+    assert [(c["body"].split(" ")[2][:5], c["body"].split('"s":"')[1].split('"')[0]) for c in log.comments[2:]] == [("event", "sending"), ("sweep", "sending"), ("sweep", "confirmed")]
+
+
+def test_an_event_run_that_sends_nothing_for_a_token_it_found_says_who_holds_it_and_where_the_log_says_so(tmp_path, monkeypatch):
+    """0.3.19, live in staging: an event run found the token the sweep had carried a moment before and printed only
+    "0 tokens carried". It now says, for each token it found and does not carry, which runner the notes name and
+    the relay-log comment that carries their word; also when the other runner answered while this run waited."""
+    import hashlib
+    now = ghrelay._unix("2026-10-04T08:00:30Z")
+    one = jwt(fund_aud(7), repository="o/r", repository_owner_id="77", run_id="1")
+    two = jwt(fund_aud(8), repository="o/r", repository_owner_id="78", run_id="2")
+    key = lambda t: hashlib.sha256(f"fund\n{t}\n".encode() + TERMS.encode()).hexdigest()[:16]  # noqa: E731
+    api = [_comment(12, ghrelay.token_comment("fund", one, TERMS), "2026-10-04T08:00:10Z")]
+    event = {"client_payload": {"repo": "o/r", "number": 12}}
+    log, sent, said = Log(), [], []
+    sweep_notes = relayq.Notes(tmp_path / "sweep" / "notes", "sweep-1", lambda: now, store=log.store("S"))
+    assert sweep_notes.lease(key(one), now + relayq.LEASE)
+    sweep_notes.append(key(one), "confirmed")
+    monkeypatch.setattr(ghrelay, "relay_one", lambda *a, **k: sent.append(a) or {"ok": True, "kind": "fund", "sigs": ["s"], "note": "funded"})
+
+    class Ledger:
+        def send(self):
+            return "sig"
+    theirs = relayq.Notes(tmp_path / "event" / "notes", "event-1", lambda: now, store=log.store("E"))
+    assert theirs.store.read()                  # what `main` does before anything is queued
+    serve = lambda: relayq.serve_event("repository_dispatch", event, Ledger(), None, tmp_path / "event" / "ghrelay.json",  # noqa: E731
+                                       get=lambda path: api, post=lambda lines: None, clock=lambda: now, say=said.append, notes=theirs)
+    assert serve() == 0 and sent == []
+    confirmed_at = log.comments[1]["id"]
+    assert said == [f"relay: fund o/r#12 {ghrelay.token_id(one)}: not carried by this run: sweep-1 has it on chain "
+                    f"(relay log comment {confirmed_at}), so nothing is sent from here"]
+    assert len(log.comments) == 2               # nothing written by the run that sent nothing
+    # the sweep holds the next one when the event run queues it, and answers while the event run waits for its lease
+    api.append(_comment(12, ghrelay.token_comment("fund", two, TERMS), "2026-10-04T08:00:20Z"))
+    assert sweep_notes.lease(key(two), now + relayq.LEASE)
+    real = relayq.work
+
+    def work(queue, *a, **k):
+        sweep_notes.append(key(two), "confirmed")
+        theirs.store.read()
+        return real(queue, *a, **k)
+    monkeypatch.setattr(relayq, "work", work)
+    said.clear()
+    assert serve() == 0 and sent == []
+    assert said[-1] == (f"relay: fund o/r#12 {ghrelay.token_id(two)}: not carried by this run: sweep-1 has it on chain "
+                        f"(relay log comment {log.comments[-1]['id']}), so nothing is sent from here")
