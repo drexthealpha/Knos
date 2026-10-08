@@ -1,9 +1,9 @@
-// Front door: paste an agent PR, see in seconds whether its "tests pass" claim is true -- from GitHub's own CI at the
+// Front door: paste an agent PR and see whether its "tests pass" claim is true -- from GitHub's own CI at the
 // PR's head commit, read in the browser with the public GitHub REST API (no login, no install). The claim regexes are
 // ported from scripts/agent_pr_ci.py (the Agent PR Index uses the same ones), so the page and the index agree.
 
 import { prefersReduced, morph, init as initMotionRoot } from "./motion.js";
-import { VIEWS, ALIAS } from "./views.js";
+import { VIEWS, ALIAS, ADDED } from "./views.js";
 
 const $ = (id) => document.getElementById(id);
 const API = "https://api.github.com";
@@ -202,7 +202,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@43c8605d155e418beffb9bae907f5f39825b911a
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -223,7 +223,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@43c8605d155e418beffb9bae907f5f39825b911a
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -243,7 +243,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@43c8605d155e418beffb9bae907f5f39825b911a
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -292,7 +292,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@4368fcb99dfb576b009bc867d5f2c6700e20da50
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@43c8605d155e418beffb9bae907f5f39825b911a
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -473,7 +473,7 @@ async function check(ev) {
   }
 }
 
-export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "record"];
+export const MOUNTS = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "record", ...Object.keys(ADDED)];
 // Which page a hash shows: a filled mount, or one of the views (web/views.js: its VIEWS and ALIAS), or the first screen.
 const viewOf = (name) => { const v = ALIAS[name] || name; return VIEWS.includes(v) && v !== "check" ? v : null; };
 export const pageOf = (hash, filled = () => true) => { const name = String(hash).replace(/^#/, "").split("=")[0]; return MOUNTS.includes(name) && filled(name) ? name : viewOf(name) || "check"; };
@@ -540,7 +540,50 @@ export const PAGES = {
   buy: chain("./buyer.js"), status: chain("./mounts.js"), index: chain("./mounts.js"), pilot: chain("./mounts.js"), reproduce: chain("./mounts.js"),
   fund: chain("./task.js", "./anyissue.js"), claim: chain("./claim.js"), pricing: chain("./pricing.js"), records: chain("./records.js", "./statements.js"), network: chain(),
 };
+// the pages added by name (web/views.js ADDED): each a module fetched on first opening, and its file of data read first
+for (const [name, a] of Object.entries(ADDED)) PAGES[name] = { files: [a.file], draw: async (el) => {
+  const [m, data] = await Promise.all([import(a.file), a.json ? fetch(a.json).then((r) => (r.ok ? r.json() : null)).catch(() => null) : undefined]);
+  if (a.json && !data) return;
+  await m[a.draw]?.(el, { esc, go, EXPLORER, data });
+} };
+function initAdded() {
+  const main = document.querySelector("main"), nav = $("nav"), list = $("more-list");
+  for (const [name, a] of Object.entries(ADDED)) {
+    if (!$(name) && main) { const s = document.createElement("section"); Object.assign(s, { id: name, className: "mount", hidden: true }); s.setAttribute("aria-label", a.nav); main.append(s); }
+    if (!nav || nav.querySelector(`a[data-mount="${name}"]`)) continue;
+    const l = document.createElement("a"); Object.assign(l, { textContent: a.nav, hidden: true }); l.setAttribute("href", `#${name}`); l.dataset.mount = name;
+    if (a.bar) nav.insertBefore(l, nav.querySelector('a[href="#pricing"]')); else (list || nav).append(l);
+  }
+  addEventListener("resize", fitBar);          // and after every route, which is what shows a link (route)
+}
+// THE BAR IS ONE LINE OF SIX WORDS: the first screen's forty count them (tests/web/front_door.mjs). A page added to the
+// bar takes its words from the links a first visitor needs least, which go under "More", first there: the documents
+// (a link out), the leaderboard (the strip under the box leads to it), then "Check" (the wordmark is the way home).
+// Where the window is still too narrow, the last link added goes under "More" too. Everything comes back when there
+// is room or the page is gone; on a phone the whole menu is behind one button and nothing moves.
+const YIELD = ['a[href$="/docs"]', 'a[href="#index"]', 'a[href="#check"]'], BAR_WORDS = 6;
+let barHome = null;
+function fitBar() {
+  const nav = $("nav"), list = $("more-list"), more = $("more"), at = nav?.querySelector('a[href="#pricing"]');
+  if (!nav || !list || !more || !at) return;
+  const mine = Object.entries(ADDED).filter(([, a]) => a.bar).map(([n]) => nav.querySelector(`a[data-mount="${n}"]`)).filter(Boolean);
+  if (!mine.length) return;
+  const give = YIELD.map((q) => nav.querySelector(q)).filter(Boolean);
+  barHome ||= give.map((l) => l.nextElementSibling);          // where each stood, read once, before anything moved
+  // added links first: a neighbour read above may be one, and one under "More" is not in the bar
+  for (const l of mine) nav.insertBefore(l, at);
+  for (let i = give.length - 1; i >= 0; i -= 1) nav.insertBefore(give[i], !barHome[i] || barHome[i].parentNode === nav ? barHome[i] : at);
+  if (more.offsetParent === null) return;                    // the phone's menu: every link in its own place
+  const shown = () => [...nav.querySelectorAll(":scope > a")].filter((l) => !l.hidden), words = () => shown().reduce((n, l) => n + l.textContent.trim().split(/\s+/).length, 0);
+  const wraps = () => more.offsetTop > (shown()[0]?.offsetTop ?? 0) + 8;
+  const under = [];
+  for (const l of give) { if (words() <= BAR_WORDS || !mine.some((m) => !m.hidden)) break; under.unshift(l); l.remove(); }
+  for (const l of [...mine].reverse()) { if (!wraps()) break; under.unshift(l); l.remove(); }
+  list.prepend(...under);
+}
 const drawn = new Map(), empty = new Set(), fetched = new Set();
+// the pending state is on the screen before a page's code is asked for: its parsing never holds that frame back
+const painted = () => new Promise((done) => { const t = setTimeout(done, 120); globalThis.requestAnimationFrame?.(() => setTimeout(() => { clearTimeout(t); done(); }, 0)); });
 const sectionOf = (name) => $(MOUNTS.includes(name) ? name : `view-${name}`);
 const bars = (el) => { el.innerHTML = `<div class="k-skeleton" data-pending><span class="k-sr">Loading</span><i></i><i></i><i></i><i></i></div>`; };
 // a mount that another module fills a moment after its code has run (it reads a file first): wait for the first thing in it
@@ -636,7 +679,7 @@ function openPage(name) {
     if (mount && el.childElementCount === 0) bars(el);
     el.dataset.loading = ""; el.setAttribute("aria-busy", "true");
     drawn.set(name, (async () => {
-      try { await p.draw?.(el); await p.each?.(name); if (mount) await settledMount(el); } catch { /* said below: the page holds nothing */ }
+      try { await painted(); await p.draw?.(el); await p.each?.(name); if (mount) await settledMount(el); } catch { /* said below: the page holds nothing */ }
       el.querySelector(":scope > [data-pending]")?.remove();
       delete el.dataset.loading; el.removeAttribute("aria-busy");
       keepFolded(el);
@@ -670,13 +713,14 @@ function route(moved) {
   // a change of page closes the menu; a page that fills while the menu is open leaves it under the reader's hand
   if (moved) { bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); fold(false); }
   for (const id of MOUNTS) { const a = document.querySelector(`nav a[data-mount="${id}"]`); if (a) a.hidden = !filled(id); if ($(id)) $(id).hidden = !filled(id); }
+  fitBar();
   if (on) document.body.dataset.page = name; else delete document.body.dataset.page;
   // a page the stylesheet has no rule for yet (a section added after it was written) is shown from here
   for (const id of MOUNTS) if ($(id)) $(id).style.display = "";
   if (on && getComputedStyle($(name)).display === "none") $(name).style.display = "block";
   const here = raw === "check-a-pull-request" ? "#check-a-pull-request" : `#${name}`;
   for (const a of document.querySelectorAll("nav a")) { if (a.getAttribute("href") === here) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
-  more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]'));
+  more?.classList.toggle("current", !!more.querySelector('a[aria-current="page"]:not([href="#check"])'));
   if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
   if (moved && was !== null && name !== pageOf(was, filled) && !["money", "task", "anyissue", "demo", "check-a-pull-request"].includes(raw)) globalThis.scrollTo?.(0, 0);
   const opened = openPage(name);
@@ -691,6 +735,18 @@ function route(moved) {
 // A change of page made from the page itself: shown in this very task, without waiting for the browser's hashchange.
 export function go(to) { if (location.hash === to) return; location.hash = to; route(true); }
 
+// THE ROUND (web/demo.js, below the first screen) is asked for when the reader first moves, scrolls, types or touches,
+// when the page opens at #demo, or when what follows it is already in the window: never by the first screen itself.
+let demoP;
+export const mountDemo = () => (demoP ||= $("demo") ? import("./demo.js").then((m) => m.renderDemo($("demo"), { esc, EXPLORER })).catch(() => {}) : Promise.resolve());
+function initDemo() {
+  const after = $("check-a-pull-request");
+  if (!$("demo")) return;
+  if (location.hash === "#demo" || !globalThis.IntersectionObserver || !after) { mountDemo(); return; }
+  for (const t of ["pointermove", "pointerdown", "touchstart", "keydown", "scroll", "focusin"]) addEventListener(t, mountDemo, { once: true, passive: true, capture: true });
+  new IntersectionObserver((seen, o) => { if (seen.some((e) => e.isIntersecting)) { o.disconnect(); mountDemo(); } }).observe(after);
+}
+
 function initBar() {
   bar = document.querySelector(".bar"); menu = $("menu"); more = $("more"); moreButton = $("more-button");
   document.documentElement.classList.add("js");
@@ -702,6 +758,7 @@ function initBar() {
     if (more?.classList.contains("open")) { fold(false); moreButton.focus(); }
     else if (bar.classList.contains("open")) { bar.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); menu.focus(); }
   });
+  initAdded();
   for (const type of ["click", "submit", "input", "change"]) document.addEventListener(type, keep, true);
   // a link's page is fetched while the pointer or the focus is on the link: the press finds it there
   for (const type of ["pointerover", "focusin", "touchstart"]) document.addEventListener(type, (ev) => {
@@ -723,9 +780,10 @@ function initBar() {
   for (const a of document.querySelectorAll('a[href="#demo"], #go-check')) a.addEventListener("click", (ev) => {
     if (ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
     ev.preventDefault();
-    if (a.id !== "go-check" && demo && !demo.hidden) { go("#demo"); return toDemo(); }
-    go("#check-a-pull-request");
-    $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true });
+    const toBox = () => { go("#check-a-pull-request"); $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true }); };
+    if (a.id === "go-check" || !demo) return toBox();
+    // the round's code may still be on its way (it is asked for when the reader first moves): the press waits for it
+    mountDemo().then(() => { if (demo.hidden) return toBox(); go("#demo"); toDemo(); });
   });
   // The recording (web/first.js sets its file): its figure is shown once the browser has the file, and not otherwise.
   const film = $("film"), video = $("demo-video");
@@ -794,6 +852,10 @@ function initMotion() {
     const to = ev.target.closest?.('a[href^="#"]')?.getAttribute("href");
     if (!to || to === location.hash || pageOf(to, filled) === pageNow()) return;
     ev.preventDefault();
+    // a page opened for the first time shows its grey bars in this very task: a crossing would first cost a picture of
+    // the page that is leaving (tests/web/perf.mjs: "open a page for the first time")
+    const name = pageOf(to, filled);
+    if (name in PAGES && !drawn.has(name)) return go(to);
     morph(() => go(to));
   });
   if (prefersReduced()) return;
@@ -831,8 +893,9 @@ if (typeof document !== "undefined" && $("pr-form")) {
       if (!board.firstElementChild) board.hidden = true;
     }));
   }
-  // Below it on the first screen: the example buttons and the recording (web/first.js) and the round (web/demo.js).
+  // Below it on the first screen: the example buttons and the recording (web/first.js); the round (web/demo.js) comes
+  // with the reader's first move (initDemo).
   // A transaction pasted into the box is read from Solana, and only then are the files that read Solana asked for.
   import("./first.js").then((m) => m.initFirst({ $, esc, EXPLORER, core })).catch(() => {});
-  if ($("demo")) import("./demo.js").then((m) => m.renderDemo($("demo"), { esc, EXPLORER })).catch(() => {});
+  initDemo();
 }

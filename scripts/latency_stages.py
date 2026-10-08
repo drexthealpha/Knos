@@ -67,6 +67,23 @@ them is Knos's own to shorten:
 Every row carries its own n and says where it was measured. A clock nothing measured says so. No row is a sum of
 two others: percentiles of different samples do not add.
 
+THE SIX LATENCIES, EACH ON ITS OWN (`--separate`; 0.3.20; docs/BENCH.md, "Every latency, apart"). The names a buyer
+asks by, and no row is a sum of others:
+
+    evidence arrival      the merge -> the run's start, and the token's comment -> a relay holding it (two rows: two samples)
+    evaluation            the run's start -> the token's comment (the judging job, and the forge's signature)
+    decision              the token in hand -> the provisional receipt (`knos decide`: scripts/decide_bench.py here,
+                          and the last release run's sample on devnet; docs/bench.json `decision`)
+    chain confirmation    pickup -> the first transaction's block -> the paying transaction's block, at `confirmed`
+    finality              the last confirmation -> the cluster finalized it
+    payout                the paying transaction IS the payout (test USDC into the payee's token account): nothing
+                          comes after it to time. To a bank: not applicable, there is no bank route
+
+    python scripts/latency_stages.py --separate --recorded             # from docs/bench.json: no network
+    python scripts/latency_stages.py --separate --rpc URL --write      # THE RELEASE RUN'S ONE COMMAND: measures the live log
+                                                                       # and chain, keeps it in docs/bench.json (`stages`)
+                                                                       # and rewrites the block in docs/BENCH.md
+
 At release time it runs against the live log and chain (GH_TOKEN for GitHub's rate limit; --events is what
 `scripts/network_stats.py --events-out` wrote, else the chain is read). tests/test_latency_stages.py runs it on a
 recorded sample.
@@ -80,6 +97,7 @@ import os
 import re
 import statistics
 import sys
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -130,7 +148,7 @@ CLOCKS = (("work execution", ("workflow scheduling", "evaluation"),
            "0 s for a run that relays its own token; otherwise one pass"),
           ("Knos decision processing", (),
            "Knos's own, all of it",
-           "targets on one machine with no network, not measurements: 250 ms at p95 for the offline decision, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet"),
+           "targets on one machine with no network, not measurements: 100 ms at p95 for the offline decision once the evidence is in hand, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet"),
           (f"chain inclusion, at `{COMMITMENT}`", ("submission", "confirmation"),
            "the cluster's, and the relay's sends: two verification transactions for a 2048-bit RSA key, then the payment",
            "none set: measured apart, at this commitment level"),
@@ -156,7 +174,7 @@ def clocks(six_rows: list[dict], decision: dict | None = None, whole: dict | Non
                 n = int(d.get("n") or 0)
                 out.append({"clock": name, "part": f"`knos decide`, {part.split(',')[0]}: the token in hand to the provisional receipt", "n": n,
                             "p50": round(d["p50"], 1) if n else None, "p95": round(d["p95"], 1) if n else None, "unit": "ms",
-                            "where": f"locally, {n} decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet"
+                            "where": f"locally, {n} decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet in this row: the devnet sample stands under the table"
                                      if n else "not measured", "whose": whose, "target": target})
             continue
         if not parts:
@@ -168,6 +186,100 @@ def clocks(six_rows: list[dict], decision: dict | None = None, whole: dict | Non
             out.append({"clock": name, "part": f"{part}: {row.get('what') or ''}".rstrip(": "), "n": n, "p50": row.get("p50") if n else None,
                         "p95": row.get("p95") if n else None, "unit": "s", "where": f"devnet, {n}{of}" if n else NOT_RECORDED, "whose": whose, "target": target})
     return out
+
+
+BENCH_JSON, BENCH_MD = ROOT / "docs" / "bench.json", ROOT / "docs" / "BENCH.md"
+SEP_OPEN, SEP_CLOSE = "<!-- latency:separate -->", "<!-- /latency:separate -->"
+RELEASE_COMMAND = "python scripts/latency_stages.py --separate --rpc https://api.devnet.solana.com --write"
+NO_GAP = "not a wait: the paying transaction is the payout"
+# the six latencies: (name, the six-stage rows that measure it, whose wait it is)
+FEW = "none: fewer than 30 samples"
+PART_WHOSE = {"workflow scheduling": "the forge's: starting a runner", "relay pickup": "Knos's own: a relay finding the token"}
+SEPARATE = (("evidence arrival", ("workflow scheduling", "relay pickup"), ""),
+            ("evaluation", ("evaluation",), "the forge's runner: the judging job, then the forge signs what it found"),
+            ("decision", (), "Knos's own, all of it"),
+            (f"chain confirmation, at `{COMMITMENT}`", ("submission", "confirmation"), "the cluster's, and the relay's sends"),
+            ("finality, at `finalized`", ("finality",), "the cluster's; no relay waits for it"),
+            ("payout", (), "nobody's"))
+
+
+def separate(six_rows: list[dict], decision: dict | None = None, whole: dict | None = None) -> list[dict]:
+    """The six latencies as rows, each with its own sample: [{latency, part, where, n, p50, p95, unit, whose}].
+    `six_rows`: `six()`'s. `decision`: docs/bench.json's `decision` ({local: what scripts/decide_bench.py measured on
+    one machine, devnet: the last release run's sample}), or None (then the decision says it was not measured). A
+    devnet sample of fewer than 30 has a median and no p95."""
+    by = {row["stage"]: row for row in six_rows}
+    of = f" of {whole['n']} payments" if whole and whole.get("n") else ""
+    out: list[dict] = []
+    for name, parts, whose in SEPARATE:
+        if name == "decision":
+            local, dev = (decision or {}).get("local") or {}, (decision or {}).get("devnet") or {}
+            warm = (local.get("rows") or {}).get("offline, warm") or {}
+            n = int(warm.get("n") or 0)
+            out.append({"latency": name, "part": "warm: the token in hand to the provisional receipt, the rules loaded before it arrived (`knos decide --stream`)", "n": n,
+                        "p50": round(warm["p50"], 1) if n else None, "p95": round(warm["p95"], 1) if n else None, "unit": "ms", "whose": whose,
+                        "where": f"here, on one machine, no network ({local.get('machine')})" if n else "not measured"})
+            for key, part in (("offline", "a new process for each token: the rules loaded, then the offline decision"),
+                              ("chain_check", "the chain check after it: one request, left behind after 2 s")):
+                got = dev.get(key) or {}
+                m = int(got.get("n") or 0)
+                out.append({"latency": name, "part": part, "n": m, "p50": got.get("median") if m else None, "p95": got.get("p95") if m else None, "unit": "ms",
+                            "whose": whose, **({"p95_note": FEW} if m and got.get("p95") is None else {}), "where": f"devnet, {dev.get('when')}: {m} real tokens" if m else "not measured on devnet"})
+            continue
+        if not parts:
+            out.append({"latency": name, "part": "the paying transaction's block to test USDC in the payee's token account", "n": 0, "p50": None, "p95": None,
+                        "unit": "s", "where": NO_GAP, "whose": whose})
+            out.append({"latency": name, "part": "to a bank account", "n": 0, "p50": None, "p95": None, "unit": "s", "where": NO_BANK, "whose": whose})
+            continue
+        for part in parts:
+            row = by.get(part) or {}
+            n = int(row.get("n") or 0)
+            out.append({"latency": name, "part": f"{part}: {row.get('what') or ''}".rstrip(": "), "n": n, "p50": row.get("p50") if n else None,
+                        "p95": row.get("p95") if n else None, "unit": "s", "where": f"devnet, {n}{of}" if n else NOT_RECORDED, "whose": PART_WHOSE.get(part, whose)})
+    return out
+
+
+def separate_table(rows: list[dict]) -> list[str]:
+    """`separate()`'s rows as a Markdown table. A row with no sample has no figure, and says why."""
+    fixed = (NO_BANK, NO_GAP)
+    cell = lambda row, k: ("-" if row["where"] in fixed else row["p95_note"] if k == "p95" and row.get("p95_note") else  # noqa: E731
+                           NOT_RECORDED if not row["n"] or row.get(k) is None else f"{row[k]} {row['unit']}")
+    out = ["| latency | what is timed | measured | n | p50 | p95 | whose wait |", "| --- | --- | --- | --- | --- | --- | --- |"]
+    out += [f"| {r['latency']} | {r['part']} | {r['where']} | {r['n'] if r['n'] else '-' if r['where'] in fixed else NOT_RECORDED} | {cell(r, 'p50')} | {cell(r, 'p95')} | "
+            f"{r['whose']} |" for r in rows]
+    return out
+
+
+def recorded() -> dict:
+    """What docs/bench.json keeps: {stages: {source, whole, six}, decision: {local, devnet}} (either may be missing)."""
+    kept = json.loads(BENCH_JSON.read_text(encoding="utf-8"))
+    return {"stages": kept.get("stages") or {}, "decision": kept.get("decision") or {}}
+
+
+def separate_block(kept: dict) -> list[str]:
+    """The block of docs/BENCH.md between SEP_OPEN and SEP_CLOSE, from `recorded()`'s answer."""
+    st, dec = kept.get("stages") or {}, kept.get("decision") or {}
+    w = st.get("whole") or {}
+    local = dec.get("local") or {}
+    out = [f"Stages: {st.get('source') or NOT_RECORDED}. Decision, here: {local.get('source') or 'not measured'}. Decision, on devnet: "
+           f"{(dec.get('devnet') or {}).get('source') or 'not measured'}.", "",
+           *separate_table(separate(st.get("six") or [], dec, w)), ""]
+    if w.get("n"):
+        out += [f"The one number a person feels, the merge to the payment, was p50 {w['p50']} s and p95 {w['p95']} s over {w['n']} payments; it is not the sum of "
+                "the rows above, which are different samples (a stage is timed only where the relay's log line carries it)."]
+    out += [f"The release run measures every row with a sample again, on the live relay log and devnet, and rewrites this block: `{RELEASE_COMMAND}` "
+            "(GH_TOKEN for GitHub's rate limit), then `python scripts/decide_bench.py --write` for the decision here. "
+            "`python scripts/latency_stages.py --separate --recorded` prints this table from docs/bench.json with no network."]
+    return out
+
+
+def write_separate(kept: dict) -> None:
+    """Rewrites the block in docs/BENCH.md; a document that has none yet gets the section at its end."""
+    doc = BENCH_MD.read_text(encoding="utf-8")
+    block = "\n".join([SEP_OPEN, *separate_block(kept), SEP_CLOSE])
+    if SEP_OPEN not in doc:
+        doc = doc.rstrip("\n") + "\n\n## Every latency, apart\n\nNo single number says how fast a payment is. Six waits, each with its own sample and its own owner; none is a sum of others.\n\n" + f"{SEP_OPEN}\n{SEP_CLOSE}\n"
+    BENCH_MD.write_text(re.sub(re.escape(SEP_OPEN) + r".*?" + re.escape(SEP_CLOSE), lambda _m: block, doc, flags=re.S), encoding="utf-8")
 
 
 def clock_table(rows: list[dict]) -> list[str]:
@@ -353,7 +465,18 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("--json", action="store_true", help="print the report as JSON")
     ap.add_argument("--md", action="store_true", help="print only the table of the six stages (n, p50, p95 each), as Markdown")
     ap.add_argument("--clocks", action="store_true", help="print only the five clocks, each row with its own sample, as Markdown (the decision clock is measured by scripts/decide_bench.py, not here)")
+    ap.add_argument("--separate", action="store_true", help="print only the six latencies, each on its own (evidence arrival, evaluation, decision, chain confirmation, finality, payout), as Markdown")
+    ap.add_argument("--recorded", action="store_true", help="with --separate: from docs/bench.json (the last recorded runs), asking no network")
+    ap.add_argument("--write", action="store_true", help="with --separate: keep what was measured in docs/bench.json (`stages`) and rewrite the block in docs/BENCH.md")
+    ap.add_argument("--source", default="", help="with --separate --write: the sentence that says when and against what this was measured")
     a = ap.parse_args(argv)
+    if a.separate and a.recorded:
+        kept = recorded()
+        for line in separate_block(kept):
+            say(line)
+        if a.write:
+            write_separate(kept)
+        return 0
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     get = None if a.offline else (lambda path: ns.github(path, token))
     if a.log:
@@ -374,6 +497,21 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         say("stopped: give --events FILE (python scripts/network_stats.py --events-out FILE) or --rpc URL: the paying blocks' times are the chain's.")
         return 1
     r = report(comments, events, get, block_times(a.rpc) if a.rpc else None)
+    if a.separate:
+        kept = recorded()
+        day = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+        w = r["whole"]
+        window = f" of {w['window']['from']} to {w['window']['to']}" if w.get("window") else ""
+        kept["stages"] = {"source": a.source or f"`{RELEASE_COMMAND}`, run on {day} against the relay log of {a.repo}: {w['n']} payments{window}",
+                          "whole": {k: w[k] for k in ("n", "p50", "p95")}, "six": r["six"]}
+        for line in separate_block(kept):
+            say(line)
+        if a.write:
+            doc = json.loads(BENCH_JSON.read_text(encoding="utf-8"))
+            doc["stages"] = kept["stages"]
+            BENCH_JSON.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+            write_separate(kept)
+        return 0
     for line in ([json.dumps(r, indent=1)] if a.json else clock_table(r["clocks"]) if a.clocks else table(r["six"], r["whole"]) if a.md else render(r)):
         say(line)
     return 0

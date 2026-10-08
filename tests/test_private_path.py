@@ -177,3 +177,109 @@ def test_the_page_says_how_an_enterprise_issuer_is_admitted_who_opens_sealed_evi
                   "examples/private/knos-private.yml", "knos vault open", "test USDC", "ci_id_tokens_issuer_url"):
         assert words in page, words
     assert not re.search(r"\b(trustless|bulletproof|immutable)\b", page)
+
+
+# ---- the whole path as one command, against a simulator (0.3.20) --------------------------------------------------------
+
+def _run(tmp_path, *more) -> tuple[int, str, Path]:
+    out = tmp_path / "out"
+    done = subprocess.run([sys.executable, "-m", "knos.private", "run", "--repo", str(EX), "--attestors", str(EX / "attestors.json"), "--out", str(out),
+                           "--seed", "knos private test", "--now", str(NOW), *more], capture_output=True, text=True, encoding="utf-8",
+                          env={**__import__("os").environ, "PYTHONPATH": str(ROOT / "src")}, check=False, timeout=120)
+    return done.returncode, done.stdout + done.stderr, out
+
+
+def test_one_command_runs_the_private_path_end_to_end_against_the_simulator(tmp_path):
+    code, said, out = _run(tmp_path)
+    assert code == 0, said
+    lines = said.splitlines()
+    assert lines[0] == private.SIMULATED and "No private customer has run this path." in lines[0]
+    assert [n for n in "12345678" if any(line.startswith(n + ". ") for line in lines)] == list("12345678")           # every step spoke, in order
+    assert "1. attestors: independent organisations, counted as 2." in said and "the simulator ran NO suite" in said
+    assert "Today: keep. A day past 7 years: hashes (a dry run: nothing was removed)" in said                         # examples/private/retention.json, read from beside the attestors file
+    assert "the buyer alone cannot resolve it" in said and "resolved by both parties (buyer and supplier) to: accepted" in said
+    files = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+    assert [f for f in files if not f.startswith("sealed/")] == ["buyer.vault-key.json", "checkpoint.json", "dispute.json", "jwks.json", "record.json", "supplier.vault-key.json", "token.jwt"]
+    # what may leave is a verdict word and hashes: the stand-in names no checks and no assurance, and nothing of the folder
+    doc = json.loads((out / "record.json").read_text(encoding="utf-8"))
+    assert private.leaks(doc) is None and (doc["verdict"], doc["checks_sha256"], doc["assurance"]) == ("accepted", None, None)
+    assert "knos-private.yml" not in json.dumps(doc) and doc["attestors_sha256"] == hashlib.sha256(RAW).hexdigest()
+    # the evidence is sealed to BOTH parties: each key opens it alone, a stranger's does not, and it is the archive the record names
+    from knos import vault
+    sealed = next((out / "sealed").glob("*.vault")).read_bytes()
+    for who in ("buyer", "supplier"):
+        plain, head = vault.open_(sealed, vault.private_of(json.loads((out / f"{who}.vault-key.json").read_text(encoding="utf-8"))))
+        assert hashlib.sha256(plain).hexdigest() == doc["evidence_sha256"] and [r["label"] for r in head["recipients"]] == ["buyer", "supplier"]
+    with pytest.raises(ValueError, match="was not sealed to that key"):
+        vault.open_(sealed, vault.private_of(vault.new_key("stranger", lambda n: b"\x07" * n)))
+    assert b"verdict.json" not in sealed and b"attestors.json" not in sealed                 # whoever stores the file reads its header only
+    # the files it wrote pass the offline check a second person would run, signature included
+    check = subprocess.run([sys.executable, "-m", "knos.private", "check", "--record", str(out / "record.json"), "--token", str(out / "token.jwt"),
+                            "--attestors", str(EX / "attestors.json"), "--jwks", str(out / "jwks.json")], capture_output=True, text=True, encoding="utf-8",
+                           env={**__import__("os").environ, "PYTHONPATH": str(ROOT / "src")}, check=False, timeout=60)
+    assert check.returncode == 0 and "the issuer's RS256 signature holds under the key given" in check.stdout and "signed for attestor acme-ghes" in check.stdout
+    # the same seed gives the same record: nothing in the run reads a clock or a random source the test did not give it
+    again = private.run(EX, EX / "attestors.json", tmp_path / "again", now=NOW, seed="knos private test", retention=json.loads((EX / "retention.json").read_text()), say=lambda _l: None)
+    assert again["record"] == doc and again["dispute"] == json.loads((out / "dispute.json").read_text(encoding="utf-8"))
+
+
+def test_a_dispute_is_opened_by_a_party_who_could_open_the_evidence_and_resolved_only_by_both(tmp_path):
+    from solders.keypair import Keypair
+    got = private.run(EX, EX / "attestors.json", tmp_path / "out", now=NOW, seed="dispute", outcome="rejected", say=lambda _l: None)
+    doc, d, keys = got["record"], got["dispute"], got["keys"]
+    assert private.dispute_check(d, doc, keys) == ["opened by the supplier; resolved by both parties (buyer and supplier) to: rejected", "the line counts as rejected: it is not billed"]
+    from knos import vault
+    sealed = next((tmp_path / "out" / "sealed").glob("*.vault")).read_bytes()
+    opened, _ = vault.open_(sealed, vault.private_of(json.loads((tmp_path / "out" / "buyer.vault-key.json").read_text(encoding="utf-8"))))
+    buyer, supplier, stranger = Keypair.from_seed(b"\x01" * 32), Keypair.from_seed(b"\x02" * 32), Keypair.from_seed(b"\x03" * 32)
+    mine = {"buyer": str(buyer.pubkey()), "supplier": str(supplier.pubkey())}
+    # opening: by a party, on the archive the record names. A party that cannot open the evidence opens no dispute
+    with pytest.raises(ValueError, match="is neither"):
+        private.dispute_open(doc, ["buyer", "supplier"], "auditor", opened, NOW)
+    with pytest.raises(ValueError, match="its sha256 differs"):
+        private.dispute_open(doc, ["buyer", "supplier"], "buyer", opened + b"x", NOW)
+    unsigned = private.dispute_open(doc, ["buyer", "supplier"], "buyer", opened, NOW)
+    with pytest.raises(ValueError, match="buyer's signature is missing"):
+        private.dispute_check(unsigned, doc, mine)
+    opened_by_buyer = private.dispute_sign(unsigned, "buyer", buyer)
+    assert private.dispute_check(opened_by_buyer, doc, mine)[1] == private.DISPUTED_MEANS and "not billed" in private.DISPUTED_MEANS
+    with pytest.raises(ValueError, match="buyer's signature is missing or does not hold"):          # the supplier's key under the buyer's name
+        private.dispute_check(private.dispute_sign(unsigned, "buyer", supplier), doc, mine)
+    # resolving: both sign the SAME outcome. One alone, a stranger, or two who signed different outcomes do not resolve it
+    proposed = private.dispute_resolve(opened_by_buyer, "accepted", NOW + 60)
+    one = private.dispute_sign(proposed, "buyer", buyer)
+    with pytest.raises(ValueError, match="resolved by both parties, never by one"):
+        private.dispute_check(one, doc, mine)
+    with pytest.raises(ValueError, match="not a party"):
+        private.dispute_sign(one, "knos", stranger)
+    with pytest.raises(ValueError, match="supplier's signature is missing or does not hold"):
+        private.dispute_check({**one, "signatures": {**one["signatures"], "supplier": private.dispute_sign(proposed, "supplier", stranger)["signatures"]["supplier"]}}, doc, mine)
+    other = private.dispute_sign(private.dispute_resolve(opened_by_buyer, "rejected", NOW + 60), "supplier", supplier)
+    with pytest.raises(ValueError, match="supplier's signature is missing or does not hold"):
+        private.dispute_check({**one, "signatures": {**one["signatures"], "supplier": other["signatures"]["supplier"]}}, doc, mine)
+    both = private.dispute_sign(one, "supplier", supplier)
+    assert private.dispute_check(both, doc, mine)[1] == "the line counts as accepted on the invoice (a private record moves no money)"
+    for bad, why in (({**both, "outcome": "paid"}, "a dispute is"), ({**both, "record_sha256": "0" * 64}, "another record"), ({**both, "extra": 1}, "a dispute is")):
+        with pytest.raises(ValueError, match=why):
+            private.dispute_check(bad, doc, mine)
+    with pytest.raises(ValueError, match="resolved already"):
+        private.dispute_resolve(both, "rejected", NOW)
+    with pytest.raises(ValueError, match="public key of each party"):
+        private.dispute_check(both, doc, {"buyer": mine["buyer"]})
+
+
+def test_the_run_refuses_what_the_path_refuses_and_takes_a_real_verdict_and_a_gitlab_attestor(tmp_path, capsys):
+    one_sided = {**AGREED, "attestors": [{**a, "approved_by": ["buyer"]} for a in AGREED["attestors"]]}
+    (tmp_path / "one.json").write_text(json.dumps(one_sided), encoding="utf-8")
+    assert private.main(["run", "--repo", str(EX), "--attestors", str(tmp_path / "one.json"), "--out", str(tmp_path / "o1"), "--seed", "s", "--now", str(NOW)]) == 1
+    assert "not done: No attestor was approved by both parties." in capsys.readouterr().out and not (tmp_path / "o1").exists()
+    assert private.main(["run", "--repo", str(tmp_path / "nowhere"), "--attestors", str(EX / "attestors.json"), "--out", str(tmp_path / "o2")]) == 1
+    assert "is not a folder" in capsys.readouterr().out
+    # the judge's own verdict file is used as it is: its checks and its assurance are then in the record
+    gitlab_only = {**AGREED, "attestors": [AGREED["attestors"][1]]}
+    (tmp_path / "gl.json").write_text(json.dumps(gitlab_only), encoding="utf-8")
+    got = private.run(EX, tmp_path / "gl.json", tmp_path / "o3", verdict=VERDICT, terms=TERMS, now=NOW, seed="gl", say=lambda _l: None)
+    assert (got["record"]["assurance"], got["record"]["checks_sha256"], got["arrangement"]["arrangement"]) == ("hermetic", "c" * 64, "one attestor")
+    assert "project_id" in private._claims(got["token"]) and got["record"]["terms_sha256"] == hashlib.sha256(TERMS).hexdigest()
+    page = (ROOT / "docs" / "PRIVATE.md").read_text(encoding="utf-8")
+    assert "python -m knos.private run --repo" in page and "No private customer has run it" in page and "gh workflow run knos-private.yml" in page

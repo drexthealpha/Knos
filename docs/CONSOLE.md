@@ -56,6 +56,53 @@ would charge. Orders funded before the upgrade keep the rate fixed at their fund
 
 `tests/web/buyer.mjs` reads both tables off the page: one with the program answering as knos_pay 2.1, one as 2.2. On devnet the fee is test money.
 
+## The approver's screen
+
+For the person who approves the invoice and has never held a key: [`web/approver.js`](../web/approver.js),
+`renderApprover`. It is one screen and it works signed out: Knos has no account system, so there is nothing to sign in to.
+It reads the files you drop, choose or paste and asks nobody anything: no GitHub, no Solana.
+
+**What it reads.** A statement (`knos statement make`, or the one the first screen made from your invoice), its status
+file if there is one, the invoice (CSV; the columns `po_number` and `po_amount`, when it has them, name each line's
+purchase order and its limit), and receipts' five parts. "Try the sample" opens the first screen's made-up invoice.
+An invoice with no statement is shown with nothing agreed: the page does not check an invoice itself.
+
+**One row per line, read left to right:** Supplier, Purchase order, Agreed deliverable, Acceptance evidence,
+Authorised amount, Exception, Payment status. Every cell is a control: it opens what stands behind it under its row.
+The evidence cell of a line with a receipt reads the receipt in its five parts (Identity, Execution, Acceptance,
+Consequence, Assurance); the shape the page reads is written at the top of the module.
+
+**One exception queue.** Every line that is not agreed, with its reason in one sentence:
+
+| Exception | Who decides it | Enforced by |
+| --- | --- | --- |
+| disputed | the statement (`knos.ids.LINE_STATES`) | the statement flow: `knos statement approve` approves agreed lines only |
+| duplicate | the statement: billed twice on this invoice | the same |
+| insufficient evidence | the statement | the same |
+| replayed | the statement: its duplicate whose earlier billing is on another statement | the same |
+| over the purchase order | this page: agreed lines are added up per purchase order, in line order, against the limit the invoice file states | nothing. It is advice: the statement still calls the line agreed, `knos statement approve` would approve it, and no program knows a purchase order |
+
+The approver has two actions. **Approve agreed lines** asks for a name and a role and records what
+`knos statement approve` records (a status file beside the statement; a line held as over its purchase order is left
+out, and the command line reads that status as its own: `tests/test_site_approver.py`). **Message the supplier** opens
+a message that is already written: the line, the reason, what settles it. Nothing is sent by the page.
+
+**Files.** The statement with its approval (CSV), the audit export (every line with its ids), the approval record,
+the statement file, and the QuickBooks and NetSuite files: the existing exports, each one press, each a file export
+and not an integration. When the build carries `web/rails.js`, an approved statement also offers a payment
+instruction file; no bank has taken one.
+
+**Keyboard.** Tab reaches every control; the arrow keys, Home and End move between cells; Enter opens a cell; Escape
+shuts it and leaves the focus where it was.
+
+**How long a first comparison takes.** `node tests/web/approver.mjs page --write` opens the screen in headless
+Chromium, drops an invoice and its statement, reads the result, opens one exception and approves, and writes each
+step's time to [`web/approver_time.json`](../web/approver_time.json). The screen states that total and nothing else.
+It is a script's time on the build machine, far under ten minutes, with no command line. It is not a study: no
+person was timed, and no approver outside this repository has used the screen.
+
+**Private repositories.** The screen links [PRIVATE.md](PRIVATE.md), the path that keeps the code inside.
+
 ## A governed order, counted
 
 A governed order is one funded by comment from the organisation's Balance, after the page has said that the budget

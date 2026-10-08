@@ -219,11 +219,19 @@ def window_closed(doc: dict, rejected_at: float, now: float) -> str:
 
 
 def remember(store, appeal: dict) -> dict:
-    """Keep where the appeal stands in the memory engine (knos.proof.history.appeal_outcome), and on the supplier's record."""
+    """Keep where the appeal stands in the memory engine (knos.proof.history.appeal_outcome), and on the supplier's record;
+    and as an exception under its terms (knos.recall.appeal_moved): on the live queue while it is open, ended when it ends."""
     from .proof import history
     last = appeal["history"][-1]["at"]
-    return history.appeal_outcome(store, appeal["repo"], appeal["id"], appeal["state"], appeal["supplier"], appeal["pull"],
+    kept = history.appeal_outcome(store, appeal["repo"], appeal["id"], appeal["state"], appeal["supplier"], appeal["pull"],
                                   appeal["reason"], appeal["why"], appeal["terms_hash"], at=last)
+    if isinstance(store, history.SibylStore):       # the memory engine itself: a job without it keeps lessons in the process only, and has no queue
+        from . import recall                # the same appeal as an exception: `knos recall exception` then answers from it
+        try:
+            recall.appeal_moved(store, appeal)
+        except ValueError:                  # terms that are not a hash, a reason that is not a code: nothing to recall it by
+            pass
+    return kept
 
 
 def recalled(store, repo: str, evaluation: str) -> dict | None:

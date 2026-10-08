@@ -71,14 +71,15 @@ in `web/upgrades.json`, and [CAPABILITIES.md](CAPABILITIES.md) gives each capabi
 
 | vendor | the unit it bills | price | who counts | source |
 |---|---|---|---|---|
-| Sourcegraph, Agentic Batch Changes | "you pay per changeset merged into your codebase" | not published: the post sends the reader to its Enterprise Portal for credit rates | Sourcegraph | **[vendor page]** [changelog, 14 Sep 2026](https://sourcegraph.com/changelog/agentic-batch-changes-ga), read 6 Oct 2026 |
+| Sourcegraph, Agentic Batch Changes | "you pay per changeset merged into your codebase" | not published: the post sends the reader to its Enterprise Portal for credit rates | Sourcegraph | **[vendor page]** [changelog, 14 Sep 2026](https://sourcegraph.com/changelog/agentic-batch-changes-ga), read 6 Oct 2026 and again 7 Oct 2026 |
 | GitStart | "you only pay for merged PRs" | not published | GitStart | **[vendor page]** as listed by [Y Combinator](https://www.ycombinator.com/companies/gitstart) |
-| Intercom, Fin | a "Fin outcome" | from 0.99 USD ("From $0.99 per Fin outcome") | Intercom | **[vendor page]** [pricing](https://www.intercom.com/pricing), read 6 Oct 2026 |
-| Zendesk, AI agents | an "automated resolution": resolved "without any escalation to a human agent" | 1.50 USD committed, 2.00 USD pay-as-you-go | Zendesk | **[vendor page]** [pricing](https://www.zendesk.com/pricing/), read 6 Oct 2026 |
-| Salesforce, Agentforce | a conversation, or Flex Credits per action | 2 USD per conversation; 500 USD per 100,000 Flex Credits, an action taking 20 | Salesforce | **[vendor page]** [pricing](https://www.salesforce.com/agentforce/pricing/), read 6 Oct 2026 |
+| Intercom, Fin | a "Fin outcome" | from 0.99 USD ("From $0.99 per Fin outcome") | Intercom | **[vendor page]** [pricing](https://www.intercom.com/pricing), read 6 Oct 2026 and again 7 Oct 2026 |
+| Zendesk, AI agents | an "automated resolution": resolved "without any escalation to a human agent" | 1.50 USD committed, 2.00 USD pay-as-you-go | Zendesk | **[vendor page]** [pricing](https://www.zendesk.com/pricing/), read 6 Oct 2026 and again 7 Oct 2026 |
+| Salesforce, Agentforce | a conversation, or Flex Credits per action | 2 USD per conversation; 500 USD per 100,000 Flex Credits, an action taking 20 | Salesforce | **[vendor page]** [pricing](https://www.salesforce.com/agentforce/pricing/), read 6 Oct 2026 and again 7 Oct 2026 |
 
-In every row the seller keeps the count the buyer is billed on. That is the gap. Two people who sell or study
-these contracts say so:
+In every row the seller keeps the count the buyer is billed on. That is the gap. These five prices show that
+sellers price by outcome. They do not show that any buyer wants a separate neutral meter: nobody has been asked.
+Two people who sell or study these contracts say so:
 
 - "Attribution disputes are where these contracts fall apart. Outcome-based pricing only scales where both parties
   can agree on attribution" (Sidharth Ramsinghaney, Director of Strategy and Operations at Twilio; **[press]**
@@ -101,6 +102,22 @@ saves anything.
 Code has what support does not: a third party that already records the result and signs statements about it.
 GitHub and GitLab record the merge and the checks, and sign a CI run. Knos counts and settles on that signature,
 for any seller, in the buyer's own system of record.
+
+### Where the same count applies next
+
+Code comes first because its artifacts, checks and workload identities are already signed by a third party. Each
+further kind of work follows only where evidence of acceptance exists that neither side wrote.
+
+| kind of work | the outcome that is billed | the evidence a neutral count needs | in Knos today |
+|---|---|---|---|
+| Software delivery | an accepted change, migration, fix or milestone | the commit, the agreed tests, deployment evidence, a revert or warranty window | the product: [OUTCOMES.md](OUTCOMES.md), "Funded by a comment, paid by the suite" and "A Kubernetes cluster signs an outcome" |
+| Customer operations | a resolution, as the contract defines it | the customer's events, the escalation history, a reopening window, an agreed resolution policy | [OUTCOMES.md](OUTCOMES.md) gives its stage and what a signing system of record would have to do |
+| Data operations | an accepted transformation or labelled dataset | provenance, schema checks, sampling rules, quality thresholds | nothing |
+| Back-office processing | a completed reconciliation or an approved transaction | events from the system of record, authority checks, how an exception was resolved | nothing |
+| Agent services bought by other agents | an accepted API call or workflow deliverable | an identity that works across providers, outcome evidence, usage and contract terms | one example of an agent paying an agent on a signed result ([`examples/agent_pays_agent`](../examples/agent_pays_agent)); no customer |
+
+Five rows, one of them built. No figure sizes any of them here, and [OUTCOMES.md](OUTCOMES.md) is the only place
+that says what stage an outcome other than a merged change has reached.
 
 ### How much agent work there is
 
@@ -161,7 +178,8 @@ is a size for Knos's market.
 ### The competition, stated plainly
 
 Counting what an agent does and moving money for it are both sold already, by companies far larger than Knos.
-Each row was read on the vendor's own page on 7 Oct 2026.
+Each row was read on the vendor's own page on 7 Oct 2026, and every price in it was the same as on the earlier
+reading.
 
 | who | what it sells | source |
 |---|---|---|
@@ -198,7 +216,7 @@ is a count both sides can recompute, deduplication, retention, and a signed acce
 | Check | pull request or artifact checked | free, forever | nobody | nowhere |
 | Meter | evaluation | 100,000 a month free per organisation, then 0.002 USD | buyer | prepaid credits |
 | Acceptance | dollar released or reconciled against a signed acceptance | 0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap | funder, on top of the amount | knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain) |
-| Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | API (not built: a static file today) |
+| Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | `knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it |
 | Control | organisation, per year | Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist) | buyer | contract |
 | Pilot | one buyer, two suppliers, 30 days, one reconciled invoice | 2,500 USD, credited against year one | buyer | contract |
 
@@ -219,6 +237,10 @@ Three things changed in this book, each because the arithmetic of the last one d
 ([UNIT_COSTS.md](UNIT_COSTS.md), "The leaks"):
 
 - **The rate never goes below 0.20%.** The 0.10% tier above 10 million a month is withdrawn.
+  **A 0.20% floor is a pricing policy, not a law.** Nothing enforces it but a contract Knos would have to win. It
+  holds only while a buyer gets more from a signed acceptance than the fee costs and no alternative is cheaper in
+  all: a billing company at 0.7% of volume with metering included, and a fork that charges nothing, are both
+  alternatives.
 - **Small tickets are netted.** A floor of 0.05 on every outcome is 5.05% of a 0.99 outcome. Outcomes under 20
   USD accumulate, and settle as one release per payee per period: 0.30% of the netted amount, the floor once.
 - **Record is priced for a machine.** 0.10 USD a lookup, paid per call by whoever reads it. There is no
@@ -243,6 +265,11 @@ Three things changed in this book, each because the arithmetic of the last one d
 - No charge for a duplicate, an infrastructure failure or a retry Knos caused.
 - An accepted deliverable is counted once, however many evaluations it took.
 - A rejection that ran correctly is an evaluation, not an outcome: the Meter counts it and Acceptance does not.
+- **Once, whichever rail pays.** A deliverable released by the program paid there; one paid by a bank transfer
+  or any other rail pays on the invoice. The same deliverable listed under both is charged once.
+- **A rail's own charge is not Knos's price.** A bank's wire fee or a network's fee is listed apart from the
+  software price, in no line of it and not in its total (`rail_charges`; the invoice prints `payable` beside
+  `total`).
 - **The credit rule.** Value that is disputed or reversed never carries an Acceptance charge: in the month it was accepted it is left out of the reconciled value, and when it was accepted in an earlier month the fee it was charged, 0.30% of it unless the earlier invoice shows less, is credited on the next invoice.
 - Limits are shown before work starts: `knos bill estimate` and the calculator on the site's Pricing page print a
   year from five inputs: the plan, evaluations a month, accepted value, the share of it released on chain, and
@@ -297,8 +324,9 @@ Where each price is fixed:
   and 100,000 test USDC; a build for real money decides its own cap. The second deployment is upgradeable only
   through a multisig with a public 48-hour delay, until an outside review, so any change to these constants is
   public two days before it can run.
-- **Record.** In an API that is not built: a supplier's delivery record is a static file today, and the public
-  record page and its file stay free. The price is for a lookup by a machine: an agent, a marketplace or an
+- **Record.** Through `knos record serve`, a server anyone runs and Knos hosts none of: a supplier's delivery
+  record is also a static file, and the public record page and its file stay free. Revenue from lookups is
+  budgeted at zero until someone buys one. The price is for a lookup by a machine: an agent, a marketplace or an
   underwriter pays 0.10 USD for the call, through the same order flow that pays for work ([X402.md](X402.md)).
 - **Control.** In a contract. Nothing on chain enforces it, and the software it covers is in this repository under
   the MIT licence. What is sold is policy, budgets, private repositories, statements, exports, and a party that
@@ -363,6 +391,10 @@ A customer with 1,000,000 evaluations in a month has 900,000 billable ones: 1,80
 Batch mode exists so that rent no longer exceeds the price. Individual mode stays for an evaluation that has to
 stand on chain by itself. The supplier's own count of the same month (`ClaimBatch`) costs the supplier's relayer
 the same signatures and one more Ledger account, and no fee. Neither mode's cost has been measured on devnet.
+
+**Gross margin, not operating margin.** Every margin in this document and in [UNIT_COSTS.md](UNIT_COSTS.md) is
+gross: revenue less the direct cost of delivering it. Operating margin also subtracts building, selling and
+administering, and none of those costs is known, so none is printed.
 
 **The gross-margin budget.** At 0.002 per evaluation, a gross margin of 90% **[assumption: a target]** leaves
 0.0002 USD per evaluation to deliver it, and 95% leaves 0.0001. The monthly batch is the default delivery: one
@@ -432,6 +464,26 @@ it released on chain. That is 833,333 USD a month, under the first million, so a
 
 `knos bill estimate --plan business --evaluations 110000 --accepted 10000000` prints the same lines. However many
 suppliers that customer connects, the lines are the same.
+
+**A second customer on the Business plan** *(an example; no such customer exists)*: 1,000,000 evaluations a
+month and 120 million USD a year of accepted value in twelve even months, reconciled off chain. Each month's 10
+million crosses the first million, so 9 million of it pays 0.20% by contract. Record lookups are budgeted at zero.
+
+| line | arithmetic | USD a year |
+|---|---|---|
+| Control, Business | | 100,000 |
+| Acceptance | 12 × (1,000,000 × 0.30% + 9,000,000 × 0.20%) | 252,000 |
+| Meter | 12 × 900,000 × 0.002 | 21,600 |
+| **What the customer pays** | 100,000 + 252,000 + 21,600 | **373,600** |
+
+Three to one on that price is 1,120,800 USD a year. **That is a hurdle to be measured in a pilot, not a claim.**
+[UNIT_COSTS.md](UNIT_COSTS.md), "A second customer, worked", has what it costs to deliver: a gross margin of 95.7%
+at today's budgets.
+
+**The first customer to look for** is the one for whom that hurdle could be true. It meets the four conditions
+of section 5, and three more that make the first sale short: the work is code in repositories a forge already
+signs for; the person who approves the suppliers' invoices does it by hand today; and it can start in shadow
+mode, with no change to how anyone is paid. Nobody matching that has been asked.
 
 ### What a buyer must get back
 
@@ -504,6 +556,33 @@ second period without being asked; measured as repeat buyer spend, 0 today) and 
 entity that signs a contract and answers a support request; none today, and one person).
 
 None of the four should be called a moat until its measure is above zero for accounts that are not Knos's.
+
+### The loop, link by link, as it is measured today
+
+The loop that would make the four above form: a buyer adopts; its suppliers integrate; a supplier reuses the
+integration with another buyer; the acceptance format spreads; the record improves decisions; more buyers adopt.
+A larger log of events is not a network effect. Each new participant has to make Knos more useful to the ones
+already there, and each link has one counter ([`scripts/network_loop.py`](../scripts/network_loop.py),
+`tests/test_network_loop.py`):
+
+| link | the evidence that would show it | counter | today |
+|---|---|---|---|
+| Suppliers reuse the integration | suppliers paid by two or more unrelated buyers | `suppliers_two_buyers`, from the job records | 0 |
+| Buyers arrive through a supplier | buyers whose first paid job paid a supplier another buyer had already paid | `buyers_through_supplier`, from the job records | 0 |
+| The format spreads | software that is not Knos's and reads or writes the receipt format | `receipt_implementations`, kept by hand with a link | 0 |
+| The record improves decisions | buyers who say they chose or dropped a supplier on its record | `decisions_from_record`, kept by hand | 0 |
+| Buyers keep what they built | buyers with paid jobs in two or more different months | `repeat_buyers`, from the job records | 0 |
+| Trust is shown by others | report files from a run in someone else's repository | `reproductions_signed`, the files of `reproductions/` | 0 |
+
+The three counters read from job records count only accounts that are not Knos's, by the rules of
+[`scripts/outsiders.py`](../scripts/outsiders.py). That script measured 0 repositories that are not Knos's in
+which an outside funder funded a task ([submission/NUMBERS.md](submission/NUMBERS.md)), and with no outside buyer
+each of the three is 0 by arithmetic.
+The chain was not read to write this table. Two accounts of one company would count as two buyers: nothing here
+sees common ownership.
+
+A direct sales force and a custom integration for each customer would spend the operating margin a low cost of delivery leaves room for. So the links that matter
+most are the second and third: buyers that suppliers bring, and software that speaks the format without Knos.
 
 ## 8. Devnet is Knos's test mode
 

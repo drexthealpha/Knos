@@ -35,6 +35,11 @@ The rules, each of which a line of the invoice names:
 - Connecting a supplier costs nothing, however many are connected.
 - The rated party never pays: an invoice is the buyer's, every line of it is addressed to the buyer, and a
   customer-month billed to a supplier is refused.
+- Acceptance is charged once, whichever rail pays. An accepted deliverable names its rail: "chain" (the program
+  released it and took the fee then) or "bank" (it was paid by a bank or any other rail, and the invoice carries the
+  fee). The same deliverable under both rails is counted once, on the rail first given.
+- A rail's own charge (a bank's wire fee, a network's fee) is not Knos's price. It is listed apart, under
+  `rail_charges`, and is in no line and not in the total: `payable` is the total and those charges together.
 
 Arithmetic is `decimal.Decimal`, exact, rounded half up to the cent once per line (Acceptance: once per
 deliverable). Nothing here reads the network, the chain or a clock. Nothing has been sold: these are proposed
@@ -43,7 +48,12 @@ for payment. On devnet every fee the program takes is test money: 0 revenue.
 
     knos bill estimate --plan business --evaluations 110000 --accepted 10000000
     knos bill explain month.json
-    knos bill margin month.json docs/unit_costs.json      (and who earns what at the floor, and what netting saves)
+    knos bill margin month.json docs/unit_costs.json      (GROSS margin; the three leaks; who earns what at the floor;
+                                                           what netting saves; the second worked customer)
+
+GROSS MARGIN IS NOT OPERATING MARGIN. Gross margin = (revenue - the direct cost of delivering it) / revenue. Operating
+margin subtracts building, selling and administering as well. Nobody is employed and nothing has been sold, so no
+operating cost is known: every margin this module prints is gross and says so, and it prints no operating margin.
 """
 from __future__ import annotations
 
@@ -80,7 +90,7 @@ BOOK = (
     ("Record", "lookup of a supplier's delivery record through the machine-priced API",
      "0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public "
      "record page and its file stay free", "the buyer, marketplace or insurer reading it",
-     "API (not built: a static file today)"),
+     "`knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it"),
     ("Control", "organisation, per year", "Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single "
      "sign-on, private deployment and support that do not exist)", "buyer", "contract"),
     ("Pilot", "one buyer, two suppliers, 30 days, one reconciled invoice", "2,500 USD, credited against year one", "buyer", "contract"),
@@ -107,6 +117,8 @@ RULES = {
     "separate": "Agreed separately, and listed as agreed.",
     "pilot": "The Pilot is 2,500 USD, credited against year one.",
     "rated": "The rated party never pays.",
+    "once_any_rail": "Acceptance is charged once, whichever rail pays: on chain at release, or on the invoice when a bank pays.",
+    "rails": "A rail's own charge is not Knos's price: it is listed apart from the software price and is in no line of it.",
     "devnet": "On devnet every fee the program takes is test money: 0 revenue.",
 }
 
@@ -242,7 +254,9 @@ def _valued(rows: Any, what: str) -> list[tuple[str, Decimal, dict]]:
 
 
 FIELDS = {"plan", "month", "billed_to", "evaluations", "duplicates", "infrastructure_failures", "knos_retries", "accepted", "disputed",
-          "reversed", "suppliers", "record_lookups", "committed", "drawn", "credit_brought_forward", "other", "customer", "period"}
+          "reversed", "suppliers", "record_lookups", "committed", "drawn", "credit_brought_forward", "other", "customer", "period",
+          "rail_charges"}
+RAILS = ("chain", "bank")                # how an accepted deliverable was paid: by the program, or by any other rail
 
 
 def invoice(month: dict) -> dict:
@@ -265,6 +279,9 @@ def invoice(month: dict) -> dict:
         drawn                    how much of it earlier months of this year already used
         credit_brought_forward   credit an earlier invoice could not use
         other                    [{"what": "...", "amount": "..."}]  agreed separately; a negative amount is a credit
+        rail_charges             [{"what": "bank wire fees", "amount": "45.00"}]  what a payment rail charged, passed on as it
+                                 was charged: listed apart, in no line and not in `total`; `payable` adds them
+    An accepted row may say "rail": "chain" (the same as "on_chain": true) or "bank" (the same as leaving it out).
     """
     if not isinstance(month, dict):
         raise BillingError("a customer-month is a JSON object")
@@ -311,7 +328,8 @@ def invoice(month: dict) -> dict:
     accepted: dict[str, Decimal] = {}
     payee: dict[str, str] = {}
     chain: set[str] = set()
-    listed_again = 0
+    listed_again = banked = 0
+    said_rail = False                     # a row named its rail: the invoice then says the once-on-either-rail rule as a line
     for ident, value, row in _valued(month.get("accepted"), "accepted"):
         if ident in accepted:
             listed_again += 1                       # the same deliverable again: counted once, at the value first given
@@ -319,8 +337,14 @@ def invoice(month: dict) -> dict:
         accepted[ident] = value
         if row.get("on_chain", False) not in (True, False):
             raise BillingError(f"accepted {ident}: on_chain is true or false")
-        if row.get("on_chain", False):
+        rail = str(row.get("rail", "chain" if row.get("on_chain", False) else "bank")).strip().lower()
+        if rail not in RAILS or ("on_chain" in row and row["on_chain"] != (rail == "chain")):
+            raise BillingError(f"accepted {ident}: rail is one of {', '.join(RAILS)}, and agrees with on_chain when both are given")
+        said_rail = said_rail or "rail" in row
+        if rail == "chain":
             chain.add(ident)
+        else:
+            banked += 1
         payee[ident] = str(row.get("payee") or "").strip()
     earlier: list[tuple[str, str, Decimal]] = []
     left_out = ZERO
@@ -365,6 +389,9 @@ def invoice(month: dict) -> dict:
         lines.append(_line("on_chain", "Released on chain", ZERO, "on_chain",
                            f"{show(released)} over {len([k for k in chain if accepted[k] > 0]):,} deliverables; about {show(paid_there)} was paid to the program at release",
                            released=show(released)))
+    if said_rail and released and banked:
+        lines.append(_line("once_any_rail", "Acceptance, once on either rail", ZERO, "once_any_rail",
+                           f"{len(chain):,} paid by the program, {banked:,} by another rail; none is charged on both"))
 
     # 4. Record lookups
     lookups = _count(month.get("record_lookups", 0), "record_lookups")
@@ -405,10 +432,20 @@ def invoice(month: dict) -> dict:
         lines.append(_line("other", what, money(row.get("amount", "0"), f"other {n}, amount"), "pilot" if "pilot" in what.lower() else "separate"))
 
     total = sum((_amount(row) for row in lines), ZERO)
+    rails = []
+    for n, row in enumerate(month.get("rail_charges") or [], 1):
+        if not isinstance(row, dict) or not str(row.get("what", "")).strip():
+            raise BillingError(f"rail_charges {n}: needs a `what`")
+        charge = money(row.get("amount", "0"), f"rail_charges {n}, amount")
+        if charge < 0:
+            raise BillingError(f"rail_charges {n}: a charge is 0 or more")
+        rails.append({"what": str(row["what"]).strip(), "amount": show(charge), "rule": RULES["rails"]})
+    rail_total = sum((_amount(row) for row in rails), ZERO)
     return {
         "billed_to": PAYER, "currency": "USD", "plan": plan, "month": m,
         **({k: month[k] for k in ("customer", "period") if k in month}),
         "lines": lines, "total": show(total),
+        "rail_charges": rails, "rail_total": show(rail_total), "payable": show(total + rail_total),
         "credit_carried_forward": show(credit - used),
         "commitment_remaining": show(committed - drawn - covered),
         "rules": [RULES["on_chain"], RULES["suppliers"], RULES["rated"], RULES["devnet"]],
@@ -460,6 +497,10 @@ def explain(inv: dict) -> list[str]:
             out.append(f"      how:  {row['how']}")
         out.append(f"      rule: {row['rule']}")
     out.append(f"  {'Total':<42} {inv['total']:>14}")
+    if inv.get("rail_charges"):
+        out.append("Rail charges, apart from the software price:")
+        out += [f"  {row['what']:<42} {row['amount']:>14}" for row in inv["rail_charges"]]
+        out += [f"      rule: {RULES['rails']}", f"  {'Payable in all':<42} {inv['payable']:>14}"]
     if inv["credit_carried_forward"] != "0.00":
         out.append(f"  Credit carried forward: {inv['credit_carried_forward']}")
     if inv["commitment_remaining"] != "0.00":
@@ -489,9 +530,16 @@ def estimate_lines(e: dict) -> list[str]:
 
 # ---- gross margin: what a month's lines cost Knos to deliver, from a unit-cost file --------------------------------------
 COST_FIELDS = ("evaluation", "accepted_deliverable", "record_lookup", "control_year")
-MORE_COSTS = {"pair_month": ZERO, "payee_account": Decimal("0.18")}      # optional in a unit-cost file: one anchored batch for one buyer-supplier
-#                                                                          pair in a month; the rent of a payee's first token account
+MORE_COSTS = {"pair_month": ZERO, "payee_account": Decimal("0.18"), "control_year_target": Decimal(7_000)}
+#   optional in a unit-cost file: one anchored batch for one buyer-supplier pair in a month; the rent of a payee's first token
+#   account; what a year of Control has to cost once onboarding is self-service (a target, not a measurement)
+TARGET = Decimal("0.95")                 # the GROSS margin each line is held to in `leaks`
+GROSS = ("Every margin here is GROSS: revenue less the direct cost of delivering it, over revenue. Operating margin also subtracts "
+         "building, selling and administering; nobody is employed and nothing is sold, so none of that is known and no operating margin is printed.")
+SECOND: dict[str, Any] = {"plan": "business", "evaluations": 1_000_000, "accepted": "120000000.00", "suppliers": 5, "deliverable": "20000.00"}
+#   the second worked customer: 120 million accepted a year in twelve even months, 1 million evaluations a month, no record lookups
 SPLIT_AMOUNTS = (5, 20, 100, 1_000)      # whole test USDC: the releases `floor_split` works
+REMEDY = (5, 100)                        # `floor_remedy`: outcomes of 5 test USDC, 100 of them to one payee in a period
 NET_EXAMPLE = (Decimal("0.99"), 100)     # the outcome `netting_example` works, and how many of them one payee is owed in a period
 
 
@@ -523,6 +571,7 @@ def margin(month: dict, costs: Any) -> dict:
     is test money). With it: who earns what at the floor under both builds of the program (`floor_split`) and what a
     small outcome pays by itself and netted (`netting_example`)."""
     inv, unit = invoice(month), unit_costs(costs)
+    measured = measured_parts(costs)
     by = {row["line"]: row for row in inv["lines"]}
     rows = []
 
@@ -543,9 +592,98 @@ def margin(month: dict, costs: Any) -> dict:
     return {"plan": inv["plan"], "month": inv["month"], "lines": rows, "revenue": show(revenue), "direct_cost": show(cost), "gross": show(revenue - cost),
             "margin": f"{(revenue - cost) / revenue * 100:.1f}%" if revenue > 0 else "none: no revenue",
             "free_tier_year": show(12 * (METER_FREE * unit["evaluation"] + pairs * unit["pair_month"])),
-            "floor": floor_split(unit["payee_account"]), "netting": netting_example(),
+            "floor": floor_split(unit["payee_account"]), "netting": netting_example(), "remedy": floor_remedy(),
+            "kind": "gross", "operating": "not computed: no operating cost is known", "gross_note": GROSS,
+            "leaks": leaks(by, pairs, unit, measured), "second": second_customer(unit),
             "note": ("Revenue is the lines before credits, the commitment and anything agreed separately. Direct cost is the unit-cost file's, and "
                      "a cost it marks as a budget is a budget, not a measurement. Nothing has been sold.")}
+
+
+def measured_parts(doc: Any) -> dict[str, Decimal]:
+    """The part of each unit cost that the file marks as measured: all of a cost whose kind is "measured", the sum of
+    `of_which_measured` of one that is a budget, and nothing where the file does not say."""
+    rows = doc.get("costs", doc) if isinstance(doc, dict) else {}
+    out = {}
+    for name, row in rows.items():
+        if isinstance(row, dict) and row.get("kind") == "measured":
+            out[name] = Decimal(str(row["usd"]))
+        elif isinstance(row, dict):
+            out[name] = sum((Decimal(str(v)) for v in (row.get("of_which_measured") or {}).values()), ZERO)
+    return out
+
+
+def _pct(revenue: Decimal, cost: Decimal) -> str:
+    return f"{(revenue - cost) / revenue * 100:.1f}%" if revenue > 0 else "none: no revenue"
+
+
+def meter_break_even(unit: dict[str, Decimal], pairs: int, target: Decimal = TARGET) -> int | None:
+    """The least count of evaluations a month at which the Meter line reaches `target` gross at these unit costs: every
+    counted evaluation costs `evaluation`, each supplier's batch `pair_month`, and only those past the free ones earn."""
+    keep = METER_PRICE * (1 - target) - unit["evaluation"]          # what one more billable evaluation leaves toward the fixed part
+    if keep <= 0:
+        return None
+    need = (METER_FREE * METER_PRICE * (1 - target) + pairs * unit["pair_month"]) / keep
+    return int(need.to_integral_value(rounding="ROUND_CEILING"))
+
+
+def leaks(by: dict, pairs: int, unit: dict[str, Decimal], measured: dict[str, Decimal]) -> dict:
+    """The three places a line earns less than `TARGET` gross, each with its number and the design that closes it.
+    meter: what one delivered evaluation may cost for the month's Meter line to keep 95%, what it costs at the file's
+    budget, what the measured part of that is, and the count from which the budget meets it. control: the budget, the
+    target once onboarding is self-service, and the margin at each. The floor is `floor_split` and `floor_remedy`."""
+    counted, revenue = by["meter"]["counted"], _amount(by["meter"])
+    cost = counted * unit["evaluation"] + pairs * unit["pair_month"]
+    known = counted * measured.get("evaluation", ZERO) + pairs * measured.get("pair_month", ZERO)
+    allowed = revenue * (1 - TARGET)
+    meter = {"evaluations": counted, "revenue": show(revenue), "cost": show(cost), "gross_margin": _pct(revenue, cents(cost)),
+             "allowed_cost": show(allowed), "allowed_each": f"{allowed / counted:.7f}" if counted else "none",
+             "cost_each": f"{cost / counted:.7f}" if counted else "none", "meets": bool(counted) and cost <= allowed,
+             "measured_cost": show(known), "measured_each": f"{known / counted:.7f}" if counted else "none",
+             "measured_meets": bool(counted) and known <= allowed, "gross_margin_measured_only": _pct(revenue, known),
+             "ceiling_each_at_scale": f"{METER_PRICE * (1 - TARGET):.4f}", "reaches_at": meter_break_even(unit, pairs),
+             "design": "one anchored batch a supplier a month, a ledger event of 370 bytes, reconciliation each side runs itself"}
+    year, now, want = CONTROL["business"], unit["control_year"], unit["control_year_target"]
+    control = {"plan": "business", "price": show(year), "cost": show(now), "gross_margin": _pct(year, now), "target_cost": show(want),
+               "gross_margin_at_target": _pct(year, want), "to_remove": show(now - want), "ceiling_at_95": show(year * (1 - TARGET)),
+               "design": "self-service onboarding: the buyer copies one pinned workflow file and runs `knos shadow` on its first invoice; a supplier runs `knos preflight`; support is pooled"}
+    return {"target": f"{TARGET * 100:.0f}%", "meter": meter, "control": control}
+
+
+def second_customer(unit: dict[str, Decimal] | None = None) -> dict:
+    """The second worked customer (SECOND), as a year at the price book and, with unit costs, as a gross margin: Control
+    100,000 + Acceptance 12 x (1M x 0.30% + 9M x 0.20%) = 252,000 + Meter 12 x 900,000 x 0.002 = 21,600 = 373,600. No
+    record revenue. `hurdle`: three times the price, a benefit a pilot has to measure; nothing shows any buyer gets it."""
+    e = estimate(SECOND["plan"], SECOND["evaluations"], SECOND["accepted"])
+    total = Decimal(e["total"].replace(",", ""))
+    out = {"plan": e["plan"], "evaluations_a_month": e["evaluations_a_month"], "accepted_a_year": e["accepted_a_year"], "control": e["control"],
+           "acceptance": e["acceptance"], "meter": e["meter"], "records": e["records"], "total": e["total"], "hurdle": e["benefit_to_demand"],
+           "hurdle_is": "a hurdle to be measured in a pilot, not a claim", "cost_ceiling_at_95": show(total * (1 - TARGET))}
+    if unit is not None:
+        n = int(money(SECOND["accepted"]) / money(SECOND["deliverable"]))
+        parts = {"control": unit["control_year"], "meter": 12 * (SECOND["evaluations"] * unit["evaluation"] + SECOND["suppliers"] * unit["pair_month"]),
+                 "acceptance": n * unit["accepted_deliverable"]}
+        cost = sum(parts.values(), ZERO)
+        at_target = cost - unit["control_year"] + unit["control_year_target"]
+        out |= {"suppliers": SECOND["suppliers"], "deliverables": n, "direct_cost": show(cost), "gross_margin": _pct(total, cents(cost)),
+                "direct_cost_at_control_target": show(at_target), "gross_margin_at_control_target": _pct(total, cents(at_target)),
+                "cost_by_line": {k: show(v) for k, v in parts.items()}}
+    return out
+
+
+def floor_remedy(value: int = REMEDY[0], count: int = REMEDY[1]) -> dict:
+    """Netting as the remedy for the floor, under knos_pay 2.2: `count` outcomes of `value` test USDC to one payee in a
+    period, released one by one and as one netted release. One by one the tip is the whole fee each time; netted,
+    the tip is paid once and the rate applies to the sum."""
+    from . import fees
+    from .settle.v2 import pay
+
+    unit, r = 1_000_000, fees.NEW
+    u = lambda n: show(Decimal(n) / unit)      # noqa: E731
+    one = r.order(value * unit)
+    net = r.order(value * count * unit)
+    return {"build": r.build, "value": show(Decimal(value)), "count": count,
+            "one_by_one": {"releases": count, "fee": u(one * count), "tips": u(min(pay.TIP, one) * count), "fee_owner": u((one - min(pay.TIP, one)) * count)},
+            "netted": {"releases": 1, "amount": show(Decimal(value * count)), "fee": u(net), "tips": u(min(pay.TIP, net)), "fee_owner": u(net - min(pay.TIP, net))}}
 
 
 def floor_split(payee_account: Decimal = MORE_COSTS["payee_account"], amounts: tuple = SPLIT_AMOUNTS) -> list[dict]:
@@ -596,13 +734,24 @@ def netting_example(value: Decimal = NET_EXAMPLE[0], count: int = NET_EXAMPLE[1]
 
 
 def margin_lines(g: dict) -> list[str]:
-    out = [f"Gross margin of month {g['month']} of the contract year. Plan: {g['plan']}. USD.",
-           f"  {'line':<22} {'units':>14} {'revenue':>14} {'direct cost':>14} {'gross':>14}  margin"]
+    out = [f"Gross margin of month {g['month']} of the contract year. Plan: {g['plan']}. USD.", g["gross_note"],
+           f"  {'line':<22} {'units':>14} {'revenue':>14} {'direct cost':>14} {'gross':>14}  gross margin"]
     for r in [*g["lines"], {"what": "All lines", "units": "", "revenue": g["revenue"], "direct_cost": g["direct_cost"], "gross": g["gross"], "margin": g["margin"]}]:
         units = f"{r['units']:,}" if isinstance(r["units"], int) else str(r["units"])
         out.append(f"  {r['what']:<22} {units:>14} {r['revenue']:>14} {r['direct_cost']:>14} {r['gross']:>14}  {r['margin']}")
     out.append(g["note"])
     out.append(f"The free evaluations: at most {g['free_tier_year']} a year for this organisation at these costs. It is acquisition cost.")
+    k, c, w = g["leaks"]["meter"], g["leaks"]["control"], g["second"]
+    out += ["", f"The three leaks, against a gross margin of {g['leaks']['target']}.",
+            f"1. Meter: {k['evaluations']:,} evaluations delivered earn {k['revenue']} and cost {k['cost']}: {k['gross_margin']} gross.",
+            f"   For {g['leaks']['target']} one delivered evaluation may cost {k['allowed_each']}; at the file's costs it is {k['cost_each']} "
+            f"({'meets it' if k['meets'] else 'does not meet it'}); the measured part alone is {k['measured_each']} "
+            f"({'meets it' if k['measured_meets'] else 'does not meet it'}: {k['gross_margin_measured_only']} gross).",
+            f"   At scale the ceiling is {k['ceiling_each_at_scale']} an evaluation; these costs meet {g['leaks']['target']} from "
+            + (f"{k['reaches_at']:,} evaluations a month." if k["reaches_at"] else "no count: an evaluation costs more than it may.") + f" Design: {k['design']}.",
+            f"2. Control, Business: {c['cost']} a year of onboarding and support on {c['price']} is {c['gross_margin']} gross. The target is {c['target_cost']}: "
+            f"{c['gross_margin_at_target']} gross, {c['to_remove']} to remove. Design: {c['design']}.",
+            "3. The floor: the funder pays the fee on top of the amount and the relayer's tip comes out of that fee, under both builds. The tables follow."]
     for b in g["floor"]:
         out += ["", f"Who earns what at the floor, knos_pay {b['build']} (the {b['release']} fee: {b['rate']}). Test USDC; `knos status` says which build is live.",
                 f"  {'release':>10} {'fee':>8} {'share':>7} {'tip':>6} {'fee owner':>10}   a payee's first payment: {'tip':>5} {'less ' + b['account'] + ' rent':>15} {'fee owner':>10}"]
@@ -613,6 +762,13 @@ def margin_lines(g: dict) -> list[str]:
     out += ["", f"Netting: an outcome of {n['value']} by itself pays the floor, {n['alone_fee']}: {n['alone_share']} of it. (On chain the least order is {n['on_chain_least']}.)",
             f"  {n['count']:,} of them to one payee in a period, netted: one release of {n['netted_amount']} pays {n['netted_fee']}, {n['netted_share']}; one by one they pay {n['individually']}.",
             f"  One alone in a period still pays the floor, {n['one_in_a_period']}; from {n['reaches_rate']} of them the rate is the fee."]
+    m, a, b = g["remedy"], g["remedy"]["one_by_one"], g["remedy"]["netted"]
+    out += [f"  The remedy for the floor, knos_pay {m['build']}: {m['count']:,} outcomes of {m['value']} to one payee, one by one: fee {a['fee']}, tips {a['tips']}, "
+            f"fee owner {a['fee_owner']}. Netted into one release of {b['amount']}: fee {b['fee']}, tip {b['tips']}, fee owner {b['fee_owner']}.",
+            "", f"The second worked customer: {w['plan']}, {w['evaluations_a_month']:,} evaluations a month, {w['accepted_a_year']} accepted a year, no record revenue.",
+            f"  Control {w['control']} + Acceptance {w['acceptance']} + Meter {w['meter']} = {w['total']} a year.",
+            f"  Direct cost {w['direct_cost']}: {w['gross_margin']} gross; with Control at its target, {w['direct_cost_at_control_target']}: {w['gross_margin_at_control_target']} gross.",
+            f"  Three to one is {w['hurdle']} a year of benefit: {w['hurdle_is']}."]
     return out
 
 
@@ -673,7 +829,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
     def margin_(month: Path = typer.Argument(..., help="a customer-month, as JSON"),
                 costs: Path = typer.Argument(..., help="a unit-cost file, as JSON (docs/unit_costs.json is one)"),
                 as_json: bool = typer.Option(False, "--json", help="print JSON")) -> None:
-        """Revenue, direct cost and gross margin of one customer-month, line by line, at the unit costs of a file."""
+        """Revenue, direct cost and GROSS margin of one customer-month, line by line, at the unit costs of a file; the three leaks, the floor and netting."""
         from . import cli
         try:
             data, unit = (json.loads(p.read_text(encoding="utf-8-sig")) for p in (month, costs))

@@ -401,6 +401,8 @@ const stAmount = (value, scale) => {
   const neg = value < 0n, v = neg ? -value : value, base = 10n ** BigInt(scale);
   return `${neg ? "-" : ""}${v / base}.${(v % base).toString().padStart(scale, "0").replace(/0+$/, "").padEnd(2, "0")}`;
 };
+/** statement.units and statement.amount_of, for a page that adds a statement's amounts itself (web/approver.js). */
+export { stUnits as statementUnits, stAmount as statementAmount };
 const eventsOf = (st, status) => {
   if (!status) return [];
   if (status.kind !== STATUS_KIND || status.statement !== st.sha256) throw new Error("The status file is another statement's: it names another sha256.");
@@ -418,7 +420,9 @@ export function statementLines(st, status = null) {
     const noted = events.filter((e) => e.type === "grn" && e.line === ln.invoice_line).map((e) => e.grn), note = noted[noted.length - 1];
     ln = { ...ln, assurance: note ? note.receipt_of_goods.assurance : ln.evaluations.length ? "reported" : NOT_EVALUATED,
       po_reference: note && note.purchase_order ? note.purchase_order.number : "", grn_reference: grnReference(ln) };
-    return { ...ln, settlement: last ? last.settlement : null, payment: last ? last.state : ln.payment, approved_by: ok ? `${ok.by} (${ok.role}) on ${ok.on}` : "" };
+    const said = last && last.note ? last.note : "";       // what the last settlement adds in words: a bank's return, a quorum of one controller
+    return { ...ln, settlement: last ? last.settlement : null, payment: last ? last.state : ln.payment, approved_by: ok ? `${ok.by} (${ok.role}) on ${ok.on}` : "",
+      ...(said ? { why: ln.why ? `${ln.why}; ${said}` : said } : {}) };
   });
 }
 /** statement.grn_said: a goods-received note's result in one sentence. */
@@ -478,6 +482,8 @@ export async function statementCells(st, status = null) {
   const totals = ["billed", ...LINE_STATES].map((name) => [name === "billed" ? name : LINE_WORDS[name], String(st.totals[name].lines), st.totals[name].amount]);
   const recorded = events.map((e) => (e.type === "approval" ? ["approval", e.on, `${e.by} (${e.role})`, `${e.lines.length} agreed lines`, e.amount]
     : e.type === "grn" ? ["goods-received note", e.on, e.line, grnSaid(e.grn), e.grn.reference]
+    : e.type === "instruction" ? ["payment file", e.on, e.message, `${e.transfers.length} ${e.transfers.length === 1 ? "transfer" : "transfers"} by bank (${e.format}), ${e.amount} ${e.currency}, to pay on ${e.execute}`, `sha256 ${e.sha256}`]
+    : e.returned ? ["settlement", e.on, e.line, `returned by the bank (${e.returned}): payable again, reference ${e.reference}`, e.settlement]
     : ["settlement", e.on, e.line, `${PAY_WORDS[e.state]} by ${e.method}, reference ${e.reference}`, e.settlement]));
   return { top, head: [...STATEMENT_HEAD], rows, totals, answers: statementAnswers(st, status), events: recorded };
 }

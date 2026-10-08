@@ -51,9 +51,51 @@ transaction, so an order's terms history is explicit. Then the payment itself.
   `authorises_payment`, `exposed`, `limitations_of`, `ids_of`, `authorisation`, `evaluator`, `independence_of`,
   `upgrade`, `as2`, `as3`, `check`, `render`, `canonical`, `digest`); the tests are `tests/test_receipt.py`,
   `tests/test_verdicts_ids.py`, `tests/test_bundle.py` and `tests/test_receipt_offline.py`
-- Commands: `knos receipt FILE` (check and print), `knos receipt mirror --out DIR`, `knos receipt verify ORDER
+- Commands: `knos receipt FILE` (check and print), `knos receipt explain FILE [--json]` (the five parts, below),
+  `knos receipt mirror --out DIR`, `knos receipt verify ORDER
   [--mirror DIR]`, `knos bundle make ORDER [--verdict FILE]`, `knos bundle verify FILE [--rpc URL] [--mirror DIR]`,
   and with the chain gone `knos bundle verify FILE --no-chain` and `knos receipt verify FILE --no-chain`
+
+## The five parts of a receipt
+
+Every receipt of version 4 or 5 reads in five parts. This is a view (`knos.receipt.parts`), not a version: it adds
+nothing to a receipt, changes no digest, and is computed from the receipt's own fields.
+
+| Part | It answers | It is read from |
+| --- | --- | --- |
+| Identity | Who produced the evidence: the issuer, the repository, the workflow, the run | `issuer_authenticated` (or, when nobody signed, `evidence_source`) |
+| Execution | Which evaluator ran, on which inputs, by hash | `evaluator_observed.judge`, `.artifact`, `.evaluators`, their `reexecution` |
+| Acceptance | Which agreed test passed, under which terms hash | `evaluator_observed.verdict`, `.checks`, `policy`, `disputed` |
+| Consequence | What amount became payable, to whom, in which order | `amounts`, `payees`, `order`, `transaction`, `ids` |
+| Assurance | The level, and in plain words what stayed trusted or outside the evaluation | `assurance` (computed for version 4), `limitations`, the evaluators' ids against the payees' and the funder's |
+
+```
+knos receipt explain receipt.json          # five numbered parts, each one line, then what stands behind it
+knos receipt explain receipt.json --json   # the same as data: {kind: "knos-receipt-parts", v: 1, weak, parts: [...]}
+```
+
+Each part is `{id, title, asks, line, facts, more}`: `line` is one sentence, `facts` the fields behind it, `more` the
+sentences a reader opens. The site's Verifier page shows the same five rows for a pasted receipt
+(`web/verifier.js`, `receiptParts`); `tests/data/receipt_parts.json` holds receipts and the answer, and both readers
+are held to it word for word. The page reads and does not check the receipt's rules or a signature.
+
+**A valid signature on a weak test reads as weak.** `weak` is true, and the Assurance line starts with `WEAK`, when
+any of these holds, each computed and none typed:
+
+- nobody outside the supplier's reach ran the checks again (the level is `reported`);
+- no issuer signed anything (the evidence is the run's own record);
+- the terms name no check and the order is paid on a merge, so the merge alone was the acceptance;
+- an evaluator's owner or starter is a payee ("The evaluator's account is the payee's"), or the funder;
+- the evaluators that spoke are one party.
+
+Every receipt, weak or not, also lists what stayed outside the evaluation: that the workflow file decides what it
+reads (the issuer signed which workflow ran, not what it ran), that the order's own repository judged when it did,
+and that nothing shows the terms asked for the right thing. A receipt that is not weak is not a proof that the work
+is right: its Assurance part still names who is trusted at its level.
+
+Versions 1 and 2 are not read this way (they do not say who funded); a version 3 receipt is read as the version 4
+receipt `build4` makes of it. An account id above 2^53 (a GitLab id as the program stores it) is read exactly by the
+command and rounded by a browser's JSON reader: for those, use the command.
 
 ## Version 5
 

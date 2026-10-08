@@ -74,6 +74,12 @@
    "payees": "accounts and wallets that are not Knos's and were paid by a job somebody else funded"
   }
  },
+ "loop": {
+  "measured": true,
+  "suppliers_two_buyers": 1,
+  "buyers_through_supplier": 1,
+  "repeat_buyers": 0
+ },
  "totals": {
   "funded": 23,
   "completed": 14,

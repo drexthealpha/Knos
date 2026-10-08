@@ -74,6 +74,36 @@ the local simulator, with no key and no network: `python scripts/exercise_public
 --out <file>` starts on the test build of the live source, funds the two orders, upgrades in place and runs the
 rest; `tests/test_exercise_public.py` runs it.
 
+**Rounds other modules bring.** `run --phase after` is the one command for 2.2: after the steps above it runs every
+registered round of that phase. A round is a file of `scripts/exercise_rounds/` with `ROUND = {"name", "needs",
+"caps", "phase"}`, a `run(book, st)` for the public ids and a `simulate(book, st)` for `--simulate`
+(`python scripts/exercise_public.py list` prints each with what it needs). Each round ends with a code of its own,
+printed as `<name>: exit <code>: <why>` and kept in the evidence file:
+
+| code | means |
+|---|---|
+| 0 | done |
+| 1 | failed: the command exits 1 too |
+| 3 | not run or not finished, for that round only: a prerequisite is not met or is one the script does not know, a forge's run or the chain's clock is waited for, or it cannot be done from here |
+
+The prerequisites a round may name: a program (`knos_oidc`, `knos_pay`, `knos_meter`, `knos_passkey`: the public id
+runs this version's build), `pay-2.2`, `neutral` (`--neutral` was given), `note:<name>` (`note <name> key=value` was
+run) and `public`. `net-reserve`, `private` and `judge` have a place kept: until a file fills one it ends 3 and
+says so. `run --only <name>` runs one round alone and exits with its code. `tests/test_exercise_public_rounds.py`.
+
+**Throughput, measured.** Once per release, on devnet, with a wallet that holds devnet SOL:
+
+```
+python scripts/load.py measure --relays 4 --orders 40 --wallet <keypair> --write
+```
+
+Four relays, each with a fee payer of its own derived from the wallet's key, fund 40 orders twice: with no account
+in common, and with one shared writable account that stands for the fee account. It records confirmed transactions
+a second, retries and failures for each, refunds every order and sends each relay's SOL back. Each relay is lent
+0.012 SOL for each order it funds each way, and 0.01 more; a run that died is swept by `measure --relays 4 --orders 0`.
+[LOAD.md](LOAD.md) prints it as "Measured on devnet (date)", apart from the derived bound; until it has run, that
+page says nothing is measured. `--simulate` runs the same path here and gives no rate.
+
 **The site and the feed.** `python scripts/upgrade_feed.py --published` reads the multisig and then the site's own
 `upgrades.json`, and exits 1 with one line per proposal the site is behind on. The site's copy is written when the
 site is built, so after a proposal is made or executed it is behind until the pages workflow has run:
@@ -86,6 +116,18 @@ Node packages when they are missing, loads them, sends nothing, and exits 0 when
 itself does the same check first: with `scripts/node_modules` missing it runs `npm ci --prefix scripts
 --omit=optional` and goes on; when the packages cannot be had it sends nothing and ends with exit 1 and one line
 starting `stopped:`. Every line it writes into `<key folder>/upgrade-run.log` starts with the time.
+
+Nobody has to be logged on to Windows at the minute. Under WSL the Windows task starts the run at the time, as soon
+as possible after a start that was missed (the machine was off or asleep: `StartWhenAvailable`), and at this Windows
+user's next logon from the time on, for 14 days. No password is stored: the task runs in the user's own session,
+which is why the logon trigger is there. The way to run with nobody logged on and no stored password (logon type
+S4U) is not used, because such a task has "no access to either the network or encrypted files"
+([Microsoft's task schema](https://learn.microsoft.com/en-us/windows/win32/taskschd/taskschedulerschema-logontype-simpletype))
+and the run needs the cluster. A second start after a run that executed every proposal logs one line and sends
+nothing (`<key folder>/upgrade-run.done`; `--run --force` runs it again). To check the task:
+`schtasks.exe /Query /TN KnosUpgrade /V /FO LIST` (Last Result 267011: it has not run yet; 0: the run ended well),
+then `bash scripts/schedule_upgrade.sh --show`, whose `done:` line says whether a run executed every proposal. The
+logon trigger has not fired on a real machine yet: `tests/test_schedule_upgrade.py` checks the task's file.
 
 ## After the push: logged out
 
@@ -437,6 +479,19 @@ last green `tests.yml` run on staging, and write it with its source:
 python scripts/bench_docs.py --set tests_passing=<passed> --source "pytest (ubuntu-latest, 3.12) of tests.yml run <run id> on drexthealpha/knos-rc <commit>, the staging tree of this release: <passed> passed, <skipped> skipped, https://github.com/drexthealpha/knos-rc/actions/runs/<run id>"
 python scripts/bench_docs.py --check && python scripts/doc_claims.py
 python scripts/release_manifest.py --check        # docs/MANIFEST.md is what the tree gives: source, built bytes, capabilities, limits
+python scripts/truth_check.py                     # no document or page contradicts the capability list, the source or the price book
+python scripts/public_face.py --check             # every description of Knos in this tree is the one sentence
+python scripts/judges.py --check                  # docs/JUDGES.md keeps its rules, and docs/judges.json is that page
+python -m knos.enforce --check                    # docs/ENFORCEMENT.md is the table the code gives
+python scripts/archive_verify.py --check          # the recorded run of the stand-alone verifier is what a run gives now
+```
+
+After the packages are published and the repository's description is set, the same sentence is read back from where
+people see it. This asks PyPI, the MCP registry, glama.ai and GitHub, and prints the command that corrects each one
+that still serves older words (`glama.json` has no description field: glama.ai indexes the README by itself):
+
+```
+python scripts/public_face.py --remote
 ```
 
 It rewrites `docs/bench.json`, `docs/facts.json` and the sentence in `docs/submission/SUBMISSION.md`. (The tree
@@ -472,14 +527,14 @@ Two rules, each learned from a release that broke it:
 export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
 python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
 git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.19 && git push origin v0.3.19        # starts release.yml
+git tag v0.3.20 && git push origin v0.3.20        # starts release.yml
 ```
 
 `publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
 on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.19` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.20` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
 
 **Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that
@@ -562,6 +617,32 @@ its registry yet is skipped with one line that names this section; a version the
 alone. The token jobs (`crates`, `npmjs`) remain as a fallback and do nothing while `CARGO_REGISTRY_TOKEN` and
 `NPM_TOKEN` are unset; leave them unset. A version number, once published, can never be used again on either
 registry: a mistake is fixed by a new version.
+
+### Registries: is this machine signed in, and the commands in order
+
+`python scripts/release.py registry-plan` prints, for each package, whether it packs, and then one line per
+registry: `OK` with the commands in order, or `blocked` with the reason. It starts no sign-in and reads no token.
+Add `--online` to ask each registry which versions it has.
+
+"Already signed in" means exactly this, and nothing more:
+
+| registry | signed in when | not signed in looks like |
+|---|---|---|
+| crates.io | `CARGO_REGISTRY_TOKEN` is set, or `cargo login` has stored a token: `${CARGO_HOME:-~/.cargo}/credentials.toml` exists and is not empty | `crates.io: blocked: not signed in: CARGO_REGISTRY_TOKEN is not set and .../credentials.toml is missing or empty` |
+| npm | `npm whoami` answers with a user name | `npm: blocked: not signed in: \`npm whoami\` did not answer with a name (ENEEDAUTH)`; the 0.3.19 run saw `ENEEDAUTH` in WSL and `E401` on Windows |
+
+When a registry says `OK`, in this order (the two interface crates are held at 0.3.14, and do not depend on each
+other; `--dry-run` first, each time):
+
+```
+(cd crates/knos-oidc-interface && cargo publish --dry-run --locked) && (cd crates/knos-oidc-interface && cargo publish --locked)
+(cd crates/knos-pay-interface  && cargo publish --dry-run --locked) && (cd crates/knos-pay-interface  && cargo publish --locked)
+(cd sdk/settle && node test.mjs && npm publish --dry-run && npm publish --access public)
+python scripts/release.py registry-plan --online        # each version is now on its registry: nothing to publish
+```
+
+When a registry says `blocked`, nothing is published there and the release goes on: no `cargo login`, no
+`npm login`, no account. Neither has been published: the 0.3.19 run was signed in to neither registry.
 
 A package is published at ITS OWN version. `knos-settle` moves with every release, so its version is the tag's.
 The two interface crates are among the crates `scripts/bump_version.py` holds (`PROGRAMS_FROZEN`, at `FROZEN_AT`), so
@@ -648,7 +729,15 @@ The public worker (`worker.yml`) is a chain: each run starts the next. The first
 release by hash. Its install step waits when PyPI's index does not list the release yet: for that one error, 15, 30,
 60, 120, 180 and 195 seconds, 10 minutes in all, and then it fails as before. Any other install error is red at once.
 
-A run that fails starts no next run, by design. If the chain has stopped:
+The start of the next run is asked again when GitHub answers it with a 5xx or a 429, or does not answer: after 2, 4,
+8, ... seconds, or what `Retry-After` says (`python -m knos.proof.chain start`; up to 3 times in the handover step
+and 6 in the last). In the 0.3.19 run one HTTP 500 to that start ended the chain until it was started by hand. And a
+job that is not part of the chain, `watchdog`, starts a chain when no run of one is queued or in progress: on the
+workflow's timer and on every event that starts the workflow (a token announced, a `knos` run ended), with no
+secret. Should two starts be taken, the older run goes on and the other ends at its first step. Neither has run on
+GitHub yet: `tests/test_worker_chain.py` and `tests/test_workflows2.py` test them here.
+
+A run that fails starts no next run, by design. If the chain has stopped and no event or timer has started it:
 
 ```
 gh run list --repo drexthealpha/Knos --workflow worker.yml --limit 5     # is any run going?
@@ -657,7 +746,7 @@ gh workflow run worker.yml --repo drexthealpha/Knos --ref main           # start
 
 Re-running the failed run restarts nothing: a second attempt of a run relays nothing and starts nothing (its first
 attempt is taken to have started the next run), so "Re-run failed jobs" goes green and the chain stays stopped. The
-workflow's own timer starts a chain when no run is going, but a scheduled run can be delayed
+watchdog starts a chain when none is alive, but its timer is a scheduled run, and a scheduled run can be delayed
 ([GitHub's documentation of `schedule`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule));
 after a release, look once and start it by hand.
 

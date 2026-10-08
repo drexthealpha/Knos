@@ -97,7 +97,7 @@ function world(start, upTo, n = 40, { held = false, refused = false, states = nu
 }
 
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json" };
-const served = { stats: { latency: { merge_to_paid: { n: 39, p50: 25, p95: 164 } } }, operations: { canary: { runs: 0, note: "The canary workflow has not run yet." } } };
+const served = { stats: { latency: { merge_to_paid: { n: 42, p50: 25, p95: 58 } } }, operations: { canary: { runs: 0, note: "The canary workflow has not run yet." } } };
 const PAGE = `<!doctype html><meta charset="utf-8"><title>live</title><section id="status"></section>
 <script type="module">import { renderLive } from "./live.js"; window.live = renderLive(document.getElementById("status"), { repo: "${REPO}" });</script>`;
 const server = createServer((req, res) => {
@@ -174,7 +174,7 @@ const stages = (page) => page.$$eval("#live-line li", (l) => l.map((x) => `${x.d
   await page.clock.runFor(61_000);
   check("  and it counts down by the clock", (await text(page, "#live-next")).includes("in 18 min 59 s"), await text(page, "#live-next"));
   await page.waitForFunction(() => document.getElementById("live-measured").textContent.length > 0);
-  check("  what was measured over many rounds is the site's own file, named", (await text(page, "#live-measured")) === "Over 39 timed payments on devnet, the wait from merge to payment had a median of 25 s and a 95th percentile of 2 min 44 s (stats.json).", await text(page, "#live-measured"));
+  check("  what was measured over many rounds is the site's own file, named", (await text(page, "#live-measured")) === "Over 42 timed payments on devnet, the wait from merge to payment had a median of 25 s and a 95th percentile of 58 s (stats.json).", await text(page, "#live-measured"));
   check("  it took five reads of GitHub and one of devnet", net.github.length === 5 && net.devnet.join() === "getSignaturesForAddress", `${net.github.length} ${net.devnet.join()}`);
   check("  nobody is asked to connect or sign anything", !(await text(page, "#status")).toLowerCase().includes("connect a wallet") && (await page.$$("#status input")).length === 0);
 

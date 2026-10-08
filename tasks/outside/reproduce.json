@@ -1,0 +1,17 @@
+{
+ "kind": "reproduce",
+ "v": 1,
+ "title": "Reproduce what Knos says, in your own fork",
+ "statement": "Test USDC, no monetary value.\n\nMake a repository from the knos-task template, run the `knos reproduce` workflow there, and open a pull request that files the report GitHub signed.",
+ "evidence": "a file under reproductions/ whose GitHub-signed token names your account and the report's hash (knos.reproduce.verified accepts it)",
+ "counter": "reproductions",
+ "needs": [
+  "actor_id",
+  "verified",
+  "file"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/REPRODUCE.md"
+}

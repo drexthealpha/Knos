@@ -2,14 +2,15 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Start with [STORY.md](STORY.md): the number, the three-minute demonstration in six beats, and what the project needs next. Every other
+A judge with ten minutes reads [JUDGES.md](JUDGES.md). Otherwise start with [STORY.md](STORY.md): the number, one task in seven steps, and what the project needs next. Every other
 document is listed once below. `tests/test_docs_map.py` fails when a file in this folder is missing from this page.
 
 ## 1. Does it work?
 
 | document | what it answers |
 |---|---|
-| [STORY.md](STORY.md) | the demonstration's six beats on one page, each with its evidence |
+| [STORY.md](STORY.md) | one task in seven steps on one page, each with its evidence |
+| [JUDGES.md](JUDGES.md) | a judge's one page: six judged things, one sentence and one link each, and what is not real yet |
 | [MANIFEST.md](MANIFEST.md) | this release on one page: source, the build live at each public id, every capability's stage, the limits |
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
 | [BENCH.md](BENCH.md) | every measured number, with the command that reproduces it |
@@ -34,7 +35,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [INDEX.md](INDEX.md) | the Agent PR Index: how often "tests pass" agrees with the checks, by agent and week |
 | [MARKET.md](MARKET.md) | who buys, the price book, the costs, and what can stop this |
 | [PILOT.md](PILOT.md) | the one offer for money: one buyer, its suppliers, 30 days |
-| [UNIT_COSTS.md](UNIT_COSTS.md) | what one unit costs Knos to deliver, measured or a budget, and the ceilings at a 90% and a 95% margin |
+| [UNIT_COSTS.md](UNIT_COSTS.md) | what one unit costs Knos to deliver, measured or a budget, and the ceilings at a 90% and a 95% gross margin |
 | [SHADOW.md](SHADOW.md) | a neutral count beside an invoice a buyer already receives |
 
 ## 3. What is new?
@@ -61,10 +62,12 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [PLAYGROUND.md](PLAYGROUND.md) | fund a test order with one comment, with a GitHub account and nothing else |
 | [CONSOLE.md](CONSOLE.md) | the console, for whoever authorises a payment |
 | [FINANCE.md](FINANCE.md) | the four records of a deliverable, and the accounting exports |
+| [RAILS.md](RAILS.md) | paying by bank: evidence, statement, approval, a payment instruction file, and the status coming back |
 | [NETTING.md](NETTING.md) | small outcomes netted into one release per supplier per period, and what the chain enforces of it |
 | [SUPPLIER.md](SUPPLIER.md) | for the supplier: the rules before the work, every refusal in plain words, appeals |
 | [RECORD.md](RECORD.md) | the supplier's kit: a public record, a badge, one line to install, a receipt for the invoice |
 | [ADVANCE.md](ADVANCE.md) | an advance by a third party against a funded order: the offer, the one transaction, the three ends, no recourse |
+| [RETENTION.md](RETENTION.md) | what a root proves and does not, who keeps what, and what still verifies if Knos is gone |
 | [VAULT.md](VAULT.md) | keeping evidence: sealed bundles, export, retention, checkpoints, a restore drill |
 | [PRIVATE.md](PRIVATE.md) | a neutral count for private repositories without showing the code |
 | [AGENTS.md](AGENTS.md) | an agent finds work, takes it, submits it and is paid |
@@ -92,6 +95,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [SECURITY.md](SECURITY.md) | who is trusted for what, every command and term, and every limit |
 | [ATTESTOR.md](ATTESTOR.md) | what the forge's signature proves and does not, and five ways to narrow the gap; two exist |
 | [MAINNET.md](MAINNET.md) | the gates between devnet and mainnet; not planned for this release |
+| [ENFORCEMENT.md](ENFORCEMENT.md) | each route that can spend, against each restriction: enforced by the program, by the workflow, advisory, or outside |
 | [CONTROLS.md](CONTROLS.md) | for a security or procurement review: what exists and what does not |
 | [PRIVACY.md](PRIVACY.md) | what goes in public, and what does not |
 | [REGULATION.md](REGULATION.md) | what has been examined; no lawyer has read it |

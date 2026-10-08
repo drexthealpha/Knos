@@ -7,6 +7,7 @@
     "accepted_deliverable": {"usd": "0.10", "kind": "budget, not measured", "of_which_measured": {"evidence_bundle_storage_seven_years": "0.0000206"}},
     "record_lookup": {"usd": "0.01", "kind": "budget, not measured"},
     "control_year": {"usd": "15000", "kind": "budget, not measured"},
+    "control_year_target": {"usd": "7000", "kind": "budget, not measured", "what": "a year of onboarding and support for one Business customer once onboarding is self-service: a target nobody has reached"},
     "payee_account": {"usd": "0.18", "kind": "measured", "what": "rent of a payee's first token account, 1,488,440 lamports; whoever relays puts it up"}
   }
 }

@@ -21,6 +21,37 @@ has the one offer for money. Nobody has bought anything, and no buyer has been a
 The argument, with its sources. Every outside source was read on 2 or 3 Oct 2026; a date beside a link is the
 source's own date. "Secondary" marks a number read in coverage of the original, not in the original.
 
+## The first customer, and who is not one
+
+Nobody has bought anything, so this is who Knos would go to first, not who it has. The first customer is an
+organisation of which all five are true:
+
+1. **It buys measurable outcomes from several outside suppliers.** With one supplier there is one count to argue
+   over and little to compare; with none outside the company there is no invoice.
+2. **It has recurring disputes or duplicate billing.** If every invoice is already approved without argument, a
+   second count saves nothing.
+3. **It can define acceptance before delivery.** The terms are fixed at funding, so whoever cannot write down
+   what "done" means cannot use them.
+4. **It spends enough that the savings exceed the cost.** The costs and one customer worked through are in
+   [MARKET.md](MARKET.md); no saving has been measured with any buyer.
+5. **It has a budget owner who will hand over invoices.** The first step is a count beside invoices the buyer
+   already receives ([SHADOW.md](SHADOW.md), [PILOT.md](PILOT.md)), and it cannot start without them.
+
+Who is not a customer, today:
+
+- A team that pays by the seat or by the token and is content to: there is no outcome to count.
+- A buyer with one supplier it trusts, or with work done only by its own staff.
+- A buyer whose acceptance is a person's taste, decided after delivery.
+- A buyer who needs money moved on a mainnet, a bank payout from Knos, single sign-on, a private deployment or a
+  support contract: none of these exists.
+- A supplier, as the payer: Knos never charges the party being rated.
+- Anyone who needs a company to sign with: there is no legal entity.
+
+**Days to approve, not seconds to pay.** From merge to paid took 25 seconds at the median, over 42 payments on
+devnet. That is not the wait this customer has. It waits for a person to approve the invoice, while two companies
+argue over whose count is right. Knos has not measured that wait with any buyer, so no figure for it is given;
+[PILOT.md](PILOT.md) lists it among what a pilot would measure.
+
 ## 1. An agent's word costs nothing, so it is not evidence
 
 Coding agents open a large share of pull requests. One tracker counts about 1.7 million a week across the six
@@ -226,6 +257,9 @@ About half, in METR's review (section 1).
 The rule: the default acceptance is the merge. Checks are necessary and not sufficient.
 
 ## 5. Why a chain, and why Solana
+
+In one line: Money is released with no custodian, and the count is anchored where neither side can alter it.
+A receipt verifies with no chain; the chain is for the money and for the root.
 
 A chain gives this three things a company cannot promise. The money is committed before the work, in a program and
 not in a company's account (Bountysource). The payee needs no account with a payment company, only a GitHub account

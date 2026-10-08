@@ -138,7 +138,9 @@ class Forge:
     def __init__(self, first: int = 4):
         self.issues: list[dict] = []
         self.comments: dict[int, list[dict]] = {}
-        self.files: dict[str, bytes] = {"words.py": b"print()\n"}
+        self.files: dict[str, bytes] = {"words.py": b"print()\n",        # and the two callers, as a rebuild of the playground writes them
+                                        ".github/workflows/knos.yml": (ROOT / "examples" / "knos-workflow.yml").read_bytes(),
+                                        ".github/workflows/knos-check.yml": (ROOT / "examples" / "knos-check.yml").read_bytes()}
         self.commits: list[str] = []
         self.pulls: list[dict] = []
         self.pull_files: dict[int, list[dict]] = {}
@@ -167,6 +169,10 @@ class Forge:
             assert body["body"].splitlines()[0] == tb.FIRST
             assert set(body["labels"]) <= self.labels, "GitHub would make the labels up with no description"
             return {"number": self.issue(body["title"], body["body"], labels=body["labels"])}
+        if len(where) == 2 and where[0] == "issues" and method == "PATCH":
+            assert body == {"state": "closed", "state_reason": "not_planned"}
+            next(i for i in self.issues if i["number"] == int(where[1]))["state"] = "closed"
+            return {}
         if len(where) == 3 and where[0] == "issues" and where[2] == "comments":
             if method == "GET":
                 return self.comments.get(int(where[1]), [])
@@ -178,22 +184,32 @@ class Forge:
             self.labels.add(body["name"])
             return {}
         if where[:1] == ["contents"]:
-            data = self.files.get("/".join(where[1:]))
-            return {"content": base64.b64encode(data).decode()} if data is not None else None
+            key = "/".join(where[1:])
+            data = self.files.get(key)
+            if data is None:            # a folder: GitHub lists what is directly in it
+                inside = {k[len(key) + 1:].split("/")[0]: k for k in self.files if k.startswith(key + "/")}
+                return [{"type": "dir" if "/" in k[len(key) + 1:] else "file", "path": f"{key}/{name}"} for name, k in sorted(inside.items())] or None
+            return {"content": base64.b64encode(data).decode()}
         if where[:2] == ["git", "ref"]:
             return {"object": {"sha": f"c{len(self.commits)}"}}
         if where[:2] == ["git", "commits"] and method == "GET":
             return {"tree": {"sha": f"t{len(self.commits)}"}}
         if where[:2] == ["git", "trees"]:
             assert body["base_tree"] == f"t{len(self.commits)}"
-            self._trees["new"] = {e["path"]: e["content"].encode("utf-8") for e in body["tree"]}
+            self._trees["new"] = {e["path"]: e["content"].encode("utf-8") if "content" in e else e["sha"] for e in body["tree"]}
+            assert all(v is None or isinstance(v, bytes) for v in self._trees["new"].values()), "a tree entry adds content or removes a path"
             return {"sha": "new"}
         if where[:2] == ["git", "commits"]:
             assert body["parents"] == [f"c{len(self.commits)}"] and body["tree"] == "new"
             return {"sha": "made", "message": body["message"]}
         if where[:2] == ["git", "refs"]:
             assert method == "PATCH" and body == {"sha": "made", "force": False}
-            self.files.update(self._trees.pop("new"))
+            for rel, data in self._trees.pop("new").items():
+                if data is None:
+                    assert rel in self.files, "git refuses to remove a path the tree does not hold"
+                    del self.files[rel]
+                else:
+                    self.files[rel] = data
             self.commits.append("made")
             return {}
         if where == ["actions", "runs"]:
@@ -206,9 +222,15 @@ class Forge:
         raise AssertionError(f"the board asked the forge something it has no business asking: {method} {path}")
 
 
-def run(forge: Forge, *argv: str, ask=None, now: float = NOW) -> tuple[int, str, list[float]]:
+def payable(where, pull):
+    """knos.tasks.why's answer for an order nothing stands in the way of: the chain the tests make up has only such orders."""
+    return {"code": "retry", "said": f"Nothing read here stands in the way of {where}.", "fix": "", "note": tb.FIRST}
+
+
+def run(forge: Forge, *argv: str, ask=None, now: float = NOW, why=payable) -> tuple[int, str, list[float]]:
     said, slept = [], []
-    code = tb.main(list(argv), gh=forge, ask=ask or (lambda *a: pytest.fail("the chain was asked")), now=lambda: now, say=said.append, sleep=slept.append)
+    code = tb.main(list(argv), gh=forge, ask=ask or (lambda *a: pytest.fail("the chain was asked")), now=lambda: now, say=said.append, sleep=slept.append,
+                   why=why)
     return code, "\n".join(said), slept
 
 
@@ -282,6 +304,86 @@ def test_the_days_budget_stops_it_and_a_strangers_marker_opens_nothing():
     forge.issue("Fake", "x\n<!-- knos-task: wrap amount=5000000 days=14 -->", user=STRANGER)
     state = tb.read(forge, playground.REPO, playground.OWNER_ID)
     assert "wrap" not in {r["slug"] for r in state["rows"]} and len(state["rows"]) == 4
+
+
+def test_the_five_tasks_that_are_not_code_open_first_paid_on_the_merge_within_the_days_budget(tmp_path):
+    """`--kinds`: tasks/outside/ as funded issues. No checks are theirs: the starter task's checks under the issue's number
+    go in the same commit as its line on the board, so the funding is merge mode, and a rebuild of the playground keeps it so."""
+    from knos import tasks
+    kinds = tb.kinds()
+    assert [k["slug"] for k in kinds] == [tb.KIND + k for k in tasks.KINDS] and len(kinds) == 5
+    for k in kinds:
+        assert (ROOT / "tasks" / "outside" / f"{k['kind']}.json").read_text(encoding="utf-8") == tasks.kind_file(k["kind"])
+        assert k["amount"] == 5_000_000 and k["statement"].startswith(tb.FIRST + "\n") and tb.fund_line(k) == f"/knos fund 5 days {tb.KIND_DAYS}"
+    forge = Forge()
+    for n in range(4, 9):                                                    # the starter task's checks, as small_repos.slots writes them
+        forge.files.update({f".knos/acceptance/{n}/{name}": b"x\n" for name in ("README.md", "blackbox.py", "cases.json")})
+    code, said, _ = run(forge, "plan", "--kinds", "-n", "1", "--budget", "12")
+    assert code == 0 and forge.wrote == [] and "open outside-reproduce: 5.00 test USDC, fee 0.05 test USDC, 30 days" in said
+    assert "today's budget of 12.00 test USDC is used up to 10.10 test USDC: outside-fund (5.05 test USDC with its fee) waits for tomorrow (UTC)" in said
+    code, said, slept = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "1")
+    assert code == 0 and "6 tasks written" in said and slept == [tb.PACE] * 5
+    assert [tb.MARK.search(i["body"]).group(1) for i in forge.issues] == [k["slug"] for k in kinds] + [SLUGS[0]]
+    for n, k in zip(range(4, 9), kinds):
+        body = forge.issues[n - 4]["body"]
+        assert body.splitlines()[0] == tb.FIRST and k["evidence"] in body and f"`outside/{k['kind']}/<your login>.json`" in body and "Closes #" in body
+        assert not [f for f in forge.files if f.startswith(f".knos/acceptance/{n}/")], "a task that is not code keeps no checks: it is merge mode"
+        assert [c["body"] for c in forge.comments[n]] == [f"/knos fund 5 days {tb.KIND_DAYS}"]
+    assert {k.split("/")[-1] for k in forge.files if k.startswith(".knos/acceptance/9/")} == set(tb.bundle(tb.load(SLUGS[0]), 9))
+    board = {int(k): v for k, v in json.loads(forge.files["board.json"])["tasks"].items()}
+    assert board == {**{n: k["slug"] for n, k in zip(range(4, 9), kinds)}, 9: SLUGS[0]}
+    wrote = len(forge.wrote)                                                 # a second run, with or without --kinds, opens nothing again
+    for argv in (("--kinds",), ()):
+        code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "1", *argv)
+        assert code == 0 and len(forge.wrote) == wrote and "not in tasks/" not in said and "6 funded tasks open, 0 half opened, 0 to open" in said
+    s = json.loads(run(forge, "status", "--json", "-n", "1")[1])
+    assert [(t["issue"], t["kind"], t["file"], t["state"]) for t in s["tasks"][:2]] == [(4, "reproduce", "outside/reproduce/", "funding asked"),
+                                                                                     (5, "shadow", "outside/shadow/", "funding asked")]
+    assert s["tasks"][5]["kind"] == "code" and s["budget"]["opened"] == 6 * 5_050_000 and "A maintainer checks it and merges." in s["tasks"][0]["accept"]
+    assert [t["kind"] for t in tasks.rows(s)] == [k["kind"] for k in kinds] + ["code"]
+    # the release's rebuild of the playground keeps them merge mode: no checks under their numbers, the code task's own
+    small = _script("small_repos")
+    out = small.files("knos-playground", board)
+    assert not [f for f in out if any(f.startswith(f".knos/acceptance/{n}/") for n in range(4, 9))]
+    assert {f.split("/")[-1] for f in out if f.startswith(".knos/acceptance/9/")} == set(tb.bundle(tb.load(SLUGS[0]), 9))
+    assert {f for f in out if f.startswith(".knos/acceptance/10/")} and out["board.json"] == forge.files["board.json"]
+
+
+def test_a_task_whose_order_no_merge_can_pay_is_closed_with_the_chains_sentence_and_opened_again():
+    """A release rebuilds the playground at the next commit of the workflows, and every order funded before names the
+    commit before: no merge can pay it (knos-playground #6 to #13 in 0.3.20). The board reads each order back and
+    opens the task again, within the day's budget."""
+    from knos import tasks
+    forge = Forge()
+    run(forge, "open", "--apply", "--faucet", "-n", "3")
+    assert [i["state"] for i in forge.issues] == ["open"] * 3
+    asked = []
+
+    def why(where, pull):
+        asked.append((where, pull))
+        if where.endswith("#5"):
+            return tasks.explain({"where": where, "orders": [{"state": "open", "wf_public": True, "wf_sha": "b" * 40, "called": False}]})
+        return payable(where, pull)
+    forge.day = "2026-10-08"
+    wrote = len(forge.wrote)
+    code, said, _ = run(forge, "plan", "-n", "3", now=NOW + 86_400, why=why)
+    assert code == 0 and len(forge.wrote) == wrote and sorted(asked) == [(f"{playground.REPO}#{n}", None) for n in (4, 5, 6)]
+    assert (f"  stranded #5: The order on {playground.REPO}#5 was funded through commit bbbbbbbbbbbb of the public workflows, which the repository no "
+            "longer calls, so the public worker's signed run cannot pay it. open --apply closes it with that sentence, and its task can be opened again.") in said
+    assert "2 funded tasks open, 0 half opened, 1 to open" in said
+    code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "3", now=NOW + 86_400, why=why)
+    assert code == 0 and [i["state"] for i in forge.issues] == ["open", "closed", "open", "open"]
+    assert forge.comments[5][-1]["body"].startswith(f"The order on {playground.REPO}#5 was funded through commit bbbbbbbbbbbb") and tb.FIRST in forge.comments[5][-1]["body"]
+    assert tb.MARK.search(forge.issues[-1]["body"]).group(1) == SLUGS[3] and [c["body"] for c in forge.comments[7]] == [tb.fund_line(tb.load(SLUGS[3]))]
+    asked.clear()                                                            # closed now: never read, never closed twice
+    code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "3", now=NOW + 86_400, why=why)
+    assert code == 0 and "3 funded tasks open, 0 half opened, 0 to open" in said and (f"{playground.REPO}#5", None) not in asked
+
+    def down(where, pull):
+        raise tasks.Stop("devnet did not answer")
+    wrote = len(forge.wrote)
+    code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "3", now=NOW + 86_400, why=down)
+    assert code == 1 and len(forge.wrote) == wrote and "could not be read (devnet did not answer): nothing was sent" in said
 
 
 @pytest.fixture(scope="module")
@@ -359,6 +461,64 @@ def test_status_lists_the_board_and_the_runs_that_wait_and_approves_nothing():
     asked = len(forge.asked)                                                 # a build with no network asks nobody and says it read nothing
     code, said, _ = run(forge, "status", "--json", "--empty")
     assert code == 0 and len(forge.asked) == asked and json.loads(said) == {"v": 1, "read": False, "repository": playground.REPO, "note": tb.FIRST, "tasks": []}
+
+
+def test_the_board_funds_only_through_the_public_pinned_workflows_and_says_so():
+    """An order names the workflows it was funded through, and the public worker's run is signed for the public ones
+    only: funded through a staging copy, a merged pull request is never paid. So `open` reads the callers first."""
+    pub = _script("pinned_workflows")
+    pin = pub.pin()
+    forge = Forge()
+    assert tb.unpinned(forge, playground.REPO) == [] and forge.wrote == []
+    code, said, _ = run(forge, "plan", "-n", "2")
+    assert code == 0 and "funds through the public pinned workflows: checked in the playground's own workflow files." in said
+    public = forge.files[".github/workflows/knos.yml"]
+    for staged, why in ((public.replace(b"drexthealpha/knos-workflows/", b"drexthealpha/knos-workflows-rc/"), "of drexthealpha/knos-workflows-rc, which is not the public drexthealpha/knos-workflows"),
+                        (public.replace(pin.encode(), b"5" * 40), f"at 555555555555, and the published commit is {pin[:12]}"),
+                        (b"on: push\njobs: {}\n", "calls no pinned workflow"), (None, "could not be read")):
+        forge = Forge()
+        if staged is None:
+            del forge.files[".github/workflows/knos.yml"]
+        else:
+            forge.files[".github/workflows/knos.yml"] = staged
+        assert staged != public and any(why in line for line in tb.unpinned(forge, playground.REPO)), why
+        code, said, slept = run(forge, "open", "--apply", "--faucet", "-n", "2")
+        assert code == 1 and forge.wrote == [] and slept == [] and "not public: " in said                 # no issue, no commit, no funding comment
+        assert said.splitlines()[-1] == ("task board: nothing was sent: an order funded now would name workflows the public worker's run is not signed for, "
+                                         "and no merge could pay it")
+        s = json.loads(run(forge, "status", "--json")[1])
+        assert s["workflows"]["public"] is False and why in " ".join(s["workflows"]["problems"])
+        assert "NOT FUNDED THROUGH THE PUBLIC WORKFLOWS: " in run(forge, "status")[1]
+    assert tb.unpinned(Forge(), playground.REPO, pin=pub.PLACEHOLDER, public=pub.REPO)[0].startswith("this checkout's examples name no published commit")
+
+
+def test_the_boards_document_is_what_an_agent_reads_and_why_is_one_sentence():
+    from knos import tasks
+    forge = Forge()
+    run(forge, "open", "--apply", "--faucet", "-n", "2")
+    forge.pulls = [{"number": 22, "title": "roman", "state": "closed", "user": STRANGER, "body": "Fixes #4", "head": {"sha": "ccc"}, "merged_at": "2026-10-07T10:00:00Z"}]
+    forge.comments[22] = [{"user": {"type": "Bot", "login": "github-actions[bot]"}, "body": "Knos: held for @stranger. 5.00 test USDC for issue #4 waits for them."}]
+    doc = json.loads(run(forge, "status", "--json")[1])
+    assert doc["workflows"] == {"public": True, "problems": []}
+    assert doc["held"] == [{"pull": 22, "for": "stranger", "state": "held", "instruction": "comment `/knos address <your Solana address>` on the pull request",
+                            "url": f"https://github.com/{playground.REPO}/pull/22",
+                            "said": "Held for @stranger: comment `/knos address <your Solana address>` on the pull request. Test USDC, no monetary value."}]
+    assert "HELD: #22 for @stranger: comment `/knos address <your Solana address>` on the pull request" in run(forge, "status")[1]
+    first, second = tasks.rows(doc)
+    assert (first["id"], first["file"], first["amount"], first["kind"]) == (f"{playground.REPO}#4", "tasks/roman.py", 5_000_000, "code")
+    assert first["accept"] == tasks.ACCEPT == doc["tasks"][0]["accept"] and first["pays"] == tasks.PAYS and "test USDC" in first["pays"]
+    took = tasks.take(doc, "rle", login="stranger", branch="rle")
+    assert took["pull_request"]["body"] == "Closes #5" and took["steps"][0].startswith(f"Edit tasks/rle.py in a fork of {playground.REPO}")
+    asked: list = []
+
+    def why(where, pull):
+        asked.append((where, pull))
+        return tasks.explain({"where": where, "pull": pull, "merged": True, "closes": True, "orders": [{"state": "open", "wf_public": False, "wf_sha": "5" * 40}]})
+    said: list[str] = []
+    assert tb.main(["why", "drexthealpha/knos-e2e#25", "--pull", "38"], gh=forge, say=said.append, why=why) == 0 and asked == [("drexthealpha/knos-e2e#25", 38)]
+    assert said == ["The order on drexthealpha/knos-e2e#25 was funded through a copy of the workflows that is not the public one (a staging copy), "
+                    "so the public worker's signed run cannot pay it.\nFix: A maintainer comments `/knos tip <amount>` on the merged pull request #38; the old order "
+                    "goes back to its funder at its deadline. Fund the next task only where the repository calls drexthealpha/knos-workflows at the published commit."]
 
 
 def test_the_sites_build_writes_the_empty_board_without_solders():

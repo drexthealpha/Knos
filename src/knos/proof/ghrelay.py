@@ -135,6 +135,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import ghwords
+from . import chain as chain_of_runs
 
 TOKEN = re.compile(r"knos-(proof|fund|bind|veto|claim|key|verify|eval|take|cancel|revert|rule|gate):\s*(eyJ[\w-]+\.[\w-]+\.[\w-]+)")
 WITHDRAW = re.compile(r"knos-withdraw:\s*([A-Za-z0-9+/_-]{200,4000}={0,2})")    # a passkey wallet's withdrawal request: no token, see knos.settle.v2.passkey.request
@@ -173,7 +174,7 @@ IN_TURN = 5             # of the other known ones, this many a pass, in turn (Gi
 VERIFY_PER_DAY = 20     # verify-only tokens carried for one repository in a day (each locks rent for an hour)
 PASSKEY_FUND_PER_DAY = 20   # passkey fundings sent for one repository in a day (the relay pays each fee and the rent of the order's two accounts)
 WITHDRAW_PER_DAY = 20   # passkey withdrawals sent for one knos-claim repository in a day (the relay pays each fee, and a new wallet's rent)
-API = "https://api.github.com/"
+API = chain_of_runs.API + "/"       # GitHub's API, at the one address the chain of runs asks too (knos.proof.chain)
 
 
 def claims(jwt: str) -> dict:

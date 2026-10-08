@@ -744,3 +744,18 @@ def test_the_wallets_of_knos_own_runs_are_on_the_own_list():
                    "5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V"):
         assert wallet in listed["wallets"] and wallet in network_stats.OWN_WALLETS
     assert listed["ids"] == [KNOS]
+
+
+def test_the_load_runs_fee_payers_fund_as_knos_never_as_outside_funders():
+    """`scripts/load.py measure` funds its orders at the public knos_pay from relay fee payers derived from Knos's own
+    wallet (load.relay_keys), in repository ids GitHub does not know: each of those wallets, and the run's wallet, is
+    on the own list, or the measurement would count four outside funders in four outside repositories (0.3.20's run)."""
+    import outsiders as rules
+    listed = set(json.loads((ROOT / "scripts" / "own_github_ids.json").read_text(encoding="utf-8"))["wallets"])
+    for run in json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8")).get("measured", []):
+        assert {run["wallet"], *run["fee_payers"]} <= listed, run.get("run")
+    for payer in ("8yDmQNFynGvC6vnxBKn2jBTHXvQ2229nditAQayWFcve", "CaA4rWEF77JT8XCYSB3U8jcj3dGETDNBk5eyXgurNJAp",
+                  "DEzBx5xkBbuEfzoRgJGTDdrfhnodXX8djdgBknYW5Jd", "56QGy4NsYspMUVfqfVbC2JcjLgFprbu1RZS7GcbGywvK"):      # the 0.3.20 run's
+        job = {"v": 2, "by": 0, "owner": 0, "wallet": payer, "repo": 2_100_000_123, "faucet": False, "state": "refunded", "payee": 0}
+        assert rules.funder_of(job, OWN, frozenset(listed)) is None and rules.funder_of(job, OWN, frozenset()) == (f"wallet:{payer}", "outside")
+        assert payer in network_stats.OWN_WALLETS

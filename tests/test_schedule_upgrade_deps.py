@@ -80,7 +80,7 @@ def test_with_node_modules_missing_the_run_installs_the_pinned_packages_first_an
     assert len(own) >= 9 and all(re.search(STAMP, line) for line in own), own
     assert "gh workflow run network.yml" in done.stdout
     # a second run finds them and installs nothing
-    assert run("--run").returncode == 0 and sum(c.startswith("npm") for c in _calls(calls)) == 1
+    assert run("--run", "--force").returncode == 0 and sum(c.startswith("npm") for c in _calls(calls)) == 1
     assert "packages: every package" in (keys / "upgrade-run.log").read_text(encoding="utf-8").split("done: every proposal is executed")[1]
 
 

@@ -13,9 +13,10 @@ be bought or changed for money. One limit, first: Knos wrote these records and n
 | the install | one `uses:` line (below) | the free check on every pull request, posted once, with its receipt |
 | the receipt for an invoice | `knos record receipt <acceptance receipt file>` | one PDF page and its JSON |
 
-The record's page on the site is `#record=<slug>`. The file and its page are free, and static. The price book's
-Record line (0.10 USD a lookup, paid per call) exists as a server anyone can run and Knos does not host:
-[section 5](#5-the-lookup-priced-for-machines).
+The record's page on the site is `#record=<slug>`. The file and its page are free, static and unsigned, and each
+says the day it was built. The price book's Record line (0.10 USD a lookup, paid per call) is a server anyone can run
+and Knos does not host; its answer adds a signature with an expiry, a summary and the history a supplier grants:
+[section 5](#5-the-lookup-priced-for-machines). Record budget: zero revenue until someone buys it.
 
 ## 1. The record
 
@@ -80,7 +81,7 @@ jobs:
       contents: read
       checks: read
       pull-requests: write
-    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.19
+    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.20
 ```
 
 The last line is the install. It runs the free check on every pull request and none of the pull request's code,
@@ -108,13 +109,90 @@ The page restates the receipt; the receipt file is the evidence, and the supplie
 
 ## 5. The lookup, priced for machines
 
-`python -m knos.record_api <offer.json>` ([`examples/record_api`](../examples/record_api)) serves the same files
-two ways: `/records/<slug>.json` free, and `/lookup/<slug>` for 0.10 test USDC a call, paid through the proposed
-x402 `knos-order` scheme ([X402.md](X402.md), "Record"). An order buys fifty lookups, because the program takes no
-order under 5.00; each call is signed by the wallet that funded the order, and a replayed call is refused. The paid
-answer is the record with the order, the count and the time it was served: nothing the free file lacks. Knos hosts
-no such server, no judge signs for lookups served, and nobody outside has paid for one. The rated supplier never
-pays: the reader does.
+`knos record serve <offer.json>` (`python -m knos.record_api`, [`examples/record_api`](../examples/record_api))
+serves the records two ways: `/records/<slug>.json` free, and `/lookup/<slug>` for 0.10 test USDC a call, paid
+through the proposed x402 `knos-order` scheme ([X402.md](X402.md), "Record"). An order buys fifty lookups, because the
+program takes no order under 5.00; each call is signed by the wallet that funded the order, and a replayed call is
+refused. The reader pays. The rated supplier never pays, for its record or for a grant.
+
+**budget: zero revenue until someone buys it.** Knos hosts no such server, no judge signs for lookups served, and
+nobody outside has paid for one. The paid answer below is built and tested here; it has not been served on devnet.
+
+### The free file and the paid answer, row by row
+
+| | the free file | the paid answer |
+|---|---|---|
+| where | `docs/records/<slug>.json`, the page `#record=<slug>` | `GET /lookup/<slug>` on a server someone runs |
+| price | free | 0.10 test USDC a lookup, a pack of fifty an order |
+| who pays | nobody | the reader; never the rated supplier |
+| the record | the counts, each with its evidence | the same file, byte for byte, inside the answer |
+| signature | none: `sha256` of the file only | Ed25519, by a key the operator supplies (`--key`); with no key the answer says it is unsigned |
+| freshness | the day it was built (`as_of`) | the cluster time and slot the server read, when it produced the answer, and when the answer expires (one hour unless the operator sets `--ttl`) |
+| checked with | `knos.record_page.check` (the hash) | `knos record verify <answer>`: no network; prints fresh, stale, unsigned or invalid |
+| summary | none: the reader works out rates | `knos.record-summary/1`: every count as `k` of `n` with its share and 95% Wilson interval, the same denominators for every supplier |
+| history | none | four fields, each only with the supplier's signed grant to this reader; otherwise `not granted` |
+| availability | a static file in a public repository | what the operator promises, stated in the answer: nothing, on devnet; `knos record serve --health` |
+| revenue | none | budgeted at zero |
+
+### Signed freshness
+
+The answer (`knos.record-answer/1`) is signed over the record's `sha256`, the events log's head when the record was
+built from one, the cluster time and slot the server read from the Clock account, `produced` and `expires`. The three
+times follow the shape of a certificate status answer ([RFC 6960](https://www.rfc-editor.org/rfc/rfc6960): thisUpdate,
+producedAt, nextUpdate): the reader holds the answer to its own clock.
+
+```
+knos record verify answer.json --operator <the operator's public key>
+```
+
+| it prints | when | exit |
+|---|---|---|
+| fresh | the record hashes to what was signed, the summary is the record's, the signature is the key's, and the time is inside `produced` to `expires` | 0 |
+| stale | all of that, and past `expires` | 1 |
+| unsigned | the server had no key, or the file is the free record | 1 |
+| invalid | anything was changed, the key is not the operator named, or the times do not stand | 1 |
+
+The signature shows which key answered and when. It does not show that the operator's records are complete: the
+operator serves the files it was given. Name the operator's key with `--operator`; without it the command says whose
+key signed and asks the reader to check it.
+
+### Permissioned history
+
+`knos record history <supplier> [--events <log>] [--id <name>] [--memory <folder>] [--repo owner/repo] [--times <file>]`
+writes `<slug>.history.json` (`knos.record-history/1`). It is never put in the free folder. Its four fields:
+
+| field | what it holds | read from |
+|---|---|---|
+| `per_buyer` | the counts for each repository an order was funded in (its owner is the buyer), and by month | the supplier's memory in the Sibyl engine; the events log, which names no buyer, by month |
+| `disputes` | each disputed deliverable; each appeal with its state, its reason and how it ended | the events log; `knos.proof.history` `appeals` |
+| `corrections` | every correction that names one of the supplier's events: what it changed and why | the events log |
+| `time_to_accept` | the count, the fastest, the median, the ninetieth percentile, the slowest, four buckets | a times file the supplier gives: the events log keeps no times |
+
+The supplier releases fields to one reader with a grant it signs (`knos.record-grant/1`):
+
+```
+knos record grant <slug> --reader <the reader's wallet> --field disputes --field corrections --key supplier.json --days 30
+```
+
+The reader sends the grant with its paid call (header `Record-Grant`). The server releases a field only when the
+grant is signed by the key its operator holds for that supplier (`--suppliers`, a file of slug and public key), names
+the wallet that paid, names the field, and is in force. Otherwise the field reads `not granted`, with what it would
+hold and never the data. The operator decides which key is a supplier's: nothing on chain binds the two yet.
+
+### The summary
+
+One function for every supplier (`knos.record_answer.summary`): accepted, rejected, insufficient evidence and
+disputed over deliverables with a verdict; reverted over deliverables on record; overturned over rejections appealed;
+failed checks over merged pull requests that claimed passing tests. Each is `{k, n, of, share, ci95}`, the interval
+computed as the Agent PR Index computes it ([INDEX.md](INDEX.md)). `score` is `null`: nothing is weighted or added
+into one figure. Not a rating of defect-free work.
+
+### Availability
+
+The answer carries the operator's promise. The default, and the only one on devnet: uptime none, support none,
+retention none. An operator states its own in the offer's `availability`. `knos record serve --health` (and
+`GET /health`) says whether the records are readable, whether the chain answers, whether answers are signed and by
+which key, and whether the count of each order survives a restart; it exits 0 only when the server can answer.
 
 ## What this does not show
 

@@ -501,9 +501,9 @@ def test_the_worker_takes_the_event_in_a_job_of_its_own_that_keeps_no_notes_and_
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "worker.yml").read_text(encoding="utf-8"))
     on = doc[True] if True in doc else doc["on"]                    # YAML reads a bare `on` as true
     assert on["repository_dispatch"] == {"types": [relayq.EVENT_TYPE]} and on["workflow_run"] == {"workflows": ["knos"], "types": ["completed"]}
-    assert on["schedule"] == [{"cron": "*/5 * * * *"}]              # the sweep's timer is as it was
+    assert on["schedule"] == [{"cron": "*/5 * * * *"}]              # the timer is as it was; since 0.3.20 it starts the watchdog, which starts the sweep
     relay, event = doc["jobs"]["relay"], doc["jobs"]["event"]
-    assert relay["if"] == "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'"
+    assert relay["if"] == "github.event_name == 'workflow_dispatch'" and "'schedule'" in doc["jobs"]["watchdog"]["if"]
     assert event["if"] == "github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run'"
     text = json.dumps(event)
     assert "actions/cache" not in text and "gh workflow run" not in text and "knos-home" not in text.replace("knos-event-home", "")

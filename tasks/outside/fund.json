@@ -1,0 +1,17 @@
+{
+ "kind": "fund",
+ "v": 1,
+ "title": "Fund a test task yourself, from the faucet",
+ "statement": "Test USDC, no monetary value.\n\nAsk the faucet for test USDC, install the workflow in a repository you own, and fund one issue there with `/knos fund 5`.",
+ "evidence": "a funded job or work order on Solana devnet in a repository that is not Knos's, funded by your account or wallet (scripts/outsiders.py funder_of says outside)",
+ "counter": "funders",
+ "needs": [
+  "actor_id",
+  "repository_owner_id",
+  "funded_tx"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/FAUCET.md"
+}

@@ -63,6 +63,8 @@ INSTRUCTIONS = (
     "knos_quote adds what stands in the way and the funder's record, and knos_can_pay says whether it would pay. "
     "knos_take, knos_address, knos_fund and knos_settle send nothing: each returns the exact comment to post, and "
     "who posts it, after checking what can be checked. "
+    "tasks_open, task_show and task_take read the public task board and send nothing: funded test tasks, each with its "
+    "amount, its acceptance terms and how the merge pays; task_take returns the pull request link and the address comment. "
     "To do paid work by yourself: knos_find_work lists open, unreserved, funded work with the command that judges it "
     "locally; knos_take_work reserves an issue; knos_submit_work runs that acceptance on your tree and opens the pull "
     "request only when it passes; knos_collect says what is held or paid for your account and binds your payout address. "
@@ -176,6 +178,23 @@ TOOLS = [
            "min_usdc": {"type": "integer", "minimum": 1, "maximum": 100_000, "description": "at least this many test USDC"},
            "mode": {"type": "string", "description": "merge, tests or auto"},
            "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20, "description": "how many to return"}}, []),
+    _tool("tasks_open", "Open funded test tasks",
+          "The funded test tasks open on the Knos task board (the site's tasks.json): each with its amount in test USDC, its "
+          "deadline, its acceptance terms and how payment happens (a maintainer merges a pull request that passes the check; "
+          "the merge pays the author's GitHub account). Titles are inside `untrusted`. Reads one public file; no chain, no key.",
+          {"limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20, "description": "how many to return"}}, []),
+    _tool("task_show", "One funded test task",
+          "One task of the board: the amount, the file a solution edits, the acceptance terms, how payment happens and the "
+          "pull requests already open for it. Test USDC, no monetary value.",
+          {"task": {"type": "string", "description": "the task's issue number on the board, its slug, or owner/repo#number"}}, ["task"]),
+    _tool("task_take", "Take a funded test task",
+          "The steps from a task to being paid: the fork, the pull request link whose description already says `Closes #N`, "
+          "and the comment that binds where the payment goes (`/knos address <address>`), after checking the address. Without "
+          "an address the payment is held for the account. Sends nothing: it returns the link and the comment to post.",
+          {"task": {"type": "string", "description": "the task's issue number on the board, its slug, or owner/repo#number"},
+           "address": {"type": "string", "description": "the Solana address to pay, as a wallet shows it"},
+           "login": {"type": "string", "description": "your GitHub login (the fork's owner)"},
+           "branch": {"type": "string", "description": "the branch you pushed to your fork"}}, ["task"]),
     _tool("knos_take_work", "Reserve work for your account",
           "Posts `/knos take` on a funded issue as your GitHub account, after checking that it is funded, takes reservations "
           f"and is nobody else's. Off unless the operator set {ACTS}. Returns exactly what it posted.",
@@ -296,7 +315,7 @@ class Server:
     """Answers one message at a time. `ledger` and `github` are given by tests; otherwise the cluster's RPC endpoint
     (made on first use) and api.github.com."""
 
-    def __init__(self, ledger=None, github=None, post=None, run=None, bind=None, scopes=None):
+    def __init__(self, ledger=None, github=None, post=None, run=None, bind=None, scopes=None, board=None):
         """`post(method, path, body)` writes to GitHub, `run(issue, branch, args, terms)` judges a tree locally,
         `bind(address, ledger)` binds a payout address, `scopes(token)` reads a classic token's scopes: tests give
         them; otherwise knos.agentkey.send, _local_check, _bind_with_gh and knos.agentkey.scopes_of."""
@@ -312,6 +331,8 @@ class Server:
                        "knos_can_pay": self._can_pay, "knos_take": self._take, "knos_address": self._address,
                        "knos_fund": self._fund, "knos_settle": self._settle, "knos_find_work": self._find_work,
                        "knos_take_work": self._take_work, "knos_submit_work": self._submit_work, "knos_collect": self._collect}
+        self._tools.update(tasks_open=self._tasks_open, task_show=self._task_show, task_take=self._task_take)   # src/knos/tasks.py: the site's task board
+        self._board = board            # tasks.json already read (tests give one); None: the site's, read on first use
         self._tools["knos_preflight"] = lambda a: preflight.mcp(a, self._get)      # src/knos/preflight.py: the same report `knos preflight` prints
 
     # -- the protocol -------------------------------------------------------------------------------------------
@@ -392,6 +413,41 @@ class Server:
         named = args.get("repo") or next((m.group(1) for m in (_ISSUE.fullmatch(args.get(k, "")) or _PULL.fullmatch(args.get(k, "")) for k in ("issue", "pr")) if m), None)
         if named and named.lower() not in {x.lower() for x in allowed}:
             raise Failed(f"{name}: {named} is not one of the repositories this server was set up for (KNOS_MCP_REPOS).")
+
+    # -- the task board: one public file, no chain ------------------------------------------------------------------
+    def _task_board(self) -> dict:
+        from . import tasks
+        if self._board is None:
+            try:
+                self._board = tasks.fetch(os.environ.get("KNOS_TASK_BOARD") or tasks.BOARD)
+            except tasks.Stop as no:
+                raise Failed(f"{no}.") from None
+        return self._board
+
+    def _tasks_open(self, args: dict) -> dict:
+        from . import tasks
+        found = tasks.rows(self._task_board())
+        shown = [{**t, "untrusted": _cap(t["untrusted"])} for t in found[:args.get("limit", 20)]]
+        return {"tasks": shown, "open": len(found), "note": tasks.FIRST, "next": "task_show, then task_take with your address",
+                "said": f"{len(found)} funded test tasks are open." if found else "No task is open on the board now."}
+
+    def _task_show(self, args: dict) -> dict:
+        from . import tasks
+        try:
+            t = tasks.find(self._task_board(), args["task"])
+        except tasks.Stop as no:
+            raise Failed(f"task_show: {no}") from None
+        return {**t, "untrusted": _cap(t["untrusted"]), "said": f"{t['id']} pays {tasks.usdc(t['amount'])} when a pull request that passes its check is merged."}
+
+    def _task_take(self, args: dict) -> dict:
+        from . import tasks
+        try:
+            got = tasks.take(self._task_board(), args["task"], args.get("address", ""), args.get("login", ""), args.get("branch", ""))
+        except tasks.Stop as no:
+            raise Failed(f"task_take: {no}.") from None
+        got["task"] = {**got["task"], "untrusted": _cap(got["task"]["untrusted"])}
+        return {**got, "said": "Nothing was sent. Open the pull request, post the comment on it, and the merge pays."
+                if got["bound"] else "Nothing was sent. Give an address, or the payment is held for the account until it binds one."}
 
     # -- what the tools read ------------------------------------------------------------------------------------
     def _ask(self, path: str):

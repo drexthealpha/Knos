@@ -15,6 +15,38 @@ self-managed GitLab has signed a token for it, and the record it produces does n
 3. The attestor that ran it was **approved by both parties beforehand**, by name.
 4. What a dispute would need to see is **sealed to both parties**, so either can open it and nobody else can.
 
+## One command, against a simulator
+
+```
+python -m knos.private run --repo PATH_TO_THE_WORK --attestors examples/private/attestors.json
+```
+
+It runs the whole path on one machine and prints each step as it happens: the attestors both parties approved, a
+vault key for each party, the evaluation, the evidence sealed to both, the record that may leave, a signed token,
+the offline check with the evidence the supplier opened, the retention rule as a dry run, and a dispute opened by
+one party and resolved by both. It writes a folder (`--out`, default `knos-private-run`) and nothing in `--repo`.
+
+**No private customer has run it.** What the command simulates, said on its first line: the issuer is an RSA key
+made on the spot, not a forge; both parties are one process; and without `--verdict FILE` (the judge's own verdict,
+from `knos proof judge --evidence`) no suite is run, so the record names no checks and no assurance. Every other
+step is the function the real path uses (`tests/test_private_path.py`, "one command").
+
+The release run exercises the real path in a private repository Knos owns. None exists yet, so the stage stays
+`tested` until this has run. It needs two private repositories (an attestor and a target), a self-hosted Linux runner
+registered to the attestor (the workflow asks for one), the secret `KNOS_READ_TOKEN`, the variables
+`KNOS_VAULT_BUYER` and `KNOS_VAULT_SUPPLIER`, and `terms.json` and `attestors.json` in the attestor, whose entry
+names the issuer `https://token.actions.githubusercontent.com` as run by a `third party`:
+
+```
+gh workflow run knos-private.yml -R OWNER/ATTESTOR -f repository=OWNER/TARGET -f pull=1 -f issue=1
+gh run download -R OWNER/ATTESTOR -n knos-private-verdict -D verdict
+curl -sSf https://token.actions.githubusercontent.com/.well-known/jwks -o jwks.json
+python -m knos.private check --record verdict/record.json --token verdict/token.jwt --attestors attestors.json --jwks jwks.json
+```
+
+That would show one thing the simulator cannot: a forge's own signature over a record of private work. It would
+still be Knos's repository, not a customer's.
+
 ## What leaves, exactly
 
 The workflow is [`examples/private/knos-private.yml`](../examples/private/knos-private.yml). Its last artifact
@@ -143,6 +175,12 @@ This describes the mechanism. It is not legal advice, and the contract between t
 - **What it settles.** The opened archive's SHA-256 is in the signed record, so neither side can swap it. Either
   side can run the same acceptance again on the same trees (`knos judge rerun`) and compare. If the results differ,
   the line is `disputed`; Knos does not decide who is right, and whoever the contract names does.
+- **How it is opened and closed.** `knos.private.dispute_open` takes the archive a party opened with its own key
+  and refuses any other bytes, so only someone the evidence was sealed to can open a dispute. The opener signs it
+  (Ed25519, the key of a Solana wallet file; the parties exchange public keys beforehand, as they do vault keys).
+  `dispute_resolve` names what the record comes to, `accepted` or `rejected`, and `dispute_check` accepts it only
+  with **both** parties' signatures over the same outcome. One party alone cannot close it, and Knos signs nothing.
+  The dispute is a file the two parties hold. Nothing publishes it and no program reads it.
 - **The money meanwhile.** A disputed line is not an accepted one: it is not billed and it is not paid. Lines that
   are not disputed are approved and paid as usual. For an order held in escrow on devnet, the test USDC stays in
   escrow until a signed acceptance pays it or the deadline returns it to the funder ([DRILLS.md](DRILLS.md), "refund
@@ -152,6 +190,9 @@ This describes the mechanism. It is not legal advice, and the contract between t
 ## What is not done
 
 - No customer has run the workflow, and no enterprise instance's token has been verified, on chain or off.
+- The one command above has run only against its simulator. The release run's four lines have not run: Knos owns no
+  private repository with a self-hosted runner yet.
+- A dispute file is checked, not enforced: no program and no invoice reads it yet, so honouring it is the contract's.
 - The record is not accepted by the escrow program. That program's audiences are in [OIDC.md](OIDC.md).
 - The key size of an enterprise instance was not measured. A 3072-bit key would be refused.
 - Nothing checks that an administrator named in the attestors file is who the file says.

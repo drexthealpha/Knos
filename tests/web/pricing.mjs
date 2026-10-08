@@ -155,7 +155,9 @@ for (const [v, width] of [[1, 1280], [2, 1280], [1, 320], [2, 320]]) {
     ok("  what the program takes is the one rule: 5 pays 0.05 (1.00%), 100 pays 0.30, 100,000 pays 300", JSON.stringify(effective.filter((r) => ["5", "100,000"].includes(r[0]))) === JSON.stringify([["5", "0.05", "1.00%"], ["100,000", "300", "0.30%"]]) && worked[0][2] === "0.30", [effective, worked]);
     ok("  nothing on the page names the old rule, a tier or an upgrade to come", !/2\.5%|0\.40|next upgrade|not live|Until knos_pay/.test(all) && (await p.textContent("#price-honest-now")) === "", all.match(/2\.5%|0\.40|next upgrade|not live|Until knos_pay/));
   }
-  ok(`Version ${v}: the book is the six lines of the vectors, but for that cell`, JSON.stringify((await table(p, "price-book")).map((r, n) => (n === 2 ? r.slice(0, 4) : r))) === JSON.stringify(vectors.lines.map((r, n) => (n === 2 ? r.slice(0, 4) : r))));
+  const unticked = vectors.lines.map((r) => r.map((c) => c.replace(/`([^`]+)`/g, "$1")));            // `code` in a cell is drawn as code
+  ok(`Version ${v}: the book is the six lines of the vectors, but for that cell`, JSON.stringify((await table(p, "price-book")).map((r, n) => (n === 2 ? r.slice(0, 4) : r))) === JSON.stringify(unticked.map((r, n) => (n === 2 ? r.slice(0, 4) : r))));
+  ok(`Version ${v}: a command in the book is drawn as code, never as backticks`, (await p.$$eval("#price-book tbody code", (c) => c.map((x) => x.textContent))).includes("knos record serve") && !(await p.innerText("#price-book")).includes("`"));
   ok(`Version ${v}: nobody but the page's own server is asked, and no error`, strangers.length === 0 && errors.length === 0, [strangers, errors]);
   await ctx.close();
 }

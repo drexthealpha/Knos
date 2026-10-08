@@ -9,6 +9,9 @@
 //                                 default (Python) judge; an order's own `.knos/proof.toml` can replace the judge's list
 //   classify(terms, path, status) { class, code }: allowed, allowed_not_counted or refused, as `knos preflight` decides it
 //   tree(rows)                    the paths as nested folders
+//   PROTECTIONS, owed(terms, funded)  the four things a supplier is owed before starting, how each is enforced (program,
+//                                 workflow or advisory), and what these terms give of each: `knos preflight` says the same
+//                                 four (knos.preflight.PROTECTIONS; tests/test_preflight.py compares the rows)
 //   search(rows, words)           the refusal rows that hold every word
 //
 // The refusal table is refusals.json, written from knos.ghwords.REFUSALS (scripts/supplier_docs.py), so the page, the
@@ -25,6 +28,42 @@ export const SAMPLES = [
   { name: "bugfix", terms: { accept: "", checks: [{ app: 15368, name: "lint" }, { app: 15368, name: "unit" }], deny: [".github/**", ".knos/**"], mode: "merge", paths: ["src/**", "tests/**"], reserve: 7, v: 1 } },
   { name: "feature-blackbox", terms: { accept: "0".repeat(64), checks: [{ app: 15368, name: "unit" }], deny: [".github/**", ".knos/**"], mode: "tests", paths: [], reserve: 7, v: 1 } },
 ];
+
+// The four protections, in knos.preflight's order and words: id, title, how it is enforced when the terms hold it, one line.
+export const PROTECTIONS = [
+  { id: "fixed_criteria", title: "Fixed criteria", enforced: "program", line: "Terms are fixed when the order is funded." },
+  { id: "acceptance_deadline", title: "Acceptance deadline", enforced: "program", line: "Passing work is paid without a merge." },
+  { id: "appeal", title: "No arbitrary rejection", enforced: "workflow", line: "A rejection has a reason and a free appeal." },
+  { id: "predictable_payment", title: "Predictable payment", enforced: "program", line: "The order is funded before work starts." },
+];
+export const NETTED = { id: "predictable_payment", title: "Predictable payment", enforced: "advisory", line: "Netted work is covered by a bound reserve." };
+export const ENFORCED = { program: "the program", workflow: "the workflow", advisory: "advice only" };
+
+/** What these terms give of each protection, as far as terms alone show: [{ id, state: held | lacked | ask, says }]. `funded`: the
+ *  terms were read from a funded issue. What an order adds beside its terms (paid without a merge; an arbiter) the page cannot
+ *  see, so it says what to ask; `knos preflight --strict` takes the answers (--auto, --arbiter). */
+export function owed(terms, funded = false) {
+  const tests = terms.mode === "tests", named = terms.checks.length > 0;
+  return [
+    tests || named ? { id: "fixed_criteria", state: "held", says: "Held: the criteria cannot change after funding." }
+      : { id: "fixed_criteria", state: "lacked", says: "Lacking: no check is named; the buyer's merge decides." },
+    tests ? { id: "acceptance_deadline", state: "ask", says: "Ask: does passing work pay without a merge?" }
+      : { id: "acceptance_deadline", state: "lacked", says: "Lacking: the buyer can wait forever." },
+    tests ? { id: "appeal", state: "held", says: "Held: another account runs the checks again, free." }
+      : { id: "appeal", state: "ask", says: "Ask: does the order name an arbiter?" },
+    funded ? { id: "predictable_payment", state: "held", says: "Held: the order was funded before work." }
+      : { id: "predictable_payment", state: "ask", says: "Ask: is the order funded? Read its issue." },
+  ];
+}
+
+function owedHtml(rows) {
+  const by = Object.fromEntries((rows || []).map((r) => [r.id, r]));
+  const row = (p) => `<tr data-owed="${p.id}"${by[p.id] ? ` data-state="${by[p.id].state}"` : ""}><th scope="row">${esc(p.title)}</th><td>${esc(p.line)}</td>
+    <td>Enforced by ${esc(ENFORCED[p.enforced])}.</td><td data-sp-owed="says">${esc(by[p.id]?.says || "Paste terms to check.")}</td></tr>`;
+  return `<table><thead><tr><th scope="col">You are owed</th><th scope="col">How</th><th scope="col">Enforced by</th><th scope="col">These terms</th></tr></thead>
+    <tbody>${PROTECTIONS.map(row).join("")}<tr data-owed="netted"><th scope="row">${esc(NETTED.title)}, netted</th><td>${esc(NETTED.line)}</td>
+    <td>Enforced by ${esc(ENFORCED[NETTED.enforced])}.</td><td>Ask: is a reserve bound?</td></tr></tbody></table>`;
+}
 
 /** A terms glob as knos.terms.matches reads it. */
 export function matches(path, glob) {
@@ -144,9 +183,11 @@ const STYLE = `.supplier .sp-refusals{max-height:420px;overflow-y:auto;border:1p
 .supplier [data-class=allowed_not_counted]>.sp-tag,.supplier p[data-class=allowed_not_counted]{color:var(--ink-2);border-style:dashed}
 .supplier .sp-out{transition:opacity var(--dur-2) var(--ease)}.supplier .sp-out[data-state=pending]{opacity:.5}
 .supplier table{border-collapse:collapse;width:100%}.supplier td,.supplier th{padding:6px 12px 6px 0;text-align:left;vertical-align:top;overflow-wrap:anywhere}
-.supplier td code{white-space:nowrap}@media (prefers-reduced-motion:reduce){.supplier .sp-out{transition:none}}
+.supplier .sp-owed th[scope=row]{font-weight:500;padding-right:12px}.supplier .sp-owed tr[data-state=lacked] [data-sp-owed]{color:var(--bad)}.supplier .sp-owed tr[data-state=held] [data-sp-owed]{color:var(--ok)}
+.supplier .sp-owed tr{transition:opacity var(--dur-1) var(--ease)}.supplier .sp-owed th{overflow-wrap:anywhere}
+.supplier td code{white-space:nowrap}@media (prefers-reduced-motion:reduce){.supplier .sp-out,.supplier .sp-owed tr{transition:none}}
 @media (max-width:640px){.supplier thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.supplier tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}.supplier td{display:block;padding:2px 0}.supplier td code{white-space:normal;overflow-wrap:anywhere}}`;
+.supplier tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}.supplier td,.supplier .sp-owed th[scope=row]{display:block;padding:2px 0}.supplier td code{white-space:normal;overflow-wrap:anywhere}}`;
 // Under 640 px a refusal is one block (its code, then its two sentences): three columns there squeeze each sentence to a
 // word a line (tests/web/overflow.mjs holds every table row of the site to ROW_MAX px).
 
@@ -169,6 +210,9 @@ export function renderSupplier(el, ctx = {}) {
         <label><input type="checkbox" data-sp="new"> I add this file</label></p>
       <p data-sp="verdict" role="status" aria-live="polite"></p>
     </div>
+    <h3>What you are owed before you start</h3>
+    <div class="k-table sp-owed" data-sp="owed">${owedHtml(null)}</div>
+    <p class="fine">Check all four: <code>knos preflight --strict</code></p>
     <h3>Every refusal, in plain words</h3>
     <p class="sp-row"><input type="search" id="sp-q" aria-label="Search refusals" placeholder="Search: protected, pay.83, token" autocomplete="off"></p>
     <p class="fine" data-sp="count"></p>
@@ -188,9 +232,10 @@ export function renderSupplier(el, ctx = {}) {
     out.innerHTML = got.class === "refused" ? `Refused. ${esc(row ? `${row.happened} ${row.do}` : "")} <code>${esc(got.code)}</code>`
       : got.class === "allowed_not_counted" ? "Allowed, not counted. The judge runs the buyer's tests." : "Allowed.";
   };
-  const show = (t, what) => {
+  const show = (t, what, funded = false) => {
     terms = t;
     $("out").innerHTML = rulesHtml(t); $("out").dataset.state = "done"; $("try").hidden = false;
+    $("owed").innerHTML = owedHtml(owed(t, funded));
     $("said").textContent = what; tryPath();
   };
   const fail = (why) => { $("out").dataset.state = "done"; $("said").textContent = why; };
@@ -200,7 +245,7 @@ export function renderSupplier(el, ctx = {}) {
       const r = await fetchFn(link.url, { headers: { accept: "application/json" } });
       if (!r.ok) return fail(r.status === 403 || r.status === 429 ? "GitHub's hourly limit is spent. Paste the terms." : "That link gave nothing to read.");
       const body = await r.json();
-      show(link.issue ? termsInComments(body) : readTerms(JSON.stringify(body)), what || (link.issue ? `Read from ${link.issue}.` : "Read from the link."));
+      show(link.issue ? termsInComments(body) : readTerms(JSON.stringify(body)), what || (link.issue ? `Read from ${link.issue}.` : "Read from the link."), Boolean(link.issue));
     } catch (e) { fail(e instanceof Error && /terms|JSON/.test(e.message) ? e.message : "That link could not be read."); }
   };
   const run = async () => {
@@ -219,7 +264,8 @@ export function renderSupplier(el, ctx = {}) {
   };
   const table = () => {
     const rows = search(refusals, q.value);
-    $("rows").innerHTML = rows.map((r) => `<tr><td><code>${esc(r.code)}</code></td><td>${esc(r.happened)}</td><td>${esc(r.do)}</td></tr>`).join("");
+    const ticked = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");          // the sentences name files and commands in backticks
+    $("rows").innerHTML = rows.map((r) => `<tr><td><code>${esc(r.code)}</code></td><td>${ticked(r.happened)}</td><td>${ticked(r.do)}</td></tr>`).join("");
     $("count").textContent = refusals.length ? `${rows.length} of ${refusals.length} refusals.` : "The table could not be read.";
   };
 

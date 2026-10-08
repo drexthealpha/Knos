@@ -20,7 +20,7 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
-import { chromiumOrSkip, TYPES } from "./overflow.mjs";
+import { chromiumOrSkip, TYPES, addedPages } from "./overflow.mjs";
 
 const root = process.argv[2], list = process.argv.includes("--list");
 if (!root || !existsSync(join(root, "index.html"))) { console.error("usage: node tests/web/words.mjs <site dir> [--list]"); process.exit(2); }
@@ -43,9 +43,11 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, r
 await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
 const page = await ctx.newPage();
 
-for (const name of PAGES) {
+for (const name of [...PAGES, ...addedPages(root)]) {
   await page.goto(`${base}?p=${name}#${name}`, { waitUntil: "load" });
   await page.waitForFunction((n) => document.documentElement.dataset.ready === n, name);
+  // the round under the first screen comes with the reader's first move (web/front.js): its words are counted too
+  if (name === "check") { await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go"); }
   await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(500);
   const got = await page.evaluate((name) => {
     const WORD = /[A-Za-z0-9][\w'’%.,/-]*/g, words = (t) => (t.match(WORD) || []).filter((w) => /[A-Za-z0-9]/.test(w));

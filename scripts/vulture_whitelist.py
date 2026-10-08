@@ -149,3 +149,20 @@ netting_.anchored                                   # whether the two knos_meter
 record_api_.lookup                                  # the caller's side of a paid lookup, for an agent; tests/test_record_api.py
 receipt_.LEVELS                                     # the assurance levels in rising order (receipt version 5); tests/test_assurance.py
 settle_oidc2.revoke_es256_ix                        # ends a P-256 key (tag 14), for the guardian or the key's wallet; tests/test_es256_client.py
+
+# 0.3.20. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.quote_                        # knos.advance.register: knos advance quote
+_.compare_, _.policy_           # knos.archive.register: knos archive compare | policy
+_.matrix_                       # knos.enforce.register: knos controls matrix
+_.gaps_                         # knos.events.register: knos events gaps
+_.reserve_, _.settled_          # knos.netting.register: knos net reserve | settled
+_.exception_, _.queue_          # knos.recall.register: knos recall exception | queue
+_._why, _._kinds                # knos.tasks.register: knos task why | kinds
+# zipfile reads these of a ZipInfo when it writes the entry (knos.archive.pack: one date, no compression, one mode, so the same evidence is the same bytes).
+_.compress_type, _.create_system, _.external_attr
+# Public functions and constants with no caller inside src/knos or scripts, each held by the tests that name it.
+from knos import rails as rails_, tasks as tasks_
+
+rails_.accepted_rows                                # the rows a month's bill is made from, whichever rail paid; tests/test_statement_rails.py
+tasks_.COUNTERS                                     # the counter each outside task kind moves, held to scripts/outsiders.py; tests/test_tasks.py
+tasks_.kind_file                                    # tasks/outside/<kind>.json byte for byte; tests/test_tasks.py

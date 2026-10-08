@@ -4,6 +4,11 @@
  "ids": "public",
  "date": "7 October 2026",
  "money": "test USDC",
+ "agree": {
+  "price": "5.00",
+  "days": 14,
+  "remedy": "what nobody proves goes back at the deadline"
+ },
  "fund": {
   "comment": "/knos fund 5",
   "tx": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",
@@ -20,7 +25,8 @@
   "pull": "no-op PR (README only)",
   "ci": "fail",
   "knos": "fail",
-  "check": ".knos.acceptance.1.test_issue::test_mixed"
+  "check": ".knos.acceptance.1.test_issue::test_mixed",
+  "reason": "acceptance checks not passed"
  },
  "fixed": {
   "ci": "passes",
@@ -69,6 +75,7 @@
    "3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc"
   ]
  },
+ "bank_file": true,
  "sources": [
   "docs/CAPABILITIES.md",
   "docs/capabilities.json",
@@ -76,6 +83,12 @@
   "docs/bench.json",
   "docs/facts.json",
   "docs/OIDC.md",
-  "programs-v2/knos_pay/src/lib.rs"
- ]
+  "programs-v2/knos_pay/src/lib.rs",
+  "src/knos/commands.py",
+  "docs/archive_verify.json"
+ ],
+ "verify": {
+  "says": "Stand-alone verifier on the sample archive: 3 checks hold, 2 notes.",
+  "link": "docs/RETENTION.md"
+ }
 }

@@ -82,7 +82,7 @@ export function renderKeyholder(el, ctx = {}) {
   el.innerHTML = `<section class="kh k-card">
     <p class="k-kicker" data-kh="count">Outside key holders today: reading…</p>
     <h2>Hold a key</h2>
-    <p>Approve or refuse a program upgrade. Check its build first.</p>
+    <p>Vote on a program upgrade. Check its build first.</p>
     <details class="k-more"><summary>What your key can and cannot do</summary>
     <div class="kh-two">
       <div><h3>Your key can</h3><ul>
@@ -95,6 +95,7 @@ export function renderKeyholder(el, ctx = {}) {
         <li>Change an order's terms. The program has no such instruction.</li>
         <li>Block a refund. A refund needs no key.</li>
         <li>Approve an upgrade alone. Two votes are needed.</li>
+        <li>Block an upgrade alone. The founder holds two keys.</li>
       </ul></div>
     </div>
     <p class="fine">Pay nothing: this is devnet. Check four things per upgrade.

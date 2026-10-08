@@ -85,6 +85,9 @@ on the buyer's own numbers. The rule as one worked line, at the example of [MARK
 | a year's price | × 3 | the benefit the findings must show |
 |---|---|---|
 | 130,240 USD (Control Business 100,000 + Meter 240 + Acceptance 30,000, which is 0.30% of 10 million USD reconciled off chain) | × 3 | 390,720 USD a year |
+| 373,600 USD (Control Business 100,000 + Acceptance 252,000 on 120 million USD a year + Meter 21,600 on 1,000,000 evaluations a month) | × 3 | 1,120,800 USD a year |
+
+Both lines are hurdles to be measured in a Pilot, not claims: neither says a buyer gets the benefit.
 
 For the Pilot alone the same line is 2,500 × 3 = 7,500 USD of benefit found in the 30 days. The benefit is the sum of
 what the four measures above are worth to the buyer: hours no longer spent, lines no longer paid twice or paid for
@@ -101,7 +104,8 @@ nothing, and connecting them costs nothing. No real fee is taken on chain: any r
 test USDC, where the program's fee is test money and zero revenue. Acceptance on the one invoice the Pilot
 reconciles is inside the 2,500 USD. After it the price book applies: 0.30% of accepted value, 0.20% by contract
 on a month's value above 1 million and never lower, and outcomes under 20 USD netted into one release per payee
-per period ([MARKET.md](MARKET.md), section 3).
+per period ([MARKET.md](MARKET.md), section 3). Acceptance is charged once whichever rail pays the supplier, and
+what a bank or a network charges for the payment is listed apart from Knos's price.
 
 **The 2,500 USD is credited against year one.** A buyer who goes on to an annual contract
 ([MARKET.md](MARKET.md), section 3) pays that year's invoices less the 2,500 USD already paid: on the Team plan,

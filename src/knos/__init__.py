@@ -1,4 +1,4 @@
-"""knos - Bounties that pay when the pull request is merged with the checks you named passing. Attested by a GitHub-signed workflow run, verified on Solana."""
+"""knos - The neutral meter for AI agent work: neither side keeps the count."""
 
 
 def version() -> str:

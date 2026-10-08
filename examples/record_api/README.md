@@ -6,9 +6,10 @@ paid through the proposed x402 `knos-order` scheme of [`examples/x402_attested`]
 ([docs/X402.md](../../docs/X402.md), "Record: a lookup priced for machines"). The record file itself stays free.
 
     python -m pytest -q tests/test_record_api.py        # two stand-in agents, the program itself, in LiteSVM
-    python -m knos.record_api offer.json --records docs/records --memory .record-api --port 8402
+    python -m knos.record_api offer.json --records docs/records --memory .record-api --port 8402 --key operator.json
+    python -m knos.record_api offer.json --health        # can it answer, does it sign, what is promised (nothing)
 
-The second line is `knos record serve` once the `record` command carries it. It reads the chain from the RPC URL
+The second line is `knos record serve`. Revenue from lookups is budgeted at zero until someone buys one. It reads the chain from the RPC URL
 every Knos command uses. It has been run against devnet once, on the operator's machine during Knos's own release
 run (0.3.19): a wallet of that run [funded a pack](https://explorer.solana.com/tx/2Z9NtBn78XRfLaY928d34qZQxTFxZrGDxcEbBjwpWm9bqjTjcNgPtSrtFZDC3snMCvuWpWWPWqYnVWRkjZSj5rrd?cluster=devnet)
 at the public knos_pay and got lookup 0 of 50; the same call again and another wallet's call got `402`. The order
@@ -17,8 +18,23 @@ stays in escrow until its deadline, because no judge for lookups exists.
 | path | price | answer |
 |---|---|---|
 | `GET /records/<slug>.json` | free | the record file, as published |
-| `GET /lookup/<slug>` | 0.10 test USDC | `402` with the order to fund; with a signed call, the record and what was served |
+| `GET /lookup/<slug>` | 0.10 test USDC | `402` with the order to fund; with a signed call, the record, what was served, and the answer |
 | `GET /orders/<order>` | free | how many lookups the order bought and used |
+| `GET /health` | free | whether it can answer, whether it signs, what its operator promises |
+
+## What the paid answer adds
+
+The free file is unsigned and says the day it was built. The paid answer ([docs/RECORD.md](../../docs/RECORD.md),
+section 5) adds three things, and `knos record verify answer.json` checks it with no network:
+
+- **Signed freshness.** With `--key` the operator signs the record's hash, the cluster time and slot it read, and an
+  expiry. Without a key the answer says it is unsigned. Past its expiry it is stale.
+- **A summary.** Every count as `k` of `n` with a 95% Wilson interval, the same for every supplier. No score.
+- **History the supplier grants.** `--history <folder>` and `--suppliers <file>`: per-buyer breakdown, disputes and
+  appeals, corrections, time to accept. A field is released only against the supplier's signed grant to the paying
+  wallet (header `Record-Grant`, written by `knos record grant`). Without one it reads `not granted`.
+
+The paid answer has been tested in the simulator; the one devnet run above was before it existed.
 
 ## How a call is paid
 
@@ -53,8 +69,9 @@ returns everything to the caller after the deadline when none arrives (`RefundOr
   workflow accepts, so this is a demonstration of the flow and not a way to earn.
 - **A refund of unused lookups.** `PayOrder` pays the order whole.
 - **Netting across orders**, and any price below a pack.
-- **Anything the free file lacks.** The paid answer is the same record, with the order, the count and the time it
-  was served. A lookup built fresh from an events log is not built.
+- **A binding of a supplier to its key.** The operator's `--suppliers` file says which key a supplier grants with.
+- **An availability promise.** The answer states the operator's: none.
+- **A record built fresh for each lookup.** The server signs the files it was given and the time it read the chain.
 - **A hosted server.** The one run on devnet was the operator's own, with its own wallets. Outside callers: 0.
 
 ## The offer file

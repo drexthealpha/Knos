@@ -1,5 +1,5 @@
 """docs/README.md is the map of the documents: every file in docs/*.md is on it once, under one of six questions, and
-every link on it leads to a file. docs/STORY.md and web/story.js tell the three-minute demonstration in six beats, each
+every link on it leads to a file. docs/STORY.md and web/story.js tell the three-minute demonstration in seven beats, each
 with evidence that exists in the repository; what follows the last beat is an invitation and claims nobody. docs/MANIFEST.md
 is what scripts/release_manifest.py writes from its sources.
 
@@ -19,7 +19,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 QUESTIONS = ["Does it work?", "Why does it matter?", "What is new?", "How do I use it?", "How do I build on it?", "How is it run and paid for?"]
-STEPS = 6
+STEPS = 7
 WORDS = re.compile(r"[A-Za-z0-9][\w'%.,/-]*")
 
 
@@ -72,7 +72,7 @@ def test_the_front_page_has_six_parts_above_the_line_and_three_links_onward():
         assert rel.startswith("https://") or (ROOT / rel).exists(), rel
 
 
-def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_three_things():
+def test_the_story_is_seven_beats_each_with_evidence_that_exists_and_asks_for_three_things():
     story = read("docs/STORY.md")
     lines = [line for line in story.splitlines() if line.strip()]
     assert lines[1] == "**The neutral meter for AI agent work: neither side keeps the count.**"
@@ -83,7 +83,9 @@ def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_thre
         assert len(WORDS.findall(f"{title} {said}")) <= 12, (title, said)
         assert target.startswith("https://") or (DOCS / target.split("#")[0]).exists(), target
     assert [s[1] for s in steps] == ["Buyer and supplier agree one task.", "A claimed success fails the condition.", "Valid work passes.",
-                                     "The payment executes.", "A replay pays nothing.", "Accounts get an export."]
+                                     "Both sides make the same statement.", "A replay pays nothing.", "The payment executes.",
+                                     "A verifier checks it offline."]            # Agree, Fails, Passes, Statement, Replay, Pay, Verify
+    assert "Agree, Fails, Passes, Statement, Replay, Pay, Verify" in story and "](../web/demo.js)" in story
     after = story.split(steps[-1][4])[1].split("\n## ")[0]                                  # what follows the last beat claims nobody
     assert "Then your own invoice: [check it](https://drexthealpha.github.io/Knos/). Nobody has paid for this yet." in after
     for _n, title, said, _name, _target in steps:
@@ -91,7 +93,7 @@ def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_thre
             assert word not in f"{title} {said}".lower()
     # a link to a run on staging program ids says so in its own words, and the page says which beats
     staged = [int(n) for n, _t, _s, name, _target in steps if "staging program ids" in name]
-    assert staged == [] and "The transactions of steps 1, 4 and 5 are one round on the public program ids" in " ".join(story.split())
+    assert staged == [] and "The transactions of steps 1, 5 and 6 are one round on the public program ids" in " ".join(story.split())
     assert "](MANIFEST.md)" in story and "](submission/demo_script.md)" in story
     ask = story.split("## The ask")[1].split("\n## ")[0]
     needs = re.findall(r"(?m)^\d\. (.+)$", ask)
@@ -99,7 +101,7 @@ def test_the_story_is_six_beats_each_with_evidence_that_exists_and_asks_for_thre
     assert "outside key holder" in needs[0] and "shadow count" in needs[1] and "outside review" in needs[2]
 
 
-def test_the_page_tells_the_same_six_beats_and_stands_still_under_reduced_motion():
+def test_the_page_tells_the_same_seven_beats_and_stands_still_under_reduced_motion():
     source = read("web/story.js")
     assert "export function renderStory(el, ctx" in source and "prefersReduced" in source
     assert not re.search(r"https?://(?!drexthealpha\.github\.io|github\.com/drexthealpha|explorer\.solana\.com)", source)

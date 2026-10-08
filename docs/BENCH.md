@@ -379,26 +379,33 @@ headless Chromium against a mocked GitHub and Solana.
 `knos decide` answers accepted, rejected or insufficient evidence the moment the forge's signed token is in hand, by the reads a relay makes before it spends a fee (`knos.settle.v2.relay.precheck`), and writes a provisional receipt. A provisional receipt never authorises payment; the final receipt names it and replaces it ([LOAD.md](LOAD.md), "The five clocks").
 
 <!-- decide:time -->
-Measured on 2026-10-07 by `python scripts/decide_bench.py --write` on this machine: Intel(R) Xeon(R) Processor @ 2.80GHz, 2 CPUs, Linux x86_64, Python 3.11.15. The chain is LiteSVM with the committed test builds, in the same process: no network. On devnet, four runs of the 0.3.18 command (the relay's whole precheck, on real fund tokens over the shared public RPC) took 4.3 to 32.6 s: a first reading, not a sample. The 0.3.19 split was timed there on 24 real tokens: the tables after this block.
+Measured on 2026-10-07 by `python scripts/decide_bench.py --write` on this machine: Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one). The chain is LiteSVM with the committed test builds, in the same process: no network. On devnet, four runs of the 0.3.18 command (the relay's whole precheck, on real fund tokens over the shared public RPC) took 4.3 to 32.6 s: a first reading, not a sample. The 0.3.19 split was timed there on 24 real tokens: the tables after this block.
 
 | decision | what is timed | n | p50 | p95 | slowest | every sample said | target at p95 (a target, not a measurement) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| fresh, accepted | a fund token never seen: signature checked, chain read | 40 | 1.2 ms | 1.9 ms | 2.1 ms | accepted | under 2000 ms |
-| fresh, rejected | a pay token for an issue with nothing in escrow: signature checked, chain read | 40 | 0.7 ms | 1.0 ms | 1.2 ms | rejected | under 2000 ms |
-| cached, accepted | the same fund token again, the chain's answers kept (`knos.decide.Cached`) | 40 | 0.9 ms | 1.4 ms | 6.1 ms | accepted | under 200 ms |
-| no chain | the token alone, `ledger=None`: insufficient evidence, or rejected | 40 | 0.4 ms | 0.6 ms | 0.7 ms | insufficient evidence | under 200 ms |
-| free check | the conclusions of three named checks, no token | 40 | 0.1 ms | 0.1 ms | 0.1 ms | accepted | under 200 ms |
-| offline, accepted | the fund token against kept key lists: signature, claims, terms; nothing read (`knos.decide.offline`) | 40 | 0.6 ms | 0.9 ms | 4.6 ms | accepted | under 250 ms |
-| chain check | one request to the simulated chain and the updated answer (`knos.decide.chain_check`, `after_chain`) | 40 | 0.7 ms | 0.9 ms | 1.3 ms | accepted | under 250 ms |
+| fresh, accepted | a fund token never seen: signature checked, chain read | 40 | 3.0 ms | 5.1 ms | 67.4 ms | accepted | under 2000 ms |
+| fresh, rejected | a pay token for an issue with nothing in escrow: signature checked, chain read | 40 | 1.7 ms | 3.9 ms | 5.8 ms | rejected | under 2000 ms |
+| cached, accepted | the same fund token again, the chain's answers kept (`knos.decide.Cached`) | 40 | 2.5 ms | 4.0 ms | 5.3 ms | accepted | under 200 ms |
+| no chain | the token alone, `ledger=None`: insufficient evidence, or rejected | 40 | 1.1 ms | 1.8 ms | 2.6 ms | insufficient evidence | under 200 ms |
+| free check | the conclusions of three named checks, no token | 40 | 0.1 ms | 0.2 ms | 0.2 ms | accepted | under 200 ms |
+| offline, accepted | the fund token against kept key lists: signature, claims, terms; nothing read (`knos.decide.offline`) | 40 | 1.6 ms | 2.5 ms | 2.6 ms | accepted | under 100 ms |
+| chain check | one request to the simulated chain and the updated answer (`knos.decide.chain_check`, `after_chain`) | 40 | 1.2 ms | 2.0 ms | 2.6 ms | accepted | under 100 ms |
+| offline, warm | the fund token through a `knos.decide.Decider` built before it arrived (what `--stream` runs for each line): the evidence in hand to the provisional receipt | 40 | 1.6 ms | 2.3 ms | 2.7 ms | accepted | under 100 ms |
 
 Requests to an RPC endpoint for one fund token, counted through an endpoint that only counts (`round_trips()`): before the split, the relay's whole precheck made 4 calls of the ledger (1 now, 1 simulate, 2 infos), each at least one request, one after another, and fetched the issuer's key list besides; the chain check makes 1 (1 infos: one getMultipleAccounts), with a timeout of 2 s, and the offline half makes none.
 
-The whole offline command in a new process each time (`python -m knos.decide --token-file ... --no-chain`: interpreter start, imports, decision, receipt written), n 10: p50 177 ms, p95 198 ms, slowest 198 ms; of that, inside the command p50 102 ms, p95 122 ms. Every run said: Provisional: rejected (token expired) (the simulator's clock is not this machine's, so its token is past its time for the command; the signature and the key lookup are the same work). The 250 ms target is for the warm offline decision; the cold command meets it here.
+The whole offline command in a new process each time (`python -m knos.decide --token-file ... --no-chain`: interpreter start, imports, decision, receipt written), n 10: p50 473 ms, p95 586 ms, slowest 586 ms; of that, inside the command p50 310 ms, p95 336 ms. Every run said: Provisional: rejected (token expired) (the simulator's clock is not this machine's, so its token is past its time for the command; the signature and the key lookup are the same work). The command says the two parts of that apart: loading the rules (the relay's module and the Solana types, paid once a process) p50 282 ms, p95 317 ms; the decision itself p50 2.4 ms, p95 4.3 ms. The 100 ms target is for the decision once the rules are loaded and the evidence is in hand; a new process for every token does not meet it here.
 
-What `python -m knos.decide` imports, by `python -X importtime` (the median of 5 new processes, each module's own time summed): deciding on a token offline, 236 modules in 141 ms, typer not loaded, the relay's rules loaded (they are the rules it decides by); the free check, 91 modules in 55 ms, typer not loaded, the relay's rules not loaded. Before 0.3.19 the same command loaded typer for every answer: on this machine, idle, 151 modules in 94 ms for the free check and 268 in 165 ms for a token.
+What `python -m knos.decide` imports, by `python -X importtime` (the median of 5 new processes, each module's own time summed): deciding on a token offline, 238 modules in 407 ms, typer not loaded, the relay's rules loaded (they are the rules it decides by); the free check, 94 modules in 93 ms, typer not loaded, the relay's rules not loaded. Before 0.3.19 the same command loaded typer for every answer: on this machine, idle, 151 modules in 94 ms for the free check and 268 in 165 ms for a token.
+
+One process that stays up (`python -m knos.decide --stream`, a token a line), n 40, each line's own time from the line in hand to its provisional receipt: p50 1.6 ms, p95 2.2 ms, slowest 2.3 ms (the first line also runs each rule for the first time). The process loaded the rules once, in 310 ms, before the first line. Every line said: rejected (token expired) (the simulator's clock again). The target for this path is under 100 ms at p95, and it is met here.
+
+Real tokens (a file of `scripts/replay_tokens.py --capture`, each with the key set of its day, the clock one second after its `iat`), decided warm, n 44: p50 2.1 ms, p95 3.5 ms, slowest 10.4 ms; 44 accepted; 0 lines skipped.
 <!-- /decide:time -->
 
 **On devnet, the 0.3.19 command** ([RELAY.md](RELAY.md), "Measuring the 0.3.18 path on devnet", step 4: `KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json`, then the same with `--full`), run on 2026-10-07 between 13:19 and 14:07 UTC on the operator's machine (WSL, 2 CPUs, over the shared public RPC `api.devnet.solana.com`), once on each of 24 real GitHub-signed tokens of that day, every one at most an hour old: 11 of the release run's own rounds and 13 that other steps of the same run posted in drexthealpha's repositories. The figures are the command's own (`decided in N ms (offline A ms, chain check B ms in 1 request)`); the interpreter's start is not in them. Fewer than 30 tokens, so the samples are given as they are, not as a distribution.
+
+What that 356 ms was: a new process for each token, so the offline figure (A) held the loading of the rules (the relay's module and the Solana types under it) as well as the decision. Since 0.3.20 the command prints the two apart (`rules loaded in L ms, offline A ms`), and `knos decide --stream` is one process that stays up and decides on each line of its input: the block above has both, measured on the machine it names. Neither has been timed on devnet yet. The release run does it with `python scripts/replay_tokens.py --capture drexthealpha/knos-e2e --out tokens.jsonl` and `python scripts/decide_bench.py --tokens tokens.jsonl --write` (real tokens, decided warm on the operator's machine), and step 4 of [RELAY.md](RELAY.md) again for the new process and the chain check.
 
 | half | n | fastest | median | slowest |
 | --- | --- | --- | --- | --- |
@@ -434,3 +441,28 @@ What `python -m knos.decide` imports, by `python -X importtime` (the median of 5
 | fund | knos-rc, comment 6038879894 | after | 616 | 819 | 10453 | accepted | accepted |
 | fund | knos-rc, comment 6039629748 | after | 433 | 854 | 9549 | accepted | accepted |
 | fund | knos-relay-rc, comment 6038623582 | after | 548 | 844 | 10157 | accepted | accepted |
+
+## Every latency, apart
+
+No single number says how fast a payment is. Six waits, each with its own sample and its own owner; none is a sum of others.
+
+<!-- latency:separate -->
+Stages: `python scripts/latency_stages.py --separate --rpc https://api.devnet.solana.com --write`, run on 2026-10-07 22:42 UTC against the relay log of drexthealpha/Knos: 47 payments of 2026-10-02 to 2026-10-07. Decision, here: `python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network). Decision, on devnet: `KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json` of 0.3.19, once on each of 24 real GitHub-signed tokens, a new process for each, on the operator's machine (WSL, 2 CPUs) over api.devnet.solana.com on 2026-10-07 between 13:19 and 14:07 UTC; the figures are the command's own, and in 0.3.19 its offline figure held the loading of the rules (the table of 24 below).
+
+| latency | what is timed | measured | n | p50 | p95 | whose wait |
+| --- | --- | --- | --- | --- | --- | --- |
+| evidence arrival | workflow scheduling: the merge to the start of the workflow run | devnet, 11 of 47 payments | 11 | 2 s | 1184 s | the forge's: starting a runner |
+| evidence arrival | relay pickup: the token's comment to a relay taking it up | devnet, 11 of 47 payments | 11 | 3 s | 28 s | Knos's own: a relay finding the token |
+| evaluation | evaluation: the start of the run to the token's comment | devnet, 11 of 47 payments | 11 | 18 s | 33 s | the forge's runner: the judging job, then the forge signs what it found |
+| decision | warm: the token in hand to the provisional receipt, the rules loaded before it arrived (`knos decide --stream`) | here, on one machine, no network (Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one)) | 40 | 1.6 ms | 2.3 ms | Knos's own, all of it |
+| decision | a new process for each token: the rules loaded, then the offline decision | devnet, 2026-10-07: 24 real tokens | 24 | 356 ms | none: fewer than 30 samples | Knos's own, all of it |
+| decision | the chain check after it: one request, left behind after 2 s | devnet, 2026-10-07: 23 real tokens | 23 | 854 ms | none: fewer than 30 samples | Knos's own, all of it |
+| chain confirmation, at `confirmed` | submission: pickup to the block of the first transaction | devnet, 11 of 47 payments | 11 | 2 s | 6 s | the cluster's, and the relay's sends |
+| chain confirmation, at `confirmed` | confirmation: that block to the block of the paying transaction | devnet, 11 of 47 payments | 11 | 2 s | 8 s | the cluster's, and the relay's sends |
+| finality, at `finalized` | finality: the last confirmation to the cluster finalizing it | not recorded | not recorded | not recorded | not recorded | the cluster's; no relay waits for it |
+| payout | the paying transaction's block to test USDC in the payee's token account | not a wait: the paying transaction is the payout | - | - | - | nobody's |
+| payout | to a bank account | not applicable: no bank route | - | - | - | nobody's |
+
+The one number a person feels, the merge to the payment, was p50 25 s and p95 65 s over 47 payments; it is not the sum of the rows above, which are different samples (a stage is timed only where the relay's log line carries it).
+The release run measures every row with a sample again, on the live relay log and devnet, and rewrites this block: `python scripts/latency_stages.py --separate --rpc https://api.devnet.solana.com --write` (GH_TOKEN for GitHub's rate limit), then `python scripts/decide_bench.py --write` for the decision here. `python scripts/latency_stages.py --separate --recorded` prints this table from docs/bench.json with no network.
+<!-- /latency:separate -->

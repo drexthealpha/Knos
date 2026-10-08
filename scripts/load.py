@@ -29,6 +29,22 @@ Two tiers, written to docs/load.json and rendered into docs/LOAD.md (`--write`; 
               K senders work side by side with one fee-paying wallet. Recorded per stage: transactions, failures,
               retries, and seconds from the first submission to `finalized` (p50/p95/p99), per transaction and per
               unit (one token, one order). The run is appended to docs/load.json marked `cluster: devnet`.
+
+  measure --relays N --orders M     Throughput MEASURED, for the release run on devnet (0.3.20). N relays work side by
+              side, each with a fee payer of its own (derived from the wallet's key, so a run that died can be swept
+              again), each funding its share of M orders one after another, as a relay does: a key signs for one
+              thing at a time. Twice: `apart`, where no two relays write an account in common, and `shared`, where
+              every transaction also writes ONE token account (a transfer of one base unit into it). That account
+              stands for the fee account, which every release of a mint writes whoever relays it: Solana schedules
+              by the accounts a transaction locks for writing, whatever program writes them. Recorded for each:
+              confirmed transactions a second (first submission to last confirmation), retries, failures, seconds to
+              confirm, the slots they landed in and the most in one slot. The contention seen is the second against
+              the first. Then every order is refunded and each relay's SOL goes back to the wallet (each relay's
+              token account of the run's mint stays: its rent is not recovered).
+                  python scripts/load.py measure --relays 4 --orders 40 --wallet <keypair> --write     # the release run
+                  python scripts/load.py measure --relays 3 --orders 6 --simulate                      # here: the path, no rate
+              What it does not send: PayOrder (see `pay` above). The figure is of funding with and without one
+              shared writable account, not of payments. docs/LOAD.md keeps it apart from the derived bound.
 """
 from __future__ import annotations
 
@@ -499,6 +515,173 @@ def run_devnet(rpc, wallet: Keypair, issuer_key, n: int, senders: int = 8, url: 
     return out
 
 
+# == throughput, measured ==============================================================================================
+PHASES = {"apart": "no account written by two relays", "shared": "every transaction also writes one token account, as every release writes the fee account"}
+REDUCES = [
+    ("Several fee payers", "exists: `KNOS_RELAY_KEYS` (docs/RELAY.md). Each owner's tokens always pay from the same one of the keys, so the relays stop "
+                           "sharing the one account that pays the fees: the per-relayer ceiling of section 3 is per key."),
+    ("One release for many small outcomes", "exists: `knos net` (docs/NETTING.md) settles outcomes under 20 USD as one release per payee per period, so "
+                                            "the fee account is written once per payee per period and not once per outcome."),
+    ("One transaction for many evaluations", "exists: the meter's RecordBatch counts a period's evaluations in one transaction and moves no money, so it "
+                                             "does not write the fee account at all."),
+    ("A fee account per mint", "exists by construction: the fee account is the fee owner's token account OF THE ORDER'S MINT, so orders in two mints do not "
+                               "share it. Every order Knos has funded is in one mint, so this has not been used."),
+    ("Several fee accounts for one mint", "does NOT exist and needs a program change: the release instruction takes the one account. Not in this release."),
+]
+
+
+def relay_keys(wallet: Keypair, n: int) -> list[Keypair]:
+    """The relays' fee payers, derived from the wallet's own key: the same every run, so SOL a run that died left in
+    them is swept by the next (`measure --relays N --orders 0`). Nothing is stored and none is printed."""
+    return [Keypair.from_seed(hashlib.sha256(bytes(wallet)[:32] + b"knos-load-relay" + i.to_bytes(2, "little")).digest()) for i in range(n)]
+
+
+def _token_transfer(source: Pubkey, dest: Pubkey, owner: Pubkey, amount: int) -> Instruction:
+    return Instruction(pay.TOKEN, b"\x03" + amount.to_bytes(8, "little"), [AccountMeta(source, False, True), AccountMeta(dest, False, True), AccountMeta(owner, True, False)])
+
+
+def _slots(rpc, signatures: list[str]) -> list[int]:
+    out: list[int] = []
+    for i in range(0, len(signatures), 200):
+        got = rpc.call("getSignatureStatuses", [signatures[i:i + 200], {"searchTransactionHistory": True}])["value"]
+        out += [int(st["slot"]) for st in got if st and st.get("slot") is not None]
+    return out
+
+
+def measure(rpc, wallet: Keypair, relays: int, orders: int, amount: int = 5_000_000, work_s: int = 60, sol_per_order: int = 12_000_000,
+            sender=None, name: str = "devnet", say=lambda _line: None) -> dict:
+    """See the module's words on `measure`. `sender(payer)` makes a Sender (the tests give one with a fake clock).
+    `sol_per_order`: lamports a relay is lent per order it funds (rent it gets back at the refund, and fees)."""
+    from solders.system_program import TransferParams, transfer
+    make = sender or (lambda payer: Sender(rpc, payer))
+    s, me, keys = make(wallet), wallet.pubkey(), relay_keys(wallet, relays)
+    share = [orders // relays + (1 if r < orders % relays else 0) for r in range(relays)]
+    run = hashlib.sha256(bytes(Keypair().pubkey())).hexdigest()[:10]
+    out: dict = {"cluster": name, "date": datetime.date.today().isoformat(), "relays": relays, "orders": orders, "run": run, "wallet": str(me),
+                 "fee_payers": [str(k.pubkey()) for k in keys], "program": str(pay.PAY_ID), "phases": {}, "what": PHASES}
+    balance = lambda who: int(rpc.call("getBalance", [str(who), {"commitment": "confirmed"}])["value"])  # noqa: E731
+    began = balance(me)
+
+    def sweep() -> None:
+        back = []
+        for k in keys:
+            have = balance(k.pubkey())
+            if have > 5_000:
+                back.append(make(k).send([transfer(TransferParams(from_pubkey=k.pubkey(), to_pubkey=me, lamports=have - 5_000))]))
+        out["swept"] = sum(1 for x in back if x.ok)
+        out["sol_spent"] = round((began - balance(me)) / 1e9, 6)
+
+    if orders <= 0:
+        sweep()
+        out["ok"] = True
+        return out
+    # -- setup: a mint, the account every `shared` transaction writes, and each relay's SOL and tokens --------------------
+    mint = Keypair()
+    each = amount + 2 * max(fees.NEW.order(amount), fees.OLD.order(amount)) + 1_000_000
+    rent = int(rpc.call("getMinimumBalanceForRentExemption", [82]))
+    shared = pay.ata(me, mint.pubkey())
+    setup = [s.send(mint_ixs(me, mint.pubkey(), rent, 2 * orders * each), [mint])]
+    for k, m in zip(keys, share):
+        if setup[-1].ok and m:
+            setup.append(s.send([transfer(TransferParams(from_pubkey=me, to_pubkey=k.pubkey(), lamports=2 * m * sol_per_order + 10_000_000)),
+                                 pay.create_ata_ix(me, k.pubkey(), mint.pubkey()),
+                                 _token_transfer(shared, pay.ata(k.pubkey(), mint.pubkey()), me, 2 * m * each)]))
+    out["mint"], out["shared_account"] = str(mint.pubkey()), str(shared)
+    if not all(x.ok for x in setup):
+        out["stopped"] = "setup failed: " + "; ".join(x.why or "ok" for x in setup)
+        sweep()
+        return out
+    base = 2_100_000_000 + int(run[:5], 16)
+    funded: list[tuple[Keypair, Pubkey]] = []
+    try:
+        for p, phase in enumerate(PHASES):
+            def one(r: int, p=p, phase=phase) -> list[tuple[Sent, float, Pubkey]]:
+                k, mine, done = keys[r], make(keys[r]), []
+                token = pay.ata(k.pubkey(), mint.pubkey())
+                for i in range(share[r]):
+                    repo, num = base + p * 1_000_000 + r * 10_000 + i, 1 + i
+                    ixs = [pay.fund_order_wallet_ix(k.pubkey(), token, mint.pubkey(), repo, num, amount, WF_REPO, WF_SHA, TERMS, work_s=work_s)]
+                    if phase == "shared":
+                        ixs.append(_token_transfer(token, shared, k.pubkey(), 1))
+                    sent = mine.send(ixs)
+                    done.append((sent, mine.clock(), pay.order_pda(pay.scope_of(repo, num), k.pubkey())))
+                return done
+            with ThreadPoolExecutor(max_workers=relays) as pool:
+                per = list(pool.map(one, range(relays)))
+            flat = [x for d in per for x in d]
+            good = [(sent, at) for sent, at, _o in flat if sent.ok]
+            funded += [(keys[r], o) for r, d in enumerate(per) for sent, _at, o in d if sent.ok]
+            wall = max((at for _s, at in good), default=0.0) - min((sent.submitted for sent, _at in good), default=0.0)
+            slots = _slots(rpc, [sent.signature for sent, _at in good])
+            waits = [round(at - sent.submitted, 2) for sent, at in good]
+            out["phases"][phase] = {
+                "transactions": len(flat), "confirmed": len(good), "failures": len(flat) - len(good), "retries": sum(sent.retries for sent, _a, _o in flat),
+                "seconds": round(wall, 2), "confirmed_per_s": round(len(good) / wall, 2) if wall > 0 else None,
+                "confirm_s": {"p50": pct(waits, 50), "p95": pct(waits, 95), "max": max(waits, default=None)},
+                "slots": len(set(slots)), "most_in_one_slot": max((slots.count(x) for x in set(slots)), default=0),
+                "first_failures": [sent.why for sent, _a, _o in flat if not sent.ok][:5]}
+            say(f"{phase}: {len(good)} of {len(flat)} confirmed in {wall:.1f} s, {out['phases'][phase]['retries']} retries")
+        a, b = out["phases"]["apart"], out["phases"]["shared"]
+        out["contention"] = {
+            "rate_shared_over_apart": round(b["confirmed_per_s"] / a["confirmed_per_s"], 2) if a["confirmed_per_s"] and b["confirmed_per_s"] else None,
+            "retries_more": b["retries"] - a["retries"], "failures_more": b["failures"] - a["failures"],
+            "most_in_one_slot": {"apart": a["most_in_one_slot"], "shared": b["most_in_one_slot"]}}
+        # -- every order refunded after its deadline, by the relay that funded it ----------------------------------------
+        read = [pay.read_order(d) for d in accounts(rpc, [o for _k, o in funded])]
+        last = max((o.deadline for o in read if o is not None), default=0)
+        while chain_time(rpc) <= last:
+            s.sleep(5.0)
+
+        def refund(item) -> bool:
+            (k, address), o = item
+            return o is None or make(k).send([pay.refund_order_ix(k.pubkey(), address, o, pay.ata(k.pubkey(), mint.pubkey()))]).ok
+        with ThreadPoolExecutor(max_workers=relays) as pool:
+            back = list(pool.map(refund, zip(funded, read)))
+        out["refunded"] = sum(back)
+        out["orders_left"] = sum(1 for d in accounts(rpc, [o for _k, o in funded]) if d is not None)
+    finally:
+        sweep()
+    out["ok"] = bool(all(x["confirmed"] == orders for x in out["phases"].values()) and out.get("orders_left") == 0)
+    return out
+
+
+def render_measured(doc: dict) -> list[str]:
+    """Measured on devnet, the derived bound, and what reduces shared writable state: three things kept apart."""
+    runs = [m for m in doc.get("measured") or [] if m.get("cluster") == "devnet"]
+    out = ["### Throughput with relays side by side: measured, and derived", "",
+           "`python scripts/load.py measure --relays N --orders M --wallet <keypair> --write`, run by the operator at release. N relays, each with "
+           "a fee payer of its own, each fund their share of M orders one after another (a key signs for one thing at a time), twice: `apart`, "
+           "where no two relays write an account in common, and `shared`, where every transaction also writes one token account. That account "
+           "stands for the fee account, which every release of a mint writes whoever relays it. A rate is confirmed transactions divided by the "
+           "seconds from the first submission to the last confirmation. PayOrder is not sent (the table above says why): this measures funding "
+           "with and without one shared writable account, not payments.", ""]
+    if not runs:
+        out += ["**Measured on devnet: nothing yet.** The command has run here against the local simulator only (`--simulate`, "
+                "`tests/test_load_measure.py`), which proves the path and gives no rate: it has no leader, no block limit and no other traffic. "
+                "Until the release run records one, this page holds no measured throughput.", ""]
+    for m in runs:
+        out += [f"**Measured on devnet ({m['date']}): {m['relays']} relays, {m['orders']:,} orders each way**" + ("" if m.get("ok") else " (did not complete cleanly)"), "",
+                "| | Confirmed | Seconds | Confirmed a second | Retries | Failures | Confirm p50 s | p95 | Slots used | Most in one slot |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for name, x in m["phases"].items():
+            out.append(f"| {name}: {m['what'][name]} | {x['confirmed']:,} of {x['transactions']:,} | {x['seconds']} | {x['confirmed_per_s']} | {x['retries']} | "
+                       f"{x['failures']} | {x['confirm_s']['p50']} | {x['confirm_s']['p95']} | {x['slots']} | {x['most_in_one_slot']} |")
+        c = m.get("contention") or {}
+        out += ["", f"The contention seen: the shared account's rate was {c.get('rate_shared_over_apart')} of the rate apart, with {c.get('retries_more')} more "
+                f"retries and {c.get('failures_more')} more failures. It cost {m.get('sol_spent')} SOL in fees and rent not recovered. Wallet `{m['wallet']}`, "
+                f"mint `{m.get('mint')}`, shared account `{m.get('shared_account')}`." + (f" Stopped: {m['stopped']}." if m.get("stopped") else ""), ""]
+    if doc.get("local"):
+        d = doc["local"]["derived"]
+        out += ["**Derived bound (not measured).** Section 3's arithmetic from the simulator's compute units and Solana's published limits: "
+                f"{d['one_relayer_orders_per_second']} orders a second per fee payer (verification included), {d['fee_account_orders_per_second']} "
+                f"payments a second through the one fee account of a mint, {d['one_balance_orders_per_second']} fundings a second from one Balance. "
+                "These are ceilings in an otherwise empty block. A measured rate above is of devnet on the day, with its own traffic, through one "
+                "public endpoint, and each relay waits for a confirmation before it sends again: the two are different quantities, and neither "
+                "is used in place of the other.", ""]
+    out += ["**What reduces shared writable state without a program change:**", "", "| Way | State |", "| --- | --- |"]
+    out += [f"| {way} | {state} |" for way, state in REDUCES]
+    return out + [""]
+
+
 # == the documents =====================================================================================================
 ABOUT = ("Load measurements; scripts/load.py writes this file and renders docs/LOAD.md from it. local: N orders through the committed test builds in "
          "LiteSVM (compute units exact, cluster time derived). runs: what an operator measured on a cluster with a test issuer, newest last.")
@@ -626,6 +809,7 @@ def render(doc: dict) -> str:
             out.append(f"| {s} | {x['units_finalized']:,} of {x['units']:,} | {x['transactions']:,} | {x['failures']} | {x['retries']} | {t['p50']} | "
                        f"{t['p95']} | {t['p99']} | {u['p50']} | {u['p95']} | {u['p99']} |")
         out += ["", f"Wallet `{r['wallet']}`, key account `{r['key_account']}`, mint `{r.get('mint')}`." + (f" Stopped: {r['stopped']}." if r.get("stopped") else ""), ""]
+    out += render_measured(doc)
     if doc.get("workflow"):
         out += render_workflow(doc["workflow"], runs)
     if doc.get("relay"):
@@ -666,7 +850,7 @@ def render_relay(rel: dict) -> list[str]:
         if dec:
             out += [f"What was measured locally: {dec['source']}. Machine: {dec['machine']}. That is the time Knos's own code takes to decide; on a "
                     "cluster every read of the chain adds a round trip: four runs of the 0.3.18 command on devnet took 4.3 to 32.6 s each; the 0.3.19 "
-                    "command, once on each of 24 real tokens, took a median of 356 ms offline, 854 ms for the chain check and 9.1 s for the whole precheck ([BENCH.md](BENCH.md), \"Decision time\").", ""]
+                    "command, once on each of 24 real tokens, took a median of 356 ms offline (a new process for each token, so that figure included loading the rules), 854 ms for the chain check and 9.1 s for the whole precheck ([BENCH.md](BENCH.md), \"Decision time\").", ""]
         out += ["What is a target and not a measurement: the last column. No decision has been timed on devnet by a benchmark (four `knos decide` runs on real fund tokens of the 0.3.18 release's public rounds took 4.3 to 32.6 s each over the shared public RPC: a first reading, not a sample), no payment has been carried there by the "
                 "0.3.18 relay, and the floor stays above zero: a forge must run a job and sign before there is anything to decide "
                 "([RELAY.md](RELAY.md), \"The floor\").", ""]
@@ -849,6 +1033,10 @@ def write(doc: dict) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Many funded orders at once: measured in the simulator, or against a cluster with a test issuer.")
+    ap.add_argument("command", nargs="?", choices=("measure",), help="measure: throughput with N relays side by side (--relays, --orders; --simulate here)")
+    ap.add_argument("--relays", type=int, default=4, metavar="N", help="measure: relays side by side, each with its own fee payer")
+    ap.add_argument("--orders", type=int, default=40, metavar="M", help="measure: orders funded each way (0: only sweep the relays' SOL back)")
+    ap.add_argument("--simulate", action="store_true", help="measure: the local simulator; proves the path, gives no rate, writes nothing")
     ap.add_argument("--local", type=int, metavar="N", help="N orders through the test builds in LiteSVM")
     ap.add_argument("--devnet", type=int, metavar="N", help="N tokens verified and N orders funded and refunded on a cluster")
     ap.add_argument("--issuer-key", help="the test issuer's RSA private key, PEM (openssl genrsa 2048)")
@@ -874,7 +1062,22 @@ def main(argv=None) -> int:
     if a.render:
         write(doc)
         return 0
-    if a.local:
+    if a.command == "measure":
+        if a.relays < 1 or a.orders < 0:
+            ap.error("measure takes --relays 1 or more and --orders 0 or more")
+        if a.simulate:
+            if a.write:
+                ap.error("a simulated run measures nothing: it is never written")
+            from load_sim import SimRpc
+            sim = SimRpc()
+            got = measure(sim, sim.c.fund(), a.relays, a.orders, name="simulator", say=print,
+                          sender=lambda payer: Sender(sim, payer, within=30.0, poll=1.0, clock=sim.clock, sleep=sim.sleep))
+            got["note"] = "the local simulator: the path works; its seconds are the script's own clock and say nothing about a cluster"
+        else:
+            ledger = chain.Ledger(a.rpc) if a.rpc else chain.ledger()
+            got = measure(Rpc(ledger.url), chain.wallet(a.wallet), a.relays, a.orders, say=print)
+            doc.setdefault("measured", []).append(got)
+    elif a.local:
         got = run_local(a.local, a.seed)
         doc["local"] = got
     elif a.devnet:
@@ -886,7 +1089,7 @@ def main(argv=None) -> int:
         got = run_devnet(Rpc(ledger.url), chain.wallet(a.wallet), key, a.devnet, a.senders, a.issuer_url, refund=not a.no_refund)
         doc["runs"].append(got)
     else:
-        ap.error("say --local N or --devnet N")
+        ap.error("say --local N, --devnet N, or measure --relays N --orders M")
     print(json.dumps(got, indent=1))
     if a.write:
         write(doc)

@@ -32,7 +32,7 @@ def test_the_module_is_held_to_the_ids_and_the_sample_with_no_browser() -> None:
 
 
 def test_the_front_door_statement_fixtures_are_what_the_python_writes() -> None:
-    """tests/data/statement/front_door.*: the statement of examples/shadow/, made by knos.statement, approved once by
+    """tests/data/statement/front_door.*: the statement of examples/shadow/ in USD (web/front_door_sample.js SAMPLE_META), made by knos.statement, approved once by
     "you" as the page records it. tests/web/front_door.mjs holds the page's download to these bytes."""
     import json
 
@@ -43,7 +43,7 @@ def test_the_front_door_statement_fixtures_are_what_the_python_writes() -> None:
         sys.path.pop(0)
     text = (ROOT / "examples" / "shadow" / "invoice.csv").read_text(encoding="utf-8")
     answers = json.loads((ROOT / "examples" / "shadow" / "recorded.json").read_text(encoding="utf-8"))
-    st = statement.from_shadow({"invoice": text, "answers": answers}, {})
+    st = statement.from_shadow({"invoice": text, "answers": answers}, {"currency": "USD"})
     status = statement.approve(st, None, "you", "approver", "2026-10-06")
     data = ROOT / "tests" / "data" / "statement"
     assert (data / "front_door.json").read_bytes() == statement.canonical(st)

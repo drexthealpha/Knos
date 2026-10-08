@@ -1,10 +1,13 @@
 {
+ "sentence": "The neutral meter for AI agent work: neither side keeps the count.",
  "by_hand": {
   "note": "Counts only a person can supply. Each is changed here, by hand, when the other party agrees to be counted; python scripts/bench_docs.py then writes it into the table of docs/submission/NUMBERS.md.",
   "buyer_interviews_held": 0,
   "letters_of_intent": 0,
   "outside_programs_reading_the_verifier": 0,
-  "shadow_counts_published": 0
+  "shadow_counts_published": 0,
+  "receipt_implementations": 0,
+  "decisions_from_record": 0
  },
  "facts": [
   {
@@ -496,9 +499,9 @@
     "0.10"
    ],
    "doc": "docs/MARKET.md",
-   "what": "the price book, Record: 0.10 USD a lookup of a supplier's delivery record through the machine-priced API, paid per call by the caller; the public record page and its file stay free; the API is not built. (The last price book's fee for connecting a supplier is gone: connecting a supplier costs nothing.)",
+   "what": "the price book, Record: 0.10 USD a lookup of a supplier's delivery record through the machine-priced API, paid per call by the caller; the public record page and its file stay free; the lookup is `knos record serve`, which anyone runs and Knos hosts none of, budgeted at zero revenue. (The last price book's fee for connecting a supplier is gone: connecting a supplier costs nothing.)",
    "file": "docs/MARKET.md",
-   "has": "| Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | API (not built: a static file today) |"
+   "has": "| Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | `knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it |"
   },
   {
    "say": [
@@ -1026,12 +1029,12 @@
   },
   {
    "say": [
-    "3,366"
+    "3,596"
    ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37641127012 on drexthealpha/knos-rc 5489135d9b64629ee2106136bc3522b0d4fd77f5, the staging tree of this release: 3366 passed, 51 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37641127012",
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37708079863 on drexthealpha/knos-rc 7c453b8e08d1ed9a3ab11484e0853d10f7635d92, the staging tree of this release: 3596 passed, 53 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37708079863",
    "json": "docs/bench.json",
    "path": "release.tests_passing.value",
-   "equals": 3366
+   "equals": 3596
   }
  ]
 }

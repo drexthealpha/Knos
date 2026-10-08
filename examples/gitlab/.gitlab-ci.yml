@@ -3,9 +3,11 @@
 #
 # NOT RUN ON gitlab.com YET. The escrow's rules for the tokens this file asks for are tested against GitLab-shaped
 # tokens (tests/test_gitlab_pay.py). The jobs below show which pipeline asks for which token and what the paying job
-# must read first; nobody has run them in a project. Knos has no relayer and no command for GitLab yet: each job
-# leaves the signed token as an artifact (`knos-token.jwt`), and someone carries it to Solana with the client in
-# src/knos/settle/v2 (FundOrderBalance, PayOrder), as the test does.
+# must read first; nobody has run them in a project. The always-on relay takes no GitLab token for the escrow: each
+# job leaves the signed token as an artifact (`knos-token.jwt`), and `python scripts/gitlab_round.py run` carries the
+# pay token to Solana (it also does the set-up below through GitLab's API, funds the order from a wallet and starts
+# the pipeline: docs/OIDC.md, "The round as one command"). By hand, the client is in src/knos/settle/v2
+# (FundOrderBalance, PayOrder), as the test uses it.
 #
 # Set up, once:
 #   1. Create the branch `knos` holding only this file, and protect it (Settings > Repository > Protected branches).
@@ -18,6 +20,8 @@
 #          rules: [{ if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' }]
 #          trigger: { project: $CI_PROJECT_PATH, branch: knos }
 #          variables: { KNOS_AUD: "knos3:pay:<order>:<head sha>:<terms hash>:<mode>:<merge request>:<payees>" }
+#      (scripts/gitlab_round.py installs a variant that takes KNOS_AUD from whoever starts the default branch's
+#      pipeline; either way nothing in the audience is believed until the pinned job has read the merge request.)
 #      The author's id in <payees> is 900000000000000000 + the GitLab user id, and the address is the one the author
 #      wrote in the merge request's description as `Knos-Pay-To: <address>` (a GitLab user cannot bind a wallet yet).
 #      Whoever may edit that description can change the address: on GitLab that includes the project's maintainers.
@@ -68,7 +72,8 @@ knos-pay:
     - api="$CI_API_V4_URL/projects/$CI_PROJECT_ID"
     - curl -fsS "$api" > project.json
     - curl -fsS "$api/merge_requests/$MR" > mr.json
-    - curl -fsS "$api/protected_branches/$(jq -r .default_branch project.json | jq -sRr @uri)" > /dev/null   # the default branch is protected
+    - curl -fsS "$api/repository/branches/$(jq -r '.default_branch|@uri' project.json)" > branch.json
+    - test "$(jq -r '"\(.default) \(.protected)"' branch.json)" = "true true"      # the default branch is protected
     - test "$(jq -r .state mr.json)" = merged
     - test "$(jq -r .target_branch mr.json)" = "$(jq -r .default_branch project.json)"
     - test "$(jq -r .sha mr.json)" = "$HEAD"

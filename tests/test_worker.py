@@ -975,7 +975,7 @@ def test_the_worker_checks_the_relay_starts_before_it_relays_and_only_a_relay_th
     assert smoke["run"].strip() == "python -m knos relay --help" and smoke["if"] == "steps.chain.outputs.go == 'true'"
     assert set(smoke["env"]) == {"PYTHONPATH"} and "secrets." not in json.dumps(steps[:install + 2])
     relays = [i for i, r in enumerate(runs) if "knos relay --serve" in r]
-    starts = [i for i, r in enumerate(runs) if "gh workflow run worker.yml" in r]
+    starts = [i for i, r in enumerate(runs) if "python -m knos.proof.chain start" in r]
     assert install + 1 < relays[0] < starts[0] == relays[1] < starts[1] == len(steps) - 1
     first = steps[relays[0]]
     assert first["id"] == "relay" and "gh workflow run" not in first["run"]
@@ -992,4 +992,4 @@ def test_the_worker_checks_the_relay_starts_before_it_relays_and_only_a_relay_th
     assert "||" not in last
     # in the handover step the relay runs after the start, as its own command: its status is the step's
     handover = [ln.strip() for ln in re.sub(r"\\\n\s*", " ", steps[relays[1]]["run"]).splitlines()]
-    assert handover[-1] == "python -m knos relay --serve 30" and handover[-2].startswith("gh workflow run worker.yml ")
+    assert handover[-1] == "python -m knos relay --serve 30" and handover[-2].startswith("python -m knos.proof.chain start ")

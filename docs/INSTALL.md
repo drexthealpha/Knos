@@ -15,7 +15,11 @@ Two parts of the package go into a coding agent:
   true) and `knos_due` (what waits for a GitHub account). Four more return the exact comment to post and send nothing
   themselves: `knos_take`, `knos_address`, `knos_fund` and `knos_settle`. `knos_find_work` lists the open work
   orders an agent could take, with their terms. `knos_preflight` reads your checkout and an order's terms before you
-  open a pull request and says which changed files would be refused, or `ready`. The command is `knos mcp`. With
+  open a pull request and says which changed files would be refused, or `ready`. Three read the task board the site
+  publishes (`tasks.json`), with no chain and no key: `tasks_open` (the funded test tasks, each with its amount, its
+  acceptance terms and how the merge pays), `task_show` (one of them) and `task_take` (the pull request link that
+  already says `Closes #N`, and the `/knos address <address>` comment that says where the payment goes; it sends
+  nothing). `knos task list | show | take | submit | why` is the same on the command line. The command is `knos mcp`. With
   these it reads public data from GitHub and Solana and your own checkout, and holds no key and no wallet.
 
   Three tools post, and only for an agent that was given a GitHub token of its own and told it may act
@@ -238,7 +242,7 @@ servers**, and saves it.
       "type": "local",
       "command": "uvx",
       "args": ["knos", "mcp"],
-      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle", "knos_find_work", "knos_preflight"]
+      "tools": ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take", "knos_address", "knos_fund", "knos_settle", "knos_find_work", "tasks_open", "task_show", "task_take", "knos_preflight"]
     }
   }
 }
@@ -352,7 +356,7 @@ about money works; `/knos status` on a pull request then tells its author what t
 
 A supplier who wants the free check on every pull request of their own repository, its result posted once and its
 receipt attached to the run, adds one workflow file ([examples/knos-supplier.yml](../examples/knos-supplier.yml))
-whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.19`.
+whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.20`.
 
 It needs no secret, moves no money and reads no chain. The record, the badge and the receipt to send with an invoice
 are in [RECORD.md](RECORD.md), section 3.
@@ -422,7 +426,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.19
+      - uses: drexthealpha/Knos@v0.3.20
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -455,7 +459,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.19
+    - python -m pip install knos==0.3.20
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -487,7 +491,7 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.19/knos-settle-0.3.19.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.20/knos-settle-0.3.20.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
@@ -502,7 +506,7 @@ npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.19" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.20" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

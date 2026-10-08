@@ -85,6 +85,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import dataclasses
 import json
 import os
 import re
@@ -1563,6 +1564,153 @@ ROUNDS: dict[str, tuple[Callable[[Book, dict], None], tuple[str, ...], tuple[str
     "preflight": (round_preflight, (), ("supplier_preflight",)),
     "gitlab": (round_gitlab, ("knos_oidc", "knos_pay"), ("verify_gitlab", "gitlab_pay")),
 }
+
+
+# ---- rounds another module brings: one registry -----------------------------------------------------------------------
+# A round is a function registered by name, with what it needs before it can run and a path on the simulator:
+#
+#     scripts/exercise_rounds/<file>.py
+#         ROUND = {"name": "net-reserve", "needs": ("knos_pay", "pay-2.2"), "caps": ("net_reserve",), "phase": "after"}
+#         def run(book, st): ...          # at the public ids; raise xp.Need / xp.Wait / xp.Cannot / xp.Failed as the rounds here do
+#         def simulate(book, st): ...     # the same on the simulator (`--simulate`)
+#
+# `xp` is this module, put into the file before it runs (book.w, book.tx, Need, Cannot, Failed, pay, oidc, ...). A file
+# whose name a round here has replaces it. `run --phase after` runs every registered round of that phase after its own
+# steps, so it stays the ONE command for 2.2; `run --only <name>` runs one. Each round ends with a code of its own:
+# 0 done; 1 failed; 3 not run or not finished (a prerequisite is not met or not known here, a forge's run or the
+# chain's clock is waited for, or it cannot be done from here), with the reason. One round's 3 stops no other round.
+@dataclasses.dataclass(frozen=True)
+class Ext:
+    name: str
+    fn: Callable[["Book", dict], None]
+    needs: tuple[str, ...] = ()
+    caps: tuple[str, ...] = ()
+    simulate: Callable[["Book", dict], None] | None = None
+    phase: str = "after"
+    doc: str = ""
+
+
+EXT: dict[str, Ext] = {}
+ROUNDS_DIR = ROOT / "scripts" / "exercise_rounds"
+PROGRAM_NAMES = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
+
+
+def register(name: str, fn: Callable[["Book", dict], None], needs: tuple[str, ...] = (), caps: tuple[str, ...] = (),
+             simulate: Callable[["Book", dict], None] | None = None, phase: str = "after") -> Ext:
+    """Registers a round by name (a second registration of a name replaces the first, and a round of ROUNDS)."""
+    if phase not in ("before", "after", "any"):
+        raise ValueError(f"round {name}: phase is before, after or any")
+    ROUNDS.pop(name, None)
+    EXT[name] = Ext(name, fn, tuple(needs), tuple(caps), simulate, phase, " ".join((fn.__doc__ or "").split()))
+    return EXT[name]
+
+
+def prerequisite(need: str, w: "World", ev: dict) -> str | None:
+    """None when `need` is met, else why not. Raises KeyError for a name nothing here knows.
+    <program>     knos_oidc, knos_pay, knos_meter, knos_passkey: the public id runs this version's build
+    pay-2.2       proposals 7 and 8 have executed at the public ids (`status --want 2.2` exits 0)
+    neutral       `--neutral OWNER/REPO` names a repository of another owner
+    note:<name>   `note <name> key=value ...` has been given what the round's outside step printed
+    public        the run is at the public ids (a round with nothing to simulate)"""
+    if need in PROGRAM_NAMES:
+        return None if ev.get("programs", {}).get(need, {}).get("is") in ("new", "next") else f"{need} does not run its upgraded build at the public id"
+    if need == "pay-2.2":
+        return None if ev.get("want_2_2") else "proposals 7 and 8 have not executed at the public ids (`status --want 2.2` does not exit 0)"
+    if need == "neutral":
+        return None if w.neutral else "no `--neutral OWNER/REPO` was given: a repository of another owner"
+    if need.startswith("note:"):
+        return None if w.outside(need[5:]) else f"its outside step has not been noted: `note {need[5:]} --keys DIR key=value ...`"
+    if need == "public":
+        return None if w.mode == "public" else "it runs at the public ids only"
+    raise KeyError(need)
+
+
+def load_rounds(folder: Path = ROUNDS_DIR, say: Callable[[str], None] = print) -> list[str]:
+    """Registers every round a file of `folder` brings. A file that cannot be read as a round is said and left out:
+    it stops no other round. Returns the names registered."""
+    import importlib.util
+    names = []
+    for f in sorted(folder.glob("*.py")) if folder.is_dir() else []:
+        if f.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(f"knos_exercise_round_{f.stem}", f)
+            mod = importlib.util.module_from_spec(have(spec, "a file that can be loaded"))
+            setattr(mod, "xp", sys.modules[__name__])
+            have(have(spec).loader).exec_module(mod)
+            meta = dict(mod.ROUND)
+            register(str(meta["name"]), mod.run, tuple(meta.get("needs", ())), tuple(meta.get("caps", ())), getattr(mod, "simulate", None), str(meta.get("phase", "after")))
+            names.append(str(meta["name"]))
+        except Exception as bad:  # noqa: BLE001 - one file's trouble is said; the other rounds still run
+            say(f"[{f.name}] not a round: {type(bad).__name__}: {str(bad)[:200]}")
+    return names
+
+
+def run_registered(w: "World", ev: dict, say: Callable[[str], None] = print, phase: str | None = None, only: str | None = None) -> dict[str, int]:
+    """Runs the registered rounds (`phase`: those of that phase and of `any`; `only`: one name or capability). Returns
+    each round's code: 0, 1 or 3. Kept in ev["rounds"][name]: `result` in words and `exit`."""
+    book, codes = Book(ev, w, say), {}
+    for name, x in list(EXT.items()):
+        if (phase and x.phase not in (phase, "any")) or (only and only != name and only not in x.caps):
+            continue
+        st = ev["rounds"].setdefault(name, {"round": name})
+        if st.get("result") == "ok":
+            say(f"[{name}] done before: nothing is sent again")
+            codes[name] = 0
+            continue
+        say(f"[{name}] {x.doc}")
+        code, result = 3, ""
+        try:
+            for need in x.needs:
+                try:
+                    why = prerequisite(need, w, ev)
+                except KeyError:
+                    why = f"`{need}` is a prerequisite this script does not know (it knows: {', '.join(PROGRAM_NAMES)}, pay-2.2, neutral, note:<name>, public)"
+                if why:
+                    raise Skip(why)
+            fn = x.fn if w.mode == "public" else x.simulate
+            if fn is None:
+                raise Skip("it has no path on the simulator")
+            fn(book, st)
+            code, result = 0, "ok"
+        except Need as need_run:
+            result = str(need_run)
+            say(f"  NEEDS A RUN of {need_run.workflow}: {need_run.how}")
+        except Wait as wait:
+            result, st["needs_time"] = str(wait), wait.until
+        except Cannot as no:
+            result = f"cannot: {no}"
+        except Skip as skip:
+            result = f"skipped: {skip}"
+        except Failed as bad:
+            code, result = 1, f"failed: {bad}"
+        except Exception as bad:  # noqa: BLE001 - one round's trouble is written down; the others still run
+            code, result = 1, f"failed: {type(bad).__name__}: {str(bad)[:300]}"
+        st["result"], st["exit"], codes[name] = result, code, code
+        say(f"  {name}: exit {code}: {result}")
+        if code:
+            for c in x.caps:
+                if ev["exercises"].get(c, {}).get("status") != "exercised":
+                    ev["exercises"][c] = {"status": result, "round": name}
+    return codes
+
+
+def _not_here(name: str, brings: str) -> Callable[["Book", dict], None]:
+    def fn(book: "Book", st: dict) -> None:
+        raise Cannot(f"no round `{name}` is in this tree yet: the module that brings {brings} adds scripts/exercise_rounds/ with a file whose ROUND names it")
+    fn.__doc__ = f"{brings[0].upper()}{brings[1:]}: a place kept for the round, which a file of scripts/exercise_rounds/ fills."
+    return fn
+
+
+def register_places() -> None:
+    """The rounds 0.3.20 expects other modules to bring. Until a file fills one, it ends 3 and says so."""
+    for name, needs, brings in (("net-reserve", ("knos_pay", "pay-2.2"), "a netting period that consumes a buyer-funded reserve"),
+                                ("private", ("knos_oidc", "knos_pay"), "the private path as one command"),
+                                ("judge", ("knos_oidc", "knos_pay", "neutral"), "a judge hosted by an outside evaluator")):
+        if name not in EXT:
+            register(name, _not_here(name, brings), needs, (), _not_here(name, brings), "after")
+
+
 NOT_ON_CHAIN = {"fuzz_rsa_diff_target", "kani_fee_conservation", "rust_handler_tests"}      # about a program's source, with nothing to send
 # what has no round here, and why: said by `run`, never guessed at
 NO_ROUND = {
@@ -1575,6 +1723,7 @@ def exercisable(root: Path = ROOT) -> dict[str, str]:
     """Every capability of docs/capabilities.json below `exercised` that is about a program: its round's name, or
     the reason there is none."""
     by = {cap: name for name, (_f, _p, caps) in ROUNDS.items() for cap in caps}
+    by.update({cap: x.name for x in EXT.values() for cap in x.caps})
     out = {}
     for c in _json(root / "docs" / "capabilities.json")["capabilities"]:
         if c["stage"] in ("exercised", "reproduced"):
@@ -1662,8 +1811,8 @@ def round_section(ev: dict) -> str:
         rows = st.get("transactions") or []
         if not rows:
             continue
-        fn = ROUNDS[name][0] if name in ROUNDS else AFTER_STEPS[name][0]
-        out += [f"**{name}.** {' '.join((fn.__doc__ or '').split())}", "", "| Step | Transaction | Result |", "| --- | --- | --- |"]
+        said = EXT[name].doc if name in EXT else " ".join(((ROUNDS[name][0] if name in ROUNDS else AFTER_STEPS[name][0]).__doc__ or "").split())
+        out += [f"**{name}.** {said}", "", "| Step | Transaction | Result |", "| --- | --- | --- |"]
         for r in rows:
             link = f"[{r['signature'][:8]}...](https://explorer.solana.com/tx/{r['signature']}?cluster=devnet)"
             out.append(f"| {r['what']} | {link} | " + (f"refused, error {r['refused']}: {r['means']}" if "refused" in r else f"succeeded at {r['program']}") + " |")
@@ -2571,7 +2720,15 @@ def after_summary(ev: dict, phase: str, say: Callable[[str], None] = print) -> i
     return 1 if bad else 0
 
 
-def after_simulated(say: Callable[[str], None] = print) -> tuple[dict, int]:
+def registered_summary(codes: dict[str, int], code: int, say: Callable[[str], None] = print) -> int:
+    """One line for the registered rounds, and the command's code: 1 when a step or a round failed. A round that ended
+    3 is said and changes nothing: it is that round's own."""
+    if codes:
+        say("registered rounds: " + ", ".join(f"{n} exit {c}" for n, c in codes.items()))
+    return 1 if code == 1 or 1 in codes.values() else code
+
+
+def after_simulated(say: Callable[[str], None] = print, phase: str = "after") -> tuple[dict, int]:
     """Both phases on the simulator: the chain starts on the test build of the source that is live, the orders of
     `before` are funded there, knos_pay is replaced in place by this tree's test build, and the `after` steps run."""
     kept = ((_json(LIVE_BUILDS) or {}).get("programs") or {}).get("knos_pay", {}).get("kept")
@@ -2583,9 +2740,11 @@ def after_simulated(say: Callable[[str], None] = print) -> tuple[dict, int]:
         ev["new_build"] = w.upgrade()
         say(f"upgraded in place: knos_pay runs this tree's test build {ev['new_build'][:16]}...")
         rehearse_phase(w, ev, "after", say, AFTER_STEPS, AFTER_AGAIN)
+        ev["want_2_2"] = True
+        codes = run_registered(w, ev, say, phase)
     finally:
         w.close()
-    return ev, after_summary(ev, "after", say)
+    return ev, registered_summary(codes, after_summary(ev, "after", say), say)
 
 
 def after_main(phase: str, where: Path | None, url: str | None, keys: Path | None, simulate: bool, since: str | None, neutral: str | None,
@@ -2594,7 +2753,7 @@ def after_main(phase: str, where: Path | None, url: str | None, keys: Path | Non
     `before` only while knos_pay 2.1 is still live: otherwise exit 3 with nothing sent. `account` and `world` are the
     tests' own cluster."""
     if simulate:
-        ev, code = after_simulated(say)
+        ev, code = after_simulated(say, phase)
         if where:
             _write(where, ev)
             say(f"wrote {where}")
@@ -2618,10 +2777,12 @@ def after_main(phase: str, where: Path | None, url: str | None, keys: Path | Non
     old = _json(where)
     ev = old if old and old.get("mode") == w.mode else new_evidence(w, programs)
     ev["programs"] = programs
+    ev["want_2_2"] = code == 0
     rehearse_phase(w, ev, phase, say, AFTER_STEPS, AFTER_AGAIN)
+    codes = run_registered(w, ev, say, phase)
     _write(where, ev)
     say(f"wrote {where}")
-    return after_summary(ev, phase, say)
+    return registered_summary(codes, after_summary(ev, phase, say), say)
 
 
 def due(ev: dict, now: int, say: Callable[[str], None] = print) -> list[str]:
@@ -2664,9 +2825,13 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("--root", type=Path, default=ROOT, help="record: the tree to write into (a copy, for simulated evidence)")
     ap.add_argument("--so-dir", type=Path, default=Path(os.environ["KNOS_SO_DIR"]) if os.environ.get("KNOS_SO_DIR") else None)
     a = ap.parse_intermixed_args(argv)
+    register_places()
+    load_rounds(say=say)
     if a.command == "list":
         for cap, how in exercisable().items():
             say(f"{cap}: {how}")
+        for x in EXT.values():
+            say(f"round {x.name} (phase {x.phase}; needs {', '.join(x.needs) or 'nothing'}; simulated: {'yes' if x.simulate else 'no'}): {x.doc}")
         return 0
     if a.command == "status":
         if not a.rpc:
@@ -2678,7 +2843,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
             ap.error(f"{a.command} needs --rpc, --keys and --so-dir (or KNOS_SO_DIR)")
         return (propose if a.command == "propose" else propose_oidc)(a.rpc, a.keys, a.so_dir, say)
     if a.command == "note":
-        if not (a.keys and a.words and all("=" in x for x in a.words[1:]) and a.words[0] in ROUNDS):
+        if not (a.keys and a.words and all("=" in x for x in a.words[1:]) and (a.words[0] in ROUNDS or a.words[0] in EXT)):
             ap.error("note takes --keys, a round's name and key=value pairs: note x402 --keys DIR fund=SIGNATURE paid=SIGNATURE order=ADDRESS")
         held = _json(a.keys / OUTSIDE) or {}
         held.setdefault(a.words[0], {}).update(dict(x.split("=", 1) for x in a.words[1:]))
@@ -2738,6 +2903,8 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         w, programs = Public(a.rpc, a.keys, say, a.since), read_programs(mc._rpc(a.rpc))
         if code == 3 and not any(r["is"] == "new" for r in programs.values()):
             return 3
+    if a.neutral:           # a registered round that needs a second owner (`judge`) asks for it here too, not only under --phase
+        w.neutral = a.neutral
     try:
         old = None if a.fresh or a.simulate else _json(where)
         ev = old if old and old.get("mode") == w.mode else new_evidence(w, programs)
@@ -2745,19 +2912,25 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         if a.resume:
             due(ev, w.now(), say)
         if a.again:
-            if a.again not in ROUNDS:
-                ap.error(f"--again takes a round: {', '.join(ROUNDS)}")
+            if a.again not in ROUNDS and a.again not in EXT:
+                ap.error(f"--again takes a round: {', '.join([*ROUNDS, *EXT])}")
             ev["rounds"].pop(a.again, None)
-            for cap in ROUNDS[a.again][2]:
+            for cap in (ROUNDS[a.again][2] if a.again in ROUNDS else EXT[a.again].caps):
                 ev["exercises"].pop(cap, None)
-        run(w, ev, a.only, say)
+        codes: dict[str, int] = {}
+        if not (a.only and a.only in EXT):
+            run(w, ev, a.only, say)
+        if a.only is None or a.only in EXT or any(a.only in x.caps for x in EXT.values()):
+            codes = run_registered(w, ev, say, None, a.only)
     finally:
         if isinstance(w, Simulated):
             w.close()
     _write(where, ev)
     say(f"wrote {where}")
     bad = [c for c, e in ev["exercises"].items() if str(e.get("status", "")).startswith("failed")]
-    return 1 if bad else 0
+    if a.only in codes:          # one registered round alone: its own code is the command's
+        return codes[a.only]
+    return registered_summary(codes, 1 if bad else 0, say)
 
 
 if __name__ == "__main__":

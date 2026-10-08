@@ -1580,6 +1580,10 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
             data = terms.canonical({**built.terms, **plan["terms"]})
         except terms.Refused as why:
             return f"Knos: {why}"
+    if plan is None:        # a tip, and a job where the escrow holds no work orders: no order plan asked the procurement gate, so it is asked here
+        refused = _gated(run, rp, cmd, commenter, number, again, "Knos: no tip was sent. " if tip else "Knos: nothing was funded. ")
+        if refused:
+            return refused
     work = (terms.TIP_DAYS if tip else cmd.days) * 86_400
     mode = pay.TESTS if built.terms["mode"] == "tests" else pay.MERGE
     if plan and plan.get("auto") and mode != pay.TESTS:     # the chain refuses it too: AUTO goes with mode 1 and nothing else
@@ -1806,6 +1810,34 @@ def _procurement(run: Run, rp: dict) -> dict[str, str]:
     return files
 
 
+def _gated(run: Run, rp: dict, cmd, commenter: dict, number: int, again: str, stop: str = "Knos: nothing was funded. ") -> str:
+    """The procurement gate, asked on every route by which this workflow sets money aside: "" when the funding may go
+    on, else the reply. A repository with no file under .knos/procurement/ is held to nothing more (one question to
+    GitHub, answered no). With files: a standing offer needs an approved offer file that names this vendor, rate and
+    cap (knos.approvals.gate); a plain order, a private order and a tip need the commenter to hold the requester
+    role and the policy's approvals for `issue:<number>` (a tip: `tip:<number>`) at exactly this amount
+    (knos.approvals.gate_order). The files are those of the repository the comment is in, on its default branch."""
+    try:
+        files = _procurement(run, rp)
+    except OSError as why:
+        run.failed = True
+        return stop + f"This repository has procurement files, and they could not be read from GitHub ({_short(why)}). {again.capitalize()}."
+    if not files:
+        return ""
+    from . import approvals
+    repo_, today = run.repo, time.strftime("%Y-%m-%d", time.gmtime(run.clock()))
+    fetch = lambda cid: _read(run, f"repos/{repo_}/issues/comments/{int(cid)}") if cid else None  # noqa: E731
+    if isinstance(cmd, commands.Offer):
+        ok, said = approvals.gate(files, vendor=cmd.vendor, rate=cmd.rate, budget=cmd.units, on=today, fetch=fetch)
+        how = ""
+    else:
+        subject = f"{'tip' if isinstance(cmd, commands.Tip) else 'issue'}:{number}"
+        ok, said = approvals.gate_order(files, subject=subject, requester=str(commenter.get("login") or ""), amount=cmd.units, on=today, fetch=fetch)
+        how = (f" An approver comments `{approvals.comment_line(subject)}`, and `knos approve record --subject {subject} --requester "
+               f"{_plain(commenter.get('login'))} --amount {commands.amount(cmd.units)}` adds it to `{PROCUREMENT}/{approvals.LOG}`.")
+    return "" if ok else stop + f"{said} The files under `{PROCUREMENT}/` on the default branch decide this; once they allow it, {again}.{how}"
+
+
 def _judge_repo(run: Run, rp: dict, name: str, commenter: dict, on: dict | None, again: str) -> tuple[str, int] | str:
     """The judge repository a funding comment names (`judge: owner/repo`), as (its full name, its id): the id is what
     the order's options carry and what knos_pay holds a judge's token to (order_judge.rs, judge c). Or the words that
@@ -1869,19 +1901,11 @@ def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None, 
         if offer and rules.vendors is not None and cmd.vendor.lower() not in rules.vendors:
             return (stop + f"`{policy.PATH}` lists the vendors a standing offer may pay ({', '.join(rules.vendors)}), and @{cmd.vendor} is "
                     "not one of them. Add them to `vendors` there first.")
-    if offer:       # the buyer's own procurement files, when the repository has them: an offer funds only when they approve it (knos.approvals.gate)
-        try:
-            files = _procurement(run, att.rp if att is not None else rp)
-        except OSError as why:
-            run.failed = True
-            return stop + f"This repository has procurement files, and they could not be read from GitHub ({_short(why)}). {again.capitalize()}."
-        if files:
-            from . import approvals
-            repo_ = run.repo
-            ok, said = approvals.gate(files, vendor=cmd.vendor, rate=cmd.rate, budget=cmd.units, on=time.strftime("%Y-%m-%d", time.gmtime(run.clock())),
-                                      fetch=lambda cid: _read(run, f"repos/{repo_}/issues/comments/{int(cid)}") if cid else None)
-            if not ok:
-                return stop + f"{said} The files under `{PROCUREMENT}/` on the default branch decide this; once they allow it, {again}."
+    # the buyer's own procurement files, when the repository has them: an offer funds only when they approve it
+    # (knos.approvals.gate), and any other order only when its amount is approved (knos.approvals.gate_order)
+    refused = _gated(run, rp, cmd, commenter, int((on or {}).get("number") or 0), again, stop)
+    if refused:
+        return refused
     if d.get("private") and att is None:
         how = (f"its attestor, {rules.attestor}, funds it: comment `/knos fund` in a repository that file lists under `targets`, and that "
                "repository's workflow answers there" if rules.attestor else

@@ -13,6 +13,23 @@
 // Every sentence here is true with nothing read: a file that is not there, a GitHub that does not answer and a relay
 // that has written nothing are each said as that. Nothing is sent anywhere, and nothing is asked of any host but
 // GitHub's API and Solana devnet.
+//
+// ---- HOW A NEW PAGE IS MOUNTED (0.3.20) -------------------------------------------------------------------------------------
+// A page registers BY NAME, in one line of `ADDED` in web/views.js (this file is fetched with the pages that read
+// Solana, so the list itself lives in the small file the first screen already has):
+//
+//     approve: { file: "./approver.js", draw: "renderApprover", nav: "Approve", bar: true },
+//
+// web/front.js then makes its <section id="name" class="mount">, its link in the menu and its lazy mount; the module
+// is fetched when the page is first opened, and grey bars stand there until it has drawn.
+//     file   the module, beside this one
+//     draw   the function it exports: draw(el, ctx), ctx = { esc, go, EXPLORER, data }; it fills el, once
+//     nav    the words of its link (three at most)
+//     bar    true: the link stands in the bar itself; otherwise under "More"
+//     json   a file of the build the page cannot be drawn without: read first and handed over as ctx.data
+// A build that lacks the file (or the json) does not offer the page: scripts/build_site.sh drops the line from its
+// copy of views.js, so the menu never holds a link to nothing. A page's title is an <h2> of 3 to 6 words with at most
+// one line under it (tests/web/words.mjs); add its name to PAGES of tests/web/words.mjs and tests/web/overflow.mjs.
 import { summarise, statesHtml, RECENT } from "./status_data.js";
 import { renderLive, clock } from "./live.js";
 import { renderIndexBoard } from "./index_board.js";

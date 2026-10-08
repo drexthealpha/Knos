@@ -19,7 +19,7 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
-import { chromiumOrSkip, measure, TYPES } from "./overflow.mjs";
+import { chromiumOrSkip, measure, TYPES, menuOf } from "./overflow.mjs";
 
 const root = process.argv[2];
 if (!root || !existsSync(join(root, "index.html"))) { console.error("usage: node tests/web/motion.mjs <site dir>"); process.exit(2); }
@@ -93,7 +93,7 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   check(`words: the first screen says 40 words at most at ${width} by ${height}`, words.length <= 40 && words.length >= 20, [words.length, words.join(" ")]);
   if (width === 1280) {
     const bar = await page.$$eval("#nav > a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.textContent));
-    check("words: the bar shows six links and More", bar.join() === "Check,Demo,Console,Leaderboard,Pricing,Docs" && await page.isVisible("#more-button") && (await page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).length)) === 0, bar);
+    check("words: the bar shows six words of links and More", bar.join() === menuOf(root).bar.join() && bar.join(" ").split(" ").length <= 6 && await page.isVisible("#more-button") && (await page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).length)) === 0, bar);
     const hero = await page.evaluate(() => ({ h1: document.querySelector("h1").textContent.trim(), fact: document.getElementById("hero-fact").textContent.trim().split(/\s+/).length,
       order: [...document.querySelectorAll(".hero h1, .hero #hero-fact, .hero .actions, .hero #mark3d, #demo")].map((e) => e.id || e.className || e.tagName),
       demoTop: document.getElementById("demo").getBoundingClientRect().top, fold: innerHeight, door: !!document.getElementById("front-door") }));   // with the front door (0.3.17) the round sits below it
@@ -183,6 +183,7 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   check("  and closes at once, the focus back where it was", await page.evaluate(() => !document.querySelector("dialog.k-pal").open && document.activeElement.id === "theme" && document.getAnimations().length === 0));
   const themed = await page.evaluate(() => { const before = getComputedStyle(document.body).backgroundColor; document.getElementById("theme").click(); return [before, getComputedStyle(document.body).backgroundColor, document.getAnimations().length]; });
   check("  the theme switches at once", themed[0] !== themed[1] && themed[2] === 0, themed);
+  await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go");          // the round comes with the reader's first move
   if (await page.evaluate(() => document.getElementById("demo").childElementCount > 0)) {
     const step = await page.evaluate(() => { const d = document.getElementById("demo"), say = d.querySelector(".kd-say").textContent; d.querySelector(".kd-go").click(); return [say, d.querySelector(".kd-say").textContent, d.querySelector(".k-step").dataset.state, document.getAnimations().length]; });
     check("  a step of the demo changes at once", step[0] !== step[1] && step[2] === "done" && step[3] === 0, step);
@@ -234,9 +235,17 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   check("  travel() carries a token from one element to another and takes it away; raven() flies the mark", trip.mid.fixed === "fixed" && trip.mid.on && trip.mid.running === 2 && trip.gone && trip.flight.bird && /brand\/mark\.svg/.test(trip.flight.mask) && trip.birdGone, trip);
   // a change of page morphs
   await page.evaluate(() => { scrollTo(0, 0); window.transitions = 0; const real = document.startViewTransition.bind(document); document.startViewTransition = (f) => { window.transitions++; return real(f); }; });
+  // a page opened for the first time is shown in the task of the press, its code still on its way: nothing to cross to yet
   await page.click('#nav a[href="#pricing"]');
   await page.waitForSelector("#view-pricing", { state: "visible" });
-  check("  a link to another page is a view transition, and the page asked for is shown", (await page.evaluate(() => window.transitions)) === 1 && await page.isHidden("#view-check") && (await page.evaluate(() => location.hash)) === "#pricing");
+  check("  a page's first opening is no view transition: it is shown at once, and its code comes after", (await page.evaluate(() => window.transitions)) === 0 && await page.isHidden("#view-check") && (await page.evaluate(() => location.hash)) === "#pricing");
+  await page.waitForFunction(() => document.documentElement.dataset.ready === "pricing");
+  await page.click(".brand"); await page.waitForSelector("#view-check", { state: "visible" });
+  await page.waitForFunction(() => !("morph" in document.documentElement.dataset));
+  const crossed = await page.evaluate(() => window.transitions);
+  await page.click('#nav a[href="#pricing"]');
+  await page.waitForSelector("#view-pricing", { state: "visible" });
+  check("  from then on a link to another page is a view transition, and the page asked for is shown", crossed === 1 && (await page.evaluate(() => window.transitions)) === 2 && await page.isHidden("#view-check") && (await page.evaluate(() => location.hash)) === "#pricing");
   await settle(page);
   // the heading and the mark cross by name, and the names are gone when it is over
   const crossing = await page.evaluate(async () => {

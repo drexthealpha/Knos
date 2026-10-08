@@ -172,3 +172,47 @@ def test_knos_record_serve_is_the_servers_own_command(monkeypatch):
     monkeypatch.setattr(record_api, "main", lambda argv=None: got.append(argv) or 0)
     done = CliRunner().invoke(app, ["record", "serve", "offer.json"])
     assert done.exit_code == 0 and got == [["offer.json"]] and done.output == ""
+
+
+def test_the_paid_answer_is_signed_expires_and_releases_history_only_on_the_suppliers_grant(tmp_path):
+    """What the lookup adds to the free file (src/knos/record_answer.py): the operator's signature over the record's
+    hash, the time and slot it read the chain and an expiry; a summary; and the supplier's history, field by field,
+    only to the wallet the supplier granted."""
+    from knos import record_answer as ra
+    operator, supplier = Keypair.from_seed(bytes([62]) * 32), Keypair.from_seed(bytes([63]) * 32)
+    past = ra.history("codex", times=[{"deliverable": "d", "delivered": 0, "accepted": 900}], as_of="2026-10-01")
+    (tmp_path / "codex.history.json").write_text(json.dumps(past), encoding="utf-8")
+    c = OrderChain()
+    seller = Keypair.from_seed(bytes([61]) * 32)
+    off = record_api.offer(str(seller.pubkey()), SELLER_ID, str(c.usdc), REPO, ISSUE, WF_REPO, WF_SHA, TERMS.decode(), url="https://records.example")
+    server = record_api.Server(off, ChainLedger(c), RECORDS, key=operator, history=tmp_path, suppliers={"codex": str(supplier.pubkey())}, ttl=600)
+    a, _tok, a_fund = agent(c, 71)
+    b, _tok, b_fund = agent(c, 72)
+    free = server.handle("/records/codex.json", {})[2]
+    assert "answer" not in free and "signature" not in free and ra.verify(free, c.now())["state"] == "unsigned"      # the free file: no signature
+    got = ask(c, server, a, a_fund)
+    ans = got["body"]["answer"]
+    assert got["status"] == 200 and got["body"]["record"] == free and ans["key"] == str(operator.pubkey()) and ans["reader"] == str(a.pubkey())
+    assert ans["read"]["time"] == c.now() and ans["expires"] == ans["produced"] + 600 and ans["root"]["record_sha256"] == free["sha256"]
+    assert ans["read"]["slot"] is None or ans["read"]["slot"] >= 0
+    assert ra.verify(got["body"], c.now(), str(operator.pubkey()))["state"] == "fresh" and ra.verify(got["body"], c.now() + 601)["state"] == "stale"
+    assert ans["summary"] == ra.summary(free) and ans["summary"]["public"]["failed_at_merge"]["ci95"] == free["public"]["ci95"]
+    assert all(h["state"] == "not granted" and "data" not in h for h in ans["history"].values()) and ans["availability"]["uptime"] == "none"
+    # the supplier grants a's wallet one field; b shows the same grant and gets nothing; a gets that field and no other
+    g = ra.grant(supplier, "codex", str(a.pubkey()), ["time_to_accept"], c.now() - 1, c.now() + 86_400)
+
+    def with_grant(key, fund, order=None, n=0):
+        def asks(path, headers):
+            return server.handle(path, {**headers, "Record-Grant": record_api.encode(g)})
+        return record_api.lookup(asks, "codex", key, fund, max_amount=PACK, mints=(str(c.usdc),), order=order, n=n)
+    mine = with_grant(a, a_fund, got["order"], 1)["body"]["answer"]
+    assert mine["history"]["time_to_accept"] == {"granted": True, "state": "released", "what": ra.FIELD_WORDS["time_to_accept"], "data": past["fields"]["time_to_accept"]}
+    assert mine["history"]["disputes"]["state"] == "not granted" and mine["root"]["history_sha256"] == past["sha256"]
+    theirs = with_grant(b, b_fund)
+    assert theirs["status"] == 200 and all(h["state"] == "not granted" for h in theirs["body"]["answer"]["history"].values())
+    assert theirs["body"]["answer"]["grant"]["refused"] == "the grant names another reader" and "data" not in json.dumps(theirs["body"]["answer"]["history"])
+    # a server with no key still answers, and says the answer is unsigned
+    plain = record_api.Server(off, ChainLedger(c), RECORDS)
+    unsigned = ask(c, plain, a, a_fund, order=got["order"], n=0)
+    assert unsigned["status"] == 200 and ra.verify(unsigned["body"], c.now())["state"] == "unsigned"
+    assert server.handle("/health", {})[2]["signing"] is True and plain.handle("/health", {})[2]["signing"] is False

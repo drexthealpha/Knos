@@ -3,7 +3,7 @@
 //   keeping(get)                  [a reader that writes down what `get` said, the book it writes in] (knos.shadow.keeping)
 //   fromShadow(bundle, meta)      the statement of a shadow run. bundle: { invoice: the invoice's text, answers: { path:
 //                                 GitHub's answer } }. meta: invoice, supplier, buyer, currency, date, each optional
-//   approve(st, status, by, role, on)   the status with one more approval of every agreed line nobody approved yet
+//   approve(st, status, by, role, on[, only])   the status with one more approval of every agreed line nobody approved yet
 //   HANDED, hand(st, status)      web/finance_data.js's: the statement the front door made last, for the Statement page to open
 //
 // The front door (web/front_door.js) makes its statement here, so what it downloads is the file `knos statement make`
@@ -104,12 +104,14 @@ export async function fromShadow(bundle, meta = {}) {
   return st;
 }
 
-export function approve(st, status, by, role, on) {
+/** `only`: a list of invoice line ids, when the approver holds some agreed lines back (web/approver.js holds a line that
+ *  is over its purchase order). Left out, this is knos.statement.approve byte for byte: every agreed line not yet approved. */
+export function approve(st, status, by, role, on, only = null) {
   status = status || { kind: STATUS_KIND, version: 1, statement: st.sha256, events: [] };
   if (status.kind !== STATUS_KIND || status.statement !== st.sha256) throw new Error("The status file is another statement's: it names another sha256.");
   if (!String(by).trim() || !String(role).trim()) throw new Error("An approval names who approved and in which role.");
   const done = new Set(status.events.filter((e) => e.type === "approval").flatMap((e) => e.lines));
-  const mine = st.lines.filter((ln) => ln.state === "agreed" && !done.has(ln.invoice_line));
+  const mine = st.lines.filter((ln) => ln.state === "agreed" && !done.has(ln.invoice_line) && (!only || only.includes(ln.invoice_line)));
   if (!mine.length) throw new Error(done.size ? "There is no agreed line left to approve." : "No line of this statement is agreed, so there is nothing to approve.");
   const event = { type: "approval", scope: "agreed", by: String(by).trim(), role: String(role).trim(), on: day(on), lines: mine.map((ln) => ln.invoice_line),
     amount: amountOf(mine.reduce((a, ln) => a + units(ln.amount, st.scale), 0n), st.scale) };

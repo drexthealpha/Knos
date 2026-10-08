@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, "../../web");
 const load = (f) => import(pathToFileURL(join(root, f)).href);
 const { LINE_STATES, LINE_WORDS, COLUMNS, FEEDBACK, REPO_LINES, stateOf, answers, reading, repoInvoice, invoiceLineId } = await load("front_door.js");
-const { SAMPLE_INVOICE, SAMPLE_BOOK } = await load("front_door_sample.js");
+const { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } = await load("front_door_sample.js");
 const { parse, gather, statement, recorded } = await load("shadow.js");
 const { book } = JSON.parse(readFileSync(join(here, "../data/shadow_cases.json"), "utf8"));
 const proposal = JSON.parse(readFileSync(join(here, "../data/propose_terms.json"), "utf8"));
@@ -36,7 +36,8 @@ same("the sample's seven lines fall into the four groups", st.lines.map(stateOf)
 // THE STATEMENT the front door makes (web/statement_make.js) is the one `knos statement make` writes from the same invoice
 // and the same answers: tests/data/statement/front_door.* are the Python's (tests/test_site_front_door.py holds them to it)
 const make = await load("statement_make.js"), finance = await load("finance_data.js"), fixture = (name) => readFileSync(join(here, "../data/statement", name), "utf8");
-const made = await make.fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, {});
+const made = await make.fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, SAMPLE_META);
+same("the sample's statement names a currency, so a bank file can be made from it", made.currency, "USD");
 same("the sample's statement is the Python's, byte for byte", finance.canonicalText(made), fixture("front_door.json"));
 same("  its CSV too, before an approval and after one", [await finance.statementCsv(made), await finance.statementCsv(made, make.approve(made, null, "you", "approver", "2026-10-06"))], [fixture("front_door.plain.csv"), fixture("front_door.csv")]);
 same("  every line has its deliverable and invoice line ids, an evaluation where one ran, and one of the four states", [made.lines.every((l) => /^dlv_[0-9a-f]{24}$/.test(l.deliverable) && /^inv_[0-9a-f]{24}$/.test(l.invoice_line) && l.evaluations.every((e) => /^evl_[0-9a-f]{24}$/.test(e))),
@@ -53,6 +54,27 @@ same(`a repository is read as its merged pull requests, ${REPO_LINES} at most, n
 const fb = new URL(FEEDBACK);
 same("the feedback link: a new issue on drexthealpha/Knos, labelled, three questions, nothing else", [fb.origin + fb.pathname, fb.searchParams.get("labels"), fb.searchParams.get("body").split("\n").filter(Boolean)],
   ["https://github.com/drexthealpha/Knos/issues/new", "shadow-feedback", ["1. What was wrong in the result?", "2. Would you use this on a real invoice?", "3. What would you pay for it?"]]);
+
+// How long the page takes to draw its first words after a click, by the page's own clock: from the moment the click
+// reaches the window (a capturing listener, before any of the page's) to the first time `result` holds text, seen by a
+// MutationObserver, so the words count when they are put in the page and not when this script gets round to reading them.
+// { text, ms }; ms is null when no words came within two seconds.
+async function pendingAfterClick(p, button, result) {
+  await p.evaluate((sel) => {
+    const probe = window.__pending = { text: null, ms: null, t0: null };
+    const look = () => {
+      const t = document.querySelector(sel)?.textContent?.trim();
+      if (probe.t0 === null || probe.ms !== null || !t) return;
+      probe.text = t; probe.ms = performance.now() - probe.t0; seen.disconnect();
+    };
+    const seen = new MutationObserver(look);
+    seen.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+    window.addEventListener("click", () => { probe.t0 = performance.now(); }, { capture: true, once: true });
+  }, result);
+  await p.click(button);
+  try { await p.waitForFunction(() => window.__pending.ms !== null, null, { timeout: 2000 }); } catch { /* ms stays null: the check fails and says so */ }
+  return p.evaluate(() => ({ text: window.__pending.text, ms: window.__pending.ms === null ? null : Math.round(window.__pending.ms) }));
+}
 
 // ---- the page ------------------------------------------------------------------------------------------------------------
 async function page() {
@@ -202,7 +224,7 @@ async function page() {
       await p.click('[data-fd="approve"]'); await p.click('[data-fd="statement"]');
       await p.waitForSelector("#aps-statement", { state: "visible" });
       same("320px, on the site: Open the statement shows the same statement on the Statement page, with the approval", await p.$eval("#aps-statement", (e) => [e.dataset.sha256, e.dataset.whole, document.body.dataset.page]).then(async (l) => [...l,
-        (await p.textContent("#aps-answers")).includes("2 agreed lines, 650.00 by you (approver) on"), await p.$$eval("#aps-lines .k-state", (x) => x.map((e) => e.dataset.state))]), [made.sha256, "1", "invoice-statement", true, WANT]);
+        (await p.textContent("#aps-answers")).includes("2 agreed lines, 650.00 USD by you (approver) on"), await p.$$eval("#aps-lines .k-state", (x) => x.map((e) => e.dataset.state))]), [made.sha256, "1", "invoice-statement", true, WANT]);
       ok("320px, on the site: the statement does not scroll sideways", (await measure(p)).over <= 0, await measure(p));
     }
     await ctx.close();
@@ -213,10 +235,11 @@ async function page() {
   // 2. the sample, with no network at all (GitHub refused), with and without motion
   for (const motion of [false, true]) {
     const tag = motion ? "sample, moving" : "sample", { ctx, p, strangers, errors } = await visit("door.html", motion ? 390 : 320, { offline: true, motion });
-    const t0 = Date.now();
-    await p.click('[data-fd="sample"]');
-    const pending = await p.textContent('#front-result [data-fd="said"]'), took = Date.now() - t0;
-    ok(`${tag}: a pending state is drawn at once`, /^(Checking 7 lines\.|Checked 7 lines\. 5 exceptions\.)$/.test(pending) && took < 300, [pending, took]);
+    // The time is the page's own, from the click reaching the page to the first words drawn in the result. Measured from
+    // here it held Playwright's round trips and its checks before the click too, which a loaded runner stretched past the
+    // bound (410 ms in tests run 37694811068) while the page drew the words in the same task as the click.
+    const pending = await pendingAfterClick(p, '[data-fd="sample"]', '#front-result [data-fd="said"]'), took = pending.ms;
+    ok(`${tag}: a pending state is drawn at once`, /^(Checking 7 lines\.|Checked 7 lines\. 5 exceptions\.)$/.test(pending.text) && took !== null && took < 300, [pending.text, took]);
     await done(p);
     const g = await groups(p);
     same(`${tag}: four groups with the expected counts`, Object.fromEntries(Object.entries(g).map(([k, v]) => [k, v[0]])), COUNTS);

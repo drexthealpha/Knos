@@ -240,10 +240,10 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
     number = f"Of {merged['prs']} merged agent pull requests that claimed passing tests, {merged['any_check_failed']['prs']} had a failed check."
     # the site's first screen, line for line where they share lines: the one sentence (the one noun leads it), the customer
-    # outcome, the one number, one link to the site: four lines, forty words at most
+    # outcome, the one number, one link to the site and one to the judges' page: four lines, forty words at most
     outcome = "Buyers and suppliers close invoices on evidence both can verify."
     assert lines[0] == f"**{cc.SENTENCE}**" and cc.SENTENCE.startswith("The neutral meter ") and lines[1] == outcome and lines[2] == number and len(lines) == 4
-    assert lines[3] == "[Check your invoice](https://drexthealpha.github.io/Knos/)"
+    assert lines[3] == "[Check yours](https://drexthealpha.github.io/Knos/) · [Judges](docs/JUDGES.md)"
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
     assert f">{cc.SENTENCE}</h1>" in hero and f">{outcome}</p>" in hero and hero.index(cc.SENTENCE) < hero.index(outcome) < hero.index('id="hero-fact"')
     # the ONE command is the first line under "Read more", no longer on the first screen

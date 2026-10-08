@@ -55,17 +55,25 @@ export function boardOf(file, now = Date.now()) {
     amount: amount(t.amount, t.decimals ?? 6), currency: "test USDC", left: leftOf(t.deadline, now), url: `https://github.com/${REPO}/issues/${t.issue}` }))
     .filter((t) => t.left !== "Ended").sort((a, b) => a.number - b.number);
 }
+// Payments held for their author (tasks.json `held`): each needs one comment from the payee, and the page says which.
+export function heldOf(file) {
+  if (!file || file.read !== true || !Array.isArray(file.held) || String(file.repository || "").toLowerCase() !== REPO.toLowerCase()) return [];
+  return file.held.filter((h) => h && Number.isInteger(h.pull) && /^[A-Za-z0-9-]{1,39}$/.test(String(h.for || "")))
+    .map((h) => ({ pull: h.pull, who: String(h.for), url: `https://github.com/${REPO}/pull/${h.pull}` })).sort((a, b) => a.pull - b.pull);
+}
+const heldHtml = (held) => (held && held.length ? `<ul class="pg-held" id="pg-held" aria-label="Held payments">${held.map((h) =>
+  `<li data-pull="${esc(h.pull)}"><span class="k-kicker">Held</span> Comment <code>/knos address &lt;address&gt;</code> on <a href="${esc(h.url)}" rel="noopener">#${esc(h.pull)}</a> to release @${esc(h.who)}'s test USDC.</li>`).join("")}</ul>` : "");
 export const boardUrl = () => `https://github.com/${REPO}/issues?q=${encodeURIComponent("is:issue is:open label:knos-funded")}`;
 
 function boardHtml(s) {
   if (s.board === undefined) return "";
   const head = `<h3 id="pg-board-title">Funded tasks</h3>`;
   if (s.board === null) return `${head}<p class="pg-note" id="pg-board-unread">Board not read in this build. <a href="${boardUrl()}" rel="noopener">Open it on GitHub.</a></p>`;
-  if (!s.board.length) return `${head}<p class="pg-note" id="pg-board-none">No funded task is open now.</p>`;
+  if (!s.board.length) return `${head}<p class="pg-note" id="pg-board-none">No funded task is open now.</p>${heldHtml(s.held)}`;
   return `${head}<div class="k-table"><table id="pg-board" aria-labelledby="pg-board-title"><thead><tr><th scope="col">Task</th><th scope="col">Pays</th><th scope="col">Time left</th><th scope="col">Do it</th></tr></thead><tbody>${s.board.map((t) =>
     `<tr data-issue="${esc(t.number)}"><th scope="row"><span class="k-num">#${esc(t.number)}</span> ${esc(t.title)}</th>
       <td><span class="k-num">${esc(t.amount)}</span> ${esc(t.currency)}</td><td>${esc(t.left)}</td>
-      <td><a class="k-btn quiet pg-take-it" href="${esc(t.url)}" rel="noopener" aria-label="Take task ${esc(t.number)}">Take it</a></td></tr>`).join("")}</tbody></table></div>`;
+      <td><a class="k-btn quiet pg-take-it" href="${esc(t.url)}" rel="noopener" aria-label="Take task ${esc(t.number)}">Take it</a></td></tr>`).join("")}</tbody></table></div>${heldHtml(s.held)}`;
 }
 
 // issues: GitHub's list (pull requests are in it and are left out). bounties: bounties.json, or null when it was not read.
@@ -107,11 +115,17 @@ function countsHtml(o) {
     <p class="pg-note" id="pg-faucet" title="${esc(d.funders_in_knos_repositories_faucet || "")}"><strong class="k-num">${n[3] ?? 0}</strong> of those funders: ${esc(LABEL_KNOS_FAUCET)}.</p>`;
 }
 
+// The one click of docs/ATTESTOR.md: a repository of the reader's own from the template (`python -m knos.host_judge link` prints it).
+export const HOST_A_JUDGE = "https://github.com/new?template_owner=drexthealpha&template_name=knos-attest&name=knos-judge&visibility=public&owner=@me";
+
 const STYLE = `<style>
 .playground{overflow-wrap:anywhere;min-width:0}
 .playground .pg-acts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .playground .pg-acts .k-btn{max-width:100%;white-space:normal;text-align:center}
 .playground .pg-note{margin:8px 0}
+.playground .pg-held{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.playground .pg-held li{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--radius);background:var(--paper-2);padding:8px 12px}
+.playground .pg-held .k-kicker{display:inline;margin:0 6px 0 0}
 .playground table{border-collapse:collapse;width:100%}
 .playground th,.playground td{text-align:left;vertical-align:top;padding:6px 8px;font-weight:inherit}
 .playground .pg-count{white-space:nowrap}
@@ -126,6 +140,7 @@ export function playgroundHtml(s = {}) {
   <p class="pg-note">Test USDC, no monetary value.</p>
   <div class="pg-acts"><a class="k-btn" id="pg-fund" href="${fundUrl()}" rel="noopener">${FUND_LABEL}</a>
     <a class="k-btn quiet" id="pg-take" href="${esc(takeUrl(s.tasks, s.board))}" rel="noopener">${TAKE_LABEL}</a>
+    <a class="k-btn quiet" id="pg-host" href="${HOST_A_JUDGE}" rel="noopener">Host a judge</a>
     <button class="k-btn quiet" id="pg-again" type="button">Read again</button></div>
   <div id="pg-boarded">${boardHtml(s)}</div>
   <div id="pg-list" aria-live="polite">${listHtml(s)}</div>
@@ -154,6 +169,7 @@ export function renderPlayground(el, env = {}) {
       Promise.resolve().then(() => file("tasks.json")).catch(() => null)]);
     if (stopped || mine !== round) return state;       // a newer read is on its way: this one is not drawn over it
     state.board = boardOf(board, (env.now || Date.now)());
+    state.held = heldOf(board);
     state.tasks = Array.isArray(issues) ? tasksOf(issues, bounties, state.board) : null;
     state.outsiders = outsiders;
     draw();

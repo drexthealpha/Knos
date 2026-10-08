@@ -191,6 +191,38 @@ check("  Clear leaves nothing of the token on the page", await text("#vf-out") =
   check("  what is not JSON is said to be that, and nothing is asked of anyone", (await text("#vf-badge-out")) === "Not JSON. Paste the whole file." && asked.every((u) => u.startsWith(base)));
   await page.fill("#vf-receipt", "");
 }
+// a receipt in five parts (receiptParts, held to knos.receipt.parts by tests/web/receipt_parts.mjs): five rows, each one line, each a fold
+{
+  const { cases } = JSON.parse(readFileSync(join(here, "..", "data", "receipt_parts.json"), "utf8"));
+  const weak = cases.find((c) => c.name.startsWith("reported: version 4's first")), strong = cases.find((c) => c.name.startsWith("a suite decided and two evaluators"));
+  const before = asked.length;
+  const paste = async (doc) => { await page.fill("#vf-five-in", typeof doc === "string" ? doc : JSON.stringify(doc)); await page.waitForSelector("#vf-five-out [data-parts]"); return page.getAttribute("#vf-five-out [data-parts]", "data-parts"); };
+  const rows = () => page.evaluate(() => [...document.querySelectorAll("#vf-parts details")].map((d) => [d.dataset.part, d.open, d.querySelector("summary strong").textContent, d.querySelector("summary span").textContent]));
+  check("five parts: a valid, signed, paid receipt whose test is weak reads as weak", (await paste(weak.receipt)) === "weak" && (await text("#vf-five-out")).startsWith("Read: a weak acceptance. Verdict: accepted."));
+  const got = await rows();
+  check("  five rows in order, each shut and one line: Identity, Execution, Acceptance, Consequence, Assurance",
+    JSON.stringify(got.map((r) => [r[0], r[1], r[2]])) === JSON.stringify(lib.FIVE.map((id, n) => [id, false, ["Identity", "Execution", "Acceptance", "Consequence", "Assurance"][n]]))
+    && JSON.stringify(got.map((r) => r[3])) === JSON.stringify(weak.parts.parts.map((x) => x.line)), got);
+  check("  the assurance row starts with WEAK and is marked", got[4][3].startsWith("WEAK (reported): ") && await page.getAttribute('#vf-parts details[data-part="assurance"]', "data-weak") === "yes");
+  await page.click('#vf-parts details[data-part="assurance"] summary');
+  check("  a row opens to what stands behind it", await page.evaluate(() => document.querySelector('#vf-parts details[data-part="assurance"]').open)
+    && (await text('#vf-parts details[data-part="assurance"]')).includes("Outside the evaluation: The workflow file decides what it reads"));
+  for (const width of [320, 414, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    check(`  no sideways scroll at ${width} px with the five parts shown and one open`, await sideways() <= 0, await sideways());
+  }
+  check("  a suite two outside evaluators ran again is not weak, and still says what stayed outside", (await paste({ receipt: strong.receipt })) === "read"
+    && (await rows())[4][3].startsWith("Agreed: two evaluators with different owners each ran the suite and agree.") && (await text("#vf-five-out")).startsWith("Read, not verified."));
+  check("  a file that is not a receipt is said to be that, in a few words", (await paste({ type: "x" })) === "unread" && (await paste("not json")) === "unread" && (await text("#vf-five-out")) === "Not JSON. Paste the whole file.");
+  check("  what a receipt says is shown as text, never run", (await paste({ ...weak.receipt, order: "<img src=x onerror=window.pwned=1>" })) === "weak" && await page.evaluate(() => window.pwned === undefined && !document.querySelector("#vf-five-out img")));
+  check("  reading a receipt asked nothing of any host, and the page kept nothing", asked.length === before && await page.evaluate(() => localStorage.length + sessionStorage.length + document.cookie.length) === 0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  check("  reduced motion: the rows' handles do not turn", await page.evaluate(() => [...document.querySelectorAll("#vf-parts summary")].every((e) => parseFloat(getComputedStyle(e, "::before").transitionDuration) <= 0.001)),
+    await page.evaluate(() => getComputedStyle(document.querySelector("#vf-parts summary"), "::before").transitionDuration));
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.fill("#vf-five-in", "");
+  check("  an emptied box leaves nothing of the receipt on the page", await text("#vf-five-out") === "");
+}
 check("no error in the page", errors.length === 0, errors);
 await browser.close();
 server.close();

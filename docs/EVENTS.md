@@ -56,6 +56,34 @@ A correction is an event: it names another event and says what it is from now on
 void). The line it names is never touched. The latest correction of an event holds. A statement names the log
 head it was made at, so a later correction gives a later statement and never a changed one.
 
+## Numbers, gaps and closing a month
+
+A root commits to what was supplied. It cannot say that something was not. So a sender numbers what it sends, from
+0, per buyer, supplier and month, and the number travels in `evidence`:
+
+    batch:<buyer>:<supplier>:<yyyymm>.<number>:<root>...      the batch mode: the batch's seq
+    sent:<buyer>:<supplier>:<yyyymm>.<number>[:anything]      any other mode whose sender numbers what it sends
+
+`knos events gaps LOG` names every number below the highest that arrived that is not in the log, and exits 1 while
+one is unexplained. With `--last <buyer>:<supplier>:<yyyymm>.<n>` it also checks up to the last number the sender
+says it sent.
+
+A gap ends when the missing arrival is ingested, or when a correction explains it:
+
+    knos events gaps LOG --explain <buyer>:<supplier>:<yyyymm>.<n> --reason "the run was cancelled"
+
+That appends a correction whose `corrects` is `gap:<buyer>:<supplier>:<yyyymm>.<n>`, void, with the reason. It is
+refused when the number did arrive. It counts once a party has acknowledged a head after it: the acknowledgement's
+signed token is what signs the correction. `knos events close LOG --month YYYY-MM` refuses the month while a gap
+has neither an arrival nor an acknowledged correction.
+
+One deliverable id, ever. An acceptance takes its id from its deliverable, so the same deliverable accepted again
+in a later month is a repeat, and at another amount a conflict. A second invoice line for it is a `duplicate` in
+its month's statement. `knos events dupes` also names every deliverable with more than one counted invoice line or
+settlement, across months.
+
+Keeping the evidence, and checking it with no Knos: [RETENTION.md](RETENTION.md).
+
 ## Acknowledgements
 
 The other party signs the log up to a head. The mechanism is the one a month's close already uses
@@ -106,6 +134,8 @@ funded there ([PLAYGROUND.md](PLAYGROUND.md)).
     knos events ack LOG --as OWNER_ID                         # print the audience to sign
     knos events ack LOG --token FILE --keys JWKS              # add a signed acknowledgement
     knos events dupes LOG
+    knos events gaps LOG [--month YYYY-MM] [--last B:S:YYYYMM.N] [--explain B:S:YYYYMM.N --reason WHY]
+    knos events close LOG --month YYYY-MM [--last B:S:YYYYMM.N]
     knos events statement LOG --month YYYY-MM [--supplier S]
     knos events export LOG --out DIR
 
@@ -147,8 +177,10 @@ root binds the set of evaluation ids, the count, the accepted count and the valu
 - **A dropped acknowledgement.** The party that signed holds the token and the head; the file alone does not
   show that an acknowledgement was cut off its end.
 - **That the content is true.** A wrong verdict ingested once is counted once.
-- **Two writers at once.** There is no lock. Two processes that append together break the chain, and `verify`
-  says so.
+- **Numbers past the last one that arrived.** A gap is a number below the highest seen. The end of a run is
+  checked only against the last number its sender states (`--last`).
+- **Two writers without the lock.** `knos events ingest` holds `<log>.lock` while it reads and appends. A program
+  that appends without it can break the chain, and `verify` says so.
 - A month is where an event's first arrival put it. A repeat that names another month does not move it.
 
 ## Why there is no on-chain marker per event

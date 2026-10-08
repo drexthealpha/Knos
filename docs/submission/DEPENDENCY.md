@@ -53,3 +53,78 @@ already checks GitLab's tokens) and a workflow pin under more than one owner at 
 
 No date is given for step 1, because it waits on a second person. Until then the plain statement is the one at the
 top: one personal account, and if it were suspended, funded orders could only be refunded.
+
+# The dependency on the memory engine
+
+Everything Knos remembers is kept by one outside library: the Sibyl memory engine, `sibyl-memory-client`
+([PyPI](https://pypi.org/project/sibyl-memory-client/), [source](https://github.com/Sibyl-Labs/Sibyl-Memory)), pinned
+at 0.8.1 or later in `pyproject.toml`. It is one SQLite file on the machine that runs Knos, searched with SQLite's
+FTS5; there is no service to call and no model. Knos keeps no second store, no cache and no side file. This part says
+what the engine is used for, call by call, and what stops working without it.
+
+A receipt, a count and a payment do not depend on it: they are checked from signed evidence and the chain. Memory
+adds what was learned from earlier work.
+
+## What it is used for, with the calls
+
+All of it goes through `src/knos/proof/history.py` (`SibylStore`), and that class calls only these:
+
+| the engine's tier | the client's call | what Knos keeps there |
+|---|---|---|
+| HOT, state documents | `set_state`, `get_state` | the running count of claims and refusals in a repository; the buyer's live exception queue |
+| WARM, entities | `set_entity`, `list_entities`, `search_entities(category=...)` | proof rules, tamper lessons, how each order ended, refusals under given terms, appeals, a supplier's record, and one entity per supplier-and-terms holding how their exceptions ended |
+| COLD, journal | `write_event`, `read_events` | every verdict of the Stop hook; every resolution of an exception. Appended, never rewritten |
+| REFERENCE | `set_reference`, `get_reference` | the text of the terms an exception was judged under, by its hash |
+| ARCHIVE | `archive_entity` | a closed statement period: what its exceptions came to |
+| all tiers | `search` | finding a past refusal by its words |
+| tenants | `MemoryClient.local(..., tenant_id=...)`, `set_tenant` | one tenant per repository for the hook and the judge; one per buyer organisation for exceptions (`knos.store.buyer_tenant`) |
+
+Two things the client does not offer at 0.8.1 and Knos works around in the open: it has no call that lists the
+archive, so `SibylStore.archived` reads the engine's own `archived_entities` table through the client's storage
+handle; and the engine's self-learning and linter need a paid account, so Knos calls `learn()` only when one is
+there and never depends on it.
+
+## What a buyer sees it do
+
+`knos recall exception --buyer ORG --terms HASH --reason CODE [--supplier ID]` answers how the same exception under
+the same terms ended before: how often, each ending (accepted on appeal, corrected and passed, refused), how long it
+took, and the evidence ids. `--json` prints the row the approver's exception queue draws (`web/recall.js`).
+
+What it answers from is written where the thing happens (`tests/test_recall_wired.py`):
+
+| Where | What is remembered |
+|---|---|
+| an appeal the workflow handles (`knos.appeal.remember`) | the appeal as an exception under its terms: open, then ended accepted on appeal or refused |
+| `knos statement make --remember ORG` | each line that is not agreed, on the live queue |
+| `knos statement pay --remember ORG` | a line that had been set aside and was paid: accepted on appeal; refunded: refused |
+| `knos meter correct --remember ORG` | the correction: a verdict corrected to accepted is corrected and passed; any other is refused |
+| `knos meter close --remember ORG` | an agreed month's ended exceptions, moved to the archive |
+
+Nothing is remembered unless `--remember` names the buyer organisation, and a workflow's appeals are remembered
+only where the job has the memory engine installed. A statement and a meter ledger name no terms: without
+`--terms HASH` their exceptions are kept under a hash of the two parties' names, so a recall is of the same buyer
+and supplier and of no other pair. No buyer has used any of this.
+
+## What stops working without it
+
+`history.NullStore` is the same code with no memory. Swapped in, these answers come back empty
+(`tests/test_recall.py::test_with_no_memory_every_answer_disappears`): how the exception ended before, how long it
+took, the evidence ids, the journal's line, the live queue, the text of the terms, the closed periods. Deleting the
+store's file has the same effect, and a second process recalls nothing
+(`test_a_recall_survives_a_restart_and_the_store_is_the_only_place_it_is_kept`). The older answers go the same way
+(`tests/test_sibyl_is_load_bearing.py`): the check a false "done" made required, the tamper lessons, the refusals a
+preflight warns about.
+
+## Its limits, measured here
+
+- The engine's free tier holds 5,242,880 bytes for one account (`free_tier_status()` at 0.8.1). An empty store is
+  282,624 bytes. Writing 300 resolutions for 30 suppliers grew it to 1,904,640 bytes, about 5,400 bytes each, so a
+  free store holds on the order of 900 resolutions before the engine refuses a write. Past that the buyer needs an
+  activated Sibyl account, or a store per period.
+- On the same run one resolution took 13 ms to write and one recall 18 ms to read, on a shared two-core machine.
+- One entity keeps the newest 200 cases of one supplier under one terms hash, and a count of all of them.
+- Memory is local to the machine that holds the file. Two approvers on two machines do not share it; nothing
+  replicates it. The judge's lessons travel between runs as issue comments (`knos.proof.memory`); exceptions do not
+  travel yet.
+- The engine is another party's code under an MIT licence. If it were withdrawn, the pinned version still installs
+  from any mirror that has it, and the file is plain SQLite.

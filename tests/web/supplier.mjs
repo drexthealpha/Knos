@@ -6,7 +6,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const { readTerms, termsLink, termsInComments, classify, rules, tree, search, matches, SAMPLES, LABELS, CLASSES, PROGRAMS } =
+const { readTerms, termsLink, termsInComments, classify, rules, tree, search, matches, SAMPLES, LABELS, PROTECTIONS, NETTED, ENFORCED, owed, CLASSES, PROGRAMS } =
   await import(pathToFileURL(join(here, "../../web/supplier.js")).href);
 const { cases } = JSON.parse(readFileSync(join(here, "../data/supplier_cases.json"), "utf8"));
 const refusals = JSON.parse(readFileSync(join(here, "../../web/refusals.json"), "utf8")).rows;
@@ -45,6 +45,13 @@ same("with nothing typed the table shows what a supplier meets, no program's num
 same("a search finds a code and a word", [search(refusals, "pay.83").map((r) => r.code), search(refusals, "conftest").length, search(refusals, "existed test").map((r) => r.code)],
   [["pay.83"], 0, ["judge.existing-test-edited", "judge.protected-test-edited", "judge.protected-test-deleted"]]);
 same("every refusal sentence is twelve words at most", refusals.filter((r) => [r.happened, r.do].some((s) => s.split(/\s+/).length > 12)).map((r) => r.code), []);
+same("four protections in preflight's order, each enforced by the program, the workflow or advice only, each line twelve words at most",
+  [PROTECTIONS.map((x) => x.id), [...PROTECTIONS, NETTED].every((x) => ENFORCED[x.enforced] && x.line.split(/\s+/).length <= 12)],
+  [["fixed_criteria", "acceptance_deadline", "appeal", "predictable_payment"], true]);
+same("what terms give of each: a suite order holds two and asks two; a merge with no check lacks two; every answer is twelve words at most",
+  [owed(SAMPLES[1].terms).map((r) => r.state), owed({ ...SAMPLES[0].terms, checks: [] }).map((r) => r.state), owed(SAMPLES[0].terms, true).map((r) => r.state),
+    [SAMPLES[0].terms, SAMPLES[1].terms, { ...SAMPLES[0].terms, checks: [] }].flatMap((t) => [...owed(t), ...owed(t, true)]).filter((r) => r.says.split(/\s+/).length > 12)],
+  [["held", "ask", "held", "ask"], ["lacked", "lacked", "ask", "ask"], ["held", "lacked", "ask", "held"], []]);
 same("three classes, each with a label of three words at most", CLASSES.map((c) => LABELS[c].split(" ").length <= 3), [true, true, true]);
 
 // ---- the page, in headless Chromium: node tests/web/supplier.mjs page ---------------------------------------------------
@@ -99,6 +106,8 @@ async function page() {
     await p.goto(`${base}supplier_page.html`);
     await p.waitForFunction(() => window.drawn === true);
     ok(`${width}px: the refusal table is there before anything is pasted, a supplier's rows only`, (await p.locator("[data-sp=rows] tr").count()) === search(refusals, "").length);
+    ok(`${width}px: a file or a command in a refusal's sentence is drawn as code, never as backticks`, !(await p.innerText("[data-sp=rows]")).includes("`")
+      && (await p.locator("[data-sp=rows] td:not(:first-child) code").count()) > 0);
     ok(`${width}px: the published samples are offered`, (await p.locator("[data-sp=samples] button").allInnerTexts()).includes("Sample: feature-blackbox"), await p.locator("[data-sp=samples] button").allInnerTexts());
     ok(`${width}px: the empty page does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
     const t0 = Date.now();
@@ -118,12 +127,31 @@ async function page() {
     await p.fill("#sp-in", "https://github.com/acme/app/issues/12"); await p.click("[data-sp=run]");
     await p.waitForFunction(() => document.querySelector("[data-sp=said]").textContent === "Read from acme/app#12.");
     ok(`${width}px: a GitHub issue's terms are read with one GET and nothing sent`, sent.length === 1 && sent[0].method === "GET" && sent[0].body === null && sent[0].path === "/repos/acme/app/issues/12/comments?per_page=100", sent);
+    const owedRows = () => p.evaluate(() => [...document.querySelectorAll("[data-sp=owed] tbody tr")].map((tr) => [tr.dataset.owed, tr.dataset.state || "", tr.cells[2].innerText.trim(), tr.cells[3].innerText.trim()]));
+    ok(`${width}px: four protections and the netted row, each with how it is enforced; a funded issue's suite order holds three and asks one`, JSON.stringify(await owedRows()) === JSON.stringify([
+      ["fixed_criteria", "held", "Enforced by the program.", "Held: the criteria cannot change after funding."], ["acceptance_deadline", "ask", "Enforced by the program.", "Ask: does passing work pay without a merge?"],
+      ["appeal", "held", "Enforced by the workflow.", "Held: another account runs the checks again, free."], ["predictable_payment", "held", "Enforced by the program.", "Held: the order was funded before work."],
+      ["netted", "", "Enforced by advice only.", "Ask: is a reserve bound?"]]), await owedRows());
+    await p.click("[data-sp=samples] button:has-text('bugfix')");
+    await p.waitForFunction(() => document.querySelector("[data-sp=said]").textContent.startsWith("Sample: bugfix"));
+    ok(`${width}px: terms paid on a merge lack an acceptance deadline, and the page says so`, JSON.stringify((await owedRows()).slice(0, 4).map((r) => [r[1], r[3]])) === JSON.stringify([
+      ["held", "Held: the criteria cannot change after funding."], ["lacked", "Lacking: the buyer can wait forever."], ["ask", "Ask: does the order name an arbiter?"], ["ask", "Ask: is the order funded? Read its issue."]]), await owedRows());
     await p.fill("#sp-in", "not terms"); await p.click("[data-sp=run]");
     ok(`${width}px: what is not terms is said`, (await p.innerText("[data-sp=said]")) === "That is not JSON.");
     ok(`${width}px: every statement is twelve words at most`, wordy(await statements(p)).length === 0, wordy(await statements(p)));
     ok(`${width}px: the filled page does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
     ok(`${width}px: nobody but this page and api.github.com is asked`, strangers.length === 0, strangers);
     ok(`${width}px: no error on the page`, errors.length === 0, errors);
+    await ctx.close();
+  }
+  {   // reduced motion: nothing on the page moves
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, reducedMotion: "reduce" });
+    await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
+    const p = await ctx.newPage();
+    await p.goto(`${base}supplier_page.html`); await p.waitForFunction(() => window.drawn === true);
+    await p.click("[data-sp=samples] button:has-text('feature-blackbox')"); await p.waitForSelector("[data-sp=owed] tr[data-state=held]");
+    const moving = await p.evaluate(() => [...document.querySelectorAll(".supplier .sp-out, .supplier .sp-owed tr")].filter((e) => { const c = getComputedStyle(e); return parseFloat(c.transitionDuration) > 0 || c.animationName !== "none"; }).length);
+    ok("reduced motion: the terms and the four protections appear with no transition", moving === 0, moving);
     await ctx.close();
   }
   await browser.close(); server.close();

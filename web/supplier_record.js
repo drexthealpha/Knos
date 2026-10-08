@@ -19,7 +19,7 @@ export const SCHEMA = "knos.supplier-record/1";
 export const TILES = ["accepted", "rejected", "insufficient_evidence", "disputed", "overturned", "reverted"];
 export const WORDS = { accepted: "accepted", rejected: "rejected", insufficient_evidence: "insufficient evidence", disputed: "disputed", appealed: "appealed",
   overturned: "overturned on appeal", reverted: "reverted" };
-export const INSTALL = "uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.19";
+export const INSTALL = "uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.20";
 export const slugOf = (name) => String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
 export const slugIn = (hash) => { const m = /^#?record=([^&]*)/.exec(String(hash || "")); return m ? slugOf(decodeURIComponent(m[1])) : ""; };
 
@@ -80,6 +80,7 @@ export function recordHtml(doc) {
     <p class="k-kicker">Supplier record</p>
     <h2>Public record of ${esc(doc.name)}</h2>
     <p class="fine" data-sr="rule">This record cannot be bought.</p>
+    <p class="fine k-num" data-sr="built">Built ${esc(doc.as_of)}. Unsigned.</p>
     ${o.sample ? ORDERS + PUBLIC : PUBLIC + ORDERS}
     <p class="sr-row"><a class="k-btn" data-sr="dispute" href="${esc(doc.links.dispute)}" target="_blank" rel="noopener">Dispute this record</a>
       <a class="k-btn quiet" data-sr="file" href="records/${esc(doc.supplier)}.json">Open the file</a></p>

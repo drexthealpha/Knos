@@ -12,7 +12,7 @@
 // web/front_door_sample.js (a made-up invoice with its recorded answers), so it works with no network.
 import { parse, pullOf, gather, statement, recorded, githubReader, Unread, ANONYMOUS_AN_HOUR, LINE_COSTS } from "./shadow.js";
 import { parseRepo, installLink, pinnedFile, INSTALL_WORKFLOW } from "./install.js";
-import { SAMPLE_INVOICE, SAMPLE_BOOK } from "./front_door_sample.js";
+import { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } from "./front_door_sample.js";
 
 export const LINE_STATES = ["agreed", "disputed", "duplicate", "insufficient_evidence"];
 export const LINE_WORDS = { agreed: "agreed", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
@@ -224,7 +224,7 @@ export function renderFrontDoor(el, env = {}) {
     $("approve").disabled = agreed.length === 0;
     $("after").hidden = false;
     const text = repo ? `${invoice.lines.map((ln) => ln.pr).join("\n")}\n` : sample ? SAMPLE_INVOICE : box.value;
-    last = { st, pulls, approved: "", status: null, made: null, bundle: { invoice: text, answers: book } };
+    last = { st, pulls, approved: "", status: null, made: null, bundle: { invoice: text, answers: book }, meta: sample ? SAMPLE_META : {} };
     made().catch(() => {});                 // the statement itself, made beside the page's own count and handed to the Statement page
     out.dataset.done = "1";
     finish(budget.spent ? "GitHub's hourly limit reached. Unread lines stay insufficient evidence." : `Checked ${st.lines.length} ${st.lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"}.`);
@@ -233,7 +233,7 @@ export function renderFrontDoor(el, env = {}) {
   // THE STATEMENT: what `knos statement make` writes from the same invoice and the same answers (web/statement_make.js,
   // held to tests/data/statement byte for byte): the four ids of every line, one of the four states, its evidence and
   // its hash. Approve and Download work on it, and the Statement page opens the same object.
-  const made = () => { const mine = last; return (mine.made ||= import("./statement_make.js").then(async (m) => { const st = await m.fromShadow(mine.bundle, {}); if (last === mine) m.hand(st, mine.status); return st; })); };
+  const made = () => { const mine = last; return (mine.made ||= import("./statement_make.js").then(async (m) => { const st = await m.fromShadow(mine.bundle, mine.meta); if (last === mine) m.hand(st, mine.status); return st; })); };
   const say = (text, kind) => { if (motion && motion.toast) motion.toast(text, kind); };
 
   async function approve() {

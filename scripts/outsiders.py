@@ -97,6 +97,42 @@ def count(jobs: list[dict], own: frozenset, own_wallets: frozenset, own_repos: f
             "summed": False, "definitions": DEFINITIONS}
 
 
+# ---- tasks that turn a zero into a one: counted only when the account that did them is outside --------------------------------------
+TASK_LABEL = "on tasks Knos funded itself"
+TASK_COUNTERS = {"reproduce": "reproductions", "shadow": "shadow_counts", "fund": "funders", "install": "repositories", "judge": "judges"}
+TASK_DEFINITIONS = {
+    "reproductions": "GitHub-signed reproduction reports filed by accounts that are not Knos's",
+    "shadow_counts": "published shadow counts of a repository whose owner is not Knos's",
+    "funders": "accounts that are not Knos's and funded a task in a repository of their own",
+    "repositories": "repositories that are not Knos's with the check installed and one finished run",
+    "judges": "accounts that are not Knos's and hosted a judge whose run GitHub signed",
+}
+
+
+def task_counts(done: list[dict] | None, own: frozenset, own_wallets: frozenset = frozenset()) -> dict:
+    """Each counter the five task kinds can move (src/knos/tasks.py KINDS), counted from accepted evidence rows:
+    {"kind", "accepted": True, "actor_id": the GitHub id that did it, "wallet": optional, "repository_owner_id": optional}.
+    A row counts only when it was accepted, its actor is a real account that is not Knos's, and (when it names them) its
+    wallet and its repository's owner are not Knos's either. One account moves one counter once. `done` None: nothing
+    was read, and every number is None, never 0. These are apart from `count` above and are never added to it."""
+    out: dict = {"measured": done is not None, "label": TASK_LABEL, "summed": False, "definitions": TASK_DEFINITIONS,
+                 **{name: None for name in TASK_COUNTERS.values()}}
+    if done is None:
+        return out
+    seen: dict[str, set[int]] = {name: set() for name in TASK_COUNTERS.values()}
+    for row in done:
+        if not isinstance(row, dict) or row.get("accepted") is not True or row.get("kind") not in TASK_COUNTERS:
+            continue
+        actor = row.get("actor_id")
+        if not isinstance(actor, int) or isinstance(actor, bool) or actor <= 0 or actor in own:
+            continue
+        if row.get("wallet") in own_wallets or int(row.get("repository_owner_id") or 0) in own:
+            continue
+        seen[TASK_COUNTERS[row["kind"]]].add(actor)
+    out.update({name: len(who) for name, who in seen.items()})
+    return out
+
+
 # ---- pull requests strangers sent to funded tasks: counted from the forge and the chain, apart from the three above --------------
 PULL_DEFINITIONS = {
     "received": "pull requests opened by accounts that are not Knos's that name (Closes #N) an issue a job or work order held money for",

@@ -12,7 +12,7 @@ Buyers and suppliers close invoices on evidence both can verify.
 
 Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.
 
-[Check your invoice](https://drexthealpha.github.io/Knos/)
+[Check yours](https://drexthealpha.github.io/Knos/) · [Judges](docs/JUDGES.md)
 
 ## The claim
 
@@ -30,8 +30,8 @@ Limits, in one line: Solana devnet, test USDC, no outside users yet ([docs/DISCL
 ## The money: released on a signature
 
 1. The buyer fixes the work, the budget and the acceptance terms before it starts; the terms are hashed into the order.
-2. GitHub signs the workflow run that judged the work, and a Solana program checks that signature itself before it pays, in test USDC.
-3. The smallest example is a bounty: a maintainer comments `/knos fund 20 checks: test`, and a merge with `test` passing pays the author.
+2. GitHub signs the workflow run that judged the work, and a Solana program checks that signature itself before it pays, in test USDC. The smallest example is a bounty: a maintainer comments `/knos fund 20 checks: test`, and a merge with `test` passing pays the author.
+3. Why Solana: Money is released with no custodian, and the count is anchored where neither side can alter it. A receipt verifies with no chain.
 
 ## The number
 
@@ -64,7 +64,7 @@ The second number: 17.8% of first such pull requests, 147 of 826 repositories ([
 ## Read more
 
 `uvx knos shadow invoice.csv`: the same check from a terminal, on an invoice of your own.
-[docs/STORY.md](docs/STORY.md): the three-minute demonstration in six beats, each with its evidence.
+[docs/STORY.md](docs/STORY.md): one task in seven steps, each with its evidence.
 [docs/MANIFEST.md](docs/MANIFEST.md): this release on one page: source, the build live at each public program id, every capability's stage, the limits.
 [docs/README.md](docs/README.md): every document, under six questions.
 

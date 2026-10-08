@@ -1,0 +1,45 @@
+{
+ "says": "Stand-alone verifier on the sample archive: 3 checks hold, 2 notes.",
+ "link": "docs/RETENTION.md",
+ "sealed": "2026-10-07",
+ "evidence_root": "b01bc5120c6a2ccc33bdc571dd0fbff879c2d131c944f7452d53d7c312fc9580",
+ "made_from": [
+  "examples/meter/buyer.jsonl",
+  "web/statement_sample.json"
+ ],
+ "lines": [
+  "checked: every file is the one the manifest lists (4 files); evidence root b01bc5120c6a2ccc33bdc571dd0fbff879c2d131c944f7452d53d7c312fc9580.",
+  "checked: ledgers/buyer.jsonl recomputes: 2 batches, every evaluation id, root, count and value; running hash 202610: edb2b3579305b5f2121fb4b539f991603f802c1040b56b482384f70d82ddce0c.",
+  "checked: statements/statement_sample.json: its hash is its own and its totals are the totals of its 5 lines.",
+  "note: compare the running hash of ledgers/buyer.jsonl with the chain's Ledger account for that buyer, seller and month: this file asks no chain.",
+  "note: UNSIGNED: 2 batches carry no signed token in this archive, so their roots are checked by hash only and are the holder's word: 202610.0 of ledgers/buyer.jsonl, 202610.1 of ledgers/buyer.jsonl.",
+  "VERIFIED: 3 checks hold, 2 notes. No network, no Knos."
+ ],
+ "real": {
+  "says": "Stand-alone verifier on a real period's archive: 11 checks hold, 6 notes.",
+  "source": "knos archive make on 7 October 2026 of month 202610 of the pair 142920951/142920951 on devnet: the ledger drexthealpha/knos-e2e-202610020610 meter/c19-ledger.jsonl (42af3ad, batches 0 to 2, each anchored at the public knos_meter by a RecordBatch and a ClaimBatch), the six batch and claim tokens GitHub signed for them, the netting period's log of events, terms and two close records, and GitHub's keys read that day; unpacked into an empty folder and its verify.py run with python -I -S",
+  "archive_sha256": "521dff9374f159ebf8b6cd199153320595dfcd78b03f0b0585240e8d0b2cd105",
+  "sealed": "2026-10-07",
+  "evidence_root": "81140fd627d6055accc99cecf221b23d2f18e4c455bf25bed7d373434e46f72a",
+  "lines": [
+   "checked: every file is the one the manifest lists (15 files); evidence root 81140fd627d6055accc99cecf221b23d2f18e4c455bf25bed7d373434e46f72a.",
+   "checked: the log of events holds: 80 lines, each chained to the one before, each id the id of what the line says; head b727cae1bc3ed1f3ec99882eb3f2cb8ab0a39c45fce871d23d7a3abf14dbe8dc.",
+   "checked: 1 monthly statements of the log were made again from the log: the same bytes.",
+   "checked: ledgers/c19-ledger.jsonl recomputes: 3 batches, every evaluation id, root, count and value; running hash 202610: aa5ff31e3bde4dafa8dbfb7c2e4d35ed1b007e15cfe1e5ee7ee15d736d5ffaf9.",
+   "checked: tokens/0ceb4470ff1981d2... carries the signature of the archived key, issued by https://token.actions.githubusercontent.com at 1791349156, for batch 0 of 202610 in ledgers/c19-ledger.jsonl: its root, count, accepted count and value are the ones signed.",
+   "checked: tokens/338f01e0fce428cd... carries the signature of the archived key, issued by https://token.actions.githubusercontent.com at 1791378435, for batch 1 of 202610 in ledgers/c19-ledger.jsonl: its root, count, accepted count and value are the ones signed.",
+   "checked: tokens/5b6c1bc35c2c3b05... carries the signature of the archived key, issued by https://token.actions.githubusercontent.com at 1791379698, for batch 2 of 202610 in ledgers/c19-ledger.jsonl: its root, count, accepted count and value are the ones signed.",
+   "checked: tokens/5c940115e727b7ca... carries the signature of the archived key, issued by https://token.actions.githubusercontent.com at 1791378557, for batch 1 of 202610 in ledgers/c19-ledger.jsonl: its root, count, accepted count and value are the ones signed.",
+   "checked: tokens/65b30a4932aee019... carries the signature of the archived key, issued by https://token.actions.githubusercontent.com at 1791346265, for batch 0 of 202610 in ledgers/c19-ledger.jsonl: its root, count, accepted count and value are the ones signed.",
+   "checked: tokens/ad29071962b9985d... carries the signature of the archived key, issued by https://token.actions.githubusercontent.com at 1791379397, for batch 2 of 202610 in ledgers/c19-ledger.jsonl: its root, count, accepted count and value are the ones signed.",
+   "checked: 1 terms files hash to the names they are kept under.",
+   "note: the 1 archived issuer keys (SHA-256 587077e131f92981ae23a22fb5552fa813b776bcef8d6d1c54866814a3933e4b) were read on 2026-10-07 from https://token.actions.githubusercontent.com/.well-known/jwks: that they are the issuer's is not something this archive can show; compare that hash with a copy another holder kept.",
+   "note: UNSIGNED: nobody has acknowledged the log: until a second party signs a head, it is one party's file.",
+   "note: INCOMPLETE: number 0 of 142920951:142920951:202610 never arrived and nothing explains it.",
+   "note: compare the running hash of ledgers/c19-ledger.jsonl with the chain's Ledger account for that buyer, seller and month: this file asks no chain.",
+   "note: closes/close-buyer.json is checked by hash only.",
+   "note: closes/close-seller.json is checked by hash only.",
+   "VERIFIED: 11 checks hold, 6 notes. No network, no Knos."
+  ]
+ }
+}

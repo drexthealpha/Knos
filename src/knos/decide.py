@@ -4,6 +4,7 @@
     knos decide --token-file FILE [--terms-file FILE] [--order ADDRESS] [--no-chain] [--out FILE]
     knos decide --token-file FILE [--terms-file FILE] --full      # the relay's whole precheck instead (many reads)
     knos decide --checks-file FILE [--out FILE]
+    knos decide --stream [--keys-file FILE] < tokens.jsonl        # one process that stays up: a decision for each line
 
 THE DECISION IS SPLIT IN TWO (0.3.19), because the first half needs no network and the second must never be waited
 for:
@@ -52,10 +53,20 @@ A cached decision: `Cached(ledger)` keeps what the chain answered for `ttl` seco
 (the status comment, the site, a second evaluator) is answered from memory. What is kept is what the chain said THEN:
 the provisional receipt carries the time of the read.
 
+WARM AND COLD (0.3.20). The offline decision itself is a few lines of arithmetic: one RSA check and the claims. What
+a new process pays before it is LOADING THE RULES (the relay's module and the Solana types under it). `Decider` loads
+them and parses the kept key lists once, BEFORE any evidence arrives; every decision after that is the arithmetic
+alone. `--stream` is that as a command: it stays up, reads one token a line (the bare token, the comment that carries
+it, or a line of `scripts/replay_tokens.py --capture`: {"token", "terms"}) and prints one line for each, with the
+milliseconds from the line in hand to the provisional receipt. The one-shot command says both figures apart
+("rules loaded in L ms, offline A ms"): the first is paid once a process, the second once a token. A decision is a
+function of the token, the terms, the key lists and the time given: nothing is remembered between two of them.
+
 Measured by `scripts/decide_bench.py` (docs/BENCH.md, "Decision time"); `tests/test_decide.py` holds the bounds. What
-is measured is this machine's own time. Against devnet, four runs of the 0.3.18 command took 4.3 to 32.6 s; the split,
-once on each of 24 real tokens, took a median of 356 ms offline and 854 ms for the chain check (docs/BENCH.md, after
-the "Decision time" block; docs/RELAY.md has the command).
+is measured is this machine's own time. Against devnet, four runs of the 0.3.18 command took 4.3 to 32.6 s; the 0.3.19
+split, once on each of 24 real tokens, a new process for each, took a median of 356 ms offline (loading the rules
+included) and 854 ms for the chain check (docs/BENCH.md, after the "Decision time" block; docs/RELAY.md has the
+command).
 """
 from __future__ import annotations
 
@@ -64,7 +75,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from . import ids
 from . import receipt as rc
@@ -217,53 +228,123 @@ def fetch_keys() -> dict[str, dict]:
     return {url: relay.first.fetch_jwks(number) for number, url in sorted(relay.oidc.ISSUERS.items())}
 
 
+class Decider:
+    """The offline decision, kept warm: the rules are loaded and the key lists read ONCE, here, before any evidence
+    arrives; `offline` is then the arithmetic alone (one RSA check, the claims, the terms). `keys`: {issuer URL: JWKS
+    document} (default: `kept_keys()`, read now). The key lookup here parses each list once; the relay's own `_open`
+    still reads the list it is handed and checks the signature again for every token, because its rules are called,
+    not copied (two RSA checks a token: under half a millisecond). `loaded_ms`: what building this took. Pure: the
+    same token, terms and time give the same answer, and no decision leaves anything behind for the next."""
+
+    def __init__(self, keys: Mapping[str, dict] | None = None) -> None:
+        began = time.perf_counter()
+        from solders.keypair import Keypair
+
+        from . import bundle
+        from .settle.v2 import relay
+        self._relay, self._rs256 = relay, bundle.rs256
+        self._docs: dict[str, dict] = dict(kept_keys() if keys is None else keys)
+        self._moduli: dict[str, dict[str, int]] = {}
+        self._numbers = {url: number for number, url in relay.oidc.ISSUERS.items()}
+        self._me = Keypair.from_seed(_NO_KEY).pubkey()
+        self.loaded_ms = (time.perf_counter() - began) * 1000
+
+    def offline(self, jwt: str, terms: bytes | str | None = None, *, now: float | None = None) -> dict[str, Any]:
+        """`knos.decide.offline` with what this object holds. Nothing is fetched and no chain is read."""
+        relay = self._relay
+        jwt = jwt.strip()
+        raw = terms.encode() if isinstance(terms, str) else terms
+        out: dict[str, Any] = {"decision": "insufficient_evidence", "why": "", "kind": None, "chain_read": False, "already": False, "rules": RULES_OFFLINE}
+        try:
+            c, head = relay.claims_of(jwt), relay.header_of(jwt)
+            aud = c["aud"] if isinstance(c["aud"], str) else c["aud"][0]
+            iss, kid = c.get("iss"), head.get("kid")
+        except Exception:  # noqa: BLE001 - not a token at all
+            return {**out, "decision": "rejected", "why": "this is not a token GitHub Actions or GitLab CI issued"}
+        out["kind"] = relay.kind_of(aud) if isinstance(aud, str) else None
+        number = self._numbers.get(iss) if isinstance(iss, str) else None
+        if number is None:
+            return {**out, "why": "the keys of this token's issuer are the ones the verifier holds on chain, and chain state is not yet read"}
+        doc = self._docs.get(str(iss))
+        if doc is None:
+            return {**out, "why": f"no key list of {iss} is kept on this machine, and none was fetched (`knos decide --refresh-keys` keeps them)"}
+        moduli = self._moduli.get(str(iss))
+        if moduli is None:
+            moduli = self._moduli[str(iss)] = dict(relay.oidc.jwks_keys(doc))
+        n = moduli.get(str(kid))
+        if n is None:
+            return {**out, "why": f"the kept key list of {iss} has no key {str(kid)[:60]!r}: the issuer may have added one since (`knos decide --refresh-keys`)"}
+        if not self._rs256(jwt, n):
+            return {**out, "decision": "rejected", "why": "the signature is not the issuer's"}
+        try:
+            t = relay._open(jwt, self._me, {number: doc}, None)
+            handler = relay._handler(t.aud)
+            if handler is None:
+                raise relay._no(None, f"not an audience of the second deployment: {t.aud[:60]!r}")
+            at = int(time.time() if now is None else now)
+            if int(t.c.get("exp", 0)) + relay.oidc.LATE <= at:
+                raise relay._no(t.kind, "token expired")
+            if handler.github:
+                relay._github_token(t, at, handler.private)
+            if t.kind == "fund" and t.aud.startswith(("knos2:", "knos3:")) and not relay.carries_terms(t.aud, raw):
+                raise relay._no(t.kind, "its terms are missing, or are not the terms the token names")
+        except relay._Stop as stop:
+            return {**out, "decision": "rejected", "why": str(stop.result.get("why") or "refused"), "kind": stop.result.get("kind") or out["kind"]}
+        if raw and t.kind != "fund" and hashlib.sha256(raw).hexdigest() not in t.aud.split(":"):
+            return {**out, "why": "the terms given are not ones this token's audience names by their sha256"}
+        return {**out, "decision": "accepted", "why": OFFLINE}
+
+
 def offline(jwt: str, terms: bytes | str | None = None, *, keys: Mapping[str, dict] | None = None, now: float | None = None) -> dict[str, Any]:
     """The decision from the signed evidence alone. `keys`: {issuer URL: JWKS document} (default: `kept_keys()`).
     `now`: Unix seconds (default: this machine's clock; the chain check compares with the chain's). Nothing is
     fetched and no chain is read. accepted: the issuer signed it, and it asks for what its claims and terms say.
     rejected: the signature is not the issuer's, or the relay's rules for a token alone refuse it (its words).
-    insufficient_evidence: no key list is kept for its issuer, or the kept list has not the key the token names."""
-    from . import bundle
-    from .settle.v2 import relay
-    jwt = jwt.strip()
-    raw = terms.encode() if isinstance(terms, str) else terms
-    out: dict[str, Any] = {"decision": "insufficient_evidence", "why": "", "kind": None, "chain_read": False, "already": False, "rules": RULES_OFFLINE}
-    try:
-        c, head = relay.claims_of(jwt), relay.header_of(jwt)
-        aud = c["aud"] if isinstance(c["aud"], str) else c["aud"][0]
-        iss, kid = c.get("iss"), head.get("kid")
-    except Exception:  # noqa: BLE001 - not a token at all
-        return {**out, "decision": "rejected", "why": "this is not a token GitHub Actions or GitLab CI issued"}
-    out["kind"] = relay.kind_of(aud) if isinstance(aud, str) else None
-    number = next((i for i, url in relay.oidc.ISSUERS.items() if url == iss), None)
-    if number is None:
-        return {**out, "why": "the keys of this token's issuer are the ones the verifier holds on chain, and chain state is not yet read"}
-    doc = (kept_keys() if keys is None else keys).get(str(iss))
-    if doc is None:
-        return {**out, "why": f"no key list of {iss} is kept on this machine, and none was fetched (`knos decide --refresh-keys` keeps them)"}
-    n = dict(relay.oidc.jwks_keys(doc)).get(str(kid))
-    if n is None:
-        return {**out, "why": f"the kept key list of {iss} has no key {str(kid)[:60]!r}: the issuer may have added one since (`knos decide --refresh-keys`)"}
-    if not bundle.rs256(jwt, n):
-        return {**out, "decision": "rejected", "why": "the signature is not the issuer's"}
-    try:
-        from solders.keypair import Keypair
-        t = relay._open(jwt, Keypair.from_seed(_NO_KEY).pubkey(), {number: doc}, None)
-        handler = relay._handler(t.aud)
-        if handler is None:
-            raise relay._no(None, f"not an audience of the second deployment: {t.aud[:60]!r}")
-        at = int(time.time() if now is None else now)
-        if int(t.c.get("exp", 0)) + relay.oidc.LATE <= at:
-            raise relay._no(t.kind, "token expired")
-        if handler.github:
-            relay._github_token(t, at, handler.private)
-        if t.kind == "fund" and t.aud.startswith(("knos2:", "knos3:")) and not relay.carries_terms(t.aud, raw):
-            raise relay._no(t.kind, "its terms are missing, or are not the terms the token names")
-    except relay._Stop as stop:
-        return {**out, "decision": "rejected", "why": str(stop.result.get("why") or "refused"), "kind": stop.result.get("kind") or out["kind"]}
-    if raw and t.kind != "fund" and hashlib.sha256(raw).hexdigest() not in t.aud.split(":"):
-        return {**out, "why": "the terms given are not ones this token's audience names by their sha256"}
-    return {**out, "decision": "accepted", "why": OFFLINE}
+    insufficient_evidence: no key list is kept for its issuer, or the kept list has not the key the token names.
+    One call builds one `Decider`; a caller that decides on many tokens keeps the `Decider` instead."""
+    return Decider(keys).offline(jwt, terms, now=now)
+
+
+_TOKEN = r"[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"       # a token, wherever a comment carries it
+
+
+def _line(text: str) -> tuple[str, bytes | None]:
+    """(the token, the terms that travel with it) of one line of `--stream`: an object {"token", "terms"} as
+    `scripts/replay_tokens.py --capture` writes it, else the token found in the line, else the line itself."""
+    import re
+    text = text.strip()
+    if text.startswith("{"):
+        try:
+            row = json.loads(text)
+        except ValueError:
+            row = None
+        if isinstance(row, dict) and isinstance(row.get("token"), str):
+            terms = row.get("terms")
+            return row["token"].strip(), terms.encode() if isinstance(terms, str) and terms else None
+    hit = re.search(_TOKEN, text)
+    return (hit.group(0) if hit else text), None
+
+
+def stream(lines: Iterable[str], say: Callable[[str], Any], *, keys: Mapping[str, dict] | None = None, clock: Callable[[], float] = time.time,
+           warm: Decider | None = None) -> dict[str, Any]:
+    """One offline decision for each line of `lines`, in this one process: `say` gets one JSON line for each
+    ({decision, why, kind, ms, provisional_sha256, provisional}). `ms`: from the line in hand to the provisional
+    receipt, the rules already loaded. Blank lines are skipped. Returns {n, accepted, loaded_ms, slowest_ms}."""
+    warm = warm or Decider(keys)
+    n = accepted = 0
+    slowest = 0.0
+    for text in lines:
+        if not text.strip():
+            continue
+        began = time.perf_counter()
+        jwt, terms = _line(text)
+        at = clock()
+        doc = provisional(warm.offline(jwt, terms, now=at), at=int(at), jwt=jwt, terms=terms)
+        ms = (time.perf_counter() - began) * 1000
+        say(json.dumps({"decision": doc["decision"], "why": doc["why"], "kind": doc["kind"], "ms": round(ms, 3), "provisional_sha256": digest(doc),
+                        "provisional": doc}, sort_keys=True))
+        n, accepted, slowest = n + 1, accepted + (doc["decision"] == "accepted"), max(slowest, ms)
+    return {"n": n, "accepted": accepted, "loaded_ms": warm.loaded_ms, "slowest_ms": slowest}
 
 
 # -- the chain half: one request, a timeout, and never in the way --------------------------------------------------------
@@ -511,11 +592,12 @@ def register(app: Any, help_lines: list | None = None) -> None:
                 refresh_keys: bool = typer.Option(False, "--refresh-keys", help="read the issuers' key lists now and keep them; the one step that needs a network"),
                 chain_timeout: float = typer.Option(CHAIN_TIMEOUT, "--chain-timeout", help="seconds the one chain request may take"),
                 full: bool = typer.Option(False, "--full", help="the relay's whole precheck instead: every read a relay makes before it sends"),
-                out: Path = typer.Option(None, "--out", help="write the provisional receipt here (default: print it)")) -> None:
+                out: Path = typer.Option(None, "--out", help="write the provisional receipt here (default: print it)"),
+                stream_: bool = typer.Option(False, "--stream", help="stay up: one offline decision for each line of standard input, the rules loaded once")) -> None:
         """Decide now, from the signed evidence; then ask the chain once. Prints a provisional receipt."""
         try:
             code = command(token_file, terms_file, checks_file, no_chain, order, keys_file, refresh_keys, chain_timeout, full, out,
-                           say=typer.echo, note=lambda words: typer.echo(words, err=True))
+                           say=typer.echo, note=lambda words: typer.echo(words, err=True), stream_lines=_stdin() if stream_ else None)
         except ValueError as why:
             raise typer.BadParameter(str(why)) from None
         raise typer.Exit(code)
@@ -523,10 +605,12 @@ def register(app: Any, help_lines: list | None = None) -> None:
 
 def command(token_file: Path | None = None, terms_file: Path | None = None, checks_file: Path | None = None, no_chain: bool = False,
             order: str | None = None, keys_file: Path | None = None, refresh_keys: bool = False, chain_timeout: float = CHAIN_TIMEOUT,
-            full: bool = False, out: Path | None = None, say: Callable[[str], Any] = print, note: Callable[[str], Any] | None = None) -> int:
+            full: bool = False, out: Path | None = None, say: Callable[[str], Any] = print, note: Callable[[str], Any] | None = None,
+            stream_lines: Iterable[str] | None = None) -> int:
     """What `knos decide` does, with no command-line library in it: `knos decide` (typer) and `python -m knos.decide`
     (argparse) both call this. `say` prints the answer, `note` the lines about it (standard error). Returns the exit
-    status: 0 for accepted, 1 otherwise. ValueError: the options do not name one thing to decide."""
+    status: 0 for accepted, 1 otherwise. ValueError: the options do not name one thing to decide. `stream_lines`
+    (`--stream`): tokens, one a line; one offline decision each, and 0 only when every one was accepted."""
     import sys
     note = note or (lambda words: print(words, file=sys.stderr))
     began = time.perf_counter()
@@ -535,6 +619,14 @@ def command(token_file: Path | None = None, terms_file: Path | None = None, chec
         note(f"kept the issuers' key lists in {where}")
         if token_file is None and checks_file is None:
             return 0
+    if stream_lines is not None:
+        if token_file is not None or checks_file is not None or full or order:
+            raise ValueError("--stream reads its tokens from standard input and decides offline: give no --token-file, --checks-file, --order or --full with it")
+        warm = Decider(kept_keys(keys_file))
+        note(f"rules loaded in {warm.loaded_ms:.0f} ms; deciding offline, one line of standard input at a time")
+        got = stream(stream_lines, say, warm=warm)
+        note(f"decided {got['n']} offline, {got['accepted']} accepted; slowest {got['slowest_ms']:.1f} ms; nothing was fetched and no chain was read")
+        return 0 if got["n"] and got["accepted"] == got["n"] else 1
     if (token_file is None) == (checks_file is None):
         raise ValueError("give --token-file or --checks-file, one of them")
 
@@ -550,7 +642,7 @@ def command(token_file: Path | None = None, terms_file: Path | None = None, chec
         assert token_file is not None
         import re
         text = token_file.read_text(encoding="utf-8")
-        hit = re.search(r"[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}", text)     # the token, wherever the comment carries it
+        hit = re.search(_TOKEN, text)
         jwt = hit.group(0) if hit else text.strip()
         terms = terms_file.read_bytes().strip() if terms_file is not None else None
         if full:
@@ -558,10 +650,12 @@ def command(token_file: Path | None = None, terms_file: Path | None = None, chec
             d = token(jwt, terms, ledger=chain.ledger())
             doc = provisional(d, at=int(time.time()), jwt=jwt, terms=terms)
         else:
-            d = offline(jwt, terms, keys=kept_keys(keys_file))
+            warm = Decider(kept_keys(keys_file))        # paid once a process: the rules and the key lists
+            asked = time.perf_counter()
+            d = warm.offline(jwt, terms)
             doc = provisional(d, at=int(time.time()), jwt=jwt, terms=terms)
             write(doc)                  # the offline answer exists before any network is touched
-            stages = f" (offline {(time.perf_counter() - began) * 1000:.0f} ms"
+            stages = f" (rules loaded in {warm.loaded_ms:.0f} ms, offline {(time.perf_counter() - asked) * 1000:.1f} ms"
             if not no_chain:
                 from . import chain
                 asked = time.perf_counter()
@@ -573,6 +667,17 @@ def command(token_file: Path | None = None, terms_file: Path | None = None, chec
     say(json.dumps(doc, indent=1, sort_keys=True) if out is None else comment_line(doc))
     note(f"decided in {(time.perf_counter() - began) * 1000:.0f} ms{stages}; provisional receipt {digest(doc)}")
     return 0 if doc["decision"] == "accepted" else 1
+
+
+def _stdin() -> Iterable[str]:
+    """Standard input, a line at a time as each arrives (`--stream`)."""
+    import sys
+    return iter(sys.stdin.readline, "")
+
+
+def _said(words: str) -> None:
+    """Prints and flushes: whoever reads `--stream` through a pipe gets each answer when it exists."""
+    print(words, flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -591,9 +696,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--chain-timeout", type=float, default=CHAIN_TIMEOUT, help="seconds the one chain request may take")
     ap.add_argument("--full", action="store_true", help="the relay's whole precheck instead: every read a relay makes before it sends")
     ap.add_argument("--out", type=Path, help="write the provisional receipt here (default: print it)")
+    ap.add_argument("--stream", action="store_true", help="stay up: one offline decision for each line of standard input, the rules loaded once")
     a = ap.parse_args(argv)
     try:
-        return command(a.token_file, a.terms_file, a.checks_file, a.no_chain, a.order, a.keys_file, a.refresh_keys, a.chain_timeout, a.full, a.out)
+        return command(a.token_file, a.terms_file, a.checks_file, a.no_chain, a.order, a.keys_file, a.refresh_keys, a.chain_timeout, a.full, a.out,
+                       say=_said, stream_lines=_stdin() if a.stream else None)
     except ValueError as why:
         ap.error(str(why))
 

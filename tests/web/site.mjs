@@ -10,11 +10,15 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { menuOf } from "./overflow.mjs";
 import * as knos from "../../sdk/settle/index.js";
 import * as passkey from "../../sdk/settle/passkey.js";
 import { generateKeyPairSync, createHash, createPublicKey, sign as ecSign, verify as ecVerify, randomBytes, ECDH } from "node:crypto";
 
 const root = process.argv[2];
+// the menu of this build (tests/web/overflow.mjs menuOf): a page added by name (web/views.js ADDED) has a link, and one
+// added to the bar takes its words from Docs, Leaderboard and Check
+const MENU = menuOf(root || ".");
 const here = dirname(fileURLToPath(import.meta.url));
 const recorded = (name) => JSON.parse(readFileSync(join(here, "recorded", `${name}.json`), "utf8"));
 const check = (name, cond, detail) => { if (!cond) { console.error("FAIL", name, detail === undefined ? "" : detail); process.exitCode = 1; } else console.log("ok  ", name); };
@@ -55,8 +59,10 @@ const unique = (n) => knos.b58(Uint8Array.from({ length: 32 }, (_, i) => (n * 31
 const ids = JSON.parse(readFileSync(join(root, "program_ids.json"), "utf8"));
 const k = knos.v2.client(ids);
 const FIRST = { oidc: "vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE", pay: "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi" };   // the first deployment, as history
-// the only link of the page to a GitHub page outside drexthealpha's: "Use this template", with nothing of the reader's in it
+// the only links of the page to a GitHub page outside drexthealpha's: "Use this template", with nothing of the reader's in
+// it: the claim template, and the playground's "host a judge" (knos-attest; tests/test_host_a_judge.py pins its words)
 const TEMPLATE_LINK = "https://github.com/new?template_owner=drexthealpha&template_name=knos-claim&name=knos-claim&visibility=public&owner=@me";
+const JUDGE_TEMPLATE_LINK = "https://github.com/new?template_owner=drexthealpha&template_name=knos-attest&name=knos-judge&visibility=public&owner=@me";
 const WALLET = unique(1), OTHER_WALLET = unique(2), USDC = knos.USDC_DEVNET, MINT22 = unique(3), BLOCKHASH = unique(4), BLOCKHASH2 = unique(5), NOW = 1790000000;
 const users = { mona: { id: 4242, type: "User" }, octocat: { id: 583231, type: "User" }, "octo-org": { id: 7000001, type: "Organization" }, carol: { id: 99, type: "User" },
   quiet: { id: 5, type: "User" }, xss: { id: 666, type: "User", login: "<img src=x onerror=alert(1)>" } };
@@ -367,7 +373,12 @@ await reset();
   const SHORT = "The neutral meter for AI agent work: neither side keeps the count.";
   const LEAD = "A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A bounty on an issue is the smallest work order. When the work is merged, a workflow run that GitHub signs says whether the terms were met, and a Solana program checks that signature itself before it pays. No person holds the money in between.";
   check("front door renders: the one sentence, then what a work order is", (await text(page, "h1")) === SHORT && (await text(page, "#view-check .lede")) === LEAD);
-  check("  the title is a short name, the description is the sentence", (await page.title()) === "Knos: the neutral meter for AI agent work" && SHORT.toLowerCase().startsWith(`${(await page.title()).replace("Knos: ", "").toLowerCase()}:`) && (await page.getAttribute('meta[name="description"]', "content")).startsWith(`${SHORT} `));
+  check("  the title, the description and the card of a shared link all say the one sentence, and nothing else describes the product", (await page.title()) === `Knos. ${SHORT}` && (await page.getAttribute('meta[name="description"]', "content")) === SHORT
+    && (await page.getAttribute('meta[property="og:title"]', "content")) === `Knos. ${SHORT}` && (await page.getAttribute('meta[property="og:description"]', "content")) === SHORT
+    && (await page.getAttribute('meta[name="twitter:title"]', "content")) === `Knos. ${SHORT}` && (await page.getAttribute('meta[name="twitter:description"]', "content")) === SHORT);
+  check("  why a chain is answered in the one line, behind a fold, where the page first says Solana pays", await page.$eval("#why-solana", (d) => d.tagName === "DETAILS" && d.previousElementSibling.classList.contains("devnet") && d.querySelector("summary").textContent === "Why Solana?"
+    && d.querySelector("p").textContent === "Money is released with no custodian, and the count is anchored where neither side can alter it."));
+  check("  the round below the first screen is not asked for until the reader moves", await page.evaluate(() => document.getElementById("demo").childElementCount === 0 && !performance.getEntriesByType("resource").some((r) => /\/demo\.js(\?|$)/.test(r.name))));
   // the brand: one source (web/brand/), drawn in the colour of the text, and nothing of it comes from another host
   {
     const mark = (name) => (readFileSync(join(root, name), "utf8").match(/ d="([^"]+)"/g) || []).join();
@@ -405,20 +416,29 @@ await reset();
     check("  and the Status page has asked GitHub for nothing: it reads when it is opened", hub.asked.length === 0, hub.asked);
   }
   check("only the front view is shown", await page.isVisible("#view-check") && await page.isHidden("#view-protect") && await page.isHidden("#view-network"));
-  check("the views are in the menu", (await page.$$eval("nav a:not([data-mount])", (a) => a.map((x) => x.getAttribute("href")))).join() === `#check,#demo,#pricing,${DOCS},#records,#check-a-pull-request,#fund,#claim,#protect,#network,#build`);
+  check("the views are in the menu", (await page.$$eval("nav a:not([data-mount])", (a) => a.map((x) => x.getAttribute("href")))).sort().join() === ["#check", "#demo", "#pricing", DOCS, "#records", "#check-a-pull-request", "#fund", "#claim", "#protect", "#network", "#build"].sort().join());
   // the bar: five links at most a first visitor needs, the rest one press away under "More"
   {
     const bar = () => page.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null && !a.closest("#more-list")).map((a) => a.textContent));
     const under = () => page.$$eval("#more-list a", (l) => l.filter((a) => a.offsetParent !== null).map((a) => a.textContent));
-    check("the bar: six links and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === "Check,Demo,Console,Leaderboard,Pricing,Docs" && (await page.$$eval("#nav > a", (l) => l.length)) === 6 && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
+    check("the bar: six words of links and More, on one line, and nothing of More shown until it is pressed", (await bar()).join() === MENU.bar.join() && (await bar()).join(" ").split(" ").length <= 6 && (await page.$$eval("#nav > a", (l) => l.filter((a) => !a.hidden).length)) === MENU.bar.length && (await under()).length === 0 && (await page.getAttribute("#more-button", "aria-expanded")) === "false"
       && await page.$$eval("#nav > a, #more-button", (l) => new Set(l.filter((a) => a.offsetParent !== null).map((a) => Math.round(a.getBoundingClientRect().top / 8))).size === 1), await bar());
     await page.click("#more-button");
-    check("  More opens the others, inside the window", (await under()).join() === "Story,For suppliers,Supplier records,Hold a key,Verifier,Playground,Terms,Records,Statement,Invoice from a file,Check a pull request,Fund,Get paid,Protect,Install,Numbers,Status,Pilot,Capabilities,Reproduce,Build" && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
+    check("  More opens the others, inside the window", (await under()).join() === [...MENU.first, "Story,For suppliers,Supplier records,Hold a key,Verifier,Playground,Terms,Records,Statement,Invoice from a file,Check a pull request,Fund,Get paid,Protect,Install,Numbers,Status,Pilot,Capabilities,Reproduce,Build", ...MENU.last].join() && (await page.getAttribute("#more-button", "aria-expanded")) === "true"
       && await page.$eval("#more-list", (e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= document.documentElement.clientWidth; }) && (await overflow(page)) <= 1, await under());
     await page.keyboard.press("Escape");
     check("  Escape closes it and gives the button the focus back", (await under()).length === 0 && await page.evaluate(() => document.activeElement.id === "more-button"));
     await page.click("#more-button"); await page.mouse.click(40, 320);
     check("  a press anywhere else closes it", (await under()).length === 0);
+    // the bar fitted again while an added link of the bar is under More (where a narrow window puts it): the Leaderboard's
+    // place was read as "before that link", which was then not in the bar, and insertBefore threw on every page of every
+    // width (tests run 37694811068). Fitted again, the bar is the bar, and nothing is thrown.
+    if (MENU.added.some((a) => a.bar)) {
+      const before = errors.length;
+      await page.evaluate((name) => { document.getElementById("more-list").append(document.querySelector(`#nav a[data-mount="${name}"]`)); dispatchEvent(new Event("resize")); }, MENU.added.find((a) => a.bar).name);
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
+      check("  the bar fitted again with an added link under More: the same bar, and nothing thrown", (await bar()).join() === MENU.bar.join() && errors.length === before, { bar: await bar(), thrown: errors.slice(before) });
+    }
     await page.click("#more-button"); await page.click('#more-list a[href="#records"]');
     await page.waitForSelector("#view-records", { state: "visible" });
     check("  a link of it goes to its page, closes the list, and More is marked as holding the page shown", (await under()).length === 0 && await page.$eval("#more", (e) => e.classList.contains("current")) && (await page.getAttribute("nav a[aria-current=page]", "href")) === "#records");
@@ -428,9 +448,9 @@ await reset();
     await visit(phone, "");
     await phone.click("#menu");
     const shown = () => phone.$$eval("#nav a", (l) => l.filter((a) => a.offsetParent !== null).length);
-    check("  a phone: Menu opens the bar's links and More, and never fifteen at once", (await shown()) === 6 && await phone.isVisible("#more-button") && (await overflow(phone)) <= 1, await shown());
+    check("  a phone: Menu opens the bar's links and More, and never fifteen at once", (await shown()) === 6 + MENU.added.filter((a) => a.bar).length && await phone.isVisible("#more-button") && (await overflow(phone)) <= 1, await shown());
     await phone.click("#more-button");
-    check("  and More, inside it, opens the rest", (await shown()) === 27 && (await overflow(phone)) <= 1, await shown());
+    check("  and More, inside it, opens the rest", (await shown()) === 27 + MENU.added.length && (await overflow(phone)) <= 1, await shown());
     await phone.close();
     const bare = await (await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1100, height: 900 } })).newPage();
     await bare.goto(base);
@@ -445,7 +465,7 @@ await reset();
   check("  the flow is three steps, and the last links the payment on devnet that the third example reads", (await page.$$eval("#view-check .how > li", (l) => l.length)) === 3
     && (await page.getAttribute("#view-check .how a[href*=explorer]", "href")) === `https://explorer.solana.com/tx/${(await import(pathToFileURL(join(root, "config.js")).href)).CONFIG.examples.find((e) => e.id === "paid").input}?cluster=devnet`);
   check("  five things to lead with, one line each at a laptop's width", await page.$$eval("#view-check .lead-with > li", (l) => l.length === 5 && l.every((x) => x.getBoundingClientRect().height < 60)));
-  await page.waitForSelector("#demo .kd-go");                  // the round is mounted (web/demo.js); a build without it leaves the mount empty, as here
+  await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go");                  // the round is mounted (web/demo.js); a build without it leaves the mount empty, as here
   await page.evaluate(() => { document.getElementById("demo").innerHTML = ""; });
   await page.waitForSelector("#demo", { state: "hidden" });
   await page.click('#nav > a[href="#demo"]');
@@ -461,8 +481,13 @@ await reset();
   await settled(); await page.click("#more-button"); await page.click("#go-check");
   check("  Check a pull request, under More, puts the cursor in the box", await page.evaluate(() => document.activeElement.id === "pr-url"));
   // the pages other modules fill: not offered while empty, shown alone at their hash once they hold something
-  check("the pages other modules fill are there, and an empty one is not in the menu", (await page.$$eval("nav a[data-mount]", (a) => a.map((x) => x.getAttribute("href")))).join() === "#buy,#index,#story,#supplier,#record,#keyholder,#verifier,#playground,#terms,#invoice-statement,#shadow,#install,#status,#pilot,#capabilities,#reproduce"
-    && await page.$$eval("nav a[data-mount]", (a) => a.every((x) => !x.hidden)));
+  // in the order of the menu: the bar's, then More's; a page added by name (MENU) stands in the bar before Pricing or
+  // last under More, and the Leaderboard goes first under More when an added page takes its words
+  const added = (bar) => MENU.added.filter((a) => a.bar === bar).map((a) => `#${a.name}`), board = MENU.first.includes("Leaderboard");
+  const mounts = ["#buy", ...(board ? [] : ["#index"]), ...added(true), ...(board ? ["#index"] : []), "#story", "#supplier", "#record", "#keyholder", "#verifier", "#playground", "#terms", "#invoice-statement", "#shadow", "#install", "#status", "#pilot", "#capabilities", "#reproduce", ...added(false)];
+  const found = await page.$$eval("nav a[data-mount]", (a) => a.map((x) => x.getAttribute("href")));
+  check("the pages other modules fill are there, and an empty one is not in the menu", found.join() === mounts.join()
+    && await page.$$eval("nav a[data-mount]", (a) => a.every((x) => !x.hidden)), { found, mounts });
   // every row of the leaderboard links to that supplier's public record (web/supplier_record.js, mounted at #record=<slug>;
   // the build copies docs/records/*.json to records/), and "Supplier records" under More opens the list of them
   await visit(page, "#index"); await page.waitForSelector("#index .index-board tbody tr a.ib-record");
@@ -1254,7 +1279,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
 {
   const page = await plain.newPage();
   await visit(page);
-  await page.waitForSelector("#demo .kd-go");
+  await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go");
   // every page is opened once, so that every page's links are in the document (a page's code arrives when it is first opened)
   const PAGES_ALL = ["buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "record", "protect", "fund", "claim", "pricing", "records", "network", "build"];
   for (const name of PAGES_ALL) { await page.evaluate((h) => { location.hash = h; }, `#${name}`); await page.waitForFunction((n) => document.documentElement.dataset.ready === n, name); }
@@ -1263,8 +1288,8 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const issuerDocs = (await import(pathToFileURL(join(root, "verifier.js")).href)).ISSUERS.map((i) => i.source);
   // the Console's sample approvals name where each was made: a comment in this project's own playground repository, never an account that is somebody else's
   check("links: the Console's sample is in the project's own playground repository", hrefs.some((h) => /^https:\/\/github\.com\/drexthealpha\/knos-playground\/issues\/\d+#issuecomment-\d+$/.test(h)) && !(await page.content()).includes("github.com/acme/"));
-  const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "fd-in", "check-a-pull-request", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "sample", "record"].includes(h.slice(1).split("=")[0])
-    : h === TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records)\.json$|^terms\/(?:3\/)?[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
+  const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "fd-in", "check-a-pull-request", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "sample", "record", ...MENU.added.map((a) => a.name)].includes(h.slice(1).split("=")[0])
+    : h === TEMPLATE_LINK || h === JUDGE_TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records|statement_sample)\.json$|^terms\/(?:3\/)?[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
   check("links: every link goes to a view, to the site's own address, to the project's own GitHub, to a transaction or an address on devnet's explorer, to Circle's devnet faucet, to a file of the site or to an issuer's own documentation (the verifier's table)", bad.length === 0, bad);
   check("  a link that opens a new tab does not hand over the page", await page.$$eval('a[target="_blank"]', (a) => a.every((x) => /noopener/.test(x.rel))));
   await page.close();
@@ -1450,7 +1475,8 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("  and says where each came from: exported by sdk/settle, or recorded in price.js", Object.values(c.source).every((x) => x === "exported" || x === "recorded") && Object.keys(c.source).length === 14, JSON.stringify(c.source));
   const book = await page.$$eval("#price-book tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.replace(/\s+/g, " ").trim())));
   const vectors = JSON.parse(readFileSync(join(here, "../data/billing_vectors.json"), "utf8"));
-  check("pricing: the price book is the six lines of Price book 3 (tests/data/billing_vectors.json), five columns, in its words", JSON.stringify(book.map((r, n) => (n === 2 ? r.slice(0, 4) : r))) === JSON.stringify(vectors.lines.map((r, n) => (n === 2 ? r.slice(0, 4) : r))) && book[2][4] === await page.evaluate(async (k) => (await import("/price.js")).enforcedNow({ ...k, fee: { ...k.fee, live: true } }), c)
+  const unticked = vectors.lines.map((r) => r.map((x) => x.replace(/`([^`]+)`/g, "$1")));       // `code` in a cell is drawn as code
+  check("pricing: the price book is the six lines of Price book 3 (tests/data/billing_vectors.json), five columns, in its words", JSON.stringify(book.map((r, n) => (n === 2 ? r.slice(0, 4) : r))) === JSON.stringify(unticked.map((r, n) => (n === 2 ? r.slice(0, 4) : r))) && book[2][4] === await page.evaluate(async (k) => (await import("/price.js")).enforcedNow({ ...k, fee: { ...k.fee, live: true } }), c)
     && book[2][4] === vectors.lines[2][4] && book.length === 6 && book.every((r) => r.length === 5)
     && JSON.stringify(book.map((r) => r[0])) === JSON.stringify(["Check", "Meter", "Acceptance", "Record", "Control", "Pilot"]) && book[2][2] === vectors.lines[2][2] && book[2][2].startsWith("0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%") && !/0\.10% above|10M/.test(JSON.stringify(book))
     && book[1][2] === "100,000 a month free per organisation, then 0.002 USD" && JSON.stringify(await page.$$eval("#price-book thead th", (th) => th.map((x) => x.textContent))) === JSON.stringify(vectors.columns), JSON.stringify(book));
@@ -2784,11 +2810,11 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const page = await plain.newPage();
   const demo = JSON.parse(readFileSync(join(root, "demo_data.json"), "utf8"));
   await visit(page);
-  await page.waitForSelector("#demo .kd-go");
-  check("demo: the round is mounted in the first screen, under the hero, and says which program ids it replays", await page.isVisible("#demo") && await page.isVisible("#view-check") && (await page.$$eval("#demo .k-step", (l) => l.length)) === 6
+  await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go");
+  check("demo: the round is mounted in the first screen, under the hero, and says which program ids it replays", await page.isVisible("#demo") && await page.isVisible("#view-check") && (await page.$$eval("#demo .k-step", (l) => l.length)) === 7
     && (await text(page, "#demo .kd-mark")).trim() === `A real devnet round, replayed (${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && ["staging", "public"].includes(demo.ids), await text(page, "#demo .kd-mark"));
   await page.click("#demo .kd-go");
-  check("  one press funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Funded: ${demo.fund.amount} test USDC held; fee ${demo.fund.fee}, charged under the 0.3.14 fee.` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
+  check("  one press agrees the terms and funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Agreed and funded: ${demo.fund.amount} test USDC held.` && (await text(page, "#demo .kd-scene [data-fee-rule]")) === `fee ${demo.fund.fee}, charged under the 0.3.14 fee` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
   check("  the front door is above the round once it is mounted", await page.isVisible("#front-door [data-fd=run]") && (await overflow(page)) <= 1);
   for (const from of ['#nav > a[href="#demo"]', "#hero-cue"]) {
     await page.evaluate(() => { document.activeElement.blur(); scrollTo(0, 0); });

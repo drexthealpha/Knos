@@ -2020,6 +2020,11 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             raise Stop(f"Cannot read {beside(close_file, 'jwks.json')} as JSON.") from None
         return tokens, jwks
 
+    def _memory():
+        """knos.recall, named here and not imported: the relay reaches this module, and a job that signs installs no memory engine."""
+        import importlib
+        return importlib.import_module(f"{__package__}.recall")
+
     @meter.command("correct")
     def correct_(ledger: Path = typer.Argument(..., help="your ledger file"),
                  id_: str = typer.Argument(..., metavar="ID", help="the evaluation's id, 64 hex characters"),
@@ -2027,7 +2032,10 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                  kind: str = typer.Option(..., "--kind", help="duplicate (that entry is a repeat), verdict (the verdict was wrong) or withdrawn (it should not have been counted)"),
                  accepted: int = typer.Option(None, "--accepted", help="with --kind verdict: the verdict that stands, 1 or 0"),
                  verdict: str = typer.Option(None, "--verdict", help="with --kind verdict, instead of --accepted: accepted, rejected, insufficient-evidence or disputed"),
-                 by: str = typer.Option("buyer", "--by", help="who issues it: buyer or seller (the owner of this ledger)")) -> None:
+                 by: str = typer.Option("buyer", "--by", help="who issues it: buyer or seller (the owner of this ledger)"),
+                 remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps this correction, for `knos recall`; nothing is remembered when left out"),
+                 memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store"),
+                 terms: str = typer.Option("", "--terms", metavar="HASH", help="with --remember: the hash of the terms the evaluation fell under; without it the correction is kept under the two parties' ids")) -> None:
         """Write a correction of one anchored entry. The chain's counters only go up, so nothing is sent: the line waits in <ledger>.corrections, the next
         `knos meter batch` carries it in its root, and `knos meter statement` nets it."""
         got = read(ledger)
@@ -2053,6 +2061,17 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             waiting.write_text(had + c.line() + "\n", encoding="utf-8", newline="\n")
         out.print(f"Correction ({kind}) of evaluation {c.id} in batch {c.seq} of {c.month}, issued by the {by} (GitHub id {c.by}), is waiting in {waiting}.", markup=False)
         out.print("Next: `knos meter batch` puts it in your next batch, whose root GitHub signs; until then it is only on your disk. Send the other party the line.", markup=False)
+        if remember:
+            recall = _memory()
+            if terms and not re.fullmatch(r"[0-9a-f]{64}", terms.lower()):
+                raise Stop("--terms is the hash of the terms: 64 hex characters.")
+            buyer_id, seller_id = got[0].declared.get("buyer", ""), got[0].declared.get("seller", "")
+            try:
+                recall.correction_made(recall.memory_of(remember, memory_dir), terms.lower() or recall.unnamed_terms(buyer_id, seller_id), str(seller_id), c.id, kind,
+                                       accepted == 1 or word == "accepted", period=str(c.month))
+            except ValueError as why:
+                raise Stop(f"The correction is written, and nothing was remembered: {why}.") from None
+            out.print(f"Remembered for {remember}: `knos recall exception --reason correction-{kind}` counts it.", markup=False)
 
     @meter.command("close")
     def close_(buyer: Path = typer.Argument(None, help="the buyer's ledger"), seller: Path = typer.Argument(None, help="the seller's ledger"),
@@ -2063,7 +2082,10 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                role: str = typer.Option(None, "--as", help="with --sign: buyer or seller"),
                token_file: Path = typer.Option(None, "--token", metavar="FILE", help="with --sign: the token GitHub already signed for this record (a job that installs nothing "
                                                                                     "asked for it): check it and keep it, and ask GitHub for none"),
-               check: Path = typer.Option(None, "--check", metavar="CLOSE", help="check the tokens kept beside this close record, with no network")) -> None:
+               check: Path = typer.Option(None, "--check", metavar="CLOSE", help="check the tokens kept beside this close record, with no network"),
+               events_log: Path = typer.Option(None, "--events", metavar="LOG", help="the log of events (knos events): the month is not closed while a number a sender gave never arrived and no acknowledged correction explains it"),
+               remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory archives the month's exceptions once it is agreed"),
+               memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store")) -> None:
         """Close a month: set the two ledgers against each other and write the record both sides sign. `agreed`, or `disputed` with every line in dispute.
         Exit 1 when disputed. --sign and --check handle the two GitHub-signed tokens; the chain holds the batches, not the close."""
         if sign:
@@ -2114,6 +2136,17 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             return
         if not buyer or not seller or not month:
             raise Stop("Name the two ledgers and the month: knos meter close <buyer ledger> <seller ledger> --month YYYY-MM")
+        if events_log is not None:      # completeness the two ledgers cannot show: a number that never arrived (knos.events.close_problems)
+            from . import events
+            beside_log = events_log.with_name(events_log.name + ".jwks.json")
+            try:
+                log_keys = json.loads(beside_log.read_text(encoding="utf-8")) if beside_log.exists() else None
+                missing = events.close_problems(events.load(events_log, log_keys), month_of(month), signatures_checked=log_keys is not None)
+            except (Bad, events.Bad, OSError, ValueError) as why:
+                raise Stop(f"{str(why).rstrip('.')}.") from None
+            if missing:
+                raise Stop(f"{month} is not closed: {missing[0]}" + (f" ({len(missing) - 1} more: knos events gaps {events_log})" if len(missing) > 1 else ""),
+                           "Nothing was written.")
         try:
             record = close(read(buyer), read(seller), month, singles(individual))
         except Bad as why:
@@ -2129,6 +2162,13 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
         for x in record["disputed"]:
             out.print(f"IN DISPUTE {x['id']}: {x['why']}", markup=False)
         out.print(f"{record['month']} is {record['state'].upper()}. Wrote {to} (sha256 {hashlib.sha256(close_bytes(record)).hexdigest()}).", markup=False)
+        if record["state"] == "agreed" and remember:
+            recall = _memory()
+            try:
+                kept = recall.history.period_closed(recall.memory_of(remember, memory_dir), str(month_of(month)))
+            except ValueError as why:
+                raise Stop(f"The close record is written, and nothing was archived: {why}.") from None
+            out.print(f"Remembered for {remember}: the month's {kept.get('resolved', 0)} ended exception(s) are archived.", markup=False)
         if record["state"] == "agreed":
             out.print(f"Next: each side has its own GitHub run sign it (`knos meter close --sign {to} --as buyer`, and `--as seller`), then `knos meter close --check {to}`.", markup=False)
         else:

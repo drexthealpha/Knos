@@ -397,16 +397,49 @@ def pack_check(registry: str, name: str, root: Path = ROOT, run=subprocess.run) 
     return True, f"packs offline ({len(json.loads(r.stdout)[0]['files'])} files)"
 
 
-def registry_overview(online: bool = False, fetch=None, run=subprocess.run, root: Path = ROOT) -> tuple[int, list[str]]:
+def signed_in(registry: str, env=None, run=subprocess.run, home: Path | None = None) -> tuple[bool, str]:
+    """Is this machine ALREADY signed in to the registry? Asked without starting a sign-in, and no token is read or
+    printed. crates.io: `cargo login` has stored a token (CARGO_REGISTRY_TOKEN is set, or cargo's credentials file
+    is there and not empty). npm: `npm whoami` answers with a name. (signed in, the reason in words)."""
+    env = os.environ if env is None else env
+    if registry == "crates":
+        if env.get("CARGO_REGISTRY_TOKEN"):
+            return True, "CARGO_REGISTRY_TOKEN is set"
+        folder = Path(env.get("CARGO_HOME") or (home or Path.home()) / ".cargo")
+        for name in ("credentials.toml", "credentials"):
+            if (folder / name).is_file() and (folder / name).stat().st_size > 0:
+                return True, f"`cargo login` has stored a token ({folder / name})"
+        return False, f"not signed in: CARGO_REGISTRY_TOKEN is not set and {folder / 'credentials.toml'} is missing or empty (`cargo login` was never run here)"
+    try:
+        r = run(["npm", "whoami"], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    except (OSError, subprocess.SubprocessError) as failed:
+        return False, f"not signed in: `npm whoami` could not be asked ({type(failed).__name__})"
+    if r.returncode == 0 and (r.stdout or "").strip():
+        return True, f"`npm whoami` answers {r.stdout.strip().splitlines()[-1]}"
+    why = re.search(r"\b(ENEEDAUTH|E401|E403|ENOTFOUND|EAI_AGAIN)\b", (r.stderr or "") + (r.stdout or ""))
+    return False, "not signed in: `npm whoami` did not answer with a name" + (f" ({why.group(1)})" if why else "")
+
+
+FIRST = {"crates": "(cd crates/{name} && cargo publish --dry-run --locked) && (cd crates/{name} && cargo publish --locked)",
+         "npm": "(cd sdk/settle && node test.mjs && npm publish --dry-run && npm publish --access public)"}
+
+
+def registry_overview(online: bool = False, fetch=None, run=subprocess.run, root: Path = ROOT, signin=None) -> tuple[int, list[str]]:
     """(exit status, lines): every package, where it would go, at which version, and whether it is ready. Red when one
-    does not pack, has a README link that breaks outside the repository, or (online) a registry did not answer."""
+    does not pack, has a README link that breaks outside the repository, or (online) a registry did not answer.
+    `signin` (the command gives `signed_in`): one more line per registry, `OK` or `blocked` with the reason. Blocked
+    is not red: a release that is not signed in publishes nothing there, and says so."""
     code, lines = 0, ["What a release would publish. Nothing is published by this command."]
+    unready: dict[str, list[str]] = {}
+    there: dict[str, list[str]] = {}
     for registry, name in PACKAGES:
         where, version, at = REGISTRIES[registry], own_version(registry, name, root), held(name)
         lines.append(f"{name} {version} -> {where}" + (f" (held at {at} by scripts/bump_version.py: a version is in a build's bytes)" if at else " (moves with the release)"))
         ok, said = pack_check(registry, name, root, run)
         broken = relative_links((package_dir(registry, name, root) / "README.md").read_text(encoding="utf-8"))
         code |= 0 if ok and not broken else 1
+        if not ok or broken:
+            unready.setdefault(registry, []).append(f"{name} does not pack" if not ok else f"{name}'s README has links that work only inside the repository")
         lines.append(f"  pack    {'ok' if ok else 'FAILED'}: {said}")
         lines.append("  README  ok: every link is absolute" if not broken else f"  README  FAILED: {len(broken)} links work only inside the repository: {', '.join(broken[:5])}")
         if online:
@@ -416,12 +449,26 @@ def registry_overview(online: bool = False, fetch=None, run=subprocess.run, root
                 code, have = 1, None
                 lines.append(f"  name    FAILED: {where} did not answer ({failed})")
             else:
+                if have is not None and version in have:
+                    there.setdefault(registry, []).append(name)
                 lines.append(f"  name    free on {where}: the first version is published by hand" if have is None else
                              f"  name    on {where} with {', '.join(sorted(have))}: check that it is ours with `{OWNERS[registry].format(name=name)}`"
                              + ("" if version not in have else f"; {version} is already there, nothing to publish"))
         else:
             lines.append(f"  name    not asked here (no network). The release run: python scripts/release.py registry-plan --online; then `{OWNERS[registry].format(name=name)}`")
         lines.append(f"  publish `{PUBLISH[registry].format(name=name)}`" + (" (first `cargo publish --dry-run` with the same path)" if registry == "crates" else " (first `npm pack --dry-run ./sdk/settle`)"))
+    for registry in dict.fromkeys(r for r, _n in PACKAGES) if signin else ():
+        mine = [n for r, n in PACKAGES if r == registry]
+        yes, why = signin(registry)
+        if unready.get(registry):
+            lines.append(f"{REGISTRIES[registry]}: blocked: {'; '.join(unready[registry])}")
+        elif not yes:
+            lines.append(f"{REGISTRIES[registry]}: blocked: {why}. Nothing is published there, no sign-in is started and no account is created.")
+        elif len(there.get(registry, [])) == len(mine):
+            lines.append(f"{REGISTRIES[registry]}: OK: nothing to publish, the registry has every version ({why})")
+        else:
+            todo = [n for n in mine if n not in there.get(registry, [])]
+            lines.append(f"{REGISTRIES[registry]}: OK: {why}. In this order: " + "; then ".join(FIRST[registry].format(name=n) for n in todo))
     lines.append("ready: every package packs and every README link is absolute." if code == 0 else "NOT ready: see FAILED above.")
     return code, lines
 
@@ -489,7 +536,7 @@ def main(argv: list[str] | None = None) -> int:
         return publish_cmd()
     if a.command == "registry-plan":
         if a.registry is None:
-            code, lines = registry_overview(a.online)
+            code, lines = registry_overview(a.online, signin=signed_in)
             print("\n".join(lines))
             return code
         if not a.name or not a.tag:

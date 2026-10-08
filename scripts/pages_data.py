@@ -941,6 +941,9 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
     counted = ns.outsiders(jobs, own, own_wallets, owner_of=None if get is None else ns.repo_owner(get)) if ns else outside_rules.count([], own, own_wallets, measured=False)
     # and, apart from those three: outside pull requests on the playground's funded tasks (the task board, tasks/README.md)
     counted["pulls"] = playground_pulls(get, jobs if ns else None, own)
+    # and the counters the five outside task kinds can move (tasks/outside/, src/knos/tasks.py KINDS). No build gathers accepted
+    # evidence rows for them yet, so each is "not read" (None), never 0: the definitions are published with them.
+    counted["task_counts"] = outside_rules.task_counts(None, own, own_wallets)
     dump("outsiders.json", stamp(counted))
 
     # bounties

@@ -15,8 +15,10 @@ SRC = ROOT / "src"
 # the package; tests/test_passkey_fund.py and tests/test_passkey_chain.py hold it to the program).
 # knos.private: `python -m knos.private record|check`, what the workflow in examples/private runs inside a customer's
 # network (tests/test_private_path.py runs it the same way).
-ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund", "knos.private"]
-SCRIPTS = [p for p in list((ROOT / "scripts").glob("*.py")) + list((ROOT / "examples").glob("*.py"))
+# knos.host_judge: `python -m knos.host_judge link|editor|level|says`, what docs/ATTESTOR.md gives a host (tests/test_host_a_judge.py);
+# the round `judge` of scripts/exercise_rounds/ reads a host's level through it.
+ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund", "knos.private", "knos.host_judge"]
+SCRIPTS = [p for p in list((ROOT / "scripts").glob("*.py")) + list((ROOT / "scripts" / "exercise_rounds").glob("*.py")) + list((ROOT / "examples").glob("*.py"))
            if p.name not in ("deadcode.py", "vulture_whitelist.py")]
 
 

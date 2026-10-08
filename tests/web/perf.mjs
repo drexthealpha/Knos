@@ -5,7 +5,8 @@
 //             presses so that a shared machine's bursts are not counted, the 95th percentile under 300 ms: open a view, run the sample
 //             invoice (where the first screen has #front-door), open the command palette, switch light and dark.
 //             A change of page is held twice: to its pending state, and to the new page itself drawn. A page whose code
-//             is not there yet (each page's code is asked for when it is first opened) shows its grey bars at once
+//             is not there yet (each page's code is asked for when it is first opened) shows its grey bars at once,
+//             and that first opening is held to 200 ms
 //   weight    the JavaScript and CSS the first screen asks for before anything is pressed, in bytes as served
 //             (unminified, uncompressed): under the budgets below; the palette is not among them
 //   place     layout shift after the first paint: 0.05 at most, at a laptop's width and a phone's
@@ -22,8 +23,8 @@ import { chromiumOrSkip, measure, TYPES } from "./overflow.mjs";
 const root = process.argv[2], wr = process.argv.indexOf("--write");
 if (!root || !existsSync(join(root, "index.html"))) { console.error("usage: node tests/web/perf.mjs <site dir> [--write [file]]"); process.exit(2); }
 const out = wr < 0 ? null : process.argv[wr + 1] || join(dirname(fileURLToPath(import.meta.url)), "..", "..", "docs", "perf.json");
-const RUNS = 20, LIMIT_MS = 300, SHIFT = 0.05, WIDTHS = [320, 360, 390, 480, 768, 1024, 1280];
-const BUDGET = { js: 190_000, css: 60_000 };                        // bytes the first screen may ask for: what was measured (172,437 and 54,615) and a tenth more; today's are in docs/perf.json
+const RUNS = 20, LIMIT_MS = 300, FIRST_OPEN_MS = 200, SHIFT = 0.05, WIDTHS = [320, 360, 390, 480, 768, 1024, 1280];
+const BUDGET = { js: 183_000, css: 60_000 };                        // bytes the first screen may ask for: what was measured (166,013 of script once the round below the fold came with the reader's first move, and 59,914) and a tenth more; today's are in docs/perf.json
 let fails = 0;
 const check = (name, cond, detail) => { if (cond) console.log("ok  ", name); else { fails++; console.error("FAIL", name, detail === undefined ? "" : JSON.stringify(detail)); } };
 
@@ -82,7 +83,7 @@ weight.files.sort((a, b) => b[1] - a[1]);
 check(`weight: the first screen asks for ${weight.js} bytes of JavaScript (under ${BUDGET.js})`, weight.js > 0 && weight.js < BUDGET.js, weight.files.slice(0, 6));
 check(`weight: and ${weight.css} bytes of CSS (under ${BUDGET.css})`, weight.css > 0 && weight.css < BUDGET.css);
 check("weight: the palette is not asked for until it is opened", !weight.files.some(([f]) => f === "palette.js"), weight.files.map(([f]) => f));
-check("weight: nor the files that read Solana, nor any other page's code", !weight.files.some(([f]) => ["app.js", "settle.js", "buyer.js", "console.js", "mounts.js", "pricing.js", "records.js", "statements.js", "finance_data.js"].includes(f)), weight.files.map(([f]) => f));
+check("weight: nor the files that read Solana, nor the round below the first screen, nor any other page's code", !weight.files.some(([f]) => ["app.js", "settle.js", "demo.js", "buyer.js", "console.js", "mounts.js", "pricing.js", "records.js", "statements.js", "finance_data.js"].includes(f)), weight.files.map(([f]) => f));
 
 // ---- answer ------------------------------------------------------------------------------------------------------------------
 const table = {};
@@ -91,7 +92,7 @@ const table = {};
   const page = await ctx.newPage();
   await page.goto(base, { waitUntil: "load" }); await ready(page);
   const errors = []; page.on("pageerror", (e) => errors.push(e.message));
-  const time = async (name, arm, act, reset, told = false, presses = 3) => {
+  const time = async (name, arm, act, reset, told = false, presses = 3, limit = LIMIT_MS) => {
     const took = [];
     for (let i = 0; i < RUNS; i += 1) {
       let best = Infinity;                                          // a run is the best of three presses: a neighbour's burst on a shared machine is not the page's time
@@ -105,7 +106,8 @@ const table = {};
     }
     table[name] = { runs: RUNS, p50_ms: p(took, 0.5), p95_ms: p(took, 0.95), max_ms: p(took, 1) };
     if (told) { table[name].held_to_limit = false; return console.log(`     ${name}: p95 ${table[name].p95_ms} ms over ${RUNS} runs (told, not held to the limit)`); }
-    check(`answer: ${name}: p95 ${table[name].p95_ms} ms over ${RUNS} runs (under ${LIMIT_MS})`, table[name].p95_ms < LIMIT_MS, table[name]);
+    if (limit !== LIMIT_MS) table[name].limit_ms = limit;
+    check(`answer: ${name}: p95 ${table[name].p95_ms} ms over ${RUNS} runs (under ${limit})`, table[name].p95_ms < limit, table[name]);
   };
 
   await time("open a view", () => window.__answer(["click"], () => "morph" in document.documentElement.dataset || !document.getElementById("view-pricing").hidden),
@@ -119,10 +121,13 @@ const table = {};
     () => page.click('#nav a[href="#pricing"]'),
     async () => { await page.waitForFunction(() => !("morph" in document.documentElement.dataset)); await page.evaluate(() => { location.hash = "#check"; }); await page.waitForFunction(() => !document.getElementById("view-check").hidden); });
 
-  // a page whose code has not been asked for yet: its section is shown at once, with grey bars until the code has run
+  // a page whose code has not been asked for yet: its section is shown at once, with grey bars until the code has run.
+  // Held to FIRST_OPEN_MS: in 0.3.19 this was 299.6 ms against 300, the press waiting for a picture of the page it
+  // left (a view transition) and for the new page's code to be read; now the bars are drawn in the task of the press
+  // and the code is asked for after that frame (web/front.js: `painted`, and no crossing on a first opening)
   if (await page.$('#nav a[href="#buy"]')) await time("open a page for the first time", () => window.__answer(["click"], () => { const b = document.getElementById("buy"); return b.checkVisibility() && b.childElementCount > 0; }),
     () => page.click('#nav a[href="#buy"]'),
-    async () => { await page.goto(base, { waitUntil: "load" }); await ready(page); await page.waitForSelector('#nav a[href="#buy"]', { state: "visible" }); }, false, 1);
+    async () => { await page.goto(base, { waitUntil: "load" }); await ready(page); await page.waitForSelector('#nav a[href="#buy"]', { state: "visible" }); }, false, 1, FIRST_OPEN_MS);
 
   if (await page.$("#front-door")) {
     // the answer is whatever the front door draws first: the lines, or its pending state

@@ -2,7 +2,7 @@
 
 web/demo_data.json is what scripts/demo_data.py writes, and everything in it that is a transaction signature, an
 address or a number is in the documents it names as its sources: the demo shows nothing the repository does not
-record. tests/web/demo.mjs then drives the six steps in headless Chromium with the keyboard alone. No node, no
+record. tests/web/demo.mjs then drives the seven steps in headless Chromium with the keyboard alone. No node, no
 `playwright` package or no browser: that part is skipped, with the reason.
 """
 from __future__ import annotations

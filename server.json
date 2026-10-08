@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.drexthealpha/knos",
-  "description": "Bounties that pay when the pull request is merged with the checks you named passing.",
+  "description": "The neutral meter for AI agent work: neither side keeps the count.",
   "repository": {"url": "https://github.com/drexthealpha/Knos", "source": "github"},
-  "version": "0.3.19",
-  "packages": [{"registryType": "pypi", "identifier": "knos", "version": "0.3.19", "transport": {"type": "stdio"}, "packageArguments": [{"type": "positional", "value": "mcp"}]}]
+  "version": "0.3.20",
+  "packages": [{"registryType": "pypi", "identifier": "knos", "version": "0.3.20", "transport": {"type": "stdio"}, "packageArguments": [{"type": "positional", "value": "mcp"}]}]
 }

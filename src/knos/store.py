@@ -15,7 +15,12 @@ Two stores, both Sibyl's:
 Three of Sibyl's tiers carry weight (knos.proof.history): entities (WARM) hold the proof rules and lessons; the journal
 (COLD, append-only) holds every verdict of the Stop hook, so a check refused in one session is owed in the next; one
 state document (HOT) holds the running count of claims and refusals. Sibyl's FTS5 search finds a past refusal by its
-words. Reference and archive are not used.
+words.
+
+The buyer's side uses all five (knos.proof.history, `knos recall exception`): the live exception queue is one state
+document (HOT), one entity per supplier-and-terms holds how their exceptions ended (WARM), each resolution is a journal
+event (COLD), the text of the terms is a reference document (REFERENCE), and a closed period is an entity moved to the
+archive (ARCHIVE). That memory has one tenant per buyer organisation (`buyer_tenant`, `for_buyer`).
 
 The judge's store also holds how each past order in a repository ended, by terms template and policy version (entities
 of category `order`: knos.proof.history.order_outcome), so a funding reply can say which published template
@@ -65,6 +70,16 @@ def tenant(repo: Path) -> str:
     return f"knos-{Path(real).name}-{hashlib.sha256(real.encode()).hexdigest()[:10]}"
 
 
+def buyer_tenant(buyer: str) -> str:
+    """The tenant of one buyer organisation: its name as a slug, and a hash of the name as it was given, so two
+    organisations whose names make the same slug never share a memory."""
+    given = str(buyer or "").strip().lower()
+    slug = "".join(ch if ch.isalnum() else "-" for ch in given).strip("-")[:40]
+    if not slug:
+        raise ValueError("a buyer organisation has a name")
+    return f"knos-buyer-{slug}-{hashlib.sha256(given.encode()).hexdigest()[:10]}"
+
+
 def account() -> dict[str, str]:
     """The Sibyl account on this machine, if its owner activated one: handed only to Sibyl's own cap gate."""
     path = Path(os.environ.get("SIBYL_CREDENTIALS") or Path.home() / ".sibyl-memory" / "credentials.json")
@@ -95,6 +110,16 @@ def for_repo(repo: Path):
     gate = CapGate(account_id=acct.get("account_id"), session_token=acct.get("session_token"),
                    db_size_fn=lambda: aggregate_db_size(storage.db_path))
     return MemoryClient(storage, tenant_id=tenant(repo), cap_gate=gate), storage
+
+
+def for_buyer(buyer: str, root: Path | None = None):
+    """(MemoryClient, Storage or None) for one buyer organisation's tenant: in Sibyl's local store at <root>/sibyl.db
+    when a directory is named, else in Sibyl's shared store on this machine, under Sibyl's cap gate."""
+    if root is not None:
+        return local(root, buyer_tenant(buyer)), None
+    client, storage = for_repo(Path.cwd())
+    client.set_tenant(buyer_tenant(buyer))
+    return client, storage
 
 
 def local(root: Path, tenant_id: str = "knos-judge"):

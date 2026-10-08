@@ -124,6 +124,18 @@ def outsiders(jobs: list[dict], own: frozenset = OWN, own_wallets: frozenset = O
     return rules.count(jobs, own, own_wallets, own_repos, measured, balances)
 
 
+def loop(jobs: list[dict], own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS, own_repos: frozenset = OWN_REPOS,
+         measured: bool = True, owner_of=None) -> dict:
+    """The links of the network loop a job record can show (scripts/network_loop.py has the definitions): suppliers two
+    unrelated outside buyers paid, buyers who arrived where a supplier already was, buyers who paid in two months.
+    Counted by the same rules, over the same repositories, as outsiders()."""
+    import network_loop
+    balances = frozenset(str(pay2.faucet_balance_pda(i)) for i in own)
+    if owner_of is not None:
+        own_repos = own_repos | own_repositories(jobs, own, own_wallets, own_repos, balances, owner_of)
+    return network_loop.loop(jobs, own, own_wallets, own_repos, balances, measured)
+
+
 def own_repositories(jobs: list[dict], own: frozenset, own_wallets: frozenset, own_repos: frozenset, own_balances: frozenset, owner_of) -> frozenset:
     """The ids of the repositories, among those an outside funder would be counted in, whose owner is one of Knos's
     GitHub ids. A repository GitHub does not name an owner for stays as it was: never made Knos's by a guess."""
@@ -191,6 +203,8 @@ def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset =
         "apart": {"own": sides["own"], "self": sides["self"], "test": sides["test"]},
         # who outside Knos took part, whichever kind the job is: three numbers that are never added to each other
         "outsiders": outsiders(jobs, own, own_wallets, owner_of=owner_of),
+        # the network loop, link by link: three counters over the same records (docs/MARKET.md, section 7)
+        "loop": loop(jobs, own, own_wallets, owner_of=owner_of),
         "totals": {"funded": len(jobs), "completed": len(done) + other["unmatched_paid"], "open": state("open") + state("proven"),
                    "held": state("held"), "funded_amount": sum(j["amount"] for j in jobs), "paid_amount": sum(j["net"] for j in done), **other},
         "by_deployment": {name: {"funded": sum(1 for j in jobs if j["v"] == v), "completed": sum(1 for j in done if j["v"] == v)}

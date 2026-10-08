@@ -97,6 +97,31 @@ Latency is seconds from a transaction's first submission until the script first 
 
 Wallet `Dg2KBXnEBGMME7w1JFbnhZfzjNHJN9CWJmokGmfTuHMJ`, key account `4jtusKvDteVRsri9z3FCFUweZFRfRC9YhjeYj6YWjjN5`, mint `98G8AC2j1H1RHkBitQfVbRbtdwNR453ifrfpBZezmZe1`.
 
+### Throughput with relays side by side: measured, and derived
+
+`python scripts/load.py measure --relays N --orders M --wallet <keypair> --write`, run by the operator at release. N relays, each with a fee payer of its own, each fund their share of M orders one after another (a key signs for one thing at a time), twice: `apart`, where no two relays write an account in common, and `shared`, where every transaction also writes one token account. That account stands for the fee account, which every release of a mint writes whoever relays it. A rate is confirmed transactions divided by the seconds from the first submission to the last confirmation. PayOrder is not sent (the table above says why): this measures funding with and without one shared writable account, not payments.
+
+**Measured on devnet (2026-10-07): 4 relays, 40 orders each way**
+
+| | Confirmed | Seconds | Confirmed a second | Retries | Failures | Confirm p50 s | p95 | Slots used | Most in one slot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| apart: no account written by two relays | 40 of 40 | 87.73 | 0.46 | 0 | 0 | 6.21 | 15.11 | 31 | 3 |
+| shared: every transaction also writes one token account, as every release writes the fee account | 40 of 40 | 76.3 | 0.52 | 0 | 0 | 4.16 | 15.13 | 36 | 2 |
+
+The contention seen: the shared account's rate was 1.13 of the rate apart, with 0 more retries and 0 more failures. It cost 0.009084 SOL in fees and rent not recovered. Wallet `9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG`, mint `7SeTJW6zrauJRzkDC7Bmrb6trZRSySVNBXJJbQyFNYaA`, shared account `ESfiEkuTtnyiHhLsrm71qphhQbnwdXdqdaTCGqsfypP`.
+
+**Derived bound (not measured).** Section 3's arithmetic from the simulator's compute units and Solana's published limits: 8.46 orders a second per fee payer (verification included), 164.6 payments a second through the one fee account of a mint, 224.1 fundings a second from one Balance. These are ceilings in an otherwise empty block. A measured rate above is of devnet on the day, with its own traffic, through one public endpoint, and each relay waits for a confirmation before it sends again: the two are different quantities, and neither is used in place of the other.
+
+**What reduces shared writable state without a program change:**
+
+| Way | State |
+| --- | --- |
+| Several fee payers | exists: `KNOS_RELAY_KEYS` (docs/RELAY.md). Each owner's tokens always pay from the same one of the keys, so the relays stop sharing the one account that pays the fees: the per-relayer ceiling of section 3 is per key. |
+| One release for many small outcomes | exists: `knos net` (docs/NETTING.md) settles outcomes under 20 USD as one release per payee per period, so the fee account is written once per payee per period and not once per outcome. |
+| One transaction for many evaluations | exists: the meter's RecordBatch counts a period's evaluations in one transaction and moves no money, so it does not write the fee account at all. |
+| A fee account per mint | exists by construction: the fee account is the fee owner's token account OF THE ORDER'S MINT, so orders in two mints do not share it. Every order Knos has funded is in one mint, so this has not been used. |
+| Several fee accounts for one mint | does NOT exist and needs a program change: the release instruction takes the one account. Not in this release. |
+
 ## 5. The whole workflow
 
 A chain rate is not the system's capacity. An order is also two workflow jobs, the requests each makes of GitHub with a token GitHub rations, the comments it posts, a token GitHub signs, a relay that carries it and a statement someone reads back. This section counts those and asks which limit a customer meets first. `python scripts/capacity.py --write` wrote it; `python scripts/capacity.py -R <repositories> -N <deliverables a day>` answers for any customer.
@@ -107,11 +132,11 @@ Counted by running `command`, `settle` and `attest` of `src/knos/flow.py` agains
 
 | Word | Token carried by | Requests read | Requests written | Comments made | Tokens GitHub signs | Jobs |
 | --- | --- | --- | --- | --- | --- | --- |
-| command (`/knos fund`) | the job's own relay | 10 | 1 | 1 | 1 | 1 |
+| command (`/knos fund`) | the job's own relay | 11 | 1 | 1 | 1 | 1 |
 | settle (on the merge) | the job's own relay | 14 | 5 | 2 | 1 | 1 |
 | attest (pay) | the job's own relay | 12 | 0 | 0 | 1 | 1 |
 | attest (eval) | the job's own relay | 2 | 0 | 0 | 1 | 1 |
-| command (`/knos fund`) | the public worker | 10 | 2 | 2 | 1 | 1 |
+| command (`/knos fund`) | the public worker | 11 | 2 | 2 | 1 | 1 |
 | settle (on the merge) | the public worker | 14 | 6 | 3 | 1 | 1 |
 
 The job's own relay is the job sending the transactions itself with a fee key the repository keeps (`KNOS_RELAY_KEY`). Without the key the token is posted as a comment and the public worker carries it; the job then reads the worker's log every 3 s for up to 600 s. Those reads use the repository's own token and are not conditional, so each one counts.
@@ -121,11 +146,11 @@ The job's own relay is the job sending the transactions itself with a fee key th
 | | The job's own relay | The public worker | Where the number is from |
 | --- | --- | --- | --- |
 | Workflow jobs | 2 | 2 | counted |
-| GitHub requests with the repository's token, the work itself | 30 | 32 | counted |
+| GitHub requests with the repository's token, the work itself | 31 | 33 | counted |
 | Reads of the relay log while waiting, at the median wait | 0 | 20 | derived: one read every 3 s for the median of merge-to-paid, 25 s |
 | the same at the p95 wait (58 s) | 0 | 42 | derived |
 | the same when no relay answers (600 s) | 0 | 404 | derived |
-| Requests in all, at the p95 wait | 30 | 74 | counted + derived |
+| Requests in all, at the p95 wait | 31 | 75 | counted + derived |
 | Comments made in the repository | 3 | 5 | counted |
 | Comments the public worker adds to its log | 0 | 2 | from the code (`ghrelay.once` logs a carried token at once) |
 | Tokens GitHub signs (OIDC) | 2 | 2 | counted |
@@ -156,9 +181,9 @@ For a customer with R repositories and N accepted deliverables a day, the work s
 
 | Repositories | Deliverables a day | Token carried by | Binds first | Binds at (a day) | This volume fits | Limits this volume is past |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 10 | the job's own relay | GITHUB_TOKEN requests an hour | 800 | yes | none |
-| 1 | 10 | the public worker | GITHUB_TOKEN requests an hour | 324 | yes | none |
-| 10 | 1,000 | the job's own relay | GITHUB_TOKEN requests an hour | 8,000 | yes | none |
+| 1 | 10 | the job's own relay | GITHUB_TOKEN requests an hour | 774 | yes | none |
+| 1 | 10 | the public worker | GITHUB_TOKEN requests an hour | 320 | yes | none |
+| 10 | 1,000 | the job's own relay | GITHUB_TOKEN requests an hour | 7,741 | yes | none |
 | 10 | 1,000 | the public worker | the public relay's pass, at the serial rate recorded | 1,728 | yes | none |
 | 100 | 100,000 | the job's own relay | concurrent jobs (Free plan) | 14,896 | **no** | the meter's statement, recomputed from the logs; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
 | 100 | 100,000 | the public worker | the public relay's pass, at the serial rate recorded | 1,728 | **no** | the public relay's pass, at the serial rate recorded; the meter's statement, recomputed from the logs; the public relay's log comments; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
@@ -171,8 +196,8 @@ Every limit, for the largest of the three (100 repositories, 100,000 a day), soo
 | the meter's statement, recomputed from the logs | each buyer and seller, each month | 3,333 | `knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short | batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume |
 | the public relay's log comments (the public worker) | every customer of the public worker | 6,000 | 2 tokens a deliverable, one log comment each (src/knos/proof/ghrelay.py posts a carried token's line at once); 500 content-generating requests an hour (GitHub) | the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO) |
 | concurrent jobs (Free plan) | the customer's account | 14,896 | 2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub) | a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count |
-| GITHUB_TOKEN requests an hour (the public worker) | each repository | 32,432 | 74 requests a deliverable (24 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub) | the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour) |
-| GITHUB_TOKEN requests an hour (the job's own relay) | each repository | 80,000 | 30 requests a deliverable (24 reads and 6 writes counted); 1,000 an hour for a repository (GitHub) | more repositories; GitHub Enterprise Cloud (15,000 an hour) |
+| GITHUB_TOKEN requests an hour (the public worker) | each repository | 32,000 | 75 requests a deliverable (25 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub) | the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour) |
+| GITHUB_TOKEN requests an hour (the job's own relay) | each repository | 77,419 | 31 requests a deliverable (25 reads and 6 writes counted); 1,000 an hour for a repository (GitHub) | more repositories; GitHub Enterprise Cloud (15,000 an hour) |
 | comments made in one repository (the public worker) | each repository | 240,000 | 5 comments a deliverable (counted); 500 content-generating requests an hour (GitHub) | more repositories; or the job's own relay, which posts no token comment |
 | comments made in one repository (the job's own relay) | each repository | 400,000 | 3 comments a deliverable (counted); 500 content-generating requests an hour (GitHub) | more repositories |
 | the fee key's own account (the job's own relay) | each fee key | 730,944 | 8.46 orders a second for one key that pays the fees (derived by scripts/load.py) | a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret) |
@@ -222,8 +247,8 @@ Read it with its n. The whole wait is 41 payments; the stage rows are 5 of them,
 | work execution | workflow scheduling: the merge to the start of the workflow run | devnet, 5 of 41 payments | 5 | 2 s | 1184 s | GitHub's: starting a runner, and the job. Knos's share is the job's install and its reads | none set: the forge must run a job and sign, so this clock cannot reach zero |
 | work execution | evaluation: the start of the run to the token's comment | devnet, 5 of 41 payments | 5 | 16 s | 24 s | GitHub's: starting a runner, and the job. Knos's share is the job's install and its reads | none set: the forge must run a job and sign, so this clock cannot reach zero |
 | evidence availability | relay pickup: the token's comment to a relay taking it up | devnet, 5 of 41 payments | 5 | 2 s | 5 s | Knos's own, all of it: a relay finding the token (a pass over the comments every 3 s) | 0 s for a run that relays its own token; otherwise one pass |
-| Knos decision processing | `knos decide`, fresh: the token in hand to the provisional receipt | locally, 40 decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet | 40 | 1.2 ms | 1.9 ms | Knos's own, all of it | targets on one machine with no network, not measurements: 250 ms at p95 for the offline decision, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet |
-| Knos decision processing | `knos decide`, cached: the token in hand to the provisional receipt | locally, 40 decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet | 40 | 0.9 ms | 1.4 ms | Knos's own, all of it | targets on one machine with no network, not measurements: 250 ms at p95 for the offline decision, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet |
+| Knos decision processing | `knos decide`, fresh: the token in hand to the provisional receipt | locally, 40 decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet in this row: the devnet sample stands under the table | 40 | 3.0 ms | 5.1 ms | Knos's own, all of it | targets on one machine with no network, not measurements: 100 ms at p95 for the offline decision once the evidence is in hand, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet |
+| Knos decision processing | `knos decide`, cached: the token in hand to the provisional receipt | locally, 40 decisions on one machine with the chain simulated in the same process: no network. Not measured on devnet in this row: the devnet sample stands under the table | 40 | 2.5 ms | 4.0 ms | Knos's own, all of it | targets on one machine with no network, not measurements: 100 ms at p95 for the offline decision once the evidence is in hand, 200 ms for a cached one. No target is set for a decision that reads a cluster: that took 4.3 to 32.6 s on devnet |
 | chain inclusion, at `confirmed` | submission: pickup to the block of the first transaction | devnet, 5 of 41 payments | 5 | 2 s | 5 s | the cluster's, and the relay's sends: two verification transactions for a 2048-bit RSA key, then the payment | none set: measured apart, at this commitment level |
 | chain inclusion, at `confirmed` | confirmation: that block to the block of the paying transaction | devnet, 5 of 41 payments | 5 | 3 s | 8 s | the cluster's, and the relay's sends: two verification transactions for a 2048-bit RSA key, then the payment | none set: measured apart, at this commitment level |
 | chain inclusion, at `finalized` | finality: the last confirmation to the cluster finalizing it | not recorded | not recorded | not recorded | not recorded | the cluster's; no relay waits for it | none set |
@@ -231,7 +256,7 @@ Read it with its n. The whole wait is 41 payments; the stage rows are 5 of them,
 
 What was measured on devnet: 41 payments have a whole wait (first table). Only 5 of those 41 carry stage times in their log line, so every devnet row above is 5 payments, and its p95 is the slowest one of them. Chain inclusion is timed to the block of the paying transaction, read at the commitment level `confirmed`, which is the level the relay waits for; no payment's finality was recorded.
 
-What was measured locally: `python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network). Machine: Intel(R) Xeon(R) Processor @ 2.80GHz, 2 CPUs, Linux x86_64, Python 3.11.15. That is the time Knos's own code takes to decide; on a cluster every read of the chain adds a round trip: four runs of the 0.3.18 command on devnet took 4.3 to 32.6 s each; the 0.3.19 command, once on each of 24 real tokens, took a median of 356 ms offline, 854 ms for the chain check and 9.1 s for the whole precheck ([BENCH.md](BENCH.md), "Decision time").
+What was measured locally: `python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network). Machine: Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one). That is the time Knos's own code takes to decide; on a cluster every read of the chain adds a round trip: four runs of the 0.3.18 command on devnet took 4.3 to 32.6 s each; the 0.3.19 command, once on each of 24 real tokens, took a median of 356 ms offline (a new process for each token, so that figure included loading the rules), 854 ms for the chain check and 9.1 s for the whole precheck ([BENCH.md](BENCH.md), "Decision time").
 
 What is a target and not a measurement: the last column. No decision has been timed on devnet by a benchmark (four `knos decide` runs on real fund tokens of the 0.3.18 release's public rounds took 4.3 to 32.6 s each over the shared public RPC: a first reading, not a sample), no payment has been carried there by the 0.3.18 relay, and the floor stays above zero: a forge must run a job and sign before there is anything to decide ([RELAY.md](RELAY.md), "The floor").
 

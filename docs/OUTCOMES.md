@@ -4,18 +4,34 @@ Each domain needs its own acceptance model; Knos supplies the fixed terms, the s
 
 An order pays, or the meter counts, when a pinned suite passes on an artifact. Nothing in that sentence says "pull
 request". What the artifact is, and what a suite must do to deserve the word "accepted", differs for every kind of
-work, and somebody who knows the work has to write it. This page shows three such models that run in this repository
-and one that is not built, with the reason. One of the three is also signed by an issuer that is not a forge:
+work, and somebody who knows the work has to write it. This page shows four such models that run in this repository:
+three whose deliverable is a file a suite judges, and [support resolutions](#support-resolutions), judged from a
+ticket's own record on made-up tickets. One of the first three is also signed by an issuer that is not a forge:
 [a Kubernetes cluster](#a-kubernetes-cluster-signs-an-outcome).
+
+## Five kinds of work, and the evidence each needs
+
+| Kind of work | An outcome | The evidence an acceptance needs | Runs today |
+|---|---|---|---|
+| Software delivery | a merged pull request | the forge's own record: the merge, the head commit, the named checks' results; for tests mode, a black-box suite run by the judge | Yes, on devnet at the public program ids: [CAPABILITIES.md](CAPABILITIES.md) |
+| Customer operations | a support ticket resolved | the help desk's own record of the ticket: who solved it, whether a person took over, whether the customer came back inside a stated window | In part: the rule, the count, the signed run and the statement run on made-up tickets ([below](#support-resolutions)). No help desk is read |
+| Data operations | a labelled dataset; a transformation | held-out gold items; seeded inputs with invariants to the cent | Yes, as examples in the simulator: [data-labelling](../examples/outcomes/data-labelling/), [data-transformation](../examples/outcomes/data-transformation/). Never on devnet |
+| Back-office processing | an invoice matched, a claim adjudicated, a record reconciled | the system of record's entry before and after, a control total that must tie, and a sample a person reads | No. Nothing is built |
+| Agent services | a task one agent bought from another | whatever the task's kind above needs; the order names the suite or the record before the work | In part: an order bought over HTTP and paid on a merge ([`examples/x402_attested`](../examples/x402_attested), [`examples/agent_pays_agent`](../examples/agent_pays_agent)). No other kind of task |
+
+Every row needs the same three things from Knos (terms fixed before the work, a run somebody else signed, a count
+made once) and one thing Knos does not supply: a record of the outcome that the party being paid cannot write.
+
+## The models that run here
 
 | Outcome | Artifact | What the suite checks | What it cannot check | Status |
 |---|---|---|---|---|
 | [Data labelling](../examples/outcomes/data-labelling/) | `labels.csv`: a label for each of 400 items | Schema; accuracy at least 0.90 on 120 gold items never shown; recall at least 0.80 for each class; the 40 visible examples no more than 0.10 above the gold ones (copied answers) | The 280 items outside both samples, except by inference; whether the gold labels are right; secrecy of the gold file from a labeller who can read the repository | Example runs here; never used by a customer |
 | [Data transformation](../examples/outcomes/data-transformation/) | `transform.sql` | On 40 input tables made from fixed seeds: schema, one row per key, every input customer and charge counted once, totals equal to the input's to the cent, each row equal to a reference | Inputs shaped unlike the generator's; speed at production volume; other database engines | Example runs here; never used by a customer |
 | [Reproducible research](../examples/outcomes/reproducible-research/) | `analysis.py` and `RESULT.json`, the number it is said to give | Run again in the sandbox with the order's seed: the number matches within 0.000001; a second run agrees; when the input is moved by a known amount the number moves by it (a pasted number does not) | Whether the method answers the question; whether the data are real; whether the seed or the method was chosen after looking | Example runs here; never used by a customer |
-| Support-ticket resolution | none that Knos can read | nothing | see below | Not built |
+| [Support resolutions](../examples/outcomes/support-resolution/) | a ticket's record, as the help desk exported it | Solved by the agent; no escalation and no human reply; no reopening and no customer message inside 72 hours; the window has closed | Whether the export is the help desk's true record; whether the answer was right | Runs here on made-up tickets; no help desk read; never used by a customer |
 
-`tests/test_outcomes.py` puts every submission of the three examples through `knos proof judge`. Each example holds
+`tests/test_outcomes.py` puts every submission of the first three examples through `knos proof judge`. Each example holds
 the black-box suite and, beside it, a naive check that looks only at what the supplier was shown. The honest submission
 is accepted by both. The cheating submission (copied visible labels; the worked example's answer written down; a
 result pasted into the script) is accepted by the naive check and refused by the black-box suite.
@@ -181,43 +197,63 @@ One limit of the count is the program's and is not changed here: the meter's art
 size of a commit id. A deliverable that is a file is judged in a commit, and the commit is the artifact. The examples
 are folders, not commits, so their ledger lines carry the first 40 hex characters of a hash of the submission's files.
 
-## Support-ticket resolution: not built
+## Support resolutions
 
-Vendors of support agents bill per resolution, and each counts its own. A neutral count would be worth having. A
-"resolved" webhook is not an acceptance model, for three reasons.
+Vendors of support agents bill per resolution, and each counts its own. This is a neutral count of the same thing:
+the definition is in terms both sides hold, the count is the meter's, and the run that made it is signed by
+somebody else. It runs here on made-up tickets ([`examples/outcomes/support-resolution`](../examples/outcomes/support-resolution/)).
 
-**Who says it is resolved.** The webhook is sent by the system that is being paid, or by a help desk configured by
-one of the two parties. Knos would authenticate the run that received the event and nothing about the event itself:
-[ADAPTERS.md](ADAPTERS.md) draws that line for every external source. A count of unauthenticated events is the
-vendor's count with a signature on the envelope.
+**The definition, and where it comes from.** Two vendors publish how they count. Intercom counts a resolution when
+the customer confirms the answer helped, or "exits the conversation without requesting further assistance"; does not
+count one when the customer asks for a person; takes it back when the customer returns to the conversation; and bills
+a conversation at most once ([Intercom, "Fin AI Agent resolutions"](https://www.intercom.com/help/en/articles/8205718-fin-ai-agent-resolutions)).
+Zendesk counts an automated resolution "when a customer's issue is successfully resolved without live-agent
+intervention", evaluates only conversations that were not escalated, waits for a period of inactivity (72 hours for
+email and web forms) and counts per conversation
+([Zendesk, "About the automated resolutions platform"](https://support.zendesk.com/hc/en-us/articles/5352026794010)).
+Both read 7 October 2026. The example's terms mirror them:
 
-**Resolved is a state, not a fact.** Tickets reopen. A customer who got a wrong answer and gave up looks the same in
-the event stream as one who was helped. One vendor's published definition counts a resolution when the customer
-confirms, or when the customer "exits the conversation without requesting further assistance", and takes the
-resolution back if the customer later returns to the same conversation
-([Intercom, "Fin resolutions"](https://www.intercom.com/help/en/articles/8205718-fin-resolutions), read 5 October
-2026). So the number that is billed is settled only after a window, and a reopen rate is part of the outcome.
+| The terms say | In the example | Mirrors |
+|---|---|---|
+| the agent marked the ticket solved | required | both |
+| nobody took it over: no escalation, no human reply | required | Zendesk "without live-agent intervention"; Intercom's request for a person |
+| the customer did not come back inside the window | no reopening, no customer message for 72 hours after `solved` | Intercom's deduction when the customer returns; Zendesk's 72 hours |
+| the customer's confirmation | `or_silence`: a confirmation, or leaving without asking for more | Intercom's confirmed and assumed resolutions |
+| one ticket, one resolution | a ticket is one deliverable, billed once | both |
+| a reopening after the window | takes nothing back; a new deliverable only if the terms say so | none: the vendors do not say |
 
-**The customer's confirmation is the evidence, and it is not in the webhook.** The person who can say the problem is
-solved is a third party to the order. Their confirmation, or their silence over a stated period, has to be read from
-where it is recorded, not from a message that says it happened.
+One thing is stricter than either vendor. A ticket has no verdict until its window has closed, so it is not in the
+count and nothing is billed on it. A resolution that can still be undone is never billed and then taken back.
 
-What a real model would need:
+**Run it.**
 
-1. **The system of record's own word.** A pinned workflow that reads the ticket from the help desk's API with the
-   buyer's credential: its state, its history of reopens, who closed it, whether the customer answered. Or an event
-   signed by the help desk itself (not by the agent vendor) with a public key the buyer pins. The trackers that
-   [ADAPTERS.md](ADAPTERS.md) covers sign their webhooks with a shared secret, which a program on a public chain
-   cannot check, so today only the first route is open: re-read the API, believe nothing that was sent.
-2. **A stated definition in the terms.** Which states count, who may set them, and whether a confirmation from the
-   customer is required or silence is enough. That is a field of the terms, hashed like a suite.
-3. **A reopen window as a warranty.** The evaluation is made when the window closes, or an accepted outcome is
-   reversed by a later evaluation of the same deliverable if the ticket reopens inside it. The meter today has no
-   reversal: an accepted evaluation stays accepted. So the first form (judge after the window) is the one that fits
-   without a program change.
-4. **A sample a person reads.** Whether an answer was right is not in any ticket state. A buyer who pays per
-   resolution audits a sample, and the terms should say how large and what follows from a failed one.
+    python scripts/outcome_support.py evaluate      # a verdict and a reason for every ticket
+    python scripts/outcome_support.py batch         # the meter's batch, and the audience a workflow has GitHub sign
+    python scripts/outcome_support.py statement --out out    # the supplier's invoice set against the count
 
-None of this is built. There is no help-desk adapter, no signed-event verifier for one, no reopen window, and no
-example under `examples/outcomes/` for it, because an example driven by a made-up webhook would show the thing this
-section says not to trust.
+The example holds ten made-up tickets, one of them exported twice, terms at 0.99 a resolution (one vendor's published
+price, used as a sample), and a supplier's invoice of eight lines. What the commands print: 4 accepted, 5 rejected,
+1 not judged yet; a batch of 9 evaluations worth 3.96; and a statement in which 4 lines are agreed (3.96 of 7.92
+billed), 2 are disputed (a reopened ticket, an escalated one), 1 is a duplicate and 1 has insufficient evidence
+(its window is open). `tests/test_outcome_support.py` holds each of those numbers and each rule.
+
+**The signed run.** [`outcome-support.yml`](../.github/workflows/outcome-support.yml) has three jobs. `count` judges
+the tickets and prints the batch's audience, `knosm:claim:<buyer>:<seller>:<yyyymm>:<seq>:<count>:<accepted>:<value>:<root>`,
+with the repository's owner as the seller. `sign` asks GitHub to sign that audience and runs nothing from the
+repository. `receipt` makes the count again, holds the token to it with the on-chain verifier's rule, and writes the
+receipt and the statement. That audience is the one `knos_meter`'s ClaimBatch reads for a seller's own count.
+**The workflow has not run, and the token has not been carried to Solana**: the test signs a GitHub-shaped token with
+a test key.
+
+**What this does not show**, and what a real count needs:
+
+1. **The system of record's own word.** The script reads a file. A real count re-reads each ticket from the help
+   desk's API with the buyer's credential, in the pinned run: its state, its reopens, who closed it. No help-desk
+   adapter is built, and no verifier for an event a help desk signs. GitHub signs which workflow ran at which commit
+   and the count it asked for; it does not sign that a ticket file is true. A count of events the paid party sent
+   is that party's count with a signature on the envelope ([ADAPTERS.md](ADAPTERS.md) draws the line).
+2. **Whether the answer was right.** No ticket state says so. A customer who got a wrong answer and gave up looks
+   like one who was helped. A buyer who pays per resolution reads a sample; the terms here do not say how large.
+3. **Reversal after the fact.** Judging after the window needs none. A correction of an accepted evaluation exists
+   in the ledger ([METER.md](METER.md)) and is not used here.
+4. **A customer.** The buyer, the seller and every ticket are sample values. Nobody bought this.

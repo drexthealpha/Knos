@@ -1,0 +1,121 @@
+name: outcome support resolutions
+
+# A second outcome that is not code (docs/OUTCOMES.md, "Support resolutions"): the made-up tickets of
+# examples/outcomes/support-resolution are judged under the terms beside them (solved by the agent, nobody took the
+# ticket over, the customer did not come back inside the window, the window has closed), the meter's batch of those
+# evaluations is made, and GitHub signs this run with the batch as its audience:
+# knosm:claim:<buyer>:<seller>:<yyyymm>:<seq>:<count>:<accepted>:<value>:<root>, the seller being this repository's
+# owner. Then the token is checked offline against GitHub's key set, the supplier's invoice is set against the count,
+# and the receipt and the statement are uploaded.
+#
+# Three jobs, so that the one that can ask GitHub for a token runs nothing from the repository:
+#   count    reads the files and prints the audience. It cannot ask for a token.
+#   sign     asks GitHub to sign that audience and fetches GitHub's key set. It checks out and installs nothing.
+#   receipt  makes the count again, holds the token to it, and writes the receipt and the statement. No token.
+#
+# What it is not. The tickets are made up, and the run reads a file, not a help desk: GitHub signs which workflow ran
+# at which commit and the count it asked for, never that a ticket file is true. Nothing here goes to Solana: the run
+# holds no key and sends no transaction.
+on:
+  workflow_dispatch:
+    inputs:
+      month:
+        description: The month the count is for, as YYYY-MM.
+        default: "2026-10"
+        type: string
+
+concurrency:
+  group: outcome-support-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  count:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      audience: ${{ steps.batch.outputs.audience }}
+    env:
+      MONTH: ${{ inputs.month || '2026-10' }}
+      SELLER: ${{ github.repository_owner_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: judge every ticket and make the meter's batch
+        id: batch
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$MONTH" in [0-9][0-9][0-9][0-9]-[0-9][0-9]) ;; *) echo "::error::month is YYYY-MM"; exit 1 ;; esac
+          python -m pip install -q .
+          python scripts/outcome_support.py evaluate --seller "$SELLER" --out out
+          python scripts/outcome_support.py batch --seller "$SELLER" --month "$MONTH" --out out
+          echo "audience=$(cat out/audience)" >> "$GITHUB_OUTPUT"
+
+  sign:
+    needs: count
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+    env:
+      AUDIENCE: ${{ needs.count.outputs.audience }}
+    steps:
+      - name: ask GitHub to sign the count, and read GitHub's key set
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$AUDIENCE" in knosm:claim:*) ;; *) echo "::error::not a claim audience"; exit 1 ;; esac
+          mkdir -p signed
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" --get --data-urlencode "audience=$AUDIENCE" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" | python3 -c 'import json,sys; sys.stdout.write(json.load(sys.stdin)["value"])' > signed/token
+          curl -sSf https://token.actions.githubusercontent.com/.well-known/jwks > signed/jwks.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: outcome-support-signed
+          path: signed/
+          if-no-files-found: error
+          retention-days: 30
+
+  receipt:
+    needs: sign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      MONTH: ${{ inputs.month || '2026-10' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: outcome-support-signed
+          path: out
+      - name: hold the token to the count made again, then set the invoice against it
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q .
+          python scripts/outcome_support.py receipt --token out/token --jwks out/jwks.json --month "$MONTH" --out out/receipt.json | tee out/receipt.txt
+          python scripts/outcome_support.py statement --month "$MONTH" --out out | tee out/statement.txt
+          (cd out && sha256sum token jwks.json receipt.json ap-statement.json events.jsonl > SHA256SUMS && cat SHA256SUMS)
+          { echo "### Support resolutions, counted and signed"; echo; echo '```'; cat out/receipt.txt out/statement.txt; echo '```';
+            echo "Made-up tickets. Verified offline against GitHub's key set. This run sends nothing to Solana."; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: outcome-support
+          path: out/
+          if-no-files-found: error
+          retention-days: 30

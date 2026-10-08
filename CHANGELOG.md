@@ -1,5 +1,124 @@
 # Changelog
 
+## 0.3.20 (October 2026)
+
+**One enterprise transaction, followed to its end: what was authorised, what was delivered, what was accepted, what
+is owed, and what happened to the money. A screen for whoever approves the invoice, a table of what enforces each
+rule, a reserve behind netted work, evidence that verifies when Knos is gone, and a bank file.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md); apart from one throughput measurement by Knos's own wallets at the
+public knos_pay, none of it has run at the public program ids, with a bank, or with a person outside this
+repository, and each line below says its own limit. **No program changes in this release:**
+nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
+
+### For whoever approves the invoice
+
+- **A screen with no command line.** The site's Approve page shows one row per invoice line (supplier, purchase
+  order, deliverable, evidence, amount, exception, payment status) and one queue of exceptions. The approver
+  approves the agreed lines, or sends an exception to the supplier as a message that is already written. The time
+  the page states is a script's in a headless browser; no person was timed
+  ([`docs/CONSOLE.md`](docs/CONSOLE.md), "The approver's screen").
+- **What enforces each rule, as a table made from the code.** `knos controls matrix` prints every route that can
+  set money aside or move it against every restriction, and says of each cell whether a program enforces it, the
+  pinned workflow does, it is advice, or it is outside Knos. Each enforced cell names a test that tries to get round
+  it. The approval gate is now asked on every funding by comment, and the documents that said nothing called it are
+  corrected ([`docs/ENFORCEMENT.md`](docs/ENFORCEMENT.md), [`docs/CONTROLS.md`](docs/CONTROLS.md)).
+- **A receipt reads in five parts.** Identity, execution, acceptance, consequence, assurance, one line each
+  (`knos receipt explain`). A valid signature on a weak test reads as weak. It is a reading of the receipts that
+  exist and adds no version ([`docs/RECEIPT.md`](docs/RECEIPT.md)).
+- **Memory of how the same exception ended before.** `knos recall exception` answers from the buyer's memory: how
+  often the same exception under the same terms was seen, how each ended and how long it took. Appeals, statement
+  lines that were set aside, corrections and closed months are written there when `--remember` names the buyer.
+  No buyer has used it ([`docs/submission/DEPENDENCY.md`](docs/submission/DEPENDENCY.md)).
+- **Pay by bank.** `knos statement pay --rail bank` writes a payment instruction file (ISO 20022 pain.001) for the
+  lines that are agreed, approved and still payable, and `knos statement status` reads the bank's answer back: paid,
+  or returned and payable again. The site writes the same file. Two more exports: every line with its purchase
+  order and its match, and a cXML invoice. No bank has taken a file and no system has loaded an export
+  ([`docs/RAILS.md`](docs/RAILS.md), [`docs/FINANCE.md`](docs/FINANCE.md)).
+
+### For a supplier
+
+- **Four protections, checked before the work.** `knos preflight` says whether the terms fix the criteria, set an
+  acceptance deadline, give an appeal and make payment predictable, and whether a program, the workflow or advice
+  stands behind each ([`docs/SUPPLIER.md`](docs/SUPPLIER.md)).
+- **A reserve behind netted work.** A buyer locks a reserve for one supplier before the period; the period spends
+  no more than it holds, is paid by draws on it, and what no draw took returns to the buyer after the deadline. A
+  period with no reserve says it is unsecured and prints what the supplier carries. A financier can buy a closed,
+  reserved period through the program's existing assignment; Knos lends nothing. Run on the simulator only
+  ([`docs/NETTING.md`](docs/NETTING.md), [`docs/ADVANCE.md`](docs/ADVANCE.md)).
+- **Take a funded task as an agent.** `knos task list | show | take | submit | why`, and three read-only MCP tools.
+  A merged pull request that was not paid gets one sentence saying why: an order funded through a staging copy of
+  the workflows never pays, and the board now funds only through the public ones. Five tasks that are not code
+  (reproduce, shadow count, fund from the faucet, install, host a judge) each state the evidence that completes
+  them. None has been completed by an outside account ([`tasks/README.md`](tasks/README.md)).
+
+### Evidence and neutrality
+
+- **An archive that verifies when Knos is gone.** `knos archive make` writes one file with the evidence and a
+  verifier of one standard-library file: no Knos, no network. Two holders compare by one root; a number a sender
+  gave that never arrived is named, and a month is not closed over it. One run on this repository's samples is
+  recorded; they carry no signed token, and the verifier says so. One run on a real period is recorded too: the
+  founder's own account on both sides, its batches anchored at the public knos_meter; its log of events starts at
+  number 1 and nobody else acknowledged it, so the strict check fails on it. No outside party holds an archive
+  ([`docs/RETENTION.md`](docs/RETENTION.md), [`docs/EVENTS.md`](docs/EVENTS.md)).
+- **The paid record answer is worth more than the free file.** The server signs each answer with an expiry, adds a
+  summary, and gives the history a supplier granted to one reader. Its revenue is budgeted at zero and Knos hosts
+  no server ([`docs/RECORD.md`](docs/RECORD.md)).
+- **Host a judge from one link; the private path as one command; a drill for a second operator.** Each is a
+  command a person outside can run, and nobody outside has: outside hosts, private repositories and second
+  operators are all zero ([`docs/ATTESTOR.md`](docs/ATTESTOR.md), [`docs/PRIVATE.md`](docs/PRIVATE.md),
+  [`docs/OPERATOR.md`](docs/OPERATOR.md)).
+- **GitLab as one command, and a support resolution as an outcome.** `python scripts/gitlab_round.py run` carries
+  the whole GitLab round and needs a token and a project this tree has not had. A support ticket counts when it
+  stayed resolved through the window the terms fix. Neither has run on its forge
+  ([`docs/OIDC.md`](docs/OIDC.md), [`docs/OUTCOMES.md`](docs/OUTCOMES.md)).
+
+### Underneath
+
+- **One list, and a checker that fails on a contradiction.** Every capability is one row: source, test, deployed
+  build, transaction, reproduction ([`docs/MANIFEST.md`](docs/MANIFEST.md)). `scripts/truth_check.py` reads the
+  documents and the site against that list, the source and the price book. `scripts/public_face.py` holds every
+  description of Knos to the one sentence; what the registries serve changes only when this release is published.
+- **The decision, warm.** The rules can be loaded before the token arrives (`knos decide --stream`). Six latencies
+  are reported apart, never as one number. The warm figure is measured on one machine with no network and not on
+  devnet ([`docs/BENCH.md`](docs/BENCH.md), "Decision time").
+- **The relay chain heals.** A failed start is asked again and a watchdog starts a chain when none is alive; the
+  upgrade task starts after a missed start. Throughput has a command that measures it, and the page keeps measured
+  and derived apart: measured once on devnet, on 7 October 2026, with four relays and 40 orders each way, a
+  reading of that day and not a capacity ([`docs/RELAY.md`](docs/RELAY.md),
+  [`docs/LOAD.md`](docs/LOAD.md)).
+- **The rounds of the release run are files.** `scripts/exercise_rounds/` holds the reserve, GitLab, the private
+  path and a hosted judge; each runs on the simulator, and at the public ids each ends with its own code and stops
+  no other ([`docs/RELEASE.md`](docs/RELEASE.md)).
+- **Unit costs said as they are.** Every margin is labelled gross; three places where the price does not cover the
+  cost are printed with their numbers; the first customer is described, and who is not one
+  ([`docs/UNIT_COSTS.md`](docs/UNIT_COSTS.md), [`docs/WHY.md`](docs/WHY.md)).
+- **One page for a judge, and one transaction in seven beats.** [`docs/JUDGES.md`](docs/JUDGES.md); the story, the
+  first screen's round and the demonstration's script tell the same seven: agree, fails, passes, statement, replay,
+  pay, verify ([`docs/STORY.md`](docs/STORY.md)).
+- **No program crate moved.** The four programs and the two interface crates stay at 0.3.14.
+
+### Not true yet
+
+- No outside funder, no buyer conversation, no letter of intent, no outside key holder, no outside reproduction,
+  and no outside program that reads the verifier.
+- Nothing this release adds has run at the public program ids but the throughput measurement, which funded
+  Knos's own orders in a mint made for the run and left none open. The reserve, GitLab, the private path and a hosted
+  judge are commands of the release run (`python scripts/exercise_public.py run --only <round>`): GitLab needs a
+  token and a project, a hosted judge needs a repository of another owner, and the private path needs someone with
+  a private repository.
+- Whether proposals 7 and 8 have executed is what `knos status` and [`web/upgrades.json`](web/upgrades.json) say;
+  until they have, the public programs charge the earlier fee, and every page shows the fee that is live.
+- No bank has taken a payment file, no accounting system has loaded an export, and no approver outside this
+  repository has used the screen.
+- The registries and the repository's own description still serve older words until this release is published;
+  `python scripts/public_face.py --remote` prints each one and the command that corrects it.
+- A workflow's appeals reach memory only where its job has the memory engine installed; statements and ledgers
+  reach it only with `--remember`.
+- Nothing has been sold, and there is no legal entity to sell from.
+
 ## 0.3.19 (October 2026)
 
 **What exists, made true, fast and used: a decision from the evidence in milliseconds, small tickets netted, a

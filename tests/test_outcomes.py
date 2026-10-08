@@ -218,4 +218,4 @@ def test_the_document_lists_each_outcome_and_says_what_is_not_built():
     assert "each domain needs its own acceptance model" in text.lower()
     for name in NAMES:
         assert f"../examples/outcomes/{name}/" in text
-    assert "Support-ticket resolution" in text and "not built" in text
+    assert "## Support resolutions" in text and "No help-desk\n   adapter is built" in text and "| Back-office processing |" in text

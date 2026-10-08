@@ -317,9 +317,10 @@ def test_a_meter_batch_the_chain_took_is_not_called_unused_by_the_chain_half():
     assert "batch" not in decide.chain_check(other, ledger=Rpc(None))
 
 
-def test_the_two_targets_hold_here_a_cached_decision_under_200_ms_and_evidence_to_decision_under_2_s():
-    """Generous bounds on purpose: the measured figures are a few milliseconds (docs/BENCH.md, "Decision time"). The
-    chain is LiteSVM in this process, so this is Knos's own time; a cluster's round trips are not in it."""
+def test_the_targets_hold_here_a_warm_offline_decision_under_100_ms_a_cached_one_under_200_ms_and_evidence_to_decision_under_2_s():
+    """Generous bounds on purpose: the measured figures are a few milliseconds (docs/BENCH.md, "Decision time"), so the
+    100 ms bound has a margin of more than ten times on a machine shared with other work. The chain is LiteSVM in this
+    process, so this is Knos's own time; a cluster's round trips are not in it."""
     bench = _script("decide_bench")
     r = bench.measure(12)
     rows = r["rows"]
@@ -327,16 +328,29 @@ def test_the_two_targets_hold_here_a_cached_decision_under_200_ms_and_evidence_t
     assert rows["cached, accepted"]["p95"] < 200 and rows["no chain"]["p95"] < 200 and rows["free check"]["p95"] < 200, rows
     assert rows["fresh, accepted"]["p95"] < 2000 and rows["fresh, rejected"]["p95"] < 2000, rows
     assert r["decisions"] == {"fresh, accepted": ["accepted"], "fresh, rejected": ["rejected"], "cached, accepted": ["accepted"],
-                              "no chain": ["insufficient_evidence"], "free check": ["accepted"], "offline, accepted": ["accepted"], "chain check": ["accepted"]}
+                              "no chain": ["insufficient_evidence"], "free check": ["accepted"], "offline, accepted": ["accepted"], "chain check": ["accepted"],
+                              "offline, warm": ["accepted"]}
+    assert bench.TARGETS["warm"] == bench.TARGETS["local"] == 100 and rows["offline, warm"]["p95"] < 100, rows     # once the evidence is in hand
     # the table states its machine and its sample, and the document holds what the script writes
     lines = bench.table(r, "2026-10-06")
     assert "on this machine: " in lines[0] and "no network" in lines[0] and "4.3 to 32.6 s" in lines[0] and "timed there on 24 real tokens" in lines[0]
     assert len(lines) == 4 + len(bench.ROWS) and "a target, not a measurement" in lines[2]
-    assert rows["offline, accepted"]["p95"] < 250 and rows["chain check"]["p95"] < 250, rows       # the target, held on this machine
+    assert rows["offline, accepted"]["p95"] < 100 and rows["chain check"]["p95"] < 250, rows       # the target, held on this machine
     trips = bench.round_trips()
     assert trips["after"] == {"n": 1, "calls": ["infos"]} and trips["before"]["n"] > trips["after"]["n"]
     under = bench.split_lines(trips, {"n": 1, "p50": 700.0, "p95": 900.0, "max": 900.0, "inside": {"p50": 300.0, "p95": 400.0}, "decisions": ["x"]})
     assert "the chain check makes 1 (1 infos: one getMultipleAccounts)" in under[1] and "does not meet it here" in under[3]
+    apart = bench.split_lines(trips, {"n": 1, "p50": 700.0, "p95": 900.0, "max": 900.0, "inside": {"p50": 300.0, "p95": 400.0}, "decisions": ["x"],
+                                      "loaded": {"p50": 290.0, "p95": 380.0}, "offline": {"p50": 1.2, "p95": 2.4}})[3]
+    assert "loading the rules" in apart and "p50 290 ms, p95 380 ms; the decision itself p50 1.2 ms, p95 2.4 ms" in apart and "The 100 ms target" in apart
+    # what the document says of the process that stays up, and of real tokens, is what was measured: no file, no sentence
+    assert bench.warm_lines(None, None) == [] and "the file given held none" in bench.warm_lines(None, {"n": 0})[1]
+    said = bench.warm_lines({"n": 3, "p50": 0.7, "p95": 120.0, "max": 130.0, "loaded": 90.0, "decisions": ["accepted (x)"]},
+                            {"n": 2, "p50": 0.8, "p95": 0.9, "max": 0.9, "decisions": {"accepted": 2}, "skipped": 1})
+    assert "NOT met here" in said[1] and "n 2: p50 0.8 ms, p95 0.9 ms" in said[3] and "2 accepted; 1 lines skipped" in said[3]
+    kept = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["decision"]
+    assert kept["local"]["rows"]["offline, warm"]["p95"] < 100 and kept["local"]["target_ms_p95_warm"] == 100 and "CPUs" in kept["local"]["machine"]
+    assert kept["devnet"]["offline"] == {"n": 24, "fastest": 170, "median": 356, "slowest": 863, "p95": None}                 # the last release run's
     doc = (ROOT / "docs" / "BENCH.md").read_text(encoding="utf-8")
     assert "## Decision time" in doc and bench.OPEN in doc and bench.CLOSE in doc
     held = doc.split(bench.OPEN)[1].split(bench.CLOSE)[0]
@@ -397,3 +411,52 @@ def test_the_standalone_command_loads_no_command_line_library_and_the_relay_only
     assert none.returncode == 2 and "give --token-file or --checks-file, one of them" in none.stderr
     src = (ROOT / "src" / "knos" / "decide.py").read_text(encoding="utf-8")
     assert "argparse.ArgumentParser(" in src.split("\ndef main(")[1] and "typer" not in src.split("\ndef main(")[1].split('"""', 2)[2]
+
+
+def test_a_decider_is_built_before_the_evidence_and_answers_as_the_offline_half_does_with_nothing_kept_between_tokens(env):
+    c, _net = env
+    now, keys = c.now(), _kept()
+    fund, other = t2.faucet_jwt(c, t2.issue(), t2.user(), t2.user()), t2.faucet_jwt(c, t2.issue(), t2.user(), t2.user())
+    forged = fund[:-6] + ("AAAAAA" if not fund.endswith("AAAAAA") else "BBBBBB")
+    warm = decide.Decider(keys)
+    assert warm.loaded_ms >= 0
+
+    cases = ((fund, t2.TERMS, now), (forged, t2.TERMS, now), (other, t2.TERMS, now), (fund, None, now), (fund, t2.TERMS, now + 3 * 3600), ("not a token", None, now),
+             (fund, t2.TERMS, now))
+    first = [warm.offline(jwt, terms, now=at) for jwt, terms, at in cases]
+    again = [warm.offline(jwt, terms, now=at) for jwt, terms, at in reversed(cases)][::-1]
+    assert first == again == [decide.offline(jwt, terms, keys=keys, now=at) for jwt, terms, at in cases]        # order and history change nothing
+    assert [d["decision"] for d in first] == ["accepted", "rejected", "accepted", "rejected", "rejected", "rejected", "accepted"]
+    assert first[1]["why"] == "the signature is not the issuer's"       # a forged token after a good one: nothing remembered lets it through
+    assert decide.Decider({}).offline(fund, t2.TERMS, now=now)["decision"] == "insufficient_evidence"
+
+
+def test_the_stream_decides_one_token_a_line_in_one_process_and_times_each_from_the_line_in_hand(env, tmp_path, capsys):
+    c, _net = env
+    now, keys = c.now(), _kept()
+    fund = t2.faucet_jwt(c, t2.issue(), t2.user(), t2.user())
+    lines = [fund, "", json.dumps({"token": fund, "terms": t2.TERMS.decode(), "kind": "fund"}), f"<!-- knos-fund: {fund} -->", "junk", '{"token": 7}']
+    out: list[str] = []
+    got = decide.stream(lines, out.append, keys=keys, clock=lambda: now)
+    rows = [json.loads(line) for line in out]
+    assert got["n"] == len(rows) == 5 and got["accepted"] == 1 and round(got["slowest_ms"], 3) == max(r["ms"] for r in rows) < 2000
+    assert [r["decision"] for r in rows] == ["rejected", "accepted", "rejected", "rejected", "rejected"]      # only the line that carries its terms
+    assert rows[0]["why"] == rows[2]["why"] == "its terms are missing, or are not the terms the token names"
+    for r in rows:
+        assert set(r) == {"decision", "why", "kind", "ms", "provisional_sha256", "provisional"} and decide.check(r["provisional"]) is None
+        assert r["provisional_sha256"] == decide.digest(r["provisional"]) and r["provisional"]["authorises_payment"] is False
+        assert r["provisional"]["rules"]["by"] == "knos.decide.offline" and r["provisional"]["decided_at"] == now
+    assert rows[1]["provisional"] == decide.provisional(decide.offline(fund, t2.TERMS, keys=keys, now=now), at=now, jwt=fund, terms=t2.TERMS)
+    # the command: the rules are loaded once and said apart; it takes no other thing to decide; all accepted or exit 1
+    file = decide.keep_keys(keys, at=now, path=tmp_path / "keys.json")
+    said: list[str] = []
+    assert decide.command(keys_file=file, stream_lines=["junk"], say=out.append, note=said.append) == 1
+    assert said[0].startswith("rules loaded in ") and "decided 1 offline, 0 accepted" in said[1] and "nothing was fetched" in said[1]
+    assert decide.command(keys_file=file, stream_lines=[], say=out.append, note=said.append) == 1              # nothing decided is not a pass
+    with pytest.raises(ValueError, match="--stream reads its tokens from standard input"):
+        decide.command(token_file=tmp_path / "t.txt", stream_lines=[], say=out.append, note=said.append)
+    # the one-shot command says the load and the decision apart
+    (tmp_path / "t.txt").write_text(fund, encoding="utf-8")
+    said.clear()
+    decide.command(token_file=tmp_path / "t.txt", keys_file=file, no_chain=True, out=tmp_path / "p.json", say=out.append, note=said.append)
+    assert " (rules loaded in " in said[-1] and " ms, offline " in said[-1] and said[-1].startswith("decided in ")

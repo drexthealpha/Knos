@@ -1,5 +1,5 @@
 {
- "_about": "The shot list of the three-minute demonstration (docs/submission/demo_script.md): one task in six steps, the refusal first. A step that ran on the public program ids carries the `public` caption, one that ran on staging program ids `staging`, and one that ran in the local simulator `simulator`; `web/upgrades.json` and docs/MANIFEST.md have the live state, read on the day. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 180`. tests/test_business_docs.py holds this file to the script.",
+ "_about": "The shot list of the three-minute demonstration (docs/submission/demo_script.md): one transaction in seven beats, the refusal first. A step that ran on the public program ids carries the `public` caption, one that ran on staging program ids `staging`, and one that ran in the local simulator `simulator`; `web/upgrades.json` and docs/MANIFEST.md have the live state, read on the day. `kind` is live (it happens while it is recorded) or replay (a run made earlier is shown). `faster` is true when the shot is played faster than it happened. A replay carries the first caption and a faster shot the second, each for the shot's whole length; N is the speed measured when the shot is cut, and it is written into the caption then. Render a storyboard of it with `python scripts/video/render.py <file> --limit 180`. tests/test_site_scripts.py holds this file to the script.",
  "limit_seconds": 180,
  "program_ids": "public",
  "captions": {
@@ -10,13 +10,14 @@
   "money": "Solana devnet. Test USDC.",
   "staging": "Staging program ids on Solana devnet",
   "simulator": "Local simulator: not devnet",
-  "public": "Public program ids on Solana devnet"
+  "public": "Public program ids on Solana devnet",
+  "bank": "Written locally. No bank has taken this file."
  },
  "shots": [
   {
    "moment": "one",
    "start": "0:00",
-   "end": "0:30",
+   "end": "0:28",
    "kind": "replay",
    "faster": false,
    "captions": [
@@ -25,12 +26,12 @@
     "public",
     "money"
    ],
-   "shows": "the title; then FIRST the judge's refusal of step two with its reason, held while the number is said; then the issue that is the task, the buyer's funding comment, the order with its price, its acceptance terms and their hash, and the supplier who takes it"
+   "shows": "the title; then FIRST the judge's refusal of beat two with its reason, held while the number is said; then the issue that is the task, the buyer's funding comment, the order with its price, its acceptance terms and their hash, its deadline and the refund if nothing is accepted, and the supplier who takes it"
   },
   {
    "moment": "two",
-   "start": "0:30",
-   "end": "1:05",
+   "start": "0:28",
+   "end": "1:00",
    "kind": "replay",
    "faster": true,
    "captions": [
@@ -42,50 +43,60 @@
   },
   {
    "moment": "three",
-   "start": "1:05",
-   "end": "1:35",
+   "start": "1:00",
+   "end": "1:16",
    "kind": "replay",
    "faster": true,
    "captions": [
     "replay",
     "faster"
    ],
-   "shows": "a pull request with the fix and a regression test in a new file; the verdict accepted; buyer and supplier each rebuilding the same statement from their own ledger, with the same digest"
+   "shows": "the corrected pull request with the fix and a regression test in a new file; the same check; the verdict accepted"
   },
   {
    "moment": "four",
-   "start": "1:35",
-   "end": "2:00",
-   "kind": "replay",
+   "start": "1:16",
+   "end": "1:38",
+   "kind": "live",
    "faster": false,
-   "captions": [
-    "replay",
-    "public",
-    "money",
-    "offline"
-   ],
-   "shows": "the paying transaction and the supplier's balance before and after; the receipt file; a machine with the network off verifying that file alone"
+   "captions": [],
+   "shows": "buyer and supplier each rebuilding the same statement from their own ledger, side by side, with the same digest"
   },
   {
    "moment": "five",
-   "start": "2:00",
-   "end": "2:20",
+   "start": "1:38",
+   "end": "1:56",
    "kind": "live",
    "faster": false,
    "captions": [
     "public",
     "money"
    ],
-   "shows": "the token that paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate: no second payment"
+   "shows": "a token that already paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate: no second payment"
   },
   {
    "moment": "six",
-   "start": "2:20",
+   "start": "1:56",
+   "end": "2:27",
+   "kind": "replay",
+   "faster": false,
+   "captions": [
+    "replay",
+    "public",
+    "money"
+   ],
+   "shows": "the paying transaction and the supplier's balance before and after; the fee read from the chain while recording, never typed; the accounting export of the approved statement and its file; the bank instruction file with its caption if the build has it"
+  },
+  {
+   "moment": "seven",
+   "start": "2:27",
    "end": "3:00",
    "kind": "live",
    "faster": false,
-   "captions": [],
-   "shows": "the accounting export of the approved statement and its file; docs/MANIFEST.md: each public program id, its build, its hash and its commit; the limits as one line; the front door"
+   "captions": [
+    "offline"
+   ],
+   "shows": "a machine with the network off verifying the receipt file alone; docs/MANIFEST.md: each public program id, its build, its hash and its commit; the limits as one line; the front door"
   }
  ]
 }

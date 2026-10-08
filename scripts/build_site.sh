@@ -79,3 +79,30 @@ fi
 "${PYTHON:-python3}" scripts/pages_data.py --out "$out" --empty
 # the task board as a build that reads no board writes it (web/playground.js says so); the deploy overwrites it with what it read
 "${PYTHON:-python3}" scripts/task_board.py status --json --empty > "$out/tasks.json"
+# PAGES ADDED BY NAME (web/views.js ADDED). Two of them are drawn from a file this build writes:
+#   enforce.json   the enforcement matrix (src/knos/enforce.py: routes, restrictions, cells), for #enforcement; the
+#                  build stops when docs/ENFORCEMENT.md is not what the code gives (`--check`)
+#   judges.json    docs/judges.json, the rows of docs/JUDGES.md (scripts/judges.py holds the file to the page), for #judges
+# A tree without the source writes no file, and the page is then not offered: every line of ADDED whose module or
+# whose json is not in this build is taken out of the build's copy of views.js, so no link leads to nothing.
+if [ -f src/knos/enforce.py ]; then
+  PYTHONPATH="src${PYTHONPATH:+:$PYTHONPATH}" "${PYTHON:-python3}" -m knos.enforce --check
+  PYTHONPATH="src${PYTHONPATH:+:$PYTHONPATH}" "${PYTHON:-python3}" -m knos.enforce --json > "$out/enforce.json" || rm -f "$out/enforce.json"
+fi
+if [ -f docs/JUDGES.md ]; then "${PYTHON:-python3}" scripts/judges.py --check && cp docs/judges.json "$out/judges.json"; fi
+"${PYTHON:-python3}" - "$out" <<'PY'
+import re, sys
+from pathlib import Path
+out = Path(sys.argv[1])
+views = out / "views.js"
+kept = []
+for line in views.read_text(encoding="utf-8").splitlines(keepends=True):
+    m = re.match(r'\s+[\w-]+: \{ file: "\./([\w./-]+)"', line)
+    need = [m[1]] + re.findall(r'json: "([\w./-]+)"', line) if m else []
+    gone = [f for f in need if not (out / f).is_file() or (out / f).stat().st_size == 0]
+    if gone:
+        print(f"views.js: {line.split(':')[0].strip()} is not offered ({', '.join(gone)} is not in this build)")
+        continue
+    kept.append(line)
+views.write_text("".join(kept), encoding="utf-8", newline="")
+PY

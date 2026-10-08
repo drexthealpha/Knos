@@ -1,0 +1,19 @@
+{
+ "kind": "shadow",
+ "v": 1,
+ "title": "Count one invoice against GitHub's record, in a repository you own",
+ "statement": "Test USDC, no monetary value.\n\nRun `knos shadow` on agent pull requests of a repository you own and publish the statement it writes.",
+ "evidence": "a published statement (knos.shadow) whose repository's owner is your account, with at least one line and its digest",
+ "counter": "shadow_counts",
+ "needs": [
+  "actor_id",
+  "repository_owner_id",
+  "lines",
+  "digest",
+  "url"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/SHADOW.md"
+}

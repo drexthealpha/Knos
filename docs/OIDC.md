@@ -69,7 +69,7 @@ The interface crate, [`crates/knos-oidc-interface`](../crates/knos-oidc-interfac
 allocate, so it builds with solana-program, pinocchio or anchor of any version:
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.19" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.20" }
 ```
 
 ```rust
@@ -179,13 +179,30 @@ Fixed in [`programs-v2/knos_oidc/src/pins.rs`](../programs-v2/knos_oidc/src/pins
 past its expiry (errors 68 and 76 to 78). [SECURITY.md](SECURITY.md), sections 5 to 7, says who can do what to a
 key and to the program.
 
+## Issuers you can use today
+
+"Use" means: a token of that issuer becomes a verified account on the second deployment, and a program reads it.
+Who may add a key is the program's rule ([The trust root](#the-trust-root-of-the-second-deployment)); the cost is
+the rent of the key's account, measured in the simulator with Solana's rent rule, plus each transaction's fee.
+
+| Issuer | What it takes | Who may | Cost | What reads it | Tested |
+|---|---|---|---|---|---|
+| GitHub Actions (RS256) | Nothing: its keys are genesis keys. `curl` the token in a job with `id-token: write` ([above](#put-a-token-on-chain)) | anyone | no key rent; the token's own transactions ([BENCH.md](BENCH.md)) | `knos_pay`, `knos_meter`, any program | Exercised at the public ids ([CAPABILITIES.md](CAPABILITIES.md), `verify_github`) |
+| GitLab CI, gitlab.com (RS256) | Nothing for the reader: `id_tokens:` in `.gitlab-ci.yml`. Its keys are named by the rotate workflow and approved by the guardian; `knos keys` prints whether each is usable now | anyone, once a key is usable | no key rent for the reader | `knos_pay` (fund an order, pay an order), any program | Simulator: `tests/test_gitlab_pay.py`, `tests/test_gitlab_round.py`. Not run against gitlab.com: [one command does](#the-round-as-one-command) |
+| Another RS256 issuer with a public URL (Google, Entra, Buildkite, a self-managed GitLab, ...) | A run of the rotate workflow with `issuer: <url>` names the key (`RegisterIssuerKey`), then one day's wait and the guardian's approval | the account drexthealpha only, then the guardian | 5,178,240 lamports of rent for a 2048-bit key (616 bytes), 8,741,760 for a 4096-bit key (1,128 bytes) | any program that compares `issuer_hash()`; not `knos_pay`, not `knos_meter` | Simulator, with test keys: `tests/test_issuers.py` (eleven shapes). No such issuer has a key at the public id: not tested there |
+| Any RS256 issuer, as a private key (a cluster, an issuer no runner can reach) | `RegisterPrivateKey` and `KeyParams` from your wallet: `python scripts/outcome_k8s.py chain --token T --jwks J --issuer URL --receipt R --keypair FILE --send` sends both, then the token | any wallet; nobody vouches for the key | the same rent, paid by that wallet | a program that calls `Token::read_any` and trusts that `registrant()`; `knos_pay` for one case (a private order paid from the registrant's Balance) | Simulator: `tests/test_outcome_k8s.py`. At the public id: the round `issuer` of `scripts/exercise_public.py` ([OUTCOMES.md](OUTCOMES.md)) |
+| An ES256 issuer, as a private key (SPIRE, Supabase) | `RegisterPrivateEs256Key`, then the precompile's instruction and `VerifyEs256` in one transaction (`register_private_es256_key_ix`, `verify_es256_ixs` in [`oidc.py`](../src/knos/settle/v2/oidc.py)); no `knos` command | any wallet, once the build that carries it is live | not measured here | a program that calls `Token::read_any` | Simulator: `tests/test_es256_client.py`. Not deployed until proposal 7 executes ([ES256.md](ES256.md)) |
+| An ES256 issuer admitted by an attestation | not possible yet: no pinned workflow asks for that audience, and there is no client | nobody | | | not tested |
+| ES384, ES512, PS256, EdDSA | not verified | | | | refused in `tests/test_issuers.py` |
+
 ## GitLab
 
 knos-oidc verifies a gitlab.com ID token as it verifies GitHub's. `knos-pay` 2.1, the build of proposal 4 of the
 upgrade multisig, reads one too ([`programs-v2/knos_pay/src/gl.rs`](../programs-v2/knos_pay/src/gl.rs)), for two things: funding a work order
 from a Balance, and paying one. It is tested in LiteSVM against tokens shaped as GitLab documents them
 ([`tests/test_gitlab_pay.py`](../tests/test_gitlab_pay.py)); it has not run against a token gitlab.com signed, and
-[`examples/gitlab/.gitlab-ci.yml`](../examples/gitlab/.gitlab-ci.yml) has not run in a project. The claims are
+[`examples/gitlab/.gitlab-ci.yml`](../examples/gitlab/.gitlab-ci.yml) has not run in a project. Running it there is
+[one command](#the-round-as-one-command). The claims are
 GitLab's own list, read on 4 Oct 2026:
 [OpenID Connect (OIDC) Authentication Using ID Tokens](https://docs.gitlab.com/ci/secrets/id_token_authentication/).
 
@@ -231,14 +248,47 @@ merge request from GitLab's API before it lets the token out.
   second token with the same claims; an order pays once whatever the number of tokens.
 - *That a namespace is one person's own.* So nothing that rests on it is offered: no neutral run started by the
   seller, no arbiter's ruling, and a Balance's owner is not a spender unless listed.
-- *An event for an issue or a comment.* A person funds by running the pinned pipeline by hand.
+- *An event for an issue or a comment.* A person funds from a Balance by running the pinned pipeline by hand. An
+  order can also be funded from a wallet with no pipeline at all: the wallet names the project (900000000000000000 +
+  its id) and pins the CI file's URI and commit, and the pinned pipeline pays it
+  (`tests/test_gitlab_round.py`).
+
+### The round as one command
+
+    python scripts/gitlab_round.py check
+    GITLAB_TOKEN=... KNOS_GITLAB_PROJECT=group/name python scripts/gitlab_round.py run --rpc <devnet rpc> --keys <keys>
+    python scripts/gitlab_round.py run --simulate
+
+`run` pushes the example's file to the branch `knos` and protects it, adds the trigger job to the default
+branch when the project has no CI file, opens and merges one merge request whose description names an address, funds
+an order for it from the wallet `<keys>/funder.json`, starts a pipeline on the default branch with the pay audience
+(its trigger job starts the pinned pipeline, which GitLab signs as `pipeline_source` `pipeline`), reads the token the
+pinned job left, holds it to the escrow's rules for nothing, has `knos_oidc` verify it and sends `PayOrder`. Each step
+is kept, so a second run takes up where the first stopped. It exits 3, having sent nothing, and says exactly what is
+missing when there is no token, no project, no usable GitLab key at the public `knos_oidc`, or a pipeline that has
+not finished. `--simulate` runs the same steps in the simulator against a stand-in for gitlab.com written in the
+script, with tokens the test key signs: evidence of nothing on gitlab.com.
+
+**Not seen on gitlab.com yet**, and the first real run settles each: that a `trigger:` job naming the pipeline's own
+project gives the downstream pipeline the source `pipeline` (GitLab documents that source "for multi-project
+pipelines": [`CI_PIPELINE_SOURCE`](https://docs.gitlab.com/ci/jobs/job_rules/)); that a token for a pay audience of
+about 240 characters fits the verifier's 8,192 bytes for the user who runs it (`groups_direct` lists up to 200
+groups); that GitLab's keys are usable at the public id on the day. The command checks the second and third before a
+fee is spent and names the claim that is off for the first.
 
 **What a GitLab project cannot do yet.** Bind a wallet (the pay token must carry the payee's address; with none
 the order is held and goes back to its funder when the hold ends); reserve, cancel or revert an order, or fund a
-2.0 job (a GitLab token with any other audience is refused); use the devnet faucet (send test USDC to the Balance);
-pin a file on a self-managed GitLab (gitlab.com only); use a runner of its own. There is no relayer, no command and
-no page for GitLab: the token is carried to Solana with the client in `src/knos/settle/v2`. The example's paying
-job does not yet check the order's terms on Solana; it says so where it would.
+2.0 job (a GitLab token with any other audience is refused); use the devnet faucet (send test USDC to the Balance,
+or fund from a wallet); pin a file on a self-managed GitLab (gitlab.com only); use a runner of its own. The always-on
+relay refuses a GitLab token for the escrow, there is no `knos` command and no page: the token is carried by
+`scripts/gitlab_round.py`, or with the client in `src/knos/settle/v2`. The example's paying job does not check the
+order's terms on Solana; it says so where it would. The carrier does check the order's project, pin and terms before
+it sends, which is the carrier's word and not the judge's.
+
+**No longer on that list** (no program change was needed): a command that carries the token; funding without a
+person starting a pipeline in a browser (a wallet-funded order); and the example's check that the default branch is
+protected, which asked an endpoint that needs a token the job does not have and now reads the branch itself
+([`GET /projects/:id/repository/branches/:branch`](https://docs.gitlab.com/api/branches/), open for a public project).
 
 ## Limits
 

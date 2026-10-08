@@ -69,17 +69,18 @@ fee and the rent of a new receiving account (about 0.002 SOL each, so at most ab
    only. Delete `faucet.json`.
 5. In `drexthealpha/knos-playground`, open one issue titled "Faucet: test USDC for your first task", label it
    `faucet`, and pin it. Its text is step 1 above and the table of rules.
-6. Install `.github/workflows/worker.yml` in `drexthealpha/knos-playground`: its `faucet` job runs on `issue_comment`
-   there and nowhere else (the variable `KNOS_FAUCET_REPO` names another repository; `KNOS_FAUCET_REF` the commit of
-   Knos whose code it runs, `main` when unset), with the secrets `KNOS_FAUCET_KEY` and `KNOS_RELAY_KEY`. It runs
-   `python -m knos.faucet --event "$GITHUB_EVENT_PATH"`, and without either secret it says so and ends green. The
-   repository's own Knos workflow says nothing to a faucet request on that issue, so there is one reply.
-   Not decided yet: that file's `relay` job would run in the playground too once `KNOS_RELAY_KEY` is a secret there (a
-   second chain of relay runs with the same key: it pays nobody twice, and it doubles the reads). The release run
-   either accepts that or keeps only the `faucet` job in the playground's copy.
+6. Rebuild the playground: `python scripts/small_repos.py build knos-playground DIR` writes
+   `.github/workflows/knos-faucet.yml` there, so a rebuild keeps it. That file is the worker's `faucet` job alone
+   ([`worker.yml`](../.github/workflows/worker.yml), byte for byte; a test compares): it runs on `issue_comment` in
+   the playground and nowhere else (the variable `KNOS_FAUCET_REPO` names another repository; `KNOS_FAUCET_REF` the
+   commit of Knos whose code it runs, `main` when unset), with the secrets `KNOS_FAUCET_KEY` and `KNOS_RELAY_KEY`. It
+   runs `python -m knos.faucet --event "$GITHUB_EVENT_PATH"`, and without either secret it says so and ends green. The
+   repository's own Knos workflow says nothing to a faucet request on that issue, so there is one reply. No relay job
+   runs in the playground: the faucet workflow holds none.
 7. Check with a comment from an account that is not Knos's own, then `knos faucet status`.
 
-Until step 6 is done the faucet answers nobody. It has not been run on devnet yet.
+Until step 6 is done the faucet answers nobody. The 0.3.19 release set it up in the playground with a key of its own; it has
+given nothing yet, because that key's account holds no test USDC (step 3 is still to do).
 
 ## How a faucet-funded task is counted
 

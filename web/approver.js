@@ -1,0 +1,468 @@
+// The approver's screen: one invoice, one row per line, read left to right:
+//   Supplier -> Purchase order -> Agreed deliverable -> Acceptance evidence -> Authorised amount -> Exception -> Payment status
+// and under it ONE queue of every line that is not agreed, each with its reason in one sentence and the two things an
+// approver can do: approve the agreed lines, or send the exception to the supplier as a message that is already written.
+//
+//   renderApprover(el[, ctx])     the screen in `el`. ctx, all optional: { now } a Date for the approval's day, { rails } a
+//                                 module with pain001(statement, payer, status) and, when it draws its own form,
+//                                 renderRails(el, { statement, status }) (web/rails.js is asked for when left out),
+//                                 { recall } a module with renderRecall(el, rows) (web/recall.js likewise), { time } the
+//                                 measured steps instead of approver_time.json. Returns { take, sample, state }.
+//   readOrders(text)              the purchase orders a CSV names: { "owner/repo#n": { number, limit } } (limit in hundredths)
+//   rowsOf(st, status, orders, receipts)   the rows of a statement, each with its exception (or none) and why
+//   uncheckedRows(invoice, orders)         the rows of an invoice no statement covers: every line an exception
+//   partsOf(doc), readReceipts(doc)        a receipt's five parts, from the JSON shape below
+//   messageOf(row, st)            { subject, body }: the message to the supplier about one exception
+//   EXCEPTIONS, WORDS, COLUMNS, PARTS
+//
+// WHAT IT READS. Files dropped, chosen or pasted, in any order, and nothing else: a statement (`knos statement make`,
+// kind knos-statement), its status file (kind knos-statement-status), the invoice (CSV, read by web/shadow.js `parse`,
+// the front door's reader; the columns po_number and po_amount, when it has them, name each line's purchase order and
+// its limit), and receipts' five parts. The sample is the front door's made-up invoice and its recorded answers
+// (web/front_door_sample.js), made into a statement here by web/statement_make.js. This module asks nobody anything:
+// no GitHub, no Solana, no host but the site it came from (approver_time.json; rails.js and recall.js when they exist).
+//
+// THE FIVE EXCEPTIONS. disputed, duplicate and insufficient evidence are the statement's own line states
+// (src/knos/ids.py LINE_STATES). replayed is the statement's duplicate whose earlier billing is on ANOTHER statement
+// (`duplicate_of` starts "statement "). over the purchase order is worked out HERE, not in the statement: agreed lines
+// are added up per purchase order in line order, and a line that takes the sum past the limit the invoice file states is
+// held. It is advisory: the statement still calls that line agreed, `knos statement approve` would approve it, and no
+// program enforces a purchase order. The approval this page records leaves it out (statement_make.js `approve`, `only`).
+//
+// A RECEIPT'S FIVE PARTS, as this page reads them (src/knos/receipt.py `parts`; `knos receipt explain` prints them):
+//   { "invoice_line": "inv_...", "deliverable": "dlv_...", "reference": "owner/repo#12",       any one names the line
+//     "parts": { "identity": P, "execution": P, "acceptance": P, "consequence": P, "assurance": P } }
+// P is one sentence, or an object whose `said` (or `line`, `summary`, `text`) is the sentence and whose other fields
+// are shown as facts under it. `parts` may also be a list of { "name": "identity", ... }; names may be capitalised.
+// What `knos receipt explain --json` writes is read as it is: { "kind": "knos-receipt-parts", "v": 1, "parts": [{ "id",
+// "title", "asks", "line", "facts": { ... }, "more": [...] }] }; its line is named by the facts of its parts.
+// A file holds one such object, a list of them, or { "receipts": [ ... ] }. A receipt missing a part is not shown.
+import { parse, pullOf, cents, money } from "./shadow.js";
+import { csvRows, statementLines, statementDigest, statementCsv, statementExport, statementUnits as units, statementAmount as amountOf, canonicalText,
+  STATEMENT_KIND, STATUS_KIND, PAY_WORDS, HANDED } from "./finance_data.js";
+import { fromShadow, approve as approveLines } from "./statement_make.js";
+import { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } from "./front_door_sample.js";
+
+export const EXCEPTIONS = ["disputed", "duplicate", "insufficient_evidence", "over_po", "replayed"];
+export const WORDS = { disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence", over_po: "over the purchase order", replayed: "replayed" };
+export const COLUMNS = [["supplier", "Supplier"], ["po", "Purchase order"], ["deliverable", "Agreed deliverable"], ["evidence", "Acceptance evidence"],
+  ["amount", "Authorised amount"], ["exception", "Exception"], ["payment", "Payment status"]];
+export const PARTS = ["identity", "execution", "acceptance", "consequence", "assurance"];
+export const PRIVATE_PATH = "https://github.com/drexthealpha/Knos/blob/main/docs/PRIVATE.md";
+// The sample's purchase orders: made up, like its invoice. Both limits cover what is agreed, so the sample can be paid.
+export const SAMPLE_ORDERS = "pull_request,po_number,po_amount\nexample-co/storefront#101,PO-1001,1500.00\nexample-co/storefront#102,PO-1001,1500.00\nexample-co/storefront#103,PO-1001,1500.00\n"
+  + "example-co/storefront#104,PO-1001,1500.00\nexample-co/storefront#105,PO-1001,1500.00\nexample-co/billing-internal#7,PO-1002,500.00\n";
+const REMEDY = { disputed: "Send the passing run for this change, or appeal.", duplicate: "Withdraw the line, or name the separate deliverable it is for.",
+  replayed: "Withdraw the line: an earlier invoice was agreed for this deliverable.", insufficient_evidence: "Send evidence that this line was accepted.",
+  over_po: "Ask for the purchase order to be raised, or bill this line later." };
+
+const PO_NAMES = ["po", "po_number", "po_no", "po_reference", "purchase_order"];
+const LIMIT_NAMES = ["po_amount", "po_limit", "po_value", "authorised", "authorized", "authorised_amount", "authorized_amount"];
+const refOf = (text) => { const n = pullOf(String(text || "")); return n ? `${n.repo}#${n.number}`.toLowerCase() : ""; };
+
+/** The purchase orders a CSV names, by pull request: { "owner/repo#n": { number, limit } }. `limit` is the order's amount
+ *  in hundredths (a BigInt), or null when the file gives none. A file with no purchase order column names none. */
+export function readOrders(text) {
+  const rows = csvRows(String(text || "").replace(/^﻿+/, "")).filter((r) => r.length && !String(r[0]).trim().startsWith("#"));
+  if (!rows.length) return {};
+  const head = rows[0].map((c) => c.trim().toLowerCase().replace(/[ \t-]+/g, "_")), po = head.findIndex((c) => PO_NAMES.includes(c)), lim = head.findIndex((c) => LIMIT_NAMES.includes(c));
+  if (po < 0) return {};
+  const out = {};
+  for (const r of rows.slice(1)) {
+    const ref = r.map(refOf).find(Boolean), number = String(r[po] || "").trim();
+    if (!ref || !number) continue;
+    let limit = null;
+    try { limit = lim >= 0 ? cents(r[lim]) : null; } catch { limit = null; }
+    out[ref] = { number, limit };
+  }
+  return out;
+}
+
+/** A receipt's five parts, in order: [{ key, said, facts: [[name, value]] }]; null when one of the five is missing. */
+export function partsOf(doc) {
+  const given = doc && typeof doc === "object" ? doc.parts || doc : null;
+  if (!given || typeof given !== "object") return null;
+  const find = (key) => (Array.isArray(given) ? given.find((p) => p && String(p.id || p.name || p.part || p.key || "").toLowerCase() === key) : given[key] ?? given[key[0].toUpperCase() + key.slice(1)]);
+  const out = PARTS.map((key) => {
+    const p = find(key);
+    if (p === undefined || p === null) return null;
+    if (typeof p !== "object") return { key, said: String(p), facts: [] };
+    const k = ["said", "line", "summary", "text"].find((n) => typeof p[n] === "string");
+    // `knos receipt explain --json` (kind knos-receipt-parts): the facts are one object under `facts`, beside the question and the title
+    const own = p.facts && typeof p.facts === "object" && !Array.isArray(p.facts) ? Object.entries(p.facts).filter(([, v]) => v !== null && v !== "") : null;
+    return { key, said: k ? p[k] : "", facts: (own || Object.entries(p).filter(([n]) => n !== k && !["name", "part", "key", "id", "title", "asks", "more"].includes(n)))
+      .map(([n, v]) => [n.replace(/_/g, " "), v !== null && typeof v === "object" ? JSON.stringify(v) : String(v)]) };
+  });
+  return out.every(Boolean) ? out : null;
+}
+/** Is this what `knos recall exception --json` (one row) or `knos recall queue --json` (a list of them) prints? Schema knos.recall/1. */
+export const isRecall = (d) => { const row = (r) => Boolean(r) && typeof r === "object" && /^knos[.-]recall/.test(String(r.kind || ""));
+  return Array.isArray(d) ? d.length > 0 && d.every(row) : Boolean(d) && typeof d === "object" && (row(d) || Array.isArray(d.recall)); };
+/** Every receipt a file holds that has its five parts, with what names its line. */
+export function readReceipts(doc) {
+  const list = Array.isArray(doc) ? doc : doc && Array.isArray(doc.receipts) ? doc.receipts : [doc];
+  // the list shape names its line inside the parts: the consequence's facts carry the invoice line and the deliverable
+  const fact = (d, name) => { const hit = Array.isArray(d.parts) ? d.parts.map((p) => (p && p.facts && typeof p.facts === "object" ? p.facts[name] : null)).find((v) => v !== null && v !== undefined && v !== "") : null; return hit === undefined || hit === null ? "" : hit; };
+  return list.filter((d) => d && typeof d === "object").map((d) => ({ invoice_line: String(d.invoice_line || fact(d, "invoice_line")), deliverable: String(d.deliverable || fact(d, "deliverable")),
+    reference: refOf(d.reference || d.pull_request), parts: partsOf(d) })).filter((r) => r.parts);
+}
+
+function rowsFrom(lines, scale, orders, receipts) {
+  const up = 10n ** BigInt(Math.max(0, scale - 2)), used = {};
+  return lines.map((ln) => {
+    const ref = String(ln.reference || "").toLowerCase(), listed = orders[ref], amount = units(ln.amount, scale);
+    const po = listed ? { number: listed.number, limit: listed.limit === null ? null : listed.limit * up, source: "the invoice file", used: 0n }
+      : ln.po_reference ? { number: ln.po_reference, limit: null, source: "a goods-received note", used: 0n } : null;
+    let kind = ln.state === "agreed" ? null : ln.state === "duplicate" && /^statement /.test(ln.duplicate_of || "") ? "replayed" : ln.state;
+    let reason = ln.why ? `${ln.why[0].toUpperCase()}${ln.why.slice(1)}.` : "";
+    if (!kind && po && po.limit !== null) {
+      const next = (used[po.number] || 0n) + amount;
+      if (next > po.limit) { kind = "over_po"; reason = `Purchase order ${po.number} allows ${amountOf(po.limit, scale)}; agreed lines reach ${amountOf(next, scale)}.`; } else used[po.number] = next;
+    }
+    if (po) po.used = used[po.number] || 0n;
+    const receipt = receipts.find((r) => (r.invoice_line && r.invoice_line === ln.invoice_line) || (!r.invoice_line && r.deliverable && r.deliverable === ln.deliverable && ln.state !== "duplicate")
+      || (!r.invoice_line && !r.deliverable && r.reference && r.reference === ref && ln.state !== "duplicate"));
+    return { line: ln.line, id: ln.invoice_line, supplier: ln.supplier || "", reference: ln.reference || "", po, amount: ln.amount || "", authorised: kind ? amountOf(0n, scale) : ln.amount || "",
+      kind, reason, approved: ln.approved_by || "", payment: kind === "over_po" ? "held here" : `${ln.approved_by ? "approved, " : ""}${PAY_WORDS[ln.payment] || ln.payment}`,
+      parts: receipt ? receipt.parts : null, ln };
+  });
+}
+/** The rows of a statement as they stand with its status file: each line's purchase order, what is authorised, its
+ *  exception (one of EXCEPTIONS, or null) and the reason in one sentence. */
+export const rowsOf = (st, status = null, orders = {}, receipts = []) => rowsFrom(statementLines(st, status), st.scale, orders, receipts);
+/** The rows of an invoice with no statement: nothing was checked, so nothing is agreed and every line is an exception. */
+export const uncheckedRows = (invoice, orders = {}) => rowsFrom(invoice.lines.map((ln) => ({ line: ln.line, reference: ln.pr, supplier: ln.supplier, amount: ln.amount === null ? "" : money(ln.amount),
+  state: "insufficient_evidence", why: "no statement covers this line", payment: "held", evaluations: [], evidence: "", evidence_sha256: "", duplicate_of: "", invoice_line: "", deliverable: "",
+  assurance: "not evaluated", po_reference: "", approved_by: "" })), 2, orders, []);
+
+/** The message to the supplier about one exception: what is held, why, and what settles it. */
+export function messageOf(row, st) {
+  const unit = st && st.currency ? ` ${st.currency}` : "", invoice = st ? st.invoice : "", name = row.supplier || (st && st.supplier) || "supplier";
+  return { subject: `Invoice ${invoice}, line ${row.line}: ${WORDS[row.kind]}`,
+    body: [`To ${name},`, "", `Line ${row.line} of invoice ${invoice}${row.reference ? ` (${row.reference})` : ""}${row.amount ? `, ${row.amount}${unit},` : ""} is not approved.`,
+      `It is held as: ${WORDS[row.kind]}.`, `Reason: ${row.reason}`, `What settles it: ${REMEDY[row.kind]}`, "",
+      "The agreed lines of this invoice are approved separately; this line does not hold them back.",
+      ...(st && st.sha256 ? [`Statement sha256: ${st.sha256}`] : []), ...(row.id ? [`Invoice line: ${row.id}`] : [])].join("\n") };
+}
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const link = (href, text) => (/^https:\/\/github\.com\/[\w.\-/#?=&%]+$/.test(href || "") ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text));
+const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const STYLE = `.approver{min-width:0}.approver [hidden]{display:none}.approver .ap-drop{display:block;position:relative;border:1.5px dashed var(--line);border-radius:var(--radius,12px);padding:20px 16px;background:var(--paper-2);cursor:pointer;font-weight:600;transition:border-color var(--dur-1) var(--ease)}
+.approver .ap-drop[data-over],.approver .ap-drop:hover{border-color:var(--accent)}.approver .ap-drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.approver .ap-drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.approver textarea{width:100%;min-height:56px;margin:12px 0 0;resize:vertical;box-sizing:border-box}.approver .actions{align-items:center;margin:12px 0}
+.ap-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.ap-sum>div{border:1px solid var(--line);border-radius:var(--radius,12px);padding:12px 14px;background:var(--paper-2);min-width:0;overflow-wrap:anywhere}
+.ap-sum .k-kicker{margin:0}.ap-sum .k-num{display:block;font-size:clamp(22px,5vw,34px);font-weight:700;line-height:1.15}
+.ap-table table{width:100%;border-collapse:collapse;table-layout:fixed}.ap-table th{text-align:left;font-size:12px;font-weight:600;color:var(--ink-2);padding:6px 9px;vertical-align:bottom}
+.ap-table td{padding:2px;border-top:1px solid var(--line);vertical-align:top}.ap-table tr.ap-row>td:first-child{border-left:3px solid var(--ok)}.ap-table tr.ap-row[data-kind]>td:first-child{border-left-color:var(--bad)}
+.approver button.ap-cell{display:block;width:100%;min-height:44px;box-sizing:border-box;padding:8px;border:1px solid transparent;border-radius:8px;background:none;color:var(--ink);font:inherit;font-weight:400;text-align:left;box-shadow:none;filter:none;overflow-wrap:anywhere;cursor:pointer;transition:background var(--dur-1) var(--ease),border-color var(--dur-1) var(--ease)}
+.approver button.ap-cell:hover{background:var(--paper-2)}.approver button.ap-cell[aria-expanded=true]{border-color:var(--accent);background:var(--paper-2)}.approver button.ap-cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ap-cell small{display:block;color:var(--ink-2)}.ap-row[data-kind] [data-col=exception] b{color:var(--bad)}.ap-row[data-approved] [data-col=payment] b{color:var(--ok)}
+.ap-ev>td{padding:0;border-top:0}.ap-ev>td>div{margin:4px 2px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius,12px);background:var(--paper-2);box-shadow:var(--depth-1);animation:ap-in var(--dur-2) var(--ease)}
+.ap-ev h4{margin:0 0 6px}.ap-ev dl{margin:6px 0}.ap-ev dd{overflow-wrap:anywhere}.ap-parts{list-style:none;padding:0;margin:0;display:grid;gap:8px}.ap-parts li{border-left:3px solid var(--line);padding:0 0 0 10px}.ap-parts li[data-part=assurance]{border-color:var(--accent)}
+@keyframes ap-in{from{opacity:0;translate:0 -4px}}
+.ap-queue ol{list-style:none;padding:0;margin:0}.ap-queue li{border-top:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}.ap-queue li p{margin:0 0 8px}.ap-queue li b{color:var(--bad)}
+.ap-msg textarea{min-height:190px;font-size:14px}.ap-sign{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px;align-items:end;margin:12px 0}.ap-sign label{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
+.ap-sign input,.ap-pay input{width:100%;box-sizing:border-box}.ap-pay{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:12px;align-items:end;margin:12px 0}.ap-pay label{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
+@media (max-width:860px){.ap-sum{grid-template-columns:minmax(0,1fr)}.ap-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.ap-table table,.ap-table tbody,.ap-table tr,.ap-table td{display:block}
+.ap-table tr.ap-row{border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:var(--radius,12px);margin:0 0 12px;padding:4px}.ap-table tr.ap-row[data-kind]{border-left-color:var(--bad)}.ap-table td,.ap-table tr.ap-row>td:first-child{border:0}
+.approver button.ap-cell{display:grid;grid-template-columns:minmax(92px,36%) minmax(0,1fr);gap:8px}.approver button.ap-cell::before{content:attr(data-label);font-size:12px;color:var(--ink-2)}}
+@media (prefers-reduced-motion:reduce){.ap-ev>td>div{animation:none}.approver .ap-drop,.approver button.ap-cell{transition:none}}`;
+
+/** What one cell opens: [[name, value, href]] and, for the evidence of a line with a receipt, its five parts. */
+function evidenceOf(row, key, st) {
+  const ln = row.ln, scale = st ? st.scale : 2, unit = st && st.currency ? ` ${st.currency}` : "", none = "none on file";
+  if (key === "supplier") return { title: "Who billed this line", facts: [["supplier", row.supplier || "not named"], ["invoice", st ? st.invoice : "no statement"], ["buyer", (st && st.buyer) || "not named"], ["statement date", st ? st.date : ""]] };
+  if (key === "po") return { title: "What was authorised", facts: row.po ? [["purchase order", row.po.number], ["its limit", row.po.limit === null ? "not stated" : `${amountOf(row.po.limit, scale)}${unit}`],
+    ["agreed against it", `${amountOf(row.po.used, scale)}${unit}`], ["read from", row.po.source], ["who checks the limit", "this page, as advice: no program enforces a purchase order"]]
+    : [["purchase order", none], ["how to name one", "add po_number and po_amount columns to the invoice file"]] };
+  if (key === "deliverable") return { title: "What was to be delivered", facts: [["named on the invoice", row.reference || "nothing", ln.evidence && /\/pull\/\d+$/.test(ln.evidence) ? ln.evidence : ""], ["deliverable id", ln.deliverable || none],
+    ["invoice line id", ln.invoice_line || none], ["billed before", ln.duplicate_of || "no"]] };
+  if (key === "evidence") return { title: "Why this line is, or is not, accepted", parts: row.parts,
+    facts: [["evaluations", ln.evaluations.length ? ln.evaluations.join(" ") : "none"], ["assurance", ln.assurance || "not evaluated"], ["evidence", ln.evidence || "none", ln.evidence], ["evidence sha256", ln.evidence_sha256 || "none"],
+      ...(st ? [["made from", st.source === "shadow" ? "the invoice against GitHub's record, which GitHub does not sign" : st.source === "month" ? "a closed month of the meter" : st.source]] : []),
+      ...(row.parts ? [] : [["receipt", "none given for this line: drop its five parts to read them here"]])] };
+  if (key === "amount") return { title: "What may be paid", facts: [["billed", row.amount ? `${row.amount}${unit}` : "no amount"], ["authorised", `${row.authorised || "nothing"}${row.authorised ? unit : ""}`],
+    ["why", row.kind ? `held: ${WORDS[row.kind]}` : "the line is agreed"], ...(row.po && row.po.limit !== null ? [["purchase order limit", `${amountOf(row.po.limit, scale)}${unit}`]] : [])] };
+  if (key === "exception") return { title: row.kind ? `Exception: ${WORDS[row.kind]}` : "No exception", facts: row.kind ? [["reason", row.reason], ["what settles it", REMEDY[row.kind]],
+    ["decided by", row.kind === "over_po" ? "this page, from the limit the invoice file states" : st ? "the statement" : "nothing yet: no statement was given"]] : [["state", "agreed"]] };
+  return { title: "What happened to the money", facts: [["payment", row.payment], ["approved by", row.approved || "nobody yet"], ["settlement", ln.settlement || "none recorded"],
+    ["how it is paid", "outside this page: a bank file, or the escrow on devnet (test USDC)"]] };
+}
+
+/** Draw the approver's screen in `el`. */
+export function renderApprover(el, ctx = {}) {
+  const doc = el.ownerDocument, win = doc.defaultView;
+  if (!doc.getElementById("ap-style")) { const s = doc.createElement("style"); s.id = "ap-style"; s.textContent = STYLE; doc.head.appendChild(s); }
+  el.classList.add("approver");
+  el.innerHTML = `<h2>Approve one invoice</h2>
+    <p>Drop the invoice and its statement.</p>
+    <form data-ap="in" novalidate>
+      <label class="ap-drop" data-ap="drop">Drop files here, or choose them<input type="file" id="ap-file" multiple accept=".csv,.json,.txt,text/csv,application/json,text/plain"></label>
+      <textarea id="ap-paste" rows="2" spellcheck="false" autocomplete="off" aria-label="Paste an invoice or a statement" placeholder="Or paste an invoice or a statement"></textarea>
+      <p class="actions"><button type="submit" class="k-btn" data-ap="read">Read</button> <button type="button" class="k-btn quiet" data-ap="sample">Try the sample</button>
+        <button type="button" class="k-btn quiet" data-ap="last" hidden>Open the last check</button> <button type="button" class="k-btn quiet" data-ap="clear" hidden>Start over</button></p>
+    </form>
+    <p data-ap="said" role="status" aria-live="polite"></p>
+    <div data-ap="out" hidden>
+      <p data-ap="mark" class="fine" hidden>Sample: a made-up invoice from a made-up supplier.</p>
+      <div class="ap-sum" data-ap="sum"></div>
+      <div class="k-table ap-table" data-ap="table"></div>
+      <section class="ap-queue" data-ap="queue" aria-label="Exceptions"></section>
+      <section data-ap="files" aria-label="Files" hidden></section>
+      <div data-ap="recall" hidden></div>
+    </div>
+    <p class="fine" data-ap="account">No account system exists. This screen works signed out.</p>
+    <p class="fine">Nothing leaves this browser.</p>
+    <p class="fine" data-ap="time" hidden></p>
+    <p class="fine"><a href="${PRIVATE_PATH}" target="_blank" rel="noopener">Private repositories: read the private path</a></p>`;
+  const $ = (name) => el.querySelector(`[data-ap="${name}"]`), said = (text) => { $("said").textContent = text; };
+  const state = { st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null };
+  let motion = null;
+  import("./motion.js").then((m) => { motion = m; }).catch(() => { /* the page is whole without it */ });
+  const toast = (text, kind) => { if (motion && motion.toast) motion.toast(text, kind); };
+  const today = () => (ctx.now || new Date()).toISOString().slice(0, 10);
+  const save = (text, name, type = "text/csv;charset=utf-8") => {
+    const url = URL.createObjectURL(new Blob([text], { type })), a = doc.createElement("a");
+    a.href = url; a.download = name; doc.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast(`Downloaded ${name}`);
+  };
+  const fileName = () => `statement-${String(state.st.invoice).replace(/[^\w.-]+/g, "-")}`;
+
+  // ---- drawing ---------------------------------------------------------------------------------------------------------
+  const cellHtml = (row, key) => {
+    const text = { supplier: esc(row.supplier || "not named"), po: esc(row.po ? row.po.number : "none on file"), deliverable: esc(row.reference || "none named"),
+      evidence: esc(row.parts ? "receipt, five parts" : row.ln.evaluations.length ? `${plural(row.ln.evaluations.length, "evaluation")}, ${row.ln.assurance}` : "none"),
+      amount: `<span class="k-num">${esc(row.authorised || "none")}</span>${row.kind && row.amount ? `<small>of <span class="k-num">${esc(row.amount)}</span> billed</small>` : ""}`,
+      exception: row.kind ? `<b>${esc(WORDS[row.kind])}</b>` : "none", payment: `<b>${esc(row.payment)}</b>` }[key];
+    return text;
+  };
+  const panelHtml = (row, key) => {
+    const ev = evidenceOf(row, key, state.st);
+    return `<div data-ev="${key}"><h4>Line ${row.line}: ${esc(ev.title)}</h4>
+      ${ev.parts ? `<ol class="ap-parts" data-ap="parts">${ev.parts.map((p) => `<li data-part="${p.key}"><strong>${esc(cap(p.key))}</strong> <span data-not-prose>${esc(p.said)}</span>
+        ${p.facts.length ? `<dl class="facts">${p.facts.map(([n, v]) => `<dt>${esc(n)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}</li>`).join("")}</ol>` : ""}
+      <dl class="facts">${ev.facts.map(([n, v, href]) => `<dt>${esc(n)}</dt><dd>${/^[0-9a-f]{64}$|^(dlv|inv|evl|stl)_/.test(v) ? `<span class="mono">${esc(v)}</span>` : link(href, v)}</dd>`).join("")}</dl>
+      <p class="actions"><button type="button" class="k-btn quiet" data-ap="shut">Close</button></p></div>`;
+  };
+  function shut(focus = false) {
+    if (!state.open) return;
+    const tr = $("table").querySelector("tr.ap-ev"), b = $("table").querySelector('.ap-cell[aria-expanded="true"]');
+    if (tr) tr.remove();
+    if (b) { b.setAttribute("aria-expanded", "false"); b.removeAttribute("aria-controls"); if (focus) b.focus(); }
+    state.open = null;
+  }
+  function openCell(line, key, focus = false) {
+    const same = state.open && state.open.line === line && state.open.key === key;
+    shut();
+    if (same) return;
+    const row = state.rows.find((r) => r.line === line), tr = $("table").querySelector(`tr.ap-row[data-line="${line}"]`), b = tr && tr.querySelector(`[data-col="${key}"]`);
+    if (!row || !b) return;
+    const ev = doc.createElement("tr");
+    ev.className = "ap-ev"; ev.id = `ap-ev-${line}`;
+    ev.innerHTML = `<td colspan="${COLUMNS.length}">${panelHtml(row, key)}</td>`;
+    tr.after(ev);
+    b.setAttribute("aria-expanded", "true"); b.setAttribute("aria-controls", ev.id);
+    state.open = { line, key };
+    if (focus) { b.focus(); b.scrollIntoView?.({ block: "center", behavior: motion && !motion.prefersReduced() ? "smooth" : "auto" }); }
+  }
+  function draw() {
+    const { st, rows } = state, scale = st ? st.scale : 2, unit = st && st.currency ? ` ${st.currency}` : "";
+    const sum = (list, field) => amountOf(list.reduce((a, r) => a + units(r[field], scale), 0n), scale);
+    const agreed = rows.filter((r) => !r.kind), held = rows.filter((r) => r.kind), waiting = agreed.filter((r) => !r.approved), kept = state.open;
+    state.open = null;
+    $("out").hidden = false; $("mark").hidden = !state.sample; $("clear").hidden = false;
+    $("sum").innerHTML = [["Billed", rows, "amount"], ["Authorised", agreed, "amount"], ["Exceptions", held, "amount"]].map(([name, list, field]) => `<div data-sum="${name.toLowerCase()}"><p class="k-kicker">${name}</p>
+      <span class="k-num">${esc(sum(list, field))}${esc(unit)}</span><span>${plural(list.length, "line")}</span></div>`).join("");
+    $("table").innerHTML = `<table><thead><tr>${COLUMNS.map(([, name]) => `<th scope="col">${name}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr class="ap-row" data-line="${row.line}"${row.kind ? ` data-kind="${row.kind}"` : ""}${row.approved ? " data-approved" : ""}>
+      ${COLUMNS.map(([key, name]) => `<td><button type="button" class="ap-cell" data-col="${key}" data-label="${name}" aria-expanded="false" aria-label="Line ${row.line}, ${name.toLowerCase()}: ${esc(key === "amount" ? row.authorised || "none" : cellHtml(row, key).replace(/<[^>]+>/g, ""))}"><span>${cellHtml(row, key)}</span></button></td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const can = Boolean(st) && state.whole && waiting.length > 0;
+    $("queue").innerHTML = `<h3>Exceptions <span class="k-num" data-ap="count">${held.length}</span></h3>
+      ${st ? `<div class="ap-sign"><label>Your name<input type="text" id="ap-by" autocomplete="name" maxlength="120"></label><label>Your role<input type="text" id="ap-role" autocomplete="organization-title" maxlength="120"></label>
+        <button type="button" class="k-btn" data-ap="approve"${can ? "" : " disabled"}>Approve agreed lines</button></div>` : ""}
+      <p data-ap="approved" role="status" aria-live="polite">${!st ? "Add the statement file to approve." : !state.whole ? "Changed after it was made. Do not approve it." : !agreed.length ? "No line is agreed."
+    : !waiting.length ? `Approved ${plural(agreed.length, "line")}. ${plural(held.length, "exception")} stay open.` : ""}</p>
+      ${held.length ? `<ol>${held.map((row) => `<li data-line="${row.line}" data-kind="${row.kind}"><p><span class="k-num">Line ${row.line}</span> · <b>${esc(cap(WORDS[row.kind]))}.</b> <span data-ap="reason" data-not-prose>${esc(row.reason)}</span>${row.amount ? ` <span class="k-num">${esc(row.amount)}</span>` : ""}</p>
+        <p class="actions"><button type="button" class="k-btn quiet" data-ap="open">Open line ${row.line}</button> <button type="button" class="k-btn quiet" data-ap="message" aria-expanded="false">Message the supplier</button></p>
+        <div class="ap-msg" data-ap="msg" hidden></div></li>`).join("")}</ol>` : `<p>No exception on this invoice.</p>`}`;
+    const files = $("files"); files.hidden = !st;
+    if (st) {
+      const approvedNow = agreed.some((r) => r.approved);
+      files.innerHTML = `<h3>Files</h3>
+        <p class="actions"><button type="button" class="k-btn quiet" data-file="csv">Download statement</button> <button type="button" class="k-btn quiet" data-file="generic">Download audit file</button></p>
+        <div data-ap="pay" hidden><div class="ap-pay"><label>Paying account name<input type="text" id="ap-payer" autocomplete="organization" maxlength="70"></label><label>IBAN<input type="text" id="ap-iban" autocomplete="off" maxlength="34" spellcheck="false"></label>
+          <label>BIC<input type="text" id="ap-bic" autocomplete="off" maxlength="11" spellcheck="false"></label><button type="button" class="k-btn" data-file="pain">Download payment file</button></div>
+          <p class="fine">No bank has taken this file.</p></div>
+        <p data-ap="filed" role="status" aria-live="polite"></p>
+        <details class="k-more"><summary>More files</summary><p class="actions"><button type="button" class="k-btn quiet" data-file="status"${approvedNow || state.status ? "" : " disabled"}>Approval record</button>
+          <button type="button" class="k-btn quiet" data-file="json">Statement file</button> <button type="button" class="k-btn quiet" data-file="quickbooks">QuickBooks file</button>
+          <button type="button" class="k-btn quiet" data-file="netsuite">NetSuite file</button></p><p class="fine">File exports, not integrations.</p></details>`;
+      if (approvedNow) offerPayment();
+    }
+    if (kept && rows.some((r) => r.line === kept.line)) openCell(kept.line, kept.key);
+  }
+  // The payment instruction file is web/rails.js's: pain001(statement, payer, status). Without that module there is no button.
+  async function offerPayment() {
+    if (state.rails === undefined) state.rails = ctx.rails !== undefined ? ctx.rails : await import("./rails.js").catch(() => null);
+    const pay = $("pay");
+    if (!pay || !state.rails || typeof state.rails.pain001 !== "function") return;
+    // web/rails.js draws its own form (the payer's account and one account a supplier, which a payment file needs) from
+    // the statement and the approval this page holds; a module with pain001 alone gets this page's three fields.
+    if (typeof state.rails.renderRails === "function") { pay.innerHTML = ""; state.rails.renderRails(pay, { statement: state.st, status: state.status, today: today(), files: false }); }
+    pay.hidden = false;
+  }
+  function refresh() {
+    state.rows = state.st ? rowsOf(state.st, state.status, state.orders, state.receipts) : state.invoice ? uncheckedRows(state.invoice, state.orders) : [];
+    if (!state.rows.length) { $("out").hidden = true; return; }
+    draw();
+    const held = state.rows.filter((r) => r.kind).length;
+    said(!state.st ? `Read ${plural(state.rows.length, "line")}. No statement yet: nothing is checked.` : !state.whole ? "That statement was changed after it was made."
+      : `Read ${plural(state.rows.length, "line")}. ${plural(held, "exception")}.`);
+  }
+
+  // ---- reading -----------------------------------------------------------------------------------------------------------
+  /** Take what was dropped, chosen or pasted: [{ name, text }]. What each is, is read from the file itself. */
+  async function take(files) {
+    said("Reading."); $("out").setAttribute("aria-busy", "true");
+    const unread = [];
+    for (const f of files) {
+      const text = String(f.text || ""), start = text.replace(/^﻿+/, "").trim().slice(0, 1);
+      let doc_ = null;
+      if (start === "{" || start === "[") { try { doc_ = JSON.parse(text.replace(/^﻿+/, "")); } catch { unread.push(f.name); continue; } }
+      if (doc_ && doc_.kind === STATEMENT_KIND && Array.isArray(doc_.lines)) {
+        state.st = doc_; state.sample = false; state.whole = (await statementDigest(doc_)) === doc_.sha256;
+        if (state.status && state.status.statement !== doc_.sha256) state.status = null;
+        const kept = doc_.evidence && doc_.evidence.embedded && doc_.evidence.embedded.invoice;
+        if (typeof kept === "string") state.orders = { ...readOrders(kept), ...state.orders };
+      } else if (doc_ && doc_.kind === STATUS_KIND && Array.isArray(doc_.events)) state.pending = doc_;
+      else if (isRecall(doc_)) state.recall = Array.isArray(doc_) ? doc_ : Array.isArray(doc_.recall) ? doc_.recall : Array.isArray(doc_.rows) ? doc_.rows : [doc_];
+      else if (doc_ && readReceipts(doc_).length) state.receipts = [...readReceipts(doc_), ...state.receipts];
+      else {
+        try { state.invoice = parse(text); state.orders = { ...state.orders, ...readOrders(text) }; } catch (e) {
+          const orders = readOrders(text);
+          if (Object.keys(orders).length) state.orders = { ...state.orders, ...orders }; else unread.push(/^line \d+/.test(e.message) ? `${f.name} (${e.message})` : f.name);
+        }
+      }
+    }
+    if (state.pending) {            // a status file is its statement's, whichever was read first
+      if (state.st && state.pending.statement === state.st.sha256) state.status = state.pending; else if (state.st) unread.push("the status file (another statement's)");
+      if (state.st) state.pending = null;
+    }
+    $("out").removeAttribute("aria-busy");
+    refresh();
+    if (unread.length) said(`Not read: ${unread.join(", ")}.`);
+    else if (!state.rows.length) said("Nothing to show yet. Add an invoice or a statement.");
+    drawRecall();
+    return state;
+  }
+  async function drawRecall() {
+    const box = $("recall");
+    if (!state.recall || !box) return;
+    const mod = ctx.recall !== undefined ? ctx.recall : await import("./recall.js").catch(() => null);
+    if (mod && typeof mod.renderRecall === "function") { box.hidden = false; mod.renderRecall(box, state.recall); }
+  }
+  function reset() { Object.assign(state, { st: null, status: null, pending: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, recall: null }); }
+  async function sample() {
+    reset(); said("Reading the sample.");
+    state.st = await fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, SAMPLE_META);
+    state.invoice = parse(SAMPLE_INVOICE); state.orders = readOrders(SAMPLE_ORDERS); state.sample = true;
+    refresh();
+    return state;
+  }
+  function last() {
+    if (!HANDED.st) return;
+    reset(); state.st = HANDED.st; state.status = HANDED.status;
+    const kept = state.st.evidence && state.st.evidence.embedded && state.st.evidence.embedded.invoice;
+    if (typeof kept === "string") state.orders = readOrders(kept);
+    refresh();
+  }
+
+  // ---- deciding ----------------------------------------------------------------------------------------------------------
+  function approve() {
+    const by = doc.getElementById("ap-by"), role = doc.getElementById("ap-role"), note = $("approved");
+    const empty = [by, role].find((i) => !i.value.trim());
+    if (empty) { note.textContent = "Type your name and your role."; empty.focus(); return; }
+    const mine = state.rows.filter((r) => !r.kind && !r.approved);
+    try { state.status = approveLines(state.st, state.status, by.value, role.value, today(), mine.map((r) => r.id)); } catch (e) { note.textContent = e.message; return; }
+    const total = state.status.events[state.status.events.length - 1].amount;
+    refresh();
+    const held = state.rows.filter((r) => r.kind).length;
+    $("approved").textContent = `Approved ${plural(mine.length, "line")}, ${total}. ${plural(held, "exception")} stay open.`;
+    toast(`Approved ${plural(mine.length, "line")}`);
+    (el.querySelector('[data-file="csv"]') || $("queue")).focus?.();          // the focus is not left on a button that no longer works
+    if (state.sample || state.st === HANDED.st) Object.assign(HANDED, { st: state.st, status: state.status });      // the Statement page opens the same approval
+  }
+  function message(li) {
+    const row = state.rows.find((r) => String(r.line) === li.dataset.line), box = li.querySelector('[data-ap="msg"]'), b = li.querySelector('[data-ap="message"]');
+    if (!box.hidden) { box.hidden = true; b.setAttribute("aria-expanded", "false"); return; }
+    const m = messageOf(row, state.st), id = `ap-msg-${row.line}`;
+    box.innerHTML = `<textarea id="${id}" rows="9" readonly aria-label="Message about line ${row.line}">${esc(`Subject: ${m.subject}\n\n${m.body}`)}</textarea>
+      <p class="actions"><button type="button" class="k-btn quiet" data-ap="copy">Copy the message</button> <a class="k-btn quiet" data-ap="mail" href="mailto:?subject=${encodeURIComponent(m.subject)}&amp;body=${encodeURIComponent(m.body)}">Open in mail</a>
+        <span data-ap="copied" role="status" aria-live="polite"></span></p>`;
+    box.hidden = false; b.setAttribute("aria-expanded", "true"); b.setAttribute("aria-controls", id);
+    box.querySelector("textarea").focus();
+  }
+  async function file(kind) {
+    const { st, status } = state, name = fileName(), note = $("filed");
+    try {
+      if (kind === "csv") save(await statementCsv(st, status), `${name}.csv`);
+      else if (kind === "json") save(canonicalText(st), `${name}.json`, "application/json");
+      else if (kind === "status") save(canonicalText(status), `${name}.status.json`, "application/json");
+      else if (kind === "pain") {
+        const iban = doc.getElementById("ap-iban").value.replace(/\s+/g, "").toUpperCase();
+        const payer = { name: doc.getElementById("ap-payer").value.trim(), account: iban, iban, bic: doc.getElementById("ap-bic").value.trim().toUpperCase(), on: today() };
+        save(await state.rails.pain001(st, payer, status), `${name}.pain.001.xml`, "application/xml");
+      } else save(await statementExport(kind, st, status), `${name}-${kind}.csv`);
+      if (note) note.textContent = "";
+    } catch (e) { if (note) note.textContent = `Not written: ${e.message}`; toast("Not written", "bad"); }
+  }
+
+  // ---- what is pressed ---------------------------------------------------------------------------------------------------
+  const texts = (list) => Promise.all([...list].map(async (f) => ({ name: f.name, text: await f.text() })));
+  const form = $("in"), drop = $("drop"), box = doc.getElementById("ap-paste"), picker = doc.getElementById("ap-file");
+  form.addEventListener("submit", (ev) => { ev.preventDefault(); if (box.value.trim()) take([{ name: "what was pasted", text: box.value }]).then(() => { box.value = ""; }); else said("Nothing to read. Drop a file, or try the sample."); });
+  picker.addEventListener("change", async () => { if (picker.files.length) { await take(await texts(picker.files)); picker.value = ""; } });
+  for (const name of ["dragenter", "dragover"]) el.addEventListener(name, (ev) => { ev.preventDefault(); drop.dataset.over = ""; });
+  for (const name of ["dragleave", "drop"]) el.addEventListener(name, (ev) => { ev.preventDefault(); delete drop.dataset.over; });
+  el.addEventListener("drop", async (ev) => { const list = ev.dataTransfer && ev.dataTransfer.files; if (list && list.length) take(await texts(list)); else { const t = ev.dataTransfer && ev.dataTransfer.getData("text"); if (t) take([{ name: "what was dropped", text: t }]); } });
+  el.addEventListener("click", (ev) => {
+    const cell = ev.target.closest(".ap-cell");
+    if (cell) return openCell(Number(cell.closest("tr").dataset.line), cell.dataset.col);
+    const kind = ev.target.closest("[data-file]")?.dataset.file;
+    if (kind) return file(kind);
+    const what = ev.target.closest("[data-ap]")?.dataset.ap, li = ev.target.closest(".ap-queue li");
+    if (what === "sample") sample().catch((e) => said(`Not read: ${e.message}`));
+    if (what === "last") last();
+    if (what === "clear") { reset(); $("out").hidden = true; $("clear").hidden = true; said("Cleared."); picker.focus(); }
+    if (what === "approve") approve();
+    if (what === "shut") shut(true);
+    if (what === "open" && li) openCell(Number(li.dataset.line), "exception", true);
+    if (what === "message" && li) message(li);
+    if (what === "copy" && li) {
+      const text = li.querySelector("textarea").value, note = li.querySelector('[data-ap="copied"]');
+      Promise.resolve().then(() => win.navigator.clipboard.writeText(text)).then(() => { note.textContent = "Copied."; }, () => { li.querySelector("textarea").select(); note.textContent = "Select it and copy."; });
+    }
+  });
+  // The table by keyboard: Tab goes through every cell; the arrows move between cells; Escape shuts what is open.
+  el.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && state.open) { ev.preventDefault(); return shut(true); }
+    const cell = ev.target.closest?.(".ap-cell");
+    if (!cell || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(ev.key)) return;
+    const rows = [...$("table").querySelectorAll("tr.ap-row")], r = rows.indexOf(cell.closest("tr")), cells = (tr) => [...tr.querySelectorAll(".ap-cell")], c = cells(rows[r]).indexOf(cell);
+    const to = ev.key === "ArrowLeft" ? [r, c - 1] : ev.key === "ArrowRight" ? [r, c + 1] : ev.key === "ArrowUp" ? [r - 1, c] : ev.key === "ArrowDown" ? [r + 1, c] : ev.key === "Home" ? [r, 0] : [r, COLUMNS.length - 1];
+    const next = rows[to[0]] && cells(rows[to[0]])[to[1]];
+    if (next) { ev.preventDefault(); next.focus(); }
+  });
+  const offerLast = () => { $("last").hidden = !HANDED.st; };
+  doc.addEventListener("knos:statement", offerLast); offerLast();
+
+  // What a script measured, and nothing else: tests/web/approver.mjs writes approver_time.json; no person was timed.
+  const loaded = (ctx.time !== undefined ? Promise.resolve(ctx.time) : fetch(new URL("./approver_time.json", import.meta.url)).then((r) => (r.ok ? r.json() : null)).catch(() => null)).then((t) => {
+    if (!t || t.scripted !== true || !Number.isFinite(t.total_ms)) return;
+    const line = $("time");
+    line.textContent = `Scripted first comparison: ${(t.total_ms / 1000).toFixed(1)} s. No person was timed.`; line.hidden = false;
+  });
+  return { take, sample, state: () => state, loaded };
+}

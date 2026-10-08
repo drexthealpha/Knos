@@ -8,6 +8,18 @@ instructions of `knos_pay`), and where the code does less than the terms say, it
 Money on devnet is test USDC. This page describes mechanisms. It is not a contract and not legal advice
 ([LIABILITY.md](LIABILITY.md)).
 
+## Before the work: what the terms give the supplier
+
+A dispute is cheaper to avoid than to win. `knos preflight --terms FILE --strict` reads a set of terms before the
+supplier starts and says which of four protections they hold: fixed criteria, an acceptance deadline, an appeal
+against a rejection, and payment funded before the work. It exits 1 when one is lacking, with the sentence a person
+needs ("These terms have no acceptance deadline: the buyer can wait forever"). The table, and how each is enforced,
+is in [SUPPLIER.md](SUPPLIER.md), section 1.
+
+After the work, `knos receipt explain FILE` reads a receipt in five parts; its last part says what stayed trusted or
+outside the evaluation, and starts with `WEAK` when the acceptance stands on a weak test
+([RECEIPT.md](RECEIPT.md), "The five parts of a receipt").
+
 ## The path
 
     rejected, or insufficient evidence

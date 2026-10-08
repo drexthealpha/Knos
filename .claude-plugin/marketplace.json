@@ -1,6 +1,6 @@
 {
   "name": "knos",
-  "description": "Knos for coding agents: the Stop hook and the knos MCP server, as one plugin.",
+  "description": "The neutral meter for AI agent work: neither side keeps the count. Knos for coding agents: the Stop hook and the knos MCP server, as one plugin.",
   "owner": {
     "name": "drexthealpha",
     "url": "https://github.com/drexthealpha"

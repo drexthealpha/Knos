@@ -397,3 +397,120 @@ def test_the_measurement_script_runs_on_a_small_log():
     spec.loader.exec_module(bench)
     got = bench.measure(400)
     assert got["events"] == 400 and got["counted"] + got["repeats"] == 400 and got == {**bench.measure(400), "seconds": got["seconds"]}
+
+
+# -- completeness: what a root cannot say ---------------------------------------------------------------------------------
+STREAM = f"{BUYER}:{SELLER}:202610"
+
+
+def _batches(*seqs: int) -> E.Log:
+    """A log that took in the batches numbered `seqs` of one buyer, one supplier and one month: one evaluation each."""
+    log = E.Log()
+    assert E.ingest(log, E.from_ledger(L.dump([L.batch([_ev(n + 1)], n, 202610) for n in seqs]))).ok
+    return log
+
+
+def test_a_number_a_sender_gave_that_never_arrived_is_named():
+    assert E.gaps(_batches(0, 1, 2)) == [] and E.close_problems(_batches(0, 1, 2), 202610) == []
+    log = _batches(0, 2, 5)
+    assert [(g["stream"], g["number"], g["state"]) for g in E.gaps(log)] == [(STREAM, 1, "open"), (STREAM, 3, "open"), (STREAM, 4, "open")]
+    assert E.gaps(log, 202611) == [] and len(E.gaps(log, "2026-10")) == 3
+    assert [g["number"] for g in E.gaps(_batches(0, 1), last={STREAM: 3})] == [2, 3]            # the end of a run is known only when its sender says its last number
+    assert [g["number"] for g in E.gaps(E.Log(), last={STREAM: 0})] == [0]
+    with pytest.raises(L.Bad):
+        E.gaps(log, last={"not a stream": 1})
+    said = E.close_problems(log, 202610)
+    assert len(said) == 3 and said[0].startswith(f"Number 1 of {STREAM} never arrived. Ask its sender for it, or record why nothing was sent")
+    assert E.ingest(log, E.from_ledger(L.dump([L.batch([_ev(2)], 1, 202610)]))).ok              # the missing arrival itself fills its gap
+    assert [g["number"] for g in E.gaps(log)] == [3, 4]
+
+
+def test_any_mode_can_number_what_it_sends():
+    log = E.Log()
+    line = lambda n, k: E.invoice_line("acme", "INV-1", n, "import", month=202610, amount=100, unit="cents", evidence=f"sent:{BUYER}:acme:202610.{k}:mail-{n}")  # noqa: E731
+    assert E.ingest(log, [line(1, 0), line(2, 1), line(3, 3)]).ok
+    assert [(g["stream"], g["number"]) for g in E.gaps(log)] == [(f"{BUYER}:acme:202610", 2)]
+    assert E.sent(log.events[2]) == (f"{BUYER}:acme:202610", 3) and E.sent(_log(_ev(1)).events[0]) is None
+
+
+def test_a_gap_closes_a_month_only_under_a_correction_a_party_acknowledged(github):
+    key, jwks = github
+    log = _batches(0, 2)
+    before = log.text()
+    fix = E.gap_correction(STREAM, 1, "the run was cancelled: nothing was evaluated")
+    assert fix.corrects == f"gap:{STREAM}.1" and fix.void and fix.month == 202610
+    assert E.ingest(log, [fix]).ok and log.text().startswith(before)                           # appended; nothing rewritten
+    g, = E.gaps(log)
+    assert (g["state"], g["line"], g["signed_by"]) == ("unsigned", 4, [])
+    assert "no party has acknowledged a head after that line" in E.close_problems(log, 202610)[0]
+    assert E.ingest(log, [E.acknowledgement(_ack(key, log, SELLER))], jwks).ok
+    g, = E.gaps(log)
+    assert (g["state"], g["signed_by"], g["reason"]) == ("explained", [str(SELLER)], "the run was cancelled: nothing was evaluated")
+    assert E.close_problems(log, 202610) == [] and E.read(log.text(), jwks)[1] == []
+    assert "the signature was not checked" in E.close_problems(log, 202610, signatures_checked=False)[0]
+    assert E.statement(log, 202610)["corrections"] == [4]                                      # the month's statement lists the record
+    early = _batches(0, 2)                                                                     # an acknowledgement BEFORE the correction does not cover it
+    E.ingest(early, [E.acknowledgement(_ack(key, early, SELLER))], jwks)
+    E.ingest(early, [fix])
+    assert E.gaps(early)[0]["state"] == "unsigned"
+
+
+def test_a_gap_correction_says_one_thing_and_is_refused_for_a_number_that_arrived():
+    log = _batches(0, 2)
+    r = E.ingest(log, [E.gap_correction(STREAM, 2, "never sent")])
+    assert not r.ok and "line 2 of this log arrived under that number" in r.refused[0]["why"]
+    for wrong in (E.correction(f"gap:{STREAM}.1", void=True), E.correction(f"gap:{STREAM}.1", void=True, reason="x", verdict="accepted"),
+                  E.correction(f"gap:{STREAM}.1", reason="x", amount=1, unit="cents"), E.correction("gap:nothing", void=True, reason="x")):
+        assert "a correction of a missing number names it" in (E.problem_of(wrong) or "")
+    assert not E.ingest(log, [E.correction("dlv_" + "0" * 24, void=True, reason="x")]).ok       # anything else still names an event of the log
+
+
+def test_one_deliverable_is_counted_once_across_periods():
+    log = _log(_ev(1), month=202610)
+    again = E.ingest(log, E.from_evaluation(_ev(1), "batch", 202611, "batch:x"))                # the same evaluation, sent again a month later
+    assert again.ok and len(again.duplicates) == 2 and E.statement(log, 202611)["accepted_deliverables"] == 0 and E.statement(log, 202611)["repeats_not_counted"] == 2
+    changed = E.ingest(log, E.from_evaluation(_ev(1, rate=9), "batch", 202611, "batch:y"))      # the same deliverable accepted at another amount: refused
+    assert not changed.ok and {c["id"] for c in changed.conflicts} == {log.events[0].id, log.events[1].id}
+    dlv = _ev(1).dlv
+    bill = lambda inv, m: E.invoice_line("acme", inv, 1, "import", deliverable=dlv, month=m, amount=2_000_000, unit="units")  # noqa: E731
+    assert E.ingest(log, [bill("INV-1", 202610), bill("INV-9", 202612)]).ok
+    assert [x["state"] for x in E.statement(log, 202610)["invoice_lines"]] == ["agreed"]
+    late, = E.statement(log, 202612)["invoice_lines"]
+    assert late["state"] == "duplicate" and "already bills this deliverable" in late["why"] and E.statement(log, 202612)["amounts"]["units"]["agreed"] == 0
+    assert E.ingest(log, [E.settlement(dlv, "chain", "Sig1", 2_000_000, "units", "settle", month=202610),
+                          E.settlement(dlv, "bank", "REF-2", 2_000_000, "units", "import", month=202612)]).ok
+    found = {a["kind"]: a for a in E.across(log)}
+    assert found["invoice_line"]["months"] == [202610, 202612] and found["settlement"]["months"] == [202610, 202612] and len(found["settlement"]["lines"]) == 2
+    E.ingest(log, [E.correction(log.events[-1].id, void=True, reason="the bank transfer was returned")])
+    assert [a["kind"] for a in E.across(log)] == ["invoice_line"]
+
+
+def test_the_commands_gaps_and_close(tmp_path, github):
+    typer = pytest.importorskip("typer")
+    from typer.testing import CliRunner
+    key, jwks = github
+    app = typer.Typer()
+    E.register(app, [])
+
+    @app.command("other")
+    def other() -> None: ...
+    run, log = CliRunner(), tmp_path / "events.jsonl"
+    (tmp_path / "ledger.jsonl").write_text(L.dump([L.batch([_ev(1)], 0, 202610), L.batch([_ev(3)], 2, 202610)]), encoding="utf-8")
+    assert run.invoke(app, ["events", "ingest", str(log), str(tmp_path / "ledger.jsonl"), "--from", "batch"]).exit_code == 0
+    g = run.invoke(app, ["events", "gaps", str(log)])
+    assert g.exit_code == 1 and f"{STREAM} number 1: missing, and nothing explains it" in g.output and "1 numbers never arrived; 1 of them stop a close." in g.output
+    c = run.invoke(app, ["events", "close", str(log), "--month", "2026-10"])
+    assert c.exit_code != 0 and isinstance(c.exception, Exception) and "2026-10 is not closed" in str(c.exception)
+    x = run.invoke(app, ["events", "gaps", str(log), "--explain", f"{STREAM}.1", "--reason", "cancelled run"])
+    assert x.exit_code == 0 and "Recorded at line 4" in x.output
+    assert run.invoke(app, ["events", "gaps", str(log)]).exit_code == 1                       # explained, and not yet acknowledged
+    (tmp_path / "seller.jwt").write_text(_ack(key, E.load(log), SELLER), encoding="ascii")
+    (tmp_path / "github.json").write_text(json.dumps(jwks), encoding="utf-8")
+    assert run.invoke(app, ["events", "ack", str(log), "--token", str(tmp_path / "seller.jwt"), "--keys", str(tmp_path / "github.json")]).exit_code == 0
+    g = run.invoke(app, ["events", "gaps", str(log), "--json"])
+    assert g.exit_code == 0 and json.loads(g.output)["blocking"] == 0 and json.loads(g.output)["gaps"][0]["state"] == "explained"
+    c = run.invoke(app, ["events", "close", str(log), "--month", "2026-10"])
+    assert c.exit_code == 0 and "2026-10 can be closed" in c.output
+    late = run.invoke(app, ["events", "close", str(log), "--month", "2026-10", "--last", f"{STREAM}.3"])
+    assert late.exit_code != 0 and "Number 3" in str(late.exception)
+    assert run.invoke(app, ["events", "gaps", str(log), "--month", "2026-11"]).exit_code == 0

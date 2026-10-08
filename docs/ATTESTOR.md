@@ -93,7 +93,7 @@ write the hostile input rather than reuse ours.
 | Rung | Closes | Still trusted | Today |
 |---|---|---|---|
 | a. Quorum of judges in repositories different parties control | one runner, one maintainer | the forge; that the parties are different people | built and tested in a simulator; never run on the public program ids. In each judge, the job that runs the code cannot sign (shape, above) |
-| b. Re-execution by a neutral judge from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself; that the re-execution's one bit is true | built; the re-execution has run only in tests. Its verdict is read strictly and held to the order by the job that signs (shape, above) |
+| b. Re-execution by a neutral judge from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself; that the re-execution's one bit is true | built; one public payment was judged again this way, by Knos's own account, so its receipt reads `reported` ([RECEIPT.md](RECEIPT.md)). No outside account has hosted the judge. Its verdict is read strictly and held to the order by the job that signs (shape, above) |
 | c. Build provenance of the judge | what code the judge installed | the forge as builder and signer; the machine (see the example above) | not built here; the parts exist at GitHub and Sigstore |
 | d. Proof of what the forge's API returned | the answers | a notary or a proxy, or the proof system | not built; no system we found checks a transcript on Solana |
 | e. Proof of what the judge executed: an attested enclave, or a proved run | the machine | enclave: the chip vendor's root key, side channels, the cloud. Proved run: the proof system and its setup; that the checks are the right ones | not built in the product; GitHub offers no attested runner. One experiment: a judge for one task, proved and verified off chain (below) |
@@ -143,8 +143,34 @@ gap (2) for a tests-mode order: the judge no longer believes an API's "success",
 neutral run still reads their conclusions (`reexecuted: false`). The order itself and the pull request's state are
 still read through the API. Both runs are GitHub's runners and the same `knos` release.
 
-**Maturity.** Built; tested against stand-ins for GitHub and the chain. The verdict it writes is not signed by
-GitHub: it is the workflow's own account of how it decided.
+**Maturity.** Built; tested against stand-ins for GitHub and the chain, and run once for a public payment from
+Knos's own account ([RECEIPT.md](RECEIPT.md), "Version 5"). The verdict it writes is not signed by GitHub: it is the
+workflow's own account of how it decided.
+
+**Who hosts it.** A receipt's level is computed from account ids (`knos.receipt.assurance_of`). It reads `rerun`
+only when the judge that ran the suite is owned and started by an account that is not a payee, and `agreed` only
+when two such judges have different owners. One account that funds, delivers and evaluates reads `reported`
+however often it runs the suite: that is every receipt so far. So the judge has to be hosted by someone else, and
+[`examples/host_a_judge`](../examples/host_a_judge/README.md) makes that one link and one button:
+
+- **The host** makes a repository from the template (one file, [`examples/knos-attest.yml`](../examples/knos-attest.yml);
+  no secret, wallet or key) and presses Run workflow after the merge. `python -m knos.host_judge link` prints the link.
+- **The buyer** names it: `/knos fund 20 checks: unit quorum 2 judge: <host>/knos-judge`. An order funded without
+  `judge:` and without `neutral off` takes the host's run as its neutral run.
+- **What the host is paid.** Nothing by the order: the program has no judge's share. The relayer's tip (0.05 test
+  USDC out of the fee; 0.30 when the paying transaction creates a payee's token account: `TIP` and `TIP_FIRST` in
+  [`knos_pay/src/lib.rs`](../programs-v2/knos_pay/src/lib.rs)) goes to whoever paid for the paying transaction,
+  which is the host only if the host also runs a relay.
+- **What the host can do.** Run or not run. A quorum that names a host who never runs is refunded at its deadline.
+- **What the host cannot do.** Get signed what GitHub's public record does not support (the run is the pinned
+  workflow at the commit the order recorded), change the payees or the terms, touch the money, raise the level for
+  work the host is paid for, or count twice with two repositories.
+- **What does not raise the level.** The order's own repository (the buyer chose it), and an order paid on the
+  merge (there is no suite to run, and the host's run reads GitHub's record).
+
+`python -m knos.host_judge level --payee ID --host ID [--host ID]` says the level a set of accounts would give.
+`tests/test_host_a_judge.py` runs the host's two jobs in the simulator for two owners and checks `rerun` and `agreed`
+on receipts. No outside account has done it: outside hosts today, 0.
 
 **Enforced by shape, and not.** The `rerun` job cannot sign and the `attest` job runs none of the code; the verdict
 between them is held to one reading (small, plain characters, each key once, only a verdict's fields) before

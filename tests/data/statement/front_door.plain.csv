@@ -1,9 +1,9 @@
-knos-statement,1,67ff00ed272d6f14b350767f98fc6c7a09782bf930681e6d1722f5a4990da516
+knos-statement,1,27c66a26125ae1ad9b06cbf92bdabbd09d994b4ab01fadaee6a845338a8c6ef6
 invoice,sha256:fb61f3411e72ffea
 date,2026-09-07
 supplier,Example Agents Ltd (made up)
 buyer,
-currency,
+currency,USD
 made from,a shadow run: the invoice against GitHub's record
 evidence sha256,dc714ff5d90a1b6298c8ad10f7eddcff6f21cf613aef376d77c624a1af57b602
 evidence,inside the statement; not signed
@@ -22,14 +22,14 @@ total,disputed,2,950.00
 total,duplicate,2,800.00
 total,insufficient evidence,1,500.00
 answer,Authorised,"not known here: a shadow run reads the invoice and GitHub, not the order"
-answer,Billed,"7 lines, 2900.00 on invoice sha256:fb61f3411e72ffea from Example Agents Ltd (made up)"
+answer,Billed,"7 lines, 2900.00 USD on invoice sha256:fb61f3411e72ffea from Example Agents Ltd (made up)"
 answer,Delivered,4 of 7 lines name work that was evaluated
-answer,Passed,"2 lines, 650.00 agreed"
-answer,Already billed,"2 lines, 800.00: line 4 (line 1); line 6 (line 1)"
+answer,Passed,"2 lines, 650.00 USD agreed"
+answer,Already billed,"2 lines, 800.00 USD: line 4 (line 1); line 6 (line 1)"
 answer,Approved,nobody yet
-answer,Disputed,"2 lines, 950.00, open"
-answer,Insufficient evidence,"1 line, 500.00, open"
-answer,Credited,"0 lines, 0.00 refunded"
-answer,Paid,"0 lines, 0.00"
-answer,Owed,"2 lines, 650.00 payable"
+answer,Disputed,"2 lines, 950.00 USD, open"
+answer,Insufficient evidence,"1 line, 500.00 USD, open"
+answer,Credited,"0 lines, 0.00 USD refunded"
+answer,Paid,"0 lines, 0.00 USD"
+answer,Owed,"2 lines, 650.00 USD payable"
 note,"A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them."

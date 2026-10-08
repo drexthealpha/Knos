@@ -15,6 +15,7 @@
   "drexthealpha/Knos@v0.3.17": "f03ec515d8666c46e3fdc6bb0123bc0786d5dd75",
   "drexthealpha/Knos@v0.3.18": "KNOS_RELEASE_SHA",
   "drexthealpha/Knos@v0.3.19": "KNOS_RELEASE_SHA",
+  "drexthealpha/Knos@v0.3.20": "KNOS_RELEASE_SHA",
   "model-checking/kani-github-action@v1.1": "f838096619a707b0f6b2118cf435eaccfa33e51f",
   "rust-lang/crates-io-auth-action@v1.0.5": "c6f97d42243bad5fab37ca0427f495c86d5b1a18",
   "Swatinem/rust-cache@v2": "6323deb102c322ba6fcbdcafc7e3dddab59af2b6",

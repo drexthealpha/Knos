@@ -30,5 +30,8 @@ is accepted by bundle 2 and refused by bundle 1. `python examples/outcomes/evalu
 and ledger lines. Standard library only; nothing is random at judging time, so a rerun gives the same verdict.
 
 A real order would hold one bundle, the black-box one. Bundle 2 sits in the same repository here only so that the
-difference can be run. [docs/OUTCOMES.md](../../docs/OUTCOMES.md) says what each suite cannot check, and why
-support-ticket resolution is not among the examples.
+difference can be run. [docs/OUTCOMES.md](../../docs/OUTCOMES.md) says what each suite cannot check.
+
+A fourth folder is of another kind: [support-resolution](support-resolution/) has no suite and no submission. Its
+outcome is a support ticket resolved, judged from the ticket's own record under terms, on made-up tickets
+(`python scripts/outcome_support.py evaluate`).

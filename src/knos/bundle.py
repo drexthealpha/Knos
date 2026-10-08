@@ -819,7 +819,7 @@ def register(app, help_lines: list | None = None) -> None:
     help_lines = help_lines if help_lines is not None else []
     at = next((i for i, row in enumerate(help_lines) if row[0] == "receipt"), None)
     if at is not None:
-        help_lines[at] = ("receipt", help_lines[at][1], "Check an acceptance receipt and print its five parts; `mirror` and `verify` keep and read copies off chain.")
+        help_lines[at] = ("receipt", help_lines[at][1], "Check an acceptance receipt and print its five parts (`explain`: one line each); `mirror` and `verify` keep and read copies off chain.")
         help_lines.insert(at + 1, ("bundle", help_lines[at][1], "The evidence bundle of a payment: make it, and re-derive the verdict from it offline."))
         if not any(row[0] == "judge" for row in help_lines):       # `knos judge rerun <bundle>` reads what `knos bundle make --verdict` writes
             help_lines.insert(at + 2, ("judge", help_lines[at][1], "`judge rerun`: run a bounty's judge again on the same artifact, from a verdict file or a bundle."))
@@ -835,8 +835,9 @@ def register(app, help_lines: list | None = None) -> None:
     app.registered_commands[:] = [c for c in app.registered_commands if (c.name or getattr(c.callback, "__name__", "")) != "receipt"]
 
     @app.command("receipt")
-    def receipt_cmd(what: str = typer.Argument(..., help="a receipt file (- reads standard input), or `mirror`, or `verify`"),
-                    target: str = typer.Argument("", help="for verify: an order's address or a paying transaction's signature"),
+    def receipt_cmd(what: str = typer.Argument(..., help="a receipt file (- reads standard input), or `explain`, `mirror` or `verify`"),
+                    target: str = typer.Argument("", help="for explain: the receipt file (- reads standard input); for verify: an order's address or a paying transaction's signature"),
+                    as_json: bool = typer.Option(False, "--json", help="for explain: print the five parts as JSON (knos.receipt.parts)"),
                     out_dir: Path = typer.Option(None, "--out", help="for mirror: the folder to write (a GitHub Pages branch, a bucket)"),
                     mirror: str = typer.Option("", "--mirror", help="for verify: a mirror's folder or https URL, read when the chain has no record"),
                     rpc: str = typer.Option("", "--rpc", help="the cluster's JSON-RPC URL (default: KNOS_RPC, then devnet)"),
@@ -846,7 +847,23 @@ def register(app, help_lines: list | None = None) -> None:
                     no_network: bool = typer.Option(False, "--no-network", help="with --no-chain: do not ask the issuer for its key list either")) -> None:
         """Check an acceptance receipt file and print its five parts and digest; `knos receipt mirror --out DIR` writes every
         receipt the chain shows as files any static host can serve; `knos receipt verify ORDER --mirror DIR` rebuilds a receipt
-        from the chain, or reads it from a mirror when the chain no longer has it."""
+        from the chain, or reads it from a mirror when the chain no longer has it; `knos receipt explain FILE` reads a receipt in
+        five parts, one line each: Identity, Execution, Acceptance, Consequence, Assurance (what stayed trusted or outside)."""
+        if what == "explain":
+            if not target:
+                stop("give the receipt file: knos receipt explain FILE", 2)
+            try:
+                held_doc = json.loads(sys.stdin.read() if target == "-" else open(target, encoding="utf-8").read())
+                if isinstance(held_doc, dict) and "type" not in held_doc and isinstance(held_doc.get("receipt"), dict):
+                    held_doc = held_doc["receipt"]          # a file that holds the receipt beside something else (a badge's, a vector's)
+                lines = [json.dumps(rc.parts(held_doc), indent=1, sort_keys=True)] if as_json else rc.explain(held_doc)
+            except OSError as e:
+                stop(f"not a receipt: {e}", 2)
+            except ValueError as e:
+                stop(f"not explained: {e}")
+            for line in lines:
+                typer.echo(line)
+            return
         if what == "mirror":
             if out_dir is None:
                 stop("give the folder to write: knos receipt mirror --out DIR", 2)

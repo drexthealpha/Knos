@@ -21,6 +21,11 @@ Version 5 adds `assurance`: how much was verified, as one of four levels (report
 relationships the terms declare ("these accounts are one party"). `build5` writes a version 4 receipt as version 5;
 `assurance_of` reads the level of a receipt of any version (an older one is `reported` unless its evidence shows more).
 
+`parts` reads a receipt of version 4 or 5 in five parts, each one line: Identity, Execution, Acceptance, Consequence,
+Assurance (the level, and what stayed trusted or outside the evaluation). It is a view, not a version: `explain`
+prints it (`knos receipt explain FILE`), and an acceptance that stands on a weak test reads WEAK however valid its
+signature.
+
 `check` is the whole rule set (the schema's shape and the rules a schema cannot say: shares add up, amounts add up,
 the judge matches the order). It needs no package. `render` is the receipt for a person, under the five headings.
 `mirror_write` / `mirror_find` keep receipts off chain (devnet can be reset); `attest` writes one as a Solana
@@ -1240,6 +1245,160 @@ def _render3(r: dict) -> list[str]:
     out += [f"   Transaction {r['transaction']['signature']}, slot {r['transaction']['slot']}, {_utc(r['transaction']['time'])}.",
             "", f"Digest sha256:{digest(r)}"]
     return out
+
+
+# ---- the five parts: one view over a receipt of version 4 or 5 ------------------------------------------------------------
+FIVE = ("identity", "execution", "acceptance", "consequence", "assurance")      # in this order, everywhere
+FIVE_TITLES = {"identity": "Identity", "execution": "Execution", "acceptance": "Acceptance", "consequence": "Consequence", "assurance": "Assurance"}
+FIVE_ASKS = {"identity": "Who produced the evidence?", "execution": "Which evaluator ran, on which inputs?", "acceptance": "Which agreed test passed?",
+             "consequence": "What became payable, and to whom?", "assurance": "What stayed trusted or outside the evaluation?"}
+PARTS_KIND, PARTS_V = "knos-receipt-parts", 1
+O_WORKFLOW = "The workflow file decides what it reads: the issuer signed which workflow ran, not what it read, ran or concluded."
+O_UNSIGNED = "No issuer signed anything: the evidence is the run's own record, and whoever keeps it could have written another."
+O_REPORTED = "Nobody outside the supplier's reach ran the checks again: the result is one run's word."
+O_MERGE = "No test decided: the terms name no check, the merge alone was the acceptance, and whoever may merge can accept."
+O_MERGE_TOO = "A merge was required beside the named checks: whoever may merge decides when, and whether."
+O_SELLER = "The evaluator's account is the payee's: account {id} owns or started the {kind} run, and is paid by it."
+O_BUYER = "The evaluator's account is the buyer's: account {id} owns or started the {kind} run, and funded the order."
+O_OWN_REPO = "The order's own repository judged: the buyer chose it, and its administrators can accept."
+O_ONE_PARTY = "The evaluators are one party: {why}"
+O_TERMS = "Whether the terms asked for the right thing is outside the evaluation: a passing weak test is a weak acceptance."
+O_DISPUTED = "The verdict is contested and not resolved: which side is right is outside this receipt."
+
+
+def _short(text: str, keep: int = 12) -> str:
+    return text if len(text) <= keep else text[:keep] + "…"
+
+
+def _amount(units: str, decimals: int) -> str:
+    """Money for a line: at least two decimals, and no more than the amount needs."""
+    whole, _, part = _money(units, decimals).partition(".")
+    part = part.rstrip("0")
+    return f"{whole}.{part:0<2}"
+
+
+def outside_of(r: dict, level: str) -> tuple[list[str], list[str]]:
+    """What stayed trusted or outside the evaluation of a version 4 or 5 receipt, in plain sentences, as two lists: the
+    ones that make the acceptance WEAK (each alone is enough), then the ones every receipt carries. Computed from the
+    receipt's own fields and the level `assurance_of` gave: nothing here is typed by anyone."""
+    o, p, c = r["evaluator_observed"], r["policy"], r["commercial_authorisation"] or {}
+    sellers = {x["github_id"] for x in r["payees"]}
+    buyers = {x for x in ((c.get("funder") or {}).get("github_id"), (c.get("source") or {}).get("owner_id")) if x}
+    weak = [O_UNSIGNED] if r["issuer_authenticated"] is None else []
+    weak += [O_REPORTED] if level == "reported" else []
+    weak += [O_MERGE] if p["mode"] == "merge" and not o["checks"] else []
+    for e in o["evaluators"]:
+        ids = (e["owner_id"], e["actor_id"])
+        weak += [O_SELLER.format(id=i, kind=e["kind"]) for i in dict.fromkeys(ids) if i in sellers]
+        weak += [O_BUYER.format(id=i, kind=e["kind"]) for i in dict.fromkeys(ids) if i in buyers and e["kind"] != "repository"]
+    if o["same_controller"]:
+        weak.append(O_ONE_PARTY.format(why=o["independence"]))
+    always = [*([O_DISPUTED] if r["disputed"] is not None else []),
+              *([O_WORKFLOW] if r["issuer_authenticated"] is not None else []),
+              *([O_MERGE_TOO] if p["mode"] == "merge" and o["checks"] else []),
+              *([O_OWN_REPO] if any(e["kind"] == "repository" for e in o["evaluators"]) else []), O_TERMS]
+    return weak, always
+
+
+def parts(r: dict, declared=()) -> dict:
+    """A receipt of version 4 or 5 read in five parts, each one line and the facts behind it. A VIEW: nothing is added
+    to the receipt, and no new version exists. A version 3 receipt is read as the version 4 receipt `build4` makes of
+    it; versions 1 and 2 are refused (they do not say who funded).
+
+        identity      who produced the evidence: the issuer, the repository, the workflow, the run
+        execution     which evaluator ran, on which inputs, by hash
+        acceptance    which agreed test passed, under which terms hash
+        consequence   what amount became payable, to whom, in which order
+        assurance     the level, and in plain words what stayed trusted or outside the evaluation
+
+    {kind, v, receipt: its sha256, version, verdict, authorises_payment, weak, parts: [{id, title, asks, line, facts,
+    more}]}. `weak` is true when the acceptance stands on less than an evaluator outside the supplier's control
+    running a test again: the assurance line then starts with WEAK, however valid the signature. `declared`: the
+    control relationships the terms declare, for a version 4 receipt (a version 5 one carries its own)."""
+    why = check(r)
+    if why:
+        raise ValueError(why)
+    if r["version"] == 3:
+        r = build4(r)
+    if r["version"] not in (4, 5):
+        raise ValueError(f"a receipt of version {r['version']} does not say who funded or what was left unshown: `knos bundle make` writes the same payment as version 5")
+    o, a, p, m, src, got, d = r["evaluator_observed"], r["issuer_authenticated"], r["policy"], r["amounts"], r["evidence_source"], r["ids"], r["disputed"]
+    assured = r["assurance"] if r["version"] == 5 else assurance_of(r, declared)
+    level, verdict = assured["level"], o["verdict"]
+    # 1. identity
+    if a is not None:
+        gl, cl = a["provider"] == "gitlab", a["claims"]
+        host = {"github": "GitHub", "gitlab": "GitLab"}[a["provider"]]
+        ident = {"signed": True, "issuer": a["issuer"], "provider": a["provider"], "repository": cl["project_id" if gl else "repository_id"],
+                 "repository_name": (r["repository"] or {}).get("full_name") if isinstance(r["repository"], dict) else None,
+                 "workflow": cl["ci_config_ref_uri" if gl else "job_workflow_ref"], "workflow_sha": cl["ci_config_sha" if gl else "job_workflow_sha"],
+                 "run": cl["pipeline_id" if gl else "run_id"], "attempt": None if gl else cl["run_attempt"], "started_by": cl["user_id" if gl else "actor_id"],
+                 "runner": cl["runner_environment"], "token_sha256": a["token_sha256"], "verified_in": a["verified"]["transaction"]}
+        one = f"{host} signed: workflow {ident['workflow']} ran in repository {ident['repository']}, run {ident['run']}."
+        more1 = [f"Issuer {a['issuer']}; token sha256 {a['token_sha256']}.", f"Workflow file at commit {ident['workflow_sha']}; run started by account {ident['started_by']} on a {ident['runner']} runner.",
+                 f"The signature was verified on chain in transaction {ident['verified_in']}."]
+    else:
+        ident = {"signed": False, "issuer": None, "provider": None, "repository": None, "repository_name": None, "workflow": None, "workflow_sha": None, "run": None,
+                 "attempt": None, "started_by": None, "runner": None, "token_sha256": None, "verified_in": None, "record_sha256": src["reference"]}
+        one = "Nobody signed: the evidence is the run's own record."
+        more1 = ["The run's record has sha256 " + src["reference"] + "." if src["reference"] else "No copy of the run's record is named."]
+    # 2. execution
+    reran = [e for e in o["evaluators"] if (e.get("reexecution") or {}).get("reexecuted") is True]
+    images = sorted({e["reexecution"]["image_digest"] for e in reran if e["reexecution"].get("image_digest")})
+    execu = {"evaluator": o["judge"]["kind"], "evaluator_version": o["judge"]["version"], "commit": o["artifact"]["commit"], "pull_request": o["artifact"]["pull_request"],
+             "checks": [dict(c) for c in o["checks"]], "evaluators": [{k: e[k] for k in ("kind", "repository_id", "owner_id", "actor_id", "runner")} | {
+                 "reexecuted": (e.get("reexecution") or {}).get("reexecuted")} for e in o["evaluators"]], "images": images, "evaluation": got["evaluation"]}
+    two = (f"Evaluator {o['judge']['kind']}, workflow {_short(o['judge']['version'])}, read commit {_short(o['artifact']['commit'])} of pull request {o['artifact']['pull_request']}; "
+           + (f"{len(reran)} of {len(o['evaluators'])} ran the suite again." if o["evaluators"] else "who controls it is not recorded."))
+    more2 = [f"Inputs by hash: commit {o['artifact']['commit']}; workflow {o['judge']['version']}; terms {p['terms_hash']}" + (f"; image {', '.join(images)}." if images else "."),
+             *(f"{e['kind']}: repository {e['repository_id']}, owner account {e['owner_id']}, started by account {e['actor_id']};{_reran(e.get('reexecution')) or ' how it reached its verdict is not recorded.'}"
+               for e in o["evaluators"]), f"Evaluation {got['evaluation']}."]
+    # 3. acceptance
+    names = ", ".join(f"{c['name']}: {c['conclusion']}" for c in o["checks"])
+    test = ("the acceptance suite the terms pin" if p["mode"] == "tests" else "a merge") + (f", and the named checks ({names})" if names else "")
+    accept = {"verdict": verdict, "predicate": {"mode": p["mode"], "checks": [dict(c) for c in o["checks"]]}, "terms_hash": p["terms_hash"], "policy_version": p["version"],
+              "allowed_paths": p["allowed_paths"], "denied_paths": p["denied_paths"], "contested": None if d is None else {"by": d["by"]["role"], "was": d["contests"]["verdict"]}}
+    said = {"accepted": "Accepted: {t} passed", "rejected": "Rejected: {t} did not pass", "insufficient_evidence": "Not decided: {t} could not be read",
+            "disputed": "Disputed: {t} is contested"}[verdict].format(t=test)
+    three = f"{said}, under terms {_short(p['terms_hash'])}."
+    more3 = [f"Terms hash {p['terms_hash']}, fixed when the order was funded; policy version {p['version'] if p['version'] is not None else 'not public'}.",
+             *([f"Contested by the {d['by']['role']}: {d['reason']} The verdict before was {_ids.VERDICT_WORDS[d['contests']['verdict']]}."] if d is not None else []),
+             *([] if p["allowed_paths"] is None else [f"Paths allowed: {', '.join(p['allowed_paths']) or 'any'}; protected: {', '.join(p['denied_paths'] or []) or 'none'}."])]
+    # 4. consequence
+    paid = r["transaction"] is not None
+    money = "test money on devnet" if r["cluster"] == "devnet" else f"mint {m['mint']}"
+    conseq = {"payable": m["paid"] if paid and verdict in ("accepted", "disputed") else "0", "paid": m["paid"], "of": m["of"], "fee": m["fee"], "tip": m["tip"], "decimals": m["decimals"],
+              "mint": m["mint"], "order": r["order"], "payees": [dict(x) for x in r["payees"]], "transaction": r["transaction"]["signature"] if paid else None,
+              "deliverable": got["deliverable"], "settlement": got["settlement"], "invoice_line": got["invoice_line"]}
+    to = ", ".join(f"account {x['github_id']}" if x["github_id"] else f"wallet {_short(x['to'])}" for x in r["payees"]) or "nobody named"
+    four = (f"{_amount(m['paid'], m['decimals'])} of {_amount(m['of'], m['decimals'])} paid to {to} ({money}), order {_short(r['order'])}." if paid
+            else f"Nothing became payable: order {_short(r['order'])} holds {_amount(m['of'], m['decimals'])} ({money}).")
+    more4 = [f"Order {r['order']}; deliverable {got['deliverable']}.",
+             *([f"Paying transaction {r['transaction']['signature']}; fee {_amount(m['fee'], m['decimals'])}, tip {_amount(m['tip'], m['decimals'])}, on top of the amount."] if paid else
+               ["No payment is recorded: this receipt authorises none."]),
+             *(f"{_amount(x['amount'], m['decimals'])} to {x['to']}" + (f" (account {x['github_id']}, {x['bps'] / 100:g}%)." if x["github_id"] else ".") for x in r["payees"] if paid),
+             *(["A payment recorded before the dispute stays recorded: the money moved."] if paid and d is not None else [])]
+    # 5. assurance
+    weak, always = outside_of(r, level)
+    assure = {"level": level, "level_says": LEVEL_WORDS[level], "weak": bool(weak), "weak_because": weak, "outside": [*weak, *always], "trusted": list(assured["trusted"]),
+              "declared_related": assured["declared_related"], "limitations": list(r["limitations"])}
+    five = (f"WEAK ({level}): {weak[0]}" + (f" And {len(weak) - 1} more." if len(weak) > 1 else "") if weak
+            else f"{level.capitalize()}: {LEVEL_WORDS[level]}. {always[0]}")
+    more5 = [*(f"Weak because: {s}" for s in weak), *(f"Outside the evaluation: {s}" for s in always), *(f"Still trusted: {s}" for s in assured["trusted"]),
+             *(f"Not shown: {s}" for s in r["limitations"])]
+    rows = zip(FIVE, (one, two, three, four, five), (ident, execu, accept, conseq, assure), (more1, more2, more3, more4, more5))
+    return {"kind": PARTS_KIND, "v": PARTS_V, "receipt": digest(r), "version": r["version"], "verdict": verdict, "authorises_payment": verdict in _ids.BILLABLE, "weak": bool(weak),
+            "parts": [{"id": k, "title": FIVE_TITLES[k], "asks": FIVE_ASKS[k], "line": line, "facts": facts, "more": list(more)} for k, line, facts, more in rows]}
+
+
+def explain(r: dict, declared=()) -> list[str]:
+    """`knos receipt explain FILE`: the five parts in lines, each its one line and then what stands behind it."""
+    got = parts(r, declared)
+    out = [f"Acceptance receipt sha256:{got['receipt']}, version {got['version']}: {_ids.VERDICT_WORDS[got['verdict']]}; "
+           + ("it authorises payment." if got["authorises_payment"] else "it authorises no payment."), ""]
+    for n, part in enumerate(got["parts"], 1):
+        out += [f"{n}. {part['title']}. {part['asks']}", f"   {part['line']}", *(f"   - {s}" for s in part["more"]), ""]
+    return out[:-1]
 
 
 # ---- the mirror: every receipt, off chain -----------------------------------------------------------------------------------

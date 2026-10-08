@@ -1,7 +1,7 @@
 {
   "name": "knos",
-  "version": "0.3.19",
-  "description": "Bounties that pay when the pull request is merged with the checks you named passing.",
+  "version": "0.3.20",
+  "description": "The neutral meter for AI agent work: neither side keeps the count.",
   "mcpServers": {
     "knos": {
       "command": "uvx",

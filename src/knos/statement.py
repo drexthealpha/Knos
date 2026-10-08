@@ -3,9 +3,12 @@
     knos statement make <evidence>      one statement as JSON (canonical), CSV and PDF
     knos statement approve <file> --agreed --by NAME --role ROLE
     knos statement pay <file> --line inv_... --method bank --ref REF --on DATE
+    knos statement pay <file> --rail bank --payer-name N --payer-account IBAN --payees payees.csv
+                                        a payment file for the payer's own bank (ISO 20022 pain.001): the agreed, approved lines
+    knos statement status <file> --from <the bank's status report>     marks the lines of each transfer paid, or payable again
     knos statement grn <file> --line inv_...   the goods-received note of one line: order, acceptance and invoice line, matched
     knos statement show <file>          what was authorised, delivered, passed, already billed, approved, disputed, owed
-    knos statement export <file> --format quickbooks|netsuite|generic
+    knos statement export <file> --format quickbooks|netsuite|generic|match|ariba
     knos statement verify <file>        make it again from its evidence: "same", or the first line that differs
 
 It is made from one of two things, and only from them:
@@ -25,7 +28,8 @@ SHA-256 of every piece of evidence, and the evidence itself unless `--reference`
 the PDF are written from `cells`, so they say the same thing in the same words, and both carry the JSON's hash.
 
 Approvals and payment status are appended to `<name>.status.json`, never to the statement: the statement does not
-change after it is made. Nothing here moves money. A payment made by bank is recorded with the payer's own reference.
+change after it is made. Nothing here moves money. A payment made by bank is recorded with the payer's own reference, or
+through the payment file and the bank's answer to it (knos.rails; docs/RAILS.md).
 """
 from __future__ import annotations
 
@@ -599,6 +603,10 @@ def cells(st: dict, status: dict | None = None) -> dict:
               for name in ("billed", *ids.LINE_STATES)]
     events = [["approval", e["on"], f"{e['by']} ({e['role']})", f"{len(e['lines'])} agreed lines", e["amount"]] if e["type"] == "approval" else
               ["goods-received note", e["on"], e["line"], grn_said(e["grn"]), e["grn"]["reference"]] if e["type"] == "grn" else
+              ["payment file", e["on"], e["message"], f"{len(e['transfers'])} {'transfer' if len(e['transfers']) == 1 else 'transfers'} by bank ({e['format']}), "
+               f"{e['amount']} {e['currency']}, to pay on {e['execute']}", f"sha256 {e['sha256']}"] if e["type"] == "instruction" else
+              ["settlement", e["on"], e["line"], f"returned by the bank ({e['returned']}): payable again, reference {e['reference']}", e["settlement"]]
+              if e.get("returned") else
               ["settlement", e["on"], e["line"], f"{PAY_WORDS[e['state']]} by {e['method']}, reference {e['reference']}", e["settlement"]]
               for e in status["events"]]
     return {"top": top, "head": list(HEAD), "rows": rows, "totals": totals, "answers": [list(a) for a in answers(st, status)], "events": events}
@@ -725,7 +733,7 @@ def load(path: Path) -> tuple[dict, dict | None]:
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos statement make | approve | pay | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
+    """`knos statement make | approve | pay | status | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
     import datetime
 
     import importlib
@@ -750,6 +758,19 @@ def register(app, help_lines: list | None = None) -> None:
         for question, answer in answers(st, status):
             typer.echo(f"{question + ':':<23}{answer}")
 
+    def memory(remember: str, where: Path | None):
+        """The buyer organisation's memory (--remember ORG [--memory DIR]); no memory when none is named."""
+        recall = importlib.import_module(f"{__package__}.recall")       # named, not imported: the relay reaches this module, and its job installs no memory engine
+        try:
+            return recall, recall.memory_of(remember, where)
+        except ValueError as why:
+            raise stop(Refused(f"No memory was opened: {why}. --remember names the buyer organisation, for example acme.")) from None
+
+    def terms_or_stop(terms: str) -> str:
+        if terms and not re.fullmatch(r"[0-9a-f]{64}", terms.lower()):
+            raise stop(Refused("--terms is the hash of the terms: 64 hex characters."))
+        return terms.lower()
+
     def save(path: Path, st: dict, status: dict) -> None:
         _beside(path).write_bytes(canonical(status))
         name = path.name[:-5] if path.name.endswith(".json") else path.name
@@ -767,7 +788,10 @@ def register(app, help_lines: list | None = None) -> None:
               currency: str = typer.Option("", "--currency", help="what the amounts are in, for example USD or test USDC"),
               date: str = typer.Option("", "--date", help="the statement's day, YYYY-MM-DD (the last merge's day, or the month's last day, when left out)"),
               reference: bool = typer.Option(False, "--reference", help="keep the evidence in its own file and name it by sha256, instead of inside the statement"),
-              name: str = typer.Option(NAME, "--name", help="the files' name")) -> None:
+              name: str = typer.Option(NAME, "--name", help="the files' name"),
+              remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps each line that is not agreed, for `knos recall`; nothing is remembered when left out"),
+              memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store; default: the memory engine's shared store on this machine"),
+              terms: str = typer.Option("", "--terms", metavar="HASH", help="with --remember: the hash of the terms the lines fall under; without it they are kept under the buyer and supplier's names")) -> None:
         """Make one statement in three forms that say the same: JSON (the statement itself), CSV and PDF. Each line of the invoice is agreed, disputed, a duplicate, or has insufficient evidence, with why in plain words, its ids and where its evidence is. It reads the evidence file and nothing else: no network, no chain. Nothing is paid."""
         try:
             data = evidence.read_bytes()
@@ -775,6 +799,7 @@ def register(app, help_lines: list | None = None) -> None:
             st = make(data, {"invoice": invoice, "supplier": supplier, "buyer": buyer, "currency": currency, "date": date}, before, not reference)
         except (OSError, ValueError) as why:
             raise stop(why) from None
+        terms = terms_or_stop(terms)
         files = write(st, out or evidence.parent, None, name)
         t = st["totals"]
         typer.echo(f"Statement for invoice {st['invoice']}: {t['billed']['lines']} lines" + (f", {t['billed']['amount']}" if t["billed"]["amount"] else ""))
@@ -782,6 +807,10 @@ def register(app, help_lines: list | None = None) -> None:
             typer.echo(f"  {ids.LINE_WORDS[state]:<24}{t[state]['lines']:>5}{t[state]['amount']:>16}")
         typer.echo(f"sha256 {st['sha256']}")
         typer.echo("wrote " + ", ".join(str(f) for f in files))
+        if remember:
+            recall, store = memory(remember, memory_dir)
+            opened = recall.statement_made(store, st, terms)
+            typer.echo(f"Remembered for {remember}: {len(opened)} {'line' if len(opened) == 1 else 'lines'} set aside. `knos recall exception` says how the same ended before.")
         if reference:
             whole = make(data, {k: st[k] for k in ("invoice", "supplier", "buyer", "currency", "date")}, before)["evidence"]["embedded"]
             kept = (out or evidence.parent) / f"{name}.evidence.{ {'shadow': 'json', 'events': 'jsonl'}.get(st['source'], 'tar')}"
@@ -804,24 +833,82 @@ def register(app, help_lines: list | None = None) -> None:
         say(st, status)
 
     @sub.command("pay")
-    def pay_(file: Path = file_arg, line: str = typer.Option(..., "--line", help="the invoice line's id (inv_...)"),
+    def pay_(file: Path = file_arg, line: str = typer.Option("", "--line", help="the invoice line's id (inv_...)"),
              method: str = typer.Option("bank", "--method", help="bank, chain or other"),
-             ref: str = typer.Option(..., "--ref", help="the payer's own reference, or the transaction"),
+             ref: str = typer.Option("", "--ref", help="the payer's own reference, or the transaction"),
              on: str = on_opt, state: str = typer.Option("", "--state", help="payable, paid outside Knos, held, refunded or devnet demonstration"),
-             receipt: Path = typer.Option(None, "--receipt", help="with --method chain: the payment's acceptance receipt (JSON); a quorum of one controller is then said on the line")) -> None:
-        """Record the payment status of one line that was paid, held or refunded outside Knos. It appends a settlement record with an id of its own to the status file. It moves no money and checks no bank: it writes down what the payer says, with the payer's reference."""
+             receipt: Path = typer.Option(None, "--receipt", help="with --method chain: the payment's acceptance receipt (JSON); a quorum of one controller is then said on the line"),
+             rail: str = typer.Option("", "--rail", help="bank: write a payment file (ISO 20022 pain.001) for the agreed, approved lines. usdc: record a devnet payment of --line (its transaction is --ref)"),
+             payer_name: str = typer.Option("", "--payer-name", help="with --rail bank: who pays, as the bank knows them"),
+             payer_account: str = typer.Option("", "--payer-account", help="with --rail bank: the account that pays (an IBAN, or an account number)"),
+             payer_bic: str = typer.Option("", "--payer-bic", help="with --rail bank: the payer's bank (BIC), when the bank asks for it"),
+             payees: Path = typer.Option(None, "--payees", help="with --rail bank: a CSV, one row a supplier: supplier,name,account,bic"),
+             execute: str = typer.Option("", "--execute", help="with --rail bank: the day the bank is asked to pay, YYYY-MM-DD (the file's day when left out)"),
+             out: Path = typer.Option(None, "--out", help="with --rail bank: where the payment file is written (<name>.pain001.xml beside the statement when left out)"),
+             remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps how a line that was set aside ended (paid: accepted on appeal; refunded: refused)"),
+             memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store"),
+             terms: str = typer.Option("", "--terms", metavar="HASH", help="with --remember: the hash of the terms, as given to `knos statement make`")) -> None:
+        """Record the payment status of one line that was paid, held or refunded outside Knos; or, with --rail bank, write the payment file the payer uploads to their own bank: one transfer per supplier for the lines that are agreed, approved and still payable, each carrying its settlement id end to end. It moves no money and checks no bank. No bank has taken a file this command wrote: try it in the bank's test channel first."""
+        from . import rails
         try:
             st, status = load(file)
+            if rail and rail not in rails.RAILS:
+                raise Refused(f"--rail is {' or '.join(rails.RAILS)}; {rail!r} is neither.")
+            if rail == "bank" and not line:
+                try:
+                    whom = rails.read_payees(payees.read_text(encoding="utf-8-sig")) if payees else {}
+                except OSError as why:
+                    raise Refused(f"Cannot read the payees file: {why}") from None
+                made = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if not on else ""
+                status, xml, found = rails.instruct(st, status, {"name": payer_name, "account": payer_account, "bic": payer_bic, "on": today(on),
+                                                                "execute": execute, "created": made, "payees": whom})
+                name = file.name[:-5] if file.name.endswith(".json") else file.name
+                where = out or file.parent / f"{name}.pain001.xml"
+                where.write_bytes(xml.encode("utf-8"))
+                for t in found:
+                    typer.echo(f"  {t['end_to_end']}  {t['amount']:>14} {t['currency']}  {t['supplier']}  ({len(t['lines'])} {'line' if len(t['lines']) == 1 else 'lines'})")
+                typer.echo(f"wrote {where}: {len(found)} {'transfer' if len(found) == 1 else 'transfers'} ({rails.MESSAGE}), message {status['events'][-1]['message']}. "
+                           "No money moved: upload it to the payer's bank, then `knos statement status` reads the bank's answer.")
+                save(file, st, status)
+                return
+            if not line or not ref:
+                raise Refused("A settlement record names its line and the payer's reference: --line and --ref. (--rail bank, with no --line, writes a payment file instead.)")
             try:
                 held = json.loads(receipt.read_text(encoding="utf-8")) if receipt else None
             except (OSError, ValueError):
                 raise Refused(f"Cannot read {receipt} as a receipt's JSON.") from None
-            status = pay(st, status, line, method, ref, today(on), state, held)
-        except Refused as why:
+            status = pay(st, status, line, "chain" if rail == "usdc" else method, ref, today(on), state, held)
+        except (Refused, rails.Refused) as why:
             raise stop(why) from None
         last = status["events"][-1]
-        typer.echo(f"recorded {last['settlement']}: line {line} is {PAY_WORDS[last['state']]} ({method}, reference {last['reference']}, {last['on']}). No money moved.")
+        typer.echo(f"recorded {last['settlement']}: line {line} is {PAY_WORDS[last['state']]} ({last['method']}, reference {last['reference']}, {last['on']}). No money moved.")
         save(file, st, status)
+        if remember:
+            recall, store = memory(remember, memory_dir)
+            ended = recall.statement_paid(store, st, last, terms_or_stop(terms))
+            if ended is not None:
+                typer.echo(f"Remembered for {remember}: this line had been set aside, and it ended {recall.ENDING_WORDS[ended['ending']]}.")
+
+    @sub.command("status")
+    def status_(file: Path = file_arg,
+                source: Path = typer.Option(..., "--from", help="the bank's answer: a payment status report (pain.002 XML), or a CSV: end_to_end_id,status,reference,date,reason"),
+                on: str = on_opt) -> None:
+        """Read the bank's answer to a payment file and record it: each line of a settled transfer becomes paid outside Knos, each line of a rejected one payable again with the bank's reason, and a transfer still with the bank changes nothing. Reading the same answer twice changes nothing. It records what the bank's file says; it asks no bank."""
+        from . import rails
+        try:
+            st, status = load(file)
+            try:
+                rows = rails.read_status(source.read_bytes())
+            except OSError as why:
+                raise Refused(f"Cannot read {source}: {why}") from None
+            after, said = rails.apply(st, status, rows, today(on))
+        except (Refused, rails.Refused) as why:
+            raise stop(why) from None
+        for words in said:
+            typer.echo(words)
+        if len(after["events"]) != len((status or {}).get("events", [])):
+            save(file, st, after)
+        say(st, after)
 
     @sub.command("grn")
     def grn_(file: Path = file_arg, line: str = typer.Option(..., "--line", help="the invoice line's id (inv_...)"),
@@ -864,7 +951,9 @@ def register(app, help_lines: list | None = None) -> None:
             raise stop(why) from None
 
     @sub.command("export")
-    def export_(file: Path = file_arg, fmt: str = typer.Option(..., "--format", help="quickbooks, netsuite or generic"),
+    def export_(file: Path = file_arg, fmt: str = typer.Option(..., "--format", help="quickbooks, netsuite, generic, match (every line with its purchase order and 2-way or 3-way match) or ariba (cXML invoice)"),
+                supplier_id: str = typer.Option("", "--supplier-id", help="ariba: the supplier's identity on the network"),
+                buyer_id: str = typer.Option("", "--buyer-id", help="ariba: the buyer's identity on the network"),
                 out: Path = typer.Option(None, "--out", help="write the file here and not to standard output"),
                 account: str = typer.Option("", "--account", help="the expense account every bill is booked to"),
                 tax_code: str = typer.Option("", "--tax-code", help="QuickBooks' Line Tax Code"),
@@ -873,10 +962,12 @@ def register(app, help_lines: list | None = None) -> None:
         from . import audit, exports
         try:
             st, status = load(file)
-            text = exports.write_statement(fmt, st, status, {"account": account, "tax_code": tax_code, "date_format": date_format})
+            text = exports.write_statement(fmt, st, status, {"account": account, "tax_code": tax_code, "date_format": date_format,
+                                                             "supplier_id": supplier_id, "buyer_id": buyer_id})
         except (Refused, audit.Refused) as why:
             raise stop(why) from None
-        typer.echo(f"{exports.FORMATS[fmt]['name']}: {exports.label(fmt)}." + (f" Unverified: {exports.FORMATS[fmt]['unverified']}." if exports.FORMATS[fmt]["unverified"] else ""), err=True)
+        f = {**exports.FORMATS, **exports.STATEMENT_MORE}[fmt]
+        typer.echo(f"{f['name']}: {exports.label(fmt)}." + (f" Unverified: {f['unverified']}." if f["unverified"] else ""), err=True)
         if out:
             out.write_bytes(text.encode("utf-8"))
             typer.echo(f"wrote {out}", err=True)

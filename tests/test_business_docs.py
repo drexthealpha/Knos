@@ -413,3 +413,88 @@ def test_governance_and_team_state_their_plans_as_plans():
     assert "## What an outside key holder would do" in read("docs/TEAM.md") and "Nobody holds this role and nobody has been asked." in team
     assert "None of the three is hired, engaged, committed or in conversation." in team and "Create a GitHub organisation with two owners" in team
     assert [h for h in re.findall(r"(?m)^### (\d)\. ", read("docs/TEAM.md"))] == ["1", "2", "3"]
+
+
+# ---- 0.3.20, the price book's parts: margins said correctly, the second customer, the rails, the loop --------------------
+
+def test_every_margin_in_the_price_documents_is_labelled_gross():
+    """Gross margin and operating margin are different: a percentage called a margin says gross, and no operating margin is printed."""
+    for rel in ("docs/UNIT_COSTS.md", "docs/MARKET.md", "docs/PILOT.md"):
+        lines = read(rel).splitlines()
+        for n, line in enumerate(lines):
+            for m in re.finditer(r"(?<!bill )\bmargins?\b", line, re.I):       # `knos bill margin` is a command's name
+                said = (lines[n - 1] if n else "") + " " + line                 # the label is on the line or the one before it
+                assert re.search(r"gross|operating", said, re.I), f"{rel}:{n + 1}: {line[:140]}"
+    costs, market = flat("docs/UNIT_COSTS.md"), flat("docs/MARKET.md")
+    assert "## Gross margin is not operating margin" in read("docs/UNIT_COSTS.md") and "Every margin on this page is a gross margin." in costs
+    assert "this page prints no operating margin" in costs and "Gross margin, not operating margin." in market
+    assert not re.search(r"operating margin of \d|\d+(?:\.\d+)?% operating", costs + market)
+
+
+def test_the_three_leaks_are_fixed_by_design_or_stated_with_the_number_and_the_design():
+    from knos import billing
+    raw, page = read("docs/UNIT_COSTS.md"), flat("docs/UNIT_COSTS.md")
+    costs = json.loads(read("docs/unit_costs.json"))
+    month = {"plan": "business", "month": 1, "evaluations": 110_000, "suppliers": 5, "accepted": [{"deliverable": f"d{k}", "value": "20000.00"} for k in range(40)]}
+    got = billing.margin(month, costs)
+    k, c, m = got["leaks"]["meter"], got["leaks"]["control"], got["remedy"]
+    # (a) the Meter: what 95% allows per delivered evaluation, the measured part, the budget, and where the budget meets it
+    assert f"| 1.00 | {k['allowed_each']} | |" in raw and f"| 0.75 | {k['measured_each']} | yes: {k['gross_margin_measured_only']} gross |" in raw
+    assert f"| 6.20 | {k['cost_each']} | no: {k['gross_margin']} gross |" in raw and not k["meets"] and k["measured_meets"]
+    assert f"from {k['reaches_at']:,} evaluations a month" in page and "The cost that is measured meets it:" in page and "The cost that is budgeted does not, at this volume:" in page
+    assert "1,800.00 against 50.70: 97.2% gross" in page
+    # (b) Control: 15,000 is 85% gross; the target is 7,000, and what replaces the hours is named
+    assert (c["cost"], c["gross_margin"], c["target_cost"], c["gross_margin_at_target"]) == ("15,000.00", "85.0%", "7,000.00", "93.0%")
+    assert "The target is 7,000 USD a year: a gross margin of 93%." in page and 7_000 // 75 == 93 and "93 hours a year" in page and 15_000 // 75 == 200
+    assert "self-service onboarding" in page and "`knos preflight`" in raw and "`knos shadow <invoice>`" in raw and "Nobody has onboarded a customer with them" in page
+    assert costs["costs"]["control_year_target"]["usd"] == "7000"
+    # (c) the floor: who pays the relayer's tip under both builds, and netting as the remedy with its numbers
+    assert "Who pays the relayer's tip." in page and "The funder, under both builds, and only through the fee" in page
+    a, b = m["one_by_one"], m["netted"]
+    assert f"| released one by one | {a['releases']} | {a['fee']} | {a['tips']} | {a['fee_owner']} |" in raw
+    assert f"| netted into one release of {b['amount']} | {b['releases']} | {b['fee']} | {b['tips']} | {b['fee_owner']} |" in raw
+    assert "`knos bill margin` prints all three for any month." in page
+
+
+def test_the_second_worked_customer_is_373_600_and_its_benefit_is_a_hurdle_not_a_claim():
+    from knos import billing
+    w = billing.second_customer(billing.unit_costs(json.loads(read("docs/unit_costs.json"))))
+    assert (w["total"], w["hurdle"], w["direct_cost"], w["gross_margin"], w["cost_ceiling_at_95"]) == ("373,600.00", "1,120,800.00", "16,208.36", "95.7%", "18,680.00")
+    for rel in ("docs/MARKET.md", "docs/UNIT_COSTS.md"):
+        raw = read(rel)
+        assert "| Acceptance | 12 × (1,000,000 × 0.30% + 9,000,000 × 0.20%) | 252,000 |" in raw and "| Meter | 12 × 900,000 × 0.002 | 21,600 |" in raw, rel
+        assert "| **What the customer pays** | 100,000 + 252,000 + 21,600 | **373,600** |" in raw, rel
+        assert "no such customer exists" in flat(rel).lower()
+    assert "1,120,800 USD a year. That is a hurdle to be measured in a pilot, not a claim." in flat("docs/MARKET.md")
+    costs = flat("docs/UNIT_COSTS.md")
+    assert "16,208.36, a gross margin of 95.7%." in costs and "8,208.36 and the gross margin 97.8%" in costs and "| Record | budgeted at zero | 0 |" in read("docs/UNIT_COSTS.md")
+    assert "That is a hurdle to be measured in a pilot, not a claim" in costs
+    pilot = flat("docs/PILOT.md")
+    assert "| × 3 | 1,120,800 USD a year |" in pilot and "Both lines are hurdles to be measured in a Pilot, not claims" in pilot
+    assert "The first customer to look for" in flat("docs/MARKET.md")
+
+
+def test_the_billing_rules_for_rails_and_the_floor_as_policy_are_said_in_the_price_book():
+    from knos import billing
+    market = flat("docs/MARKET.md")
+    assert "Once, whichever rail pays." in market and "A rail's own charge is not Knos's price." in market and "`rail_charges`" in read("docs/MARKET.md")
+    assert "A 0.20% floor is a pricing policy, not a law." in market and "Nothing enforces it but a contract" in market
+    assert "rails" in billing.RULES and "once_any_rail" in billing.RULES
+    record = next(row for row in BOOK if row[0] == "Record")
+    assert record[4] == "`knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it"
+    assert "the API is not built" not in read("docs/UNIT_COSTS.md") and "not built: a static file" not in read("docs/MARKET.md") + read("web/price.js")
+
+
+def test_market_shows_where_the_count_applies_next_and_the_competitors_reread_today():
+    raw, market = read("docs/MARKET.md"), flat("docs/MARKET.md")
+    table = raw.split("### Where the same count applies next")[1].split("### How much agent work there is")[0]
+    rows = [line for line in table.splitlines() if line.startswith("| ") and not line.startswith("| kind") and not line.startswith("|---")]
+    assert [r.split(" | ")[0].strip("| ") for r in rows] == ["Software delivery", "Customer operations", "Data operations", "Back-office processing",
+                                                             "Agent services bought by other agents"]
+    assert table.count("(OUTCOMES.md)") >= 3 and (ROOT / "docs" / "OUTCOMES.md").is_file() and (ROOT / "examples" / "agent_pays_agent").is_dir()
+    assert "They do not show that any buyer wants a separate neutral meter" in market
+    for link in ("https://www.intercom.com/pricing", "https://www.zendesk.com/pricing/", "https://www.salesforce.com/agentforce/pricing/",
+                 "https://sourcegraph.com/changelog/agentic-batch-changes-ga", "https://aws.amazon.com/bedrock/agentcore/pricing/",
+                 "https://stripe.com/billing/pricing", "https://mergepay.fun"):
+        line = next(row for row in raw.splitlines() if link in row and row.startswith("|"))
+        assert "7 Oct 2026" in line, link

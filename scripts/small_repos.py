@@ -22,7 +22,10 @@ own files, byte for byte, with nothing in them that is not derived from the sour
                     It also holds the starting file and the public examples of every task of tasks/ here, and
                     `check.py`, which tries a solution on them. scripts/task_board.py opens those tasks as funded
                     issues and commits each one's checks under its issue's number, with the line in `board.json`:
-                    `build DIR` and `check DIR` read DIR/board.json, so a rebuild keeps what the board wrote.
+                    `build DIR` and `check DIR` read DIR/board.json, so a rebuild keeps what the board wrote (a task
+                    that is not code, `outside-<kind>`, has no checks: its issue number's starter checks are left out).
+                    And `.github/workflows/knos-faucet.yml`: the worker's `faucet` job alone (`faucet_workflow`), so
+                    a rebuild keeps the faucet.
     knos-attest     drexthealpha/knos-attest: the template a seller makes his own `knos-attest` repository from. It
                     holds examples/knos-attest.yml: a run by hand there asks GitHub to sign that an order's terms
                     were met (`knos settle --neutral` and the site start it).
@@ -323,7 +326,10 @@ def task_files(board: dict[int, str] | None = None) -> dict[str, bytes]:
         for rel, src in t["starting_files"].items():
             out[rel] = (tb.TASKS / t["slug"] / src).read_bytes()
         out[f"tasks/{Path(t['file']).stem}.examples.json"] = (json.dumps(t["public"], indent=1, ensure_ascii=False) + "\n").encode("utf-8")
+    kinds = {t["slug"] for t in tb.kinds()}
     for number, slug in sorted((board or {}).items()):
+        if slug in kinds:           # a task that is not code has no checks: its issue's starter checks are left out (`files`)
+            continue
         if slug not in by_slug:
             raise SystemExit(f"board.json gives issue {number} the task {slug}, and tasks/ has none of that name")
         for rel, data in tb.bundle(by_slug[slug], number).items():
@@ -339,6 +345,43 @@ def board_of(folder: Path) -> dict[int, str]:
         return {int(k): str(v) for k, v in json.loads((folder / "board.json").read_text(encoding="utf-8"))["tasks"].items()}
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return {}
+
+
+FAUCET_WORKFLOW = ".github/workflows/knos-faucet.yml"
+_FAUCET_HEAD = """# .github/workflows/knos-faucet.yml: the test USDC faucet of this repository, and nothing else.
+# Written by scripts/small_repos.py of drexthealpha/Knos: the `faucet` job below is that repository's
+# .github/workflows/worker.yml job of the same name, byte for byte, so a rebuild of this repository keeps it.
+# It answers `/knos faucet <address>` on the issue labelled `faucet` with a fixed amount of test USDC, which has no
+# monetary value (docs/FAUCET.md there has every rule). Secrets: KNOS_FAUCET_KEY (holds test USDC, no SOL) and
+# KNOS_RELAY_KEY (pays the fee). Without both it says so and ends green. No relay runs here.
+name: knos faucet
+run-name: faucet for a comment
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+"""
+
+
+def faucet_workflow() -> bytes:
+    """The playground's faucet-only workflow: a fixed head and the worker's own `faucet` job (its comment and every
+    line to the next job or the end of the file). Raises when the worker has no such job any more."""
+    lines = (ROOT / ".github" / "workflows" / "worker.yml").read_text(encoding="utf-8").splitlines()
+    try:
+        at = lines.index("  faucet:")
+    except ValueError:
+        raise SystemExit(".github/workflows/worker.yml has no job `faucet` any more: the playground's faucet workflow is made from it") from None
+    first = at
+    while first > 0 and lines[first - 1].startswith("  #"):
+        first -= 1
+    last = next((n for n in range(at + 1, len(lines)) if re.fullmatch(r"  [\w-]+:", lines[n])), len(lines))
+    while last > at and (not lines[last - 1].strip() or lines[last - 1].startswith("  #")):
+        last -= 1
+    return (_FAUCET_HEAD + "\n".join(lines[first:last]) + "\n").encode("utf-8")
 
 
 def tree_id(files: dict[str, bytes]) -> str:
@@ -372,7 +415,12 @@ def files(name: str, board: dict[int, str] | None = None) -> dict[str, bytes]:
         for rel in (".github/ISSUE_TEMPLATE/fund-a-test-task.md", "README.md"):
             out[rel] = out[rel].decode("utf-8").format(**said).encode("utf-8")
         out.update(slots())
+        for number, slug in (board or {}).items():      # a task that is not code is paid on the merge: no checks under its number
+            if slug.startswith(_board().KIND):
+                for rel in [k for k in out if k.startswith(f".knos/acceptance/{number}/")]:
+                    del out[rel]
         out.update(task_files(board))
+        out[FAUCET_WORKFLOW] = faucet_workflow()
     problems = wrong(name, out)
     if problems:
         raise SystemExit(f"{name} cannot be published as it is: " + "; ".join(problems))

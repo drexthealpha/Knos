@@ -12,6 +12,9 @@ It reads the order's terms and the change, and says:
                 runs the buyer's tests, so yours is welcome and decides nothing); refused, with the refusal's code,
                 its two sentences (knos.ghwords.REFUSALS) and the exact line of the terms that says so
     ready       true, or the list of fixes. The command exits 0 only when ready.
+    protections the four things a supplier is owed BEFORE starting, each held or lacked by these terms, and how each is
+                enforced (program, workflow or advisory): fixed criteria, an acceptance deadline, an appeal against a
+                rejection, predictable payment. A lacked one is a warning in plain words; `--strict` exits 1 on any.
 
 What it does not do: it does not run the acceptance checks (`knos proof judge --base ... --pr ... --issue N` does, and
 the report names that command for a tests-mode order), and it cannot know whether the named checks will pass.
@@ -26,6 +29,7 @@ evidence bundle (`knos bundle make`, called as it is), and what memory holds of 
     read_terms(text)                   the terms, their hash and where each clause is written
     changes_from_git(tree, base)       [(status, path)] of the change against the base branch, untracked files included
     run(terms, changes, ...)           the report (a dict; `words(report)` prints it)
+    protections(read, ...)             the four supplier protections under these terms: held, lacked, or not checked
     MCP_TOOL, mcp(args)                the same as a tool an agent calls (knos.mcp registers it)
 """
 
@@ -41,7 +45,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import ghwords
+from . import enforce, ghwords
 from . import terms as bounty
 
 KIND, VERSION = "knos-preflight", 1
@@ -65,14 +69,21 @@ def read_terms(text: str) -> dict:
         got = json.loads(text)
     except ValueError:
         raise Unreadable("the terms file is not JSON. Give the JSON of the order's `knos-terms:` line, or a file from terms/.") from None
-    source = "terms file"
-    if isinstance(got, dict) and isinstance(got.get("terms"), dict):
+    source, contract = "terms file", None
+    from . import terms3
+    if terms3.is_terms3(got):           # a Knos Terms 3 document: the order's terms are the ones it gives, and it says the deadline and the appeal
+        try:
+            contract = terms3.validate(got)
+            got, source = terms3.order_terms(contract), f"{terms3.STANDARD} document {contract.get('name', '')}".strip()
+        except terms3.Refused as why:
+            raise Unreadable(f"this terms document cannot be an order's: {why}") from None
+    elif isinstance(got, dict) and isinstance(got.get("terms"), dict):
         got, source = got["terms"], f"template {got.get('name', '')} {got.get('version', '')}".strip()
     try:
         raw = bounty.canonical(got)
     except bounty.Refused as why:
         raise Unreadable(f"these are not an order's terms: {why}.") from None
-    return {"terms": bounty.parse(raw), "hash": bounty.terms_hash(raw), "text": text, "source": source}
+    return {"terms": bounty.parse(raw), "hash": bounty.terms_hash(raw), "text": text, "source": source, **({"contract": contract} if contract else {})}
 
 
 def terms_from_issue(issue: str, get) -> dict:
@@ -91,6 +102,92 @@ def terms_from_issue(issue: str, get) -> dict:
         raise Unreadable(f"{issue} has no `knos-terms:` line: it is not funded, or its terms are kept elsewhere. Give --terms FILE.")
     got = read_terms(found[-1])
     return {**got, "source": issue}
+
+
+# ---- the four protections a supplier is owed before starting ---------------------------------------------------------
+# id, title, how it is enforced when the terms hold it (the classes of the enforcement matrix: `program` is a check in
+# knos_pay, `workflow` a pinned workflow job's, `advisory` a file or a command that says so and stops nothing), and the
+# one line the supplier's page shows. web/supplier.js carries the same four rows; tests/test_preflight.py compares.
+ENFORCED = tuple(c for c in enforce.CLASSES if c != "outside")       # the enforcement matrix's own words (knos.enforce): program, workflow, advisory
+PROTECTIONS = (
+    ("fixed_criteria", "Fixed criteria", "program", "Terms are fixed when the order is funded."),
+    ("acceptance_deadline", "Acceptance deadline", "program", "Passing work is paid without a merge."),
+    ("appeal", "No arbitrary rejection", "workflow", "A rejection has a reason and a free appeal."),
+    ("predictable_payment", "Predictable payment", "program", "The order is funded before work starts."),
+)
+NETTED = ("predictable_payment", "Predictable payment", "advisory", "Netted work is covered by a bound reserve.")
+NO_DEADLINE = "These terms have no acceptance deadline: the buyer can wait forever"
+CANCEL_DAYS = 7         # an open order's cancellation moves its deadline to at most this many days away (docs/SECURITY.md)
+
+
+def protections(read: dict, *, auto: bool | None = None, arbiter: str = "", netted: bool = False, reserve: bool = False,
+                funded: bool | None = None) -> list[dict]:
+    """The four protections under a set of terms, in order: [{id, title, held, enforced, says, warning, ask}]. `held`
+    is True, False (the terms lack it: `warning` says so in plain words and `ask` what to ask the buyer for), or None
+    (not checked: these terms alone cannot show it). `enforced` is how it is held when it is: program, workflow or
+    advisory. `read`: read_terms' answer (with `contract`, the Knos Terms 3 document, when the file was one).
+    `auto`: the order pays passing work without a merge (the order's option, which the 600-byte terms do not carry;
+    None: not known). `arbiter`: the login the order names to rule on an appeal. `netted`: the work settles in a
+    netted period, not an order of its own; `reserve`: that period is bound to money already set aside. `funded`:
+    whether an order was seen to hold the price (True when the terms came from a funded issue; None for a file)."""
+    terms, doc = read["terms"], read.get("contract") or {}
+    tests, named = terms["mode"] == "tests", [c["name"] for c in terms["checks"]]
+    days = (doc.get("deadline") or {}).get("days")
+    window = (doc.get("dispute") or {}).get("within_days")
+    arbiter = (arbiter or (doc.get("dispute") or {}).get("arbiter") or "").lstrip("@")
+    out: list[dict] = []
+
+    def row(n: int, held: bool | None, says: str, warning: str = "", ask: str = "", spec=None) -> None:
+        key, title, how, _line = spec or PROTECTIONS[n]
+        out.append({"id": key, "title": title, "held": held, "enforced": how, "says": says, "warning": warning, "ask": ask})
+
+    # 1. fixed criteria
+    if tests or named:
+        what = ("the acceptance suite with the hash " + terms["accept"][:12] if tests else "") + (" and " if tests and named else "") + \
+               ("the checks " + ", ".join(named) if named else "")
+        row(0, True, f"The criteria cannot change after funding: the order keeps the hash {read['hash'][:12]} of these terms, and they name {what}.")
+    else:
+        row(0, False, "", "These terms name no check and no acceptance suite: the only criterion is that the buyer merges, for any reason or none.",
+            "Ask for named checks, or an order paid on an acceptance suite.")
+    # 2. an acceptance deadline
+    end = f"; after {days} days the order ends and the money goes back to the buyer." if days else ", and at the order's deadline the money goes back to the buyer."
+    if tests and auto:
+        row(1, True, "Passing work is accepted without the buyer: the first pull request that passes the suite is paid, with no merge and no review to wait for.")
+    elif tests and auto is None:
+        row(1, False, "", f"These terms do not say that passing work is paid without a merge. {NO_DEADLINE}{end}",
+            "Ask whether the order was funded with `auto`; say so here with --auto.")
+    else:
+        row(1, False, "", f"{NO_DEADLINE}{end}", "Ask for an order paid on an acceptance suite and funded with `auto`.")
+    # 3. protection from arbitrary rejection, and an appeal
+    within = f" within {window} days of the rejection" if window else ""
+    if tests:
+        row(2, True, f"A rejection is the suite's result, with a code and a reason. `/knos appeal <reason>`{within} opens an appeal that costs you nothing; "
+                     "you or anyone can then start the neutral run, which runs the suite again under another account. The money stays in the order meanwhile. "
+                     "Nothing forces that run: with no verdict by the order's deadline the money goes back to the buyer.")
+    elif arbiter:
+        row(2, True, f"The buyer accepts by merging; a refusal can be appealed{within} with `/knos appeal <reason>` to @{arbiter}, the arbiter the order names. "
+                     "It costs you nothing.")
+    else:
+        row(2, False, "", "These terms let the buyer reject by not merging, and name nobody to appeal to: an appeal would be recorded and decide nothing.",
+            "Ask for an arbiter named at funding, or an order paid on an acceptance suite.")
+    # 4. predictable payment
+    if netted:
+        if reserve:
+            row(3, True, "This work is netted, and its period is bound to a reserve the buyer funded: the period refuses work past the reserve.", spec=NETTED)
+        else:
+            row(3, False, "", "This work is netted with no reserve bound: you carry the buyer's credit until the period closes.",
+                "Ask the buyer to bind the period to a funded reserve.", spec=NETTED)
+    elif funded:
+        row(3, True, f"The order held its whole price before you started. The buyer can cancel only with up to {CANCEL_DAYS} days' notice, "
+                     "and an acceptance inside the notice still pays.")
+    else:
+        row(3, None, "Not checked: a terms file is not an order. An order holds its whole price from funding; read a funded one with --issue owner/repo#number.")
+    return out
+
+
+def lacked(report: dict) -> list[dict]:
+    """The protections a report says the terms lack."""
+    return [p for p in report.get("protections", []) if p["held"] is False]
 
 
 def _cite(read: dict, key: str, value: str) -> dict:
@@ -225,7 +322,8 @@ def _refusal(code: str, path: str, cite: dict) -> dict:
 
 
 def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None = None, base: str | None = None, issue: str = "",
-        store=None, repo: str = "", supplier: str = "", memory: dict | None = None, now: float | None = None) -> dict:
+        store=None, repo: str = "", supplier: str = "", memory: dict | None = None, now: float | None = None, auto: bool | None = None,
+        arbiter: str = "", netted: bool = False, reserve: bool = False, funded: bool | None = None) -> dict:
     """The preflight's report. `read`: read_terms' answer. `changes`: [(status, path)], or None when the change is not
     known (then only the rules are said, and it is not ready). `store`: the memory to recall from and remember in
     (knos.proof.history; None or a NullStore: no memory). Nothing here asks the network for anything."""
@@ -312,6 +410,7 @@ def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None 
             "paths": list(terms["paths"]), "protected": protected,
             "allowed_not_counted": "A test file you add." if tests else "Nothing: this order is paid on a merge, and every allowed file counts.",
             "changes": rows, "fixes": fixes, "memory": {**memory, "warnings": warnings, **({"record": record} if record else {})},
+            "protections": protections(read, auto=auto, arbiter=arbiter, netted=netted, reserve=reserve, funded=funded),
             "next": nxt, "at": int(now if now is not None else time.time())}
 
 
@@ -338,6 +437,13 @@ def words(report: dict) -> str:
         out.append(f"Your record here: {record['accepted']} accepted, {record['rejected']} rejected, {record['appealed']} appealed, {record['overturned']} overturned.")
     out += [report["memory"]["said"], ""]
     out += ["Ready: nothing in this change would be refused by the terms."] if report["ready"] else ["Not ready. Fix:", *(f"  - {f}" for f in report["fixes"])]
+    owed = report.get("protections") or []
+    if owed:
+        mark3 = {True: "held       ", False: "LACKED     ", None: "not checked"}
+        out += ["", "Before you start, what these terms give you:"]
+        for p in owed:
+            out.append(f"  {mark3[p['held']]} {p['title']}" + (f" ({p['enforced']})" if p["held"] else "") + f": {p['says'] or p['warning']}"
+                       + (f" {p['ask']}" if p["ask"] else ""))
     out += ["", *report["next"]]
     return "\n".join(out)
 
@@ -413,7 +519,8 @@ def repo_name(tree: Path) -> str:
 
 
 def check(tree: Path, terms_file: Path | None = None, issue: str = "", base: str = "", changed_file: Path | None = None,
-          supplier: str = "", get=None, use_memory: bool = True) -> dict:
+          supplier: str = "", get=None, use_memory: bool = True, auto: bool | None = None, arbiter: str = "", netted: bool = False,
+          reserve: bool = False) -> dict:
     """Everything `knos preflight` does, as one call: read the terms, read the change, recall, answer, remember."""
     tree = Path(tree)
     if terms_file is not None:
@@ -452,7 +559,8 @@ def check(tree: Path, terms_file: Path | None = None, issue: str = "", base: str
         except Exception:  # noqa: BLE001 - what GitHub holds of the judge's lessons is a help, never a condition
             pass
     return run(read, changes, tree=tree, base=at, issue=number, store=store, repo=(m.group(1) if m else repo_name(tree)),
-               supplier=supplier, memory=mem)
+               supplier=supplier, memory=mem, auto=auto, arbiter=arbiter, netted=netted, reserve=reserve,
+               funded=True if m and terms_file is None else None)
 
 
 # ---- for an agent (knos.mcp registers these two) ---------------------------------------------------------------------
@@ -526,17 +634,22 @@ def register(app, help_lines: list | None = None) -> None:
                    changed: Path = typer.Option(None, "--changed", help="the change as `git diff --name-status` printed it, when there is no git here"),
                    by: str = typer.Option("", "--by", help="your GitHub login: recalls your own record in this repository"),
                    no_memory: bool = typer.Option(False, "--no-memory", help="recall nothing and remember nothing"),
-                   as_json: bool = typer.Option(False, "--json", help="print the report as JSON")) -> None:
+                   as_json: bool = typer.Option(False, "--json", help="print the report as JSON"),
+                   auto: bool = typer.Option(None, "--auto/--no-auto", help="the order pays passing work without a merge (funded with `auto`); the terms alone do not say"),
+                   arbiter: str = typer.Option("", "--arbiter", help="the login the order names to rule on an appeal"),
+                   netted: bool = typer.Option(False, "--netted", help="the work settles in a netted period, not an order of its own"),
+                   reserve: bool = typer.Option(False, "--reserve", help="with --netted: the period is bound to a reserve the buyer funded"),
+                   strict: bool = typer.Option(False, "--strict", help="exit 1 when the terms lack a supplier protection, even if the change is ready")) -> None:
         """Say, before anything is submitted, what the order's terms hold this change to: the protected paths, the named
         checks, each changed file as allowed, allowed and not counted, or refused (with the line of the terms that says
         so and what to do), and what was refused before under the same terms. Exit 0 only when ready."""
         from . import cli
         try:
-            report = check(tree, terms_file, issue, base, changed, by, use_memory=not no_memory)
+            report = check(tree, terms_file, issue, base, changed, by, use_memory=not no_memory, auto=auto, arbiter=arbiter, netted=netted, reserve=reserve)
         except Unreadable as why:
             raise cli.Stop(f"Preflight did not run: {why}", "knos preflight --terms FILE") from None
         typer.echo(json.dumps(report, indent=1, sort_keys=True) if as_json else words(report))
-        if not report["ready"]:
+        if not report["ready"] or (strict and lacked(report)):
             raise typer.Exit(1)
 
     @app.command("keep", rich_help_panel="For suppliers")

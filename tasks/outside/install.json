@@ -1,0 +1,18 @@
+{
+ "kind": "install",
+ "v": 1,
+ "title": "Install the check in a repository you own",
+ "statement": "Test USDC, no monetary value.\n\nAdd the check workflow to a repository you own and let it finish once on a pull request.",
+ "evidence": "a repository your account owns whose default branch calls the public pinned check workflow, and one finished run of it",
+ "counter": "repositories",
+ "needs": [
+  "actor_id",
+  "repository_owner_id",
+  "calls_public_check",
+  "finished_runs"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/INSTALL.md"
+}

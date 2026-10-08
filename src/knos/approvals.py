@@ -311,6 +311,32 @@ def gate(files: dict[str, str], *, vendor: str, rate: int, budget: int, on: str,
     return False, f"Refused: no standing offer under {root}/offers/ names @{vendor} at this rate and cap today."
 
 
+def gate_order(files: dict[str, str], *, subject: str, requester: str, amount: int, on: str, fetch=None) -> tuple[bool, str]:
+    """Whether a funding that is no standing offer (`/knos fund`, `/knos tip`, a private order) may go on, by the same
+    files: (ok, one sentence). `subject` is what the approvers sign, `issue:<number>` or `tip:<number>`; `requester`
+    the account whose comment asks for the money; `amount` what the order holds, in millionths. The requester must
+    hold the requester role, and the approvals log must hold what the policy's threshold asks for this amount, each
+    approval judged again and, with `fetch`, confirmed by the forge. No approval policy: (True, ""). What it does not
+    ask: a rate card or an envelope, which a plain order names none of (knos.enforce says so cell by cell)."""
+    root = controls.PROCUREMENT
+    if f"{root}/policy.yaml" not in files:
+        return True, ""
+    try:
+        policy = controls.read_yaml(files[f"{root}/policy.yaml"])
+    except controls.Unread as why:
+        return False, f"Refused: {root}/policy.yaml: {why}"
+    bad = policy_problems(policy)
+    if bad:
+        return False, f"Refused: {root}/policy.yaml is not sound. {bad[0]}"
+    if held_on(policy, requester, "requester", on)[0] is None:
+        return False, f"Refused: @{requester} does not hold the requester role on {on}, and `{root}/policy.yaml` says who may ask for money."
+    events = [e for e in read_log(files.get(f"{root}/{LOG}", "")) if fetch is None or verified(e, fetch(int((e.get("source") or {}).get("comment_id") or 0)) or {})]
+    got = chain(policy, subject=subject, requester=requester, amount=amount, events=events, on=on)
+    if not got["met"]:
+        return False, f"Refused: `{subject}` is not approved. {got['sentence']}"
+    return True, got["sentence"]
+
+
 def sample_events() -> list[dict]:
     """The approvals of controls.sample()'s one open offer so far: one approver has signed, a second is awaited."""
     src = {"kind": "forge comment", "forge": "github", "url": f"https://github.com/{controls.SAMPLE_REPOSITORY}/issues/12#issuecomment-2291", "comment_id": 2291,

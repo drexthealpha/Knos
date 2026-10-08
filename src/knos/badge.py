@@ -6,6 +6,9 @@
     knos record <login or id>      knos_pay's reputation account for a payee (state.rs R_*), with its caveats
     knos record build <supplier>   a supplier's public record file, docs/records/<slug>.json (knos.record_page, docs/RECORD.md)
     knos record receipt <file>     an acceptance receipt as one PDF page and JSON, to send with an invoice
+    knos record serve <offer>      the paid lookup as a server anyone runs; --health says whether it can answer (knos.record_api)
+    knos record verify <answer>    a paid answer checked with no network: fresh, stale, unsigned or invalid (knos.record_answer)
+    knos record grant <slug>       the supplier lets a named reader read fields of its history; `record history` writes them
     knos badge record <slug>       an SVG from a supplier's record file, in the same drawing as the two above
 
 `knos badge` writes the SVG to a file and prints the Markdown that shows it and links it to the repository's record on
@@ -287,8 +290,7 @@ def register(app) -> None:
         cli.err.print(f"Wrote {path}: {LABEL}: {message(data)}. Commit it, then paste this line:", markup=False)
         typer.echo(markdown(data, path.as_posix()))
 
-    @app.command("record")
-    def record_cmd(who: str = typer.Argument(..., help="a GitHub login, or a GitHub user id; or `build <supplier>`, or `receipt <acceptance receipt file>`, or `serve <offer file>`"),
+    def record_cmd(ctx, who: str = typer.Argument(..., help="a GitHub login, or a GitHub user id; or `build <supplier>`, `receipt <acceptance receipt file>`, `serve <offer file>`, `verify <answer file>`, `grant <slug>`, `history <supplier>`"),
                    what: str = typer.Argument("", help="with `build`: the supplier's name; with `receipt`: the acceptance receipt's file; with `serve`: the seller's offer"),
                    out: Path = typer.Option(None, "--out", help="build: the folder to write (default docs/records); receipt: the files' path without the ending"),
                    index: Path = typer.Option(Path("docs/index.json"), "--index", help="build: the Agent PR Index feed, for an agent it measures"),
@@ -302,7 +304,19 @@ def register(app) -> None:
         """A payee's record as knos_pay keeps it on Solana: paid, distinct funders, first and last, with test money and self-paid shown apart."""
         if who == "serve":      # knos record serve <offer file>: the machine-priced API anyone can run (src/knos/record_api.py); Knos hosts none
             # named and not imported: the relay reaches this module, and the server's store is the memory engine's, which a relay's install lacks
-            importlib.import_module("knos.record_api").main([what] if what else [])
+            # what this command's own options took (--memory) goes back; the server's own (--key, --history, --health, ...) pass through
+            importlib.import_module("knos.record_api").main([*([what] if what else []), *ctx.args, *(["--memory", str(memory)] if memory else [])])
+            return
+        if who in ("verify", "grant", "history"):     # the paid answer's three commands (src/knos/record_answer.py)
+            back = [*(["--out", str(out)] if out else []), *(["--as-of", as_of] if as_of and who == "history" else [])]
+            if who == "history":
+                back += [*(["--events", str(events_log)] if events_log else []), *[x for i in supplier_id for x in ("--id", i)],
+                         *(["--memory", str(memory)] if memory else []), *[x for r in repo for x in ("--repo", r)]]
+            if who == "verify":
+                back = ["--json"] if as_json else []
+            code = importlib.import_module("knos.record_answer").main([who, *([what] if what else []), *ctx.args, *back])
+            if code:
+                raise typer.Exit(code)
             return
         from . import cli
         if what and who in ("build", "receipt"):
@@ -330,3 +344,7 @@ def register(app) -> None:
             return
         for line in record_lines(v):
             cli.out.print(line, markup=False)
+
+    # the words `knos record` does not know are another module's options (serve, verify, grant, history): they pass through
+    record_cmd.__annotations__["ctx"] = typer.Context       # named here: this module's annotations are text, and typer is not a global
+    app.command("record", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})(record_cmd)

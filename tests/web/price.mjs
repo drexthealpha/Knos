@@ -93,6 +93,8 @@ for (const y of vectors.years) {
 }
 same("the total is the lines added once, less the rebate: nothing released on chain is in it", vectors.years.every((y) => { const e = year(y); return e.total === e.control + e.meter + e.acceptance + e.records - e.rebate; }), true);
 same("the worked customer pays 130,240.00 a year", usd(year(vectors.years[0]).total), "130,240.00");
+same("the second worked customer pays 373,600.00 a year, and three to one is 1,120,800.00", [usd(year(vectors.years[1]).total), usd(year(vectors.years[1]).benefit), vectors.years[1].out.total], ["373,600.00", "1,120,800.00", vectors.second.out.total]);
+same("the Record line says who runs the lookup and that it is budgeted at zero", priceBook()[3][4], "`knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it");
 // the tiers of a month, and a deliverable's own fee
 same("20 million in a month: 1M at 0.30%, 19M at 0.20%, and no rate under 0.20%", tiersOf(2_000_000_000).map((t) => [t.rate, usd(t.of), usd(t.fee)]), [["0.30%", "1,000,000.00", "3,000.00"], ["0.20%", "19,000,000.00", "38,000.00"]]);
 same("with no contract all of it pays 0.30%", tiersOf(2_000_000_000, false).map((t) => usd(t.of)), ["20,000,000.00", "0.00"]);

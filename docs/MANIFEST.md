@@ -1,4 +1,4 @@
-# Release manifest: Knos 0.3.19
+# Release manifest: Knos 0.3.20
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -8,7 +8,7 @@ limits still open. `python scripts/release_manifest.py` writes it from the files
 
 ## Source
 
-- Release: Knos 0.3.19 (`pyproject.toml`). Tag: [`v0.3.19`](https://github.com/drexthealpha/Knos/tree/v0.3.19); `git rev-list -n 1 v0.3.19` prints its commit. A file
+- Release: Knos 0.3.20 (`pyproject.toml`). Tag: [`v0.3.20`](https://github.com/drexthealpha/Knos/tree/v0.3.20); `git rev-list -n 1 v0.3.20` prints its commit. A file
   cannot hold the hash of the commit that holds it.
 - Cluster: Solana devnet. The money is test USDC. Mainnet is not touched.
 
@@ -42,186 +42,218 @@ execute is its `earliest_execution_utc` there.
 
 ## Capabilities: the stage of each, with its evidence
 
-From `docs/capabilities.json`. A stage is the highest that has evidence; deployed and exercised count only at the
-public program ids. The note of each capability and every lower stage's evidence are in
-[CAPABILITIES.md](CAPABILITIES.md).
+One row for each capability: where it is in the source, the test that covers it, the build it is deployed in with
+the hash last read at that public id, a transaction that exercised it, and a reproduction by someone outside.
+From `docs/capabilities.json` and `docs/provenance.json`. A stage is the highest that has evidence; deployed and
+exercised count only at the public program ids. A cell with nothing behind it says none. The note of each
+capability is in [CAPABILITIES.md](CAPABILITIES.md).
 
-| capability | stage | evidence of that stage |
-|---|---|---|
-| `check` | tested locally | [`tests/test_proof.py`](../tests/test_proof.py) |
-| `install_by_pull_request` | tested locally | [`tests/test_install_link.py`](../tests/test_install_link.py) |
-| `terms_templates` | tested locally | [`tests/test_install_link.py`](../tests/test_install_link.py) |
-| `stop_hook` | tested locally | [`tests/test_proof.py`](../tests/test_proof.py) |
-| `mcp_tools` | tested locally | [`tests/test_mcp.py`](../tests/test_mcp.py) |
-| `agent_tools` | tested locally | [`tests/test_agentkey.py`](../tests/test_agentkey.py) |
-| `verify_github` | exercised on devnet | [4G2Zew7L...](https://explorer.solana.com/tx/4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV?cluster=devnet) |
-| `verify_gitlab` | deployed on devnet | `knos_oidc 2.0` at its public id |
-| `verify_any_issuer` | tested locally | [`tests/test_oidc2_chain.py`](../tests/test_oidc2_chain.py) |
-| `key_guardian` | deployed on devnet | `knos_oidc 2.0` at its public id |
-| `fund_by_comment` | deployed on devnet | `knos_pay 2.0` at its public id |
-| `fund_from_wallet` | exercised on devnet | [4Q1cvM78...](https://explorer.solana.com/tx/4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK?cluster=devnet) |
-| `pay_on_merge` | deployed on devnet | `knos_pay 2.0` at its public id |
-| `hold_and_bind` | deployed on devnet | `knos_pay 2.0` at its public id |
-| `refund` | exercised on devnet | [57E3wRPG...](https://explorer.solana.com/tx/57E3wRPGfY34MFq89Uxi75AS9PMoCT7eFwnXgnfsFpVg9mbtoHB4FVJ5bYNMGLPANuvrYygwc32Su2W8jE5XtVeY?cluster=devnet) |
-| `pause` | deployed on devnet | `knos_pay 2.0` at its public id |
-| `work_orders` | exercised on devnet | [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) |
-| `order_pay` | exercised on devnet | [59AfaYHT...](https://explorer.solana.com/tx/59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet) |
-| `tests_mode` | exercised on devnet | [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) |
-| `order_auto_accept` | exercised on devnet | [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) |
-| `order_challenge` | tested locally | [`tests/test_order_auto.py`](../tests/test_order_auto.py) |
-| `order_quorum` | tested locally | [`tests/test_order_quorum.py`](../tests/test_order_quorum.py) |
-| `hermetic_judge` | tested locally | [`tests/test_judge_hermetic.py`](../tests/test_judge_hermetic.py) |
-| `holdback_release` | tested locally | [`tests/test_order_terms.py`](../tests/test_order_terms.py) |
-| `warranty_revert` | tested locally | [`tests/test_order_terms.py`](../tests/test_order_terms.py) |
-| `seller_settle` | tested locally | [`tests/test_order_judges.py`](../tests/test_order_judges.py) |
-| `neutral_attest` | tested locally | [`tests/test_order_judges.py`](../tests/test_order_judges.py) |
-| `arbiter_rule` | tested locally | [`tests/test_order_judges.py`](../tests/test_order_judges.py) |
-| `reserve_cancel` | tested locally | [`tests/test_order_terms.py`](../tests/test_order_terms.py) |
-| `top_up` | exercised on devnet | [432L2F98...](https://explorer.solana.com/tx/432L2F987ADLGHRPLuHMoULKQr8pYRMNyb9k2PAMZ5H7CJsix4JgqKbMHLx7yyY5kDmJnAt1Lb6fz5nMwEFhCCQJ?cluster=devnet) |
-| `assign` | tested locally | [`tests/test_order_terms.py`](../tests/test_order_terms.py) |
-| `advance_by_assignment` | tested locally | [`tests/test_advance.py`](../tests/test_advance.py) |
-| `standing_order` | tested locally | [`tests/test_order_terms.py`](../tests/test_order_terms.py) |
-| `org_balance_limits` | tested locally | [`tests/test_order_chain.py`](../tests/test_order_chain.py) |
-| `org_wallet` | tested locally | [`tests/test_order_judges.py`](../tests/test_order_judges.py) |
-| `plans` | tested locally | [`tests/test_order_chain.py`](../tests/test_order_chain.py) |
-| `fee_tiers` | tested locally | [`tests/test_fees.py`](../tests/test_fees.py) |
-| `single_use_tokens` | exercised on devnet | [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) |
-| `private_attestor` | tested locally | [`tests/test_flow_private.py`](../tests/test_flow_private.py) |
-| `meter_single` | deployed on devnet | `knos_meter 1.0` at its public id |
-| `meter_batch` | exercised on devnet | [4FxxZjQD...](https://explorer.solana.com/tx/4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR?cluster=devnet) |
-| `meter_seller_claim` | exercised on devnet | [3zJVYD2y...](https://explorer.solana.com/tx/3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc?cluster=devnet) |
-| `passkey_payee_wallet` | deployed on devnet | `knos_passkey 1.0` at its public id |
-| `passkey_funder` | exercised on devnet | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) |
-| `passkey_fund_relay` | exercised on devnet | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) |
-| `buyer_page` | exercised on devnet | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) |
-| `gitlab_pay` | tested locally | [`tests/test_gitlab_pay.py`](../tests/test_gitlab_pay.py) |
-| `gitlab_ci_example` | implemented | [`examples/gitlab/.gitlab-ci.yml`](../examples/gitlab/.gitlab-ci.yml) |
-| `relay` | tested locally | [`tests/test_relay2.py`](../tests/test_relay2.py) |
-| `adapters` | tested locally | [`tests/test_adapters.py`](../tests/test_adapters.py) |
-| `canary` | tested locally | [`tests/test_flow_orders.py`](../tests/test_flow_orders.py) |
-| `load_local_1000` | tested locally | [`tests/test_load.py`](../tests/test_load.py) |
-| `invariants_state_machine` | tested locally | [`tests/test_invariants_machine.py`](../tests/test_invariants_machine.py) |
-| `rust_handler_tests` | tested locally | [`programs-v2/handlers/tests/knos_pay.rs`](../programs-v2/handlers/tests/knos_pay.rs) |
-| `kani_fee_conservation` | tested locally | [`tests/test_provenance.py`](../tests/test_provenance.py) |
-| `receipt` | tested locally | [`tests/test_receipt.py`](../tests/test_receipt.py) |
-| `evidence_bundle` | tested locally | [`tests/test_bundle.py`](../tests/test_bundle.py) |
-| `receipt_mirror` | tested locally | [`tests/test_bundle.py`](../tests/test_bundle.py) |
-| `sas_receipt` | tested locally | [`tests/test_receipt.py`](../tests/test_receipt.py) |
-| `x402_example` | tested locally | [`tests/test_x402_attested.py`](../tests/test_x402_attested.py) |
-| `x402_knos_order` | exercised on devnet | [2noSVLKX...](https://explorer.solana.com/tx/2noSVLKXsSDc9iL72m6H4geVenuoDvrH7YiQ4FUEwLUYgEbWpqxk9TZxf6GQegSXCsZUR33GT2gn6HEUbkKTpwsX?cluster=devnet) |
-| `cpi_fund` | tested locally | [`tests/test_cpi_fund.py`](../tests/test_cpi_fund.py) |
-| `oidc_gate` | tested locally | [`tests/test_oidc_gate.py`](../tests/test_oidc_gate.py) |
-| `upgrade_gate` | deployed on devnet | `upgrade_gate 1.0` at its public id |
-| `upgrade_delay` | tested locally | [`tests/test_governance.py`](../tests/test_governance.py) |
-| `upgrade_feed` | tested locally | [`tests/test_upgrade_feed.py`](../tests/test_upgrade_feed.py) |
-| `policy` | tested locally | [`tests/test_flow_orders.py`](../tests/test_flow_orders.py) |
-| `screening` | tested locally | [`tests/test_screen.py`](../tests/test_screen.py) |
-| `statements` | tested locally | [`tests/test_records.py`](../tests/test_records.py) |
-| `badge` | tested locally | [`tests/test_badge.py`](../tests/test_badge.py) |
-| `audit_export` | tested locally | [`tests/test_audit.py`](../tests/test_audit.py) |
-| `agent_pr_index` | tested locally | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py) |
-| `agent_weekly_rates` | tested locally | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py) |
-| `mainnet_check` | tested locally | [`tests/test_mainnet_check.py`](../tests/test_mainnet_check.py) |
-| `deliverable_identity` | tested locally | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py) |
-| `meter_corrections` | tested locally | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py) |
-| `meter_period_close` | tested locally | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py) |
-| `ledger_dedup` | tested locally | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py) |
-| `receipt_five_parts` | tested locally | [`tests/test_receipt.py`](../tests/test_receipt.py) |
-| `evaluator_independence_record` | tested locally | [`tests/test_receipt.py`](../tests/test_receipt.py) |
-| `verify_without_chain` | tested locally | [`tests/test_receipt_offline.py`](../tests/test_receipt_offline.py) |
-| `budget_controls_cli` | tested locally | [`tests/test_controls.py`](../tests/test_controls.py) |
-| `console` | tested locally | [`tests/test_site_buyer.py`](../tests/test_site_buyer.py) |
-| `observer_view` | tested locally | [`tests/test_observe.py`](../tests/test_observe.py) |
-| `relay_journal_and_retries` | tested locally | [`tests/test_relay_failures.py`](../tests/test_relay_failures.py) |
-| `dependency_drills` | tested locally | [`tests/test_drills.py`](../tests/test_drills.py) |
-| `workflow_capacity_model` | tested locally | [`tests/test_capacity.py`](../tests/test_capacity.py) |
-| `reproduction_kit` | tested locally | [`tests/test_reproduce.py`](../tests/test_reproduce.py) |
-| `neutral_reexecution` | tested locally | [`tests/test_attest_rerun.py`](../tests/test_attest_rerun.py) |
-| `doc_claims_check` | tested locally | [`tests/test_doc_claims.py`](../tests/test_doc_claims.py) |
-| `agent_index_weekly_scan` | tested locally | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py) |
-| `opt_in_profiles` | tested locally | [`tests/test_badge.py`](../tests/test_badge.py) |
-| `outcome_examples` | tested locally | [`tests/test_outcomes.py`](../tests/test_outcomes.py) |
-| `knos_verify_action` | tested locally | [`tests/test_integrations.py`](../tests/test_integrations.py) |
-| `webhook_verifier` | tested locally | [`tests/test_integrations.py`](../tests/test_integrations.py) |
-| `agent_host_routes` | tested locally | [`tests/test_host_hooks.py`](../tests/test_host_hooks.py) |
-| `oidc_differential` | tested locally | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py) |
-| `fuzz_rsa_diff_target` | tested locally | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py) |
-| `cli_lazy_start` | tested locally | [`tests/test_startup.py`](../tests/test_startup.py) |
-| `site_cache` | tested locally | [`tests/web/live.mjs`](../tests/web/live.mjs) |
-| `live_round_view` | tested locally | [`tests/web/live.mjs`](../tests/web/live.mjs) |
-| `brand` | tested locally | [`tests/test_brand.py`](../tests/test_brand.py) |
-| `shadow_mode` | tested locally | [`tests/test_shadow.py`](../tests/test_shadow.py) |
-| `playground` | tested locally | [`tests/test_playground.py`](../tests/test_playground.py) |
-| `interactive_demo` | tested locally | [`tests/test_site_demo.py`](../tests/test_site_demo.py) |
-| `design_system` | tested locally | [`tests/test_site_overflow.py`](../tests/test_site_overflow.py) |
-| `verifier_issuer_matrix` | tested locally | [`tests/test_issuers.py`](../tests/test_issuers.py) |
-| `finance_exports` | tested locally | [`tests/test_exports.py`](../tests/test_exports.py) |
-| `audit_export_v2` | tested locally | [`tests/test_audit.py`](../tests/test_audit.py) |
-| `four_linked_objects` | tested locally | [`tests/test_audit.py`](../tests/test_audit.py) |
-| `five_named_states` | tested locally | [`tests/test_flow.py`](../tests/test_flow.py) |
-| `relay_stage_times` | tested locally | [`tests/test_ghrelay.py`](../tests/test_ghrelay.py) |
-| `quorum_three_readers` | tested locally | [`tests/test_flow_quorum3.py`](../tests/test_flow_quorum3.py) |
-| `outcome_orders` | tested locally | [`tests/test_flow_quorum3.py`](../tests/test_flow_quorum3.py) |
-| `terms_registry` | tested locally | [`tests/test_terms_registry.py`](../tests/test_terms_registry.py) |
-| `terms_memory` | tested locally | [`tests/test_flow_orders.py`](../tests/test_flow_orders.py) |
-| `index_bounded_scan` | tested locally | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py) |
-| `honest_work_rate` | tested locally | [`tests/test_tamper_bench.py`](../tests/test_tamper_bench.py) |
-| `provenance_chain` | tested locally | [`tests/test_provenance.py`](../tests/test_provenance.py) |
-| `conformance_kit` | tested locally | [`tests/test_conformance.py`](../tests/test_conformance.py) |
-| `release_registry_rule` | tested locally | [`tests/test_release_gate.py`](../tests/test_release_gate.py) |
-| `oidc_strict_json` | tested locally | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py) |
-| `unwrap_inventory` | tested locally | [`tests/test_unwraps.py`](../tests/test_unwraps.py) |
-| `outcome_not_code` | exercised on devnet | [31HzWxXF...](https://explorer.solana.com/tx/31HzWxXFoya7ZKphG9Tb9czvhKT9dZiCGP4F3sSvgkek9x7FLGATqsA1Mba45gpQpNFa8ELLcEUJyXCXZ2f92okk?cluster=devnet) |
-| `events_ledger` | tested locally | [`tests/test_events.py`](../tests/test_events.py) |
-| `ap_statement` | tested locally | [`tests/test_statement.py`](../tests/test_statement.py) |
-| `four_verdicts_four_ids` | tested locally | [`tests/test_verdicts_ids.py`](../tests/test_verdicts_ids.py) |
-| `relay_queue` | tested locally | [`tests/test_relayq.py`](../tests/test_relayq.py) |
-| `evidence_vault` | tested locally | [`tests/test_vault.py`](../tests/test_vault.py) |
-| `private_path` | tested locally | [`tests/test_private_path.py`](../tests/test_private_path.py) |
-| `supplier_preflight` | tested locally | [`tests/test_preflight.py`](../tests/test_preflight.py) |
-| `supplier_appeal` | tested locally | [`tests/test_appeal.py`](../tests/test_appeal.py) |
-| `refusal_table` | tested locally | [`tests/test_refusals.py`](../tests/test_refusals.py) |
-| `billing_rule` | tested locally | [`tests/test_billing.py`](../tests/test_billing.py) |
-| `agent_leaderboard` | tested locally | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py) |
-| `front_door` | tested locally | [`tests/test_site_front_door.py`](../tests/test_site_front_door.py) |
-| `es256_tokens` | tested locally | [`programs-v2/handlers/tests/knos_oidc_es256.rs`](../programs-v2/handlers/tests/knos_oidc_es256.rs) |
-| `contributor_tests_not_counted` | tested locally | [`tests/test_tamper_bench.py`](../tests/test_tamper_bench.py) |
-| `procurement_objects` | tested locally | [`tests/test_procurement.py`](../tests/test_procurement.py) |
-| `approval_chains` | tested locally | [`tests/test_procurement.py`](../tests/test_procurement.py) |
-| `fee_bounds_proofs` | tested locally | [`tests/test_fee_proofs.py`](../tests/test_fee_proofs.py) |
-| `adversarial_replays` | tested locally | [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) |
-| `reader_template` | tested locally | [`tests/test_reader_template.py`](../tests/test_reader_template.py) |
-| `keyholder_path` | implemented | [`web/keyholder.js`](../web/keyholder.js) |
-| `fee_one_rate` | tested locally | [`tests/test_fees.py`](../tests/test_fees.py) |
-| `quorum_by_owner` | tested locally | [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) |
-| `presentation_grace` | tested locally | [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs) |
-| `commitment_format2` | tested locally | [`tests/test_ledger_format2.py`](../tests/test_ledger_format2.py) |
-| `supplier_record` | tested locally | [`tests/test_record_page.py`](../tests/test_record_page.py) |
-| `record_badge` | tested locally | [`tests/test_record_page.py`](../tests/test_record_page.py) |
-| `invoice_receipt` | tested locally | [`tests/test_record_page.py`](../tests/test_record_page.py) |
-| `supplier_install` | implemented | [`.github/workflows/supplier.yml`](../.github/workflows/supplier.yml) |
-| `terms3_format` | tested locally | [`tests/test_terms3.py`](../tests/test_terms3.py) |
-| `terms3_proposed` | tested locally | [`tests/test_propose_terms.py`](../tests/test_propose_terms.py) |
-| `provisional_decision` | tested locally | [`tests/test_decide.py`](../tests/test_decide.py) |
-| `relay_notes_merge` | tested locally | [`tests/test_relay_speed.py`](../tests/test_relay_speed.py) |
-| `verdict_gate` | tested locally | [`tests/test_verdict_gate.py`](../tests/test_verdict_gate.py) |
-| `agent_pays_agent` | tested locally | [`tests/test_agent_pays_agent.py`](../tests/test_agent_pays_agent.py) |
-| `upstream_gate` | tested locally | [`tests/test_upstream_check.py`](../tests/test_upstream_check.py) |
-| `claim_guard` | tested locally | [`tests/test_claim_guard.py`](../tests/test_claim_guard.py) |
-| `netted_settlement` | tested locally | [`tests/test_netting.py`](../tests/test_netting.py) |
-| `third_party_advance` | tested locally | [`tests/test_advance_offer.py`](../tests/test_advance_offer.py) |
-| `record_lookup_paid` | tested locally | [`tests/test_record_api.py`](../tests/test_record_api.py) |
-| `test_usdc_faucet` | tested locally | [`tests/test_faucet.py`](../tests/test_faucet.py) |
-| `funded_task_board` | tested locally | [`tests/test_task_board.py`](../tests/test_task_board.py) |
-| `claim_guard_worker` | tested locally | [`tests/test_claim_guard.py`](../tests/test_claim_guard.py) |
-| `relay_notes_log` | tested locally | [`tests/test_relayq.py`](../tests/test_relayq.py) |
-| `own_reproduction_path` | tested locally | [`tests/test_reproduce.py`](../tests/test_reproduce.py) |
-| `receipt_assurance` | tested locally | [`tests/test_assurance.py`](../tests/test_assurance.py) |
-| `declared_control` | tested locally | [`tests/test_assurance.py`](../tests/test_assurance.py) |
-| `goods_received_note` | tested locally | [`tests/test_assurance.py`](../tests/test_assurance.py) |
-| `supplier_completes` | tested locally | [`tests/test_supplier_completes.py`](../tests/test_supplier_completes.py) |
-| `upgrade_gate_adoption` | tested locally | [`tests/test_gate_adopt.py`](../tests/test_gate_adopt.py) |
-| `registry_plan` | tested locally | [`tests/test_gate_adopt.py`](../tests/test_gate_adopt.py) |
+| capability | stage | source | test | deployed build | transaction | independent reproduction |
+|---|---|---|---|---|---|---|
+| `check` | tested locally | [`src/knos/proof/claims.py`](../src/knos/proof/claims.py): `def read(text: str) -> Claim` | [`tests/test_proof.py`](../tests/test_proof.py): `test_claims_are_read_by_kind_not_phrasing` | none | none | none |
+| `install_by_pull_request` | tested locally | [`web/install.js`](../web/install.js): `export function installLink` | [`tests/test_install_link.py`](../tests/test_install_link.py): `test_the_link_opens_githubs_editor_with_the_exact_file_and_fits` | none | none | none |
+| `terms_templates` | tested locally | [`src/knos/terms_templates.py`](../src/knos/terms_templates.py): `def export` | [`tests/test_install_link.py`](../tests/test_install_link.py): `test_every_templates_comment_parses_into_terms_whose_hash_is_the_templates` | none | none | none |
+| `stop_hook` | tested locally | [`src/knos/proof/hook.py`](../src/knos/proof/hook.py): `def last_message` | [`tests/test_proof.py`](../tests/test_proof.py): `test_the_stop_hook_blocks_then_lets_go_after_three_on_unchanged_evidence` | none | none | none |
+| `mcp_tools` | tested locally | [`src/knos/mcp.py`](../src/knos/mcp.py): `def _tool` | [`tests/test_mcp.py`](../tests/test_mcp.py): `tools/list` | none | none | none |
+| `agent_tools` | tested locally | [`src/knos/mcp.py`](../src/knos/mcp.py): `knos_submit_work` | [`tests/test_agentkey.py`](../tests/test_agentkey.py): `test_an_agent_finds_takes_submits_and_is_paid_on_an_auto_order_with_no_person_in_between` | none | none | none |
+| `verify_github` | exercised on devnet | [`programs-v2/knos_oidc/src/lib.rs`](../programs-v2/knos_oidc/src/lib.rs): `pins::ISSUERS` | [`tests/test_oidc2_chain.py`](../tests/test_oidc2_chain.py): `test_a_github_token_is_verified_in_two_transactions` | `knos_oidc 2.0` and later; its public id runs 2.1, hash at that id `3758348d1051feab` | [4G2Zew7L...](https://explorer.solana.com/tx/4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV?cluster=devnet) | none |
+| `verify_gitlab` | deployed on devnet | [`programs-v2/knos_oidc/src/pins.rs`](../programs-v2/knos_oidc/src/pins.rs): `ISSUER_GITLAB` | [`tests/test_oidc2_chain.py`](../tests/test_oidc2_chain.py): `test_a_gitlab_token_under_a_4096_bit_key_is_verified_in_six` | `knos_oidc 2.0` and later; its public id runs 2.1, hash at that id `3758348d1051feab` | none | none |
+| `verify_any_issuer` | tested locally | [`programs-v2/knos_oidc/src/lib.rs`](../programs-v2/knos_oidc/src/lib.rs): `ISSUER_OTHER` | [`tests/test_oidc2_chain.py`](../tests/test_oidc2_chain.py): `test_any_rs256_issuer_is_admitted_on_githubs_signature` | none | none | none |
+| `key_guardian` | deployed on devnet | [`programs-v2/knos_oidc/src/lib.rs`](../programs-v2/knos_oidc/src/lib.rs): `guardian` | [`tests/test_oidc2_chain.py`](../tests/test_oidc2_chain.py): `test_only_the_guardian_approves_and_revokes_and_it_can_do_nothing_else` | `knos_oidc 2.0` and later; its public id runs 2.1, hash at that id `3758348d1051feab` | none | none |
+| `fund_by_comment` | deployed on devnet | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs): `pub fn fund_balance` | [`tests/test_pay2_chain.py`](../tests/test_pay2_chain.py): `test_one_comment_funds_a_job_from_the_owners_balance` | `knos_pay 2.0` and later; its public id runs 2.1, hash at that id `2ed301a2bc99fc6e` | none | none |
+| `fund_from_wallet` | exercised on devnet | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs): `pub fn fund_wallet` | [`tests/test_pay2_chain.py`](../tests/test_pay2_chain.py): `test_a_wallet_funds_a_job_with_its_own_money` | `knos_pay 2.0` and later; its public id runs 2.1, hash at that id `2ed301a2bc99fc6e` | [4Q1cvM78...](https://explorer.solana.com/tx/4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK?cluster=devnet) | none |
+| `pay_on_merge` | deployed on devnet | [`programs-v2/knos_pay/src/pay.rs`](../programs-v2/knos_pay/src/pay.rs): `pub fn pay` | [`tests/test_pay2_chain.py`](../tests/test_pay2_chain.py): `test_a_proof_pays_the_address_the_token_carries` | `knos_pay 2.0` and later; its public id runs 2.1, hash at that id `2ed301a2bc99fc6e` | none | none |
+| `hold_and_bind` | deployed on devnet | [`programs-v2/knos_pay/src/pay.rs`](../programs-v2/knos_pay/src/pay.rs): `pub fn bind` | [`tests/test_pay2_chain.py`](../tests/test_pay2_chain.py): `test_with_no_wallet_the_job_is_held_for_the_payee_and_paid_once_they_bind_one` | `knos_pay 2.0` and later; its public id runs 2.1, hash at that id `2ed301a2bc99fc6e` | none | none |
+| `refund` | exercised on devnet | [`programs-v2/knos_pay/src/pay.rs`](../programs-v2/knos_pay/src/pay.rs): `pub fn refund` | [`tests/test_pay2_chain.py`](../tests/test_pay2_chain.py): `test_with_no_proof_by_the_deadline_the_money_goes_back_where_it_came_from` | `knos_pay 2.0` and later; its public id runs 2.1, hash at that id `2ed301a2bc99fc6e` | [57E3wRPG...](https://explorer.solana.com/tx/57E3wRPGfY34MFq89Uxi75AS9PMoCT7eFwnXgnfsFpVg9mbtoHB4FVJ5bYNMGLPANuvrYygwc32Su2W8jE5XtVeY?cluster=devnet) | none |
+| `pause` | deployed on devnet | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs): `pub fn pause` | [`tests/test_pay2_chain.py`](../tests/test_pay2_chain.py): `test_the_guardian_pauses_new_funding_only_and_nobody_else_can` | `knos_pay 2.0` and later; its public id runs 2.1, hash at that id `2ed301a2bc99fc6e` | none | none |
+| `work_orders` | exercised on devnet | [`programs-v2/knos_pay/src/order.rs`](../programs-v2/knos_pay/src/order.rs): `pub fn fund_order_wallet` | [`tests/test_order_chain.py`](../tests/test_order_chain.py): `test_a_wallet_funds_an_order_for_any_issue_and_pays_the_fee_on_top` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) | none |
+| `order_pay` | exercised on devnet | [`programs-v2/knos_pay/src/order_pay.rs`](../programs-v2/knos_pay/src/order_pay.rs): `pub fn pay_order` | [`tests/test_order_chain.py`](../tests/test_order_chain.py): `test_up_to_four_payees_share_an_order_and_every_unit_is_paid` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [59AfaYHT...](https://explorer.solana.com/tx/59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet) | none |
+| `tests_mode` | exercised on devnet | [`src/knos/judge.py`](../src/knos/judge.py): `def checks_hash` | [`tests/test_judge_langs.py`](../tests/test_judge_langs.py): `def test_node` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) | none |
+| `order_auto_accept` | exercised on devnet | [`programs-v2/knos_pay/src/order_judge.rs`](../programs-v2/knos_pay/src/order_judge.rs): `pub const AUTO` | [`tests/test_order_auto.py`](../tests/test_order_auto.py): `test_the_first_pull_request_the_suite_passes_is_paid_with_no_merge_and_the_second_finds_the_order_closed` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) | none |
+| `order_challenge` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `THE CHALLENGE` | [`tests/test_order_auto.py`](../tests/test_order_auto.py): `test_a_strangers_neutral_failing_run_inside_the_window_stops_the_release_and_after_it_does_not` | none | none | none |
+| `order_quorum` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `pub fn quorum` | [`tests/test_order_quorum.py`](../tests/test_order_quorum.py): `test_two_distinct_judges_pay_and_two_tokens_of_one_kind_count_once` | none | none | none |
+| `hermetic_judge` | tested locally | [`src/knos/judge.py`](../src/knos/judge.py): `def container_argv` | [`tests/test_judge_hermetic.py`](../tests/test_judge_hermetic.py): `test_with_an_image_the_submission_runs_only_through_the_container_and_the_verdict_records_the_digest` | none | none | none |
+| `holdback_release` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `pub fn release` | [`tests/test_order_terms.py`](../tests/test_order_terms.py): `test_a_holdback_stays_in_the_order_through_the_warranty` | none | none | none |
+| `warranty_revert` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `pub fn revert` | [`tests/test_order_terms.py`](../tests/test_order_terms.py): `test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder` | none | none | none |
+| `seller_settle` | tested locally | [`programs-v2/knos_pay/src/order_judge.rs`](../programs-v2/knos_pay/src/order_judge.rs): `pub fn judge` | [`tests/test_order_judges.py`](../tests/test_order_judges.py): `test_a_seller_pays_himself_after_the_buyers_repository_deleted_its_workflow` | none | none | none |
+| `neutral_attest` | tested locally | [`src/knos/flow.py`](../src/knos/flow.py): `neutral` | [`tests/test_order_judges.py`](../tests/test_order_judges.py): `test_what_a_neutral_run_cannot_do` | none | none | none |
+| `arbiter_rule` | tested locally | [`programs-v2/knos_pay/src/order_judge.rs`](../programs-v2/knos_pay/src/order_judge.rs): `pub fn command` | [`tests/test_order_judges.py`](../tests/test_order_judges.py): `test_the_arbiter_an_order_named_rules_who_is_paid` | none | none | none |
+| `reserve_cancel` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `pub fn reserve` | [`tests/test_order_terms.py`](../tests/test_order_terms.py): `test_a_reservation_a_cancellation_with_notice_and_the_kill_fee` | none | none | none |
+| `top_up` | exercised on devnet | [`programs-v2/knos_pay/src/order.rs`](../programs-v2/knos_pay/src/order.rs): `pub fn top_up` | [`tests/test_order_chain.py`](../tests/test_order_chain.py): `test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [432L2F98...](https://explorer.solana.com/tx/432L2F987ADLGHRPLuHMoULKQr8pYRMNyb9k2PAMZ5H7CJsix4JgqKbMHLx7yyY5kDmJnAt1Lb6fz5nMwEFhCCQJ?cluster=devnet) | none |
+| `assign` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `pub fn assign` | [`tests/test_order_terms.py`](../tests/test_order_terms.py): `test_a_payee_assigns_an_orders_payment_and_only_the_assignee_can_change_it` | none | none | none |
+| `advance_by_assignment` | tested locally | [`examples/advance/README.md`](../examples/advance/README.md): `The assignment has to be made before the order is paid` | [`tests/test_advance.py`](../tests/test_advance.py): `test_an_assignment_before_acceptance_pays_the_financier_at_acceptance_and_at_release_and_never_the_seller` | none | none | none |
+| `standing_order` | tested locally | [`programs-v2/knos_pay/src/order_pay.rs`](../programs-v2/knos_pay/src/order_pay.rs): `pub fn pay_order` | [`tests/test_order_terms.py`](../tests/test_order_terms.py): `test_a_standing_order_pays_its_rate_once_per_pull_request` | none | none | none |
+| `org_balance_limits` | tested locally | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs): `pub fn set_balance_x` | [`tests/test_order_chain.py`](../tests/test_order_chain.py): `test_a_balance_with_a_side_account_enforces_all_of_it` | none | none | none |
+| `org_wallet` | tested locally | [`programs-v2/knos_pay/src/order_judge.rs`](../programs-v2/knos_pay/src/order_judge.rs): `pub fn bind_org` | [`tests/test_order_judges.py`](../tests/test_order_judges.py): `test_a_pull_request_by_a_bot_is_paid_to_its_organisations_wallet` | none | none | none |
+| `plans` | tested locally | [`programs-v2/knos_pay/src/fund.rs`](../programs-v2/knos_pay/src/fund.rs): `pub fn set_plan` | [`tests/test_order_chain.py`](../tests/test_order_chain.py): `test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate` | none | none | none |
+| `fee_tiers` | tested locally | [`src/knos/fees.py`](../src/knos/fees.py): `def rule` | [`tests/test_fees.py`](../tests/test_fees.py): `test_the_014_fee_is_kept_exactly_as_the_public_program_charges_it` | none | none | none |
+| `single_use_tokens` | exercised on devnet | [`programs-v2/knos_pay/src/state.rs`](../programs-v2/knos_pay/src/state.rs): `pub fn mark_used` | [`tests/test_double_pay.py`](../tests/test_double_pay.py): `test_no_instruction_takes_a_token_twice_and_a_second_try_never_moves_money` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) | none |
+| `private_attestor` | tested locally | [`src/knos/flow.py`](../src/knos/flow.py): `attestor` | [`tests/test_flow_private.py`](../tests/test_flow_private.py): `test_nothing_of_the_private_repository_is_in_any_public_place` | none | none | none |
+| `meter_single` | deployed on devnet | [`programs-v2/knos_meter/src/meter.rs`](../programs-v2/knos_meter/src/meter.rs): `pub fn record` | [`tests/test_meter_chain.py`](../tests/test_meter_chain.py): `test_an_evaluation_is_billed_and_counted_once_and_a_retry_is_free` | `knos_meter 1.0` and later; its public id runs 1.1, hash at that id `10f2b6cbb4983527` | none | none |
+| `meter_batch` | exercised on devnet | [`programs-v2/knos_meter/src/meter.rs`](../programs-v2/knos_meter/src/meter.rs): `pub fn record_batch` | [`tests/test_meter_batch.py`](../tests/test_meter_batch.py): `test_a_batch_of_five_thousand_is_counted_and_billed_once_and_its_token_is_taken_once` | `knos_meter 1.1`, hash at its public id `10f2b6cbb4983527` | [4FxxZjQD...](https://explorer.solana.com/tx/4FxxZjQD8aqqTNRuiT3nS5e3Hh1f1UitCcRmfhBbMiiTj6w9wgRP5HDFUHicpXyCt5vmrue53oyGQM9unQgPWSzR?cluster=devnet) | none |
+| `meter_seller_claim` | exercised on devnet | [`programs-v2/knos_meter/src/meter.rs`](../programs-v2/knos_meter/src/meter.rs): `pub fn claim_batch` | [`tests/test_meter_batch.py`](../tests/test_meter_batch.py): `test_the_sellers_claim_is_written_only_from_the_sellers_repositories` | `knos_meter 1.1`, hash at its public id `10f2b6cbb4983527` | [3zJVYD2y...](https://explorer.solana.com/tx/3zJVYD2yxjz4vgi4NsED3cvjRnToboXdM9YPz2xyawkCUKcbUSNNY4rVhYuNMyNNY6LyTPwzFhrNzFdNn1i8N4Hc?cluster=devnet) | none |
+| `passkey_payee_wallet` | deployed on devnet | [`programs-v2/knos_passkey/src/lib.rs`](../programs-v2/knos_passkey/src/lib.rs): `fn withdraw` | [`tests/test_passkey_chain.py`](../tests/test_passkey_chain.py): `test_a_wallet_is_paid_before_it_exists_and_one_transaction_opens_it_and_withdraws` | `knos_passkey 1.0` and later; its public id runs 1.1, hash at that id `a9ce7a06fb99196c` | none | none |
+| `passkey_funder` | exercised on devnet | [`programs-v2/knos_passkey/src/lib.rs`](../programs-v2/knos_passkey/src/lib.rs): `fn fund(` | [`tests/test_passkey_fund.py`](../tests/test_passkey_fund.py): `test_a_passkey_funds_an_order_and_the_same_assertion_cannot_fund_again` | `knos_passkey 1.1`, hash at its public id `a9ce7a06fb99196c` | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) | none |
+| `passkey_fund_relay` | exercised on devnet | [`src/knos/settle/v2/relay.py`](../src/knos/settle/v2/relay.py): `def passkey_fund(` | [`tests/test_passkey_relay.py`](../tests/test_passkey_relay.py): `test_a_comment_funds_the_order_and_the_same_comment_again_is_refused` | `knos_passkey 1.1`, hash at its public id `a9ce7a06fb99196c` | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) | none |
+| `buyer_page` | exercised on devnet | [`web/buyer.js`](../web/buyer.js): `export function renderBuyer` | [`tests/test_site_buyer.py`](../tests/test_site_buyer.py): `test_the_buy_page_in_a_browser_and_its_signed_line_on_chain` | `knos_passkey 1.1`, hash at its public id `a9ce7a06fb99196c` | [3oTzLPyD...](https://explorer.solana.com/tx/3oTzLPyDoqerUgRKdqEBEirtLCYhwTb5keUpjECPsD92Zf3UjwkS72s9KNcZntUuE1dKZhMs8cwJyhx7kcYEqdmC?cluster=devnet) | none |
+| `gitlab_pay` | tested locally | [`programs-v2/knos_pay/src/gl.rs`](../programs-v2/knos_pay/src/gl.rs): `pub const GL_ID` | [`tests/test_gitlab_pay.py`](../tests/test_gitlab_pay.py): `test_a_gitlab_project_funds_an_order_and_the_merge_request_author_is_paid` | none | none | none |
+| `gitlab_ci_example` | implemented | [`examples/gitlab/.gitlab-ci.yml`](../examples/gitlab/.gitlab-ci.yml): `NOT RUN ON gitlab.com YET` | none | none | none | none |
+| `relay` | tested locally | [`src/knos/settle/v2/relay.py`](../src/knos/settle/v2/relay.py): `def kind_of` | [`tests/test_relay2.py`](../tests/test_relay2.py): `test_a_comment_funds_from_the_faucet_a_proof_pays_and_a_claim_binds` | none | none | none |
+| `adapters` | tested locally | [`examples/adapters/release.yml`](../examples/adapters/release.yml): `knos` | [`tests/test_adapters.py`](../tests/test_adapters.py): `test_a_pay_adapter_starts_the_repositorys_own_knos_workflow_which_settles_on_that_event` | none | none | none |
+| `canary` | tested locally | [`examples/knos-canary.yml`](../examples/knos-canary.yml): `canary` | [`tests/test_flow_orders.py`](../tests/test_flow_orders.py): `test_the_canary_times_each_leg_of_one_round` | none | none | none |
+| `load_local_1000` | tested locally | [`scripts/load.py`](../scripts/load.py): `def run_local` | [`tests/test_load.py`](../tests/test_load.py): `test_the_page_is_what_the_script_renders_and_the_committed_run_is_a_thousand` | none | none | none |
+| `invariants_state_machine` | tested locally | [`tests/test_invariants_machine.py`](../tests/test_invariants_machine.py): `class Machine` | [`tests/test_invariants_machine.py`](../tests/test_invariants_machine.py): `test_the_machine_finds_the_double_payment_of_the_0_3_13_build_within_its_default_budget` | none | none | none |
+| `rust_handler_tests` | tested locally | [`programs-v2/testdata/harness.rs`](../programs-v2/testdata/harness.rs): `pub fn ` | [`programs-v2/handlers/tests/knos_pay.rs`](../programs-v2/handlers/tests/knos_pay.rs): `fn pay_order_with_the_same_token_again_is_refused` | none | none | none |
+| `kani_fee_conservation` | tested locally | [`programs-v2/knos_pay/src/proofs.rs`](../programs-v2/knos_pay/src/proofs.rs): `#[kani::proof]` | [`tests/test_provenance.py`](../tests/test_provenance.py): `test_the_conservation_harness_is_among_the_proved_ones` | none | none | none |
+| `receipt` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def check` | [`tests/test_receipt.py`](../tests/test_receipt.py): `test_five_receipts_are_valid_and_have_the_digests_the_vectors_give` | none | none | none |
+| `evidence_bundle` | tested locally | [`src/knos/bundle.py`](../src/knos/bundle.py): `def verify` | [`tests/test_bundle.py`](../tests/test_bundle.py): `test_two_builds_of_one_order_are_the_same_bytes_and_the_verdict_follows_from_the_bundle_alone` | none | none | none |
+| `receipt_mirror` | tested locally | [`src/knos/bundle.py`](../src/knos/bundle.py): `def receipts_of` | [`tests/test_bundle.py`](../tests/test_bundle.py): `test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_it` | none | none | none |
+| `sas_receipt` | tested locally | [`scripts/sas_receipt.mjs`](../scripts/sas_receipt.mjs): `attestation` | [`tests/test_receipt.py`](../tests/test_receipt.py): `test_the_script_builds_the_attestation_and_its_digest_is_the_python_one` | none | none | none |
+| `x402_example` | tested locally | [`examples/x402_attested/server.mjs`](../examples/x402_attested/server.mjs): `x402` | [`tests/test_x402_attested.py`](../tests/test_x402_attested.py): `test_the_example_runs_a_server_and_a_client` | none | none | none |
+| `x402_knos_order` | exercised on devnet | [`examples/x402_attested/live.mjs`](../examples/x402_attested/live.mjs): `knos-order` | [`tests/test_x402_attested.py`](../tests/test_x402_attested.py): `test_live_the_client_funds_a_real_order_over_rpc_is_served_and_the_seller_is_paid_on_acceptance` | `knos_pay 2.1`, hash at its public id `2ed301a2bc99fc6e` | [2noSVLKX...](https://explorer.solana.com/tx/2noSVLKXsSDc9iL72m6H4geVenuoDvrH7YiQ4FUEwLUYgEbWpqxk9TZxf6GQegSXCsZUR33GT2gn6HEUbkKTpwsX?cluster=devnet) | none |
+| `cpi_fund` | tested locally | [`examples/cpi_fund/src/lib.rs`](../examples/cpi_fund/src/lib.rs): `knos_pay` | [`tests/test_cpi_fund.py`](../tests/test_cpi_fund.py): `test_a_treasury_funds_an_order_by_cpi_and_gets_it_back_when_nobody_delivers` | none | none | none |
+| `oidc_gate` | tested locally | [`examples/oidc_gate/src/lib.rs`](../examples/oidc_gate/src/lib.rs): `knos_oidc` | [`tests/test_oidc_gate.py`](../tests/test_oidc_gate.py): `test_a_program_gates_on_a_github_signed_fact` | none | none | none |
+| `upgrade_gate` | deployed on devnet | [`examples/upgrade_gate/src/lib.rs`](../examples/upgrade_gate/src/lib.rs): `upgrade_gate` | [`tests/test_upgrade_gate.py`](../tests/test_upgrade_gate.py): `test_a_build_is_recorded_only_on_githubs_word_and_once` | `upgrade_gate 1.0`, hash at its public id not read | none | none |
+| `upgrade_delay` | tested locally | [`scripts/governance.mjs`](../scripts/governance.mjs): `upgrade` | [`tests/test_governance.py`](../tests/test_governance.py): `test_upgrade_propose_refuses_a_buffer_whose_build_the_gate_has_not_recorded` | none | none | none |
+| `upgrade_feed` | tested locally | [`scripts/upgrade_feed.py`](../scripts/upgrade_feed.py): `def entries` | [`tests/test_upgrade_feed.py`](../tests/test_upgrade_feed.py): `test_one_entry_per_upgrade_of_a_knos_program_with_its_build_its_commit_its_time_and_its_status` | none | none | none |
+| `policy` | tested locally | [`src/knos/policy.py`](../src/knos/policy.py): `def _parse` | [`tests/test_flow_orders.py`](../tests/test_flow_orders.py): `test_the_repositorys_policy_decides_who_may_fund_how_much` | none | none | none |
+| `screening` | tested locally | [`src/knos/screen.py`](../src/knos/screen.py): `def check` | [`tests/test_screen.py`](../tests/test_screen.py): `test_listed_matches_exactly_and_a_hex_address_in_any_case` | none | none | none |
+| `statements` | tested locally | [`src/knos/records.py`](../src/knos/records.py): `RECEIPT_COLUMNS` | [`tests/test_records.py`](../tests/test_records.py): `test_receipts_add_up_to_what_the_public_numbers_say_to_the_unit` | none | none | none |
+| `badge` | tested locally | [`src/knos/badge.py`](../src/knos/badge.py): `def svg` | [`tests/test_badge.py`](../tests/test_badge.py): `test_a_badge_states_its_scope_its_money_and_its_date` | none | none | none |
+| `audit_export` | tested locally | [`src/knos/audit.py`](../src/knos/audit.py): `def export` | [`tests/test_audit.py`](../tests/test_audit.py): `test_two_parties_exporting_the_same_period_get_the_same_bytes` | none | none | none |
+| `agent_pr_index` | tested locally | [`scripts/agent_pr_index.py`](../scripts/agent_pr_index.py): `def check` | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py): `test_classification_and_deterministic_root` | none | none | none |
+| `agent_weekly_rates` | tested locally | [`scripts/agent_pr_index.py`](../scripts/agent_pr_index.py): `def week_counts` | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py): `test_the_weekly_series_counts_each_agent_by_the_week_a_pull_request_was_opened` | none | none | none |
+| `mainnet_check` | tested locally | [`src/knos/mainnet_check.py`](../src/knos/mainnet_check.py): `def program_data` | [`tests/test_mainnet_check.py`](../tests/test_mainnet_check.py): `test_all_gates_pass_and_exit_zero` | none | none | none |
+| `deliverable_identity` | tested locally | [`src/knos/ledger.py`](../src/knos/ledger.py): `def deliverable_id` | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py): `test_a_deliverable_split_into_ten_pull_requests_is_one_accepted_outcome` | none | none | none |
+| `meter_corrections` | tested locally | [`src/knos/ledger.py`](../src/knos/ledger.py): `class Correction` | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py): `test_a_correction_is_anchored_under_its_own_leaf_and_changes_no_counter` | none | none | none |
+| `meter_period_close` | tested locally | [`src/knos/ledger.py`](../src/knos/ledger.py): `def close(` | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py): `test_each_side_signs_the_close_and_the_tokens_are_checked_against_the_keys_alone` | none | none | none |
+| `ledger_dedup` | tested locally | [`src/knos/ledger.py`](../src/knos/ledger.py): `def canonical` | [`tests/test_ledger_periods.py`](../tests/test_ledger_periods.py): `test_canonical_keeps_the_first_and_lists_every_repeat_with_its_reason` | none | none | none |
+| `receipt_five_parts` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def build3` | [`tests/test_receipt.py`](../tests/test_receipt.py): `test_version_3_keeps_five_things_apart_in_order_and_versions_1_and_2_still_check` | none | none | none |
+| `evaluator_independence_record` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def independence_of` | [`tests/test_receipt.py`](../tests/test_receipt.py): `test_each_independence_flag_is_computed_from_the_ids_the_issuer_signed` | none | none | none |
+| `verify_without_chain` | tested locally | [`src/knos/bundle.py`](../src/knos/bundle.py): `def verify_offline` | [`tests/test_receipt_offline.py`](../tests/test_receipt_offline.py): `test_with_the_chain_gone_the_bundle_says_what_signatures_prove_what_is_an_archived_copy_and_what_needs_a_cluster` | none | none | none |
+| `budget_controls_cli` | tested locally | [`src/knos/controls.py`](../src/knos/controls.py): `def authority_of` | [`tests/test_controls.py`](../tests/test_controls.py): `test_limits_set_with_budget_set_are_enforced_by_the_program_and_budget_check_names_the_rule_first` | none | none | none |
+| `console` | tested locally | [`web/console.js`](../web/console.js): `export function receiptParts` | [`tests/test_site_buyer.py`](../tests/test_site_buyer.py): `test_the_buy_page_in_a_browser_and_its_signed_line_on_chain` | none | none | none |
+| `observer_view` | tested locally | [`src/knos/observe.py`](../src/knos/observe.py): `def order_facts` | [`tests/test_observe.py`](../tests/test_observe.py): `test_a_private_order_hides_its_repository_issue_branch_checks_and_paths_and_still_shows_who_was_paid_how_much_and_when` | none | none | none |
+| `relay_journal_and_retries` | tested locally | [`src/knos/proof/ghrelay.py`](../src/knos/proof/ghrelay.py): `journaled before sent` | [`tests/test_relay_failures.py`](../tests/test_relay_failures.py): `test_a_relay_killed_after_the_chain_took_the_token_sends_it_again_and_nobody_is_paid_twice` | none | none | none |
+| `dependency_drills` | tested locally | [`scripts/drills.py`](../scripts/drills.py): `def dependency_rows` | [`tests/test_drills.py`](../tests/test_drills.py): `test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took` | none | none | none |
+| `workflow_capacity_model` | tested locally | [`scripts/capacity.py`](../scripts/capacity.py): `def bounds` | [`tests/test_capacity.py`](../tests/test_capacity.py): `test_each_limit_binds_where_its_arithmetic_says` | none | none | none |
+| `reproduction_kit` | tested locally | [`src/knos/reproduce.py`](../src/knos/reproduce.py): `def verified` | [`tests/test_reproduce.py`](../tests/test_reproduce.py): `test_a_run_of_knos_own_is_refused_by_owner_id_by_who_started_it_and_by_name` | none | none | none |
+| `neutral_reexecution` | tested locally | [`src/knos/flow.py`](../src/knos/flow.py): `def _rerun_read` | [`tests/test_attest_rerun.py`](../tests/test_attest_rerun.py): `test_the_buyers_checks_say_success_and_the_suite_fails_when_it_is_run_again_so_nothing_is_signed` | none | none | none |
+| `doc_claims_check` | tested locally | [`scripts/doc_claims.py`](../scripts/doc_claims.py): `def problems` | [`tests/test_doc_claims.py`](../tests/test_doc_claims.py): `test_this_tree_states_every_registered_fact_once_and_as_its_source_has_it` | none | none | none |
+| `agent_index_weekly_scan` | tested locally | [`scripts/agent_pr_index.py`](../scripts/agent_pr_index.py): `def scan_week` | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py): `test_one_whole_week_is_read_day_by_day_past_the_cap_and_added_to_the_published_series` | none | none | none |
+| `opt_in_profiles` | tested locally | [`web/badge.js`](../web/badge.js): `PROFILE_FILE` | [`tests/test_badge.py`](../tests/test_badge.py): `test_a_profile_is_shown_only_to_an_account_that_opted_in_and_every_line_has_its_sample_size` | none | none | none |
+| `outcome_examples` | tested locally | [`docs/OUTCOMES.md`](../docs/OUTCOMES.md): `examples/outcomes/` | [`tests/test_outcomes.py`](../tests/test_outcomes.py): `test_there_are_three_outcomes_and_each_has_the_same_layout` | none | none | none |
+| `knos_verify_action` | tested locally | [`.github/actions/knos-verify/verify.py`](../.github/actions/knos-verify/verify.py): `def verdict` | [`tests/test_integrations.py`](../tests/test_integrations.py): `test_the_script_gives_a_verdict_from_githubs_record_of_the_commit` | none | none | none |
+| `webhook_verifier` | tested locally | [`integrations/webhook/knos_verify.py`](../integrations/webhook/knos_verify.py): `def verify` | [`tests/test_integrations.py`](../tests/test_integrations.py): `test_the_typescript_verifier_answers_every_case_as_the_python_one_does` | none | none | none |
+| `agent_host_routes` | tested locally | [`src/knos/init.py`](../src/knos/init.py): `def project_cli` | [`tests/test_host_hooks.py`](../tests/test_host_hooks.py): `test_every_host_knos_names_has_a_route_and_a_test` | none | none | none |
+| `oidc_differential` | tested locally | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py): `def reference` | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py): `test_the_recorded_long_run_is_of_this_program_this_seed_and_this_corpus` | none | none | none |
+| `fuzz_rsa_diff_target` | tested locally | [`programs-v2/knos_oidc/fuzz/src/rsa_diff.rs`](../programs-v2/knos_oidc/fuzz/src/rsa_diff.rs): `pub fn agree` | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py): `test_the_seed_corpus_of_the_fuzz_targets_is_made_from_these_cases_and_the_wycheproof_vectors` | none | none | none |
+| `cli_lazy_start` | tested locally | [`src/knos/__main__.py`](../src/knos/__main__.py): `def main` | [`tests/test_startup.py`](../tests/test_startup.py): `test_one_command_loads_no_other_commands_module` | none | none | none |
+| `site_cache` | tested locally | [`web/cache.js`](../web/cache.js): `export function makeCache` | [`tests/web/live.mjs`](../tests/web/live.mjs): `cache: what one page kept, the next page of the tab reads` | none | none | none |
+| `live_round_view` | tested locally | [`web/live.js`](../web/live.js): `export function renderLive` | [`tests/web/live.mjs`](../tests/web/live.mjs): `live, stale: a round three hours old is the last round` | none | none | none |
+| `brand` | tested locally | [`scripts/brand.py`](../scripts/brand.py): `def lighten` | [`tests/test_brand.py`](../tests/test_brand.py): `test_every_copy_is_the_same_drawing` | none | none | none |
+| `shadow_mode` | tested locally | [`src/knos/shadow.py`](../src/knos/shadow.py): `def statement` | [`tests/test_shadow.py`](../tests/test_shadow.py): `test_the_command_runs_offline_against_a_recording` | none | none | none |
+| `playground` | tested locally | [`src/knos/playground.py`](../src/knos/playground.py): `def refuses` | [`tests/test_playground.py`](../tests/test_playground.py): `test_a_stranger_funds_only_by_opening_an_issue_within_the_amount_the_slots_and_the_day` | none | none | none |
+| `interactive_demo` | tested locally | [`web/demo.js`](../web/demo.js): `export async function renderDemo` | [`tests/test_site_demo.py`](../tests/test_site_demo.py): `test_every_signature_and_number_of_the_demo_is_in_the_repositorys_records` | none | none | none |
+| `design_system` | tested locally | [`web/motion.js`](../web/motion.js): `prefersReduced` | [`tests/test_site_overflow.py`](../tests/test_site_overflow.py): `test_the_budget_of_words_weight_and_motion_holds` | none | none | none |
+| `verifier_issuer_matrix` | tested locally | [`examples/issuers/README.md`](../examples/issuers/README.md): `eleven sources of identity` | [`tests/test_issuers.py`](../tests/test_issuers.py): `test_a_token_of_this_issuers_shape_verifies_under_a_key_registered_for_its_url` | none | none | none |
+| `finance_exports` | tested locally | [`src/knos/exports.py`](../src/knos/exports.py): `FORMATS = {` | [`tests/test_exports.py`](../tests/test_exports.py): `test_every_file_is_the_golden_file_byte_for_byte` | none | none | none |
+| `audit_export_v2` | tested locally | [`src/knos/audit.py`](../src/knos/audit.py): `def records_of` | [`tests/test_audit.py`](../tests/test_audit.py): `test_an_organisation_that_only_posted_bounties_gets_its_bounties_not_an_empty_file` | none | none | none |
+| `four_linked_objects` | tested locally | [`src/knos/audit.py`](../src/knos/audit.py): `def record(` | [`tests/test_audit.py`](../tests/test_audit.py): `test_a_record_is_four_linked_objects_made_from_the_statement_alone` | none | none | none |
+| `five_named_states` | tested locally | [`src/knos/flow.py`](../src/knos/flow.py): `STATES = ("received", "accepted", "submitted", "confirmed", "finalized")` | [`tests/test_flow.py`](../tests/test_flow.py): `test_a_settlement_is_one_comment_posted_at_received_and_edited_through_the_five_states` | none | none | none |
+| `relay_stage_times` | tested locally | [`src/knos/proof/ghrelay.py`](../src/knos/proof/ghrelay.py): `class Timed` | [`tests/test_ghrelay.py`](../tests/test_ghrelay.py): `test_every_ok_line_carries_the_four_times_whoever_relayed` | none | none | none |
+| `quorum_three_readers` | tested locally | [`src/knos/commands.py`](../src/knos/commands.py): `judge: owner/repo` | [`tests/test_flow_quorum3.py`](../tests/test_flow_quorum3.py): `test_a_fund_comment_names_the_third_reader_and_the_program_takes_exactly_what_it_signed` | none | none | none |
+| `outcome_orders` | tested locally | [`src/knos/terms_templates.py`](../src/knos/terms_templates.py): `OUTCOMES = {` | [`tests/test_flow_quorum3.py`](../tests/test_flow_quorum3.py): `test_a_labelled_dataset_is_funded_by_a_comment_and_only_the_honest_file_is_paid` | none | none | none |
+| `terms_registry` | tested locally | [`src/knos/terms_registry.py`](../src/knos/terms_registry.py): `def verify` | [`tests/test_terms_registry.py`](../tests/test_terms_registry.py): `test_a_published_file_that_changes_fails_and_is_never_rewritten` | none | none | none |
+| `terms_memory` | tested locally | [`src/knos/proof/history.py`](../src/knos/proof/history.py): `def terms_supported` | [`tests/test_flow_orders.py`](../tests/test_flow_orders.py): `test_every_settlement_is_remembered_and_a_funding_proposes_terms_from_that_memory_and_nothing_from_an_empty_one` | none | none | none |
+| `index_bounded_scan` | tested locally | [`scripts/agent_pr_index.py`](../scripts/agent_pr_index.py): `def sample_week` | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py): `test_the_weekly_sample_stays_in_its_budget_publishes_what_it_has_and_resumes_from_its_checkpoint` | none | none | none |
+| `honest_work_rate` | tested locally | [`scripts/tamper_bench.py`](../scripts/tamper_bench.py): `--honest` | [`tests/test_tamper_bench.py`](../tests/test_tamper_bench.py): `test_honest_submissions_are_accepted_and_one_with_tests_of_its_own_says_they_were_not_counted` | none | none | none |
+| `provenance_chain` | tested locally | [`scripts/provenance.py`](../scripts/provenance.py): `def chain_of` | [`tests/test_provenance.py`](../tests/test_provenance.py): `test_every_program_has_the_seven_links_and_a_missing_one_gives_its_reason` | none | none | none |
+| `conformance_kit` | tested locally | [`conformance/run.py`](../conformance/run.py): `def run` | [`tests/test_conformance.py`](../tests/test_conformance.py): `test_a_wrong_implementation_is_caught_case_by_case` | none | none | none |
+| `release_registry_rule` | tested locally | [`scripts/release.py`](../scripts/release.py): `def registry_plan` | [`tests/test_release_gate.py`](../tests/test_release_gate.py): `test_a_crate_held_at_an_older_version_is_a_green_skip_and_a_version_that_is_neither_is_red` | none | none | none |
+| `oidc_strict_json` | tested locally | [`programs-v2/knos_oidc/src/strict.rs`](../programs-v2/knos_oidc/src/strict.rs): `pub fn fields` | [`tests/test_oidc_differential.py`](../tests/test_oidc_differential.py): `test_the_program_and_the_reference_give_the_same_answer_on_every_case` | none | none | none |
+| `unwrap_inventory` | tested locally | [`tests/test_unwraps.py`](../tests/test_unwraps.py): `def places` | [`tests/test_unwraps.py`](../tests/test_unwraps.py): `test_every_written_panic_in_program_code_has_a_reason_and_every_reason_a_place` | none | none | none |
+| `outcome_not_code` | exercised on devnet | [`scripts/outcome_k8s.py`](../scripts/outcome_k8s.py): `def verify_token` | [`tests/test_outcome_k8s.py`](../tests/test_outcome_k8s.py): `test_the_verifier_takes_the_token_under_a_private_key_through_the_instructions_chain_would_send` | `knos_oidc 2.1`, hash at its public id `3758348d1051feab` | [31HzWxXF...](https://explorer.solana.com/tx/31HzWxXFoya7ZKphG9Tb9czvhKT9dZiCGP4F3sSvgkek9x7FLGATqsA1Mba45gpQpNFa8ELLcEUJyXCXZ2f92okk?cluster=devnet) | none |
+| `events_ledger` | tested locally | [`src/knos/events.py`](../src/knos/events.py): `def ingest` | [`tests/test_events.py`](../tests/test_events.py): `test_one_evaluation_recorded_singly_and_inside_a_batch_is_counted_once_with_both_sources` | none | none | none |
+| `ap_statement` | tested locally | [`src/knos/statement.py`](../src/knos/statement.py): `def as_pdf` | [`tests/test_statement.py`](../tests/test_statement.py): `test_verify_makes_the_statement_again_from_its_evidence_and_names_the_first_line_that_differs` | none | none | none |
+| `four_verdicts_four_ids` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def build4` | [`tests/test_verdicts_ids.py`](../tests/test_verdicts_ids.py): `test_every_version_4_vector_checks_and_only_an_accepted_receipt_authorises_payment` | none | none | none |
+| `relay_queue` | tested locally | [`src/knos/settle/v2/relayq.py`](../src/knos/settle/v2/relayq.py): `class Queue` | [`tests/test_relayq.py`](../tests/test_relayq.py): `test_200_entries_4_workers_one_kill_one_slow_confirmation_each_handled_once_in_its_payers_order` | none | none | none |
+| `evidence_vault` | tested locally | [`src/knos/vault.py`](../src/knos/vault.py): `def restore` | [`tests/test_vault.py`](../tests/test_vault.py): `test_restore_from_the_export_alone_after_the_working_copy_and_the_chain_are_gone` | none | none | none |
+| `private_path` | tested locally | [`src/knos/private.py`](../src/knos/private.py): `def record` | [`tests/test_private_path.py`](../tests/test_private_path.py): `test_the_record_that_leaves_holds_a_verdict_word_and_hashes_and_nothing_else` | none | none | none |
+| `supplier_preflight` | tested locally | [`src/knos/preflight.py`](../src/knos/preflight.py): `def check` | [`tests/test_preflight.py`](../tests/test_preflight.py): `test_a_change_inside_the_terms_is_ready_and_one_outside_names_the_line_that_says_so` | none | none | none |
+| `supplier_appeal` | tested locally | [`src/knos/appeal.py`](../src/knos/appeal.py): `def open_` | [`tests/test_appeal.py`](../tests/test_appeal.py): `test_the_neutral_judges_pass_overturns_and_its_fail_upholds_with_the_reason_in_plain_words` | none | none | none |
+| `refusal_table` | tested locally | [`src/knos/ghwords.py`](../src/knos/ghwords.py): `def refusal_table` | [`tests/test_refusals.py`](../tests/test_refusals.py): `test_every_program_error_has_a_row_and_no_row_names_an_error_that_is_gone` | none | none | none |
+| `billing_rule` | tested locally | [`src/knos/billing.py`](../src/knos/billing.py): `def invoice` | [`tests/test_billing.py`](../tests/test_billing.py): `test_the_worked_customer_month_by_month_adds_up_to_130_240` | none | none | none |
+| `agent_leaderboard` | tested locally | [`scripts/agent_pr_board.py`](../scripts/agent_pr_board.py): `def board` | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py): `test_a_disputed_row_is_marked_with_its_link_and_a_resolved_one_that_changed_a_number_is_in_the_changelog` | none | none | none |
+| `front_door` | tested locally | [`web/front_door.js`](../web/front_door.js): `export function renderFrontDoor` | [`tests/test_site_front_door.py`](../tests/test_site_front_door.py): `test_the_first_screen_checks_your_own_invoice` | none | none | none |
+| `es256_tokens` | tested locally | [`programs-v2/knos_oidc/src/es256.rs`](../programs-v2/knos_oidc/src/es256.rs): `pub fn precompile` | [`programs-v2/handlers/tests/knos_oidc_es256.rs`](../programs-v2/handlers/tests/knos_oidc_es256.rs): `a_good_token_is_verified_in_one_transaction` | none | none | none |
+| `contributor_tests_not_counted` | tested locally | [`src/knos/judge.py`](../src/knos/judge.py): `def classify_path` | [`tests/test_tamper_bench.py`](../tests/test_tamper_bench.py): `test_an_added_test_or_test_configuration_is_allowed_and_cannot_decide` | none | none | none |
+| `procurement_objects` | tested locally | [`src/knos/controls.py`](../src/knos/controls.py): `def envelope_state` | [`tests/test_procurement.py`](../tests/test_procurement.py): `test_an_envelope_shows_before_and_after_and_refuses_by_the_amount_over` | none | none | none |
+| `approval_chains` | tested locally | [`src/knos/approvals.py`](../src/knos/approvals.py): `def chain` | [`tests/test_procurement.py`](../tests/test_procurement.py): `test_the_chain_says_what_waits_for_whom_and_counts_only_authority` | none | none | none |
+| `fee_bounds_proofs` | tested locally | [`programs-v2/fee_proofs/src/lib.rs`](../programs-v2/fee_proofs/src/lib.rs): `#[kani::proof]` | [`tests/test_fee_proofs.py`](../tests/test_fee_proofs.py): `test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say` | none | none | none |
+| `adversarial_replays` | tested locally | [`scripts/adversarial_vectors.py`](../scripts/adversarial_vectors.py): `adv_` | [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs): `one_pay_token_twice_in_one_transaction_or_in_two_pays_once` | none | none | none |
+| `reader_template` | tested locally | [`examples/reader_template/src/lib.rs`](../examples/reader_template/src/lib.rs): `pub fn process` | [`tests/test_reader_template.py`](../tests/test_reader_template.py): `test_it_releases_once_for_its_own_workflow_and_refuses_the_five_mistakes` | none | none | none |
+| `keyholder_path` | implemented | [`web/keyholder.js`](../web/keyholder.js): `export function renderKeyholder` | none | none | none | none |
+| `fee_one_rate` | tested locally | [`programs-v2/knos_pay/src/lib.rs`](../programs-v2/knos_pay/src/lib.rs): `pub fn order_fee` | [`tests/test_fees.py`](../tests/test_fees.py): `test_the_018_fee_is_one_rate_with_a_floor_and_is_pay_pys_own_numbers` | none | none | none |
+| `quorum_by_owner` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `pub fn quorum` | [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs): `the_same_owner_behind_two_repositories_is_refused_as_a_second_judge_and_different_owners_are_accepted` | none | none | none |
+| `presentation_grace` | tested locally | [`programs-v2/knos_pay/src/order_terms.rs`](../programs-v2/knos_pay/src/order_terms.rs): `grace` | [`programs-v2/handlers/tests/adversarial.rs`](../programs-v2/handlers/tests/adversarial.rs): `the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_follows_at_once` | none | none | none |
+| `commitment_format2` | tested locally | [`src/knos/ledger.py`](../src/knos/ledger.py): `def merkle_root2` | [`tests/test_ledger_format2.py`](../tests/test_ledger_format2.py): `test_the_swap_keeps_the_root_in_format_1_and_changes_it_in_format_2` | none | none | none |
+| `supplier_record` | tested locally | [`src/knos/record_page.py`](../src/knos/record_page.py): `def build` | [`tests/test_record_page.py`](../tests/test_record_page.py): `test_a_record_counts_the_log_once_a_deliverable_and_lists_the_evidence_behind_every_count` | none | none | none |
+| `record_badge` | tested locally | [`src/knos/record_page.py`](../src/knos/record_page.py): `def badge_svg` | [`tests/test_record_page.py`](../tests/test_record_page.py): `test_the_badge_is_drawn_from_the_record_states_its_sample_and_is_green_only_for_accepted_work` | none | none | none |
+| `invoice_receipt` | tested locally | [`src/knos/record_page.py`](../src/knos/record_page.py): `def invoice_receipt` | [`tests/test_record_page.py`](../tests/test_record_page.py): `test_the_receipt_for_an_invoice_is_one_page` | none | none | none |
+| `supplier_install` | implemented | [`.github/workflows/supplier.yml`](../.github/workflows/supplier.yml): `knos supplier check` | none | none | none | none |
+| `terms3_format` | tested locally | [`src/knos/terms3.py`](../src/knos/terms3.py): `def validate` | [`tests/test_terms3.py`](../tests/test_terms3.py): `test_a_file_missing_a_field_is_refused_and_the_refusal_names_it` | none | none | none |
+| `terms3_proposed` | tested locally | [`src/knos/propose_terms.py`](../src/knos/propose_terms.py): `def propose` | [`tests/test_propose_terms.py`](../tests/test_propose_terms.py): `test_the_checks_that_passed_on_every_recent_merge_decide_and_the_others_are_said` | none | none | none |
+| `provisional_decision` | tested locally | [`src/knos/decide.py`](../src/knos/decide.py): `def provisional` | [`tests/test_decide.py`](../tests/test_decide.py): `test_a_provisional_receipt_never_authorises_payment_and_never_says_paid` | none | none | none |
+| `relay_notes_merge` | tested locally | [`src/knos/settle/v2/relayq.py`](../src/knos/settle/v2/relayq.py): `def payers` | [`tests/test_relay_speed.py`](../tests/test_relay_speed.py): `test_in_every_interleaving_of_two_runners_one_token_is_sent_once_and_both_end_with_its_answer` | none | none | none |
+| `verdict_gate` | tested locally | [`src/knos/verdict_gate.py`](../src/knos/verdict_gate.py): `def recheck` | [`tests/test_verdict_gate.py`](../tests/test_verdict_gate.py): `test_an_honest_verdict_is_read_held_and_checked_again_from_githubs_record` | none | none | none |
+| `agent_pays_agent` | tested locally | [`examples/agent_pays_agent/buyer.mjs`](../examples/agent_pays_agent/buyer.mjs): `knos-order` | [`tests/test_agent_pays_agent.py`](../tests/test_agent_pays_agent.py): `test_the_seller_is_paid_only_when_the_evaluator_signs_the_acceptance` | none | none | none |
+| `upstream_gate` | tested locally | [`scripts/upstream_check.py`](../scripts/upstream_check.py): `def last_merged` | [`tests/test_upstream_check.py`](../tests/test_upstream_check.py): `test_a_repository_whose_last_merge_is_older_than_30_days_is_refused` | none | none | none |
+| `claim_guard` | tested locally | [`src/knos/claim_guard.py`](../src/knos/claim_guard.py): `def answer` | [`tests/test_claim_guard.py`](../tests/test_claim_guard.py): `test_a_second_event_posts_nothing_and_a_marker_in_a_strangers_comment_does_not_count` | none | none | none |
+| `netted_settlement` | tested locally | [`src/knos/netting.py`](../src/knos/netting.py): `def net_of` | [`tests/test_netting.py`](../tests/test_netting.py): `test_a_thousand_outcomes_settle_as_one_release_on_the_programs_as_they_are` | none | none | none |
+| `third_party_advance` | tested locally | [`src/knos/advance.py`](../src/knos/advance.py): `def take_ixs` | [`tests/test_advance_offer.py`](../tests/test_advance_offer.py): `test_the_take_is_whole_or_nothing_no_assignment_without_the_payment_and_no_payment_without_the_assignment` | none | none | none |
+| `record_lookup_paid` | tested locally | [`src/knos/record_api.py`](../src/knos/record_api.py): `class Server` | [`tests/test_record_api.py`](../tests/test_record_api.py): `test_two_agents_pay_then_get_the_json_a_replay_is_refused_and_one_agent_cannot_spend_the_others_order` | none | none | none |
+| `test_usdc_faucet` | tested locally | [`src/knos/faucet.py`](../src/knos/faucet.py): `def grant` | [`tests/test_faucet.py`](../tests/test_faucet.py): `test_a_crash_between_signing_and_sending_loses_nothing_and_doubles_nothing` | none | none | none |
+| `funded_task_board` | tested locally | [`scripts/task_board.py`](../scripts/task_board.py): `def open_tasks` | [`tests/test_task_board.py`](../tests/test_task_board.py): `test_open_keeps_n_tasks_funded_and_a_second_run_does_nothing` | none | none | none |
+| `claim_guard_worker` | tested locally | [`src/knos/claim_guard.py`](../src/knos/claim_guard.py): `def sweep_served` | [`tests/test_claim_guard.py`](../tests/test_claim_guard.py): `test_the_relays_pass_sweeps_only_where_it_may_write_through_its_own_reader_and_says_an_unread_listing_as_an_error` | none | none | none |
+| `relay_notes_log` | tested locally | [`src/knos/settle/v2/relayq.py`](../src/knos/settle/v2/relayq.py): `class LogStore` | [`tests/test_relayq.py`](../tests/test_relayq.py): `test_an_event_run_and_the_sweep_on_two_runners_see_each_other_through_the_relay_log` | none | none | none |
+| `own_reproduction_path` | tested locally | [`src/knos/reproduce.py`](../src/knos/reproduce.py): `def own_runs` | [`tests/test_reproduce.py`](../tests/test_reproduce.py): `test_an_own_run_completes_is_filed_apart_and_counts_for_nothing` | none | none | none |
+| `receipt_assurance` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def assurance_of` | [`tests/test_assurance.py`](../tests/test_assurance.py): `test_every_level_is_computed_from_the_evidence_and_each_names_who_stays_trusted` | none | none | none |
+| `declared_control` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def related` | [`tests/test_assurance.py`](../tests/test_assurance.py): `test_two_evaluators_never_agree_when_their_owners_match_or_the_terms_declare_them_related` | none | none | none |
+| `goods_received_note` | tested locally | [`src/knos/statement.py`](../src/knos/statement.py): `def grn(` | [`tests/test_assurance.py`](../tests/test_assurance.py): `test_every_statement_line_says_its_level_and_a_note_matches_three_legs_or_says_the_mismatch` | none | none | none |
+| `supplier_completes` | tested locally | [`src/knos/settle/v2/pay.py`](../src/knos/settle/v2/pay.py): `def order_pay_audience` | [`tests/test_supplier_completes.py`](../tests/test_supplier_completes.py): `test_the_supplier_is_paid_on_the_forges_signature_while_the_buyer_does_nothing` | none | none | none |
+| `upgrade_gate_adoption` | tested locally | [`examples/upgrade_gate/adopt.py`](../examples/upgrade_gate/adopt.py): `def main` | [`tests/test_gate_adopt.py`](../tests/test_gate_adopt.py): `test_record_and_check_against_the_gate_program` | none | none | none |
+| `registry_plan` | tested locally | [`scripts/release.py`](../scripts/release.py): `def registry_overview` | [`tests/test_gate_adopt.py`](../tests/test_gate_adopt.py): `test_the_registry_plan_says_what_would_be_published_where_and_publishes_nothing` | none | none | none |
+| `record_answer_signed` | tested locally | [`src/knos/record_answer.py`](../src/knos/record_answer.py): `def answer` | [`tests/test_record_answer.py`](../tests/test_record_answer.py): `test_a_signed_answer_is_fresh_then_stale_and_an_unsigned_or_changed_one_is_told_apart` | none | none | none |
+| `judges_page` | tested locally | [`scripts/judges.py`](../scripts/judges.py): `def problems` | [`tests/test_judges.py`](../tests/test_judges.py): `test_the_page_is_one_page_six_rows_five_zeros_and_the_file_is_the_page` | none | none | none |
+| `recall_exception` | tested locally | [`src/knos/recall.py`](../src/knos/recall.py): `def exception` | [`tests/test_recall_wired.py`](../tests/test_recall_wired.py): `test_a_statements_lines_that_were_set_aside_are_recalled_and_a_payment_ends_one` | none | none | none |
+| `approver_screen` | tested locally | [`web/approver.js`](../web/approver.js): `export function renderApprover` | [`tests/test_site_approver.py`](../tests/test_site_approver.py): `test_a_first_comparison_by_script_with_no_command_line` | none | none | none |
+| `host_a_judge` | tested locally | [`src/knos/host_judge.py`](../src/knos/host_judge.py): `def template_link` | [`tests/test_host_a_judge.py`](../tests/test_host_a_judge.py): `test_a_judge_hosted_by_an_outside_account_reads_rerun_and_two_hosts_of_two_owners_read_agreed` | none | none | none |
+| `private_one_command` | tested locally | [`src/knos/private.py`](../src/knos/private.py): `def run` | [`tests/test_private_path.py`](../tests/test_private_path.py): `test_one_command_runs_the_private_path_end_to_end_against_the_simulator` | none | none | none |
+| `second_operator_command` | tested locally | [`scripts/second_operator.py`](../scripts/second_operator.py): `def drill` | [`tests/test_second_operator.py`](../tests/test_second_operator.py): `test_the_five_steps_run_in_order_with_the_operators_own_key_and_fork` | none | none | none |
+| `bank_rail` | tested locally | [`src/knos/rails.py`](../src/knos/rails.py): `def pain001` | [`tests/test_statement_rails.py`](../tests/test_statement_rails.py): `test_the_banks_answer_marks_lines_paid_or_payable_again_and_reading_it_twice_changes_nothing` | none | none | none |
+| `po_match_export` | tested locally | [`src/knos/exports.py`](../src/knos/exports.py): `def match_of` | [`tests/test_exports_match.py`](../tests/test_exports_match.py): `test_every_line_says_its_purchase_order_and_its_match` | none | none | none |
+| `agent_tasks` | tested locally | [`src/knos/tasks.py`](../src/knos/tasks.py): `def take` | [`tests/test_tasks.py`](../tests/test_tasks.py): `test_an_agent_reads_a_task_binds_an_address_opens_the_pull_request_and_the_merge_pays` | none | none | none |
+| `unpaid_reason` | tested locally | [`src/knos/tasks.py`](../src/knos/tasks.py): `def why` | [`tests/test_tasks.py`](../tests/test_tasks.py): `test_an_order_funded_through_a_staging_copy_of_the_workflows_is_said_in_one_sentence_with_its_fix` | none | none | none |
+| `outside_task_kinds` | tested locally | [`src/knos/tasks.py`](../src/knos/tasks.py): `def accepts` | [`tests/test_tasks.py`](../tests/test_tasks.py): `test_five_kinds_each_state_their_evidence_and_counter_and_only_an_outside_actor_is_counted` | none | none | none |
+| `enforcement_matrix` | tested locally | [`src/knos/enforce.py`](../src/knos/enforce.py): `def problems` | [`tests/test_enforcement.py`](../tests/test_enforcement.py): `test_a_plain_fund_cannot_go_round_the_approval_a_standing_offer_needs` | none | none | none |
+| `archive_standalone` | tested locally | [`src/knos/archive.py`](../src/knos/archive.py): `def make` | [`tests/test_archive.py`](../tests/test_archive.py): `test_it_verifies_in_an_empty_directory_with_knos_unimportable` | none | none | none |
+| `events_gaps` | tested locally | [`src/knos/events.py`](../src/knos/events.py): `def close_problems` | [`tests/test_events.py`](../tests/test_events.py): `test_a_gap_closes_a_month_only_under_a_correction_a_party_acknowledged` | none | none | none |
+| `archive_compare_retention` | tested locally | [`src/knos/archive.py`](../src/knos/archive.py): `def compare` | [`tests/test_archive.py`](../tests/test_archive.py): `test_two_holders_compare_by_root_and_what_differs_is_named` | none | none | none |
+| `receipt_parts_view` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def parts` | [`tests/test_receipt_parts.py`](../tests/test_receipt_parts.py): `test_a_valid_signature_on_a_weak_test_reads_as_weak` | none | none | none |
+| `supplier_protections` | tested locally | [`src/knos/preflight.py`](../src/knos/preflight.py): `def protections` | [`tests/test_preflight.py`](../tests/test_preflight.py): `test_four_protections_in_order_each_enforced_by_the_program_the_workflow_or_advice` | none | none | none |
+| `outcome_support_resolution` | tested locally | [`scripts/outcome_support.py`](../scripts/outcome_support.py): `def evaluate` | [`tests/test_outcome_support.py`](../tests/test_outcome_support.py): `test_the_meter_counts_the_accepted_resolutions_and_the_statement_bills_each_once` | none | none | none |
+| `netting_reserve` | tested locally | [`src/knos/netting.py`](../src/knos/netting.py): `def reserve_of` | [`tests/test_netting.py`](../tests/test_netting.py): `test_a_period_is_paid_from_a_reserve_locked_before_the_work_and_what_it_does_not_draw_returns_to_the_buyer_at_the_deadline` | none | none | none |
+| `advance_period` | tested locally | [`src/knos/advance.py`](../src/knos/advance.py): `def period_quote` | [`tests/test_advance.py`](../tests/test_advance.py): `test_a_closed_reserved_period_is_sold_once_the_draws_pay_the_financier_and_an_unsigned_draw_is_the_financiers_loss` | none | none | none |
+| `relay_chain_self_heal` | tested locally | [`src/knos/proof/chain.py`](../src/knos/proof/chain.py): `def watch` | [`tests/test_worker_chain.py`](../tests/test_worker_chain.py): `test_a_500_on_the_start_no_longer_ends_the_chain` | none | none | none |
+| `throughput_measured` | tested locally | [`scripts/load.py`](../scripts/load.py): `def measure` | [`tests/test_load_measure.py`](../tests/test_load_measure.py): `test_relays_with_their_own_fee_payers_fund_apart_and_through_one_shared_account_and_leave_nothing` | none | none | none |
+| `site_seven_beats` | tested locally | [`web/demo.js`](../web/demo.js): `const STEPS = ["Agree", "Fails", "Passes", "Statement", "Replay", "Pay", "Verify"]` | [`tests/test_site_demo.py`](../tests/test_site_demo.py): `test_the_round_in_a_browser_by_keyboard_alone` | none | none | none |
+| `site_added_pages` | tested locally | [`web/views.js`](../web/views.js): `export const ADDED` | [`tests/test_site_added.py`](../tests/test_site_added.py): `test_the_build_offers_only_the_pages_it_holds` | none | none | none |
+| `truth_check` | tested locally | [`scripts/truth_check.py`](../scripts/truth_check.py): `def problems` | [`tests/test_truth_check.py`](../tests/test_truth_check.py): `test_not_built_said_of_a_capability_that_is_tested_is_found_in_every_kind_of_file` | none | none | none |
+| `public_face` | tested locally | [`scripts/public_face.py`](../scripts/public_face.py): `def problems` | [`tests/test_public_face.py`](../tests/test_public_face.py): `test_any_other_description_of_the_product_fails_the_check_place_by_place` | none | none | none |
+| `bill_margin_leaks` | tested locally | [`src/knos/billing.py`](../src/knos/billing.py): `def leaks` | [`tests/test_billing.py`](../tests/test_billing.py): `test_the_three_leaks_each_with_its_number_and_its_design` | none | none | none |
+| `bill_rails_once` | tested locally | [`src/knos/rails.py`](../src/knos/rails.py): `def accepted_rows` | [`tests/test_statement_rails.py`](../tests/test_statement_rails.py): `test_acceptance_is_charged_once_whichever_rail_pays` | none | none | none |
+| `network_loop_counters` | tested locally | [`scripts/network_loop.py`](../scripts/network_loop.py): `def loop` | [`tests/test_network_loop.py`](../tests/test_network_loop.py): `test_a_supplier_paid_by_two_unrelated_buyers_and_the_buyer_that_arrived_through_it` | none | none | none |
 
 ## Outstanding limits
 

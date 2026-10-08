@@ -9,7 +9,7 @@ addresses, the three instructions a funder sends and a reader of the Order accou
 `solana-program`; it carries none of `knos_pay`'s code.
 
 ```toml
-knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.19" }
+knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.20" }
 ```
 
 ```rust

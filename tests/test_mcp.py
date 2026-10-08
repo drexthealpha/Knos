@@ -160,7 +160,8 @@ def test_a_session_client_shakes_hands_lists_the_tools_and_calls_one():
     assert "knos_bounties" in mcp.INSTRUCTIONS and "only when it is true" in mcp.INSTRUCTIONS
     tools = listed["result"]["tools"]
     assert [t["name"] for t in tools] == ["knos_bounties", "knos_bounty", "knos_check_pr", "knos_due", "knos_quote", "knos_can_pay", "knos_take",
-                                          "knos_address", "knos_fund", "knos_settle", "knos_find_work", "knos_take_work", "knos_submit_work", "knos_preflight", "knos_collect"]
+                                          "knos_address", "knos_fund", "knos_settle", "knos_find_work", "tasks_open", "task_show", "task_take",       # the task board (tests/test_tasks.py)
+                                          "knos_take_work", "knos_submit_work", "knos_preflight", "knos_collect"]
     assert listed["result"]["ttlMs"] == 300_000 and listed["result"]["cacheScope"] == "public"
     for t in tools:
         acts = t["name"] in ("knos_take_work", "knos_submit_work", "knos_collect")       # the three that post (tests/test_agentkey.py)
@@ -187,7 +188,7 @@ def test_a_stateless_client_discovers_lists_and_calls_with_no_handshake():
     assert found["result"] == {"resultType": "complete", "supportedVersions": ["2026-07-28"], "capabilities": {"tools": {}},
                                "instructions": mcp.INSTRUCTIONS,
                                "_meta": {"io.modelcontextprotocol/serverInfo": {"name": "knos", "version": version()}}}
-    assert listed["result"]["resultType"] == "complete" and len(listed["result"]["tools"]) == 15
+    assert listed["result"]["resultType"] == "complete" and len(listed["result"]["tools"]) == 18
     result = called["result"]
     assert result["resultType"] == "complete" and result["isError"] is False
     assert result["content"] == [{"type": "text", "text": json.dumps(result["structuredContent"], indent=1)}]

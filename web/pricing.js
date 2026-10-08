@@ -185,7 +185,7 @@ export function initPricing(ctx) {
   // as many columns as the page's table has, and the rule it is published with (id "price-rule")
   const set = (id, words) => { const el = $(id); if (el) el.textContent = words; };
   const table = $("price-book"), book = table?.querySelector("tbody"), columns = table?.querySelectorAll("thead th").length || 3;
-  if (book) book.innerHTML = priceBook().map((row) => `<tr><th scope="row">${esc(row[0])}</th>${row.slice(1, columns).map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("");
+  if (book) book.innerHTML = priceBook().map((row) => `<tr><th scope="row">${esc(row[0])}</th>${row.slice(1, columns).map((cell) => `<td>${esc(cell).replace(/`([^`]+)`/g, "<code>$1</code>")}</td>`).join("")}</tr>`).join("");
   set("price-rule", RULE);
   // the book's on-chain cell follows the build that is LIVE: "today" and "after the next upgrade" while knos_pay 2.1
   // runs, the book's one rule once Version is 2 (price.js, enforcedNow). Until somebody has answered it says so.

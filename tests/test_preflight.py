@@ -267,3 +267,98 @@ def test_keep_writes_the_suppliers_own_copy_with_the_bundle_command_as_it_is(kno
     assert len(mine["preflights"]) == 1 and mine["appeals"][0]["state"] == "open" and mine["record"]["appealed"] == 1 and mine["memory"]["on"] is True
     assert ghwords.refusal_table() in (tmp_path / "copy" / "REFUSALS.md").read_text(encoding="utf-8")
     assert preflight.keep("Order111", tmp_path / "copy2", work, bundle=lambda argv: 1)["bundle"] is None
+
+
+# ---- the four protections a supplier is owed before starting ---------------------------------------------------------
+
+def _owed(t: dict, **said) -> dict:
+    return {p["id"]: p for p in preflight.protections(preflight.read_terms(terms.canonical(t).decode("ascii")), **said)}
+
+
+def test_four_protections_in_order_each_enforced_by_the_program_the_workflow_or_advice():
+    assert [p[0] for p in preflight.PROTECTIONS] == ["fixed_criteria", "acceptance_deadline", "appeal", "predictable_payment"]
+    assert all(p[2] in preflight.ENFORCED for p in (*preflight.PROTECTIONS, preflight.NETTED)) and preflight.ENFORCED == ("program", "workflow", "advisory")
+    got = preflight.protections(preflight.read_terms(terms.canonical(TESTS).decode("ascii")), auto=True, funded=True)
+    assert [(p["id"], p["title"], p["enforced"]) for p in got] == [p[:3] for p in preflight.PROTECTIONS]
+    assert all(p["held"] is True and p["says"] and not p["warning"] and not p["ask"] for p in got)
+    assert terms.terms_hash(TESTS)[:12] in got[0]["says"] and "cd" * 6 in got[0]["says"]
+    assert f"up to {preflight.CANCEL_DAYS} days' notice" in got[3]["says"]
+    assert "cancellation" in (ROOT / "docs" / "SECURITY.md").read_text(encoding="utf-8") and "at most 7 days away" in (ROOT / "docs" / "SECURITY.md").read_text(encoding="utf-8")
+
+
+def test_terms_with_no_acceptance_deadline_are_said_so_in_plain_words():
+    merge = _owed(MERGE, funded=True)
+    assert merge["acceptance_deadline"]["held"] is False
+    assert merge["acceptance_deadline"]["warning"].startswith("These terms have no acceptance deadline: the buyer can wait forever")
+    assert merge["acceptance_deadline"]["ask"]
+    unknown = _owed(TESTS)                  # an order's option the 600 bytes do not carry: not known is not held
+    assert unknown["acceptance_deadline"]["held"] is False and "the buyer can wait forever" in unknown["acceptance_deadline"]["warning"]
+    assert "--auto" in unknown["acceptance_deadline"]["ask"]
+    assert _owed(TESTS, auto=False)["acceptance_deadline"]["held"] is False and _owed(TESTS, auto=True)["acceptance_deadline"]["held"] is True
+    assert _owed(MERGE, auto=True)["acceptance_deadline"]["held"] is False          # paid on a merge: `auto` has no suite to pay on
+
+
+def test_each_missing_protection_has_its_own_warning_and_what_is_not_checked_is_said_not_claimed():
+    bare = _owed({**MERGE, "checks": []})
+    assert bare["fixed_criteria"]["held"] is False and "name no check and no acceptance suite" in bare["fixed_criteria"]["warning"]
+    assert bare["appeal"]["held"] is False and "name nobody to appeal to" in bare["appeal"]["warning"]
+    assert _owed(MERGE, arbiter="@ruth")["appeal"]["held"] is True and "@ruth" in _owed(MERGE, arbiter="@ruth")["appeal"]["says"]
+    assert _owed(TESTS)["appeal"]["held"] is True and "Nothing forces that run" in _owed(TESTS)["appeal"]["says"]
+    assert bare["predictable_payment"]["held"] is None and bare["predictable_payment"]["says"].startswith("Not checked: a terms file is not an order.")
+    assert _owed(MERGE, funded=True)["predictable_payment"]["held"] is True
+    netted = _owed(TESTS, netted=True)
+    assert netted["predictable_payment"]["held"] is False and netted["predictable_payment"]["enforced"] == "advisory"
+    assert "no reserve bound: you carry the buyer's credit" in netted["predictable_payment"]["warning"]
+    assert _owed(TESTS, netted=True, reserve=True)["predictable_payment"]["held"] is True
+
+
+def test_a_terms_3_document_gives_its_deadline_its_appeal_window_and_its_arbiter():
+    from knos import terms3
+    doc = terms3.template("bug-fix")
+    read = preflight.read_terms(terms3.dumps(doc))
+    assert read["hash"] == terms.terms_hash(terms3.order_terms(doc)) and read["source"].startswith("Knos Terms 3 document")
+    got = {p["id"]: p for p in preflight.protections(read)}
+    days, within = doc["deadline"]["days"], doc["dispute"]["within_days"]
+    assert f"after {days} days the order ends and the money goes back to the buyer." in got["acceptance_deadline"]["warning"]
+    named = {p["id"]: p for p in preflight.protections(read, arbiter="ruth")}
+    assert named["appeal"]["held"] is True and f"within {within} days of the rejection" in named["appeal"]["says"]
+
+
+def test_strict_exits_non_zero_when_a_protection_is_lacked_even_if_the_change_is_ready(knos_home, work, tmp_path, capsys, commands):
+    (work / "src" / "auth.py").write_text("def login():\n    return 1\n", encoding="utf-8")
+    merge = _terms_file(tmp_path, MERGE)
+    assert cli.main(["preflight", "--terms", str(merge), "--tree", str(work), "--no-memory"]) == 0          # ready: the warning is printed, and the exit is what it was
+    said = capsys.readouterr().out
+    assert "Before you start, what these terms give you:" in said and "LACKED      Acceptance deadline: These terms have no acceptance deadline: the buyer can wait forever" in said
+    assert "held        Fixed criteria (program):" in said and "not checked Predictable payment:" in said
+    assert cli.main(["preflight", "--terms", str(merge), "--tree", str(work), "--no-memory", "--strict"]) == 1
+    capsys.readouterr()
+    suite = tmp_path / "suite"
+    suite.mkdir()
+    file = _terms_file(suite, TESTS)
+    assert cli.main(["preflight", "--terms", str(file), "--tree", str(work), "--no-memory", "--strict"]) == 1         # `auto` is not known: lacked until said
+    capsys.readouterr()
+    assert cli.main(["preflight", "--terms", str(file), "--tree", str(work), "--no-memory", "--strict", "--auto", "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["ready"] is True and preflight.lacked(report) == [] and [p["held"] for p in report["protections"]] == [True, True, True, None]
+    assert cli.main(["preflight", "--terms", str(file), "--tree", str(work), "--no-memory", "--strict", "--auto", "--netted"]) == 1
+    assert "netted with no reserve bound" in capsys.readouterr().out
+
+
+def test_terms_read_from_a_funded_issue_are_an_order_that_held_its_price(knos_home, work):
+    line = terms.canonical(TESTS).decode("ascii")
+
+    def get(path):
+        return [{"body": f"knos-terms: {line}\n"}] if path.startswith("repos/acme/app/issues/12/comments") else []
+    (work / "src" / "auth.py").write_text("def login():\n    return 1\n", encoding="utf-8")
+    report = preflight.mcp({"path": str(work), "issue": "acme/app#12"}, get)
+    assert {p["id"]: p["held"] for p in report["protections"]}["predictable_payment"] is True
+
+
+def test_the_suppliers_page_and_guide_show_the_same_four_rows():
+    page = (ROOT / "web" / "supplier.js").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "SUPPLIER.md").read_text(encoding="utf-8")
+    for key, title, how, line in (*preflight.PROTECTIONS, preflight.NETTED):
+        assert f'{{ id: "{key}", title: "{title}", enforced: "{how}", line: "{line}" }}' in page, key
+        assert f"| {title} | {line} | {how} |" in guide or (key, how) == ("predictable_payment", "advisory") and f"| {title}, netted work | {line} | {how} |" in guide, key
+    assert preflight.NO_DEADLINE.split(": ")[1] in page          # "the buyer can wait forever", in the page's words too

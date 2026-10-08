@@ -269,3 +269,116 @@ def test_knos_bill_estimate_explain_and_margin(tmp_path):
     assert run.exit_code == 0 and "Meter" in run.output and "rule:" in run.output and "2,663.33" in run.output       # 2,083.33 + 400.00 + 180.00
     run = CliRunner().invoke(app, ["bill", "margin", str(month), str(ROOT / "docs" / "unit_costs.json")])
     assert run.exit_code == 0 and "direct cost" in run.output and "All lines" in run.output and "2,663.33" in run.output
+
+
+# ---- 0.3.20: margins said correctly, the three leaks, the second worked customer, and the rails ---------------------------
+
+def worked_month() -> dict:
+    return {"plan": "business", "month": 1, "evaluations": 110_000, "suppliers": 5,
+            "accepted": [{"deliverable": f"d{k}", "value": "20000.00"} for k in range(40)]}
+
+
+def test_every_margin_is_labelled_gross_and_no_operating_margin_is_printed():
+    got = b.margin(worked_month(), COSTS)
+    assert got["kind"] == "gross" and got["operating"].startswith("not computed") and got["gross_note"] == b.GROSS
+    text = "\n".join(b.margin_lines(got))
+    assert b.GROSS in text and "gross margin" in text.splitlines()[2]
+    for line in text.splitlines():                       # a percentage that is a margin says gross on its line
+        if "margin" in line.lower() and "%" in line:
+            assert "gross" in line.lower(), line
+    assert "operating margin" not in text.lower().replace("no operating margin is printed", "").replace("operating margin also subtracts", "")
+
+
+def test_the_three_leaks_each_with_its_number_and_its_design():
+    got = b.margin(worked_month(), COSTS)
+    want, leaks = VECTORS["leaks"], got["leaks"]
+    assert leaks["target"] == "95%"
+    assert {k: leaks["meter"][k] for k in want["meter"]} == want["meter"]
+    assert {k: leaks["control"][k] for k in want["control"]} == want["control"]
+    assert got["remedy"]["one_by_one"] == want["remedy"]["one_by_one"] and got["remedy"]["netted"] == want["remedy"]["netted"]
+    # the arithmetic, by hand: 20.00 x 5% = 1.00 over 110,000 delivered; the budget 110,000 x 0.00005 + 5 x 0.1393 = 6.1965
+    assert f"{D('1.00') / 110_000:.7f}" == leaks["meter"]["allowed_each"] and f"{D('6.1965') / 110_000:.7f}" == leaks["meter"]["cost_each"]
+    unit = b.unit_costs(COSTS)
+    n = leaks["meter"]["reaches_at"]                     # the first count that keeps 95%, and the one before it does not
+    cost = lambda k: k * unit["evaluation"] + 5 * unit["pair_month"]      # noqa: E731
+    assert cost(n) <= (n - b.METER_FREE) * b.METER_PRICE * D("0.05") and cost(n - 1) > (n - 1 - b.METER_FREE) * b.METER_PRICE * D("0.05")
+    assert b.meter_break_even({**unit, "evaluation": D("0.0001")}, 5) is None       # at the ceiling itself no count reaches it
+    assert b.measured_parts(COSTS)["evaluation"] == D("0.00000047") and b.measured_parts(COSTS)["pair_month"] == D("0.1393")
+    assert unit["control_year_target"] == D(7_000) and COSTS["costs"]["control_year_target"]["kind"] == "budget, not measured"
+    big = b.margin({**worked_month(), "evaluations": 1_000_000}, COSTS)["leaks"]["meter"]
+    assert big["meets"] and big["gross_margin"] == "97.2%"                           # the same costs at a million a month
+    text = "\n".join(b.margin_lines(got))
+    assert "The three leaks" in text and "does not meet it" in text and "the relayer's tip comes out of that fee" in text and "fee owner 1.45" in text
+
+
+def test_the_second_worked_customer_is_373_600_and_its_hurdle_is_not_a_claim():
+    got, want = b.second_customer(b.unit_costs(COSTS)), VECTORS["second"]
+    assert {k: got[k] for k in want["out"]} == want["out"]
+    assert (got["control"], got["acceptance"], got["meter"], got["records"]) == ("100,000.00", "252,000.00", "21,600.00", "0.00")
+    assert 100_000 + 12 * (1_000_000 * 30 + 9_000_000 * 20) // 10_000 + 12 * 900_000 * 2 // 1_000 == 373_600 and 373_600 * 3 == 1_120_800
+    assert got["hurdle_is"] == "a hurdle to be measured in a pilot, not a claim"
+    month = b.margin(month_of({"plan": "business", "month": 1, "evaluations": 1_000_000, "suppliers": 5, "accepted_each": ["20000.00", 500]}), COSTS)
+    rows = {r["line"]: [r["revenue"], r["direct_cost"], r["margin"]] for r in month["lines"]} | {"all": [month["revenue"], month["direct_cost"], month["margin"]]}
+    assert rows == want["month"]
+    year = sum((D(b.invoice(month_of({"plan": "business", "month": m, "evaluations": 1_000_000, "accepted_each": ["20000.00", 500]}))["total"].replace(",", ""))
+                for m in range(1, 13)), D(0))
+    assert year == D("373600.00")                        # twelve invoices, deliverable by deliverable, add up to the estimate
+    assert b.second_customer()["total"] == "373,600.00" and "direct_cost" not in b.second_customer()
+
+
+def test_acceptance_is_charged_once_whichever_rail_pays():
+    chain = {"deliverable": "x", "value": "1000.00", "rail": "chain"}
+    bank = {"deliverable": "x", "value": "1000.00", "rail": "bank"}
+    assert b.invoice({"plan": "none", "accepted": [bank]})["total"] == "3.00"            # paid by bank: the invoice carries the fee
+    assert b.invoice({"plan": "none", "accepted": [chain]})["total"] == "0.00"           # released by the program: the fee was paid there
+    assert b.invoice({"plan": "none", "accepted": [chain, bank]})["total"] == "0.00"     # the same deliverable under both: once
+    assert b.invoice({"plan": "none", "accepted": [bank, chain]})["total"] == "3.00"     # once, on the rail first given
+    assert b.invoice({"plan": "none", "accepted": [{"deliverable": "x", "value": "1000.00", "on_chain": True}]})["total"] == "0.00"
+    both = b.invoice({"plan": "none", "accepted": [chain, {**bank, "deliverable": "y"}]})
+    line = next(r for r in both["lines"] if r["line"] == "once_any_rail")
+    assert both["total"] == "3.00" and line["rule"] == b.RULES["once_any_rail"] and line["amount"] == "0.00"
+    for bad in ({**chain, "rail": "card"}, {**chain, "on_chain": False}, {**bank, "on_chain": True}):
+        with pytest.raises(b.BillingError, match="rail is one of chain, bank"):
+            b.invoice({"plan": "none", "accepted": [bad]})
+
+
+def test_rail_charges_are_shown_apart_from_the_software_price():
+    month = {"plan": "team", "accepted": [{"deliverable": "a", "value": "60000.00", "rail": "bank"}],
+             "rail_charges": [{"what": "bank wire fees", "amount": "45.00"}, {"what": "network fees", "amount": "0.02"}]}
+    inv, bare = b.invoice(month), b.invoice({k: v for k, v in month.items() if k != "rail_charges"})
+    assert inv["total"] == bare["total"] == "2,263.33" and inv["lines"] == bare["lines"]      # 2,083.33 + 180.00: no rail charge is in a line
+    assert (inv["rail_total"], inv["payable"]) == ("45.02", "2,308.35") and (bare["rail_total"], bare["payable"]) == ("0.00", "2,263.33")
+    assert [r["rule"] for r in inv["rail_charges"]] == [b.RULES["rails"]] * 2
+    text = "\n".join(b.explain(inv))
+    assert text.index("Total") < text.index("Rail charges, apart from the software price:") < text.index("Payable in all")
+    assert b.margin(month, COSTS)["revenue"] == b.margin({k: v for k, v in month.items() if k != "rail_charges"}, COSTS)["revenue"]      # nor is it revenue
+    for bad in ([{"amount": "1.00"}], [{"what": "wire", "amount": "-1.00"}], [{"what": "wire", "amount": 1.5}]):
+        with pytest.raises(b.BillingError, match="rail_charges 1"):
+            b.invoice({"plan": "none", "rail_charges": bad})
+
+
+def test_small_outcomes_are_netted_before_the_floor_and_a_reversed_acceptance_is_credited():
+    rows = [{"deliverable": f"s{k}", "value": "5.00", "payee": "acme"} for k in range(100)]
+    assert b.invoice({"plan": "none", "accepted": rows})["total"] == "1.50"               # 500.00 x 0.30%, not 100 floors of 0.05
+    assert b.invoice({"plan": "none", "accepted": [{**r, "payee": ""} for r in rows]})["total"] == "5.00"
+    first = b.invoice({"plan": "none", "accepted": [{"deliverable": "r", "value": "10000.00"}]})
+    assert first["total"] == "30.00"
+    after = b.invoice({"plan": "none", "accepted": [{"deliverable": "n", "value": "10000.00"}], "reversed": [{"deliverable": "r", "value": "10000.00"}]})
+    assert amount(after, "credit") == "-30.00" and after["total"] == "0.00"               # the next invoice gives the 30.00 back
+    same = b.invoice({"plan": "none", "accepted": [{"deliverable": "r", "value": "10000.00"}], "reversed": [{"deliverable": "r", "value": "10000.00"}]})
+    assert same["total"] == "0.00" and amount(same, "acceptance") == "0.00"               # reversed in its own month: never charged
+
+
+def test_a_commitment_and_its_consumption_are_never_both_counted():
+    use = {"plan": "none", "evaluations": 600_000, "accepted": [{"deliverable": "a", "value": "100000.00"}]}       # Meter 1,000 + Acceptance 300
+    assert b.invoice(use)["total"] == "1,300.00"
+    inv = b.invoice({**use, "committed": "24000.00"})
+    assert (amount(inv, "commitment"), amount(inv, "drawn"), inv["total"], inv["commitment_remaining"]) == ("2,000.00", "-1,300.00", "2,000.00", "22,700.00")
+    spent = b.invoice({**use, "committed": "24000.00", "drawn": "23500.00", "month": 12})
+    assert (amount(spent, "drawn"), spent["total"], spent["commitment_remaining"]) == ("-500.00", "2,800.00", "0.00")     # 2,000 + the 800 it does not cover
+
+
+def test_the_record_line_says_who_runs_it_and_is_budgeted_at_zero():
+    row = next(r for r in b.BOOK if r[0] == "Record")
+    assert row[4] == "`knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it"
+    assert b.second_customer()["records"] == "0.00" and (ROOT / "src" / "knos" / "record_api.py").is_file()

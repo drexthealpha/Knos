@@ -22,6 +22,11 @@ commits to a set and says nothing about a single record made the week before. Th
                 month's events are read, and a deliverable's other lines are found by key.
     export      a folder with the log, the acknowledgements, the keys, the index and every month's statement, and
                 `check_export`, which rebuilds all of it from the log alone.
+    gaps        what a root cannot say. A source numbers what it sends, per buyer, supplier and month, from 0; the
+                number rides in `evidence` (`batch:` or `sent:`). `gaps` names the numbers that never arrived, and
+                `close_problems` refuses a month over one unless a correction of the number itself (`gap:...`, void,
+                with a reason) sits under a head a party signed. `across` names a deliverable billed or settled in
+                more than one month: one deliverable id, ever.
 
 What this proves and what it does not is in docs/EVENTS.md. In one line: uniqueness is enforced here and by both
 parties' acknowledgements, not on chain.
@@ -33,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from contextlib import contextmanager
@@ -52,6 +58,11 @@ ACK = "knosm:ack"
 KEYS = ("ack", "amount", "corrects", "deliverable", "evaluation", "evidence", "first", "id", "invoice_line", "kind", "month", "prev", "reason", "seq",
         "settlement", "source", "supplier", "unit", "verdict", "void")
 TYPE, VERSION = "knos.events-export", 1
+GAP = "gap:"                        # what a correction of a number nobody received names: gap:<buyer>:<supplier>:<yyyymm>.<number>
+_PART = r"[A-Za-z0-9._-]{1,64}"
+_STREAM = rf"({_PART}:{_PART}:[0-9]{{6}})\.(0|[1-9][0-9]{{0,18}})"
+_SENT = re.compile(rf"(?:batch|sent):{_STREAM}(?::.*)?", re.S)
+_GAP = re.compile(GAP + _STREAM)
 
 
 def _own(kind: str, *parts: str | int) -> str:
@@ -161,6 +172,8 @@ def problem_of(e: Event) -> str | None:
     elif e.kind == "correction":
         if not e.corrects or e.id != _own("correction", e.corrects, e.verdict, "" if e.amount is None else e.amount, e.unit, int(e.void), e.reason):
             return "a correction names the event it corrects and takes its id from what it changes"
+        if e.corrects.startswith(GAP) and not (_GAP.fullmatch(e.corrects) and e.void and e.reason.strip() and not e.verdict and e.amount is None):
+            return f"a correction of a missing number names it as {GAP}<buyer>:<supplier>:<yyyymm>.<number>, is void, gives its reason and changes nothing else"
         if not (e.void or e.verdict or e.amount is not None):
             return "a correction says what changes: a verdict, an amount, or that the event is void"
     else:
@@ -366,6 +379,17 @@ class Log:
                 "by_supplier": dict(sorted(self.by_supplier.items())), "events": len(self.events), "head": self.head}
 
 
+def _named(log: Log, e: Event) -> bool:
+    """Whether a correction names something it can: a counted event already in the log, or a number of a stream."""
+    return bool(_GAP.fullmatch(e.corrects)) or (e.corrects in log.first and log.events[log.first[e.corrects]].kind in COUNTED)
+
+
+def _arrived(log: Log, name: str) -> int | None:
+    """The first line that arrived under the number a `gap:` name says, or None."""
+    want = sent_of(name.replace(GAP, "sent:", 1))
+    return next((n for n, x in enumerate(log.events) if sent(x) == want), None)
+
+
 def _ack_problem(log: Log, e: Event, jwks: dict | None, at: int) -> str | None:
     a = e.ack or {}
     try:
@@ -407,7 +431,7 @@ def read(text: str, jwks: dict | None = None, head: str | None = None) -> tuple[
                         + (f", and line {counted} is the first with that id." if counted is not None else ", and no earlier line has that id."))
         elif counted is not None and log.events[counted].stated() != e.stated():
             said.append(f"Lines {counted} and {n} carry the id {e.id} and say different things: a conflict that should have been refused.")
-        if e.kind == "correction" and not why_not and (e.corrects not in log.first or log.events[log.first[e.corrects]].kind not in COUNTED):
+        if e.kind == "correction" and not why_not and not _named(log, e):
             said.append(f"Line {n} corrects {e.corrects}, which no earlier line is.")
         if e.kind == "acknowledgement" and not why_not and (bad := _ack_problem(log, e, jwks, n)):
             said.append(f"Line {n}: {bad}.")
@@ -456,8 +480,10 @@ def ingest(log: Log, events: Iterable[Event], jwks: dict | None = None) -> Repor
     r = Report([], [], [], [])
     for e in events:
         why = problem_of(e)
-        if not why and e.kind == "correction" and (e.corrects not in log.first or log.events[log.first[e.corrects]].kind not in COUNTED):
+        if not why and e.kind == "correction" and not _named(log, e):
             why = f"it corrects {e.corrects}, which is not an event of this log"
+        if not why and e.kind == "correction" and e.corrects.startswith(GAP) and (at_line := _arrived(log, e.corrects)) is not None:
+            why = f"it says nothing was sent under {e.corrects[len(GAP):]}, and line {at_line} of this log arrived under that number"
         if not why and e.kind == "acknowledgement":
             why = "an acknowledgement needs the issuer's keys to be checked" if jwks is None else _ack_problem(log, e, jwks, len(log.events))
         if why:
@@ -752,6 +778,107 @@ def statement(log: Log, month: int | str, supplier: str = "") -> dict:
     return {**st, "sha256": hashlib.sha256(canon(st).encode()).hexdigest()}
 
 
+# -- what a root cannot say: completeness ---------------------------------------------------------------------------------
+# A root commits to what was put under it. It cannot say that something was left out. So each source numbers what it
+# sends, per buyer, supplier and month, from 0, and the number travels in `evidence`:
+#     batch:<buyer>:<supplier>:<yyyymm>.<number>:<root>...     the batch mode writes this already (the batch's seq)
+#     sent:<buyer>:<supplier>:<yyyymm>.<number>[:anything]     any other mode, when its sender numbers what it sends
+# A number below the highest seen that never arrived is a gap. Nothing fills it but the missing arrival itself, or a
+# correction that names the number (`gap:<buyer>:<supplier>:<yyyymm>.<number>`), is void and gives a reason, under a
+# head a party acknowledged with a signed token. The last numbers of a stream are found only when its sender says its
+# last number (`last`): numbers cut from the end leave a shorter run that is still a run.
+def sent_of(evidence: str) -> tuple[str, int] | None:
+    m = _SENT.fullmatch(evidence)
+    return (m[1], int(m[2])) if m else None
+
+
+def sent(e: Event) -> tuple[str, int] | None:
+    """(stream, number) when the event's evidence carries its sender's number: `<buyer>:<supplier>:<yyyymm>`, and the number."""
+    return sent_of(e.evidence) if e.kind in COUNTED else None
+
+
+def gap_name(stream: str, number: int) -> str:
+    return f"{GAP}{stream}.{int(number)}"
+
+
+def gap_correction(stream: str, number: int, reason: str, source: str = "import", evidence: str = "") -> Event:
+    """The record that explains a missing number: nothing was sent under it, and why. It counts once a party has
+    acknowledged a head after it. It rewrites nothing, and it is refused when the number did arrive."""
+    return correction(gap_name(stream, number), source, void=True, reason=reason, month=int(stream.rsplit(":", 1)[1]), evidence=evidence)
+
+
+def signed_by(log: Log, line: int) -> list[str]:
+    """The parties whose acknowledgement covers `line`: each signed a head at or after it."""
+    return sorted(p for p, upto in log.acknowledged().items() if upto >= line)
+
+
+def gaps(log: Log, month: int | str = 0, last: dict[str, int] | None = None) -> list[dict]:
+    """Every number of every stream that should be in the log and is not, lowest first: {"stream", "number", "state",
+    "line", "reason", "signed_by"}. `state` is `open` (nothing explains it), `unsigned` (a correction explains it and
+    no party has acknowledged a head after that correction) or `explained` (a correction, acknowledged). `last`:
+    stream -> the last number its sender says it sent; without it only numbers below the highest that arrived are
+    known to be missing. `month`: one month only."""
+    m = month_of(month) if month else 0
+    seen: dict[str, set[int]] = {}
+    told: dict[tuple[str, int], int] = {}
+    for n, e in enumerate(log.events):
+        got = sent(e)
+        if got:
+            seen.setdefault(got[0], set()).add(got[1])
+        elif e.kind == "correction" and e.first is None and (g := _GAP.fullmatch(e.corrects)):
+            told[(g[1], int(g[2]))] = n
+            seen.setdefault(g[1], set())
+    for stream, number in (last or {}).items():
+        if not re.fullmatch(rf"{_PART}:{_PART}:[0-9]{{6}}", stream) or isinstance(number, bool) or not isinstance(number, int) or number < 0:
+            raise Bad(f"a stream's last number is written <buyer>:<supplier>:<yyyymm>.<number>, not {stream}.{number}")
+        seen.setdefault(stream, set())
+    out: list[dict] = []
+    for stream in sorted(seen):
+        if m and int(stream.rsplit(":", 1)[1]) != m:
+            continue
+        top = max([*seen[stream], *(k for s, k in told if s == stream), (last or {}).get(stream, -1)], default=-1)
+        for number in range(top + 1):
+            if number in seen[stream]:
+                continue
+            line = told.get((stream, number))
+            who = signed_by(log, line) if line is not None else []
+            out.append({"stream": stream, "number": number, "state": "open" if line is None else "explained" if who else "unsigned", "line": line,
+                        "reason": log.events[line].reason if line is not None else "", "signed_by": who})
+    return out
+
+
+def close_problems(log: Log, month: int | str, last: dict[str, int] | None = None, signatures_checked: bool = True) -> list[str]:
+    """Why the month cannot be closed, in words; an empty list when it can. A month is not closed over a missing number:
+    either the number arrives, or a correction explains it under a head a party signed (and the signature was checked
+    against the issuer's keys: `signatures_checked`)."""
+    said = []
+    for g in gaps(log, month, last):
+        what = f"Number {g['number']} of {g['stream']} never arrived"
+        if g["state"] == "open":
+            said.append(f"{what}. Ask its sender for it, or record why nothing was sent: a correction of {gap_name(g['stream'], g['number'])}.")
+        elif g["state"] == "unsigned":
+            said.append(f"{what}. Line {g['line']} explains it ({g['reason']}), and no party has acknowledged a head after that line: `knos events ack`.")
+        elif not signatures_checked:
+            said.append(f"{what}. Line {g['line']} explains it and GitHub id {', '.join(g['signed_by'])} acknowledged it, but the signature was not checked: give the issuer's keys.")
+    return said
+
+
+def across(log: Log) -> list[dict]:
+    """One deliverable id, ever: every deliverable with more than one counted invoice line, or more than one counted
+    settlement, wherever in the log and in whichever months they are. A second invoice line is a `duplicate` in its
+    month's statement and is never agreed. A second settlement is money that moved twice for one deliverable (or in
+    two parts): it is named here, with both lines, for a person to read."""
+    out = []
+    for dlv, at in sorted(log.by_deliverable.items()):
+        for kind in ("invoice_line", "settlement"):
+            mine = [n for n in at if log.events[n].kind == kind and log.events[n].first is None and not log.state(log.events[n])[3]]
+            if len(mine) > 1:
+                out.append({"deliverable": dlv, "kind": kind, "counted_at": mine[0], "months": sorted({log.events[n].month for n in mine}),
+                            "lines": [{"line": n, "id": log.events[n].id, "month": log.events[n].month, "amount": log.state(log.events[n])[1],
+                                       "unit": log.state(log.events[n])[2]} for n in mine]})
+    return out
+
+
 # -- the evidence, in one folder ------------------------------------------------------------------------------------------
 def export_files(log: Log, jwks: dict | None = None, refused: str = "") -> dict[str, bytes]:
     """Everything needed to reach every conclusion again: the log, the acknowledgements and the keys they were signed
@@ -789,7 +916,7 @@ def check_export(files: dict[str, bytes]) -> list[str]:
 
 # -- the command line -------------------------------------------------------------------------------------------------
 def register(app, help_lines: list | None = None) -> None:
-    """`knos events ingest | verify | ack | dupes | statement | export`, on the main app. `help_lines`: cli._HELP."""
+    """`knos events ingest | verify | ack | dupes | gaps | close | statement | export`, on the main app. `help_lines`: cli._HELP."""
     import importlib
     typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
@@ -797,7 +924,7 @@ def register(app, help_lines: list | None = None) -> None:
                          help="One log of events under every recording mode: what was counted, what arrived twice, what both sides acknowledged.")
     app.add_typer(events, name="events")
     if help_lines is not None:
-        help_lines.append(("events", "For money", "One log under every recording mode: ingest, verify, ack, dupes, statement, export."))
+        help_lines.append(("events", "For money", "One log under every recording mode: ingest, verify, ack, dupes, gaps, close, statement, export."))
 
     def stop(said: str, fix: str = ""):
         from . import cli
@@ -939,13 +1066,78 @@ def register(app, help_lines: list | None = None) -> None:
         book = opened(log, keys_of(log))
         refused = beside(log, "refused.jsonl").read_text(encoding="utf-8").splitlines() if beside(log, "refused.jsonl").exists() else []
         if as_json:
-            say({"duplicates": book.dupes(), "refused": [json.loads(x) for x in refused]})
+            say({"duplicates": book.dupes(), "refused": [json.loads(x) for x in refused], "across_periods": across(book)})
             return
         for d in book.dupes():
             typer.echo(f"{d['id']} ({d['kind'].replace('_', ' ')}) counted once, at line {d['counted_at']}: "
                        + "; ".join(f"{s['source']} {s['evidence']}".strip() for s in d["sources"]))
         typer.echo(f"{len(book.dupes())} events arrived more than once and were counted once. {len(refused)} arrivals were refused (see {beside(log, 'refused.jsonl').name})."
                    if refused else f"{len(book.dupes())} events arrived more than once and were counted once. Nothing was refused.")
+        for a in across(book):
+            typer.echo(f"{a['deliverable']} has {len(a['lines'])} counted {a['kind'].replace('_', ' ')}s, at lines {', '.join(str(x['line']) for x in a['lines'])} "
+                       f"(months {', '.join(str(m) for m in a['months'])}): one deliverable is billed and paid once.")
+
+    def last_of(given: list[str]) -> dict[str, int]:
+        out = {}
+        for text in given or []:
+            got = sent_of("sent:" + text)
+            if got is None:
+                raise stop(f"--last is written <buyer>:<supplier>:<yyyymm>.<number>, not {text}.")
+            out[got[0]] = got[1]
+        return out
+
+    @events.command("gaps")
+    def gaps_(log: Path = typer.Argument(..., help="the log file"), month: str = typer.Option(None, "--month", help="one month only, YYYY-MM"),
+              last: list[str] = typer.Option(None, "--last", metavar="BUYER:SUPPLIER:YYYYMM.N", help="the last number a sender says it sent (repeat for each stream)"),
+              explain: str = typer.Option(None, "--explain", metavar="BUYER:SUPPLIER:YYYYMM.N", help="record why nothing was sent under this number (with --reason)"),
+              reason: str = typer.Option("", "--reason", help="with --explain: why, in your words"),
+              as_json: bool = typer.Option(False, "--json", help="print JSON")) -> None:
+        """Name every number a sender gave that never arrived. A root commits to what was supplied; this is what says something was not. Exit 1 while a number is missing and no acknowledged correction explains it."""
+        try:
+            if explain is not None:
+                got = sent_of("sent:" + explain)
+                if got is None or not reason.strip():
+                    raise stop("--explain is written <buyer>:<supplier>:<yyyymm>.<number> and needs --reason.")
+                with locked(log):
+                    book = opened(log, keys_of(log))
+                    r = ingest(book, [gap_correction(got[0], got[1], reason.strip())])
+                    book.write(log)
+                if r.refused:
+                    raise stop(f"Not recorded: {r.refused[0]['why']}.")
+                typer.echo(f"Recorded at line {len(book.events) - 1}. It counts once a party acknowledges the head: `knos events ack`." if r.added
+                           else "That explanation is already in the log.")
+                return
+            jwks = keys_of(log)
+            found = gaps(opened(log, jwks), month or 0, last_of(last))
+        except (Bad, Busy) as why:
+            raise stop(str(why)) from None
+        still = [g for g in found if g["state"] != "explained" or jwks is None]
+        if as_json:
+            say({"gaps": found, "signatures_checked": jwks is not None, "blocking": len(still)})
+        else:
+            for g in found:
+                typer.echo(f"{g['stream']} number {g['number']}: " + ("missing, and nothing explains it" if g["state"] == "open" else
+                           f"missing; line {g['line']} says why ({g['reason']}); " + ("acknowledged by GitHub id " + ", ".join(g["signed_by"]) if g["signed_by"]
+                                                                                    else "nobody has acknowledged that line yet")))
+            typer.echo(f"{len(found)} numbers never arrived; {len(still)} of them stop a close." if found else "No number is missing below the highest that arrived"
+                       + (" or the last you gave." if last else ". A sender's last numbers are checked only with --last."))
+        raise typer.Exit(1 if still else 0)
+
+    @events.command("close")
+    def close_(log: Path = typer.Argument(..., help="the log file"), month: str = typer.Option(..., "--month", help="YYYY-MM"),
+               last: list[str] = typer.Option(None, "--last", metavar="BUYER:SUPPLIER:YYYYMM.N", help="the last number a sender says it sent")) -> None:
+        """Say whether a month can be closed. Refused over a missing number unless an acknowledged correction explains it. Prints the statement's hash and the head both parties sign."""
+        try:
+            jwks = keys_of(log)
+            book = opened(log, jwks)
+            said = close_problems(book, month, last_of(last), jwks is not None)
+            st = statement(book, month)
+        except Bad as why:
+            raise stop(str(why)) from None
+        if said:
+            raise stop(f"{month} is not closed. " + said[0] + (f" ({len(said) - 1} more: knos events gaps)" if len(said) > 1 else ""))
+        typer.echo(f"{month} can be closed: no number is missing without an acknowledged reason. Statement {st['sha256']}, head {book.head}. "
+                   "Each party signs the head: `knos events ack`.")
 
     @events.command("statement")
     def statement_(log: Path = typer.Argument(..., help="the log file"), month: str = typer.Option(..., "--month", help="YYYY-MM"),

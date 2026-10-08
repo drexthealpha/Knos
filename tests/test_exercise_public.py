@@ -23,6 +23,8 @@ spec = importlib.util.spec_from_file_location("exercise_public", ROOT / "scripts
 ex = importlib.util.module_from_spec(spec)
 sys.modules["exercise_public"] = ex
 spec.loader.exec_module(ex)
+ex.register_places()        # what the command does before anything else: the rounds of scripts/exercise_rounds/ are registered,
+ex.load_rounds()            # and `gitlab` is then that folder's round (scripts/gitlab_round.py), not the built-in one
 
 from knos import mainnet_check as mc  # noqa: E402
 from knos.settle.v2 import gate  # noqa: E402
@@ -130,8 +132,9 @@ def test_a_second_run_sends_nothing_and_what_has_no_round_says_why(ran):
     assert {k: v for k, v in after.items() if k != "finished"} == {k: v for k, v in first.items() if k != "finished"}
     assert sum("done before" in line for line in again) >= 5 and not [line for line in again if line.startswith("  ok ")]
     assert first["exercises"]["passkey_funder"]["status"] == first["exercises"]["buyer_page"]["status"] == "needs run: the site's Buy page"
-    assert first["exercises"]["gitlab_pay"]["status"] == first["exercises"]["verify_gitlab"]["status"]
-    assert first["exercises"]["gitlab_pay"]["status"].startswith("cannot: no project: Knos has no project on gitlab.com")
+    # GitLab is a registered round since 0.3.20 (scripts/exercise_rounds/gitlab.py): the built-in rounds say nothing of it,
+    # and what it does on the simulator and without credentials is held in tests/test_exercise_round_files.py and tests/test_gitlab_round.py
+    assert "gitlab" not in ex.ROUNDS and "gitlab_pay" not in first["exercises"] and ex.EXT["gitlab"].caps == ("verify_gitlab", "gitlab_pay")
     assert first["exercises"]["verify_any_issuer"]["status"].startswith("cannot: no issuer other than GitHub and GitLab")
     assert first["exercises"]["supplier_appeal"]["status"] == "needs run: attest.yml" and first["exercises"]["supplier_preflight"]["status"] == "needs run: knos preflight"
     assert not [e for e in first["exercises"].values() if e["status"].startswith("failed")]
@@ -731,7 +734,10 @@ def test_the_after_rounds_run_on_the_live_build_upgraded_in_place_and_assert_the
     # strict JSON: the control verified, the NaN claim refused with 61, under a private key that speaks for nobody
     strict = ev["exercises"]["oidc_strict_json"]
     assert strict["refusals"] == [{"signature": ev["rounds"]["strict"]["refused"]["signature"], "error": 61, "means": "the payload is not JSON", "what": "a NaN claim"}]
-    assert {c for c, e in ev["exercises"].items() if e["status"] == "exercised"} == {"fee_one_rate", "quorum_by_owner", "presentation_grace", "oidc_strict_json", "es256_tokens"}
+    done = {c for c, e in ev["exercises"].items() if e["status"] == "exercised"}
+    registered = {"netting_reserve", "verify_gitlab", "gitlab_pay"}          # the registered rounds of the phase that have a path on the simulator and need no second owner
+    assert done - registered == {"fee_one_rate", "quorum_by_owner", "presentation_grace", "oidc_strict_json", "es256_tokens"} and registered <= done
+    assert (ev["rounds"]["private"]["exit"], ev["rounds"]["judge"]["exit"]) == (0, 3) and ev["rounds"]["judge"]["result"].startswith("skipped: no `--neutral")
     # nothing stays: every order these rounds opened is closed or went back
     assert set(ev["rounds"]["after_close"]["refunds"]) == {ev["rounds"]["one_owner"]["fund"]["order"], ev["rounds"]["earlier_marker"]["second"]["order"]}
 

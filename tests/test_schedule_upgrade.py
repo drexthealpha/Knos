@@ -196,7 +196,7 @@ def test_the_run_executes_each_proposal_in_order_then_knos_status_and_logs_every
         "proposal 6 of the upgrade multisig is executed") < log.index("12 of 12 checks pass")
     assert log.rstrip().endswith("done: every proposal is executed") and "done: every proposal is executed" in done.stdout
     # one that is refused is said, the other still runs, knos status still runs, and the exit code says it
-    bad = run("--run", FAIL_INDEX="3")
+    bad = run("--run", "--force", FAIL_INDEX="3")          # --force: a second start after success does nothing otherwise
     log = (keys / "upgrade-run.log").read_text(encoding="utf-8")
     assert bad.returncode == 1 and "refused: its time lock ends later" in log and "proposal 3: NOT executed" in log
     assert log.rstrip().endswith("done: 1 proposal(s) NOT executed. Run it again by hand: bash scripts/schedule_upgrade.sh --run")
@@ -227,7 +227,7 @@ def test_the_run_signs_with_the_key_paths_arranging_wrote_and_a_key_it_cannot_re
     # the drive that holds a member's key is not there: said once, in the log and aloud, with the path, and nothing is sent
     members[1].unlink()
     before = len(_calls(calls))
-    stopped = run("--run")
+    stopped = run("--run", "--force")
     assert stopped.returncode == 1 and _calls(calls)[before:] == [], "no proposal executed, no knos status: nothing was sent"
     log = (keys / "upgrade-run.log").read_text(encoding="utf-8")
     tail = log[log.rindex("===="):]
@@ -279,3 +279,59 @@ def test_the_run_executes_only_the_build_the_schedule_recorded_so_a_stale_run_ne
     # every execution the script can send names a build: there is no path that executes by index alone
     text = SCRIPT.read_text(encoding="utf-8")
     assert text.count('governance.mjs" upgrade execute') == 1 and 'upgrade execute "$index" --rpc "$rpc" --expect-hash "$hash"' in text
+
+
+def test_the_windows_task_also_starts_after_a_missed_start_and_at_the_next_logon_and_stores_no_password(box):
+    """Nobody has to be logged on at the minute: the task starts at the time, as soon as possible after a start that was
+    missed, and at this Windows user's next logon from the time on. No password is stored (no principal that asks for
+    one), and the output says how to check it."""
+    keys, calls, plan, run, bin_dir = box
+    (bin_dir / "whoami.exe").write_text("#!/bin/sh\nprintf '%s\\r\\n' 'desk\\ada'\n", encoding="utf-8")
+    (bin_dir / "whoami.exe").chmod(0o755)
+    done = run(WSL_DISTRO_NAME="Ubuntu-24.04")
+    assert done.returncode == 0, done.stderr
+    task = (keys / "upgrade-run.task.xml").read_bytes()[2:].decode("utf-16-le")
+    at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(plan["run_at"]))
+    until = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(plan["run_at"] + 14 * 86_400))
+    assert f"<TimeTrigger><StartBoundary>{at}</StartBoundary><Enabled>true</Enabled></TimeTrigger>" in task
+    assert f"<LogonTrigger><StartBoundary>{at}</StartBoundary><EndBoundary>{until}</EndBoundary><Enabled>true</Enabled><UserId>desk\\ada</UserId></LogonTrigger>" in task
+    assert "<StartWhenAvailable>true</StartWhenAvailable>" in task and "<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>" in task
+    assert "Password" not in task and "S4U" not in task and "<Principal" not in task
+    assert "at the next logon of desk\\ada after that time, for 14 days. No password is stored." in done.stdout
+    assert "check it:  schtasks.exe /Query /TN KnosUpgrade /V /FO LIST" in done.stdout and "Last Result: 267011 before" in done.stdout
+    assert len([c for c in _calls(calls) if c.startswith("schtasks.exe /Create")]) == 1
+    # Windows does not take the logon trigger: the task is made without it, and that is said
+    (bin_dir / "schtasks.exe").write_text('#!/bin/sh\necho "schtasks.exe $*" >> "$CALLS"\n[ "$(grep -c "schtasks.exe /Create" "$CALLS")" != 2 ]\n', encoding="utf-8")
+    again = run(WSL_DISTRO_NAME="Ubuntu-24.04")
+    assert again.returncode == 0, again.stderr
+    assert "LogonTrigger" not in (keys / "upgrade-run.task.xml").read_bytes()[2:].decode("utf-16-le")
+    assert "NOTE: no logon trigger" in again.stdout and "be logged on to Windows at that time" in again.stdout
+    none = run(WSL_DISTRO_NAME="Ubuntu-24.04", KNOS_WIN_USER="-")
+    assert none.returncode == 0 and "NOTE: no logon trigger" in none.stdout
+
+
+def test_a_second_start_after_success_does_nothing_and_two_at_once_send_once(box):
+    keys, calls, plan, run, _ = box
+    assert "done: no run has executed every proposal of this schedule yet" in run("--show").stdout
+    assert run("--run").returncode == 0
+    sent = len([c for c in _calls(calls) if c.startswith("node governance")])
+    assert sent == 4 and not (keys / "upgrade-run.lock").exists()
+    second = run("--run")           # the logon trigger after the time trigger, or a person after both
+    assert second.returncode == 0 and "a start for a schedule that is done already (proposals 3 4 5 6): nothing was sent" in second.stdout
+    assert len([c for c in _calls(calls) if c.startswith("node governance")]) == sent
+    assert "done: a run executed every proposal of this schedule" in run("--show").stdout
+    assert run("--run", "--force").returncode == 0 and len([c for c in _calls(calls) if c.startswith("node governance")]) == 2 * sent
+    # another schedule (a second --propose) is another run
+    (keys / "upgrade-schedule.json").write_text(json.dumps({**plan, "run_at": plan["run_at"] + 60}), encoding="utf-8")
+    assert run("--run").returncode == 0 and len([c for c in _calls(calls) if c.startswith("node governance")]) == 3 * sent
+    # a run that did not execute everything is not done: the next start tries again
+    (keys / "upgrade-run.done").unlink()
+    assert run("--run", FAIL_INDEX="4").returncode == 1 and not (keys / "upgrade-run.done").exists() and not (keys / "upgrade-run.lock").exists()
+    # a start while a run is going sends nothing; a lock a dead run left two hours ago is taken over
+    (keys / "upgrade-run.lock").mkdir()
+    before = len(_calls(calls))
+    busy = run("--run")
+    assert busy.returncode == 0 and "another upgrade run is going" in busy.stdout and len(_calls(calls)) == before
+    old = time.time() - 3 * 3600
+    os.utime(keys / "upgrade-run.lock", (old, old))
+    assert run("--run").returncode == 0 and (keys / "upgrade-run.done").exists() and not (keys / "upgrade-run.lock").exists()

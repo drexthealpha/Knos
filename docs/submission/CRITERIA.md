@@ -7,7 +7,8 @@ Colosseum's hackathon page lists seven factors its judges weigh
 below is quoted from it). The same page says teams "must disclose all relevant past development work in the
 submission form"; that is [DISCLOSURE.md](../DISCLOSURE.md). The official rules list six criteria as well. Each
 gets one paragraph here: what the submission can show, and what it cannot. The round those paragraphs refer to
-is told once, in six beats with the evidence under each, in [STORY.md](../STORY.md).
+is told once, in seven steps with the evidence under each, in [STORY.md](../STORY.md). A judge's one page is
+[JUDGES.md](../JUDGES.md).
 
 No count of capabilities is given on this page. How far each capability has got (implemented, tested, deployed,
 exercised on devnet, reproduced by someone else) is in [CAPABILITIES.md](../CAPABILITIES.md), written from
@@ -84,8 +85,8 @@ well. That is a bet.
 > "Are the founders communicating the product vision clearly and capable of growing the product's user base?"
 
 One sentence and one number on every surface: of 241 merged agent pull requests that claimed passing tests, 30
-had a failed check. One page tells the story in six beats with the evidence under each
-([STORY.md](../STORY.md)); the demonstration shows the same six in three minutes and the presentation is a
+had a failed check. One page tells the story in seven steps with the evidence under each
+([STORY.md](../STORY.md)); the demonstration follows the same transaction in seven beats and three minutes, and the presentation is a
 separate script ([demo_script.md](demo_script.md), [pitch_script.md](pitch_script.md)), with a caption on any shot that is a
 replay or is played faster than it happened; and every number in them has a source that a script checks
 (`scripts/claims_check.py`). The other documents sit behind one map ([../README.md](../README.md)). Growing a

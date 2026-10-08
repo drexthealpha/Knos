@@ -3,16 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos: the neutral meter for AI agent work</title>
-<meta name="description" content="The neutral meter for AI agent work: neither side keeps the count. Close a supplier's invoice with evidence both sides can check.">
+<title>Knos. The neutral meter for AI agent work: neither side keeps the count.</title>
+<meta name="description" content="The neutral meter for AI agent work: neither side keeps the count.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
 <!-- The card of a shared link is a file of this site (web/brand/card.png, drawn by scripts/brand.py); the page itself asks for nothing here. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos: the neutral meter for AI agent work">
-<meta property="og:description" content="The neutral meter for AI agent work: neither side keeps the count. Close a supplier's invoice with evidence both sides can check.">
+<meta property="og:title" content="Knos. The neutral meter for AI agent work: neither side keeps the count.">
+<meta name="twitter:title" content="Knos. The neutral meter for AI agent work: neither side keeps the count.">
+<meta name="twitter:description" content="The neutral meter for AI agent work: neither side keeps the count.">
+<meta property="og:description" content="The neutral meter for AI agent work: neither side keeps the count.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta property="og:image:type" content="image/png">
@@ -26,8 +28,8 @@
 <!-- The first screen's control comes before the mark on a phone, and its answer before the mark too (web/front_door.js). -->
 <link rel="alternate" type="application/atom+xml" title="Knos: upgrade proposals of the programs" href="upgrades.xml">
 <link rel="alternate" type="application/atom+xml" href="index.atom" title="Agent PR Index">
-<!-- 0.3.19: under the sentence, one line: what a customer gets; the number follows it. Here, not in app.css, whose budget is spent. From 900 px the top margin is 28 px, so the upgrade line sits 2 px down and 24 px tall, inside it. -->
-<style>.hero .hero-fact { text-wrap: pretty; } .hero .hero-outcome { font-size: var(--s2); line-height: 1.35; font-weight: 500; color: var(--ink); max-width: 26em; margin: 0 0 8px; text-wrap: balance; } .hero .hero-fact { margin-bottom: 16px; } .hero .hero-board { margin-top: 16px; } .hero h1 { margin-bottom: 12px; } .hero .hero-fact .k-num { color: var(--ink); font-weight: 600; } @media (min-width: 900px) { .hero { padding-top: 28px; } .hero-upgrades { top: 2px; } .hero-upgrades > summary { padding-block: 2px; } }</style>
+<!-- 0.3.19: under the sentence, one line: what a customer gets; the number follows it. Here, not in app.css, whose budget is spent. From 900 px the top margin is 36 px, so the upgrade line sits 4 px down and 24 px tall, clear of the sentence. -->
+<style>.hero .hero-fact { text-wrap: pretty; } .hero .hero-outcome { font-size: var(--s2); line-height: 1.35; font-weight: 500; color: var(--ink); max-width: 26em; margin: 0 0 8px; text-wrap: balance; } .hero .hero-fact { margin-bottom: 12px; } .hero .hero-board { margin-top: 12px; } .hero h1 { margin-bottom: 12px; } .hero .hero-fact .k-num { color: var(--ink); font-weight: 600; } @media (min-width: 900px) { .hero { padding-top: 36px; } .hero-upgrades { top: 4px; } .hero-upgrades > summary { padding-block: 2px; } }</style>
 </head>
 <body>
 <a class="k-skip" href="#fd-in">Skip to the invoice box</a>
@@ -133,6 +135,10 @@
 
     <h2 id="how-a-task-is-paid">Pay on a signed run</h2>
     <p class="devnet">Solana devnet. The money is test USDC.</p>
+    <details class="k-more" id="why-solana"><summary>Why Solana?</summary>
+<p class="fine">Money is released with no custodian, and the count is anchored where neither side can alter it.</p>
+<p class="fine">A receipt verifies with no chain. The chain is for the money and for the root.</p>
+</details>
     <ol class="how" aria-label="How a task is paid">
       <li><h3>Fund a task by comment</h3>
         <p>Name the checks. They are the terms. <a href="#fund">Fund a task</a></p>
@@ -563,7 +569,7 @@
         <tr><th scope="row">Check</th><td>pull request or artifact checked</td><td>free, forever</td><td>nobody</td><td>nowhere</td></tr>
         <tr><th scope="row">Meter</th><td>evaluation</td><td>100,000 a month free per organisation, then 0.002 USD</td><td>buyer</td><td>prepaid credits</td></tr>
         <tr><th scope="row">Acceptance</th><td>dollar released or reconciled against a signed acceptance</td><td>0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap</td><td>funder, on top of the amount</td><td>knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)</td></tr>
-        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the machine-priced API</td><td>0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free</td><td>the buyer, marketplace or insurer reading it</td><td>API (not built: a static file today)</td></tr>
+        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the machine-priced API</td><td>0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free</td><td>the buyer, marketplace or insurer reading it</td><td><code>knos record serve</code> (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it</td></tr>
         <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td><td>buyer</td><td>contract</td></tr>
         <tr><th scope="row">Pilot</th><td>one buyer, two suppliers, 30 days, one reconciled invoice</td><td>2,500 USD, credited against year one</td><td>buyer</td><td>contract</td></tr>
       </tbody></table></div>

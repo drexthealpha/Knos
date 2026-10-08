@@ -4,3 +4,12 @@
 export const VIEWS = ["check", "protect", "fund", "claim", "pricing", "records", "network", "build"];
 // links from earlier pages and comments; #u=, #r= and #rank= are records
 export const ALIAS = { bounty: "fund", money: "fund", numbers: "network", u: "records", r: "records", rank: "records", statement: "records", task: "fund", anyissue: "fund" };
+
+// A PAGE ADDED BY NAME is one line here and nothing else (how, and what each field is: the head of web/mounts.js).
+// Keep each entry on ONE line: scripts/build_site.sh reads lines.
+export const ADDED = {
+  approve: { file: "./approver.js", draw: "renderApprover", nav: "Approve", bar: true },
+  rails: { file: "./rails.js", draw: "renderRails", nav: "Pay by bank" },
+  enforcement: { file: "./enforce_view.js", draw: "renderEnforcement", nav: "Enforcement", json: "enforce.json" },
+  judges: { file: "./judges.js", draw: "renderJudges", nav: "For judges", bar: true, json: "judges.json" },
+};

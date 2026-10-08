@@ -5,7 +5,8 @@
 
 The page says, for the release this tree is: its version and tag; for each program its public id, the build that is
 LIVE at that id, the proposal that would replace it with its verified build hash and source commit; every proposal that
-is pending; the stage of every capability with the evidence of that stage; and the limits that are still open.
+is pending; one row for every capability (source, test, deployed build, transaction, independent reproduction: a cell
+with nothing behind it says "none"); and the limits that are still open.
 
 Nothing on it is typed and nothing is assumed. Each part is read from the file that owns it:
 
@@ -99,30 +100,95 @@ def pending(data: dict) -> list[str]:
     return lines
 
 
+NONE = "none"
+
+
+def _cell(text: str) -> str:
+    return str(text).replace("|", "\\|").replace("\n", " ")
+
+
+def source_of(c: dict) -> str:
+    got = (c.get("evidence") or {}).get("implemented")
+    if not got:
+        return NONE
+    return f"[`{got['path']}`](../{got['path']})" + (f": `{_cell(got['names'])}`" if got.get("names") else "")
+
+
+def test_of(c: dict) -> str:
+    got = (c.get("evidence") or {}).get("tested")
+    if not got:
+        return NONE
+    return f"[`{got['test']}`](../{got['test']})" + (f": `{_cell(got['names'])}`" if got.get("names") else "")
+
+
+def build_of(c: dict, data: dict) -> str:
+    """The build a capability is deployed in, and the hash the last read of the cluster found at that public id. The
+    hash is the hash of what the id runs NOW: when the id has moved past the version the evidence names, the cell says
+    so, and when the cluster was not read for that program it says "not read"."""
+    got = (c.get("evidence") or {}).get("deployed")
+    if not got:
+        return NONE
+    name = str(got.get("program"))
+    listed = data["capabilities"].get("programs", {}).get(name, {})
+    if listed.get("id") != got.get("id"):
+        return f"none at a public id (`{name} {got.get('version')}` ran at a staging id)"
+    seen = (data["record"].get("programs") or {}).get(name, {}).get("on_chain_hash")
+    at = f"`{seen[:16]}`" if seen else "not read"
+    if str(listed.get("on_chain")) == str(got.get("version")):
+        return f"`{name} {got.get('version')}`, hash at its public id {at}"
+    return f"`{name} {got.get('version')}` and later; its public id runs {listed.get('on_chain')}, hash at that id {at}"
+
+
+def transaction_of(c: dict, root: Path = ROOT) -> str:
+    got = (c.get("evidence") or {}).get("exercised")
+    if not got or not got.get("signature"):
+        return NONE
+    link = f"[{got['signature'][:8]}...]({TX.format(got['signature'])})"
+    return link if cap.ids_of(c, root) == "public" else f"none at the public ids (staging: {link})"
+
+
+def reproduction_of(c: dict) -> str:
+    """An independent reproduction: a run by someone who is not Knos, recorded as the capability's `reproduced` evidence."""
+    got = (c.get("evidence") or {}).get("reproduced")
+    if not got:
+        return NONE
+    return f"[outside run]({got['url']})" if got.get("url") else f"[`{got['file']}`](../{got['file']})" if got.get("file") else NONE
+
+
 def evidence(c: dict) -> str:
     """The evidence of a capability's own stage, and of no other: one link."""
-    ev, stage = c.get("evidence") or {}, c["stage"]
-    got = ev.get(stage) if stage else None
-    if not got:
+    stage = c["stage"]
+    if not stage or not (c.get("evidence") or {}).get(stage):
         return "none: not built"
     if stage == "implemented":
-        return f"[`{got['path']}`](../{got['path']})"
+        return source_of(c).split(": `")[0]
     if stage == "tested":
-        return f"[`{got['test']}`](../{got['test']})"
+        return test_of(c).split(": `")[0]
     if stage == "deployed":
+        got = c["evidence"]["deployed"]
         return f"`{got['program']} {got['version']}` at its public id"
     if stage == "exercised":
+        got = c["evidence"]["exercised"]
         return f"[{got['signature'][:8]}...]({TX.format(got['signature'])})"
-    return f"[outside run]({got['url']})" if got.get("url") else f"[`{got['file']}`](../{got['file']})"
+    return reproduction_of(c)
 
 
 def stage_of(c: dict, root: Path = ROOT) -> str:
     return cap.WORDS[c["stage"]] + (", on staging program ids" if c["stage"] == "exercised" and cap.ids_of(c, root) == "staging" else "")
 
 
+HEAD = ("capability", "stage", "source", "test", "deployed build", "transaction", "independent reproduction")
+
+
+def row(c: dict, data: dict, root: Path = ROOT) -> list[str]:
+    """One capability, one row, seven cells; a cell with nothing behind it says "none" and is never blank."""
+    cells = [f"`{c['id']}`", stage_of(c, root), source_of(c), test_of(c), build_of(c, data), transaction_of(c, root), reproduction_of(c)]
+    return [cell.strip() or NONE for cell in cells]
+
+
 def capabilities(data: dict, root: Path = ROOT) -> list[str]:
-    lines = ["| capability | stage | evidence of that stage |", "|---|---|---|"]
-    lines += [f"| `{c['id']}` | {stage_of(c, root)} | {evidence(c)} |" for c in data["capabilities"].get("capabilities", [])]
+    lines = ["| " + " | ".join(HEAD) + " |", "|" + "---|" * len(HEAD)]
+    lines += ["| " + " | ".join(row(c, data, root)) + " |" for c in data["capabilities"].get("capabilities", [])]
     return lines
 
 
@@ -163,9 +229,11 @@ def render(root: Path = ROOT) -> str:
         "execute is its `earliest_execution_utc` there.", "",
         *pending(data), "",
         "## Capabilities: the stage of each, with its evidence", "",
-        "From `docs/capabilities.json`. A stage is the highest that has evidence; deployed and exercised count only at the",
-        "public program ids. The note of each capability and every lower stage's evidence are in",
-        "[CAPABILITIES.md](CAPABILITIES.md).", "",
+        "One row for each capability: where it is in the source, the test that covers it, the build it is deployed in with",
+        "the hash last read at that public id, a transaction that exercised it, and a reproduction by someone outside.",
+        "From `docs/capabilities.json` and `docs/provenance.json`. A stage is the highest that has evidence; deployed and",
+        "exercised count only at the public program ids. A cell with nothing behind it says none. The note of each",
+        "capability is in [CAPABILITIES.md](CAPABILITIES.md).", "",
         *capabilities(data, root), "",
         "## Outstanding limits", "",
         "From [DISCLOSURE.md](DISCLOSURE.md), one line each.", "",

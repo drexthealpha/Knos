@@ -14,12 +14,12 @@ name: always-on worker
 # the relay was down 12 to 22 s between two runs, and a token posted then waited that long.)
 # For those few seconds two runs relay with the same key, which pays nobody twice: the chain takes a token once, the
 # loser of a race tries again on its next pass and finds it done, and a run logs nothing for a token whose verdict the
-# log has already (ghrelay.logged). GitHub's cron only restarts the chain: a run it starts, or one started by hand,
-# relays only when no run of this workflow is going.
+# log has already (ghrelay.logged). GitHub's cron only starts the watchdog (below): the run it starts, or one started by hand,
+# relays only when no run of a chain is going.
 # A run that cannot relay is red, and starts nothing. The first step after the install asks the relay for its help text,
 # so an install that lacks something the relay imports fails there, before a key is read. The relay's exit status is the
 # step's (nothing after it hides a failure), and the next run is started only by a run whose relay step succeeded
-# after relaying its full time. After a failure the chain stops; the timer starts it again within 5 minutes. (0.3.13's
+# after relaying its full time. After a failure the chain stops; the watchdog starts it again (below). (0.3.13's
 # worker installed less than its relay imported, hid the failure, and each run started the next every 15 s or so.)
 # The one secret is the fee-paying key; it holds devnet SOL for fees and nobody's money.
 # This job sees that secret, so nothing it installs comes from an Actions cache (`enable-cache: false`): a cache can be
@@ -29,7 +29,7 @@ name: always-on worker
 # never run.
 #
 # BESIDE THE TIMER, THE EVENT (job `event`). The chain of runs above finds a token by reading comments, a pass every 3 s.
-# Two things it cannot bound: a token posted while no run relays (the chain stopped; the timer restarts it within 5
+# Two things it cannot bound: a token posted while no run relays (the chain stopped; the watchdog restarts it within 5
 # minutes, later when GitHub is busy), and a repository it has not seen yet (found by GitHub's comment search). So the
 # event that posts a token may also start a run of this workflow that carries exactly that token and ends:
 #   repository_dispatch, type knos-token   client_payload {"repo": "owner/name", "number": 12}: whoever holds a token
@@ -72,9 +72,21 @@ name: always-on worker
 # FEE PAYERS. One today: KNOS_RELAY_KEY. KNOS_RELAY_KEYS (a secret that is not set) may name more; each owner's
 # tokens then always pay from the same one of them, and a key signs for one token at a time (docs/RELAY.md).
 #
+# A START THAT IS ASKED AGAIN, AND A WATCHDOG (0.3.20). In the 0.3.19 release run GitHub answered HTTP 500 when a run
+# started its successor, and the chain was down until a person started it. Two changes (src/knos/proof/chain.py):
+#   - the start is asked again after a 5xx, a 429 or no answer, waiting 2, 4, 8, ... s (or what Retry-After says). GitHub
+#     may take a start it answered with an error, so the runs are listed before each new try, and a run that took over
+#     ends the asking; of two runs that take over from one run the first step lets only the older go on.
+#   - the job `watchdog` is not part of the chain. It runs on the timer AND on every event that starts this workflow
+#     (a token announced, a `knos` run ended), holds no secret, installs nothing, and starts a chain when no run of one
+#     is queued or in progress. The relay job no longer runs on the timer itself: the timer's run only watches.
+#     Watchdogs run one at a time (their concurrency group). Should two starts be taken all the same (GitHub lists a new
+#     run a moment late, or a person starts one too), the first step of each lets the OLDER one go on and ends the
+#     other: never two chains, and never none because each saw the other.
+#
 # Each run's title names the run it takes over from, so that the first step of the next one can tell the chain's runs apart.
 # An event run is titled "relay for ...", which no step of the chain counts.
-run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || github.event_name == 'issue_comment' && 'relay for a comment' || 'relay' }}
+run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || github.event_name == 'issue_comment' && 'relay for a comment' || github.event_name == 'schedule' && 'relay for the timer' || 'relay' }}
 on:
   schedule:
     - cron: "*/5 * * * *"
@@ -101,7 +113,7 @@ permissions:
 
 jobs:
   relay:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20     # 5 to relay; up to 10 more only in the first run after a release (the install step)
     env:
@@ -110,10 +122,11 @@ jobs:
       # A run that the run before it started takes over, unless a run older than this one took over from that run
       # already (GitHub started the next run but answered the start with an error, so it was asked again), or a run of
       # another chain relays and has not handed over (a second chain: it ends here, at its next handover). A re-run
-      # relays nothing and starts nothing: its first attempt started the next run. One that the timer or a person
-      # started goes on only when no run of this workflow is going or waiting (that run starts the next one); when
-      # GitHub does not list them, the next tick of the timer asks again, and a run taken over relays all the same (the
-      # next handover asks again).
+      # relays nothing and starts nothing: its first attempt started the next run. One that the watchdog or a person
+      # started goes on only when no run of a chain is going or waiting (that run starts the next one) and no OLDER
+      # run started the same way is: of two started at once the older goes on and the other ends, so there is one
+      # chain and not none. When GitHub does not list them, the next watchdog asks again, and a run taken over relays
+      # all the same (the next handover asks again).
       - name: one chain of runs at a time
         id: chain
         env:
@@ -142,11 +155,12 @@ jobs:
             fi
             exit 0
           fi
-          others=$(printf '%s' "$runs" | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and .status != "completed" and ((.displayTitle // "") | startswith("relay for ") | not))] | length') || others=""
+          others=$(printf '%s' "$runs" | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and .status != "completed" and ((.displayTitle // "") | startswith("relay for ") | not))
+            | select(((.displayTitle // "") | startswith("relay after ")) or .databaseId < $me)] | length') || others=""
           if [ "$others" = "0" ]; then
             echo "go=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Another run of this workflow is relaying and starts the next one (or GitHub did not list the runs): nothing to do."
+            echo "A run of the chain is relaying and starts the next one, or an older run started like this one goes on (or GitHub did not list the runs): nothing to do."
             echo "go=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -217,7 +231,8 @@ jobs:
           path: .knos-home
           key: knos-relay-home-${{ github.run_id }}
       # The next run takes 10 to 21 s to start relaying, so the two overlap for a few seconds and no token waits for a
-      # run to install.
+      # run to install. The start is asked up to 3 times here (6 s of waiting at most, so the relay goes on), and up
+      # to 6 times in the last step (62 s at most).
       - name: start the next run, and relay 30 s more while it installs
         if: steps.chain.outputs.go == 'true'
         env:
@@ -228,16 +243,39 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/src
         run: |
           [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
-          gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID" \
+          python -m knos.proof.chain start --after "$GITHUB_RUN_ID" --tries 3 \
             && touch "$RUNNER_TEMP/knos-next" || echo "GitHub did not take the start: the last step asks again."
           python -m knos relay --serve 30
       # Only after a relay step that succeeded: a run whose relay failed (or relayed nothing, having no key) starts
-      # nothing, so a build that cannot relay never starts run after run. The timer restarts the chain.
+      # nothing, so a build that cannot relay never starts run after run. The watchdog restarts the chain.
       - name: start the next run (always on), when the step before did not
         if: always() && steps.chain.outputs.go == 'true' && steps.relay.outcome == 'success' && steps.relay.outputs.relayed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: '[ -f "$RUNNER_TEMP/knos-next" ] || gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main -f after="$GITHUB_RUN_ID"'
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: '[ -f "$RUNNER_TEMP/knos-next" ] || python -m knos.proof.chain start --after "$GITHUB_RUN_ID" --tries 6'
+
+  # The watchdog: not a run of the chain, and it needs none to be alive. No secret, no install, no cache: it reads one
+  # file of this repository with the runner's own Python (`-I`: nothing but the standard library is on its path) and
+  # asks GitHub which runs of this workflow are alive. None of a chain: it starts one. One at a time.
+  watchdog:
+    if: github.event_name == 'schedule' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write        # it lists the runs and starts one
+    concurrency:
+      group: knos-relay-watchdog
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: start a chain of runs when none is queued or in progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I src/knos/proof/chain.py watch
 
   # One event, one run: the tokens the event names, and nothing else. The same install as the chain's, by hash; no
   # cache of any kind (this job sees the fee key); nothing of the event is ever run, and none of it reaches a shell:

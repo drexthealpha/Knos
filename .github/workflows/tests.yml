@@ -323,7 +323,11 @@ jobs:
   # Every number in the README opening, the home page, the submission and the pitch script is checked against a file
   # in the repo, devnet or GitHub (scripts/claims_check.py). And no document says of a fact that several of them state
   # (a count of capabilities at a stage, a program's version, an upgrade's time, the fee) anything but what its one
-  # source says (scripts/doc_claims.py; it reads files of the repository only).
+  # source says (scripts/doc_claims.py; it reads files of the repository only). Since 0.3.20 four more, each reading files
+  # only: no statement contradicts the capability list, the source or the price book (scripts/truth_check.py); every
+  # description of Knos is the one sentence (scripts/public_face.py); the judges' page and its file are one
+  # (scripts/judges.py); docs/ENFORCEMENT.md is the table the code gives (knos.enforce); and the recorded run of the
+  # stand-alone verifier is what a run gives now (scripts/archive_verify.py).
   claims:
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -337,6 +341,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - run: python scripts/doc_claims.py
+      - run: python scripts/truth_check.py
+      - run: python scripts/public_face.py --check
+      - run: python scripts/judges.py --check
+      - run: python -m knos.enforce --check
+      - run: python scripts/archive_verify.py --check
 
   # ruff (imports, statements, syntax, pyflakes) and mypy over src/knos, each at one version, with the settings in
   # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule and 1

@@ -25,7 +25,14 @@ What holds now:
 - The relay's exit status is the step's. It is 1 when a module is missing, or when not one pass finished; one failed
   pass among good ones (GitHub or the cluster did not answer) is logged and the relay goes on.
 - A run starts the next one only after its own relay step succeeded and had relayed its full time. After a failure
-  nothing is started: the run is red, and the 5-minute timer starts the chain again.
+  nothing is started: the run is red, and the watchdog starts the chain again.
+- The start of the next run is asked again when GitHub answers it with a 5xx or a 429, or not at all: after 2, 4, 8,
+  ... seconds, or what `Retry-After` says (`src/knos/proof/chain.py`). Before each new try the runs are listed, and a
+  run that already took over ends the asking. In the 0.3.19 release run one HTTP 500 to that start ended the chain.
+- The watchdog is a job of its own (`watchdog` in `worker.yml`) with no secret and nothing installed. It runs on
+  the 5-minute timer and on every event that starts the workflow, and starts a chain when no run of one is queued
+  or in progress. Watchdogs run one at a time; should two starts be taken all the same, each run's first step lets
+  the older one go on. Tested here (`tests/test_worker_chain.py`, `tests/test_workflows2.py`); not yet run on GitHub.
 
 ## A run that relays its own token
 
@@ -387,8 +394,11 @@ command in a new process; and the requests each path makes, counted. What is mea
 0.3.18 command, which was the whole precheck, took 4.3 to 32.6 s over the shared public RPC: a first reading, not a
 sample. The 0.3.19 command, once on each of 24 real tokens (step 4 below, 7 October 2026), took a median of 356 ms
 for the offline half, 854 ms for the chain check (one of the 24 was not answered in its 2 s), and 9.1 s for the
-whole precheck; 23 of the 24 had been carried before they were decided. 250 ms at p95 for the offline decision is a
-target.
+whole precheck; 23 of the 24 had been carried before they were decided. That 356 ms was a new process for each
+token, so it held the loading of the rules as well as the decision. The target for the offline decision is under
+100 ms at p95 warm, once the evidence is in hand: the rules loaded before the token arrives (`knos decide
+--stream`). Measured on one machine with no network, it holds ([BENCH.md](BENCH.md), "Decision time"); it has not
+been measured on devnet.
 
 Who posts the line: `knos settle` writes "accepted, settling" at the moment it has the token, and the provisional
 line goes into that same edit (`knos.flow`). Where the offline half decides, its line is posted at once, then one
@@ -476,6 +486,10 @@ Three things follow, and one does not.
 - With 39 samples the 95th percentile by nearest rank is the 38th value: the second slowest payment. 164 s is one
   payment (of 2 October, a day with two), not a band of slow ones. The 4 October sample alone (36 payments) has a
   95th percentile of 58 s and holds the slowest, 1,220 s.
+- The same file read two days later holds 42 payments: median 25 s, 95th percentile 58 s
+  ([`bench.json`](bench.json), `devnet.stats.latency.merge_to_paid`, 2 to 6 October). Nothing got faster. With 42
+  samples the nearest rank is the 40th value, and the 164 s payment is the 41st. Every other document states the
+  later reading; the table above is the earlier one, kept because the split below was made from it.
 - In every payment that can be split (37 of the 39 lines carry the relay's seconds), the relay's side never passed
   35 s. The slowest payment spent 1,208 of its 1,220 s before its token was posted: GitHub started, queued or re-ran
   the workflow that proves the merge. The relay cannot shorten that; it can only measure it.
@@ -518,7 +532,7 @@ Every path that can add minutes, with a test that reproduces it under a fake Git
 | --- | --- | --- | --- |
 | A repository the relay does not know: no open job or order on chain, no token in two days, not in `KNOS_RELAY_REPOS`. This is a first funding comment, never a proof (a proof's repository has money on chain, and the chain is read once a minute for those) | the delay of GitHub's comment search, then up to 30 s (`SEARCH_EVERY`) | GitHub publishes no bound for its search index; the relay adds at most 30 s | not fixable in the relay: the caller has no secret to call it with, and a search on every pass would be 1,200 requests an hour against the 1,000 a workflow's token gets ([GitHub's limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)). The way around is a relay in the run itself (`KNOS_RELAY_KEY`, above) |
 | A relay that starts with empty notes and many open repositories | it learned 20 repository names a minute, so a proof in the 45th waited two minutes | now 20 a pass: 45 repositories are known on the third pass, 6 s in | fixed |
-| A token posted while no run relays. Two runs overlap by 30 s and the next takes 10 to 21 s to start (`worker.yml`); a next run that waits longer for a runner leaves a gap, and a chain of runs that stopped waits for the 5-minute timer | the gap | the runner's wait less 30 s; after a stop, 5 minutes plus GitHub's own delay ("During periods of high load, your scheduled workflows may be delayed", [GitHub's documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)) | not fixed: it is the workflow's, and one worker is one point of failure. The relay adds nothing: the first pass of the next run carries what was posted, once |
+| A token posted while no run relays. Two runs overlap by 30 s and the next takes 10 to 21 s to start (`worker.yml`); a next run that waits longer for a runner leaves a gap, and a chain of runs that stopped waits for the watchdog (the 5-minute timer, or the next event that starts the workflow; a start GitHub answers with a 5xx or a 429 is asked again first: `src/knos/proof/chain.py`) | the gap | the runner's wait less 30 s; after a stop, 5 minutes plus GitHub's own delay ("During periods of high load, your scheduled workflows may be delayed", [GitHub's documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)) | not fixed: it is the workflow's, and one worker is one point of failure. The relay adds nothing: the first pass of the next run carries what was posted, once |
 | A first send that fails for the cluster's reasons (no answer, a dropped transaction, "Blockhash not found", a node that is behind or unhealthy) | the next pass (3 s), twice; then 10, 20, ... 60 s; then every 60 s | 60 s between two tries (`BACKOFF_MOST`), with no random part. A transaction that is never confirmed is waited for 60 s (`knos.chain`). Up to 4 tokens of different owners are carried at once, so such a token holds its own owner's tokens that long; the other tokens of the pass are carried and logged without it, and since 0.3.18 a comment posted meanwhile is read 3 s later and carried by a free worker | the retry is fixed: 0.3.14 gave such a token up after 12 passes, about 6.5 minutes, and logged a failure. Now it is tried while the chain would still take it (an hour past its expiry). A refusal by the program that another run with the same key can cause (errors 67, 69, 84) is still given 12 passes and then logged as a failure: when it does not clear, it is the program's answer. The 60 s held by one unconfirmed transaction is not fixed |
 | GitHub's secondary rate limit (a 403 or 429 with `Retry-After`) | until the time GitHub names | what GitHub names, at most an hour | fixed: the relay used to ask again every 3 s, which GitHub's page says to stop doing. Now nothing is asked until that time, and a verdict GitHub would not take meanwhile is kept and posted after |
 | GitHub's hourly limit for a workflow's token: 1,000 requests | until the hour's reset, when it is spent | under an hour | not reached today. Each run starts with no saved answers, so every known repository costs one counted read per run, 12 runs an hour, beside 120 searches: by that arithmetic (not measured) the budget is spent at about 70 repositories read per run |

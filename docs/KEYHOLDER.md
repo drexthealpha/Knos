@@ -103,6 +103,20 @@ To vote afterwards: `node scripts/governance.mjs approve upgrade <index> --membe
 
 ## What one outside key changes, and what it does not
 
+While the founder holds two of the three keys and the threshold is 2, exactly this is true of one outside holder:
+
+| one outside holder of 1 of 3 | can they? | why |
+|---|---|---|
+| see every proposal, rebuild it, and say in public what they found and how they voted | **yes** | proposals and votes are on chain; the four checks need no permission |
+| add one approval to an upgrade | **yes, and it changes nothing** | the founder's two approvals already meet the threshold |
+| approve an upgrade alone | **no** | one vote of the two needed |
+| block or cancel an upgrade alone | **no** | a proposal fails only when the keys that have not approved are too few to reach the threshold: with three members and a threshold of 2 that takes two rejections, and the founder's two keys can approve whatever the third does ([Squads v4, `cutoff`](https://github.com/Squads-Protocol/v4/blob/main/programs/squads_multisig_program/src/state/multisig.rs): voters minus threshold plus one) |
+| pause funding, or approve or revoke a signing key, alone (guardian) | **no** | the guardian is 2 of 3 as well |
+| stop the founder replacing their key | **no** | changing members takes two votes, which the founder has |
+
+So today's honest description is: **a witness with a vote, not a check.** Nobody may describe one outside key of
+three as independent approval, a veto or shared control.
+
 One outside key of three is a second person who sees every proposal and can say in public that they did not
 approve it. It does not bind the founder, who would still hold two keys and can approve alone. The founder stops
 being able to approve alone when a second outside key replaces a second founder key, or when the threshold becomes

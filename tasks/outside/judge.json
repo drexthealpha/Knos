@@ -1,0 +1,18 @@
+{
+ "kind": "judge",
+ "v": 1,
+ "title": "Host a judge",
+ "statement": "Test USDC, no monetary value.\n\nMake a repository from the host-a-judge template (examples/host_a_judge) and let it judge one order: GitHub signs your run, not Knos's.",
+ "evidence": "one GitHub-signed attestation run in a repository your account owns, of the workflow the template installs (.github/workflows/knos-attest.yml, a copy of examples/knos-attest.yml)",
+ "counter": "judges",
+ "needs": [
+  "actor_id",
+  "repository_owner_id",
+  "workflow",
+  "signed_run"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "examples/host_a_judge"
+}

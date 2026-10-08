@@ -34,6 +34,15 @@ that history makes required.
                   (accepted, rejected, appealed, overturned). Entities, found by Sibyl's own search anchored to one
                   category (`search_entities(..., category=...)`, sibyl-memory-client 0.8) and never by a side file.
 
+    exception_opened(), exception_resolved(), exceptions_before(), exception_queue(), terms_text(), period_closed(),
+    periods_closed()
+                  what the buyer's side remembers of an exception (a statement line, an appeal or a correction that was
+                  not simply agreed), each tier doing the work the engine names it for: the live queue is one state
+                  document (HOT), one entity per supplier-and-terms holds how their exceptions ended (WARM), each
+                  resolution is one journal event (COLD, append-only), the text of the terms is a reference document
+                  (REFERENCE), and a closed period is an entity moved to the archive (ARCHIVE). `knos recall exception`
+                  (knos.recall) answers from them: how the same exception under the same terms ended before.
+
 `NullStore` keeps nothing: the same engine with no memory, which is what a plain hook amounts to.
 """
 
@@ -78,6 +87,18 @@ class NullStore:
     def find(self, category: str, query: str, limit: int = 200) -> list[tuple[str, dict]]:
         return []
 
+    def reference(self, key: str) -> dict:
+        return {}
+
+    def set_reference(self, key: str, body: dict, kind: str = "") -> None:
+        return None
+
+    def archive(self, category: str, name: str, reason: str = "") -> bool:
+        return False
+
+    def archived(self, category: str) -> list[tuple[str, dict]]:
+        return []
+
     def held(self):
         return contextlib.nullcontext(self)
 
@@ -117,6 +138,17 @@ class SibylStore:
         client, storage = store.for_repo(repo)
         got = cls(client)
         got._storage = storage
+        return got
+
+    @classmethod
+    def for_buyer(cls, buyer: str, root=None) -> "SibylStore":
+        """One buyer organisation's memory: its own tenant (knos.store.buyer_tenant), in <root>/sibyl.db when a
+        directory is named, else in Sibyl's shared store on this machine."""
+        from .. import store
+        client, storage = store.for_buyer(buyer, root)
+        got = cls(client)
+        if storage is not None:
+            got._storage = storage
         return got
 
     def _release(self) -> None:
@@ -214,6 +246,60 @@ class SibylStore:
                     continue
             if isinstance(body, dict) and row.get("category") == category and row.get("status", "active") == "active":
                 out.append((str(row.get("name") or ""), body))
+        return out
+
+
+    def reference(self, key: str) -> dict:
+        """A reference document (the REFERENCE tier: a text looked up, never rewritten by use): its body, or {}."""
+        try:
+            got = self.client.get_reference(key)
+        finally:
+            self._release()
+        body = got.get("body") if isinstance(got, dict) else None
+        if isinstance(body, str):
+            try:
+                body = json.loads(body)
+            except ValueError:
+                return {}
+        return body if isinstance(body, dict) else {}
+
+    def set_reference(self, key: str, body: dict, kind: str = "") -> None:
+        try:
+            self.client.set_reference(key, body, metadata={"kind": kind} if kind else None)
+        finally:
+            self._release()
+
+    def archive(self, category: str, name: str, reason: str = "") -> bool:
+        """Move one entity to the engine's archive (the ARCHIVE tier): it leaves the active set and every search of
+        it, and stays readable through `archived`. False when there is no such entity."""
+        try:
+            self.client.archive_entity(category, name, reason or None)
+        except Exception as why:  # noqa: BLE001 - the engine's NotFoundError, named here so that this module imports nothing of the engine
+            if type(why).__name__ != "NotFoundError":
+                raise
+            return False
+        finally:
+            self._release()
+        return True
+
+    def archived(self, category: str) -> list[tuple[str, dict]]:
+        """(name, body) of every archived entity of a category, oldest first. The client has no call that lists the
+        archive (sibyl-memory-client 0.8.1), so this reads the engine's own `archived_entities` table through the
+        client's storage handle, for this tenant only."""
+        try:
+            with self.client.storage.connection() as con:
+                rows = con.execute("SELECT name, body FROM archived_entities WHERE tenant_id = ? AND category = ? ORDER BY rowid",
+                                   (self.client.get_tenant(), category)).fetchall()
+        finally:
+            self._release()
+        out = []
+        for row in rows:
+            try:
+                body = json.loads(row["body"])
+            except (TypeError, ValueError):
+                continue
+            if isinstance(body, dict):
+                out.append((str(row["name"]), body))
         return out
 
 
@@ -662,6 +748,204 @@ def appeals(store, repo, supplier: str | None = None) -> list[dict]:
     rows = [b for n, b in _rows(store, "appeal", who) if _appeal_row(b) and b["repo"] == repo_k
             and n == _id("appeal", repo_k, b["id"]) and (supplier is None or b["supplier"] == who)]
     return sorted(rows, key=lambda b: (b["at"], b["id"]))
+
+
+# ---- the buyer's side: how an exception under given terms ended before, on five tiers (Sibyl) ---------------------
+
+EXCEPTION_ENDINGS = ("accepted_on_appeal", "corrected_and_passed", "refused")
+EXCEPTION_QUEUE = "knos_exception_queue"    # the state document's key (HOT); one per tenant, and a tenant is one buyer organisation
+_EXC_MARK = "knos-exception"                # what makes a journal event one of these (COLD)
+_EXC_KEPT = 200                             # the newest cases one supplier-and-terms entity keeps (WARM); its counts keep them all
+_PERIOD = re.compile(r"[0-9]{4}(?:0[1-9]|1[0-2])")
+
+
+def _evidence(ids_) -> list[str]:
+    seen: list[str] = []
+    for x in ids_ or ():
+        x = _short(x, 120)
+        if x and x not in seen:
+            seen.append(x)
+    return seen[:8]
+
+
+def _exception_key(terms, reason, supplier, exception_id="-") -> tuple[str, str, str, str]:
+    terms, reason, who, eid = str(terms), str(reason), _agent_key(supplier)[:64], _short(exception_id, 120)
+    if not _HASH.fullmatch(terms) or not _CODE_WORD.fullmatch(reason) or not who or not eid:
+        raise ValueError("an exception is remembered under a terms hash (64 hex characters), a reason code, a supplier and an id")
+    return terms, reason, who, eid
+
+
+def _case_row(c) -> bool:
+    return (isinstance(c, dict) and isinstance(c.get("id"), str) and 1 <= len(c["id"]) <= 120
+            and isinstance(c.get("reason"), str) and bool(_CODE_WORD.fullmatch(c["reason"])) and c.get("ending") in EXCEPTION_ENDINGS
+            and isinstance(c.get("at"), (int, float)) and not isinstance(c.get("at"), bool)
+            and (c.get("seconds") is None or (isinstance(c["seconds"], (int, float)) and not isinstance(c["seconds"], bool) and c["seconds"] >= 0))
+            and isinstance(c.get("period"), str) and bool(_PERIOD.fullmatch(c["period"]))
+            and isinstance(c.get("evidence"), list) and len(c["evidence"]) <= 8 and all(isinstance(x, str) and len(x) <= 120 for x in c["evidence"]))
+
+
+def _exception_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("supplier"), str) and 1 <= len(body["supplier"]) <= 64
+            and isinstance(body.get("terms"), str) and bool(_HASH.fullmatch(body["terms"]))
+            and isinstance(body.get("cases"), list) and len(body["cases"]) <= _EXC_KEPT and all(_case_row(c) for c in body["cases"])
+            and isinstance(body.get("counts"), dict)
+            and all(isinstance(k, str) and isinstance(v, dict) and all(e in EXCEPTION_ENDINGS and type(n) is int and n >= 0 for e, n in v.items())
+                    for k, v in body["counts"].items()))
+
+
+def exception_queue(store) -> list[dict]:
+    """The exceptions open now, oldest first: [{"id", "terms", "reason", "supplier", "evidence", "at"}]. One state
+    document (the HOT tier), rewritten as exceptions open and end. Empty with no memory."""
+    rows = store.state(EXCEPTION_QUEUE).get("open")
+    rows = [r for r in rows if isinstance(r, dict) and isinstance(r.get("id"), str) and isinstance(r.get("at"), (int, float))] \
+        if isinstance(rows, list) else []
+    return sorted(rows, key=lambda r: (r["at"], r["id"]))
+
+
+def exception_opened(store, terms: str, reason: str, supplier: str, exception_id: str, evidence=(), at: float | None = None) -> dict:
+    """Put one exception on the live queue: `exception_id` (an invoice line's, an evaluation's or a correction's id) is
+    open under the terms with hash `terms`, for `reason` (a refusal code or a line state), about `supplier`'s work.
+    Opening the same id twice keeps the first time it opened. Raises ValueError for what is not an exception."""
+    terms, reason, who, eid = _exception_key(terms, reason, supplier, exception_id)
+    queue = exception_queue(store)
+    had = next((r for r in queue if r["id"] == eid), None)
+    row = {"id": eid, "terms": terms, "reason": reason, "supplier": who, "evidence": _evidence([*(had or {}).get("evidence", []), *evidence]),
+           "at": float(had["at"] if had else at if at is not None else time.time())}
+    store.set_state(EXCEPTION_QUEUE, {"open": [r for r in queue if r["id"] != eid] + [row]})
+    return row
+
+
+def _exception_entity(store, who: str, terms: str) -> dict:
+    name = _id("exception", who, terms)
+    for n, b in _rows(store, "exception", terms):
+        if n == name and _exception_row(b) and b["supplier"] == who and b["terms"] == terms:
+            return b
+    return {"supplier": who, "terms": terms, "cases": [], "counts": {}}
+
+
+def exception_resolved(store, terms: str, reason: str, supplier: str, exception_id: str, ending: str, evidence=(),
+                       opened_at: float | None = None, at: float | None = None, period: str = "") -> dict:
+    """Remember how one exception ended: `ending` is one of EXCEPTION_ENDINGS (accepted on appeal; corrected and then
+    passed; refused). It leaves the live queue (HOT), is counted on the entity of this supplier under these terms
+    (WARM: one entity per supplier-and-terms, its newest 200 cases and a count of every one), and is appended to the
+    journal (COLD), which is never rewritten. `opened_at`: when it opened, when the queue does not hold it; the time it
+    took is `at` less that. `period`: the statement period it belongs to (yyyymm; default: the month of `at`, UTC).
+    The same id ending the same way twice is one memory. Raises ValueError for another ending."""
+    terms, reason, who, eid = _exception_key(terms, reason, supplier, exception_id)
+    at = float(at if at is not None else time.time())
+    period = period or time.strftime("%Y%m", time.gmtime(at))
+    if ending not in EXCEPTION_ENDINGS or not _PERIOD.fullmatch(period):
+        raise ValueError(f"an exception ends {', '.join(EXCEPTION_ENDINGS)}, in a period written yyyymm")
+    held = getattr(store, "held", None)
+    with held() if held is not None else contextlib.nullcontext(store):
+        queue = exception_queue(store)
+        was = next((r for r in queue if r["id"] == eid), None)
+        opened = float(was["at"]) if was else opened_at
+        case: dict[str, Any] = {"id": eid, "reason": reason, "ending": ending, "at": at, "period": period,
+                "seconds": max(0.0, at - float(opened)) if opened is not None else None,
+                "evidence": _evidence([*(was or {}).get("evidence", []), *evidence])}
+        body = _exception_entity(store, who, terms)
+        old = next((c for c in body["cases"] if c["id"] == eid), None)
+        if old is not None and old["ending"] == ending and old["reason"] == reason:
+            return old                                      # judged twice, remembered once
+        counts = {k: dict(v) for k, v in body["counts"].items()}
+        if old is not None:                                 # the same exception ended again, another way: the later ending stands
+            counts[old["reason"]][old["ending"]] = max(0, counts.get(old["reason"], {}).get(old["ending"], 0) - 1)
+        counts.setdefault(reason, {})[ending] = counts.get(reason, {}).get(ending, 0) + 1
+        cases = sorted([c for c in body["cases"] if c["id"] != eid] + [case], key=lambda c: (c["at"], c["id"]))[-_EXC_KEPT:]
+        store.put("exception", _id("exception", who, terms), {"supplier": who, "terms": terms, "cases": cases, "counts": counts})
+        took = f" after {int(case['seconds'])} s" if case["seconds"] is not None else ""
+        store.journal(evaluated={"exception": eid, "terms": terms, "reason": reason, "supplier": who, "evidence": case["evidence"]},
+                      acted=f"{ending.replace('_', ' ')}{took}: {reason} ({who})",
+                      extra={"kind": _EXC_MARK, "id": eid, "terms": terms, "reason": reason, "supplier": who, "ending": ending,
+                             "at": at, "period": period, "seconds": case["seconds"]})
+        if was is not None:
+            store.set_state(EXCEPTION_QUEUE, {"open": [r for r in queue if r["id"] != eid]})
+    return case
+
+
+def exceptions_before(store, terms: str, reason: str, supplier: str | None = None) -> dict:
+    """How the same exception ended before: every remembered case of `reason` under the terms with hash `terms`, for one
+    `supplier` or for all of them. {"terms", "reason", "supplier", "seen", "endings": {ending: count}, "most_often",
+    "seconds": {"median", "fastest", "slowest", "timed"} or None, "evidence": [ids, newest first], "cases": [the newest
+    five], "open": how many of the same are on the live queue now, "said": the journal's own line for the newest}.
+    All zero and empty with no memory: another terms hash, another reason or another tenant answers nothing here."""
+    terms, reason = str(terms), str(reason)
+    who = _agent_key(supplier)[:64] if supplier else ""
+    endings, cases = {e: 0 for e in EXCEPTION_ENDINGS}, []
+    for name, b in _rows(store, "exception", terms):
+        if not _exception_row(b) or b["terms"] != terms or name != _id("exception", b["supplier"], terms) or (who and b["supplier"] != who):
+            continue                # a row that does not say what its name says is not a memory of an exception
+        for e, n in b["counts"].get(reason, {}).items():
+            endings[e] += n
+        cases += [{**c, "supplier": b["supplier"]} for c in b["cases"] if c["reason"] == reason]
+    cases.sort(key=lambda c: (-c["at"], c["id"]))
+    took = sorted(c["seconds"] for c in cases if c["seconds"] is not None)
+    seen = sum(endings.values())
+    evidence: list[str] = []
+    for c in cases:
+        evidence += [x for x in c["evidence"] if x not in evidence]
+    said, newest = "", float("-inf")
+    for e in store.events(200) if seen else []:     # the journal is in the order it was written: the newest ending is the latest `at`
+        x = e.get("extra")
+        if isinstance(x, dict) and x.get("kind") == _EXC_MARK and x.get("terms") == terms and x.get("reason") == reason \
+                and (not who or x.get("supplier") == who) and isinstance(x.get("at"), (int, float)) and x["at"] > newest:
+            said, newest = str(e.get("acted") or "")[:300], x["at"]
+    return {"terms": terms, "reason": reason, "supplier": who, "seen": seen, "endings": endings,
+            "most_often": max(EXCEPTION_ENDINGS, key=lambda e: (endings[e], -EXCEPTION_ENDINGS.index(e))) if seen else "",
+            "seconds": {"median": took[(len(took) - 1) // 2], "fastest": took[0], "slowest": took[-1], "timed": len(took)} if took else None,
+            "evidence": evidence[:20], "cases": cases[:5], "said": said,
+            "open": sum(1 for r in exception_queue(store) if r.get("terms") == terms and r.get("reason") == reason
+                        and (not who or r.get("supplier") == who))}
+
+
+def terms_text(store, terms: str, text: str | None = None) -> str:
+    """The text of the terms with hash `terms`, kept as a reference document (the REFERENCE tier). With `text` it is
+    stored; a text is never replaced under the same hash by a different one (ValueError). Returns the text held, or
+    "" when none is (and always "" with no memory)."""
+    terms = str(terms)
+    if not _HASH.fullmatch(terms):
+        raise ValueError("terms are named by their hash: 64 hex characters")
+    held = store.reference(f"knos-terms:{terms}").get("text")
+    held = held if isinstance(held, str) else ""
+    if text is None or text == held:
+        return held
+    if held:
+        raise ValueError("another text is already kept under this terms hash")
+    store.set_reference(f"knos-terms:{terms}", {"terms": terms, "text": str(text), "sha256": hashlib.sha256(str(text).encode()).hexdigest()},
+                        "knos-terms")
+    return store.reference(f"knos-terms:{terms}").get("text") or ""
+
+
+def periods_closed(store) -> list[dict]:
+    """The closed periods, oldest first, read from the engine's archive (the ARCHIVE tier)."""
+    rows = [b for n, b in store.archived("exception_period") if isinstance(b.get("period"), str) and b["period"] == n]
+    return sorted(rows, key=lambda b: b["period"])
+
+
+def period_closed(store, period: str, at: float | None = None) -> dict:
+    """Close one statement period (yyyymm): what its exceptions came to ({"period", "resolved", "endings", "ids",
+    "closed_at"}) is written as one entity and moved to the engine's archive, where nothing rewrites it. Closing a
+    period that is closed returns what the archive holds. The cases stay on their supplier-and-terms entities, so a
+    recall still counts them. With no memory the summary is empty and nothing is kept."""
+    period = str(period)
+    if not _PERIOD.fullmatch(period):
+        raise ValueError("a period is written yyyymm")
+    had = next((b for b in periods_closed(store) if b["period"] == period), None)
+    if had is not None:
+        return had
+    endings, got = {e: 0 for e in EXCEPTION_ENDINGS}, []
+    for name, b in getattr(store, "rows", lambda _c: [])("exception"):
+        if _exception_row(b) and name == _id("exception", b["supplier"], b["terms"]):
+            for c in b["cases"]:
+                if c["period"] == period:
+                    endings[c["ending"]] += 1
+                    got.append(c["id"])
+    body = {"period": period, "resolved": len(got), "endings": endings, "ids": sorted(got)[:500],
+            "closed_at": float(at if at is not None else time.time())}
+    store.put("exception_period", period, body)
+    store.archive("exception_period", period, "period closed")
+    return body
 
 
 # ---- what the judge learned, to carry between runs (knos.proof.memory) -------------------------------------------

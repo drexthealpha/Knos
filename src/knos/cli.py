@@ -1140,6 +1140,10 @@ _MODULES = (    # (the commands it adds, how); in the order they were always reg
     (("net",), lambda: _mod("netting").register(_app, _HELP)),                     # knos net: small outcomes netted into one release (src/knos/netting.py)
     (("advance",), lambda: _mod("advance").register(_app, _HELP)),                 # knos advance: a third party's advance against a funded order (src/knos/advance.py)
     (("faucet",), lambda: _mod("faucet").register(_app, _HELP)),                   # knos faucet: test USDC for a first task (src/knos/faucet.py)
+    (("controls",), lambda: _mod("enforce").register(_app, _HELP)),                # knos controls matrix: what stops money on each route (src/knos/enforce.py)
+    (("recall",), lambda: _mod("recall").register(_app, _HELP)),                   # knos recall exception: how the same exception ended before (src/knos/recall.py)
+    (("archive",), lambda: _mod("archive").register(_app, _HELP)),                 # knos archive make | verify | compare | policy (src/knos/archive.py)
+    (("task",), lambda: _mod("tasks").register(_app, _HELP)),                      # knos task list | show | take | submit | why (src/knos/tasks.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
 _loaded: set[int] = set()
@@ -1154,7 +1158,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "approve", "decide", "net", "advance", "faucet") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "archive", "approve", "decide", "net", "advance", "faucet", "controls", "recall", "task") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     _HELP[:] = [row for row in _HELP if row not in tail] + tail
     _arrange()
 

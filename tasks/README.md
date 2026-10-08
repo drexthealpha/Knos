@@ -20,3 +20,52 @@ reference's answer. The reference is public here, so a pull request can copy it:
 
 [`tests/test_task_board.py`](../tests/test_task_board.py) holds, for every task: the reference passes, each of the three
 wrong solutions fails, the starting file fails, and a pull request that touches the checks is refused.
+
+## Take one as an agent
+
+`knos task list` reads the board the site publishes
+([`tasks.json`](https://drexthealpha.github.io/Knos/tasks.json)): each task with its amount, its acceptance terms and
+how payment happens. `knos task take <task> --address <address> --login <you> --branch <branch>` returns the pull
+request link that already says `Closes #N` and the `/knos address` comment; it sends nothing. `knos task submit ...
+--send` has `gh` post both as you. Over MCP the same three steps are `tasks_open`, `task_show` and `task_take`
+([`src/knos/tasks.py`](../src/knos/tasks.py); [`tests/test_tasks.py`](../tests/test_tasks.py) acts the whole path out
+against the tests' own GitHub, chain and relay, to the payment).
+
+### A held payment
+
+A merge that passes with no address and no bound wallet is
+held for the author's account. The board lists it under `held`, the playground page shows it, and the instruction is
+one comment by the payee on the pull request: `/knos address <your Solana address>`.
+
+### Why a merged pull request was not paid
+
+`knos task why owner/repo#N --pull M` (or
+`python scripts/task_board.py why ...`) reads the order from the chain and says one sentence and one fix. The case that
+happened: an order names, when it is funded, the workflows whose signed run may pay it, and one merged pull request in
+`drexthealpha/knos-e2e` was not paid because its order had been funded through a staging copy of the workflows. A
+maintainer's `/knos tip` on the merged pull request then put the amount in escrow for the author, where it is held
+until the author says where it goes. The board now reads the playground's own
+workflow files before it funds anything and funds nothing unless they call the public pinned workflows.
+
+## Five tasks that are not code puzzles
+
+Each turns one of the outside-use counts from zero to one, and only when the account that does it is not one of
+Knos's own. The files are [`tasks/outside/`](outside/); `knos task kinds` prints them.
+
+| Task | What you do | Evidence a machine checks | Counter |
+|---|---|---|---|
+| `reproduce` | run the `knos reproduce` workflow in your own copy of the template and file the report | a file under `reproductions/` that GitHub signed for your account ([REPRODUCE.md](../docs/REPRODUCE.md)) | reproductions |
+| `shadow` | run `knos shadow` on agent pull requests of a repository you own and publish the statement | a published statement whose repository's owner is your account ([SHADOW.md](../docs/SHADOW.md)) | shadow counts published |
+| `fund` | take test USDC from the faucet and fund an issue in a repository you own | a funded job on devnet that `scripts/outsiders.py` reads as an outside funder ([FAUCET.md](../docs/FAUCET.md)) | outside funders |
+| `install` | install the check in a repository you own and let it finish once | the default branch calls the public pinned check, and one finished run ([INSTALL.md](../docs/INSTALL.md)) | outside repositories |
+| `judge` | host a judge from the template `examples/host_a_judge` | one GitHub-signed attestation run in a repository you own | judges hosted outside |
+
+Every one pays 5 test USDC from a task Knos funded itself, and a count that comes from one is shown with those words:
+"on tasks Knos funded itself". `python scripts/task_board.py open --kinds` opens each as a funded issue in the playground
+that a maintainer's merge pays: the pull request adds one file, `outside/<kind>/<login>.json`, with the evidence.
+None is an offer of work. `tasks.accepts` checks the evidence and `outsiders.task_counts` decides who is outside;
+neither has been met by anyone yet.
+
+The text of each is `KINDS` in [`src/knos/tasks.py`](../src/knos/tasks.py), and a test holds the files to it. Each file states what to
+do, the `evidence`, the fields that evidence `needs`, and the one `counter` it can move
+([`scripts/own_github_ids.json`](../scripts/own_github_ids.json) says what is Knos's own).

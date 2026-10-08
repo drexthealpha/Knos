@@ -58,6 +58,14 @@ The numbers are the test's: an order of 100 test USDC, 20% held back for 30 days
 Everything the order pays goes to the financier, not only the holdback, and the seller cannot undo the assignment.
 The seller should assign only to a financier it trusts to make the off-order payment, or have it paid first.
 
+## A netting period instead of one order
+
+A supplier paid by netted periods ([docs/NETTING.md](../../docs/NETTING.md)) sells a closed period the same way, when
+the buyer locked a reserve for it: `knos advance quote advance-offer.json --period BOOK` prices the period's draws on
+its reserve order, and the take assigns that order. The financier then carries the wait for the draws, and the loss
+if none is signed before the reserve's deadline; an unsecured period is refused, because no order holds its money.
+Who carries what, in four rows: [docs/ADVANCE.md](../../docs/ADVANCE.md#who-carries-which-risk).
+
 ## What is not built
 
 - An assignment of only the holdback after acceptance. The program would have to let the recorded wallet of a

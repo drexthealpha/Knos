@@ -5,6 +5,13 @@
     GET /records/<slug>.json    the record file, free, as it always was
     GET /lookup/<slug>          0.10 test USDC a lookup, paid through the proposed x402 "knos-order" scheme
     GET /orders/<order>         how many lookups an order has bought and used
+    GET /health                 whether it can answer, whether it signs, and what its operator promises (nothing)
+
+What the paid answer adds to the free file (knos.record_answer, docs/RECORD.md section 5): the operator's signature
+over the record's hash, the time and slot the chain was read and an expiry (`knos record verify` checks it with no
+network); a summary computed the same way for every supplier; and the supplier's history, field by field, only to a
+reader the supplier granted (header Record-Grant). Without a grant the answer says "not granted". With no signing
+key the answer says it is unsigned. Revenue from lookups is budgeted at zero until someone buys one.
 
 The payment is a Knos work order, as in examples/x402_attested: the caller funds an order in escrow and names it. Two
 things differ, and both come from the program as it is:
@@ -33,6 +40,7 @@ PRICE = 100_000                                          # 0.10 of a 6-decimal t
 PACK = 50                                                # lookups one order buys: the smallest order is 5.00
 STATE = "knos_record_api"                                # the state document the counts are kept in
 PAYER_HEADER = "attested-payer"
+GRANT_HEADER = "record-grant"                            # base64 JSON: the supplier's signed grant to this reader (knos.record_answer.grant)
 NO_HOST = "Knos hosts no such server: whoever runs this one is its seller."
 
 
@@ -128,12 +136,59 @@ def verify(chain, off: dict, order: str) -> tuple[Any, str | None]:
 class Server:
     """The record server, with no socket: `handle(path, headers)` gives (status, headers, body). `records`: the folder
     of record files (docs/records). `store`: a knos.proof.history store that remembers each order's count, or None
-    (then the count lives as long as this object)."""
+    (then the count lives as long as this object). `key`: the operator's signing key (a solders Keypair), or None:
+    then every paid answer is unsigned and says so. `history`: the folder of <slug>.history.json files, never the free
+    folder. `suppliers`: {slug: the supplier's public key}, the keys this operator accepts grants from. `ttl`: the
+    seconds an answer stays fresh."""
 
-    def __init__(self, off: dict, chain, records: Path, store=None, now: Callable[[], int] | None = None):
+    def __init__(self, off: dict, chain, records: Path, store=None, now: Callable[[], int] | None = None, *, key=None, history: Path | None = None,
+                 suppliers: dict[str, str] | None = None, ttl: int | None = None):
+        from . import record_answer
         self.offer, self.chain, self.records, self.store = off, chain, Path(records), store
         self.now = now or chain.now
         self._used: dict[str, int] = {}
+        self.key, self.history, self.suppliers = key, Path(history) if history else None, dict(suppliers or {})
+        self.ttl = int(ttl if ttl is not None else off.get("ttlSeconds") or record_answer.TTL)
+        self.promise = {**record_answer.PROMISE, **(off.get("availability") or {})}
+
+    def read_chain(self) -> tuple[int, int | None]:
+        """(the cluster's time, its slot) from one read of the Clock account; the slot is None where the chain gives
+        only a time."""
+        try:
+            from .chain import CLOCK
+            data = self.chain.account(CLOCK)
+            if data is not None and len(data) >= 40:
+                return int.from_bytes(data[32:40], "little", signed=True), int.from_bytes(data[0:8], "little")
+        except Exception:  # noqa: BLE001  (a chain without that call still has a clock)
+            pass
+        return int(self.now()), None
+
+    def past(self, slug: str) -> dict | None:
+        from . import record_answer
+        if self.history is None:
+            return None
+        try:
+            doc = json.loads((self.history / f"{slug}.history.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return doc if record_answer.check_history(doc, slug) is None else None
+
+    def health(self) -> dict:
+        """What `knos record serve --health` and GET /health say: whether records are there, whether the chain
+        answers, whether answers are signed, and what is promised."""
+        try:
+            n = sum(1 for p in self.records.glob("*.json") if self.record(p.stem) is not None)
+        except OSError:
+            n = 0
+        try:
+            at, slot = self.read_chain()
+            chain: dict = {"ok": True, "time": at, "slot": slot}
+        except Exception as why:  # noqa: BLE001
+            chain = {"ok": False, "why": str(why)}
+        return {"ok": bool(n) and chain["ok"], "records": n, "chain": chain, "signing": self.key is not None,
+                "key": str(self.key.pubkey()) if self.key is not None else None, "ttl_seconds": self.ttl,
+                "history": self.history is not None, "suppliers_with_a_key": len(self.suppliers), "counts_survive_restart": self.store is not None,
+                "promise": self.promise, "note": NO_HOST}
 
     def used(self, order: str) -> int:
         if self.store is not None:
@@ -160,6 +215,9 @@ class Server:
         if path.startswith("/records/") and path.endswith(".json"):
             doc = self.record(path[9:-5])
             return (200, {}, doc) if doc else (404, {}, {"error": "no such record"})
+        if path == "/health":
+            got = self.health()
+            return (200 if got["ok"] else 503), {}, got
         if path.startswith("/orders/"):
             return 200, {}, {"order": path[8:], "lookups": self.offer["lookups"], "used": self.used(path[8:]), "note": NO_HOST}
         if not path.startswith("/lookup/"):
@@ -202,9 +260,21 @@ class Server:
             return refuse(f"the next lookup of this order is {used}, not {n}", payer)
         if used >= bought:
             return refuse(f"this order bought {bought} lookups and all are used: fund another (a new seq)", payer)
+        from . import record_answer
+        granted: list[str] = []
+        why = shown = None
+        if h.get(GRANT_HEADER):
+            try:
+                shown = decode(h[GRANT_HEADER])
+            except (ValueError, TypeError):
+                shown = None
+            granted, why = record_answer.check_grant(shown, slug, payer, self.suppliers.get(slug), int(self.now()))
+        read_time, slot = self.read_chain()                              # before the lookup is spent: a chain that does not answer costs the caller nothing
         self._spend(order, n)
+        ans = record_answer.answer(doc, reader=payer, read_time=read_time, slot=slot, produced=int(self.now()), ttl=self.ttl, key=self.key,
+                                   past=self.past(slug) if granted else None, granted=granted, why=why, grant_doc=shown, promise=self.promise)
         body = {"record": doc, "served": {"order": order, "n": n, "left": bought - n - 1, "at": int(self.now()), "record_sha256": doc["sha256"],
-                                           "price": str(self.offer["price"])}}
+                                           "price": str(self.offer["price"])}, "answer": ans}
         settle = {"success": True, "payer": payer, "transaction": str(payload.get("transaction") or ""), "network": self.offer["network"],
                   "amount": str(self.offer["price"]),
                   "extensions": {SCHEME: {"info": {"order": order, "state": "escrowed", "deadline": o.deadline}}}}
@@ -271,29 +341,49 @@ def serve(server: Server, host: str = "127.0.0.1", port: int = 8402):
     return HTTPServer((host, port), Handler)
 
 
-def run_serve(offer_file: Path, records: Path = Path("docs/records"), memory: Path | None = None, host: str = "127.0.0.1", port: int = 8402):
-    """What `knos record serve` does: read the seller's offer (the JSON `offer` writes), the chain from KNOS_RPC as
-    every command does, and serve. `memory`: the folder of a Sibyl store that keeps each order's count."""
-    from . import chain
-    off = json.loads(Path(offer_file).read_text(encoding="utf-8"))
+def build_server(offer_file: Path | None, records: Path = Path("docs/records"), memory: Path | None = None, key: Path | None = None,
+                 history: Path | None = None, suppliers: Path | None = None, ttl: int | None = None, ledger=None) -> Server:
+    """The server `knos record serve` runs: the seller's offer (the JSON `offer` writes), the chain from KNOS_RPC as
+    every command does. `memory`: the folder of a Sibyl store that keeps each order's count. `key`: the operator's
+    signing key file. `history`: the folder of history files. `suppliers`: a JSON file {slug: supplier's public key}."""
+    from . import chain, record_answer
+    off = json.loads(Path(offer_file).read_text(encoding="utf-8")) if offer_file else {}
     store = None
     if memory is not None:
-        from .proof import history
-        store = history.SibylStore.local(memory, tenant_id="knos-record-api")
-    return serve(Server(off, chain.ledger(), records, store), host, port)
+        from .proof import history as memory_engine
+        store = memory_engine.SibylStore.local(memory, tenant_id="knos-record-api")
+    known = json.loads(Path(suppliers).read_text(encoding="utf-8")) if suppliers else {}
+    return Server(off, ledger or chain.ledger(), records, store, key=record_answer.load_key(key) if key else None, history=history,
+                  suppliers={str(k): str(v) for k, v in known.items()}, ttl=ttl)
+
+
+def run_serve(offer_file: Path, records: Path = Path("docs/records"), memory: Path | None = None, host: str = "127.0.0.1", port: int = 8402, **more):
+    return serve(build_server(offer_file, records, memory, **more), host, port)
 
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(prog="knos record serve", description="Serve supplier records: 0.10 test USDC a lookup; the file stays free. " + NO_HOST)
-    ap.add_argument("offer", type=Path, help="the seller's offer (knos.record_api.offer as JSON)")
+    ap.add_argument("offer", type=Path, nargs="?", default=None, help="the seller's offer (knos.record_api.offer as JSON); --health works without one")
     ap.add_argument("--records", type=Path, default=Path("docs/records"))
     ap.add_argument("--memory", type=Path, default=None, help="a folder: the count of each order survives a restart")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8402)
+    ap.add_argument("--key", type=Path, default=None, help="the operator's signing key (a solana-keygen file): without it every paid answer is unsigned")
+    ap.add_argument("--history", type=Path, default=None, help="the folder of <slug>.history.json files (knos record history); never the free folder")
+    ap.add_argument("--suppliers", type=Path, default=None, help="a JSON file {slug: the supplier's public key}: whose grants this server accepts")
+    ap.add_argument("--ttl", type=int, default=None, help="seconds a signed answer stays fresh (default 3600)")
+    ap.add_argument("--health", action="store_true", help="print what the server would answer at /health and stop: exit 0 when it can serve")
     a = ap.parse_args(argv)
-    httpd = run_serve(a.offer, a.records, a.memory, a.host, a.port)
-    print(f"Serving on http://{a.host}:{httpd.server_address[1]}  paid: /lookup/<slug>  free: /records/<slug>.json. {NO_HOST}", flush=True)
+    if a.offer is None and not a.health:
+        ap.error("name the seller's offer file")
+    if a.health:
+        got = build_server(a.offer, a.records, a.memory, a.key, a.history, a.suppliers, a.ttl).health()
+        print(json.dumps(got, indent=1))
+        return 0 if got["ok"] else 1
+    httpd = run_serve(a.offer, a.records, a.memory, a.host, a.port, key=a.key, history=a.history, suppliers=a.suppliers, ttl=a.ttl)
+    signs = "signed answers" if a.key else "UNSIGNED answers (no --key)"
+    print(f"Serving on http://{a.host}:{httpd.server_address[1]}  paid: /lookup/<slug> ({signs})  free: /records/<slug>.json  health: /health. {NO_HOST}", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

@@ -334,6 +334,7 @@ export function renderStatements(el, ctx = {}) {
         <div class="k-table" id="aps-ids">${tableHtml(esc, ["line", "deliverable", "evaluations", "invoice line", "settlement", "evidence sha256", "purchase order", "goods-received note"],
           c.rows.map((r) => [r[at("line")], r[at("deliverable")], r[at("evaluations")], r[at("invoice_line")], r[at("settlement")], r[at("evidence_sha256")], r[at("po_reference")], r[at("grn_reference")]].map((v) => `<span class="mono">${esc(v)}</span>`)))}</div>
         <div class="k-table" id="aps-top">${tableHtml(esc, ["", ""], [...c.top, ["statement sha256", st.sha256], ...c.events.map((e) => [e[0], e.slice(1).join(", ")])].map((a) => a.map(esc)))}</div></details>
+      ${doc.getElementById("approve") ? `<p class="no-print"><a id="aps-approve" href="#approve">Approve this invoice</a></p>` : ""}
       <p class="fine" id="aps-note">${esc(st.note)}</p></article>`;
     $("aps-csv").onclick = async () => save(await statementCsv(st, status), `${name}.csv`);
     $("aps-print").onclick = () => {

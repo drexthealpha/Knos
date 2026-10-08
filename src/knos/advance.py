@@ -3,6 +3,8 @@
     knos advance offer     an advancer writes what it will advance against: its discount, its cap, the judges it accepts
     knos advance take      a supplier takes it for one order: one transaction pays the supplier and assigns the order
     knos advance status    where one advance stands, from the chain alone
+    knos advance quote     prices a closed, reserved netting period (knos.netting) as a receivable: what its reserve
+                           order will pay the supplier, less the financier's discount
 
 Not offered by Knos: a third party can do this today with the program as it is. Knos lends nothing, holds nothing and
 charges nothing for it. The only instruction of knos_pay used is Assign (24): a payee names the wallet that receives
@@ -20,6 +22,10 @@ After that the order has one of three ends, and each pays exactly one party once
 
 In the last two the advancer has paid and collects nothing. It has no recourse on chain: the program gives it no
 claim on the supplier or on the funder. docs/ADVANCE.md says what to check before advancing.
+
+A netting period is financed the same way, and only when a reserve secures it: the receivable is the period's draws
+on its reserve order, the supplier assigns that order's payments, and the financier collects the draws. WHO_CARRIES
+says who is left with which risk. Knos never funds, lends or guarantees any of it.
 
 Standard library and knos.settle.v2.pay only at import.
 """
@@ -40,6 +46,18 @@ CHECK_FIRST = ("the supplier's record (knos record build <supplier>; docs/RECORD
                "the order's terms, by their hash: what the judge will accept",
                "the deadline: an order nobody accepted goes back to its funder then",
                "the judge the order pins: the workflow repository and its commit")
+
+
+WHO_CARRIES = (
+    ("buyer", "Its money is locked in the reserve order from before the work. It gets back what no draw took, after the deadline, and nothing sooner."),
+    ("supplier", "After selling the period: the discount, and nothing else of that period. Without a sale: that the draws are signed before the "
+                 "reserve's deadline, and what the period left undrawn (under one tranche)."),
+    ("financier", "It paid the supplier and collects the draws. It loses if the judge the order pins signs no draw before the deadline: the money "
+                  "then goes back to the buyer, and the program gives the financier no claim on anyone."),
+    ("Knos", "No money at any step: it funds nothing, lends nothing, holds nothing, guarantees nothing and charges nothing for the sale."),
+)
+ASSIGN_COVERS = ("Assign moves every later payment of this reserve order to this supplier, not one period's: the financier collects each draw until "
+                 "it assigns the order back, which only it can sign.")
 
 
 def canon(o: Any) -> str:
@@ -134,6 +152,54 @@ def quote(doc: dict, order, *, now: int, assigned=None, share_bps: int = 10_000,
             "assurance": assurance or "not known: the judge has not run", "recourse": RECOURSE, "knos_fee": 0}
 
 
+def period_quote(doc: dict, book, order, *, now: int, period: str | None = None, assigned=None, wf_repo: str = "") -> dict:
+    """What `doc` (an offer) gives for a closed, reserved netting period of `book` (a knos.netting.Book) and every reason
+    it gives nothing. `order`: the period's reserve order as read now (knos.settle.v2.pay.Order, or None). `period`: its
+    name, like "202610.0" (default: the last closed one). The receivable is what the period draws from its reserve:
+    whole tranches. What it left undrawn is not sold. A quote that is ok goes to `take_ixs` as any other."""
+    from . import netting
+    from .settle.v2 import pay
+    zero = {"ok": False, "pays_now": 0, "discount": 0, "collects": 0, "knos_fee": 0}
+    bad = check(doc)
+    if bad:
+        return {**zero, "why": [bad]}
+    p = next((x for x in reversed(book.periods) if x.closed is not None and period in (None, x.name)), None)
+    if p is None:
+        return {**zero, "why": ["the book has no such closed period: only a closed period is sold, when both books came to one root and its net is fixed"]}
+    if p.reserve is None:
+        return {**zero, "why": [f"period {p.name} is unsecured: no order holds its money, so there is nothing to assign. The buyer's credit is not sold here."]}
+    s = netting.reserve_state(p)
+    why: list[str] = [f"period {p.name} is written as settled, by {p.settled}"] if p.settled else []
+    share = s["drawn"]
+    if share <= 0:
+        why.append(f"period {p.name} draws nothing: it comes to less than one tranche of {s['tranche']}")
+    if order is None:
+        why.append(f"the reserve order {s['order']} is gone: paid out or refunded")
+    else:
+        why += netting.reserve_check(p, order, now)
+        if str(order.mint) != doc["mint"]:
+            why.append(f"the reserve is in mint {order.mint}, not {doc['mint']}")
+        if order.deadline - now < doc["min_seconds_left"]:
+            why.append(f"the reserve's deadline is {max(order.deadline - now, 0)} seconds away and the offer asks for {doc['min_seconds_left']}")
+        if ANY not in doc["evaluators"]:
+            named = f"{wf_repo}@{order.wf_sha}"
+            if not wf_repo or pay.wf_repo_hash(wf_repo) != order.wf_repo_hash:
+                why.append("name the workflow repository the reserve pins (--workflows): the order stores only its hash")
+            elif named not in doc["evaluators"]:
+                why.append(f"the reserve's judge is {named}, which the offer does not accept")
+    if assigned is not None:
+        why.append(f"this reserve's payments are already assigned to {assigned}")
+    if doc["expires"] and now > doc["expires"]:
+        why.append("the offer has expired")
+    if share > doc["cap"]:
+        why.append(f"the period draws {share} and the offer's cap is {doc['cap']}")
+    cut = discount(share, doc["rate_bps"])
+    return {"ok": not why, "why": why, "period": p.name, "order": s["order"], "share": share, "draws": s["draws"], "tranche": s["tranche"],
+            "undrawn_not_sold": s["undrawn"], "deadline": s["deadline"], "discount": 0 if why else cut, "pays_now": 0 if why else share - cut,
+            "collects": 0 if why else share, "at_acceptance": 0 if why else share, "after_warranty": 0, "assurance": "both books came to one root",
+            "recourse": RECOURSE, "assign_covers": ASSIGN_COVERS, "who_carries": [{"who": w, "what": t} for w, t in WHO_CARRIES], "knos_fee": 0}
+
+
 def transfer_ix(source, mint, dest, owner, amount: int, decimals: int = 6, token_program=None):
     """A plain TransferChecked of the token program, as any wallet sends it."""
     from solders.instruction import AccountMeta, Instruction
@@ -196,6 +262,13 @@ def lines(q: dict, money: str = "test USDC", decimals: int = 6) -> list[str]:
     m = lambda units: f"{units / 10 ** decimals:,.2f} {money}"  # noqa: E731
     if not q["ok"]:
         return ["Nothing is advanced: " + "; ".join(q["why"]) + "."]
+    if q.get("period"):
+        return [f"The financier pays the supplier {m(q['pays_now'])} now for period {q['period']}: its {q['draws']} draws of {m(q['tranche'])}, "
+                f"{m(q['share'])}, less a discount of {m(q['discount'])}.",
+                f"Each draw the reserve's judge signs then pays the financier {m(q['tranche'])} from the reserve order, {m(q['collects'])} in all.",
+                f"What the period left undrawn, {m(q['undrawn_not_sold'])}, is not sold.",
+                "If no draw is signed before the reserve's deadline, the money goes back to the buyer and the financier collects nothing.",
+                f"Recourse: {RECOURSE}.", "Knos charges nothing for this. " + NOT_KNOS]
     out = [f"The advancer pays the supplier {m(q['pays_now'])} now: the share of {m(q['share'])} less its discount of {m(q['discount'])}.",
            f"If the work is accepted the order pays the advancer {m(q['at_acceptance'])}"
            + (f", and {m(q['after_warranty'])} after the warranty unless the change is reverted." if q["after_warranty"] else "."),
@@ -209,7 +282,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
     import importlib
     typer = importlib.import_module("typer")
     if help_lines is not None:
-        help_lines.append(("advance", "For money", "An advance by a third party against a funded order. Knos lends nothing and charges nothing."))
+        help_lines.append(("advance", "For money", "An advance by a third party against a funded order or a reserved netting period. Knos lends nothing and charges nothing."))
     group = typer.Typer(help="An advance by a third party against a funded order (docs/ADVANCE.md). " + NOT_KNOS, no_args_is_help=True)
     app.add_typer(group, name="advance", rich_help_panel="For money")
 
@@ -254,6 +327,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
               payee: int = typer.Option(..., "--payee", help="the supplier's GitHub id, as the order's judge will name it"),
               workflows: str = typer.Option("", "--workflows", help="the workflow repository the order pins, owner/repo"),
               assurance: str = typer.Option(None, "--assurance", help="how the judge ran, when an acceptance is already signed"),
+              period: Path = typer.Option(None, "--period", help="a netting book: take against its last closed period, whose reserve is --order"),
               keypair: Path = typer.Option(None, "--keypair", help="the supplier's bound wallet: it signs Assign"),
               advancer_keypair: Path = typer.Option(None, "--advancer-keypair", help="the advancer's wallet: it signs the transfer"),
               as_json: bool = typer.Option(False, "--json", help="the quote as JSON")) -> None:
@@ -264,8 +338,18 @@ def register(app: Any, help_lines: list | None = None) -> None:
         doc = _read(offer_file)
         ledger, at = cli._ledger(), Pubkey.from_string(order)
         o = pay.read_order(ledger.account(at))
-        q = quote(doc, o, now=ledger.now(), assigned=pay.read_assign(ledger.account(pay.assign_pda(at, payee)), o) if o else None,
-                  wf_repo=workflows, assurance=assurance)
+        assigned = pay.read_assign(ledger.account(pay.assign_pda(at, payee)), o) if o else None
+        if period is not None:
+            from . import netting
+            try:
+                book = netting.load(period)
+            except ValueError as why:
+                raise _stop(f"{period}: {why}") from None
+            q = period_quote(doc, book, o, now=ledger.now(), assigned=assigned, wf_repo=workflows)
+            if q.get("order", order) != order:
+                raise _stop(f"The period's reserve is order {q['order']}, not {order}.", "Pass that address as --order.")
+        else:
+            q = quote(doc, o, now=ledger.now(), assigned=assigned, wf_repo=workflows, assurance=assurance)
         if as_json:
             typer.echo(json.dumps(q, indent=1))
         else:
@@ -284,6 +368,46 @@ def register(app: Any, help_lines: list | None = None) -> None:
             raise _stop(f"--advancer-keypair is {advancer.pubkey()}, and the offer's advancer is {doc['advancer']}.")
         sig = ledger.send(take_ixs(doc, q, at, o, payee, supplier.pubkey()), advancer, [supplier])
         cli.out.print(f"Sent {sig}: the supplier was paid and the order is assigned. See it: knos advance status --order {order} --payee {payee}", markup=False)
+
+    @group.command("quote")
+    def quote_(offer_file: Path = typer.Argument(..., help="the financier's offer"),
+               period: Path = typer.Option(..., "--period", help="the netting book (knos net) whose closed, reserved period is sold"),
+               name: str = typer.Option(None, "--name", help="the period, like 202610.0 (default: the last closed one)"),
+               workflows: str = typer.Option("", "--workflows", help="the workflow repository the reserve pins, owner/repo"),
+               as_json: bool = typer.Option(False, "--json", help="the quote as JSON")) -> None:
+        """Price a closed, reserved netting period as a receivable. Nothing is sent: `take` sends it, against the reserve order."""
+        from solders.pubkey import Pubkey
+        from . import cli, netting
+        doc = _read(offer_file)
+        try:
+            book = netting.load(period)
+        except ValueError as why:
+            raise _stop(f"{period}: {why}") from None
+        p = next((x for x in reversed(book.periods) if x.closed is not None and name in (None, x.name)), None)
+        o, assigned, now = None, None, 0
+        if p is not None and p.reserve is not None:
+            ledger, at = cli._ledger(), Pubkey.from_string(p.reserve["order"])
+            o, now = pay_order(ledger, at), ledger.now()
+            assigned = _assigned(ledger, at, p.terms["seller"], o)
+        q = period_quote(doc, book, o, now=now, period=name, assigned=assigned, wf_repo=workflows)
+        if as_json:
+            typer.echo(json.dumps(q, indent=1))
+        else:
+            for line in lines(q):
+                cli.out.print(line, markup=False)
+            if q["ok"]:
+                cli.out.print(ASSIGN_COVERS, markup=False)
+                cli.out.print(f"Take it: knos advance take {offer_file} --order {q['order']} --payee {p.terms['seller'] if p else ''}", markup=False)
+        if not q["ok"]:
+            raise typer.Exit(1)
+
+    def pay_order(ledger, at):
+        from .settle.v2 import pay
+        return pay.read_order(ledger.account(at))
+
+    def _assigned(ledger, at, payee: int, o):
+        from .settle.v2 import pay
+        return pay.read_assign(ledger.account(pay.assign_pda(at, payee)), o) if o else None
 
     @group.command("status")
     def status_(order: str = typer.Option(..., "--order", help="the order's address"),

@@ -15,6 +15,8 @@ test; until a second person has run it, every step here is the founder's descrip
 | Keep the verifier's signing keys from expiring (`Refresh`) | **yes, while the pinned rotate workflow can be fetched** | anyone may run it by hand from a repository of their own ([GOVERNANCE.md](GOVERNANCE.md), section 8). |
 | Serve the site | **yes, at another address** | `bash scripts/build_site.sh` writes a static folder; any host serves it. |
 | Fund and pay an order in a repository of their own | **yes** | install, comment, merge ([INSTALL.md](INSTALL.md)). |
+| Host the neutral evaluator for someone else's order | **yes** | a repository made from a template and one button; no secret ([`examples/host_a_judge`](../examples/host_a_judge/README.md)). It is what lets a receipt read `rerun`. |
+| Restart the relay's chain of runs | **yes, in their own fork** | `gh workflow run worker.yml -R YOU/Knos`, or the timer within 5 minutes (section 3). |
 | Register a new signing key of an issuer | **no** | the verifier takes that attestation only from repositories of one GitHub account, id 142920951 (`ATTEST_OWNER_ID` in [`pins.rs`](../programs-v2/knos_oidc/src/pins.rs)). |
 | Approve, cancel or execute an upgrade; revoke a key; pause funding | **no** | all three member keys of both multisigs are the founder's. Outside key holders today: 0 ([KEYHOLDER.md](KEYHOLDER.md)). |
 | Keep the published pinned workflows available | **no** | they are files in the founder's account; section 5 is what to do about it. |
@@ -45,6 +47,13 @@ The fee payer pays transaction fees and holds nobody's money.
       own (cron, a systemd timer). The founder's runs as [`worker.yml`](../.github/workflows/worker.yml), every 5
       minutes, with the key in the repository secret `KNOS_RELAY_KEY`; a fork of the repository with that secret
       set runs the same workflow.
+- [ ] From your own fork: fork the repository, open the fork's Actions tab once (GitHub asks before it runs a
+      fork's workflows), then `gh secret set KNOS_RELAY_KEY -R YOU/Knos < relay.json`. The fork's `worker.yml` relays
+      with your key and logs to an issue of your fork.
+- [ ] Restart the chain: `gh workflow run worker.yml -R YOU/Knos` (leave `after` empty: that starts a chain).
+      Expected: `gh run list -R YOU/Knos --workflow worker.yml --limit 3` shows a run titled `relay`, then one titled
+      `relay after <that run's id>` a few minutes later. A chain stops when a run fails or GitHub refuses to
+      start the next one; the fork's timer starts it again within 5 minutes, and this line does it at once.
 - [ ] One token, by hand: `knos relay --token-file FILE` prints the result as JSON and exits 1 if Solana did not
       take it. A token sent twice pays nobody twice.
 
@@ -91,6 +100,25 @@ All are in [`.github/workflows`](../.github/workflows) of the repository.
 ## The drill: `second operator`
 
 **Status: not yet run by a second person.** No result exists.
+
+One command runs the steps a machine can check, and prints what it saw beside what it expected:
+
+```
+python scripts/second_operator.py --fork YOU/Knos --key relay.json
+```
+
+```
+1 status     ok: `knos status` exited 0 (expected 0)
+2 fee payer  ok: <your address> holds 2.000 SOL (expected at least 0.05)
+3 relay      ok: one pass of `knos relay` with your key exited 0 (expected 0)
+4 the fork   ok: YOU/Knos holds the secret KNOS_RELAY_KEY (expected: listed)
+5 the chain  ok: run <id> of worker.yml is queued in YOU/Knos (expected: a run started by hand, which starts the next)
+```
+
+It stops at the first step that fails and says what to do. It needs sections 1 to 3 done and the GitHub CLI signed
+in as you. It refuses the founder's repository as `--fork`. It does not show condition (3) below: a person reads the
+paying transaction's fee payer on a block explorer. `--simulate` answers every step from canned text, to test the
+script; it is not a drill (`tests/test_second_operator.py`).
 
 - **Who:** someone who is not the founder, on a machine that has never held a file of the founder's.
 - **Starts from:** a clean clone (or `pip install knos`) and this page. No message to the founder.

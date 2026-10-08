@@ -98,3 +98,13 @@ def test_the_docs_this_gate_covers_name_outside_repositories_and_never_knos_itse
     # and the pages say how the gate is run, with the same list
     text = (ROOT / "docs" / "INTEGRATIONS.md").read_text(encoding="utf-8")
     assert "python scripts/upstream_check.py --docs docs/INTEGRATIONS.md docs/X402.md" in text
+
+
+def test_the_x402_page_says_what_was_opened_upstream_and_that_nobody_answered():
+    # the knos-order proposal: an issue and a draft pull request with the specification only, both linked; the page
+    # no longer says nothing was opened, and the count of outside facilitators stays 0
+    text = " ".join((ROOT / "docs" / "X402.md").read_text(encoding="utf-8").split())
+    assert "https://github.com/x402-foundation/x402/issues/3720" in text
+    assert "https://github.com/x402-foundation/x402/pull/3731" in text
+    assert "no issue and no pull request has been opened" not in text and "has not been run from a machine" not in text
+    assert "No maintainer has answered either yet" in text and "the count of outside facilitators is 0" in text

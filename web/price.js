@@ -147,7 +147,7 @@ export function priceBook() {
     ["Acceptance", "dollar released or reconciled against a signed acceptance", `${rate(r0)}; by contract ${rate(r1)} on monthly value above ${short(a1)} (the rate never goes below ${rate(r1)}); small tickets are netted: outcomes under ${BILL.netBelowCents / 100} USD accumulate and settle as one release per payee per period, charged ${rate(r0)} of the netted amount with the ${floor} floor once per release; no cap`,
       "funder, on top of the amount", `knos_pay at release (on chain: ${rate(r0)} and the floor; volume rates are a rebate by contract, off chain)`],
     ["Record", "lookup of a supplier's delivery record through the machine-priced API", `${record} USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free`,
-      "the buyer, marketplace or insurer reading it", "API (not built: a static file today)"],
+      "the buyer, marketplace or insurer reading it", "`knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it"],
     ["Control", "organisation, per year", `Team ${thousands(k.team)}; Business ${thousands(k.business)}; Enterprise from ${thousands(k.enterprise)} (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)`, "buyer", "contract"],
     ["Pilot", "one buyer, two suppliers, 30 days, one reconciled invoice", `${thousands(BILL.pilot)} USD, credited against year one`, "buyer", "contract"],
   ];

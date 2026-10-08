@@ -174,7 +174,7 @@ def test_the_playground_holds_the_callers_a_template_that_funds_and_checks_for_e
     assert slots == {f".knos/acceptance/{n}/{name}" for n in range(1, p.SLOTS + 1) for name in ("blackbox.py", "cases.json", "README.md")}
     tasks = {rel for rel in files if rel.startswith("tasks/")}                      # every task's starting file and public examples, and check.py to try them
     assert len(tasks) == 48 and {rel.rsplit(".", 1)[1] for rel in tasks} == {"py", "json"} and "check.py" in files and "board.json" not in files
-    assert len(files) == 9 + 48 + 3 * p.SLOTS
+    assert len(files) == 9 + 1 + 48 + 3 * p.SLOTS and r.FAUCET_WORKFLOW in files           # the two callers and the rest, the faucet workflow, the tasks, the slots
     for n in (1, 2, p.SLOTS):
         bundle = {name: files[f".knos/acceptance/{n}/{name}"] for name in ("blackbox.py", "cases.json", "README.md")}
         assert judge.black_box(bundle) == "" and bundle == accept.bundle(n, ["python3", p.TASK], r.starter_cases(), "text", 16)
@@ -228,3 +228,22 @@ def test_the_release_plan_rebuilds_after_the_stamp_every_repository_that_calls_t
     # and the script's own page says which of them are templates (the playground is not one)
     first, second, third = (n for n in r.REPOS if r.SETTINGS[n][0][2]["is_template"])
     assert f"{first}, {second} and {third} are template repositories" in " ".join((r.__doc__ or "").split())
+
+
+def test_a_rebuild_of_the_playground_keeps_the_faucet_workflow_and_it_is_the_workers_own_job():
+    """The 0.3.19 run added a faucet-only workflow to the playground by hand; a rebuild would have dropped it. Now it is
+    one of the playground's files, made from the worker's own `faucet` job, so it cannot drift from what was tested."""
+    files = r.files("knos-playground")
+    text = files[r.FAUCET_WORKFLOW].decode("utf-8")
+    assert r.FAUCET_WORKFLOW == ".github/workflows/knos-faucet.yml" and files[r.FAUCET_WORKFLOW] == r.faucet_workflow()
+    assert all(r.FAUCET_WORKFLOW not in r.files(name) for name in r.REPOS if name != "knos-playground")
+    worker = (ROOT / ".github" / "workflows" / "worker.yml").read_text(encoding="utf-8")
+    job = worker[worker.index("  faucet:\n"):].rstrip("\n")
+    assert text.rstrip("\n").endswith(job) and "python -m knos.faucet --event" in job
+    head = text[:text.index("jobs:\n")]
+    assert "issue_comment:" in head and "schedule" not in head and "permissions:\n  contents: read\n" in head         # one trigger, nothing writable at the top
+    assert "\n  relay:" not in text and "\n  event:" not in text and "\n  claims:" not in text and text.count("\n  faucet:\n") == 1
+    assert "KNOS_FAUCET_KEY" in text and "test USDC, which has no\n# monetary value" in text and "issues: write" in job
+    for line in text.splitlines():                                                                                    # every action by its commit
+        if "uses:" in line:
+            assert re.search(r"uses: [\w./-]+@[0-9a-f]{40}( |$)", line), line

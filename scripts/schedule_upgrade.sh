@@ -26,7 +26,27 @@
 #   bash scripts/schedule_upgrade.sh --run        the run itself, now: what the timer calls. Safe by hand too: a
 #                                                 proposal whose time has not come is refused by governance.mjs and by
 #                                                 the Squads program, and one already executed is left alone
+#   bash scripts/schedule_upgrade.sh --run --force   the run again, although a run for this schedule ended well before
 #   --with systemd|at|schtasks                    choose the timer instead of taking the first that works here
+#
+# NOBODY HAS TO BE THERE AT THE MINUTE (0.3.20). The Windows task used to have one trigger, the time, and a Windows task
+# made without a stored password runs only in a session that is logged on: with nobody logged on at that minute it did
+# not start. It now has three ways to start, and none stores a password:
+#   at the time                  the time trigger, as before
+#   as soon as possible after    StartWhenAvailable: a start that was missed (the machine was off or asleep) is made
+#                                when the Task Scheduler runs again
+#   at the next logon            a logon trigger for this Windows user, in force from the time on, for 14 days: with
+#                                nobody logged on at the time, the run starts when that user next logs on
+# The other way Windows offers, "run whether the user is logged on or not" without a stored password (logon type S4U),
+# is NOT used: such a task has "no access to either the network or encrypted files"
+# (https://learn.microsoft.com/en-us/windows/win32/taskschd/taskschedulerschema-logontype-simpletype), and the run
+# needs the cluster. When Windows does not take the logon trigger (KNOS_WIN_USER names nobody it knows), the task is
+# made with the first two, and the script says so. A systemd timer is made with Persistent=true, which is the same
+# promise there; `at` runs a job whose time passed when its daemon next starts.
+# A SECOND RUN AFTER SUCCESS DOES NOTHING. A run that executed every proposal writes <key folder>/upgrade-run.done (the
+# schedule it was for). Any later start for the same schedule, by a trigger or by hand, logs one line and ends with 0;
+# --force runs it again. Two starts at once: the second finds <key folder>/upgrade-run.lock and ends (a lock older
+# than two hours is a run that died, and is taken over).
 #
 # The timer is the first of these that works on this machine:
 #   systemd   systemd-run --user --on-calendar: a transient timer of the user's systemd (unit knos-upgrade)
@@ -71,6 +91,8 @@
 #   KNOS_OSRELEASE     the file that names the kernel (default /proc/sys/kernel/osrelease): Microsoft's means WSL even
 #                      where WSL_DISTRO_NAME is not set (sudo, a timer)
 #   KNOS_SCHTASKS      schtasks.exe when it is not on PATH (default /mnt/c/Windows/System32/schtasks.exe)
+#   KNOS_WIN_USER      schtasks: the Windows user whose logon also starts the run (default: what whoami.exe, beside
+#                      schtasks.exe, prints). `-`: no logon trigger
 #   KNOS_NODE_DIR      the folder whose package.json and node_modules governance.mjs runs on (default: scripts/)
 #   KNOS_UPGRADE_DEPS  0: the Node packages are neither checked nor installed (a machine that provides them another
 #                      way, and the tests that stand in for node). Anything else: checked first
@@ -81,13 +103,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
 
-ACTION=schedule WITH="" BARE=0
+ACTION=schedule WITH="" BARE=0 FORCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --show) ACTION=show ;;
     --cancel) ACTION=cancel ;;
     --run) ACTION=run ;;
     --verify) ACTION=verify ;;
+    --force) FORCE=1 ;;
     --bare) BARE=1 ;;                        # --verify's second half, inside the login shell it started
     --with) shift; WITH="${1:-}"; case "$WITH" in systemd|at|schtasks) ;; *) echo "--with takes systemd, at or schtasks" >&2; exit 2 ;; esac ;;
     -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
@@ -101,6 +124,8 @@ SCHEDULE="${KNOS_SCHEDULE:-$KEYS/upgrade-schedule.json}"
 LOG="$KEYS/upgrade-run.log"
 ENVFILE="$KEYS/upgrade-run.env"
 STATE="$KEYS/upgrade-run.timer"            # how the run was arranged: the timer's kind and its name or job number
+DONE="$KEYS/upgrade-run.done"              # the schedule a run executed every proposal of: a later start for it does nothing
+LOCK="$KEYS/upgrade-run.lock"              # a run is going
 UNIT=knos-upgrade
 TASK=KnosUpgrade
 
@@ -173,11 +198,27 @@ key_files() {
 unreadable() { local f; key_files | while IFS= read -r f; do if [ ! -f "$f" ] || [ ! -r "$f" ]; then echo "$f"; fi; done; }
 
 # ---- the run itself ---------------------------------------------------------------------------------------------------
+# what a run is for: the time and every proposal with its build. A run that ended well keeps it in $DONE
+schedule_key() { echo "run_at $(field run_at)"; field plan; }
 run() {
   local index hash program failed=0 rpc missing why
   [ -f "$SCHEDULE" ] || die "$SCHEDULE is missing: nothing was proposed, or the key folder is another one (KNOS_KEYS)."
   rpc="$(field rpc)" || die "$SCHEDULE names no cluster."
   mkdir -p "$(dirname "$LOG")"
+  # a second start after success (the logon trigger after the time trigger, a person after both) does nothing
+  if [ "$FORCE" = 0 ] && [ -f "$DONE" ] && [ "$(cat "$DONE")" = "$(schedule_key)" ]; then
+    echo "==== $(stamp)  a start for a schedule that is done already (proposals $(field indexes)): nothing was sent. Again all the same: bash scripts/schedule_upgrade.sh --run --force" >> "$LOG"
+    tail -n 1 "$LOG"
+    return 0
+  fi
+  # one run at a time: two triggers may start it in the same minute
+  if [ -d "$LOCK" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +120 2>/dev/null)" ]; then rmdir "$LOCK" 2>/dev/null || true; fi
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    echo "==== $(stamp)  another upgrade run is going ($LOCK): this start sends nothing" >> "$LOG"
+    tail -n 1 "$LOG"
+    return 0
+  fi
+  trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
   # a key the execution signs with that cannot be read would fail each proposal one by one: said once, loudly, first
   missing="$(unreadable)"
   if [ -n "$missing" ]; then
@@ -220,6 +261,7 @@ run() {
   } >> "$LOG" 2>&1
   tail -n 3 "$LOG"
   if [ "$failed" != 0 ]; then echo "stopped: $failed proposal(s) NOT executed; the log says why for each: $LOG" >&2; return 1; fi
+  schedule_key > "$DONE"
   echo "The site shows them executed with its next build (the pages workflow, every 30 minutes; now: gh workflow run network.yml)."
 }
 
@@ -275,7 +317,7 @@ works() {
 }
 
 arrange() {
-  local at kind="" k command id xml distro order="systemd at schtasks" missing nohash
+  local at kind="" k command id xml distro order="systemd at schtasks" missing nohash user logon exe
   [ -f "$SCHEDULE" ] || die "$SCHEDULE is missing. Propose the upgrades first: bash scripts/deploy_v2.sh --propose"
   at="$(field run_at)" || die "$SCHEDULE names no time (run_at): propose the upgrades again."
   field indexes >/dev/null || die "$SCHEDULE names no proposal."
@@ -326,20 +368,42 @@ arrange() {
       id="$TASK" distro="${KNOS_WSL_DISTRO:-${WSL_DISTRO_NAME:-Ubuntu-24.04}}" xml="$KEYS/upgrade-run.task.xml"
       # an XML task, because its start time is written as a UTC instant: `schtasks /ST` reads the time in the Windows
       # user's locale and time zone, which this script cannot know. UTF-16 with a mark, as the Task Scheduler wants it
-      { printf '<?xml version="1.0" encoding="UTF-16"?>\n<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
+      # the Windows user whose logon also starts the run: whoami.exe beside schtasks.exe says who this is
+      exe="$(schtasks_exe)"
+      user="${KNOS_WIN_USER:-$("$(dirname "$exe")/whoami.exe" 2>/dev/null | tr -d '\r' | head -n 1 || true)}"
+      [ "$user" != - ] || user=""
+      task_xml() {      # $1: the user of the logon trigger, or nothing for a task without one
+        printf '<?xml version="1.0" encoding="UTF-16"?>\n<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
         printf '  <RegistrationInfo><Description>Knos: execute the proposed upgrades, then knos status</Description></RegistrationInfo>\n'
-        printf '  <Triggers><TimeTrigger><StartBoundary>%s</StartBoundary><Enabled>true</Enabled></TimeTrigger></Triggers>\n' "$(date_at "$at" -u "+%Y-%m-%dT%H:%M:%SZ")"
-        printf '  <Settings><StartWhenAvailable>true</StartWhenAvailable><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
+        printf '  <Triggers><TimeTrigger><StartBoundary>%s</StartBoundary><Enabled>true</Enabled></TimeTrigger>' "$(date_at "$at" -u "+%Y-%m-%dT%H:%M:%SZ")"
+        # at this user's next logon, from the time on and for 14 days: a start nobody was logged on for is made then
+        if [ -n "$1" ]; then
+          printf '<LogonTrigger><StartBoundary>%s</StartBoundary><EndBoundary>%s</EndBoundary><Enabled>true</Enabled><UserId>%s</UserId></LogonTrigger>' \
+            "$(date_at "$at" -u "+%Y-%m-%dT%H:%M:%SZ")" "$(date_at "$((at + 1209600))" -u "+%Y-%m-%dT%H:%M:%SZ")" "$(printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g')"
+        fi
+        printf '</Triggers>\n'
+        printf '  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><StartWhenAvailable>true</StartWhenAvailable><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
         printf '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><WakeToRun>true</WakeToRun><ExecutionTimeLimit>PT1H</ExecutionTimeLimit></Settings>\n'
         # wsl.exe inside a headless console: started by the Task Scheduler in a console of its own, wsl.exe was ended
         # with STATUS_CONTROL_C_EXIT after about 20 seconds (seen on Windows 10), taking the run with it half way
         printf '  <Actions><Exec><Command>C:\\Windows\\System32\\conhost.exe</Command><Arguments>--headless C:\\Windows\\System32\\wsl.exe -d %s -- env KNOS_KEYS=%s /bin/bash -l %s --run</Arguments></Exec></Actions>\n</Task>\n' \
           "$distro" "$(printf '%q' "$KEYS" | sed 's/&/\&amp;/g; s/</\&lt;/g')" "$(printf '%s' "$command" | sed 's/&/\&amp;/g; s/</\&lt;/g')"
-      } | { printf '\xff\xfe'; iconv -f UTF-8 -t UTF-16LE; } > "$xml"
-      "$(schtasks_exe)" /Create /TN "$id" /XML "$(wslpath -w "$xml")" /F >/dev/null || die "schtasks.exe did not make the task (the lines above say why)."
+      }
+      logon="at the next logon of $user"
+      task_xml "$user" | { printf '\xff\xfe'; iconv -f UTF-8 -t UTF-16LE; } > "$xml"
+      if [ -z "$user" ] || ! "$exe" /Create /TN "$id" /XML "$(wslpath -w "$xml")" /F >/dev/null; then
+        # without the logon trigger: Windows did not take it, or nobody could be named
+        logon=""
+        task_xml "" | { printf '\xff\xfe'; iconv -f UTF-8 -t UTF-16LE; } > "$xml"
+        "$exe" /Create /TN "$id" /XML "$(wslpath -w "$xml")" /F >/dev/null || die "schtasks.exe did not make the task (the lines above say why)."
+      fi
       echo "$kind $id" > "$STATE"
       echo "arranged with the Windows Task Scheduler: the task $id starts wsl.exe -d $distro at $(utc "$at"), whether or not a WSL window is open."
-      echo "  see it:    schtasks.exe /Query /TN $id /V /FO LIST"
+      echo "  It starts at that time; as soon as possible after it when that start was missed (the machine was off or asleep);"
+      if [ -n "$logon" ]; then echo "  and $logon after that time, for 14 days. No password is stored. A second start after success does nothing."
+      else echo "  NOTE: no logon trigger (Windows took none, or KNOS_WIN_USER names nobody): be logged on to Windows at that time, or run it by hand after it."; fi
+      echo "  check it:  schtasks.exe /Query /TN $id /V /FO LIST     Next Run Time: the time above, in Windows' own zone. Last Result: 267011 before"
+      echo "             the first start (the task has not run yet), 0 after a run that ended well. Then: bash scripts/schedule_upgrade.sh --show"
       echo "  cancel it: bash scripts/schedule_upgrade.sh --cancel     (or: schtasks.exe /Delete /TN $id /F)" ;;
   esac
   if [ "$kind" != schtasks ] && wsl; then
@@ -360,6 +424,8 @@ show() {
     field plan | while read -r index hash program; do echo "  proposal $index: $program, build $hash"; done
   else echo "schedule: none ($SCHEDULE does not exist)"; fi
   if [ -f "$STATE" ]; then echo "timer: $(cat "$STATE")"; else echo "timer: none arranged"; fi
+  if [ -f "$SCHEDULE" ] && [ -f "$DONE" ] && [ "$(cat "$DONE")" = "$(schedule_key)" ]; then echo "done: a run executed every proposal of this schedule; another start does nothing"
+  elif [ -f "$SCHEDULE" ]; then echo "done: no run has executed every proposal of this schedule yet"; fi
   local missing
   missing="$(unreadable)"
   # $(( )) around wc: the BSD wc of macOS pads its count with spaces

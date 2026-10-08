@@ -31,6 +31,40 @@ whether the named checks will pass.
 An agent asks the same question through the MCP server: the tool `knos_preflight` takes `path` and `terms` (or
 `issue`) and returns the same report.
 
+### What you are owed before you start
+
+Preflight also reads the terms for four things a supplier is owed, and prints each as held, LACKED or not checked,
+with how it is enforced. `program` means a check inside the escrow program; `workflow` means a job of the pinned
+workflow; `advisory` means a file or a command says so and nothing stops the other side.
+
+<!-- protections: begin (scripts/supplier_docs.py) -->
+| You are owed | How | Enforced by | When the terms lack it, preflight says |
+| --- | --- | --- | --- |
+| Fixed criteria | Terms are fixed when the order is funded. | program | These terms name no check and no acceptance suite: the only criterion is that the buyer merges, for any reason or none. |
+| Acceptance deadline | Passing work is paid without a merge. | program | These terms have no acceptance deadline: the buyer can wait forever, and at the order's deadline the money goes back to the buyer. |
+| No arbitrary rejection | A rejection has a reason and a free appeal. | workflow | These terms let the buyer reject by not merging, and name nobody to appeal to: an appeal would be recorded and decide nothing. |
+| Predictable payment | The order is funded before work starts. | program | Not checked from a terms file: an order holds its whole price from funding. Read a funded one with `--issue`. |
+| Predictable payment, netted work | Netted work is covered by a bound reserve. | advisory | This work is netted with no reserve bound: you carry the buyer's credit until the period closes. |
+<!-- protections: end -->
+
+```
+knos preflight --terms terms.json --strict            # exit 1 when the terms lack one, even if your change is ready
+knos preflight --terms terms.json --strict --auto     # the order pays passing work without a merge (`/knos fund ... auto`)
+knos preflight --terms terms.json --arbiter ruth      # the order names an arbiter for an appeal
+knos preflight --terms terms.json --netted --reserve  # netted work, in a period bound to a funded reserve
+```
+
+Three things the 600 bytes of an order's terms do not carry are told to preflight, because the order's options carry
+them: whether passing work is paid without a merge (`--auto`), who the arbiter is (`--arbiter`), and whether netted
+work has a reserve (`--netted --reserve`). A Knos Terms 3 document given as `--terms` supplies its deadline, its
+appeal window and its arbiter itself. What preflight was not told it does not assume: an acceptance deadline nobody
+confirmed is printed as lacked.
+
+What these four do not give you. The appeal is free and recorded, and nothing forces the neutral run or the arbiter
+to answer: with no verdict by the order's deadline the money goes back to the buyer ([DISPUTES.md](DISPUTES.md)).
+A cancelled order's deadline moves to at most 7 days away, and an acceptance inside that notice still pays
+([SECURITY.md](SECURITY.md)). A reserve for netted work is kept by the period's book, not by the program.
+
 ### What it remembers
 
 Preflight recalls what was refused before under the same terms in this repository, and says so before you repeat it:
@@ -237,7 +271,9 @@ nobody's help.
 
 ## What is not here yet
 
-- The workflow does not act on `/knos appeal` until the comment parser and the workflow call `knos.appeal` (the
-  state machine and its record are in place and tested).
+- `/knos appeal` is recorded by the workflow, and nothing starts the neutral run for you: you, the buyer or anyone
+  starts it (section 3).
+- No order's options are read by `knos preflight` from the chain: `--auto`, `--arbiter` and `--netted --reserve` are
+  told to it, and what is not told is printed as lacked or not checked.
 - The judge's refusals reach the supplier's memory when the workflow records them with
   `knos.proof.history.refused`; until then preflight recalls only what this machine saw.
